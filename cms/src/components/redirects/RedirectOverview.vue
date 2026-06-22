@@ -1,9 +1,15 @@
 <script setup lang="ts">
-import { AclPermission, DocType, hasAnyPermission, type RedirectDto, useHybridQuery } from "luminary-shared";
+import {
+    AclPermission,
+    DocType,
+    hasAnyPermission,
+    type RedirectDto,
+    useHybridQueryWithState,
+} from "luminary-shared";
 import BasePage from "../BasePage.vue";
 import RedirectDisplaycard from "./RedirectDisplaycard.vue";
 import { PlusIcon } from "@heroicons/vue/20/solid";
-import { computed, ref, watch } from "vue";
+import { computed, ref } from "vue";
 import LButton from "../button/LButton.vue";
 import CreateOrEditRedirectModal from "./CreateOrEditRedirectModal.vue";
 import { isSmallScreen } from "@/globalConfig";
@@ -12,7 +18,9 @@ import { useInfiniteScrollList } from "@/composables/useInfiniteScrollList";
 const canCreateNew = computed(() => hasAnyPermission(DocType.Redirect, AclPermission.Edit));
 const isCreateOrEditModalVisible = ref(false);
 
-const redirects = useHybridQuery<RedirectDto>(
+// `isFetching` settles to false when the read completes even with no redirects; a fires-once watch
+// on the output would hang on an empty result (HybridQuery dedupes [] → []).
+const { output: redirects, isFetching: isLoading } = useHybridQueryWithState<RedirectDto>(
     () => ({
         selector: { type: DocType.Redirect },
         $sort: [{ updatedTimeUtc: "desc" }],
@@ -21,12 +29,6 @@ const redirects = useHybridQuery<RedirectDto>(
 );
 
 const { visible: visibleRedirects } = useInfiniteScrollList(redirects, { pageSize: 20 });
-
-const isLoading = ref(true);
-const stopLoadingWatcher = watch(redirects, () => {
-    isLoading.value = false;
-    stopLoadingWatcher();
-});
 </script>
 
 <template>

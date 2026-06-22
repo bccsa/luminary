@@ -4,7 +4,7 @@ import {
     db,
     DocType,
     hasAnyPermission,
-    useDexieLiveQuery,
+    useHybridQuery,
     verifyAccess,
     type LanguageDto,
     type Uuid,
@@ -27,6 +27,8 @@ import LDialog from "../common/LDialog.vue";
 import router from "@/router";
 import { capitaliseFirstLetter } from "@/util/string";
 import EditContentActionsWrapper from "../content/EditContentActionsWrapper.vue";
+import { useDocsByType } from "@/composables/useDocsByType";
+import { useHasLocalChange } from "@/composables/useHasLocalChange";
 
 type translationKeyValuePair = {
     rowKey: Uuid;
@@ -50,12 +52,26 @@ const props = defineProps<Props>();
 const { addNotification } = useNotificationStore();
 
 const translations = ref<translationKeyValuePair[]>([]);
-const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
-const isLocalChange = db.isLocalChangeAsRef(props.id);
+const languages = useDocsByType<LanguageDto>(DocType.Language);
+const isLocalChange = useHasLocalChange(props.id);
 const showDeleteModal = ref(false);
 
-const original = useDexieLiveQuery(
-    () => db.docs.where("_id").equals(props.id).first() as unknown as Promise<LanguageDto>,
+// Language is a synced type → Dexie-first HybridQuery. `original` is the loaded baseline the
+// editor clones from (and optimistically re-baselines after save), so mirror the live single-doc
+// result into a local ref rather than binding the managed query output directly.
+const originalQuery = useHybridQuery<LanguageDto>(
+    // Include `type` so HybridQuery routes this synced type Dexie-first (a bare `_id` selector
+    // has no type → it would fall to the API-only branch and never read IndexedDB).
+    () => ({ selector: { type: DocType.Language, _id: props.id }, $limit: 1 }),
+    { live: true },
+);
+const original = ref<LanguageDto>();
+watch(
+    originalQuery,
+    () => {
+        if (originalQuery.value[0]) original.value = _.cloneDeep(originalQuery.value[0]);
+    },
+    { immediate: true },
 );
 const editable = ref<LanguageDto>({
     _id: props.id,

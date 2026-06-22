@@ -5,23 +5,21 @@ import LCard from "../common/LCard.vue";
 import LInput from "../forms/LInput.vue";
 import {
     AclPermission,
-    ApiLiveQuery,
     AckStatus,
     DocType,
     isConnected,
     hasAnyPermission,
     verifyAccess,
-    type ApiSearchQuery,
     type AuthProviderDto,
     type UserDto,
     type Uuid,
-    useDexieLiveQuery,
-    db,
+    useHybridQueryWithState,
     type GroupDto,
     toEditable,
 } from "luminary-shared";
-import { computed, ref, watch, onBeforeUnmount } from "vue";
+import { computed, ref, watch } from "vue";
 import { useNotificationStore } from "@/stores/notification";
+import { useDocsByType } from "@/composables/useDocsByType";
 import { ArrowUturnLeftIcon, TrashIcon } from "@heroicons/vue/24/solid";
 import LDialog from "../common/LDialog.vue";
 import { capitaliseFirstLetter } from "@/util/string";
@@ -37,18 +35,12 @@ const props = defineProps<Props>();
 
 const emit = defineEmits(["close"]);
 
-const userQuery = ref<ApiSearchQuery>({
-    types: [DocType.User],
-    docId: props.id,
-});
-
-const apiLiveQuery = new ApiLiveQuery<UserDto>(userQuery);
-const liveUsers = apiLiveQuery.toArrayAsRef();
-const isLoading = apiLiveQuery.isLoadingAsRef();
-
-onBeforeUnmount(() => {
-    apiLiveQuery.stopLiveQuery();
-});
+// User is a non-synced type → HybridQuery serves it API-only (REST + on-demand socket rooms),
+// preserving the previous ApiLiveQuery behavior. Auto-disposes on unmount.
+const { output: liveUsers, isFetching: isLoading } = useHybridQueryWithState<UserDto>(
+    () => ({ selector: { type: DocType.User, _id: props.id } }),
+    { live: true },
+);
 
 const { addNotification } = useNotificationStore();
 
@@ -113,10 +105,14 @@ function syncFromApi() {
     }
 }
 
-watch(() => props.id, (id) => {
-    currentId.value = id;
-    userQuery.value = { types: [DocType.User], docId: id };
-});
+watch(
+    () => props.id,
+    (id) => {
+        // The user HybridQuery thunk reads props.id directly, so it re-queries on change;
+        // just keep currentId in sync for the editable/template logic.
+        currentId.value = id;
+    },
+);
 
 watch([liveUsers, isLoading], syncFromApi, { immediate: true });
 
@@ -128,18 +124,8 @@ const isDirty = computed(() => {
     return userEditable.isEdited.value(doc._id);
 });
 
-const groups = useDexieLiveQuery(
-    () => db.docs.where({ type: DocType.Group }).toArray() as unknown as Promise<GroupDto[]>,
-    { initialValue: [] as GroupDto[] },
-);
-
-const authProviders = useDexieLiveQuery(
-    () =>
-        db.docs.where({ type: DocType.AuthProvider }).toArray() as unknown as Promise<
-            AuthProviderDto[]
-        >,
-    { initialValue: [] as AuthProviderDto[] },
-);
+const groups = useDocsByType<GroupDto>(DocType.Group);
+const authProviders = useDocsByType<AuthProviderDto>(DocType.AuthProvider);
 
 const providerOptions = computed(() => [
     { label: "Choose a provider this user belongs to", value: "" },

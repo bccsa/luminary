@@ -3,7 +3,6 @@ import {
     db,
     DocType,
     type AuthProviderDto,
-    useDexieLiveQuery,
     useHybridQuery,
     toEditable,
     queryLocal,
@@ -15,23 +14,15 @@ import {
     AckStatus,
 } from "luminary-shared";
 import { useNotificationStore } from "@/stores/notification";
+import { useDocsByType } from "@/composables/useDocsByType";
+import { assignableGroups } from "@/util/groups";
 import _ from "lodash";
 
 export function useAuthProviders() {
     const notification = useNotificationStore();
 
-    const groups = useDexieLiveQuery(
-        () => db.docs.where({ type: "group" }).toArray() as unknown as Promise<GroupDto[]>,
-        { initialValue: [] as GroupDto[] },
-    );
-
-    const availableGroups = computed(() =>
-        groups.value.filter(
-            (group) =>
-                verifyAccess([group._id], DocType.Group, AclPermission.Edit) &&
-                verifyAccess([group._id], DocType.Group, AclPermission.Assign),
-        ),
-    );
+    const groups = useDocsByType<GroupDto>(DocType.Group);
+    const availableGroups = computed(() => assignableGroups(groups.value));
 
     const providersSource = useHybridQuery<AuthProviderDto>(
         () => ({ selector: { type: DocType.AuthProvider } }),

@@ -7,8 +7,6 @@ import {
     DocType,
     type StorageDto,
     type S3CredentialDto,
-    useDexieLiveQuery,
-    useHybridQuery,
     type GroupDto,
     AclPermission,
     verifyAccess,
@@ -21,27 +19,14 @@ import LoadingBar from "@/components/LoadingBar.vue";
 import { useNotificationStore } from "@/stores/notification";
 import { changeReqErrors } from "luminary-shared";
 import { storageValidation } from "@/composables/storageValidation";
+import { useDocsByType } from "@/composables/useDocsByType";
+import { assignableGroups } from "@/util/groups";
 
-// Reactive database queries
-const groups = useDexieLiveQuery(
-    () => db.docs.where({ type: "group" }).toArray() as unknown as Promise<GroupDto[]>,
-    { initialValue: [] as GroupDto[] },
-);
+// Reactive database queries — shared, single live query per type.
+const groups = useDocsByType<GroupDto>(DocType.Group);
+const availableGroups = computed(() => assignableGroups(groups.value));
 
-// Filter groups to only show those where user has both Edit and Assign permissions
-const availableGroups = computed(() => {
-    return groups.value.filter((group) => {
-        return (
-            verifyAccess([group._id], DocType.Group, AclPermission.Edit) &&
-            verifyAccess([group._id], DocType.Group, AclPermission.Assign)
-        );
-    });
-});
-
-const buckets = useHybridQuery<StorageDto>(
-    () => ({ selector: { type: DocType.Storage } }),
-    { live: true },
-);
+const buckets = useDocsByType<StorageDto>(DocType.Storage);
 
 // Delete permission check
 const canDelete = computed(() => hasAnyPermission(DocType.Storage, AclPermission.Delete));

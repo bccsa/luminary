@@ -4,7 +4,6 @@ import LBadge from "../common/LBadge.vue";
 import { UserGroupIcon } from "@heroicons/vue/20/solid";
 import { ArrowRightIcon } from "@heroicons/vue/24/outline";
 import {
-    db,
     DocType,
     AclPermission,
     verifyAccess,
@@ -13,16 +12,19 @@ import {
 } from "luminary-shared";
 import { computed, ref } from "vue";
 import CreateOrEditRedirectModal from "./CreateOrEditRedirectModal.vue";
+import { useDocsByType } from "@/composables/useDocsByType";
+import { useHasLocalChange } from "@/composables/useHasLocalChange";
 
 type Props = {
     redirectDoc: RedirectDto;
 };
 
 const props = defineProps<Props>();
-const isLocalChanges = db.isLocalChangeAsRef(props.redirectDoc._id);
+const isLocalChanges = useHasLocalChange(props.redirectDoc._id);
 const isModalVisible = ref(false);
 
-const availableGroups = db.whereTypeAsRef<GroupDto[]>(DocType.Group, []);
+// Shared reference list — one live query for all redirect cards.
+const availableGroups = useDocsByType<GroupDto>(DocType.Group);
 const redirectGroups = computed(() =>
     availableGroups.value?.filter(
         (g) =>

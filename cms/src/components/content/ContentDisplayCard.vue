@@ -14,6 +14,7 @@ import { computed, ref, watch } from "vue";
 import LBadge from "../common/LBadge.vue";
 import DisplayCard from "../common/DisplayCard.vue";
 import { RouterLink } from "vue-router";
+import { useHasLocalChange } from "@/composables/useHasLocalChange";
 import { TagIcon, UserGroupIcon } from "@heroicons/vue/24/outline";
 import { cmsDefaultLanguage } from "@/globalConfig";
 import { buildSearchHighlight } from "./ContentOverview/searchHighlight";
@@ -46,7 +47,7 @@ const highlight = computed(() =>
 );
 
 const contentDocs = db.whereParentAsRef(props.contentDoc.parentId, props.parentType, undefined, []);
-const isLocalChange = db.isLocalChangeAsRef(props.contentDoc._id);
+const isLocalChange = useHasLocalChange(props.contentDoc._id);
 
 const tagsContent = ref<ContentDto[]>([]);
 

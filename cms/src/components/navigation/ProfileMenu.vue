@@ -12,7 +12,8 @@ import { useRouter } from "vue-router";
 import { computed, onMounted, ref, watch } from "vue";
 import LanguageModal from "../modals/LanguageModal.vue";
 import type { LanguageDto } from "luminary-shared";
-import { db, DocType } from "luminary-shared";
+import { DocType } from "luminary-shared";
+import { useDocsByType } from "@/composables/useDocsByType";
 import { PlayIcon } from "@heroicons/vue/16/solid";
 import { clearAuth0Cache, isAuthBypassed, isAuthPluginInstalled } from "@/auth";
 
@@ -53,7 +54,7 @@ const userNavigation = [
     },
 ];
 
-const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
+const languages = useDocsByType<LanguageDto>(DocType.Language);
 const languageToDisplay = ref("");
 
 if (isDevMode) {

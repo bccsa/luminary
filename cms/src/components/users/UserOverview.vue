@@ -12,29 +12,24 @@ import {
     DocType,
     hasAnyPermission,
     type UserDto,
-    type ApiSearchQuery,
-    ApiLiveQuery,
+    useHybridQueryWithState,
     type GroupDto,
-    useDexieLiveQuery,
     isConnected,
 } from "luminary-shared";
-import { computed, ref, watch, onBeforeUnmount } from "vue";
+import { computed, ref, watch } from "vue";
 import LButton from "../button/LButton.vue";
 import { isSmallScreen } from "@/globalConfig";
 import { useInfiniteScrollList } from "@/composables/useInfiniteScrollList";
+import { useDocsByType } from "@/composables/useDocsByType";
 
 const canCreateNew = computed(() => hasAnyPermission(DocType.User, AclPermission.Edit));
 
-const usersQuery = ref<ApiSearchQuery>({
-    types: [DocType.User],
-});
-
-const apiLiveQuery = new ApiLiveQuery<UserDto>(usersQuery);
-const users = apiLiveQuery.toArrayAsRef();
-
-onBeforeUnmount(() => {
-    apiLiveQuery.stopLiveQuery();
-});
+// User is a non-synced type → HybridQuery serves it API-only (REST + on-demand socket rooms),
+// preserving the previous ApiLiveQuery behavior. Auto-disposes on unmount.
+const { output: users, isFetching } = useHybridQueryWithState<UserDto>(
+    () => ({ selector: { type: DocType.User } }),
+    { live: true },
+);
 
 const isEditUserModalVisible = ref(false);
 const isNewUserModalVisible = ref(false);
@@ -64,10 +59,7 @@ watch(
     { deep: true },
 );
 
-const groups = useDexieLiveQuery(
-    () => db.docs.where({ type: DocType.Group }).toArray() as unknown as Promise<GroupDto[]>,
-    { initialValue: [] as GroupDto[] },
-);
+const groups = useDocsByType<GroupDto>(DocType.Group);
 
 const filteredUsers = computed(() => {
     const list = users.value ?? [];
@@ -97,7 +89,7 @@ const { visible: visibleUsers } = useInfiniteScrollList(filteredUsers, {
 });
 
 const isLoading = computed(
-    () => apiLiveQuery.isLoading.value && !(users.value?.length ?? 0),
+    () => isFetching.value && !(users.value?.length ?? 0),
 );
 </script>
 

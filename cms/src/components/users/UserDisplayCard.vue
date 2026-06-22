@@ -1,26 +1,23 @@
 <script setup lang="ts">
 import DisplayCard from "@/components/common/DisplayCard.vue";
-import {
-    db,
-    type UserDto,
-    type GroupDto,
-    type AuthProviderDto,
-    DocType,
-} from "luminary-shared";
+import { db, type UserDto, type GroupDto, type AuthProviderDto, DocType } from "luminary-shared";
 import LBadge from "@/components/common/LBadge.vue";
 import { DateTime } from "luxon";
 import { UserGroupIcon, KeyIcon } from "@heroicons/vue/24/outline";
 import { computed } from "vue";
 import { breakpointsTailwind, useBreakpoints } from "@vueuse/core";
+import { useDocsByType } from "@/composables/useDocsByType";
+import { useHasLocalChange } from "@/composables/useHasLocalChange";
 
 type Props = {
     usersDoc: UserDto;
 };
 const props = defineProps<Props>();
-const isLocalChanges = db.isLocalChangeAsRef(props.usersDoc._id);
+const isLocalChanges = useHasLocalChange(props.usersDoc._id);
 
-const groups = db.whereTypeAsRef<GroupDto[]>(DocType.Group);
-const authProviders = db.whereTypeAsRef<AuthProviderDto[]>(DocType.AuthProvider);
+// Shared reference lists — one live query per type across all rows (not one per card).
+const groups = useDocsByType<GroupDto>(DocType.Group);
+const authProviders = useDocsByType<AuthProviderDto>(DocType.AuthProvider);
 
 const emit = defineEmits<{ (e: "edit", id: string): void }>();
 const showEditModal = defineModel<boolean>();

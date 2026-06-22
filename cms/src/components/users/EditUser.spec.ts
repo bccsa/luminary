@@ -5,7 +5,16 @@ import CreateOrEditUser from "./CreateOrEditUser.vue";
 import LDialog from "../common/LDialog.vue";
 import LSelect from "../forms/LSelect.vue";
 import { createTestingPinia } from "@pinia/testing";
-import { accessMap, db, DocType, getRest, initConfig, isConnected } from "luminary-shared";
+import {
+    accessMap,
+    db,
+    DocType,
+    getRest,
+    initConfig,
+    initHybridQuery,
+    HttpReq,
+    isConnected,
+} from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import { setActivePinia } from "pinia";
 import {
@@ -78,6 +87,12 @@ app.get("/search", (req, res) => {
     );
 });
 
+// User is non-synced → served API-only via HybridQuery, which POSTs to /query.
+app.post("/query", (_req, res) => {
+    res.setHeader("Content-Type", "application/json");
+    res.end(JSON.stringify({ docs: [mockUserDto] }));
+});
+
 app.listen(port, () => {
     console.log(`Mock api running on port ${port}.`);
 });
@@ -98,6 +113,8 @@ describe("CreateOrEditUser.vue", () => {
 
         // Reset the rest api client to use the new config
         getRest({ reset: true });
+        // Wire HybridQuery's HTTP transport so the API-only User query can POST /query.
+        initHybridQuery(new HttpReq(`http://localhost:${port}`));
     });
 
     beforeEach(async () => {

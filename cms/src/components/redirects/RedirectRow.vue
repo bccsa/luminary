@@ -6,13 +6,14 @@ import { DateTime } from "luxon";
 import LButton from "../button/LButton.vue";
 import { EyeIcon, PencilSquareIcon } from "@heroicons/vue/20/solid";
 import CreateOrEditRedirectModal from "./CreateOrEditRedirectModal.vue";
+import { useHasLocalChange } from "@/composables/useHasLocalChange";
 
 type Props = {
     redirectDoc: RedirectDto;
 };
 const props = defineProps<Props>();
 
-const isLocalChanges = db.isLocalChangeAsRef(props.redirectDoc._id);
+const isLocalChanges = useHasLocalChange(props.redirectDoc._id);
 const isModalVisible = ref(false);
 </script>
 

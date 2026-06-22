@@ -5,12 +5,13 @@ import LBadge from "@/components/common/LBadge.vue";
 import { DateTime } from "luxon";
 import { ClockIcon } from "@heroicons/vue/24/outline";
 import { isMobileScreen } from "@/globalConfig";
+import { useHasLocalChange } from "@/composables/useHasLocalChange";
 
 type Props = {
     languagesDoc: LanguageDto;
 };
 const props = defineProps<Props>();
-const isLocalChanges = db.isLocalChangeAsRef(props.languagesDoc._id);
+const isLocalChanges = useHasLocalChange(props.languagesDoc._id);
 </script>
 
 <template>

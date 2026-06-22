@@ -7,10 +7,10 @@ import {
     type MediaUploadDataDto,
     type MediaFileDto,
     type LanguageDto,
-    db,
     DocType,
 } from "luminary-shared";
 import { computed, ref, toRaw, watchEffect } from "vue";
+import { useDocsByType } from "@/composables/useDocsByType";
 import { ExclamationCircleIcon } from "@heroicons/vue/24/solid";
 import MediaEditorThumbnail from "./MediaEditorThumbnail.vue";
 import LDialog from "@/components/common/LDialog.vue";
@@ -93,7 +93,7 @@ const handleBucketChange = (bucketId: string) => {
 };
 
 // Get all available languages
-const allLanguages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
+const allLanguages = useDocsByType<LanguageDto>(DocType.Language);
 
 // Get languages that already have audio files
 const usedLanguageIds = computed(() => {

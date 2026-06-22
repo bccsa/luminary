@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { db, DocType, type LanguageDto } from "luminary-shared";
+import { DocType, type LanguageDto } from "luminary-shared";
 import LButton from "../button/LButton.vue";
 import { CheckCircleIcon } from "@heroicons/vue/20/solid";
 import { cmsLanguageIdAsRef } from "@/globalConfig";
+import { useDocsByType } from "@/composables/useDocsByType";
 import LModal from "./LModal.vue";
 
 const isVisible = defineModel<boolean>("isVisible");
-const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
+const languages = useDocsByType<LanguageDto>(DocType.Language);
 
 const setLanguage = (id: string) => {
     cmsLanguageIdAsRef.value = id;

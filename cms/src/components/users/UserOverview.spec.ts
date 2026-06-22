@@ -9,7 +9,16 @@ import { setActivePinia } from "pinia";
 import express from "express";
 import * as restModule from "luminary-shared";
 import { mockGroupDtoSuperAdmins, mockUserDto, superAdminAccessMap } from "@/tests/mockdata";
-import { accessMap, DocType, getRest, initConfig, isConnected, db } from "luminary-shared";
+import {
+    accessMap,
+    DocType,
+    getRest,
+    initConfig,
+    initHybridQuery,
+    HttpReq,
+    isConnected,
+    db,
+} from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import { ref } from "vue";
 import LDialog from "../common/LDialog.vue";
@@ -44,22 +53,22 @@ vi.mock("@auth0/auth0-vue", async (importOriginal) => {
 // Mock api
 // ============================
 const app = express();
+app.use(express.json());
 const port = 12347;
 
-let mockApiRequest: string;
-app.get("/search", (req, res) => {
-    mockApiRequest = req.headers["x-query"] as string;
+let mockQuerySelector: { type?: string } | undefined;
+const mockUsers = [
+    mockUserDto,
+    { ...mockUserDto, _id: "2", name: "User 2" },
+    { ...mockUserDto, _id: "3", name: "User 3" },
+    { ...mockUserDto, _id: "4", name: "User 4" },
+];
+
+// User is non-synced → served API-only via HybridQuery, which POSTs to /query.
+app.post("/query", (req, res) => {
+    mockQuerySelector = req.body?.selector;
     res.setHeader("Content-Type", "application/json");
-    res.end(
-        JSON.stringify({
-            docs: [
-                mockUserDto,
-                { ...mockUserDto, _id: "2", name: "User 2" },
-                { ...mockUserDto, _id: "3", name: "User 3" },
-                { ...mockUserDto, _id: "4", name: "User 4" },
-            ],
-        }),
-    );
+    res.end(JSON.stringify({ docs: mockUsers }));
 });
 
 app.listen(port, () => {
@@ -82,6 +91,8 @@ describe("UserOverview", () => {
 
         // Reset the rest api client to use the new config
         getRest({ reset: true });
+        // Wire HybridQuery's HTTP transport so the API-only User query can POST /query.
+        initHybridQuery(new HttpReq(`http://localhost:${port}`));
 
         window.innerWidth = 1600; // Set a width greater than 1500px to trigger desktop view
         window.dispatchEvent(new Event("resize"));
@@ -204,7 +215,7 @@ describe("UserOverview", () => {
         mount(UserOverview);
 
         await waitForExpect(() => {
-            expect(JSON.parse(mockApiRequest).types[0]).toBe(DocType.User);
+            expect(mockQuerySelector?.type).toBe(DocType.User);
         });
     });
 

@@ -1,12 +1,10 @@
-import { computed, nextTick, ref, watch } from "vue";
+import { computed, nextTick } from "vue";
 import {
-    db,
     DocType,
     AclPermission,
     AckStatus,
     hasAnyPermission,
-    useDexieLiveQuery,
-    useHybridQuery,
+    useHybridQueryWithState,
     toEditable,
     type AutoGroupMappingsDto,
     type AuthProviderDto,
@@ -14,6 +12,7 @@ import {
     type Uuid,
     type ChangeReqAckDto,
 } from "luminary-shared";
+import { useDocsByType } from "@/composables/useDocsByType";
 
 /**
  * Data layer for the Auto Group Mappings admin screen: live mappings + auth providers via
@@ -36,38 +35,22 @@ export function useAutoGroupMappings() {
     const canEdit = computed(() => hasAnyPermission(DocType.AutoGroupMappings, AclPermission.Edit));
 
     // Mappings — non-synced type, served API-only (see header comment). No persistOffline.
-    const mappingsSource = useHybridQuery<AutoGroupMappingsDto>(
-        () => ({ selector: { type: DocType.AutoGroupMappings } }),
-        { live: true },
-    );
+    // `isFetching` is the correct loading signal: it settles to false when the read completes even
+    // if the result is empty (a fires-once watch on the output would hang on an empty set, since
+    // HybridQuery dedupes the no-op [] → [] and never emits).
+    const { output: mappingsSource, isFetching: isLoading } =
+        useHybridQueryWithState<AutoGroupMappingsDto>(
+            () => ({ selector: { type: DocType.AutoGroupMappings } }),
+            { live: true },
+        );
     const mappingEditable = toEditable<AutoGroupMappingsDto>(mappingsSource, {
         filterFn: (item) => ({ ...item }),
     });
     const mappings = mappingEditable.editable;
 
-    // Auth providers (read-only here) — a synced type, so Dexie-first HybridQuery.
-    const providers = useHybridQuery<AuthProviderDto>(
-        () => ({ selector: { type: DocType.AuthProvider } }),
-        { live: true, persistOffline: true },
-    );
-
-    const groups = useDexieLiveQuery(
-        () => db.docs.where({ type: "group" }).toArray() as unknown as Promise<GroupDto[]>,
-        { initialValue: [] as GroupDto[] },
-    );
-
-    // HybridQuery exposes no loading signal; settle on the first source emission (output is
-    // reassigned even for an empty result, so this fires for empty sets too — same pattern as
-    // useContentBrowseQuery).
-    const isLoading = ref(true);
-    const stopLoading = watch(
-        mappingsSource,
-        () => {
-            isLoading.value = false;
-            stopLoading();
-        },
-        { flush: "post" },
-    );
+    // Auth providers + groups (read-only reference lists) — shared, single live query per type.
+    const providers = useDocsByType<AuthProviderDto>(DocType.AuthProvider);
+    const groups = useDocsByType<GroupDto>(DocType.Group);
 
     /**
      * Create or update a mapping. The doc is staged into the editable array (replacing an

@@ -12,15 +12,18 @@ import LButton from "../button/LButton.vue";
 import { EyeIcon, PencilSquareIcon } from "@heroicons/vue/20/solid";
 import LBadge from "../common/LBadge.vue";
 import { ref, watch } from "vue";
+import { useDocsByType } from "@/composables/useDocsByType";
+import { useHasLocalChange } from "@/composables/useHasLocalChange";
 
 type Props = {
     usersDoc: UserDto;
 };
 const props = defineProps<Props>();
 
-const isLocalChanges = db.isLocalChangeAsRef(props.usersDoc._id);
+const isLocalChanges = useHasLocalChange(props.usersDoc._id);
 
-const groups = db.whereTypeAsRef<GroupDto[]>(DocType.Group);
+// Shared reference list — one live query for all user rows.
+const groups = useDocsByType<GroupDto>(DocType.Group);
 const group = ref<GroupDto[]>([]);
 
 watch(groups, (newGroups) => {

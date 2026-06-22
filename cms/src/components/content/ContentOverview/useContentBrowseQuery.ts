@@ -1,5 +1,10 @@
-import { useHybridQuery, type ContentDto, DocType, type MangoSelector } from "luminary-shared";
-import { computed, ref, watch, type Ref } from "vue";
+import {
+    useHybridQueryWithState,
+    type ContentDto,
+    DocType,
+    type MangoSelector,
+} from "luminary-shared";
+import { computed, type Ref } from "vue";
 import type { ContentOverviewQueryOptions } from "./types";
 import {
     translationStatusSelector,
@@ -31,7 +36,7 @@ const STRIP_FIELDS = ["fts", "ftsTokenCount", "text", "_rev"];
  * @param limit reactive window size — bump it to load more
  */
 export function useContentBrowseQuery(opts: () => ContentOverviewQueryOptions, limit: Ref<number>) {
-    const raw = useHybridQuery<ContentDto>(
+    const { output: raw, isFetching: isLoading } = useHybridQueryWithState<ContentDto>(
         () => {
             const o = opts();
             // Browse has no relevance (no query) — fall back to the default field.
@@ -85,15 +90,7 @@ export function useContentBrowseQuery(opts: () => ContentOverviewQueryOptions, l
     // Based on the raw (pre-post-filter) count so the untranslated filter doesn't stall scroll.
     const hasMore = computed(() => raw.value.length >= limit.value);
 
-    const isLoading = ref(true);
-    const stop = watch(
-        raw,
-        () => {
-            isLoading.value = false;
-            stop();
-        },
-        { flush: "post" },
-    );
-
+    // `isFetching` settles to false when the read completes even if the result is empty; a
+    // fires-once watch on `raw` would hang on an empty browse (HybridQuery dedupes [] → []).
     return { docs, isLoading, hasMore };
 }
