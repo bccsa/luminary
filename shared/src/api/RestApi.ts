@@ -20,13 +20,33 @@ export type ApiFtsQuery = {
     offset?: number;
     cms?: boolean;
     tags?: Array<string>;
+    /**
+     * Restrict to docs whose `memberOf` intersects these group IDs. Used by the strict aux
+     * (non-Content) search; applied after permission scoping (narrows only).
+     */
+    groups?: Array<string>;
     status?: PublishStatus;
     publishedAfter?: number;
     publishedBefore?: number;
-    /** Strict mode: require every query word (≥3 chars) as a substring of title/author. */
+    /** Strict mode: require every query word (≥3 chars) as a substring of the searchable fields. */
     matchAllWords?: boolean;
-    /** Strict mode: order by this field/direction instead of relevance. */
-    sort?: { field: "title" | "publishDate" | "expiryDate" | "updatedTimeUtc"; direction: "asc" | "desc" };
+    /**
+     * Strict mode: order by this field/direction instead of relevance. The Content path allows
+     * title/publishDate/expiryDate/updatedTimeUtc; aux doctypes allow their own fields
+     * (e.g. name/email/slug/lastLogin/updatedTimeUtc), validated server-side per doctype.
+     */
+    sort?: {
+        field:
+            | "title"
+            | "publishDate"
+            | "expiryDate"
+            | "updatedTimeUtc"
+            | "name"
+            | "email"
+            | "slug"
+            | "lastLogin";
+        direction: "asc" | "desc";
+    };
     bm25k1?: number;
     bm25b?: number;
     maxTrigramDocPercent?: number;

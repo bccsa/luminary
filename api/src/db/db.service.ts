@@ -102,6 +102,35 @@ export type FtsCandidateRow = {
 };
 
 /**
+ * Named per-row metadata emitted by the per-doctype *aux* FTS trigram views
+ * (`fts-trigram-index-user`, `fts-trigram-index-redirect`). Unlike {@link FtsCandidateValue}
+ * (a positional tuple), aux views emit a self-describing object: `memberOf` for permission
+ * scoping plus the searchable/sortable fields used by the strict search path. Strict mode
+ * does not score, so there is no `tf`.
+ */
+export type UserFtsMeta = {
+    memberOf: Uuid[];
+    name: string | null;
+    email: string | null;
+    lastLogin: number | null;
+    updatedTimeUtc: number | null;
+};
+
+export type RedirectFtsMeta = {
+    memberOf: Uuid[];
+    slug: string | null;
+    toSlug: string | null;
+    updatedTimeUtc: number | null;
+};
+
+/** A single candidate row returned by {@link DbService.ftsAuxTrigramCandidates}. */
+export type AuxFtsCandidateRow<M> = {
+    trigram: string;
+    docId: Uuid;
+    value: M;
+};
+
+/**
  * View-read options for the FTS path. `update: "lazy"` returns immediately from the
  * current index instead of blocking the read to bring the view up to date, then
  * schedules an update afterwards so the index keeps converging (so newly-ingested
@@ -831,6 +860,51 @@ export class DbService extends EventEmitter {
             trigram: row.key,
             docId: row.id,
             value: row.value as FtsCandidateValue,
+        }));
+    }
+
+    /**
+     * FTS (aux doctypes): document frequency per trigram for a per-doctype trigram view
+     * (e.g. `fts-trigram-index-user`), served by the view's `_count` reduce with `group=true`.
+     * Used to keep the rarest (most discriminative) trigrams within the candidate budget.
+     */
+    async ftsAuxTrigramDf(viewName: string, trigrams: string[]): Promise<Map<string, number>> {
+        await this.ensureConnected();
+        const df = new Map<string, number>();
+        if (!trigrams || trigrams.length === 0) return df;
+        const res = await this.db.view(viewName, viewName, {
+            ...FTS_STALE_READ,
+            keys: trigrams,
+            group: true,
+            reduce: true,
+        });
+        for (const row of res.rows) {
+            df.set(row.key, row.value);
+        }
+        return df;
+    }
+
+    /**
+     * FTS (aux doctypes): candidate rows for the given trigrams from a per-doctype trigram
+     * view (non-reduced). Each row carries the named metadata object emitted by the view
+     * (see {@link UserFtsMeta} / {@link RedirectFtsMeta}), so permission/filter checks run
+     * without loading the documents.
+     */
+    async ftsAuxTrigramCandidates<M>(
+        viewName: string,
+        trigrams: string[],
+    ): Promise<AuxFtsCandidateRow<M>[]> {
+        await this.ensureConnected();
+        if (!trigrams || trigrams.length === 0) return [];
+        const res = await this.db.view(viewName, viewName, {
+            ...FTS_STALE_READ,
+            keys: trigrams,
+            reduce: false,
+        });
+        return res.rows.map((row: any) => ({
+            trigram: row.key,
+            docId: row.id,
+            value: row.value as M,
         }));
     }
 

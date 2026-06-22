@@ -17,6 +17,10 @@ import { GroupDto } from "../dto/GroupDto";
 import processStorageDto from "./documentProcessing/processStorageDto";
 import processAuthProviderDto from "./documentProcessing/processAuthProviderDto";
 import { AuthProviderDto } from "../dto/AuthProviderDto";
+import processUserDto from "./documentProcessing/processUserDto";
+import { UserDto } from "../dto/UserDto";
+import processRedirectDto from "./documentProcessing/processRedirectDto";
+import { RedirectDto } from "../dto/RedirectDto";
 
 export async function processChangeRequest(
     userId: string,
@@ -59,6 +63,8 @@ export async function processChangeRequest(
         [DocType.Storage]: () => processStorageDto(doc as StorageDto, prevDoc as StorageDto, db),
         [DocType.AuthProvider]: () =>
             processAuthProviderDto(doc as AuthProviderDto, prevDoc as AuthProviderDto, db),
+        [DocType.User]: () => processUserDto(doc as UserDto),
+        [DocType.Redirect]: () => processRedirectDto(doc as RedirectDto),
         [DocType.AutoGroupMappings]: () => {}, // No extra processing required, but needed to be part of the process map for access validation,
     };
 

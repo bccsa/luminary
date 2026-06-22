@@ -1,4 +1,4 @@
-import type { ContentDto, Uuid } from "../types";
+import type { BaseDocumentDto, ContentDto, Uuid } from "../types";
 import type { DocType, PublishStatus } from "../types";
 
 /** Configuration for a single field to be indexed or searched */
@@ -31,13 +31,15 @@ export type FtsSearchResult = {
 /**
  * Server-side `/fts` result item (mirrors the API's `FtsSearchResultDto`).
  * The `doc` is trimmed of the FTS index fields (`fts`, `ftsTokenCount`) and is display-only —
- * never persist it to Dexie (ADR 0010).
+ * never persist it to Dexie (ADR 0010). Typed as `Partial<BaseDocumentDto>` because `/fts`
+ * also serves non-Content doctypes (e.g. User, Redirect) via the strict aux path; Content
+ * callers narrow with `as ContentDto`.
  */
 export type ApiFtsResult = {
     docId: Uuid;
     score: number;
     wordMatchScore: number;
-    doc: Partial<ContentDto>;
+    doc: Partial<BaseDocumentDto>;
 };
 
 /** Document fields a strict (sorted) FTS search can order by. */

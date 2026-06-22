@@ -18,6 +18,13 @@ export { ftsSearch } from "./ftsSearch";
 export { ftsSearchApi, shouldUseApiFts } from "./ftsSearchApi";
 export { useFtsSearch } from "./useFtsSearch";
 export type { UseFtsSearchOptions, UseFtsSearchReturn, FtsFilterOptions } from "./useFtsSearch";
+export { useServerFtsSearch } from "./useServerFtsSearch";
+export type {
+    UseServerFtsSearchOptions,
+    UseServerFtsSearchReturn,
+    ServerFtsSort,
+    ServerFtsFilters,
+} from "./useServerFtsSearch";
 export {
     getCorpusStats,
     setCorpusStats,

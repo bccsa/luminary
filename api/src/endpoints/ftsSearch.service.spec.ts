@@ -17,6 +17,8 @@ describe("FtsSearchService", () => {
         ftsCorpusStats: jest.Mock;
         ftsTrigramDf: jest.Mock;
         ftsTrigramCandidates: jest.Mock;
+        ftsAuxTrigramDf: jest.Mock;
+        ftsAuxTrigramCandidates: jest.Mock;
         getDocs: jest.Mock;
     };
     let logger: Logger;
@@ -75,6 +77,12 @@ describe("FtsSearchService", () => {
                 .fn()
                 .mockResolvedValue(new Map([["gar", 3], ["ard", 3], ["rde", 3], ["den", 3]])),
             ftsTrigramCandidates: jest.fn().mockResolvedValue([]),
+            ftsAuxTrigramDf: jest
+                .fn()
+                .mockImplementation((_view: string, trigrams: string[]) =>
+                    Promise.resolve(new Map(trigrams.map((t) => [t, 3]))),
+                ),
+            ftsAuxTrigramCandidates: jest.fn().mockResolvedValue([]),
             getDocs: jest.fn().mockResolvedValue({ docs: [] }),
         } as any;
         logger = { info: jest.fn(), error: jest.fn(), warn: jest.fn() } as unknown as Logger;
@@ -348,6 +356,180 @@ describe("FtsSearchService", () => {
                     mockUser,
                 ),
             ).rejects.toEqual(new HttpException("invalid 'sort'", HttpStatus.BAD_REQUEST));
+        });
+    });
+
+    describe("aux doctypes (User / Redirect strict search)", () => {
+        const USER_GROUP = "group-user";
+        const REDIRECT_GROUP = "group-redirect";
+
+        // A User aux candidate row: { trigram, docId, value: <named metadata object> }.
+        function userRow(
+            docId: string,
+            trigram: string,
+            meta: Partial<{
+                memberOf: string[];
+                name: string | null;
+                email: string | null;
+                lastLogin: number | null;
+                updatedTimeUtc: number | null;
+            }> = {},
+        ) {
+            return {
+                docId,
+                trigram,
+                value: {
+                    memberOf: meta.memberOf ?? [USER_GROUP],
+                    name: meta.name ?? null,
+                    email: meta.email ?? null,
+                    lastLogin: meta.lastLogin ?? null,
+                    updatedTimeUtc: meta.updatedTimeUtc ?? 1000,
+                },
+            };
+        }
+
+        const echoUsers = () =>
+            dbService.getDocs.mockImplementation((ids: string[]) => ({
+                docs: ids.map((id) => ({ _id: id, type: DocType.User })),
+            }));
+
+        beforeEach(() => {
+            // Default: user can View the User doctype via USER_GROUP.
+            (permissions.PermissionSystem.accessMapToGroups as jest.Mock).mockReturnValue({
+                [DocType.User]: [USER_GROUP],
+            });
+        });
+
+        it("substring-ANDs over name + email and reads from the user view", async () => {
+            dbService.ftsAuxTrigramCandidates.mockResolvedValue([
+                userRow("u-name", "gar", { name: "Gardener Joe" }),
+                userRow("u-email", "gar", { name: "Jane", email: "garden@x.com" }),
+                userRow("u-miss", "gar", { name: "Unrelated", email: "a@b.com" }),
+            ]);
+            echoUsers();
+
+            const res = await service.search(
+                makeReq({ types: [DocType.User], cms: true, matchAllWords: true }),
+                mockUser,
+            );
+            const ids = res.map((r) => r.docId);
+            expect(ids).toEqual(expect.arrayContaining(["u-name", "u-email"]));
+            expect(ids).not.toContain("u-miss");
+            expect(dbService.ftsAuxTrigramCandidates).toHaveBeenCalledWith(
+                "fts-trigram-index-user",
+                expect.any(Array),
+            );
+            expect(dbService.getDocs).toHaveBeenCalledWith(expect.any(Array), [DocType.User]);
+            // never touches the Content trigram view/path
+            expect(dbService.ftsTrigramCandidates).not.toHaveBeenCalled();
+        });
+
+        it("orders the full match set by the requested sort field", async () => {
+            dbService.ftsAuxTrigramCandidates.mockResolvedValue([
+                userRow("old", "gar", { name: "Garden A", updatedTimeUtc: 100 }),
+                userRow("new", "gar", { name: "Garden B", updatedTimeUtc: 300 }),
+                userRow("mid", "gar", { name: "Garden C", updatedTimeUtc: 200 }),
+            ]);
+            echoUsers();
+
+            const res = await service.search(
+                makeReq({
+                    types: [DocType.User],
+                    cms: true,
+                    matchAllWords: true,
+                    sort: { field: "updatedTimeUtc", direction: "desc" },
+                }),
+                mockUser,
+            );
+            expect(res.map((r) => r.docId)).toEqual(["new", "mid", "old"]);
+        });
+
+        it("scopes by permission AND the explicit groups filter (memberOf ∩)", async () => {
+            dbService.ftsAuxTrigramCandidates.mockResolvedValue([
+                userRow("in", "gar", { name: "Garden A", memberOf: [USER_GROUP, "g-extra"] }),
+                userRow("denied", "gar", { name: "Garden B", memberOf: ["other-group"] }),
+                userRow("filtered", "gar", { name: "Garden C", memberOf: [USER_GROUP] }),
+            ]);
+            echoUsers();
+
+            const res = await service.search(
+                makeReq({
+                    types: [DocType.User],
+                    cms: true,
+                    matchAllWords: true,
+                    groups: ["g-extra"],
+                }),
+                mockUser,
+            );
+            // "denied": no View group; "filtered": permitted but outside the groups filter.
+            expect(res.map((r) => r.docId)).toEqual(["in"]);
+        });
+
+        it("throws 403 when the user has no View groups for the doctype", async () => {
+            (permissions.PermissionSystem.accessMapToGroups as jest.Mock).mockReturnValue({});
+            await expect(
+                service.search(makeReq({ types: [DocType.User], matchAllWords: true }), mockUser),
+            ).rejects.toEqual(new HttpException("Forbidden", HttpStatus.FORBIDDEN));
+        });
+
+        it("rejects a sort field not allowed for the doctype", async () => {
+            await expect(
+                service.search(
+                    makeReq({
+                        types: [DocType.User],
+                        sort: { field: "title" as any, direction: "asc" },
+                    }),
+                    mockUser,
+                ),
+            ).rejects.toEqual(new HttpException("invalid 'sort'", HttpStatus.BAD_REQUEST));
+        });
+
+        it("strips the server-only fts field from returned aux docs", async () => {
+            dbService.ftsAuxTrigramCandidates.mockResolvedValue([
+                userRow("u1", "gar", { name: "Gardener" }),
+            ]);
+            dbService.getDocs.mockResolvedValue({
+                docs: [{ _id: "u1", type: DocType.User, name: "Gardener", fts: ["gar:1"] }],
+            });
+
+            const res = await service.search(
+                makeReq({ types: [DocType.User], cms: true, matchAllWords: true }),
+                mockUser,
+            );
+            expect((res[0].doc as any).fts).toBeUndefined();
+            expect((res[0].doc as any).name).toBe("Gardener");
+        });
+
+        it("searches redirects via the redirect view (slug + toSlug)", async () => {
+            (permissions.PermissionSystem.accessMapToGroups as jest.Mock).mockReturnValue({
+                [DocType.Redirect]: [REDIRECT_GROUP],
+            });
+            const redirectRow = (docId: string, slug: string, toSlug: string | null) => ({
+                docId,
+                trigram: "gar",
+                value: { memberOf: [REDIRECT_GROUP], slug, toSlug, updatedTimeUtc: 1 },
+            });
+            dbService.ftsAuxTrigramCandidates.mockResolvedValue([
+                redirectRow("r-slug", "garden", null),
+                redirectRow("r-toslug", "x", "garden-2"),
+                redirectRow("r-miss", "abc", "def"),
+            ]);
+            dbService.getDocs.mockImplementation((ids: string[]) => ({
+                docs: ids.map((id) => ({ _id: id, type: DocType.Redirect })),
+            }));
+
+            const res = await service.search(
+                makeReq({ types: [DocType.Redirect], cms: true, matchAllWords: true }),
+                mockUser,
+            );
+            const ids = res.map((r) => r.docId);
+            expect(ids).toEqual(expect.arrayContaining(["r-slug", "r-toslug"]));
+            expect(ids).not.toContain("r-miss");
+            expect(dbService.ftsAuxTrigramCandidates).toHaveBeenCalledWith(
+                "fts-trigram-index-redirect",
+                expect.any(Array),
+            );
+            expect(dbService.getDocs).toHaveBeenCalledWith(expect.any(Array), [DocType.Redirect]);
         });
     });
 });

@@ -122,7 +122,7 @@ Schema upgrades can be safely removed when:
 ### Current Baseline
 
 
-**Current Schema Version**: 17 (as of 2026-06-18)
+**Current Schema Version**: 18 (as of 2026-06-22)
 
 All production databases are expected to be at version 10 or higher. Historical upgrades v1-v9 have been removed as they are no longer needed.
 
@@ -162,3 +162,7 @@ Enforces the slug invariant — per slug, published Content and a Redirect are m
 ### v17 — ThumbHash backfill (2026-06-18)
 
 Backfills ThumbHash placeholders (`ImageFileCollectionDto.thumbHash`, a ~25-byte base64 blurred preview) for pre-existing images. ThumbHash is only generated at image-upload time, so older images lack it. For each Post/Tag whose image collections are missing a ThumbHash, it fetches the smallest stored variant from that doc's bucket (S3), encodes the hash, re-saves the parent, and re-denormalises `imageData` onto child Content docs' `parentImageData`. Each save bumps `updatedTimeUtc` so clients re-sync and show blurs for old content. Per-image fetch/encode failures are logged and skipped (a missing S3 object must not block startup); a DB-level failure re-throws so the version stays put and the next startup retries (the per-collection `thumbHash` skip makes that idempotent).
+
+### v18 — User/Redirect FTS backfill (2026-06-22)
+
+Backfills the server-authoritative `fts` trigram index on existing User (name + email) and Redirect (slug + toSlug) documents so the strict server-side `/fts` search can find them without a full table scan. Mirrors the Content backfill (v13) but uses the per-doctype field configs and writes no `ftsTokenCount` (these doctypes use strict substring search, not BM25). Uses `insertDoc` to preserve `updatedTimeUtc` — `fts` is a server-only index field that must not churn already-synced clients. Docs with no indexable text are skipped (they remain listable via browse, just not searchable). Also requires the new `fts-trigram-index-user` / `fts-trigram-index-redirect` CouchDB views (seeded as design docs); those build on first access after deploy.

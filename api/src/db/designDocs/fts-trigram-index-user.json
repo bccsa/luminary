@@ -1,0 +1,9 @@
+{
+    "_id": "_design/fts-trigram-index-user",
+    "views": {
+        "fts-trigram-index-user": {
+            "map": "function (doc) {\n  if (doc.type === \"user\" && doc.fts) {\n    for (var i = 0; i < doc.fts.length; i++) {\n      var e = doc.fts[i];\n      var c = e.indexOf(\":\", 3);\n      emit(e.substring(0, c), {\n        memberOf: doc.memberOf || [],\n        name: doc.name || null,\n        email: doc.email || null,\n        lastLogin: doc.lastLogin || null,\n        updatedTimeUtc: doc.updatedTimeUtc || null\n      });\n    }\n  }\n}",
+            "reduce": "_count"
+        }
+    }
+}

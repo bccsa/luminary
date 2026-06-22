@@ -38,6 +38,29 @@ export const FTS_FIELDS: FtsFieldConfig[] = [
     { name: "author", boost: 1.0, isHtml: false },
 ];
 
+/**
+ * Strict-only FTS field configs for non-Content doctypes (User, Redirect).
+ *
+ * These power the "strict" (substring-AND on searchable fields + sort) `/fts` path only —
+ * there is no relevance/BM25 ranking for these doctypes, so boosts are irrelevant (all 1.0)
+ * and exist only to satisfy the shared {@link FtsFieldConfig} shape. The trigrams are needed
+ * solely so the per-doctype CouchDB trigram views can surface candidate docs; the precise
+ * filter is a substring check against the emitted field text.
+ *
+ * Unlike {@link FTS_FIELDS}, these have NO client-side mirror (the offline engine stays
+ * Content-only) and are therefore NOT governed by the "change one, change all" rule of
+ * ADR 0009/0010.
+ */
+export const USER_FTS_FIELDS: FtsFieldConfig[] = [
+    { name: "name", boost: 1.0, isHtml: false },
+    { name: "email", boost: 1.0, isHtml: false },
+];
+
+export const REDIRECT_FTS_FIELDS: FtsFieldConfig[] = [
+    { name: "slug", boost: 1.0, isHtml: false },
+    { name: "toSlug", boost: 1.0, isHtml: false },
+];
+
 export type FtsData = {
     fts: string[];
     ftsTokenCount: number;
@@ -205,19 +228,24 @@ export function generateTrigramCounts(text: string): {
 // ── FTS computation ─────────────────────────────────────────────────────────
 
 /**
- * Compute pre-calculated FTS data for a Content document.
+ * Compute pre-calculated FTS data for a document.
  *
- * Iterates configured fields, generates trigrams, applies boost multipliers,
- * and aggregates into a flat token array suitable for delivery to clients.
+ * Iterates the given field config (defaults to the Content {@link FTS_FIELDS}), generates
+ * trigrams, applies boost multipliers, and aggregates into a flat token array suitable for
+ * delivery to clients. Pass {@link USER_FTS_FIELDS} / {@link REDIRECT_FTS_FIELDS} for the
+ * non-Content strict-search doctypes.
  *
  * @returns FTS data with token array and raw token count, or undefined if no indexable content
  */
-export function computeFtsData(doc: Record<string, any>): FtsData | undefined {
+export function computeFtsData(
+    doc: Record<string, any>,
+    fields: FtsFieldConfig[] = FTS_FIELDS,
+): FtsData | undefined {
     const aggregatedTf = new Map<string, number>();
     let totalTokenCount = 0;
     let wordCount = 0;
 
-    for (const field of FTS_FIELDS) {
+    for (const field of fields) {
         const value = doc[field.name];
         if (typeof value !== "string" || !value) continue;
 

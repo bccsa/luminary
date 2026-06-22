@@ -279,7 +279,20 @@ class Database extends Dexie {
         }
 
         const nonDeleteDocs = docs.filter((doc) => doc.type !== DocType.DeleteCmd);
-        const result = await this.docs.bulkPut(nonDeleteDocs);
+
+        // Content is the only doctype whose `fts` index is used locally (offline trigram search
+        // via the `*fts` MultiEntry index). Other doctypes (e.g. User/Redirect) may carry a
+        // server-only `fts` used only by the `/fts` endpoint; strip it before persisting so it
+        // can't pollute the offline Content index (stray matches + df/IDF skew) or bloat Dexie.
+        const cleanedDocs = nonDeleteDocs.map((doc) => {
+            if (doc.type === DocType.Content) return doc;
+            const d = doc as Record<string, any>;
+            if (d.fts === undefined && d.ftsTokenCount === undefined) return doc;
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const { fts, ftsTokenCount, ...rest } = d;
+            return rest as BaseDocumentDto;
+        });
+        const result = await this.docs.bulkPut(cleanedDocs);
 
         // Update corpus stats if this batch contained ContentDtos
         if (nonDeleteDocs.length > 0 && nonDeleteDocs[0].type === DocType.Content) {

@@ -69,6 +69,25 @@ These filters apply identically on the local and server (`/fts`) paths, so a sea
 
 **Strict vs relevance.** With no `sort`/`matchAllWords`, search ranks by fuzzy BM25 relevance over all fields (the default). With `matchAllWords` + `sort`, it becomes a strict, field-ordered lookup: every query word must appear as a substring of `title`/`author`, and the full match set is ordered by the chosen field before pagination. Because matching is scoped to `title`/`author` (carried in the server's trigram-index metadata), it is **exact on both the local and server paths**; the sort comparator (nulls last, case-insensitive strings, `_id` tie-break) is mirrored too, so a partially-synced client gets the same order whether a search runs locally or against `/fts`.
 
+### Server-only strict search for other doctypes — `useServerFtsSearch`
+
+`useFtsSearch` / `ftsSearch` above are Content-specific (BM25 relevance over title/summary/text/author, backed by the offline index). Some **non-Content doctypes** also carry a server-computed `fts` index — currently `UserDto` (name + email) and `RedirectDto` (slug + toSlug). For those, `useServerFtsSearch` runs a **server-only strict** search via `/fts`: substring-AND over the doctype's searchable fields, a field sort, and optional filters, with debouncing and infinite-scroll paging.
+
+```typescript
+import { ref } from "vue";
+import { useServerFtsSearch, DocType } from "luminary-shared";
+
+const query = ref("");
+const { docs, isLoading, hasMore, loadMore } = useServerFtsSearch(query, {
+    docType: DocType.User,
+    sort: () => ({ field: "name", direction: "asc" }), // omit → the server's per-doctype default
+    filters: () => ({ groups: ["group-id"] }), // narrow to memberOf ∩ groups (post-permission)
+    pageSize: 20,
+});
+```
+
+Unlike `useFtsSearch` it does **not** touch the offline index and does **not** fall back to local: there is no relevance ranking, and offline (or on any API error) it yields an empty result set. Results are display-only (trimmed of `fts`) — never persist them to IndexedDB. Each doctype's matchable fields, sortable fields, and default sort are defined server-side (see ADR 0010); a query shorter than 3 characters is a no-op.
+
 ### FtsSearchResult
 
 | Property         | Type                  | Description                                                                              |
@@ -111,6 +130,8 @@ FTS data lives directly on Content documents as a `string[]` field called `fts`,
 
 - **`docs` table**: Content documents carry `fts` (trigram strings) and `ftsTokenCount` (raw token count for BM25)
 - **`luminaryInternals` table**: Stores corpus stats under key `"corpusStats"` for BM25 scoring
+
+> Other doctypes (e.g. `UserDto`, `RedirectDto`) carry a **server-only** `fts` used solely by the `/fts` strict search. It is stripped on client ingest (`db.bulkPut`) so it never enters the local `*fts` index — only Content is searched offline.
 
 ### Server-Side Indexing
 
@@ -184,6 +205,8 @@ Hard-coded identically in `api/src/util/ftsIndexing.ts` and `shared/src/fts/ftsS
 { name: "text", isHtml: true, boost: 1.0 },
 { name: "author", boost: 1.0 },
 ```
+
+Non-Content doctypes use their own server-only field configs (`USER_FTS_FIELDS`, `REDIRECT_FTS_FIELDS` in `api/src/util/ftsIndexing.ts`) for strict substring search. These have **no** client mirror (the offline engine is Content-only), so they are not bound by the "change one, change all" rule above.
 
 ## Low-End Device Design Decisions
 

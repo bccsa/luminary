@@ -57,6 +57,38 @@ describe("Database", async () => {
         await db.localChanges.clear();
     });
 
+    describe("bulkPut FTS stripping", () => {
+        it("strips fts/ftsTokenCount from non-Content docs but keeps them on Content", async () => {
+            const userDoc = {
+                _id: "user-fts-strip",
+                type: DocType.User,
+                updatedTimeUtc: 1,
+                memberOf: ["group-super-admins"],
+                name: "Jane",
+                email: "jane@example.com",
+                fts: ["jan:1", "ane:1"],
+            } as any;
+            const contentDoc = {
+                ...mockEnglishContentDto,
+                _id: "content-fts-keep",
+                fts: ["gar:3"],
+                ftsTokenCount: 5,
+            } as any;
+
+            await db.bulkPut([userDoc, contentDoc]);
+
+            const storedUser = (await db.docs.get("user-fts-strip")) as any;
+            const storedContent = (await db.docs.get("content-fts-keep")) as any;
+
+            // Non-Content: fts stripped, other fields preserved.
+            expect(storedUser.fts).toBeUndefined();
+            expect(storedUser.name).toBe("Jane");
+            // Content: index fields retained (offline search needs them).
+            expect(storedContent.fts).toEqual(["gar:3"]);
+            expect(storedContent.ftsTokenCount).toBe(5);
+        });
+    });
+
     it("can generate a V4 UUID", async () => {
         const uuid = db.uuid();
         const verified = uuid.match(
