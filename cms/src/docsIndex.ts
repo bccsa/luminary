@@ -4,4 +4,4 @@
  * to ensure test indexes match production indexes.
  */
 export const CMS_DOCS_INDEX =
-    "type, parentId, updatedTimeUtc, language, [type+tagType], [type+docType], [type+language], slug, title, [type+parentType+language], [type+parentTagType], [type+parentId], [type+_id]";
+    "type, parentId, updatedTimeUtc, language, [type+tagType], [type+docType], [type+language], slug, [type+slug], title, [type+parentType+language], [type+parentTagType], [type+parentId], [type+_id]";

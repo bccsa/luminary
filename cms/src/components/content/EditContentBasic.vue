@@ -9,7 +9,7 @@ import {
     db,
     type RedirectDto,
     DocType,
-    useDexieLiveQuery,
+    useHybridQuery,
     type LanguageDto,
 } from "luminary-shared";
 import { computed, nextTick, ref, watch } from "vue";
@@ -99,24 +99,15 @@ const validateSlug = async () => {
 };
 
 // Tabs for Title & Summary
-const currentToogle = ref("visible"); // Default tab key
+const currentToggle = ref("visible"); // Default tab key
 
-// A Dexie live query to check if a redirect exists for the current slug
-// This is used to warn the user if they are editing a slug that already has a redirect
-const existingRedirectForSlug = useDexieLiveQuery(
-    () => {
-        const slug = content.value?.slug;
-
-        return db.docs
-            .where("type")
-            .equals(DocType.Redirect)
-            .and((d) => {
-                const doc = d as RedirectDto;
-                return doc.slug === slug;
-            })
-            .toArray() as unknown as Promise<RedirectDto[]>;
-    },
-    { initialValue: [] },
+// Whether a redirect already exists for the current slug (used to warn the user). Redirects
+// are a fully-synced type in the CMS, so this Dexie-first HybridQuery reads IndexedDB and is
+// authoritative — no API lookup is needed. Direct lookup on the `[type+slug]` compound index
+// (see CMS_DOCS_INDEX); coalesce a missing slug to "" so we never query an undefined index key.
+const existingRedirectForSlug = useHybridQuery<RedirectDto>(
+    () => ({ selector: { type: DocType.Redirect, slug: content.value?.slug ?? "" } }),
+    { live: true },
 );
 
 const publishDateString = computed({
@@ -219,7 +210,7 @@ const clearExpiryDate = () => {
     >
         <template #actions>
             <LTextToggle
-                v-model="currentToogle"
+                v-model="currentToggle"
                 leftLabel="Visible"
                 :leftValue="'visible'"
                 rightLabel="SEO"
@@ -229,7 +220,7 @@ const clearExpiryDate = () => {
             />
         </template>
 
-        <div v-if="currentToogle === 'visible'">
+        <div v-if="currentToggle === 'visible'">
             <div class="grid grid-cols-[auto_1fr] items-center gap-2">
                 <div class="col-span-2 flex flex-col gap-4 text-center">
                     <!-- Warning message -->
@@ -450,10 +441,9 @@ const clearExpiryDate = () => {
                     :disabled="disabled || disablePublish"
                 />
             </div>
-
         </div>
 
-        <div v-else-if="currentToogle === 'seo'">
+        <div v-else-if="currentToggle === 'seo'">
             <div class="grid grid-cols-[auto_1fr] items-center gap-x-4 gap-y-2">
                 <!-- Seo -->
                 <FormLabel>Title</FormLabel>
