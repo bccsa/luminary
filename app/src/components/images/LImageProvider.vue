@@ -87,7 +87,8 @@ export const activeImageCollection = computed(() => (content: ContentDto) => {
 </script>
 
 <script setup lang="ts">
-import { fallbackImageUrls, isDataSaverEnabled } from "@/globalConfig";
+import { fallbackImageUrls, isDataSaverEnabled, userDataSaverEnabled } from "@/globalConfig";
+import { isSlowConnection } from "@/composables/useNetworkSpeed";
 import { type ImageDto, type ImageFileDto, type Uuid } from "luminary-shared";
 import Rand from "rand-seed";
 import { thumbHashToDataURL } from "thumbhash";
@@ -127,14 +128,29 @@ const resolvedAlt = computed(() => {
 
 const baseUrl = computed(() => props.bucketPublicUrl);
 
-// Read once at setup — Data Saver toggling mid-session is rare, and the declarative media query
-// below covers browsers that change it live.
-const saveData = isDataSaverEnabled();
+// "Reduced data" mode lowers image weight on three signals, any one of which is enough: a measured
+// slow connection, the user's Settings toggle, and the OS/browser Data Saver flag. (A fourth,
+// declarative `prefers-reduced-data` path is handled in `sizesAttr`.) Reactive, so the srcset/sizes
+// recompute live when a probe changes the speed or the user flips the toggle.
+const reducedData = computed(
+    () => isSlowConnection.value || userDataSaverEnabled.value || isDataSaverEnabled(),
+);
 
-// All collections for this image, unfiltered. We deliberately do NOT pre-filter variants by width
-// or connection speed here: handing the browser the full srcset ladder plus a correct `sizes`
-// attribute lets it pick the variant that fits the slot AND the device pixel ratio. (Selecting in JS
-// was DPR-blind and dropped the high-res variants before the browser ever saw them.)
+// Largest width kept in the srcset while in reduced-data mode — the high-res rungs are dropped so
+// even retina / high-DPR screens can't pull the heavy variants.
+const REDUCED_MAX_WIDTH = 600;
+
+// In reduced-data mode, trim a collection's files to the lower rungs (always keeping at least the
+// smallest, so something still loads). Otherwise hand over the full ladder: a correct `sizes`
+// attribute then lets the browser pick the variant that fits the slot AND the device pixel ratio
+// (selecting in JS was DPR-blind and dropped the high-res variants before the browser ever saw them).
+const capFiles = (files: ImageFileDto[]): ImageFileDto[] => {
+    if (!reducedData.value || !files.length) return files;
+    const capped = files.filter((f) => f.width <= REDUCED_MAX_WIDTH);
+    return capped.length ? capped : [files.reduce((a, b) => (a.width < b.width ? a : b))];
+};
+
+// All collections for this image (per-collection width trimming happens in `capFiles`).
 const allFileCollections = computed(() => props.image?.fileCollections ?? []);
 
 // Calculate the closest aspect ratio to the desired one
@@ -196,10 +212,9 @@ const inflateSizes = (sizesStr: string, factor: number): string => {
 };
 
 // The HTML `sizes` attribute for the current slot (undefined for icon mode, which uses a direct src),
-// inflated for cover-crop over-scaling (see `coverScaleFactor`). Honours the user's data-saving
-// preference two ways:
-//   1. `saveData` (Network Information API flag): force the smaller slot — covers Chromium browsers
-//      that expose the flag but not the media query.
+// inflated for cover-crop over-scaling (see `coverScaleFactor`). Drops to the smaller slot when:
+//   1. `reducedData` (slow connection, the user's toggle, or the OS/browser `saveData` flag): force
+//      the smaller slot — also covers Chromium browsers that expose the flag but not the media query.
 //   2. `(prefers-reduced-data: reduce)`: advertise the smaller slot declaratively so supporting
 //      browsers downshift live; everyone else falls through to the full slot.
 const sizesAttr = computed(() => {
@@ -208,9 +223,9 @@ const sizesAttr = computed(() => {
     const baseInflated = inflateSizes(base, coverScaleFactor.value);
     const reduced = sizesReducedMap[props.size];
     if (!reduced) return baseInflated;
-    // Data Saver deliberately fetches a smaller variant to save bytes — don't inflate it even for
-    // cover-cropped slots; the user opted into lower quality, so some softness is the trade.
-    if (saveData) return reduced;
+    // Reduced-data mode deliberately fetches a smaller variant to save bytes — don't inflate it even
+    // for cover-cropped slots; lower quality is the accepted trade for the saved bandwidth.
+    if (reducedData.value) return reduced;
     return `(prefers-reduced-data: reduce) ${reduced}, ${baseInflated}`;
 });
 
@@ -277,7 +292,7 @@ const srcset1 = computed(() => {
 
     return collectionsToUse
         .map((collection) => {
-            return [...collection.imageFiles]
+            return capFiles([...collection.imageFiles])
                 .sort((a, b) => a.width - b.width)
                 .map((f) => `${baseUrl.value}/${f.filename} ${f.width}w`)
                 .join(", ");
@@ -294,7 +309,7 @@ const srcset2 = computed(() => {
     return allFileCollections.value
         .filter((collection) => collection.aspectRatio !== closestAspectRatio.value)
         .map((collection) => {
-            return [...collection.imageFiles]
+            return capFiles([...collection.imageFiles])
                 .sort((a, b) => a.width - b.width)
                 .map((f) => `${baseUrl.value}/${f.filename} ${f.width}w`)
                 .join(", ");

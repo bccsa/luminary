@@ -1,6 +1,6 @@
 import "fake-indexeddb/auto";
 import { mount } from "@vue/test-utils";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import waitForExpect from "wait-for-expect";
 
 // Mock only `isDataSaverEnabled` so we can simulate Data Saver; everything else is the real module.
@@ -8,8 +8,23 @@ vi.mock("@/globalConfig", async (importOriginal) => {
     const actual = await importOriginal<typeof import("@/globalConfig")>();
     return { ...actual, isDataSaverEnabled: vi.fn(() => false) };
 });
-import { isDataSaverEnabled } from "@/globalConfig";
+// Mock the speed probe so we can drive the "slow connection" branch without timing a real download.
+vi.mock("@/composables/useNetworkSpeed", async () => {
+    const { ref } = await import("vue");
+    const isSlowConnection = ref(false);
+    const connectionSpeed = ref(10);
+    return {
+        isSlowConnection,
+        connectionSpeed,
+        useNetworkSpeed: () => ({ isSlowConnection, connectionSpeed, runProbe: vi.fn() }),
+    };
+});
+import { isDataSaverEnabled, userDataSaverEnabled } from "@/globalConfig";
+import { isSlowConnection } from "@/composables/useNetworkSpeed";
 import LImageProvider from "./LImageProvider.vue";
+
+// `isSlowConnection` is a real (mocked) ref here; treat it as writable in tests.
+const slow = isSlowConnection as unknown as { value: boolean };
 
 const mockImage = {
     fileCollections: [
@@ -31,6 +46,11 @@ const mockImage = {
 };
 
 describe("LImageProvider", () => {
+    afterEach(() => {
+        slow.value = false;
+        userDataSaverEnabled.value = false;
+    });
+
     it("does not load fallback image if either main image loads successfully", async () => {
         const wrapper = mount(LImageProvider, {
             props: {
@@ -292,5 +312,85 @@ describe("LImageProvider", () => {
         });
 
         expect(fallback).toBeDefined();
+    });
+
+    // A collection with a variant above the reduced-data cap (600px), to prove trimming.
+    const mockImageLarge = {
+        fileCollections: [
+            {
+                aspectRatio: 1.78, // video
+                imageFiles: [
+                    { filename: "video-300.webp", width: 300, height: 169 },
+                    { filename: "video-600.webp", width: 600, height: 338 },
+                    { filename: "video-1200.webp", width: 1200, height: 675 },
+                ],
+            },
+        ],
+    };
+
+    it("trims the srcset to lower-quality variants and advertises reduced sizes on a slow connection", async () => {
+        slow.value = true;
+        const wrapper = mount(LImageProvider, {
+            props: {
+                parentId: "test-id-slow",
+                image: mockImageLarge,
+                aspectRatio: "video",
+                size: "thumbnail",
+                bucketPublicUrl: "https://bucket.example.com",
+            },
+        });
+        await wrapper.vm.$nextTick();
+        const img1 = wrapper.find('img[data-test="image-element1"]');
+        const srcset = img1.attributes("srcset") ?? "";
+        // The high-res (>600px) rung is dropped; the lower rungs remain.
+        expect(srcset).toContain("video-300.webp 300w");
+        expect(srcset).toContain("video-600.webp 600w");
+        expect(srcset).not.toContain("video-1200.webp");
+        // Reduced-data mode also forces the smaller advertised slot (no media-query fallthrough).
+        expect(img1.attributes("sizes")).toBe("144px");
+    });
+
+    it("keeps the smallest variant when every variant exceeds the cap on a slow connection", async () => {
+        slow.value = true;
+        const wrapper = mount(LImageProvider, {
+            props: {
+                parentId: "test-id-slow-allbig",
+                image: {
+                    fileCollections: [
+                        {
+                            aspectRatio: 1.78,
+                            imageFiles: [
+                                { filename: "video-800.webp", width: 800, height: 450 },
+                                { filename: "video-1600.webp", width: 1600, height: 900 },
+                            ],
+                        },
+                    ],
+                } as any,
+                aspectRatio: "video",
+                bucketPublicUrl: "https://bucket.example.com",
+            },
+        });
+        await wrapper.vm.$nextTick();
+        const img1 = wrapper.find('img[data-test="image-element1"]');
+        const srcset = img1.attributes("srcset") ?? "";
+        // Nothing is ≤600, so the single smallest variant is kept so an image still loads.
+        expect(srcset).toContain("video-800.webp 800w");
+        expect(srcset).not.toContain("video-1600.webp");
+    });
+
+    it("trims the srcset when the user's Data Saver toggle is on", async () => {
+        userDataSaverEnabled.value = true;
+        const wrapper = mount(LImageProvider, {
+            props: {
+                parentId: "test-id-toggle",
+                image: mockImageLarge,
+                aspectRatio: "video",
+                bucketPublicUrl: "https://bucket.example.com",
+            },
+        });
+        await wrapper.vm.$nextTick();
+        const img1 = wrapper.find('img[data-test="image-element1"]');
+        expect(img1.attributes("srcset")).not.toContain("video-1200.webp");
+        expect(img1.attributes("srcset")).toContain("video-600.webp 600w");
     });
 });

@@ -6,6 +6,19 @@ import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
 import { db, isConnected } from "luminary-shared";
 import { mockLanguageDtoEng } from "@/tests/mockdata";
+import { userDataSaverEnabled } from "@/globalConfig";
+
+// Keep the probe out of unit tests — return a fixed reactive speed.
+vi.mock("@/composables/useNetworkSpeed", async () => {
+    const { ref, computed } = await import("vue");
+    const connectionSpeed = ref(10);
+    const isSlowConnection = computed(() => connectionSpeed.value < 4);
+    return {
+        connectionSpeed,
+        isSlowConnection,
+        useNetworkSpeed: () => ({ connectionSpeed, isSlowConnection, runProbe: vi.fn() }),
+    };
+});
 
 vi.mock("vue-router");
 vi.mock("@/router", () => ({
@@ -75,5 +88,35 @@ describe("SettingsPage clearing state", () => {
         expect(button.text()).toContain("Delete local cache");
         expect(button.attributes("disabled")).toBeUndefined();
         expect(wrapper.find("svg.animate-spin").exists()).toBe(false);
+    });
+});
+
+describe("SettingsPage data saver", () => {
+    beforeEach(() => {
+        setActivePinia(createTestingPinia());
+        userDataSaverEnabled.value = false;
+        localStorage.clear();
+    });
+
+    afterEach(() => {
+        userDataSaverEnabled.value = false;
+        localStorage.clear();
+    });
+
+    it("renders the live connection speed from the composable", () => {
+        const wrapper = mountSettingsPage();
+        expect(wrapper.text()).toContain("10.0 Mbps");
+    });
+
+    it("toggles and persists the user Data Saver preference", async () => {
+        const wrapper = mountSettingsPage();
+        const toggle = wrapper.find("[data-test='dataSaverToggle']");
+        expect(toggle.exists()).toBe(true);
+        expect(userDataSaverEnabled.value).toBe(false);
+
+        await toggle.trigger("click");
+
+        expect(userDataSaverEnabled.value).toBe(true);
+        expect(localStorage.getItem("dataSaver")).toBe("true");
     });
 });

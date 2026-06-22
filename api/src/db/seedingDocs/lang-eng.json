@@ -48,6 +48,8 @@
         "settings.local_cache.button_clearing": "Clearing local cache...",
         "settings.device_info.title": "Device info",
         "settings.device_info.description": "Provide these details when contacting support",
+        "settings.data_saver.title": "Data saver",
+        "settings.data_saver.description": "Reduce image quality to use less data. This also turns on automatically on slow connections or when your device's Data Saver is enabled.",
         "home.title": "Home",
         "home.continue": "Continue Watching",
         "home.continueListening": "Continue Listening",

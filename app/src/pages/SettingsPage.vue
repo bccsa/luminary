@@ -2,11 +2,13 @@
 import { nextTick, onMounted, ref } from "vue";
 import LButton from "@/components/button/LButton.vue";
 import LCard from "@/components/common/LCard.vue";
+import LToggle from "@/components/form/LToggle.vue";
 import LoadingSpinner from "@/components/LoadingSpinner.vue";
 import { db, isConnected } from "luminary-shared";
 import { useNotificationStore } from "@/stores/notification";
 import { useI18n } from "vue-i18n";
-import { getDeviceInfo } from "@/globalConfig";
+import { getDeviceInfo, userDataSaverEnabled } from "@/globalConfig";
+import { useNetworkSpeed } from "@/composables/useNetworkSpeed";
 import BasePage from "@/components/BasePage.vue";
 import { triggerSync } from "@/sync";
 import { markPageReady } from "@/util/renderState";
@@ -21,6 +23,9 @@ onMounted(async () => {
 const { addNotification } = useNotificationStore();
 
 const deviceInfo = getDeviceInfo();
+
+// Live, probe-based connection-speed estimate (refreshes itself on focus / regained connectivity).
+const { connectionSpeed } = useNetworkSpeed();
 
 const isClearing = ref(false);
 
@@ -85,11 +90,19 @@ const deleteLocalData = async () => {
                 </div>
                 <div class="text-sm text-zinc-600 dark:text-slate-100">
                     <span class="font-semibold">Connection speed:</span>
-                    {{ deviceInfo.connectionSpeed }} Mbps
+                    {{ connectionSpeed.toFixed(1) }} Mbps
                 </div>
                 <div class="text-sm text-zinc-600 dark:text-slate-100">
                     <span class="font-semibold">Connection state:</span>
                     {{ isConnected ? "Online" : "Offline" }}
+                </div>
+            </LCard>
+            <LCard :title="t('settings.data_saver.title')">
+                <div class="flex items-center justify-between gap-4">
+                    <div class="text-sm text-zinc-600 dark:text-slate-100">
+                        {{ t("settings.data_saver.description") }}
+                    </div>
+                    <LToggle v-model="userDataSaverEnabled" data-test="dataSaverToggle" />
                 </div>
             </LCard>
         </div>

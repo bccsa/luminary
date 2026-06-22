@@ -48,6 +48,8 @@
         "settings.local_cache.button_clearing": "Suppression du cache local...",
         "settings.device_info.title": "Informations sur l'appareil",
         "settings.device_info.description": "Fournissez ces détails lors de la prise de contact avec le support",
+        "settings.data_saver.title": "Économiseur de données",
+        "settings.data_saver.description": "Réduisez la qualité des images pour utiliser moins de données. Cette option s'active aussi automatiquement sur les connexions lentes ou lorsque l'économiseur de données de votre appareil est activé.",
         "home.title": "Accueil",
         "home.continue": "Continuer à regarder",
         "home.continueListening": "Continuer à écouter",
