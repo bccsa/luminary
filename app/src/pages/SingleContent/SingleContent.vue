@@ -280,9 +280,12 @@ const translationsArr = useContentQuery(
         useIndex: "content-parentId-publishDate-index",
         sort: [{ publishDate: "desc" }],
         // A language switch binds the chosen translation straight into `content`, so
-        // these docs keep the same fields as the main content query: `text` (body) and
-        // `memberOf` (read by canEdit). The default strip set would drop both.
+        // the LIVE result keeps `text` (body) + `memberOf` (read by canEdit).
         stripFields: ["fts", "ftsTokenCount", "_rev"],
+        // …but DROP the body from the CACHE seed. Serializing every sibling's full
+        // text into each page (×N languages) is what blew the full build's heap — and
+        // it's only needed on a language switch, where the live query re-loads it.
+        cacheStripFields: ["text"],
     },
 );
 

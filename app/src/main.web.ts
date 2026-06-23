@@ -15,6 +15,10 @@ import { apiUrl, appLanguageIdsAsRef, cmsLanguages, isAppLoading } from "./globa
 
 const LANGUAGES_QUERY = { selector: { type: DocType.Language } };
 
+// The language list is identical for every prerendered page, so fetch it ONCE per
+// build (the full ~2k-route build otherwise re-fetches + re-allocates it per page).
+let ssgLanguages: LanguageDto[] | undefined;
+
 // The language a given route is prerendered in: the content's own language for a
 // content/tag slug, else the CMS default. The slug→lang map + default are built by
 // the route enumeration in vite.config.web.ts and shared via globalThis (same Node
@@ -48,7 +52,8 @@ export const createApp = ViteSSG(
             // HttpReq is fetch-only (no Dexie/socket), so this is safe in Node.
             initHybridQuery(new HttpReq(apiUrl));
 
-            const langs = await queryRemote<LanguageDto>(LANGUAGES_QUERY);
+            if (!ssgLanguages) ssgLanguages = await queryRemote<LanguageDto>(LANGUAGES_QUERY);
+            const langs = ssgLanguages;
             cmsLanguages.value = langs;
 
             // Serialize ALL languages so the client's first render has every
