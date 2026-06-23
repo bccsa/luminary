@@ -163,3 +163,23 @@ CMS-side interim if needed: revert GroupOverview's groups read to `ApiLiveQuery`
 `main.ts:53-55` keeps `User` + `AutoGroupMappings` in the init `syncList` only so the socket pushes
 updates for the (now-`HybridQuery`, API-only) live-only types. Remove once those screens are verified
 live (HybridQuery subscribes to the rooms on demand).
+
+### Pre-existing issues surfaced during the `hasLocalChanges` move (NOT caused by it)
+Both reproduce identically at HEAD (verified by stashing the move and re-running) — recording them
+here so they aren't mistaken for regressions from this work.
+
+- **`components/groups/EditGroup.spec.ts` — type error + 3 failing tests.** The prop is typed
+  `groupQuery: ReturnType<typeof toEditable<GroupDto>>` (public `updateShadow`), but the spec passes
+  `mockGroupQuery as ApiLiveQueryAsEditable<GroupDto>`, whose `updateShadow` is `private` → not
+  structurally assignable (`vue-tsc` error). Before this change `vue-tsc` reported the missing
+  `hasLocalChanges` member first; removing it from `toEditable` just shifted the reported reason to
+  `updateShadow`. The 3 runtime failures ("calls duplicate function…", "displays EditAclByGroup
+  components…", "removes an assigned group…") are mount/render failures unrelated to local-change
+  state. Belongs with the `GroupOverview` / as-editable-wrapper follow-up above (another team member).
+
+- **`components/content/EditContent.spec.ts` — unhandled rejection in lodash `equalByTag`.**
+  `toEditable`'s `isEqualBase` deep-compares docs carrying binary upload data; lodash reaches
+  `ArrayBuffer.prototype.byteLength` through a Vue reactive proxy and throws "called on incompatible
+  receiver". `arrayBufferCustomizer` (`shared/src/util/toEditable/toEditable.ts`) already try/catches
+  the customizer path, but the rejection still surfaces as unhandled. Tests pass; the equality logic
+  is untouched by this change.
