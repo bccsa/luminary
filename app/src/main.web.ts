@@ -51,13 +51,16 @@ export const createApp = ViteSSG(
             const langs = await queryRemote<LanguageDto>(LANGUAGES_QUERY);
             cmsLanguages.value = langs;
 
-            // Serialize only what the first client render needs (render + default
-            // language, deduped) to keep page weight down; the full list re-syncs
-            // post-mount via the data layer.
+            // Serialize ALL languages so the client's first render has every
+            // translation's name/code (SingleContent's language dropdown + hreflang),
+            // but strip the heavy `translations` map from all except the render +
+            // default language — i18n only needs those two — to keep page weight down.
             const defaultId = langs.find((l) => l.default === 1)?._id;
             const keep = new Set([lang, defaultId].filter(Boolean) as string[]);
             initialState.renderLang = lang;
-            initialState.languages = langs.filter((l) => keep.has(l._id));
+            initialState.languages = langs.map((l) =>
+                keep.has(l._id) ? l : { ...l, translations: {} },
+            );
         } else {
             // Client: take the render language from the serialized state so the first
             // render's UI strings + content match the prerendered HTML. (The web tier
