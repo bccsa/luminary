@@ -57,7 +57,7 @@ Schema versioning is **automatic**: `bumpDBVersion` compares the JSON-serialized
 
 The exported singleton is `db`, available after `initDatabase()` resolves. `db.upsert(...)` is the standard write path: it writes to `docs` and queues a `localChange` for upload (or, for deletes with `deleteReq`, removes from `docs` and queues the delete). `db.bulkPut(docs)` handles incoming docs from the API including `DeleteCmd` resolution (with a stale-delete guard — skips deletes whose target is already newer).
 
-`db.deleteRevoked()` watches `accessMap` and removes any docs the user no longer has access to. `db.deleteExpired()` purges past-expiry docs on non-CMS clients on startup.
+`db.deleteRevoked()` removes any docs the user no longer has access to. It is driven by a watcher on `accessMap` (set up in `initDatabase`) that fires on map changes — **not** immediately at init, and it short-circuits when `accessMap` is empty: an empty map is the not-loaded `useLocalStorage` default, not "no access", and purging on it would delete every group/doc before the server's `clientConfig` populates the real map. Full teardown (logout) goes through `db.purge()` instead, which also clears `syncList`. `db.deleteExpired()` purges past-expiry docs on non-CMS clients on startup.
 
 ### Sync — `src/api/sync/`
 

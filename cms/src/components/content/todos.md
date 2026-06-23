@@ -137,29 +137,29 @@ per-doc `useHasLocalChange(id)` convenience was unused after this and has been *
 Confirm `toEditable.save` covers the API path + the `LFormData` upload-data branch before swapping.
 Keep the save path doc-type-agnostic (no Content/Post/Tag specifics).
 
-### Groups vanish from the Group overview — *suspected* `deleteRevoked()` over-purge (shared)
+### Groups vanish from the Group overview — `deleteRevoked()` over-purge (shared) — ✅ FIXED
 **Symptom:** after `GroupOverview.vue` switched its groups read to `useHybridQuery` (Dexie-first for
 the synced Group type), most groups vanished — only locally-"duplicated" groups remained. Intermittent.
 
-**Likely cause (confirmed by code-reading; NOT yet fixed/verified — treat as the leading hypothesis):**
-the switch *exposed* a pre-existing shared bug. `ApiLiveQuery` read groups from the REST API and masked
-it; Dexie-first `useHybridQuery` reflects the `docs` table, which `db.deleteRevoked()` purges:
-- `database.ts:878` `watchValue(accessMap, () => db.deleteRevoked(), { immediate: true })` fires on init
-  while `accessMap` is still the empty `useLocalStorage` default (`permissions.ts:12`), before the
-  socket `clientConfig` populates it.
+**Root cause (confirmed):** the switch *exposed* a pre-existing shared bug. `ApiLiveQuery` read groups
+from the REST API and masked it; Dexie-first `useHybridQuery` reflects the `docs` table, which
+`db.deleteRevoked()` purges:
+- `watchValue(accessMap, () => db.deleteRevoked(), { immediate: true })` fired on init while `accessMap`
+  was still the empty `useLocalStorage` default (`permissions.ts:12`), before the socket `clientConfig`
+  populated it.
 - empty map → `getAccessibleGroups(View)[Group]` = `[]` → `whereNotMemberOfAsCollection([], Group)`
-  (`database.ts:721-728`) matches *every* group with an `acl` field → all deleted from `docs`.
-- `deleteRevoked()` never resets `syncList` (group block stays `eof`) → sync never re-fetches →
-  **permanent** loss. Locally-duplicated groups survive via the `localChanges` queue. Intermittent
-  because it depends on whether `accessMap` is empty/stale at the `deleteRevoked` tick.
+  matched *every* group with an `acl` field → all deleted from `docs`.
+- `deleteRevoked()` never resets `syncList` (group block stays `eof`) → sync never re-fetched →
+  **permanent** loss. Locally-duplicated groups survived via the `localChanges` queue. Intermittent
+  because it depended on whether `accessMap` was empty/stale at the `deleteRevoked` tick.
 
-**Suspected fix (shared, blocked — senior's):** guard `deleteRevoked()` with
-`if (Object.keys(accessMap.value).length === 0) return;` (empty = "not loaded yet", not "no access";
-logout uses `purge()`), drop `{ immediate: true }`, and add a one-time group-`syncList` reset to recover
-already-purged clients. Ruled out: HybridQuery read/merge (merges by `_id`), ingestion filters, and the
-construction-time routing issue (that would lock API-only → groups would still *show*). The
-Group-visibility rule matches the API (`memberOf=[self._id]`), so the empty-map guard is the whole fix.
-CMS-side interim if needed: revert GroupOverview's groups read to `ApiLiveQuery`.
+**Fix (shipped in `shared/src/db/database.ts`):** the `accessMap` watcher now guards
+`if (Object.keys(value).length === 0) return;` (empty = "not loaded yet", not "no access"; logout uses
+`purge()`), the `{ immediate: true }` was dropped, and a one-time group-`syncList` reset
+(`resetGroupSyncListForRecovery`, localStorage-gated `groupSyncListReset_v1`) recovers already-purged
+clients on next sync. The recovery is temporary — remove after 2026-09-01, tracked by bccsa/luminary#1730.
+Ruled out: HybridQuery read/merge (merges by `_id`), ingestion filters, and the construction-time routing
+issue (that would lock API-only → groups would still *show*). No CMS-side change was needed.
 
 ### `GroupOverview` `ApiLiveQueryAsEditable<GroupDto>` (+ `GroupSelector` `whereTypeAsRef`)
 `components/groups/*` — owned by another team member; blocked on the wrapper follow-up above.

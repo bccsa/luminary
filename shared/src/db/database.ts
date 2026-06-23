@@ -874,14 +874,25 @@ export async function initDatabase() {
         db.deleteExpired();
     }, 5000);
 
-    // Listen for changes to the access map and delete documents that the user no longer has access to
-    watchValue(
-        accessMap,
-        () => {
-            db.deleteRevoked();
-        },
-        { immediate: true },
-    );
+    // Listen for changes to the access map and delete documents that the user no longer has access to.
+    // No `{ immediate: true }`: at init the persisted accessMap may be empty (not-loaded) or stale,
+    // and purging against it can over-delete. The server-authoritative map arrives via the socket
+    // `clientConfig` event shortly after init and triggers this watcher with real data.
+    watchValue(accessMap, (value) => {
+        // An empty accessMap means "not loaded yet" (the useLocalStorage default), NOT "no access".
+        // Purging on it would match every group with an `acl` field (and every doc with a
+        // `memberOf`) and delete them all before the server's clientConfig socket event populates
+        // the real map. Logout cleanup goes through purge(), not here.
+        if (Object.keys(value).length === 0) return;
+        db.deleteRevoked();
+    });
+
+    // One-time recovery for clients hit by the historical `deleteRevoked()` over-purge bug:
+    // their Group docs were deleted from `docs` while the Group `syncList` block stayed at `eof`,
+    // so sync never re-fetched them. Drop the Group block(s) so the next sync starts fresh and
+    // re-fetches all accessible groups. Gated by a localStorage flag so it runs at most once.
+    // Remove after 2026-09-01 — see bccsa/luminary#1730.
+    await resetGroupSyncListForRecovery();
 
     // Watch syncList for changes and persist to IndexedDB
     import("../api/sync/state").then(({ syncList }) => {
@@ -893,6 +904,37 @@ export async function initDatabase() {
             { deep: true },
         );
     });
+}
+
+/**
+ * One-time recovery: reset the Group `syncList` block(s) so clients previously purged by the
+ * `deleteRevoked()` over-purge bug re-fetch their groups on next sync. Idempotent via a
+ * localStorage flag. Temporary — remove after 2026-09-01 (bccsa/luminary#1730).
+ */
+async function resetGroupSyncListForRecovery() {
+    const RECOVERY_FLAG = "groupSyncListReset_v1";
+    if (localStorage.getItem(RECOVERY_FLAG)) return;
+
+    const [{ syncList }, { splitChunkTypeString }] = await Promise.all([
+        import("../api/sync/state"),
+        import("../api/sync/utils"),
+    ]);
+
+    // Load the persisted syncList into the in-memory ref before mutating it.
+    await db.getSyncList();
+
+    const hadGroupBlock = syncList.value.some(
+        (entry) => splitChunkTypeString(entry.chunkType).type === DocType.Group,
+    );
+
+    if (hadGroupBlock) {
+        syncList.value = syncList.value.filter(
+            (entry) => splitChunkTypeString(entry.chunkType).type !== DocType.Group,
+        );
+        await db.setSyncList();
+    }
+
+    localStorage.setItem(RECOVERY_FLAG, "1");
 }
 
 /**

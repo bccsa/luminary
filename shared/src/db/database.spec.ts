@@ -25,6 +25,7 @@ import {
     type TagDto,
 } from "../types";
 import { db, getDbVersion, initDatabase } from "../db/database";
+import { syncList } from "../api/sync/state";
 import { accessMap } from "../permissions/permissions";
 import { isConnected } from "../socket/socketio";
 import { DateTime } from "luxon";
@@ -893,6 +894,39 @@ describe("Database", async () => {
                 expect(remainingDocs.find((doc) => doc._id === "group-public-users")).toBeDefined();
             });
         });
+
+        it("does NOT purge groups when the accessMap transitions to empty (not yet loaded)", async () => {
+            // Regression: an empty accessMap is the not-loaded default, not "no access". Purging on
+            // it matched every group with an `acl` field and deleted them all before clientConfig
+            // populated the real map. The guard in the accessMap watcher must short-circuit instead.
+            const group = {
+                _id: "group-public-users",
+                type: DocType.Group,
+                acl: [{ type: DocType.Group, groupId: "g2", permission: [AclPermission.View] }],
+                updatedTimeUtc: 0,
+            };
+            await db.docs.bulkPut([group]);
+
+            // Populated map → watcher runs deleteRevoked; the accessible group is kept.
+            accessMap.value = {
+                "group-public-users": {
+                    [DocType.Group]: { view: true, assign: true },
+                },
+            };
+            isConnected.value = true;
+            await waitForExpect(async () => {
+                expect(await db.docs.get("group-public-users")).toBeDefined();
+            });
+
+            // Transition to an empty map (simulating a not-loaded/cleared state). The watcher
+            // fires but the guard must short-circuit, so the group survives.
+            accessMap.value = {};
+            await new Promise((resolve) => setTimeout(resolve, 50));
+
+            const remainingGroups = await db.docs.where("type").equals(DocType.Group).toArray();
+            expect(remainingGroups).toHaveLength(1);
+            expect(remainingGroups[0]._id).toBe("group-public-users");
+        });
     });
 
     it("deletes expired documents when not in cms-mode", async () => {
@@ -932,6 +966,39 @@ describe("Database", async () => {
         expect(remainingDocs).toHaveLength(2);
 
         config.cms = true;
+    });
+
+    // Temporary — remove with the recovery block after 2026-09-01 (bccsa/luminary#1730).
+    describe("one-time Group syncList recovery", () => {
+        afterEach(async () => {
+            syncList.value = [];
+            await db.setSyncList();
+        });
+
+        it("drops the Group syncList block once so purged clients re-fetch groups", async () => {
+            localStorage.removeItem("groupSyncListReset_v1");
+            syncList.value = [
+                { chunkType: "group", memberOf: ["g1"], blockStart: 100, blockEnd: 0, eof: true },
+                { chunkType: "post", memberOf: ["g1"], blockStart: 100, blockEnd: 0, eof: true },
+            ];
+            await db.setSyncList();
+
+            await initDatabase(); // runs the recovery once
+
+            expect(syncList.value.some((e) => e.chunkType === "group")).toBe(false);
+            expect(syncList.value.some((e) => e.chunkType === "post")).toBe(true);
+            expect(localStorage.getItem("groupSyncListReset_v1")).toBe("1");
+
+            // Idempotent: a fresh Group block seeded afterwards is left untouched on re-init.
+            syncList.value = [
+                { chunkType: "group", memberOf: ["g1"], blockStart: 100, blockEnd: 0, eof: true },
+            ];
+            await db.setSyncList();
+
+            await initDatabase();
+
+            expect(syncList.value.some((e) => e.chunkType === "group")).toBe(true);
+        });
     });
 
     it("upgrade indexdb version by changing the docs index", async () => {
