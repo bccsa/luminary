@@ -1,7 +1,7 @@
 import { describe, expect, beforeEach, test, vi } from "vitest";
 import waitForExpect from "wait-for-expect";
 import { ref, type Ref } from "vue";
-import { useHasLocalChange, useHasLocalChanges } from "./useHasLocalChange";
+import { useHasLocalChanges } from "./useHasLocalChange";
 import { useDexieLiveQuery } from "../useDexieLiveQuery";
 
 // The subscription is backed by a live query over the localChanges docId index; mock it so the
@@ -41,22 +41,12 @@ describe("useHasLocalChange", () => {
         await waitForExpect(() => expect(has.value("a")).toBe(false));
     });
 
-    test("useHasLocalChange tracks a single id reactively", async () => {
-        const has = useHasLocalChange("a");
-        expect(has.value).toBe(false);
-
-        queueIds.value = ["a"];
-        await waitForExpect(() => expect(has.value).toBe(true));
-        queueIds.value = ["b"];
-        await waitForExpect(() => expect(has.value).toBe(false));
-    });
-
     test("shares one subscription across many callers", () => {
         // Memoized singleton: many calls must not each open a live query.
         vi.mocked(useDexieLiveQuery).mockClear();
         useHasLocalChanges();
-        useHasLocalChange("a");
-        useHasLocalChange("b");
+        useHasLocalChanges();
+        useHasLocalChanges();
         expect(useDexieLiveQuery).not.toHaveBeenCalled();
     });
 });

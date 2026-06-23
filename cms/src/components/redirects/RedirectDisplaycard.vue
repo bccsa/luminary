@@ -10,17 +10,18 @@ import {
     type RedirectDto,
     type GroupDto,
     useHybridQuery,
-    useHasLocalChange,
 } from "luminary-shared";
 import { computed, ref } from "vue";
 import CreateOrEditRedirectModal from "./CreateOrEditRedirectModal.vue";
 
 type Props = {
     redirectDoc: RedirectDto;
+    // Reactive `(id) => boolean` from the overview's useHybridQueryWithState bundle.
+    hasLocalChanges: (id: string) => boolean;
 };
 
 const props = defineProps<Props>();
-const isLocalChanges = useHasLocalChange(props.redirectDoc._id);
+const isLocalChanges = computed(() => props.hasLocalChanges(props.redirectDoc._id));
 const isModalVisible = ref(false);
 
 const availableGroups = useHybridQuery<GroupDto>(() => ({ selector: { type: DocType.Group } }), {

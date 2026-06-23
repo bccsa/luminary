@@ -5,7 +5,7 @@ import {
     DocType,
     hasAnyPermission,
     useHybridQuery,
-    useHasLocalChange,
+    useHybridQueryWithState,
     verifyAccess,
     type LanguageDto,
     type Uuid,
@@ -51,10 +51,11 @@ const props = defineProps<Props>();
 const { addNotification } = useNotificationStore();
 
 const translations = ref<translationKeyValuePair[]>([]);
-const languages = useHybridQuery<LanguageDto>(() => ({ selector: { type: DocType.Language } }), {
-    live: true,
-});
-const isLocalChange = useHasLocalChange(props.id);
+const { output: languages, hasLocalChanges } = useHybridQueryWithState<LanguageDto>(
+    () => ({ selector: { type: DocType.Language } }),
+    { live: true },
+);
+const isLocalChange = computed(() => hasLocalChanges.value(props.id));
 const showDeleteModal = ref(false);
 
 // Language is a synced type → Dexie-first HybridQuery. `original` is the loaded baseline the

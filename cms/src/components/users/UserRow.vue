@@ -6,25 +6,25 @@ import {
     AclPermission,
     verifyAccess,
     type GroupDto,
-    useHybridQuery,
-    useHasLocalChange,
+    useHybridQueryWithState,
 } from "luminary-shared";
 import { DateTime } from "luxon";
 import LButton from "../button/LButton.vue";
 import { EyeIcon, PencilSquareIcon } from "@heroicons/vue/20/solid";
 import LBadge from "../common/LBadge.vue";
-import { ref, watch } from "vue";
+import { ref, watch, computed } from "vue";
 
 type Props = {
     usersDoc: UserDto;
 };
 const props = defineProps<Props>();
 
-const isLocalChanges = useHasLocalChange(props.usersDoc._id);
+const { output: groups, hasLocalChanges } = useHybridQueryWithState<GroupDto>(
+    () => ({ selector: { type: DocType.Group } }),
+    { live: true },
+);
+const isLocalChanges = computed(() => hasLocalChanges.value(props.usersDoc._id));
 
-const groups = useHybridQuery<GroupDto>(() => ({ selector: { type: DocType.Group } }), {
-    live: true,
-});
 const group = ref<GroupDto[]>([]);
 
 watch(groups, (newGroups) => {

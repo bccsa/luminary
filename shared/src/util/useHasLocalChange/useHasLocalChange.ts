@@ -39,13 +39,3 @@ export function useHasLocalChanges(): ComputedRef<(id: Uuid) => boolean> {
         return (id: Uuid) => set.has(id);
     });
 }
-
-/**
- * Reactive: does this single document have a queued-but-unacknowledged local (offline) change?
- * Convenience wrapper over {@link useHasLocalChanges} for a fixed id (e.g. a single list row),
- * sharing the same single subscription across all callers.
- */
-export function useHasLocalChange(docId: Uuid): ComputedRef<boolean> {
-    const ids = localChangeIds();
-    return computed(() => ids.value.includes(docId));
-}

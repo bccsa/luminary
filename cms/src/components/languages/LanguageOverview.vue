@@ -19,10 +19,10 @@ const canCreateNew = computed(() => hasAnyPermission(DocType.Language, AclPermis
 
 // `isFetching` settles to false when the read completes even with no languages; a fires-once watch
 // on the output would hang on an empty result (HybridQuery dedupes [] → []).
-const { output: languages, isFetching: isLoading } = useHybridQueryWithState<LanguageDto>(
-    () => ({ selector: { type: DocType.Language } }),
-    { live: true },
-);
+const { output: languages, isFetching: isLoading, hasLocalChanges } =
+    useHybridQueryWithState<LanguageDto>(() => ({ selector: { type: DocType.Language } }), {
+        live: true,
+    });
 
 const createNew = () => {
     router.push({ name: "language", params: { id: db.uuid() } });
@@ -58,6 +58,7 @@ const createNew = () => {
             v-for="language in languages"
             :key="language._id"
             :languagesDoc="language"
+            :has-local-changes="hasLocalChanges"
         />
     </BasePage>
 </template>

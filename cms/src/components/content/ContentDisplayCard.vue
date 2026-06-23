@@ -9,8 +9,7 @@ import {
     AclPermission,
     verifyAccess,
     type GroupDto,
-    useHybridQuery,
-    useHasLocalChange,
+    useHybridQueryWithState,
 } from "luminary-shared";
 import { computed, ref, watch } from "vue";
 import LBadge from "../common/LBadge.vue";
@@ -51,7 +50,7 @@ const highlight = computed(() =>
 // top-level `type` is required — without it HybridQuery.readType returns undefined and routes
 // API-only. `parentId` alone scopes to the parent (parentType is redundant given the unique
 // parentId), and `{ type, parentId }` matches the `[type+parentId]` index — no full-table-scan warning.
-const contentDocs = useHybridQuery<ContentDto>(
+const { output: contentDocs, hasLocalChanges } = useHybridQueryWithState<ContentDto>(
     () => ({
         selector: {
             type: DocType.Content,
@@ -60,7 +59,7 @@ const contentDocs = useHybridQuery<ContentDto>(
     }),
     { live: true },
 );
-const isLocalChange = useHasLocalChange(props.contentDoc._id);
+const isLocalChange = computed(() => hasLocalChanges.value(props.contentDoc._id));
 
 const tagsContent = ref<ContentDto[]>([]);
 

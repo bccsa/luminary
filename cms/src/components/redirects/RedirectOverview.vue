@@ -44,7 +44,11 @@ const searchActive = computed(() => searchTerm.value.trim().length >= SEARCH_MIN
 // --- Browse (no / short search): synced HybridQuery + windowed scroll ---
 // `isFetching` settles to false when the read completes even with no redirects; a fires-once watch
 // on the output would hang on an empty result (HybridQuery dedupes [] → []).
-const { output: redirects, isFetching: browseLoading } = useHybridQueryWithState<RedirectDto>(
+const {
+    output: redirects,
+    isFetching: browseLoading,
+    hasLocalChanges,
+} = useHybridQueryWithState<RedirectDto>(
     () => ({
         selector: { type: DocType.Redirect },
         $sort: [{ updatedTimeUtc: "desc" }],
@@ -118,6 +122,7 @@ const displayedRedirects = computed<RedirectDto[]>(() =>
             v-for="redirect in displayedRedirects"
             :key="redirect._id"
             :redirectDoc="redirect"
+            :has-local-changes="hasLocalChanges"
         />
 
         <div

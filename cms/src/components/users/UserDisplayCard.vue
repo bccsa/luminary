@@ -7,7 +7,6 @@ import {
     type AuthProviderDto,
     DocType,
     useHybridQuery,
-    useHasLocalChange,
 } from "luminary-shared";
 import LBadge from "@/components/common/LBadge.vue";
 import { DateTime } from "luxon";
@@ -17,9 +16,11 @@ import { breakpointsTailwind, useBreakpoints } from "@vueuse/core";
 
 type Props = {
     usersDoc: UserDto;
+    // Reactive `(id) => boolean` from the overview's useHybridQueryWithState bundle.
+    hasLocalChanges: (id: string) => boolean;
 };
 const props = defineProps<Props>();
-const isLocalChanges = useHasLocalChange(props.usersDoc._id);
+const isLocalChanges = computed(() => props.hasLocalChanges(props.usersDoc._id));
 
 const groups = useHybridQuery<GroupDto>(() => ({ selector: { type: DocType.Group } }), {
     live: true,

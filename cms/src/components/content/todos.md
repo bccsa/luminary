@@ -64,20 +64,22 @@ is correct anyway, since languages are always fully synced.
 > HybridQuery too is tracked in **Remaining → "Move `globalConfig`'s startup Language read onto
 > `HybridQuery`"**.
 
-Local-change tracking now lives in `luminary-shared` (`shared/src/util/useHasLocalChange/`): one
-shared `localChanges.orderBy("docId").keys()` live query backs both `useHasLocalChanges()` (a
-`(id) => boolean` queryable, exposed on `HybridQuery` / `useHybridQueryWithState`) and the per-doc
-`useHasLocalChange(id)`. The display cards/rows import `useHasLocalChange` straight from
-`luminary-shared`; the CMS-side `useHasLocalChange.ts` workaround has been retired and `toEditable`
-no longer owns the tracking (see the now-done "Move local-change tracking into `HybridQuery`" below).
+Local-change tracking lives in `luminary-shared` (`shared/src/util/useHasLocalChange/`): one shared
+`localChanges.orderBy("docId").keys()` live query backs `useHasLocalChanges()` — a `(id) => boolean`
+queryable exposed on `HybridQuery` / `useHybridQueryWithState().hasLocalChanges`. CMS reads it **only**
+through that bundle: overviews pass `hasLocalChanges` down to their row cards (UserDisplayCard,
+RedirectDisplaycard, LanguageDisplayCard, RedirectRow ← RedirectTable), and components with their own
+query (ContentDisplayCard, EditLanguage, UserRow) read it off their own `useHybridQueryWithState`. No
+CMS code calls a standalone local-change composable, and the per-doc `useHasLocalChange(id)`
+convenience has been removed from shared (the CMS-side workaround was retired earlier).
 
 `cms/src/util/groups.ts#assignableGroups` DRYs the Edit+Assign group filter.
 
 ### Excluded / kept (by design)
-- The per-doc `db.isLocalChangeAsRef(id)` reads in display cards/rows are consolidated onto
-  `useHasLocalChange` (above). That is the only deliberate "kept" item. Everything else that still
-  reads outside `useHybridQuery` (ContentOverview, ContentDisplayCard, DashboardPage `pendingChanges`)
-  is now tracked in **Remaining** with a migration plan — see the full-sweep status there.
+- The per-doc `db.isLocalChangeAsRef(id)` reads in display cards/rows now come from the
+  `useHybridQueryWithState().hasLocalChanges` bundle queryable (above). `DashboardPage`
+  `pendingChanges` (the local-only `localChanges` queue) is the one deliberate `useDexieLiveQuery`
+  kept; everything else is migrated or tracked in **Remaining** — see the full-sweep status there.
 
 ## Remaining
 
@@ -85,7 +87,7 @@ no longer owns the tracking (see the now-done "Move local-change tracking into `
 A complete `cms/src` grep for `useDexieLiveQuery(WithDeps)` / `ApiLiveQuery` / `db.*AsRef` /
 `liveQuery` / `useObservable` confirms every reactive read still outside `useHybridQuery` is now
 **intentional or blocked**: `DashboardPage` `pendingChanges` (local-only queue — below), the
-`globalConfig` Language carve-out and `useHasLocalChange` (both shared-blocked — below), and
+`globalConfig` Language carve-out (shared-blocked — below), and
 `GroupSelector.vue`'s `whereTypeAsRef` (`components/groups/*` — another team member's, under the
 GroupOverview item). No other live-query mechanism is in use. `ContentOverview.vue` and
 `ContentDisplayCard.vue` are now migrated (DONE section above). The PR's read-migration goal is
@@ -118,13 +120,16 @@ queries** so the direct reference-list reads can also share one subscription. On
 — can drop to a single safe, shared pattern. **Blocked:** `shared/` is the senior's right now.
 
 ### ~~Move local-change tracking into `HybridQuery`; retire `useHasLocalChange`~~ — DONE
-Local-change tracking now lives in `luminary-shared` (`shared/src/util/useHasLocalChange/`): a single
+Local-change tracking lives in `luminary-shared` (`shared/src/util/useHasLocalChange/`): a single
 shared `localChanges.orderBy("docId").keys()` live query backs `useHasLocalChanges()` — a
-`(id) => boolean` queryable exposed on the `HybridQuery` class and `useHybridQueryWithState` bundle —
-and the per-doc `useHasLocalChange(id)` convenience. `toEditable` no longer owns the tracking, the
-CMS-side `useHasLocalChange.ts` workaround is deleted, and `UserDisplayCard`, `UserRow`,
-`RedirectDisplaycard`, `RedirectRow`, `ContentDisplayCard`, `LanguageDisplayCard`, and `EditLanguage`
-now import `useHasLocalChange` from `luminary-shared`.
+`(id) => boolean` queryable exposed on the `HybridQuery` class and the `useHybridQueryWithState`
+bundle as `hasLocalChanges`. `toEditable` no longer owns the tracking, and the CMS-side
+`useHasLocalChange.ts` workaround is deleted. CMS components now read `hasLocalChanges` **off the
+`useHybridQueryWithState` bundle** — overviews thread it to their row cards (UserDisplayCard,
+RedirectDisplaycard, LanguageDisplayCard, and RedirectRow via RedirectTable), while components with
+their own query (ContentDisplayCard, EditLanguage, UserRow) read it off that query's bundle. The
+per-doc `useHasLocalChange(id)` convenience was unused after this and has been **removed from shared**
+(`useHasLocalChanges()` — the queryable `HybridQuery` uses internally — stays).
 
 ### Migrate the deprecated as-editable wrappers onto `toEditable.save`
 `useDexieLiveQueryAsEditable.save(id)` and `ApiLiveQueryAsEditable.save(id)` still hand-roll

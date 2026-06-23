@@ -1,16 +1,19 @@
 <script setup lang="ts">
 import DisplayCard from "@/components/common/DisplayCard.vue";
-import { db, useHasLocalChange, type LanguageDto } from "luminary-shared";
+import { db, type LanguageDto } from "luminary-shared";
 import LBadge from "@/components/common/LBadge.vue";
 import { DateTime } from "luxon";
 import { ClockIcon } from "@heroicons/vue/24/outline";
 import { isMobileScreen } from "@/globalConfig";
+import { computed } from "vue";
 
 type Props = {
     languagesDoc: LanguageDto;
+    // Reactive `(id) => boolean` from the overview's useHybridQueryWithState bundle.
+    hasLocalChanges: (id: string) => boolean;
 };
 const props = defineProps<Props>();
-const isLocalChanges = useHasLocalChange(props.languagesDoc._id);
+const isLocalChanges = computed(() => props.hasLocalChanges(props.languagesDoc._id));
 </script>
 
 <template>

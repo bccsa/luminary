@@ -33,7 +33,7 @@ describe("RedirectDisplaycard", () => {
 
     it("renders the redirect slug and toSlug", () => {
         const wrapper = mount(RedirectDisplaycard, {
-            props: { redirectDoc: mockRedirectDto },
+            props: { redirectDoc: mockRedirectDto, hasLocalChanges: () => false },
         });
 
         expect(wrapper.text()).toContain("vod");
@@ -44,6 +44,7 @@ describe("RedirectDisplaycard", () => {
         const wrapper = mount(RedirectDisplaycard, {
             props: {
                 redirectDoc: { ...mockRedirectDto, toSlug: undefined },
+                hasLocalChanges: () => false,
             },
         });
 
@@ -52,7 +53,7 @@ describe("RedirectDisplaycard", () => {
 
     it("shows the redirect type badge in uppercase", () => {
         const wrapper = mount(RedirectDisplaycard, {
-            props: { redirectDoc: mockRedirectDto },
+            props: { redirectDoc: mockRedirectDto, hasLocalChanges: () => false },
         });
 
         expect(wrapper.text()).toContain("TEMPORARY");
@@ -60,7 +61,7 @@ describe("RedirectDisplaycard", () => {
 
     it("shows group badges for assigned groups", async () => {
         const wrapper = mount(RedirectDisplaycard, {
-            props: { redirectDoc: mockRedirectDto },
+            props: { redirectDoc: mockRedirectDto, hasLocalChanges: () => false },
         });
 
         // Wait for reactive db query to resolve
@@ -73,6 +74,7 @@ describe("RedirectDisplaycard", () => {
         const wrapper = mount(RedirectDisplaycard, {
             props: {
                 redirectDoc: { ...mockRedirectDto, memberOf: ["nonexistent-group"] },
+                hasLocalChanges: () => false,
             },
         });
 

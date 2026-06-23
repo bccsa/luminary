@@ -31,7 +31,7 @@ const canCreateNew = computed(() => hasAnyPermission(DocType.User, AclPermission
 
 // User is a non-synced type → HybridQuery serves it API-only (REST + on-demand socket rooms),
 // preserving the previous ApiLiveQuery behavior. Auto-disposes on unmount.
-const { output: users, isFetching } = useHybridQueryWithState<UserDto>(
+const { output: users, isFetching, hasLocalChanges } = useHybridQueryWithState<UserDto>(
     () => ({ selector: { type: DocType.User } }),
     { live: true },
 );
@@ -170,6 +170,7 @@ const displayedUsers = computed<UserDto[]>(() =>
             v-for="user in displayedUsers"
             :key="user._id"
             :usersDoc="user"
+            :has-local-changes="hasLocalChanges"
             v-model="isEditUserModalVisible"
             @edit="(id) => (selectedUserId = id)"
         />

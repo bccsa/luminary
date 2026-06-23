@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { DocType, type RedirectDto, useHybridQuery } from "luminary-shared";
+import { DocType, type RedirectDto, useHybridQueryWithState } from "luminary-shared";
 import LCard from "../common/LCard.vue";
 import RedirectRow from "./RedirectRow.vue";
-const redirects = useHybridQuery<RedirectDto>(
+const { output: redirects, hasLocalChanges } = useHybridQueryWithState<RedirectDto>(
     () => ({ selector: { type: DocType.Redirect } }),
     { live: true },
 );
@@ -63,6 +63,7 @@ const redirects = useHybridQuery<RedirectDto>(
                             v-for="redirect in redirects"
                             :key="redirect._id"
                             :redirectDoc="redirect"
+                            :has-local-changes="hasLocalChanges"
                         />
                     </tbody>
                 </table>
