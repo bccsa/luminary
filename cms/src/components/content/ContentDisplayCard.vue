@@ -9,6 +9,7 @@ import {
     AclPermission,
     verifyAccess,
     type GroupDto,
+    useHybridQuery,
 } from "luminary-shared";
 import { computed, ref, watch } from "vue";
 import LBadge from "../common/LBadge.vue";
@@ -46,7 +47,19 @@ const highlight = computed(() =>
         : undefined,
 );
 
-const contentDocs = db.whereParentAsRef(props.contentDoc.parentId, props.parentType, undefined, []);
+// All translations of this card's parent (no language filter), Dexie-first via HybridQuery. The
+// top-level `type` is required — without it HybridQuery.readType returns undefined and routes
+// API-only. `parentId` alone scopes to the parent (parentType is redundant given the unique
+// parentId), and `{ type, parentId }` matches the `[type+parentId]` index — no full-table-scan warning.
+const contentDocs = useHybridQuery<ContentDto>(
+    () => ({
+        selector: {
+            type: DocType.Content,
+            parentId: props.contentDoc.parentId,
+        },
+    }),
+    { live: true },
+);
 const isLocalChange = useHasLocalChange(props.contentDoc._id);
 
 const tagsContent = ref<ContentDto[]>([]);

@@ -2,15 +2,12 @@
 import BasePage from "@/components/BasePage.vue";
 
 import {
-    db,
     DocType,
     TagType,
-    type Uuid,
     type ContentDto,
     PostType,
-    useDexieLiveQueryWithDeps,
+    useHybridQuery,
     type GroupDto,
-    useDexieLiveQuery,
     hasAnyPermission,
     AclPermission,
     type LanguageDto,
@@ -149,30 +146,29 @@ const { sentinel: loadMoreSentinel } = useInfiniteScrollLoadMore({
 
 // --- Supporting data for the filter UI and cards ---
 
-const tagContentDocs = useDexieLiveQueryWithDeps(
-    cmsLanguageIdAsRef,
-    async (_cmsLanguageIdAsRef: Uuid) => {
-        const docs = (await db.docs
-            .where({
-                type: DocType.Content,
-                parentType: DocType.Tag,
-                language: _cmsLanguageIdAsRef,
-            })
-            .sortBy("publishDate")) as unknown as ContentDto[];
-        return docs.reverse();
-    },
-    { initialValue: [] as ContentDto[] },
+const tagContentDocsRaw = useHybridQuery<ContentDto>(
+    () => ({
+        selector: {
+            type: DocType.Content,
+            parentType: DocType.Tag,
+            language: cmsLanguageIdAsRef.value,
+        },
+    }),
+    { live: true },
+);
+// Preserve the previous publishDate-desc order. The old read used in-memory `.sortBy().reverse()`;
+// sort in a computed (not a HybridQuery `$sort`) to avoid a mangoToDexie sort-index warning.
+const tagContentDocs = computed(() =>
+    [...tagContentDocsRaw.value].sort((a, b) => (b.publishDate ?? 0) - (a.publishDate ?? 0)),
 );
 
-const groups = useDexieLiveQuery(
-    () => db.docs.where({ type: DocType.Group }).toArray() as unknown as Promise<GroupDto[]>,
-    { initialValue: [] as GroupDto[] },
-);
+const groups = useHybridQuery<GroupDto>(() => ({ selector: { type: DocType.Group } }), {
+    live: true,
+});
 
-const languages = useDexieLiveQuery(
-    () => db.docs.where({ type: DocType.Language }).toArray() as unknown as Promise<LanguageDto[]>,
-    { initialValue: [] as LanguageDto[] },
-);
+const languages = useHybridQuery<LanguageDto>(() => ({ selector: { type: DocType.Language } }), {
+    live: true,
+});
 
 const canCreateNew = computed(() => hasAnyPermission(props.docType, AclPermission.Edit));
 

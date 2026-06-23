@@ -25,7 +25,7 @@ bug (e.g. `audioPlaylists`/`autoGroupMappings` with no rows). Fixed at `useAutoG
 each source update (server-wins, gated on real divergence). `useEditContentSource` uses
 `backPatchFields: ["imageData", "media"]`; the bespoke `waitForUpdate` writeback is gone.
 
-## ~~Migrate `ApiLiveQuery` / `useDexieLiveQuery` (and derivatives) → `useHybridQuery`~~ (DONE, except exclusions)
+## ~~Migrate `ApiLiveQuery` / `useDexieLiveQuery` (and derivatives) → `useHybridQuery`~~ (mostly DONE — stragglers in Remaining)
 
 All inventoried `useDexieLiveQuery` / `useDexieLiveQueryWithDeps` / `ApiLiveQuery<UserDto>` call
 sites are migrated — **except `globalConfig`'s `_cmsLanguages`, the deliberate Dexie carve-out
@@ -38,6 +38,13 @@ sites are migrated — **except `globalConfig`'s `_cmsLanguages`, the deliberate
 Also migrated the deprecated **`db.whereTypeAsRef(<Type>)`** reference-list reads (not in the
 original inventory) → direct `useHybridQuery`: `UserDisplayCard`, `UserRow`, `RedirectDisplaycard`,
 `ProfileMenu`, `LanguageModal`, `LanguageOverview`, `MediaEditor`.
+
+And the last content-domain reactive reads: `ContentOverview.vue` (`groups` + `languages` →
+reference-list `useHybridQuery`; `tagContentDocs` → a reactive content `useHybridQuery` whose thunk
+reads `cmsLanguageIdAsRef.value` + an in-memory `publishDate`-desc sort to avoid a `mangoToDexie`
+sort-index warning) and `ContentDisplayCard.vue` (`contentDocs`, ex-`db.whereParentAsRef` →
+`useHybridQuery({ type: Content, parentId })` — `parentId` is the discriminator and `{type+parentId}`
+matches the existing `[type+parentId]` index, so no new index/full-table-scan warning).
 
 ### Reference-list reads: direct `useHybridQuery`, not a shared composable
 Every reference-list read (groups, auth providers, storages, languages) calls `useHybridQuery(() =>
@@ -66,14 +73,33 @@ retired (see Remaining → "Move local-change tracking into `HybridQuery`").
 `cms/src/util/groups.ts#assignableGroups` DRYs the Edit+Assign group filter.
 
 ### Excluded / kept (by design)
-- **`pages/DashboardPage.vue` `pendingChanges`** — reads the whole local-only `localChanges` queue
-  (a list), not a synced doc table, so `useHybridQuery` doesn't apply. Kept on `useDexieLiveQuery`.
-  (The per-doc `db.isLocalChangeAsRef(id)` reads in the display cards/rows are now consolidated onto
-  `useHasLocalChange` — see above.)
-- **`components/content/ContentOverview/ContentOverview.vue`** (`groups`, `languages`,
-  `tagContentDocs`) — intentionally not migrated yet.
+- The per-doc `db.isLocalChangeAsRef(id)` reads in display cards/rows are consolidated onto
+  `useHasLocalChange` (above). That is the only deliberate "kept" item. Everything else that still
+  reads outside `useHybridQuery` (ContentOverview, ContentDisplayCard, DashboardPage `pendingChanges`)
+  is now tracked in **Remaining** with a migration plan — see the full-sweep status there.
 
 ## Remaining
+
+### Full-sweep status (vs the PR goal: migrate reactive reads → `useHybridQuery`)
+A complete `cms/src` grep for `useDexieLiveQuery(WithDeps)` / `ApiLiveQuery` / `db.*AsRef` /
+`liveQuery` / `useObservable` confirms every reactive read still outside `useHybridQuery` is now
+**intentional or blocked**: `DashboardPage` `pendingChanges` (local-only queue — below), the
+`globalConfig` Language carve-out and `useHasLocalChange` (both shared-blocked — below), and
+`GroupSelector.vue`'s `whereTypeAsRef` (`components/groups/*` — another team member's, under the
+GroupOverview item). No other live-query mechanism is in use. `ContentOverview.vue` and
+`ContentDisplayCard.vue` are now migrated (DONE section above). The PR's read-migration goal is
+complete except those intentional/blocked items.
+
+### `DashboardPage.vue` `pendingChanges` → `useHybridQuery` (needs shared `localChanges` support)
+`pages/DashboardPage.vue:47` reads the **`localChanges`** table (the local outgoing edit queue), not
+the synced `docs` table. `useHybridQuery` only queries `db.docs` via Mango selectors and has no
+`localChanges` source, so it cannot read this today. Two paths:
+1. **Recommended:** keep on `useDexieLiveQuery` — `localChanges` is local-only, so HybridQuery's
+   API-supplement/socket machinery is meaningless here; `useDexieLiveQuery` is the correct tool.
+2. **Only path to literal "HybridQuery everywhere":** add a `localChanges`-queue read mode to
+   `HybridQuery` in `shared/` — questionable (conflates the synced-doc abstraction with the local
+   queue). **Blocked:** `shared/` is the senior's.
+Unless (2) lands, this stays an intentional, documented `useDexieLiveQuery`.
 
 ### Move `globalConfig`'s startup Language read onto `HybridQuery`
 `globalConfig.initLanguage()` reads the Language list with a direct **`useDexieLiveQuery`** (not
@@ -108,6 +134,30 @@ shared subscription owned by the query layer). Once that lands, delete `useHasLo
 `db.upsert`/`getRest().changeRequest` + `updateShadow` instead of delegating to `toEditable.save`.
 Confirm `toEditable.save` covers the API path + the `LFormData` upload-data branch before swapping.
 Keep the save path doc-type-agnostic (no Content/Post/Tag specifics).
+
+### Groups vanish from the Group overview — *suspected* `deleteRevoked()` over-purge (shared)
+**Symptom:** after `GroupOverview.vue` switched its groups read to `useHybridQuery` (Dexie-first for
+the synced Group type), most groups vanished — only locally-"duplicated" groups remained. Intermittent.
+
+**Likely cause (confirmed by code-reading; NOT yet fixed/verified — treat as the leading hypothesis):**
+the switch *exposed* a pre-existing shared bug. `ApiLiveQuery` read groups from the REST API and masked
+it; Dexie-first `useHybridQuery` reflects the `docs` table, which `db.deleteRevoked()` purges:
+- `database.ts:878` `watchValue(accessMap, () => db.deleteRevoked(), { immediate: true })` fires on init
+  while `accessMap` is still the empty `useLocalStorage` default (`permissions.ts:12`), before the
+  socket `clientConfig` populates it.
+- empty map → `getAccessibleGroups(View)[Group]` = `[]` → `whereNotMemberOfAsCollection([], Group)`
+  (`database.ts:721-728`) matches *every* group with an `acl` field → all deleted from `docs`.
+- `deleteRevoked()` never resets `syncList` (group block stays `eof`) → sync never re-fetches →
+  **permanent** loss. Locally-duplicated groups survive via the `localChanges` queue. Intermittent
+  because it depends on whether `accessMap` is empty/stale at the `deleteRevoked` tick.
+
+**Suspected fix (shared, blocked — senior's):** guard `deleteRevoked()` with
+`if (Object.keys(accessMap.value).length === 0) return;` (empty = "not loaded yet", not "no access";
+logout uses `purge()`), drop `{ immediate: true }`, and add a one-time group-`syncList` reset to recover
+already-purged clients. Ruled out: HybridQuery read/merge (merges by `_id`), ingestion filters, and the
+construction-time routing issue (that would lock API-only → groups would still *show*). The
+Group-visibility rule matches the API (`memberOf=[self._id]`), so the empty-map guard is the whole fix.
+CMS-side interim if needed: revert GroupOverview's groups read to `ApiLiveQuery`.
 
 ### `GroupOverview` `ApiLiveQueryAsEditable<GroupDto>` (+ `GroupSelector` `whereTypeAsRef`)
 `components/groups/*` — owned by another team member; blocked on the wrapper follow-up above.
