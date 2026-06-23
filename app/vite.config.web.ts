@@ -22,6 +22,50 @@ function capture(): SsgCapture {
     return g.__SSG_DEPS__ as SsgCapture;
 }
 
+// Response-cache serialization. The web client seeds its first paint synchronously
+// from shared's response cache (localStorage `hqcache:*`, written by the content seam
+// during the prerender via `writeResponseCache`). We serialize the entries a page
+// produced into an inline classic <script> in its HTML; that script runs during parse
+// — before the deferred ES-module entry boots the app — so `useHybridQuery({cache:true})`
+// seeds synchronously with the prerendered docs (no snapshot store, no hydration flash).
+const HQCACHE_PREFIX = "hqcache:";
+// Minimal structural type — this Node-project config file has no DOM lib, so the
+// global `Storage` type isn't available; the polyfill provides these members.
+type SsgStorage = {
+    length: number;
+    key(i: number): string | null;
+    getItem(k: string): string | null;
+    removeItem(k: string): void;
+};
+function ssgLocalStorage(): SsgStorage | undefined {
+    return (globalThis as { localStorage?: SsgStorage }).localStorage;
+}
+function readHqCache(): Record<string, string> {
+    const ls = ssgLocalStorage();
+    const out: Record<string, string> = {};
+    if (!ls) return out;
+    for (let i = 0; i < ls.length; i++) {
+        const k = ls.key(i);
+        if (k && k.startsWith(HQCACHE_PREFIX)) out[k] = ls.getItem(k) ?? "";
+    }
+    return out;
+}
+function clearHqCache(): void {
+    const ls = ssgLocalStorage();
+    if (!ls) return;
+    const keys: string[] = [];
+    for (let i = 0; i < ls.length; i++) {
+        const k = ls.key(i);
+        if (k && k.startsWith(HQCACHE_PREFIX)) keys.push(k);
+    }
+    for (const k of keys) ls.removeItem(k);
+}
+function hqCacheScript(cache: Record<string, string>): string {
+    // `<` escaping prevents a doc value containing `</script>` from closing the tag.
+    const json = JSON.stringify(cache).replace(/</g, "\\u003c");
+    return `<script>(function(c){try{for(var k in c)localStorage.setItem(k,c[k])}catch(e){}})(${json})</script>`;
+}
+
 const OUT_DIR = "dist-web";
 const WEB_ORIGIN = (env.VITE_WEB_ORIGIN || "").replace(/\/$/, "");
 
@@ -246,15 +290,25 @@ const config: UserConfig & { ssgOptions: ViteSSGOptions } = {
             prerenderedRoutes = all;
             return all;
         },
-        // --- Render-time dependency capture (spec §3.2) ---
+        // --- Render-time dependency capture (spec §3.2) + response-cache seed ---
         onBeforePageRender: () => {
             capture().current = new Set();
+            // Per-page isolation: drop the previous page's cache so it can't leak into
+            // this page's HTML (concurrency:1 makes this safe).
+            clearHqCache();
             return undefined;
         },
         onPageRendered: (route, renderedHTML) => {
             const c = capture();
             c.manifest[route] = [...c.current].sort();
-            return renderedHTML;
+
+            // Inject the first-paint cache seed (no-op when the page primed nothing).
+            const cache = readHqCache();
+            if (!Object.keys(cache).length) return renderedHTML;
+            const script = hqCacheScript(cache);
+            return renderedHTML.includes("</head>")
+                ? renderedHTML.replace("</head>", `${script}</head>`)
+                : script + renderedHTML;
         },
         onFinished: () => {
             // Restore the prerendered home if this scoped rebuild didn't include it.

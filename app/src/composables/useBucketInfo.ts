@@ -1,63 +1,55 @@
-import { computed, onServerPrefetch, type Ref } from "vue";
-import { type StorageDto, useHybridQuery, type Uuid } from "luminary-shared";
-import { usePublicContentStore } from "@/stores/publicContent";
-import { queryPublic } from "@/ssg/queryPublic";
+import { computed, onServerPrefetch, shallowRef, type Ref } from "vue";
+import {
+    type StorageDto,
+    useHybridQuery,
+    type Uuid,
+    queryRemote,
+    structuralCacheKey,
+    writeResponseCache,
+} from "luminary-shared";
 
-const IS_WEB = import.meta.env.VITE_BUILD_TARGET === "web";
+// Storage is fully-synced public reference data. The query shape is constant, so a
+// fixed `cacheId` keeps its response-cache entry distinct from any same-shaped query.
+const STORAGE_QUERY = { selector: { type: "storage" } };
+const STORAGE_CACHE_ID = "storage-buckets";
 
 /**
- * Get bucket information for constructing image URLs.
+ * Resolve a storage bucket (for building image URLs) from the fully-synced `storage`
+ * reference docs.
  *
- * Storage is a fully-synced reference type. On the native/SPA build it comes from
- * the local-first HybridQuery (Dexie). On the web/SSG build that path can't run in
- * Node (no Dexie/socket), so — like the content seam — the build fetches buckets via
- * the public `/query`, the result is serialized for hydration, and the client seeds
- * from it before the live query takes over.
+ * On the browser — web AND native — this is the normal local-first hybrid query; its
+ * `cache: true` seed makes the bucket available on the first render. On the web/SSG
+ * build the prerender (Node, no Dexie) fetches the buckets once via the shared
+ * `queryRemote` and primes the SAME response cache, so the hydrating client builds
+ * real CDN image URLs on first paint with no flash.
  */
 export function useBucketInfo(bucketId: Ref<Uuid | undefined>) {
     let allBuckets: Ref<StorageDto[]>;
 
-    if (!IS_WEB) {
-        // `cache: true` seeds the bucket list from localStorage on the first frame
-        // so <LImage> doesn't flash a fallback before the Dexie read lands.
-        allBuckets = useHybridQuery<StorageDto>(() => ({ selector: { type: "storage" } }), {
+    if (import.meta.env.SSR) {
+        const out = shallowRef<StorageDto[]>([]);
+        onServerPrefetch(async () => {
+            const docs = await queryRemote<StorageDto>(STORAGE_QUERY);
+            out.value = docs;
+            writeResponseCache(structuralCacheKey(STORAGE_QUERY, STORAGE_CACHE_ID), {
+                local: docs,
+                remote: [],
+            });
+        });
+        allBuckets = out;
+    } else {
+        allBuckets = useHybridQuery<StorageDto>(() => STORAGE_QUERY, {
             live: true,
             cache: true,
+            cacheId: STORAGE_CACHE_ID,
         });
-    } else {
-        const store = usePublicContentStore();
-        // All <LImage> instances read the SAME shared store list (reactive), so the
-        // bucket resolves for every tile — not just the one instance that fetched.
-        allBuckets = computed(() => store.storageBuckets);
-        if (import.meta.env.SSR) {
-            // First instance fetches once per build; the rest reuse the filled store.
-            onServerPrefetch(async () => {
-                if (store.storageBuckets.length) return;
-                store.setStorageBuckets(
-                    await queryPublic<StorageDto>({ selector: { type: "storage" } }),
-                );
-            });
-        }
-        // Client: the store is restored from the snapshot at hydration. Storage is
-        // stable reference data, so no client-side live query is needed.
     }
 
-    // Get the specific bucket by ID
-    const bucket = computed(() => {
-        if (!bucketId.value) return null;
-        return allBuckets.value.find((b) => b._id === bucketId.value) || null;
-    });
+    const bucket = computed(() =>
+        bucketId.value ? allBuckets.value.find((b) => b._id === bucketId.value) || null : null,
+    );
 
-    // Construct the base URL for images from this bucket
-    const bucketBaseUrl = computed(() => {
-        if (!bucket.value) return;
+    const bucketBaseUrl = computed(() => bucket.value?.publicUrl);
 
-        // Use the publicUrl from the bucket
-        return bucket.value.publicUrl;
-    });
-
-    return {
-        bucket,
-        bucketBaseUrl,
-    };
+    return { bucket, bucketBaseUrl };
 }

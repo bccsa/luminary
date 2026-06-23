@@ -1,25 +1,23 @@
-import { onServerPrefetch, shallowRef, watch } from "vue";
+import { onServerPrefetch, shallowRef } from "vue";
 import {
     useHybridQuery,
     type ContentDto,
     DocType,
     type MangoSelector,
     type HybridQueryOptions,
+    queryRemote,
+    structuralCacheKey,
+    writeResponseCache,
 } from "luminary-shared";
 import { appLanguageIdsAsRef } from "@/globalConfig";
 import { mangoIsPublished } from "@/util/mangoIsPublished";
-import { usePublicContentStore } from "@/stores/publicContent";
-import { queryPublic } from "@/ssg/queryPublic";
-import { sliceKey } from "@/ssg/sliceKey";
 import { docKey, facetsFromSelector } from "@/ssg/facetKeys";
 import { reportKeys } from "@/ssg/dependencyCapture";
 
-const IS_WEB = import.meta.env.VITE_BUILD_TARGET === "web";
-
 // Serializes the SSG prefetch fetches in registration order so chained queries
 // (e.g. HomePagePinned: pinnedCategories → pinnedCategoryContent reads its result)
-// resolve correctly under vite-ssg's concurrent onServerPrefetch. The parent query
-// is declared before the child, so its fetch (and ref population) completes first.
+// resolve correctly — vite-ssg awaits a page's onServerPrefetch hooks concurrently,
+// so without this the child would build its selector from the still-empty parent ref.
 let ssrChain: Promise<unknown> = Promise.resolve();
 
 function stripDocs(docs: ContentDto[], stripFields: string[]): ContentDto[] {
@@ -33,8 +31,8 @@ function stripDocs(docs: ContentDto[], stripFields: string[]): ContentDto[] {
 
 /**
  * Options for {@link useContentQuery}. Extends {@link HybridQueryOptions}
- * (`live` / `cache` / `persistOffline`) with the content-query conveniences this
- * app repeats at every call site.
+ * (`live` / `cache` / `persistOffline` / `cacheId` / `cacheStripFields`) with the
+ * content-query conveniences this app repeats at every call site.
  */
 export type UseContentQueryOptions = HybridQueryOptions & {
     /** CouchDB-style sort, e.g. `[{ publishDate: "desc" }]`. */
@@ -72,15 +70,23 @@ export type UseContentQueryOptions = HybridQueryOptions & {
  * the `mangoIsPublished` filter, and the `use_index` hint — and defaults to
  * `live` + `persistOffline`.
  *
+ * The web/SSG build needs nothing special at call sites: on the browser this is the
+ * SAME local-first hybrid query as native, and its `cache: true` first-paint seed is
+ * primed by the build (the prerender writes the same response cache via
+ * {@link writeResponseCache}, so the first client render shows the prerendered docs
+ * with no flash). During the Node prerender the query is fetched once via the shared
+ * `queryRemote` (anonymous → public tier) in `onServerPrefetch` so the docs are
+ * present at render time, and dependency keys are captured for incremental rebuilds.
+ *
  * `cache` (the response-cache first-paint seed) defaults to **`false`**. The cache
  * key is the query *shape* (runtime values like `parentId`/`slug` are stripped), so a
  * per-document lookup would seed itself from a different document's last result. Only
  * enable `cache: true` on a stable *overview feed* where every mount is genuinely the
  * same query (home / explore / watch tiles) — never on a per-document query, where the
- * stale seed is a correctness bug, not a cosmetic flash (see SingleContent). When two
- * cached feeds share a shape (so they'd collide on one entry), pass a distinct
- * `cacheId` per call site to separate their fingerprints (see ContinueWatching /
- * ContinueListening).
+ * stale seed is a correctness bug, not a cosmetic flash (see SingleContent, which
+ * passes a per-slug `cacheId`). When two cached feeds share a shape (so they'd collide
+ * on one entry), pass a distinct `cacheId` per call site to separate their fingerprints
+ * (see ContinueWatching / ContinueListening).
  *
  * Pass the caller-specific selector clauses as a thunk so any `ref` they read
  * (language ids, a sibling query's result, …) is auto-tracked and rebuilds the
@@ -135,53 +141,35 @@ export function useContentQuery(
 
     const hybridOptions = { live, cache, persistOffline, stripFields, ...rest };
 
-    // --- Native / SPA build: unchanged local-first hybrid query. ---
-    if (!IS_WEB) {
-        return useHybridQuery<ContentDto>(buildQuery, hybridOptions);
-    }
-
-    // --- Web / SSG build: prerender via the public API, capture dependency keys,
-    // snapshot for clean hydration. (See app/src/ssg/README.md.) ---
-    const store = usePublicContentStore();
-    // renderLang: the language THIS page is prerendered in (set per route at build,
-    // serialized, restored on the client) — drives the slice key + facet scoping so
-    // build and client agree.
-    const renderLang = () => store.renderLang || appLanguageIdsAsRef.value[0] || "";
-    const keyFor = () => sliceKey(selector(), { sort, limit, useIndex }, renderLang());
-
+    // --- Web/SSG PRERENDER (Node) only. The browser client + native both fall through
+    // to the identical hybrid query below; on the client `cache: true` seeds the first
+    // render synchronously from the response cache this branch primed at build time. ---
     if (import.meta.env.SSR) {
         const out = shallowRef<ContentDto[]>([]);
+        const renderLang = () => appLanguageIdsAsRef.value[0] || "";
         onServerPrefetch(async () => {
             await (ssrChain = ssrChain.then(async () => {
                 const q = buildQuery();
-                const docs = await queryPublic<ContentDto>({
-                    selector: q.selector,
-                    sort: q.$sort,
-                    limit: q.$limit,
-                    use_index: q.use_index,
-                });
-                const stripped = stripDocs(docs, stripFields);
-                store.setSlice(keyFor(), stripped);
-                out.value = stripped;
+                const docs = stripDocs(await queryRemote<ContentDto>(q), stripFields);
+                out.value = docs;
+                // Prime shared's response cache (same key the client computes) so the
+                // hydrating client shows these docs on first paint — no flash, no
+                // bespoke snapshot store. vite-ssg serializes these `hqcache:*` entries
+                // into the page HTML (see vite.config.web.ts).
+                writeResponseCache(
+                    structuralCacheKey(q, rest.cacheId),
+                    { local: docs, remote: [] },
+                    limit,
+                    rest.cacheStripFields,
+                );
                 reportKeys([
                     ...facetsFromSelector(q.selector, renderLang()),
-                    ...stripped.map((d) => docKey(d.parentId || d._id)),
+                    ...docs.map((d) => docKey(d.parentId || d._id)),
                 ]);
             }));
         });
         return out;
     }
 
-    // Client: seed the first render from the prerendered slice (hydration match),
-    // then hand off to the live hybrid query (post-flush, after hydration).
-    const out = shallowRef<ContentDto[]>(store.getSlice(keyFor()) ?? []);
-    const liveResult = useHybridQuery<ContentDto>(buildQuery, hybridOptions);
-    watch(
-        liveResult,
-        (v) => {
-            out.value = v;
-        },
-        { flush: "post" },
-    );
-    return out;
+    return useHybridQuery<ContentDto>(buildQuery, hybridOptions);
 }
