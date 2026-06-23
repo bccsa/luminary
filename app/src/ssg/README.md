@@ -49,6 +49,7 @@ Run from `app/`:
 | `npm run build:web` | **Full** prerender → `dist-web/` (every public route) + `ssg-deps.json` + `sitemap.xml` + `robots.txt`. |
 | `SSG_ONLY_ROUTES="/a,/b" npm run build:affected` | **Scoped** rebuild of only those routes; preserves all other files; **merges** their entries into `ssg-deps.json`. |
 | `npm run preview:web` | Serve `dist-web/` locally (test in Incognito / unregister old service workers first). |
+| `npm run watch:ssg` | **ISR watcher** — long-running. Boots the shared data layer headless and regenerates the affected pages (via `build:affected`) whenever public content changes. Start it BEFORE `build:web` so build-window changes are buffered. |
 | `npx vite-node src/ssg/whatChanged.ts <slug>` | Simulate: "if this doc changed, what pages go stale?" (reads `dist-web/ssg-deps.json`). |
 | `node src/ssg/verifyIsolation.ts snapshot > before.json` then `… check before.json <routes>` | Prove a scoped rebuild changed ONLY the intended files. |
 
@@ -71,6 +72,8 @@ and unaffected by anything here. Web config is `app/vite.config.web.ts`; native 
 | `computeAffected.ts` | **Pure** `computeAffected(changedKeys, manifest)` + `simulateAffected(doc, manifest, prevDoc?)`. Shared with the watcher. | anywhere |
 | `whatChanged.ts` | CLI over `simulateAffected` (dev/inspection). Excluded from app type-check (Node tool). | Node CLI |
 | `verifyIsolation.ts` | CLI: sha256 snapshot/diff of `dist-web/**` to assert a scoped rebuild touched only intended files. | Node CLI |
+| `watch.ts` | **ISR watcher** — POLLS the anonymous `POST /query` (`queryRemote`, the prerender's own mechanism) for content `updatedTimeUtc` changes, then runs `keysForChangedDoc → computeAffected → build:affected`. Debounced + serialized via the `.ssg-building` lock. | Node service |
+| `ssgNodeEnv.ts` | Node prelude for `watch.ts`: installs `window`/`localStorage` (+ event stubs) so `luminary-shared` can be imported for `queryRemote`. No Dexie/IndexedDB (REST-only). MUST be its first import. | Node |
 
 Public-content reads go through shared directly: `queryRemote` (anonymous `POST /query`),
 `structuralCacheKey` + `writeResponseCache` (the first-paint seed). There is no app-side
@@ -165,22 +168,34 @@ nor selector-derived keys (step 2) are possible without it.
 
 ---
 
-## Phase 2c — the deploy repo's regeneration watcher (contract)
+## ISR regeneration watcher (`watch.ts`)
 
-The watcher lives in the **separate deploy repo**, not here. It consumes:
-- `dist-web/ssg-deps.json` — `{ "<route>": ["<key>", …] }`, public-tier only.
-- `dependencyKeys.ts` — `keysForChangedDoc(doc)` / `keysForRecategorization(prev, next)` to
-  turn API change events (socket `data`) into changed keys.
-- `computeAffected.ts` — intersect coalesced changed keys with the manifest → stale routes.
-- `build:affected` — set `SSG_ONLY_ROUTES`, run it, upload the changed files to R2, **purge
-  exactly those edge paths**.
+The watcher (`watch.ts`, `npm run watch:ssg`) lives **in this repo** but is a standalone service
+the **deploy repo runs** (alongside `build:web`). It **reuses the prerender's own mechanism** —
+the anonymous `POST /query` (`queryRemote`) — rather than the socket:
+- every `WATCH_POLL_MS` (default 10s) it polls `queryRemote` for content with `updatedTimeUtc`
+  newer than the last seen (`{ $and: [{type:content}, {updatedTimeUtc:{$gt: lastSeen}}] }`, sorted
+  desc — no `use_index` needed, no full-scan warning);
+- per changed doc: `keysForChangedDoc` → `computeAffected(keys, dist-web/ssg-deps.json)` → routes;
+- debounced + coalesced (the `availableTranslations` cascade rewrites every sibling at once);
+- serialized via the `dist-web/.ssg-building` lock (written by the build, cleared on finish) so it
+  never rebuilds while a build is running — including the initial `build:web`, whose build-window
+  changes it buffers (`lastSeen` is stamped at launch) and flushes after.
 
-Watcher responsibilities: **debounce/coalesce** bursts (esp. the `availableTranslations`
-cascade — publishing one translation rewrites every sibling), serialize rebuilds, keep
-**prev doc state** (for the old∪new tag union and for deletes). **Deletes** (`DeleteCmd`):
-regenerate co-listed pages from the deleted doc's prior keys AND remove its own
-`<slug>.html` + manifest entry + purge. **Redirects** (`RedirectDto`): purge the source
-path (runtime SPA handles the redirect).
+Why polling, not the socket: the socket scopes live `data` by rooms/accessMap (separate from REST
+query permissions) and runs the doc through shared's Dexie live-sync — extra coupling for a service
+whose job is just "what changed since T?". Polling `queryRemote` is the exact public, anonymous
+path the prerender already uses. Cost: up to `WATCH_POLL_MS` latency vs an instant push. (Override
+the starting cutoff with `WATCH_SINCE=<epoch-ms>`.)
+
+**Deploy contract:** start `watch:ssg` BEFORE `build:web`. The watcher regenerates `dist-web`
+only and logs the changed routes; the deploy repo's uploader pushes those files to R2 and
+**purges exactly those edge paths**.
+
+**Still TODO (v1 gaps):** deletes (`DeleteCmd` → remove `<slug>.html` + its manifest entry +
+regenerate co-listed pages) and redirects (`RedirectDto` → purge the source path; runtime SPA
+handles the redirect). No prev-doc state, so a recategorization regenerates the doc's own + new
+facets' pages; the OLD facet's page is covered by the periodic full `build:web`.
 
 ---
 
