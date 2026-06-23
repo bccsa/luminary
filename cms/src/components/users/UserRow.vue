@@ -6,13 +6,13 @@ import {
     AclPermission,
     verifyAccess,
     type GroupDto,
+    useHybridQuery,
 } from "luminary-shared";
 import { DateTime } from "luxon";
 import LButton from "../button/LButton.vue";
 import { EyeIcon, PencilSquareIcon } from "@heroicons/vue/20/solid";
 import LBadge from "../common/LBadge.vue";
 import { ref, watch } from "vue";
-import { useDocsByType } from "@/composables/useDocsByType";
 import { useHasLocalChange } from "@/composables/useHasLocalChange";
 
 type Props = {
@@ -22,8 +22,9 @@ const props = defineProps<Props>();
 
 const isLocalChanges = useHasLocalChange(props.usersDoc._id);
 
-// Shared reference list — one live query for all user rows.
-const groups = useDocsByType<GroupDto>(DocType.Group);
+const groups = useHybridQuery<GroupDto>(() => ({ selector: { type: DocType.Group } }), {
+    live: true,
+});
 const group = ref<GroupDto[]>([]);
 
 watch(groups, (newGroups) => {

@@ -14,14 +14,15 @@ import {
     AckStatus,
 } from "luminary-shared";
 import { useNotificationStore } from "@/stores/notification";
-import { useDocsByType } from "@/composables/useDocsByType";
 import { assignableGroups } from "@/util/groups";
 import _ from "lodash";
 
 export function useAuthProviders() {
     const notification = useNotificationStore();
 
-    const groups = useDocsByType<GroupDto>(DocType.Group);
+    const groups = useHybridQuery<GroupDto>(() => ({ selector: { type: DocType.Group } }), {
+        live: true,
+    });
     const availableGroups = computed(() => assignableGroups(groups.value));
 
     const providersSource = useHybridQuery<AuthProviderDto>(

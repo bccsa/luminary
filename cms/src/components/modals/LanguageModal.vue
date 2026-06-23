@@ -1,13 +1,14 @@
 <script setup lang="ts">
-import { DocType, type LanguageDto } from "luminary-shared";
+import { DocType, type LanguageDto, useHybridQuery } from "luminary-shared";
 import LButton from "../button/LButton.vue";
 import { CheckCircleIcon } from "@heroicons/vue/20/solid";
 import { cmsLanguageIdAsRef } from "@/globalConfig";
-import { useDocsByType } from "@/composables/useDocsByType";
 import LModal from "./LModal.vue";
 
 const isVisible = defineModel<boolean>("isVisible");
-const languages = useDocsByType<LanguageDto>(DocType.Language);
+const languages = useHybridQuery<LanguageDto>(() => ({ selector: { type: DocType.Language } }), {
+    live: true,
+});
 
 const setLanguage = (id: string) => {
     cmsLanguageIdAsRef.value = id;

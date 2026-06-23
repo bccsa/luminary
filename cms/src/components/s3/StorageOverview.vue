@@ -13,20 +13,24 @@ import {
     StorageType,
     useStorageStatus,
     hasAnyPermission,
+    useHybridQuery,
 } from "luminary-shared";
 import LDialog from "../common/LDialog.vue";
 import LoadingBar from "@/components/LoadingBar.vue";
 import { useNotificationStore } from "@/stores/notification";
 import { changeReqErrors } from "luminary-shared";
 import { storageValidation } from "@/composables/storageValidation";
-import { useDocsByType } from "@/composables/useDocsByType";
 import { assignableGroups } from "@/util/groups";
 
-// Reactive database queries — shared, single live query per type.
-const groups = useDocsByType<GroupDto>(DocType.Group);
+// Reactive database queries.
+const groups = useHybridQuery<GroupDto>(() => ({ selector: { type: DocType.Group } }), {
+    live: true,
+});
 const availableGroups = computed(() => assignableGroups(groups.value));
 
-const buckets = useDocsByType<StorageDto>(DocType.Storage);
+const buckets = useHybridQuery<StorageDto>(() => ({ selector: { type: DocType.Storage } }), {
+    live: true,
+});
 
 // Delete permission check
 const canDelete = computed(() => hasAnyPermission(DocType.Storage, AclPermission.Delete));

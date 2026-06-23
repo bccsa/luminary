@@ -20,7 +20,6 @@ import {
     type LocalChangeDto,
 } from "luminary-shared";
 import { cmsLanguageIdAsRef } from "@/globalConfig";
-import { useDocsByType } from "@/composables/useDocsByType";
 import { computed } from "vue";
 
 // --- Shared data queries ---
@@ -33,7 +32,9 @@ const tags = useHybridQuery<TagDto>(() => ({
     selector: { type: DocType.Tag },
 }));
 
-const groups = useDocsByType<GroupDto>(DocType.Group);
+const groups = useHybridQuery<GroupDto>(() => ({ selector: { type: DocType.Group } }), {
+    live: true,
+});
 
 const allContentDocs = useHybridQuery<ContentDto>(() => ({
     selector: { type: DocType.Content },

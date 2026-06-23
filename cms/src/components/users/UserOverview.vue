@@ -12,6 +12,7 @@ import {
     DocType,
     hasAnyPermission,
     type UserDto,
+    useHybridQuery,
     useHybridQueryWithState,
     type GroupDto,
     isConnected,
@@ -25,7 +26,6 @@ import {
     useInfiniteScrollList,
     useInfiniteScrollLoadMore,
 } from "@/composables/useInfiniteScrollList";
-import { useDocsByType } from "@/composables/useDocsByType";
 
 const canCreateNew = computed(() => hasAnyPermission(DocType.User, AclPermission.Edit));
 
@@ -64,7 +64,9 @@ watch(
     { deep: true },
 );
 
-const groups = useDocsByType<GroupDto>(DocType.Group);
+const groups = useHybridQuery<GroupDto>(() => ({ selector: { type: DocType.Group } }), {
+    live: true,
+});
 
 /** Minimum characters before switching from in-memory browse to server-side FTS search. */
 const SEARCH_MIN_CHARS = 3;

@@ -1,12 +1,18 @@
 <script setup lang="ts">
 import DisplayCard from "@/components/common/DisplayCard.vue";
-import { db, type UserDto, type GroupDto, type AuthProviderDto, DocType } from "luminary-shared";
+import {
+    db,
+    type UserDto,
+    type GroupDto,
+    type AuthProviderDto,
+    DocType,
+    useHybridQuery,
+} from "luminary-shared";
 import LBadge from "@/components/common/LBadge.vue";
 import { DateTime } from "luxon";
 import { UserGroupIcon, KeyIcon } from "@heroicons/vue/24/outline";
 import { computed } from "vue";
 import { breakpointsTailwind, useBreakpoints } from "@vueuse/core";
-import { useDocsByType } from "@/composables/useDocsByType";
 import { useHasLocalChange } from "@/composables/useHasLocalChange";
 
 type Props = {
@@ -15,9 +21,13 @@ type Props = {
 const props = defineProps<Props>();
 const isLocalChanges = useHasLocalChange(props.usersDoc._id);
 
-// Shared reference lists — one live query per type across all rows (not one per card).
-const groups = useDocsByType<GroupDto>(DocType.Group);
-const authProviders = useDocsByType<AuthProviderDto>(DocType.AuthProvider);
+const groups = useHybridQuery<GroupDto>(() => ({ selector: { type: DocType.Group } }), {
+    live: true,
+});
+const authProviders = useHybridQuery<AuthProviderDto>(
+    () => ({ selector: { type: DocType.AuthProvider } }),
+    { live: true },
+);
 
 const emit = defineEmits<{ (e: "edit", id: string): void }>();
 const showEditModal = defineModel<boolean>();

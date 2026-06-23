@@ -9,10 +9,10 @@ import {
     verifyAccess,
     type RedirectDto,
     type GroupDto,
+    useHybridQuery,
 } from "luminary-shared";
 import { computed, ref } from "vue";
 import CreateOrEditRedirectModal from "./CreateOrEditRedirectModal.vue";
-import { useDocsByType } from "@/composables/useDocsByType";
 import { useHasLocalChange } from "@/composables/useHasLocalChange";
 
 type Props = {
@@ -23,8 +23,9 @@ const props = defineProps<Props>();
 const isLocalChanges = useHasLocalChange(props.redirectDoc._id);
 const isModalVisible = ref(false);
 
-// Shared reference list — one live query for all redirect cards.
-const availableGroups = useDocsByType<GroupDto>(DocType.Group);
+const availableGroups = useHybridQuery<GroupDto>(() => ({ selector: { type: DocType.Group } }), {
+    live: true,
+});
 const redirectGroups = computed(() =>
     availableGroups.value?.filter(
         (g) =>

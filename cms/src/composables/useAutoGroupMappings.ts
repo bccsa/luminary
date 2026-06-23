@@ -4,6 +4,7 @@ import {
     AclPermission,
     AckStatus,
     hasAnyPermission,
+    useHybridQuery,
     useHybridQueryWithState,
     toEditable,
     type AutoGroupMappingsDto,
@@ -12,7 +13,6 @@ import {
     type Uuid,
     type ChangeReqAckDto,
 } from "luminary-shared";
-import { useDocsByType } from "@/composables/useDocsByType";
 
 /**
  * Data layer for the Auto Group Mappings admin screen: live mappings + auth providers via
@@ -48,9 +48,14 @@ export function useAutoGroupMappings() {
     });
     const mappings = mappingEditable.editable;
 
-    // Auth providers + groups (read-only reference lists) — shared, single live query per type.
-    const providers = useDocsByType<AuthProviderDto>(DocType.AuthProvider);
-    const groups = useDocsByType<GroupDto>(DocType.Group);
+    // Auth providers + groups (read-only reference lists).
+    const providers = useHybridQuery<AuthProviderDto>(
+        () => ({ selector: { type: DocType.AuthProvider } }),
+        { live: true },
+    );
+    const groups = useHybridQuery<GroupDto>(() => ({ selector: { type: DocType.Group } }), {
+        live: true,
+    });
 
     /**
      * Create or update a mapping. The doc is staged into the editable array (replacing an

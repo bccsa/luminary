@@ -17,10 +17,7 @@ doc to local (`db.upsert`) or the API and calls `updateShadow` on accept. `useEd
 fires-once `watch(output, …)`. HybridQuery dedupes no-op changes, so an empty result (`[] → []`) never
 emits and such a watch hangs forever — this is the "stuck on Loading… when the query returns nothing"
 bug (e.g. `audioPlaylists`/`autoGroupMappings` with no rows). Fixed at `useAutoGroupMappings`,
-`useContentBrowseQuery`, and `RedirectOverview` (all bind `isFetching`). `LanguageOverview` is the one
-exception: it reads the **shared** `useDocsByType` ref (already populated by `globalConfig` at startup,
-so even `isFetching`/any watch may have settled before mount) and resolves loading off a one-shot
-`queryLocal(...)` instead.
+`useContentBrowseQuery`, `RedirectOverview`, and `LanguageOverview` — all bind `isFetching`.
 
 ## ~~Add field-level back-patching to `toEditable`~~ (DONE)
 
@@ -31,25 +28,34 @@ each source update (server-wins, gated on real divergence). `useEditContentSourc
 ## ~~Migrate `ApiLiveQuery` / `useDexieLiveQuery` (and derivatives) → `useHybridQuery`~~ (DONE, except exclusions)
 
 All inventoried `useDexieLiveQuery` / `useDexieLiveQueryWithDeps` / `ApiLiveQuery<UserDto>` call
-sites are migrated: `globalConfig` (`_cmsLanguages`), `useAuthProviders`, `useAutoGroupMappings`,
-`StorageOverview`, `EditContentBasic` (redirect-by-slug, on the `[type+slug]` index),
-`EditLanguage` (`original` + `languages`), `TagSelector`, `CreateOrEditUser`/`UserOverview`
+sites are migrated — **except `globalConfig`'s `_cmsLanguages`, the deliberate Dexie carve-out
+(see below + Remaining)**: `useAuthProviders`, `useAutoGroupMappings`, `StorageOverview`,
+`EditContentBasic` (redirect-by-slug, on the `[type+slug]` index), `EditLanguage`
+(`original` + `languages`), `TagSelector`, `CreateOrEditUser`/`UserOverview`
 (User → `useHybridQueryWithState`, API-only), `SelectionModal`, `storageSelection`,
 `CreateOrEditRedirectModal`, `DashboardPage` (groups).
 
 Also migrated the deprecated **`db.whereTypeAsRef(<Type>)`** reference-list reads (not in the
-original inventory) → `useDocsByType` (see below): `UserDisplayCard`, `UserRow`,
-`RedirectDisplaycard`, `ProfileMenu`, `LanguageModal`, `LanguageOverview`, `MediaEditor`.
+original inventory) → direct `useHybridQuery`: `UserDisplayCard`, `UserRow`, `RedirectDisplaycard`,
+`ProfileMenu`, `LanguageModal`, `LanguageOverview`, `MediaEditor`.
 
-### Shared-query composables
-`cms/src/composables/useDocsByType.ts` — a memoized-singleton `useDocsByType<T>(type)` (one
-**Dexie live query** per `DocType`, in a detached effect scope) so reference lists (groups,
-languages, auth providers, storages) are read **once, app-wide** and shared by every consumer
-(notably across list rows). It uses `useDexieLiveQuery`, **not** `useHybridQuery`, on purpose:
-these are fully-synced types (always Dexie-first), and HybridQuery fixes its Dexie-vs-API routing
-when the query is built — a synced query created before sync registers its type (e.g. globalConfig's
-Language query at startup, before `initSync()`) would lock into API-only mode, hammer `/query`, and
-never read Dexie. A plain Dexie live query has no such timing fragility.
+### Reference-list reads: direct `useHybridQuery`, not a shared composable
+Every reference-list read (groups, auth providers, storages, languages) calls `useHybridQuery(() =>
+({ selector: { type } }), { live: true })` **directly at the point of use**. We briefly DRY'd these
+into a memoized-singleton `useDocsByType` composable to share one subscription per type app-wide, but
+removed it: HybridQuery freezes its Dexie-vs-API routing at **construction time** (it only
+re-evaluates when the query *value* changes — `HybridQuery.ts:428`), so hoisting construction into one
+early shared singleton froze routing at the worst moment. Invoked directly in a component `setup`, the
+query is always built **after** sync has registered its type, so it routes Dexie-first correctly.
+
+**The one carve-out:** `globalConfig.initLanguage()` runs at **startup, before `initSync()`**, so it
+can't use HybridQuery (it would lock API-only, hammer `/query`, and never read Dexie — the original
+"languages not loading" bug). It keeps a direct **`useDexieLiveQuery`** for the Language list — which
+is correct anyway, since languages are always fully synced.
+
+> The shared-side fix that would let these reads share one subscription *and* let `globalConfig` use
+> HybridQuery too is tracked in **Remaining → "Move `globalConfig`'s startup Language read onto
+> `HybridQuery`"**.
 
 `cms/src/composables/useHasLocalChange.ts` — `useHasLocalChange(id)` shares one
 `localChanges.orderBy("docId").keys()` live query (same mechanism `toEditable` uses internally),
@@ -68,6 +74,21 @@ retired (see Remaining → "Move local-change tracking into `HybridQuery`").
   `tagContentDocs`) — intentionally not migrated yet.
 
 ## Remaining
+
+### Move `globalConfig`'s startup Language read onto `HybridQuery`
+`globalConfig.initLanguage()` reads the Language list with a direct **`useDexieLiveQuery`** (not
+`useHybridQuery`) because it runs at startup, *before* `initSync()` has registered `language` in the
+sync engine's `syncList` — and `HybridQuery` freezes its Dexie-vs-API routing at construction time
+(`HybridQuery.ts:428`, only re-evaluated on a query-*value* change). A HybridQuery built that early
+would lock into API-only mode and never read Dexie (the original "languages not loading" + `/query`
+storm). The Dexie read is correct today (languages are always fully synced), but it's the lone
+inconsistency on the "HybridQuery everywhere" branch and should be addressed.
+
+The real fix is shared-side: make `HybridQuery` **re-route when `syncList` changes** (so a query
+built pre-sync flips Dexie-first the moment its type registers), and optionally **memoize identical
+queries** so the direct reference-list reads can also share one subscription. Once that lands,
+`globalConfig` — and every direct `useHybridQuery(() => ({ selector: { type } }))` reference-list read
+— can drop to a single safe, shared pattern. **Blocked:** `shared/` is the senior's right now.
 
 ### Move local-change tracking into `HybridQuery`; retire `useHasLocalChange`
 `cms/src/composables/useHasLocalChange.ts` is a **temporary CMS-side workaround**: it stands up its

@@ -1,6 +1,5 @@
 import { ref, computed } from "vue";
-import { type StorageDto, DocType, StorageType } from "luminary-shared";
-import { useDocsByType } from "@/composables/useDocsByType";
+import { type StorageDto, DocType, StorageType, useHybridQuery } from "luminary-shared";
 
 /**
  * Storage Selection Composable
@@ -17,7 +16,9 @@ export function storageSelection() {
     const selectedImageBucket = ref<string | undefined>(undefined);
     const selectedMediaBucket = ref<string | undefined>(undefined);
 
-    const buckets = useDocsByType<StorageDto>(DocType.Storage);
+    const buckets = useHybridQuery<StorageDto>(() => ({ selector: { type: DocType.Storage } }), {
+        live: true,
+    });
 
     /**
      * Get bucket by ID

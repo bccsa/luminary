@@ -27,7 +27,6 @@ import LDialog from "../common/LDialog.vue";
 import router from "@/router";
 import { capitaliseFirstLetter } from "@/util/string";
 import EditContentActionsWrapper from "../content/EditContentActionsWrapper.vue";
-import { useDocsByType } from "@/composables/useDocsByType";
 import { useHasLocalChange } from "@/composables/useHasLocalChange";
 
 type translationKeyValuePair = {
@@ -52,7 +51,9 @@ const props = defineProps<Props>();
 const { addNotification } = useNotificationStore();
 
 const translations = ref<translationKeyValuePair[]>([]);
-const languages = useDocsByType<LanguageDto>(DocType.Language);
+const languages = useHybridQuery<LanguageDto>(() => ({ selector: { type: DocType.Language } }), {
+    live: true,
+});
 const isLocalChange = useHasLocalChange(props.id);
 const showDeleteModal = ref(false);
 

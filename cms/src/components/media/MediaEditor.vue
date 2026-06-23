@@ -8,9 +8,9 @@ import {
     type MediaFileDto,
     type LanguageDto,
     DocType,
+    useHybridQuery,
 } from "luminary-shared";
 import { computed, ref, toRaw, watchEffect } from "vue";
-import { useDocsByType } from "@/composables/useDocsByType";
 import { ExclamationCircleIcon } from "@heroicons/vue/24/solid";
 import MediaEditorThumbnail from "./MediaEditorThumbnail.vue";
 import LDialog from "@/components/common/LDialog.vue";
@@ -93,7 +93,9 @@ const handleBucketChange = (bucketId: string) => {
 };
 
 // Get all available languages
-const allLanguages = useDocsByType<LanguageDto>(DocType.Language);
+const allLanguages = useHybridQuery<LanguageDto>(() => ({ selector: { type: DocType.Language } }), {
+    live: true,
+});
 
 // Get languages that already have audio files
 const usedLanguageIds = computed(() => {

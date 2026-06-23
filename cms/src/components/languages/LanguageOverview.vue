@@ -7,25 +7,22 @@ import {
     db,
     DocType,
     hasAnyPermission,
-    queryLocal,
+    useHybridQueryWithState,
     type LanguageDto,
 } from "luminary-shared";
-import { computed, ref } from "vue";
+import { computed } from "vue";
 import LButton from "../button/LButton.vue";
 import { isSmallScreen } from "@/globalConfig";
-import { useDocsByType } from "@/composables/useDocsByType";
 import router from "@/router";
 
 const canCreateNew = computed(() => hasAnyPermission(DocType.Language, AclPermission.Edit));
-const languages = useDocsByType<LanguageDto>(DocType.Language);
 
-// `languages` is a SHARED useDocsByType ref that may already be populated (globalConfig creates the
-// Language query at startup), so a fires-once watch wouldn't re-fire on mount. Resolve loading off a
-// one-shot local read instead — settles regardless of whether the result is empty or pre-loaded.
-const isLoading = ref(true);
-queryLocal<LanguageDto>({ selector: { type: DocType.Language } }).finally(() => {
-    isLoading.value = false;
-});
+// `isFetching` settles to false when the read completes even with no languages; a fires-once watch
+// on the output would hang on an empty result (HybridQuery dedupes [] → []).
+const { output: languages, isFetching: isLoading } = useHybridQueryWithState<LanguageDto>(
+    () => ({ selector: { type: DocType.Language } }),
+    { live: true },
+);
 
 const createNew = () => {
     router.push({ name: "language", params: { id: db.uuid() } });

@@ -13,13 +13,13 @@ import {
     type AuthProviderDto,
     type UserDto,
     type Uuid,
+    useHybridQuery,
     useHybridQueryWithState,
     type GroupDto,
     toEditable,
 } from "luminary-shared";
 import { computed, ref, watch } from "vue";
 import { useNotificationStore } from "@/stores/notification";
-import { useDocsByType } from "@/composables/useDocsByType";
 import { ArrowUturnLeftIcon, TrashIcon } from "@heroicons/vue/24/solid";
 import LDialog from "../common/LDialog.vue";
 import { capitaliseFirstLetter } from "@/util/string";
@@ -124,8 +124,13 @@ const isDirty = computed(() => {
     return userEditable.isEdited.value(doc._id);
 });
 
-const groups = useDocsByType<GroupDto>(DocType.Group);
-const authProviders = useDocsByType<AuthProviderDto>(DocType.AuthProvider);
+const groups = useHybridQuery<GroupDto>(() => ({ selector: { type: DocType.Group } }), {
+    live: true,
+});
+const authProviders = useHybridQuery<AuthProviderDto>(
+    () => ({ selector: { type: DocType.AuthProvider } }),
+    { live: true },
+);
 
 const providerOptions = computed(() => [
     { label: "Choose a provider this user belongs to", value: "" },

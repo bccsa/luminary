@@ -22,7 +22,6 @@ import {
 import { useNotificationStore } from "@/stores/notification";
 import { Slug } from "@/util/slug";
 import { TrashIcon } from "@heroicons/vue/24/outline";
-import { useDocsByType } from "@/composables/useDocsByType";
 import LDialog from "../common/LDialog.vue";
 import LCombobox from "../forms/LCombobox.vue";
 
@@ -161,7 +160,9 @@ const redirectExplanation = computed(() => {
 });
 
 const isSlugUnique = ref(true);
-const groups = useDocsByType<GroupDto>(DocType.Group);
+const groups = useHybridQuery<GroupDto>(() => ({ selector: { type: DocType.Group } }), {
+    live: true,
+});
 
 watch(
     () => editable.value?.slug,
