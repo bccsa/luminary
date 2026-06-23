@@ -1,9 +1,5 @@
 import { Ref } from "vue";
-import {
-    useDexieLiveQuery,
-    useDexieLiveQueryWithDeps,
-    UseDexieLiveQueryWithDepsOptions,
-} from "../useDexieLiveQuery";
+import { useDexieLiveQuery, UseDexieLiveQueryOptions } from "../useDexieLiveQuery";
 import { createEditable } from "../createEditable";
 import { BaseDocumentDto, Uuid } from "../../types";
 import { db, UpsertOptions } from "../../db/database";
@@ -52,12 +48,12 @@ export function useDexieLiveQueryAsEditable<
     Immediate extends Readonly<boolean> = true,
 >(
     querier: () => T[] | Promise<T[]>,
-    options: UseDexieLiveQueryWithDepsOptions<I, Immediate> = {},
+    options: UseDexieLiveQueryOptions<I, Immediate> = {},
     deps?: any,
 ) {
-    let source;
-    if (deps) source = useDexieLiveQueryWithDeps(deps, querier, options);
-    else source = useDexieLiveQuery(querier, options);
+    // The unified useDexieLiveQuery handles a `deps`-driven re-run internally
+    // (re-runs on change when set, runs once when undefined), so no branch needed.
+    const source = useDexieLiveQuery(querier, { ...options, deps });
 
     const c = createEditable<T>(source as Ref<Array<T>> | undefined);
 

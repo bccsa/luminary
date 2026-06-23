@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // Image component with automatic aspect ratio selection and fallback image
-import { onMounted, ref, watch, toRef } from "vue";
+import { toRef } from "vue";
 import { type ImageDto, type Uuid } from "luminary-shared";
 import LImageProvider, {
     aspectRatiosCSS,
@@ -44,18 +44,6 @@ const rounding = {
     icon: "rounded-none",
 };
 
-const parentRef = ref<HTMLElement | undefined>(undefined);
-const parentWidth = ref<number>(0);
-
-onMounted(() => {
-    parentWidth.value = parentRef.value?.clientWidth || 0;
-    watch(
-        () => parentRef.value?.clientWidth,
-        (newWidth) => {
-            parentWidth.value = newWidth || 0;
-        },
-    );
-});
 </script>
 
 <template>
@@ -70,12 +58,10 @@ onMounted(() => {
     <!-- Icon mode: simple contained rendering, no aspect ratio or cover cropping -->
     <div
         v-else-if="size === 'icon'"
-        ref="parentRef"
         class="h-full w-full"
     >
         <LImageProvider
             :parent-id="contentParentId!"
-            :parent-width="parentWidth"
             :image="props.image"
             :rounded="false"
             :size="props.size"
@@ -86,7 +72,6 @@ onMounted(() => {
     </div>
     <div
         v-else
-        ref="parentRef"
         :class="isModal ? '' : sizes[size]"
     >
         <div
@@ -99,7 +84,6 @@ onMounted(() => {
         >
             <LImageProvider
                 :parent-id="contentParentId!"
-                :parent-width="parentWidth"
                 :image="props.image"
                 :aspect-ratio="props.aspectRatio"
                 :rounded="props.rounded"
@@ -117,7 +101,6 @@ onMounted(() => {
         <LImageProvider
             v-else
             :parent-id="contentParentId!"
-            :parent-width="parentWidth"
             :image="props.image"
             :rounded="props.rounded"
             :size="props.size"

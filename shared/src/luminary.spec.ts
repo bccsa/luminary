@@ -5,6 +5,8 @@ const mockInitDatabase = vi.fn().mockResolvedValue(undefined);
 const mockGetSocket = vi.fn();
 const mockGetRest = vi.fn();
 const mockInitSync = vi.fn();
+const mockInitLiveSync = vi.fn();
+const mockInitRoomSubscriptions = vi.fn();
 
 vi.mock("./config", () => ({
     initConfig: (...args: any[]) => mockInitConfig(...args),
@@ -14,20 +16,28 @@ vi.mock("./db/database", () => ({
     initDatabase: () => mockInitDatabase(),
 }));
 
-vi.mock("./rest/RestApi", () => ({
+vi.mock("./api/RestApi", () => ({
     getRest: () => mockGetRest(),
 }));
 
-vi.mock("./rest/http", () => ({
+vi.mock("./api/http", () => ({
     HttpReq: vi.fn().mockImplementation(() => ({})),
 }));
 
-vi.mock("./rest/sync2/sync", () => ({
+vi.mock("./api/sync/sync", () => ({
     initSync: (...args: any[]) => mockInitSync(...args),
+}));
+
+vi.mock("./api/sync/liveSync", () => ({
+    initLiveSync: () => mockInitLiveSync(),
 }));
 
 vi.mock("./socket/socketio", () => ({
     getSocket: () => mockGetSocket(),
+}));
+
+vi.mock("./socket/roomSubscriptions", () => ({
+    initRoomSubscriptions: () => mockInitRoomSubscriptions(),
 }));
 
 import { init } from "./luminary";

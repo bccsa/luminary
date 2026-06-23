@@ -1,11 +1,10 @@
 <script setup lang="ts">
 // Import required components and modules
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
-import { type ContentDto, DocType, db, PostType, TagType, type Uuid, mangoToDexie, useDexieLiveQueryWithDeps } from "luminary-shared";
-import { appLanguageIdsAsRef } from "@/globalConfig";
-import { mangoIsPublished } from "@/util/mangoIsPublished";
+import { PostType, TagType, type Uuid } from "luminary-shared";
+import { useContentQuery } from "@/composables/useContentQuery";
 import { useI18n } from "vue-i18n";
-import { ref, onMounted, onUnmounted } from "vue";
+import { computed, ref, onMounted, onUnmounted } from "vue";
 
 const { t } = useI18n();
 
@@ -50,40 +49,41 @@ function startWatchingLocalStorage() {
 // Start watching on mount
 onMounted(startWatchingLocalStorage);
 
-/**
- * Fetch the content documents based on watched media IDs.
- */
-const watchedContent = useDexieLiveQueryWithDeps(
-    () => [appLanguageIdsAsRef.value, mediaProgressRef.value],
-    async ([appLanguageIds, watched]) => {
-        if (watched.length === 0) return [];
+// Watched content ids in localStorage order. Reading mediaProgressRef here keeps
+// the query reactive to localStorage changes (auto-tracked through the thunk).
+const contentIds = computed(() => mediaProgressRef.value.map((entry) => entry.contentId));
 
-        const contentIds = watched.map((entry: any) => entry.contentId);
-
-        const results = await mangoToDexie<ContentDto>(db.docs, {
-            selector: {
-                $and: [
-                    { _id: { $in: contentIds } },
-                    { type: DocType.Content },
-                    { parentPostType: { $ne: PostType.Page } },
-                    { parentTagType: { $ne: TagType.Category } },
-                    ...mangoIsPublished(appLanguageIds),
-                ],
-            },
-        });
-
-        // Re-sort results to match the watched order from localStorage
-        const orderMap = new Map<string, number>(contentIds.map((id: string, i: number) => [id, i]));
-        results.sort((a, b) => (orderMap.get(a._id) ?? 0) - (orderMap.get(b._id) ?? 0));
-
-        // Only show video content (has a direct video field or an HLS stream)
-        return results.filter((c) => c.video || c.parentMedia?.hlsUrl);
-    },
-    {
-        initialValue: [],
-        deep: true, // react to nested changes in dependencies
-    },
+// Fetch the content documents for the watched media ids.
+const content = useContentQuery(
+    () => [
+        { _id: { $in: contentIds.value } },
+        {
+            $or: [
+                { parentPostType: { $exists: false } },
+                { parentPostType: { $ne: PostType.Page } },
+            ],
+        },
+        {
+            $or: [
+                { parentTagType: { $exists: false } },
+                { parentTagType: { $ne: TagType.Category } },
+            ],
+        },
+    ],
+    // cacheId disambiguates from ContinueListening: both query the same shape
+    // (`_id $in` + the same $or filters), so without it they would share one cache
+    // entry and seed from each other on first paint.
+    { cache: true, cacheId: "continue-watching" },
 );
+
+// Re-sort to match the watched order from localStorage, then keep only video
+// content (a direct video field or an HLS stream).
+const watchedContent = computed(() => {
+    const orderMap = new Map(contentIds.value.map((id, i) => [id, i]));
+    return [...content.value]
+        .sort((a, b) => (orderMap.get(a._id) ?? 0) - (orderMap.get(b._id) ?? 0))
+        .filter((c) => c.video || c.parentMedia?.hlsUrl);
+});
 </script>
 
 <template>

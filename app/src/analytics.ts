@@ -1,5 +1,6 @@
 import { app } from "./main";
 import router from "./router";
+import { isInstalledStandalone } from "./globalConfig";
 // @ts-expect-error Matomo does not have a typescript definition file
 import VueMatomo from "vue-matomo";
 
@@ -20,6 +21,19 @@ export const initAnalytics = () => {
             siteId: import.meta.env.VITE_ANALYTICS_SITEID,
             router: router,
         });
+
+    // Tag the session as installed (standalone PWA) vs browser tab, so install
+    // adoption and its effect on the content sync window can be segmented in Matomo.
+    const displayMode = isInstalledStandalone() ? "installed" : "browser";
+    const pwaDimensionId = Number(import.meta.env.VITE_ANALYTICS_PWA_DIMENSION_ID);
+    // A visit-scoped custom dimension (when its ID is configured in Matomo admin)
+    // lets product segment all pageviews by install state; otherwise a one-time
+    // event still captures the signal with no server-side config.
+    const pwaCommand = pwaDimensionId
+        ? ["setCustomDimension", pwaDimensionId, displayMode]
+        : ["trackEvent", "PWA", "displayMode", displayMode];
+    // @ts-expect-error window is a native browser api, and matomo is attaching _paq to window
+    if (window._paq) window._paq.push(pwaCommand);
 
     // Start analytics on initial load
     router.afterEach((to) => {

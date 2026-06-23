@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { appLanguageIdsAsRef, userPreferencesAsRef } from "@/globalConfig";
+import { userPreferencesAsRef } from "@/globalConfig";
 import { useNotificationStore } from "@/stores/notification";
 import { ShieldCheckIcon } from "@heroicons/vue/24/outline";
-import { db, useDexieLiveQuery, mangoToDexie, type ContentDto } from "luminary-shared";
+import { useContentQuery } from "@/composables/useContentQuery";
 import { computed, watch, h, type ComputedRef } from "vue";
 import LModal from "@/components/form/LModal.vue";
 import LButton from "@/components/button/LButton.vue";
@@ -11,7 +11,6 @@ import { useAuth0 } from "@auth0/auth0-vue";
 import { useRouter, useRoute } from "vue-router";
 import { hasPendingLogin } from "@/composables/useAuthWithPrivacyPolicy";
 import { isAuthPluginInstalled } from "@/auth";
-import { mangoIsPublished } from "@/util/mangoIsPublished";
 
 const { t } = useI18n();
 // Only call useAuth0() if the plugin was actually installed at boot; otherwise
@@ -27,17 +26,25 @@ const hidePrivacyPolicyFromQuery = computed(() => route.query.noprivacypolicy ==
 const show = defineModel<boolean>("show");
 
 // Set the privacy policy status to "updated" if the policy has changed and the user previously accepted it
-const privacyPolicy = useDexieLiveQuery(() =>
-    mangoToDexie<ContentDto>(db.docs, {
-        selector: {
-            $and: [
-                { parentId: import.meta.env.VITE_PRIVACY_POLICY_ID },
-                ...mangoIsPublished(appLanguageIdsAsRef.value, { includeScheduled: false }),
-            ],
-        },
-        $limit: 1,
-    }).then((docs) => docs[0] as ContentDto | undefined),
+// Content is partially synced, so this routes through HybridQuery (IndexedDB +
+// API supplement). The injected { type: Content } is required for that routing.
+// When VITE_PRIVACY_POLICY_ID is unset there is no policy page to seek. A
+// `{ parentId: undefined }` clause serializes to `{}` over the wire, leaving the
+// parentId index pinned with a publishDate sort but no parentId equality — which
+// CouchDB rejects ("No index exists for this sort"). Match nothing via a
+// provably-empty `$in` so HybridQuery short-circuits before any Dexie read or POST.
+const privacyPolicyId = import.meta.env.VITE_PRIVACY_POLICY_ID;
+const privacyPolicyArr = useContentQuery(
+    () => (privacyPolicyId ? [{ parentId: privacyPolicyId }] : [{ parentId: { $in: [] } }]),
+    {
+        includeScheduled: false,
+        limit: 1,
+        // Seek by parentId; the publishDate sort is required to engage the index.
+        useIndex: "content-parentId-publishDate-index",
+        sort: [{ publishDate: "desc" }],
+    },
 );
+const privacyPolicy = computed(() => privacyPolicyArr.value[0]);
 
 // Logic for showing the "Necessary only" button
 // Don't show "Necessary only" if user is trying to log in, because login requires full privacy policy acceptance

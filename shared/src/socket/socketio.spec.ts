@@ -6,9 +6,9 @@ import { Server } from "socket.io";
 import { db, initDatabase } from "../db/database";
 import { DocType } from "../types";
 import { accessMap } from "../permissions/permissions";
-import { config, initConfig } from "../config";
+import { initConfig } from "../config";
 import { ref } from "vue";
-import * as RestApi from "../rest/RestApi";
+import * as RestApi from "../api/RestApi";
 
 const changeRequestMock = vi.fn();
 vi.spyOn(RestApi, "getRest").mockReturnValue({
@@ -149,94 +149,7 @@ describe("socketio", () => {
         });
     });
 
-    describe("socket.io data event filtering", () => {
-        it("filters data based on docTypes and language IDs", async () => {
-            const mockData = {
-                docs: [
-                    { type: DocType.Post, _id: "doc1" },
-                    {
-                        type: DocType.Content,
-                        _id: "doc2",
-                        parentType: DocType.Post,
-                        language: "en",
-                    },
-                    {
-                        type: DocType.Content,
-                        _id: "doc3",
-                        parentType: DocType.Post,
-                        language: "fr",
-                    },
-                    { type: DocType.DeleteCmd, _id: "doc4" },
-                    { type: DocType.Group, _id: "doc5" },
-                    { type: DocType.User, _id: "doc6" },
-                ],
-            };
-
-            const mockDocTypes: RestApi.ApiSyncQuery[] = [
-                { type: DocType.Post, contentOnly: false, syncPriority: 1, sync: true },
-                { type: DocType.User, sync: false },
-            ];
-
-            config.appLanguageIdsAsRef!.value = ["en"];
-            config.syncList = mockDocTypes;
-
-            socketServer.on("connection", (socket) => {
-                socket.emit("data", mockData);
-            });
-
-            getSocket({ reconnect: true });
-
-            await waitForExpect(async () => {
-                const docs = await db.docs.toArray();
-                expect(docs.length).toEqual(2);
-                expect(docs[0].type).toEqual(DocType.Post);
-                expect(docs[1].type).toEqual(DocType.Content);
-                expect(docs[1].language).toEqual("en");
-                // The delete command is not added to the database as it is removed in the db.bulkPut function
-            });
-        });
-
-        it("includes all content documents if no language filter is set", async () => {
-            const mockData = {
-                docs: [
-                    { type: DocType.Post, _id: "doc1" },
-                    {
-                        type: DocType.Content,
-                        _id: "doc2",
-                        parentType: DocType.Post,
-                        language: "en",
-                    },
-                    {
-                        type: DocType.Content,
-                        _id: "doc3",
-                        parentType: DocType.Post,
-                        language: "fr",
-                    },
-                ],
-            };
-
-            const mockDocTypes = [
-                { type: DocType.Post, contentOnly: false, sync: true } as RestApi.ApiSyncQuery,
-            ];
-
-            config.appLanguageIdsAsRef!.value = [];
-            config.syncList = mockDocTypes;
-
-            socketServer.on("connection", (socket) => {
-                socket.emit("data", mockData);
-            });
-
-            getSocket({ reconnect: true });
-
-            await waitForExpect(async () => {
-                const docs = await db.docs.toArray();
-                expect(docs.length).toEqual(3);
-                expect(docs[0].type).toEqual(DocType.Post);
-                expect(docs[1].type).toEqual(DocType.Content);
-                expect(docs[1].language).toEqual("en");
-                expect(docs[2].type).toEqual(DocType.Content);
-                expect(docs[2].language).toEqual("fr");
-            });
-        });
-    });
+    // NOTE: the live-update persistence path (filter → retention gate → bulkPut) moved
+    // to the sync live persister — its tests live in `api/sync/liveSync.spec.ts`.
+    // Socket.io is now a pure transport; only its connection lifecycle is tested here.
 });

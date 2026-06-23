@@ -1,48 +1,29 @@
 <script setup lang="ts">
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
-import { watch } from "vue";
-import {
-    type ContentDto,
-    DocType,
-    PostType,
-    TagType,
-    type Uuid,
-    db,
-    useDexieLiveQueryWithDeps,
-    mangoToDexie,
-} from "luminary-shared";
-import { appLanguageIdsAsRef } from "@/globalConfig";
-import { mangoIsPublished } from "@/util/mangoIsPublished";
+import { PostType, TagType } from "luminary-shared";
+import { useContentQuery } from "@/composables/useContentQuery";
 import { useI18n } from "vue-i18n";
 
 const { t } = useI18n();
 
-const newest10Content = useDexieLiveQueryWithDeps(
-    appLanguageIdsAsRef,
-    (appLanguageIds: Uuid[]) => {
-        return mangoToDexie<ContentDto>(db.docs, {
-            selector: {
-                $and: [
-                    { type: DocType.Content },
-                    { parentPostType: { $ne: PostType.Page } },
-                    { parentTagType: { $ne: TagType.Category } },
-                    { parentPublishDateVisible: true },
-                    ...mangoIsPublished(appLanguageIds),
-                ],
-            },
-            $sort: [{ publishDate: "desc" }],
-            $limit: 10,
-        });
-    },
-    {
-        initialValue: await db.getQueryCache<ContentDto[]>("homepage_newestContent"),
-        deep: true,
-    },
+const newest10Content = useContentQuery(
+    () => [
+        {
+            $or: [
+                { parentPostType: { $exists: false } },
+                { parentPostType: { $ne: PostType.Page } },
+            ],
+        },
+        {
+            $or: [
+                { parentTagType: { $exists: false } },
+                { parentTagType: { $ne: TagType.Category } },
+            ],
+        },
+        { parentPublishDateVisible: true },
+    ],
+    { sort: [{ publishDate: "desc" }], limit: 10, cache: true },
 );
-
-watch(newest10Content, async (value) => {
-    db.setQueryCache<ContentDto[]>("homepage_newestContent", value);
-});
 </script>
 
 <template>

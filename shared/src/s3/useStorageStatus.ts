@@ -1,7 +1,7 @@
 import { ref, computed, watch } from "vue";
 import type { StorageDto } from "../types";
 import { StorageStatus } from "../types/enum";
-import { getRest } from "../rest/RestApi";
+import { getRest } from "../api/RestApi";
 
 export type StorageStatusInfo = {
     connectionStatus: StorageStatus;

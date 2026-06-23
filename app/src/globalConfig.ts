@@ -1,8 +1,6 @@
 import {
-    db,
     DocType,
-    useDexieLiveQuery,
-    mangoToDexie,
+    HybridQuery,
     type LanguageDto,
     type Uuid,
     type ContentDto,
@@ -49,6 +47,21 @@ export const getConnectionSpeed = () => {
 };
 
 /**
+ * Whether the user has opted into reduced data usage (OS/browser "Data Saver"). Read from the
+ * Network Information API's `saveData` flag, which Chromium-based browsers expose even when they
+ * don't yet support the `prefers-reduced-data` media query. Returns false when unknown (Safari/iOS).
+ */
+export const isDataSaverEnabled = (): boolean => {
+    if (isTestEnv) return false;
+
+    return !!(
+        (navigator as any).connection ||
+        (navigator as any).mozConnection ||
+        (navigator as any).webkitConnection
+    )?.saveData;
+};
+
+/**
  * Get device information.
  * @returns
  */
@@ -77,6 +90,21 @@ export const isMac = computed(() => {
         ua.includes("ipad")
     );
 });
+
+/**
+ * True when the app is running as an installed PWA (launched from the home-screen
+ * icon in standalone mode), as opposed to a normal browser tab. Used to widen the
+ * content sync window for installed users. Evaluated once at startup in main.ts.
+ */
+export const isInstalledStandalone = (): boolean => {
+    if (typeof window === "undefined") return false;
+    // iOS Safari home-screen apps (non-standard, predates display-mode support).
+    if ((window.navigator as any).standalone === true) return true;
+    if (typeof window.matchMedia !== "function") return false;
+    return ["standalone", "minimal-ui", "fullscreen"].some(
+        (mode) => window.matchMedia(`(display-mode: ${mode})`).matches,
+    );
+};
 
 /**
  * The list of CMS defined languages as Vue ref.
@@ -138,14 +166,17 @@ export const appLanguageAsRef = computed(() => appLanguagesPreferredAsRef.value[
  */
 export const initLanguage = () => {
     return new Promise<void>((resolve) => {
-        const _cmsLanguages = useDexieLiveQuery(
-            () => mangoToDexie<LanguageDto>(db.docs, { selector: { type: DocType.Language } }),
-            { initialValue: [] },
+        // Language is a fully-synced type, so this HybridQuery reads from IndexedDB
+        // only. Constructed at app scope (never disposed) — its output ref feeds the
+        // shared cmsLanguages list.
+        const languagesQuery = new HybridQuery<LanguageDto>(
+            { selector: { type: DocType.Language } },
+            { live: true },
         );
 
         // Watch for CMS languages and update cmsLanguages
         watch(
-            _cmsLanguages,
+            languagesQuery.output,
             (newVal) => {
                 // Clear and update cmsLanguages
                 cmsLanguages.value.length = 0;

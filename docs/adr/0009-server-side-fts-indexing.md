@@ -44,3 +44,7 @@ This was chosen over a dynamic/configurable approach because:
 - A CouchDB schema upgrade (v13) backfills FTS data for all existing Content documents.
 - `ftsMeta` no longer stores `docLen:*` entries or `fieldConfig` — doc lengths are stored directly on the ContentDto as `ftsTokenCount`, and field config is hard-coded.
 - Corpus stats (`totalTokenCount`, `docCount`) are lazily recomputed rather than maintained incrementally. A debounced recomputation (10s) fires after ingestion or deletion, and an initial computation runs on startup. This avoids per-batch overhead during sync — BM25 scoring is tolerant of slightly stale stats.
+
+## Related
+
+- ADR 0010 (server-side FTS search) adds a server-side search endpoint over this same `fts`/`ftsTokenCount` data and **reuses this field configuration and BM25 parameters**, so the "change one, change both" rule now spans three files: `api/src/util/ftsIndexing.ts`, `api/src/util/ftsScoring.ts`, and `shared/src/fts/ftsSearch.ts`.

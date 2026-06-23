@@ -43,6 +43,9 @@ const mockPinnedCategoryContent: ContentDto = {
     updatedTimeUtc: 1704114000000,
     memberOf: ["group-public-content"],
     parentTags: [],
+    // The server mirrors the category tag's taggedDocs onto its content as
+    // parentTaggedDocs; the feed seeks child content by parentId ∈ this list.
+    parentTaggedDocs: ["post-video1"],
     language: "lang-eng",
     status: PublishStatus.Published,
     slug: "pinned-category-1",
@@ -68,6 +71,7 @@ const mockPinnedCategoryContent2: ContentDto = {
     updatedTimeUtc: 1704114000000,
     memberOf: ["group-public-content"],
     parentTags: [],
+    parentTaggedDocs: ["post-video2"],
     language: "lang-eng",
     status: PublishStatus.Published,
     slug: "pinned-category-2",
@@ -295,13 +299,18 @@ describe("PinnedVideo", () => {
     });
 
     it("renders nothing when pinned categories have no matching video content", async () => {
-        // Pinned category exists but no video content references it
+        // Pinned category exists but nothing is tagged with it (empty parentTaggedDocs),
+        // so the parentId seek returns no children and the feed renders nothing.
+        const categoryNoTaggedDocs: ContentDto = {
+            ...mockPinnedCategoryContent,
+            parentTaggedDocs: [],
+        };
         const videoForOtherTag: ContentDto = {
             ...mockVideoContent1,
             parentTags: ["tag-other"],
             title: "Other Tag Video",
         };
-        await db.docs.bulkPut([mockPinnedCategoryContent, videoForOtherTag]);
+        await db.docs.bulkPut([categoryNoTaggedDocs, videoForOtherTag]);
 
         const wrapper = mountWithSuspense();
 

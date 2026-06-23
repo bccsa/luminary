@@ -148,17 +148,117 @@ describe("QueryService", () => {
         );
     });
 
-    it("requires parentType for Content documents", async () => {
+    it("accepts Content without parentType and scopes each parentType to its own view groups", async () => {
+        const access = {
+            [DocType.Post]: ["gp1"],
+            [DocType.Tag]: ["gt1"],
+            [DocType.Language]: ["lang-g1"],
+        } as any;
+        (permissions.PermissionSystem.accessMapToGroups as jest.Mock).mockReturnValueOnce(access);
+        (service as any).languages = [{ _id: "lang-eng", memberOf: ["lang-g1"] }];
+
         const query = makeQuery((s) => {
             (s as any).type = DocType.Content;
-            // missing parentType
+            // no parentType
+        });
+
+        await service.query(query, mockUser);
+
+        const calledWith = dbService.executeFindQuery.mock.calls[0][0];
+        // Per-parentType $or so a Post doc is only matched via Post groups (no cross-type leak).
+        expect(calledWith.selector.$and).toContainEqual({
+            $or: [
+                {
+                    $and: [
+                        { parentType: DocType.Post },
+                        { memberOf: { $elemMatch: { $in: ["gp1"] } } },
+                    ],
+                },
+                {
+                    $and: [
+                        { parentType: DocType.Tag },
+                        { memberOf: { $elemMatch: { $in: ["gt1"] } } },
+                    ],
+                },
+            ],
+        });
+        // The single global memberOf push must NOT also run for the parentType-less path.
+        const hasGlobalMemberOf = calledWith.selector.$and.some(
+            (c: any) => Object.keys(c).length === 1 && c.memberOf,
+        );
+        expect(hasGlobalMemberOf).toBe(false);
+    });
+
+    it("drops the Tag branch when the user only has Post view access (Content, no parentType)", async () => {
+        const access = {
+            [DocType.Post]: ["gp1"],
+            [DocType.Language]: ["lang-g1"],
+        } as any;
+        (permissions.PermissionSystem.accessMapToGroups as jest.Mock).mockReturnValueOnce(access);
+        (service as any).languages = [{ _id: "lang-eng", memberOf: ["lang-g1"] }];
+
+        const query = makeQuery((s) => {
+            (s as any).type = DocType.Content;
+        });
+
+        await service.query(query, mockUser);
+
+        const calledWith = dbService.executeFindQuery.mock.calls[0][0];
+        expect(calledWith.selector.$and).toContainEqual({
+            $or: [
+                {
+                    $and: [
+                        { parentType: DocType.Post },
+                        { memberOf: { $elemMatch: { $in: ["gp1"] } } },
+                    ],
+                },
+            ],
+        });
+    });
+
+    it("intersects requested memberOf per parentType branch (Content, no parentType)", async () => {
+        const access = {
+            [DocType.Post]: ["gp1", "gp2"],
+            [DocType.Tag]: ["gt1"],
+            [DocType.Language]: ["lang-g1"],
+        } as any;
+        (permissions.PermissionSystem.accessMapToGroups as jest.Mock).mockReturnValueOnce(access);
+        (service as any).languages = [{ _id: "lang-eng", memberOf: ["lang-g1"] }];
+
+        const query = makeQuery((s) => {
+            (s as any).type = DocType.Content;
+            (s as any).memberOf = { $elemMatch: { $in: ["gp1"] } }; // a Post group only
+        });
+
+        await service.query(query, mockUser);
+
+        const calledWith = dbService.executeFindQuery.mock.calls[0][0];
+        // gp1 intersects Post groups only → Tag branch (empty after intersection) is dropped.
+        expect(calledWith.selector.$and).toContainEqual({
+            $or: [
+                {
+                    $and: [
+                        { parentType: DocType.Post },
+                        { memberOf: { $elemMatch: { $in: ["gp1"] } } },
+                    ],
+                },
+            ],
+        });
+    });
+
+    it("throws 403 for Content without parentType when user has no Post or Tag access", async () => {
+        const access = {
+            [DocType.Language]: ["lang-g1"], // languages accessible, but no Post/Tag view
+        } as any;
+        (permissions.PermissionSystem.accessMapToGroups as jest.Mock).mockReturnValueOnce(access);
+        (service as any).languages = [{ _id: "lang-eng", memberOf: ["lang-g1"] }];
+
+        const query = makeQuery((s) => {
+            (s as any).type = DocType.Content;
         });
 
         await expect(service.query(query, mockUser)).rejects.toEqual(
-            new HttpException(
-                "'parentType' field is required for Content type",
-                HttpStatus.BAD_REQUEST,
-            ),
+            new HttpException("Forbidden", HttpStatus.FORBIDDEN),
         );
     });
 
@@ -664,6 +764,41 @@ describe("QueryService", () => {
         await expect(service.query(query, mockUser)).rejects.toEqual(
             new HttpException("Forbidden", HttpStatus.FORBIDDEN),
         );
+    });
+
+    describe("use_index forwarding (client decides the index, API just forwards)", () => {
+        it("forwards a caller-supplied use_index to executeFindQuery verbatim", async () => {
+            const access = { [DocType.Post]: ["g1"] } as any;
+            (permissions.PermissionSystem.accessMapToGroups as jest.Mock).mockReturnValueOnce(
+                access,
+            );
+
+            const query = makeQuery((s) => {
+                (s as any).type = DocType.Post;
+            });
+            (query as any).use_index = "some-custom-index";
+
+            await service.query(query, mockUser);
+
+            const calledWith = dbService.executeFindQuery.mock.calls[0][0];
+            expect(calledWith.use_index).toBe("some-custom-index");
+        });
+
+        it("leaves use_index undefined when the caller omits it (CouchDB auto-picks)", async () => {
+            const access = { [DocType.Post]: ["g1"] } as any;
+            (permissions.PermissionSystem.accessMapToGroups as jest.Mock).mockReturnValueOnce(
+                access,
+            );
+
+            const query = makeQuery((s) => {
+                (s as any).type = DocType.Post;
+            });
+
+            await service.query(query, mockUser);
+
+            const calledWith = dbService.executeFindQuery.mock.calls[0][0];
+            expect(calledWith.use_index).toBeUndefined();
+        });
     });
 
     describe("language cache clearing on DB disconnect", () => {

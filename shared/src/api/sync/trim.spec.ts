@@ -1,0 +1,376 @@
+import { describe, it, expect, beforeEach } from "vitest";
+import { syncList } from "./state";
+import { trim } from "./trim";
+import { DocType } from "../../types";
+import { OPEN_MAX, OPEN_MIN } from "./utils";
+
+/**
+ * Tests for trim.ts
+ */
+
+describe("sync trim", () => {
+    beforeEach(() => {
+        syncList.value = [];
+    });
+
+    it("trims unused memberOf groups and sorts remaining", () => {
+        syncList.value = [
+            { chunkType: "post", memberOf: ["g2", "g1"], blockStart: 1000, blockEnd: 0 },
+        ];
+
+        trim({ type: DocType.Post, memberOf: ["g1"] });
+
+        expect(syncList.value).toHaveLength(1);
+        expect(syncList.value[0].memberOf).toEqual(["g1"]); // sorted single group
+    });
+
+    it("removes entry when all groups trimmed away", () => {
+        syncList.value = [{ chunkType: "post", memberOf: ["g2"], blockStart: 1000, blockEnd: 0 }];
+
+        trim({ type: DocType.Post, memberOf: ["g1"] });
+
+        expect(syncList.value).toHaveLength(0);
+    });
+
+    it("trims languages for content types", () => {
+        syncList.value = [
+            {
+                chunkType: "content:post",
+                memberOf: ["g1"],
+                languages: ["en", "es"],
+                blockStart: 1000,
+                blockEnd: 0,
+            },
+        ];
+
+        trim({ type: DocType.Content, subType: DocType.Post, memberOf: ["g1"], languages: ["en"] });
+
+        expect(syncList.value).toHaveLength(1);
+        expect(syncList.value[0].languages).toEqual(["en"]);
+    });
+
+    it("removes content entry when all languages trimmed away", () => {
+        syncList.value = [
+            {
+                chunkType: "content:post",
+                memberOf: ["g1"],
+                languages: ["en"],
+                blockStart: 1000,
+                blockEnd: 0,
+            },
+        ];
+
+        trim({ type: DocType.Content, subType: DocType.Post, memberOf: ["g1"], languages: ["es"] });
+
+        expect(syncList.value).toHaveLength(0);
+    });
+
+    it("does not trim languages for non-content types", () => {
+        syncList.value = [
+            {
+                chunkType: "post",
+                memberOf: ["g1"],
+                // languages should be ignored since chunkType != content*
+                languages: ["en", "es"],
+                blockStart: 1000,
+                blockEnd: 0,
+            } as any,
+        ];
+
+        trim({ type: DocType.Post, memberOf: ["g1"], languages: ["en"] });
+
+        expect(syncList.value).toHaveLength(1);
+        expect(syncList.value[0].languages).toEqual(["en", "es"]); // unchanged
+    });
+
+    it("retains languages when options.languages not provided", () => {
+        syncList.value = [
+            {
+                chunkType: "content:post",
+                memberOf: ["g1"],
+                languages: ["en", "es"],
+                blockStart: 1000,
+                blockEnd: 0,
+            },
+        ];
+
+        trim({ type: DocType.Content, subType: DocType.Post, memberOf: ["g1"] });
+
+        expect(syncList.value[0].languages).toEqual(["en", "es"]);
+    });
+
+    it("sorts trimmed languages and groups", () => {
+        syncList.value = [
+            {
+                chunkType: "content:post",
+                memberOf: ["g2", "g1", "g3"],
+                languages: ["es", "fr", "en"],
+                blockStart: 1000,
+                blockEnd: 0,
+            },
+        ];
+
+        trim({
+            type: DocType.Content,
+            subType: DocType.Post,
+            memberOf: ["g3", "g1"],
+            languages: ["fr", "en"],
+        });
+
+        expect(syncList.value[0].memberOf).toEqual(["g1", "g3"]);
+        expect(syncList.value[0].languages).toEqual(["en", "fr"]);
+    });
+
+    it("trims languages for deleteCmd entries with languages", () => {
+        syncList.value = [
+            {
+                chunkType: "deleteCmd:post",
+                memberOf: ["g1"],
+                languages: ["en", "es"],
+                blockStart: 1000,
+                blockEnd: 0,
+            },
+        ];
+
+        trim({
+            type: DocType.DeleteCmd,
+            subType: DocType.Post,
+            memberOf: ["g1"],
+            languages: ["en"],
+        });
+
+        expect(syncList.value).toHaveLength(1);
+        expect(syncList.value[0].languages).toEqual(["en"]);
+    });
+
+    it("removes deleteCmd entry when all languages trimmed away", () => {
+        syncList.value = [
+            {
+                chunkType: "deleteCmd:post",
+                memberOf: ["g1"],
+                languages: ["en"],
+                blockStart: 1000,
+                blockEnd: 0,
+            },
+        ];
+
+        trim({
+            type: DocType.DeleteCmd,
+            subType: DocType.Post,
+            memberOf: ["g1"],
+            languages: ["es"],
+        });
+
+        expect(syncList.value).toHaveLength(0);
+    });
+
+    it("does not trim languages for deleteCmd entries without languages", () => {
+        syncList.value = [
+            {
+                chunkType: "deleteCmd:post",
+                memberOf: ["g1"],
+                blockStart: 1000,
+                blockEnd: 0,
+            },
+        ];
+
+        trim({
+            type: DocType.DeleteCmd,
+            subType: DocType.Post,
+            memberOf: ["g1"],
+            languages: ["en"],
+        });
+
+        expect(syncList.value).toHaveLength(1);
+        expect(syncList.value[0].languages).toBeUndefined();
+    });
+
+    // --- publishDate clamping/removal (Part A) ---
+
+    describe("publishDate range trimming", () => {
+        it("drops Content entries whose range is fully outside the target range", () => {
+            syncList.value = [
+                {
+                    chunkType: "content:post",
+                    memberOf: ["g1"],
+                    languages: ["en"],
+                    blockStart: 1000,
+                    blockEnd: 0,
+                    publishDateMin: 100,
+                    publishDateMax: 200,
+                },
+                {
+                    chunkType: "content:post",
+                    memberOf: ["g1"],
+                    languages: ["en"],
+                    blockStart: 1000,
+                    blockEnd: 0,
+                    publishDateMin: 500,
+                    publishDateMax: 1000,
+                },
+            ];
+
+            trim({
+                type: DocType.Content,
+                subType: DocType.Post,
+                memberOf: ["g1"],
+                languages: ["en"],
+                publishDateMin: 400,
+                publishDateMax: 1500,
+            });
+
+            // The 100..200 entry is fully outside [400..1500] and should be dropped.
+            expect(syncList.value).toHaveLength(1);
+            expect(syncList.value[0].publishDateMin).toBe(500);
+            expect(syncList.value[0].publishDateMax).toBe(1000);
+        });
+
+        it("clamps Content entries that partially overlap the target range", () => {
+            syncList.value = [
+                {
+                    chunkType: "content:post",
+                    memberOf: ["g1"],
+                    languages: ["en"],
+                    blockStart: 1000,
+                    blockEnd: 0,
+                    publishDateMin: 100,
+                    publishDateMax: 800,
+                },
+            ];
+
+            trim({
+                type: DocType.Content,
+                subType: DocType.Post,
+                memberOf: ["g1"],
+                languages: ["en"],
+                publishDateMin: 300,
+                publishDateMax: 600,
+            });
+
+            expect(syncList.value).toHaveLength(1);
+            expect(syncList.value[0].publishDateMin).toBe(300);
+            expect(syncList.value[0].publishDateMax).toBe(600);
+        });
+
+        it("does not touch publishDate when target range is fully open", () => {
+            syncList.value = [
+                {
+                    chunkType: "content:post",
+                    memberOf: ["g1"],
+                    languages: ["en"],
+                    blockStart: 1000,
+                    blockEnd: 0,
+                    publishDateMin: 100,
+                    publishDateMax: 200,
+                },
+            ];
+
+            trim({
+                type: DocType.Content,
+                subType: DocType.Post,
+                memberOf: ["g1"],
+                languages: ["en"],
+                publishDateMin: OPEN_MIN,
+                publishDateMax: OPEN_MAX,
+            });
+
+            expect(syncList.value).toHaveLength(1);
+            expect(syncList.value[0].publishDateMin).toBe(100);
+            expect(syncList.value[0].publishDateMax).toBe(200);
+        });
+
+        it("never drops or clamps DeleteCmd entries based on publishDate", () => {
+            // DeleteCmd entries must stay open so deletes propagate regardless of cutoff.
+            syncList.value = [
+                {
+                    chunkType: "deleteCmd:post",
+                    memberOf: ["g1"],
+                    languages: ["en"],
+                    blockStart: 1000,
+                    blockEnd: 0,
+                    publishDateMin: OPEN_MIN,
+                    publishDateMax: OPEN_MAX,
+                },
+            ];
+
+            trim({
+                type: DocType.DeleteCmd,
+                subType: DocType.Post,
+                memberOf: ["g1"],
+                languages: ["en"],
+                publishDateMin: 300,
+                publishDateMax: 600,
+            });
+
+            expect(syncList.value).toHaveLength(1);
+            // Should remain open — DeleteCmd is never publishDate-filtered.
+            expect(syncList.value[0].publishDateMin).toBe(OPEN_MIN);
+            expect(syncList.value[0].publishDateMax).toBe(OPEN_MAX);
+        });
+
+        it("leaves legacy entries (no publishDate fields) untouched when target range is open", () => {
+            syncList.value = [
+                {
+                    chunkType: "content:post",
+                    memberOf: ["g1"],
+                    languages: ["en"],
+                    blockStart: 1000,
+                    blockEnd: 0,
+                },
+            ];
+
+            trim({
+                type: DocType.Content,
+                subType: DocType.Post,
+                memberOf: ["g1"],
+                languages: ["en"],
+                // Target open — should be a no-op for publishDate.
+                publishDateMin: OPEN_MIN,
+                publishDateMax: OPEN_MAX,
+            });
+
+            expect(syncList.value).toHaveLength(1);
+            expect(syncList.value[0].publishDateMin).toBeUndefined();
+            expect(syncList.value[0].publishDateMax).toBeUndefined();
+        });
+    });
+
+    it("only trims entries matching the specified type and subType", () => {
+        syncList.value = [
+            {
+                chunkType: "post",
+                memberOf: ["g1", "g2", "g3"],
+                blockStart: 1000,
+                blockEnd: 0,
+            },
+            {
+                chunkType: "content:post",
+                memberOf: ["g1", "g2", "g3"],
+                languages: ["en", "es"],
+                blockStart: 2000,
+                blockEnd: 0,
+            },
+            {
+                chunkType: "content:tag",
+                memberOf: ["g1", "g2", "g3"],
+                languages: ["en", "es"],
+                blockStart: 3000,
+                blockEnd: 0,
+            },
+        ];
+
+        // Trim only content:post entries to keep only g1
+        trim({ type: DocType.Content, subType: DocType.Post, memberOf: ["g1"], languages: ["en"] });
+
+        // post entry should be unchanged (different type)
+        expect(syncList.value[0].memberOf).toEqual(["g1", "g2", "g3"]);
+
+        // content:post entry should be trimmed
+        expect(syncList.value[1].memberOf).toEqual(["g1"]);
+        expect(syncList.value[1].languages).toEqual(["en"]);
+
+        // content:tag entry should be unchanged (different subType)
+        expect(syncList.value[2].memberOf).toEqual(["g1", "g2", "g3"]);
+        expect(syncList.value[2].languages).toEqual(["en", "es"]);
+    });
+});

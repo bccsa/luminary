@@ -13,7 +13,7 @@ import {
     recomputeCorpusStats,
     scheduleCorpusStatsRecompute,
 } from "./ftsIndexer";
-import { ftsSearch } from "./ftsSearch";
+import { ftsSearch, selectTrigramsWithinDfBudget } from "./ftsSearch";
 
 function makeContentDoc(overrides: Partial<ContentDto> & { _id: string }): ContentDto {
     return {
@@ -382,6 +382,65 @@ describe("FTS Indexer and Search", () => {
             const results = await ftsSearch({ query: "quantum" });
             const ids = results.map((r) => r.docId);
             expect(ids).not.toContain("zero-tc");
+        });
+
+        it("ranks exact word matches above trigram-only matches (word-match bonus)", async () => {
+            // "garden" and "gardenia" share the trigrams gar/ard/rde/den (same BM25 signal),
+            // but only "garden" contains the full query word, so it gets the word-match bonus.
+            const a = generateSimpleFtsEntries("garden", 3.0);
+            await ingestDocWithFts(
+                makeContentDoc({ _id: "exact", title: "garden" }),
+                a.entries,
+                a.tokenCount,
+            );
+            const b = generateSimpleFtsEntries("gardenia", 3.0);
+            await ingestDocWithFts(
+                makeContentDoc({ _id: "trigram-only", title: "gardenia" }),
+                b.entries,
+                b.tokenCount,
+            );
+            await recomputeCorpusStats();
+
+            const results = await ftsSearch({ query: "garden" });
+            const ids = results.map((r) => r.docId);
+            expect(ids).toContain("exact");
+            expect(ids).toContain("trigram-only");
+            // Exact full-word match ranks first and carries a word-match bonus.
+            expect(results[0].docId).toBe("exact");
+            expect(results.find((r) => r.docId === "exact")!.wordMatchScore).toBeGreaterThan(0);
+            expect(results.find((r) => r.docId === "trigram-only")!.wordMatchScore).toBe(0);
+        });
+    });
+
+    describe("selectTrigramsWithinDfBudget", () => {
+        const t = (token: string, df: number) => ({ token, df });
+
+        it("keeps all trigrams when under budget", () => {
+            const kept = selectTrigramsWithinDfBudget([t("a", 10), t("b", 20)], 1000, 3);
+            expect(kept.map((x) => x.token)).toEqual(["a", "b"]);
+        });
+
+        it("keeps the lowest-df trigrams within budget, dropping the high-df ones", () => {
+            const kept = selectTrigramsWithinDfBudget(
+                [t("a", 500), t("b", 800), t("c", 1200), t("d", 4000)],
+                3000,
+                3,
+            );
+            expect(kept.map((x) => x.token)).toEqual(["a", "b", "c"]); // "d" pruned
+        });
+
+        it("honors the minimum-trigram floor even when over budget", () => {
+            const kept = selectTrigramsWithinDfBudget(
+                [t("a", 5000), t("b", 6000), t("c", 7000), t("d", 8000)],
+                1000,
+                3,
+            );
+            expect(kept.map((x) => x.token)).toEqual(["a", "b", "c"]);
+        });
+
+        it("ranks rarest-first regardless of input order", () => {
+            const kept = selectTrigramsWithinDfBudget([t("big", 9000), t("small", 1)], 5000, 1);
+            expect(kept.map((x) => x.token)).toEqual(["small"]);
         });
     });
 

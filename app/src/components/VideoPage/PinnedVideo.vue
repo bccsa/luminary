@@ -1,70 +1,44 @@
 <script setup lang="ts">
-import { watch } from "vue";
-import {
-    type ContentDto,
-    DocType,
-    PostType,
-    TagType,
-    type Uuid,
-    db,
-    useDexieLiveQueryWithDeps,
-    mangoToDexie,
-} from "luminary-shared";
-import { appLanguageIdsAsRef } from "@/globalConfig";
+import { PostType, TagType } from "luminary-shared";
 import { contentByTag } from "../contentByTag";
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
-import { mangoIsPublished } from "@/util/mangoIsPublished";
+import { useContentQuery } from "@/composables/useContentQuery";
 
-const pinnedCategories = useDexieLiveQueryWithDeps(
-    appLanguageIdsAsRef,
-    (appLanguageIds: Uuid[]) => {
-        return mangoToDexie<ContentDto>(db.docs, {
-            selector: {
-                $and: [
-                    { type: DocType.Content },
-                    { parentPinned: 1 }, // 1 = true
-                    { parentTagType: TagType.Category },
-                    ...mangoIsPublished(appLanguageIds),
-                ],
-            },
-        });
-    },
+const pinnedCategories = useContentQuery(
+    () => [{ parentPinned: 1 }, { parentTagType: TagType.Category }],
     {
-        initialValue: await db.getQueryCache<ContentDto[]>("videopage_pinnedCategories"),
-        deep: true,
+        cache: true,
+        // Seek via the parentPinned-led index; publishDate sort required to engage it
+        // (order is irrelevant — contentByTag re-sorts downstream).
+        useIndex: "content-parentPinned-publishDate-index",
+        sort: [{ publishDate: "desc" }],
     },
 );
 
-watch(pinnedCategories, async (value) => {
-    db.setQueryCache<ContentDto[]>("videopage_pinnedCategories", value);
-});
-
-const pinnedCategoryContent = useDexieLiveQueryWithDeps(
-    [appLanguageIdsAsRef, pinnedCategories],
-    ([appLanguageIds, pinnedCategories]: [Uuid[], ContentDto[]]) => {
-        return mangoToDexie<ContentDto>(db.docs, {
-            selector: {
-                $and: [
-                    { type: DocType.Content },
-                    { video: { $exists: true, $ne: "" } },
-                    { parentPostType: { $ne: PostType.Page } },
-                    { $or: [{ parentTagType: { $exists: false } }, { parentTagType: TagType.Topic }] },
-                    {
-                        parentTags: {
-                            $elemMatch: { $in: pinnedCategories.map((c) => c.parentId) },
-                        },
-                    },
-                    ...mangoIsPublished(appLanguageIds),
-                ],
-            },
-        });
-    },
-    { initialValue: await db.getQueryCache<ContentDto[]>("videopage_pinnedContent") },
+// Reads pinnedCategories.value inside the thunk so this query auto-rebuilds when
+// the pinned categories change.
+const pinnedCategoryContent = useContentQuery(
+    () => [
+        { video: { $exists: true, $ne: "" } },
+        {
+            $or: [
+                { parentPostType: { $exists: false } },
+                { parentPostType: { $ne: PostType.Page } },
+            ],
+        },
+        { $or: [{ parentTagType: { $exists: false } }, { parentTagType: TagType.Topic }] },
+        { parentId: { $in: pinnedCategories.value.flatMap((c) => c.parentTaggedDocs ?? []) } },
+    ],
+    // Resolve each pinned category to the post ids tagged with it (parentTaggedDocs — the
+    // server-mirrored copy of the tag's taggedDocs) and seek child content by parentId.
+    // This indexes the local Dexie read and lets the API older-tail supplement fan out to
+    // per-parent index seeks when the combined parentId set is within the fan-out cap.
+    // Featured content can predate the sync cutoff, so the supplement is REQUIRED to surface
+    // it (it is not in the local window); when the combined set exceeds the cap the
+    // supplement falls back to a content-partition scan. sort+limit bound the window;
+    // contentByTag re-sorts per category for display.
+    { cache: true, limit: 50, sort: [{ publishDate: "desc" }] },
 );
-
-watch(pinnedCategoryContent, async (value) => {
-    db.setQueryCache<ContentDto[]>("videopage_pinnedContent", value);
-});
 
 // sort pinned content by category
 const pinnedContentByCategory = contentByTag(pinnedCategoryContent, pinnedCategories);

@@ -1,10 +1,9 @@
 <script setup lang="ts">
-import { db, mangoToDexie, useDexieLiveQueryWithDeps, type ContentDto, type Uuid } from "luminary-shared";
+import { db, type ContentDto } from "luminary-shared";
 import { computed } from "vue";
 import { useRouter } from "vue-router";
 import LImage from "@/components/images/LImage.vue";
-import { appLanguageIdsAsRef } from "@/globalConfig";
-import { mangoIsPublished } from "@/util/mangoIsPublished";
+import { useContentQuery } from "@/composables/useContentQuery";
 import { DateTime } from "luxon";
 
 const router = useRouter();
@@ -23,22 +22,10 @@ const isContentSelected = (slug: string) => {
 
 const parentTaggedDocsRef = computed(() => props.tag.parentTaggedDocs || []);
 
-const tagged = useDexieLiveQueryWithDeps(
-    [appLanguageIdsAsRef, parentTaggedDocsRef],
-    ([languageIds, ids]: [Uuid[], Uuid[]]) => {
-        if (!ids || ids.length === 0) return Promise.resolve([] as ContentDto[]);
-        return mangoToDexie<ContentDto>(db.docs, {
-            selector: {
-                $and: [
-                    { parentId: { $in: ids } },
-                    ...mangoIsPublished(languageIds, { includeScheduled: false }),
-                ],
-            },
-            $sort: [{ publishDate: "asc" }],
-        });
-    },
-    { initialValue: [] as ContentDto[] },
-);
+const tagged = useContentQuery(() => [{ parentId: { $in: parentTaggedDocsRef.value } }], {
+    includeScheduled: false,
+    sort: [{ publishDate: "asc" }],
+});
 </script>
 
 <template>
@@ -76,7 +63,10 @@ const tagged = useDexieLiveQueryWithDeps(
                             {{ content.title }}
                         </h1>
                         <!-- publish date -->
-                        <div class="text-xs text-gray-500" v-if="showPublishDate">
+                        <div
+                            class="text-xs text-gray-500"
+                            v-if="showPublishDate"
+                        >
                             <!-- {{ new Date(content.publishDate).toLocaleDateString() }} -->
                             {{
                                 content.publishDate

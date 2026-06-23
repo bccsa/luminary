@@ -48,12 +48,15 @@ function makePinnedCategoryContent(overrides: Partial<ContentDto> = {}): Content
         updatedTimeUtc: 1704114000000,
         memberOf: [],
         parentTags: [],
+        // The server mirrors the category tag's taggedDocs onto its content as
+        // parentTaggedDocs; the feed seeks child content by parentId ∈ this list.
+        parentTaggedDocs: ["post-child1"],
         language: "lang-eng",
         status: PublishStatus.Published,
         slug: "pinned-cat1",
         title: "Pinned Category",
         summary: "A pinned category",
-        publishDate: Date.now() - 100_000,
+        publishDate: 1704114000000,
         availableTranslations: ["lang-eng"],
         ...overrides,
     } as ContentDto;
@@ -70,7 +73,7 @@ function makePinnedCategoryChild(overrides: Partial<ContentDto> = {}): ContentDt
         parentTags: ["tag-pinned-cat1"],
         parentTagType: TagType.Topic,
         title: "Child Content 1",
-        publishDate: Date.now() - 100_000,
+        publishDate: 1704114000000,
         availableTranslations: ["lang-eng"],
         ...overrides,
     };
@@ -121,7 +124,11 @@ describe("HomePagePinned", () => {
     });
 
     it("filters out child content with parentPostType Page", async () => {
-        const pinnedCat = makePinnedCategoryContent();
+        // Both children's posts are tagged with the category, so both are returned by
+        // the parentId seek; the parentPostType filter must then drop the Page one.
+        const pinnedCat = makePinnedCategoryContent({
+            parentTaggedDocs: ["post-child1", "post-page-child"],
+        });
         const regularChild = makePinnedCategoryChild();
         const pageChild: ContentDto = {
             ...makePinnedCategoryChild(),
@@ -142,7 +149,9 @@ describe("HomePagePinned", () => {
     });
 
     it("filters out child content with a future publish date", async () => {
-        const pinnedCat = makePinnedCategoryContent();
+        const pinnedCat = makePinnedCategoryContent({
+            parentTaggedDocs: ["post-child1", "post-future-child"],
+        });
         const regularChild = makePinnedCategoryChild();
         const futureChild: ContentDto = {
             ...makePinnedCategoryChild(),
@@ -163,7 +172,9 @@ describe("HomePagePinned", () => {
     });
 
     it("filters out expired child content", async () => {
-        const pinnedCat = makePinnedCategoryContent();
+        const pinnedCat = makePinnedCategoryContent({
+            parentTaggedDocs: ["post-child1", "post-expired-child"],
+        });
         const regularChild = makePinnedCategoryChild();
         const expiredChild: ContentDto = {
             ...makePinnedCategoryChild(),
@@ -211,6 +222,7 @@ describe("HomePagePinned", () => {
         const pinnedCat2 = makePinnedCategoryContent({
             _id: "content-pinned-cat2",
             parentId: "tag-pinned-cat2",
+            parentTaggedDocs: ["post-child2"],
             title: "Second Pinned Category",
         });
         const child1 = makePinnedCategoryChild();

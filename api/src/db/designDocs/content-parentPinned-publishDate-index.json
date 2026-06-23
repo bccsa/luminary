@@ -1,0 +1,31 @@
+{
+    "_id": "_design/content-parentPinned-publishDate-index",
+    "language": "query",
+    "views": {
+        "content-parentPinned-publishDate-index": {
+            "map": {
+                "fields": {
+                    "parentPinned": "asc",
+                    "publishDate": "asc"
+                },
+                "partial_filter_selector": {
+                    "type": {
+                        "$eq": "content"
+                    }
+                }
+            },
+            "reduce": "_count",
+            "options": {
+                "def": {
+                    "fields": [
+                        "parentPinned",
+                        "publishDate"
+                    ],
+                    "partial_filter_selector": {
+                        "type": "content"
+                    }
+                }
+            }
+        }
+    }
+}

@@ -178,6 +178,7 @@ describe("mangoCompile", () => {
             const pred = mangoCompile({ score: { $ne: 5 } });
             expect(pred({ score: 10 })).toBe(true);
             expect(pred({ score: 5 })).toBe(false);
+            expect(pred({})).toBe(false); // missing field excluded (CouchDB parity)
         });
     });
 
@@ -251,6 +252,7 @@ describe("mangoCompile", () => {
             const pred = mangoCompile({ status: { $nin: ["archived", "deleted"] } });
             expect(pred({ status: "active" })).toBe(true);
             expect(pred({ status: "archived" })).toBe(false);
+            expect(pred({})).toBe(false); // missing field excluded (CouchDB parity)
         });
 
         it("$nin returns false for non-array argument", () => {

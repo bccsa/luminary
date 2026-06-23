@@ -45,6 +45,7 @@ describe("PrivacyPolicyModal.vue", () => {
     });
     afterEach(() => {
         vi.clearAllMocks();
+        vi.unstubAllEnvs();
         db.docs.clear();
         isAuthPluginInstalled.value = false;
     });
@@ -154,6 +155,13 @@ describe("PrivacyPolicyModal.vue", () => {
             logout: vi.fn(),
         });
 
+        // The component reads VITE_PRIVACY_POLICY_ID at setup time to build its
+        // query. Locally this comes from .env, but CI has no .env, leaving it
+        // undefined — which makes the query short-circuit to match nothing and
+        // the policy never reads as "outdated". Stub it so the test is
+        // self-sufficient regardless of environment.
+        vi.stubEnv("VITE_PRIVACY_POLICY_ID", "page-privacy-policy");
+
         await db.docs.clear();
         await db.docs.bulkPut([
             {
@@ -161,13 +169,18 @@ describe("PrivacyPolicyModal.vue", () => {
                 _id: "mock-privacy-policy-id",
                 parentId: import.meta.env.VITE_PRIVACY_POLICY_ID,
                 language: "lang-eng",
-                publishDate: Date.now(),
+                // Must be a fixed past date, NOT Date.now(): mangoIsPublished filters on
+                // the frozen sessionNow() (captured once per run), so a publishDate after
+                // that bound is filtered out and the query returns nothing. This value is
+                // after the acceptance ts below (so the policy reads as "outdated") but
+                // safely before sessionNow().
+                publishDate: 1704114000000, // 2024-01-01
             } as ContentDto,
         ]);
 
         userPreferencesAsRef.value.privacyPolicy = {
             status: "accepted",
-            ts: 1000004000000,
+            ts: 1000004000000, // 2001-09-08 — before the policy's publishDate above
         };
 
         const wrapper = mount(PrivacyPolicyModal, {

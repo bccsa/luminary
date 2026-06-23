@@ -8,6 +8,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is published to npm as `luminary-shared`. The bundle is the lib output from `src/index.ts`; everything callers can use is re-exported there.
 
+Because it's a standalone published library, its documentation (this file and the `README`s under `src/**`) must stay generic and self-contained: describe the library's own contract/API, never how a consumer (the app or CMS) computes values or wires things up. No narrative references to "the app"/"the CMS"/editors, consumer components or constants, or links into `app/`/`cms/` docs. Generic "caller"/"consumer"/"application" wording and the library's own API (e.g. the `SharedConfig.cms` flag) are fine. Document consumer-specific behavior in that consumer's own docs instead.
+
 ## Common commands
 
 ```sh
@@ -56,16 +58,16 @@ The exported singleton is `db`, available after `initDatabase()` resolves. `db.u
 
 `db.deleteRevoked()` watches `accessMap` and removes any docs the user no longer has access to. `db.deleteExpired()` purges past-expiry docs on non-CMS clients on startup.
 
-### Sync — `src/rest/sync2/`
+### Sync — `src/api/sync/`
 
-The sync system is documented in detail in `src/rest/sync2/README.md`. Read it before changing sync code. Quick model:
+The sync system is documented in detail in `src/api/sync/README.md`. Read it before changing sync code. Quick model:
 
 - Walks backwards in time per `(type, memberOf-set, languages-set)` "column," storing block ranges in `syncList`.
 - Splits into multiple autonomous runners when new groups/languages are added; recombines via **vertical merge** (adjacent time ranges, same key) and **horizontal merge** (overlapping ranges, different groups/languages, both EOF).
 - `setCancelSync(true/false)` is a kill switch the consumer must drive based on connectivity — it does not auto-reset.
 - `DeleteCmd` documents are synced as a sibling column to each content/post/tag column so deletions propagate even past the initial sync window.
 
-`src/rest/syncLocalChanges.ts` drains the `localChanges` table to the API and applies ack/reject responses via `db.applyLocalChangeAck`.
+`src/api/syncLocalChanges.ts` drains the `localChanges` table to the API and applies ack/reject responses via `db.applyLocalChangeAck`.
 
 ### Socket.io live updates — `src/socket/socketio.ts`
 
@@ -96,8 +98,10 @@ Offline fuzzy search using **trigram indexing + BM25**. Read `src/fts/README.md`
 - FTS data is computed server-side and shipped on `ContentDto.fts` as `string[]` of `"trigram:tf"` entries; Dexie indexes the array via the `*fts` MultiEntry index.
 - Searches use `db.docs.where("fts").between(trigram + ":", trigram + ";")` per trigram, parse TF, compute BM25 against `corpusStats` (stored under `luminaryInternals["corpusStats"]`).
 - `scheduleCorpusStatsRecompute()` is debounced (10s) and called from every doc-mutation path (`bulkPut` with content, `deleteRevoked`, `deleteExpired`, `purge`) plus on startup.
-- The field config (title=3.0, summary=1.5, text=1.0, author=1.0) is **hard-coded identically** in `api/src/util/ftsIndexing.ts` and `shared/src/fts/ftsSearch.ts` — if you change one, change both.
-- Consumer surface is `useFtsSearch(query, options)` (Vue composable, debounced, paginated) or `ftsSearch(opts)` (direct call).
+- The field config (title=3.0, summary=1.5, text=1.0, author=1.0) and BM25 params are **hard-coded identically** in `api/src/util/ftsIndexing.ts`, `api/src/util/ftsScoring.ts`, and `shared/src/fts/ftsSearch.ts` — if you change one, change all (ADR 0009/0010).
+- **Routing (ADR 0011):** `useFtsSearch` routes each search to local (offline / full-sync) or the server-side `/fts` endpoint (online + a `publishDate` cutoff is set, or CMS) via `shouldUseApiFts()` + `ftsSearchApi`. Single source per search (no merge); falls back to local on API failure and exposes `source` / `isPartial`. **Server results are trimmed (`fts`/`ftsTokenCount` stripped) and must never be `bulkPut`/persisted** — they'd break the `*fts` offline index.
+- Local search optimizations (perf): high-df trigram pruning, a language pre-filter before loading docs, and top-K-only word-match. See `README.md`.
+- Consumer surface is `useFtsSearch(query, options)` (Vue composable, debounced, paginated) or `ftsSearch(opts)` / `ftsSearchApi(opts)` (direct calls).
 
 ### Types — `src/types/`
 

@@ -98,6 +98,7 @@ function setupFts(
         lastSearchedQuery: lastSearchedQueryRef,
         runSearch: runSearchMock,
         cancel: cancelMock,
+        isPartial: ref(false),
     } as any);
 
     return { resultsRef, isSearchingRef, hasMoreRef, lastSearchedQueryRef };

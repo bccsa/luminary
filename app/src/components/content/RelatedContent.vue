@@ -1,18 +1,10 @@
 <script setup lang="ts">
 import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
-import { appLanguageIdsAsRef } from "@/globalConfig";
-import {
-    db,
-    TagType,
-    useDexieLiveQueryWithDeps,
-    mangoToDexie,
-    type ContentDto,
-    type Uuid,
-} from "luminary-shared";
+import { TagType, type ContentDto } from "luminary-shared";
 import { computed, toRef } from "vue";
 import { contentByTag } from "../contentByTag";
 import HorizontalContentTileCollection from "./HorizontalContentTileCollection.vue";
-import { mangoIsPublished } from "@/util/mangoIsPublished";
+import { useContentQuery } from "@/composables/useContentQuery";
 import { useI18n } from "vue-i18n";
 
 type Props = {
@@ -24,26 +16,22 @@ const props = defineProps<Props>();
 const { t } = useI18n();
 
 const isNotTopic = computed(() => props.selectedContent.parentTagType !== TagType.Topic);
-const contentIds = computed(() =>
-    props.tags
-        .map((tag) => tag.parentTaggedDocs)
-        .flat()
-        .filter((e, i, self) => i === self.indexOf(e)),
-);
+// `parentTaggedDocs` is optional and may itself contain null/undefined ids, and
+// `.flat()` keeps those holes. Drop them before they become `{ parentId: { $in:
+// [null] } }`, which crashes CouchDB's _find (function_clause / 500). `new Set`
+// dedupes the remainder.
+const contentIds = computed(() => [
+    ...new Set(props.tags.flatMap((tag) => tag.parentTaggedDocs ?? []).filter((id) => id != null)),
+]);
 
-const contentDocs = useDexieLiveQueryWithDeps(
-    [appLanguageIdsAsRef, contentIds],
-    ([languageIds, ids]: [Uuid[], Uuid[]]) => {
-        if (ids.length === 0) return Promise.resolve([] as ContentDto[]);
-        return mangoToDexie<ContentDto>(db.docs, {
-            selector: {
-                $and: [{ parentId: { $in: ids } }, ...mangoIsPublished(languageIds)],
-            },
-            $sort: [{ publishDate: "asc" }],
-        });
-    },
-    { initialValue: [] as ContentDto[] },
-);
+// parentId $in can't use a sorted Mango index, so the API supplement scans the older
+// tail. Cap at 50 so the limit-shortfall branch skips the API POST once local Dexie
+// already holds 50 matches (the common warm case); 50 also comfortably covers what the
+// horizontal related-content row displays.
+const contentDocs = useContentQuery(() => [{ parentId: { $in: contentIds.value } }], {
+    sort: [{ publishDate: "asc" }],
+    limit: 50,
+});
 
 const filtered = computed(() =>
     contentDocs.value.filter((item) => item._id !== props.selectedContent._id),

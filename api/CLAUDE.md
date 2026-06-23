@@ -33,7 +33,7 @@ Node 20 (`.node-version`). `tsconfig.json` has `strictNullChecks: false` and `no
 
 Order-sensitive — read `main.ts` before reordering anything:
 
-1. `upsertDesignDocs(dbService)` — pushes CouchDB views/indexes from `src/db/designDocs/*.json`. New indexes go here; the sync-query template validator (`db/MongoQueryTemplates/validators/sync.ts`) requires `use_index` to be `sync-*-index`.
+1. `upsertDesignDocs(dbService)` — pushes CouchDB views/indexes from `src/db/designDocs/*.json`. New indexes go here. Immediately after, `warmIndexNameRegistry()` (`db/indexNameRegistry.ts`) loads the set of valid `use_index` names from those same JSON files; `/query` validation rejects any `use_index` not in that registry.
 2. If invoked with `seed` arg: `upsertSeedingDocs`, then `process.exit(0)` — the rest of bootstrap is skipped.
 3. `PermissionSystem.init(dbService)` — builds the in-memory permission graph from Group docs and subscribes to `groupUpdate` events.
 4. `S3Service.initializeChangeListener(dbService)` — wires the singleton S3 client cache to DB change events and disconnects.
@@ -82,8 +82,9 @@ One room per `${docType}-${groupId}`. On `joinSocketGroups`, the server emits a 
 ### Endpoints (`src/endpoints/`)
 
 - `POST /changerequest` (`changeRequest.controller.ts`) — handles JSON and multipart (Fastify `request.parts()`). For multipart, file buffers are matched into `BINARY_REF-{uuid}` placeholders in the JSON payload by `util/patchFileData.ts`. `util/removeDangerousKeys.ts` strips prototype-pollution keys before any further processing. Dispatches by `doc.type` through `changeRequests/documentProcessing/process*Dto.ts`.
-- `POST /query` (`query.controller.ts` + `query.service.ts`) — Mango queries. **Every body is matched against a template** under `src/db/MongoQueryTemplates/validators/<identifier>.ts` (the `body.identifier` field). Templates reject unknown keys and use function validators (e.g., `sync.ts` enforces sort/use_index shape, mandatory `memberOf.$elemMatch.$in`, and disallows syncing `user` docs). `BYPASS_TEMPLATE_VALIDATION=true` is a dev/test escape hatch — never in prod. `QueryService` injects permission filters and (when `cms !== true`) published/expiry filters before passing to `executeFindQuery`.
+- `POST /query` (`query.controller.ts` + `query.service.ts`) — Mango queries. A single universal validator (`validation/query/validateQuery.ts`) enforces top-level shape, a `limit` cap, `use_index` membership in the design-doc registry, an operator policy (no `$regex`/`$where`; `$elemMatch` only on `memberOf`/`availableTranslations`/`parentTags`/`tags`), and selector depth/clause caps — it does NOT do per-identifier dispatch or restrict selector keys (the old template machinery was removed). `body.identifier` is now only an observability label (expensive-query logs / rate-limit context). `BYPASS_TEMPLATE_VALIDATION=true` is a dev/test escape hatch — never in prod. `QueryService` is the data-leakage boundary: it injects permission filters and (when `cms !== true`) published/expiry filters before `executeFindQuery`, blocks the internal `crypto` doc type, and sets `execution_stats: true` so the controller can log expensive (scan-like) queries and feed the optional per-identity rate limiter (`ratelimit/`, default off via `QUERY_RATE_LIMIT_ENABLED`).
 - `GET /search` (`search.controller.ts`) — read-only search using the `X-Query` header (JSON wrapper because GET has no body); `xQuery()` parses+validates via `class-validator`.
+- `POST /fts` (`ftsSearch.controller.ts` + `ftsSearch.service.ts`) — server-side full-text search complementing offline FTS (ADR 0010). Reproduces the client's trigram + BM25 ranking against the full corpus using two CouchDB views (`fts-trigram-index` splits each `fts` entry to one row per trigram with doc-level filter metadata in the value; `fts-corpus-stats` serves `_stats` for avg doc length). Permission + (non-`cms`) published/scheduled/expired/language filtering is done in JS from the embedded view-row metadata before the top-K cap, then the top-K docs are fetched (by-key `_all_docs`) for full BM25 + word-match parity (`util/ftsScoring.ts`). Returns ranked page bodies **trimmed of `fts`/`ftsTokenCount` — display-only, clients must not persist them**.
 - `GET /storage/storagestatus` (`storageStatus.controller.ts`) — bucket connectivity probe; requires `View` on the `Storage` doc.
 
 All endpoints use `AuthGuard` and validate `apiVersion` via `validation/apiVersion.ts`. Backwards compatibility policy: ADR 0005.
@@ -97,7 +98,7 @@ All endpoints use `AuthGuard` and validate `apiVersion` via `validation/apiVersi
 3. A doc-type-specific `process*Dto` finalizes the document (image processing, FTS indexing, language file generation, S3 uploads, etc.).
 4. `db.upsertDoc(doc)` writes and emits.
 
-`util/ftsIndexing.ts` computes server-side trigram FTS for Content docs as part of `processContentDto`. **Boost/field config must stay identical** to `shared/src/fts/ftsSearch.ts` — when you change one, change both (ADR 0009).
+`util/ftsIndexing.ts` computes server-side trigram FTS for Content docs as part of `processContentDto`. **Boost/field config must stay identical** to `shared/src/fts/ftsSearch.ts` — when you change one, change both (ADR 0009). The same boosts and BM25 params are also reused by server-side FTS *search* in `util/ftsScoring.ts` (the `POST /fts` endpoint, see below), so the "change one, change all" rule spans three files now (ADR 0010).
 
 ### S3 (`src/s3/s3.service.ts`)
 

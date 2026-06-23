@@ -25,13 +25,13 @@
  * - author (1.0): Author name at baseline weight
  */
 
-type FtsFieldConfig = {
+export type FtsFieldConfig = {
     name: string;
     boost: number;
     isHtml: boolean;
 };
 
-const FTS_FIELDS: FtsFieldConfig[] = [
+export const FTS_FIELDS: FtsFieldConfig[] = [
     { name: "title", boost: 3.0, isHtml: false },
     { name: "summary", boost: 1.5, isHtml: false },
     { name: "text", boost: 1.0, isHtml: true },

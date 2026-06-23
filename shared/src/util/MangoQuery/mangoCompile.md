@@ -93,12 +93,12 @@ Multiple fields at the same level are implicitly AND-ed:
 | Operator | Argument | Purpose |
 |----------|----------|---------|
 | `$eq` | Any | Field equals the argument |
-| `$ne` | Any | Field does not equal the argument |
+| `$ne` | Any | Field **exists** and does not equal the argument (a document missing the field does **not** match — see [Missing fields](#missing-fields-couchdb-parity)) |
 
 ```ts
 { city: { $eq: "NYC" } }  // explicit equality
 { city: "NYC" }           // implicit equality (shorthand)
-{ score: { $ne: 0 } }     // not equal
+{ score: { $ne: 0 } }     // field must exist AND not equal 0
 ```
 
 ### Comparison operators
@@ -121,7 +121,7 @@ Multiple fields at the same level are implicitly AND-ed:
 | Operator | Argument | Purpose |
 |----------|----------|---------|
 | `$in` | Array | Document field value is in the provided array |
-| `$nin` | Array | Document field value is not in the provided array |
+| `$nin` | Array | Field **exists** and its value is not in the provided array (a document missing the field does **not** match — see [Missing fields](#missing-fields-couchdb-parity)) |
 
 ```ts
 { status: { $in: ["draft", "published"] } }
@@ -238,6 +238,36 @@ Multiple fields at the same level are implicitly AND-ed:
 - `$regex` returns `false` for invalid regex patterns
 - `$mod` requires integer values for both the field and the divisor/remainder
 - `$allMatch` returns `false` for empty arrays
+- **Condition operators require the field to exist** — a document missing the queried field never matches a field-level condition, including `$ne`/`$nin` (see below)
+
+### Missing fields (CouchDB parity)
+
+Field-level condition operators require the field to **exist** on the document. Per the
+[CouchDB Mango spec](https://docs.couchdb.org/en/stable/ddocs/mango.html) ("the field must exist in
+the document for the selector to match"), a document that lacks the queried field never matches a
+condition operator — **including the negation operators `$ne` and `$nin`**:
+
+```ts
+{ parentPostType: { $ne: "page" } }
+// Matches docs that HAVE parentPostType and whose value !== "page".
+// A doc with no parentPostType is EXCLUDED.
+```
+
+This is intentional and keeps the in-memory compiler consistent with CouchDB **and** with the Dexie
+index path: IndexedDB indexes contain no entry for records lacking the key, so `notEqual()` likewise
+never returns missing-field docs (see [mangoToDexie](./mangoToDexie.md#notes-and-limitations)).
+
+To match documents where the field is **absent _or_ not equal** to a value, opt in explicitly with
+`$or` + `$exists: false`:
+
+```ts
+// "not a Page" — including content that has no parentPostType at all
+{ $or: [{ parentPostType: { $exists: false } }, { parentPostType: { $ne: "page" } }] }
+```
+
+This rule is for field-level conditions. Inside `$elemMatch`/`$allMatch`, operators match array
+**element** values (an element always "exists"), so element-level `$ne`/`$nin` are not
+existence-gated.
 
 ### Debugging unsupported operators
 

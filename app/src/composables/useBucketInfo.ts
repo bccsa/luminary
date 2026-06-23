@@ -1,15 +1,22 @@
 import { computed, type Ref } from "vue";
-import { type StorageDto, db, useDexieLiveQuery, mangoToDexie, type Uuid } from "luminary-shared";
+import { type StorageDto, useHybridQuery, type Uuid } from "luminary-shared";
 
 /**
  * Get bucket information for constructing image URLs
  */
 export function useBucketInfo(bucketId: Ref<Uuid | undefined>) {
-    // Get all storage buckets from the database
-    const allBuckets = useDexieLiveQuery(
-        () => mangoToDexie<StorageDto>(db.docs, { selector: { type: "storage" } }),
-        { initialValue: [] as StorageDto[] },
-    );
+    // Get all storage buckets from the database. Storage is a fully-synced type,
+    // so HybridQuery reads from IndexedDB only.
+    //
+    // `cache: true` seeds the bucket list from localStorage on the synchronous
+    // first frame. Without it, `bucketBaseUrl` is undefined for the first tick(s)
+    // (until the async Dexie read lands), so every <LImage> builds an empty srcset
+    // and paints its fallback, then swaps to the real image once the URL resolves —
+    // a visible image flash on reload. Seeding the buckets removes that swap.
+    const allBuckets = useHybridQuery<StorageDto>(() => ({ selector: { type: "storage" } }), {
+        live: true,
+        cache: true,
+    });
 
     // Get the specific bucket by ID
     const bucket = computed(() => {

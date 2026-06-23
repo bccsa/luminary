@@ -861,38 +861,6 @@ describe("Database", async () => {
                 expect(remainingDocs.find((doc) => doc._id === "group-public-users")).toBeDefined();
             });
         });
-
-        it("clears the query cache when documents are deleted due to access revocation", async () => {
-            const docs = [
-                {
-                    _id: "doc1",
-                    type: DocType.Post, // Test Post documents
-                    memberOf: ["group-private-users"],
-                    updatedTimeUtc: 0,
-                },
-            ];
-            await db.docs.bulkPut(docs);
-
-            // Manually add a query to the cache
-            await db.setQueryCache("test-query", [
-                { ...mockEnglishContentDto, memberOf: ["group-private-content"] },
-            ]);
-
-            // Simulate receiving an accessMap update that only gives access to 'group-public-content'
-            accessMap.value = {
-                "group-public-content": {
-                    [DocType.Post]: {
-                        view: true,
-                    },
-                },
-            };
-            isConnected.value = true;
-
-            await waitForExpect(async () => {
-                const queryCache = await db.queryCache.toArray();
-                expect(queryCache.length).toBe(0);
-            });
-        });
     });
 
     it("deletes expired documents when not in cms-mode", async () => {
