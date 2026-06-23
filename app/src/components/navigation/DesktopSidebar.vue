@@ -228,10 +228,11 @@ const handleLogin = () => {
                 v-for="item in navigationItems.slice(0, -1)"
                 :key="item.name"
                 :to="item.to"
-                v-slot="{ isActive, navigate }"
+                v-slot="{ isActive, href, navigate }"
                 custom
             >
-                <span
+                <a
+                    :href="href"
                     :class="navItemClasses(isItemActive(isActive))"
                     :title="item.name"
                     @click="navigate"
@@ -245,7 +246,7 @@ const handleLogin = () => {
                         v-if="!collapsed"
                         :class="navLabelClass"
                     >{{ item.name }}</span>
-                </span>
+                </a>
             </RouterLink>
 
             <span
@@ -270,10 +271,11 @@ const handleLogin = () => {
 
             <RouterLink
                 :to="{ name: 'bookmarks' }"
-                v-slot="{ isActive, navigate }"
+                v-slot="{ isActive, href, navigate }"
                 custom
             >
-                <span
+                <a
+                    :href="href"
                     :class="navItemClasses(isActive)"
                     :title="t('profile_menu.bookmarks')"
                     @click="navigate"
@@ -287,7 +289,7 @@ const handleLogin = () => {
                         v-if="!collapsed"
                         :class="navLabelClass"
                     >{{ t("profile_menu.bookmarks") }}</span>
-                </span>
+                </a>
             </RouterLink>
 
             <div
@@ -332,10 +334,11 @@ const handleLogin = () => {
 
                 <RouterLink
                     :to="{ name: 'settings' }"
-                    v-slot="{ isActive, navigate }"
+                    v-slot="{ isActive, href, navigate }"
                     custom
                 >
-                    <span
+                    <a
+                        :href="href"
                         :class="navItemClasses(isActive)"
                         :title="t('profile_menu.settings')"
                         @click="navigate"
@@ -349,7 +352,7 @@ const handleLogin = () => {
                             v-if="!collapsed"
                             :class="navLabelClass"
                         >{{ t("profile_menu.settings") }}</span>
-                    </span>
+                    </a>
                 </RouterLink>
             </div>
         </div>
