@@ -4,18 +4,22 @@ This folder holds the **web/SSG tier**: the machinery that prerenders the app's
 **public** content to crawlable static HTML and tracks, per page, the data each page
 read so we can regenerate only the pages that go stale on a content change.
 
-> **Status (read this first):** Phase 1, Phase 2a, and the **Phase 2b simplification** are
-> built and working (the hybrid Mango query — branch `1333` — is now merged). The content
-> seam is **`useContentQuery`** itself: on the web build it prerenders via the public
-> `/query`, captures **facet keys**, and hydrates cleanly — so home/feed pages now
-> prerender their tiles JS-off with no per-component web branches. Dependency keys are
-> generic `facet:<field>:<value>:<lang>` + `doc:<parentId>` (see `facetKeys.ts`), derived
-> identically from a query's selector and a changed doc.
+> **Status (read this first):** Built and working. The content seam is
+> **`useContentQuery`** itself, and the **web client uses the identical local-first hybrid
+> query as native** — there are no `VITE_BUILD_TARGET` branches in the seam. No-flash
+> hydration is achieved by reusing **shared's own response cache**: during the prerender the
+> seam fetches via the public `/query` (shared `queryRemote`) and primes the cache via
+> `writeResponseCache(structuralCacheKey(...))`; `vite.config.web.ts` serializes those
+> `hqcache:*` entries into an inline `<script>` per page; on the client `useHybridQuery({
+> cache:true })` reads them synchronously on first render. The seam also captures **facet
+> keys** (`facet:<field>:<value>:<lang>` + `doc:<parentId>`, see `facetKeys.ts`) for
+> incremental regeneration. Home feeds, the sidebar/topbar chrome, i18n UI strings, and
+> SingleContent (article body + SEO + hreflang + tag-page related lists) all prerender.
 >
-> **One piece still deferred:** routing **SingleContent's** tags/related-content through the
-> seam so TAG pages prerender their related lists (article-page *content* + SEO already
-> prerender via the older web block, which coexists behind `isWeb` guards). It needs the
-> content→tags SSR ordering; tracked in the project memory.
+> The bespoke snapshot layer that used to live here (a `queryPublic` fetcher, a `sliceKey`
+> hash, a `publicContent` Pinia document-cache, a `publicContentApi` `/search` reader) was
+> **deleted** — shared's `queryRemote` / `structuralCacheKey` / `writeResponseCache` replace
+> it. i18n + the render language ride vite-ssg's `initialState` (see `main.web.ts`).
 
 Design specs: [`docs/seo-strategy/design-specs/`](../../../docs/seo-strategy/design-specs/).
 The web build is driven from a **separate deployment repo** (this repo is a submodule of
@@ -27,9 +31,9 @@ it); that repo owns upload-to-R2, edge-cache purge, and the regeneration watcher
 
 - The **web tier is online-only, no service worker** (offline is the native shells' job).
   It exists for SEO/discovery.
-- Two data tiers: **public** (prerendered, in the static HTML + the hydration snapshot +
-  the dependency manifest) and **private/group-scoped** (NEVER any of those — synced to
-  the client at runtime). This folder only ever touches the **public** tier.
+- Two data tiers: **public** (prerendered into the static HTML + shared's response-cache
+  seed + the dependency manifest) and **private/group-scoped** (NEVER any of those — synced
+  to the client at runtime). This folder only ever touches the **public** tier.
 - **A prerendered page is a cache keyed by the data it read.** At build time we record,
   per route, a set of coarse **dependency keys**. When content changes, intersect the
   change's keys with the manifest → the exact set of stale pages → regenerate only those.
@@ -58,17 +62,19 @@ and unaffected by anything here. Web config is `app/vite.config.web.ts`; native 
 
 | File | Role | Runs in |
 | --- | --- | --- |
-| `../main.web.ts` | Web entry (`ViteSSG`). Prerender pass = public snapshot only; client pass = full app (auth/sync/IndexedDB), minus service worker. Branches on `import.meta.env.SSR`. | Node + browser |
-| `../../vite.config.web.ts` | Web build config: route enumeration, `concurrency:1`, dependency-capture hooks, writes `ssg-deps.json` / sitemap / robots, scoped-rebuild mode. | Node (build) |
-| `polyfills.ts` | Node shims jsdom lacks (localStorage/sessionStorage/matchMedia). Imported first in `main.web.ts`. | Node (prerender) |
+| `../main.web.ts` | Web entry (`ViteSSG`). Prerender: `initHybridQuery(HttpReq)` so `queryRemote` works in Node, set render language + fill `cmsLanguages` before i18n, serialize render/default langs via `initialState`. Client: restore those + boot the data layer (`clientRuntime`), minus the service worker. Branches only on `import.meta.env.SSR`. | Node + browser |
+| `../../vite.config.web.ts` | Web build config: route enumeration, `concurrency:1`, dependency-capture hooks, **per-page `hqcache:*` → inline-script serialization**, writes `ssg-deps.json` / sitemap / robots, scoped-rebuild mode. | Node (build) |
+| `polyfills.ts` | Node shims jsdom lacks (localStorage/sessionStorage/matchMedia). Imported first in `main.web.ts`. The `localStorage` shim also backs `writeResponseCache` during the prerender. | Node (prerender) |
 | `clientRuntime.ts` | Boots the data layer on the **browser client** after hydration (`init()` + sync + language). Dynamically imported (never in the prerender). | browser |
-| `publicContentApi.ts` | Unauthenticated `GET /search` reads of the public tier (anonymous → default/public groups). Reports dependency keys while fetching. | Node + browser |
-| `dependencyKeys.ts` | **Pure** key vocabulary — the single source of truth. `docKey`/`tagKey`/`pinnedFeedKey`/`newestFeedKey`, `keysForChangedDoc`, `keysForRecategorization`. No Vue/DOM/Vite deps → the deploy watcher imports this too. | anywhere |
+| `facetKeys.ts` | **Pure** key vocabulary — the single source of truth. `docKey` + `facetsFromSelector`/`facetsFromDoc` (`facet:<field>:<value>:<lang>`), `keysForChangedDoc`, `keysForRecategorization`. No Vue/DOM/Vite deps → the deploy watcher imports this too. | anywhere |
 | `dependencyCapture.ts` | **Pure** render-time collector on `globalThis.__SSG_DEPS__`. `reportKeys` is a no-op unless a capture is active (safe on client/native). | Node (build) |
 | `computeAffected.ts` | **Pure** `computeAffected(changedKeys, manifest)` + `simulateAffected(doc, manifest, prevDoc?)`. Shared with the watcher. | anywhere |
 | `whatChanged.ts` | CLI over `simulateAffected` (dev/inspection). Excluded from app type-check (Node tool). | Node CLI |
 | `verifyIsolation.ts` | CLI: sha256 snapshot/diff of `dist-web/**` to assert a scoped rebuild touched only intended files. | Node CLI |
-| `../stores/publicContent.ts` | Pinia store = the hydration **snapshot** (serialized by vite-ssg). `ensureContentBySlug` etc. *(Planned to become THE gateway — see parked plan.)* | Node + browser |
+
+Public-content reads go through shared directly: `queryRemote` (anonymous `POST /query`),
+`structuralCacheKey` + `writeResponseCache` (the first-paint seed). There is no app-side
+fetcher / slice-key / snapshot store anymore.
 
 ---
 
