@@ -10,14 +10,16 @@ import { createPinia } from "pinia";
 import App from "./App.vue";
 import { routes } from "./router/routes";
 import { initI18n } from "./i18n";
-import { HttpReq, initHybridQuery } from "luminary-shared";
-import { apiUrl, appLanguageIdsAsRef, isAppLoading } from "./globalConfig";
+import { DocType, HttpReq, initHybridQuery, queryRemote, type LanguageDto } from "luminary-shared";
+import { apiUrl, appLanguageIdsAsRef, cmsLanguages, isAppLoading } from "./globalConfig";
+
+const LANGUAGES_QUERY = { selector: { type: DocType.Language } };
 
 // The language a given route is prerendered in: the content's own language for a
 // content/tag slug, else the CMS default. The slug→lang map + default are built by
 // the route enumeration in vite.config.web.ts and shared via globalThis (same Node
-// process). Drives both the published-content filter and the dependency-key + slice
-// scoping, so a page's feeds render in its own language.
+// process). Drives the published-content filter + the dependency-key scoping, so a
+// page's feeds (and its chrome's UI strings) render in its own language.
 function ssrRouteLang(routePath?: string): string {
     const g = globalThis as Record<string, unknown>;
     const map = g.__SSG_ROUTE_LANG__ as Record<string, string> | undefined;
@@ -31,44 +33,63 @@ export const createApp = ViteSSG(
     async ({ app, initialState, routePath }) => {
         const pinia = createPinia();
         app.use(pinia);
-        app.use(initI18n());
 
-        // The web tier is prerendered — there is no splash screen. Setting this
-        // on BOTH server and client keeps the first client render identical to
-        // the SSR output (clean hydration).
-        isAppLoading.value = false;
-
-        // IMPORTANT: use import.meta.env.SSR, NOT vite-ssg's ctx.isClient. With
-        // ssgOptions.mock:true, vite-ssg computes isClient as
-        // `typeof window !== "undefined"`, which jsdom makes TRUE during the Node
-        // prerender — so isClient is unreliable here. import.meta.env.SSR is true
-        // in the prerender bundle and false in the browser bundle.
+        // Make the render language + its translations available BEFORE i18n installs,
+        // so i18n's immediate watch emits real UI strings (not raw `menu.home` keys)
+        // into the static HTML, and the first client render matches. Languages are
+        // public reference data; the render + default language docs ride vite-ssg's
+        // `initialState` so the client has them synchronously before mount.
         if (import.meta.env.SSR) {
-            // Prerender (Node): set this route's render language BEFORE rendering so
-            // the published-content filter + feeds use it.
             const lang = ssrRouteLang(routePath);
             appLanguageIdsAsRef.value = lang ? [lang] : [];
 
-            // Enable the shared `queryRemote` (anonymous POST /query → public tier) so
-            // the content seam can fetch in `onServerPrefetch`. HttpReq is fetch-only
-            // (no Dexie/socket), so this is safe in Node.
+            // Enable the shared `queryRemote` (anonymous POST /query → public tier) for
+            // both the language bootstrap here and the content seam's onServerPrefetch.
+            // HttpReq is fetch-only (no Dexie/socket), so this is safe in Node.
             initHybridQuery(new HttpReq(apiUrl));
 
+            const langs = await queryRemote<LanguageDto>(LANGUAGES_QUERY);
+            cmsLanguages.value = langs;
+
+            // Serialize only what the first client render needs (render + default
+            // language, deduped) to keep page weight down; the full list re-syncs
+            // post-mount via the data layer.
+            const defaultId = langs.find((l) => l.default === 1)?._id;
+            const keep = new Set([lang, defaultId].filter(Boolean) as string[]);
+            initialState.renderLang = lang;
+            initialState.languages = langs.filter((l) => keep.has(l._id));
+        } else {
+            // Client: take the render language from the serialized state so the first
+            // render's UI strings + content match the prerendered HTML. (The web tier
+            // is per-URL-language; the user can still switch via the language modal.)
+            const lang = (initialState.renderLang as string) || "";
+            appLanguageIdsAsRef.value = lang ? [lang] : [];
+            const langs = (initialState.languages as LanguageDto[] | undefined) ?? [];
+            if (langs.length) cmsLanguages.value = langs;
+        }
+
+        app.use(initI18n());
+
+        // The web tier is prerendered — there is no splash screen. Setting this on
+        // BOTH server and client keeps the first client render identical to the SSR
+        // output (clean hydration).
+        isAppLoading.value = false;
+
+        if (import.meta.env.SSR) {
             // Expose any per-page store state (e.g. SingleContent hreflang alternates)
             // for vite-ssg to serialize after the page's onServerPrefetch hooks run.
             initialState.pinia = pinia.state.value;
         } else {
-            // Real browser client. Restore the public-tier snapshot BEFORE mount
-            // so the first client render matches the prerendered HTML.
+            // Restore the per-slug snapshot BEFORE mount so the first client render
+            // matches the prerendered HTML.
             if (initialState.pinia) {
                 pinia.state.value = initialState.pinia;
             }
 
             // Boot the data layer BEFORE mount (vite-ssg awaits this fn before
-            // mounting) so the app hydrates into a live, interactive SPA and
-            // ApiLiveQuery has config during hydration. Dynamically imported so
-            // none of it loads during the Node prerender. Failure must not block
-            // mount — the prerendered content is still shown.
+            // mounting) so the app hydrates into a live, interactive SPA. Dynamically
+            // imported so none of it loads during the Node prerender. Failure must not
+            // block mount — the prerendered content is still shown.
             try {
                 const { initWebClient } = await import("./ssg/clientRuntime");
                 await initWebClient();
