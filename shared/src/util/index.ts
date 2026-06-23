@@ -2,6 +2,7 @@ export * from "./asyncArray";
 export * from "./useDexieLiveQuery";
 export * from "./useDexieLiveQueryAsEditable";
 export * from "./toEditable";
+export * from "./useHasLocalChange";
 export * from "./ApiLiveQuery";
 export * from "./MangoQuery";
 export * from "./HybridQuery";

@@ -10,10 +10,10 @@ import {
     type RedirectDto,
     type GroupDto,
     useHybridQuery,
+    useHasLocalChange,
 } from "luminary-shared";
 import { computed, ref } from "vue";
 import CreateOrEditRedirectModal from "./CreateOrEditRedirectModal.vue";
-import { useHasLocalChange } from "@/composables/useHasLocalChange";
 
 type Props = {
     redirectDoc: RedirectDto;

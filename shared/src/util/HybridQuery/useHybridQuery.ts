@@ -1,5 +1,5 @@
 import type { ComputedRef, ShallowRef } from "vue";
-import type { BaseDocumentDto } from "../../types";
+import type { BaseDocumentDto, Uuid } from "../../types";
 import type { MangoQuery } from "../MangoQuery/MangoTypes";
 import { HybridQuery, type HybridQueryOptions } from "./HybridQuery";
 
@@ -14,11 +14,16 @@ import { HybridQuery, type HybridQueryOptions } from "./HybridQuery";
  *   or to tell "still fetching" from "fetched, genuinely empty".
  * - `error` — the last routing/remote/local-read error, or `undefined`; cleared on
  *   every rebuild. A partial multi-query failure (some results returned) does not set it.
+ * - `hasLocalChanges` — a reactive queryable `(id) => boolean` reporting whether a document
+ *   has a change queued locally but not yet acknowledged by the server. Independent of this
+ *   query's result window (it reflects the global outgoing-change queue), so a non-editable
+ *   overview can flag the pending-offline state of each row it renders.
  */
 export type UseHybridQueryState<T extends BaseDocumentDto> = {
     output: ShallowRef<T[]>;
     isFetching: ComputedRef<boolean>;
     error: ShallowRef<unknown | undefined>;
+    hasLocalChanges: ComputedRef<(id: Uuid) => boolean>;
 };
 
 /**
@@ -90,9 +95,11 @@ export function useHybridQuery<T extends BaseDocumentDto = BaseDocumentDto>(
 
 /**
  * Like {@link useHybridQuery}, but returns the full reactive bundle
- * `{ output, isFetching, error }` ({@link UseHybridQueryState}) instead of only the
- * `output` ref. Same `(query, options)` signature, same lifecycle (auto-disposes on the
- * caller's effect scope), and the same reactive-query / caching / offline semantics.
+ * `{ output, isFetching, error, hasLocalChanges }` ({@link UseHybridQueryState}) instead of
+ * only the `output` ref. Same `(query, options)` signature, same lifecycle (auto-disposes on
+ * the caller's effect scope), and the same reactive-query / caching / offline semantics.
+ * `hasLocalChanges` is a queryable `(id) => boolean` for the pending-offline state of any doc
+ * (see {@link UseHybridQueryState}) — handy for a non-editable overview.
  *
  * ```ts
  * const { output, isFetching, error } = useHybridQueryWithState<ContentDto>(query);
@@ -107,5 +114,10 @@ export function useHybridQueryWithState<T extends BaseDocumentDto = BaseDocument
     options?: HybridQueryOptions,
 ): UseHybridQueryState<T> {
     const q = new HybridQuery<T>(query, options);
-    return { output: q.output, isFetching: q.isFetching, error: q.error };
+    return {
+        output: q.output,
+        isFetching: q.isFetching,
+        error: q.error,
+        hasLocalChanges: q.hasLocalChanges,
+    };
 }

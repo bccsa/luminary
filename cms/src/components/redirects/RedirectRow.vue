@@ -1,12 +1,18 @@
 <script setup lang="ts">
 import { ref } from "vue";
-import { db, DocType, AclPermission, verifyAccess, type RedirectDto } from "luminary-shared";
+import {
+    db,
+    DocType,
+    AclPermission,
+    verifyAccess,
+    useHasLocalChange,
+    type RedirectDto,
+} from "luminary-shared";
 import LBadge from "../common/LBadge.vue";
 import { DateTime } from "luxon";
 import LButton from "../button/LButton.vue";
 import { EyeIcon, PencilSquareIcon } from "@heroicons/vue/20/solid";
 import CreateOrEditRedirectModal from "./CreateOrEditRedirectModal.vue";
-import { useHasLocalChange } from "@/composables/useHasLocalChange";
 
 type Props = {
     redirectDoc: RedirectDto;

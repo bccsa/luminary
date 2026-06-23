@@ -7,13 +7,13 @@ import {
     verifyAccess,
     type GroupDto,
     useHybridQuery,
+    useHasLocalChange,
 } from "luminary-shared";
 import { DateTime } from "luxon";
 import LButton from "../button/LButton.vue";
 import { EyeIcon, PencilSquareIcon } from "@heroicons/vue/20/solid";
 import LBadge from "../common/LBadge.vue";
 import { ref, watch } from "vue";
-import { useHasLocalChange } from "@/composables/useHasLocalChange";
 
 type Props = {
     usersDoc: UserDto;

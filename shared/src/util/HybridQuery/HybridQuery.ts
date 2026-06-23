@@ -19,7 +19,9 @@ import {
     type BaseDocumentDto,
     type DeleteCmdDto,
     DocType,
+    type Uuid,
 } from "../../types";
+import { useHasLocalChanges } from "../useHasLocalChange";
 import { isProvablyEmpty } from "../MangoQuery/isProvablyEmpty";
 import { sanitizeArrayOperators } from "../MangoQuery/sanitizeArrayOperators";
 import { mangoCompile } from "../MangoQuery/mangoCompile";
@@ -338,6 +340,12 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
     // Last routing/remote/local-read error for the current generation, or undefined.
     // Last-error-wins; cleared synchronously on every rebuild.
     public readonly error: ShallowRef<unknown | undefined>;
+    // Reactive queryable `(id) => boolean`: does the document have a change queued locally
+    // (saved via `db.upsert`) but not yet acknowledged by the server? Independent of this
+    // query's result window — it reflects the global outgoing-change queue, so a consumer can
+    // flag the pending-offline state of any doc it renders (e.g. an overview row). Backed by a
+    // single process-wide subscription shared across all instances (see `useHasLocalChanges`).
+    public readonly hasLocalChanges: ComputedRef<(id: Uuid) => boolean>;
     // `isFetching = _localPending || _remotePending`. _localPending: the local read
     // hasn't produced its first result. _remotePending: a supplement POST is owed and
     // hasn't settled (resolved / rejected / dropped because no API is needed).
@@ -410,6 +418,7 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
         this.output = shallowRef<T[]>([]);
         this.error = shallowRef<unknown | undefined>(undefined);
         this.isFetching = computed(() => this._localPending.value || this._remotePending.value);
+        this.hasLocalChanges = useHasLocalChanges();
 
         // Auto-teardown on unmount when constructed inside a Vue effect scope
         // (e.g. <script setup>). Vue's withAsyncContext keeps the scope valid

@@ -94,6 +94,16 @@ vi.mock("../useDexieLiveQuery/useDexieLiveQuery", () => ({
     useDexieLiveQuery: mocks.useDexieLiveQueryMock,
 }));
 
+// `hasLocalChanges` is a global outgoing-change-queue subscription, independent of the query
+// under test; stub it so the constructor doesn't open the shared live query (which would
+// perturb the useDexieLiveQuery / liveRefs harness above). Its own behaviour is covered by
+// useHasLocalChange.spec.ts.
+vi.mock("../useHasLocalChange", () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { computed } = require("vue");
+    return { useHasLocalChanges: () => computed(() => () => false) };
+});
+
 import { effectScope, nextTick, ref } from "vue";
 import { DocType } from "../../types";
 

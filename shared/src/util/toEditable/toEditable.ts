@@ -8,7 +8,6 @@ import {
     Uuid,
 } from "../../types";
 import { db, UpsertOptions } from "../../db/database";
-import { useDexieLiveQuery } from "../useDexieLiveQuery";
 import { getRest, ChangeRequestQuery } from "../../api/RestApi";
 import { LFormData } from "../LFormData";
 import { isSyncableDoc } from "../../db/isSyncable";
@@ -259,27 +258,6 @@ export function toEditable<T extends BaseDocumentDto>(
         return !isEqualBase(sourceItem, shadowItem);
     });
 
-    // Reactive set of every docId that currently has a queued-but-unacked local change. One
-    // live query covers the whole editable set: the `localChanges` table is small and shared,
-    // and `orderBy("docId").keys()` is index-only (no doc reads). It re-emits on every queue
-    // insert (`db.upsert`) and delete (`db.applyLocalChangeAck`), which is what drives
-    // `hasLocalChanges` to re-evaluate.
-    const localChangeDocIds = useDexieLiveQuery(
-        () => db.localChanges.orderBy("docId").keys() as Promise<Uuid[]>,
-        { initialValue: [] as Uuid[] },
-    );
-
-    /**
-     * Check whether an item has a pending local (offline) change queued for upload — i.e. it was
-     * saved locally (`db.upsert`) but the server has not yet acknowledged it.
-     * @param id - The _id of the item to check.
-     * @returns a computed function giving true if the item has a queued local change, false otherwise.
-     */
-    const hasLocalChanges = computed(() => {
-        const ids = new Set(localChangeDocIds.value);
-        return (id: Uuid) => ids.has(id);
-    });
-
     /**
      * Reverts an item to its original state from the source data.
      * @param id - The _id of the item to revert.
@@ -383,7 +361,7 @@ export function toEditable<T extends BaseDocumentDto>(
         return options.filterFn(item);
     }
 
-    return { editable, isEdited, isModified, hasLocalChanges, revert, updateShadow, save };
+    return { editable, isEdited, isModified, revert, updateShadow, save };
 }
 
 /**

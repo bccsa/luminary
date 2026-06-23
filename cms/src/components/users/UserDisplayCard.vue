@@ -7,13 +7,13 @@ import {
     type AuthProviderDto,
     DocType,
     useHybridQuery,
+    useHasLocalChange,
 } from "luminary-shared";
 import LBadge from "@/components/common/LBadge.vue";
 import { DateTime } from "luxon";
 import { UserGroupIcon, KeyIcon } from "@heroicons/vue/24/outline";
 import { computed } from "vue";
 import { breakpointsTailwind, useBreakpoints } from "@vueuse/core";
-import { useHasLocalChange } from "@/composables/useHasLocalChange";
 
 type Props = {
     usersDoc: UserDto;

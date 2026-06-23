@@ -10,6 +10,7 @@ import {
     type TagType,
     type Uuid,
     useHybridQuery,
+    useHybridQueryWithState,
     toEditable,
     queryLocal,
 } from "luminary-shared";
@@ -79,10 +80,14 @@ export function useEditContentSource(options: UseEditContentSourceOptions): UseE
     // Live sources — both via HybridQuery (Dexie-first + live socket). With the CMS's
     // full-content sync (OPEN_MIN cutoff), the API supplement does not run; parentId /
     // [type+_id] indexes keep Dexie reads off a full table scan.
-    const liveParent = useHybridQuery<ContentParentDto>(
-        () => ({ selector: { type: docType, _id: currentId.value }, $limit: 1 }),
-        { live: true, persistOffline: true },
-    );
+    // `docHasLocalChange` is a global queryable over the outgoing-change queue (it reflects every
+    // queued doc, not just this query's window), so one accessor from the parent bundle covers
+    // the parent and all content children.
+    const { output: liveParent, hasLocalChanges: docHasLocalChange } =
+        useHybridQueryWithState<ContentParentDto>(
+            () => ({ selector: { type: docType, _id: currentId.value }, $limit: 1 }),
+            { live: true, persistOffline: true },
+        );
     const liveContent = useHybridQuery<ContentDto>(
         () => ({
             selector: { type: DocType.Content, parentId: currentId.value },
@@ -227,12 +232,8 @@ export function useEditContentSource(options: UseEditContentSourceOptions): UseE
     // Pending offline changes: the parent or any content child has a change queued in
     // localChanges (saved locally, not yet acked by the server).
     const hasLocalChanges = computed(() => {
-        if (
-            editableParent.value &&
-            parentEditable.hasLocalChanges.value(editableParent.value._id)
-        )
-            return true;
-        return editableContent.value.some((c) => contentEditable.hasLocalChanges.value(c._id));
+        if (editableParent.value && docHasLocalChange.value(editableParent.value._id)) return true;
+        return editableContent.value.some((c) => docHasLocalChange.value(c._id));
     });
 
     const save = async () => {

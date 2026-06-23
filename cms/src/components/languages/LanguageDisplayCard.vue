@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import DisplayCard from "@/components/common/DisplayCard.vue";
-import { db, type LanguageDto } from "luminary-shared";
+import { db, useHasLocalChange, type LanguageDto } from "luminary-shared";
 import LBadge from "@/components/common/LBadge.vue";
 import { DateTime } from "luxon";
 import { ClockIcon } from "@heroicons/vue/24/outline";
 import { isMobileScreen } from "@/globalConfig";
-import { useHasLocalChange } from "@/composables/useHasLocalChange";
 
 type Props = {
     languagesDoc: LanguageDto;

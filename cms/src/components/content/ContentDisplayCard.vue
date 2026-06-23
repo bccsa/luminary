@@ -10,12 +10,12 @@ import {
     verifyAccess,
     type GroupDto,
     useHybridQuery,
+    useHasLocalChange,
 } from "luminary-shared";
 import { computed, ref, watch } from "vue";
 import LBadge from "../common/LBadge.vue";
 import DisplayCard from "../common/DisplayCard.vue";
 import { RouterLink } from "vue-router";
-import { useHasLocalChange } from "@/composables/useHasLocalChange";
 import { TagIcon, UserGroupIcon } from "@heroicons/vue/24/outline";
 import { cmsDefaultLanguage } from "@/globalConfig";
 import { buildSearchHighlight } from "./ContentOverview/searchHighlight";

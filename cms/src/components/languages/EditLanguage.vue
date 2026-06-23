@@ -5,6 +5,7 @@ import {
     DocType,
     hasAnyPermission,
     useHybridQuery,
+    useHasLocalChange,
     verifyAccess,
     type LanguageDto,
     type Uuid,
@@ -27,7 +28,6 @@ import LDialog from "../common/LDialog.vue";
 import router from "@/router";
 import { capitaliseFirstLetter } from "@/util/string";
 import EditContentActionsWrapper from "../content/EditContentActionsWrapper.vue";
-import { useHasLocalChange } from "@/composables/useHasLocalChange";
 
 type translationKeyValuePair = {
     rowKey: Uuid;

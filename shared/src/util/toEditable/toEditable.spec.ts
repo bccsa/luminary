@@ -5,7 +5,6 @@ import { toEditable } from "./toEditable";
 import { AckStatus, BaseDocumentDto, ContentDto, DocType } from "../../types";
 import { getRest } from "../../api/RestApi";
 import { db } from "../../db/database";
-import { useDexieLiveQuery } from "../useDexieLiveQuery";
 import { isSyncableDoc } from "../../db/isSyncable";
 import { getContentPublishDateCutoff } from "../../config";
 import { touchRetention } from "../../db/retention";
@@ -17,13 +16,8 @@ vi.mock("../../api/RestApi", () => ({ getRest: vi.fn() }));
 vi.mock("../../db/database", () => ({
     db: {
         upsert: vi.fn(),
-        // `hasLocalChanges`'s querier reads the queued-change docIds via the `docId` index.
-        localChanges: { orderBy: vi.fn(() => ({ keys: vi.fn() })) },
     },
 }));
-// `hasLocalChanges` is backed by a live query; mock it so the docId set can be driven directly
-// (live-query reactivity itself is covered by useDexieLiveQuery's own tests).
-vi.mock("../useDexieLiveQuery", () => ({ useDexieLiveQuery: vi.fn() }));
 vi.mock("../../db/isSyncable", () => ({ isSyncableDoc: vi.fn() }));
 vi.mock("../../db/retention", () => ({ touchRetention: vi.fn() }));
 vi.mock("../../config", () => ({ getContentPublishDateCutoff: vi.fn() }));
@@ -47,8 +41,6 @@ describe("toEditable", () => {
 
     beforeEach(() => {
         source = ref([makeDoc("a", 1), makeDoc("b", 2)]);
-        // Default: no docId has a queued local change. Individual tests override the ref.
-        vi.mocked(useDexieLiveQuery).mockReturnValue(ref([]) as any);
     });
 
     test("throws if source is undefined", () => {
@@ -284,49 +276,6 @@ describe("toEditable", () => {
         });
     });
 
-    test("hasLocalChanges is false when no change is queued for the item", () => {
-        vi.mocked(useDexieLiveQuery).mockReturnValue(ref([]) as any);
-        const { hasLocalChanges } = toEditable(source);
-        expect(hasLocalChanges.value("a")).toBe(false);
-    });
-
-    test("hasLocalChanges is true only for docIds present in the local-change queue", () => {
-        vi.mocked(useDexieLiveQuery).mockReturnValue(ref(["a"]) as any);
-        const { hasLocalChanges } = toEditable(source);
-        expect(hasLocalChanges.value("a")).toBe(true);
-        expect(hasLocalChanges.value("b")).toBe(false);
-    });
-
-    test("hasLocalChanges reacts to the local-change queue ref changing", async () => {
-        const queueIds = ref<string[]>([]);
-        vi.mocked(useDexieLiveQuery).mockReturnValue(queueIds as any);
-        const { hasLocalChanges } = toEditable(source);
-
-        expect(hasLocalChanges.value("a")).toBe(false);
-
-        // Simulate db.upsert queuing a change for "a", then the server ack clearing it.
-        queueIds.value = ["a"];
-        await waitForExpect(() => expect(hasLocalChanges.value("a")).toBe(true));
-        queueIds.value = [];
-        await waitForExpect(() => expect(hasLocalChanges.value("a")).toBe(false));
-    });
-
-    test("hasLocalChanges queries the localChanges docId index", () => {
-        let capturedQuerier: (() => unknown) | undefined;
-        vi.mocked(useDexieLiveQuery).mockImplementation((querier: any) => {
-            capturedQuerier = querier;
-            return ref([]) as any;
-        });
-        const keysMock = vi.fn().mockResolvedValue(["a"]);
-        vi.mocked(db.localChanges.orderBy).mockReturnValue({ keys: keysMock } as any);
-
-        toEditable(source);
-
-        expect(capturedQuerier).toBeTypeOf("function");
-        capturedQuerier!();
-        expect(db.localChanges.orderBy).toHaveBeenCalledWith("docId");
-        expect(keysMock).toHaveBeenCalled();
-    });
 });
 
 describe("toEditable - save", () => {

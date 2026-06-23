@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => {
         _localPending = ref(true);
         isFetching = computed(() => this._localPending.value);
         error = shallowRef<unknown | undefined>(undefined);
+        hasLocalChanges = computed(() => (_id: string) => false);
         constructor(query: any, options: any) {
             ctorCalls.push({ query, options });
             if (getCurrentScope()) onScopeDispose(() => this.dispose());
@@ -88,17 +89,21 @@ describe("useHybridQueryWithState", () => {
         mocks.disposeSpy.mockClear();
     });
 
-    it("constructs HybridQuery with the query + options and returns { output, isFetching, error }", () => {
+    it("constructs HybridQuery with the query + options and returns { output, isFetching, error, hasLocalChanges }", () => {
         const query = { selector: { type: "content" } };
-        const { output, isFetching, error } = useHybridQueryWithState(query, { live: true });
+        const { output, isFetching, error, hasLocalChanges } = useHybridQueryWithState(query, {
+            live: true,
+        });
 
         expect(mocks.ctorCalls).toEqual([{ query, options: { live: true } }]);
         expect(isRef(output)).toBe(true);
         expect(isRef(isFetching)).toBe(true);
         expect(isRef(error)).toBe(true);
+        expect(isRef(hasLocalChanges)).toBe(true);
         expect(output.value).toEqual([]);
         expect(isFetching.value).toBe(true);
         expect(error.value).toBeUndefined();
+        expect(hasLocalChanges.value("x")).toBe(false);
     });
 
     it("useHybridQuery delegates to the same construction path (single instance, output only)", () => {
