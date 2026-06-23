@@ -50,6 +50,7 @@ export const routes: RouteRecordRaw[] = [
         name: "explore",
         meta: {
             title: "title.explore",
+            prerender: true,
         },
     },
     {
@@ -58,6 +59,7 @@ export const routes: RouteRecordRaw[] = [
         name: "watch",
         meta: {
             title: "title.watch",
+            prerender: true,
         },
     },
     {
