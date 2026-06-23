@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
-import type { ContentDto, StorageDto } from "luminary-shared";
+import type { ContentDto } from "luminary-shared";
 import {
     fetchPublicContentBySlug,
     fetchPublicLanguageCodes,
@@ -11,51 +11,26 @@ import {
 export type HreflangAlternate = { code: string; slug: string };
 
 /**
- * Snapshot store for the PUBLIC content tier — the serialization target for the
- * web/SSG build.
+ * Snapshot store for SingleContent's per-slug data on the web/SSG build — the
+ * article doc + its reciprocal hreflang alternates. Feeds and reference data are no
+ * longer cached here: they ride shared's response cache (`writeResponseCache` /
+ * `useHybridQuery({cache:true})`), which the build primes per page.
  *
  * Flow (web build only):
- *  - Prerender (Node): a page's `onServerPrefetch` calls `ensureContentBySlug`,
- *    which fetches via the unauthenticated `/search` path and fills the store.
- *    vite-ssg then serializes `pinia.state.value` into the HTML.
- *  - Client: the snapshot is restored into the store BEFORE mount, so the first
- *    client render matches the prerendered HTML (clean hydration). `ensure*` is a
- *    no-op when the slug is already present, so no duplicate fetch is issued for
- *    snapshot data; liveness is layered on top by the component (ApiLiveQuery).
+ *  - Prerender (Node): a page's `onServerPrefetch` calls `ensureContentBySlug`, which
+ *    fetches via the unauthenticated `/search` path and fills the store. vite-ssg then
+ *    serializes `pinia.state.value` into the HTML.
+ *  - Client: the snapshot is restored before mount so the first render matches.
+ *    `ensure*` is a no-op when the slug is already present.
  *
- * This store holds ONLY public data and never per-user/private data.
+ * Holds ONLY public data, never per-user/private data. (Slated to fold into the
+ * response-cache seam in Phase 3.)
  */
 export const usePublicContentStore = defineStore("publicContent", () => {
     // `undefined` = not fetched yet; `null` = fetched, no public content found.
     const bySlug = ref<Record<string, ContentDto | null>>({});
     // Reciprocal hreflang alternates per slug (other-language versions of the same doc).
     const altsBySlug = ref<Record<string, HreflangAlternate[]>>({});
-
-    // Prerendered query results, keyed by `sliceKey(...)`. This is what makes the
-    // feed/tag/related sections prerender + hydrate cleanly: the build fills a slice
-    // per query (via the SSG-aware `useContentQuery`), vite-ssg serializes it into the
-    // page, and the client seeds its first render from the same slice before the live
-    // query takes over. Public data only.
-    const slices = ref<Record<string, ContentDto[]>>({});
-    const setSlice = (key: string, docs: ContentDto[]): void => {
-        slices.value[key] = docs;
-    };
-    const getSlice = (key: string): ContentDto[] | undefined => slices.value[key];
-
-    // Storage buckets (public reference data) — prerendered so <LImage> can build
-    // real image URLs in the static HTML, and seeded for clean hydration.
-    const storageBuckets = ref<StorageDto[]>([]);
-    const setStorageBuckets = (docs: StorageDto[]): void => {
-        storageBuckets.value = docs;
-    };
-
-    // The language each route was prerendered in (set per route during the build,
-    // serialized, and restored on the client) so client-side slice keys match the
-    // build's exactly. Empty on the native build.
-    const renderLang = ref<string>("");
-    const setRenderLang = (lang: string): void => {
-        renderLang.value = lang;
-    };
 
     async function ensureContentBySlug(slug: string): Promise<void> {
         if (slug in bySlug.value) return; // no-op when already present (snapshot or prior fetch)
@@ -79,12 +54,5 @@ export const usePublicContentStore = defineStore("publicContent", () => {
         bySlug,
         altsBySlug,
         ensureContentBySlug,
-        slices,
-        setSlice,
-        getSlice,
-        renderLang,
-        setRenderLang,
-        storageBuckets,
-        setStorageBuckets,
     };
 });

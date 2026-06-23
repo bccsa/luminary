@@ -10,8 +10,8 @@ import { createPinia } from "pinia";
 import App from "./App.vue";
 import { routes } from "./router/routes";
 import { initI18n } from "./i18n";
-import { appLanguageIdsAsRef, isAppLoading } from "./globalConfig";
-import { usePublicContentStore } from "./stores/publicContent";
+import { HttpReq, initHybridQuery } from "luminary-shared";
+import { apiUrl, appLanguageIdsAsRef, isAppLoading } from "./globalConfig";
 
 // The language a given route is prerendered in: the content's own language for a
 // content/tag slug, else the CMS default. The slug→lang map + default are built by
@@ -45,14 +45,17 @@ export const createApp = ViteSSG(
         // in the prerender bundle and false in the browser bundle.
         if (import.meta.env.SSR) {
             // Prerender (Node): set this route's render language BEFORE rendering so
-            // the published-content filter + feeds use it, and record it (serialized)
-            // so the client computes matching slice keys.
+            // the published-content filter + feeds use it.
             const lang = ssrRouteLang(routePath);
             appLanguageIdsAsRef.value = lang ? [lang] : [];
-            usePublicContentStore(pinia).setRenderLang(lang);
 
-            // Expose the live store state for vite-ssg to serialize after the page's
-            // onServerPrefetch hooks have run.
+            // Enable the shared `queryRemote` (anonymous POST /query → public tier) so
+            // the content seam can fetch in `onServerPrefetch`. HttpReq is fetch-only
+            // (no Dexie/socket), so this is safe in Node.
+            initHybridQuery(new HttpReq(apiUrl));
+
+            // Expose any per-page store state (e.g. SingleContent hreflang alternates)
+            // for vite-ssg to serialize after the page's onServerPrefetch hooks run.
             initialState.pinia = pinia.state.value;
         } else {
             // Real browser client. Restore the public-tier snapshot BEFORE mount
