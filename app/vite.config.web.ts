@@ -260,13 +260,10 @@ const config: UserConfig & { ssgOptions: ViteSSGOptions } = {
                 return SCOPED_ROUTES;
             }
 
-            const exclude = new Set([
-                "/open",
-                "/settings",
-                "/bookmarks",
-                "/explore",
-                "/watch",
-            ]);
+            // Private / per-user routes — never prerendered. The public "main" routes
+            // (`/`, `/explore`, `/watch`) ARE prerendered via `meta.prerender` (they
+            // render their tile collections through the SSG-aware useContentQuery seam).
+            const exclude = new Set(["/open", "/settings", "/bookmarks"]);
 
             // Static public routes flagged for prerender (non-dynamic).
             const staticRoutes = routes
