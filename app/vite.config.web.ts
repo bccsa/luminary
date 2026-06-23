@@ -1,5 +1,5 @@
 import { fileURLToPath, URL } from "node:url";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { defineConfig, loadEnv, type Plugin, type UserConfig } from "vite";
 import type { ViteSSGOptions } from "vite-ssg";
@@ -80,6 +80,18 @@ const IS_SCOPED = SCOPED_ROUTES.length > 0;
 
 const indexHtmlPath = () => join(process.cwd(), OUT_DIR, "index.html");
 const manifestPath = () => join(process.cwd(), OUT_DIR, "ssg-deps.json");
+
+// Build-in-progress lock, consumed by the ISR watcher (`src/ssg/watch.ts`): it must
+// not spawn a scoped rebuild while a build (the initial full `build:web`, or its own
+// `build:affected`) is writing `dist-web`. Written at build start, removed on finish.
+const lockPath = () => join(process.cwd(), OUT_DIR, ".ssg-building");
+const ssgBuildLock = (): Plugin => ({
+    name: "ssg-build-lock",
+    buildStart() {
+        mkdirSync(join(process.cwd(), OUT_DIR), { recursive: true });
+        writeFileSync(lockPath(), String(Date.now()));
+    },
+});
 
 // vite-ssg's client build always re-emits index.html (the SPA shell). On a scoped
 // rebuild that does NOT include "/", that would clobber the prerendered home — so
@@ -205,7 +217,7 @@ async function fetchDefaultLanguage(apiUrl: string): Promise<string> {
 }
 
 const config: UserConfig & { ssgOptions: ViteSSGOptions } = {
-    plugins: [buildTargetVirtuals(), vue(), rewriteWebEntry()],
+    plugins: [ssgBuildLock(), buildTargetVirtuals(), vue(), rewriteWebEntry()],
     resolve: {
         alias: {
             "@": fileURLToPath(new URL("./src", import.meta.url)),
@@ -316,6 +328,8 @@ const config: UserConfig & { ssgOptions: ViteSSGOptions } = {
             writeManifest();
             // Sitemap/robots reflect the full route set — only (re)write on a full build.
             if (!IS_SCOPED) writeSeoArtifacts();
+            // Release the build lock so the ISR watcher may regenerate again.
+            if (existsSync(lockPath())) rmSync(lockPath());
         },
     },
 };

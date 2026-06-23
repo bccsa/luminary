@@ -4,7 +4,9 @@
     "exclude": [
         "src/**/*.spec.ts",
         "src/ssg/whatChanged.ts",
-        "src/ssg/verifyIsolation.ts"
+        "src/ssg/verifyIsolation.ts",
+        "src/ssg/watch.ts",
+        "src/ssg/ssgNodeEnv.ts"
     ],
     "compilerOptions": {
         "composite": true,
