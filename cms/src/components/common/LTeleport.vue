@@ -7,6 +7,7 @@ type Props = {
 };
 
 defineProps<Props>();
+defineOptions({ inheritAttrs: false });
 </script>
 
 <template>
