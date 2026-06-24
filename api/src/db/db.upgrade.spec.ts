@@ -1,3 +1,7 @@
+jest.mock("./schemaUpgrade/initSchemaVersion", () => ({
+    __esModule: true,
+    default: jest.fn().mockResolvedValue(undefined),
+}));
 jest.mock("./schemaUpgrade/v9", () => ({
     __esModule: true,
     default: jest.fn().mockResolvedValue(undefined),
@@ -40,6 +44,7 @@ jest.mock("./schemaUpgrade/v18", () => ({
 }));
 
 import { upgradeDbSchema } from "./db.upgrade";
+import initSchemaVersion from "./schemaUpgrade/initSchemaVersion";
 import v9 from "./schemaUpgrade/v9";
 import v10 from "./schemaUpgrade/v10";
 import v11 from "./schemaUpgrade/v11";
@@ -61,6 +66,7 @@ describe("upgradeDbSchema", () => {
     it("should call all upgrade functions in order", async () => {
         await upgradeDbSchema(mockDb);
 
+        expect(initSchemaVersion).toHaveBeenCalledWith(mockDb);
         expect(v9).toHaveBeenCalledWith(mockDb);
         expect(v10).toHaveBeenCalledWith(mockDb);
         expect(v11).toHaveBeenCalledWith(mockDb);

@@ -8,9 +8,21 @@ This directory contains database schema upgrade scripts that migrate existing Co
 
 ### Schema Version Tracking
 
--   Schema version is stored in a CouchDB document with `_id: "_schemas"` containing a `schemaVersion` field
--   The version starts at 0 (when the document doesn't exist) and increments with each upgrade
+-   Schema version is stored in a CouchDB document with `_id: "dbSchema"` containing a `version` field
+-   The version reads as `0` when the document doesn't exist (a fresh database) and increments with each upgrade
 -   Accessed via `DbService.getSchemaVersion()` and `DbService.setSchemaVersion()`
+
+### Fresh-database initializer (`initSchemaVersion`)
+
+Every versioned upgrade (`v9`..`vN`) guards on an *exact* prior version (e.g. `v18` only runs when the version is exactly `17`). On a brand-new database the version reads as `0`, so **none** of them run and the `dbSchema` document would never be created — leaving the version permanently unset.
+
+To prevent this, `initSchemaVersion` runs **first** in the chain (before `v9`). When the version is `0` it stamps the `dbSchema` document at `FRESH_DB_SCHEMA_VERSION` (defined in `freshDbSchemaVersion.ts`). It is a strict **no-op** on any database that already has a `dbSchema` document, so existing and mid-upgrade databases are never touched.
+
+`FRESH_DB_SCHEMA_VERSION` is set to **one below** the newest FTS-backfill upgrade (`17`, i.e. one below `v18`) rather than the absolute latest. Seeding writes raw JSON and bypasses `processUserDto`/`processRedirectDto`, so freshly-seeded User/Redirect docs have no `fts` field. Stamping at `17` lets the chain still run `v18` over the seeded docs, computing their `fts` so the strict server-side `/fts` search can find them. (`v18` only touches the DB — unlike `v17`, which needs S3 — so it is safe to run on a fresh DB.)
+
+> When you add a new upgrade, set `FRESH_DB_SCHEMA_VERSION` to the version just below the newest upgrade that must run over seeded data, and confirm that upgrade is safe to execute against a fresh database.
+>
+> **Note:** seeded **Content** docs still have no `fts` (the `v13` content backfill is not re-run on a fresh DB, since stamping that low would also drag in `v16`/`v17` side effects). Content created through the change-request pipeline gets `fts` at write time; only seed sample Content is unindexed.
 
 ### Execution Flow
 
@@ -20,7 +32,7 @@ Schema upgrades are executed during API startup (in `main.ts`):
 2. Database seeding (only if `npm run seed` is run)
 3. Permission system initialization
 4. S3 change listener initialization
-5. **Schema upgrades run sequentially** (only executes upgrades newer than current version)
+5. **Schema upgrades run sequentially** — `initSchemaVersion` first (stamps a fresh DB at the latest version), then each versioned upgrade newer than the current version
 6. API starts serving requests
 
 ### Upgrade Function Structure

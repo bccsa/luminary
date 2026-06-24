@@ -1,6 +1,7 @@
 {
     "_id": "group-super-admins",
     "type": "group",
+    "memberOf": ["group-super-admins"],
     "name": "Super Admins",
     "acl": [
         {

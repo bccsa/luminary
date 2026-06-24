@@ -1,6 +1,7 @@
 {
     "_id": "group-private-editors",
     "type": "group",
+    "memberOf": ["group-private-editors"],
     "name": "Editors Private",
     "acl": [
         {

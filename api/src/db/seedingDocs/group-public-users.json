@@ -1,6 +1,7 @@
 {
     "_id": "group-public-users",
     "type": "group",
+    "memberOf": ["group-public-users"],
     "name": "Public Users",
     "acl": [
         {

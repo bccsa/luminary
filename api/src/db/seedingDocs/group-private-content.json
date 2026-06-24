@@ -1,6 +1,7 @@
 {
     "_id": "group-private-content",
     "type": "group",
+    "memberOf": ["group-private-content"],
     "name": "Private Content",
     "acl": [
         {
