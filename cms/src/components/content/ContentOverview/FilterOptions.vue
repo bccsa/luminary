@@ -89,9 +89,9 @@ watch(
         if (!newVal) return;
         if (newVal.length >= 3) {
             showSearchButton.value = true;
-        } else {
-            showSearchButton.value = false;
-        }
+        } else if (newVal.length === 0) {
+            resetQueryOptions;
+        } else showSearchButton.value = false;
     },
 );
 </script>
@@ -105,8 +105,16 @@ watch(
         :status-options="statusOptions"
         :translation-options="translationOptions"
         :tag-content-docs="tagContentDocs"
+        @keydown.enter="search"
+        @keydown.esc="resetQueryOptions"
         v-if="isSmallScreen"
-    />
+    >
+        <template #searchButton>
+            <LButton v-if="showSearchButton" variant="primary" size="sm" @click="search">
+                Search
+            </LButton>
+        </template>
+    </FilterOptionsMobile>
     <FilterOptionsDesktop
         :groups="groups"
         v-model:query="searchTerm"

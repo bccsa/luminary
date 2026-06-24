@@ -177,7 +177,7 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
 
             <div
                 v-if="$slots.searchButton"
-                class="absolute inset-y-0 right-0 z-[10000] flex items-center pr-1"
+                class="absolute inset-y-0 right-0 flex items-center pr-1"
             >
                 <slot name="searchButton" />
             </div>

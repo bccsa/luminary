@@ -50,7 +50,13 @@ const showMobileQueryOptions = ref(false);
                 data-test="search-input"
                 v-model="query as string"
                 :full-height="true"
-            />
+            >
+                <template #searchButton>
+                    <div>
+                        <slot name="searchButton"></slot>
+                    </div>
+                </template>
+            </LInput>
             <LButton :icon="AdjustmentsVerticalIcon" @click="showMobileQueryOptions = true" />
             <LButton :icon="ArrowUturnLeftIcon" @click="reset()" />
         </div>
