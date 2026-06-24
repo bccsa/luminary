@@ -6,7 +6,6 @@ import { computed, ref } from "vue";
 import { appName } from "@/globalConfig";
 import NotificationManager from "./components/notifications/NotificationManager.vue";
 import router from "./router";
-import MobileSideBar from "@/components/navigation/MobileSideBar.vue";
 import SideBar from "@/components/navigation/SideBar.vue";
 import { isAuthBypassed, isAuthPluginInstalled, showProviderSelectionModal } from "@/auth";
 import SelectionModal from "@/components/authProvider/SelectionModal.vue";
@@ -33,11 +32,7 @@ const routeKey = computed(() => {
 <template>
     <template v-if="isAuthenticated">
         <div class="grid h-screen overflow-hidden lg:grid-cols-[18rem_1fr]">
-            <MobileSideBar v-model:open="sidebarOpen" />
-
-            <div class="hidden lg:flex lg:flex-col">
-                <SideBar @close="sidebarOpen = false" />
-            </div>
+            <SideBar v-model:open="sidebarOpen" />
 
             <div class="min-h-0 min-w-0 overflow-hidden">
                 <!-- The routeKey disables component reuse in cases where data needs to be reloaded for dynamic

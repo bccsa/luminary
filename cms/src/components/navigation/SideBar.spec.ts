@@ -1,8 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { mount } from "@vue/test-utils";
+import { mount, flushPromises } from "@vue/test-utils";
 import SideBar from "./SideBar.vue";
 import { accessMap } from "luminary-shared";
 import { superAdminAccessMap } from "@/tests/mockdata";
+
+// Hoisted so the auth mocks below can expose them and the tests can assert on them.
+const { logoutMock, clearAuth0CacheMock } = vi.hoisted(() => ({
+    logoutMock: vi.fn(),
+    clearAuth0CacheMock: vi.fn(),
+}));
 
 vi.mock("vue-router", async (importOriginal) => {
     const { ref } = await import("vue");
@@ -24,6 +30,7 @@ vi.mock("@/globalConfig", async (importOriginal) => {
         appName: "Luminary",
         logo: "/logo.svg",
         isDevMode: false,
+        cmsLanguageIdAsRef: ref(""),
         sidebarSectionExpanded: ref({ posts: false, tags: false, access: false }),
         isSmallScreen: ref(false),
         isMobileScreen: ref(false),
@@ -37,7 +44,7 @@ vi.mock("@auth0/auth0-vue", async (importOriginal) => {
         ...(actual as any),
         useAuth0: () => ({
             user: ref({ name: "Test User" }),
-            logout: vi.fn(),
+            logout: logoutMock,
             isAuthenticated: ref(true),
             isLoading: ref(false),
         }),
@@ -47,11 +54,25 @@ vi.mock("@auth0/auth0-vue", async (importOriginal) => {
 vi.mock("@/auth", () => ({
     isAuthBypassed: false,
     isAuthPluginInstalled: { value: true },
+    clearAuth0Cache: clearAuth0CacheMock,
 }));
+
+// The footer language row + LanguageModal both read the language list via useHybridQuery; stub it so
+// the component renders without hitting Dexie. accessMap / hasAnyPermission stay real (importOriginal).
+vi.mock("luminary-shared", async (importOriginal) => {
+    const { ref } = await import("vue");
+    const actual = await importOriginal();
+    return {
+        ...(actual as any),
+        useHybridQuery: () => ref([]),
+    };
+});
 
 describe("SideBar", () => {
     beforeEach(() => {
         accessMap.value = superAdminAccessMap;
+        logoutMock.mockClear();
+        clearAuth0CacheMock.mockClear();
     });
 
     it("renders the app logo", () => {
@@ -91,14 +112,12 @@ describe("SideBar", () => {
     it("toggles Posts section open/closed", async () => {
         const wrapper = mount(SideBar);
 
-        // Posts children should be hidden initially (open = false)
         const postsButton = wrapper.findAll("button").find((b) => b.text().includes("Posts"));
         expect(postsButton).toBeDefined();
 
         await postsButton!.trigger("click");
 
-        // After click, the children list should be visible
-        // We check for PostType entries like "Blog"
+        // After click, the children list should be visible. Check for a PostType entry like "Blog".
         expect(wrapper.text()).toContain("Blog");
     });
 
@@ -114,14 +133,54 @@ describe("SideBar", () => {
         expect(wrapper.text()).toContain("Category");
     });
 
-    it("emits close event when a navigation link is clicked", async () => {
+    it("surfaces the former dropdown items (Language, Settings, Sign out) inline", () => {
+        const wrapper = mount(SideBar);
+        expect(wrapper.text()).toContain("Language");
+        expect(wrapper.text()).toContain("Settings");
+        expect(wrapper.text()).toContain("Sign out");
+    });
+
+    it("hides the Sandbox link when not in dev mode", () => {
+        const wrapper = mount(SideBar);
+        expect(wrapper.text()).not.toContain("Sandbox");
+    });
+
+    it("closes the mobile drawer when a navigation link is clicked", async () => {
+        const wrapper = mount(SideBar, { props: { open: true } });
+
+        const dashboardLink = wrapper.findAll("a").find((a) => a.text().includes("Dashboard"));
+        expect(dashboardLink).toBeDefined();
+
+        await dashboardLink!.trigger("click");
+        expect(wrapper.emitted("update:open")?.[0]).toEqual([false]);
+    });
+
+    it("renders a backdrop when open and closes the drawer when it is clicked", async () => {
+        const wrapper = mount(SideBar, { props: { open: true } });
+
+        const backdrop = wrapper.find("[data-test='mobile-sidebar-backdrop']");
+        expect(backdrop.exists()).toBe(true);
+
+        await backdrop.trigger("click");
+        expect(wrapper.emitted("update:open")?.[0]).toEqual([false]);
+    });
+
+    it("does not render the backdrop when closed", () => {
+        const wrapper = mount(SideBar, { props: { open: false } });
+        expect(wrapper.find("[data-test='mobile-sidebar-backdrop']").exists()).toBe(false);
+    });
+
+    it("confirms via a dialog before signing out", async () => {
         const wrapper = mount(SideBar);
 
-        // Find a RouterLink (Dashboard is a direct link)
-        const dashboardLink = wrapper.findAll("a").find((a) => a.text().includes("Dashboard"));
-        if (dashboardLink) {
-            await dashboardLink.trigger("click");
-            expect(wrapper.emitted("close")).toBeTruthy();
-        }
+        await wrapper.find("[data-test='sign-out']").trigger("click");
+        await flushPromises();
+
+        const confirmButton = wrapper.find("[data-test='modal-primary-button']");
+        expect(confirmButton.exists()).toBe(true);
+
+        await confirmButton.trigger("click");
+        expect(clearAuth0CacheMock).toHaveBeenCalled();
+        expect(logoutMock).toHaveBeenCalled();
     });
 });

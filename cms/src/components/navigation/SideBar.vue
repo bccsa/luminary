@@ -9,13 +9,35 @@ import {
     ArrowUturnRightIcon,
     CloudIcon,
     ShieldCheckIcon,
+    Cog6ToothIcon,
+    LanguageIcon,
+    ArrowLeftEndOnRectangleIcon,
+    UserIcon,
 } from "@heroicons/vue/20/solid";
+import { PlayIcon } from "@heroicons/vue/16/solid";
 
-import { appName, isDevMode, logo, sidebarSectionExpanded } from "@/globalConfig";
-import { computed } from "vue";
-import { AclPermission, DocType, PostType, TagType, hasAnyPermission } from "luminary-shared";
-import ProfileMenu from "./ProfileMenu.vue";
+import {
+    appName,
+    cmsLanguageIdAsRef,
+    isDevMode,
+    logo,
+    sidebarSectionExpanded,
+} from "@/globalConfig";
+import { computed, ref } from "vue";
+import {
+    AclPermission,
+    DocType,
+    PostType,
+    TagType,
+    hasAnyPermission,
+    useHybridQuery,
+    type LanguageDto,
+} from "luminary-shared";
+import { useAuth0 } from "@auth0/auth0-vue";
+import { clearAuth0Cache, isAuthBypassed, isAuthPluginInstalled } from "@/auth";
 import OnlineIndicator from "../OnlineIndicator.vue";
+import LanguageModal from "../modals/LanguageModal.vue";
+import LDialog from "../common/LDialog.vue";
 
 type NavigationEntry = {
     name: string;
@@ -26,7 +48,9 @@ type NavigationEntry = {
     children?: NavigationEntry[];
 };
 
-defineEmits(["close"]);
+// `open` drives the mobile drawer (slide-in overlay). On lg+ the sidebar is always a static column,
+// so this is a no-op there. Replaces the old MobileSideBar wrapper + its `update:open` plumbing.
+const open = defineModel<boolean>("open", { default: false });
 
 const navigation = computed(() => [
     { name: "Dashboard", to: { name: "dashboard" }, icon: HomeIcon, visible: true },
@@ -103,13 +127,62 @@ const toggleOpen = (item: NavigationEntry) => {
         sidebarSectionExpanded.value.access = !sidebarSectionExpanded.value.access;
     }
 };
+
+// Close the mobile drawer after navigating (no-op on desktop where `open` is already false).
+const closeDrawer = () => {
+    open.value = false;
+};
+
+// --- Footer (was ProfileMenu): user, language, logout ---
+// Only call useAuth0() if the plugin was actually installed at boot. Otherwise fall back to mock
+// user data and a no-op logout.
+const auth0 = isAuthBypassed || !isAuthPluginInstalled.value ? null : useAuth0();
+const user = computed(() =>
+    isAuthBypassed ? { name: "E2E Test User", email: "e2e@test.local" } : auth0?.user.value,
+);
+const logout = auth0
+    ? auth0.logout
+    : () => console.warn("Logout called without an active auth session");
+
+const languages = useHybridQuery<LanguageDto>(() => ({ selector: { type: DocType.Language } }), {
+    live: true,
+});
+const currentLanguageName = computed(
+    () => languages.value.find((l) => l._id === cmsLanguageIdAsRef.value)?.name ?? "",
+);
+
+const showLanguageModal = ref(false);
+const showLogoutDialog = ref(false);
+
+const confirmLogout = () => {
+    // Wipe local Auth0 footprint synchronously so that an interrupted logout redirect doesn't
+    // leave stale provider state behind.
+    clearAuth0Cache();
+    logout({ logoutParams: { returnTo: window.location.origin } });
+};
+
+const navItemClass =
+    "mb-1 flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-zinc-600 hover:bg-zinc-200";
+const navIconClass = "h-5 w-5 shrink-0";
 </script>
 
 <template>
+    <!-- Backdrop: mobile only, when the drawer is open. lg:hidden so it never shows on desktop. -->
     <div
+        v-if="open"
+        class="fixed inset-0 z-40 bg-zinc-900/50 lg:hidden"
+        data-test="mobile-sidebar-backdrop"
+        @click="open = false"
+    />
+
+    <!-- One panel for both presentations: a fixed slide-in drawer on mobile, a static column on lg+. -->
+    <aside
+        data-test="sidebar"
         @scroll.stop
-        class="static flex max-h-screen grow flex-col border-r border-zinc-200 bg-zinc-100"
+        class="fixed inset-y-0 left-0 z-50 flex h-screen w-72 flex-col border-r border-zinc-200 bg-zinc-100 transition-transform duration-200 ease-out lg:static lg:z-auto lg:w-full lg:translate-x-0"
+        :class="open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'"
     >
+        <!-- Logo -->
         <div class="flex h-16 w-full shrink-0 items-center justify-start gap-2 pl-5 pt-1">
             <img class="h-8" :src="logo" :alt="appName" />
             <span
@@ -119,68 +192,144 @@ const toggleOpen = (item: NavigationEntry) => {
                 DEV
             </span>
         </div>
-        <nav class="mx-2 flex flex-1 flex-col gap-y-5 overflow-hidden">
-            <div class="flex-1 overflow-y-auto">
-                <ul role="list" class="space-y-1 pt-3">
-                    <li v-for="item in navigation" :key="item.name">
-                        <RouterLink
-                            v-if="item.visible && !item.children && item.to"
-                            :to="item.to"
-                            active-class="bg-zinc-200 text-zinc-950"
-                            class="group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 text-zinc-700 hover:bg-zinc-200"
-                            v-slot="{ isActive }"
-                            @click.prevent="$emit('close')"
+
+        <!-- Primary navigation -->
+        <nav class="flex-1 overflow-y-auto overflow-x-hidden px-2 py-2 scrollbar-hide">
+            <ul role="list">
+                <li v-for="item in navigation" :key="item.name">
+                    <RouterLink
+                        v-if="item.visible && !item.children && item.to"
+                        :to="item.to"
+                        active-class="bg-zinc-200 text-zinc-900"
+                        :class="navItemClass"
+                        @click="closeDrawer"
+                    >
+                        <component :is="item.icon" :class="navIconClass" aria-hidden="true" />
+                        {{ item.name }}
+                    </RouterLink>
+
+                    <div v-else-if="item.visible && item.children">
+                        <button
+                            type="button"
+                            :class="[navItemClass, 'w-full text-left']"
+                            @click="toggleOpen(item)"
                         >
-                            <component
-                                :is="item.icon"
-                                :class="[isActive ? 'text-zinc-800' : 'text-zinc-600']"
-                                class="h-6 w-6 shrink-0"
+                            <component :is="item.icon" :class="navIconClass" aria-hidden="true" />
+                            {{ item.name }}
+                            <ChevronRightIcon
+                                :class="[
+                                    item.open ? 'rotate-90 text-zinc-500' : 'text-zinc-400',
+                                    'ml-auto h-5 w-5 shrink-0',
+                                ]"
                                 aria-hidden="true"
                             />
-                            {{ item.name }}
-                        </RouterLink>
-                        <div v-else-if="item.visible && item.children">
-                            <button
-                                @click="toggleOpen(item)"
-                                class="flex w-full items-center gap-x-3 rounded-md p-2 text-left text-sm font-semibold leading-6 text-zinc-700"
-                            >
-                                <component
-                                    :is="item.icon"
-                                    class="h-6 w-6 shrink-0 text-zinc-600"
-                                    aria-hidden="true"
-                                />
-                                {{ item.name }}
-                                <ChevronRightIcon
-                                    :class="[
-                                        item.open ? 'rotate-90 text-zinc-500' : 'text-zinc-400',
-                                        'ml-auto h-5 w-5 shrink-0',
-                                    ]"
-                                    aria-hidden="true"
-                                />
-                            </button>
+                        </button>
 
-                            <ul v-show="item.open" class="mt-1 space-y-1 px-2">
-                                <li v-for="subItem in item.children" :key="subItem.name">
-                                    <RouterLink
-                                        :to="subItem.to"
-                                        active-class="bg-zinc-200 text-zinc-900"
-                                        class="block rounded-md py-2 pl-9 pr-2 text-sm font-medium leading-6 text-zinc-700 hover:bg-zinc-200"
-                                        @click.prevent="$emit('close')"
-                                    >
-                                        {{ subItem.name }}
-                                    </RouterLink>
-                                </li>
-                            </ul>
-                        </div>
-                    </li>
-                </ul>
-            </div>
+                        <ul v-show="item.open" class="mb-1 space-y-1 px-2">
+                            <li v-for="subItem in item.children" :key="subItem.name">
+                                <RouterLink
+                                    :to="subItem.to"
+                                    active-class="bg-zinc-200 text-zinc-900"
+                                    class="block rounded-md py-2 pl-9 pr-2 text-sm font-medium text-zinc-600 hover:bg-zinc-200"
+                                    @click="closeDrawer"
+                                >
+                                    {{ subItem.name }}
+                                </RouterLink>
+                            </li>
+                        </ul>
+                    </div>
+                </li>
+            </ul>
         </nav>
-        <div class="flex w-full flex-col justify-between gap-2 rounded-md p-1 pb-4 pl-4">
-            <OnlineIndicator />
-            <div class="flex w-full items-center">
-                <ProfileMenu />
+
+        <!-- Preferences: language, settings, sandbox (dev) -->
+        <div class="border-t border-zinc-200 px-2 py-2">
+            <button
+                type="button"
+                :class="[navItemClass, 'w-full text-left']"
+                @click="showLanguageModal = true"
+            >
+                <LanguageIcon :class="navIconClass" aria-hidden="true" />
+                <span class="flex min-w-0 flex-col leading-none">
+                    <span>Language</span>
+                    <span v-if="currentLanguageName" class="mt-0.5 truncate text-xs text-zinc-500">
+                        {{ currentLanguageName }}
+                    </span>
+                </span>
+            </button>
+
+            <RouterLink
+                :to="{ name: 'settings' }"
+                active-class="bg-zinc-200 text-zinc-900"
+                :class="navItemClass"
+                @click="closeDrawer"
+            >
+                <Cog6ToothIcon :class="navIconClass" aria-hidden="true" />
+                Settings
+            </RouterLink>
+
+            <RouterLink
+                v-if="isDevMode"
+                :to="{ name: 'sandbox' }"
+                active-class="bg-zinc-200 text-zinc-900"
+                :class="navItemClass"
+                @click="closeDrawer"
+            >
+                <PlayIcon :class="navIconClass" aria-hidden="true" />
+                Sandbox
+            </RouterLink>
+        </div>
+
+        <!-- Account actions: sign out + connectivity -->
+        <div class="border-t border-zinc-200 px-2 py-3">
+            <!-- The connectivity pill is small enough to sit on the same row as Sign out. -->
+            <div class="flex w-full items-center justify-between">
+                <button
+                    type="button"
+                    class="flex items-center gap-3 rounded-md py-2.5 text-sm font-medium text-zinc-600 hover:bg-zinc-200"
+                    data-test="sign-out"
+                    @click="showLogoutDialog = true"
+                >
+                    <ArrowLeftEndOnRectangleIcon :class="navIconClass" aria-hidden="true" />
+                    Sign out
+                </button>
+
+                <OnlineIndicator />
             </div>
         </div>
-    </div>
+
+        <!-- Signed-in user: its own box, below the actions -->
+        <div class="border-t border-zinc-200 px-2 py-3">
+            <div class="flex items-center gap-3" :title="user?.name || user?.email">
+                <img
+                    v-if="user?.picture"
+                    :src="user.picture"
+                    alt=""
+                    class="h-8 w-8 shrink-0 rounded-full bg-zinc-50 object-cover"
+                />
+                <div
+                    v-else
+                    class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-300"
+                >
+                    <UserIcon class="h-5 w-5 text-zinc-600" />
+                </div>
+                <span class="min-w-0 flex-1 truncate text-sm font-medium text-zinc-700">
+                    {{ user?.name || user?.email }}
+                </span>
+            </div>
+        </div>
+    </aside>
+
+    <LanguageModal v-model:is-visible="showLanguageModal" />
+
+    <LDialog
+        v-model:open="showLogoutDialog"
+        title="Sign out"
+        description="Are you sure you want to sign out?"
+        context="danger"
+        :primaryAction="confirmLogout"
+        primaryButtonText="Sign out"
+        :secondaryAction="() => (showLogoutDialog = false)"
+        secondaryButtonText="Cancel"
+    />
 </template>

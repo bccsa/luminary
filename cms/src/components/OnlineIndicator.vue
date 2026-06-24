@@ -12,7 +12,7 @@ const open = ref(false);
         <LDropdown v-model:show="open" placement="top-center" width="auto">
             <template #trigger>
                 <button
-                    class="mt-2 flex items-center gap-1 rounded-full px-3 py-1.5 text-sm shadow-sm"
+                    class="flex items-center gap-1 rounded-full px-3 py-1.5 text-sm shadow-sm"
                     :class="{
                         'bg-green-100 text-green-800': isConnected,
                         'bg-yellow-100 text-yellow-800': !isConnected,

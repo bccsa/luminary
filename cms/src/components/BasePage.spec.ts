@@ -69,7 +69,6 @@ describe("BasePage", () => {
                         template:
                             '<div><slot name="quickActions" /><slot name="contentActions" /></div>',
                     },
-                    MobileSideBar: { template: "<div />" },
                 },
             },
         });
