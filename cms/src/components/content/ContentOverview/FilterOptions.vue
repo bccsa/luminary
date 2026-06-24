@@ -10,9 +10,11 @@ type FilterOptionsProps = {
     groups: GroupDto[];
     tagContentDocs: ContentDto[];
     isSmallScreen?: boolean;
+    docType: string;
+    tagOrPostType: string;
 };
 
-withDefaults(defineProps<FilterOptionsProps>(), {
+const props = withDefaults(defineProps<FilterOptionsProps>(), {
     isSmallScreen: false,
 });
 
@@ -79,18 +81,19 @@ const resetQueryOptions = () => {
     };
 
     searchTerm.value = "";
+    const storageKey = `queryOptions_${props.docType}_${props.tagOrPostType}`;
+    sessionStorage.removeItem(storageKey);
 };
 const showSearchButton = ref(false);
 
 watch(
     () => searchTerm.value,
     (newVal) => {
-        console.log("hiiii!!!");
         if (!newVal) return;
         if (newVal.length >= 3) {
             showSearchButton.value = true;
         } else if (newVal.length === 0) {
-            resetQueryOptions;
+            resetQueryOptions();
         } else showSearchButton.value = false;
     },
 );

@@ -219,6 +219,8 @@ const createNew = () => {
 
         <template #internalPageHeader>
             <FilterOptions
+                :docType="props.docType"
+                :tagOrPostType="props.tagOrPostType"
                 :is-small-screen="isSmallScreen"
                 :groups="groups"
                 :tagContentDocs="tagContentDocs"
