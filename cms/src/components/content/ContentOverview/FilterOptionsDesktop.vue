@@ -40,7 +40,7 @@ const showSortOptions = ref(false);
 
 <template>
     <div
-        class="flex flex-col gap-1 overflow-visible border-b border-t border-zinc-300 border-t-zinc-100 bg-white pb-1 pt-2 shadow"
+        class="relative z-20 flex flex-col gap-1 overflow-visible border-b border-t border-zinc-300 border-t-zinc-100 bg-white pb-1 pt-2 shadow"
     >
         <div class="flex h-10 w-full items-center gap-1 px-8">
             <LInput
@@ -104,10 +104,7 @@ const showSortOptions = ref(false);
                     class="h-full"
                 >
                     <template #trigger>
-                        <LButton
-                            class="h-full"
-                            data-test="sort-toggle-btn"
-                        >
+                        <LButton class="h-full" data-test="sort-toggle-btn">
                             <ArrowsUpDownIcon class="h-full w-4" />
                         </LButton>
                     </template>
