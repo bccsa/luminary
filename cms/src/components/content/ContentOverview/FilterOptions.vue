@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import type { ContentDto, GroupDto } from "luminary-shared";
 import { type ContentOverviewQueryOptions } from "./types";
-import { ref } from "vue";
-import { debouncedWatch } from "@vueuse/core";
+import { ref, watch } from "vue";
 import FilterOptionsMobile from "./FilterOptionsMobile.vue";
 import FilterOptionsDesktop from "./FilterOptionsDesktop.vue";
+import LButton from "@/components/button/LButton.vue";
 
 type FilterOptionsProps = {
     groups: GroupDto[];
@@ -56,14 +56,13 @@ const translationOptions = [
     },
 ];
 
-const debouncedSearchTerm = ref(queryOptions.value.search);
-debouncedWatch(
-    debouncedSearchTerm,
-    () => {
-        queryOptions.value.search = debouncedSearchTerm.value;
-    },
-    { debounce: 500 },
-);
+const searchTerm = ref(queryOptions.value.search);
+const search = () => {
+    if (!searchTerm.value) return;
+    if (searchTerm.value.length >= 3 || searchTerm.value.length === 0) {
+        queryOptions.value.search = searchTerm.value;
+    }
+};
 
 const resetQueryOptions = () => {
     queryOptions.value = {
@@ -79,14 +78,28 @@ const resetQueryOptions = () => {
         publishStatus: "all",
     };
 
-    debouncedSearchTerm.value = "";
+    searchTerm.value = "";
 };
+const showSearchButton = ref(false);
+
+watch(
+    () => searchTerm.value,
+    (newVal) => {
+        console.log("hiiii!!!");
+        if (!newVal) return;
+        if (newVal.length >= 3) {
+            showSearchButton.value = true;
+        } else {
+            showSearchButton.value = false;
+        }
+    },
+);
 </script>
 
 <template>
     <FilterOptionsMobile
         :groups="groups"
-        v-model:query="debouncedSearchTerm"
+        v-model:query="searchTerm"
         v-model:query-options="queryOptions"
         :reset="resetQueryOptions"
         :status-options="statusOptions"
@@ -96,12 +109,20 @@ const resetQueryOptions = () => {
     />
     <FilterOptionsDesktop
         :groups="groups"
-        v-model:query="debouncedSearchTerm"
+        v-model:query="searchTerm"
         v-model:query-options="queryOptions"
         :reset="resetQueryOptions"
         :status-options="statusOptions"
         :translation-options="translationOptions"
         :tag-content-docs="tagContentDocs"
+        @keydown.enter="search"
+        @keydown.esc="resetQueryOptions"
         v-else
-    />
+    >
+        <template #searchButton>
+            <LButton v-if="showSearchButton" variant="primary" size="sm" @click="search">
+                Search
+            </LButton>
+        </template>
+    </FilterOptionsDesktop>
 </template>

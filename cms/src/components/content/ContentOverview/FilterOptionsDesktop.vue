@@ -52,7 +52,13 @@ const showSortOptions = ref(false);
                 data-test="search-input"
                 v-model="query as string"
                 :full-height="true"
-            />
+            >
+                <template #searchButton>
+                    <div>
+                        <slot name="searchButton"></slot>
+                    </div>
+                </template>
+            </LInput>
 
             <div class="relative flex h-full items-center gap-1">
                 <LSelect

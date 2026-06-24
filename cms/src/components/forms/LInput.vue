@@ -174,6 +174,13 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
             >
                 <ExclamationCircleIcon class="h-5 w-5 text-red-500" aria-hidden="true" />
             </div>
+
+            <div
+                v-if="$slots.searchButton"
+                class="absolute inset-y-0 right-0 z-[10000] flex items-center pr-1"
+            >
+                <slot name="searchButton" />
+            </div>
         </div>
 
         <FormMessage v-if="$slots.default" :state="computedState" :id="`${id}-message`">
