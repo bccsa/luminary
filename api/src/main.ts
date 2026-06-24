@@ -48,6 +48,12 @@ export async function bootstrap() {
     // Seed database with default data if requested
     if (process.argv.length >= 3 && process.argv[2] === "seed") {
         await upsertSeedingDocs(dbService);
+        // Run the schema upgrade chain over the just-seeded data before exiting. Seeding writes
+        // raw JSON (it bypasses process*Dto), so without this a freshly-seeded DB has no `dbSchema`
+        // doc and no server-side `fts` on its User/Redirect docs — initSchemaVersion stamps the
+        // fresh-DB baseline and v18 backfills that index. Safe in seed mode: on a fresh DB only
+        // v18 runs, which is DB-only (no S3, no PermissionSystem needed).
+        await upgradeDbSchema(dbService);
         console.log("Database seeded with default data.");
         process.exit(0);
     }

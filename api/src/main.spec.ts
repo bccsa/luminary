@@ -79,6 +79,9 @@ describe("bootstrap", () => {
         await bootstrap();
 
         expect(upsertSeedingDocs).toHaveBeenCalled();
+        // The schema upgrade chain must run over the freshly-seeded data before exiting, so a
+        // fresh DB is stamped and its User/Redirect docs get the server-side fts backfill (v18).
+        expect(upgradeDbSchema).toHaveBeenCalled();
         expect(mockExit).toHaveBeenCalledWith(0);
         expect(consoleSpy).toHaveBeenCalledWith("Database seeded with default data.");
 
