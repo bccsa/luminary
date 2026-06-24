@@ -197,3 +197,52 @@ here so they aren't mistaken for regressions from this work.
   spec was not updated alongside that migration (seed all four groups into Dexie, or assert the
   Dexie-first read). Lives with the `GroupOverview` follow-up above. Fails identically at HEAD,
   independent of the sidebar/`LTeleport` work.
+
+### `deleteCmd:group` & `deleteCmd:storage` syncList entries pinned at `blockStart:0 / blockEnd:0` (shared) — BLOCKED on senior
+**Symptom:** the `luminaryInternals.syncList` record shows `deleteCmd:group` and `deleteCmd:storage`
+at `blockStart: 0, blockEnd: 0` (`eof: true`), while every other chunkType carries a real
+`blockStart` (`blockEnd: 0` is normal — it's the "oldest" floor). The captured list also has **no
+base `group` / `storage` entry**, only their `deleteCmd:*` siblings — the tell that both base columns
+synced **zero documents**.
+
+**Root cause (verified in code, all in `shared/src/api/sync/`):** the `0/0` is produced whenever a
+base-type *initial* sync returns zero docs:
+1. `syncBatch.ts:171-198` pushes a `syncList` entry **only when `fetchedDocs.length > 0`** — an empty
+   result records nothing (the lines 153-168 that compute boundaries for the empty case are dead
+   because the push is gated on `fetchedDocs.length`).
+2. `merge.ts:63-64` — `mergeVertical` returns `{ blockStart: 0, blockEnd: 0 }` for an empty
+   `filteredList`; `syncBatch.ts:204-211` then forces `eof: true` and returns
+   `{ eof:true, blockStart:0, blockEnd:0, firstSync:true }`.
+3. `sync.ts:478-487` seeds the `deleteCmd:<type>` entry from that result → inherits `0/0, eof:true`;
+   and because `firstSync === true`, the `deleteCmd` REST catch-up at `sync.ts:493-499` is skipped.
+
+**Why group/storage specifically:** `storage` — most DBs have no `Storage` docs in the user's groups,
+so the base storage sync (`cms/src/sync.ts:201`) returns zero (near-universal). `group` — base group
+sync (`cms/src/sync.ts:188`) queries `type:group, memberOf $elemMatch $in access[Group]`; group docs
+carry `memberOf=[self._id]` (`api/.../processGroupDto.ts:8`) and `access[Group]` comes from
+`getAccessibleGroups(View)` (`shared/.../permissions.ts:55`) — when that returns zero rows the same
+chain fires.
+
+**Impact (beyond cosmetic):** the unrecorded base column keeps `firstSync` perpetually true, so the
+`deleteCmd` REST catch-up never runs — group/storage **deletions can fail to propagate on REST
+resync** (only live socket pushes carry them).
+
+**Reproduction:**
+- *Deterministic (regression test to add):* new additive `shared/src/api/sync/emptyColumnSeed.spec.ts`
+  using the **real** `syncBatch`/`merge`/`utils` (do NOT `vi.mock` them as `sync.spec.ts` does — that
+  hides the bug); mock only `../../db/database` + inject an http service whose `post` returns
+  `{ docs: [] }` via `initSync(http)`; assert `deleteCmd:group`/`deleteCmd:storage` are NOT seeded at
+  `0/0`. Fails today; the guard after the fix.
+- *Runtime:* fresh CMS IndexedDB (delete the `luminary-*` DB), log in, select a CMS language, let
+  initial sync finish, then inspect `luminaryInternals → syncList → value` → `deleteCmd:storage`
+  (and `deleteCmd:group` if group sync returned zero) at `0/0` with no base entry.
+
+**Fix (depth = senior's call; `shared/` is the senior's):**
+- *Minimal:* at `sync.ts:478` (or `merge.ts:63-64`) seed the `deleteCmd` with the verified queried
+  frontier instead of `0/0` — fixes the value + stops `mergeVertical` treating it as legacy-empty.
+- *Full (recommended):* also record the **empty base column** in `syncBatch` (push an `eof:true` entry
+  with the queried boundaries when an initial sync returns zero docs) so `firstSync` stops being
+  perpetually true and the `deleteCmd` REST catch-up runs — fixes delete propagation, not just the
+  display. Needs a frontier marker that doesn't poison horizontal-merge/trim.
+
+Full writeup: `~/.claude/plans/id-synclist-value-array-14-cosmic-panda.md`.
