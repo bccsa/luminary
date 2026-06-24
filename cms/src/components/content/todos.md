@@ -89,12 +89,28 @@ convenience has been removed from shared (the CMS-side workaround was retired ea
 
 A complete `cms/src` grep for `useDexieLiveQuery(WithDeps)` / `ApiLiveQuery` / `db.*AsRef` /
 `liveQuery` / `useObservable` confirms every reactive read still outside `useHybridQuery` is now
-**intentional or blocked**: `DashboardPage` `pendingChanges` (local-only queue — below), the
-`globalConfig` Language carve-out (shared-blocked — below), and
-`GroupSelector.vue`'s `whereTypeAsRef` (`components/groups/*` — another team member's, under the
-GroupOverview item). No other live-query mechanism is in use. `ContentOverview.vue` and
-`ContentDisplayCard.vue` are now migrated (DONE section above). The PR's read-migration goal is
-complete except those intentional/blocked items.
+**migrated, intentional, or blocked**. The remaining non-HybridQuery reads are:
+- `DashboardPage` `pendingChanges` — `useDexieLiveQuery` on the local-only `localChanges` queue
+  (correct tool; HybridQuery only reads `db.docs` — below).
+- `globalConfig` Language — `useDexieLiveQuery` pre-sync carve-out (shared-blocked — below).
+- `ContentDisplayCard.vue` `db.whereParent(...)` — a **one-shot** `await` inside a `watch` deriving
+  tag content, not a live/reactive read (and not the deprecated `whereParentAsRef`). Out of scope.
+
+No `ApiLiveQuery` instances remain (only stale comments in `main.ts`/`UserOverview`/`CreateOrEditUser`).
+The PR's read-migration goal is complete.
+
+### ~~`GroupSelector` `whereTypeAsRef`~~ — DONE (last RxJS-backed read in the monorepo)
+`components/groups/GroupSelector.vue` now reads groups via `useHybridQuery({ type: Group })`
+(Dexie-first; the `deleteRevoked` over-purge fix makes that safe). This was the **single remaining
+caller of any `db.toRef`-family method** (`whereTypeAsRef`/`getAsRef`/`whereParentAsRef`/… all route
+through `db.toRef` → `@vueuse/rxjs` `useObservable` + `rxjs` `Observable` + Dexie `liveQuery`) across
+`cms/` + `app/` + `shared/`. With it gone, **no consumer uses the RxJS-backed `db.*AsRef` API**.
+
+> **Unblocks a shared cleanup (senior):** the `toRef`/`getAsRef`/`whereTypeAsRef`/`whereParentAsRef`/
+> `tagsWhereTagTypeAsRef`/`contentWhereTagAsRef`/`isLocalChangeAsRef` family in
+> `shared/src/db/database.ts` is now dead, and `@vueuse/rxjs` + `rxjs` (used **only** by `db.toRef`)
+> can be dropped from `shared/package.json`. `useHybridQuery`/`useDexieLiveQuery` subscribe to Dexie's
+> `liveQuery` directly and need neither.
 
 ### `DashboardPage.vue` `pendingChanges` → `useHybridQuery` (needs shared `localChanges` support)
 
@@ -171,9 +187,10 @@ clients on next sync. The recovery is temporary — remove after 2026-09-01, tra
 Ruled out: HybridQuery read/merge (merges by `_id`), ingestion filters, and the construction-time routing
 issue (that would lock API-only → groups would still _show_). No CMS-side change was needed.
 
-### `GroupOverview` `ApiLiveQueryAsEditable<GroupDto>` (+ `GroupSelector` `whereTypeAsRef`)
+### `GroupOverview` `ApiLiveQueryAsEditable<GroupDto>`
 
-`components/groups/*` — owned by another team member; blocked on the wrapper follow-up above.
+`components/groups/GroupOverview.vue` (the as-editable wrapper) — owned by another team member;
+blocked on the wrapper follow-up above. (`GroupSelector`'s read is now migrated — see DONE above.)
 
 ### Remove the transitional socket handshake
 
