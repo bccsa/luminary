@@ -9,7 +9,7 @@ const open = ref(false);
 
 <template>
     <div class="relative">
-        <LDropdown v-model:show="open" placement="top-center" width="auto">
+        <LDropdown v-model:show="open" placement="bottom-center" width="auto">
             <template #trigger>
                 <button
                     class="flex items-center gap-1 rounded-full px-3 py-1.5 text-sm shadow-sm"

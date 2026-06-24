@@ -11,7 +11,7 @@ import {
     ShieldCheckIcon,
     Cog6ToothIcon,
     LanguageIcon,
-    ArrowLeftEndOnRectangleIcon,
+    ArrowRightEndOnRectangleIcon,
     UserIcon,
 } from "@heroicons/vue/20/solid";
 import { PlayIcon } from "@heroicons/vue/16/solid";
@@ -30,6 +30,7 @@ import {
     PostType,
     TagType,
     hasAnyPermission,
+    isConnected,
     useHybridQuery,
     type LanguageDto,
 } from "luminary-shared";
@@ -182,18 +183,19 @@ const navIconClass = "h-5 w-5 shrink-0";
         class="fixed inset-y-0 left-0 z-50 flex h-screen w-72 flex-col border-r border-zinc-200 bg-zinc-100 transition-transform duration-200 ease-out lg:static lg:z-auto lg:w-full lg:translate-x-0"
         :class="open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'"
     >
-        <!-- Logo -->
-        <div class="flex h-16 w-full shrink-0 items-center justify-start gap-2 pl-5 pt-1">
+        <!-- Logo — connectivity badge sits next to it and only shows when offline -->
+        <div class="flex h-16 w-full shrink-0 items-center gap-2 pl-5 pr-3 pt-1">
             <img class="h-8" :src="logo" :alt="appName" />
             <span
                 v-if="isDevMode"
-                class="ml-2 rounded-lg bg-red-400 px-1 py-0.5 text-sm text-red-950"
+                class="rounded-lg bg-red-400 px-1 py-0.5 text-sm text-red-950"
             >
                 DEV
             </span>
+            <OnlineIndicator v-if="!isConnected" class="ml-auto" />
         </div>
 
-        <!-- Primary navigation -->
+        <!-- Primary navigation + preferences (preferences sit directly below the nav, like the app) -->
         <nav class="flex-1 overflow-y-auto overflow-x-hidden px-2 py-2 scrollbar-hide">
             <ul role="list">
                 <li v-for="item in navigation" :key="item.name">
@@ -240,67 +242,62 @@ const navIconClass = "h-5 w-5 shrink-0";
                     </div>
                 </li>
             </ul>
-        </nav>
 
-        <!-- Preferences: language, settings, sandbox (dev) -->
-        <div class="border-t border-zinc-200 px-2 py-2">
-            <button
-                type="button"
-                :class="[navItemClass, 'w-full text-left']"
-                @click="showLanguageModal = true"
-            >
-                <LanguageIcon :class="navIconClass" aria-hidden="true" />
-                <span class="flex min-w-0 flex-col leading-none">
-                    <span>Language</span>
-                    <span v-if="currentLanguageName" class="mt-0.5 truncate text-xs text-zinc-500">
-                        {{ currentLanguageName }}
-                    </span>
-                </span>
-            </button>
-
-            <RouterLink
-                :to="{ name: 'settings' }"
-                active-class="bg-zinc-200 text-zinc-900"
-                :class="navItemClass"
-                @click="closeDrawer"
-            >
-                <Cog6ToothIcon :class="navIconClass" aria-hidden="true" />
-                Settings
-            </RouterLink>
-
-            <RouterLink
-                v-if="isDevMode"
-                :to="{ name: 'sandbox' }"
-                active-class="bg-zinc-200 text-zinc-900"
-                :class="navItemClass"
-                @click="closeDrawer"
-            >
-                <PlayIcon :class="navIconClass" aria-hidden="true" />
-                Sandbox
-            </RouterLink>
-        </div>
-
-        <!-- Account actions: sign out + connectivity -->
-        <div class="border-t border-zinc-200 px-2 py-3">
-            <!-- The connectivity pill is small enough to sit on the same row as Sign out. -->
-            <div class="flex w-full items-center justify-between">
+            <!-- Preferences: language, settings, sandbox (dev) -->
+            <div class="mt-2 border-t border-zinc-200 pt-3">
                 <button
                     type="button"
-                    class="flex items-center gap-3 rounded-md py-2.5 text-sm font-medium text-zinc-600 hover:bg-zinc-200"
-                    data-test="sign-out"
-                    @click="showLogoutDialog = true"
+                    :class="[navItemClass, 'w-full text-left']"
+                    @click="showLanguageModal = true"
                 >
-                    <ArrowLeftEndOnRectangleIcon :class="navIconClass" aria-hidden="true" />
-                    Sign out
+                    <LanguageIcon :class="navIconClass" aria-hidden="true" />
+                    <span class="flex min-w-0 flex-col leading-none">
+                        <span>Language</span>
+                        <span
+                            v-if="currentLanguageName"
+                            class="mt-0.5 truncate text-xs text-zinc-500"
+                        >
+                            {{ currentLanguageName }}
+                        </span>
+                    </span>
                 </button>
 
-                <OnlineIndicator />
-            </div>
-        </div>
+                <RouterLink
+                    :to="{ name: 'settings' }"
+                    active-class="bg-zinc-200 text-zinc-900"
+                    :class="navItemClass"
+                    @click="closeDrawer"
+                >
+                    <Cog6ToothIcon :class="navIconClass" aria-hidden="true" />
+                    Settings
+                </RouterLink>
 
-        <!-- Signed-in user: its own box, below the actions -->
+                <RouterLink
+                    v-if="isDevMode"
+                    :to="{ name: 'sandbox' }"
+                    active-class="bg-zinc-200 text-zinc-900"
+                    :class="navItemClass"
+                    @click="closeDrawer"
+                >
+                    <PlayIcon :class="navIconClass" aria-hidden="true" />
+                    Sandbox
+                </RouterLink>
+            </div>
+        </nav>
+
+        <!-- Account: sign out + signed-in user, pinned to the bottom (like the app) -->
         <div class="border-t border-zinc-200 px-2 py-3">
-            <div class="flex items-center gap-3" :title="user?.name || user?.email">
+            <button
+                type="button"
+                class="mb-2 flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-sm font-medium text-zinc-600 hover:bg-zinc-200"
+                data-test="sign-out"
+                @click="showLogoutDialog = true"
+            >
+                <ArrowRightEndOnRectangleIcon :class="navIconClass" aria-hidden="true" />
+                Sign out
+            </button>
+
+            <div class="flex items-center gap-3 rounded-md py-1.5 pl-3" :title="user?.name || user?.email">
                 <img
                     v-if="user?.picture"
                     :src="user.picture"
