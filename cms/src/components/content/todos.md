@@ -106,11 +106,12 @@ caller of any `db.toRef`-family method** (`whereTypeAsRef`/`getAsRef`/`wherePare
 through `db.toRef` → `@vueuse/rxjs` `useObservable` + `rxjs` `Observable` + Dexie `liveQuery`) across
 `cms/` + `app/` + `shared/`. With it gone, **no consumer uses the RxJS-backed `db.*AsRef` API**.
 
-> **Unblocks a shared cleanup (senior):** the `toRef`/`getAsRef`/`whereTypeAsRef`/`whereParentAsRef`/
-> `tagsWhereTagTypeAsRef`/`contentWhereTagAsRef`/`isLocalChangeAsRef` family in
-> `shared/src/db/database.ts` is now dead, and `@vueuse/rxjs` + `rxjs` (used **only** by `db.toRef`)
-> can be dropped from `shared/package.json`. `useHybridQuery`/`useDexieLiveQuery` subscribe to Dexie's
-> `liveQuery` directly and need neither.
+> **Shared cleanup — DONE:** the `toRef`/`getAsRef`/`getBySlugAsRef`/`someByTypeAsRef`/`whereTypeAsRef`/
+> `whereParentAsRef`/`tagsWhereTagTypeAsRef`/`contentWhereTagAsRef`/`isLocalChangeAsRef` family was
+> removed from `shared/src/db/database.ts`, and `@vueuse/rxjs` + `rxjs` (used **only** by `db.toRef`)
+> were dropped from `shared/package.json`. The non-reactive raw helpers (`db.get` / `db.whereParent` /
+> `db.tagsWhereTagType` / `db.contentWhereTag`) stay; `useHybridQuery` / `useDexieLiveQuery` subscribe
+> to Dexie's `liveQuery` directly and need no rxjs.
 
 ### `DashboardPage.vue` `pendingChanges` → `useHybridQuery` (needs shared `localChanges` support)
 

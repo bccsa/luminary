@@ -1,4 +1,4 @@
-import Dexie, { Collection, IndexableType, type Table, liveQuery } from "dexie";
+import Dexie, { Collection, IndexableType, type Table } from "dexie";
 import {
     AclPermission,
     BaseDocumentDto,
@@ -8,16 +8,13 @@ import {
     DeleteReason,
     DocType,
     LocalChangeDto,
-    PostType,
     PublishStatus,
     TagDto,
     TagType,
     Uuid,
 } from "../types";
 import { scheduleCorpusStatsRecompute } from "../fts/ftsIndexer";
-import { useObservable } from "@vueuse/rxjs";
-import type { Observable } from "rxjs";
-import { type Ref, toRaw, watch } from "vue";
+import { toRaw, watch } from "vue";
 import { DateTime } from "luxon";
 import { v4 as uuidv4 } from "uuid";
 import { filterAsync, someAsync } from "../util/asyncArray";
@@ -200,51 +197,10 @@ class Database extends Dexie {
     }
 
     /**
-     * Convert a Dexie query to a Vue ref by making use of Dexie's liveQuery and @vueuse/rxjs' useObservable
-     * @deprecated For document (db.docs) reads use HybridQuery (useHybridQuery). For other Dexie reactivity (e.g. localChanges) use useDexieLiveQuery / useDexieLiveQueryWithDeps / useDexieLiveQueryAsEditable.
-     * @param query - The query to convert to a ref. The query should be passed as a function as it only gets executed by the liveQuery.
-     * @param initialValue - The initial value of the ref while waiting for the query to complete
-     * @returns Vue Ref
-     */
-    toRef<T extends BaseDocumentDto | BaseDocumentDto[] | boolean | LocalChangeDto[]>(
-        query: () => Promise<T>,
-        initialValue?: T,
-    ) {
-        return useObservable(
-            liveQuery(async () => {
-                return await query();
-            }) as unknown as Observable<T>,
-            { initialValue },
-        ) as Ref<T>;
-    }
-
-    /**
      * Get an IndexedDB document by its id
      */
     get<T extends BaseDocumentDto>(id: Uuid) {
         return this.docs.get(id) as unknown as Promise<T>;
-    }
-
-    /**
-     * Get an IndexedDB document as Vue Ref by its id
-     * @deprecated Use HybridQuery (useHybridQuery) instead
-     * @param initialValue - The initial value of the ref while waiting for the query to complete
-     */
-    getAsRef<T extends BaseDocumentDto>(id: Uuid, initialValue?: T) {
-        return this.toRef<T>(() => this.docs.get(id) as unknown as Promise<T>, initialValue);
-    }
-
-    /**
-     * Get an IndexedDB document by its slug as Vue Ref
-     * @deprecated Use HybridQuery (useHybridQuery) instead
-     * @param slug - The slug of the document to get
-     * @param initialValue - The initial value of the ref while waiting for the query to complete
-     */
-    getBySlugAsRef<T extends BaseDocumentDto>(slug: string, initialValue?: T) {
-        return this.toRef<T>(
-            () => this.docs.where("slug").equals(slug).first() as unknown as Promise<T>,
-            initialValue,
-        );
     }
 
     /**
@@ -310,52 +266,6 @@ class Database extends Dexie {
     }
 
     /**
-     * Return true if there are some documents of the specified DocType as Vue Ref
-     * @deprecated Use HybridQuery (useHybridQuery) instead
-     */
-    someByTypeAsRef(docType: DocType) {
-        return this.toRef<boolean>(
-            () => this.someByType(docType) as unknown as Promise<boolean>,
-            false,
-        );
-    }
-
-    /**
-     * Get all IndexedDB documents of a certain type as Vue Ref
-     * @deprecated Use HybridQuery (useHybridQuery) instead
-     * @param initialValue - The initial value of the ref while waiting for the query to complete
-     * @param postOrTagType - Optional: The tag type or post type to filter by
-     * TODO: Add pagination
-     */
-    whereTypeAsRef<T extends BaseDocumentDto[]>(
-        docType: DocType,
-        initialValue?: T,
-        postOrTagType?: TagType | PostType,
-    ) {
-        if (postOrTagType) {
-            // Check if postOrTagType is a TagType by checking if it's included in TagType values
-            const isTagType = Object.values(TagType).includes(postOrTagType as TagType);
-
-            const query = {
-                type: docType,
-                ...(isTagType
-                    ? { tagType: postOrTagType as TagType }
-                    : { postType: postOrTagType as PostType }),
-            };
-
-            return this.toRef<T>(
-                () => this.docs.where(query).toArray() as unknown as Promise<T>,
-                initialValue,
-            );
-        }
-
-        return this.toRef<T>(
-            () => this.docs.where("type").equals(docType).toArray() as unknown as Promise<T>,
-            initialValue,
-        );
-    }
-
-    /**
      * Get IndexedDB documents by their parentId(s)
      * @param parentId - The parentId(s) to filter by
      * @param parentType - Optional: The parent type to filter by
@@ -377,25 +287,6 @@ class Database extends Dexie {
         if (languageId) res = res.and((d) => d.language == languageId);
 
         return res.toArray() as unknown as Promise<ContentDto[]>;
-    }
-
-    /**
-     * Get IndexedDB documents by their parentId(s) as Vue Ref
-     * @deprecated Use HybridQuery (useHybridQuery) instead
-     * @param parentId - The parentId(s) to filter by
-     * @param parentType - Optional: The parent type to filter by
-     * @param initialValue - The initial value of the ref while waiting for the query to complete
-     */
-    whereParentAsRef(
-        parentId: Uuid | Uuid[],
-        parentType?: DocType.Post | DocType.Tag,
-        languageId?: Uuid,
-        initialValue?: ContentDto[],
-    ) {
-        return this.toRef<ContentDto[]>(
-            () => this.whereParent(parentId, parentType, languageId),
-            initialValue,
-        );
     }
 
     /**
@@ -501,14 +392,6 @@ class Database extends Dexie {
     }
 
     /**
-     * Get all tags of a certain tag type as Vue Ref
-     * @deprecated Use HybridQuery (useHybridQuery) instead
-     */
-    tagsWhereTagTypeAsRef(tagType: TagType, options?: QueryOptions) {
-        return this.toRef<TagDto[]>(() => this.tagsWhereTagType(tagType, options), []);
-    }
-
-    /**
      * Get all content documents that are tagged with the passed tag ID. If no tagId is passed, return all posts and tags.
      */
     async contentWhereTag(tagId?: Uuid, options?: QueryOptions) {
@@ -575,14 +458,6 @@ class Database extends Dexie {
         }
 
         return (await res.toArray()) as unknown as Promise<ContentDto[]>;
-    }
-
-    /**
-     * Get all posts and tags that are tagged with the passed tag ID as Vue Ref
-     * @deprecated Use HybridQuery (useHybridQuery) instead
-     */
-    contentWhereTagAsRef(tagId?: Uuid, options?: QueryOptions) {
-        return this.toRef<ContentDto[]>(() => this.contentWhereTag(tagId, options), []);
     }
 
     /**
@@ -659,23 +534,6 @@ class Database extends Dexie {
         return DateTime.fromISO(date)
             .setLocale(navigator.language || "en-US")
             .toMillis();
-    }
-
-    /**
-     * Check if a document is queued in the localChanges table
-     * @deprecated - use useDexieLiveQueryAsEditable instead
-     */
-    isLocalChangeAsRef(docId: Uuid) {
-        return this.toRef<boolean>(
-            () =>
-                this.localChanges
-                    .where({ docId })
-                    .first()
-                    .then((res) => {
-                        return res ? true : false;
-                    }) as unknown as Promise<boolean>,
-            false,
-        );
     }
 
     /**

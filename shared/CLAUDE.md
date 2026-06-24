@@ -84,7 +84,7 @@ The socket emits `joinSocketGroups` on connect with the configured `syncList`, t
 
 The library's "public composable" surface:
 
-- **`useDexieLiveQuery` / `useDexieLiveQueryWithDeps`** (`util/useDexieLiveQuery/`) — Vue 3 wrapper around Dexie's `liveQuery`. This is the **preferred** way to read from IndexedDB; the older `db.toRef`, `db.getAsRef`, `db.whereTypeAsRef`, etc. on the `Database` class are deprecated and log a warning when called.
+- **`useDexieLiveQuery` / `useDexieLiveQueryWithDeps`** (`util/useDexieLiveQuery/`) — Vue 3 wrapper around Dexie's `liveQuery`. This is the way to read reactively from IndexedDB. (The former `db.toRef` / `db.getAsRef` / `db.whereTypeAsRef` / `db.whereParentAsRef` / … ref-returning helpers on the `Database` class — which wrapped `liveQuery` via `@vueuse/rxjs` — have been removed; use `useHybridQuery` for `db.docs` reads and `useDexieLiveQuery` for other tables. The non-reactive raw helpers like `db.get`, `db.whereParent`, `db.tagsWhereTagType`, `db.contentWhereTag` remain.)
 - **`useDexieLiveQueryAsEditable`** *(deprecated)* — same but wraps the result with `toEditable` so the UI can edit a copy and diff against the source.
 - **`toEditable`** — converts a source ref into a clone that the UI can mutate. Tracks user vs. source modifications so external updates don't clobber in-progress edits. (Formerly `createEditable`, which remains as a deprecated alias.)
 - **`ApiLiveQuery` / `ApiLiveQueryAsEditable`** (`util/ApiLiveQuery/`) — same idea but talks to the REST API + Socket.io directly instead of IndexedDB. Used for queries that can't or shouldn't be cached locally (e.g. CMS searches).

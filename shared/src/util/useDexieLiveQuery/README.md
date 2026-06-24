@@ -7,9 +7,11 @@ Dexie query into a reactive `Ref`. The query re-runs automatically whenever the
 underlying IndexedDB data changes — including across browser tabs — so the
 returned ref always reflects the current database state.
 
-This is the preferred primitive for reading directly from IndexedDB. (The older
-`db.toRef` / `db.getAsRef` / `db.whereTypeAsRef` helpers on the `Database` class
-are deprecated and log a warning when called.)
+This is the primitive for reading reactively from IndexedDB. (The former
+`db.toRef` / `db.getAsRef` / `db.whereTypeAsRef` / … ref-returning helpers on the
+`Database` class — which wrapped `liveQuery` via `@vueuse/rxjs` — have been
+removed; use `useHybridQuery` for `db.docs` reads and `useDexieLiveQuery` for
+other tables.)
 
 > Adapted from the upstream
 > [`useDexieLiveQuery`](https://github.com/devweissmikhail/useDexieLiveQuery)

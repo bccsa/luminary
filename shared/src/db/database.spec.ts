@@ -18,7 +18,6 @@ import {
     AclPermission,
     DeleteCmdDto,
     DocType,
-    PostType,
     TagType,
     type ContentDto,
     type PostDto,
@@ -99,56 +98,10 @@ describe("Database", async () => {
         expect(verified![0]).toBe(uuid);
     });
 
-    it("can convert a Dexie query to a Vue ref", async () => {
-        const posts = db.toRef(() => db.docs.where("_id").equals(mockPostDto._id).toArray(), []);
-
-        await waitForExpect(() => {
-            expect(posts.value).toEqual([mockPostDto]);
-        });
-    });
-
     it("can get a document by its id", async () => {
         const post = await db.get<ContentDto>(mockPostDto._id);
 
         expect(post).toEqual(mockPostDto);
-    });
-
-    it("can get a document as a ref by its id", async () => {
-        const post = db.getAsRef<ContentDto>(mockPostDto._id);
-
-        await waitForExpect(() => {
-            expect(post.value).toEqual(mockPostDto);
-        });
-    });
-
-    it("returns the initial value of a ref while waiting for the query to complete", async () => {
-        const post = db.getAsRef<PostDto>(mockPostDto._id, mockPostDto);
-
-        expect(post.value).toEqual(mockPostDto);
-    });
-
-    it("can get all documents of a certain type as a ref", async () => {
-        const posts = db.whereTypeAsRef<PostDto[]>(DocType.Post);
-
-        await waitForExpect(() => {
-            expect(posts.value).toEqual([mockPostDto]);
-        });
-    });
-
-    it("can get all documents of a certain type as a ref filtered by tag type", async () => {
-        const categories = db.whereTypeAsRef<TagDto[]>(DocType.Tag, undefined, TagType.Category);
-
-        await waitForExpect(() => {
-            expect(categories.value).toEqual([mockCategoryDto]);
-        });
-    });
-
-    it("can get all documents of a certain type as a ref filtered by post type", async () => {
-        const posts = db.whereTypeAsRef<PostDto[]>(DocType.Post, undefined, PostType.Blog);
-
-        await waitForExpect(() => {
-            expect(posts.value).toEqual([mockPostDto]);
-        });
     });
 
     it("can get documents by their parentId", async () => {
@@ -156,15 +109,6 @@ describe("Database", async () => {
 
         expect(postContent.some((c) => c._id == mockEnglishContentDto._id)).toBe(true);
         expect(postContent.some((c) => c._id == mockFrenchContentDto._id)).toBe(true);
-    });
-
-    it("can get documents by their parentId as a ref", async () => {
-        const postContent = db.whereParentAsRef(mockPostDto._id, DocType.Post);
-
-        await waitForExpect(() => {
-            expect(postContent.value.some((c) => c._id == mockEnglishContentDto._id)).toBe(true);
-            expect(postContent.value.some((c) => c._id == mockFrenchContentDto._id)).toBe(true);
-        });
     });
 
     it("can get documents by their parentId and parent document type", async () => {
@@ -183,24 +127,16 @@ describe("Database", async () => {
         expect(postContent).toEqual([mockFrenchContentDto]);
     });
 
-    it("can detect if a local change is queued for a given document ID", async () => {
-        const isLocalChange = db.isLocalChangeAsRef(mockPostDto._id);
-        await db.upsert({ doc: mockPostDto });
-
-        await waitForExpect(() => {
-            expect(isLocalChange.value).toBe(true);
-        });
-    });
-
     it("cant insert a document if localChangesOnly is true", async () => {
-        const isLocalChange = db.isLocalChangeAsRef(mockPostDto._id);
-        await db.upsert({ doc: mockPostDto, localChangesOnly: true });
+        // Use a fresh id (mockPostDto is seeded in beforeEach) so "not in docs" is meaningful.
+        const freshDoc = { ...mockPostDto, _id: "post-local-changes-only" } as PostDto;
+        await db.upsert({ doc: freshDoc, localChangesOnly: true });
 
-        await waitForExpect(() => {
-            const post = db.getAsRef<PostDto>(mockPostDto._id);
-            expect(post.value).toBe(undefined);
-            expect(isLocalChange.value).toBe(true);
-        });
+        // The doc is not written to the docs table...
+        expect(await db.docs.get(freshDoc._id)).toBeUndefined();
+        // ...but the change is queued in localChanges.
+        const queued = await db.localChanges.where("docId").equals(freshDoc._id).first();
+        expect(queued?.doc).toEqual(freshDoc);
     });
 
     it("can get tags by tag type with only the (required) languageId set", async () => {
@@ -414,32 +350,12 @@ describe("Database", async () => {
         expect(tags[0]._id).toBe(mockCategoryDto._id); // Only the first category should be returned
     });
 
-    it("can get tags by tag type as a ref", async () => {
-        const tags = db.tagsWhereTagTypeAsRef(TagType.Category, {
-            languageId: mockLanguageDtoEng._id,
-        });
-
-        await waitForExpect(() => {
-            expect(tags.value).toEqual([mockCategoryDto]);
-        });
-    });
-
     it("can get content documents by tag", async () => {
         const docs = await db.contentWhereTag(mockCategoryDto._id, {
             languageId: mockLanguageDtoEng._id,
         });
 
         expect(docs).toEqual([mockEnglishContentDto]);
-    });
-
-    it("can get content documents by tag as a ref", async () => {
-        const docs = db.contentWhereTagAsRef(mockCategoryDto._id, {
-            languageId: mockLanguageDtoEng._id,
-        });
-
-        await waitForExpect(() => {
-            expect(docs.value).toEqual([mockEnglishContentDto]);
-        });
     });
 
     it("can sort and limit content documents by tag", async () => {
@@ -565,12 +481,9 @@ describe("Database", async () => {
 
     it("can upsert a document into the database and queue the change to be sent to the API", async () => {
         await db.upsert({ doc: mockPostDto });
-        const isLocalChange = db.isLocalChangeAsRef(mockPostDto._id);
 
         // Check if the local change is queued
         await waitForExpect(async () => {
-            expect(isLocalChange.value).toBe(true);
-
             const localChange = await db.localChanges
                 .where("docId")
                 .equals(mockPostDto._id)
