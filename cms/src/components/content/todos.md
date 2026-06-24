@@ -188,3 +188,12 @@ here so they aren't mistaken for regressions from this work.
   receiver". `arrayBufferCustomizer` (`shared/src/util/toEditable/toEditable.ts`) already try/catches
   the customizer path, but the rejection still surfaces as unhandled. Tests pass; the equality logic
   is untouched by this change.
+
+- **`components/groups/GroupOverview.spec.ts` — 3 failing tests (another team member's).** The spec
+  mocks a `/search` API returning all four groups but seeds only `Super Admins` into Dexie, then
+  asserts all four render and that the API was queried (`mockApiRequest`). Since `GroupOverview`
+  migrated to `useHybridQuery` (Dexie-first for the synced `Group` type), it reads Dexie and never
+  hits the mocked API — so only `Super Admins` renders and `mockApiRequest` stays `undefined`. The
+  spec was not updated alongside that migration (seed all four groups into Dexie, or assert the
+  Dexie-first read). Lives with the `GroupOverview` follow-up above. Fails identically at HEAD,
+  independent of the sidebar/`LTeleport` work.
