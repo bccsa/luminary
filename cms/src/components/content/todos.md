@@ -47,11 +47,12 @@ sort-index warning) and `ContentDisplayCard.vue` (`contentDocs`, ex-`db.wherePar
 matches the existing `[type+parentId]` index, so no new index/full-table-scan warning).
 
 ### Reference-list reads: direct `useHybridQuery`, not a shared composable
+
 Every reference-list read (groups, auth providers, storages, languages) calls `useHybridQuery(() =>
 ({ selector: { type } }), { live: true })` **directly at the point of use**. We briefly DRY'd these
 into a memoized-singleton `useDocsByType` composable to share one subscription per type app-wide, but
 removed it: HybridQuery freezes its Dexie-vs-API routing at **construction time** (it only
-re-evaluates when the query *value* changes — `HybridQuery.ts:428`), so hoisting construction into one
+re-evaluates when the query _value_ changes — `HybridQuery.ts:428`), so hoisting construction into one
 early shared singleton froze routing at the worst moment. Invoked directly in a component `setup`, the
 query is always built **after** sync has registered its type, so it routes Dexie-first correctly.
 
@@ -60,7 +61,7 @@ can't use HybridQuery (it would lock API-only, hammer `/query`, and never read D
 "languages not loading" bug). It keeps a direct **`useDexieLiveQuery`** for the Language list — which
 is correct anyway, since languages are always fully synced.
 
-> The shared-side fix that would let these reads share one subscription *and* let `globalConfig` use
+> The shared-side fix that would let these reads share one subscription _and_ let `globalConfig` use
 > HybridQuery too is tracked in **Remaining → "Move `globalConfig`'s startup Language read onto
 > `HybridQuery`"**.
 
@@ -76,6 +77,7 @@ convenience has been removed from shared (the CMS-side workaround was retired ea
 `cms/src/util/groups.ts#assignableGroups` DRYs the Edit+Assign group filter.
 
 ### Excluded / kept (by design)
+
 - The per-doc `db.isLocalChangeAsRef(id)` reads in display cards/rows now come from the
   `useHybridQueryWithState().hasLocalChanges` bundle queryable (above). `DashboardPage`
   `pendingChanges` (the local-only `localChanges` queue) is the one deliberate `useDexieLiveQuery`
@@ -84,6 +86,7 @@ convenience has been removed from shared (the CMS-side workaround was retired ea
 ## Remaining
 
 ### Full-sweep status (vs the PR goal: migrate reactive reads → `useHybridQuery`)
+
 A complete `cms/src` grep for `useDexieLiveQuery(WithDeps)` / `ApiLiveQuery` / `db.*AsRef` /
 `liveQuery` / `useObservable` confirms every reactive read still outside `useHybridQuery` is now
 **intentional or blocked**: `DashboardPage` `pendingChanges` (local-only queue — below), the
@@ -94,21 +97,24 @@ GroupOverview item). No other live-query mechanism is in use. `ContentOverview.v
 complete except those intentional/blocked items.
 
 ### `DashboardPage.vue` `pendingChanges` → `useHybridQuery` (needs shared `localChanges` support)
+
 `pages/DashboardPage.vue:47` reads the **`localChanges`** table (the local outgoing edit queue), not
 the synced `docs` table. `useHybridQuery` only queries `db.docs` via Mango selectors and has no
 `localChanges` source, so it cannot read this today. Two paths:
+
 1. **Recommended:** keep on `useDexieLiveQuery` — `localChanges` is local-only, so HybridQuery's
    API-supplement/socket machinery is meaningless here; `useDexieLiveQuery` is the correct tool.
 2. **Only path to literal "HybridQuery everywhere":** add a `localChanges`-queue read mode to
    `HybridQuery` in `shared/` — questionable (conflates the synced-doc abstraction with the local
    queue). **Blocked:** `shared/` is the senior's.
-Unless (2) lands, this stays an intentional, documented `useDexieLiveQuery`.
+   Unless (2) lands, this stays an intentional, documented `useDexieLiveQuery`.
 
 ### Move `globalConfig`'s startup Language read onto `HybridQuery`
+
 `globalConfig.initLanguage()` reads the Language list with a direct **`useDexieLiveQuery`** (not
-`useHybridQuery`) because it runs at startup, *before* `initSync()` has registered `language` in the
+`useHybridQuery`) because it runs at startup, _before_ `initSync()` has registered `language` in the
 sync engine's `syncList` — and `HybridQuery` freezes its Dexie-vs-API routing at construction time
-(`HybridQuery.ts:428`, only re-evaluated on a query-*value* change). A HybridQuery built that early
+(`HybridQuery.ts:428`, only re-evaluated on a query-_value_ change). A HybridQuery built that early
 would lock into API-only mode and never read Dexie (the original "languages not loading" + `/query`
 storm). The Dexie read is correct today (languages are always fully synced), but it's the lone
 inconsistency on the "HybridQuery everywhere" branch and should be addressed.
@@ -120,6 +126,7 @@ queries** so the direct reference-list reads can also share one subscription. On
 — can drop to a single safe, shared pattern. **Blocked:** `shared/` is the senior's right now.
 
 ### ~~Move local-change tracking into `HybridQuery`; retire `useHasLocalChange`~~ — DONE
+
 Local-change tracking lives in `luminary-shared` (`shared/src/util/useHasLocalChange/`): a single
 shared `localChanges.orderBy("docId").keys()` live query backs `useHasLocalChanges()` — a
 `(id) => boolean` queryable exposed on the `HybridQuery` class and the `useHybridQueryWithState`
@@ -132,23 +139,26 @@ per-doc `useHasLocalChange(id)` convenience was unused after this and has been *
 (`useHasLocalChanges()` — the queryable `HybridQuery` uses internally — stays).
 
 ### Migrate the deprecated as-editable wrappers onto `toEditable.save`
+
 `useDexieLiveQueryAsEditable.save(id)` and `ApiLiveQueryAsEditable.save(id)` still hand-roll
 `db.upsert`/`getRest().changeRequest` + `updateShadow` instead of delegating to `toEditable.save`.
 Confirm `toEditable.save` covers the API path + the `LFormData` upload-data branch before swapping.
 Keep the save path doc-type-agnostic (no Content/Post/Tag specifics).
 
 ### Groups vanish from the Group overview — `deleteRevoked()` over-purge (shared) — ✅ FIXED
+
 **Symptom:** after `GroupOverview.vue` switched its groups read to `useHybridQuery` (Dexie-first for
 the synced Group type), most groups vanished — only locally-"duplicated" groups remained. Intermittent.
 
-**Root cause (confirmed):** the switch *exposed* a pre-existing shared bug. `ApiLiveQuery` read groups
+**Root cause (confirmed):** the switch _exposed_ a pre-existing shared bug. `ApiLiveQuery` read groups
 from the REST API and masked it; Dexie-first `useHybridQuery` reflects the `docs` table, which
 `db.deleteRevoked()` purges:
+
 - `watchValue(accessMap, () => db.deleteRevoked(), { immediate: true })` fired on init while `accessMap`
   was still the empty `useLocalStorage` default (`permissions.ts:12`), before the socket `clientConfig`
   populated it.
 - empty map → `getAccessibleGroups(View)[Group]` = `[]` → `whereNotMemberOfAsCollection([], Group)`
-  matched *every* group with an `acl` field → all deleted from `docs`.
+  matched _every_ group with an `acl` field → all deleted from `docs`.
 - `deleteRevoked()` never resets `syncList` (group block stays `eof`) → sync never re-fetched →
   **permanent** loss. Locally-duplicated groups survived via the `localChanges` queue. Intermittent
   because it depended on whether `accessMap` was empty/stale at the `deleteRevoked` tick.
@@ -159,17 +169,20 @@ from the REST API and masked it; Dexie-first `useHybridQuery` reflects the `docs
 (`resetGroupSyncListForRecovery`, localStorage-gated `groupSyncListReset_v1`) recovers already-purged
 clients on next sync. The recovery is temporary — remove after 2026-09-01, tracked by bccsa/luminary#1730.
 Ruled out: HybridQuery read/merge (merges by `_id`), ingestion filters, and the construction-time routing
-issue (that would lock API-only → groups would still *show*). No CMS-side change was needed.
+issue (that would lock API-only → groups would still _show_). No CMS-side change was needed.
 
 ### `GroupOverview` `ApiLiveQueryAsEditable<GroupDto>` (+ `GroupSelector` `whereTypeAsRef`)
+
 `components/groups/*` — owned by another team member; blocked on the wrapper follow-up above.
 
 ### Remove the transitional socket handshake
+
 `main.ts:53-55` keeps `User` + `AutoGroupMappings` in the init `syncList` only so the socket pushes
 updates for the (now-`HybridQuery`, API-only) live-only types. Remove once those screens are verified
 live (HybridQuery subscribes to the rooms on demand).
 
 ### Pre-existing issues surfaced during the `hasLocalChanges` move (NOT caused by it)
+
 Both reproduce identically at HEAD (verified by stashing the move and re-running) — recording them
 here so they aren't mistaken for regressions from this work.
 
@@ -199,6 +212,7 @@ here so they aren't mistaken for regressions from this work.
   independent of the sidebar/`LTeleport` work.
 
 ### `deleteCmd:group` & `deleteCmd:storage` syncList entries pinned at `blockStart:0 / blockEnd:0` (shared) — BLOCKED on senior
+
 **Symptom:** the `luminaryInternals.syncList` record shows `deleteCmd:group` and `deleteCmd:storage`
 at `blockStart: 0, blockEnd: 0` (`eof: true`), while every other chunkType carries a real
 `blockStart` (`blockEnd: 0` is normal — it's the "oldest" floor). The captured list also has **no
@@ -206,7 +220,8 @@ base `group` / `storage` entry**, only their `deleteCmd:*` siblings — the tell
 synced **zero documents**.
 
 **Root cause (verified in code, all in `shared/src/api/sync/`):** the `0/0` is produced whenever a
-base-type *initial* sync returns zero docs:
+base-type _initial_ sync returns zero docs:
+
 1. `syncBatch.ts:171-198` pushes a `syncList` entry **only when `fetchedDocs.length > 0`** — an empty
    result records nothing (the lines 153-168 that compute boundaries for the empty case are dead
    because the push is gated on `fetchedDocs.length`).
@@ -228,21 +243,27 @@ chain fires.
 resync** (only live socket pushes carry them).
 
 **Reproduction:**
-- *Deterministic (regression test to add):* new additive `shared/src/api/sync/emptyColumnSeed.spec.ts`
+
+- _Deterministic (regression test to add):_ new additive `shared/src/api/sync/emptyColumnSeed.spec.ts`
   using the **real** `syncBatch`/`merge`/`utils` (do NOT `vi.mock` them as `sync.spec.ts` does — that
   hides the bug); mock only `../../db/database` + inject an http service whose `post` returns
   `{ docs: [] }` via `initSync(http)`; assert `deleteCmd:group`/`deleteCmd:storage` are NOT seeded at
   `0/0`. Fails today; the guard after the fix.
-- *Runtime:* fresh CMS IndexedDB (delete the `luminary-*` DB), log in, select a CMS language, let
+- _Runtime:_ fresh CMS IndexedDB (delete the `luminary-*` DB), log in, select a CMS language, let
   initial sync finish, then inspect `luminaryInternals → syncList → value` → `deleteCmd:storage`
   (and `deleteCmd:group` if group sync returned zero) at `0/0` with no base entry.
 
 **Fix (depth = senior's call; `shared/` is the senior's):**
-- *Minimal:* at `sync.ts:478` (or `merge.ts:63-64`) seed the `deleteCmd` with the verified queried
+
+- _Minimal:_ at `sync.ts:478` (or `merge.ts:63-64`) seed the `deleteCmd` with the verified queried
   frontier instead of `0/0` — fixes the value + stops `mergeVertical` treating it as legacy-empty.
-- *Full (recommended):* also record the **empty base column** in `syncBatch` (push an `eof:true` entry
+- _Full (recommended):_ also record the **empty base column** in `syncBatch` (push an `eof:true` entry
   with the queried boundaries when an initial sync returns zero docs) so `firstSync` stops being
   perpetually true and the `deleteCmd` REST catch-up runs — fixes delete propagation, not just the
   display. Needs a frontier marker that doesn't poison horizontal-merge/trim.
 
 Full writeup: `~/.claude/plans/id-synclist-value-array-14-cosmic-panda.md`.
+
+### memberOf field missing in groupDto seeding docs
+
+### Database upgrades scripts not running on newly seeded CouchDB database
