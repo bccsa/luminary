@@ -1,7 +1,7 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { mount } from "@vue/test-utils";
-import { ref, computed } from "vue";
+import { ref, computed, type ComputedRef } from "vue";
 import { createTestingPinia } from "@pinia/testing";
 import { setActivePinia } from "pinia";
 import EditGroup from "./EditGroup.vue";
@@ -17,7 +17,7 @@ import {
     DocType,
     type GroupDto,
     AckStatus,
-    type ApiLiveQueryAsEditable,
+    toEditable,
     AclPermission,
 } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
@@ -45,7 +45,12 @@ vi.mock("luminary-shared", async (importOriginal) => {
 const { verifyAccess, isConnected } = await import("luminary-shared");
 
 describe("EditGroup", () => {
-    let mockGroupQuery: Partial<ApiLiveQueryAsEditable<GroupDto>>;
+    // The component's prop is `ReturnType<typeof toEditable<GroupDto>>`; the specs also
+    // configure the test-only `liveData` / `duplicate` helpers, so allow those too.
+    let mockGroupQuery: Partial<ReturnType<typeof toEditable<GroupDto>>> & {
+        liveData?: ComputedRef<GroupDto[]>;
+        duplicate?: ReturnType<typeof vi.fn>;
+    };
     let testGroup: GroupDto;
     let allGroups: GroupDto[];
     let isEditedMock: any;
@@ -96,7 +101,7 @@ describe("EditGroup", () => {
     const createWrapper = (group = testGroup, props = {}) => {
         return mount(EditGroup, {
             props: {
-                groupQuery: mockGroupQuery as ApiLiveQueryAsEditable<GroupDto>,
+                groupQuery: mockGroupQuery as ReturnType<typeof toEditable<GroupDto>>,
                 group: group,
                 openModal: true,
                 "onUpdate:group": vi.fn(),
@@ -288,7 +293,7 @@ describe("EditGroup", () => {
 
             const wrapper = mount(EditGroup, {
                 props: {
-                    groupQuery: modifiedMockQuery as ApiLiveQueryAsEditable<GroupDto>,
+                    groupQuery: modifiedMockQuery as ReturnType<typeof toEditable<GroupDto>>,
                     group: newGroup,
                     openModal: true,
                     "onUpdate:group": vi.fn(),
@@ -348,7 +353,7 @@ describe("EditGroup", () => {
 
             const wrapper = mount(EditGroup, {
                 props: {
-                    groupQuery: modifiedMockQuery as ApiLiveQueryAsEditable<GroupDto>,
+                    groupQuery: modifiedMockQuery as ReturnType<typeof toEditable<GroupDto>>,
                     group: newGroup,
                     openModal: true,
                     "onUpdate:group": vi.fn(),
@@ -425,7 +430,7 @@ describe("EditGroup", () => {
 
             const wrapper = mount(EditGroup, {
                 props: {
-                    groupQuery: modifiedMockQuery as ApiLiveQueryAsEditable<GroupDto>,
+                    groupQuery: modifiedMockQuery as ReturnType<typeof toEditable<GroupDto>>,
                     group: newGroup,
                     openModal: true,
                     "onUpdate:group": vi.fn(),

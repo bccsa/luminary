@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this package is
 
-`luminary-shared` is a Vue 3 frontend library that consumers (the Luminary APP and CMS) install to talk to the Luminary sync API. It owns: IndexedDB (Dexie) storage, REST + Socket.io transport, document syncing, an offline FTS search engine, permissions/ACL evaluation, and a set of Vue composables (`useDexieLiveQuery`, `ApiLiveQuery`, `toEditable`, …) that bridge IndexedDB ↔ Vue reactivity.
+`luminary-shared` is a Vue 3 frontend library that consumers (the Luminary APP and CMS) install to talk to the Luminary sync API. It owns: IndexedDB (Dexie) storage, REST + Socket.io transport, document syncing, an offline FTS search engine, permissions/ACL evaluation, and a set of Vue composables (`useDexieLiveQuery`, `useHybridQuery`, `toEditable`, …) that bridge IndexedDB ↔ Vue reactivity.
 
 This is published to npm as `luminary-shared`. The bundle is the lib output from `src/index.ts`; everything callers can use is re-exported there.
 
@@ -74,7 +74,7 @@ The sync system is documented in detail in `src/api/sync/README.md`. Read it bef
 
 The socket emits `joinSocketGroups` on connect with the configured `syncList`, then pushes `data` events. Incoming docs are filtered against `syncList` and `appLanguageIdsAsRef` before being bulk-put into Dexie. `accessMap` and `maxUploadFileSize` are received via a `clientConfig` event. Auth failures (`err.message === "auth_failed"`) disable reconnection so a stale token doesn't loop.
 
-`isConnected` is a Vue ref that drives `ApiLiveQuery`'s online/offline behavior.
+`isConnected` is a Vue ref that drives `HybridQuery`'s online/offline behavior.
 
 ### Permissions — `src/permissions/permissions.ts`
 
@@ -87,7 +87,6 @@ The library's "public composable" surface:
 - **`useDexieLiveQuery` / `useDexieLiveQueryWithDeps`** (`util/useDexieLiveQuery/`) — Vue 3 wrapper around Dexie's `liveQuery`. This is the way to read reactively from IndexedDB. (The former `db.toRef` / `db.getAsRef` / `db.whereTypeAsRef` / `db.whereParentAsRef` / … ref-returning helpers on the `Database` class — which wrapped `liveQuery` via `@vueuse/rxjs` — have been removed; use `useHybridQuery` for `db.docs` reads and `useDexieLiveQuery` for other tables. The non-reactive raw helpers like `db.get`, `db.whereParent`, `db.tagsWhereTagType`, `db.contentWhereTag` remain.)
 - **`useDexieLiveQueryAsEditable`** *(deprecated)* — same but wraps the result with `toEditable` so the UI can edit a copy and diff against the source.
 - **`toEditable`** — converts a source ref into a clone that the UI can mutate. Tracks user vs. source modifications so external updates don't clobber in-progress edits. (Formerly `createEditable`, which remains as a deprecated alias.)
-- **`ApiLiveQuery` / `ApiLiveQueryAsEditable`** (`util/ApiLiveQuery/`) — same idea but talks to the REST API + Socket.io directly instead of IndexedDB. Used for queries that can't or shouldn't be cached locally (e.g. CMS searches).
 - **`MangoQuery/`** — Mango-syntax query helpers. `mangoCompile(selector)` returns an in-memory predicate; `mangoToDexie(table, query)` translates a Mango query into a Dexie `Collection` with index pushdown where possible and an in-memory filter for the rest. Both use template-based caching (structure normalized, values extracted) with `localStorage` persistence via `warmMangoCaches()`. See `mangoCompile.md` and `mangoToDexie.md`.
 - **`asyncArray`** (`filterAsync`, `someAsync`), **`watchValue`** — small async/reactivity utilities used across the lib.
 

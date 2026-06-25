@@ -78,13 +78,6 @@ describe("RestApi", () => {
         expect(rest1).not.toBe(rest2);
     });
 
-    it("search delegates to http.get with apiVersion", async () => {
-        setValidConfig();
-        const rest = getRest({ reset: true });
-        await rest.search({ limit: 10 });
-        expect(mockGet).toHaveBeenCalledWith("search", expect.objectContaining({ apiVersion: "0.0.0" }));
-    });
-
     it("changeRequest delegates to http.post", async () => {
         setValidConfig();
         const rest = getRest({ reset: true });

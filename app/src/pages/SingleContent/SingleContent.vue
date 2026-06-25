@@ -239,8 +239,8 @@ watch(content, (c) => {
 });
 
 // Available translations + their languages. HybridQuery merges the local read with
-// the below-cutoff API supplement (replacing the old mangoToDexie + ApiLiveQuery
-// pair); the language list is a fully-synced type read straight from IndexedDB.
+// the below-cutoff API supplement; the language list is a fully-synced type read
+// straight from IndexedDB.
 const isLoadingTranslations = ref(false);
 
 // Per-document lookup → response cache stays off (the useContentQuery default). The

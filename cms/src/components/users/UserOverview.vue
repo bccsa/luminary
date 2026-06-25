@@ -29,8 +29,8 @@ import {
 
 const canCreateNew = computed(() => hasAnyPermission(DocType.User, AclPermission.Edit));
 
-// User is a non-synced type → HybridQuery serves it API-only (REST + on-demand socket rooms),
-// preserving the previous ApiLiveQuery behavior. Auto-disposes on unmount.
+// User is a non-synced type → HybridQuery serves it API-only (REST + on-demand socket rooms).
+// Auto-disposes on unmount.
 const { output: users, isFetching, hasLocalChanges } = useHybridQueryWithState<UserDto>(
     () => ({ selector: { type: DocType.User } }),
     { live: true },

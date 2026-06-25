@@ -52,24 +52,6 @@ export type ApiFtsQuery = {
     maxTrigramDocPercent?: number;
 };
 
-export type ApiSearchQuery = {
-    apiVersion?: string;
-    limit?: number;
-    offset?: number;
-    sort?: Array<{ [key: string]: "asc" | "desc" }>;
-    groups?: Array<string>;
-    types?: Array<DocType>;
-    contentOnly?: boolean;
-    queryString?: string;
-    from?: number;
-    to?: number;
-    languages?: Array<string>;
-    includeDeleteCmds?: boolean;
-    docId?: string;
-    slug?: string;
-    parentId?: string;
-};
-
 /**
  * API Sync query object. This is used to construct Search API queries for syncing data from the server,
  * but is also passed to the Socket.io connection to filter the data that is sent to the client.
@@ -136,11 +118,6 @@ class RestApi {
             { initialValue: [] as unknown as LocalChangeDto[] },
         );
         syncLocalChanges(localChanges);
-    }
-
-    async search(query: ApiSearchQuery) {
-        query.apiVersion = "0.0.0";
-        return await this.http.get("search", query); //TODO: Add type: ApiQueryResult<T>
     }
 
     /**

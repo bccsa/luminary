@@ -334,8 +334,7 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
     // (remote in flight): it tracks "still fetching", not "has no data". A query rebuild
     // (reactive thunk / live) re-enters loading. Derived from two independent pending
     // flags so the content branch's two phases compose without a bespoke state machine;
-    // offline settles the remote leg immediately (parked, not fetching), matching
-    // ApiLiveQuery.
+    // offline settles the remote leg immediately (parked, not fetching).
     public readonly isFetching: ComputedRef<boolean>;
     // Last routing/remote/local-read error for the current generation, or undefined.
     // Last-error-wins; cleared synchronously on every rebuild.
@@ -736,7 +735,7 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
         });
         this._generationDisposers.add(stop);
         // Parked on the reconnect watcher — not actively fetching, so settle the remote
-        // leg now (matches ApiLiveQuery's offline-settles-false).
+        // leg now (offline settles the remote leg to false).
         this._settleRemote(gen);
     }
 

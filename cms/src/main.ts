@@ -50,10 +50,10 @@ async function Startup() {
         contentPublishDateCutoff: undefined,
         // What gets synced (and may be persisted to IndexedDB) is owned by sync
         // (see src/sync.ts); sync joins the socket rooms for those types. This list
-        // is now ONLY the transitional live-only types served by ApiLiveQuery — docs
-        // we display live but never sync. Their rooms are joined at the connect
-        // handshake so ApiLiveQuery receives updates. Remove once the CMS migrates
-        // these to HybridQuery (which subscribes to rooms on demand).
+        // is now ONLY the transitional live-only types — docs we display live but
+        // never sync. Their rooms are joined at the connect handshake so live socket
+        // updates arrive. Remove once the CMS migrates these to HybridQuery (which
+        // subscribes to rooms on demand).
         syncList: [
             { type: DocType.User },
             { type: DocType.AutoGroupMappings },

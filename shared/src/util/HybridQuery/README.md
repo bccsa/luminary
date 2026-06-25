@@ -82,7 +82,7 @@ settled across both legs:
   fully-synced branches read locally; the API-only branch has no local leg.
 - **Remote leg** — clears once the supplement / API-only POST settles (resolves OR fails),
   or, when **offline**, immediately once the fetch is parked on the reconnect watcher
-  (matching `ApiLiveQuery` — parked ≠ fetching). The later, post-reconnect background POST
+  (parked ≠ fetching). The later, post-reconnect background POST
   deliberately does **not** re-enter loading (data has already painted from local/cache;
   flipping `isFetching` back to `true` would surprise empty-state consumers).
 
@@ -144,9 +144,8 @@ that pass `db.validateDeleteCommand` + a compiled delete predicate
 removed — **whether sourced locally or remotely**. Everything feeds the same
 `_recompute` (dedup → sort → limit → minimal mutation).
 
-This does *not* reuse the deprecated `ApiLiveQuery`/`applySocketData` path (those
-are coupled to the old `/search` `ApiSearchQuery` shape); it is a fresh
-`mangoCompile`-based apply over the new `/query` model.
+Live socket updates are applied via a `mangoCompile`-based predicate over the
+`/query` model.
 
 The feed carries **all** changes the user has access to (the server streams the
 CouchDB changefeed; it's the *global* client handler in `socketio.ts` that narrows
@@ -193,9 +192,6 @@ update via the global `bulkPut → Dexie → liveQuery` path.
   healing needs a "DeleteCmds since lastSeen" query — which is what sync already
   does — so this likely belongs as a **sync extension**, not a per-instance
   mini-sync.
-- **Re-work `applySocketData`** onto `mangoCompile`-from-sync-queries, retiring the
-  deprecated `ApiSearchQuery`/`/search` coupling and aligning the codebase on one
-  changefeed-filtering approach.
 
 ### Response caching (opt-in)
 
