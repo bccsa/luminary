@@ -2,19 +2,6 @@
 
 ## Remaining
 
-### `DashboardPage.vue` `pendingChanges` → `useHybridQuery` (needs shared `localChanges` support)
-
-`pages/DashboardPage.vue:47` reads the **`localChanges`** table (the local outgoing edit queue), not
-the synced `docs` table. `useHybridQuery` only queries `db.docs` via Mango selectors and has no
-`localChanges` source, so it cannot read this today. Two paths:
-
-1. **Recommended:** keep on `useDexieLiveQuery` — `localChanges` is local-only, so HybridQuery's
-   API-supplement/socket machinery is meaningless here; `useDexieLiveQuery` is the correct tool.
-2. **Only path to literal "HybridQuery everywhere":** add a `localChanges`-queue read mode to
-   `HybridQuery` in `shared/` — questionable (conflates the synced-doc abstraction with the local
-   queue). **Blocked:** `shared/` is the senior's.
-   Unless (2) lands, this stays an intentional, documented `useDexieLiveQuery`.
-
 ### Move `globalConfig`'s startup Language read onto `HybridQuery`
 
 `globalConfig.initLanguage()` reads the Language list with a direct **`useDexieLiveQuery`** (not
@@ -73,3 +60,7 @@ they aren't mistaken for regressions.
 ### memberOf field missing in groupDto seeding docs
 
 ### Database upgrades scripts not running on newly seeded CouchDB database
+
+### Include language selection (mangoIsPublished language selection logic) in sync.
+
+Need to think it through a bit more before implementing
