@@ -5,6 +5,7 @@ import { ref, watch } from "vue";
 import FilterOptionsMobile from "./FilterOptionsMobile.vue";
 import FilterOptionsDesktop from "./FilterOptionsDesktop.vue";
 import LButton from "@/components/button/LButton.vue";
+import { XMarkIcon } from "@heroicons/vue/20/solid";
 
 type FilterOptionsProps = {
     groups: GroupDto[];
@@ -65,6 +66,7 @@ const search = () => {
         queryOptions.value.search = searchTerm.value;
     }
 };
+const showSearchButton = ref(false);
 
 const resetQueryOptions = () => {
     queryOptions.value = {
@@ -83,17 +85,18 @@ const resetQueryOptions = () => {
     searchTerm.value = "";
     const storageKey = `queryOptions_${props.docType}_${props.tagOrPostType}`;
     sessionStorage.removeItem(storageKey);
+    showSearchButton.value = false;
 };
-const showSearchButton = ref(false);
 
 watch(
     () => searchTerm.value,
     (newVal) => {
-        if (!newVal) return;
+        if (!newVal || newVal.length === 0) {
+            resetQueryOptions();
+            return;
+        }
         if (newVal.length >= 3) {
             showSearchButton.value = true;
-        } else if (newVal.length === 0) {
-            resetQueryOptions();
         } else showSearchButton.value = false;
     },
 );
@@ -105,17 +108,23 @@ watch(
         v-model:query="searchTerm"
         v-model:query-options="queryOptions"
         :reset="resetQueryOptions"
+        :search="search"
         :status-options="statusOptions"
         :translation-options="translationOptions"
         :tag-content-docs="tagContentDocs"
-        @keydown.enter="search"
-        @keydown.esc="resetQueryOptions"
         v-if="isSmallScreen"
     >
         <template #searchButton>
-            <LButton v-if="showSearchButton" variant="primary" size="sm" @click="search">
-                Search
-            </LButton>
+            <div class="flex gap-2">
+                <LButton v-if="showSearchButton" variant="primary" size="sm" @click="search">
+                    Search
+                </LButton>
+                <button @click="resetQueryOptions">
+                    <XMarkIcon
+                        class="h-6 w-6 cursor-pointer rounded-full bg-zinc-200 p-1 text-zinc-500"
+                    />
+                </button>
+            </div>
         </template>
     </FilterOptionsMobile>
     <FilterOptionsDesktop
@@ -131,9 +140,16 @@ watch(
         v-else
     >
         <template #searchButton>
-            <LButton v-if="showSearchButton" variant="primary" size="sm" @click="search">
-                Search
-            </LButton>
+            <div class="flex gap-2">
+                <LButton v-if="showSearchButton" variant="primary" size="sm" @click="search">
+                    Search
+                </LButton>
+                <button @click="resetQueryOptions">
+                    <XMarkIcon
+                        class="h-6 w-6 cursor-pointer rounded-full bg-zinc-200 p-1 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-700"
+                    />
+                </button>
+            </div>
         </template>
     </FilterOptionsDesktop>
 </template>

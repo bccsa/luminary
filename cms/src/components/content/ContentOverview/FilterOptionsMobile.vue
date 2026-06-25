@@ -25,6 +25,7 @@ type Props = {
     tagContentDocs: ContentDto[];
     groups: GroupDto[];
     reset: Function;
+    search: Function;
 };
 
 defineProps<Props>();
@@ -50,6 +51,8 @@ const showMobileQueryOptions = ref(false);
                 data-test="search-input"
                 v-model="query as string"
                 :full-height="true"
+                @keydown.esc="reset()"
+                @keydown.enter="search()"
             >
                 <template #searchButton>
                     <div>
@@ -97,7 +100,12 @@ const showMobileQueryOptions = ref(false);
             </div>
         </div>
     </div>
-    <LModal heading="Filter options" v-model:is-visible="showMobileQueryOptions">
+    <LModal
+        heading="Filter options"
+        v-model:is-visible="showMobileQueryOptions"
+        @keydown.esc="reset()"
+        @keydown.enter="search()"
+    >
         <div class="flex flex-col gap-2">
             <LSelect
                 label="Translation Status"
