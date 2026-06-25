@@ -24,8 +24,6 @@ type Props = {
     disabled: boolean;
     /** Base filename (without extension) suggested when downloading. Falls back to rte-vue's "document". */
     downloadFilename?: string;
-    /** Pin the toolbar so it overlays the scrolling content. */
-    stickyToolbar?: boolean;
 };
 const props = defineProps<Props>();
 const { disabled } = toRefs(props);
@@ -78,7 +76,7 @@ const toolbarButtonClass =
     "!rounded-none !border-0 !shadow-none !bg-zinc-100 px-2 py-1.5 text-sm text-zinc-700 hover:!bg-zinc-200 active:!bg-zinc-300";
 
 const toolbarClasses = {
-    root: "-mx-4 flex h-full flex-col px-4",
+    root: "-mx-4 flex flex-col px-4",
     header: "flex items-center gap-2",
     icon: "h-6 w-6 text-zinc-600",
     title: "text-sm font-medium text-zinc-700",
@@ -86,9 +84,9 @@ const toolbarClasses = {
     toolbarGroup: "flex shrink-0 pb-2 !gap-0 !rounded-md !overflow-hidden !shadow-none",
     button: `${toolbarButtonClass} first:!rounded-l-md last:!rounded-r-md`,
     buttonActive: "!bg-zinc-300",
-    editor: "flex flex-1 flex-col min-h-0",
+    editor: "flex flex-col",
     editorContent:
-        "prose prose-zinc lg:prose-sm max-w-none px-2 py-2 sm:p-3 ring-0 sm:ring-1 ring-inset border-0 focus:ring-0 sm:focus:ring-2 focus:ring-inset focus:outline-none rounded-none sm:rounded-md ring-zinc-300 hover:ring-zinc-400 focus:ring-zinc-950 mb-1 flex-1 min-h-0 bg-white",
+        "prose prose-zinc lg:prose-sm max-w-none px-2 py-2 sm:p-3 ring-0 sm:ring-1 ring-inset border-0 focus:ring-0 sm:focus:ring-2 focus:ring-inset focus:outline-none rounded-none sm:rounded-md ring-zinc-300 hover:ring-zinc-400 focus:ring-zinc-950 mb-1 min-h-[20rem] bg-white",
     placeholder: "text-zinc-400",
 } as const;
 
@@ -166,13 +164,7 @@ defineExpose({
         "
     >
         <template #toolbar="{ groups, isActive, isDisabled, getLabel, runCommand }">
-            <div
-                :class="
-                    props.stickyToolbar
-                        ? 'sticky top-0 z-10 -mx-4 border-b border-zinc-200 bg-white px-4 pt-1 pb-2'
-                        : ''
-                "
-            >
+            <div class="sticky top-0 z-10 -mx-4 border-b border-zinc-200 bg-white px-4 pt-1 pb-2">
                 <div :class="toolbarClasses.toolbar">
                 <div v-for="(group, gi) in groups" :key="gi" :class="toolbarClasses.toolbarGroup">
                     <template v-for="item in group" :key="item">
