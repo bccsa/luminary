@@ -69,13 +69,6 @@ const modalMessageMap = {
     necessaryOnly: t("privacy_policy.banner.message_map.necessaryOnly"),
 };
 
-const bannerMessageMap = {
-    ...modalMessageMap,
-    outdated: t("privacy_policy.banner.message_map.outdated"),
-    unaccepted: t("privacy_policy.banner.message_map.unaccepted"),
-    necessaryOnly: t("privacy_policy.banner.message_map.necessaryOnly"),
-};
-
 const status: ComputedRef<"accepted" | "outdated" | "unaccepted" | "necessaryOnly"> = computed(
     () => {
         if (!userPreferencesAsRef.value.privacyPolicy) return "unaccepted";
@@ -121,11 +114,14 @@ setTimeout(() => {
                     id: "privacy-policy-banner",
                     type: "bottom",
                     state: "info",
-                    title:
+                    title: () =>
                         status == "outdated"
                             ? t("privacy_policy.banner.title_map.outdated")
                             : t("privacy_policy.banner.title"),
-                    description: bannerMessageMap[status],
+                    description: () =>
+                        status == "outdated"
+                            ? t("privacy_policy.banner.message_map.outdated")
+                            : t("privacy_policy.banner.message_map.unaccepted"),
                     icon: ShieldCheckIcon,
                     link: () => (show.value = true),
                     closable: false,

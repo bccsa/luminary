@@ -2,13 +2,25 @@ import { defineStore } from "pinia";
 import { computed, ref, type FunctionalComponent, type VNode } from "vue";
 import type { RouteLocationNamedRaw } from "vue-router";
 
+/**
+ * Notification text is either a plain string or a getter. Persistent notifications
+ * (banners/bottom) should pass a getter `() => t("key")` so the text re-resolves
+ * when the app language changes — a stored string stays frozen in the language it
+ * was created in. The notification components resolve this via `resolveNotificationText`
+ * inside a computed, which keeps it reactive to the i18n locale.
+ */
+export type NotificationText = string | (() => string);
+
+export const resolveNotificationText = (text?: NotificationText): string | undefined =>
+    typeof text === "function" ? text() : text;
+
 export type Notification = {
     /**
      * Optional notification ID. If not provided, it will be generated. The ID is needed to remove the notification.
      */
     id?: number | string;
-    title?: string;
-    description?: string;
+    title?: NotificationText;
+    description?: NotificationText;
     state: "success" | "error" | "info" | "warning";
     type: "toast" | "banner" | "bottom";
     icon?: FunctionalComponent;
