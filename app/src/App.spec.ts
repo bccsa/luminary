@@ -8,7 +8,7 @@ import waitForExpect from "wait-for-expect";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
 import { isConnected } from "luminary-shared";
-import { useNotificationStore } from "./stores/notification";
+import { resolveNotificationText, useNotificationStore } from "./stores/notification";
 import { mockEnglishContentDto } from "./tests/mockdata";
 import { isAppLoading, theme } from "./globalConfig";
 import LoadingBar from "@/components/LoadingBar.vue";
@@ -89,14 +89,19 @@ describe("App", () => {
 
             await waitForExpect(() => {
                 expect(notificationStore.addNotification).toHaveBeenCalledWith(
-                    expect.objectContaining({
-                        id: "offlineBanner",
-                        title: "You are offline",
-                        description:
-                            "You can still use the app and browse through offline content, but some content (like videos) might not be available.",
-                    }),
+                    expect.objectContaining({ id: "offlineBanner" }),
                 );
             });
+
+            // Title/description are getters so they re-translate on language change — resolve them to assert text.
+            const offlineBanner = vi
+                .mocked(notificationStore.addNotification)
+                .mock.calls.map((call) => call[0])
+                .find((n) => n.id === "offlineBanner");
+            expect(resolveNotificationText(offlineBanner!.title)).toBe("You are offline.");
+            expect(resolveNotificationText(offlineBanner!.description)).toBe(
+                "You can still use the app and browse through offline content, but some content (like videos) might not be available.",
+            );
 
             isConnected.value = true;
 
@@ -121,13 +126,18 @@ describe("App", () => {
 
             await waitForExpect(() => {
                 expect(notificationStore.addNotification).toHaveBeenCalledWith(
-                    expect.objectContaining({
-                        id: "accountBanner",
-                        title: "You are missing out!",
-                        description: "Click here to create an account or log in",
-                    }),
+                    expect.objectContaining({ id: "accountBanner" }),
                 );
             }, 8000);
+
+            const accountBanner = vi
+                .mocked(notificationStore.addNotification)
+                .mock.calls.map((call) => call[0])
+                .find((n) => n.id === "accountBanner");
+            expect(resolveNotificationText(accountBanner!.title)).toBe("You are missing out!");
+            expect(resolveNotificationText(accountBanner!.description)).toBe(
+                "Click here to create an account or log in",
+            );
         }, 9000);
     });
 
@@ -155,10 +165,9 @@ describe("App", () => {
 
     describe("Router", () => {
         it("redirects to home when accessed externally", async () => {
-
             const routes = [
-            { path: "/", name: "home", component: HomePage },
-            { path: "/explore", name: "explore", component: ExplorePage },
+                { path: "/", name: "home", component: HomePage },
+                { path: "/explore", name: "explore", component: ExplorePage },
             ];
 
             const testRouter = createRouter({
@@ -184,10 +193,10 @@ describe("App", () => {
             await testRouter.push("/explore");
             await testRouter.isReady();
 
-           await waitForExpect(() => {
-            expect(replaceSpy).toHaveBeenCalledWith({ name: "home" });
-            expect(pushSpy).toHaveBeenCalledWith("/explore");
-           });
+            await waitForExpect(() => {
+                expect(replaceSpy).toHaveBeenCalledWith({ name: "home" });
+                expect(pushSpy).toHaveBeenCalledWith("/explore");
+            });
         });
     });
 });

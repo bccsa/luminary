@@ -53,9 +53,8 @@ setTimeout(() => {
             if (!isConnected.value) {
                 useNotificationStore().addNotification({
                     id: "offlineBanner",
-                    title: "You are offline",
-                    description:
-                        "You can still use the app and browse through offline content, but some content (like videos) might not be available.",
+                    title: () => t("notification.offline.title"),
+                    description: () => t("notification.offline.message"),
                     state: "warning",
                     type: "banner",
                     icon: SignalSlashIcon,
@@ -76,8 +75,8 @@ watch(
         if (isConnected.value && !isAuthenticated.value) {
             useNotificationStore().addNotification({
                 id: "accountBanner",
-                title: t("notification.login.title"),
-                description: t("notification.login.message"),
+                title: () => t("notification.login.title"),
+                description: () => t("notification.login.message"),
                 state: "warning",
                 type: "banner",
                 icon: ArrowLeftEndOnRectangleIcon,
