@@ -34,8 +34,9 @@ peerDependencies and the consumers' own deps). Consequence:
 - **Editing `shared/` source no longer needs a rebuild or re-install** — Vite HMR picks it up.
 - A shared **type/signature** change still needs `npm run build` in `shared/` (consumers
   resolve shared *types* from `dist/index.d.ts`); behavioural changes hot-reload.
-- `--install-links` is no longer used. The `scripts/post-checkout` hook (rebuild prompt on
-  branch switch) is still useful to refresh `dist/` types after pulling shared changes.
+- `--install-links` is no longer used; consumers symlink `shared` via plain `npm install`.
+  (After pulling shared changes that alter its API, rebuild `shared/` so consumer
+  type-checks see the new `dist/index.d.ts`.)
 
 ## Default local ports
 

@@ -244,17 +244,17 @@ If you prefer to do things manually or the wizard doesn't work:
 ### 1. Install Dependencies Manually
 
 ```bash
-# Build the shared library first (important!)
+# Build the shared library first (so app/cms resolve its types from dist/)
 cd shared
 npm ci
 npm run build
 
-# Install app and cms (note the --install-links flag)
+# Install app and cms (they consume shared/src directly via a Vite alias)
 cd ../app
-npm ci --install-links
+npm ci
 
 cd ../cms
-npm ci --install-links
+npm ci
 
 # Install API dependencies
 cd ../api
@@ -290,13 +290,6 @@ docker run -d \
   -e MINIO_ROOT_USER=minio \
   -e MINIO_ROOT_PASSWORD=minio123 \
   quay.io/minio/minio:latest server /data --console-address ":9001"
-```
-
-### 4. Install Git Hook
-
-```bash
-cp scripts/post-checkout .git/hooks/post-checkout
-chmod +x .git/hooks/post-checkout
 ```
 
 ## 📚 Learn More

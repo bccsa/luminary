@@ -30,12 +30,13 @@ npm run type-check  # vue-tsc --noEmit + vite build
 
 ## Using local changes in a consuming project
 
-Install from the sibling checkout with `--install-links` (a plain symlinked
-install breaks Dexie reactivity):
+`vue` and `dexie` are peerDependencies — the consumer provides them so a single
+instance is shared (two copies break Dexie/Vue reactivity). A consumer that
+forces a single `vue`/`dexie` copy (bundler `dedupe`) can install from a sibling
+checkout with a plain symlinked `npm install`. The recommended setup aliases
+`luminary-shared` → `./src/index.ts` in the consumer's bundler, giving HMR of
+library changes with no rebuild.
 
-```sh
-npm install --install-links ../shared
-```
-
-After editing `shared/`, run `npm run build` here, then re-run the install
-command in the consuming project so it picks up the new `dist/`.
+`npm run build` is still needed to refresh `dist/` for publishing and for the
+consumer's TypeScript type resolution (`exports.types` → `dist/index.d.ts`), so a
+type/signature change is picked up after a rebuild; behavioural changes hot-reload.
