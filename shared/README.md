@@ -15,15 +15,27 @@ groups that surface by area and links to the per-module deep-dive docs.
 npm install luminary-shared
 ```
 
-_Note_
+`vue` and `dexie` are **peer dependencies** — the consumer must provide them, so
+the library shares the consumer's single `vue`/`dexie` instance (Dexie live
+queries and Vue reactivity break if two instances coexist). The published package
+ships only the built `dist/` (ESM `index.js` + types); `vue`/`dexie` are kept
+external.
 
-Installing this package as a local dependency (e.g. when cloning the parent mono-repo) does not work due to some issues with the underlying symlinks breaking the reactiveness of data passed from IndexedDB. A workaround is either to install from the NPM registery or to install it locally with the "install links" option:
+### Local / monorepo consumption
 
-```sh
-npm install --install-links ../shared
-```
+When consuming from a sibling checkout, a plain `file:`/symlink install works as
+long as the consumer resolves `vue` and `dexie` to a single copy. The
+recommended setup is to consume the source directly and dedupe the singletons in
+the consumer's bundler, which also gives hot-module reloading of library changes
+without a rebuild:
 
-When changes are made to the local package, the above command must be run in consuming local projects to reflect the changes after building the package with `npm run build`.
+- alias `luminary-shared` → `./src/index.ts` (bundler/dev only), and
+- `dedupe` (or otherwise force a single copy of) `vue` and `dexie`.
+
+The built `dist/` is still produced by `npm run build` for publishing and for
+the consumer's TypeScript type resolution (`exports.types` → `dist/index.d.ts`),
+so a type/signature change is picked up after a rebuild; behavioural changes hot
+-reload from source with no rebuild.
 
 ## Getting started
 

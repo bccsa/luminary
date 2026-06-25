@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository context
 
-This is the `cms/` package of the Luminary monorepo (sibling packages: `api/`, `app/`, `shared/`, `playwright-tests/`, `docs/`). Vue 3 + TypeScript + Vite SPA used by editors to manage content that the `app/` PWA consumes. Depends on the local `luminary-shared` package via `file:../shared` — rebuild shared before changes are picked up here. Install with `npm install --install-links`.
+This is the `cms/` package of the Luminary monorepo (sibling packages: `api/`, `app/`, `shared/`, `playwright-tests/`, `docs/`). Vue 3 + TypeScript + Vite SPA used by editors to manage content that the `app/` PWA consumes. Depends on the local `luminary-shared` package via `file:../shared`. Vite consumes `shared/src` directly (alias `luminary-shared` → `../shared/src/index.ts` + `dedupe: ["vue","dexie","@vueuse/core"]` in `vite.config.ts`, mirrored as `tsconfig.app.json` `paths`), so editing shared source hot-reloads with no rebuild; only a shared **type** change needs `npm run build` in `shared/` (types resolve from `dist/index.d.ts`). Install with a plain `npm install`.
 
 Cross-package E2E tests also exist in `../playwright-tests/`. The `cms/` package itself uses Playwright for its own e2e tests (auth-bypass mode, see README). E2E runs are owned by the user — do not invoke them.
 

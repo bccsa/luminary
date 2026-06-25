@@ -26,15 +26,25 @@ npm run type-check    # vue-tsc --noEmit + vite build
 Run a single test file: `npx vitest run src/path/to/file.spec.ts`
 Run a single test by name: `npx vitest run -t "test name pattern"`
 
-## Local install in consuming projects
+## Dependency contract (vue/dexie are peers)
 
-Installing this package via plain `npm install ../shared` breaks IndexedDB reactivity because the symlink hides the real package boundary from Dexie. Always use the `--install-links` flag when installing from a sibling checkout:
+`vue` and `dexie` are **peerDependencies** — a consumer provides them so the library
+shares the consumer's single instance. Two copies of either break IndexedDB reactivity
+(Dexie `liveQuery` identity) and Vue reactivity. The build keeps them external
+(`rollup-plugin-auto-external` externalizes peer deps), and the published package ships
+only `dist/` (`exports`: `types` → `dist/index.d.ts`, `default` → `dist/index.js`).
 
-```sh
-npm install --install-links ../shared
-```
+## Local / monorepo consumption
 
-After making local changes, run `npm run build` here, then re-run the install command in the consuming project.
+A sibling checkout can be consumed via a plain `file:`/symlink install **provided the
+consumer forces a single `vue`/`dexie` copy** (e.g. bundler `dedupe`). The recommended
+setup consumes `src/` directly (bundler alias `luminary-shared` → `./src/index.ts`),
+which gives HMR of library changes with no rebuild. `npm run build` is still needed to
+refresh `dist/` for publishing and for the consumer's **TypeScript** type resolution, so
+a type/signature change shows up after a rebuild while behavioural changes hot-reload.
+
+(How a specific consumer wires this — its Vite alias, `dedupe`, `tsconfig` paths — lives
+in that consumer's own docs, not here.)
 
 ## Architecture
 

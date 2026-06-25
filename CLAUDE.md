@@ -20,13 +20,22 @@ Luminary is an offline-first content platform. The repo is a monorepo with no ro
 The wizard `./scripts/automate-luminary.sh setup` provisions CouchDB + MinIO containers, writes `.env` files, and installs in the correct order. For manual installs, the order matters:
 
 ```sh
-cd shared && npm ci && npm run build      # must build first — app/cms link against dist/
-cd ../app && npm ci --install-links       # --install-links is required (symlinks break Dexie reactivity)
-cd ../cms && npm ci --install-links
+cd shared && npm ci && npm run build      # build emits dist/ — app/cms resolve shared TYPES from dist/index.d.ts
+cd ../app && npm ci                        # plain install; `file:../shared` symlinks shared in
+cd ../cms && npm ci
 cd ../api && npm ci
 ```
 
-After editing `shared/`, rebuild it (`npm run build` in `shared/`) and re-run `npm install --install-links ../shared` in `app/` and/or `cms/`. The `scripts/post-checkout` git hook prompts to do this automatically on branch switch — install it with `cp scripts/post-checkout .git/hooks/post-checkout && chmod +x .git/hooks/post-checkout`.
+`app/` and `cms/` consume `shared/src` **directly** at runtime: their Vite config aliases
+`luminary-shared` → `../shared/src/index.ts` and `dedupe`s `vue`/`dexie` (a single instance
+is mandatory — two copies break Dexie/Vue reactivity; `vue`/`dexie` are `shared`'s
+peerDependencies and the consumers' own deps). Consequence:
+
+- **Editing `shared/` source no longer needs a rebuild or re-install** — Vite HMR picks it up.
+- A shared **type/signature** change still needs `npm run build` in `shared/` (consumers
+  resolve shared *types* from `dist/index.d.ts`); behavioural changes hot-reload.
+- `--install-links` is no longer used. The `scripts/post-checkout` hook (rebuild prompt on
+  branch switch) is still useful to refresh `dist/` types after pulling shared changes.
 
 ## Default local ports
 
@@ -51,4 +60,4 @@ These are the seams that bite when you change one side and forget the other:
 
 ## When changes span multiple packages
 
-Touching DTOs, FTS, sync queries, or auth payloads almost always means a coordinated edit across `api/` + `shared/` (and sometimes `app/`/`cms/`). Build order for verifying locally: `shared` → `api` → `app`/`cms`. If `shared/` changed, the `--install-links` re-install in consumers is mandatory — without it the consumers will still see the old `dist/`.
+Touching DTOs, FTS, sync queries, or auth payloads almost always means a coordinated edit across `api/` + `shared/` (and sometimes `app/`/`cms/`). Build order for verifying locally: `shared` → `api` → `app`/`cms`. `app`/`cms` consume `shared/src` directly (Vite alias), so a shared **behaviour** change needs no rebuild; only a shared **type** change requires `npm run build` in `shared/` for the consumers' type-check to see it (they resolve shared types from `dist/index.d.ts`).
