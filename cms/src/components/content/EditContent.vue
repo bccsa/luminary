@@ -406,6 +406,43 @@ const actionsWrapperProps = computed(() => ({
             </h1>
         </template>
 
+        <template #languageSelector>
+            <div
+                v-if="lightPolish && selectedLanguage && translationLanguages.length > 1"
+                class="flex px-1 lg:hidden"
+            >
+                <LDropdown v-model:show="showQuickLang" placement="bottom-end">
+                    <template #trigger>
+                        <button
+                            type="button"
+                            data-test="quick-language-switch"
+                            class="flex items-center gap-1 rounded-md px-2 py-1 text-sm font-medium text-zinc-700 hover:bg-zinc-100"
+                        >
+                            {{ selectedLanguage.languageCode.toUpperCase() }}
+                            <ChevronDownIcon class="h-4 w-4 text-zinc-500" />
+                        </button>
+                    </template>
+                    <div class="py-1">
+                        <button
+                            v-for="lang in translationLanguages"
+                            :key="lang._id"
+                            type="button"
+                            role="menuitem"
+                            data-test="quick-language-option"
+                            class="flex w-full items-center justify-between gap-3 whitespace-nowrap px-4 py-2 text-left text-sm text-zinc-800 hover:bg-zinc-50"
+                            @click="switchLanguage(lang)"
+                        >
+                            {{ lang.name }}
+                            <CheckCircleIcon
+                                v-if="lang._id === selectedLanguage._id"
+                                class="h-5 w-5 flex-shrink-0 text-yellow-500"
+                            />
+                        </button>
+                    </div>
+                </LDropdown>
+            </div>
+        </template>
+
         <template #topBarActionsMobile>
             <EditContentActionsWrapper v-bind="actionsWrapperProps" :mobile="true" />
         </template>
@@ -555,8 +592,8 @@ const actionsWrapperProps = computed(() => ({
             </div>
             <!-- main content instance -->
             <div
-                class="mt-2 min-h-0 w-full scrollbar-hide lg:static lg:mt-0 lg:flex-1 lg:overflow-y-auto"
-                :class="isLanguageSelectorCollapsed ? 'sticky z-[5]' : 'overflow-y-auto'"
+                class="mt-2 min-h-0 w-full scrollbar-hide lg:static lg:mt-0 lg:flex-1 lg:overflow-y-auto !overflow-visible lg:!overflow-auto"
+                :class="isLanguageSelectorCollapsed ? 'sticky z-[5]' : 'lg:overflow-y-auto'"
                 :style="mainContentStickyStyle"
             >
                 <EmptyState
@@ -594,43 +631,7 @@ const actionsWrapperProps = computed(() => ({
                         </LDropdown>
                     </div>
                 </EmptyState>
-                <div v-else class="h-full lg:overflow-hidden">
-                    <!-- light-polish: quick language switcher (app SingleContent-style). Mobile
-                         only — on desktop the sidebar's Translations list already covers this. -->
-                    <div
-                        v-if="lightPolish && selectedLanguage && translationLanguages.length > 1"
-                        class="mb-1 flex px-1 lg:hidden"
-                    >
-                        <LDropdown v-model:show="showQuickLang" placement="bottom-start">
-                            <template #trigger>
-                                <button
-                                    type="button"
-                                    data-test="quick-language-switch"
-                                    class="flex items-center gap-1 rounded-md px-2 py-1 text-sm font-medium text-zinc-700 hover:bg-zinc-100"
-                                >
-                                    {{ selectedLanguage.name }}
-                                    <ChevronDownIcon class="h-4 w-4 text-zinc-500" />
-                                </button>
-                            </template>
-                            <div class="py-1">
-                                <button
-                                    v-for="lang in translationLanguages"
-                                    :key="lang._id"
-                                    type="button"
-                                    role="menuitem"
-                                    data-test="quick-language-option"
-                                    class="flex w-full items-center justify-between gap-3 whitespace-nowrap px-4 py-2 text-left text-sm text-zinc-800 hover:bg-zinc-50"
-                                    @click="switchLanguage(lang)"
-                                >
-                                    {{ lang.name }}
-                                    <CheckCircleIcon
-                                        v-if="lang._id === selectedLanguage._id"
-                                        class="h-5 w-5 flex-shrink-0 text-yellow-500"
-                                    />
-                                </button>
-                            </div>
-                        </LDropdown>
-                    </div>
+                <div v-else class="!overflow-visible">
                     <EditContentText
                         v-model:content="selectedContent"
                         :selectedLanguage="selectedLanguage!"

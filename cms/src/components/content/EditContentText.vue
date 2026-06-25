@@ -65,12 +65,7 @@ const downloadFilename = computed(() => {
     <div v-if="content" class="fill-editor">
         <LCard
             :bare="lightPolish"
-            class="flex flex-col bg-white pt-0 sm:h-[calc(100vh-5rem)] lg:h-[calc(100vh-5rem)] lg:pt-2"
-            :class="
-                isLanguageSelectorCollapsed
-                    ? 'h-[calc(100dvh-var(--topbar-height,4rem)-var(--selector-height,0px))]'
-                    : 'h-max'
-            "
+            class="flex flex-col bg-white pt-0 lg:pt-2"
             :style="cardStyle"
         >
             <RichTextEditor

@@ -24,7 +24,7 @@ type Props = {
     disabled: boolean;
     /** Base filename (without extension) suggested when downloading. Falls back to rte-vue's "document". */
     downloadFilename?: string;
-    /** On small screens, pin the toolbar so it overlays the scrolling content. Desktop unchanged. */
+    /** Pin the toolbar so it overlays the scrolling content. */
     stickyToolbar?: boolean;
 };
 const props = defineProps<Props>();
@@ -88,7 +88,7 @@ const toolbarClasses = {
     buttonActive: "!bg-zinc-300",
     editor: "flex flex-1 flex-col min-h-0",
     editorContent:
-        "prose overflow-hidden prose-zinc lg:prose-sm max-w-none p-3 ring-1 ring-inset border-0 focus:ring-2 focus:ring-inset focus:outline-none rounded-md ring-zinc-300 hover:ring-zinc-400 focus:ring-zinc-950 mb-1 flex-1 min-h-0 bg-white",
+        "prose prose-zinc lg:prose-sm max-w-none px-2 py-2 sm:p-3 ring-0 sm:ring-1 ring-inset border-0 focus:ring-0 sm:focus:ring-2 focus:ring-inset focus:outline-none rounded-none sm:rounded-md ring-zinc-300 hover:ring-zinc-400 focus:ring-zinc-950 mb-1 flex-1 min-h-0 bg-white",
     placeholder: "text-zinc-400",
 } as const;
 
@@ -166,11 +166,10 @@ defineExpose({
         "
     >
         <template #toolbar="{ groups, isActive, isDisabled, getLabel, runCommand }">
-            <!-- Mobile: pin the toolbar so it overlays the scrolling content. Desktop unchanged. -->
             <div
                 :class="
                     props.stickyToolbar
-                        ? 'sticky top-0 z-10 -mx-4 border-b border-zinc-200 bg-white px-4 pt-1 lg:static lg:mx-0 lg:border-0 lg:bg-transparent lg:px-0 lg:pt-0'
+                        ? 'sticky top-0 z-10 -mx-4 border-b border-zinc-200 bg-white px-4 pt-1 pb-2'
                         : ''
                 "
             >
@@ -286,18 +285,15 @@ defineExpose({
 }
 
 :deep(.rte-editor-content) {
-    height: 100%;
     display: flex;
     flex-direction: column;
 }
 
 :deep(.rte-editor-content .ProseMirror) {
-    height: 100%;
     width: 100%;
     margin: 0 auto;
     box-sizing: border-box;
     flex: 1;
-    overflow-y: auto;
     outline: none;
 }
 
