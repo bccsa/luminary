@@ -31,7 +31,9 @@ const routeKey = computed(() => {
 
 <template>
     <template v-if="isAuthenticated">
-        <div class="grid h-screen overflow-hidden lg:grid-cols-[18rem_1fr]">
+        <!-- The sidebar owns its own width (and animates it on collapse); the grid column just
+        tracks it via `auto`, so the two never drift out of sync. -->
+        <div class="grid h-screen overflow-hidden lg:grid-cols-[auto_1fr]">
             <SideBar v-model:open="sidebarOpen" />
 
             <div class="min-h-0 min-w-0 overflow-hidden">

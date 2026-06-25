@@ -3,6 +3,8 @@ import { mount, flushPromises } from "@vue/test-utils";
 import SideBar from "./SideBar.vue";
 import { accessMap } from "luminary-shared";
 import { superAdminAccessMap } from "@/tests/mockdata";
+import { useDesktopSidebar } from "@/composables/useDesktopSidebar";
+import { sidebarSectionExpanded } from "@/globalConfig";
 
 // Hoisted so the auth mocks below can expose them and the tests can assert on them.
 const { logoutMock, clearAuth0CacheMock } = vi.hoisted(() => ({
@@ -73,6 +75,9 @@ describe("SideBar", () => {
         accessMap.value = superAdminAccessMap;
         logoutMock.mockClear();
         clearAuth0CacheMock.mockClear();
+        // Reset shared (module-singleton) sidebar state so tests don't leak into each other.
+        useDesktopSidebar().collapsed.value = false;
+        sidebarSectionExpanded.value = { posts: false, tags: false, access: false };
     });
 
     it("renders the app logo", () => {
@@ -119,6 +124,44 @@ describe("SideBar", () => {
 
         // After click, the children list should be visible. Check for a PostType entry like "Blog".
         expect(wrapper.text()).toContain("Blog");
+    });
+
+    it("expands the collapsed rail when a nav group is clicked, then re-collapses it when that group is closed", async () => {
+        const { collapsed } = useDesktopSidebar();
+        collapsed.value = true; // start as the collapsed desktop rail
+
+        const wrapper = mount(SideBar);
+        // While collapsed the group label is hidden, so find the button by its title attribute.
+        const postsButton = () =>
+            wrapper.findAll("button").find((b) => b.attributes("title") === "Posts");
+
+        // Clicking the group from the rail expands the sidebar and opens that group.
+        await postsButton()!.trigger("click");
+        expect(collapsed.value).toBe(false);
+        expect(sidebarSectionExpanded.value.posts).toBe(true);
+        expect(wrapper.text()).toContain("Blog");
+
+        // Closing that same group re-collapses the sidebar back to the rail.
+        await postsButton()!.trigger("click");
+        expect(sidebarSectionExpanded.value.posts).toBe(false);
+        expect(collapsed.value).toBe(true);
+    });
+
+    it("does not collapse the rail when closing a group on an already-expanded sidebar", async () => {
+        const { collapsed } = useDesktopSidebar();
+        collapsed.value = false; // expanded sidebar (not via a group click)
+
+        const wrapper = mount(SideBar);
+        const postsButton = () =>
+            wrapper.findAll("button").find((b) => b.attributes("title") === "Posts");
+
+        await postsButton()!.trigger("click"); // open Posts
+        expect(sidebarSectionExpanded.value.posts).toBe(true);
+
+        await postsButton()!.trigger("click"); // close Posts
+        expect(sidebarSectionExpanded.value.posts).toBe(false);
+        // Sidebar stays expanded — it wasn't auto-expanded by this group.
+        expect(collapsed.value).toBe(false);
     });
 
     it("toggles Tags section open/closed", async () => {

@@ -5,6 +5,7 @@ import {
     TagIcon,
     HomeIcon,
     ChevronRightIcon,
+    ChevronLeftIcon,
     GlobeEuropeAfricaIcon,
     ArrowUturnRightIcon,
     CloudIcon,
@@ -20,9 +21,11 @@ import {
     appName,
     cmsLanguageIdAsRef,
     isDevMode,
+    isMobileScreen,
     logo,
     sidebarSectionExpanded,
 } from "@/globalConfig";
+import { useDesktopSidebar } from "@/composables/useDesktopSidebar";
 import { computed, ref } from "vue";
 import {
     AclPermission,
@@ -52,6 +55,12 @@ type NavigationEntry = {
 // `open` drives the mobile drawer (slide-in overlay). On lg+ the sidebar is always a static column,
 // so this is a no-op there. Replaces the old MobileSideBar wrapper + its `update:open` plumbing.
 const open = defineModel<boolean>("open", { default: false });
+
+// Desktop collapse: shrinks the column to an icon-only rail. The state is shared with App.vue (which
+// drives the grid column width). The collapsed *visuals* only apply on lg+ — on a small screen the
+// sidebar is a full-width drawer, so we never want to hide the labels there even if `collapsed` is set.
+const { collapsed, toggleCollapsed } = useDesktopSidebar();
+const isCollapsed = computed(() => collapsed.value && !isMobileScreen.value);
 
 const navigation = computed(() => [
     { name: "Dashboard", to: { name: "dashboard" }, icon: HomeIcon, visible: true },
@@ -119,14 +128,50 @@ const navigation = computed(() => [
     },
 ]);
 
+// Maps a collapsible nav group's display name to its `sidebarSectionExpanded` key.
+const sectionKeyByName: Record<string, "posts" | "tags" | "access"> = {
+    Posts: "posts",
+    Tags: "tags",
+    Access: "access",
+};
+
+// Tracks the nav group (if any) whose click auto-expanded a collapsed desktop sidebar, so that
+// collapsing that same group collapses the sidebar back to the rail.
+const autoExpandedByGroup = ref<string | null>(null);
+
 const toggleOpen = (item: NavigationEntry) => {
-    if (item.name === "Posts") {
-        sidebarSectionExpanded.value.posts = !sidebarSectionExpanded.value.posts;
-    } else if (item.name === "Tags") {
-        sidebarSectionExpanded.value.tags = !sidebarSectionExpanded.value.tags;
-    } else if (item.name === "Access") {
-        sidebarSectionExpanded.value.access = !sidebarSectionExpanded.value.access;
+    const key = sectionKeyByName[item.name];
+    if (!key) return;
+
+    // From the collapsed desktop rail, clicking a group just expands the sidebar and opens that
+    // group (the sub-items are hidden while collapsed, so toggling them in place does nothing).
+    if (isCollapsed.value) {
+        collapsed.value = false;
+        sidebarSectionExpanded.value[key] = true;
+        autoExpandedByGroup.value = item.name;
+        return;
     }
+
+    const wasOpen = sidebarSectionExpanded.value[key];
+    sidebarSectionExpanded.value[key] = !wasOpen;
+
+    if (wasOpen) {
+        // Collapsing the group that auto-expanded the sidebar re-collapses the sidebar.
+        if (autoExpandedByGroup.value === item.name) {
+            collapsed.value = true;
+            autoExpandedByGroup.value = null;
+        }
+    } else {
+        // Opening a group while already expanded drops any pending auto-collapse association.
+        autoExpandedByGroup.value = null;
+    }
+};
+
+// Manually toggling the rail clears the auto-collapse association so a later group-close doesn't
+// unexpectedly collapse the sidebar.
+const onToggleCollapsed = () => {
+    autoExpandedByGroup.value = null;
+    toggleCollapsed();
 };
 
 // Close the mobile drawer after navigating (no-op on desktop where `open` is already false).
@@ -162,9 +207,12 @@ const confirmLogout = () => {
     logout({ logoutParams: { returnTo: window.location.origin } });
 };
 
-const navItemClass =
-    "mb-1 flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-zinc-600 hover:bg-zinc-200";
 const navIconClass = "h-5 w-5 shrink-0";
+// When collapsed (desktop only) nav rows center their icon and drop the label gap/padding.
+const navItemClass = computed(() => [
+    "mb-1 flex rounded-md text-sm font-medium text-zinc-600 hover:bg-zinc-200",
+    isCollapsed.value ? "justify-center p-2.5" : "items-center gap-3 px-3 py-2.5",
+]);
 </script>
 
 <template>
@@ -180,19 +228,41 @@ const navIconClass = "h-5 w-5 shrink-0";
     <aside
         data-test="sidebar"
         @scroll.stop
-        class="fixed inset-y-0 left-0 z-50 flex h-screen w-72 flex-col border-r border-zinc-200 bg-zinc-100 transition-transform duration-200 ease-out lg:static lg:z-auto lg:w-full lg:translate-x-0"
-        :class="open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'"
+        class="fixed inset-y-0 left-0 z-50 flex h-screen w-72 flex-col border-r border-zinc-200 bg-zinc-100 transition-[transform,width] duration-200 ease-out lg:relative lg:z-30 lg:translate-x-0"
+        :class="[
+            open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
+            collapsed ? 'lg:w-[4.5rem]' : 'lg:w-72',
+        ]"
     >
+        <!-- Collapse toggle — sits on the right edge, vertically centred. Desktop only. -->
+        <button
+            type="button"
+            class="absolute right-0 top-1/2 z-20 hidden h-8 w-8 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full border border-zinc-300 bg-white text-zinc-600 shadow-md transition-colors hover:bg-zinc-50 hover:text-zinc-800 lg:flex"
+            :aria-label="collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+            data-test="sidebar-collapse-toggle"
+            @click="onToggleCollapsed"
+        >
+            <ChevronLeftIcon v-if="!collapsed" class="h-4 w-4" aria-hidden="true" />
+            <ChevronRightIcon v-else class="h-4 w-4" aria-hidden="true" />
+        </button>
+
         <!-- Logo — connectivity badge sits next to it and only shows when offline -->
-        <div class="flex h-16 w-full shrink-0 items-center gap-2 pl-5 pr-3 pt-1">
-            <img class="h-8" :src="logo" :alt="appName" />
+        <div
+            class="flex h-16 w-full shrink-0 items-center gap-2 pt-1"
+            :class="isCollapsed ? 'justify-center px-2' : 'pl-5 pr-3'"
+        >
+            <img
+                :src="logo"
+                :alt="appName"
+                :class="isCollapsed ? 'h-8 max-w-full object-contain' : 'h-8'"
+            />
             <span
-                v-if="isDevMode"
+                v-if="isDevMode && !isCollapsed"
                 class="rounded-lg bg-red-400 px-1 py-0.5 text-sm text-red-950"
             >
                 DEV
             </span>
-            <OnlineIndicator v-if="!isConnected" class="ml-auto" />
+            <OnlineIndicator v-if="!isConnected && !isCollapsed" icon-only class="ml-auto" />
         </div>
 
         <!-- Primary navigation + preferences (preferences sit directly below the nav, like the app) -->
@@ -204,30 +274,34 @@ const navIconClass = "h-5 w-5 shrink-0";
                         :to="item.to"
                         active-class="bg-zinc-200 text-zinc-900"
                         :class="navItemClass"
+                        :title="item.name"
                         @click="closeDrawer"
                     >
                         <component :is="item.icon" :class="navIconClass" aria-hidden="true" />
-                        {{ item.name }}
+                        <span v-if="!isCollapsed">{{ item.name }}</span>
                     </RouterLink>
 
                     <div v-else-if="item.visible && item.children">
                         <button
                             type="button"
                             :class="[navItemClass, 'w-full text-left']"
+                            :title="item.name"
                             @click="toggleOpen(item)"
                         >
                             <component :is="item.icon" :class="navIconClass" aria-hidden="true" />
-                            {{ item.name }}
-                            <ChevronRightIcon
-                                :class="[
-                                    item.open ? 'rotate-90 text-zinc-500' : 'text-zinc-400',
-                                    'ml-auto h-5 w-5 shrink-0',
-                                ]"
-                                aria-hidden="true"
-                            />
+                            <template v-if="!isCollapsed">
+                                {{ item.name }}
+                                <ChevronRightIcon
+                                    :class="[
+                                        item.open ? 'rotate-90 text-zinc-500' : 'text-zinc-400',
+                                        'ml-auto h-5 w-5 shrink-0',
+                                    ]"
+                                    aria-hidden="true"
+                                />
+                            </template>
                         </button>
 
-                        <ul v-show="item.open" class="mb-1 space-y-1 px-2">
+                        <ul v-show="item.open && !isCollapsed" class="mb-1 space-y-1 px-2">
                             <li v-for="subItem in item.children" :key="subItem.name">
                                 <RouterLink
                                     :to="subItem.to"
@@ -248,10 +322,11 @@ const navIconClass = "h-5 w-5 shrink-0";
                 <button
                     type="button"
                     :class="[navItemClass, 'w-full text-left']"
+                    :title="currentLanguageName ? `Language — ${currentLanguageName}` : 'Language'"
                     @click="showLanguageModal = true"
                 >
                     <LanguageIcon :class="navIconClass" aria-hidden="true" />
-                    <span class="flex min-w-0 flex-col leading-none">
+                    <span v-if="!isCollapsed" class="flex min-w-0 flex-col leading-none">
                         <span>Language</span>
                         <span
                             v-if="currentLanguageName"
@@ -266,51 +341,54 @@ const navIconClass = "h-5 w-5 shrink-0";
                     :to="{ name: 'settings' }"
                     active-class="bg-zinc-200 text-zinc-900"
                     :class="navItemClass"
+                    title="Settings"
                     @click="closeDrawer"
                 >
                     <Cog6ToothIcon :class="navIconClass" aria-hidden="true" />
-                    Settings
-                </RouterLink>
-
-                <RouterLink
-                    v-if="isDevMode"
-                    :to="{ name: 'sandbox' }"
-                    active-class="bg-zinc-200 text-zinc-900"
-                    :class="navItemClass"
-                    @click="closeDrawer"
-                >
-                    <PlayIcon :class="navIconClass" aria-hidden="true" />
-                    Sandbox
+                    <span v-if="!isCollapsed">Settings</span>
                 </RouterLink>
             </div>
         </nav>
 
         <!-- Account: sign out + signed-in user, pinned to the bottom (like the app) -->
-        <div class="border-t border-zinc-200 px-2 py-3">
+        <div class="border-t border-zinc-200 py-3" :class="isCollapsed ? 'px-2' : 'px-3'">
             <button
                 type="button"
-                class="mb-2 flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-sm font-medium text-zinc-600 hover:bg-zinc-200"
+                :class="[
+                    'mb-2 flex w-full rounded-md text-sm font-medium text-zinc-600 hover:bg-zinc-200',
+                    isCollapsed ? 'justify-center p-2.5' : 'items-center gap-3 px-3 py-2.5 text-left',
+                ]"
+                title="Sign out"
                 data-test="sign-out"
                 @click="showLogoutDialog = true"
             >
                 <ArrowRightEndOnRectangleIcon :class="navIconClass" aria-hidden="true" />
-                Sign out
+                <span v-if="!isCollapsed">Sign out</span>
             </button>
 
-            <div class="flex items-center gap-3 rounded-md py-1.5 pl-3" :title="user?.name || user?.email">
+            <div
+                :class="[
+                    'flex items-center rounded-md py-1.5',
+                    isCollapsed ? 'justify-center' : 'gap-3 pl-3',
+                ]"
+                :title="user?.name || user?.email"
+            >
                 <img
                     v-if="user?.picture"
                     :src="user.picture"
                     alt=""
-                    class="h-8 w-8 shrink-0 rounded-full bg-zinc-50 object-cover"
+                    class="h-5 w-5 shrink-0 rounded-full bg-zinc-50 object-cover"
                 />
                 <div
                     v-else
-                    class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-300"
+                    class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-zinc-300"
                 >
-                    <UserIcon class="h-5 w-5 text-zinc-600" />
+                    <UserIcon class="h-3.5 w-3.5 text-zinc-600" />
                 </div>
-                <span class="min-w-0 flex-1 truncate text-sm font-medium text-zinc-700">
+                <span
+                    v-if="!isCollapsed"
+                    class="min-w-0 flex-1 truncate text-sm font-medium text-zinc-700"
+                >
                     {{ user?.name || user?.email }}
                 </span>
             </div>

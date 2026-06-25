@@ -34,6 +34,8 @@ type Props = {
     untranslatedLanguages: LanguageDto[];
     tagOrPostType: TagType | PostType;
     canDelete: boolean;
+    /** Render as a plain section (no card chrome / collapse / sticky) for nesting in another card. */
+    bare?: boolean;
 };
 const props = defineProps<Props>();
 const editableParent = defineModel<ContentParentDto>("editableParent");
@@ -81,6 +83,8 @@ const checkTopbarCollision = () => {
 };
 
 onMounted(() => {
+    // Bare mode renders inline inside another card — no sticky/scroll-collapse behavior.
+    if (props.bare) return;
     // Run on small screens or when testing
     if (!isSmallScreen.value && import.meta.env.MODE !== "test") return;
 
@@ -232,7 +236,7 @@ watch(
     <div ref="languageSelector" @pointerdown="onSelectorPointerDown">
         <LCard
             :class="[
-                'bg-white',
+                bare ? '' : 'bg-white',
                 // In the sticky/collapsed state, drop the 2px y-borders and the
                 // card shadow so adjacent cards don't stack visible dividers.
                 isLanguageSelectorCollapsed && '!shadow-none',
@@ -240,7 +244,8 @@ watch(
             shadow="small"
             title="Translations"
             :icon="LanguageIcon"
-            :collapsible="props.languages.length > 1"
+            :bare="bare"
+            :collapsible="!bare && props.languages.length > 1"
             v-model:collapsed="isLanguageSelectorCollapsed"
         >
             <template #actions>

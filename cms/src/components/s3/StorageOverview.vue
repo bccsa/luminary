@@ -363,12 +363,6 @@ const saveBucket = async () => {
 
 <template>
     <div>
-        <div class="border-b border-gray-200 py-1.5">
-            <div class="px-3 sm:px-0">
-                <!-- <h2 class="text-lg font-medium text-gray-900">S3 Buckets</h2> -->
-            </div>
-        </div>
-
         <div v-if="isLoading && !buckets.length" class="px-6 py-8">
             <LoadingBar />
         </div>

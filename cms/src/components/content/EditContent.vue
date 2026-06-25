@@ -33,11 +33,18 @@ import LoadingBar from "@/components/LoadingBar.vue";
 import ConfirmBeforeLeavingModal from "@/components/modals/ConfirmBeforeLeavingModal.vue";
 import router from "@/router";
 import { capitaliseFirstLetter } from "@/util/string";
-import { ArrowTopRightOnSquareIcon, PlusIcon } from "@heroicons/vue/20/solid";
+import {
+    ArrowTopRightOnSquareIcon,
+    PlusIcon,
+    ChevronDownIcon,
+    CheckCircleIcon,
+} from "@heroicons/vue/20/solid";
 import { DocumentDuplicateIcon } from "@heroicons/vue/24/outline";
 import { clientAppUrl, cmsLanguages } from "@/globalConfig";
 import EditContentImage from "./EditContentImage.vue";
 import EditContentMedia from "./EditContentMedia.vue";
+import LCard from "@/components/common/LCard.vue";
+import { lightPolish } from "./lightPolish";
 import EditContentActionsWrapper from "./EditContentActionsWrapper.vue";
 import { TrashIcon } from "@heroicons/vue/24/outline";
 import LButton from "@/components/button/LButton.vue";
@@ -285,6 +292,34 @@ const duplicate = async () => {
 
 const showLanguageSelector = ref(false);
 
+// Quick language switcher (app SingleContent-style) — switch the translation being
+// edited from a compact dropdown. The existing translations' language docs, sorted.
+const showQuickLang = ref(false);
+const translationLanguages = computed(() =>
+    editableContent.value
+        .filter((c) => !c.deleteReq)
+        .map((c) => cmsLanguages.value.find((l) => l._id === c.language))
+        .filter((l): l is LanguageDto => !!l)
+        .sort((a, b) => a.name.localeCompare(b.name)),
+);
+const switchLanguage = (lang: LanguageDto) => {
+    showQuickLang.value = false;
+    if (!editableParent.value) return;
+    // Same navigation the translation badges use — the route's languageCode drives selection.
+    router.replace({
+        name: "edit",
+        params: {
+            docType: editableParent.value.docType,
+            tagType:
+                editableParent.value.docType === DocType.Tag
+                    ? (editableParent.value as unknown as TagDto).tagType
+                    : undefined,
+            id: editableParent.value._id,
+            languageCode: lang.languageCode,
+        },
+    });
+};
+
 const contentActions = computed(() => {
     const actions = [
         {
@@ -394,6 +429,7 @@ const actionsWrapperProps = computed(() => ({
                             v-model:parent="editableParent"
                         >
                             <template #supplementary>
+                                <!-- Image, media + video live inside the settings card. -->
                                 <div class="mt-4 border-t border-zinc-200 pt-3">
                                     <div class="flex flex-col gap-1">
                                         <EditContentImage
@@ -421,13 +457,32 @@ const actionsWrapperProps = computed(() => ({
                                             :newDocument="newDocument"
                                             v-model:parent="editableParent"
                                         />
+
+                                        <!-- light-polish: video sits with media in the
+                                             settings card (the two merge later). -->
+                                        <template v-if="lightPolish">
+                                            <div
+                                                class="my-2 border-t border-zinc-200"
+                                                role="separator"
+                                                aria-hidden="true"
+                                            />
+                                            <EditContentVideo
+                                                bare
+                                                v-model:content="selectedContent"
+                                                :disabled="!canTranslate"
+                                            />
+                                        </template>
                                     </div>
                                 </div>
                             </template>
                         </EditContentParent>
 
-                        <div class="sticky top-0 z-10 lg:static">
+                        <!-- light-polish: Translations + the per-translation fields, merged
+                             into a single "Basic" card (each child renders `bare`). Video lives
+                             in the settings card above. -->
+                        <LCard v-if="lightPolish" title="Basic" class="bg-white">
                             <EditContentParentValidation
+                                bare
                                 :tag-or-post-type="props.tagOrPostType"
                                 :can-translate="canTranslate"
                                 :can-delete="canDelete"
@@ -443,20 +498,58 @@ const actionsWrapperProps = computed(() => ({
                                 :existingParent="existingParent"
                                 @updateIsValid="(val) => (isValid = val)"
                                 @create-translation="(language) => createTranslation(language)"
-                                @update:selectorCollapsed="onSelectorCollapsedUpdate"
-                                @update:selectorHeight="onSelectorHeightUpdate"
                             />
-                        </div>
-                        <EditContentVideo
-                            v-model:content="selectedContent"
-                            :disabled="!canTranslate"
-                        />
-                        <EditContentBasic
-                            v-model:content="selectedContent"
-                            :selectedLanguage="selectedLanguage!"
-                            :disabled="!canTranslate"
-                            :disable-publish="!canPublish"
-                        />
+
+                            <template v-if="selectedContent">
+                                <div
+                                    class="my-2 border-t border-zinc-200"
+                                    role="separator"
+                                    aria-hidden="true"
+                                />
+                                <EditContentBasic
+                                    bare
+                                    v-model:content="selectedContent"
+                                    :selectedLanguage="selectedLanguage!"
+                                    :disabled="!canTranslate"
+                                    :disable-publish="!canPublish"
+                                />
+                            </template>
+                        </LCard>
+
+                        <!-- Original layout (flag off): separate Translations / Video / Basic cards. -->
+                        <template v-else>
+                            <div class="sticky top-0 z-10 lg:static">
+                                <EditContentParentValidation
+                                    :tag-or-post-type="props.tagOrPostType"
+                                    :can-translate="canTranslate"
+                                    :can-delete="canDelete"
+                                    :can-publish="canPublish"
+                                    :can-edit="canEditParent"
+                                    v-if="editableContent"
+                                    v-model:editableParent="editableParent"
+                                    v-model:editableContent="editableContent"
+                                    :languages="cmsLanguages"
+                                    :untranslatedLanguages="untranslatedLanguages"
+                                    :dirty="isDirty"
+                                    :existingContent="existingContent"
+                                    :existingParent="existingParent"
+                                    @updateIsValid="(val) => (isValid = val)"
+                                    @create-translation="(language) => createTranslation(language)"
+                                    @update:selectorCollapsed="onSelectorCollapsedUpdate"
+                                    @update:selectorHeight="onSelectorHeightUpdate"
+                                />
+                            </div>
+                            <EditContentVideo
+                                v-model:content="selectedContent"
+                                :disabled="!canTranslate"
+                            />
+                            <EditContentBasic
+                                v-model:content="selectedContent"
+                                :selectedLanguage="selectedLanguage!"
+                                :disabled="!canTranslate"
+                                :disable-publish="!canPublish"
+                            />
+                        </template>
                     </div>
                 </div>
             </div>
@@ -502,6 +595,42 @@ const actionsWrapperProps = computed(() => ({
                     </div>
                 </EmptyState>
                 <div v-else class="h-full lg:overflow-hidden">
+                    <!-- light-polish: quick language switcher (app SingleContent-style). Mobile
+                         only — on desktop the sidebar's Translations list already covers this. -->
+                    <div
+                        v-if="lightPolish && selectedLanguage && translationLanguages.length > 1"
+                        class="mb-1 flex px-1 lg:hidden"
+                    >
+                        <LDropdown v-model:show="showQuickLang" placement="bottom-start">
+                            <template #trigger>
+                                <button
+                                    type="button"
+                                    data-test="quick-language-switch"
+                                    class="flex items-center gap-1 rounded-md px-2 py-1 text-sm font-medium text-zinc-700 hover:bg-zinc-100"
+                                >
+                                    {{ selectedLanguage.name }}
+                                    <ChevronDownIcon class="h-4 w-4 text-zinc-500" />
+                                </button>
+                            </template>
+                            <div class="py-1">
+                                <button
+                                    v-for="lang in translationLanguages"
+                                    :key="lang._id"
+                                    type="button"
+                                    role="menuitem"
+                                    data-test="quick-language-option"
+                                    class="flex w-full items-center justify-between gap-3 whitespace-nowrap px-4 py-2 text-left text-sm text-zinc-800 hover:bg-zinc-50"
+                                    @click="switchLanguage(lang)"
+                                >
+                                    {{ lang.name }}
+                                    <CheckCircleIcon
+                                        v-if="lang._id === selectedLanguage._id"
+                                        class="h-5 w-5 flex-shrink-0 text-yellow-500"
+                                    />
+                                </button>
+                            </div>
+                        </LDropdown>
+                    </div>
                     <EditContentText
                         v-model:content="selectedContent"
                         :selectedLanguage="selectedLanguage!"

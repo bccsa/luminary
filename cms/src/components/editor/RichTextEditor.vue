@@ -24,6 +24,8 @@ type Props = {
     disabled: boolean;
     /** Base filename (without extension) suggested when downloading. Falls back to rte-vue's "document". */
     downloadFilename?: string;
+    /** On small screens, pin the toolbar so it overlays the scrolling content. Desktop unchanged. */
+    stickyToolbar?: boolean;
 };
 const props = defineProps<Props>();
 const { disabled } = toRefs(props);
@@ -164,7 +166,15 @@ defineExpose({
         "
     >
         <template #toolbar="{ groups, isActive, isDisabled, getLabel, runCommand }">
-            <div :class="toolbarClasses.toolbar">
+            <!-- Mobile: pin the toolbar so it overlays the scrolling content. Desktop unchanged. -->
+            <div
+                :class="
+                    props.stickyToolbar
+                        ? 'sticky top-0 z-10 -mx-4 border-b border-zinc-200 bg-white px-4 pt-1 lg:static lg:mx-0 lg:border-0 lg:bg-transparent lg:px-0 lg:pt-0'
+                        : ''
+                "
+            >
+                <div :class="toolbarClasses.toolbar">
                 <div v-for="(group, gi) in groups" :key="gi" :class="toolbarClasses.toolbarGroup">
                     <template v-for="item in group" :key="item">
                         <!-- Download: opens a menu to pick the document type -->
@@ -228,6 +238,7 @@ defineExpose({
                             <span v-else>{{ getLabel(item) }}</span>
                         </button>
                     </template>
+                </div>
                 </div>
             </div>
         </template>

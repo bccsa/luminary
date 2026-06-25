@@ -3,6 +3,7 @@ import { computed, onMounted, onUnmounted, ref } from "vue";
 import { type ContentDto, type LanguageDto } from "luminary-shared";
 import LCard from "@/components/common/LCard.vue";
 import RichTextEditor from "../editor/RichTextEditor.vue";
+import { lightPolish } from "./lightPolish";
 
 type Props = {
     selectedLanguage?: LanguageDto;
@@ -63,6 +64,7 @@ const downloadFilename = computed(() => {
 <template>
     <div v-if="content" class="fill-editor">
         <LCard
+            :bare="lightPolish"
             class="flex flex-col bg-white pt-0 sm:h-[calc(100vh-5rem)] lg:h-[calc(100vh-5rem)] lg:pt-2"
             :class="
                 isLanguageSelectorCollapsed
@@ -77,6 +79,7 @@ const downloadFilename = computed(() => {
                 v-model:text-language="content.language"
                 :download-filename="downloadFilename"
                 :disabled="disabled"
+                :sticky-toolbar="lightPolish"
                 data-test="richTextEditor"
             />
         </LCard>

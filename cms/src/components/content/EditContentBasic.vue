@@ -18,14 +18,22 @@ import { BackspaceIcon } from "@heroicons/vue/20/solid";
 import FormLabel from "../forms/FormLabel.vue";
 import { Slug } from "@/util/slug";
 import { ExclamationCircleIcon } from "@heroicons/vue/16/solid";
+import { lightPolish } from "./lightPolish";
 
 type Props = {
     selectedLanguage?: LanguageDto;
     disabled: boolean;
     disablePublish: boolean;
+    /** Render as a plain section (no card chrome / collapse) for nesting in another card. */
+    bare?: boolean;
 };
 defineProps<Props>();
 const content = defineModel<ContentDto>("content");
+
+// light-polish: expiry controls are hidden behind a disclosure to cut clutter. This
+// reveal flag is the explicit "show it" toggle; the template also shows expiry whenever
+// a value already exists (incl. after switching translations), so nothing is ever hidden.
+const showExpiry = ref(false);
 
 // Slug generation
 const isEditingSlug = ref(false);
@@ -204,9 +212,10 @@ const clearExpiryDate = () => {
 <template>
     <LCard
         :title="selectedLanguage ? selectedLanguage.name : 'Content'"
-        collapsible
+        :collapsible="!bare"
+        :bare="bare"
         v-if="content"
-        class="bg-white pb-1"
+        :class="bare ? 'pb-1' : 'bg-white pb-1'"
     >
         <template #actions>
             <LTextToggle
@@ -221,22 +230,30 @@ const clearExpiryDate = () => {
         </template>
 
         <div v-if="currentToggle === 'visible'">
-            <div class="grid grid-cols-[auto_1fr] items-center gap-2">
-                <div class="col-span-2 flex flex-col gap-4 text-center">
-                    <!-- Warning message -->
-                    <div
-                        v-show="showPublishDateWarning && !content.publishDate"
-                        class="text-xs text-red-600"
-                    >
-                        Please set a publish date before using the expiry shortcut.
-                    </div>
+            <!-- light-polish: in the merged card, stack each label above its input
+                 (flex column) instead of the label-beside-input 2-column grid. -->
+            <div
+                :class="
+                    bare
+                        ? 'flex flex-col gap-2.5'
+                        : 'grid grid-cols-[auto_1fr] items-center gap-x-2 gap-y-2'
+                "
+            >
+                <!-- Expiry warning — only rendered when relevant, so there's no empty
+                     row pushing the Title down. -->
+                <div
+                    v-if="showPublishDateWarning && !content.publishDate"
+                    class="col-span-2 text-center text-xs text-red-600"
+                >
+                    Please set a publish date before using the expiry shortcut.
                 </div>
 
-                <!-- Title -->
-                <FormLabel>Title</FormLabel>
+                <!-- Title — light-polish: full-width (label on its own row) so it doesn't clip -->
+                <FormLabel :class="lightPolish ? 'col-span-2' : ''">Title</FormLabel>
                 <LInput
                     name="title"
                     required
+                    :class="lightPolish ? 'col-span-2' : ''"
                     :disabled="disabled"
                     v-model="content.title"
                     @focus="isEditingTitle = true"
@@ -285,6 +302,9 @@ const clearExpiryDate = () => {
                     </span>
                 </div>
 
+                <!-- light-polish: separators break the otherwise-tight field stack into groups -->
+                <div v-if="bare" class="col-span-2 border-t border-zinc-200" role="separator" />
+
                 <!-- Author -->
                 <FormLabel>Author</FormLabel>
                 <LInput
@@ -315,6 +335,8 @@ const clearExpiryDate = () => {
                     class="min-h-2"
                 />
 
+                <div v-if="bare" class="col-span-2 border-t border-zinc-200" role="separator" />
+
                 <!-- Publish date -->
                 <FormLabel>Publish date</FormLabel>
                 <LInput
@@ -324,18 +346,30 @@ const clearExpiryDate = () => {
                     v-model="publishDateString"
                 />
 
-                <!-- Expiry date -->
-                <FormLabel class="self-start">Expiry date</FormLabel>
-                <LInput
-                    name="expiryDate"
-                    type="datetime-local"
-                    :disabled="disabled"
-                    v-model="expiryDateString"
-                />
+                <!-- light-polish: tuck expiry behind a disclosure to cut clutter -->
+                <button
+                    v-if="lightPolish && !showExpiry && !content.expiryDate"
+                    type="button"
+                    data-test="add-expiry"
+                    class="col-span-2 -mt-1 mb-1 flex w-fit items-center gap-1 text-sm text-zinc-500 hover:text-zinc-700"
+                    @click="showExpiry = true"
+                >
+                    + Add expiry date
+                </button>
 
-                <!-- Expiry date shortcut buttons -->
-                <div class="col-span-2">
-                    <div class="mb-1 flex flex-wrap gap-1 sm:flex-row">
+                <template v-if="!lightPolish || showExpiry || content.expiryDate">
+                    <!-- Expiry date -->
+                    <FormLabel class="self-start">Expiry date</FormLabel>
+                    <LInput
+                        name="expiryDate"
+                        type="datetime-local"
+                        :disabled="disabled"
+                        v-model="expiryDateString"
+                    />
+
+                    <!-- Expiry date shortcut buttons -->
+                    <div class="col-span-2">
+                        <div class="mb-1 flex flex-wrap gap-1 sm:flex-row">
                         <LButton
                             type="button"
                             name="1"
@@ -427,6 +461,7 @@ const clearExpiryDate = () => {
                         />
                     </div>
                 </div>
+                </template>
             </div>
 
             <!-- Status -->
@@ -444,7 +479,13 @@ const clearExpiryDate = () => {
         </div>
 
         <div v-else-if="currentToggle === 'seo'">
-            <div class="grid grid-cols-[auto_1fr] items-center gap-x-4 gap-y-2">
+            <div
+                :class="
+                    bare
+                        ? 'flex flex-col gap-2'
+                        : 'grid grid-cols-[auto_1fr] items-center gap-x-4 gap-y-2'
+                "
+            >
                 <!-- Seo -->
                 <FormLabel>Title</FormLabel>
                 <LInput

@@ -31,6 +31,11 @@ defineProps<Props>();
 
 const showContentActionsMenuDesktop = ref(false);
 const showContentActionsMenuMobile = ref(false);
+
+// Refs to the segmented buttons so each dropdown panel can size itself to the full button width
+// (its own trigger is just the chevron segment).
+const segmentedButtonDesktop = ref<{ rootEl: HTMLElement | null } | null>(null);
+const segmentedButtonMobile = ref<{ rootEl: HTMLElement | null } | null>(null);
 </script>
 
 <template>
@@ -42,6 +47,7 @@ const showContentActionsMenuMobile = ref(false);
 
         <!-- SEGMENTED BUTTON + DROPDOWN -->
         <LButton
+            ref="segmentedButtonMobile"
             variant="primary"
             segmented
             :left-action="isDirty && !newDocument ? () => revert() : undefined"
@@ -67,6 +73,7 @@ const showContentActionsMenuMobile = ref(false);
                     padding="small"
                     placement="bottom-end"
                     width="auto"
+                    :anchor-el="segmentedButtonMobile?.rootEl"
                     class="h-full"
                     trigger-class="flex flex-1 items-center justify-center px-3"
                 >
@@ -112,6 +119,7 @@ const showContentActionsMenuMobile = ref(false);
         </div>
         <!-- SEGMENTED BUTTON + DROPDOWN -->
         <LButton
+            ref="segmentedButtonDesktop"
             variant="primary"
             segmented
             :left-action="isDirty && !newDocument ? () => revert() : undefined"
@@ -139,6 +147,7 @@ const showContentActionsMenuMobile = ref(false);
                     padding="small"
                     placement="bottom-end"
                     width="auto"
+                    :anchor-el="segmentedButtonDesktop?.rootEl"
                     class="h-full"
                     trigger-class="flex h-full w-full items-center justify-center px-3"
                 >

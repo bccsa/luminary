@@ -16,6 +16,10 @@ const props = defineProps<{
         | "bottom-center";
     triggerClass?: string;
     width?: "auto" | "full" | "default";
+    // Optional element to size the panel against instead of the trigger. Useful when the trigger is
+    // only one part of a wider control (e.g. the chevron of a segmented button) but the panel should
+    // match the full control's width.
+    anchorEl?: HTMLElement | null;
 }>();
 
 const show = defineModel<boolean>("show", { required: true });
@@ -37,6 +41,8 @@ const {
 } = useElementBounding(triggerRef);
 const { height: windowHeight } = useWindowSize();
 const { width: panelWidth } = useElementBounding(panelRef);
+// When `anchorEl` is supplied, the panel is sized to it rather than the trigger.
+const { width: anchorWidth } = useElementBounding(() => props.anchorEl ?? null);
 
 const onTriggerClick = (event: MouseEvent) => {
     if (event.defaultPrevented) return;
@@ -111,12 +117,14 @@ const panelStyle = computed(() => {
     const styleBottom = flip ? windowHeight.value - triggerTop.value + 2 : triggerBottom.value + 2;
 
     const style: Record<string, string> = {};
+    // Size against the anchor element when provided, otherwise the trigger.
+    const referenceWidth = props.anchorEl ? anchorWidth.value : triggerWidth.value;
     switch (props.width) {
         case "auto":
-            style.minWidth = `${triggerWidth.value}px`;
+            style.minWidth = `${referenceWidth}px`;
             break;
         case "full":
-            style.width = `${triggerWidth.value}px`;
+            style.width = `${referenceWidth}px`;
             break;
         case "default":
         default:

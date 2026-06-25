@@ -53,11 +53,6 @@ export const router = createRouter({
                     : { name: "dashboard" },
             children: [
                 {
-                    path: "sandbox",
-                    name: "sandbox",
-                    component: () => import("../pages/internal/ComponentSandbox.vue"),
-                },
-                {
                     path: "dashboard",
                     name: "dashboard",
                     component: Dashboard,
@@ -128,9 +123,7 @@ export const router = createRouter({
                     path: "auto-group-mappings",
                     name: "auto-group-mappings",
                     component: () =>
-                        import(
-                            "../components/autoGroupMappings/AutoGroupMappingOverview.vue"
-                        ),
+                        import("../components/autoGroupMappings/AutoGroupMappingOverview.vue"),
                     meta: {
                         title: "Auto Group Mappings",
                         canAccess: {

@@ -13,7 +13,6 @@ import { computed, ref, watch } from "vue";
 import TagSelector from "./TagSelector.vue";
 import GroupSelector from "../groups/GroupSelector.vue";
 import { capitaliseFirstLetter } from "@/util/string";
-import FormLabel from "@/components/forms/FormLabel.vue";
 import LToggle from "@/components/forms/LToggle.vue";
 import _ from "lodash";
 import { ExclamationCircleIcon, XCircleIcon } from "@heroicons/vue/20/solid";
@@ -176,39 +175,39 @@ const useVerticalTileLayout = computed({
             :key="language?._id"
         />
 
-        <!-- Toggle for Publish Date Visibility -->
-        <div class="mt-2 flex items-center justify-between gap-1">
-            <FormLabel>Show publish date</FormLabel>
-            <LToggle v-model="parent.publishDateVisible" :disabled="disabled" class="mr-[4px]" />
-        </div>
+        <!-- Display options — grouped under a divider with uniform spacing and lighter,
+             regular-weight labels so they read as quick on/off settings rather than
+             competing with the bold Group/Categories/Topics section headers above. -->
+        <div class="mt-4 flex flex-col gap-2.5 border-t border-zinc-200 pt-3">
+            <div class="flex items-center justify-between gap-2">
+                <span class="text-sm text-zinc-700">Show publish date</span>
+                <LToggle v-model="parent.publishDateVisible" :disabled="disabled" />
+            </div>
 
-        <!-- Toggle: show as Coming soon when scheduled with a future publish date -->
-        <div
-            class="mt-2 flex items-center justify-between gap-1"
-            :class="{ 'mb-2': docType !== DocType.Tag }"
-        >
-            <FormLabel>Show as Coming soon</FormLabel>
-            <LToggle v-model="showComingSoon" :disabled="disabled" class="mr-[4px]" />
-        </div>
+            <!-- Show as "Coming soon" when scheduled with a future publish date. -->
+            <div class="flex items-center justify-between gap-2">
+                <span class="text-sm text-zinc-700">Show as Coming soon</span>
+                <LToggle v-model="showComingSoon" :disabled="disabled" />
+            </div>
 
-        <div
-            v-if="docType == DocType.Tag && parent && (parent as TagDto).pinned != undefined"
-            class="mt-3 flex items-center justify-between"
-            :class="{ 'my-3': docType == DocType.Tag }"
-        >
-            <FormLabel>Pinned</FormLabel>
-            <LToggle v-model="pinned" :disabled="disabled" class="mr-[4px]" />
-        </div>
+            <div
+                v-if="docType == DocType.Tag && parent && (parent as TagDto).pinned != undefined"
+                class="flex items-center justify-between gap-2"
+            >
+                <span class="text-sm text-zinc-700">Pinned</span>
+                <LToggle v-model="pinned" :disabled="disabled" />
+            </div>
 
-        <div
-            v-if="
-                docType == DocType.Tag &&
-                (tagOrPostType === TagType.Category || tagOrPostType === TagType.Topic)
-            "
-            class="mt-2 flex items-center justify-between gap-1"
-        >
-            <FormLabel>Vertical Tile</FormLabel>
-            <LToggle v-model="useVerticalTileLayout" :disabled="disabled" class="mr-[4px]" />
+            <div
+                v-if="
+                    docType == DocType.Tag &&
+                    (tagOrPostType === TagType.Category || tagOrPostType === TagType.Topic)
+                "
+                class="flex items-center justify-between gap-2"
+            >
+                <span class="text-sm text-zinc-700">Vertical Tile</span>
+                <LToggle v-model="useVerticalTileLayout" :disabled="disabled" />
+            </div>
         </div>
 
         <slot name="supplementary" />
