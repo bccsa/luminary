@@ -9,6 +9,8 @@ import LInput from "@/components/forms/LInput.vue";
 import LModal from "@/components/modals/LModal.vue";
 import {
     ArrowsPointingInIcon,
+    ArrowsPointingOutIcon,
+    Cog6ToothIcon,
     CursorArrowRaysIcon,
     HandRaisedIcon,
     MinusIcon,
@@ -44,7 +46,8 @@ type ChartNode = {
     data: {
         name: string;
         selected?: boolean;
-        accessState?: "direct" | "inherited";
+        accessState?: "upstream" | "downstream";
+        inherited?: boolean;
         dimmed?: boolean;
         groupId: string;
     };
@@ -56,9 +59,10 @@ const CHART_TOP_OFFSET = 120;
 const CHART_CARD_WIDTH = 240;
 const TREE_COLUMN_WIDTH = 280;
 const TREE_ROW_HEIGHT = 120;
-const TREE_MAX_COLUMNS = 4;
+const GRID_SIZE = 22;
 const KEYBOARD_PAN_STEP = 80;
 // const CHART_EDGE_RADIUS = 28;
+const columnOptions = Array.from({ length: 8 }, (_, index) => index + 1);
 
 const chartLanes = [
     { key: "admin", title: "Admin" },
@@ -73,7 +77,10 @@ const graphRoot = ref<HTMLElement | null>(null);
 const searchInput = ref<InstanceType<typeof LInput> | null>(null);
 const selectedGroupId = ref<string | null>(null);
 const layoutDirection = ref<"LR" | "TB">("TB");
-const interactionMode = ref<"select" | "drag">("select");
+const interactionMode = ref<"select" | "drag">("drag");
+const treeColumnCount = ref(4);
+const showColumnDropdown = ref(false);
+const showLegend = ref(false);
 const segClass = (active: boolean) =>
     `rounded-none shadow-none ring-0 ${active ? "bg-zinc-100 text-zinc-950" : "bg-white text-zinc-600"}`;
 const isFullscreen = ref(false);
@@ -138,12 +145,32 @@ const selectedAccess = computed(() => {
     const selectedId = selectedGroupId.value;
     const directNodes = new Set<string>();
     const inheritedNodes = new Set<string>();
+    const upstreamNodes = new Set<string>();
+    const downstreamNodes = new Set<string>();
     const directEdges = new Set<string>();
     const inheritedEdges = new Set<string>();
+    const upstreamEdges = new Set<string>();
+    const downstreamEdges = new Set<string>();
 
-    if (!selectedId) return { directNodes, inheritedNodes, directEdges, inheritedEdges };
+    if (!selectedId)
+        return {
+            directNodes,
+            inheritedNodes,
+            upstreamNodes,
+            downstreamNodes,
+            directEdges,
+            inheritedEdges,
+            upstreamEdges,
+            downstreamEdges,
+        };
 
-    const walk = (start: string, nextEdges: (id: string) => FlowEdge[], getNext: (edge: FlowEdge) => string) => {
+    const walk = (
+        start: string,
+        nextEdges: (id: string) => FlowEdge[],
+        getNext: (edge: FlowEdge) => string,
+        nodeSet: Set<string>,
+        edgeSet: Set<string>,
+    ) => {
         const seen = new Set<string>([start]);
         const queue = nextEdges(start).map((edge) => ({ edge, depth: 1 }));
 
@@ -151,13 +178,12 @@ const selectedAccess = computed(() => {
             const { edge, depth } = queue.shift()!;
             const next = getNext(edge);
 
-            if (depth === 1) {
-                directEdges.add(edge.id);
-                directNodes.add(next);
-            } else {
-                inheritedEdges.add(edge.id);
-                inheritedNodes.add(next);
-            }
+            edgeSet.add(edge.id);
+            nodeSet.add(next);
+            if (depth === 1) directEdges.add(edge.id);
+            else inheritedEdges.add(edge.id);
+            if (depth === 1) directNodes.add(next);
+            else inheritedNodes.add(next);
 
             if (seen.has(next)) continue;
             seen.add(next);
@@ -169,18 +195,33 @@ const selectedAccess = computed(() => {
         selectedId,
         (id) => edges.value.filter((edge) => edge.source === id),
         (edge) => edge.target,
+        downstreamNodes,
+        downstreamEdges,
     );
     walk(
         selectedId,
         (id) => edges.value.filter((edge) => edge.target === id),
         (edge) => edge.source,
+        upstreamNodes,
+        upstreamEdges,
     );
 
     directNodes.delete(selectedId);
     inheritedNodes.delete(selectedId);
+    upstreamNodes.delete(selectedId);
+    downstreamNodes.delete(selectedId);
     directNodes.forEach((id) => inheritedNodes.delete(id));
 
-    return { directNodes, inheritedNodes, directEdges, inheritedEdges };
+    return {
+        directNodes,
+        inheritedNodes,
+        upstreamNodes,
+        downstreamNodes,
+        directEdges,
+        inheritedEdges,
+        upstreamEdges,
+        downstreamEdges,
+    };
 });
 
 const chartNodes = computed<ChartNode[]>(() => {
@@ -191,8 +232,8 @@ const chartNodes = computed<ChartNode[]>(() => {
         const dimmed =
             !!selectedGroupId.value &&
             group._id !== selectedGroupId.value &&
-            !selectedAccess.value.directNodes.has(group._id) &&
-            !selectedAccess.value.inheritedNodes.has(group._id);
+            !selectedAccess.value.upstreamNodes.has(group._id) &&
+            !selectedAccess.value.downstreamNodes.has(group._id);
 
         return {
             id: group._id,
@@ -205,11 +246,12 @@ const chartNodes = computed<ChartNode[]>(() => {
                 name: group.name || "(unnamed group)",
                 groupId: group._id,
                 selected: group._id === selectedGroupId.value,
-                accessState: selectedAccess.value.directNodes.has(group._id)
-                    ? "direct"
-                    : selectedAccess.value.inheritedNodes.has(group._id)
-                      ? "inherited"
+                accessState: selectedAccess.value.downstreamNodes.has(group._id)
+                    ? "downstream"
+                    : selectedAccess.value.upstreamNodes.has(group._id)
+                      ? "upstream"
                       : undefined,
+                inherited: selectedAccess.value.inheritedNodes.has(group._id),
                 dimmed,
             },
         };
@@ -253,13 +295,13 @@ const chartNodes = computed<ChartNode[]>(() => {
 
         const orderedLevels = [...levels.entries()].sort(([a], [b]) => a - b);
         const maxLevelColumns = Math.min(
-            TREE_MAX_COLUMNS,
+            treeColumnCount.value,
             Math.max(1, ...orderedLevels.map(([, groups]) => groups.length)),
         );
         let rowOffset = 0;
 
         return orderedLevels.flatMap(([, groups]) => {
-            const columns = Math.min(TREE_MAX_COLUMNS, groups.length);
+            const columns = Math.min(treeColumnCount.value, groups.length);
             const rows = Math.ceil(groups.length / columns);
             const nodes = groups.map((group, index) => {
                 const row = Math.floor(index / columns);
@@ -307,7 +349,10 @@ const chartEdges = computed(() => {
         .map((edge) => {
             const direct = selectedAccess.value.directEdges.has(edge.id);
             const inherited = selectedAccess.value.inheritedEdges.has(edge.id);
+            const downstream = selectedAccess.value.downstreamEdges.has(edge.id);
+            const upstream = selectedAccess.value.upstreamEdges.has(edge.id);
             const active = direct || inherited;
+            const stroke = downstream ? "#0284c7" : upstream ? "#7c3aed" : "#cbd5e1";
 
             return {
                 id: edge.id,
@@ -321,12 +366,12 @@ const chartEdges = computed(() => {
                     type: MarkerType.ArrowClosed,
                     width: 16,
                     height: 16,
-                    color: direct ? "#0ea5e9" : inherited ? "#6366f1" : "#94a3b8",
+                    color: active ? stroke : "#94a3b8",
                 },
                 style: {
-                    stroke: direct ? "#0ea5e9" : inherited ? "#6366f1" : "#cbd5e1",
+                    stroke,
                     strokeDasharray: inherited ? "6 5" : undefined,
-                    strokeWidth: active ? 2.4 : 1.2,
+                    strokeWidth: active ? 2.8 : 1.2,
                     opacity: active ? 1 : 0.2,
                 },
             };
@@ -526,7 +571,7 @@ watch(
 );
 
 watch(
-    () => [chartNodes.value.length, chartEdges.value.length, layoutDirection.value],
+    () => [chartNodes.value.length, chartEdges.value.length, layoutDirection.value, treeColumnCount.value],
     () => nextTick(() => fitView({ padding: 0.18, duration: 250 })),
 );
 
@@ -559,7 +604,7 @@ onUnmounted(() => window.removeEventListener("keydown", handleGlobalKeydown));
     >
         <div
             ref="graphRoot"
-            class="relative min-h-0 overflow-hidden rounded-md bg-white outline-none focus:outline-none focus-visible:outline-none"
+            class="relative min-h-0 overflow-hidden outline-none focus:outline-none focus-visible:outline-none"
             :class="isFullscreen ? 'h-[calc(100dvh-6rem)] w-[calc(100vw-3rem)]' : 'h-full w-full'"
             tabindex="0"
             aria-label="Group visualisation. Use arrow keys to pan, plus and minus to zoom, Tab to move through groups, Enter or Space to focus a group. In full screen, Command K opens search."
@@ -575,6 +620,8 @@ onUnmounted(() => window.removeEventListener("keydown", handleGlobalKeydown));
             :nodes-draggable="true"
             :pan-on-drag="interactionMode === 'drag'"
             :selection-key-code="interactionMode === 'select' ? true : null"
+            :snap-to-grid="true"
+            :snap-grid="[GRID_SIZE, GRID_SIZE]"
             :edges-updatable="false"
             :disable-keyboard-a11y="true"
             pan-activation-key-code="Space"
@@ -589,11 +636,11 @@ onUnmounted(() => window.removeEventListener("keydown", handleGlobalKeydown));
                     :style="{ width: `${CHART_CARD_WIDTH}px` }"
                     :class="
                         data.selected
-                            ? 'border-2 border-zinc-900'
-                            : data.accessState === 'direct'
+                            ? 'border-2 border-zinc-950 bg-zinc-950 text-white'
+                            : data.accessState === 'downstream'
                               ? 'border-sky-300 bg-sky-50 opacity-100'
-                              : data.accessState === 'inherited'
-                                ? 'border-indigo-300 bg-indigo-50 opacity-100'
+                              : data.accessState === 'upstream'
+                                ? 'border-violet-300 bg-violet-50 opacity-100'
                                 : data.dimmed
                                   ? 'border-zinc-200 opacity-25'
                                   : 'border-zinc-200'
@@ -610,7 +657,10 @@ onUnmounted(() => window.removeEventListener("keydown", handleGlobalKeydown));
                         :connectable="false"
                         class="chart-handle"
                     />
-                    <div class="truncate text-sm font-semibold text-zinc-900">
+                    <div
+                        class="truncate text-sm font-semibold"
+                        :class="data.selected ? 'text-white' : 'text-zinc-900'"
+                    >
                         {{ data.name }}
                     </div>
                     <Handle
@@ -622,7 +672,7 @@ onUnmounted(() => window.removeEventListener("keydown", handleGlobalKeydown));
                 </button>
             </template>
 
-            <Background pattern-color="#e4e4e7" :gap="22" />
+            <Background pattern-color="#e4e4e7" :gap="GRID_SIZE" />
             <Panel position="bottom-left">
                 <div class="flex flex-col gap-1">
                     <LButton size="sm" variant="secondary" :icon="PlusSmallIcon" @click="zoomIn({ duration: 80 })" />
@@ -632,40 +682,62 @@ onUnmounted(() => window.removeEventListener("keydown", handleGlobalKeydown));
             </Panel>
         </VueFlow>
 
-        <div
-            class="pointer-events-none absolute left-3 top-3 z-50 max-w-[calc(100%-1.5rem)] rounded-md border border-zinc-300 bg-white px-3 py-2 text-xs shadow-md sm:left-4 sm:top-4"
-        >
-            <div class="text-sm font-semibold text-zinc-900">Visualisation</div>
-            <div class="mt-0.5 text-zinc-500">
-                Select a group to see direct and inherited access.
-            </div>
-            <div class="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-zinc-600">
-                <span class="inline-flex items-center gap-1.5">
-                    <span class="h-3 w-4 rounded-sm border-2 border-zinc-900"></span>
-                    Selected group
-                </span>
-                <span class="inline-flex items-center gap-1.5">
-                    <span class="h-0 w-5 border-t-2 border-sky-500"></span>
-                    Direct access
-                </span>
-                <span class="inline-flex items-center gap-1.5">
-                    <span class="h-0 w-5 border-t-2 border-dashed border-indigo-500"></span>
-                    Inherited access
-                </span>
-                <span class="inline-flex items-center gap-1.5 opacity-50">
-                    <span class="h-3 w-4 rounded-sm border border-zinc-300 bg-zinc-50"></span>
-                    Not in path
-                </span>
-            </div>
-            <div class="mt-2 border-t border-zinc-100 pt-2 text-[11px] text-zinc-500">
-                <span class="font-medium text-zinc-600">Keys:</span>
-                Arrows pan · +/- zoom · 0 fit · Tab groups · Enter select · fullscreen: Cmd/Ctrl+K search
+        <div class="absolute left-0 top-3 z-50 sm:top-4">
+            <LButton
+                size="sm"
+                variant="secondary"
+                class="pointer-events-auto rounded-l-none shadow-md"
+                @click="showLegend = !showLegend"
+            >
+                Visualisation
+            </LButton>
+            <div
+                v-if="showLegend"
+                class="legend-drawer mt-2 max-w-[calc(100vw-1.5rem)] rounded-r-md border border-zinc-300 bg-white px-3 py-2 text-xs shadow-lg sm:max-w-md"
+            >
+                <div class="flex items-start justify-between gap-3">
+                    <div>
+                        <div class="text-sm font-semibold text-zinc-900">Visualisation</div>
+                        <div class="mt-0.5 text-zinc-500">
+                            Select a group to see who can access it and what it can access.
+                        </div>
+                    </div>
+                    <LButton size="sm" variant="tertiary" @click="showLegend = false">Hide</LButton>
+                </div>
+                <div class="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-zinc-600">
+                    <span class="inline-flex items-center gap-1.5">
+                        <span class="h-3 w-4 rounded-sm border-2 border-zinc-900"></span>
+                        Selected group
+                    </span>
+                    <span class="inline-flex items-center gap-1.5">
+                        <span class="h-0 w-5 border-t-2 border-sky-500"></span>
+                        This group can access
+                    </span>
+                    <span class="inline-flex items-center gap-1.5">
+                        <span class="h-0 w-5 border-t-2 border-violet-600"></span>
+                        Can access this group
+                    </span>
+                    <span class="inline-flex items-center gap-1.5">
+                        <span class="h-0 w-5 border-t-2 border-dashed border-zinc-500"></span>
+                        Dashed = inherited
+                    </span>
+                    <span class="inline-flex items-center gap-1.5 opacity-50">
+                        <span class="h-3 w-4 rounded-sm border border-zinc-300 bg-zinc-50"></span>
+                        Not in path
+                    </span>
+                </div>
+                <div class="mt-2 border-t border-zinc-100 pt-2 text-[11px] text-zinc-500">
+                    <span class="font-medium text-zinc-600">Keys:</span>
+                    Arrows pan · +/- zoom · 0 fit · Tab groups · Enter select · fullscreen: Cmd/Ctrl+K search
+                </div>
             </div>
         </div>
 
-        <div class="absolute right-3 top-3 z-50 flex gap-2 sm:right-4 sm:top-4">
+        <div
+            class="pointer-events-none absolute left-32 right-3 top-3 z-40 flex flex-wrap justify-end gap-2 sm:left-40 sm:right-4 sm:top-4"
+        >
             <div
-                class="inline-flex divide-x divide-zinc-300 overflow-hidden rounded-md shadow-sm ring-1 ring-zinc-300"
+                class="pointer-events-auto inline-flex divide-x divide-zinc-300 overflow-hidden rounded-md shadow-sm ring-1 ring-zinc-300"
             >
                 <LButton
                     size="sm"
@@ -686,20 +758,55 @@ onUnmounted(() => window.removeEventListener("keydown", handleGlobalKeydown));
                     Drag
                 </LButton>
             </div>
-            <LButton
-                size="sm"
-                variant="secondary"
-                @click="layoutDirection = isTopToBottom ? 'LR' : 'TB'"
+            <LDropdown
+                v-model:show="showColumnDropdown"
+                placement="bottom-end"
+                width="auto"
+                padding="small"
+                class="pointer-events-auto"
             >
-                {{ isTopToBottom ? "Left to right" : "Top to bottom" }}
-            </LButton>
+                <template #trigger>
+                    <LButton size="sm" variant="secondary" :icon="Cog6ToothIcon" />
+                </template>
+                <LButton
+                    variant="tertiary"
+                    size="sm"
+                    role="menuitem"
+                    class="w-full justify-start"
+                    @click="
+                        layoutDirection = isTopToBottom ? 'LR' : 'TB';
+                        showColumnDropdown = false;
+                    "
+                >
+                    {{ isTopToBottom ? "Left to right" : "Top to bottom" }}
+                </LButton>
+                <div class="my-1 border-t border-zinc-100"></div>
+                <div class="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                    Tree columns
+                </div>
+                <LButton
+                    v-for="count in columnOptions"
+                    :key="count"
+                    variant="tertiary"
+                    size="sm"
+                    role="menuitem"
+                    class="w-full justify-start"
+                    :main-dynamic-css="treeColumnCount === count ? 'font-semibold text-zinc-950' : 'text-zinc-600'"
+                    @click="
+                        treeColumnCount = count;
+                        showColumnDropdown = false;
+                    "
+                >
+                    {{ count }} {{ count === 1 ? "column" : "columns" }}
+                </LButton>
+            </LDropdown>
             <LButton
                 size="sm"
                 variant="secondary"
+                :icon="isFullscreen ? ArrowsPointingInIcon : ArrowsPointingOutIcon"
+                class="pointer-events-auto"
                 @click="isFullscreen = !isFullscreen"
-            >
-                {{ isFullscreen ? "Exit fullscreen" : "Fullscreen" }}
-            </LButton>
+            />
         </div>
 
         <div
@@ -789,5 +896,20 @@ onUnmounted(() => window.removeEventListener("keydown", handleGlobalKeydown));
 :deep(.vue-flow__node.selected > button) {
     border-color: #18181b; /* zinc-900 */
     box-shadow: 0 0 0 2px #18181b;
+}
+
+.legend-drawer {
+    animation: legend-slide-out 120ms ease-out;
+}
+
+@keyframes legend-slide-out {
+    from {
+        opacity: 0;
+        transform: translateX(-8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
 }
 </style>

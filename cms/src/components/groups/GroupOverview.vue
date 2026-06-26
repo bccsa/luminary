@@ -19,7 +19,7 @@ import EditGroup from "./EditGroup.vue";
 import { isSmallScreen } from "@/globalConfig";
 import ConfirmBeforeLeavingModal from "../modals/ConfirmBeforeLeavingModal.vue";
 import { type GroupOverviewQueryOptions } from "./GroupOverview/types";
-import { TableCellsIcon, MapIcon } from "@heroicons/vue/24/outline";
+import { ListBulletIcon, MapIcon } from "@heroicons/vue/24/outline";
 import GroupGraph from "./GroupGraph.vue";
 import LDropdown from "@/components/common/LDropdown.vue";
 
@@ -157,7 +157,7 @@ const isDirty = computed(() => {
 const currentTab = ref("overview");
 const showViewDropdown = ref(false);
 const tabs = [
-    { title: "Overview", key: "overview", icon: TableCellsIcon },
+    { title: "Overview", key: "overview", icon: ListBulletIcon },
     { title: "Visualisation", key: "graph", icon: MapIcon },
 ];
 const activeTab = computed(() => tabs.find((tab) => tab.key === currentTab.value) ?? tabs[0]);
@@ -203,7 +203,13 @@ const handleGraphSelect = (groupId: string) => {
                         <LButton
                             variant="secondary"
                             :icon="activeTab.icon"
-                            class="w-full sm:w-auto"
+                            class="flex h-12 w-12 justify-center sm:hidden"
+                            icon-class="h-7 w-7"
+                        />
+                        <LButton
+                            variant="secondary"
+                            :icon="activeTab.icon"
+                            class="hidden sm:inline-flex"
                         >
                             {{ activeTab.title }}
                         </LButton>
@@ -250,7 +256,7 @@ const handleGraphSelect = (groupId: string) => {
 
         <div
             v-show="currentTab === 'graph'"
-            class="mt-2 h-[calc(100dvh-10.5rem)] min-h-[520px] md:h-[calc(100vh-9.5rem)] md:min-h-[640px]"
+            class="h-[calc(100dvh-9.75rem)] min-h-[520px] md:h-[calc(100vh-8.75rem)] md:min-h-[640px]"
         >
             <KeepAlive>
                 <GroupGraph
