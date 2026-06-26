@@ -97,7 +97,7 @@ describe("GroupOverview", () => {
 
     beforeEach(async () => {
         setActivePinia(createTestingPinia());
-        await db.bulkPut([mockGroupDtoSuperAdmins]);
+        await db.bulkPut([mockGroupDtoPublicContent, mockGroupDtoPublicUsers, mockGroupDtoPublicEditors, mockGroupDtoSuperAdmins]);
         await db.localChanges.clear();
         isConnected.value = true; // Simulate a connected state
     });
@@ -134,11 +134,12 @@ describe("GroupOverview", () => {
         });
     });
 
-    it("can correctly query the api", async () => {
-        mount(GroupOverview);
+    it("loads groups from the local database", async () => {
+        const wrapper = mount(GroupOverview);
 
         await waitForExpect(() => {
-            expect(JSON.parse(mockApiRequest).types[0]).toBe(DocType.Group);
+            expect(wrapper.text()).toContain("Public Content");
+            expect(wrapper.text()).toContain("Super Admins");
         });
     });
 

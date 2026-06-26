@@ -39,9 +39,9 @@ export const sidebarSectionExpanded = ref({ posts: false, tags: false, access: f
 /**
  * The preferred CMS language ID as Vue ref.
  */
-export const cmsLanguageIdAsRef = ref(localStorage.getItem("cms_selectedLanguage") || "");
+export const cmsLanguageIdAsRef = ref(typeof localStorage !== "undefined" ? localStorage.getItem("cms_selectedLanguage") || "" : "");
 watch(cmsLanguageIdAsRef, (newVal) => {
-    localStorage.setItem("cms_selectedLanguage", newVal);
+    if (typeof localStorage !== "undefined") localStorage.setItem("cms_selectedLanguage", newVal);
 });
 
 /**

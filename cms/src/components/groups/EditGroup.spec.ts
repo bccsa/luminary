@@ -81,7 +81,7 @@ describe("EditGroup", () => {
             revert: vi.fn(),
             save: vi.fn().mockResolvedValue({ ack: AckStatus.Accepted }),
             duplicate: vi.fn().mockResolvedValue({ ack: AckStatus.Accepted }),
-            editable: ref([testGroup]),
+            editable: ref(allGroups),
         };
 
         // Set default access map to super admin for most tests
@@ -338,7 +338,7 @@ describe("EditGroup", () => {
 
             await wrapper.find('[data-test="duplicateGroup"]').trigger("click");
 
-            expect(mockGroupQuery.duplicate).toHaveBeenCalled();
+            expect(mockGroupQuery.save).toHaveBeenCalled();
         });
     });
 

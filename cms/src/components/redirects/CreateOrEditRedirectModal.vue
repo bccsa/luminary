@@ -73,11 +73,9 @@ const redirectEditable = toEditable<RedirectDto>(redirectSource);
 function hydrateFromRedirect(redirect: RedirectDto) {
     currentId.value = redirect._id;
     redirectSource.value = [redirect];
-    redirectEditable.editable.value.splice(
-        0,
-        redirectEditable.editable.value.length,
-        { ...redirect },
-    );
+    redirectEditable.editable.value.splice(0, redirectEditable.editable.value.length, {
+        ...redirect,
+    });
     redirectEditable.updateShadow(redirect._id);
 }
 
@@ -168,11 +166,7 @@ watch(
     () => editable.value?.slug,
     async (slug) => {
         if (slug && slug.length > 0) {
-            const slugIsUnique = await Slug.checkUnique(
-                slug,
-                editable.value._id,
-                DocType.Redirect,
-            );
+            const slugIsUnique = await Slug.checkUnique(slug, editable.value._id, DocType.Redirect);
             isSlugUnique.value = slugIsUnique ? slugIsUnique : false;
         }
     },

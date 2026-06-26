@@ -13,11 +13,15 @@ import {
     type GroupDto,
     useHybridQueryWithState,
 } from "luminary-shared";
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { validDocTypes } from "./permissions";
 import EditGroup from "./EditGroup.vue";
 import { isSmallScreen } from "@/globalConfig";
 import ConfirmBeforeLeavingModal from "../modals/ConfirmBeforeLeavingModal.vue";
+import { type GroupOverviewQueryOptions } from "./GroupOverview/types";
+import { TableCellsIcon, MapIcon } from "@heroicons/vue/24/outline";
+import GroupGraph from "./GroupGraph.vue";
+import LDropdown from "@/components/common/LDropdown.vue";
 
 const { output: groupsSource, isFetching } = useHybridQueryWithState<GroupDto>(
     () => ({
@@ -76,6 +80,54 @@ const { isEdited } = groupQuery;
 
 const showModal = ref(false);
 
+const defaultQueryOptions: GroupOverviewQueryOptions = {
+    search: "",
+    orderBy: "updatedTimeUtc",
+    orderDirection: "desc",
+};
+
+const savedQueryOptions = () => sessionStorage.getItem("queryOptions_group_overview");
+
+function mergeNewFields(saved: string | null): GroupOverviewQueryOptions {
+    const parsed = saved ? JSON.parse(saved) : {};
+    return {
+        ...defaultQueryOptions,
+        ...parsed,
+    };
+}
+
+const queryOptions = ref<GroupOverviewQueryOptions>(
+    mergeNewFields(savedQueryOptions()) as GroupOverviewQueryOptions,
+);
+
+watch(
+    queryOptions,
+    () => {
+        sessionStorage.setItem("queryOptions_group_overview", JSON.stringify(queryOptions.value));
+    },
+    { deep: true },
+);
+
+const filteredGroups = computed(() => {
+    const result = [...editable.value];
+
+    result.sort((a, b) => {
+        if (queryOptions.value.orderBy === "name") {
+            const valA = a.name.toLowerCase();
+            const valB = b.name.toLowerCase();
+            if (valA < valB) return queryOptions.value.orderDirection === "asc" ? -1 : 1;
+            if (valA > valB) return queryOptions.value.orderDirection === "asc" ? 1 : -1;
+            return 0;
+        } else if (queryOptions.value.orderBy === "updatedTimeUtc") {
+            const valA = a.updatedTimeUtc || 0;
+            const valB = b.updatedTimeUtc || 0;
+            return queryOptions.value.orderDirection === "asc" ? valA - valB : valB - valA;
+        }
+        return 0;
+    });
+
+    return result;
+});
 const newGroupId = ref("");
 const createGroup = async () => {
     const newGroup = {
@@ -101,6 +153,19 @@ const isDirty = computed(() => {
     // Check if any group in the list has unsaved changes
     return editable.value.some((g) => isEdited.value(g._id));
 });
+
+const currentTab = ref("overview");
+const showViewDropdown = ref(false);
+const tabs = [
+    { title: "Overview", key: "overview", icon: TableCellsIcon },
+    { title: "Visualisation", key: "graph", icon: MapIcon },
+];
+const activeTab = computed(() => tabs.find((tab) => tab.key === currentTab.value) ?? tabs[0]);
+
+const handleGraphSelect = (groupId: string) => {
+    newGroupId.value = groupId;
+    showModal.value = true;
+};
 </script>
 
 <template>
@@ -123,23 +188,80 @@ const isDirty = computed(() => {
             />
         </template>
 
-        <p class="mb-2 mt-1 p-2 py-1 text-sm text-gray-500">
-            <span>
-                Configure access permissions for the groups listed below to control who can access
-                them and their member documents.
-            </span>
-            <span class="text-[13px] italic">
-                <br />Note that users may inherit additional rights from higher-level groups,
-                potentially granting broader access than explicitly configured here.
-            </span>
-        </p>
+        <template #internalPageHeader>
+            <div
+                class="relative z-20 flex items-center justify-end border-b border-t border-zinc-300 border-t-zinc-100 bg-white px-3 py-2 shadow sm:px-8"
+            >
+                <LDropdown
+                    v-model:show="showViewDropdown"
+                    placement="bottom-end"
+                    width="auto"
+                    padding="small"
+                    class="w-full sm:w-auto"
+                >
+                    <template #trigger>
+                        <LButton
+                            variant="secondary"
+                            :icon="activeTab.icon"
+                            class="w-full sm:w-auto"
+                        >
+                            {{ activeTab.title }}
+                        </LButton>
+                    </template>
+                    <LButton
+                        v-for="tab in tabs"
+                        :key="tab.key"
+                        variant="tertiary"
+                        size="sm"
+                        :icon="tab.icon"
+                        role="menuitem"
 
-        <GroupDisplayCard
-            v-for="(group, index) in editable"
-            :key="group._id"
-            v-model:group="editable[index]"
-            :groupQuery="groupQuery"
-        />
+                        :main-dynamic-css="currentTab === tab.key ? 'font-semibold text-zinc-950' : 'text-zinc-600'"
+                        @click="
+                            currentTab = tab.key;
+                            showViewDropdown = false;
+                        "
+                    >
+                        {{ tab.title }}
+                    </LButton>
+                </LDropdown>
+            </div>
+        </template>
+
+        <div v-show="currentTab === 'overview'">
+            <p class="mb-2 mt-1 p-2 py-1 text-sm text-gray-500">
+                <span>
+                    Configure access permissions for the groups listed below to control who can access
+                    them and their member documents.
+                </span>
+                <span class="text-[13px] italic">
+                    <br />Note that users may inherit additional rights from higher-level groups,
+                    potentially granting broader access than explicitly configured here.
+                </span>
+            </p>
+
+            <GroupDisplayCard
+                v-for="group in filteredGroups"
+                :key="group._id"
+                v-model:group="editable[editable.findIndex((g) => g._id === group._id)]"
+                :groupQuery="groupQuery"
+            />
+        </div>
+
+        <div
+            v-show="currentTab === 'graph'"
+            class="mt-2 h-[calc(100dvh-10.5rem)] min-h-[520px] md:h-[calc(100vh-9.5rem)] md:min-h-[640px]"
+        >
+            <KeepAlive>
+                <GroupGraph
+                    v-if="currentTab === 'graph'"
+                    class="h-full w-full"
+                    :groups="filteredGroups"
+                    :all-groups="editable"
+                    @select="handleGraphSelect"
+                />
+            </KeepAlive>
+        </div>
 
         <EditGroup
             v-if="selectedGroup"

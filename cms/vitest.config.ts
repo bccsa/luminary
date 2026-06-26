@@ -10,7 +10,7 @@ export default mergeConfig(
             environment: "jsdom",
             exclude: [...configDefaults.exclude, "e2e/*"],
             root: fileURLToPath(new URL("./", import.meta.url)),
-            setupFiles: ["vitest.setup.ts"],
+            setupFiles: ["vitest.localstorage.ts", "vitest.setup.ts"],
             coverage: {
                 provider: "v8",
                 exclude: [

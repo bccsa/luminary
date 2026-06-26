@@ -308,6 +308,7 @@ describe("ContentOverview.vue", () => {
         const searchInput = wrapper.find('[data-test="search-input"]');
 
         await searchInput.setValue("post 1");
+        await searchInput.trigger("keydown.enter");
 
         await waitForExpect(() => {
             const filterOptions = wrapper.findComponent(FilterOptions);
@@ -328,6 +329,7 @@ describe("ContentOverview.vue", () => {
         });
 
         await wrapper.find('[data-test="search-input"]').setValue("garden");
+        await wrapper.find('[data-test="search-input"]').trigger("keydown.enter");
 
         // Default search mode is strict ("exact matches") with an inline toggle link.
         await waitForExpect(() => {

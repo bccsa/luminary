@@ -209,7 +209,7 @@ const paddingClass = computed(() =>
                 @keydown="onPanelKeydown"
                 :style="panelStyle"
             >
-                <div :class="paddingClass">
+                <div class="flex flex-col" :class="paddingClass">
                     <slot />
                 </div>
             </div>

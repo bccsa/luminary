@@ -86,7 +86,7 @@ const toolbarClasses = {
     buttonActive: "!bg-zinc-300",
     editor: "flex flex-col",
     editorContent:
-        "prose prose-zinc lg:prose-sm max-w-none px-2 py-2 sm:p-3 ring-0 sm:ring-1 ring-inset border-0 focus:ring-0 sm:focus:ring-2 focus:ring-inset focus:outline-none rounded-none sm:rounded-md ring-zinc-300 hover:ring-zinc-400 focus:ring-zinc-950 mb-1 min-h-[20rem] bg-white",
+        "prose prose-zinc lg:prose-sm max-w-none px-2 py-2 sm:p-3 ring-0 border-0 focus:ring-0 focus:outline-none rounded-none mb-1 min-h-[20rem] bg-white",
     placeholder: "text-zinc-400",
 } as const;
 

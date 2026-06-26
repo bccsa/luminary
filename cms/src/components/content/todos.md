@@ -52,10 +52,26 @@ they aren't mistaken for regressions.
   groups into Dexie, or assert the Dexie-first read).
 
 - **`components/content/EditContent.spec.ts` — unhandled rejection in lodash `equalByTag`.**
-  `toEditable`'s `isEqualBase` deep-compares docs carrying binary upload data; lodash reaches
-  `ArrayBuffer.prototype.byteLength` through a Vue reactive proxy and throws "called on incompatible
-  receiver". `arrayBufferCustomizer` (`shared/src/util/toEditable/toEditable.ts`) already try/catches
-  the customizer path, but the rejection still surfaces as unhandled. Tests pass; pre-existing.
+  Symptom: a flaky `TypeError: Method get ArrayBuffer.prototype.byteLength called on incompatible
+  receiver` surfaces as an unhandled rejection under the full (parallel) run; it passes in isolation.
+  Root cause: `EditContentValidation.vue`'s `isContentDirty` computed deep-compares content with a
+  plain `_.isEqual` and only strips `parentMedia` before comparing. `ContentDto` also carries
+  `parentImageData` (plus `imageData`/`media`), which hold `uploadData[].fileData: ArrayBuffer`. Plain
+  `_.isEqual` recurses into that buffer — reached through a Vue reactive proxy — and lodash's
+  `byteLength` access throws. Because it runs inside a reactive `computed`, the throw escapes as an
+  unhandled rejection. Fix: use `_.isEqualWith` with an ArrayBuffer customizer (same pattern already in
+  `EditContentParent.vue` and `arrayBufferCustomizer` in `shared/src/util/toEditable/toEditable.ts`):
+  compare buffers by `byteLength` inside a try/catch instead of letting lodash recurse into them.
+  Tests pass; pre-existing.
+
+### Remove the `NODE_OPTIONS` localStorage shim from the test scripts
+
+The `test`/`test:watch`/`test:unit` scripts in `cms/package.json` still prefix
+`NODE_OPTIONS='--experimental-webstorage --localstorage-file=/tmp/luminary-ls.json'`. That shim is
+now redundant: `vitest.localstorage.ts` (loaded first via `setupFiles` in `vitest.config.ts`) provides
+an in-memory `localStorage` for jsdom on Node 26. Drop the `NODE_OPTIONS` prefix from all three scripts
+so the scripts are plain `vitest`. (The same shim setup file was added to `app/`; check whether `app/`'s
+scripts carry the prefix too.)
 
 ### memberOf field missing in groupDto seeding docs
 
