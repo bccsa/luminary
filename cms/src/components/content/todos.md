@@ -53,7 +53,7 @@ they aren't mistaken for regressions.
 
 - **`components/content/EditContent.spec.ts` — unhandled rejection in lodash `equalByTag`.**
   Symptom: a flaky `TypeError: Method get ArrayBuffer.prototype.byteLength called on incompatible
-  receiver` surfaces as an unhandled rejection under the full (parallel) run; it passes in isolation.
+receiver` surfaces as an unhandled rejection under the full (parallel) run; it passes in isolation.
   Root cause: `EditContentValidation.vue`'s `isContentDirty` computed deep-compares content with a
   plain `_.isEqual` and only strips `parentMedia` before comparing. `ContentDto` also carries
   `parentImageData` (plus `imageData`/`media`), which hold `uploadData[].fileData: ArrayBuffer`. Plain
@@ -80,3 +80,7 @@ scripts carry the prefix too.)
 ### Include language selection (mangoIsPublished language selection logic) in sync.
 
 Need to think it through a bit more before implementing
+
+### FTS in CMS not clearing deleted items
+
+When filtering with FTS in the CMS, and deleting / adding an item (e.g. user), the FTS result is not updated removing the deleted item. A simple way to do this is perhaps listening for incoming docs (including DeleteCmd's) (using the same listener as the corresponding HybridQuery), and evict it from the search result if it passes the filter used by the HybridQuery
