@@ -193,6 +193,11 @@ trim({
 - After language preferences change (remove unused language data)
 - Periodically to clean up unused sync state
 
+> Note: on access **revoke**, `db.deleteRevoked()` already calls `trim()` automatically (once per
+> distinct chunkType, keeping the still-accessible groups) so the syncList stays consistent with the
+> docs it evicts. A column left at `eof` after its docs are removed would otherwise block the re-walk
+> when access is later re-granted.
+
 ## How Sync Works
 
 ### 1. Initial Sync

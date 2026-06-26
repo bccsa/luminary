@@ -12,5 +12,10 @@
  * `v17` (ThumbHash backfill, needs S3). When adding a new upgrade, set this to the version just
  * below the newest upgrade that must run over seeded data, and double-check that upgrade is safe
  * to execute against a fresh database.
+ *
+ * Kept at 17 (not bumped to 18) when `v19` (CmsView backfill) was added: `v18` must still run on
+ * fresh DBs to build seeded users'/redirects' `fts`. `v19` then also runs on fresh DBs, but it is
+ * idempotent (grants CmsView only where missing) and DB-only, so it is safe — and seeded Group
+ * fixtures already carry CmsView, making it a no-op there.
  */
 export const FRESH_DB_SCHEMA_VERSION = 17;

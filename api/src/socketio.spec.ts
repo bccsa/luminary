@@ -148,4 +148,95 @@ describe("Socketio", () => {
             }, 500);
         });
     }, 10000);
+
+    // CmsView-scoped rooms (#160): a draft Content doc must reach a CMS-mode connection (joined to
+    // the `-cms` rooms via CmsView) but NOT an app-mode connection (base rooms via View). Content is
+    // routed via its parent Post's memberOf, so a parent post is created first.
+    it("routes a draft Content doc to the CMS (-cms) room only, not the app base room", (done) => {
+        const appClient = connectClient();
+        const cmsClient = connectClient();
+        let appReady = false;
+        let cmsReady = false;
+        let cmsGotDraft = false;
+        let finished = false;
+        const PARENT = "test-cms-parent-post";
+        const DRAFT = "test-cms-draft-content";
+
+        const finish = (err?: Error) => {
+            if (finished) return;
+            finished = true;
+            appClient.disconnect();
+            cmsClient.disconnect();
+            done(err);
+        };
+
+        const maybeStart = async () => {
+            if (!appReady || !cmsReady) return;
+            try {
+                await db.upsertDoc({
+                    _id: PARENT,
+                    type: "post",
+                    memberOf: ["group-super-admins"],
+                    updatedTimeUtc: Date.now(),
+                    tags: [],
+                    publishDateVisible: true,
+                } as any);
+            } catch {
+                // already exists
+            }
+            setTimeout(async () => {
+                try {
+                    await db.upsertDoc({
+                        _id: DRAFT,
+                        type: "content",
+                        parentId: PARENT,
+                        parentType: "post",
+                        memberOf: ["group-super-admins"],
+                        language: "lang-eng",
+                        status: "draft",
+                        slug: "test-cms-draft-slug",
+                        title: "Secret draft",
+                        updatedTimeUtc: Date.now(),
+                    } as any);
+                } catch {
+                    // ignore
+                }
+            }, 200);
+        };
+
+        appClient.on("connect", () =>
+            appClient.emit("joinSocketGroups", { docTypes: [{ type: "post" }], cms: false }),
+        );
+        cmsClient.on("connect", () =>
+            cmsClient.emit("joinSocketGroups", { docTypes: [{ type: "post" }], cms: true }),
+        );
+        appClient.on("clientConfig", () => {
+            appReady = true;
+            void maybeStart();
+        });
+        cmsClient.on("clientConfig", () => {
+            cmsReady = true;
+            void maybeStart();
+        });
+
+        appClient.on("data", (data: any) => {
+            // The app (base rooms, View) must NEVER receive a draft.
+            if (data.docs?.some((d: any) => d._id === DRAFT)) {
+                finish(new Error("app client received a draft content doc"));
+            }
+        });
+        cmsClient.on("data", (data: any) => {
+            if (data.docs?.some((d: any) => d._id === DRAFT)) cmsGotDraft = true;
+        });
+
+        // Settle: the CMS must have received the draft; the app must not have (asserted above).
+        setTimeout(() => {
+            try {
+                expect(cmsGotDraft).toBe(true);
+                finish();
+            } catch (e) {
+                finish(e as Error);
+            }
+        }, 6000);
+    }, 15000);
 });

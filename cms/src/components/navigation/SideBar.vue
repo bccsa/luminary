@@ -68,7 +68,7 @@ const navigation = computed(() => [
         name: "Posts",
         icon: DocumentDuplicateIcon,
         open: sidebarSectionExpanded.value.posts,
-        visible: hasAnyPermission(DocType.Post, AclPermission.View),
+        visible: hasAnyPermission(DocType.Post, AclPermission.CmsView),
         children: Object.entries(PostType).map((p) => ({
             name: p[0],
             to: { name: "overview", params: { docType: DocType.Post, tagOrPostType: p[1] } },
@@ -78,7 +78,7 @@ const navigation = computed(() => [
         name: "Tags",
         icon: TagIcon,
         open: sidebarSectionExpanded.value.tags,
-        visible: hasAnyPermission(DocType.Tag, AclPermission.View),
+        visible: hasAnyPermission(DocType.Tag, AclPermission.CmsView),
         children: Object.entries(TagType).map((t) => ({
             name: t[0],
             to: { name: "overview", params: { docType: DocType.Tag, tagOrPostType: t[1] } },
@@ -88,40 +88,40 @@ const navigation = computed(() => [
         name: "Redirects",
         to: { name: "redirects" },
         icon: ArrowUturnRightIcon,
-        visible: hasAnyPermission(DocType.Redirect, AclPermission.View),
+        visible: hasAnyPermission(DocType.Redirect, AclPermission.CmsView),
     },
     {
         name: "Languages",
         to: { name: "languages" },
         icon: GlobeEuropeAfricaIcon,
-        visible: hasAnyPermission(DocType.Language, AclPermission.View),
+        visible: hasAnyPermission(DocType.Language, AclPermission.CmsView),
     },
     {
         name: "Storage",
         to: { name: "storage" },
         icon: CloudIcon,
-        visible: hasAnyPermission(DocType.Storage, AclPermission.View),
+        visible: hasAnyPermission(DocType.Storage, AclPermission.CmsView),
     },
     {
         name: "Access",
         icon: ShieldCheckIcon,
         open: sidebarSectionExpanded.value.access,
         visible:
-            hasAnyPermission(DocType.User, AclPermission.View) ||
-            hasAnyPermission(DocType.Group, AclPermission.View) ||
-            hasAnyPermission(DocType.AutoGroupMappings, AclPermission.View) ||
+            hasAnyPermission(DocType.User, AclPermission.CmsView) ||
+            hasAnyPermission(DocType.Group, AclPermission.CmsView) ||
+            hasAnyPermission(DocType.AutoGroupMappings, AclPermission.CmsView) ||
             hasAnyPermission(DocType.AuthProvider, AclPermission.Edit),
         children: [
-            ...(hasAnyPermission(DocType.User, AclPermission.View)
+            ...(hasAnyPermission(DocType.User, AclPermission.CmsView)
                 ? [{ name: "Users", to: { name: "users" } }]
                 : []),
-            ...(hasAnyPermission(DocType.Group, AclPermission.View)
+            ...(hasAnyPermission(DocType.Group, AclPermission.CmsView)
                 ? [{ name: "Groups", to: { name: "groups" } }]
                 : []),
             ...(hasAnyPermission(DocType.AuthProvider, AclPermission.Edit)
                 ? [{ name: "Auth Providers", to: { name: "auth-providers" } }]
                 : []),
-            ...(hasAnyPermission(DocType.AutoGroupMappings, AclPermission.View)
+            ...(hasAnyPermission(DocType.AutoGroupMappings, AclPermission.CmsView)
                 ? [{ name: "Auto Group Mappings", to: { name: "auto-group-mappings" } }]
                 : []),
         ],
@@ -356,7 +356,9 @@ const navItemClass = computed(() => [
                 type="button"
                 :class="[
                     'mb-2 flex w-full rounded-md text-sm font-medium text-zinc-600 hover:bg-zinc-200',
-                    isCollapsed ? 'justify-center p-2.5' : 'items-center gap-3 px-3 py-2.5 text-left',
+                    isCollapsed
+                        ? 'justify-center p-2.5'
+                        : 'items-center gap-3 px-3 py-2.5 text-left',
                 ]"
                 title="Sign out"
                 data-test="sign-out"

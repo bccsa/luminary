@@ -24,8 +24,8 @@ import { CMS_DOCS_INDEX } from "@/docsIndex";
 // ============================
 const authProviderAdminAccessMap = {
     "group-super-admins": {
-        authProvider: { view: true, edit: true, delete: true, assign: true },
-        group: { view: true, edit: true, assign: true },
+        authProvider: { view: true, cmsView: true, edit: true, delete: true, assign: true },
+        group: { view: true, cmsView: true, edit: true, assign: true },
     },
 };
 
@@ -653,7 +653,7 @@ describe("useAuthProviders", () => {
                 // Remove delete permission from the access map
                 accessMap.value = {
                     "group-super-admins": {
-                        authProvider: { view: true, edit: true }, // no delete
+                        authProvider: { view: true, cmsView: true, edit: true }, // no delete
                     },
                 } as any;
                 c.editProvider(c.providers.value[0]);

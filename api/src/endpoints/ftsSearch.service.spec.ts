@@ -5,7 +5,7 @@ import { FtsSearchService } from "./ftsSearch.service";
 import { DbService, FtsCandidateRow, FtsCandidateValue } from "../db/db.service";
 import { WINSTON_MODULE_PROVIDER } from "nest-winston";
 import type { Logger } from "winston";
-import { DocType, PublishStatus } from "../enums";
+import { AclPermission, DocType, PublishStatus } from "../enums";
 import { FtsSearchReqDto } from "../dto/FtsSearchReqDto";
 import * as permissions from "../permissions/permissions.service";
 
@@ -530,6 +530,38 @@ describe("FtsSearchService", () => {
                 expect.any(Array),
             );
             expect(dbService.getDocs).toHaveBeenCalledWith(expect.any(Array), [DocType.Redirect]);
+        });
+    });
+
+    describe("CmsView permission gating (#160)", () => {
+        it("uses View for non-cms Content searches", async () => {
+            await service.search(makeReq(), mockUser);
+            expect(permissions.PermissionSystem.accessMapToGroups).toHaveBeenCalledWith(
+                mockUser.accessMap,
+                AclPermission.View,
+                [DocType.Post, DocType.Tag, DocType.Language],
+            );
+        });
+
+        it("uses CmsView for cms:true Content searches", async () => {
+            await service.search(makeReq({ cms: true }), mockUser);
+            expect(permissions.PermissionSystem.accessMapToGroups).toHaveBeenCalledWith(
+                mockUser.accessMap,
+                AclPermission.CmsView,
+                [DocType.Post, DocType.Tag, DocType.Language],
+            );
+        });
+
+        it("uses CmsView for cms:true aux (User) searches", async () => {
+            (permissions.PermissionSystem.accessMapToGroups as jest.Mock).mockReturnValue({
+                [DocType.User]: ["group-user"],
+            } as any);
+            await service.search(makeReq({ types: [DocType.User], cms: true }), mockUser);
+            expect(permissions.PermissionSystem.accessMapToGroups).toHaveBeenCalledWith(
+                mockUser.accessMap,
+                AclPermission.CmsView,
+                [DocType.User],
+            );
         });
     });
 });

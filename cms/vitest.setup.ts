@@ -1,8 +1,46 @@
 import "fake-indexeddb/auto";
 import { RouterLinkStub, config, enableAutoUnmount } from "@vue/test-utils";
 import { initDatabase, initConfig, db } from "luminary-shared";
+import { syncList } from "../shared/src/api/sync/state";
 import { CMS_DOCS_INDEX } from "./src/docsIndex";
 import { afterEach, beforeAll, beforeEach } from "vitest";
+
+// Every CMS doc type, tracked across all standard fixture groups. `deleteRevoked()` reconciles the
+// runtime syncList against each test's accessMap (trimming a column to the groups that map actually
+// grants — GitHub #160), exactly as it does in a live CMS where sync re-creates columns for the
+// user's real CmsView groups. Seeding every standard group here means that reconciliation always
+// leaves a surviving column for the types under test (instead of trimming a single fixed group to
+// empty and flipping HybridQuery to API-only). Re-applied in `beforeEach` since reconciliation
+// mutates the list per test.
+const SEED_GROUPS = [
+    "group-super-admins",
+    "group-public-content",
+    "group-private-content",
+    "group-public-editors",
+    "group-private-editors",
+    "group-languages",
+    "group-public-users",
+    "group-private-users",
+];
+const seededSyncList = () =>
+    [
+        "authProvider",
+        "language",
+        "storage",
+        "redirect",
+        "group",
+        "post",
+        "tag",
+        "content:post",
+        "content:tag",
+    ].map((chunkType) => ({
+        chunkType,
+        memberOf: [...SEED_GROUPS],
+        languages: [],
+        blockStart: Number.MAX_SAFE_INTEGER,
+        blockEnd: 0,
+        eof: true,
+    }));
 
 // Mounted components with live queries keep subscriptions until unmount; dispose
 // them after each test so state does not leak across cases.
@@ -30,6 +68,9 @@ beforeEach(() => {
         const k = localStorage.key(i);
         if (k && k.startsWith("hqcache:")) localStorage.removeItem(k);
     }
+
+    // Re-seed the runtime syncList before each test (reconciliation mutates it per test — see above).
+    syncList.value = seededSyncList();
 
     interceptedWarnings = [];
     console.warn = (...args: unknown[]) => {
@@ -75,26 +116,6 @@ beforeAll(async () => {
     // isSyncableDoc) consult syncList to decide how each doc type is served.
     // Seed the CMS sync columns here so queries over synced types (storage,
     // group, post, …) read the docs tests bulkPut into IndexedDB.
-    await db.setLuminaryInternals(
-        "syncList",
-        [
-            "authProvider",
-            "language",
-            "storage",
-            "redirect",
-            "group",
-            "post",
-            "tag",
-            "content:post",
-            "content:tag",
-        ].map((chunkType) => ({
-            chunkType,
-            memberOf: ["group-public-content"],
-            languages: [],
-            blockStart: Number.MAX_SAFE_INTEGER,
-            blockEnd: 0,
-            eof: true,
-        })),
-    );
+    await db.setLuminaryInternals("syncList", seededSyncList());
     await db.getSyncList();
 });

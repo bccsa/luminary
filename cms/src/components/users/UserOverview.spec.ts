@@ -79,7 +79,7 @@ describe("UserOverview", () => {
     beforeAll(async () => {
         accessMap.value = superAdminAccessMap;
         initConfig({
-            cms: false,
+            cms: true,
             docsIndex:
                 "type, parentId, updatedTimeUtc, slug, language, docType, redirect, [parentId+type], [parentId+parentType], [type+tagType], publishDate, expiryDate, [type+language+status+parentPinned], [type+language+status], [type+postType], [type+docType], title, parentPinned",
             apiUrl: `http://localhost:${port}`,

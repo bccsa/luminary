@@ -683,6 +683,7 @@ describe("Database", async () => {
                 "group-public-users": {
                     [DocType.Post]: {
                         view: true,
+                        cmsView: true,
                         assign: true,
                     },
                 },
@@ -752,13 +753,16 @@ describe("Database", async () => {
                 "group-public-users": {
                     [DocType.Post]: {
                         view: true,
+                        cmsView: true,
                         assign: true,
                     },
                     [DocType.Tag]: {
                         view: true,
+                        cmsView: true,
                     },
                     [DocType.Language]: {
                         view: true,
+                        cmsView: true,
                     },
                 },
             };
@@ -808,6 +812,7 @@ describe("Database", async () => {
                 "group-public-users": {
                     [DocType.Group]: {
                         view: true,
+                        cmsView: true,
                         assign: true,
                     },
                 },
@@ -836,7 +841,7 @@ describe("Database", async () => {
             // Populated map → watcher runs deleteRevoked; the accessible group is kept.
             accessMap.value = {
                 "group-public-users": {
-                    [DocType.Group]: { view: true, assign: true },
+                    [DocType.Group]: { view: true, assign: true, cmsView: true },
                 },
             };
             isConnected.value = true;
@@ -852,6 +857,89 @@ describe("Database", async () => {
             const remainingGroups = await db.docs.where("type").equals(DocType.Group).toArray();
             expect(remainingGroups).toHaveLength(1);
             expect(remainingGroups[0]._id).toBe("group-public-users");
+        });
+    });
+
+    // Regression (#160 partial-sync): deleteRevoked() must keep syncList consistent with the docs
+    // it evicts. Otherwise a revoked group's docs leave `docs` while its column stays at `eof`, so
+    // a later re-grant (same memberOf — no growth path triggers) trusts the stale eof and never
+    // re-walks → only the ~1000ms head-tolerance re-fetch survives ("one post / one tag"). This is
+    // the same failure the one-time Group recovery patches, generalised to every doc type.
+    describe("revoked syncList reconciliation", () => {
+        afterEach(async () => {
+            isConnected.value = false;
+            accessMap.value = {};
+            syncList.value = [];
+            await db.setSyncList();
+            await db.docs.clear();
+        });
+
+        it("drops a column whose only group lost access (full loss → re-walk on re-grant)", async () => {
+            await db.docs.clear();
+            await db.docs.bulkPut([
+                { _id: "p1", type: DocType.Post, memberOf: ["g-private"], updatedTimeUtc: 0 },
+            ] as PostDto[]);
+            syncList.value = [
+                { chunkType: "post", memberOf: ["g-private"], blockStart: 1e15, blockEnd: 0, eof: true },
+            ];
+            await db.setSyncList();
+
+            // Access shrinks to g-public only (g-private revoked) — mirrors CMS logout→public.
+            isConnected.value = true;
+            accessMap.value = {
+                "g-public": { [DocType.Post]: { view: true, cmsView: true } },
+            };
+
+            await waitForExpect(async () => {
+                // doc evicted (existing behaviour) AND the now-orphan eof column is gone (the fix)
+                expect(await db.docs.get("p1")).toBeUndefined();
+                expect(syncList.value.some((e) => e.chunkType === "post")).toBe(false);
+            });
+        });
+
+        it("trims only the revoked group from a multi-group column (partial loss)", async () => {
+            await db.docs.clear();
+            syncList.value = [
+                {
+                    chunkType: "post",
+                    memberOf: ["g-private", "g-public"],
+                    blockStart: 1e15,
+                    blockEnd: 0,
+                    eof: true,
+                },
+            ];
+            await db.setSyncList();
+
+            isConnected.value = true;
+            accessMap.value = {
+                "g-public": { [DocType.Post]: { view: true, cmsView: true } },
+            };
+
+            await waitForExpect(() => {
+                const col = syncList.value.find((e) => e.chunkType === "post");
+                expect(col).toBeDefined();
+                expect(col!.memberOf).toEqual(["g-public"]);
+            });
+        });
+
+        it("trims Content/DeleteCmd columns by their parent (subType) permission", async () => {
+            await db.docs.clear();
+            syncList.value = [
+                { chunkType: "content:post", memberOf: ["g-private"], blockStart: 1e15, blockEnd: 0, eof: true, languages: ["lang1"] },
+                { chunkType: "deleteCmd:post", memberOf: ["g-private"], blockStart: 1e15, blockEnd: 0, eof: true },
+            ];
+            await db.setSyncList();
+
+            isConnected.value = true;
+            accessMap.value = {
+                "g-public": { [DocType.Post]: { view: true, cmsView: true } },
+            };
+
+            await waitForExpect(() => {
+                // g-private revoked on Post → its Content & DeleteCmd children's columns drop too
+                expect(syncList.value.some((e) => e.chunkType.startsWith("content"))).toBe(false);
+                expect(syncList.value.some((e) => e.chunkType.startsWith("deleteCmd"))).toBe(false);
+            });
         });
     });
 
@@ -1032,11 +1120,14 @@ describe("Database", async () => {
 
             accessMap.value = {
                 "group-public-content": {
-                    [DocType.Post]: { [AclPermission.View]: true },
-                    [DocType.Tag]: { [AclPermission.View]: true },
+                    [DocType.Post]: { [AclPermission.View]: true, [AclPermission.CmsView]: true },
+                    [DocType.Tag]: { [AclPermission.View]: true, [AclPermission.CmsView]: true },
                 },
                 "group-languages": {
-                    [DocType.Language]: { [AclPermission.View]: true },
+                    [DocType.Language]: {
+                        [AclPermission.View]: true,
+                        [AclPermission.CmsView]: true,
+                    },
                 },
             };
 

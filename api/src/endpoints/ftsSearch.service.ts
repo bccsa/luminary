@@ -198,11 +198,13 @@ export class FtsSearchService {
 
         // Step 2: permission context (in-memory). NOTE: accessMapToGroups returns a
         // Map-typed value that is used as a plain object via property access.
-        const userViewGroups = PermissionSystem.accessMapToGroups(userDetails.accessMap, AclPermission.View, [
-            DocType.Post,
-            DocType.Tag,
-            DocType.Language,
-        ]);
+        // CMS-scoped searches (cms:true) are gated by CmsView (drafts/expired visible); app/public
+        // searches by View. No CmsView on any requested group → the empty groups below yield 403.
+        const userViewGroups = PermissionSystem.accessMapToGroups(
+            userDetails.accessMap,
+            cms ? AclPermission.CmsView : AclPermission.View,
+            [DocType.Post, DocType.Tag, DocType.Language],
+        );
 
         // Per-parentType View groups as Sets for O(1) membership checks in the hot filter loop.
         const groupsByParentType: Record<string, Set<Uuid>> = {};
@@ -469,10 +471,12 @@ export class FtsSearchService {
         const trigrams = generateSearchTrigrams(req.queryString);
         if (trigrams.length === 0) return [];
 
-        // Permission: View groups for this doctype only.
+        // Permission: groups for this doctype only. CMS-scoped (cms:true) aux searches are gated by
+        // CmsView, app/public searches by View — mirrors the Content path so the CMS only sees aux
+        // results (Users/Redirects) for groups it holds CmsView on.
         const viewGroups = PermissionSystem.accessMapToGroups(
             userDetails.accessMap,
-            AclPermission.View,
+            req.cms === true ? AclPermission.CmsView : AclPermission.View,
             [cfg.docType],
         );
         const groups = new Set<Uuid>(viewGroups[cfg.docType] || []);

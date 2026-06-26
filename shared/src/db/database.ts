@@ -209,8 +209,7 @@ class Database extends Dexie {
     async bulkPut(docs: BaseDocumentDto[]) {
         const candidateDeleteCmds = docs.filter(
             (doc) =>
-                doc.type === DocType.DeleteCmd &&
-                this.validateDeleteCommand(doc as DeleteCmdDto),
+                doc.type === DocType.DeleteCmd && this.validateDeleteCommand(doc as DeleteCmdDto),
         ) as DeleteCmdDto[];
 
         // Bulk-fetch target docs once, then skip any deleteCmd whose target is already
@@ -609,7 +608,11 @@ class Database extends Dexie {
      * @param options - changeDocs: If true, deletes change documents instead of regular documents
      */
     deleteRevoked() {
-        const groupsPerDocType = getAccessibleGroups(AclPermission.View);
+        // CMS visibility is gated by CmsView, the app's by View (GitHub #160). Choose explicitly
+        // from the consumer mode — no hidden substitution.
+        const groupsPerDocType = getAccessibleGroups(
+            config.cms ? AclPermission.CmsView : AclPermission.View,
+        );
 
         Object.values(DocType)
             .filter((t) => t !== DocType.Content) // Exclude content documents as they are deleted together with their parent's document type
@@ -633,7 +636,45 @@ class Database extends Dexie {
                 }
             });
 
+        // Keep `syncList` consistent with the docs just evicted. A column must never claim coverage
+        // of a group the user can no longer access: an `eof` column left standing after its docs are
+        // gone suppresses the re-walk on a later re-grant (the memberOf is unchanged, so the
+        // new-groups growth path never triggers), leaving only the ~1000ms head-tolerance re-fetch —
+        // the "one post / one tag" partial-sync bug (#160). This is the symmetric half of the doc
+        // eviction above and generalises the one-time Group-only `resetGroupSyncListForRecovery`.
+        this.reconcileSyncListToAccess(groupsPerDocType);
+
         scheduleCorpusStatsRecompute();
+    }
+
+    /**
+     * Trim every `syncList` column to the groups the user can still access, dropping columns whose
+     * groups were all revoked. Mirrors {@link deleteRevoked}'s doc eviction so the sync cursor and
+     * the stored docs stay in lockstep. A column's permission doc type is `subType ?? type`: Content
+     * (`content:post`) and DeleteCmd (`deleteCmd:post`) inherit their parent Post/Tag groups, exactly
+     * as the eviction does via the `parentType` match.
+     *
+     * Delegates the per-column work to the canonical {@link trim} primitive (the documented
+     * "user left groups" path), once per distinct chunkType, passing only `memberOf` so language and
+     * publishDate coverage is left intact. After a partial revoke a column shrinks to its surviving
+     * groups; a later re-grant of the dropped group then arrives as a genuine memberOf growth (a
+     * fresh column walked to depth, then merged) — the incremental path, not a reset.
+     */
+    private async reconcileSyncListToAccess(groupsPerDocType: Record<DocType, Uuid[]>) {
+        const [{ syncList }, { trim }, { splitChunkTypeString }] = await Promise.all([
+            import("../api/sync/state"),
+            import("../api/sync/trim"),
+            import("../api/sync/utils"),
+        ]);
+
+        // Snapshot the distinct chunkTypes before trim() mutates the list in place.
+        const chunkTypes = Array.from(new Set(syncList.value.map((e) => e.chunkType)));
+        for (const chunkType of chunkTypes) {
+            const { type, subType } = splitChunkTypeString(chunkType);
+            trim({ type, subType, memberOf: groupsPerDocType[subType ?? type] ?? [] });
+        }
+
+        await this.setSyncList();
     }
 
     /**
@@ -671,9 +712,16 @@ class Database extends Dexie {
 
         if (
             cmd.deleteReason == DeleteReason.PermissionChange &&
-            // Only delete the document if the client does not have access to the updated MemberOf group
+            // Only delete the document if the client does not have access to the updated MemberOf
+            // group, evaluated against the consumer's visibility gate: CmsView for the CMS, View
+            // for the app (GitHub #160).
             cmd.newMemberOf &&
-            !verifyAccess(cmd.newMemberOf, cmd.docType, AclPermission.View, "any")
+            !verifyAccess(
+                cmd.newMemberOf,
+                cmd.docType,
+                config.cms ? AclPermission.CmsView : AclPermission.View,
+                "any",
+            )
         ) {
             return true;
         }
@@ -775,6 +823,12 @@ export async function initDatabase() {
  * One-time recovery: reset the Group `syncList` block(s) so clients previously purged by the
  * `deleteRevoked()` over-purge bug re-fetch their groups on next sync. Idempotent via a
  * localStorage flag. Temporary — remove after 2026-09-01 (bccsa/luminary#1730).
+ *
+ * Note: the general access-loss reconciliation in `deleteRevoked()` now keeps `syncList` in step
+ * with evicted docs for every doc type, so this is no longer the mechanism that prevents the bug —
+ * it only un-sticks any client that was already stuck (Group block at `eof` after a purge) and that
+ * has not since undergone an access-loss event to self-heal. Not re-bumped for the CmsView rollout:
+ * that feature is unreleased, so no client is stuck from it.
  */
 async function resetGroupSyncListForRecovery() {
     const RECOVERY_FLAG = "groupSyncListReset_v1";

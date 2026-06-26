@@ -96,7 +96,7 @@ export const router = createRouter({
                                 title: "Groups",
                                 canAccess: {
                                     docType: DocType.Group,
-                                    permission: AclPermission.View,
+                                    permission: AclPermission.CmsView,
                                 },
                                 onlineOnly: true,
                             },
@@ -128,7 +128,7 @@ export const router = createRouter({
                         title: "Auto Group Mappings",
                         canAccess: {
                             docType: DocType.AutoGroupMappings,
-                            permission: AclPermission.View,
+                            permission: AclPermission.CmsView,
                         },
                     },
                 },
@@ -146,7 +146,7 @@ export const router = createRouter({
                                 title: "Users",
                                 canAccess: {
                                     docType: DocType.User,
-                                    permission: AclPermission.View,
+                                    permission: AclPermission.CmsView,
                                 },
                             },
                         },
@@ -166,7 +166,7 @@ export const router = createRouter({
                         title: "Storage",
                         canAccess: {
                             docType: DocType.Storage,
-                            permission: AclPermission.View,
+                            permission: AclPermission.CmsView,
                         },
                         onlineOnly: true,
                     },
@@ -179,7 +179,7 @@ export const router = createRouter({
                         title: "Auth Providers",
                         canAccess: {
                             docType: DocType.AuthProvider,
-                            permission: AclPermission.View,
+                            permission: AclPermission.CmsView,
                         },
                     },
                 },

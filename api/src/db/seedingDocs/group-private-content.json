@@ -27,12 +27,12 @@
         {
             "type": "post",
             "groupId": "group-private-editors",
-            "permission": ["view", "edit", "translate", "publish", "delete"]
+            "permission": ["view", "edit", "translate", "publish", "delete", "cmsView"]
         },
         {
             "type": "tag",
             "groupId": "group-private-editors",
-            "permission": ["view", "edit", "translate", "publish", "delete", "assign"]
+            "permission": ["view", "edit", "translate", "publish", "delete", "assign", "cmsView"]
         },
         {
             "type": "group",
@@ -42,7 +42,7 @@
         {
             "type": "redirect",
             "groupId": "group-private-editors",
-            "permission": ["view", "edit"]
+            "permission": ["view", "edit", "cmsView"]
         }
     ]
 }

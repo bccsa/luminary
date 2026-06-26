@@ -118,7 +118,7 @@ const navigateToLanguage = (language: LanguageDto) => {
 };
 
 const navigateTo = computed(() => {
-    if (verifyAccess(props.contentDoc.memberOf, props.parentType, AclPermission.View)) {
+    if (verifyAccess(props.contentDoc.memberOf, props.parentType, AclPermission.CmsView)) {
         return {
             name: "edit",
             params: {
@@ -140,7 +140,7 @@ const navigateTo = computed(() => {
         :updated-time-utc="contentDoc.updatedTimeUtc"
         :is-local-change="isLocalChange"
         :navigate-to="navigateTo"
-        :can-navigate="verifyAccess(contentDoc.memberOf, parentType, AclPermission.View)"
+        :can-navigate="verifyAccess(contentDoc.memberOf, parentType, AclPermission.CmsView)"
     >
         <template #topBadges>
             <RouterLink
@@ -187,7 +187,10 @@ const navigateTo = computed(() => {
         <template #content>
             <!-- Search-match context (search mode only) -->
             <div
-                v-if="highlight && (highlight.authorHtml || (highlight.snippetHtml && !hideBodySnippet))"
+                v-if="
+                    highlight &&
+                    (highlight.authorHtml || (highlight.snippetHtml && !hideBodySnippet))
+                "
                 data-test="search-match"
                 class="flex flex-col gap-0.5 py-1 [&_mark]:rounded [&_mark]:bg-amber-200 [&_mark]:px-0"
             >

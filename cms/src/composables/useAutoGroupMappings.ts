@@ -31,7 +31,9 @@ import {
  * unmount (HybridQuery / useDexieLiveQuery register `onScopeDispose`).
  */
 export function useAutoGroupMappings() {
-    const canView = computed(() => hasAnyPermission(DocType.AutoGroupMappings, AclPermission.View));
+    const canView = computed(() =>
+        hasAnyPermission(DocType.AutoGroupMappings, AclPermission.CmsView),
+    );
     const canEdit = computed(() => hasAnyPermission(DocType.AutoGroupMappings, AclPermission.Edit));
 
     // Mappings — non-synced type, served API-only (see header comment). No persistOffline.

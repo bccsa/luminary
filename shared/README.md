@@ -106,6 +106,12 @@ Autonomous, incremental backwards-in-time sync per `(type, memberOf, languages)`
 
 ### Transport — `src/socket/`, `src/api/`
 
+The socket client reports the configured **`cms` mode** (`config.cms`) to the server in its
+`joinSocketGroups` handshake. The server uses it to scope which live-update rooms the connection
+joins, so a CMS-mode consumer receives CMS-scoped documents (including drafts and expired content)
+while a default consumer receives only published documents (expired content arriving as a body-less
+cleanup signal). The mode is purely a request — the server enforces the corresponding permission.
+
 | Export | Description |
 | --- | --- |
 | `getSocket()` | The Socket.io client singleton (change-feed transport + `clientConfig`). |

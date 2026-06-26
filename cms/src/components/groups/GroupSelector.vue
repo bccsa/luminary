@@ -59,7 +59,7 @@ const selectedGroupOptions = computed<ComboboxOption[]>(() =>
     groups.value.map((groupId) => {
         const group = availableGroups.value?.find((g) => g._id === groupId);
 
-        if (group && verifyAccess([group._id], DocType.Group, AclPermission.View, "any")) {
+        if (group && verifyAccess([group._id], DocType.Group, AclPermission.CmsView, "any")) {
             const canAssign =
                 verifyAccess([group._id], DocType.Group, AclPermission.Assign, "any") &&
                 verifyAccess([group._id], props.docType, AclPermission.Edit, "any");

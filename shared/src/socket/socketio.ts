@@ -39,9 +39,15 @@ class SocketIO {
         this.socket = io(config.apiUrl, { autoConnect: false });
 
         this.socket.on("connect", () => {
-            // Always request fresh config/access map on connect; stay offline until server responds
+            // Always request fresh config/access map on connect; stay offline until server responds.
+            // `cms` declares the connection mode so the server routes this socket to the right rooms:
+            // CMS (cms:true) → CmsView-scoped `-cms` rooms (drafts/expired, full); app (cms:false) →
+            // base rooms (published only; expired arrives stripped; drafts withheld).
             isConnected.value = false;
-            this.socket.emit("joinSocketGroups", { docTypes: config.syncList ?? [] });
+            this.socket.emit("joinSocketGroups", {
+                docTypes: config.syncList ?? [],
+                cms: config.cms === true,
+            });
         });
 
         this.socket.on("disconnect", () => {

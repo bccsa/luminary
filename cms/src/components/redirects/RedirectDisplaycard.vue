@@ -31,7 +31,7 @@ const redirectGroups = computed(() =>
     availableGroups.value?.filter(
         (g) =>
             props.redirectDoc.memberOf.includes(g._id) &&
-            verifyAccess([g._id], DocType.Group, AclPermission.View, "any"),
+            verifyAccess([g._id], DocType.Group, AclPermission.CmsView, "any"),
     ),
 );
 </script>

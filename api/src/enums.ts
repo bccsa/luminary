@@ -59,6 +59,12 @@ export enum AclPermission {
      * Access to publish documents
      */
     Publish = "publish",
+
+    /**
+     * Access to view documents in the CMS, including drafts and expired content.
+     * Gates all CMS-scoped (cms:true) reads/sync; the app uses plain View (published only).
+     */
+    CmsView = "cmsView",
 }
 
 /**

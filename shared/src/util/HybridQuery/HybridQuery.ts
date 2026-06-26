@@ -97,6 +97,11 @@ export async function queryRemote<T = unknown>(query: MangoQuery): Promise<T[]> 
         identifier: "hybridQuery",
         limit: typeof query.$limit === "number" ? query.$limit : DEFAULT_REMOTE_QUERY_LIMIT,
     };
+    // Match the consumer's scope: CMS reads (config.cms) are CmsView-gated server-side and include
+    // drafts/expired; app reads stay View-gated + published-only. The remote supplement otherwise
+    // defaulted to View while CMS sync used CmsView — an inconsistent window. No cms flag ⇒ cms:false,
+    // so omit it when false (wire payload unchanged for non-CMS consumers).
+    if (config.cms === true) payload.cms = true;
     if (Array.isArray(query.$sort)) payload.sort = query.$sort;
     // Forward the client-chosen index hint to the API (validated against an
     // allowlist there). Same pattern as sync/syncBatch.ts — index selection
