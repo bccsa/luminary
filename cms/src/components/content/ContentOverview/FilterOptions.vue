@@ -4,7 +4,6 @@ import { type ContentOverviewQueryOptions } from "./types";
 import { ref, watch } from "vue";
 import FilterOptionsMobile from "./FilterOptionsMobile.vue";
 import FilterOptionsDesktop from "./FilterOptionsDesktop.vue";
-import LButton from "@/components/button/LButton.vue";
 import { XMarkIcon } from "@heroicons/vue/20/solid";
 
 type FilterOptionsProps = {
@@ -67,6 +66,7 @@ const search = () => {
     }
 };
 const showSearchButton = ref(false);
+const showResetButton = ref(false);
 
 const resetQueryOptions = () => {
     queryOptions.value = {
@@ -93,10 +93,12 @@ watch(
     (newVal) => {
         if (!newVal || newVal.length === 0) {
             resetQueryOptions();
+            showResetButton.value = false;
             return;
         }
         if (newVal.length >= 3) {
             showSearchButton.value = true;
+            showResetButton.value = true;
         } else showSearchButton.value = false;
     },
 );
@@ -109,6 +111,8 @@ watch(
         v-model:query-options="queryOptions"
         :reset="resetQueryOptions"
         :search="search"
+        rightButtonText="search"
+        :rightButtonDisabled="!showSearchButton"
         :status-options="statusOptions"
         :translation-options="translationOptions"
         :tag-content-docs="tagContentDocs"
@@ -116,13 +120,8 @@ watch(
     >
         <template #searchButton>
             <div class="flex gap-2">
-                <LButton v-if="showSearchButton" variant="primary" size="sm" @click="search">
-                    Search
-                </LButton>
-                <button @click="resetQueryOptions">
-                    <XMarkIcon
-                        class="h-6 w-6 cursor-pointer rounded-full bg-zinc-200 p-1 text-zinc-500"
-                    />
+                <button v-if="showResetButton" @click="resetQueryOptions">
+                    <XMarkIcon class="h-6 w-6 cursor-pointer text-zinc-500" />
                 </button>
             </div>
         </template>
@@ -132,6 +131,9 @@ watch(
         v-model:query="searchTerm"
         v-model:query-options="queryOptions"
         :reset="resetQueryOptions"
+        :search="search"
+        rightButtonText="search"
+        :rightButtonDisabled="!showSearchButton"
         :status-options="statusOptions"
         :translation-options="translationOptions"
         :tag-content-docs="tagContentDocs"
@@ -140,14 +142,9 @@ watch(
         v-else
     >
         <template #searchButton>
-            <div class="flex gap-2">
-                <LButton v-if="showSearchButton" variant="primary" size="sm" @click="search">
-                    Search
-                </LButton>
-                <button @click="resetQueryOptions">
-                    <XMarkIcon
-                        class="h-6 w-6 cursor-pointer rounded-full bg-zinc-200 p-1 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-700"
-                    />
+            <div class="flex gap-2 pr-1">
+                <button v-if="showResetButton" @click="resetQueryOptions">
+                    <XMarkIcon class="h-6 w-6 cursor-pointer text-zinc-500" />
                 </button>
             </div>
         </template>

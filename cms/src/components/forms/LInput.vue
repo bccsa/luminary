@@ -25,9 +25,11 @@ type Props = {
     fullHeight?: boolean;
     leftAddOn?: string;
     rightAddOn?: string;
+    rightAddOnDisabled?: boolean;
     inputType?: "input" | "textarea";
     autocomplete?: "on" | "off";
     onBlur?: Function;
+    rightAddOnClick?: () => void;
 };
 
 const props = withDefaults(defineProps<Props>(), {
@@ -162,8 +164,18 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
 
             <span
                 v-if="rightAddOn"
-                class="inline-flex items-center rounded-r-md border border-l-0 px-3 sm:text-sm"
-                :class="[addOnStates[computedState]]"
+                class="inline-flex items-center rounded-r-md border border-l-0 px-3"
+                :class="[
+                    addOnStates[computedState],
+                    {
+                        'cursor-pointer bg-zinc-100 text-zinc-600 hover:bg-zinc-300 hover:text-zinc-900':
+                            !rightAddOnDisabled,
+                        'cursor-not-allowed bg-zinc-200 text-zinc-400 opacity-50':
+                            rightAddOnDisabled,
+                    },
+                ]"
+                :rightAddOnDisabled="rightAddOnDisabled"
+                @click="rightAddOnClick"
             >
                 {{ rightAddOn }}
             </span>
@@ -177,7 +189,7 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
 
             <div
                 v-if="$slots.searchButton"
-                class="absolute inset-y-0 right-0 flex items-center pr-1"
+                class="absolute inset-y-0 right-[75px] flex items-center"
             >
                 <slot name="searchButton" />
             </div>

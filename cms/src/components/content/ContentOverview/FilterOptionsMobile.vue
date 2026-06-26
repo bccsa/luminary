@@ -25,7 +25,9 @@ type Props = {
     tagContentDocs: ContentDto[];
     groups: GroupDto[];
     reset: Function;
-    search: Function;
+    search: () => void;
+    rightButtonText?: string;
+    rightButtonDisabled?: boolean;
 };
 
 defineProps<Props>();
@@ -53,6 +55,9 @@ const showMobileQueryOptions = ref(false);
                 :full-height="true"
                 @keydown.esc="reset()"
                 @keydown.enter="search()"
+                :rightAddOn="rightButtonText"
+                :rightAddOnDisabled="rightButtonDisabled"
+                :rightAddOnClick="search"
             >
                 <template #searchButton>
                     <div>

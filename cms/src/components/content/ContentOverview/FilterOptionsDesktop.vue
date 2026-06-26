@@ -27,6 +27,9 @@ type Props = {
     tagContentDocs: ContentDto[];
     groups: GroupDto[];
     reset: Function;
+    search: () => void;
+    rightButtonText?: string;
+    rightButtonDisabled?: boolean;
 };
 
 defineProps<Props>();
@@ -52,6 +55,9 @@ const showSortOptions = ref(false);
                 data-test="search-input"
                 v-model="query as string"
                 :full-height="true"
+                :rightAddOn="rightButtonText"
+                :rightAddOnDisabled="rightButtonDisabled"
+                :rightAddOnClick="search"
             >
                 <template #searchButton>
                     <div>
