@@ -687,10 +687,17 @@ class Database extends Dexie {
     async purge() {
         const { syncList } = await import("../api/sync/state");
         syncList.value = [];
+        // Also drop the HybridQuery response-cache windows (localStorage) so a later mount can't
+        // seed a stale first-paint window from the now-purged dataset.
+        const { clearResponseCache } = await import("../util/HybridQuery/responseCache");
+        clearResponseCache();
         await Promise.all([
             this.docs.clear(),
             this.localChanges.clear(),
             this.luminaryInternals.clear(),
+            // Drop offline-retention stamps too — their docs are being cleared, so leaving the rows
+            // would orphan them.
+            this.retention.clear(),
         ]);
     }
 }

@@ -15,7 +15,7 @@ import { useNotificationStore } from "./stores/notification";
 import { appPluginsManager } from "@/build-time/contracts/plugin-registry";
 import { getSocket, init, warmMangoCaches, serverError } from "luminary-shared";
 import {
-    appLanguageIdsAsRef,
+    appSyncedLanguageIdsAsRef,
     initLanguage,
     isAppLoading,
     isInstalledStandalone,
@@ -66,7 +66,10 @@ async function Startup() {
         cms: false,
         docsIndex: APP_DOCS_INDEX,
         apiUrl,
-        appLanguageIdsAsRef,
+        // The shared "active languages" (keep gate + fallback `$nin`) are the SYNCED subset, not
+        // the full preferred display order — so only chosen languages download, while preferred-
+        // but-unsynced languages are fetched on demand.
+        appLanguageIdsAsRef: appSyncedLanguageIdsAsRef,
         contentPublishDateCutoff: installedStandalone
             ? undefined // no cutoff → full corpus
             : Date.now() - BROWSER_CONTENT_SYNC_WINDOW_MS,

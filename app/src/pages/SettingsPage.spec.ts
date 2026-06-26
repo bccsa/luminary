@@ -6,7 +6,7 @@ import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
 import { db, isConnected } from "luminary-shared";
 import { mockLanguageDtoEng } from "@/tests/mockdata";
-import { isDataSaverEnabled, userDataSaverEnabled } from "@/globalConfig";
+import { isDataSaverEnabled, userDataSaverEnabled, localCacheVersion } from "@/globalConfig";
 
 vi.mock("@/globalConfig", async () => {
     const { ref, watch } = await import("vue");
@@ -49,8 +49,7 @@ vi.mock("@/router", () => ({
 
 vi.mock("vue-i18n", () => ({
     useI18n: () => ({
-        t: (key: string) =>
-            (mockLanguageDtoEng.translations as Record<string, string>)[key] || key,
+        t: (key: string) => (mockLanguageDtoEng.translations as Record<string, string>)[key] || key,
     }),
 }));
 
@@ -107,6 +106,35 @@ describe("SettingsPage clearing state", () => {
         expect(button.text()).toContain("Delete local cache");
         expect(button.attributes("disabled")).toBeUndefined();
         expect(wrapper.find("svg.animate-spin").exists()).toBe(false);
+    });
+
+    it("bumps localCacheVersion after a successful purge (invalidates kept-alive pages)", async () => {
+        vi.spyOn(db, "purge").mockResolvedValue(undefined);
+        const before = localCacheVersion.value;
+
+        const wrapper = mountSettingsPage();
+        isConnected.value = true;
+        await wrapper.vm.$nextTick();
+
+        await wrapper.find("button[data-test='deleteLocalDatabase']").trigger("click");
+        await flushPromises();
+
+        expect(localCacheVersion.value).toBe(before + 1);
+    });
+
+    it("does NOT purge or bump the cache version when offline", async () => {
+        const purgeSpy = vi.spyOn(db, "purge").mockResolvedValue(undefined);
+        const before = localCacheVersion.value;
+
+        const wrapper = mountSettingsPage();
+        isConnected.value = false;
+        await wrapper.vm.$nextTick();
+
+        await wrapper.find("button[data-test='deleteLocalDatabase']").trigger("click");
+        await flushPromises();
+
+        expect(purgeSpy).not.toHaveBeenCalled();
+        expect(localCacheVersion.value).toBe(before);
     });
 });
 

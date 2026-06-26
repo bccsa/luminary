@@ -54,18 +54,53 @@ describe("isSyncableDoc", () => {
         ).toBe(true);
     });
 
-    it("filters content by the entry's languages when set", () => {
+    it("keeps content in a synced language (regardless of availableTranslations)", () => {
         syncList.value = [
             entry({ chunkType: `${DocType.Content}:${DocType.Post}`, languages: ["lang-en"] }),
         ];
         expect(
             isSyncableDoc(
-                doc({ type: DocType.Content, parentType: DocType.Post, language: "lang-en" }),
+                doc({
+                    type: DocType.Content,
+                    parentType: DocType.Post,
+                    language: "lang-en",
+                    availableTranslations: ["lang-en", "lang-fr"],
+                } as Partial<BaseDocumentDto>),
             ),
         ).toBe(true);
+    });
+
+    it("keeps a fallback (non-synced) translation when NO synced language is available", () => {
+        // A post with only French/German translations and the user synced English → keep the
+        // fallback so it still appears without syncing French/German.
+        syncList.value = [
+            entry({ chunkType: `${DocType.Content}:${DocType.Post}`, languages: ["lang-en"] }),
+        ];
         expect(
             isSyncableDoc(
-                doc({ type: DocType.Content, parentType: DocType.Post, language: "lang-fr" }),
+                doc({
+                    type: DocType.Content,
+                    parentType: DocType.Post,
+                    language: "lang-fr",
+                    availableTranslations: ["lang-fr", "lang-de"],
+                } as Partial<BaseDocumentDto>),
+            ),
+        ).toBe(true);
+    });
+
+    it("blocks a non-synced translation when a synced translation IS available", () => {
+        // The post has an English (synced) translation, so the French doc is NOT best-available.
+        syncList.value = [
+            entry({ chunkType: `${DocType.Content}:${DocType.Post}`, languages: ["lang-en"] }),
+        ];
+        expect(
+            isSyncableDoc(
+                doc({
+                    type: DocType.Content,
+                    parentType: DocType.Post,
+                    language: "lang-fr",
+                    availableTranslations: ["lang-en", "lang-fr"],
+                } as Partial<BaseDocumentDto>),
             ),
         ).toBe(false);
     });
@@ -86,22 +121,26 @@ describe("isSyncableDoc", () => {
     });
 
     it("rebuilds the predicate when the subscription signature changes", () => {
+        // A French doc whose post also has an English (synced) translation is NOT best-available.
+        const frWithEnglish = doc({
+            type: DocType.Content,
+            parentType: DocType.Post,
+            language: "lang-fr",
+            availableTranslations: ["lang-en", "lang-fr"],
+        } as Partial<BaseDocumentDto>);
+
         syncList.value = [
             entry({ chunkType: `${DocType.Content}:${DocType.Post}`, languages: ["lang-en"] }),
         ];
-        expect(
-            isSyncableDoc(doc({ type: DocType.Content, parentType: DocType.Post, language: "lang-fr" })),
-        ).toBe(false);
+        expect(isSyncableDoc(frWithEnglish)).toBe(false);
 
-        // Add French to the synced languages → French content now passes.
+        // Add French to the synced languages → French content now passes (synced language).
         syncList.value = [
             entry({
                 chunkType: `${DocType.Content}:${DocType.Post}`,
                 languages: ["lang-en", "lang-fr"],
             }),
         ];
-        expect(
-            isSyncableDoc(doc({ type: DocType.Content, parentType: DocType.Post, language: "lang-fr" })),
-        ).toBe(true);
+        expect(isSyncableDoc(frWithEnglish)).toBe(true);
     });
 });

@@ -23,7 +23,7 @@ vi.mock("./globalConfig", async () => {
     const actual = await vi.importActual<typeof import("./globalConfig")>("./globalConfig");
     return {
         ...actual,
-        appLanguageIdsAsRef: ref([]),
+        appSyncedLanguageIdsAsRef: ref([]),
         Sentry: null,
     };
 });
@@ -35,7 +35,7 @@ const { accessMap, getAccessibleGroups, isConnected, setCancelSync, sync } = awa
     "luminary-shared"
 );
 
-const { appLanguageIdsAsRef } = await import("./globalConfig");
+const { appSyncedLanguageIdsAsRef } = await import("./globalConfig");
 
 describe("sync.ts", () => {
     beforeEach(() => {
@@ -43,7 +43,7 @@ describe("sync.ts", () => {
         syncIterators.value = { language: 0, content: 0 };
         accessMap.value = {};
         isConnected.value = false;
-        appLanguageIdsAsRef.value = [];
+        appSyncedLanguageIdsAsRef.value = [];
         vi.mocked(sync).mockResolvedValue(undefined);
         // Default getAccessibleGroups to return empty arrays for all DocTypes
         vi.mocked(getAccessibleGroups).mockReturnValue({
@@ -107,7 +107,7 @@ describe("sync.ts", () => {
             initAuthLangSync();
             const initialValue = syncIterators.value.content;
 
-            appLanguageIdsAsRef.value = ["en"];
+            appSyncedLanguageIdsAsRef.value = ["en"];
             await nextTick();
 
             await waitForExpect(() => {
@@ -274,7 +274,7 @@ describe("sync.ts", () => {
         it("should not sync when no languages are selected", async () => {
             initSync();
             isConnected.value = true;
-            appLanguageIdsAsRef.value = [];
+            appSyncedLanguageIdsAsRef.value = [];
             syncIterators.value.content++;
             await nextTick();
 
@@ -301,7 +301,7 @@ describe("sync.ts", () => {
 
             initSync();
             isConnected.value = true;
-            appLanguageIdsAsRef.value = ["en"];
+            appSyncedLanguageIdsAsRef.value = ["en"];
             syncIterators.value.content++;
             await nextTick();
 
@@ -335,7 +335,7 @@ describe("sync.ts", () => {
 
             initSync();
             isConnected.value = true;
-            appLanguageIdsAsRef.value = ["en"];
+            appSyncedLanguageIdsAsRef.value = ["en"];
             syncIterators.value.content++;
             await nextTick();
 
@@ -369,7 +369,7 @@ describe("sync.ts", () => {
 
             initSync();
             isConnected.value = true;
-            appLanguageIdsAsRef.value = ["en", "fr"];
+            appSyncedLanguageIdsAsRef.value = ["en", "fr"];
             syncIterators.value.content++;
             await nextTick();
 
@@ -415,7 +415,7 @@ describe("sync.ts", () => {
 
             initSync();
             isConnected.value = true;
-            appLanguageIdsAsRef.value = ["en"];
+            appSyncedLanguageIdsAsRef.value = ["en"];
             syncIterators.value.content++;
             await nextTick();
 
@@ -449,7 +449,7 @@ describe("sync.ts", () => {
 
             initSync();
             isConnected.value = true;
-            appLanguageIdsAsRef.value = ["en"];
+            appSyncedLanguageIdsAsRef.value = ["en"];
             syncIterators.value.content++;
             await nextTick();
 

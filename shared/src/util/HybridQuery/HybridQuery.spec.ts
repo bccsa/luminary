@@ -37,6 +37,9 @@ const mocks = vi.hoisted(() => {
             return r;
         }),
         validateDeleteCommandMock: vi.fn(() => true),
+        // Stand-in for SharedConfig — only `appLanguageIdsAsRef` (the synced language set) is read
+        // by HybridQuery, to decide the fallback-language supplement. Mutated per test.
+        config: { appLanguageIdsAsRef: ref<string[]>([]) },
         socketDataHandlers,
         getSocketMock: vi.fn(() => socketMock),
         // Room subscription manager: subscribeRooms returns a fresh disposer per call so a
@@ -84,7 +87,7 @@ vi.mock("../../api/sync/state", () => ({
 vi.mock("../../config", () => ({
     // Read mocks.cutoff at call time so tests can change it per case.
     getContentPublishDateCutoff: () => mocks.cutoff,
-    config: {},
+    config: mocks.config,
     initConfig: () => {},
 }));
 
@@ -140,6 +143,7 @@ describe("HybridQuery", () => {
         mocks.isConnected.value = true;
         mocks.syncList.value = [];
         mocks.cutoff = 1000;
+        mocks.config.appLanguageIdsAsRef.value = [];
         mocks.useDexieLiveQueryMock.mockClear();
         mocks.liveRefs.length = 0;
         mocks.validateDeleteCommandMock.mockReset();
@@ -1853,9 +1857,8 @@ describe("HybridQuery", () => {
             expect(mocks.touchRetention).toHaveBeenCalledWith(["old1", "old2"]);
         });
 
-        it("drops non-syncable docs even with the flag (hard floor)", async () => {
+        it("drops non-content docs even with the flag (type floor — e.g. CMS user PII)", async () => {
             mocks.mangoToDexieMock.mockResolvedValueOnce([]);
-            mocks.isSyncableDoc.mockImplementation((d: any) => d._id !== "pii");
             postHttpMock.mockResolvedValueOnce({
                 docs: [
                     { _id: "ok", updatedTimeUtc: 1, publishDate: 500, type: "content" },
@@ -1868,6 +1871,21 @@ describe("HybridQuery", () => {
 
             expect(mocks.bulkPut).toHaveBeenCalledTimes(1);
             expect(mocks.bulkPut.mock.calls[0][0].map((d: any) => d._id)).toEqual(["ok"]);
+        });
+
+        it("persists fetched content even when the syncList has no matching entry (below-cutoff-only)", async () => {
+            // Regression: with everything below the cutoff, sync fetches nothing → no content
+            // syncList entry. persistOffline must still cache the explicitly-fetched content.
+            mocks.syncList.value = []; // no entries at all
+            mocks.mangoToDexieMock.mockResolvedValueOnce([]);
+            postHttpMock.mockResolvedValueOnce({
+                docs: [{ _id: "below", updatedTimeUtc: 1, publishDate: 400, type: "content" }],
+            });
+
+            new HybridQuery(contentQuery, { persistOffline: true });
+            await flush();
+
+            expect(mocks.bulkPut.mock.calls[0][0].map((d: any) => d._id)).toEqual(["below"]);
         });
 
         it("does not persist when persistOffline is off (default)", async () => {
@@ -1921,24 +1939,23 @@ describe("HybridQuery", () => {
             expect(errSpy).toHaveBeenCalled();
         });
 
-        it("empty syncable subset: neither bulkPut nor the persist-path retention stamp runs", async () => {
-            // Local read returns above-cutoff content (so recompute's UNCONDITIONAL
-            // below-cutoff stamp does not fire) and isSyncableDoc rejects everything
-            // the POST returns — so the whole persist block is skipped.
+        it("no content in the supplement: neither bulkPut nor the persist-path retention stamp runs", async () => {
+            // Local read returns above-cutoff content (so recompute's UNCONDITIONAL below-cutoff
+            // stamp does not fire) and the POST returns only NON-content docs — which the type
+            // floor drops — so the whole persist block is skipped.
             mocks.mangoToDexieMock.mockResolvedValueOnce([
                 { _id: "a", updatedTimeUtc: 5, publishDate: 2000, type: "content" },
             ]);
-            mocks.isSyncableDoc.mockReturnValue(false);
             postHttpMock.mockResolvedValueOnce({
-                docs: [{ _id: "old1", updatedTimeUtc: 1, publishDate: 500, type: "content" }],
+                docs: [{ _id: "u1", updatedTimeUtc: 1, type: "user" }],
             });
 
             new HybridQuery(contentQuery, { persistOffline: true });
             await flush();
 
             expect(mocks.bulkPut).not.toHaveBeenCalled();
-            // No retention stamp at all: the persist path is skipped (empty subset)
-            // and recompute's below-cutoff path has no below-cutoff LOCAL doc.
+            // No retention stamp at all: the persist path is skipped (no content) and
+            // recompute's below-cutoff path has no below-cutoff LOCAL doc.
             expect(mocks.touchRetention).not.toHaveBeenCalled();
         });
 
@@ -2432,6 +2449,102 @@ describe("HybridQuery", () => {
             resolveB({ docs: [] });
             await flush();
             expect(q.isFetching.value).toBe(false);
+        });
+    });
+
+    describe("fallback-language supplement (fetchUnsyncedFallback)", () => {
+        /** Does any POST payload's selector mention a `$nin` (the fallback-language branch)? */
+        const ninPayload = () =>
+            postHttpMock.mock.calls
+                .map((c) => c[1] as any)
+                .find((p) => JSON.stringify(p.selector ?? {}).includes('"$nin"'));
+
+        it("POSTs ONE combined supplement: $or[publishDate<=cutoff, language $nin]", async () => {
+            mocks.config.appLanguageIdsAsRef.value = ["lang-en"];
+            mocks.mangoToDexieMock.mockResolvedValueOnce([]); // nothing local
+            postHttpMock.mockResolvedValue({ docs: [] });
+
+            const q = track(
+                new HybridQuery(
+                    { selector: { $and: [{ type: "content" }, { status: "published" }] } },
+                    { fetchUnsyncedFallback: true },
+                ),
+            );
+            await flush();
+
+            // Single scan, not two: the older tail and the fallback are merged into one query.
+            expect(postHttpMock).toHaveBeenCalledTimes(1);
+            const p = ninPayload();
+            expect(p).toBeTruthy();
+            const orCond = (p.selector.$and as any[]).find((c) => c?.$or);
+            expect(orCond.$or).toEqual([
+                { publishDate: { $lte: mocks.cutoff } },
+                { language: { $nin: ["lang-en"] } },
+            ]);
+            q.dispose();
+        });
+
+        it("merges fallback docs returned by the combined supplement into the output", async () => {
+            mocks.config.appLanguageIdsAsRef.value = ["lang-en"];
+            mocks.mangoToDexieMock.mockResolvedValueOnce([
+                { _id: "local-en", type: "content", language: "lang-en", updatedTimeUtc: 5 },
+            ]);
+            postHttpMock.mockResolvedValue({
+                docs: [{ _id: "fr-doc", type: "content", language: "lang-fr", updatedTimeUtc: 9 }],
+            });
+
+            const q = track(
+                new HybridQuery(
+                    { selector: { $and: [{ type: "content" }] } },
+                    { fetchUnsyncedFallback: true },
+                ),
+            );
+            await flush();
+
+            expect(q.output.value.map((d) => d._id).sort()).toEqual(["fr-doc", "local-en"]);
+            q.dispose();
+        });
+
+        it("no $nin clause when the synced set is empty (older-tail-only behaviour)", async () => {
+            mocks.config.appLanguageIdsAsRef.value = [];
+            mocks.mangoToDexieMock.mockResolvedValueOnce([]);
+            postHttpMock.mockResolvedValue({ docs: [] });
+
+            const q = track(
+                new HybridQuery({ selector: { type: "content" } }, { fetchUnsyncedFallback: true }),
+            );
+            await flush();
+
+            expect(ninPayload()).toBeUndefined();
+            q.dispose();
+        });
+
+        it("still fires the combined supplement at OPEN_MIN (no cutoff)", async () => {
+            mocks.cutoff = OPEN_MIN; // full-sync client → no older tail, but fallback still needed
+            mocks.config.appLanguageIdsAsRef.value = ["lang-en"];
+            mocks.mangoToDexieMock.mockResolvedValueOnce([]);
+            postHttpMock.mockResolvedValue({ docs: [] });
+
+            const q = track(
+                new HybridQuery({ selector: { type: "content" } }, { fetchUnsyncedFallback: true }),
+            );
+            await flush();
+
+            expect(postHttpMock).toHaveBeenCalledTimes(1);
+            expect(ninPayload()).toBeTruthy();
+            q.dispose();
+        });
+
+        it("does nothing extra when the option is off (default)", async () => {
+            mocks.config.appLanguageIdsAsRef.value = ["lang-en"];
+            mocks.mangoToDexieMock.mockResolvedValueOnce([]);
+            postHttpMock.mockResolvedValue({ docs: [] });
+
+            const q = track(new HybridQuery({ selector: { type: "content" } }));
+            await flush();
+
+            expect(ninPayload()).toBeUndefined();
+            q.dispose();
         });
     });
 });

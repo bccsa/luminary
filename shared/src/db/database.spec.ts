@@ -612,6 +612,19 @@ describe("Database", async () => {
         expect(docs.length).toBe(0);
     });
 
+    it("purge also clears the retention table and the response cache", async () => {
+        await db.docs.bulkPut([mockPostDto]);
+        await db.retention.put({ docId: mockPostDto._id, retainUntil: Date.now() + 1e9 });
+        localStorage.setItem("hqcache:some-feed", JSON.stringify({ local: [mockPostDto], remote: [] }));
+        localStorage.setItem("languages", '["lang-en"]'); // unrelated key must survive
+
+        await db.purge();
+
+        expect((await db.retention.toArray()).length).toBe(0);
+        expect(localStorage.getItem("hqcache:some-feed")).toBeNull();
+        expect(localStorage.getItem("languages")).toBe('["lang-en"]');
+    });
+
     describe("revoked documents", () => {
         afterEach(() => {
             isConnected.value = false;

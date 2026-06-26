@@ -295,6 +295,35 @@ offline.
 - **Limitations.** There is no hard size cap (TTL + eviction is the bound); a
   `QuotaExceededError` on persist is swallowed, degrading to the no-persistence behaviour.
 
+### Fallback-language content (opt-in, content only)
+
+```ts
+const items = useHybridQuery<ContentDto>(query, { fetchUnsyncedFallback: true });
+```
+
+Sync downloads content only for the languages in `config.appLanguageIdsAsRef` (the synced
+set). A document whose only published translation is in a language outside that set therefore
+has **nothing local** — and the core invariant ("the newest content is always local") does not
+hold for a language sync never fetches, so the below-cutoff older-tail supplement won't surface
+it either. `{ fetchUnsyncedFallback: true }` adds a **second** content supplement that fetches
+those fallback documents from `/query`:
+
+- It is built from the **original** query selector (which already carries the caller's frozen
+  `publishDate <= now` upper bound) plus a single `language: { $nin: <synced set> }` clause —
+  fetched **without** the older-tail cutoff (so recent fallback content is included), and
+  **disjoint** from the synced-language docs the local/older-tail path already serves. Callers
+  whose selector expresses a language-priority preference (so the `$nin` results are restricted
+  to genuine fallbacks) get exactly the documents their display logic would pick. No-op when the
+  synced set is empty (an empty `$nin` would match the whole corpus). See
+  `decideFallbackContentApiQuery`.
+- Both supplements (older-tail and fallback) are POSTed in **one settle unit** (a single
+  `Promise.allSettled`), so `isFetching` stays true until both resolve and there is no per-leg
+  loading flag. In live mode each gets its own socket predicate.
+- Pair with `persistOffline` to cache fetched fallbacks durably. The `isSyncableDoc` gate that
+  governs persistence keeps a content doc when it is in a synced language **or** is the
+  best-available fallback (no synced-language translation exists) — so the same fallback the
+  socket feed keeps on receipt is also what `persistOffline` writes. Off by default.
+
 ### `useHybridQuery<T>(query, options?)` — composable
 
 A thin wrapper that constructs the class and returns **only** its `output` ref —

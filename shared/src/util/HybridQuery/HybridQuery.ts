@@ -42,9 +42,8 @@ import {
     structuralCacheKey,
     writeResponseCache,
 } from "./responseCache";
-import { isSyncableDoc } from "../../db/isSyncable";
 import { touchRetention } from "../../db/retention";
-import { getContentPublishDateCutoff } from "../../config";
+import { config, getContentPublishDateCutoff } from "../../config";
 import { OPEN_MIN } from "../../api/sync/utils";
 
 /**
@@ -235,13 +234,25 @@ export type HybridQueryOptions = {
      * Distinct from {@link cache} (which keeps a localStorage *window* for first
      * paint): this persists the *documents* themselves, durably. The two compose.
      *
-     * Privacy: only docs the client's `syncList` permits in IndexedDB are written
-     * (the same `isSyncableDoc` gate the socket feed uses) — so a `persistOffline`
-     * query over a non-syncable type (e.g. the CMS's `user`) persists **nothing**,
-     * regardless of this flag. Persisted docs are retention-managed and evicted once
-     * stale (see `db/retention.ts`).
+     * Privacy / scope: only fetched **Content** is written (the type check is the floor) — the API
+     * has already permission-scoped what it returned, and a non-content type (e.g. the CMS's `user`)
+     * persists **nothing**, regardless of this flag. Deliberately NOT gated on `isSyncableDoc`: that
+     * needs a populated `syncList` content entry, which sync only creates after fetching a content
+     * doc — so when everything is below the sync cutoff (nothing to sync) it would persist nothing.
+     * Persisted docs are retention-managed and evicted once stale (see `db/retention.ts`).
      */
     persistOffline?: boolean;
+
+    /**
+     * Content only. When `true`, in addition to the below-cutoff older-tail supplement, issue a
+     * second remote query for content in languages NOT in `config.appLanguageIdsAsRef` (the
+     * synced set), fetched **without** the `publishDate` cutoff — so a post whose only published
+     * translation is in a non-synced ("fallback") language still appears, without syncing that
+     * language. Pairs with {@link persistOffline} to cache the fetched fallback content durably.
+     * No-op when the synced set is empty (an empty `$nin` would match the whole corpus). Off by
+     * default. See the module README.
+     */
+    fetchUnsyncedFallback?: boolean;
 };
 
 /**
@@ -363,6 +374,9 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
     // Offline document persistence (opt-in). When true, the supplement's syncable
     // older-tail docs are bulkPut to IndexedDB. See {@link HybridQueryOptions.persistOffline}.
     private readonly _persistOffline: boolean;
+    // Fallback-language fetch (opt-in, content only). When true, a second supplement fetches
+    // content in non-synced languages without the cutoff. See {@link HybridQueryOptions.fetchUnsyncedFallback}.
+    private readonly _fetchUnsyncedFallback: boolean;
     // Response caching (opt-in). `_cacheKey` is the current generation's structural
     // fingerprint; "" when caching is disabled. See {@link HybridQueryOptions.cache}.
     private readonly _cache: boolean;
@@ -410,6 +424,7 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
         this._queryFn = typeof query === "function" ? query : () => query;
         this._live = options.live ?? false;
         this._persistOffline = options.persistOffline ?? false;
+        this._fetchUnsyncedFallback = options.fetchUnsyncedFallback ?? false;
         this._cache = options.cache ?? false;
         this._cacheId = options.cacheId;
         this._cacheStripFields = options.cacheStripFields ?? [];
@@ -596,21 +611,28 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
                         this._localPending.value = false;
                         if (this._apiDecided) return;
                         this._apiDecided = true;
-                        const api = decideContentApiQuery(this._query, local);
+                        // ONE supplement decided off the FIRST local result: the below-cutoff
+                        // older tail (synced languages), combined — when fallback is enabled —
+                        // with content in NON-synced languages (any age) as a single `$or` clause.
+                        // Merging the two slices into one query means a content feed issues a
+                        // single API scan instead of two (see decideContentApiQuery / FU-1).
+                        const synced = config?.appLanguageIdsAsRef?.value ?? [];
+                        const fallbackLangs =
+                            this._fetchUnsyncedFallback && synced.length ? synced : undefined;
+                        const api = decideContentApiQuery(this._query, local, fallbackLangs);
                         if (api) {
-                            // A supplement is owed — keep loading true until the POST
-                            // settles (or offline-defers). _postAndMerge / _runApiWhenOnline
-                            // own clearing _remotePending.
+                            // A supplement is owed — keep loading true until the POST settles
+                            // (or offline-defers). _postAndMerge / _runApiWhenOnline own clearing
+                            // _remotePending.
                             this._remotePending.value = true;
-                            void this._runApiWhenOnline(api, gen);
-                            // Live mode: keep the remote supplement live off the
-                            // socket changefeed, filtered by the supplement query.
+                            void this._runApiWhenOnline([api], gen);
+                            // Live mode: keep the supplement live off the socket changefeed,
+                            // filtered by the combined supplement query.
                             if (this._live) this._startRemoteLive(api, DocType.Content, gen);
                         } else {
-                            // Local fully satisfies the query — no older tail will be
-                            // fetched, so no POST will arrive to supersede a seeded
-                            // remote. Drop it now so a stale older-tail doc can't linger
-                            // in the merged window.
+                            // Local fully satisfies the query and no fallback is owed — no POST
+                            // will arrive to supersede a seeded remote. Drop it now so a stale
+                            // older-tail doc can't linger in the merged window.
                             this._dropSeededRemote();
                         }
                     } catch (err) {
@@ -639,7 +661,7 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
             // No local leg: settle local now, the remote POST owns loading from here.
             this._localPending.value = false;
             this._remotePending.value = true;
-            void this._runApiWhenOnline(this._query, gen);
+            void this._runApiWhenOnline([this._query], gen);
             // Live mode: these docs never flow through Dexie (sync doesn't sync this
             // type), so the socket listener is their only live path.
             if (this._live) {
@@ -713,9 +735,9 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
         });
     }
 
-    private async _runApiWhenOnline(api: MangoQuery, gen: number): Promise<void> {
+    private async _runApiWhenOnline(apis: MangoQuery[], gen: number): Promise<void> {
         if (isConnected.value) {
-            await this._postAndMerge(api, gen);
+            await this._postAndMerge(apis, gen);
             return;
         }
         // Offline — defer the POST until `isConnected` flips true. Run-once
@@ -731,7 +753,7 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
             // re-enter loading (data has already painted from local/cache, and
             // flipping isFetching back to true on a late reconnect would surprise
             // empty-state consumers). _postAndMerge's settle is then a no-op.
-            void this._postAndMerge(api, gen);
+            void this._postAndMerge(apis, gen);
         });
         this._generationDisposers.add(stop);
         // Parked on the reconnect watcher — not actively fetching, so settle the remote
@@ -739,17 +761,18 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
         this._settleRemote(gen);
     }
 
-    private async _postAndMerge(api: MangoQuery, gen: number): Promise<void> {
+    private async _postAndMerge(apis: MangoQuery[], gen: number): Promise<void> {
         try {
-            // A multi-parent content supplement is fanned into per-parent POSTs so each
-            // seeks the parentId index instead of forcing one publishDate-window scan;
-            // results are merged by id. Non-fan-out queries return a single [api].
+            // Each supplement (older-tail and, when enabled, the fallback-language leg) is
+            // expanded via planRemoteContentQueries: a multi-parent content supplement fans into
+            // per-parent POSTs so each seeks the parentId index instead of forcing one
+            // publishDate-window scan; non-fan-out queries return a single [api]. All resulting
+            // POSTs settle together here as ONE remote leg, and results are merged by id.
             //
-            // allSettled (not all): one parent's transient failure must not blank the
-            // whole fan-out — keep the parents that succeeded. If EVERY query fails we
-            // leave `_remote` untouched (preserving any cache seed, healing on remount),
-            // matching the pre-fan-out single-POST behaviour.
-            const queries = planRemoteContentQueries(api);
+            // allSettled (not all): one query's transient failure must not blank the whole batch —
+            // keep the queries that succeeded. If EVERY query fails we leave `_remote` untouched
+            // (preserving any cache seed, healing on remount), matching the prior behaviour.
+            const queries = apis.flatMap((api) => planRemoteContentQueries(api));
             const settled = await Promise.allSettled(queries.map((q) => queryRemote<T>(q)));
             // A rebuild (dep change) or dispose may have superseded this POST while
             // it was in flight — its result belongs to a dead generation.
@@ -777,13 +800,20 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
             const remote = fulfilled.reduce<T[]>((acc, s) => mergeById(acc, s.value), []);
             this._setRemote(remote);
 
-            // Offline persistence (opt-in): write the syncable subset to IndexedDB so
-            // these older-tail docs are openable offline, and stamp their retention.
+            // Offline persistence (opt-in): write the fetched CONTENT to IndexedDB so these
+            // older-tail / fallback docs are openable offline, and stamp their retention.
             // Fire-and-forget — the in-memory `_remote` already makes the list correct.
-            // The `isSyncableDoc` floor means a non-syncable type (e.g. CMS `user`) is
-            // never persisted, regardless of the flag.
+            //
+            // Gate on `type === Content`, NOT `isSyncableDoc`: the latter requires a populated
+            // `syncList` content entry, which sync only creates once it has *fetched* a content
+            // doc (`syncBatch` pushes the entry under `if (fetchedDocs.length)`). When every doc is
+            // below the sync `publishDate` cutoff, sync fetches nothing → no entry → `isSyncableDoc`
+            // would reject everything and persist nothing. `persistOffline` caches what HybridQuery
+            // explicitly fetched for display, and the API has already permission-scoped it, so the
+            // type check is the correct floor (it still excludes non-content types like the CMS
+            // `user`, which must never touch IndexedDB).
             if (this._persistOffline) {
-                const toPersist = remote.filter(isSyncableDoc);
+                const toPersist = remote.filter((d) => d.type === DocType.Content);
                 if (toPersist.length) {
                     void db
                         .bulkPut(toPersist)

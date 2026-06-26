@@ -127,6 +127,60 @@ watch(
 );
 
 /**
+ * Normalize a synced-language set against the preferred order: drop ids that are no longer preferred
+ * (or invalid), and force-include the primary (the first preferred language) so at least one
+ * language is always synced (guarantees ≥1 → the fallback leg never issues an empty `$nin`). Applied
+ * at the points that can break the invariant — the LanguageModal Save commit and `initLanguage`.
+ */
+export const normalizeSyncedLanguages = (synced: string[], order: string[]): string[] => {
+    const primary = order[0];
+    const next = synced.filter((id) => id != null && order.includes(id));
+    return primary && !next.includes(primary) ? [primary, ...next] : next;
+};
+
+/**
+ * The set of languages the user has chosen to **sync** (download for offline) — the "Available
+ * offline" checkboxes. A subset of the preferred order that always includes the primary. Drives
+ * sync (`sync.ts`), the shared keep gate + fallback `$nin` (via `config.appLanguageIdsAsRef`), and
+ * eviction. Distinct from the preferred *display* order (`appLanguageIdsAsRef`): a user can prefer
+ * many languages for display but download only a subset.
+ */
+/**
+ * Bumped whenever the local cache is cleared (Settings → "clear local cache" / `db.purge`). Bound to
+ * the `<KeepAlive :key>` in `App.vue` so the kept-alive overview pages (Home / Explore / Watch) are
+ * discarded and re-created from the now-empty cache, rather than showing their pre-purge state.
+ */
+export const localCacheVersion = ref(0);
+
+export const appSyncedLanguageIdsAsRef = ref<string[]>(
+    JSON.parse(localStorage.getItem("syncedLanguages") || "[]") as string[],
+);
+watch(
+    appSyncedLanguageIdsAsRef,
+    (newVal) => {
+        localStorage.setItem("syncedLanguages", JSON.stringify(newVal.filter((id) => id != null)));
+    },
+    { deep: true },
+);
+
+// Keep the synced set seeded + normalized against the preferred order at ALL times — at module load
+// (deriving from the persisted preferred languages) and whenever the preferred order changes — not
+// only inside `initLanguage`. Without this, a startup timing gap could leave the synced set empty,
+// which would skip content sync entirely AND break the `persistOffline` gate (no content `syncList`
+// entry → `isSyncableDoc` rejects every fetched doc → nothing is written to `db.docs`).
+watch(
+    appLanguageIdsAsRef,
+    (order) => {
+        const normalized = normalizeSyncedLanguages(appSyncedLanguageIdsAsRef.value, order);
+        const cur = appSyncedLanguageIdsAsRef.value;
+        const changed =
+            normalized.length !== cur.length || normalized.some((id, i) => id !== cur[i]);
+        if (changed) appSyncedLanguageIdsAsRef.value = normalized;
+    },
+    { deep: true, immediate: true },
+);
+
+/**
  * The list of user selected languages sorted by preference as Vue ref.
  */
 export const appLanguagesPreferredAsRef = computed(
@@ -149,6 +203,22 @@ export const appLanguagePreferredIdAsRef = computed(() =>
  * The default language document as Vue ref.
  */
 export const cmsDefaultLanguage = computed(() => cmsLanguages.value.find((l) => l.default === 1));
+
+/**
+ * The user's selected (synced) languages PLUS the CMS default appended as the final display
+ * fallback (when not already selected). This drives the display-side language-priority selection
+ * (`mangoIsPublished`) so a post with no selected translation still resolves deterministically to
+ * the default and renders as a single tile — WITHOUT the default being synced. The synced set
+ * (`appLanguageIdsAsRef`) intentionally excludes the default; content the user lacks a selected
+ * translation for is fetched on demand and kept by the live language-priority gate.
+ */
+export const appDisplayLanguageIdsAsRef = computed<string[]>(() => {
+    const defaultId = cmsDefaultLanguage.value?._id;
+    if (defaultId && !appLanguageIdsAsRef.value.includes(defaultId)) {
+        return [...appLanguageIdsAsRef.value, defaultId];
+    }
+    return appLanguageIdsAsRef.value;
+});
 
 /**
  * The preferred language document as Vue ref.
@@ -208,13 +278,19 @@ export const initLanguage = () => {
                             appLanguageIdsAsRef.value = [cmsDefaultLang._id];
                         }
                     }
-                } else {
-                    // Ensure CMS default language is in the list if not already present
-                    const cmsDefaultLang = _languages.find((l) => l.default === 1);
-                    if (cmsDefaultLang && !appLanguageIdsAsRef.value.includes(cmsDefaultLang._id)) {
-                        appLanguageIdsAsRef.value.push(cmsDefaultLang._id);
-                    }
                 }
+                // NB: the CMS default language is intentionally NOT force-added to the preferred
+                // (display) order. A post with no translation in the user's selected languages is
+                // shown via on-demand fetch + the live language-priority keep gate, and the default
+                // remains the display fallback through `appDisplayLanguageIdsAsRef` — so it no
+                // longer needs to be synced to every device.
+
+                // Normalize the synced set against the (now-validated) preferred order: drop invalid
+                // ids and force-include the primary, so at least one language is always synced.
+                appSyncedLanguageIdsAsRef.value = normalizeSyncedLanguages(
+                    appSyncedLanguageIdsAsRef.value,
+                    appLanguageIdsAsRef.value,
+                );
 
                 unwatchCmsLanguages();
                 resolve();

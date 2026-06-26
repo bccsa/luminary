@@ -9,7 +9,7 @@ import {
     sync,
     type AccessMap,
 } from "luminary-shared";
-import { appLanguageIdsAsRef } from "./globalConfig";
+import { appSyncedLanguageIdsAsRef } from "./globalConfig";
 import { Sentry } from "./util/initSentry";
 
 import _ from "lodash";
@@ -22,9 +22,11 @@ let accessMapPrev: AccessMap;
 let isConnectedPrev: boolean;
 let appLanguageIdsPrev: string[];
 
-// Increment sync iterators when access map, connection status, or app languages change
+// Increment sync iterators when access map, connection status, or SYNCED languages change.
+// Note: this watches the synced subset, NOT the preferred display order — reordering preferred
+// languages (display-only) must not trigger a content re-sync; only changing what's downloaded does.
 watch(
-    [accessMap, isConnected, appLanguageIdsAsRef],
+    [accessMap, isConnected, appSyncedLanguageIdsAsRef],
     () => {
         let accessMapChanged = false;
         if (!_.isEqual(accessMapPrev, accessMap.value)) {
@@ -39,7 +41,7 @@ watch(
         }
 
         let appLanguagesChanged = false;
-        const appLanguageIdsSorted = [...appLanguageIdsAsRef.value].sort();
+        const appLanguageIdsSorted = [...appSyncedLanguageIdsAsRef.value].sort();
         if (!_.isEqual(appLanguageIdsPrev, appLanguageIdsSorted)) {
             appLanguagesChanged = true;
             appLanguageIdsPrev = appLanguageIdsSorted;
@@ -107,7 +109,7 @@ export function initSync() {
         () => syncIterators.value.content,
         async () => {
             if (!isConnected.value) return;
-            if (!appLanguageIdsAsRef.value.length) return;
+            if (!appSyncedLanguageIdsAsRef.value.length) return;
 
             const access = getAccessibleGroups(AclPermission.View);
 
@@ -117,7 +119,7 @@ export function initSync() {
                     type: DocType.Content,
                     subType: DocType.Post,
                     memberOf: access[DocType.Post],
-                    languages: appLanguageIdsAsRef.value,
+                    languages: appSyncedLanguageIdsAsRef.value,
                     limit: 100,
                     cms: false,
                 }).catch((err) => {
@@ -131,7 +133,7 @@ export function initSync() {
                     type: DocType.Content,
                     subType: DocType.Tag,
                     memberOf: access[DocType.Tag],
-                    languages: appLanguageIdsAsRef.value,
+                    languages: appSyncedLanguageIdsAsRef.value,
                     limit: 100,
                     cms: false,
                 }).catch((err) => {

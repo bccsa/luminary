@@ -1,10 +1,13 @@
 import "fake-indexeddb/auto";
-import { describe, it, expect, beforeEach, afterEach, beforeAll } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, beforeAll, vi } from "vitest";
 import { mount } from "@vue/test-utils";
+import { setActivePinia } from "pinia";
+import { createTestingPinia } from "@pinia/testing";
 import LanguageModal from "./LanguageModal.vue";
-import { db } from "luminary-shared";
+import { db, isConnected } from "luminary-shared";
 import { mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa } from "@/tests/mockdata";
-import { appLanguageIdsAsRef, initLanguage } from "@/globalConfig";
+import { appLanguageIdsAsRef, appSyncedLanguageIdsAsRef, initLanguage } from "@/globalConfig";
+import { useNotificationStore } from "@/stores/notification";
 import { createI18n } from "vue-i18n";
 import waitForExpect from "wait-for-expect";
 
@@ -17,79 +20,219 @@ global.ResizeObserver = class FakeResizeObserver {
 const i18n = createI18n({
     locale: "en",
     messages: {
-        en: { "language.modal.title": "Select Language" },
+        en: {
+            "language.modal.title": "Select Language",
+            "language.modal.save": "Save",
+            "language.modal.cancel": "Cancel",
+            "language.modal.availableOffline": "Available offline",
+            "language.modal.offlineCaption": "Downloaded languages are available offline.",
+            "language.modal.primaryAlwaysOffline": "Your main language is always available offline",
+            "language.modal.offline.add.title": "You're offline",
+            "language.modal.offline.add.description": "New languages will download once online.",
+            "language.modal.offline.clear.title": "You're offline",
+            "language.modal.offline.clear.description": "Reconnect to remove or stop downloading.",
+        },
     },
 });
+
+const mountModal = () =>
+    mount(LanguageModal, { props: { isVisible: true }, global: { plugins: [i18n] } });
+
+const addButtonFor = async (wrapper: ReturnType<typeof mountModal>, name: string) => {
+    await waitForExpect(async () => {
+        expect((await wrapper.findAll('[data-test="add-language-button"]')).length).toBeGreaterThan(
+            0,
+        );
+    });
+    return (await wrapper.findAll('[data-test="add-language-button"]')).find((el) =>
+        el.text().includes(name),
+    );
+};
 
 describe("LanguageModal.vue", () => {
     beforeAll(async () => {
         initLanguage();
     });
 
+    let notify: ReturnType<typeof useNotificationStore>;
+
     beforeEach(async () => {
+        setActivePinia(createTestingPinia({ createSpy: vi.fn }));
+        notify = useNotificationStore(); // addNotification is an auto-spy under testing pinia
+        isConnected.value = true; // online by default
         await db.docs.bulkPut([mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa]);
+        appLanguageIdsAsRef.value = [mockLanguageDtoEng._id];
+        appSyncedLanguageIdsAsRef.value = [mockLanguageDtoEng._id];
     });
 
     afterEach(async () => {
+        isConnected.value = true;
         await db.docs.clear();
         await db.localChanges.clear();
     });
 
-    it("renders correctly when visible", async () => {
-        const wrapper = mount(LanguageModal, {
-            props: { isVisible: true },
-            global: {
-                plugins: [i18n],
-            },
-        });
-
-        expect(wrapper.find("h2").text()).toBe("Select Language");
-    });
-
-    it("does not render when isVisible is false", () => {
-        const wrapper = mount(LanguageModal, {
+    it("renders when visible and not when hidden", async () => {
+        expect(mountModal().find("h2").text()).toBe("Select Language");
+        const hidden = mount(LanguageModal, {
             props: { isVisible: false },
-            global: {
-                plugins: [i18n],
-            },
+            global: { plugins: [i18n] },
         });
-
-        expect(wrapper.find("h2").exists()).toBe(false);
+        expect(hidden.find("h2").exists()).toBe(false);
     });
 
-    it("stores the selected language", async () => {
-        appLanguageIdsAsRef.value = [mockLanguageDtoEng._id];
+    it("stages edits — adding a language does NOT touch the live ref until Save", async () => {
+        const wrapper = mountModal();
+        const frBtn = await addButtonFor(wrapper, mockLanguageDtoFra.name);
+        await frBtn!.trigger("click");
 
-        const wrapper = mount(LanguageModal, {
-            props: { isVisible: true },
-            global: {
-                plugins: [i18n],
-            },
-        });
+        // staged only — committed refs untouched
+        expect(appLanguageIdsAsRef.value).toEqual([mockLanguageDtoEng._id]);
 
-        await waitForExpect(async () => {
-            const languageButtons = await wrapper.findAll('[data-test="add-language-button"]');
-            expect(languageButtons.length).toBeGreaterThan(0);
-        });
-
-        const frenchButton = (await wrapper.findAll('[data-test="add-language-button"]')).find((el) =>
-            el.text().includes(mockLanguageDtoFra.name),
-        );
-        expect(frenchButton).toBeDefined();
-        await frenchButton!.trigger("click");
-
+        await wrapper.find('[data-test="save-languages"]').trigger("click");
         expect(appLanguageIdsAsRef.value).toContain(mockLanguageDtoFra._id);
+        expect(wrapper.emitted()).toHaveProperty("close");
     });
 
-    it("emits the close event on close button click", async () => {
-        const wrapper = mount(LanguageModal, {
-            props: { isVisible: true },
-            global: {
-                plugins: [i18n],
-            },
+    it("Cancel discards staged edits and emits close", async () => {
+        const wrapper = mountModal();
+        const frBtn = await addButtonFor(wrapper, mockLanguageDtoFra.name);
+        await frBtn!.trigger("click");
+
+        await wrapper.find('[data-test="cancel-languages"]').trigger("click");
+        expect(appLanguageIdsAsRef.value).toEqual([mockLanguageDtoEng._id]); // unchanged
+        expect(wrapper.emitted()).toHaveProperty("close");
+    });
+
+    it("the primary language's offline checkbox is checked and disabled", async () => {
+        const wrapper = mountModal();
+        await waitForExpect(async () => {
+            expect(
+                (await wrapper.findAll('[data-test="offline-checkbox"]')).length,
+            ).toBeGreaterThan(0);
+        });
+        const primary = wrapper.find('[data-test="offline-checkbox"]').element as HTMLInputElement;
+        expect(primary.checked).toBe(true);
+        expect(primary.disabled).toBe(true);
+    });
+
+    it("shows the primary's offline checkbox as ticked, and reverts when demoted", async () => {
+        appLanguageIdsAsRef.value = [mockLanguageDtoEng._id, mockLanguageDtoFra._id];
+        appSyncedLanguageIdsAsRef.value = [mockLanguageDtoEng._id]; // French NOT ticked
+
+        const wrapper = mountModal();
+        await waitForExpect(async () => {
+            expect((await wrapper.findAll('[data-test="offline-checkbox"]')).length).toBe(2);
         });
 
-        await wrapper.findComponent({ name: "LButton" }).trigger("click");
-        expect(wrapper.emitted()).toHaveProperty("close");
+        // French (second row) starts un-ticked.
+        let checkboxes = await wrapper.findAll('[data-test="offline-checkbox"]');
+        expect((checkboxes[1]!.element as HTMLInputElement).checked).toBe(false);
+
+        // Promote French to primary → its now-disabled checkbox shows ticked (always synced).
+        await wrapper.find('[data-test="increase-priority"]').trigger("click");
+        checkboxes = await wrapper.findAll('[data-test="offline-checkbox"]');
+        const frenchAsPrimary = checkboxes[0]!.element as HTMLInputElement;
+        expect(frenchAsPrimary.checked).toBe(true);
+        expect(frenchAsPrimary.disabled).toBe(true);
+
+        // Demote it back → reverts to un-ticked (it was never actually ticked).
+        await wrapper.find('[data-test="decrease-priority"]').trigger("click");
+        checkboxes = await wrapper.findAll('[data-test="offline-checkbox"]');
+        expect((checkboxes[1]!.element as HTMLInputElement).checked).toBe(false);
+    });
+
+    it("ticking a non-primary language commits it to the synced set on Save", async () => {
+        appLanguageIdsAsRef.value = [mockLanguageDtoEng._id, mockLanguageDtoFra._id];
+        appSyncedLanguageIdsAsRef.value = [mockLanguageDtoEng._id];
+
+        const wrapper = mountModal();
+        await waitForExpect(async () => {
+            expect((await wrapper.findAll('[data-test="offline-checkbox"]')).length).toBe(2);
+        });
+
+        const checkboxes = await wrapper.findAll('[data-test="offline-checkbox"]');
+        await checkboxes[1]!.setValue(true); // French (non-primary)
+
+        // staged only until Save
+        expect(appSyncedLanguageIdsAsRef.value).toEqual([mockLanguageDtoEng._id]);
+
+        await wrapper.find('[data-test="save-languages"]').trigger("click");
+        expect(appSyncedLanguageIdsAsRef.value).toContain(mockLanguageDtoFra._id);
+    });
+
+    describe("offline behaviour", () => {
+        beforeEach(() => {
+            isConnected.value = false;
+        });
+
+        it("BLOCKS removing a DOWNLOADED language while offline and notifies", async () => {
+            // French is in the committed synced set → it has downloaded content.
+            appLanguageIdsAsRef.value = [mockLanguageDtoEng._id, mockLanguageDtoFra._id];
+            appSyncedLanguageIdsAsRef.value = [mockLanguageDtoEng._id, mockLanguageDtoFra._id];
+            const wrapper = mountModal();
+            await waitForExpect(async () => {
+                expect((await wrapper.findAll('[data-test="remove-language-button"]')).length).toBe(2);
+            });
+
+            // Remove French (the second row → index 1).
+            await (await wrapper.findAll('[data-test="remove-language-button"]'))[1]!.trigger("click");
+
+            // Still two languages — the removal was blocked — and a toast was raised.
+            expect((await wrapper.findAll('[data-test="remove-language-button"]')).length).toBe(2);
+            expect(notify.addNotification).toHaveBeenCalledWith(
+                expect.objectContaining({ id: "lang-offline-clear", type: "toast" }),
+            );
+        });
+
+        it("ALLOWS removing a NON-downloaded language while offline with no toast", async () => {
+            // French is preferred but NOT in the synced set → nothing downloaded for it.
+            appLanguageIdsAsRef.value = [mockLanguageDtoEng._id, mockLanguageDtoFra._id];
+            appSyncedLanguageIdsAsRef.value = [mockLanguageDtoEng._id];
+            const wrapper = mountModal();
+            await waitForExpect(async () => {
+                expect((await wrapper.findAll('[data-test="remove-language-button"]')).length).toBe(2);
+            });
+
+            await (await wrapper.findAll('[data-test="remove-language-button"]'))[1]!.trigger("click");
+            await wrapper.find('[data-test="save-languages"]').trigger("click");
+
+            // French was removed (no downloaded content to clear) and no "clear" toast fired.
+            expect(appLanguageIdsAsRef.value).toEqual([mockLanguageDtoEng._id]);
+            expect(notify.addNotification).not.toHaveBeenCalledWith(
+                expect.objectContaining({ id: "lang-offline-clear" }),
+            );
+        });
+
+        it("ALLOWS adding a language while offline but notifies it will apply online", async () => {
+            const wrapper = mountModal();
+            const frBtn = await addButtonFor(wrapper, mockLanguageDtoFra.name);
+            await frBtn!.trigger("click");
+
+            // Added to the draft (one fewer in the available list) and the deferred toast fired.
+            await wrapper.find('[data-test="save-languages"]').trigger("click");
+            expect(appLanguageIdsAsRef.value).toContain(mockLanguageDtoFra._id);
+            expect(notify.addNotification).toHaveBeenCalledWith(
+                expect.objectContaining({ id: "lang-offline-add", type: "toast" }),
+            );
+        });
+
+        it("BLOCKS un-ticking a downloaded language while offline and notifies", async () => {
+            appLanguageIdsAsRef.value = [mockLanguageDtoEng._id, mockLanguageDtoFra._id];
+            appSyncedLanguageIdsAsRef.value = [mockLanguageDtoEng._id, mockLanguageDtoFra._id];
+            const wrapper = mountModal();
+            await waitForExpect(async () => {
+                expect((await wrapper.findAll('[data-test="offline-checkbox"]')).length).toBe(2);
+            });
+
+            // Try to un-tick French (non-primary, currently synced).
+            await (await wrapper.findAll('[data-test="offline-checkbox"]'))[1]!.setValue(false);
+            await wrapper.find('[data-test="save-languages"]').trigger("click");
+
+            // French stays synced (un-tick blocked) and a toast was raised.
+            expect(appSyncedLanguageIdsAsRef.value).toContain(mockLanguageDtoFra._id);
+            expect(notify.addNotification).toHaveBeenCalledWith(
+                expect.objectContaining({ id: "lang-offline-clear", type: "toast" }),
+            );
+        });
     });
 });
