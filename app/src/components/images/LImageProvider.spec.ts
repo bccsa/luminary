@@ -1,15 +1,33 @@
 import "fake-indexeddb/auto";
 import { mount } from "@vue/test-utils";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import waitForExpect from "wait-for-expect";
 
-// Mock only `isDataSaverEnabled` so we can simulate Data Saver; everything else is the real module.
-vi.mock("@/globalConfig", async (importOriginal) => {
-    const actual = await importOriginal<typeof import("@/globalConfig")>();
-    return { ...actual, isDataSaverEnabled: vi.fn(() => false) };
+vi.mock("@/globalConfig", async () => {
+    const { ref } = await import("vue");
+    return {
+        fallbackImageUrls: ["fallback.webp"],
+        isDataSaverEnabled: vi.fn(() => false),
+        userDataSaverEnabled: ref(false),
+    };
 });
-import { isDataSaverEnabled } from "@/globalConfig";
+// Mock the speed probe so we can drive the "slow connection" branch without timing a real download.
+vi.mock("@/composables/useNetworkSpeedEstimator", async () => {
+    const { ref } = await import("vue");
+    const isSlowConnection = ref(false);
+    const connectionSpeed = ref(10);
+    return {
+        isSlowConnection,
+        connectionSpeed,
+        useNetworkSpeedEstimator: () => ({ isSlowConnection, connectionSpeed, runProbe: vi.fn() }),
+    };
+});
+import { isDataSaverEnabled, userDataSaverEnabled } from "@/globalConfig";
+import { isSlowConnection } from "@/composables/useNetworkSpeedEstimator";
 import LImageProvider from "./LImageProvider.vue";
+
+// `isSlowConnection` is a real (mocked) ref here; treat it as writable in tests.
+const slow = isSlowConnection as unknown as { value: boolean };
 
 const mockImage = {
     fileCollections: [
@@ -31,6 +49,12 @@ const mockImage = {
 };
 
 describe("LImageProvider", () => {
+    afterEach(() => {
+        slow.value = false;
+        userDataSaverEnabled.value = false;
+        Object.defineProperty(window, "devicePixelRatio", { value: 1, configurable: true });
+    });
+
     it("does not load fallback image if either main image loads successfully", async () => {
         const wrapper = mount(LImageProvider, {
             props: {
@@ -292,5 +316,81 @@ describe("LImageProvider", () => {
         });
 
         expect(fallback).toBeDefined();
+    });
+
+    // A collection with a high-res rung, to prove the FULL ladder is kept (reduced mode shrinks
+    // `sizes`, it does NOT drop srcset entries).
+    const mockImageLarge = {
+        fileCollections: [
+            {
+                aspectRatio: 1.78, // video
+                imageFiles: [
+                    { filename: "video-300.webp", width: 300, height: 169 },
+                    { filename: "video-600.webp", width: 600, height: 338 },
+                    { filename: "video-1200.webp", width: 1200, height: 675 },
+                ],
+            },
+        ],
+    };
+
+    it("caps the effective DPR on a slow connection so a retina device fetches a lower-res variant", async () => {
+        Object.defineProperty(window, "devicePixelRatio", { value: 3, configurable: true });
+        slow.value = true;
+        const wrapper = mount(LImageProvider, {
+            props: {
+                parentId: "test-id-slow",
+                image: mockImageLarge,
+                aspectRatio: "video",
+                size: "thumbnail",
+                bucketPublicUrl: "https://bucket.example.com",
+            },
+        });
+        await wrapper.vm.$nextTick();
+        const img1 = wrapper.find('img[data-test="image-element1"]');
+        // Reduced slot (144px) divided by DPR 3 → 48px, so the browser fetches a ~1x image.
+        expect(img1.attributes("sizes")).toBe("48px");
+        // The full srcset ladder is still offered — only `sizes` shrank, no rungs dropped.
+        const srcset = img1.attributes("srcset") ?? "";
+        expect(srcset).toContain("video-300.webp 300w");
+        expect(srcset).toContain("video-600.webp 600w");
+        expect(srcset).toContain("video-1200.webp 1200w");
+    });
+
+    it("DPR-caps the declarative reduced-data slot even when not in reduced mode", async () => {
+        Object.defineProperty(window, "devicePixelRatio", { value: 3, configurable: true });
+        const wrapper = mount(LImageProvider, {
+            props: {
+                parentId: "test-id-prefers",
+                image: mockImageLarge,
+                aspectRatio: "video",
+                size: "thumbnail",
+                bucketPublicUrl: "https://bucket.example.com",
+            },
+        });
+        await wrapper.vm.$nextTick();
+        const img1 = wrapper.find('img[data-test="image-element1"]');
+        // The `prefers-reduced-data` value is the DPR-capped 48px; everyone else falls through to 144px.
+        expect(img1.attributes("sizes")).toBe(
+            "(prefers-reduced-data: reduce) 48px, (min-width: 768px) 208px, 144px",
+        );
+    });
+
+    it("caps the effective DPR when the user's Data Saver toggle is on", async () => {
+        Object.defineProperty(window, "devicePixelRatio", { value: 3, configurable: true });
+        userDataSaverEnabled.value = true;
+        const wrapper = mount(LImageProvider, {
+            props: {
+                parentId: "test-id-toggle",
+                image: mockImageLarge,
+                aspectRatio: "video",
+                size: "thumbnail",
+                bucketPublicUrl: "https://bucket.example.com",
+            },
+        });
+        await wrapper.vm.$nextTick();
+        const img1 = wrapper.find('img[data-test="image-element1"]');
+        expect(img1.attributes("sizes")).toBe("48px");
+        // Full ladder retained.
+        expect(img1.attributes("srcset")).toContain("video-1200.webp 1200w");
     });
 });

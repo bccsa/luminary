@@ -32,21 +32,6 @@ export const isSmallScreen = computed(() => windowWidth.value < 1500);
 export const showPrivacyPolicyModal = ref(false);
 
 /**
- * Gets client's connection speed in Mbps.
- */
-export const getConnectionSpeed = () => {
-    if (isTestEnv) return 10;
-
-    return (
-        (
-            (navigator as any).connection ||
-            (navigator as any).mozConnection ||
-            (navigator as any).webkitConnection
-        )?.downlink || 10
-    );
-};
-
-/**
  * Whether the user has opted into reduced data usage (OS/browser "Data Saver"). Read from the
  * Network Information API's `saveData` flag, which Chromium-based browsers expose even when they
  * don't yet support the `prefers-reduced-data` media query. Returns false when unknown (Safari/iOS).
@@ -62,6 +47,17 @@ export const isDataSaverEnabled = (): boolean => {
 };
 
 /**
+ * User-controlled "Data Saver" preference, persisted to localStorage and toggled from the Settings
+ * page. Independent of the OS/browser `saveData` flag (`isDataSaverEnabled`) and the measured
+ * connection speed (`useNetworkSpeedEstimator`) — any of the three being on reduces image quality. A
+ * module-level singleton ref so every consumer (Settings toggle, image provider) shares one value.
+ */
+export const userDataSaverEnabled = ref(localStorage.getItem("dataSaver") === "true");
+watch(userDataSaverEnabled, (enabled) => {
+    localStorage.setItem("dataSaver", String(enabled));
+});
+
+/**
  * Get device information.
  * @returns
  */
@@ -69,7 +65,6 @@ export const getDeviceInfo = () => {
     return {
         platform: (navigator as any).userAgentData?.platform || navigator.platform,
         userAgent: navigator.userAgent,
-        connectionSpeed: getConnectionSpeed(),
     };
 };
 

@@ -6,6 +6,38 @@ import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
 import { db, isConnected } from "luminary-shared";
 import { mockLanguageDtoEng } from "@/tests/mockdata";
+import { isDataSaverEnabled, userDataSaverEnabled } from "@/globalConfig";
+
+vi.mock("@/globalConfig", async () => {
+    const { ref, watch } = await import("vue");
+    const userDataSaverEnabled = ref(false);
+    watch(userDataSaverEnabled, (enabled) => {
+        localStorage.setItem("dataSaver", String(enabled));
+    });
+    return {
+        getDeviceInfo: () => ({ platform: "Test OS", userAgent: "Test Browser" }),
+        isDataSaverEnabled: vi.fn(() => false),
+        userDataSaverEnabled,
+    };
+});
+vi.mock("@/components/BasePage.vue", async () => {
+    const { defineComponent } = await import("vue");
+    return { default: defineComponent({ template: "<div><slot /></div>" }) };
+});
+vi.mock("@/sync", () => ({ triggerSync: vi.fn() }));
+
+// Keep the probe out of unit tests — return a fixed reactive speed.
+vi.mock("@/composables/useNetworkSpeedEstimator", async () => {
+    const { ref, computed } = await import("vue");
+    const connectionSpeed = ref(10);
+    const isSlowConnection = computed(() => connectionSpeed.value < 4);
+    return {
+        connectionSpeed,
+        isSlowConnection,
+        useNetworkSpeedEstimator: () => ({ connectionSpeed, isSlowConnection, runProbe: vi.fn() }),
+    };
+});
+import { connectionSpeed } from "@/composables/useNetworkSpeedEstimator";
 
 vi.mock("vue-router");
 vi.mock("@/router", () => ({
@@ -75,5 +107,68 @@ describe("SettingsPage clearing state", () => {
         expect(button.text()).toContain("Delete local cache");
         expect(button.attributes("disabled")).toBeUndefined();
         expect(wrapper.find("svg.animate-spin").exists()).toBe(false);
+    });
+});
+
+describe("SettingsPage data saver", () => {
+    beforeEach(() => {
+        setActivePinia(createTestingPinia());
+        vi.mocked(isDataSaverEnabled).mockReturnValue(false);
+        connectionSpeed.value = 10;
+        userDataSaverEnabled.value = false;
+        localStorage.clear();
+    });
+
+    afterEach(() => {
+        vi.mocked(isDataSaverEnabled).mockReset();
+        userDataSaverEnabled.value = false;
+        localStorage.clear();
+    });
+
+    it("renders the live connection speed from the composable", () => {
+        const wrapper = mountSettingsPage();
+        expect(wrapper.text()).toContain("10.0 Mbps");
+    });
+
+    it("toggles and persists the user Data Saver preference", async () => {
+        const wrapper = mountSettingsPage();
+        const toggle = wrapper.find("[data-test='dataSaverToggle']");
+        expect(toggle.exists()).toBe(true);
+        expect(userDataSaverEnabled.value).toBe(false);
+
+        await toggle.trigger("click");
+
+        expect(userDataSaverEnabled.value).toBe(true);
+        expect(localStorage.getItem("dataSaver")).toBe("true");
+    });
+
+    it("forces the toggle on visually and disables it when browser Data Saver is detected", async () => {
+        vi.mocked(isDataSaverEnabled).mockReturnValue(true);
+        const wrapper = mountSettingsPage();
+        const toggle = wrapper.find("[data-test='dataSaverToggle']");
+
+        expect(toggle.attributes("aria-checked")).toBe("true");
+        expect(toggle.attributes("disabled")).toBeDefined();
+        expect(wrapper.find("[data-test='dataSaverNote']").text()).toContain(
+            "Your browser's Data Saver is on",
+        );
+
+        await toggle.trigger("click");
+
+        expect(userDataSaverEnabled.value).toBe(false);
+    });
+
+    it("shows the slow-connection note only when Data Saver is otherwise off", async () => {
+        connectionSpeed.value = 1;
+        const wrapper = mountSettingsPage();
+
+        expect(wrapper.find("[data-test='dataSaverNote']").text()).toContain(
+            "Your connection seems slow",
+        );
+
+        userDataSaverEnabled.value = true;
+        await wrapper.vm.$nextTick();
+
+        expect(wrapper.find("[data-test='dataSaverNote']").exists()).toBe(false);
     });
 });
