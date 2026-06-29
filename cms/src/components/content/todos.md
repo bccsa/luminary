@@ -73,10 +73,6 @@ an in-memory `localStorage` for jsdom on Node 26. Drop the `NODE_OPTIONS` prefix
 so the scripts are plain `vitest`. (The same shim setup file was added to `app/`; check whether `app/`'s
 scripts carry the prefix too.)
 
-### memberOf field missing in groupDto seeding docs
-
-### Database upgrades scripts not running on newly seeded CouchDB database
-
 ### Include language selection (mangoIsPublished language selection logic) in sync.
 
 Need to think it through a bit more before implementing
