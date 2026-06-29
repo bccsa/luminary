@@ -105,6 +105,17 @@ const showSearch = ref(false);
 const showSearchDropdown = ref(false);
 const searchQuery = ref("");
 const activeSearchIndex = ref(0);
+const searchDropdownRef = ref<{ panelRef: HTMLElement | null } | null>(null);
+
+watch(activeSearchIndex, async () => {
+    if (!showSearchDropdown.value) return;
+    await nextTick();
+    const panel = searchDropdownRef.value?.panelRef;
+    if (!panel) return;
+    panel
+        .querySelectorAll<HTMLElement>('[role="menuitem"]')
+        [activeSearchIndex.value]?.scrollIntoView({ block: "nearest" });
+});
 const manualNodePositions = ref<Record<string, NodePosition>>({});
 const savedLayout = ref<StoredGraphLayout | null>(null);
 const interactionModeBeforeTemporaryDrag = ref<"select" | "drag" | null>(null);
@@ -1200,6 +1211,7 @@ onUnmounted(() => {
                     class="w-full max-w-md rounded-lg border border-zinc-200 bg-white p-3 shadow-xl"
                 >
                     <LDropdown
+                        ref="searchDropdownRef"
                         v-model:show="showSearchDropdown"
                         placement="bottom-start"
                         width="full"

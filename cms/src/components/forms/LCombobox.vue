@@ -91,6 +91,7 @@ const filtered = computed(() => {
 });
 
 const highlightedIndex = ref(-1);
+const dropdownRef = ref<{ panelRef: HTMLElement | null } | null>(null);
 
 watch(showDropdown, (val) => {
     if (val) {
@@ -98,6 +99,16 @@ watch(showDropdown, (val) => {
     } else {
         highlightedIndex.value = -1;
     }
+});
+
+watch(highlightedIndex, async (index) => {
+    if (index < 0 || !showDropdown.value) return;
+    await nextTick();
+    const panel = dropdownRef.value?.panelRef;
+    if (!panel) return;
+    panel
+        .querySelectorAll<HTMLElement>('[name="list-item"]')
+        [index]?.scrollIntoView({ block: "nearest" });
 });
 
 watch(query, (newVal) => {
@@ -215,6 +226,7 @@ const onInlineBackspace = () => {
             :showClosingButton="false"
         >
             <LDropdown
+                ref="dropdownRef"
                 v-model:show="showDropdown"
                 placement="bottom-start"
                 width="full"

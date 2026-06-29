@@ -57,13 +57,20 @@ onClickOutside(
     { ignore: [triggerRef] },
 );
 
+function scrollMenuItemIntoView(el: HTMLElement) {
+    el.scrollIntoView({ block: "nearest" });
+}
+
 // Focus first menuitem on open
 const focusFirst = () => {
     if (!panelRef.value) return;
     const first = panelRef.value.querySelector<HTMLElement>(
         '[role="menuitem"],button,a,[tabindex]:not([tabindex="-1"])',
     );
-    first?.focus();
+    if (first) {
+        first.focus();
+        scrollMenuItemIntoView(first);
+    }
 };
 
 watch(show, (val) => {
@@ -83,10 +90,12 @@ const onPanelKeydown = (e: KeyboardEvent) => {
         e.preventDefault();
         const next = items[(currentIndex + 1 + items.length) % items.length];
         next.focus();
+        scrollMenuItemIntoView(next);
     } else if (e.key === "ArrowUp") {
         e.preventDefault();
         const prev = items[(currentIndex - 1 + items.length) % items.length];
         prev.focus();
+        scrollMenuItemIntoView(prev);
     } else if (e.key === "Enter") {
         if (currentIndex >= 0) {
             e.preventDefault();
@@ -177,6 +186,8 @@ const paddingClass = computed(() =>
             ? "p-3"
             : "p-0",
 );
+
+defineExpose({ panelRef });
 </script>
 
 <template>
