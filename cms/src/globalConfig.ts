@@ -115,6 +115,12 @@ export async function initLanguage() {
 
         const defaultLang = languages.find((l) => l.default === 1);
 
+        // If no language is selected yet (fresh session: initLanguage's one-shot read ran
+        // before languages had synced into Dexie), select now that they've arrived.
+        if (!cmsLanguageIdAsRef.value && languages.length) {
+            cmsLanguageIdAsRef.value = (defaultLang ?? languages[0])._id;
+        }
+
         translatableLanguagesAsRef.value = languages.filter((lang) =>
             verifyAccess(lang.memberOf, DocType.Language, AclPermission.Translate, "any"),
         );
