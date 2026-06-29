@@ -12,7 +12,7 @@ import {
 } from "@heroicons/vue/24/outline";
 import { type ContentOverviewQueryOptions } from "./types";
 import { type ContentDto, type GroupDto } from "luminary-shared";
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import LRadio from "@/components/forms/LRadio.vue";
 import LCombobox from "@/components/forms/LCombobox.vue";
 import LSelect from "@/components/forms/LSelect.vue";
@@ -28,8 +28,7 @@ type Props = {
     groups: GroupDto[];
     reset: Function;
     search: () => void;
-    rightButtonText?: string;
-    rightButtonDisabled?: boolean;
+    trailingPaddingClass?: string;
 };
 
 defineProps<Props>();
@@ -37,6 +36,8 @@ defineProps<Props>();
 const queryOptions = defineModel<ContentOverviewQueryOptions>("queryOptions", { required: true });
 // Debouncing the search term so it is the only unique query option that needs a seperate defineModel
 const query = defineModel("query", { required: true });
+
+const showSearchIcon = computed(() => !String(query.value ?? "").length);
 
 const showSortOptions = ref(false);
 </script>
@@ -48,21 +49,18 @@ const showSortOptions = ref(false);
         <div class="flex h-10 w-full items-center gap-1 px-8">
             <LInput
                 type="text"
-                :icon="MagnifyingGlassIcon"
-                class="h-full flex-grow"
+                :icon="showSearchIcon ? MagnifyingGlassIcon : undefined"
+                class="h-full min-w-0 flex-grow"
                 name="search"
                 placeholder="Search..."
                 data-test="search-input"
                 v-model="query as string"
                 :full-height="true"
-                :rightAddOn="rightButtonText"
-                :rightAddOnDisabled="rightButtonDisabled"
-                :rightAddOnClick="search"
+                :trailing-padding-class="trailingPaddingClass"
+                @keydown.enter="search"
             >
                 <template #searchButton>
-                    <div>
-                        <slot name="searchButton"></slot>
-                    </div>
+                    <slot name="searchButton"></slot>
                 </template>
             </LInput>
 

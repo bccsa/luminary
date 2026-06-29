@@ -30,6 +30,8 @@ type Props = {
     autocomplete?: "on" | "off";
     onBlur?: Function;
     rightAddOnClick?: () => void;
+    /** Extra right padding on the input when trailing slot content is shown */
+    trailingPaddingClass?: string;
 };
 
 const props = withDefaults(defineProps<Props>(), {
@@ -146,7 +148,8 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                         'rounded-l-md': !leftAddOn,
                         'rounded-r-md': !rightAddOn,
                         'pl-10': icon,
-                        'pr-10': state == 'error',
+                        'pr-10': state == 'error' && !trailingPaddingClass,
+                        [trailingPaddingClass ?? '']: trailingPaddingClass,
                         'resize-none': inputType === 'textarea',
                     },
                     'block w-full border-0 py-2 ring-1 ring-inset focus:ring-2 focus:ring-inset disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500 disabled:ring-zinc-200 sm:text-sm sm:leading-6',
@@ -189,9 +192,11 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
 
             <div
                 v-if="$slots.searchButton"
-                class="absolute inset-y-0 right-[75px] flex items-center"
+                class="pointer-events-none absolute inset-y-0 right-1.5 flex items-center"
             >
-                <slot name="searchButton" />
+                <div class="pointer-events-auto flex items-center gap-1">
+                    <slot name="searchButton" />
+                </div>
             </div>
         </div>
 

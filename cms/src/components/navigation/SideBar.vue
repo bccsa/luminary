@@ -327,13 +327,8 @@ const navItemClass = computed(() => [
                 >
                     <LanguageIcon :class="navIconClass" aria-hidden="true" />
                     <span v-if="!isCollapsed" class="flex min-w-0 flex-col leading-none">
-                        <span>Language</span>
-                        <span
-                            v-if="currentLanguageName"
-                            class="mt-0.5 truncate text-xs text-zinc-500"
-                        >
-                            {{ currentLanguageName }}
-                        </span>
+                        <span>{{ currentLanguageName }}</span>
+                        
                     </span>
                 </button>
 

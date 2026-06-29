@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ContentDto, GroupDto } from "luminary-shared";
 import { type ContentOverviewQueryOptions } from "./types";
-import { ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import FilterOptionsMobile from "./FilterOptionsMobile.vue";
 import FilterOptionsDesktop from "./FilterOptionsDesktop.vue";
 import { XMarkIcon } from "@heroicons/vue/20/solid";
@@ -68,6 +68,13 @@ const search = () => {
 const showSearchButton = ref(false);
 const showResetButton = ref(false);
 
+const trailingPaddingClass = computed(() => {
+    if (showSearchButton.value && showResetButton.value) return "pr-[5.5rem]";
+    if (showSearchButton.value) return "pr-14";
+    if (showResetButton.value) return "pr-10";
+    return "";
+});
+
 const resetQueryOptions = () => {
     queryOptions.value = {
         languageId: queryOptions.value.languageId,
@@ -111,17 +118,30 @@ watch(
         v-model:query-options="queryOptions"
         :reset="resetQueryOptions"
         :search="search"
-        rightButtonText="search"
-        :rightButtonDisabled="!showSearchButton"
+        :trailing-padding-class="trailingPaddingClass"
         :status-options="statusOptions"
         :translation-options="translationOptions"
         :tag-content-docs="tagContentDocs"
         v-if="isSmallScreen"
     >
         <template #searchButton>
-            <div class="flex gap-2">
-                <button v-if="showResetButton" @click="resetQueryOptions">
-                    <XMarkIcon class="h-6 w-6 cursor-pointer text-zinc-500" />
+            <div class="flex items-center gap-1">
+                <button
+                    v-if="showSearchButton"
+                    type="button"
+                    class="rounded-md bg-white px-2 py-1 text-sm font-semibold text-zinc-900 ring-1 ring-inset ring-zinc-300 hover:bg-zinc-50"
+                    data-test="search-go-button"
+                    @click="search"
+                >
+                    Go
+                </button>
+                <button
+                    v-if="showResetButton"
+                    type="button"
+                    aria-label="Clear search"
+                    @click="resetQueryOptions"
+                >
+                    <XMarkIcon class="h-5 w-5 cursor-pointer text-zinc-500" />
                 </button>
             </div>
         </template>
@@ -132,8 +152,7 @@ watch(
         v-model:query-options="queryOptions"
         :reset="resetQueryOptions"
         :search="search"
-        rightButtonText="search"
-        :rightButtonDisabled="!showSearchButton"
+        :trailing-padding-class="trailingPaddingClass"
         :status-options="statusOptions"
         :translation-options="translationOptions"
         :tag-content-docs="tagContentDocs"
@@ -142,9 +161,23 @@ watch(
         v-else
     >
         <template #searchButton>
-            <div class="flex gap-2 pr-1">
-                <button v-if="showResetButton" @click="resetQueryOptions">
-                    <XMarkIcon class="h-6 w-6 cursor-pointer text-zinc-500" />
+            <div class="flex items-center gap-1">
+                <button
+                    v-if="showSearchButton"
+                    type="button"
+                    class="rounded-md bg-white px-2 py-1 text-sm font-semibold text-zinc-900 ring-1 ring-inset ring-zinc-300 hover:bg-zinc-50"
+                    data-test="search-go-button"
+                    @click="search"
+                >
+                    Go
+                </button>
+                <button
+                    v-if="showResetButton"
+                    type="button"
+                    aria-label="Clear search"
+                    @click="resetQueryOptions"
+                >
+                    <XMarkIcon class="h-5 w-5 cursor-pointer text-zinc-500" />
                 </button>
             </div>
         </template>

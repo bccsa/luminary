@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import {
     MagnifyingGlassIcon,
     TagIcon,
@@ -26,8 +26,7 @@ type Props = {
     groups: GroupDto[];
     reset: Function;
     search: () => void;
-    rightButtonText?: string;
-    rightButtonDisabled?: boolean;
+    trailingPaddingClass?: string;
 };
 
 defineProps<Props>();
@@ -35,6 +34,8 @@ defineProps<Props>();
 const queryOptions = defineModel<ContentOverviewQueryOptions>("queryOptions", { required: true });
 // Debouncing the search term so it is the only unique query option that needs a seperate defineModel
 const query = defineModel("query");
+
+const showSearchIcon = computed(() => !String(query.value ?? "").length);
 
 const showMobileQueryOptions = ref(false);
 </script>
@@ -46,23 +47,19 @@ const showMobileQueryOptions = ref(false);
         <div class="flex gap-1">
             <LInput
                 type="text"
-                :icon="MagnifyingGlassIcon"
-                class="flex-grow"
+                :icon="showSearchIcon ? MagnifyingGlassIcon : undefined"
+                class="min-w-0 flex-grow"
                 name="search"
                 placeholder="Search..."
                 data-test="search-input"
                 v-model="query as string"
                 :full-height="true"
+                :trailing-padding-class="trailingPaddingClass"
                 @keydown.esc="reset()"
                 @keydown.enter="search()"
-                :rightAddOn="rightButtonText"
-                :rightAddOnDisabled="rightButtonDisabled"
-                :rightAddOnClick="search"
             >
                 <template #searchButton>
-                    <div>
-                        <slot name="searchButton"></slot>
-                    </div>
+                    <slot name="searchButton"></slot>
                 </template>
             </LInput>
             <LButton :icon="AdjustmentsVerticalIcon" @click="showMobileQueryOptions = true" />
