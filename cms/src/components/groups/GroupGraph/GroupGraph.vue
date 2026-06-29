@@ -222,7 +222,7 @@ watch(isFullscreen, () => {
             class="relative min-h-0 select-none overflow-hidden outline-none focus:outline-none focus-visible:outline-none"
             :class="isFullscreen ? 'h-[calc(100dvh-6rem)] w-[calc(100vw-3rem)]' : 'h-full w-full'"
             tabindex="0"
-            aria-label="Group visualisation. Hold Space or middle mouse to drag, use arrow keys to pan, plus and minus to zoom, Tab to move through groups, Enter or Space to focus a group. Command K opens search. Command F opens fullscreen."
+            aria-label="Group visualisation. Hold Space to switch between select and drag, use middle mouse to drag, use arrow keys to pan, plus and minus to zoom, Tab to move through groups, Enter or Space to focus a group. Command K opens search. Command F opens fullscreen."
             @auxclick.prevent
             @keydown.capture="handleGraphKeydown"
             @keyup.capture="stopSpaceDragMode"
@@ -245,7 +245,7 @@ watch(isFullscreen, () => {
                 :edges-updatable="false"
                 :disable-keyboard-a11y="true"
                 :zoom-on-double-click="false"
-                pan-activation-key-code="Space"
+                :pan-activation-key-code="null"
                 @node-click="({ node }) => selectNode(node)"
                 @node-double-click="openNodeGroup"
                 @node-context-menu="openNodeContextMenu"

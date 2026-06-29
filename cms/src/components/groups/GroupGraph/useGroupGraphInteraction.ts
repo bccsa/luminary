@@ -84,6 +84,7 @@ export function useGroupGraphInteraction(opts: InteractionOptions) {
         if (event.target instanceof HTMLInputElement || !isSpaceKey(event) || event.repeat) return;
 
         event.preventDefault();
+        event.stopPropagation();
         startTemporaryMode(interactionMode.value === "drag" ? "select" : "drag");
     }
 
