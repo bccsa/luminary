@@ -28,10 +28,10 @@ const downloadFilename = computed(() => {
 </script>
 
 <template>
-    <div v-if="content" class="flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden">
-        <LCard v-if="!lightPolish" class="flex min-h-0 flex-1 flex-col bg-white">
+    <div v-if="content" class="flex w-full flex-col lg:h-full lg:min-h-0 lg:flex-1 lg:overflow-hidden">
+        <LCard v-if="!lightPolish" class="flex flex-col bg-white lg:min-h-0 lg:flex-1">
             <RichTextEditor
-                class="min-h-0 flex-1"
+                class="w-full lg:min-h-0 lg:flex-1"
                 v-model:text="content.text"
                 v-model:text-language="content.language"
                 :download-filename="downloadFilename"
@@ -41,7 +41,7 @@ const downloadFilename = computed(() => {
         </LCard>
         <RichTextEditor
             v-else
-            class="h-full min-h-0 w-full flex-1 overflow-hidden"
+            class="w-full lg:h-full lg:min-h-0 lg:flex-1 lg:overflow-hidden"
             v-model:text="content.text"
             v-model:text-language="content.language"
             :download-filename="downloadFilename"

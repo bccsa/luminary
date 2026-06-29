@@ -136,7 +136,7 @@ defineExpose({
         v-bind="$attrs"
         v-model="text"
         content-format="html"
-        class="flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden"
+        class="flex w-full flex-col lg:h-full lg:min-h-0 lg:flex-1 lg:overflow-hidden"
         :disabled="props.disabled"
         :uploader="true"
         :downloader="true"
@@ -274,18 +274,14 @@ defineExpose({
 :deep(.rte-root) {
     display: flex;
     width: 100%;
-    min-height: 0;
-    flex: 1 1 0%;
     flex-direction: column;
     gap: 0;
 }
 
 :deep(.rte-editor) {
-    display: grid;
+    display: flex;
     width: 100%;
-    min-height: 0;
-    flex: 1 1 0%;
-    grid-template-rows: auto minmax(0, 1fr);
+    flex-direction: column;
     border: 0;
     border-radius: 0;
     background: transparent;
@@ -294,9 +290,7 @@ defineExpose({
 :deep(.rte-editor-content) {
     display: flex;
     width: 100%;
-    min-height: 0 !important;
     flex-direction: column;
-    overflow: hidden;
     margin-bottom: 0 !important;
     border-radius: 0 !important;
     padding: 0 !important;
@@ -306,19 +300,13 @@ defineExpose({
 
 :deep(.rte-editor-content .tiptap) {
     display: flex;
-    min-height: 0;
-    flex: 1 1 0%;
     flex-direction: column;
 }
 
 :deep(.rte-editor-content .ProseMirror) {
     width: 100%;
-    min-height: 0;
-    flex: 1 1 0%;
-    height: 0;
     margin: 0;
     box-sizing: border-box;
-    overflow-y: auto;
     padding: 0.5rem 1rem 1rem;
     background: transparent;
     outline: none;
@@ -335,5 +323,36 @@ defineExpose({
 
 :deep(.rte-editor-content .ProseMirror > :first-child) {
     margin-top: 0;
+}
+
+@media (min-width: 1024px) {
+    :deep(.rte-root) {
+        min-height: 0;
+        flex: 1 1 0%;
+    }
+
+    :deep(.rte-editor) {
+        display: grid;
+        min-height: 0;
+        flex: 1 1 0%;
+        grid-template-rows: auto minmax(0, 1fr);
+    }
+
+    :deep(.rte-editor-content) {
+        min-height: 0 !important;
+        overflow: hidden;
+    }
+
+    :deep(.rte-editor-content .tiptap) {
+        min-height: 0;
+        flex: 1 1 0%;
+    }
+
+    :deep(.rte-editor-content .ProseMirror) {
+        min-height: 0;
+        flex: 1 1 0%;
+        height: 0;
+        overflow-y: auto;
+    }
 }
 </style>
