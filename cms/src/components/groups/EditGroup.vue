@@ -418,6 +418,7 @@ const duplicateGroup = async () => {
                     context="danger"
                     :icon="TrashIcon"
                     class="mr-2"
+                    :disabled="!hasEditPermission || !isConnected"
                 >
                     Delete
                 </LButton>

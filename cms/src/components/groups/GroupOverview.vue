@@ -19,9 +19,10 @@ import EditGroup from "./EditGroup.vue";
 import { isSmallScreen } from "@/globalConfig";
 import ConfirmBeforeLeavingModal from "../modals/ConfirmBeforeLeavingModal.vue";
 import { type GroupOverviewQueryOptions } from "./GroupOverview/types";
-import { ListBulletIcon, MapIcon } from "@heroicons/vue/24/outline";
+import { MapIcon, MagnifyingGlassIcon, ListBulletIcon } from "@heroicons/vue/24/outline";
 import GroupGraph from "./GroupGraph.vue";
 import LDropdown from "@/components/common/LDropdown.vue";
+import LInput from "../forms/LInput.vue";
 
 const { output: groupsSource, isFetching } = useHybridQueryWithState<GroupDto>(
     () => ({
@@ -109,7 +110,12 @@ watch(
 );
 
 const filteredGroups = computed(() => {
-    const result = [...editable.value];
+    let result = [...editable.value];
+
+    if (queryOptions.value.search) {
+        const searchLower = queryOptions.value.search.toLowerCase();
+        result = result.filter((group) => group.name.toLowerCase().includes(searchLower));
+    }
 
     result.sort((a, b) => {
         if (queryOptions.value.orderBy === "name") {
@@ -171,6 +177,42 @@ const handleGraphSelect = (groupId: string) => {
 <template>
     <BasePage title="Groups" :is-full-width="true" :loading="isFetching">
         <template #pageNav>
+            <div class="relative z-20 flex items-center justify-end px-3 sm:px-8">
+                <LDropdown
+                    v-model:show="showViewDropdown"
+                    placement="bottom-end"
+                    width="auto"
+                    padding="small"
+                    class="w-full sm:w-auto"
+                >
+                    <template #trigger>
+                        <LButton
+                            variant="secondary"
+                            :icon="activeTab.icon"
+                            class="w-full sm:w-auto"
+                        >
+                            {{ activeTab.title }}
+                        </LButton>
+                    </template>
+                    <LButton
+                        v-for="tab in tabs"
+                        :key="tab.key"
+                        variant="tertiary"
+                        size="sm"
+                        :icon="tab.icon"
+                        role="menuitem"
+                        :main-dynamic-css="
+                            currentTab === tab.key ? 'font-semibold text-zinc-950' : 'text-zinc-600'
+                        "
+                        @click="
+                            currentTab = tab.key;
+                            showViewDropdown = false;
+                        "
+                    >
+                        {{ tab.title }}
+                    </LButton>
+                </LDropdown>
+            </div>
             <LButton
                 v-if="canCreateGroup && !isSmallScreen"
                 variant="primary"
@@ -190,55 +232,28 @@ const handleGraphSelect = (groupId: string) => {
 
         <template #internalPageHeader>
             <div
-                class="relative z-20 flex items-center justify-end border-b border-t border-zinc-300 border-t-zinc-100 bg-white px-3 py-2 shadow sm:px-8"
+                class="flex flex-col gap-1 overflow-visible border-b border-t border-zinc-300 border-t-zinc-100 bg-white pb-1 pt-2 shadow-md"
             >
-                <LDropdown
-                    v-model:show="showViewDropdown"
-                    placement="bottom-end"
-                    width="auto"
-                    padding="small"
-                    class="w-full sm:w-auto"
-                >
-                    <template #trigger>
-                        <LButton
-                            variant="secondary"
-                            :icon="activeTab.icon"
-                            class="flex h-12 w-12 justify-center sm:hidden"
-                            icon-class="h-7 w-7"
-                        />
-                        <LButton
-                            variant="secondary"
-                            :icon="activeTab.icon"
-                            class="hidden sm:inline-flex"
-                        >
-                            {{ activeTab.title }}
-                        </LButton>
-                    </template>
-                    <LButton
-                        v-for="tab in tabs"
-                        :key="tab.key"
-                        variant="tertiary"
-                        size="sm"
-                        :icon="tab.icon"
-                        role="menuitem"
-
-                        :main-dynamic-css="currentTab === tab.key ? 'font-semibold text-zinc-950' : 'text-zinc-600'"
-                        @click="
-                            currentTab = tab.key;
-                            showViewDropdown = false;
-                        "
-                    >
-                        {{ tab.title }}
-                    </LButton>
-                </LDropdown>
+                <div class="flex w-full items-center gap-1 px-3 py-1">
+                    <LInput
+                        type="text"
+                        :icon="MagnifyingGlassIcon"
+                        class="flex-grow"
+                        name="search"
+                        placeholder="Search..."
+                        data-test="search-input"
+                        v-model="queryOptions.search"
+                        :full-height="true"
+                    />
+                </div>
             </div>
         </template>
 
         <div v-show="currentTab === 'overview'">
             <p class="mb-2 mt-1 p-2 py-1 text-sm text-gray-500">
                 <span>
-                    Configure access permissions for the groups listed below to control who can access
-                    them and their member documents.
+                    Configure access permissions for the groups listed below to control who can
+                    access them and their member documents.
                 </span>
                 <span class="text-[13px] italic">
                     <br />Note that users may inherit additional rights from higher-level groups,
