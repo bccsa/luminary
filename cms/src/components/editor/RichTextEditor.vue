@@ -185,7 +185,7 @@ defineExpose({
                 :class="toolbarClass"
                 :style="pinnedStyle"
             >
-                <div :class="toolbarClasses.toolbar">
+                <div :class="[toolbarClasses.toolbar, 'toolbar-scroll']">
                 <div v-for="(group, gi) in groups" :key="gi" :class="toolbarClasses.toolbarGroup">
                     <template v-for="item in group" :key="item">
                         <!-- Download: opens a menu to pick the document type -->
@@ -290,6 +290,15 @@ defineExpose({
 </template>
 
 <style scoped>
+.toolbar-scroll {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+.toolbar-scroll::-webkit-scrollbar {
+    display: none;
+}
+
 :deep(.rte-root) {
     display: flex;
     width: 100%;
@@ -372,6 +381,12 @@ defineExpose({
         flex: 1 1 0%;
         height: 0;
         overflow-y: auto;
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+
+    :deep(.rte-editor-content .ProseMirror::-webkit-scrollbar) {
+        display: none;
     }
 }
 </style>
