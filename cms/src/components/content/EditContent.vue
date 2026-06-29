@@ -596,6 +596,7 @@ const actionsWrapperProps = computed(() => ({
                     <EmptyState
                         v-if="!selectedContent"
                         :icon="icon"
+                        title="No translation"
                         description="Please select a language to start editing"
                         data-test="no-content"
                         class="mb-3 flex flex-col items-center justify-center lg:mb-0"
