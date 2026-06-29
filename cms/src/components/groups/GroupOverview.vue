@@ -201,6 +201,7 @@ const handleGraphSelect = (groupId: string) => {
         <template #internalPageHeader>
             <div
                 class="relative z-20 flex flex-col gap-1 overflow-visible border-b border-t border-zinc-300 border-t-zinc-100 bg-white pb-1 pt-2 shadow"
+                v-if="currentTab === 'overview'"
             >
                 <div class="flex h-10 w-full items-center gap-1 px-8">
                     <LInput

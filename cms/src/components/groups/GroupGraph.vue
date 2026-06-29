@@ -273,7 +273,7 @@ const chartNodes = computed<ChartNode[]>(() => {
         return {
             id: group._id,
             type: "chartGroup",
-            position: manualNodePositions.value[group._id] ?? position,
+            position: snapPosition(manualNodePositions.value[group._id] ?? position),
             sourcePosition: sourceHandlePosition.value,
             targetPosition: targetHandlePosition.value,
             draggable: true,
@@ -486,12 +486,19 @@ function validPosition(position: unknown): position is NodePosition {
     );
 }
 
+function snapPosition(position: NodePosition): NodePosition {
+    return {
+        x: Math.round(position.x / GRID_SIZE) * GRID_SIZE,
+        y: Math.round(position.y / GRID_SIZE) * GRID_SIZE,
+    };
+}
+
 function cleanPositions(positions: Record<string, NodePosition>) {
     const groupIds = new Set(props.allGroups.map((group) => group._id));
     return Object.fromEntries(
-        Object.entries(positions).filter(
-            ([groupId, position]) => groupIds.has(groupId) && validPosition(position),
-        ),
+        Object.entries(positions)
+            .filter(([groupId, position]) => groupIds.has(groupId) && validPosition(position))
+            .map(([groupId, position]) => [groupId, snapPosition(position)]),
     );
 }
 
@@ -630,7 +637,7 @@ function selectGroup(groupId: string) {
 }
 
 function openSearch() {
-    if (!isFullscreen.value) return;
+    if (!graphRoot.value?.isConnected) return;
     showSearch.value = true;
     showSearchDropdown.value = true;
     searchQuery.value = "";
@@ -734,7 +741,7 @@ function saveNodePosition({ node, nodes }: NodeDragEvent) {
 
 function handleGlobalKeydown(event: KeyboardEvent) {
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
-        if (!isFullscreen.value) return;
+        if (!graphRoot.value?.isConnected) return;
         event.preventDefault();
         openSearch();
         return;
@@ -857,7 +864,6 @@ watch(searchQuery, () => {
 
 watch(isFullscreen, (fullscreen) => {
     if (fullscreen) showLegend.value = false;
-    if (!fullscreen) closeSearch();
     nextTick(() => {
         graphRoot.value?.focus();
         fitView({ padding: 0.18, duration: 120 });
@@ -882,7 +888,7 @@ onUnmounted(() => {
     <component
         :is="isFullscreen ? LModal : 'div'"
         v-model:isVisible="isFullscreen"
-        heading="Visualisation"
+        heading="Info"
         no-divider
         large-modal
         stick-to-edges
@@ -893,7 +899,7 @@ onUnmounted(() => {
             class="relative min-h-0 select-none overflow-hidden outline-none focus:outline-none focus-visible:outline-none"
             :class="isFullscreen ? 'h-[calc(100dvh-6rem)] w-[calc(100vw-3rem)]' : 'h-full w-full'"
             tabindex="0"
-            aria-label="Group visualisation. Hold Space or middle mouse to drag, use arrow keys to pan, plus and minus to zoom, Tab to move through groups, Enter or Space to focus a group. In full screen, Command K opens search."
+            aria-label="Group visualisation. Hold Space or middle mouse to drag, use arrow keys to pan, plus and minus to zoom, Tab to move through groups, Enter or Space to focus a group. Command K opens search."
             @auxclick.prevent
             @click.capture="closeLegendOnOutsideClick"
             @keydown.capture="handleGraphKeydown"
@@ -923,12 +929,12 @@ onUnmounted(() => {
                 @node-context-menu="openNodeContextMenu"
                 @node-drag-stop="saveNodePosition"
                 @selection-drag-stop="saveNodePosition"
-                @pane-click="closeContextMenu"
+                @pane-click="clearFocus"
             >
                 <template #node-chartGroup="{ data }">
                     <button
                         type="button"
-                        class="relative rounded-xl border bg-white px-3 py-3 text-center shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2"
+                        class="relative rounded-xl border px-3 py-3 text-center shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2"
                         :style="{ width: `${CHART_CARD_WIDTH}px` }"
                         :class="
                             data.selected
@@ -938,8 +944,8 @@ onUnmounted(() => {
                                   : data.accessState === 'upstream'
                                     ? 'border-violet-300 bg-violet-300 opacity-100'
                                     : data.dimmed
-                                      ? 'border-zinc-200 opacity-25'
-                                      : 'border-zinc-200'
+                                      ? 'border-zinc-200 bg-white opacity-25'
+                                      : 'border-zinc-200 bg-white'
                         "
                         tabindex="0"
                         @click.stop="selectGroup(data.groupId)"
@@ -993,10 +999,10 @@ onUnmounted(() => {
             </VueFlow>
 
             <div
-                class="pointer-events-none absolute left-32 right-3 top-3 z-40 flex flex-wrap justify-end gap-2 sm:left-40 sm:right-4 sm:top-4"
+                class="pointer-events-none absolute left-3 right-3 top-3 z-40 flex items-start justify-end gap-2 sm:right-4 sm:top-4"
             >
                 <div
-                    class="pointer-events-auto inline-flex divide-x divide-zinc-300 overflow-hidden rounded-md shadow-sm ring-1 ring-zinc-300"
+                    class="pointer-events-auto flex shrink-0 divide-x divide-zinc-300 overflow-hidden rounded-md shadow-sm ring-1 ring-zinc-300"
                 >
                     <LButton
                         size="sm"
@@ -1021,12 +1027,16 @@ onUnmounted(() => {
                     v-if="hasUnsavedLayout"
                     size="sm"
                     variant="secondary"
-                    class="pointer-events-auto"
+                    class="pointer-events-auto shrink-0"
                     @click="saveCustomLayout"
                 >
                     Save custom layout
                 </LButton>
-                <div v-if="!isFullscreen" ref="legendRoot" class="pointer-events-auto relative">
+                <div
+                    v-if="!isFullscreen"
+                    ref="legendRoot"
+                    class="pointer-events-auto relative shrink-0"
+                >
                     <LButton
                         size="sm"
                         variant="secondary"
@@ -1050,44 +1060,75 @@ onUnmounted(() => {
                     />
                     <div
                         v-if="showLegend"
-                        class="legend-drawer absolute right-0 top-full mt-2 w-max max-w-[calc(100vw-1.5rem)] rounded-md border border-zinc-300 bg-white px-3 py-2 text-xs shadow-lg sm:max-w-md"
+                        class="legend-drawer absolute right-0 top-full mt-2 max-h-[calc(100dvh-7rem)] w-[calc(100vw-1.5rem)] overflow-y-auto rounded-md border border-zinc-300 bg-white px-3 py-2 text-xs shadow-lg sm:w-max sm:max-w-2xl"
                     >
                         <div class="flex items-start justify-between gap-3">
                             <div>
-                                <div class="text-sm font-semibold text-zinc-900">Visualisation</div>
+                                <div class="text-sm font-semibold text-zinc-900">Info</div>
                                 <div class="mt-0.5 text-zinc-500">
                                     Select a group to see who can access it and what it can access.
                                 </div>
                             </div>
-                            <LButton size="sm" variant="tertiary" @click="showLegend = false"
-                                >Hide</LButton
-                            >
                         </div>
-                        <div class="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-zinc-600">
-                            <span class="inline-flex items-center gap-1.5">
-                                <span class="h-3 w-4 rounded-sm border-2 border-zinc-900"></span>
-                                Selected group
-                            </span>
-                            <span class="inline-flex items-center gap-1.5">
-                                <span class="h-0 w-5 border-t-2 border-sky-500"></span>
-                                This group can access
-                            </span>
-                            <span class="inline-flex items-center gap-1.5">
-                                <span class="h-0 w-5 border-t-2 border-violet-600"></span>
-                                Can access this group
-                            </span>
-                            <span class="inline-flex items-center gap-1.5">
-                                <span
-                                    class="h-0 w-5 border-t-2 border-dashed border-zinc-500"
-                                ></span>
-                                Dashed = inherited
-                            </span>
-                            <span class="inline-flex items-center gap-1.5 opacity-50">
-                                <span
-                                    class="h-3 w-4 rounded-sm border border-zinc-300 bg-zinc-50"
-                                ></span>
-                                Not in path
-                            </span>
+                        <div class="mt-2 grid gap-4 border-t border-zinc-100 pt-2 sm:grid-cols-2">
+                            <div class="text-[11px]">
+                                <div class="font-bold text-zinc-600">Keys</div>
+                                <dl
+                                    class="mt-2 grid grid-cols-[max-content_1fr] gap-x-3 gap-y-1 text-zinc-500"
+                                >
+                                    <dt class="font-medium text-zinc-600">Space</dt>
+                                    <dd>Hold to drag</dd>
+                                    <dt class="font-medium text-zinc-600">Middle mouse</dt>
+                                    <dd>Drag</dd>
+                                    <dt class="font-medium text-zinc-600">Arrow keys</dt>
+                                    <dd>Pan</dd>
+                                    <dt class="font-medium text-zinc-600">+ / -</dt>
+                                    <dd>Zoom</dd>
+                                    <dt class="font-medium text-zinc-600">0</dt>
+                                    <dd>Fit view</dd>
+                                    <dt class="font-medium text-zinc-600">Tab</dt>
+                                    <dd>Move through groups</dd>
+                                    <dt class="font-medium text-zinc-600">Enter / Space</dt>
+                                    <dd>Select group</dd>
+                                    <dt class="font-medium text-zinc-600">Esc</dt>
+                                    <dd>Close or clear</dd>
+                                    <dt class="font-medium text-zinc-600">Cmd/Ctrl+K</dt>
+                                    <dd>Search groups</dd>
+                                </dl>
+                            </div>
+                            <div class="text-[11px]">
+                                <div class="font-bold text-zinc-600">Legend</div>
+                                <dl
+                                    class="mt-2 grid grid-cols-[max-content_1fr] gap-x-3 gap-y-1 text-zinc-500"
+                                >
+                                    <dt class="flex h-4 items-center">
+                                        <span
+                                            class="h-3 w-4 rounded-sm border-2 border-zinc-900"
+                                        ></span>
+                                    </dt>
+                                    <dd>Selected group</dd>
+                                    <dt class="flex h-4 items-center">
+                                        <span class="h-0 w-5 border-t-2 border-sky-500"></span>
+                                    </dt>
+                                    <dd>This group can access</dd>
+                                    <dt class="flex h-4 items-center">
+                                        <span class="h-0 w-5 border-t-2 border-violet-600"></span>
+                                    </dt>
+                                    <dd>Can access this group</dd>
+                                    <dt class="flex h-4 items-center">
+                                        <span
+                                            class="h-0 w-5 border-t-2 border-dashed border-zinc-500"
+                                        ></span>
+                                    </dt>
+                                    <dd>Inherited access</dd>
+                                    <dt class="flex h-4 items-center opacity-50">
+                                        <span
+                                            class="h-3 w-4 rounded-sm border border-zinc-300 bg-zinc-50"
+                                        ></span>
+                                    </dt>
+                                    <dd class="opacity-50">Not in path</dd>
+                                </dl>
+                            </div>
                         </div>
                         <div
                             v-if="showPermissionOptimisationTip"
@@ -1103,28 +1144,14 @@ onUnmounted(() => {
                                 reduces the reach of any one group.
                             </div>
                         </div>
-                    <div class="mt-2 border-t border-zinc-100 pt-2 text-[11px] text-zinc-500">
-                        <span class="font-medium text-zinc-600">Keys:</span>
-                        <span class="ml-1 inline-flex flex-wrap gap-x-2 gap-y-1">
-                            <span>Space hold drag</span>
-                            <span>Middle mouse drag</span>
-                            <span>Arrows pan</span>
-                            <span>+/- zoom</span>
-                            <span>0 fit</span>
-                            <span>Tab groups</span>
-                            <span>Enter/Space select</span>
-                            <span>Esc close/clear</span>
-                            <span>Fullscreen Cmd/Ctrl+K search</span>
-                        </span>
                     </div>
                 </div>
-            </div>
                 <LDropdown
                     v-model:show="showColumnDropdown"
                     placement="bottom-end"
                     width="auto"
                     padding="small"
-                    class="pointer-events-auto"
+                    class="pointer-events-auto shrink-0"
                 >
                     <template #trigger>
                         <LButton size="sm" variant="secondary" :icon="Cog6ToothIcon" />
@@ -1197,13 +1224,13 @@ onUnmounted(() => {
                     size="sm"
                     variant="secondary"
                     :icon="isFullscreen ? ArrowsPointingInIcon : ArrowsPointingOutIcon"
-                    class="pointer-events-auto"
+                    class="pointer-events-auto shrink-0"
                     @click="isFullscreen = !isFullscreen"
                 />
             </div>
 
             <div
-                v-if="showSearch && isFullscreen"
+                v-if="showSearch"
                 class="absolute inset-0 z-[60] flex items-start justify-center bg-white/40 px-4 pt-20 backdrop-blur-[1px]"
                 @click.self="closeSearch"
             >
@@ -1237,7 +1264,7 @@ onUnmounted(() => {
                             size="sm"
                             role="menuitem"
                             class="w-full justify-start"
-                            :main-dynamic-css="index === activeSearchIndex ? 'bg-sky-50' : ''"
+                            :main-dynamic-css="index === activeSearchIndex ? 'bg-zinc-100' : ''"
                             @click="selectSearchResult(group._id)"
                         >
                             {{ group.name || "(unnamed group)" }}
@@ -1280,7 +1307,7 @@ onUnmounted(() => {
     height: 6px;
     width: 6px;
     min-width: 6px;
-    border: 1px solid #d4d4d8;
+    border: 1px solid #bcbcbc;
     background: #ffffff;
     opacity: 0.8;
 }
