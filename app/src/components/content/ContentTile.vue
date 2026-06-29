@@ -210,9 +210,9 @@ if (allMedia) {
 
                         <div
                             v-if="titlePosition === 'overlay'"
-                            class="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex flex-col justify-end rounded-lg bg-gradient-to-t from-black via-black/65 to-transparent px-3 pb-3 pt-4"
+                            class="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex flex-col justify-end rounded-lg bg-gradient-to-t from-black via-black/65 to-transparent px-3 pb-1 pt-4"
                         >
-                            <div class="flex items-start justify-between gap-1.5">
+                            <div class="flex items-end justify-between gap-1.5">
                                 <h3
                                     class="line-clamp-2 text-sm font-semibold leading-snug text-white"
                                 >
@@ -220,7 +220,7 @@ if (allMedia) {
                                 </h3>
                                 <PlayIcon
                                     v-if="hasVideo"
-                                    class="text mt-5 h-4 w-4 flex-shrink-0 text-white md:hidden"
+                                    class="text mt-1 h-4 w-4 flex-shrink-0 text-white md:hidden"
                                 />
                             </div>
                             <p
