@@ -48,6 +48,12 @@ const userGroups = computed(() => {
 const userProvider = computed(() =>
     authProviders.value?.find((p) => p._id === props.usersDoc.providerId),
 );
+
+const userProviderLabel = computed(() => {
+    const provider = userProvider.value;
+    if (!provider) return "";
+    return provider.displayName || provider.domain || "Auth provider";
+});
 </script>
 
 <template>
@@ -104,7 +110,7 @@ const userProvider = computed(() =>
                         :icon="KeyIcon"
                         withIcon
                     >
-                        {{ userProvider.label || userProvider.domain }}
+                        {{ userProviderLabel }}
                     </LBadge>
                     <div class="flex items-center gap-1">
                         <UserGroupIcon class="h-4 w-4 text-zinc-400" />
@@ -134,7 +140,7 @@ const userProvider = computed(() =>
                         :icon="KeyIcon"
                         withIcon
                     >
-                        {{ userProvider.label || userProvider.domain }}
+                        {{ userProviderLabel }}
                     </LBadge>
                     <div class="flex flex-1 flex-wrap items-center gap-1">
                         <UserGroupIcon class="h-4 w-4 text-zinc-400" />

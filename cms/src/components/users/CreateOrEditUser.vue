@@ -135,7 +135,7 @@ const authProviders = useHybridQuery<AuthProviderDto>(
 const providerOptions = computed(() => [
     { label: "Choose a provider this user belongs to", value: "" },
     ...authProviders.value.map((p) => ({
-        label: p.label || "Unnamed provider",
+        label: p.displayName || p.domain || "Unnamed provider",
         value: p._id,
     })),
 ]);

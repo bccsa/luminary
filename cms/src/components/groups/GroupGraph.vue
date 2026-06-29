@@ -77,6 +77,12 @@ const KEYBOARD_PAN_STEP = 80;
 const STORAGE_KEY = "group_graph_custom_layout";
 const MAX_ANIMATED_EDGES = 38;
 const LARGE_PERMISSION_PATH_THRESHOLD = 24;
+/** Minimal inset when fitting the chart — large values feel like a drag boundary. */
+const FIT_VIEW_PADDING = 0.02;
+const UNBOUNDED_EXTENT = [
+    [Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY],
+    [Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY],
+] as [[number, number], [number, number]];
 // const CHART_EDGE_RADIUS = 28;
 
 const chartLanes = [
@@ -88,6 +94,10 @@ const chartLanes = [
 ] as const;
 
 const { fitView, getViewport, setViewport, zoomIn, zoomOut } = useVueFlow();
+
+function fitChartView(duration = 120) {
+    return fitView({ padding: FIT_VIEW_PADDING, duration });
+}
 const graphRoot = ref<HTMLElement | null>(null);
 const legendRoot = ref<HTMLElement | null>(null);
 const searchInput = ref<InstanceType<typeof LInput> | null>(null);
@@ -822,7 +832,7 @@ function handleGraphKeydown(event: KeyboardEvent) {
     if (event.key === "0") {
         event.preventDefault();
         event.stopPropagation();
-        fitView({ padding: 0.18, duration: 120 });
+        fitChartView(120);
         return;
     }
 
@@ -854,7 +864,10 @@ watch(
         layoutDirection.value,
         treeColumnCount.value,
     ],
-    () => nextTick(() => fitView({ padding: 0.18, duration: 250 })),
+    () => {
+        if (hasManualNodePositions.value) return;
+        nextTick(() => fitChartView(250));
+    },
 );
 
 watch(searchQuery, () => {
@@ -866,7 +879,7 @@ watch(isFullscreen, (fullscreen) => {
     if (fullscreen) showLegend.value = false;
     nextTick(() => {
         graphRoot.value?.focus();
-        fitView({ padding: 0.18, duration: 120 });
+        fitChartView(120);
     });
 });
 
@@ -923,6 +936,10 @@ onUnmounted(() => {
                 :edges-updatable="false"
                 :disable-keyboard-a11y="true"
                 :zoom-on-double-click="false"
+                :translate-extent="UNBOUNDED_EXTENT"
+                :node-extent="UNBOUNDED_EXTENT"
+                :auto-pan-on-node-drag="true"
+                :auto-pan-speed="20"
                 pan-activation-key-code="Space"
                 @node-click="({ node }) => selectNode(node)"
                 @node-double-click="openNodeGroup"
@@ -992,7 +1009,7 @@ onUnmounted(() => {
                             size="sm"
                             variant="secondary"
                             :icon="ArrowsPointingInIcon"
-                            @click="fitView({ padding: 0.18, duration: 120 })"
+                            @click="fitChartView(120)"
                         />
                     </div>
                 </Panel>

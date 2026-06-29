@@ -198,7 +198,7 @@ const handleGraphSelect = (groupId: string) => {
             />
         </template>
 
-        <template #internalPageHeader>
+        <template v-if="currentTab === 'overview'" #internalPageHeader>
             <div
                 class="relative z-20 flex flex-col gap-1 overflow-visible border-b border-t border-zinc-300 border-t-zinc-100 bg-white pb-1 pt-2 shadow"
                 v-if="currentTab === 'overview'"
@@ -240,7 +240,7 @@ const handleGraphSelect = (groupId: string) => {
 
         <div
             v-show="currentTab === 'graph'"
-            class="h-[calc(100dvh-9.75rem)] min-h-[520px] md:h-[calc(100vh-8.75rem)] md:min-h-[640px]"
+            class="h-[calc(100dvh-6.75rem)] min-h-[520px] md:h-[calc(100vh-5.75rem)] md:min-h-[640px]"
         >
             <KeepAlive>
                 <GroupGraph

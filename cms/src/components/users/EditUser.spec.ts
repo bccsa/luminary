@@ -31,7 +31,8 @@ const mockAuthProvider: AuthProviderDto = {
     domain: "example.auth0.com",
     audience: "https://example.auth0.com",
     clientId: "client-abc",
-    label: "Example",
+    label: "login.bcc.button",
+    displayName: "Example",
     memberOf: ["group-super-admins"],
     updatedTimeUtc: 1704114000000,
 };
