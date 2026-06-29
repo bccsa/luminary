@@ -43,6 +43,11 @@
             "type": "authProvider",
             "groupId": "group-super-admins",
             "permission": ["view", "cmsView"]
+        },
+        {
+            "type": "authProvider",
+            "groupId": "group-public-users",
+            "permission": ["view", "cmsView"]
         }
     ]
 }
