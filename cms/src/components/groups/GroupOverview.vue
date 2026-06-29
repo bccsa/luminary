@@ -200,13 +200,13 @@ const handleGraphSelect = (groupId: string) => {
 
         <template #internalPageHeader>
             <div
-                class="flex flex-col gap-1 overflow-visible border-b border-t border-zinc-300 border-t-zinc-100 bg-white pb-1 pt-2 shadow-md"
+                class="relative z-20 flex flex-col gap-1 overflow-visible border-b border-t border-zinc-300 border-t-zinc-100 bg-white pb-1 pt-2 shadow"
             >
-                <div class="flex w-full items-center gap-1 px-3 py-1">
+                <div class="flex h-10 w-full items-center gap-1 px-8">
                     <LInput
                         type="text"
                         :icon="MagnifyingGlassIcon"
-                        class="flex-grow"
+                        class="h-full min-w-0 flex-grow"
                         name="search"
                         placeholder="Search..."
                         data-test="search-input"
@@ -217,8 +217,8 @@ const handleGraphSelect = (groupId: string) => {
             </div>
         </template>
 
-        <div v-show="currentTab === 'overview'">
-            <p class="mb-2 mt-1 p-2 py-1 text-sm text-gray-500">
+        <div v-show="currentTab === 'overview'" class="mt-1">
+            <p class="mb-2 text-sm text-gray-500">
                 <span>
                     Configure access permissions for the groups listed below to control who can
                     access them and their member documents.
