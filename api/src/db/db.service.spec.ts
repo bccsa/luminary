@@ -1,6 +1,6 @@
 import { DbService, DbQueryResult } from "./db.service";
 import { randomUUID } from "crypto";
-import { DeleteReason, DocType, PostType, Uuid } from "../enums";
+import { DeleteReason, DocType, PostType } from "../enums";
 import { createTestingModule } from "../test/testingModule";
 import { PostDto } from "../dto/PostDto";
 import waitForExpect from "wait-for-expect";
@@ -556,9 +556,7 @@ describe("DbService", () => {
             // without spawning a real polling loop.
             const wasStarted = changesReader.started;
             changesReader.started = false;
-            const startSpy = jest
-                .spyOn(changesReader, "start")
-                .mockReturnValue(changesReader.ee);
+            const startSpy = jest.spyOn(changesReader, "start").mockReturnValue(changesReader.ee);
 
             try {
                 (service as any).startChangesFeed();
