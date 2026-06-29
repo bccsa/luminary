@@ -50,7 +50,7 @@ const handleMobileSidebarToggle = () => {
 
 <template>
     <div class="flex h-full flex-col overflow-hidden">
-        <div class="flex-shrink-0">
+        <div class="relative z-30 flex-shrink-0">
             <div
                 data-topbar
                 class="flex h-12 shrink-0 items-center gap-x-3 bg-white py-8 shadow-sm sm:gap-x-3"

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { RTextEditor, type ToolbarItem, type DownloadFormat } from "rte-vue";
-import { ref, toRefs, nextTick } from "vue";
+import { ref, toRefs, nextTick, useTemplateRef } from "vue";
 import type { Component } from "vue";
 import { type Editor } from "@tiptap/vue-3";
 import {
@@ -17,6 +17,7 @@ import LDropdown from "../common/LDropdown.vue";
 import BulletlistIcon from "./icons/BulletListIcon.vue";
 import NumberedListIcon from "./icons/NumberedListIcon.vue";
 import { useNotificationStore } from "@/stores/notification";
+import { usePinnedToolbarBelowTopbar } from "@/composables/usePinnedToolbarBelowTopbar";
 
 type Props = {
     title?: string;
@@ -30,6 +31,12 @@ const { disabled } = toRefs(props);
 const text = defineModel<string>("text");
 
 const rteRef = ref<InstanceType<typeof RTextEditor> | undefined>(undefined);
+const toolbarEl = useTemplateRef<HTMLElement>("toolbarEl");
+const toolbarSentinel = useTemplateRef<HTMLElement>("toolbarSentinel");
+const { placeholderHeight, pinnedStyle, toolbarClass } = usePinnedToolbarBelowTopbar(
+    toolbarEl,
+    toolbarSentinel,
+);
 const showModal = ref(false);
 const url = ref("");
 
@@ -80,7 +87,7 @@ const toolbarClasses = {
     header: "flex items-center gap-2",
     icon: "h-6 w-6 text-zinc-600",
     title: "text-sm font-medium text-zinc-700",
-    toolbar: "flex flex-nowrap gap-4 overflow-x-auto scrollbar-hide",
+    toolbar: "flex flex-nowrap items-center gap-4 overflow-x-auto scrollbar-hide",
     toolbarGroup: "flex shrink-0 !gap-0 !overflow-hidden !rounded-md !shadow-none pb-0",
     button: `${toolbarButtonClass} first:!rounded-l-md last:!rounded-r-md`,
     buttonActive: "!bg-zinc-300",
@@ -165,7 +172,19 @@ defineExpose({
         "
     >
         <template #toolbar="{ groups, isActive, isDisabled, getLabel, runCommand }">
-            <div class="w-full shrink-0 border-b border-zinc-200 bg-white px-4 pb-2 pt-1">
+            <div ref="toolbarSentinel" class="h-px w-full shrink-0" aria-hidden="true" />
+            <div
+                v-if="placeholderHeight > 0"
+                class="w-full shrink-0"
+                :style="{ height: `${placeholderHeight}px` }"
+                aria-hidden="true"
+            />
+            <div
+                ref="toolbarEl"
+                class="w-full shrink-0 border-b border-zinc-200 bg-white px-4 py-2 lg:static"
+                :class="toolbarClass"
+                :style="pinnedStyle"
+            >
                 <div :class="toolbarClasses.toolbar">
                 <div v-for="(group, gi) in groups" :key="gi" :class="toolbarClasses.toolbarGroup">
                     <template v-for="item in group" :key="item">
