@@ -21,7 +21,6 @@ import ConfirmBeforeLeavingModal from "../modals/ConfirmBeforeLeavingModal.vue";
 import { type GroupOverviewQueryOptions } from "./GroupOverview/types";
 import { MapIcon, MagnifyingGlassIcon, ListBulletIcon } from "@heroicons/vue/24/outline";
 import GroupGraph from "./GroupGraph.vue";
-import LDropdown from "@/components/common/LDropdown.vue";
 import LInput from "../forms/LInput.vue";
 
 const { output: groupsSource, isFetching } = useHybridQueryWithState<GroupDto>(
@@ -161,12 +160,9 @@ const isDirty = computed(() => {
 });
 
 const currentTab = ref("overview");
-const showViewDropdown = ref(false);
-const tabs = [
-    { title: "Overview", key: "overview", icon: ListBulletIcon },
-    { title: "Visualisation", key: "graph", icon: MapIcon },
-];
-const activeTab = computed(() => tabs.find((tab) => tab.key === currentTab.value) ?? tabs[0]);
+const toggleView = () => {
+    currentTab.value = currentTab.value === "overview" ? "graph" : "overview";
+};
 
 const handleGraphSelect = (groupId: string) => {
     newGroupId.value = groupId;
@@ -177,41 +173,13 @@ const handleGraphSelect = (groupId: string) => {
 <template>
     <BasePage title="Groups" :is-full-width="true" :loading="isFetching">
         <template #pageNav>
-            <div class="relative z-20 flex items-center justify-end px-3 sm:px-8">
-                <LDropdown
-                    v-model:show="showViewDropdown"
-                    placement="bottom-end"
-                    width="auto"
-                    padding="small"
-                    class="w-full sm:w-auto"
-                >
-                    <template #trigger>
-                        <LButton
-                            variant="secondary"
-                            :icon="activeTab.icon"
-                            class="w-full sm:w-auto"
-                        >
-                            {{ activeTab.title }}
-                        </LButton>
-                    </template>
-                    <LButton
-                        v-for="tab in tabs"
-                        :key="tab.key"
-                        variant="tertiary"
-                        size="sm"
-                        :icon="tab.icon"
-                        role="menuitem"
-                        :main-dynamic-css="
-                            currentTab === tab.key ? 'font-semibold text-zinc-950' : 'text-zinc-600'
-                        "
-                        @click="
-                            currentTab = tab.key;
-                            showViewDropdown = false;
-                        "
-                    >
-                        {{ tab.title }}
-                    </LButton>
-                </LDropdown>
+            <div class="relative z-20 flex items-center justify-end">
+                <LButton
+                    variant="secondary"
+                    :icon="currentTab === 'overview' ? MapIcon : ListBulletIcon"
+                    :aria-label="currentTab === 'overview' ? 'Show visualisation' : 'Show overview'"
+                    @click="toggleView"
+                />
             </div>
             <LButton
                 v-if="canCreateGroup && !isSmallScreen"

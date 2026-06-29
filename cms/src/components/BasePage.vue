@@ -86,16 +86,14 @@ const handleMobileSidebarToggle = () => {
 
                 <TopBar>
                     <template #quickActions>
-                        <div
-                            class="flex w-full items-center justify-between gap-2 sm:gap-4 lg:gap-6"
-                        >
+                        <div class="flex w-full items-center justify-between gap-1">
                             <h1
                                 v-if="title"
                                 class="text-md flex items-center gap-2 font-semibold leading-7"
                             >
                                 {{ title }}
                             </h1>
-                            <div class="flex items-center gap-2 sm:gap-4">
+                            <div class="flex items-center gap-1">
                                 <slot name="pageNav"></slot>
                                 <slot name="languageSelector"></slot>
                             </div>

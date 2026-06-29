@@ -3,6 +3,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { Background } from "@vue-flow/background";
 
 import { Handle, MarkerType, Panel, Position, VueFlow, useVueFlow } from "@vue-flow/core";
+import type { NodeDragEvent, NodeMouseEvent } from "@vue-flow/core";
 import LButton from "@/components/button/LButton.vue";
 import LDropdown from "@/components/common/LDropdown.vue";
 import LInput from "@/components/forms/LInput.vue";
@@ -12,14 +13,15 @@ import {
     ArrowsPointingOutIcon,
     Cog6ToothIcon,
     CursorArrowRaysIcon,
+    ExclamationTriangleIcon,
     HandRaisedIcon,
+    InformationCircleIcon,
     MinusIcon,
     PlusSmallIcon,
 } from "@heroicons/vue/24/outline";
 import type { GroupDto } from "luminary-shared";
 import "@vue-flow/core/dist/style.css";
 import "@vue-flow/core/dist/theme-default.css";
-
 
 const props = defineProps<{
     groups: GroupDto[];
@@ -43,6 +45,7 @@ type ChartNode = {
     sourcePosition: Position;
     targetPosition: Position;
     draggable?: boolean;
+    selectable?: boolean;
     data: {
         name: string;
         selected?: boolean;
@@ -53,16 +56,28 @@ type ChartNode = {
     };
 };
 
+type NodePosition = { x: number; y: number };
+type StoredGraphLayout = {
+    positions: Record<string, NodePosition>;
+    layoutDirection: "LR" | "TB";
+    treeColumnCount: number;
+    groupIds: string[];
+};
+
 const CHART_COLUMN_WIDTH = 320;
 const CHART_ROW_HEIGHT = 104;
 const CHART_TOP_OFFSET = 120;
 const CHART_CARD_WIDTH = 240;
 const TREE_COLUMN_WIDTH = 280;
 const TREE_ROW_HEIGHT = 120;
+const TREE_MIN_COLUMNS = 1;
+const TREE_MAX_COLUMNS = 8;
 const GRID_SIZE = 22;
 const KEYBOARD_PAN_STEP = 80;
+const STORAGE_KEY = "group_graph_custom_layout";
+const MAX_ANIMATED_EDGES = 38;
+const LARGE_PERMISSION_PATH_THRESHOLD = 24;
 // const CHART_EDGE_RADIUS = 28;
-const columnOptions = Array.from({ length: 8 }, (_, index) => index + 1);
 
 const chartLanes = [
     { key: "admin", title: "Admin" },
@@ -74,6 +89,7 @@ const chartLanes = [
 
 const { fitView, getViewport, setViewport, zoomIn, zoomOut } = useVueFlow();
 const graphRoot = ref<HTMLElement | null>(null);
+const legendRoot = ref<HTMLElement | null>(null);
 const searchInput = ref<InstanceType<typeof LInput> | null>(null);
 const selectedGroupId = ref<string | null>(null);
 const layoutDirection = ref<"LR" | "TB">("TB");
@@ -89,11 +105,16 @@ const showSearch = ref(false);
 const showSearchDropdown = ref(false);
 const searchQuery = ref("");
 const activeSearchIndex = ref(0);
+const manualNodePositions = ref<Record<string, NodePosition>>({});
+const savedLayout = ref<StoredGraphLayout | null>(null);
+const interactionModeBeforeTemporaryDrag = ref<"select" | "drag" | null>(null);
 
 const groupById = computed(() => new Map(props.allGroups.map((group) => [group._id, group])));
 const isTopToBottom = computed(() => layoutDirection.value === "TB");
 const targetHandlePosition = computed(() => (isTopToBottom.value ? Position.Top : Position.Left));
-const sourceHandlePosition = computed(() => (isTopToBottom.value ? Position.Bottom : Position.Right));
+const sourceHandlePosition = computed(() =>
+    isTopToBottom.value ? Position.Bottom : Position.Right,
+);
 const searchResults = computed(() => {
     const query = searchQuery.value.trim().toLowerCase();
     return [...props.allGroups]
@@ -111,7 +132,8 @@ const edges = computed(() => {
             if (!knownIds.has(acl.groupId) || acl.groupId === group._id) continue;
 
             const key = `${acl.groupId}__${group._id}`;
-            if (!edgeMap.has(key)) edgeMap.set(key, { id: `e-${key}`, source: acl.groupId, target: group._id });
+            if (!edgeMap.has(key))
+                edgeMap.set(key, { id: `e-${key}`, source: acl.groupId, target: group._id });
         }
     }
 
@@ -123,7 +145,9 @@ const downstreamReach = computed(() => {
 
     props.allGroups.forEach((group) => {
         const visited = new Set<string>();
-        const queue = edges.value.filter((edge) => edge.source === group._id).map((edge) => edge.target);
+        const queue = edges.value
+            .filter((edge) => edge.source === group._id)
+            .map((edge) => edge.target);
 
         while (queue.length) {
             const current = queue.shift()!;
@@ -238,10 +262,11 @@ const chartNodes = computed<ChartNode[]>(() => {
         return {
             id: group._id,
             type: "chartGroup",
-            position,
+            position: manualNodePositions.value[group._id] ?? position,
             sourcePosition: sourceHandlePosition.value,
             targetPosition: targetHandlePosition.value,
-            draggable: !dimmed,
+            draggable: true,
+            selectable: true,
             data: {
                 name: group.name || "(unnamed group)",
                 groupId: group._id,
@@ -258,62 +283,104 @@ const chartNodes = computed<ChartNode[]>(() => {
     };
 
     if (isTopToBottom.value) {
-        const root = [...props.allGroups].sort((a, b) => {
-            const reachDelta = (downstreamReach.value.get(b._id) ?? 0) - (downstreamReach.value.get(a._id) ?? 0);
+        const sortByReach = (a: GroupDto, b: GroupDto) => {
+            const reachDelta =
+                (downstreamReach.value.get(b._id) ?? 0) - (downstreamReach.value.get(a._id) ?? 0);
             if (reachDelta !== 0) return reachDelta;
             return a.name.localeCompare(b.name);
-        })[0];
-        const depthById = new Map<string, number>();
-        const queue = root ? [{ id: root._id, depth: 0 }] : [];
+        };
+        const byId = new Map(props.allGroups.map((group) => [group._id, group]));
+        const neighbours = new Map(props.allGroups.map((group) => [group._id, new Set<string>()]));
 
-        while (queue.length) {
-            const { id, depth } = queue.shift()!;
-            const currentDepth = depthById.get(id);
-            if (currentDepth !== undefined && currentDepth <= depth) continue;
+        edges.value.forEach((edge) => {
+            neighbours.get(edge.source)?.add(edge.target);
+            neighbours.get(edge.target)?.add(edge.source);
+        });
 
-            depthById.set(id, depth);
-            edges.value
-                .filter((edge) => edge.source === id)
-                .forEach((edge) => queue.push({ id: edge.target, depth: depth + 1 }));
-        }
+        const remaining = new Set(props.allGroups.map((group) => group._id));
+        const clusters: GroupDto[][] = [];
 
-        const fallbackDepth = Math.max(0, ...depthById.values()) + 1;
-        const levels = new Map<number, GroupDto[]>();
+        [...props.allGroups].sort(sortByReach).forEach((group) => {
+            if (!remaining.has(group._id)) return;
 
-        [...props.allGroups]
-            .sort((a, b) => {
-                const reachDelta = (downstreamReach.value.get(b._id) ?? 0) - (downstreamReach.value.get(a._id) ?? 0);
-                if (reachDelta !== 0) return reachDelta;
-                return a.name.localeCompare(b.name);
-            })
-            .forEach((group) => {
+            const cluster: GroupDto[] = [];
+            const queue = [group._id];
+            remaining.delete(group._id);
+
+            while (queue.length) {
+                const id = queue.shift()!;
+                const current = byId.get(id);
+                if (current) cluster.push(current);
+
+                neighbours.get(id)?.forEach((nextId) => {
+                    if (!remaining.has(nextId)) return;
+                    remaining.delete(nextId);
+                    queue.push(nextId);
+                });
+            }
+
+            clusters.push(cluster);
+        });
+
+        let columnOffset = 0;
+
+        return clusters.flatMap((cluster) => {
+            const root = [...cluster].sort(sortByReach)[0];
+            const clusterIds = new Set(cluster.map((group) => group._id));
+            const depthById = new Map<string, number>();
+            const queue = root ? [{ id: root._id, depth: 0 }] : [];
+
+            while (queue.length) {
+                const { id, depth } = queue.shift()!;
+                const currentDepth = depthById.get(id);
+                if (currentDepth !== undefined && currentDepth <= depth) continue;
+
+                depthById.set(id, depth);
+                edges.value
+                    .filter((edge) => edge.source === id && clusterIds.has(edge.target))
+                    .forEach((edge) => queue.push({ id: edge.target, depth: depth + 1 }));
+            }
+
+            const fallbackDepth = Math.max(0, ...depthById.values()) + 1;
+            const levels = new Map<number, GroupDto[]>();
+
+            [...cluster].sort(sortByReach).forEach((group) => {
                 const depth = depthById.get(group._id) ?? fallbackDepth;
                 const level = levels.get(depth) ?? [];
                 level.push(group);
                 levels.set(depth, level);
             });
 
-        const orderedLevels = [...levels.entries()].sort(([a], [b]) => a - b);
-        const maxLevelColumns = Math.min(
-            treeColumnCount.value,
-            Math.max(1, ...orderedLevels.map(([, groups]) => groups.length)),
-        );
-        let rowOffset = 0;
+            const orderedLevels = [...levels.entries()].sort(([a], [b]) => a - b);
+            const clusterColumns = Math.min(
+                treeColumnCount.value,
+                Math.max(1, ...orderedLevels.map(([, groups]) => groups.length)),
+            );
+            let rowOffset = 0;
 
-        return orderedLevels.flatMap(([, groups]) => {
-            const columns = Math.min(treeColumnCount.value, groups.length);
-            const rows = Math.ceil(groups.length / columns);
-            const nodes = groups.map((group, index) => {
-                const row = Math.floor(index / columns);
-                const column = index % columns;
+            const nodes = orderedLevels.flatMap(([, groups]) => {
+                const columns = Math.min(treeColumnCount.value, groups.length);
+                const rows = Math.ceil(groups.length / columns);
 
-                return toChartNode(group, {
-                    x: (maxLevelColumns - columns) * (TREE_COLUMN_WIDTH / 2) + column * TREE_COLUMN_WIDTH + 36,
-                    y: (rowOffset + row) * TREE_ROW_HEIGHT + CHART_TOP_OFFSET,
+                const levelNodes = groups.map((group, index) => {
+                    const row = Math.floor(index / columns);
+                    const column = index % columns;
+
+                    return toChartNode(group, {
+                        x:
+                            columnOffset * TREE_COLUMN_WIDTH +
+                            (clusterColumns - columns) * (TREE_COLUMN_WIDTH / 2) +
+                            column * TREE_COLUMN_WIDTH +
+                            36,
+                        y: (rowOffset + row) * TREE_ROW_HEIGHT + CHART_TOP_OFFSET,
+                    });
                 });
+
+                rowOffset += rows;
+                return levelNodes;
             });
 
-            rowOffset += rows;
+            columnOffset += clusterColumns + 1;
             return nodes;
         });
     }
@@ -321,7 +388,8 @@ const chartNodes = computed<ChartNode[]>(() => {
     chartLanes.forEach((lane) => groupsByLane.set(lane.key, []));
     [...props.allGroups]
         .sort((a, b) => {
-            const reachDelta = (downstreamReach.value.get(b._id) ?? 0) - (downstreamReach.value.get(a._id) ?? 0);
+            const reachDelta =
+                (downstreamReach.value.get(b._id) ?? 0) - (downstreamReach.value.get(a._id) ?? 0);
             if (reachDelta !== 0) return reachDelta;
             return a.name.localeCompare(b.name);
         })
@@ -343,6 +411,9 @@ const chartEdges = computed(() => {
     const chartNodeIds = new Set(
         chartNodes.value.filter((node) => node.type === "chartGroup").map((node) => node.id),
     );
+    const animateDirectEdges =
+        selectedAccess.value.directEdges.size > 0 &&
+        selectedAccess.value.directEdges.size <= MAX_ANIMATED_EDGES;
 
     return edges.value
         .filter((edge) => chartNodeIds.has(edge.source) && chartNodeIds.has(edge.target))
@@ -361,7 +432,10 @@ const chartEdges = computed(() => {
                 // type: "smoothstep",
                 // pathOptions: { borderRadius: CHART_EDGE_RADIUS },
                 type: "bezier",
-                animated: active,
+                animated: animateDirectEdges && direct,
+                selectable: false,
+                focusable: false,
+                interactionWidth: 0,
                 markerEnd: {
                     type: MarkerType.ArrowClosed,
                     width: 16,
@@ -388,8 +462,128 @@ function chartLaneKey(group: GroupDto) {
 }
 
 function keepValidSelection() {
-    if (selectedGroupId.value && !groupById.value.has(selectedGroupId.value)) selectedGroupId.value = null;
+    if (selectedGroupId.value && !groupById.value.has(selectedGroupId.value))
+        selectedGroupId.value = null;
 }
+
+function validPosition(position: unknown): position is NodePosition {
+    return (
+        !!position &&
+        typeof position === "object" &&
+        Number.isFinite((position as NodePosition).x) &&
+        Number.isFinite((position as NodePosition).y)
+    );
+}
+
+function cleanPositions(positions: Record<string, NodePosition>) {
+    const groupIds = new Set(props.allGroups.map((group) => group._id));
+    return Object.fromEntries(
+        Object.entries(positions).filter(
+            ([groupId, position]) => groupIds.has(groupId) && validPosition(position),
+        ),
+    );
+}
+
+function currentStoredLayout(): StoredGraphLayout {
+    const groupIds = props.allGroups.map((group) => group._id).sort();
+    return {
+        positions: cleanPositions(manualNodePositions.value),
+        layoutDirection: layoutDirection.value,
+        treeColumnCount: treeColumnCount.value,
+        groupIds,
+    };
+}
+
+function layoutKey(layout: StoredGraphLayout | null) {
+    if (!layout) return "";
+    const positions = Object.fromEntries(
+        Object.entries(layout.positions).sort(([a], [b]) => a.localeCompare(b)),
+    );
+    return JSON.stringify({ ...layout, positions, groupIds: [...layout.groupIds].sort() });
+}
+
+function readStoredLayout() {
+    if (typeof localStorage === "undefined") return null;
+
+    try {
+        const parsed = JSON.parse(
+            localStorage.getItem(STORAGE_KEY) || "null",
+        ) as Partial<StoredGraphLayout> | null;
+        if (!parsed || typeof parsed !== "object" || !parsed.positions) return null;
+
+        const positions = Object.fromEntries(
+            Object.entries(parsed.positions).filter(([, position]) => validPosition(position)),
+        );
+
+        return {
+            positions,
+            layoutDirection: parsed.layoutDirection === "LR" ? "LR" : "TB",
+            treeColumnCount: Math.min(
+                TREE_MAX_COLUMNS,
+                Math.max(TREE_MIN_COLUMNS, Number(parsed.treeColumnCount) || 4),
+            ),
+            groupIds: Array.isArray(parsed.groupIds)
+                ? parsed.groupIds.filter((id) => typeof id === "string")
+                : [],
+        } satisfies StoredGraphLayout;
+    } catch {
+        return null;
+    }
+}
+
+function applyStoredLayout(layout = savedLayout.value) {
+    if (!layout) return;
+
+    layoutDirection.value = layout.layoutDirection;
+    treeColumnCount.value = layout.treeColumnCount;
+    manualNodePositions.value = { ...layout.positions };
+    showColumnDropdown.value = false;
+}
+
+function saveCustomLayout() {
+    if (typeof localStorage === "undefined") return;
+
+    const layout = currentStoredLayout();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(layout));
+    savedLayout.value = layout;
+}
+
+function resetLayout() {
+    manualNodePositions.value = {};
+    showColumnDropdown.value = false;
+}
+
+function clearSavedLayout() {
+    if (typeof localStorage !== "undefined") localStorage.removeItem(STORAGE_KEY);
+    savedLayout.value = null;
+    showColumnDropdown.value = false;
+}
+
+function updateTreeColumnCount(event: Event) {
+    treeColumnCount.value = Number((event.target as HTMLInputElement).value);
+}
+
+const hasManualNodePositions = computed(
+    () => Object.keys(cleanPositions(manualNodePositions.value)).length > 0,
+);
+const hasUnsavedLayout = computed(
+    () =>
+        hasManualNodePositions.value &&
+        layoutKey(currentStoredLayout()) !== layoutKey(savedLayout.value),
+);
+const selectedPermissionFootprint = computed(() => {
+    if (!selectedGroupId.value) return 0;
+
+    return (
+        selectedAccess.value.directEdges.size +
+        selectedAccess.value.inheritedEdges.size +
+        selectedAccess.value.upstreamEdges.size +
+        selectedAccess.value.downstreamEdges.size
+    );
+});
+const showPermissionOptimisationTip = computed(
+    () => selectedPermissionFootprint.value > LARGE_PERMISSION_PATH_THRESHOLD,
+);
 
 function openContextGroup() {
     if (!contextMenu.value) return;
@@ -402,8 +596,17 @@ function clearFocus() {
     selectedGroupId.value = null;
 }
 
+function closeContextMenu() {
+    contextMenu.value = null;
+}
+
+function closeLegendOnOutsideClick(event: MouseEvent) {
+    if (showLegend.value && !legendRoot.value?.contains(event.target as Node))
+        showLegend.value = false;
+}
+
 function isInteractiveNode(node: { type?: string; data?: { dimmed?: boolean } }) {
-    return node.type === "chartGroup" && !node.data?.dimmed;
+    return node.type === "chartGroup";
 }
 
 function selectNode(node: { id: string; type?: string; data?: { dimmed?: boolean } }) {
@@ -411,8 +614,7 @@ function selectNode(node: { id: string; type?: string; data?: { dimmed?: boolean
     selectedGroupId.value = node.id;
 }
 
-function selectGroup(groupId: string, dimmed?: boolean) {
-    if (dimmed) return;
+function selectGroup(groupId: string) {
     selectedGroupId.value = groupId;
 }
 
@@ -452,7 +654,8 @@ function handleSearchKeydown(event: KeyboardEvent) {
     if (event.key === "ArrowDown") {
         event.preventDefault();
         showSearchDropdown.value = true;
-        activeSearchIndex.value = (activeSearchIndex.value + 1) % Math.max(searchResults.value.length, 1);
+        activeSearchIndex.value =
+            (activeSearchIndex.value + 1) % Math.max(searchResults.value.length, 1);
         return;
     }
 
@@ -472,14 +675,9 @@ function handleSearchKeydown(event: KeyboardEvent) {
     }
 }
 
-function openNodeContextMenu({
-    event,
-    node,
-}: {
-    event: MouseEvent;
-    node: { id: string; type?: string; data?: { dimmed?: boolean } };
-}) {
+function openNodeContextMenu({ event, node }: NodeMouseEvent) {
     if (!isInteractiveNode(node)) return;
+    if (!(event instanceof MouseEvent)) return;
 
     event.preventDefault();
     event.stopPropagation();
@@ -500,6 +698,29 @@ function openNodeContextMenu({
     };
 }
 
+function openNodeGroup({ event, node }: NodeMouseEvent) {
+    if (!isInteractiveNode(node)) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    selectedGroupId.value = node.id;
+    contextMenu.value = null;
+    emit("select", node.id);
+}
+
+function saveNodePosition({ node, nodes }: NodeDragEvent) {
+    const movedNodes = nodes.length ? nodes : [node];
+    manualNodePositions.value = {
+        ...manualNodePositions.value,
+        ...Object.fromEntries(
+            movedNodes.map((movedNode) => [
+                movedNode.id,
+                { x: movedNode.position.x, y: movedNode.position.y },
+            ]),
+        ),
+    };
+}
+
 function handleGlobalKeydown(event: KeyboardEvent) {
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         if (!isFullscreen.value) return;
@@ -514,8 +735,46 @@ function handleGlobalKeydown(event: KeyboardEvent) {
     }
 }
 
+function isSpaceKey(event: KeyboardEvent) {
+    return event.code === "Space" || event.key === " ";
+}
+
+function startTemporaryDragMode() {
+    interactionModeBeforeTemporaryDrag.value ??= interactionMode.value;
+    interactionMode.value = "drag";
+}
+
+function stopTemporaryDragMode() {
+    if (!interactionModeBeforeTemporaryDrag.value) return;
+
+    interactionMode.value = interactionModeBeforeTemporaryDrag.value;
+    interactionModeBeforeTemporaryDrag.value = null;
+}
+
+function startSpaceDragMode(event: KeyboardEvent) {
+    if (event.target instanceof HTMLInputElement || !isSpaceKey(event) || event.repeat) return;
+
+    event.preventDefault();
+    startTemporaryDragMode();
+}
+
+function stopSpaceDragMode(event: KeyboardEvent) {
+    if (isSpaceKey(event)) stopTemporaryDragMode();
+}
+
+function startMiddleMouseDragMode(event: PointerEvent) {
+    if (event.button !== 1) return;
+
+    startTemporaryDragMode();
+}
+
+function stopMiddleMouseDragMode(event: PointerEvent) {
+    if (event.button === 1) stopTemporaryDragMode();
+}
+
 function handleGraphKeydown(event: KeyboardEvent) {
     if (event.target instanceof HTMLInputElement) return;
+    startSpaceDragMode(event);
 
     if (event.key === "Escape") {
         event.preventDefault();
@@ -571,7 +830,12 @@ watch(
 );
 
 watch(
-    () => [chartNodes.value.length, chartEdges.value.length, layoutDirection.value, treeColumnCount.value],
+    () => [
+        props.allGroups.length,
+        edges.value.length,
+        layoutDirection.value,
+        treeColumnCount.value,
+    ],
     () => nextTick(() => fitView({ padding: 0.18, duration: 250 })),
 );
 
@@ -581,6 +845,7 @@ watch(searchQuery, () => {
 });
 
 watch(isFullscreen, (fullscreen) => {
+    if (fullscreen) showLegend.value = false;
     if (!fullscreen) closeSearch();
     nextTick(() => {
         graphRoot.value?.focus();
@@ -588,8 +853,18 @@ watch(isFullscreen, (fullscreen) => {
     });
 });
 
-onMounted(() => window.addEventListener("keydown", handleGlobalKeydown));
-onUnmounted(() => window.removeEventListener("keydown", handleGlobalKeydown));
+onMounted(() => {
+    savedLayout.value = readStoredLayout();
+    applyStoredLayout();
+    window.addEventListener("keydown", handleGlobalKeydown);
+    window.addEventListener("keyup", stopSpaceDragMode);
+    window.addEventListener("pointerup", stopMiddleMouseDragMode);
+});
+onUnmounted(() => {
+    window.removeEventListener("keydown", handleGlobalKeydown);
+    window.removeEventListener("keyup", stopSpaceDragMode);
+    window.removeEventListener("pointerup", stopMiddleMouseDragMode);
+});
 </script>
 
 <template>
@@ -604,274 +879,386 @@ onUnmounted(() => window.removeEventListener("keydown", handleGlobalKeydown));
     >
         <div
             ref="graphRoot"
-            class="relative min-h-0 overflow-hidden outline-none focus:outline-none focus-visible:outline-none"
+            class="relative min-h-0 select-none overflow-hidden outline-none focus:outline-none focus-visible:outline-none"
             :class="isFullscreen ? 'h-[calc(100dvh-6rem)] w-[calc(100vw-3rem)]' : 'h-full w-full'"
             tabindex="0"
-            aria-label="Group visualisation. Use arrow keys to pan, plus and minus to zoom, Tab to move through groups, Enter or Space to focus a group. In full screen, Command K opens search."
+            aria-label="Group visualisation. Hold Space or middle mouse to drag, use arrow keys to pan, plus and minus to zoom, Tab to move through groups, Enter or Space to focus a group. In full screen, Command K opens search."
+            @auxclick.prevent
+            @click.capture="closeLegendOnOutsideClick"
             @keydown.capture="handleGraphKeydown"
+            @keyup.capture="stopSpaceDragMode"
+            @pointerdown.capture="startMiddleMouseDragMode"
+            @pointerup.capture="stopMiddleMouseDragMode"
         >
-        <VueFlow
-            class="h-full w-full"
-            :nodes="chartNodes"
-            :edges="chartEdges"
-            :min-zoom="0.2"
-            :max-zoom="1.8"
-            :nodes-connectable="false"
-            :nodes-draggable="true"
-            :pan-on-drag="interactionMode === 'drag'"
-            :selection-key-code="interactionMode === 'select' ? true : null"
-            :snap-to-grid="true"
-            :snap-grid="[GRID_SIZE, GRID_SIZE]"
-            :edges-updatable="false"
-            :disable-keyboard-a11y="true"
-            pan-activation-key-code="Space"
-            @node-click="({ node }) => selectNode(node)"
-            @node-context-menu="openNodeContextMenu"
-            @pane-click="clearFocus"
-        >
-            <template #node-chartGroup="{ data }">
-                <button
-                    type="button"
-                    class="relative rounded-xl border bg-white px-3 py-3 text-center shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2"
-                    :style="{ width: `${CHART_CARD_WIDTH}px` }"
-                    :class="
-                        data.selected
-                            ? 'border-2 border-zinc-950 bg-zinc-950 text-white'
-                            : data.accessState === 'downstream'
-                              ? 'border-sky-300 bg-sky-50 opacity-100'
-                              : data.accessState === 'upstream'
-                                ? 'border-violet-300 bg-violet-50 opacity-100'
-                                : data.dimmed
-                                  ? 'border-zinc-200 opacity-25'
-                                  : 'border-zinc-200'
-                    "
-                    :tabindex="data.dimmed ? -1 : 0"
-                    :disabled="data.dimmed"
-                    @click.stop="selectGroup(data.groupId, data.dimmed)"
-                    @keydown.enter.prevent="selectGroup(data.groupId, data.dimmed)"
-                    @keydown.space.prevent="selectGroup(data.groupId, data.dimmed)"
+            <VueFlow
+                class="h-full w-full"
+                :nodes="chartNodes"
+                :edges="chartEdges"
+                :min-zoom="0.2"
+                :max-zoom="1.8"
+                :nodes-connectable="false"
+                :nodes-draggable="interactionMode === 'drag'"
+                :node-drag-threshold="8"
+                :pan-on-drag="interactionMode === 'drag' ? [0, 1] : [1]"
+                :selection-key-code="interactionMode === 'select' ? true : null"
+                :snap-to-grid="true"
+                :snap-grid="[GRID_SIZE, GRID_SIZE]"
+                :edges-updatable="false"
+                :disable-keyboard-a11y="true"
+                :zoom-on-double-click="false"
+                pan-activation-key-code="Space"
+                @node-click="({ node }) => selectNode(node)"
+                @node-double-click="openNodeGroup"
+                @node-context-menu="openNodeContextMenu"
+                @node-drag-stop="saveNodePosition"
+                @selection-drag-stop="saveNodePosition"
+                @pane-click="closeContextMenu"
+            >
+                <template #node-chartGroup="{ data }">
+                    <button
+                        type="button"
+                        class="relative rounded-xl border bg-white px-3 py-3 text-center shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2"
+                        :style="{ width: `${CHART_CARD_WIDTH}px` }"
+                        :class="
+                            data.selected
+                                ? 'border-2 border-zinc-950 bg-zinc-950 text-white'
+                                : data.accessState === 'downstream'
+                                  ? 'border-sky-300 bg-sky-300 opacity-100'
+                                  : data.accessState === 'upstream'
+                                    ? 'border-violet-300 bg-violet-300 opacity-100'
+                                    : data.dimmed
+                                      ? 'border-zinc-200 opacity-25'
+                                      : 'border-zinc-200'
+                        "
+                        tabindex="0"
+                        @click.stop="selectGroup(data.groupId)"
+                        @keydown.enter.prevent="selectGroup(data.groupId)"
+                        @keydown.space.prevent="selectGroup(data.groupId)"
+                    >
+                        <Handle
+                            type="target"
+                            :position="targetHandlePosition"
+                            :connectable="false"
+                            class="chart-handle"
+                        />
+                        <div
+                            class="truncate text-sm font-semibold"
+                            :class="data.selected ? 'text-white' : 'text-zinc-900'"
+                        >
+                            {{ data.name }}
+                        </div>
+                        <Handle
+                            type="source"
+                            :position="sourceHandlePosition"
+                            :connectable="false"
+                            class="chart-handle"
+                        />
+                    </button>
+                </template>
+
+                <Background pattern-color="#e4e4e7" :gap="GRID_SIZE" />
+                <Panel position="bottom-left">
+                    <div class="flex flex-col gap-1">
+                        <LButton
+                            size="sm"
+                            variant="secondary"
+                            :icon="PlusSmallIcon"
+                            @click="zoomIn({ duration: 80 })"
+                        />
+                        <LButton
+                            size="sm"
+                            variant="secondary"
+                            :icon="MinusIcon"
+                            @click="zoomOut({ duration: 80 })"
+                        />
+                        <LButton
+                            size="sm"
+                            variant="secondary"
+                            :icon="ArrowsPointingInIcon"
+                            @click="fitView({ padding: 0.18, duration: 120 })"
+                        />
+                    </div>
+                </Panel>
+            </VueFlow>
+
+            <div
+                class="pointer-events-none absolute left-32 right-3 top-3 z-40 flex flex-wrap justify-end gap-2 sm:left-40 sm:right-4 sm:top-4"
+            >
+                <div
+                    class="pointer-events-auto inline-flex divide-x divide-zinc-300 overflow-hidden rounded-md shadow-sm ring-1 ring-zinc-300"
                 >
-                    <Handle
-                        type="target"
-                        :position="targetHandlePosition"
-                        :connectable="false"
-                        class="chart-handle"
+                    <LButton
+                        size="sm"
+                        variant="secondary"
+                        :icon="CursorArrowRaysIcon"
+                        :main-dynamic-css="segClass(interactionMode === 'select')"
+                        @click="interactionMode = 'select'"
+                    >
+                        Select
+                    </LButton>
+                    <LButton
+                        size="sm"
+                        variant="secondary"
+                        :icon="HandRaisedIcon"
+                        :main-dynamic-css="segClass(interactionMode === 'drag')"
+                        @click="interactionMode = 'drag'"
+                    >
+                        Drag
+                    </LButton>
+                </div>
+                <LButton
+                    v-if="hasUnsavedLayout"
+                    size="sm"
+                    variant="secondary"
+                    class="pointer-events-auto"
+                    @click="saveCustomLayout"
+                >
+                    Save custom layout
+                </LButton>
+                <div v-if="!isFullscreen" ref="legendRoot" class="pointer-events-auto relative">
+                    <LButton
+                        size="sm"
+                        variant="secondary"
+                        :icon="
+                            showPermissionOptimisationTip
+                                ? ExclamationTriangleIcon
+                                : InformationCircleIcon
+                        "
+                        :main-dynamic-css="
+                            showPermissionOptimisationTip
+                                ? 'bg-amber-50 text-amber-800 ring-amber-300 hover:bg-amber-100'
+                                : ''
+                        "
+                        class="shadow-md"
+                        :aria-label="
+                            showPermissionOptimisationTip
+                                ? 'Large permission path'
+                                : 'Visualisation'
+                        "
+                        @click="showLegend = !showLegend"
                     />
                     <div
-                        class="truncate text-sm font-semibold"
-                        :class="data.selected ? 'text-white' : 'text-zinc-900'"
+                        v-if="showLegend"
+                        class="legend-drawer absolute right-0 top-full mt-2 w-max max-w-[calc(100vw-1.5rem)] rounded-md border border-zinc-300 bg-white px-3 py-2 text-xs shadow-lg sm:max-w-md"
                     >
-                        {{ data.name }}
-                    </div>
-                    <Handle
-                        type="source"
-                        :position="sourceHandlePosition"
-                        :connectable="false"
-                        class="chart-handle"
-                    />
-                </button>
-            </template>
-
-            <Background pattern-color="#e4e4e7" :gap="GRID_SIZE" />
-            <Panel position="bottom-left">
-                <div class="flex flex-col gap-1">
-                    <LButton size="sm" variant="secondary" :icon="PlusSmallIcon" @click="zoomIn({ duration: 80 })" />
-                    <LButton size="sm" variant="secondary" :icon="MinusIcon" @click="zoomOut({ duration: 80 })" />
-                    <LButton size="sm" variant="secondary" :icon="ArrowsPointingInIcon" @click="fitView({ padding: 0.18, duration: 120 })" />
-                </div>
-            </Panel>
-        </VueFlow>
-
-        <div class="absolute left-0 top-3 z-50 sm:top-4">
-            <LButton
-                size="sm"
-                variant="secondary"
-                class="pointer-events-auto rounded-l-none shadow-md"
-                @click="showLegend = !showLegend"
-            >
-                Visualisation
-            </LButton>
-            <div
-                v-if="showLegend"
-                class="legend-drawer mt-2 max-w-[calc(100vw-1.5rem)] rounded-r-md border border-zinc-300 bg-white px-3 py-2 text-xs shadow-lg sm:max-w-md"
-            >
-                <div class="flex items-start justify-between gap-3">
-                    <div>
-                        <div class="text-sm font-semibold text-zinc-900">Visualisation</div>
-                        <div class="mt-0.5 text-zinc-500">
-                            Select a group to see who can access it and what it can access.
+                        <div class="flex items-start justify-between gap-3">
+                            <div>
+                                <div class="text-sm font-semibold text-zinc-900">Visualisation</div>
+                                <div class="mt-0.5 text-zinc-500">
+                                    Select a group to see who can access it and what it can access.
+                                </div>
+                            </div>
+                            <LButton size="sm" variant="tertiary" @click="showLegend = false"
+                                >Hide</LButton
+                            >
                         </div>
+                        <div class="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-zinc-600">
+                            <span class="inline-flex items-center gap-1.5">
+                                <span class="h-3 w-4 rounded-sm border-2 border-zinc-900"></span>
+                                Selected group
+                            </span>
+                            <span class="inline-flex items-center gap-1.5">
+                                <span class="h-0 w-5 border-t-2 border-sky-500"></span>
+                                This group can access
+                            </span>
+                            <span class="inline-flex items-center gap-1.5">
+                                <span class="h-0 w-5 border-t-2 border-violet-600"></span>
+                                Can access this group
+                            </span>
+                            <span class="inline-flex items-center gap-1.5">
+                                <span
+                                    class="h-0 w-5 border-t-2 border-dashed border-zinc-500"
+                                ></span>
+                                Dashed = inherited
+                            </span>
+                            <span class="inline-flex items-center gap-1.5 opacity-50">
+                                <span
+                                    class="h-3 w-4 rounded-sm border border-zinc-300 bg-zinc-50"
+                                ></span>
+                                Not in path
+                            </span>
+                        </div>
+                        <div
+                            v-if="showPermissionOptimisationTip"
+                            class="mt-2 rounded-md border border-amber-100 bg-amber-50 px-3 py-2 text-zinc-600"
+                        >
+                            <div class="text-xs font-semibold text-zinc-800">
+                                Large permission path
+                            </div>
+                            <div class="mt-0.5 text-[11px] leading-4">
+                                This group is being used as a broad shortcut through many inherited
+                                access paths. Consider granting access through smaller role or
+                                content groups instead. It keeps permissions easier to review and
+                                reduces the reach of any one group.
+                            </div>
+                        </div>
+                    <div class="mt-2 border-t border-zinc-100 pt-2 text-[11px] text-zinc-500">
+                        <span class="font-medium text-zinc-600">Keys:</span>
+                        <span class="ml-1 inline-flex flex-wrap gap-x-2 gap-y-1">
+                            <span>Space hold drag</span>
+                            <span>Middle mouse drag</span>
+                            <span>Arrows pan</span>
+                            <span>+/- zoom</span>
+                            <span>0 fit</span>
+                            <span>Tab groups</span>
+                            <span>Enter/Space select</span>
+                            <span>Esc close/clear</span>
+                            <span>Fullscreen Cmd/Ctrl+K search</span>
+                        </span>
                     </div>
-                    <LButton size="sm" variant="tertiary" @click="showLegend = false">Hide</LButton>
-                </div>
-                <div class="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-zinc-600">
-                    <span class="inline-flex items-center gap-1.5">
-                        <span class="h-3 w-4 rounded-sm border-2 border-zinc-900"></span>
-                        Selected group
-                    </span>
-                    <span class="inline-flex items-center gap-1.5">
-                        <span class="h-0 w-5 border-t-2 border-sky-500"></span>
-                        This group can access
-                    </span>
-                    <span class="inline-flex items-center gap-1.5">
-                        <span class="h-0 w-5 border-t-2 border-violet-600"></span>
-                        Can access this group
-                    </span>
-                    <span class="inline-flex items-center gap-1.5">
-                        <span class="h-0 w-5 border-t-2 border-dashed border-zinc-500"></span>
-                        Dashed = inherited
-                    </span>
-                    <span class="inline-flex items-center gap-1.5 opacity-50">
-                        <span class="h-3 w-4 rounded-sm border border-zinc-300 bg-zinc-50"></span>
-                        Not in path
-                    </span>
-                </div>
-                <div class="mt-2 border-t border-zinc-100 pt-2 text-[11px] text-zinc-500">
-                    <span class="font-medium text-zinc-600">Keys:</span>
-                    Arrows pan · +/- zoom · 0 fit · Tab groups · Enter select · fullscreen: Cmd/Ctrl+K search
                 </div>
             </div>
-        </div>
-
-        <div
-            class="pointer-events-none absolute left-32 right-3 top-3 z-40 flex flex-wrap justify-end gap-2 sm:left-40 sm:right-4 sm:top-4"
-        >
-            <div
-                class="pointer-events-auto inline-flex divide-x divide-zinc-300 overflow-hidden rounded-md shadow-sm ring-1 ring-zinc-300"
-            >
-                <LButton
-                    size="sm"
-                    variant="secondary"
-                    :icon="CursorArrowRaysIcon"
-                    :main-dynamic-css="segClass(interactionMode === 'select')"
-                    @click="interactionMode = 'select'"
-                >
-                    Select
-                </LButton>
-                <LButton
-                    size="sm"
-                    variant="secondary"
-                    :icon="HandRaisedIcon"
-                    :main-dynamic-css="segClass(interactionMode === 'drag')"
-                    @click="interactionMode = 'drag'"
-                >
-                    Drag
-                </LButton>
-            </div>
-            <LDropdown
-                v-model:show="showColumnDropdown"
-                placement="bottom-end"
-                width="auto"
-                padding="small"
-                class="pointer-events-auto"
-            >
-                <template #trigger>
-                    <LButton size="sm" variant="secondary" :icon="Cog6ToothIcon" />
-                </template>
-                <LButton
-                    variant="tertiary"
-                    size="sm"
-                    role="menuitem"
-                    class="w-full justify-start"
-                    @click="
-                        layoutDirection = isTopToBottom ? 'LR' : 'TB';
-                        showColumnDropdown = false;
-                    "
-                >
-                    {{ isTopToBottom ? "Left to right" : "Top to bottom" }}
-                </LButton>
-                <div class="my-1 border-t border-zinc-100"></div>
-                <div class="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                    Tree columns
-                </div>
-                <LButton
-                    v-for="count in columnOptions"
-                    :key="count"
-                    variant="tertiary"
-                    size="sm"
-                    role="menuitem"
-                    class="w-full justify-start"
-                    :main-dynamic-css="treeColumnCount === count ? 'font-semibold text-zinc-950' : 'text-zinc-600'"
-                    @click="
-                        treeColumnCount = count;
-                        showColumnDropdown = false;
-                    "
-                >
-                    {{ count }} {{ count === 1 ? "column" : "columns" }}
-                </LButton>
-            </LDropdown>
-            <LButton
-                size="sm"
-                variant="secondary"
-                :icon="isFullscreen ? ArrowsPointingInIcon : ArrowsPointingOutIcon"
-                class="pointer-events-auto"
-                @click="isFullscreen = !isFullscreen"
-            />
-        </div>
-
-        <div
-            v-if="showSearch && isFullscreen"
-            class="absolute inset-0 z-[60] flex items-start justify-center bg-white/40 px-4 pt-20 backdrop-blur-[1px]"
-            @click.self="closeSearch"
-        >
-            <div class="w-full max-w-md rounded-lg border border-zinc-200 bg-white p-3 shadow-xl">
                 <LDropdown
-                    v-model:show="showSearchDropdown"
-                    placement="bottom-start"
-                    width="full"
-                    padding="none"
-                    class="w-full"
+                    v-model:show="showColumnDropdown"
+                    placement="bottom-end"
+                    width="auto"
+                    padding="small"
+                    class="pointer-events-auto"
                 >
                     <template #trigger>
-                        <LInput
-                            ref="searchInput"
-                            v-model="searchQuery"
-                            name="group-search"
-                            placeholder="Search groups"
-                            autocomplete="off"
-                            @click.prevent.stop="openSearchDropdown"
-                            @focus="openSearchDropdown"
-                            @keydown.stop="handleSearchKeydown"
-                        />
+                        <LButton size="sm" variant="secondary" :icon="Cog6ToothIcon" />
                     </template>
                     <LButton
-                        v-for="(group, index) in searchResults"
-                        :key="group._id"
                         variant="tertiary"
                         size="sm"
                         role="menuitem"
                         class="w-full justify-start"
-                        :main-dynamic-css="index === activeSearchIndex ? 'bg-sky-50' : ''"
-                        @click="selectSearchResult(group._id)"
+                        @click="
+                            layoutDirection = isTopToBottom ? 'LR' : 'TB';
+                            showColumnDropdown = false;
+                        "
                     >
-                        {{ group.name || "(unnamed group)" }}
+                        {{ isTopToBottom ? "Left to right" : "Top to bottom" }}
                     </LButton>
-                    <div v-if="searchResults.length === 0" class="px-3 py-6 text-center text-sm text-zinc-500">
-                        No groups found
+                    <div class="my-1 border-t border-zinc-100"></div>
+                    <div class="px-3 py-2">
+                        <label
+                            for="group-graph-columns"
+                            class="mb-2 flex items-center justify-between gap-4 text-xs font-semibold uppercase tracking-wide text-zinc-500"
+                        >
+                            <span>Tree columns</span>
+                            <span class="text-zinc-700">{{ treeColumnCount }}</span>
+                        </label>
+                        <input
+                            id="group-graph-columns"
+                            type="range"
+                            :min="TREE_MIN_COLUMNS"
+                            :max="TREE_MAX_COLUMNS"
+                            step="1"
+                            :value="treeColumnCount"
+                            class="h-2 w-40 cursor-pointer appearance-none rounded-lg bg-gray-200 accent-gray-700"
+                            @input="updateTreeColumnCount"
+                        />
                     </div>
+                    <div class="my-1 border-t border-zinc-100"></div>
+                    <LButton
+                        v-if="savedLayout"
+                        variant="tertiary"
+                        size="sm"
+                        role="menuitem"
+                        class="w-full justify-start"
+                        @click="applyStoredLayout()"
+                    >
+                        Use saved layout
+                    </LButton>
+                    <LButton
+                        variant="tertiary"
+                        size="sm"
+                        role="menuitem"
+                        class="w-full justify-start"
+                        @click="resetLayout"
+                    >
+                        Reset layout
+                    </LButton>
+                    <LButton
+                        v-if="savedLayout"
+                        variant="tertiary"
+                        size="sm"
+                        role="menuitem"
+                        class="w-full justify-start"
+                        @click="clearSavedLayout"
+                    >
+                        Clear saved layout
+                    </LButton>
                 </LDropdown>
+                <LButton
+                    v-if="!isFullscreen"
+                    size="sm"
+                    variant="secondary"
+                    :icon="isFullscreen ? ArrowsPointingInIcon : ArrowsPointingOutIcon"
+                    class="pointer-events-auto"
+                    @click="isFullscreen = !isFullscreen"
+                />
             </div>
-        </div>
 
-        <div
-            v-if="contextMenu"
-            class="absolute z-20 min-w-44 max-w-[calc(100vw-2rem)] overflow-hidden rounded-md border border-zinc-200 bg-white py-1 text-sm shadow-lg"
-            :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }"
-            @click.stop
-            @contextmenu.prevent
-        >
-            <div class="border-b border-zinc-100 px-3 py-2 text-xs font-medium text-zinc-500">
-                {{ contextMenu.groupName }}
-            </div>
-            <LButton
-                variant="tertiary"
-                size="sm"
-                class="w-full justify-start"
-                @click="openContextGroup"
+            <div
+                v-if="showSearch && isFullscreen"
+                class="absolute inset-0 z-[60] flex items-start justify-center bg-white/40 px-4 pt-20 backdrop-blur-[1px]"
+                @click.self="closeSearch"
             >
-                Open group
-            </LButton>
-        </div>
+                <div
+                    class="w-full max-w-md rounded-lg border border-zinc-200 bg-white p-3 shadow-xl"
+                >
+                    <LDropdown
+                        v-model:show="showSearchDropdown"
+                        placement="bottom-start"
+                        width="full"
+                        padding="none"
+                        class="w-full"
+                    >
+                        <template #trigger>
+                            <LInput
+                                ref="searchInput"
+                                v-model="searchQuery"
+                                name="group-search"
+                                placeholder="Search groups"
+                                autocomplete="off"
+                                @click.prevent.stop="openSearchDropdown"
+                                @focus="openSearchDropdown"
+                                @keydown.stop="handleSearchKeydown"
+                            />
+                        </template>
+                        <LButton
+                            v-for="(group, index) in searchResults"
+                            :key="group._id"
+                            variant="tertiary"
+                            size="sm"
+                            role="menuitem"
+                            class="w-full justify-start"
+                            :main-dynamic-css="index === activeSearchIndex ? 'bg-sky-50' : ''"
+                            @click="selectSearchResult(group._id)"
+                        >
+                            {{ group.name || "(unnamed group)" }}
+                        </LButton>
+                        <div
+                            v-if="searchResults.length === 0"
+                            class="px-3 py-6 text-center text-sm text-zinc-500"
+                        >
+                            No groups found
+                        </div>
+                    </LDropdown>
+                </div>
+            </div>
+
+            <div
+                v-if="contextMenu"
+                class="absolute z-20 min-w-44 max-w-[calc(100vw-2rem)] overflow-hidden rounded-md border border-zinc-200 bg-white py-1 text-sm shadow-lg"
+                :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }"
+                @click.stop
+                @contextmenu.prevent
+            >
+                <div class="border-b border-zinc-100 px-3 py-2 text-xs font-medium text-zinc-500">
+                    {{ contextMenu.groupName }}
+                </div>
+                <LButton
+                    variant="tertiary"
+                    size="sm"
+                    class="w-full justify-start"
+                    @click="openContextGroup"
+                >
+                    Open group
+                </LButton>
+            </div>
         </div>
     </component>
 </template>
