@@ -16,6 +16,7 @@ const props = defineProps<{
         | "bottom-center";
     triggerClass?: string;
     width?: "auto" | "full" | "default";
+    panelClass?: string;
     // Optional element to size the panel against instead of the trigger. Useful when the trigger is
     // only one part of a wider control (e.g. the chevron of a segmented button) but the panel should
     // match the full control's width.
@@ -39,7 +40,7 @@ const {
     width: triggerWidth,
     update,
 } = useElementBounding(triggerRef);
-const { height: windowHeight } = useWindowSize();
+const { height: windowHeight, width: windowWidth } = useWindowSize();
 const { width: panelWidth } = useElementBounding(panelRef);
 // When `anchorEl` is supplied, the panel is sized to it rather than the trigger.
 const { width: anchorWidth } = useElementBounding(() => props.anchorEl ?? null);
@@ -174,6 +175,14 @@ const panelStyle = computed(() => {
             style.left = `${triggerRight.value - panelWidth.value}px`;
             break;
     }
+
+    const left = Number.parseFloat(style.left);
+    if (Number.isFinite(left)) {
+        const margin = 8;
+        const maxLeft = Math.max(margin, windowWidth.value - panelWidth.value - margin);
+        style.left = `${Math.min(Math.max(left, margin), maxLeft)}px`;
+    }
+
     return style;
 });
 
@@ -214,7 +223,10 @@ defineExpose({ panelRef });
                 ref="panelRef"
                 :id="panelId"
                 class="fixed z-[9999] max-h-60 overflow-y-auto rounded-md bg-white shadow-lg ring-1 ring-black/5 scrollbar-hide focus:outline-none"
-                :class="[props.placement?.startsWith('top') ? 'origin-bottom' : 'origin-top']"
+                :class="[
+                    props.placement?.startsWith('top') ? 'origin-bottom' : 'origin-top',
+                    props.panelClass,
+                ]"
                 role="menu"
                 data-dropdown-panel
                 @keydown="onPanelKeydown"

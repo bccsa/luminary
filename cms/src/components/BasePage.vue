@@ -19,6 +19,7 @@ type Props = {
     backLinkText?: string;
     backLinkParams?: Record<string, string | undefined>;
     isFullWidth?: boolean;
+    contentInset?: boolean;
     onOpenMobileSidebar?: () => void;
 };
 
@@ -28,6 +29,7 @@ const props = withDefaults(defineProps<Props>(), {
     centered: false,
     backLinkText: "Back",
     isFullWidth: false,
+    contentInset: true,
 });
 
 const router = useRouter();
@@ -151,13 +153,12 @@ const handleMobileSidebarToggle = () => {
             </div>
             <div
                 ref="scrollContainer"
+                data-test="base-page-scroll-container"
                 class="flex min-h-0 flex-1 flex-col scrollbar-hide"
                 :class="[
-                    isSmallScreen ? 'sm:ml-4 sm:pr-4' : 'lg:ml-8 lg:pr-8',
-                    { 'sm:mt-1': !$slots.internalPageHeader },
-                    isEditContentPage
-                        ? 'overflow-y-auto lg:overflow-hidden'
-                        : 'overflow-y-auto',
+                    contentInset ? (isSmallScreen ? 'sm:ml-4 sm:pr-4' : 'lg:ml-8 lg:pr-8') : '',
+                    { 'sm:mt-1': contentInset && !$slots.internalPageHeader },
+                    isEditContentPage ? 'overflow-y-auto lg:overflow-hidden' : 'overflow-y-auto',
                 ]"
             >
                 <slot />

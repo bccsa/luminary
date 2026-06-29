@@ -57,6 +57,21 @@ describe("BasePage", () => {
         expect(wrapper.text()).toContain("Default slot content");
     });
 
+    it("keeps content inset by default and can remove it", () => {
+        const defaultPage = mount(BasePage);
+        expect(defaultPage.find('[data-test="base-page-scroll-container"]').classes()).toEqual(
+            expect.arrayContaining([expect.stringMatching(/^(sm:ml-4|lg:ml-8)$/)]),
+        );
+
+        const edgeToEdgePage = mount(BasePage, { props: { contentInset: false } });
+        expect(
+            edgeToEdgePage.find('[data-test="base-page-scroll-container"]').classes(),
+        ).not.toContain("lg:ml-8");
+        expect(
+            edgeToEdgePage.find('[data-test="base-page-scroll-container"]').classes(),
+        ).not.toContain("sm:ml-4");
+    });
+
     it("renders the back link", async () => {
         const wrapper = mount(BasePage, {
             props: { backLinkLocation: { name: "posts.index" }, backLinkText: "Posts" },

@@ -261,7 +261,7 @@ const duplicateGroup = async () => {
 
         acl: original.value.acl.map((aclEntry) => ({
             ...aclEntry,
-            groupId: duplicatedGroupId,
+            permission: [...aclEntry.permission],
         })),
     };
 

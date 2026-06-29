@@ -20,7 +20,7 @@ import { isSmallScreen } from "@/globalConfig";
 import ConfirmBeforeLeavingModal from "../modals/ConfirmBeforeLeavingModal.vue";
 import { type GroupOverviewQueryOptions } from "./GroupOverview/types";
 import { MapIcon, MagnifyingGlassIcon, ListBulletIcon } from "@heroicons/vue/24/outline";
-import GroupGraph from "./GroupGraph.vue";
+import GroupGraph from "./GroupGraph/GroupGraph.vue";
 import LInput from "../forms/LInput.vue";
 
 const { output: groupsSource, isFetching } = useHybridQueryWithState<GroupDto>(
@@ -160,26 +160,50 @@ const isDirty = computed(() => {
 });
 
 const currentTab = ref("overview");
-const toggleView = () => {
-    currentTab.value = currentTab.value === "overview" ? "graph" : "overview";
-};
+const pageSegClass = (active: boolean) =>
+    `h-9 rounded-none shadow-none ring-0 ${active ? "bg-zinc-100 text-zinc-950" : "bg-white text-zinc-600"}`;
 
 const handleGraphSelect = (groupId: string) => {
+    newGroupId.value = groupId;
+};
+
+const handleGraphOpen = (groupId: string) => {
     newGroupId.value = groupId;
     showModal.value = true;
 };
 </script>
 
 <template>
-    <BasePage title="Groups" :is-full-width="true" :loading="isFetching">
+    <BasePage
+        title="Groups"
+        :is-full-width="true"
+        :loading="isFetching"
+        :content-inset="currentTab !== 'graph'"
+    >
         <template #pageNav>
             <div class="relative z-20 flex items-center justify-end">
-                <LButton
-                    variant="secondary"
-                    :icon="currentTab === 'overview' ? MapIcon : ListBulletIcon"
-                    :aria-label="currentTab === 'overview' ? 'Show visualisation' : 'Show overview'"
-                    @click="toggleView"
-                />
+                <div
+                    class="flex h-9 shrink-0 divide-x divide-zinc-300 overflow-hidden rounded-md shadow-sm ring-1 ring-zinc-300"
+                >
+                    <LButton
+                        size="sm"
+                        variant="secondary"
+                        :icon="ListBulletIcon"
+                        :main-dynamic-css="pageSegClass(currentTab === 'overview')"
+                        @click="currentTab = 'overview'"
+                    >
+                        List
+                    </LButton>
+                    <LButton
+                        size="sm"
+                        variant="secondary"
+                        :icon="MapIcon"
+                        :main-dynamic-css="pageSegClass(currentTab === 'graph')"
+                        @click="currentTab = 'graph'"
+                    >
+                        Graph
+                    </LButton>
+                </div>
             </div>
             <LButton
                 v-if="canCreateGroup && !isSmallScreen"
@@ -238,10 +262,7 @@ const handleGraphSelect = (groupId: string) => {
             />
         </div>
 
-        <div
-            v-show="currentTab === 'graph'"
-            class="h-[calc(100dvh-6.75rem)] min-h-[520px] md:h-[calc(100vh-5.75rem)] md:min-h-[640px]"
-        >
+        <div v-show="currentTab === 'graph'" class="h-full min-h-0">
             <KeepAlive>
                 <GroupGraph
                     v-if="currentTab === 'graph'"
@@ -249,6 +270,7 @@ const handleGraphSelect = (groupId: string) => {
                     :groups="filteredGroups"
                     :all-groups="editable"
                     @select="handleGraphSelect"
+                    @open="handleGraphOpen"
                 />
             </KeepAlive>
         </div>

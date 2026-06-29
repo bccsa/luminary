@@ -340,6 +340,20 @@ describe("EditGroup", () => {
 
             expect(mockGroupQuery.save).toHaveBeenCalled();
         });
+
+        it("keeps copied ACL accessors instead of making the duplicate self-referential", async () => {
+            const { db } = await import("luminary-shared");
+            vi.mocked(db.uuid).mockReturnValue("new-uuid-123");
+
+            const wrapper = createWrapper();
+
+            await wrapper.find('[data-test="duplicateGroup"]').trigger("click");
+
+            const copy = allGroups.find((group) => group._id === "new-uuid-123");
+            expect(copy?.acl.map((entry) => entry.groupId)).toEqual(
+                testGroup.acl.map((entry) => entry.groupId),
+            );
+        });
     });
 
     describe("Computed Properties", () => {
