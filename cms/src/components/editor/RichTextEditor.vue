@@ -76,17 +76,17 @@ const toolbarButtonClass =
     "!rounded-none !border-0 !shadow-none !bg-zinc-100 px-2 py-1.5 text-sm text-zinc-700 hover:!bg-zinc-200 active:!bg-zinc-300";
 
 const toolbarClasses = {
-    root: "-mx-4 flex flex-col px-4",
+    root: "flex min-h-0 flex-1 flex-col",
     header: "flex items-center gap-2",
     icon: "h-6 w-6 text-zinc-600",
     title: "text-sm font-medium text-zinc-700",
-    toolbar: "flex flex-nowrap overflow-x-auto scrollbar-hide gap-4",
-    toolbarGroup: "flex shrink-0 pb-2 !gap-0 !rounded-md !overflow-hidden !shadow-none",
+    toolbar: "flex flex-nowrap gap-4 overflow-x-auto scrollbar-hide",
+    toolbarGroup: "flex shrink-0 !gap-0 !overflow-hidden !rounded-md !shadow-none pb-0",
     button: `${toolbarButtonClass} first:!rounded-l-md last:!rounded-r-md`,
     buttonActive: "!bg-zinc-300",
-    editor: "flex flex-col",
+    editor: "flex min-h-0 flex-1 flex-col overflow-hidden",
     editorContent:
-        "prose prose-zinc lg:prose-sm max-w-none px-2 py-2 sm:p-3 ring-0 border-0 focus:ring-0 focus:outline-none rounded-none mb-1 min-h-[20rem] bg-white",
+        "prose prose-zinc lg:prose-sm max-w-none min-h-0 flex-1 border-0 bg-white px-0 py-0 ring-0 focus:outline-none focus:ring-0 rounded-none",
     placeholder: "text-zinc-400",
 } as const;
 
@@ -136,6 +136,7 @@ defineExpose({
         v-bind="$attrs"
         v-model="text"
         content-format="html"
+        class="flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden"
         :disabled="props.disabled"
         :uploader="true"
         :downloader="true"
@@ -164,7 +165,7 @@ defineExpose({
         "
     >
         <template #toolbar="{ groups, isActive, isDisabled, getLabel, runCommand }">
-            <div class="sticky top-0 z-10 -mx-4 border-b border-zinc-200 bg-white px-4 pt-1 pb-2">
+            <div class="w-full shrink-0 border-b border-zinc-200 bg-white px-4 pb-2 pt-1">
                 <div :class="toolbarClasses.toolbar">
                 <div v-for="(group, gi) in groups" :key="gi" :class="toolbarClasses.toolbarGroup">
                     <template v-for="item in group" :key="item">
@@ -270,7 +271,21 @@ defineExpose({
 </template>
 
 <style scoped>
+:deep(.rte-root) {
+    display: flex;
+    width: 100%;
+    min-height: 0;
+    flex: 1 1 0%;
+    flex-direction: column;
+    gap: 0;
+}
+
 :deep(.rte-editor) {
+    display: grid;
+    width: 100%;
+    min-height: 0;
+    flex: 1 1 0%;
+    grid-template-rows: auto minmax(0, 1fr);
     border: 0;
     border-radius: 0;
     background: transparent;
@@ -278,15 +293,40 @@ defineExpose({
 
 :deep(.rte-editor-content) {
     display: flex;
+    width: 100%;
+    min-height: 0 !important;
+    flex-direction: column;
+    overflow: hidden;
+    margin-bottom: 0 !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    background-color: #fff;
+    box-shadow: none !important;
+}
+
+:deep(.rte-editor-content .tiptap) {
+    display: flex;
+    min-height: 0;
+    flex: 1 1 0%;
     flex-direction: column;
 }
 
 :deep(.rte-editor-content .ProseMirror) {
     width: 100%;
-    margin: 0 auto;
+    min-height: 0;
+    flex: 1 1 0%;
+    height: 0;
+    margin: 0;
     box-sizing: border-box;
-    flex: 1;
+    overflow-y: auto;
+    padding: 0.5rem 1rem 1rem;
+    background: transparent;
     outline: none;
+}
+
+:deep(.rte-placeholder) {
+    top: 0.5rem;
+    left: 1rem;
 }
 
 :deep(.rte-editor-content .ProseMirror-focused) {

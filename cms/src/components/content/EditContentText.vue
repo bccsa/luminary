@@ -8,10 +8,8 @@ import { lightPolish } from "./lightPolish";
 type Props = {
     selectedLanguage?: LanguageDto;
     disabled: boolean;
-    isLanguageSelectorCollapsed?: boolean;
-    languageSelectorHeight?: number;
 };
-const props = defineProps<Props>();
+defineProps<Props>();
 const content = defineModel<ContentDto>("content");
 
 // Suggest the translation's title (or slug) as the download filename, stripped of
@@ -30,13 +28,10 @@ const downloadFilename = computed(() => {
 </script>
 
 <template>
-    <div v-if="content">
-        <LCard
-            :bare="lightPolish"
-            class="flex flex-col bg-white pt-0 lg:pt-2"
-        >
+    <div v-if="content" class="flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden">
+        <LCard v-if="!lightPolish" class="flex min-h-0 flex-1 flex-col bg-white">
             <RichTextEditor
-                class="mb-0 lg:mb-16"
+                class="min-h-0 flex-1"
                 v-model:text="content.text"
                 v-model:text-language="content.language"
                 :download-filename="downloadFilename"
@@ -44,5 +39,14 @@ const downloadFilename = computed(() => {
                 data-test="richTextEditor"
             />
         </LCard>
+        <RichTextEditor
+            v-else
+            class="h-full min-h-0 w-full flex-1 overflow-hidden"
+            v-model:text="content.text"
+            v-model:text-language="content.language"
+            :download-filename="downloadFilename"
+            :disabled="disabled"
+            data-test="richTextEditor"
+        />
     </div>
 </template>

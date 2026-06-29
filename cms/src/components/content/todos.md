@@ -83,7 +83,7 @@ When filtering with FTS in the CMS, and deleting / adding an item (e.g. user), t
 
 ### Cms Sidebar
 
-- For app language selector just show the language
+- ~~For app language selector just show the language~~
 
 ### CMS visual review
 

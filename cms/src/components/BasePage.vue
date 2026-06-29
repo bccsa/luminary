@@ -151,10 +151,13 @@ const handleMobileSidebarToggle = () => {
             </div>
             <div
                 ref="scrollContainer"
-                class="min-h-0 flex-1 overflow-y-auto scrollbar-hide"
+                class="flex min-h-0 flex-1 flex-col scrollbar-hide"
                 :class="[
                     isSmallScreen ? 'sm:ml-4 sm:pr-4' : 'lg:ml-8 lg:pr-8',
                     { 'sm:mt-1': !$slots.internalPageHeader },
+                    isEditContentPage
+                        ? 'overflow-y-auto lg:overflow-hidden'
+                        : 'overflow-y-auto',
                 ]"
             >
                 <slot />

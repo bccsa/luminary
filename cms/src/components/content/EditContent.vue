@@ -450,10 +450,10 @@ const actionsWrapperProps = computed(() => ({
         <template #topBarActionsDesktop>
             <EditContentActionsWrapper v-bind="actionsWrapperProps" :mobile="false" />
         </template>
-        <div class="flex flex-col gap-0 lg:h-full lg:flex-row lg:gap-2 lg:overflow-y-hidden">
+        <div class="flex h-full min-h-0 flex-col gap-0 lg:flex-row lg:gap-2 lg:overflow-hidden">
             <!-- sidebar -->
-            <div class="w-full flex-shrink-0 lg:h-full lg:w-[336px]" v-if="editableParent">
-                <div class="scrollbar-hide lg:h-full lg:overflow-y-auto lg:pb-2">
+            <div class="w-full flex-shrink-0 lg:h-full lg:min-h-0 lg:w-[336px]" v-if="editableParent">
+                <div class="scrollbar-hide lg:h-full lg:min-h-0 lg:overflow-y-auto lg:pb-2">
                     <div class="flex flex-col gap-2 pb-0 lg:pb-4">
                         <EditContentParent
                             v-if="editableParent"
@@ -591,54 +591,49 @@ const actionsWrapperProps = computed(() => ({
                 </div>
             </div>
             <!-- main content instance -->
-            <div
-                class="mt-2 min-h-0 w-full scrollbar-hide lg:static lg:mt-0 lg:flex-1 lg:overflow-y-auto !overflow-visible lg:!overflow-auto"
-                :class="isLanguageSelectorCollapsed ? 'sticky z-[5]' : 'lg:overflow-y-auto'"
-                :style="mainContentStickyStyle"
-            >
-                <EmptyState
-                    v-if="!selectedContent"
-                    :icon="icon"
-                    title=""
-                    :description="`Please select a language to start editing`"
-                    data-test="no-content"
-                    class="mb-3 flex flex-col items-center justify-center lg:mb-0"
-                >
-                    <div class="relative flex flex-col items-center lg:inline-block">
-                        <LDropdown v-model:show="showLanguageSelector" placement="bottom-center">
-                            <template #trigger>
-                                <LButton
-                                    :icon="PlusIcon"
-                                    class="h-max w-fit"
-                                    variant="muted"
-                                    data-test="add-translation-button"
-                                    aria-label="Add translation"
-                                >
-                                    <template #tooltip>Add a new translation</template>
-                                </LButton>
-                            </template>
-                            <div>
-                                <LanguageSelector
-                                    data-test="language-selector"
-                                    :parent="editableParent"
-                                    :content="editableContent"
-                                    :languages="untranslatedLanguages"
-                                    v-model:show-selector="showLanguageSelector"
-                                    @create-translation="createTranslation"
-                                    placement="top-center"
-                                />
-                            </div>
-                        </LDropdown>
-                    </div>
-                </EmptyState>
-                <div v-else class="!overflow-visible">
+            <div class="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col lg:overflow-hidden lg:pb-4">
+                <div class="flex min-h-0 w-full flex-1 flex-col overflow-hidden bg-white">
+                    <EmptyState
+                        v-if="!selectedContent"
+                        :icon="icon"
+                        description="Please select a language to start editing"
+                        data-test="no-content"
+                        class="mb-3 flex flex-col items-center justify-center lg:mb-0"
+                    >
+                        <div class="relative flex flex-col items-center lg:inline-block">
+                            <LDropdown v-model:show="showLanguageSelector" placement="bottom-center">
+                                <template #trigger>
+                                    <LButton
+                                        :icon="PlusIcon"
+                                        class="h-max w-fit"
+                                        variant="muted"
+                                        data-test="add-translation-button"
+                                        aria-label="Add translation"
+                                    >
+                                        <template #tooltip>Add a new translation</template>
+                                    </LButton>
+                                </template>
+                                <div>
+                                    <LanguageSelector
+                                        data-test="language-selector"
+                                        :parent="editableParent"
+                                        :content="editableContent"
+                                        :languages="untranslatedLanguages"
+                                        v-model:show-selector="showLanguageSelector"
+                                        @create-translation="createTranslation"
+                                        placement="top-center"
+                                    />
+                                </div>
+                            </LDropdown>
+                        </div>
+                    </EmptyState>
                     <EditContentText
+                        v-else
                         v-model:content="selectedContent"
                         :selectedLanguage="selectedLanguage!"
                         :disabled="!canTranslate"
                         :disablePublish="!canPublish"
-                        :isLanguageSelectorCollapsed="isLanguageSelectorCollapsed"
-                        :languageSelectorHeight="languageSelectorHeight"
+                        class="flex min-h-0 flex-1 flex-col"
                     />
                 </div>
             </div>
