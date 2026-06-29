@@ -123,29 +123,32 @@ const displayedRedirects = computed<RedirectDto[]>(() =>
             </div>
         </template>
 
-        <RedirectDisplaycard
-            v-for="redirect in displayedRedirects"
-            :key="redirect._id"
-            :redirectDoc="redirect"
-            :has-local-changes="hasLocalChanges"
-        />
+        <div class="mt-1 flex flex-col gap-[3px]">
+            <RedirectDisplaycard
+                v-for="(redirect, i) in displayedRedirects"
+                :key="redirect._id"
+                :redirectDoc="redirect"
+                :has-local-changes="hasLocalChanges"
+                :class="{ 'mb-4': i === displayedRedirects.length - 1 }"
+            />
 
-        <div
-            v-if="searchActive && !searchIsLoading && displayedRedirects.length === 0"
-            class="flex h-32 w-full items-center justify-center gap-2"
-        >
-            <ExclamationTriangleIcon class="h-6 w-6 text-zinc-500" />
-            <p class="text-sm text-zinc-500">No redirects found.</p>
-        </div>
+            <div
+                v-if="searchActive && !searchIsLoading && displayedRedirects.length === 0"
+                class="flex h-32 w-full items-center justify-center gap-2"
+            >
+                <ExclamationTriangleIcon class="h-6 w-6 text-zinc-500" />
+                <p class="text-sm text-zinc-500">No redirects found.</p>
+            </div>
 
-        <!-- Infinite-scroll trigger for the server-paged search results -->
-        <div v-if="searchActive" ref="searchSentinel" class="h-px w-full"></div>
+            <!-- Infinite-scroll trigger for the server-paged search results -->
+            <div v-if="searchActive" ref="searchSentinel" class="h-px w-full"></div>
 
-        <div
-            v-if="searchActive && searchIsLoading"
-            class="flex h-16 w-full items-center justify-center"
-        >
-            <LoadingBar />
+            <div
+                v-if="searchActive && searchIsLoading"
+                class="flex h-16 w-full items-center justify-center"
+            >
+                <LoadingBar />
+            </div>
         </div>
 
         <CreateOrEditRedirectModal
