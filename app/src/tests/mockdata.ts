@@ -348,6 +348,13 @@ export const mockLanguageDtoEng: LanguageDto = {
             "Most data is saved locally on your device. If you experience problems, try deleting all local data. Depending on the amount of available data on the server, it can take some time before all data is available again.",
         "settings.local_cache.button": "Delete local cache",
         "settings.local_cache.button_clearing": "Clearing local cache...",
+        "settings.data_saver.title": "Data saver",
+        "settings.data_saver.description":
+            "Reduce image quality to use less data. This also turns on automatically on slow connections or when your device's Data Saver is enabled.",
+        "settings.data_saver.browser_note":
+            "Your browser's Data Saver is on, so reduced data use is controlled by your browser.",
+        "settings.data_saver.slow_connection_note":
+            "Your connection seems slow, so reduced data use will be applied automatically.",
         "home.title": "Home",
         "explore.title": "Explore",
         "home.newest": "Newest",

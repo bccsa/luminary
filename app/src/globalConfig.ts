@@ -49,7 +49,7 @@ export const isDataSaverEnabled = (): boolean => {
 /**
  * User-controlled "Data Saver" preference, persisted to localStorage and toggled from the Settings
  * page. Independent of the OS/browser `saveData` flag (`isDataSaverEnabled`) and the measured
- * connection speed (`useNetworkSpeed`) — any of the three being on reduces image quality. A
+ * connection speed (`useNetworkSpeedEstimator`) — any of the three being on reduces image quality. A
  * module-level singleton ref so every consumer (Settings toggle, image provider) shares one value.
  */
 export const userDataSaverEnabled = ref(localStorage.getItem("dataSaver") === "true");

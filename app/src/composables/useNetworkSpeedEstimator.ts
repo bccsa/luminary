@@ -14,8 +14,6 @@ import { isDataSaverEnabled, userDataSaverEnabled } from "@/globalConfig";
  * Settings page surfaces the live number so the constants below can be tuned against real readings.
  */
 
-const isTestEnv = import.meta.env.MODE === "test";
-
 /** Same-origin asset of incompressible bytes (no CORS, doesn't gzip). See app/public/. */
 const PROBE_URL = "/network-probe.bin";
 /** Below this, images downgrade. ~4 Mbps ≈ a slow / congested 4G connection. */
@@ -80,8 +78,7 @@ export async function runProbe(force = false): Promise<void> {
 }
 
 // Refresh "when relevant". Mirrors the module-scope listener pattern in globalConfig (`windowWidth`).
-// Skipped under test so unit specs can drive `runProbe` deterministically with a mocked `fetch`.
-if (!isTestEnv && typeof window !== "undefined") {
+if (typeof window !== "undefined") {
     runProbe(true);
     window.addEventListener("online", () => runProbe(true));
     document.addEventListener("visibilitychange", () => {
@@ -93,6 +90,6 @@ if (!isTestEnv && typeof window !== "undefined") {
     });
 }
 
-export function useNetworkSpeed() {
+export function useNetworkSpeedEstimator() {
     return { connectionSpeed, isSlowConnection, runProbe };
 }

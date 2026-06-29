@@ -89,7 +89,7 @@ export const activeImageCollection = computed(() => (content: ContentDto) => {
 
 <script setup lang="ts">
 import { fallbackImageUrls, isDataSaverEnabled, userDataSaverEnabled } from "@/globalConfig";
-import { isSlowConnection } from "@/composables/useNetworkSpeed";
+import { isSlowConnection } from "@/composables/useNetworkSpeedEstimator";
 import { type ImageDto, type ImageFileDto, type Uuid } from "luminary-shared";
 import Rand from "rand-seed";
 import { thumbHashToDataURL } from "thumbhash";

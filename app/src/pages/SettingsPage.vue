@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, onMounted, ref } from "vue";
+import { computed, nextTick, onMounted, ref } from "vue";
 import LButton from "@/components/button/LButton.vue";
 import LCard from "@/components/common/LCard.vue";
 import LToggle from "@/components/form/LToggle.vue";
@@ -7,8 +7,8 @@ import LoadingSpinner from "@/components/LoadingSpinner.vue";
 import { db, isConnected } from "luminary-shared";
 import { useNotificationStore } from "@/stores/notification";
 import { useI18n } from "vue-i18n";
-import { getDeviceInfo, userDataSaverEnabled } from "@/globalConfig";
-import { useNetworkSpeed } from "@/composables/useNetworkSpeed";
+import { getDeviceInfo, isDataSaverEnabled, userDataSaverEnabled } from "@/globalConfig";
+import { useNetworkSpeedEstimator } from "@/composables/useNetworkSpeedEstimator";
 import BasePage from "@/components/BasePage.vue";
 import { triggerSync } from "@/sync";
 import { markPageReady } from "@/util/renderState";
@@ -25,7 +25,19 @@ const { addNotification } = useNotificationStore();
 const deviceInfo = getDeviceInfo();
 
 // Live, probe-based connection-speed estimate (refreshes itself on focus / regained connectivity).
-const { connectionSpeed } = useNetworkSpeed();
+const { connectionSpeed, isSlowConnection } = useNetworkSpeedEstimator();
+const browserDataSaverEnabled = isDataSaverEnabled();
+const dataSaverToggleValue = computed(() => userDataSaverEnabled.value || browserDataSaverEnabled);
+const dataSaverNote = computed(() => {
+    if (browserDataSaverEnabled) return t("settings.data_saver.browser_note");
+    if (isSlowConnection.value && !userDataSaverEnabled.value) {
+        return t("settings.data_saver.slow_connection_note");
+    }
+    return "";
+});
+const setUserDataSaverEnabled = (enabled: boolean) => {
+    userDataSaverEnabled.value = enabled;
+};
 
 const isClearing = ref(false);
 
@@ -102,7 +114,19 @@ const deleteLocalData = async () => {
                     <div class="text-sm text-zinc-600 dark:text-slate-100">
                         {{ t("settings.data_saver.description") }}
                     </div>
-                    <LToggle v-model="userDataSaverEnabled" data-test="dataSaverToggle" />
+                    <LToggle
+                        :modelValue="dataSaverToggleValue"
+                        :disabled="browserDataSaverEnabled"
+                        @update:modelValue="setUserDataSaverEnabled"
+                        data-test="dataSaverToggle"
+                    />
+                </div>
+                <div
+                    v-if="dataSaverNote"
+                    class="mt-3 text-sm text-zinc-600 dark:text-slate-100"
+                    data-test="dataSaverNote"
+                >
+                    {{ dataSaverNote }}
                 </div>
             </LCard>
         </div>

@@ -3,24 +3,27 @@ import { mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import waitForExpect from "wait-for-expect";
 
-// Mock only `isDataSaverEnabled` so we can simulate Data Saver; everything else is the real module.
-vi.mock("@/globalConfig", async (importOriginal) => {
-    const actual = await importOriginal<typeof import("@/globalConfig")>();
-    return { ...actual, isDataSaverEnabled: vi.fn(() => false) };
+vi.mock("@/globalConfig", async () => {
+    const { ref } = await import("vue");
+    return {
+        fallbackImageUrls: ["fallback.webp"],
+        isDataSaverEnabled: vi.fn(() => false),
+        userDataSaverEnabled: ref(false),
+    };
 });
 // Mock the speed probe so we can drive the "slow connection" branch without timing a real download.
-vi.mock("@/composables/useNetworkSpeed", async () => {
+vi.mock("@/composables/useNetworkSpeedEstimator", async () => {
     const { ref } = await import("vue");
     const isSlowConnection = ref(false);
     const connectionSpeed = ref(10);
     return {
         isSlowConnection,
         connectionSpeed,
-        useNetworkSpeed: () => ({ isSlowConnection, connectionSpeed, runProbe: vi.fn() }),
+        useNetworkSpeedEstimator: () => ({ isSlowConnection, connectionSpeed, runProbe: vi.fn() }),
     };
 });
 import { isDataSaverEnabled, userDataSaverEnabled } from "@/globalConfig";
-import { isSlowConnection } from "@/composables/useNetworkSpeed";
+import { isSlowConnection } from "@/composables/useNetworkSpeedEstimator";
 import LImageProvider from "./LImageProvider.vue";
 
 // `isSlowConnection` is a real (mocked) ref here; treat it as writable in tests.
