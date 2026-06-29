@@ -82,6 +82,7 @@ const displayedRedirects = computed<RedirectDto[]>(() =>
     <BasePage
         title="Redirects"
         :should-show-page-title="false"
+        :is-full-width="true"
         :loading="!searchActive && browseLoading"
     >
         <template #pageNav>
@@ -105,16 +106,20 @@ const displayedRedirects = computed<RedirectDto[]>(() =>
 
         <template #internalPageHeader>
             <div
-                class="flex flex-col gap-1 border-b border-t border-zinc-300 border-t-zinc-100 bg-white pb-1 pt-2 shadow max-sm:px-1 sm:px-4"
+                class="relative z-20 flex flex-col gap-1 overflow-visible border-b border-t border-zinc-300 border-t-zinc-100 bg-white pb-1 pt-2 shadow"
             >
-                <LInput
-                    type="text"
-                    :icon="MagnifyingGlassIcon"
-                    name="search"
-                    placeholder="Search redirects..."
-                    data-test="search-input"
-                    v-model="searchInput"
-                />
+                <div class="flex h-10 w-full items-center gap-1 px-8">
+                    <LInput
+                        type="text"
+                        :icon="MagnifyingGlassIcon"
+                        class="h-full min-w-0 flex-grow"
+                        name="search"
+                        placeholder="Search redirects..."
+                        data-test="search-input"
+                        v-model="searchInput"
+                        :full-height="true"
+                    />
+                </div>
             </div>
         </template>
 
