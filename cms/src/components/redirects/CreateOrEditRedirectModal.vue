@@ -10,6 +10,7 @@ import {
     type GroupDto,
     type Uuid,
     useHybridQuery,
+    useSharedHybridQuery,
     toEditable,
 } from "luminary-shared";
 import LInput from "@/components/forms/LInput.vue";
@@ -158,7 +159,7 @@ const redirectExplanation = computed(() => {
 });
 
 const isSlugUnique = ref(true);
-const groups = useHybridQuery<GroupDto>(() => ({ selector: { type: DocType.Group } }), {
+const groups = useSharedHybridQuery<GroupDto>(() => ({ selector: { type: DocType.Group } }), {
     live: true,
 });
 

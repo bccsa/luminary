@@ -9,7 +9,7 @@ import {
     verifyAccess,
     type RedirectDto,
     type GroupDto,
-    useHybridQuery,
+    useSharedHybridQuery,
 } from "luminary-shared";
 import { computed, ref } from "vue";
 import CreateOrEditRedirectModal from "./CreateOrEditRedirectModal.vue";
@@ -24,9 +24,12 @@ const props = defineProps<Props>();
 const isLocalChanges = computed(() => props.hasLocalChanges(props.redirectDoc._id));
 const isModalVisible = ref(false);
 
-const availableGroups = useHybridQuery<GroupDto>(() => ({ selector: { type: DocType.Group } }), {
-    live: true,
-});
+const availableGroups = useSharedHybridQuery<GroupDto>(
+    () => ({ selector: { type: DocType.Group } }),
+    {
+        live: true,
+    },
+);
 const redirectGroups = computed(() =>
     availableGroups.value?.filter(
         (g) =>

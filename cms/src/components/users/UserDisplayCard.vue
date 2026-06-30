@@ -6,7 +6,7 @@ import {
     type GroupDto,
     type AuthProviderDto,
     DocType,
-    useHybridQuery,
+    useSharedHybridQuery,
 } from "luminary-shared";
 import LBadge from "@/components/common/LBadge.vue";
 import { DateTime } from "luxon";
@@ -22,10 +22,10 @@ type Props = {
 const props = defineProps<Props>();
 const isLocalChanges = computed(() => props.hasLocalChanges(props.usersDoc._id));
 
-const groups = useHybridQuery<GroupDto>(() => ({ selector: { type: DocType.Group } }), {
+const groups = useSharedHybridQuery<GroupDto>(() => ({ selector: { type: DocType.Group } }), {
     live: true,
 });
-const authProviders = useHybridQuery<AuthProviderDto>(
+const authProviders = useSharedHybridQuery<AuthProviderDto>(
     () => ({ selector: { type: DocType.AuthProvider } }),
     { live: true },
 );

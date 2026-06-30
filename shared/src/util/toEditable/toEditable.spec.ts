@@ -16,6 +16,7 @@ vi.mock("../../api/RestApi", () => ({ getRest: vi.fn() }));
 vi.mock("../../db/database", () => ({
     db: {
         upsert: vi.fn(),
+        uuid: vi.fn(() => "new-id"),
     },
 }));
 vi.mock("../../db/isSyncable", () => ({ isSyncableDoc: vi.fn() }));
@@ -628,5 +629,183 @@ describe("toEditable - backPatchFields", () => {
 
         expect(isEdited.value("a")).toBe(true);
         expect(editable.value[0].image?.buf.byteLength).toBe(8); // local upload preserved
+    });
+});
+
+describe("toEditable - duplicate", () => {
+    test("returns a clone with a fresh _id and no _rev", () => {
+        const source = ref([makeDoc("a", 1)]);
+        const { duplicate } = toEditable<TestDoc>(source);
+
+        const clone = duplicate("a");
+
+        expect(clone?._id).toBe("new-id");
+        expect(clone?._rev).toBeUndefined();
+    });
+
+    test("clears deleteReq on the clone", async () => {
+        const source = ref([makeDoc("a", 1)]);
+        const { duplicate, editable } = toEditable<TestDoc>(source);
+        editable.value[0].deleteReq = 1;
+        await nextTick();
+
+        const clone = duplicate("a");
+
+        expect(clone?.deleteReq).toBeUndefined();
+    });
+
+    test("deep-clones so mutating the clone does not touch the original", () => {
+        const source = ref([makeDoc("a", 1)]);
+        const { duplicate, editable } = toEditable<TestDoc>(source);
+
+        const clone = duplicate("a")!;
+        clone.value = 99;
+
+        expect(editable.value.find((d) => d._id === "a")!.value).toBe(1);
+    });
+
+    test("pushes the clone into editable (not shadow) so it reads as new + edited", async () => {
+        const source = ref([makeDoc("a", 1)]);
+        const { duplicate, editable, isEdited } = toEditable<TestDoc>(source);
+
+        duplicate("a");
+        await nextTick();
+
+        expect(editable.value.some((d) => d._id === "new-id")).toBe(true);
+        expect(isEdited.value("new-id")).toBe(true);
+    });
+
+    test("applies the modify callback before the configured modifyFn and settles stably", async () => {
+        // modify sets value to 2; modifyFn turns 2 into 3. The final value is 3, proving modifyFn
+        // runs last (had the value-order been reversed the result would be 2). The clone also stays
+        // at 3 across the editable-watcher's re-apply (idempotent fixed point), not transformed again.
+        const modifyFn = (item: TestDoc) => (item.value === 2 ? { ...item, value: 3 } : item);
+        const source = ref([makeDoc("a", 1)]);
+        const { duplicate, editable } = toEditable<TestDoc>(source, { modifyFn });
+
+        const clone = duplicate("a", (c) => ({ ...c, value: 2 }))!;
+
+        expect(clone.value).toBe(3); // synchronously normalized for an immediate save()
+        await nextTick();
+        expect(editable.value.find((d) => d._id === "new-id")!.value).toBe(3); // stable
+    });
+
+    test("returns undefined for an unknown id", () => {
+        const source = ref([makeDoc("a", 1)]);
+        const { duplicate } = toEditable<TestDoc>(source);
+
+        expect(duplicate("nope")).toBeUndefined();
+    });
+
+    test("falls back to source when the id is not in editable", () => {
+        const source = ref([makeDoc("a", 1)]);
+        const { duplicate, editable } = toEditable<TestDoc>(source);
+        editable.value = []; // diverge editable from source
+
+        const clone = duplicate("a");
+
+        expect(clone?._id).toBe("new-id");
+    });
+});
+
+describe("toEditable - remove", () => {
+    const CUTOFF = 1000;
+    const changeRequestMock = vi.fn();
+
+    type ContentLike = ContentDto & { title: string };
+
+    function makeContent(id: string, publishDate?: number): ContentLike {
+        return {
+            _id: id,
+            _rev: "1",
+            type: DocType.Content,
+            updatedTimeUtc: 0,
+            updatedBy: "user",
+            publishDate,
+            title: "original",
+        } as ContentLike;
+    }
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        vi.mocked(getRest).mockReturnValue({ changeRequest: changeRequestMock } as any);
+        vi.mocked(getContentPublishDateCutoff).mockReturnValue(CUTOFF);
+        vi.mocked(isSyncableDoc).mockReturnValue(true);
+        changeRequestMock.mockResolvedValue({ ack: AckStatus.Accepted });
+    });
+
+    test("splices a never-saved duplicate without calling save", async () => {
+        const source = ref([makeContent("a", 2000)]);
+        const { duplicate, remove, editable } = toEditable<ContentLike>(source);
+        const clone = duplicate("a")!;
+
+        const res = await remove(clone._id);
+
+        expect(res).toEqual({ ack: AckStatus.Accepted });
+        expect(db.upsert).not.toHaveBeenCalled();
+        expect(changeRequestMock).not.toHaveBeenCalled();
+        expect(editable.value.some((d) => d._id === clone._id)).toBe(false);
+    });
+
+    test("marks deleteReq and routes a saved item via the local path", async () => {
+        const source = ref([makeContent("a", 2000)]);
+        const { remove } = toEditable<ContentLike>(source);
+
+        const res = await remove("a");
+
+        expect(db.upsert).toHaveBeenCalledWith({
+            doc: expect.objectContaining({ _id: "a", deleteReq: 1 }),
+            overwriteLocalChanges: true,
+        });
+        expect(res).toEqual({
+            ack: AckStatus.Accepted,
+            message: "Saved locally and queued for upload to the server",
+        });
+    });
+
+    test("splices the item from editable and shadow on an accepted ack", async () => {
+        const source = ref([makeContent("a", 2000), makeContent("b", 2000)]);
+        const { remove, editable } = toEditable<ContentLike>(source);
+
+        await remove("a");
+
+        expect(editable.value.some((d) => d._id === "a")).toBe(false);
+        expect(editable.value.some((d) => d._id === "b")).toBe(true);
+
+        // The live source later reconciles the deleted doc out — must stay consistent / not throw.
+        source.value.splice(0, 1);
+        await nextTick();
+        expect(editable.value.some((d) => d._id === "a")).toBe(false);
+        expect(editable.value.some((d) => d._id === "b")).toBe(true);
+    });
+
+    test("clears deleteReq and keeps the item on a rejected ack", async () => {
+        changeRequestMock.mockResolvedValue({ ack: AckStatus.Rejected });
+        const source = ref([makeContent("a", 500)]); // below cutoff → API path
+        const { remove, editable } = toEditable<ContentLike>(source);
+
+        const res = await remove("a");
+
+        expect(res).toEqual({ ack: AckStatus.Rejected });
+        expect(changeRequestMock).toHaveBeenCalled();
+        expect(editable.value.find((d) => d._id === "a")?.deleteReq).toBeUndefined();
+    });
+
+    test("returns undefined and keeps the item (deleteReq cleared) when changeRequest fails", async () => {
+        changeRequestMock.mockResolvedValue(undefined);
+        const source = ref([makeContent("a", 500)]); // below cutoff → API path
+        const { remove, editable } = toEditable<ContentLike>(source);
+
+        const res = await remove("a");
+
+        expect(res).toBeUndefined();
+        expect(editable.value.find((d) => d._id === "a")?.deleteReq).toBeUndefined();
+    });
+
+    test("returns rejected for an unknown id", async () => {
+        const source = ref([makeContent("a", 2000)]);
+        const { remove } = toEditable<ContentLike>(source);
+
+        expect(await remove("nope")).toEqual({ ack: AckStatus.Rejected, message: "Item not found" });
     });
 });

@@ -13,7 +13,7 @@ import {
     type AuthProviderDto,
     type UserDto,
     type Uuid,
-    useHybridQuery,
+    useSharedHybridQuery,
     useHybridQueryWithState,
     type GroupDto,
     toEditable,
@@ -136,10 +136,10 @@ const isDirty = computed(() => {
     return userEditable.isEdited.value(doc._id);
 });
 
-const groups = useHybridQuery<GroupDto>(() => ({ selector: { type: DocType.Group } }), {
+const groups = useSharedHybridQuery<GroupDto>(() => ({ selector: { type: DocType.Group } }), {
     live: true,
 });
-const authProviders = useHybridQuery<AuthProviderDto>(
+const authProviders = useSharedHybridQuery<AuthProviderDto>(
     () => ({ selector: { type: DocType.AuthProvider } }),
     { live: true },
 );
@@ -218,9 +218,7 @@ const save = async () => {
     if (!doc.deleteReq) {
         useNotificationStore().addNotification({
             title:
-                res && res.ack == AckStatus.Accepted
-                    ? `${doc.name} saved`
-                    : "Error saving changes",
+                res && res.ack == AckStatus.Accepted ? `${doc.name} saved` : "Error saving changes",
             description:
                 res && res.ack == AckStatus.Accepted
                     ? ""

@@ -13,7 +13,7 @@ import {
     StorageType,
     useStorageStatus,
     hasAnyPermission,
-    useHybridQuery,
+    useSharedHybridQuery,
 } from "luminary-shared";
 import LDialog from "../common/LDialog.vue";
 import LoadingBar from "@/components/LoadingBar.vue";
@@ -23,12 +23,12 @@ import { storageValidation } from "@/composables/storageValidation";
 import { assignableGroups } from "@/util/groups";
 
 // Reactive database queries.
-const groups = useHybridQuery<GroupDto>(() => ({ selector: { type: DocType.Group } }), {
+const groups = useSharedHybridQuery<GroupDto>(() => ({ selector: { type: DocType.Group } }), {
     live: true,
 });
 const availableGroups = computed(() => assignableGroups(groups.value));
 
-const buckets = useHybridQuery<StorageDto>(() => ({ selector: { type: DocType.Storage } }), {
+const buckets = useSharedHybridQuery<StorageDto>(() => ({ selector: { type: DocType.Storage } }), {
     live: true,
 });
 

@@ -28,7 +28,11 @@ const mocks = vi.hoisted(() => {
         touchRetention: vi.fn<(ids: readonly string[]) => void>(),
         isSyncableDoc: vi.fn<(doc: any) => boolean>(() => true),
         isConnected: ref(true) as { value: boolean },
-        syncList: { value: [] as Array<{ chunkType: string }> },
+        // A REAL Vue ref (not a plain object): the cold-start re-route watches a
+        // computed derived from `syncList`, which is only reactive over a real ref.
+        syncList: ref([] as Array<{ chunkType: string }>) as {
+            value: Array<{ chunkType: string }>;
+        },
         cutoff: 1000,
         liveRefs,
         useDexieLiveQueryMock: vi.fn((querier: any, options: any) => {
@@ -107,7 +111,7 @@ vi.mock("../useHasLocalChange", () => {
     return { useHasLocalChanges: () => computed(() => () => false) };
 });
 
-import { effectScope, nextTick, ref } from "vue";
+import { effectScope, nextTick, ref, watch } from "vue";
 import { DocType } from "../../types";
 
 import {
@@ -117,6 +121,11 @@ import {
     initHybridQuery,
     queryRemote,
 } from "./HybridQuery";
+import {
+    useSharedHybridQuery,
+    sharedHybridQueryCount,
+    _resetSharedHybridQueryForTests,
+} from "./sharedHybridQuery";
 import { readResponseCache, structuralCacheKey, writeResponseCache } from "./responseCache";
 import { OPEN_MIN } from "../../api/sync/utils";
 
@@ -138,6 +147,9 @@ describe("HybridQuery", () => {
     };
 
     beforeEach(() => {
+        // Clear the shared registry FIRST (stops each shared scope → disposes its instance)
+        // so a shared instance from a prior test can't bleed into this one.
+        _resetSharedHybridQueryForTests();
         _resetHybridQueryForTests();
         mocks.mangoToDexieMock.mockReset();
         mocks.isConnected.value = true;
@@ -178,10 +190,7 @@ describe("HybridQuery", () => {
             new HybridQuery(
                 {
                     selector: {
-                        $and: [
-                            { type: "content" },
-                            { parentTags: { $elemMatch: { $in: [] } } },
-                        ],
+                        $and: [{ type: "content" }, { parentTags: { $elemMatch: { $in: [] } } }],
                     },
                 },
                 { live: true },
@@ -219,9 +228,7 @@ describe("HybridQuery", () => {
 
     describe("content routing", () => {
         it("no $limit + no _id list ⇒ always POSTs with publishDate <= cutoff", async () => {
-            const local = [
-                { _id: "a", updatedTimeUtc: 5, publishDate: 2000, type: "content" },
-            ];
+            const local = [{ _id: "a", updatedTimeUtc: 5, publishDate: 2000, type: "content" }];
             mocks.mangoToDexieMock.mockResolvedValueOnce(local);
             postHttpMock.mockResolvedValueOnce({ docs: [] });
 
@@ -463,9 +470,7 @@ describe("HybridQuery", () => {
             // nothing. decideContentApiQuery short-circuits before the always-post
             // branch — no wasted round-trip.
             mocks.cutoff = OPEN_MIN;
-            const local = [
-                { _id: "a", updatedTimeUtc: 5, publishDate: 2000, type: "content" },
-            ];
+            const local = [{ _id: "a", updatedTimeUtc: 5, publishDate: 2000, type: "content" }];
             mocks.mangoToDexieMock.mockResolvedValueOnce(local);
 
             const q = new HybridQuery({ selector: { type: "content" } });
@@ -553,6 +558,168 @@ describe("HybridQuery", () => {
                 limit: DEFAULT_REMOTE_QUERY_LIMIT,
             });
             expect(q.output.value.map((d) => d._id)).toEqual(["r1"]);
+        });
+    });
+
+    describe("non-content cold-start re-route", () => {
+        it("API-only with empty syncList re-routes to Dexie-only when the type registers", async () => {
+            // Cold start: built before `group` is synced ⇒ API-only.
+            postHttpMock.mockResolvedValueOnce({
+                docs: [{ _id: "g1", updatedTimeUtc: 1, type: "group" }],
+            });
+            const q = track(new HybridQuery({ selector: { type: "group" } }));
+            await flush();
+
+            expect(postHttpMock).toHaveBeenCalledTimes(1);
+            expect(mocks.mangoToDexieMock).not.toHaveBeenCalled();
+            expect(q.output.value.map((d) => d._id)).toEqual(["g1"]);
+
+            // Sync registers `group` (in production db.bulkPut precedes this push, so
+            // Dexie already holds the doc) ⇒ membership flips true ⇒ re-route Dexie-only.
+            const local = [{ _id: "g1", updatedTimeUtc: 1, type: "group" }];
+            mocks.mangoToDexieMock.mockResolvedValueOnce(local);
+            mocks.syncList.value = [{ chunkType: "group" }];
+            await flush();
+
+            expect(mocks.mangoToDexieMock).toHaveBeenCalledTimes(1); // now reads Dexie
+            expect(postHttpMock).toHaveBeenCalledTimes(1); // no new POST
+            expect(q.output.value).toEqual(local);
+        });
+
+        it("does NOT re-route on syncList churn that leaves membership unchanged", async () => {
+            mocks.syncList.value = [{ chunkType: "group" }];
+            mocks.mangoToDexieMock.mockResolvedValue([
+                { _id: "g1", updatedTimeUtc: 1, type: "group" },
+            ]);
+            track(new HybridQuery({ selector: { type: "group" } }));
+            await flush();
+            expect(mocks.mangoToDexieMock).toHaveBeenCalledTimes(1); // Dexie-only
+
+            // Per-chunk churn: add another `group` column, then an unrelated type. The
+            // `group` membership boolean stays true throughout ⇒ no rebuild. This is the
+            // "watch the boolean, not the array" guarantee.
+            mocks.syncList.value = [{ chunkType: "group" }, { chunkType: "group" }];
+            await flush();
+            mocks.syncList.value = [{ chunkType: "group" }, { chunkType: "post" }];
+            await flush();
+
+            expect(mocks.mangoToDexieMock).toHaveBeenCalledTimes(1); // no extra Dexie read
+            expect(postHttpMock).not.toHaveBeenCalled();
+        });
+
+        it("content query never re-routes on syncList membership changes", async () => {
+            mocks.cutoff = OPEN_MIN; // no API supplement ⇒ a single local read, no POST
+            mocks.mangoToDexieMock.mockResolvedValue([
+                { _id: "a", updatedTimeUtc: 5, publishDate: 2000, type: "content" },
+            ]);
+            track(new HybridQuery({ selector: { type: "content" } }));
+            await flush();
+            const dexieCallsBefore = mocks.mangoToDexieMock.mock.calls.length;
+
+            // Toggle content membership: the content branch must not watch it.
+            mocks.syncList.value = [{ chunkType: "content:post" }];
+            await flush();
+            mocks.syncList.value = [];
+            await flush();
+
+            expect(mocks.mangoToDexieMock.mock.calls.length).toBe(dexieCallsBefore);
+            expect(postHttpMock).not.toHaveBeenCalled();
+        });
+
+        it("re-route does not flash output through empty (Dexie already holds the column)", async () => {
+            const docs = [{ _id: "g1", updatedTimeUtc: 1, type: "group" }];
+            postHttpMock.mockResolvedValueOnce({ docs });
+            const q = track(new HybridQuery({ selector: { type: "group" } }));
+            await flush();
+            expect(q.output.value.map((d) => d._id)).toEqual(["g1"]);
+
+            const snapshots: string[][] = [];
+            const stop = watch(q.output, (v) => snapshots.push(v.map((d) => d._id)), {
+                flush: "sync",
+            });
+
+            mocks.mangoToDexieMock.mockResolvedValueOnce(docs);
+            mocks.syncList.value = [{ chunkType: "group" }];
+            await flush();
+            stop();
+
+            expect(q.output.value.map((d) => d._id)).toEqual(["g1"]);
+            // output is kept across the rebuild; any emission that did occur was non-empty.
+            expect(snapshots.every((s) => s.length > 0)).toBe(true);
+        });
+
+        it("revoke: Dexie-only re-routes to API-only when the type leaves syncList", async () => {
+            mocks.syncList.value = [{ chunkType: "group" }];
+            mocks.mangoToDexieMock.mockResolvedValueOnce([
+                { _id: "g1", updatedTimeUtc: 1, type: "group" },
+            ]);
+            track(new HybridQuery({ selector: { type: "group" } }));
+            await flush();
+            expect(postHttpMock).not.toHaveBeenCalled(); // Dexie-only
+
+            // Access revoked ⇒ deleteRevoked trims the column (and purges the docs).
+            postHttpMock.mockResolvedValueOnce({ docs: [] });
+            mocks.syncList.value = [];
+            await flush();
+
+            expect(postHttpMock).toHaveBeenCalledTimes(1); // now API-only
+        });
+
+        it("typeless query ($or across types) gets no membership watch — stays API-only", async () => {
+            postHttpMock.mockResolvedValue({ docs: [] });
+            track(
+                new HybridQuery({
+                    selector: { $or: [{ type: "group" }, { type: "language" }] },
+                }),
+            );
+            await flush();
+            expect(postHttpMock).toHaveBeenCalledTimes(1);
+            expect(mocks.mangoToDexieMock).not.toHaveBeenCalled();
+
+            // Registering `group` must NOT re-route (readType → undefined ⇒ no watch).
+            mocks.syncList.value = [{ chunkType: "group" }];
+            await flush();
+
+            expect(mocks.mangoToDexieMock).not.toHaveBeenCalled();
+            expect(postHttpMock).toHaveBeenCalledTimes(1);
+        });
+    });
+
+    describe("shared instances (useSharedHybridQuery)", () => {
+        it("identical (query, options) callers share ONE instance and one cold-start POST", async () => {
+            postHttpMock.mockResolvedValue({
+                docs: [{ _id: "l1", updatedTimeUtc: 1, type: "language" }],
+            });
+            // syncList empty → API-only. A static caller and a thunk caller whose value is
+            // structurally identical must collapse to the SAME instance.
+            const a = useSharedHybridQuery({ selector: { type: "language" } }, { live: true });
+            const b = useSharedHybridQuery(() => ({ selector: { type: "language" } }), {
+                live: true,
+            });
+            await flush();
+
+            expect(a).toBe(b); // same output ref
+            expect(sharedHybridQueryCount()).toBe(1);
+            expect(postHttpMock).toHaveBeenCalledTimes(1); // ONE POST despite two subscribers
+        });
+
+        it("different query VALUE → different instances (no template collision)", async () => {
+            postHttpMock.mockResolvedValue({ docs: [] });
+            useSharedHybridQuery({ selector: { type: "language" } }, { live: true });
+            useSharedHybridQuery({ selector: { type: "group" } }, { live: true });
+            await flush();
+            expect(sharedHybridQueryCount()).toBe(2);
+        });
+
+        it("different output-affecting options → different instances", async () => {
+            postHttpMock.mockResolvedValue({ docs: [] });
+            useSharedHybridQuery({ selector: { type: "language" } }, { live: true });
+            useSharedHybridQuery(
+                { selector: { type: "language" } },
+                { live: true, stripFields: ["translations"] },
+            );
+            await flush();
+            expect(sharedHybridQueryCount()).toBe(2);
         });
     });
 
@@ -663,9 +830,7 @@ describe("HybridQuery", () => {
 
     describe("merge / output", () => {
         it("UNION not replace: a local-only doc above cutoff survives a remote merge", async () => {
-            const local = [
-                { _id: "fresh", updatedTimeUtc: 9, publishDate: 5000, type: "content" },
-            ];
+            const local = [{ _id: "fresh", updatedTimeUtc: 9, publishDate: 5000, type: "content" }];
             mocks.mangoToDexieMock.mockResolvedValueOnce(local);
             postHttpMock.mockResolvedValueOnce({
                 docs: [{ _id: "old", updatedTimeUtc: 1, publishDate: 100, type: "content" }],
@@ -682,9 +847,7 @@ describe("HybridQuery", () => {
             // Local has 1 doc; $limit:2 ⇒ shortfall ⇒ POST runs. Remote returns
             // a newer version of "a" plus a fresh "b" — merged result is the
             // limit-2 desc-publishDate window with "a" replaced by the newer copy.
-            const local = [
-                { _id: "a", updatedTimeUtc: 5, publishDate: 30, type: "content" },
-            ];
+            const local = [{ _id: "a", updatedTimeUtc: 5, publishDate: 30, type: "content" }];
             mocks.mangoToDexieMock.mockResolvedValueOnce(local);
             postHttpMock.mockResolvedValueOnce({
                 docs: [
@@ -808,7 +971,10 @@ describe("HybridQuery", () => {
         // hard-codes the cutoff (or reads it at module-load) would fail at least
         // one variant.
         it.each<[string, () => HybridQuery<any>]>([
-            ["always-post (no limit, no id list)", () => new HybridQuery({ selector: { type: "content" } })],
+            [
+                "always-post (no limit, no id list)",
+                () => new HybridQuery({ selector: { type: "content" } }),
+            ],
             [
                 "limit-shortfall",
                 () =>
@@ -825,25 +991,22 @@ describe("HybridQuery", () => {
                         selector: { type: "content", _id: { $in: ["a", "b"] } },
                     }),
             ],
-        ])(
-            "uses getContentPublishDateCutoff() verbatim — %s",
-            async (_label, build) => {
-                mocks.cutoff = 42_000_000;
-                mocks.mangoToDexieMock.mockResolvedValueOnce([
-                    { _id: "local", updatedTimeUtc: 1, type: "content" },
-                ]);
-                postHttpMock.mockResolvedValueOnce({ docs: [] });
+        ])("uses getContentPublishDateCutoff() verbatim — %s", async (_label, build) => {
+            mocks.cutoff = 42_000_000;
+            mocks.mangoToDexieMock.mockResolvedValueOnce([
+                { _id: "local", updatedTimeUtc: 1, type: "content" },
+            ]);
+            postHttpMock.mockResolvedValueOnce({ docs: [] });
 
-                build();
-                await flush();
+            build();
+            await flush();
 
-                expect(postHttpMock).toHaveBeenCalledTimes(1);
-                const payload = postHttpMock.mock.calls[0]![1] as { selector: { $and: any[] } };
-                expect(payload.selector.$and).toContainEqual({
-                    publishDate: { $lte: 42_000_000 },
-                });
-            },
-        );
+            expect(postHttpMock).toHaveBeenCalledTimes(1);
+            const payload = postHttpMock.mock.calls[0]![1] as { selector: { $and: any[] } };
+            expect(payload.selector.$and).toContainEqual({
+                publishDate: { $lte: 42_000_000 },
+            });
+        });
     });
 
     describe("live mode", () => {
@@ -918,7 +1081,11 @@ describe("HybridQuery", () => {
 
         it("content: API decision gated even when the first emission needs no API ($limit satisfied)", async () => {
             const q = new HybridQuery(
-                { selector: { type: "content" }, $sort: [{ publishDate: "desc" as const }], $limit: 1 },
+                {
+                    selector: { type: "content" },
+                    $sort: [{ publishDate: "desc" as const }],
+                    $limit: 1,
+                },
                 { live: true },
             );
             await flush();
@@ -974,7 +1141,10 @@ describe("HybridQuery", () => {
         // listener attaches), driving the first local emission with `firstLocal`.
         const setupContentLive = async (
             firstLocal: any[] = [],
-            query: any = { selector: { type: "content" }, $sort: [{ publishDate: "desc" as const }] },
+            query: any = {
+                selector: { type: "content" },
+                $sort: [{ publishDate: "desc" as const }],
+            },
         ) => {
             postHttpMock.mockResolvedValue({ docs: [] }); // one-shot supplement: nothing
             const q = track(new HybridQuery(query, { live: true }));
@@ -1165,7 +1335,10 @@ describe("HybridQuery", () => {
                 new HybridQuery(
                     () => ({
                         selector: {
-                            $and: [{ type: "content" }, { parentTags: { $elemMatch: { $in: cats.value } } }],
+                            $and: [
+                                { type: "content" },
+                                { parentTags: { $elemMatch: { $in: cats.value } } },
+                            ],
                         },
                     }),
                     { live: true },
@@ -1262,7 +1435,10 @@ describe("HybridQuery", () => {
                 new HybridQuery(
                     () => ({
                         selector: {
-                            $and: [{ type: "content" }, { parentTags: { $elemMatch: { $in: cats.value } } }],
+                            $and: [
+                                { type: "content" },
+                                { parentTags: { $elemMatch: { $in: cats.value } } },
+                            ],
                         },
                     }),
                     { live: true },
@@ -1317,7 +1493,10 @@ describe("HybridQuery", () => {
             track(
                 new HybridQuery(() => ({
                     selector: {
-                        $and: [{ type: "content" }, { parentTags: { $elemMatch: { $in: cats.value } } }],
+                        $and: [
+                            { type: "content" },
+                            { parentTags: { $elemMatch: { $in: cats.value } } },
+                        ],
                     },
                 })),
             ); // no { live } — reactive, but one-shot reads (no liveQuery/socket)
@@ -1342,7 +1521,10 @@ describe("HybridQuery", () => {
             track(
                 new HybridQuery(() => ({
                     selector: {
-                        $and: [{ type: "content" }, { parentTags: { $elemMatch: { $in: cats.value } } }],
+                        $and: [
+                            { type: "content" },
+                            { parentTags: { $elemMatch: { $in: cats.value } } },
+                        ],
                     },
                 })),
             );
@@ -1365,7 +1547,10 @@ describe("HybridQuery", () => {
             const q = track(
                 new HybridQuery(() => ({
                     selector: {
-                        $and: [{ type: "content" }, { parentTags: { $elemMatch: { $in: cats.value } } }],
+                        $and: [
+                            { type: "content" },
+                            { parentTags: { $elemMatch: { $in: cats.value } } },
+                        ],
                     },
                 })), // one-shot: the un-cancellable mangoToDexie().then(onLocal) path
             );
@@ -1401,9 +1586,12 @@ describe("HybridQuery", () => {
             const ids = ref(["a"]);
             postHttpMock.mockResolvedValue({ docs: [] });
             track(
-                new HybridQuery(() => ({ selector: { type: "redirect", _id: { $in: ids.value } } }), {
-                    live: true,
-                }),
+                new HybridQuery(
+                    () => ({ selector: { type: "redirect", _id: { $in: ids.value } } }),
+                    {
+                        live: true,
+                    },
+                ),
             );
             await flush();
             expect(mocks.useDexieLiveQueryMock).not.toHaveBeenCalled(); // api-only: no local read
@@ -1427,11 +1615,16 @@ describe("HybridQuery", () => {
 
         it("api-only offline rebuild keeps the previous selector's result; the new generation POSTs on reconnect", async () => {
             const ids = ref(["a"]);
-            postHttpMock.mockResolvedValue({ docs: [{ _id: "a1", type: "redirect", updatedTimeUtc: 1 }] });
+            postHttpMock.mockResolvedValue({
+                docs: [{ _id: "a1", type: "redirect", updatedTimeUtc: 1 }],
+            });
             const q = track(
-                new HybridQuery(() => ({ selector: { type: "redirect", _id: { $in: ids.value } } }), {
-                    live: true,
-                }),
+                new HybridQuery(
+                    () => ({ selector: { type: "redirect", _id: { $in: ids.value } } }),
+                    {
+                        live: true,
+                    },
+                ),
             );
             await flush();
             expect(q.output.value.map((d) => d._id)).toEqual(["a1"]);
@@ -1439,7 +1632,9 @@ describe("HybridQuery", () => {
             mocks.isConnected.value = false;
             await flush();
             postHttpMock.mockClear();
-            postHttpMock.mockResolvedValue({ docs: [{ _id: "b1", type: "redirect", updatedTimeUtc: 2 }] });
+            postHttpMock.mockResolvedValue({
+                docs: [{ _id: "b1", type: "redirect", updatedTimeUtc: 2 }],
+            });
 
             ids.value = ["b"];
             await flush();
@@ -1495,9 +1690,7 @@ describe("HybridQuery", () => {
             await flush();
 
             expect(q.output.value).toEqual(local);
-            expect(
-                localStorage.getItem("hqcache:" + structuralCacheKey(syncedQuery)),
-            ).toBeNull();
+            expect(localStorage.getItem("hqcache:" + structuralCacheKey(syncedQuery))).toBeNull();
         });
 
         it("seeds output synchronously from a cache hit, before the local read resolves", () => {
@@ -1576,7 +1769,9 @@ describe("HybridQuery", () => {
 
         it("a provably-empty query does not seed (and clears output)", async () => {
             const emptyQuery = {
-                selector: { $and: [{ type: "group" }, { parentTags: { $elemMatch: { $in: [] } } }] },
+                selector: {
+                    $and: [{ type: "group" }, { parentTags: { $elemMatch: { $in: [] } } }],
+                },
             };
             // The populated form shares this structural key; pre-seed under it.
             writeResponseCache(structuralCacheKey(emptyQuery), {
@@ -1662,7 +1857,10 @@ describe("HybridQuery", () => {
                 postHttpMock.mockResolvedValueOnce({ docs: [Rheavy] });
 
                 const q = track(
-                    new HybridQuery(contentQuery, { cache: true, cacheStripFields: ["fts", "text"] }),
+                    new HybridQuery(contentQuery, {
+                        cache: true,
+                        cacheStripFields: ["fts", "text"],
+                    }),
                 );
                 await flush();
 
@@ -1970,16 +2168,16 @@ describe("HybridQuery", () => {
                 selector: { type: "content" },
                 $sort: [{ publishDate: "desc" as const }],
             };
-            const q = track(
-                new HybridQuery(cacheQuery, { persistOffline: true, cache: true }),
-            );
+            const q = track(new HybridQuery(cacheQuery, { persistOffline: true, cache: true }));
             await flush();
 
             // persistOffline path ran.
             expect(mocks.bulkPut).toHaveBeenCalledTimes(1);
             expect(mocks.bulkPut.mock.calls[0][0].map((d: any) => d._id)).toEqual(["R1"]);
             // cache path ran: a hqcache: entry was written for this query's shape.
-            expect(localStorage.getItem("hqcache:" + structuralCacheKey(cacheQuery))).not.toBeNull();
+            expect(
+                localStorage.getItem("hqcache:" + structuralCacheKey(cacheQuery)),
+            ).not.toBeNull();
             expect(readResponseCache(structuralCacheKey(cacheQuery))).toEqual({
                 local: [{ _id: "L1", updatedTimeUtc: 5, publishDate: 2000, type: "content" }],
                 remote: [R],
@@ -2117,11 +2315,25 @@ describe("HybridQuery", () => {
 
         it("omits stripFields from the local and remote contributions in output", async () => {
             mocks.mangoToDexieMock.mockResolvedValueOnce([
-                { _id: "a", updatedTimeUtc: 5, publishDate: 2000, type: "content", text: "body-a", fts: ["x:1"] },
+                {
+                    _id: "a",
+                    updatedTimeUtc: 5,
+                    publishDate: 2000,
+                    type: "content",
+                    text: "body-a",
+                    fts: ["x:1"],
+                },
             ]);
             postHttpMock.mockResolvedValueOnce({
                 docs: [
-                    { _id: "old1", updatedTimeUtc: 1, publishDate: 500, type: "content", text: "body-old", fts: ["y:1"] },
+                    {
+                        _id: "old1",
+                        updatedTimeUtc: 1,
+                        publishDate: 500,
+                        type: "content",
+                        text: "body-old",
+                        fts: ["y:1"],
+                    },
                 ],
             });
 
@@ -2145,7 +2357,14 @@ describe("HybridQuery", () => {
             ]);
             postHttpMock.mockResolvedValueOnce({
                 docs: [
-                    { _id: "old1", updatedTimeUtc: 1, publishDate: 500, type: "content", text: "FULL", fts: ["t:1"] },
+                    {
+                        _id: "old1",
+                        updatedTimeUtc: 1,
+                        publishDate: 500,
+                        type: "content",
+                        text: "FULL",
+                        fts: ["t:1"],
+                    },
                 ],
             });
 
@@ -2182,7 +2401,13 @@ describe("HybridQuery", () => {
             await flush();
 
             mocks.emitSocket([
-                { _id: "S1", updatedTimeUtc: 7, publishDate: 400, type: "content", text: "socket-body" },
+                {
+                    _id: "S1",
+                    updatedTimeUtc: 7,
+                    publishDate: 400,
+                    type: "content",
+                    text: "socket-body",
+                },
             ]);
             await flush();
 
@@ -2306,7 +2531,10 @@ describe("HybridQuery", () => {
             const q = track(
                 new HybridQuery(() => ({
                     selector: {
-                        $and: [{ type: "content" }, { parentTags: { $elemMatch: { $in: cats.value } } }],
+                        $and: [
+                            { type: "content" },
+                            { parentTags: { $elemMatch: { $in: cats.value } } },
+                        ],
                     },
                 })),
             );
@@ -2330,7 +2558,10 @@ describe("HybridQuery", () => {
                 new HybridQuery(
                     {
                         selector: {
-                            $and: [{ type: "content" }, { parentTags: { $elemMatch: { $in: [] } } }],
+                            $and: [
+                                { type: "content" },
+                                { parentTags: { $elemMatch: { $in: [] } } },
+                            ],
                         },
                     },
                     { live: true },
@@ -2362,7 +2593,15 @@ describe("HybridQuery", () => {
             const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
             mocks.mangoToDexieMock.mockResolvedValueOnce([]);
             postHttpMock.mockRejectedValueOnce(new Error("boom")).mockResolvedValueOnce({
-                docs: [{ _id: "c2", updatedTimeUtc: 2, publishDate: 200, type: "content", parentId: "p2" }],
+                docs: [
+                    {
+                        _id: "c2",
+                        updatedTimeUtc: 2,
+                        publishDate: 200,
+                        type: "content",
+                        parentId: "p2",
+                    },
+                ],
             });
 
             const q = new HybridQuery({
@@ -2381,7 +2620,13 @@ describe("HybridQuery", () => {
             const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
             const cats = ref(["A"]);
             mocks.mangoToDexieMock.mockResolvedValue([
-                { _id: "a", type: "content", parentTags: ["A"], publishDate: 2000, updatedTimeUtc: 1 },
+                {
+                    _id: "a",
+                    type: "content",
+                    parentTags: ["A"],
+                    publishDate: 2000,
+                    updatedTimeUtc: 1,
+                },
             ]);
             const boom = new Error("boom");
             postHttpMock.mockRejectedValueOnce(boom);
@@ -2389,7 +2634,10 @@ describe("HybridQuery", () => {
             const q = track(
                 new HybridQuery(() => ({
                     selector: {
-                        $and: [{ type: "content" }, { parentTags: { $elemMatch: { $in: cats.value } } }],
+                        $and: [
+                            { type: "content" },
+                            { parentTags: { $elemMatch: { $in: cats.value } } },
+                        ],
                     },
                 })),
             );
@@ -2420,7 +2668,13 @@ describe("HybridQuery", () => {
         it("a superseded generation's late POST does not clear the new generation's isFetching", async () => {
             const cats = ref(["A"]);
             mocks.mangoToDexieMock.mockResolvedValue([
-                { _id: "a", type: "content", parentTags: ["A"], publishDate: 2000, updatedTimeUtc: 1 },
+                {
+                    _id: "a",
+                    type: "content",
+                    parentTags: ["A"],
+                    publishDate: 2000,
+                    updatedTimeUtc: 1,
+                },
             ]);
             let resolveA!: (v: any) => void;
             let resolveB!: (v: any) => void;
@@ -2430,7 +2684,10 @@ describe("HybridQuery", () => {
             const q = track(
                 new HybridQuery(() => ({
                     selector: {
-                        $and: [{ type: "content" }, { parentTags: { $elemMatch: { $in: cats.value } } }],
+                        $and: [
+                            { type: "content" },
+                            { parentTags: { $elemMatch: { $in: cats.value } } },
+                        ],
                     },
                 })),
             );

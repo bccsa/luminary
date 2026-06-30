@@ -7,7 +7,7 @@ import {
     db,
     DocType,
     hasAnyPermission,
-    useHybridQueryWithState,
+    useSharedHybridQueryWithState,
     type LanguageDto,
 } from "luminary-shared";
 import { computed } from "vue";
@@ -19,10 +19,13 @@ const canCreateNew = computed(() => hasAnyPermission(DocType.Language, AclPermis
 
 // `isFetching` settles to false when the read completes even with no languages; a fires-once watch
 // on the output would hang on an empty result (HybridQuery dedupes [] → []).
-const { output: languages, isFetching: isLoading, hasLocalChanges } =
-    useHybridQueryWithState<LanguageDto>(() => ({ selector: { type: DocType.Language } }), {
-        live: true,
-    });
+const {
+    output: languages,
+    isFetching: isLoading,
+    hasLocalChanges,
+} = useSharedHybridQueryWithState<LanguageDto>(() => ({ selector: { type: DocType.Language } }), {
+    live: true,
+});
 
 const createNew = () => {
     router.push({ name: "language", params: { id: db.uuid() } });

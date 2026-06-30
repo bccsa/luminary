@@ -1,4 +1,4 @@
-import { computed, Ref, ref, toRaw, watch } from "vue";
+import { computed, nextTick, Ref, ref, toRaw, watch } from "vue";
 import {
     AckStatus,
     BaseDocumentDto,
@@ -351,6 +351,87 @@ export function toEditable<T extends BaseDocumentDto>(
         return res;
     };
 
+    /**
+     * Create a copy of an existing item as a new, unsaved document. The clone gets a fresh `_id`
+     * (`db.uuid()`), its `_rev` and `deleteReq` cleared, and is pushed into the editable array only
+     * (NOT the shadow) — so it reads as a new, edited, unsaved doc, exactly like any other
+     * locally-added item (`isEdited(clone._id)` is true). The clone is NOT saved: the caller decides
+     * when (and whether) to persist it via `save(clone._id)`, since some callers stage the copy for
+     * the user to edit first and others save immediately.
+     * @param id - The _id of the item to duplicate (looked up in editable, then source).
+     * @param modify - Optional callback to mutate the clone (e.g. rename, clear upload state, reset
+     * status) before it is pushed. Runs before the configured `modifyFn`.
+     * @returns the clone (with its new `_id`), or undefined if the source item was not found.
+     */
+    const duplicate = (id: Uuid, modify?: (clone: T) => T): T | undefined => {
+        const item =
+            editable.value.find((i) => i._id === id) ?? source?.value.find((i) => i._id === id);
+        if (!item) return undefined;
+
+        let clone = _.cloneDeep(toRaw(item)) as T;
+        clone._id = db.uuid();
+        clone._rev = undefined;
+        delete clone.deleteReq;
+
+        // Caller transform (rename / clear uploads / reset status) runs first; the configured
+        // modifyFn runs last so it has the final say AND so the editable-watcher's re-apply of
+        // modifyFn on the pushed item is a no-op rather than a second, divergent transform.
+        if (modify) clone = modify(clone);
+        clone = _applyModifier(clone);
+
+        editable.value.push(clone);
+        return clone;
+    };
+
+    /**
+     * Remove (delete) an item.
+     * - For a new, never-saved item (not present in the shadow) there is nothing to queue: it is
+     *   spliced out of editable and an Accepted ack is returned (mirrors {@link revert}).
+     * - Otherwise the item is marked `deleteReq = 1` and saved through the normal {@link save}
+     *   routing (local `db.upsert` delete, or API `/changerequest`). On an Accepted ack the item is
+     *   spliced from both editable and shadow for immediate UI feedback; on a non-Accepted ack
+     *   `deleteReq` is cleared so the item is not left half-deleted, and the ack is returned.
+     *
+     * Named `remove` (not `delete`) because `delete` is a reserved word and cannot be used as a
+     * destructuring binding (`const { delete } = toEditable(...)`); callers may alias it if desired.
+     * @param id - The _id of the item to remove.
+     * @returns the save ack, or undefined when the underlying API call returned undefined.
+     */
+    const remove = async (id: Uuid): Promise<ChangeReqAckDto | undefined> => {
+        const editableIndex = editable.value.findIndex((i) => i._id === id);
+        if (editableIndex === -1) return { ack: AckStatus.Rejected, message: "Item not found" };
+
+        const inShadow = shadow.value.some((s) => s._id === id);
+        if (!inShadow) {
+            // New, unsaved item — nothing queued anywhere, just drop it.
+            editable.value.splice(editableIndex, 1);
+            return { ack: AckStatus.Accepted };
+        }
+
+        // Mark for deletion and let the filtered refs flush so save()'s isEdited guard sees the
+        // change (deleteReq is a real field diff; without the flush save() would no-op).
+        editable.value[editableIndex].deleteReq = 1;
+        await nextTick();
+
+        const res = await save(id);
+
+        if (res && res.ack === AckStatus.Accepted) {
+            // Drop from both arrays for immediate UI feedback. On the local path the live source
+            // also reconciles the doc out; the source-watcher's removed-detection is keyed on _id
+            // and idempotent, so this pre-emptive removal cannot resurrect or double-remove.
+            const eIdx = editable.value.findIndex((i) => i._id === id);
+            if (eIdx !== -1) editable.value.splice(eIdx, 1);
+            const sIdx = shadow.value.findIndex((i) => i._id === id);
+            if (sIdx !== -1) shadow.value.splice(sIdx, 1);
+        } else {
+            // Save failed/rejected — undo the deletion mark so the item isn't left half-deleted.
+            const eIdx = editable.value.findIndex((i) => i._id === id);
+            if (eIdx !== -1) editable.value[eIdx].deleteReq = undefined;
+        }
+
+        return res;
+    };
+
     function _applyModifier(item: T) {
         if (!options.modifyFn) return item;
         return options.modifyFn(item);
@@ -361,7 +442,7 @@ export function toEditable<T extends BaseDocumentDto>(
         return options.filterFn(item);
     }
 
-    return { editable, isEdited, isModified, revert, updateShadow, save };
+    return { editable, isEdited, isModified, revert, updateShadow, save, duplicate, remove };
 }
 
 /**

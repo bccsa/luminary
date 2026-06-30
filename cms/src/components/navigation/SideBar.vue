@@ -34,7 +34,7 @@ import {
     TagType,
     hasAnyPermission,
     isConnected,
-    useHybridQuery,
+    useSharedHybridQuery,
     type LanguageDto,
 } from "luminary-shared";
 import { useAuth0 } from "@auth0/auth0-vue";
@@ -190,9 +190,10 @@ const logout = auth0
     ? auth0.logout
     : () => console.warn("Logout called without an active auth session");
 
-const languages = useHybridQuery<LanguageDto>(() => ({ selector: { type: DocType.Language } }), {
-    live: true,
-});
+const languages = useSharedHybridQuery<LanguageDto>(
+    () => ({ selector: { type: DocType.Language } }),
+    { live: true },
+);
 const currentLanguageName = computed(
     () => languages.value.find((l) => l._id === cmsLanguageIdAsRef.value)?.name ?? "",
 );
@@ -328,7 +329,6 @@ const navItemClass = computed(() => [
                     <LanguageIcon :class="navIconClass" aria-hidden="true" />
                     <span v-if="!isCollapsed" class="flex min-w-0 flex-col leading-none">
                         <span>{{ currentLanguageName }}</span>
-                        
                     </span>
                 </button>
 

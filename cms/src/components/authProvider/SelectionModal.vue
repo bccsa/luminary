@@ -2,7 +2,7 @@
 import LModal from "../modals/LModal.vue";
 import { ExclamationTriangleIcon } from "@heroicons/vue/24/outline";
 import { loginWithProvider } from "@/auth";
-import { DocType, type AuthProviderDto, useHybridQuery } from "luminary-shared";
+import { DocType, type AuthProviderDto, useSharedHybridQuery } from "luminary-shared";
 import { computed } from "vue";
 import { storageSelection } from "@/composables/storageSelection";
 
@@ -10,7 +10,7 @@ const isVisible = defineModel<boolean>("isVisible");
 const storage = storageSelection();
 
 // Auth-provider list; sort by sortIndex in a computed (sortIndex is unindexed).
-const allProviders = useHybridQuery<AuthProviderDto>(
+const allProviders = useSharedHybridQuery<AuthProviderDto>(
     () => ({ selector: { type: DocType.AuthProvider } }),
     { live: true },
 );

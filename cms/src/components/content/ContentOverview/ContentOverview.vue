@@ -7,6 +7,7 @@ import {
     type ContentDto,
     PostType,
     useHybridQuery,
+    useSharedHybridQuery,
     type GroupDto,
     hasAnyPermission,
     AclPermission,
@@ -164,13 +165,14 @@ const tagContentDocs = computed(() =>
     [...tagContentDocsRaw.value].sort((a, b) => (b.publishDate ?? 0) - (a.publishDate ?? 0)),
 );
 
-const groups = useHybridQuery<GroupDto>(() => ({ selector: { type: DocType.Group } }), {
+const groups = useSharedHybridQuery<GroupDto>(() => ({ selector: { type: DocType.Group } }), {
     live: true,
 });
 
-const languages = useHybridQuery<LanguageDto>(() => ({ selector: { type: DocType.Language } }), {
-    live: true,
-});
+const languages = useSharedHybridQuery<LanguageDto>(
+    () => ({ selector: { type: DocType.Language } }),
+    { live: true },
+);
 
 const canCreateNew = computed(() => hasAnyPermission(props.docType, AclPermission.Edit));
 

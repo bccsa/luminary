@@ -4,7 +4,7 @@ import {
     AclPermission,
     AckStatus,
     hasAnyPermission,
-    useHybridQuery,
+    useSharedHybridQuery,
     useHybridQueryWithState,
     toEditable,
     type AutoGroupMappingsDto,
@@ -51,11 +51,11 @@ export function useAutoGroupMappings() {
     const mappings = mappingEditable.editable;
 
     // Auth providers + groups (read-only reference lists).
-    const providers = useHybridQuery<AuthProviderDto>(
+    const providers = useSharedHybridQuery<AuthProviderDto>(
         () => ({ selector: { type: DocType.AuthProvider } }),
         { live: true },
     );
-    const groups = useHybridQuery<GroupDto>(() => ({ selector: { type: DocType.Group } }), {
+    const groups = useSharedHybridQuery<GroupDto>(() => ({ selector: { type: DocType.Group } }), {
         live: true,
     });
 

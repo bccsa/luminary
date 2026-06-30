@@ -8,7 +8,7 @@ import {
     type MediaFileDto,
     type LanguageDto,
     DocType,
-    useHybridQuery,
+    useSharedHybridQuery,
 } from "luminary-shared";
 import { computed, ref, toRaw, watchEffect } from "vue";
 import { ExclamationCircleIcon } from "@heroicons/vue/24/solid";
@@ -93,9 +93,10 @@ const handleBucketChange = (bucketId: string) => {
 };
 
 // Get all available languages
-const allLanguages = useHybridQuery<LanguageDto>(() => ({ selector: { type: DocType.Language } }), {
-    live: true,
-});
+const allLanguages = useSharedHybridQuery<LanguageDto>(
+    () => ({ selector: { type: DocType.Language } }),
+    { live: true },
+);
 
 // Get languages that already have audio files
 const usedLanguageIds = computed(() => {

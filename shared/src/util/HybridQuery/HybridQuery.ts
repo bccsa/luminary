@@ -34,6 +34,7 @@ import {
     planRemoteContentQueries,
     readType,
     toDeleteSelector,
+    typeInSyncListRef,
     typeIsInSyncList,
 } from "./queryIntrospection";
 import {
@@ -56,6 +57,13 @@ export const DEFAULT_REMOTE_QUERY_LIMIT = 500;
 
 let _httpService: HttpReq<any> | undefined;
 
+// Test-only registry of live instances, so `_resetHybridQueryForTests()` can dispose
+// any a test left undisposed (a non-content instance now holds a persistent syncList
+// membership watch — see `_watchMembership` — which would otherwise fire across tests
+// when the shared mock mutates `syncList`). Populated only in test mode, so production
+// (where instances are scope-disposed) carries no global instance set.
+const _testInstances = new Set<{ dispose: () => void }>();
+
 /**
  * Wire the HTTP service used by `HybridQuery` / `queryRemote` for the remote path.
  * Called once at app startup from `shared/src/luminary.ts`, alongside `initSync`.
@@ -74,6 +82,10 @@ export function _resetHybridQueryForTests(): void {
         throw new Error("_resetHybridQueryForTests is only available in test mode");
     }
     _httpService = undefined;
+    // Dispose any instance the previous test left alive so its membership/socket/Dexie
+    // watchers can't fire into the next test when the shared mocks are reset.
+    Array.from(_testInstances).forEach((q) => q.dispose());
+    _testInstances.clear();
 }
 
 /**
@@ -446,6 +458,9 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
         // active scope and must call `dispose()` manually.
         if (getCurrentScope()) onScopeDispose(() => this.dispose());
 
+        // Test-only: register for blanket teardown in `_resetHybridQueryForTests`.
+        if (import.meta.env?.MODE === "test") _testInstances.add(this);
+
         if (typeof query === "function") {
             // A query THUNK is reactive — independent of `live`. The getter runs the
             // thunk in a reactive scope so every `ref.value` it reads is auto-tracked;
@@ -523,6 +538,7 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
     dispose(): void {
         if (this._disposed) return;
         this._disposed = true;
+        if (import.meta.env?.MODE === "test") _testInstances.delete(this);
         // Stop the top-level query watch FIRST so a dep write racing teardown can't
         // start a new generation after we've disposed.
         this._stopQueryWatch?.();
@@ -540,6 +556,37 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
     private _settleRemote(gen: number): void {
         if (gen !== this._generation || this._disposed) return;
         this._remotePending.value = false;
+    }
+
+    // Non-content branches only. Re-route this generation when `type`'s syncList
+    // membership FLIPS — `false→true` when sync first registers the type (cold start:
+    // a query built before its type was synced re-routes from API-only to Dexie-only
+    // once both Dexie AND the syncList entry exist — db.bulkPut precedes the
+    // syncList.push, so the local read is already populated → no flash), and `true→false`
+    // on revoke (deleteRevoked trims the column and purges the Dexie docs, so we fall
+    // back to the API). The watched value is the per-type memoized membership BOOLEAN, so
+    // the callback fires once per genuine flip — never on the per-chunk block-range / eof
+    // churn that mutates `syncList` during a sync. Registered in `_generationDisposers`,
+    // so a query-thunk rebuild tears this down and `_run` installs a fresh watch for the
+    // new type (no stale-type tracking). `immediate: false` — the initial route was
+    // already decided synchronously by the `typeIsInSyncList(type)` read in `_run`.
+    private _watchMembership(type: DocType, gen: number): void {
+        const stop = watch(
+            typeInSyncListRef(type),
+            () => {
+                // The structural teardown (watch stop) already prevents a fired-after-stop
+                // callback; the gen/dispose guard is belt-and-braces against a flip racing
+                // a rebuild that has already bumped `_generation`.
+                if (gen !== this._generation || this._disposed) return;
+                // `_rebuild` keeps `output` across the rebuild (no flash), bumps
+                // `_generation` (disarming this generation's in-flight POST / local read /
+                // socket cb via the gen guard), and re-runs `_run` — which now reads the
+                // flipped membership and takes the opposite branch.
+                this._rebuild(this._queryFn());
+            },
+            { immediate: false },
+        );
+        this._generationDisposers.add(stop);
     }
 
     private _run(): void {
@@ -659,6 +706,9 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
                         console.error("[HybridQuery] local update failed:", err);
                     }
                 });
+                // Re-route to API-only if this type is later REVOKED (membership true→false).
+                // `type` is non-undefined here (it passed typeIsInSyncList).
+                this._watchMembership(type as DocType, gen);
                 return;
             }
 
@@ -677,6 +727,11 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
                 if (type) this._generationDisposers.add(subscribeRooms([type]));
                 this._startRemoteLive(this._query, type, gen);
             }
+            // COLD-START RE-ROUTE: when sync first registers this type (membership
+            // false→true), flip to Dexie-only. Independent of `live`. Typeless queries
+            // (readType → undefined) get no membership watch — they intentionally stay
+            // API-only (the "safe by default" arm).
+            if (type) this._watchMembership(type, gen);
         } catch (err) {
             // Belt-and-braces: anything that escaped the inner handlers (the
             // reconnect-watcher setup, an unexpected throw in queryIntrospection

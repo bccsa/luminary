@@ -12,7 +12,7 @@ import {
     DocType,
     hasAnyPermission,
     type UserDto,
-    useHybridQuery,
+    useSharedHybridQuery,
     useHybridQueryWithState,
     type GroupDto,
     isConnected,
@@ -32,10 +32,11 @@ const canCreateNew = computed(() => hasAnyPermission(DocType.User, AclPermission
 
 // User is a non-synced type → HybridQuery serves it API-only (REST + on-demand socket rooms).
 // Auto-disposes on unmount.
-const { output: users, isFetching, hasLocalChanges } = useHybridQueryWithState<UserDto>(
-    () => ({ selector: { type: DocType.User } }),
-    { live: true },
-);
+const {
+    output: users,
+    isFetching,
+    hasLocalChanges,
+} = useHybridQueryWithState<UserDto>(() => ({ selector: { type: DocType.User } }), { live: true });
 
 const isEditUserModalVisible = ref(false);
 const isNewUserModalVisible = ref(false);
@@ -72,7 +73,7 @@ watch(
     { deep: true },
 );
 
-const groups = useHybridQuery<GroupDto>(() => ({ selector: { type: DocType.Group } }), {
+const groups = useSharedHybridQuery<GroupDto>(() => ({ selector: { type: DocType.Group } }), {
     live: true,
 });
 

@@ -3,7 +3,7 @@ import {
     AclPermission,
     db,
     DocType,
-    useDexieLiveQuery,
+    useSharedHybridQuery,
     verifyAccess,
     type LanguageDto,
 } from "luminary-shared";
@@ -98,40 +98,44 @@ export async function initLanguage() {
         else if (languages.length > 0) cmsLanguageIdAsRef.value = languages[0]._id;
     }
 
-    // Direct Dexie live query — NOT useHybridQuery. initLanguage runs at startup, before initSync()
-    // has registered `language` in the sync engine's syncList. HybridQuery freezes its Dexie-vs-API
-    // routing at construction time (it only re-evaluates when the query value changes), so a Language
-    // query built here would lock into API-only mode and never read Dexie. A plain Dexie live query
-    // has no such timing dependency — and languages are always fully synced, so it's the right read.
-    const _cmsLanguages = useDexieLiveQuery(
-        () =>
-            db.docs.where("type").equals("language").toArray() as unknown as Promise<LanguageDto[]>,
-        { initialValue: [] as LanguageDto[] },
+    // Language is a fully-synced type. This SHARED HybridQuery is the single language
+    // subscription for the whole CMS — every reference read of `{ type: language }`
+    // (sidebar, modals, overviews) reuses this same instance, so there is one Dexie live
+    // query and at most one cold-start `/query` rather than one per call site. On a warm
+    // load it routes Dexie-only; on a cold start (before sync has registered `language`) it
+    // routes API-only once, then re-routes to Dexie-only automatically once sync registers
+    // `language` in the syncList (the cold-start re-route in HybridQuery).
+    const sharedLanguages = useSharedHybridQuery<LanguageDto>(
+        { selector: { type: DocType.Language } },
+        { live: true },
     );
 
-    watch(_cmsLanguages, (languages) => {
-        cmsLanguages.value.slice(0, cmsLanguages.value.length);
-        cmsLanguages.value.push(...languages);
-        cmsLanguages.value = _.uniqBy(cmsLanguages.value, "_id");
-        cmsLanguages.value.sort((a, b) => (a._id > b._id ? 1 : -1));
+    watch(
+        sharedLanguages,
+        (languages) => {
+            cmsLanguages.value = _.uniqBy(languages, "_id").sort((a, b) =>
+                a._id > b._id ? 1 : -1,
+            );
 
-        const defaultLang = languages.find((l) => l.default === 1);
+            const defaultLang = languages.find((l) => l.default === 1);
 
-        // If no language is selected yet (fresh session: initLanguage's one-shot read ran
-        // before languages had synced into Dexie), select now that they've arrived.
-        if (!cmsLanguageIdAsRef.value && languages.length) {
-            cmsLanguageIdAsRef.value = (defaultLang ?? languages[0])._id;
-        }
+            // If no language is selected yet (fresh session: the synchronous read above ran
+            // before languages had synced into Dexie), select now that they've arrived.
+            if (!cmsLanguageIdAsRef.value && languages.length) {
+                cmsLanguageIdAsRef.value = (defaultLang ?? languages[0])._id;
+            }
 
-        translatableLanguagesAsRef.value = languages.filter((lang) =>
-            verifyAccess(lang.memberOf, DocType.Language, AclPermission.Translate, "any"),
-        );
+            translatableLanguagesAsRef.value = languages.filter((lang) =>
+                verifyAccess(lang.memberOf, DocType.Language, AclPermission.Translate, "any"),
+            );
 
-        // Prevent updating the value if the language is the same
-        if (_.isEqual(toRaw(cmsDefaultLanguage.value), toRaw(defaultLang))) return;
+            // Prevent updating the value if the language is the same
+            if (_.isEqual(toRaw(cmsDefaultLanguage.value), toRaw(defaultLang))) return;
 
-        cmsDefaultLanguage.value = defaultLang;
-    });
+            cmsDefaultLanguage.value = defaultLang;
+        },
+        { immediate: true },
+    );
 }
 
 export const isMac = computed(() => {

@@ -1,3 +1,4 @@
+import { computed, type ComputedRef } from "vue";
 import type { BaseDocumentDto, Uuid } from "../../types";
 import { DocType } from "../../types";
 import { syncList } from "../../api/sync/state";
@@ -40,6 +41,34 @@ export function typeIsInSyncList(type: DocType | undefined): boolean {
         if (splitChunkTypeString(entry.chunkType).type === type) return true;
     }
     return false;
+}
+
+const _membershipRefs = new Map<DocType, ComputedRef<boolean>>();
+
+/**
+ * Per-`DocType`-memoized reactive twin of {@link typeIsInSyncList}: "does at least one
+ * syncList entry currently track `type`?", as a `ComputedRef<boolean>`. It delegates to
+ * `typeIsInSyncList`, so the reactive and imperative reads share ONE predicate and can't
+ * diverge.
+ *
+ * The point is to watch the derived BOOLEAN, not `syncList` itself: `syncList` mutates on
+ * every sync chunk (block ranges, eof, new columns), but membership for a given type flips
+ * `false→true` exactly once (when its first column registers) and stays true — so a
+ * `watch` on this ref fires once per genuine flip, not per chunk. The `computed` caches, so
+ * the `syncList` scan runs once globally per syncList change per type, regardless of how
+ * many `HybridQuery` instances depend on it.
+ *
+ * Module-level `computed` (no owning effect scope) is intentional: it lives for the module
+ * lifetime, exactly like `syncList`; there is at most one entry per `DocType` (a handful).
+ * Returns the SAME ref for a given type on every call.
+ */
+export function typeInSyncListRef(type: DocType): ComputedRef<boolean> {
+    let r = _membershipRefs.get(type);
+    if (!r) {
+        r = computed(() => typeIsInSyncList(type));
+        _membershipRefs.set(type, r);
+    }
+    return r;
 }
 
 /**
@@ -284,9 +313,7 @@ export function planRemoteContentQueries(api: MangoQuery): MangoQuery[] {
     const idHit = findInList(conditions, "parentId");
     if (!idHit) return [api];
 
-    return (
-        fanOut(api, conditions, idHit, PARENT_ID_INDEX, (id) => ({ parentId: id })) ?? [api]
-    );
+    return fanOut(api, conditions, idHit, PARENT_ID_INDEX, (id) => ({ parentId: id })) ?? [api];
 }
 
 /**

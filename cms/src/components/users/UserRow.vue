@@ -6,7 +6,7 @@ import {
     AclPermission,
     verifyAccess,
     type GroupDto,
-    useHybridQueryWithState,
+    useSharedHybridQueryWithState,
 } from "luminary-shared";
 import { DateTime } from "luxon";
 import LButton from "../button/LButton.vue";
@@ -19,7 +19,7 @@ type Props = {
 };
 const props = defineProps<Props>();
 
-const { output: groups, hasLocalChanges } = useHybridQueryWithState<GroupDto>(
+const { output: groups, hasLocalChanges } = useSharedHybridQueryWithState<GroupDto>(
     () => ({ selector: { type: DocType.Group } }),
     { live: true },
 );

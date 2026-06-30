@@ -3,7 +3,7 @@ import {
     db,
     DocType,
     type AuthProviderDto,
-    useHybridQuery,
+    useSharedHybridQuery,
     toEditable,
     queryLocal,
     type GroupDto,
@@ -20,12 +20,12 @@ import _ from "lodash";
 export function useAuthProviders() {
     const notification = useNotificationStore();
 
-    const groups = useHybridQuery<GroupDto>(() => ({ selector: { type: DocType.Group } }), {
+    const groups = useSharedHybridQuery<GroupDto>(() => ({ selector: { type: DocType.Group } }), {
         live: true,
     });
     const availableGroups = computed(() => assignableGroups(groups.value));
 
-    const providersSource = useHybridQuery<AuthProviderDto>(
+    const providersSource = useSharedHybridQuery<AuthProviderDto>(
         () => ({ selector: { type: DocType.AuthProvider } }),
         { live: true, persistOffline: true },
     );

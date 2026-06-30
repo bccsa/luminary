@@ -13,6 +13,7 @@ import {
     PublishStatus,
     useDexieLiveQuery,
     useHybridQuery,
+    useSharedHybridQuery,
     type ContentDto,
     type PostDto,
     type TagDto,
@@ -24,25 +25,37 @@ import { computed } from "vue";
 
 // --- Shared data queries ---
 
-const posts = useHybridQuery<PostDto>(() => ({
-    selector: { type: DocType.Post },
-}), { live: true });
+const posts = useHybridQuery<PostDto>(
+    () => ({
+        selector: { type: DocType.Post },
+    }),
+    { live: true },
+);
 
-const tags = useHybridQuery<TagDto>(() => ({
-    selector: { type: DocType.Tag },
-}), { live: true });
+const tags = useHybridQuery<TagDto>(
+    () => ({
+        selector: { type: DocType.Tag },
+    }),
+    { live: true },
+);
 
-const groups = useHybridQuery<GroupDto>(() => ({ selector: { type: DocType.Group } }), {
+const groups = useSharedHybridQuery<GroupDto>(() => ({ selector: { type: DocType.Group } }), {
     live: true,
 });
 
-const allContentDocs = useHybridQuery<ContentDto>(() => ({
-    selector: { type: DocType.Content },
-}), { live: true });
+const allContentDocs = useHybridQuery<ContentDto>(
+    () => ({
+        selector: { type: DocType.Content },
+    }),
+    { live: true },
+);
 
-const contentDocs = useHybridQuery<ContentDto>(() => ({
-    selector: { type: DocType.Content, language: cmsLanguageIdAsRef.value },
-}), { live: true });
+const contentDocs = useHybridQuery<ContentDto>(
+    () => ({
+        selector: { type: DocType.Content, language: cmsLanguageIdAsRef.value },
+    }),
+    { live: true },
+);
 
 const pendingChanges = useDexieLiveQuery(
     () => db.localChanges.toArray() as unknown as Promise<LocalChangeDto[]>,
@@ -71,13 +84,26 @@ const expiredContent = computed(() => {
         <div class="flex flex-col gap-3 p-3 sm:p-4 lg:h-full lg:min-h-0">
             <DashboardHeader />
 
-            <DashboardStatCards :posts="posts" :tags="tags" :groups="groups" :content-docs="contentDocs"
-                :scheduled-content="scheduledContent" :expired-content="expiredContent" />
+            <DashboardStatCards
+                :posts="posts"
+                :tags="tags"
+                :groups="groups"
+                :content-docs="contentDocs"
+                :scheduled-content="scheduledContent"
+                :expired-content="expiredContent"
+            />
 
             <!-- Language coverage (mobile only) -->
-            <LanguageCoverageCard title="Language coverage" :all-content-docs="allContentDocs" class="lg:hidden" />
+            <LanguageCoverageCard
+                title="Language coverage"
+                :all-content-docs="allContentDocs"
+                class="lg:hidden"
+            />
 
-            <DashboardStatusBanners :pending-changes="pendingChanges" :expired-content="expiredContent" />
+            <DashboardStatusBanners
+                :pending-changes="pendingChanges"
+                :expired-content="expiredContent"
+            />
 
             <!-- Main content grid -->
             <div class="grid grid-cols-1 gap-3 lg:min-h-0 lg:flex-1 lg:grid-cols-3">
@@ -89,8 +115,11 @@ const expiredContent = computed(() => {
 
                 <!-- Right column (1/3 width) -->
                 <div class="flex flex-col gap-3 lg:min-h-0">
-                    <LanguageCoverageCard title="Translation coverage" :all-content-docs="allContentDocs"
-                        class="max-lg:hidden" />
+                    <LanguageCoverageCard
+                        title="Translation coverage"
+                        :all-content-docs="allContentDocs"
+                        class="max-lg:hidden"
+                    />
                     <MissingTranslationsCard :all-content-docs="allContentDocs" />
                 </div>
             </div>
