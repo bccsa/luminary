@@ -26,6 +26,7 @@ import LoadingBar from "../../LoadingBar.vue";
 import { PlusIcon, ExclamationTriangleIcon } from "@heroicons/vue/24/outline";
 import { RouterLink } from "vue-router";
 import LButton from "@/components/button/LButton.vue";
+import FtsStaleResultsBanner from "@/components/common/FtsStaleResultsBanner.vue";
 
 type Props = {
     docType: DocType.Post | DocType.Tag;
@@ -123,6 +124,7 @@ const search = useContentSearchQuery(
     () => queryOptions.value,
     () => showRelated.value,
 );
+const searchIsStale = search.isStale;
 
 const contentDocs = computed(() => (searchActive.value ? search.docs.value : browse.docs.value));
 const isLoading = computed(() =>
@@ -245,6 +247,13 @@ const createNew = () => {
                     Related results are ranked by relevance — sorting is not applied.
                 </span>
             </div>
+
+            <FtsStaleResultsBanner
+                v-if="searchActive"
+                :visible="searchIsStale"
+                :loading="isLoading"
+                @refresh="search.refresh()"
+            />
 
             <div class="mb-1 flex flex-col gap-[3px]">
                 <ContentDisplayCard

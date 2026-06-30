@@ -3,7 +3,7 @@ import { getRest, type ApiFtsQuery } from "../api/RestApi";
 import { config } from "../config";
 import { isConnected } from "../socket/socketio";
 import type { BaseDocumentDto, DocType } from "../types";
-import { attachFtsLiveSync } from "./ftsLiveSync";
+import { attachFtsLiveSync, markFtsStale } from "./ftsLiveSync";
 
 /** Field + direction for the server strict sort. `field` is validated server-side per doctype. */
 export type ServerFtsSort = { field: string; direction: "asc" | "desc" };
@@ -35,6 +35,12 @@ export type UseServerFtsSearchReturn = {
     isLoading: Ref<boolean>;
     hasMore: Ref<boolean>;
     loadMore: () => Promise<void>;
+    /** True when live changes may have altered the result set — offer refresh. */
+    isStale: Ref<boolean>;
+    /** Re-run the current query from page 1 and clear {@link isStale}. */
+    refresh: () => Promise<void>;
+    /** Flag results stale (e.g. after creating a doc while searching). */
+    markStale: () => void;
 };
 
 /** Minimum query length before searching (a shorter query yields no usable trigrams). */
@@ -65,6 +71,7 @@ export function useServerFtsSearch(
     const docs = ref<Partial<BaseDocumentDto>[]>([]);
     const isLoading = ref(false);
     const hasMore = ref(false);
+    const isStale = ref(false);
 
     let debounceTimer: ReturnType<typeof setTimeout> | undefined;
     let generation = 0;
@@ -75,6 +82,7 @@ export function useServerFtsSearch(
             if (!append) {
                 docs.value = [];
                 hasMore.value = false;
+                isStale.value = false;
             }
             isLoading.value = false;
             return;
@@ -103,6 +111,7 @@ export function useServerFtsSearch(
             const page = (res ?? []).map((r) => r.doc);
             docs.value = append ? [...docs.value, ...page] : page;
             hasMore.value = page.length === pageSize;
+            if (!append) isStale.value = false;
         } catch (e) {
             if (myGeneration !== generation) return;
             console.warn("Server FTS search failed:", e);
@@ -120,6 +129,11 @@ export function useServerFtsSearch(
         await doSearch(docs.value.length, true);
     }
 
+    async function refresh() {
+        isStale.value = false;
+        await doSearch(0, false);
+    }
+
     // Re-run on query / sort / filter changes (debounced). The JSON snapshot keeps the watch
     // robust against object-identity churn and detects deep changes to sort/filters.
     watch(
@@ -130,6 +144,7 @@ export function useServerFtsSearch(
                 filters: read(options.filters) ?? null,
             }),
         () => {
+            isStale.value = false;
             if (debounceTimer) clearTimeout(debounceTimer);
             // Invalidate any in-flight search before the debounce window opens.
             generation++;
@@ -150,7 +165,7 @@ export function useServerFtsSearch(
                 getId: (d) => d._id!,
                 patch: (d, live) => ({ ...d, ...live }),
             },
-            { docType },
+            { docType, stale: isStale, query: queryRef },
         );
 
         onScopeDispose(() => {
@@ -159,5 +174,5 @@ export function useServerFtsSearch(
         });
     }
 
-    return { docs, isLoading, hasMore, loadMore };
+    return { docs, isLoading, hasMore, loadMore, isStale, refresh, markStale: () => markFtsStale(isStale) };
 }

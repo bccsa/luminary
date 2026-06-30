@@ -15,11 +15,18 @@ import {
     type DeleteCmdDto,
 } from "../types";
 import { useDexieLiveQuery } from "../util/useDexieLiveQuery/useDexieLiveQuery";
+import { ftsMightMatchQuery } from "./ftsMightMatchQuery";
 
 export type FtsLiveSyncOptions = {
     docType: DocType;
     /** Re-query Dexie for current result ids and prune when docs vanish (local FTS path). */
     watchDexie?: boolean;
+    /** When set, new plausible matches flag results as stale (Option B refresh banner). */
+    stale?: Ref<boolean>;
+    /** Active search query — used with {@link ftsMightMatchQuery} for stale detection. */
+    query?: Ref<string>;
+    /** Strict substring match for stale heuristic; false = fuzzy/content related mode. */
+    strictMatch?: Ref<boolean> | (() => boolean);
 };
 
 type FtsLiveSyncAdapter<T> = {
@@ -27,11 +34,22 @@ type FtsLiveSyncAdapter<T> = {
     patch: (item: T, doc: Partial<BaseDocumentDto>) => T;
 };
 
+/** Mark FTS results stale so the UI can offer a refresh (e.g. after local create). */
+export function markFtsStale(stale: Ref<boolean>): void {
+    stale.value = true;
+}
+
+function readStrict(strictMatch?: Ref<boolean> | (() => boolean)): boolean {
+    if (strictMatch === undefined) return true;
+    return typeof strictMatch === "function" ? strictMatch() : strictMatch.value;
+}
+
 /**
  * Keep in-memory FTS search results aligned with live doc changes.
  *
  * Subscribes to the same Socket.io `data` feed HybridQuery uses: `DeleteCmd`s and
  * `deleteReq` upserts evict matching rows; other upserts patch rows already shown.
+ * New docs that might match the active query set {@link FtsLiveSyncOptions.stale}.
  * Optionally watches Dexie for result ids that disappear locally (CMS content FTS).
  */
 export function attachFtsLiveSync<T>(
@@ -41,7 +59,7 @@ export function attachFtsLiveSync<T>(
 ): void {
     if (!getCurrentScope()) return;
 
-    const { docType, watchDexie = false } = options;
+    const { docType, watchDexie = false, stale, query, strictMatch } = options;
     const { getId, patch } = adapter;
 
     const pruneIds = (ids: Iterable<string>) => {
@@ -52,13 +70,10 @@ export function attachFtsLiveSync<T>(
     };
 
     const applySocketBatch = (data: ApiDataResponseDto) => {
-        if (!results.value.length) return;
-
-        // FTS pages are a display-only snapshot — only evict/patch rows we are already
-        // showing. New matches are left to the next search (no client-side re-ranking).
         const inResults = new Set(results.value.map(getId));
         const toDrop = new Set<string>();
         const patches: Array<{ id: string; doc: Partial<BaseDocumentDto> }> = [];
+        const q = query?.value.trim() ?? "";
 
         for (const doc of data.docs) {
             if (doc.type === DocType.DeleteCmd) {
@@ -66,10 +81,20 @@ export function attachFtsLiveSync<T>(
                 if (cmd.docType !== docType || !inResults.has(cmd.docId)) continue;
                 // Same gate HybridQuery uses — e.g. CMS keeps status-change deletes local.
                 if (db.validateDeleteCommand(cmd)) toDrop.add(cmd.docId);
-            } else if (doc.type === docType && doc._id && inResults.has(doc._id)) {
-                // deleteReq can arrive before the DeleteCmd (or for types that never sync cmd).
-                if ((doc as BaseDocumentDto).deleteReq) toDrop.add(doc._id);
-                else patches.push({ id: doc._id, doc });
+            } else if (doc.type === docType && doc._id) {
+                if (inResults.has(doc._id)) {
+                    // deleteReq can arrive before the DeleteCmd (or for types that never sync cmd).
+                    if ((doc as BaseDocumentDto).deleteReq) toDrop.add(doc._id);
+                    else patches.push({ id: doc._id, doc });
+                } else if (
+                    stale &&
+                    q.length >= 3 &&
+                    !(doc as BaseDocumentDto).deleteReq &&
+                    ftsMightMatchQuery(q, docType, doc, { strict: readStrict(strictMatch) })
+                ) {
+                    // New doc not in the snapshot — flag refresh instead of client-side insert.
+                    stale.value = true;
+                }
             }
         }
 

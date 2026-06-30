@@ -16,6 +16,9 @@ export {
 } from "./trigram";
 export { ftsSearch } from "./ftsSearch";
 export { ftsSearchApi, shouldUseApiFts } from "./ftsSearchApi";
+export { attachFtsLiveSync, markFtsStale } from "./ftsLiveSync";
+export { ftsMightMatchQuery } from "./ftsMightMatchQuery";
+export type { FtsMightMatchOptions } from "./ftsMightMatchQuery";
 export { useFtsSearch } from "./useFtsSearch";
 export type { UseFtsSearchOptions, UseFtsSearchReturn, FtsFilterOptions } from "./useFtsSearch";
 export { useServerFtsSearch } from "./useServerFtsSearch";

@@ -150,4 +150,25 @@ describe("useServerFtsSearch", () => {
         );
         scope.stop();
     });
+
+    it("refresh clears isStale and re-runs from offset 0", async () => {
+        ftsMock.mockResolvedValue(apiDocs("u", 1));
+        const scope = effectScope();
+        let api!: ReturnType<typeof useServerFtsSearch>;
+        const query = ref("garden");
+        scope.run(() => {
+            api = useServerFtsSearch(query, { docType: DocType.User, debounceMs: 0 });
+        });
+        await settle();
+        api.markStale();
+        expect(api.isStale.value).toBe(true);
+
+        ftsMock.mockClear();
+        await api.refresh();
+        await settle();
+
+        expect(api.isStale.value).toBe(false);
+        expect(ftsMock).toHaveBeenCalledWith(expect.objectContaining({ offset: 0 }));
+        scope.stop();
+    });
 });

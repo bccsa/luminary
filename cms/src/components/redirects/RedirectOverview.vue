@@ -16,6 +16,7 @@ import { debouncedWatch } from "@vueuse/core";
 import LButton from "../button/LButton.vue";
 import LInput from "@/components/forms/LInput.vue";
 import LoadingBar from "@/components/LoadingBar.vue";
+import FtsStaleResultsBanner from "@/components/common/FtsStaleResultsBanner.vue";
 import CreateOrEditRedirectModal from "./CreateOrEditRedirectModal.vue";
 import { isSmallScreen } from "@/globalConfig";
 import {
@@ -66,6 +67,7 @@ const search = useServerFtsSearch(searchTerm, {
     debounceMs: 0,
 });
 const searchIsLoading = search.isLoading;
+const searchIsStale = search.isStale;
 
 const { sentinel: searchSentinel } = useInfiniteScrollLoadMore({
     hasMore: () => searchActive.value && search.hasMore.value,
@@ -124,6 +126,12 @@ const displayedRedirects = computed<RedirectDto[]>(() =>
         </template>
 
         <div class="mt-1 flex flex-col gap-[3px]">
+            <FtsStaleResultsBanner
+                v-if="searchActive"
+                :visible="searchIsStale"
+                :loading="searchIsLoading"
+                @refresh="search.refresh()"
+            />
             <RedirectDisplaycard
                 v-for="(redirect, i) in displayedRedirects"
                 :key="redirect._id"
@@ -154,7 +162,10 @@ const displayedRedirects = computed<RedirectDto[]>(() =>
         <CreateOrEditRedirectModal
             v-if="isCreateOrEditModalVisible"
             :isVisible="isCreateOrEditModalVisible"
-            @close="isCreateOrEditModalVisible = false"
+            @close="
+                isCreateOrEditModalVisible = false;
+                if (searchActive) search.markStale();
+            "
         />
     </BasePage>
 </template>

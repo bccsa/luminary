@@ -176,4 +176,49 @@ describe("attachFtsLiveSync", () => {
         ]);
         scope.stop();
     });
+
+    it("sets stale when a new matching doc arrives and results are empty", () => {
+        const scope = effectScope();
+        const results = ref<{ _id: string; name?: string }[]>([]);
+        const stale = ref(false);
+        const query = ref("john");
+
+        scope.run(() =>
+            attachFtsLiveSync(
+                results,
+                { getId: (d) => d._id, patch: (d, live) => ({ ...d, ...live }) },
+                { docType: DocType.User, stale, query },
+            ),
+        );
+
+        mocks.emitSocket([
+            { _id: "u-new", type: DocType.User, name: "Johnny", email: "johnny@test.com" },
+        ]);
+
+        expect(stale.value).toBe(true);
+        expect(results.value).toEqual([]);
+        scope.stop();
+    });
+
+    it("does not set stale for unrelated new docs", () => {
+        const scope = effectScope();
+        const results = ref<{ _id: string }[]>([]);
+        const stale = ref(false);
+        const query = ref("john");
+
+        scope.run(() =>
+            attachFtsLiveSync(
+                results,
+                { getId: (d) => d._id, patch: (d, live) => ({ ...d, ...live }) },
+                { docType: DocType.User, stale, query },
+            ),
+        );
+
+        mocks.emitSocket([
+            { _id: "u-new", type: DocType.User, name: "Jane", email: "jane@test.com" },
+        ]);
+
+        expect(stale.value).toBe(false);
+        scope.stop();
+    });
 });

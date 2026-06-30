@@ -67,6 +67,7 @@ export function useContentSearchQuery(
         languageId,
         filters,
         pageSize: PAGE_SIZE,
+        strictMatch: () => !related(),
         // The search box is already debounced upstream (FilterOptions, 500ms); keep this
         // small so a settled query re-runs promptly without a second long debounce.
         debounceMs: 150,
@@ -129,5 +130,13 @@ export function useContentSearchQuery(
         }
     }
 
-    return { docs, isLoading: fts.isSearching, hasMore: fts.hasMore, loadMore };
+    return {
+        docs,
+        isLoading: fts.isSearching,
+        hasMore: fts.hasMore,
+        loadMore,
+        isStale: fts.isStale,
+        refresh: fts.refresh,
+        markStale: fts.markStale,
+    };
 }

@@ -6,7 +6,7 @@ import { isConnected } from "../socket/socketio";
 import { OPEN_MIN } from "../api/sync/utils";
 import type { FtsSearchOptions, FtsSearchResult, FtsSort } from "./types";
 import { DocType, type ContentDto, type PublishStatus } from "../types";
-import { attachFtsLiveSync } from "./ftsLiveSync";
+import { attachFtsLiveSync, markFtsStale } from "./ftsLiveSync";
 
 /**
  * Reactive non-language filters forwarded to each search. Changing the ref triggers a
@@ -33,6 +33,8 @@ export type UseFtsSearchOptions = {
     debounceMs?: number | "manual" | Ref<number | "manual">;
     pageSize?: number;
     maxTrigramDocPercent?: number;
+    /** Strict substring heuristic for stale detection; false = fuzzy/related content mode. */
+    strictMatch?: Ref<boolean> | (() => boolean);
 };
 
 export type UseFtsSearchReturn = {
@@ -55,6 +57,9 @@ export type UseFtsSearchReturn = {
      * (e.g. "showing offline results — connect for full search").
      */
     isPartial: Ref<boolean>;
+    isStale: Ref<boolean>;
+    refresh: () => Promise<void>;
+    markStale: () => void;
 };
 
 /**
@@ -78,6 +83,7 @@ export function useFtsSearch(
     const hasMore = ref(false);
     const source = ref<"local" | "api">("local");
     const isPartial = ref(false);
+    const isStale = ref(false);
     /** When using triggerOnly, this is the query last passed to doSearch (so UI can show "no results" vs "press Go"). */
     const lastSearchedQuery = ref("");
 
@@ -132,6 +138,7 @@ export function useFtsSearch(
                 hasMore.value = false;
                 isPartial.value = false;
                 lastSearchedQuery.value = "";
+                isStale.value = false;
             }
             isSearching.value = false;
             return;
@@ -168,6 +175,7 @@ export function useFtsSearch(
             source.value = usedLocal ? "local" : "api";
             // Local results are an incomplete view only when a sync cutoff is in effect.
             isPartial.value = usedLocal && cutoffSet();
+            if (!append) isStale.value = false;
         } catch (e) {
             console.error("FTS search error:", e);
         } finally {
@@ -181,6 +189,11 @@ export function useFtsSearch(
     async function loadMore() {
         if (isSearching.value || !hasMore.value) return;
         await doSearch(currentQuery, totalLoaded.value, true);
+    }
+
+    async function refresh() {
+        isStale.value = false;
+        await doSearch(currentQuery, 0, false);
     }
 
     function runSearch() {
@@ -209,6 +222,7 @@ export function useFtsSearch(
         stopQueryWatch = watch(
             queryRef,
             (newQuery) => {
+                isStale.value = false;
                 if (debounceTimer) clearTimeout(debounceTimer);
                 // Invalidate any in-flight search before the debounce, so a slow previous
                 // doSearch can't publish stale results after the query has changed.
@@ -245,6 +259,7 @@ export function useFtsSearch(
         watch(
             options.filters,
             () => {
+                isStale.value = false;
                 if (currentQuery) {
                     doSearch(currentQuery, 0, false);
                 }
@@ -268,7 +283,13 @@ export function useFtsSearch(
                 getId: (r) => r.docId,
                 patch: (r, live) => ({ ...r, doc: live as ContentDto }),
             },
-            { docType: DocType.Content, watchDexie: true },
+            {
+                docType: DocType.Content,
+                watchDexie: true,
+                stale: isStale,
+                query: queryRef,
+                strictMatch: options.strictMatch,
+            },
         );
 
         onScopeDispose(() => {
@@ -288,5 +309,8 @@ export function useFtsSearch(
         cancel,
         source,
         isPartial,
+        isStale,
+        refresh,
+        markStale: () => markFtsStale(isStale),
     };
 }

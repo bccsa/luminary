@@ -21,6 +21,7 @@ import {
 import { computed, ref, watch } from "vue";
 import LButton from "../button/LButton.vue";
 import LoadingBar from "../LoadingBar.vue";
+import FtsStaleResultsBanner from "@/components/common/FtsStaleResultsBanner.vue";
 import { isSmallScreen } from "@/globalConfig";
 import {
     useInfiniteScrollList,
@@ -115,6 +116,7 @@ const search = useServerFtsSearch(searchTerm, {
     debounceMs: 0,
 });
 const searchIsLoading = search.isLoading;
+const searchIsStale = search.isStale;
 
 const { sentinel: searchSentinel } = useInfiniteScrollLoadMore({
     hasMore: () => searchActive.value && search.hasMore.value,
@@ -166,6 +168,12 @@ const displayedUsers = computed<UserDto[]>(() =>
             address. This allows different administrators to independently assign access to the same
             individual for different groups they manage.
         </p>
+        <FtsStaleResultsBanner
+            v-if="searchActive"
+            :visible="searchIsStale"
+            :loading="searchIsLoading"
+            @refresh="search.refresh()"
+        />
         <UserDisplayCard
             v-for="user in displayedUsers"
             :key="user._id"
@@ -200,6 +208,7 @@ const displayedUsers = computed<UserDto[]>(() =>
             @close="
                 isEditUserModalVisible = false;
                 isNewUserModalVisible = false;
+                if (searchActive) search.markStale();
             "
         />
     </BasePage>
