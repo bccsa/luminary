@@ -394,6 +394,7 @@ const actionsWrapperProps = computed(() => ({
             languageCode: languageCode,
         }"
         :onOpenMobileSidebar="onOpenMobileSidebar"
+        :contentInset="false"
         v-if="editableParent"
         class="relative"
     >
@@ -451,14 +452,14 @@ const actionsWrapperProps = computed(() => ({
             <EditContentActionsWrapper v-bind="actionsWrapperProps" :mobile="false" />
         </template>
         <div
-            class="flex flex-col gap-0 lg:h-full lg:min-h-0 lg:flex-row lg:gap-2 lg:overflow-hidden"
+            class="flex flex-col gap-0 lg:h-full lg:min-h-0 lg:flex-row lg:gap-2 lg:overflow-hidden lg:pl-8"
         >
             <!-- sidebar -->
             <div
                 class="w-full flex-shrink-0 lg:h-full lg:min-h-0 lg:w-[336px]"
                 v-if="editableParent"
             >
-                <div class="scrollbar-hide lg:h-full lg:min-h-0 lg:overflow-y-auto lg:pb-2">
+                <div class="scrollbar-hide lg:h-full lg:min-h-0 lg:overflow-y-auto lg:pb-2 lg:pt-2">
                     <div class="flex flex-col gap-2 pb-0 lg:pb-4">
                         <EditContentParent
                             v-if="editableParent"
@@ -597,10 +598,10 @@ const actionsWrapperProps = computed(() => ({
             </div>
             <!-- main content instance -->
             <div
-                class="flex w-full min-w-0 flex-1 flex-col lg:h-full lg:min-h-0 lg:overflow-hidden lg:pb-4"
+                class="flex w-full min-w-0 flex-1 flex-col lg:h-full lg:min-h-0 lg:overflow-hidden"
             >
                 <div
-                    class="mb-4 flex w-full flex-1 flex-col bg-white lg:mb-0 lg:min-h-0 lg:overflow-hidden"
+                    class="flex w-full flex-1 flex-col bg-white lg:min-h-0 lg:overflow-hidden lg:border-l lg:border-zinc-200"
                 >
                     <EmptyState
                         v-if="!selectedContent"

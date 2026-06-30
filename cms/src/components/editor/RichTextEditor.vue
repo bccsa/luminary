@@ -93,7 +93,7 @@ const toolbarClasses = {
     buttonActive: "!bg-zinc-300",
     editor: "flex min-h-0 flex-1 flex-col overflow-hidden",
     editorContent:
-        "prose prose-zinc lg:prose-sm max-w-none min-h-0 flex-1 border-0 bg-white px-0 py-0 ring-0 focus:outline-none focus:ring-0 rounded-none",
+        "prose prose-zinc lg:prose-sm max-w-none min-h-0 flex-1 border-0 bg-white px-0 py-0 ring-0 focus:outline-none focus:ring-0 rounded-none lg:h-full",
     placeholder: "text-zinc-400",
 } as const;
 
@@ -359,34 +359,58 @@ defineExpose({
         flex: 1 1 0%;
     }
 
+    /* Flex, not grid: the editor-content must take the flexible row whether or not the
+       placeholder is rendered. With `grid-template-rows: auto minmax(0,1fr)` the content
+       landed in the `auto` row when no placeholder showed (i.e. once you typed text), so
+       the editable area only grew to the text height instead of filling the box. */
     :deep(.rte-editor) {
-        display: grid;
+        display: flex;
+        flex-direction: column;
         min-height: 0;
         flex: 1 1 0%;
-        grid-template-rows: auto minmax(0, 1fr);
     }
 
     :deep(.rte-editor-content) {
         min-height: 0 !important;
+        height: 100%;
+        flex: 1 1 0%;
         overflow: hidden;
     }
 
     :deep(.rte-editor-content .tiptap) {
         min-height: 0;
+        height: 100%;
         flex: 1 1 0%;
     }
 
     :deep(.rte-editor-content .ProseMirror) {
         min-height: 0;
         flex: 1 1 0%;
-        height: 0;
+        height: 100%;
         overflow-y: auto;
-        -ms-overflow-style: none;
-        scrollbar-width: none;
+        /* Thin, modern scrollbar (Firefox). zinc-300 thumb on a transparent track. */
+        scrollbar-width: thin;
+        scrollbar-color: #d4d4d8 transparent;
     }
 
+    /* WebKit/Blink: 8px thumb, pill-shaped, inset 2px so it reads as ~4px. */
     :deep(.rte-editor-content .ProseMirror::-webkit-scrollbar) {
-        display: none;
+        width: 8px;
+    }
+
+    :deep(.rte-editor-content .ProseMirror::-webkit-scrollbar-track) {
+        background: transparent;
+    }
+
+    :deep(.rte-editor-content .ProseMirror::-webkit-scrollbar-thumb) {
+        border-radius: 9999px;
+        border: 2px solid transparent;
+        background-clip: padding-box;
+        background-color: #d4d4d8;
+    }
+
+    :deep(.rte-editor-content .ProseMirror:hover::-webkit-scrollbar-thumb) {
+        background-color: #a1a1aa;
     }
 }
 </style>
