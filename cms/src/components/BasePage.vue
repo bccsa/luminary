@@ -128,7 +128,8 @@ const handleMobileSidebarToggle = () => {
             <header
                 v-if="$slots.actions"
                 :class="[
-                    'flex items-center justify-between gap-4 pl-4 pr-8 pt-4 sm:flex-row sm:items-center',
+                    'flex items-center justify-between gap-4 pt-4 sm:flex-row sm:items-center',
+                    contentInset ? 'pl-4 pr-8' : '',
                     {
                         'sm:justify-center': centered,
                         'sm:justify-between': !centered,
@@ -165,7 +166,11 @@ const handleMobileSidebarToggle = () => {
             </div>
             <div
                 v-if="$slots.footer"
-                class="flex-shrink-0 border-t border-zinc-200 bg-white px-6 pb-2 pt-2 sm:px-6 lg:pb-4 lg:pr-8"
+                data-test="base-page-footer"
+                :class="[
+                    'flex-shrink-0 border-t border-zinc-200 bg-white pb-2 pt-2 lg:pb-4',
+                    contentInset ? 'px-6 sm:px-6 lg:pr-8' : '',
+                ]"
             >
                 <slot name="footer" />
             </div>

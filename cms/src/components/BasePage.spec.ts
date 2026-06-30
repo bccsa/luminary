@@ -63,13 +63,28 @@ describe("BasePage", () => {
             expect.arrayContaining([expect.stringMatching(/^(sm:ml-4|lg:ml-8)$/)]),
         );
 
-        const edgeToEdgePage = mount(BasePage, { props: { contentInset: false } });
-        expect(
-            edgeToEdgePage.find('[data-test="base-page-scroll-container"]').classes(),
-        ).not.toContain("lg:ml-8");
-        expect(
-            edgeToEdgePage.find('[data-test="base-page-scroll-container"]').classes(),
-        ).not.toContain("sm:ml-4");
+        const edgeToEdgePage = mount(BasePage, {
+            props: { contentInset: false },
+            slots: {
+                actions: "<button>Action</button>",
+                footer: "<span>Footer</span>",
+            },
+        });
+        const scrollClasses = edgeToEdgePage
+            .find('[data-test="base-page-scroll-container"]')
+            .classes();
+        expect(scrollClasses).not.toContain("lg:ml-8");
+        expect(scrollClasses).not.toContain("sm:ml-4");
+        expect(scrollClasses).not.toContain("lg:pr-8");
+        expect(scrollClasses).not.toContain("sm:pr-4");
+
+        const actionsHeader = edgeToEdgePage.find("header");
+        expect(actionsHeader.classes()).not.toContain("pl-4");
+        expect(actionsHeader.classes()).not.toContain("pr-8");
+
+        const footer = edgeToEdgePage.find('[data-test="base-page-footer"]');
+        expect(footer.classes()).not.toContain("px-6");
+        expect(footer.classes()).not.toContain("lg:pr-8");
     });
 
     it("renders the back link", async () => {
