@@ -46,6 +46,7 @@ const emit = defineEmits<{
 const { fitView, getViewport, setViewport, zoomIn, zoomOut } = useVueFlow();
 const graphRoot = ref<HTMLElement | null>(null);
 const selectedGroupId = ref<string | null>(null);
+const initialFitDone = ref(false);
 const segClass = (active: boolean) =>
     `rounded-none shadow-none ring-0 ${active ? "bg-zinc-100 text-zinc-950" : "bg-white text-zinc-600"}`;
 const isFullscreen = ref(false);
@@ -131,6 +132,13 @@ function onSearchSelect(groupId: string) {
     graphRoot.value?.focus();
 }
 
+function fitInitialView() {
+    if (initialFitDone.value || !chartNodes.value.length) return;
+
+    initialFitDone.value = true;
+    nextTick(() => requestAnimationFrame(() => fitView({ padding: 0.18, duration: 0 })));
+}
+
 function openNodeContextMenu({ event, node }: NodeMouseEvent) {
     if (!isInteractiveNode(node)) return;
     if (!(event instanceof MouseEvent)) return;
@@ -185,9 +193,8 @@ watch(
     { immediate: true, deep: true },
 );
 
-// Center only on initial mount (VueFlow's fit-view-on-init) and on manual re-center
-// (the fit button). Layout-direction / column / data changes intentionally do NOT
-// re-center — the user positions the view themselves after the first fit.
+// Center only after VueFlow has measured custom nodes. Later layout changes do
+// not re-center — the user positions the view themselves after the first fit.
 
 watch(isFullscreen, () => {
     nextTick(() => graphRoot.value?.focus());
@@ -232,11 +239,11 @@ watch(isFullscreen, () => {
                 :selection-key-code="interactionMode === 'select' ? true : null"
                 :snap-to-grid="true"
                 :snap-grid="[GRID_SIZE, GRID_SIZE]"
-                :fit-view-on-init="true"
                 :edges-updatable="false"
                 :disable-keyboard-a11y="true"
                 :zoom-on-double-click="false"
                 :pan-activation-key-code="null"
+                @nodes-initialized="fitInitialView"
                 @node-click="({ node }) => selectNode(node)"
                 @node-double-click="openNodeGroup"
                 @node-context-menu="openNodeContextMenu"
