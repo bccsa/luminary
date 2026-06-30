@@ -40,6 +40,13 @@ const { output: users, isFetching, hasLocalChanges } = useHybridQueryWithState<U
 const isEditUserModalVisible = ref(false);
 const isNewUserModalVisible = ref(false);
 const selectedUserId = ref<string>("");
+/** Stable id for the create modal — must not call db.uuid() in the template (re-renders would re-query forever). */
+const newUserId = ref("");
+
+function openCreateUserModal() {
+    newUserId.value = db.uuid();
+    isNewUserModalVisible.value = true;
+}
 
 const defaultQueryOptions: UserOverviewQueryOptions = {
     groups: [],
@@ -143,7 +150,7 @@ const displayedUsers = computed<UserDto[]>(() =>
                     v-if="canCreateNew && !isSmallScreen"
                     variant="primary"
                     :icon="PlusIcon"
-                    @click="isNewUserModalVisible = true"
+                    @click="openCreateUserModal"
                     name="createUserBtn"
                 >
                     Create user
@@ -151,7 +158,7 @@ const displayedUsers = computed<UserDto[]>(() =>
                 <PlusIcon
                     v-else-if="canCreateNew && isSmallScreen"
                     class="h-8 w-8 cursor-pointer rounded bg-zinc-100 p-1 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-700"
-                    @click="isNewUserModalVisible = true"
+                    @click="openCreateUserModal"
                 />
             </div>
         </template>
@@ -204,7 +211,8 @@ const displayedUsers = computed<UserDto[]>(() =>
         <CreateOrEditUser
             v-if="isEditUserModalVisible || isNewUserModalVisible"
             :isVisible="isEditUserModalVisible || isNewUserModalVisible"
-            :id="isNewUserModalVisible ? db.uuid() : selectedUserId"
+            :id="isNewUserModalVisible ? newUserId : selectedUserId"
+            :is-create="isNewUserModalVisible"
             @close="
                 isEditUserModalVisible = false;
                 isNewUserModalVisible = false;

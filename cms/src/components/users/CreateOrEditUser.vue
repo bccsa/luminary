@@ -30,17 +30,24 @@ import LSelect from "../forms/LSelect.vue";
 type Props = {
     id: Uuid;
     isVisible: boolean;
+    /** Create mode: skip fetching a non-existent user id from the API. */
+    isCreate?: boolean;
 };
-const props = defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), { isCreate: false });
 
 const emit = defineEmits(["close"]);
 
 // User is a non-synced type → HybridQuery serves it API-only (REST + on-demand socket rooms).
-// Auto-disposes on unmount.
-const { output: liveUsers, isFetching: isLoading } = useHybridQueryWithState<UserDto>(
-    () => ({ selector: { type: DocType.User, _id: props.id } }),
+// Auto-disposes on unmount. Create mode uses a provably-empty selector (same as redirect create).
+const { output: liveUsers, isFetching: isLoadingUser } = useHybridQueryWithState<UserDto>(
+    () =>
+        props.isCreate
+            ? { selector: { _id: { $in: [] } } }
+            : { selector: { type: DocType.User, _id: props.id } },
     { live: true },
 );
+
+const isLoading = computed(() => !props.isCreate && isLoadingUser.value);
 
 const { addNotification } = useNotificationStore();
 
@@ -96,7 +103,8 @@ const editable = computed<UserDto>({
 });
 
 function syncFromApi() {
-    if (isLoading.value) return;
+    if (props.isCreate) return;
+    if (isLoadingUser.value) return;
     if (liveUsers.value?.length) {
         hydrateFromUser(liveUsers.value[0]);
     } else {
@@ -108,15 +116,19 @@ function syncFromApi() {
 watch(
     () => props.id,
     (id) => {
-        // The user HybridQuery thunk reads props.id directly, so it re-queries on change;
-        // just keep currentId in sync for the editable/template logic.
         currentId.value = id;
+        if (props.isCreate) seedCreateTemplate();
     },
 );
 
-watch([liveUsers, isLoading], syncFromApi, { immediate: true });
+watch([liveUsers, isLoadingUser], syncFromApi, { immediate: !props.isCreate });
 
-const isNew = computed(() => userSource.value.length === 0);
+if (props.isCreate) {
+    currentId.value = props.id;
+    seedCreateTemplate();
+}
+
+const isNew = computed(() => props.isCreate || userSource.value.length === 0);
 
 const isDirty = computed(() => {
     const doc = editable.value;

@@ -133,6 +133,25 @@ describe("CreateOrEditUser.vue", () => {
         vi.clearAllMocks();
     });
 
+    it("can open create mode without waiting on a user fetch", async () => {
+        const newId = db.uuid();
+        const wrapper = mount(CreateOrEditUser, {
+            props: {
+                id: newId,
+                isVisible: true,
+                isCreate: true,
+            },
+        });
+
+        await nextTick();
+
+        expect(wrapper.text()).not.toContain("Loading...");
+        const userName = wrapper.find('[data-test="userName"]');
+        expect(userName.exists()).toBe(true);
+        expect(userName.attributes("value")).toBe("New user");
+        expect(wrapper.find('[data-test="groupSelector"]').exists()).toBe(true);
+    });
+
     it("should display the passed user", async () => {
         const wrapper = mount(CreateOrEditUser, {
             props: {
