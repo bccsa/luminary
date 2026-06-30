@@ -87,5 +87,5 @@ When filtering with FTS in the CMS, and deleting / adding an item (e.g. user), t
 
 ### CMS visual review
 
-- Check uneven paddings
+- ~~Check uneven paddings~~
 - ~~Make basepage left and right margins removable~~
