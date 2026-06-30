@@ -5,7 +5,7 @@ import {
     DocType,
     hasAnyPermission,
     useHybridQuery,
-    useHybridQueryWithState,
+    useSharedHybridQueryWithState,
     verifyAccess,
     type LanguageDto,
     type Uuid,
@@ -51,7 +51,7 @@ const props = defineProps<Props>();
 const { addNotification } = useNotificationStore();
 
 const translations = ref<translationKeyValuePair[]>([]);
-const { output: languages, hasLocalChanges } = useHybridQueryWithState<LanguageDto>(
+const { output: languages, hasLocalChanges } = useSharedHybridQueryWithState<LanguageDto>(
     () => ({ selector: { type: DocType.Language } }),
     { live: true },
 );
@@ -234,7 +234,6 @@ const handleSpeedBlur = () => {
         editable.value.averageReadingSpeed < 0 ||
         isNaN(editable.value.averageReadingSpeed) ||
         !editable.value.averageReadingSpeed
-
     ) {
         editable.value.averageReadingSpeed = 200;
     }
@@ -271,7 +270,7 @@ const save = async () => {
             state: "error",
         });
         return;
-    };
+    }
 
     // Bypass save if the language is new and marked for deletion
     if (isNew.value && editable.value.deleteReq) {

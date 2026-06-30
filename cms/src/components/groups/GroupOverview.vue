@@ -11,7 +11,7 @@ import {
     toEditable,
     type GroupAclEntryDto,
     type GroupDto,
-    useHybridQueryWithState,
+    useSharedHybridQueryWithState,
 } from "luminary-shared";
 import { computed, ref, watch } from "vue";
 import { validDocTypes } from "./permissions";
@@ -23,7 +23,7 @@ import { MapIcon, MagnifyingGlassIcon, ListBulletIcon } from "@heroicons/vue/24/
 import GroupGraph from "./GroupGraph/GroupGraph.vue";
 import LInput from "../forms/LInput.vue";
 
-const { output: groupsSource, isFetching } = useHybridQueryWithState<GroupDto>(
+const { output: groupsSource, isFetching } = useSharedHybridQueryWithState<GroupDto>(
     () => ({
         selector: {
             type: DocType.Group,
