@@ -362,7 +362,7 @@ const saveBucket = async () => {
 </script>
 
 <template>
-    <div class="mt-1">
+    <div class="mt-1 sm:mt-0">
         <div v-if="isLoading && !buckets.length" class="px-6 py-8">
             <LoadingBar />
         </div>

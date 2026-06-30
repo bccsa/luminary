@@ -54,7 +54,7 @@ const createNew = () => {
                 />
             </div>
         </template>
-        <div class="mt-1 flex flex-col gap-[3px]">
+        <div class="mt-1 flex flex-col gap-[3px] sm:mt-0">
             <LanguageDisplayCard
                 v-for="language in languages"
                 :key="language._id"
