@@ -3,6 +3,7 @@ import BasePage from "@/components/BasePage.vue";
 import { PlusIcon } from "@heroicons/vue/20/solid";
 import LButton from "@/components/button/LButton.vue";
 import GroupDisplayCard from "./GroupDisplayCard.vue";
+import GroupFilterOptions from "./GroupFilterOptions.vue";
 import {
     AclPermission,
     db,
@@ -11,7 +12,7 @@ import {
     toEditable,
     type GroupAclEntryDto,
     type GroupDto,
-    useSharedHybridQueryWithState,
+    useHybridQueryWithState,
 } from "luminary-shared";
 import { computed, ref, watch } from "vue";
 import { validDocTypes } from "./permissions";
@@ -19,11 +20,10 @@ import EditGroup from "./EditGroup.vue";
 import { isSmallScreen } from "@/globalConfig";
 import ConfirmBeforeLeavingModal from "../modals/ConfirmBeforeLeavingModal.vue";
 import { type GroupOverviewQueryOptions } from "./GroupOverview/types";
-import { MapIcon, MagnifyingGlassIcon, ListBulletIcon } from "@heroicons/vue/24/outline";
+import { MapIcon, ListBulletIcon } from "@heroicons/vue/24/outline";
 import GroupGraph from "./GroupGraph/GroupGraph.vue";
-import LInput from "../forms/LInput.vue";
 
-const { output: groupsSource, isFetching } = useSharedHybridQueryWithState<GroupDto>(
+const { output: groupsSource, isFetching } = useHybridQueryWithState<GroupDto>(
     () => ({
         selector: {
             type: DocType.Group,
@@ -82,6 +82,7 @@ const showModal = ref(false);
 
 const defaultQueryOptions: GroupOverviewQueryOptions = {
     search: "",
+    filterGroupIds: [],
     orderBy: "updatedTimeUtc",
     orderDirection: "desc",
 };
@@ -108,12 +109,29 @@ watch(
     { deep: true },
 );
 
+const resetQueryOptions = () => {
+    queryOptions.value = {
+        search: "",
+        filterGroupIds: [],
+        orderBy: "updatedTimeUtc",
+        orderDirection: "desc",
+    };
+};
+
 const filteredGroups = computed(() => {
     let result = [...editable.value];
 
     if (queryOptions.value.search) {
         const searchLower = queryOptions.value.search.toLowerCase();
         result = result.filter((group) => group.name.toLowerCase().includes(searchLower));
+    }
+
+    if (queryOptions.value.filterGroupIds && queryOptions.value.filterGroupIds.length > 0) {
+        result = result.filter((group) => {
+            return queryOptions.value.filterGroupIds.every((filterId) =>
+                group.acl.some((aclEntry) => aclEntry.groupId === filterId),
+            );
+        });
     }
 
     result.sort((a, b) => {
@@ -160,50 +178,26 @@ const isDirty = computed(() => {
 });
 
 const currentTab = ref("overview");
-const pageSegClass = (active: boolean) =>
-    `h-9 rounded-none shadow-none ring-0 ${active ? "bg-zinc-100 text-zinc-950" : "bg-white text-zinc-600"}`;
-
-const handleGraphSelect = (groupId: string) => {
-    newGroupId.value = groupId;
+const toggleView = () => {
+    currentTab.value = currentTab.value === "overview" ? "graph" : "overview";
 };
 
-const handleGraphOpen = (groupId: string) => {
+const handleGraphSelect = (groupId: string) => {
     newGroupId.value = groupId;
     showModal.value = true;
 };
 </script>
 
 <template>
-    <BasePage
-        title="Groups"
-        :is-full-width="true"
-        :loading="isFetching"
-        :content-inset="currentTab !== 'graph'"
-    >
+    <BasePage title="Groups" :is-full-width="true" :loading="isFetching">
         <template #pageNav>
             <div class="relative z-20 flex items-center justify-end">
-                <div
-                    class="flex h-9 shrink-0 divide-x divide-zinc-300 overflow-hidden rounded-md shadow-sm ring-1 ring-zinc-300"
-                >
-                    <LButton
-                        size="sm"
-                        variant="secondary"
-                        :icon="ListBulletIcon"
-                        :main-dynamic-css="pageSegClass(currentTab === 'overview')"
-                        @click="currentTab = 'overview'"
-                    >
-                        List
-                    </LButton>
-                    <LButton
-                        size="sm"
-                        variant="secondary"
-                        :icon="MapIcon"
-                        :main-dynamic-css="pageSegClass(currentTab === 'graph')"
-                        @click="currentTab = 'graph'"
-                    >
-                        Graph
-                    </LButton>
-                </div>
+                <LButton
+                    variant="secondary"
+                    :icon="currentTab === 'overview' ? MapIcon : ListBulletIcon"
+                    :aria-label="currentTab === 'overview' ? 'Show visualisation' : 'Show overview'"
+                    @click="toggleView"
+                />
             </div>
             <LButton
                 v-if="canCreateGroup && !isSmallScreen"
@@ -223,23 +217,12 @@ const handleGraphOpen = (groupId: string) => {
         </template>
 
         <template v-if="currentTab === 'overview'" #internalPageHeader>
-            <div
-                class="relative z-20 flex flex-col gap-1 overflow-visible border-b border-t border-zinc-300 border-t-zinc-100 bg-white pb-1 pt-2 shadow"
-                v-if="currentTab === 'overview'"
-            >
-                <div class="flex h-10 w-full items-center gap-1 px-8">
-                    <LInput
-                        type="text"
-                        :icon="MagnifyingGlassIcon"
-                        class="h-full min-w-0 flex-grow"
-                        name="search"
-                        placeholder="Search..."
-                        data-test="search-input"
-                        v-model="queryOptions.search"
-                        :full-height="true"
-                    />
-                </div>
-            </div>
+            <GroupFilterOptions
+                :groups="editable"
+                :reset="resetQueryOptions"
+                v-model:query-options="queryOptions"
+                :isSmallScreen="isSmallScreen"
+            />
         </template>
 
         <div v-show="currentTab === 'overview'" class="mt-1 flex flex-col gap-[3px]">
@@ -262,7 +245,10 @@ const handleGraphOpen = (groupId: string) => {
             />
         </div>
 
-        <div v-show="currentTab === 'graph'" class="h-full min-h-0">
+        <div
+            v-show="currentTab === 'graph'"
+            class="h-[calc(100dvh-6.75rem)] min-h-[520px] md:h-[calc(100vh-5.75rem)] md:min-h-[640px]"
+        >
             <KeepAlive>
                 <GroupGraph
                     v-if="currentTab === 'graph'"
@@ -270,7 +256,6 @@ const handleGraphOpen = (groupId: string) => {
                     :groups="filteredGroups"
                     :all-groups="editable"
                     @select="handleGraphSelect"
-                    @open="handleGraphOpen"
                 />
             </KeepAlive>
         </div>
