@@ -344,7 +344,7 @@ async function handleDelete(mappingId: string) {
             </template>
         </p>
 
-        <div class="mt-1">
+        <div class="mt-1 flex flex-col gap-[3px]">
             <AutoGroupMappingDisplayCard
                 v-for="mapping in filteredMappings"
                 :key="mapping._id"

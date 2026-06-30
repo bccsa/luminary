@@ -44,7 +44,6 @@ const accessGroupNames = computed(() => {
         :title="group.name"
         :updatedTimeUtc="group.updatedTimeUtc"
         @click="showEditModal = true"
-        class="mb-1"
     >
         <template #content>
             <div class="flex items-center justify-between pt-1">

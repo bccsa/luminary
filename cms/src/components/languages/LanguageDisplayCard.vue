@@ -17,7 +17,7 @@ const isLocalChanges = computed(() => props.hasLocalChanges(props.languagesDoc._
 </script>
 
 <template>
-    <div class="mb-1 flex flex-col">
+    <div class="flex flex-col">
         <DisplayCard
             title=""
             :updatedTimeUtc="0"

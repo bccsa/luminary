@@ -54,11 +54,13 @@ const createNew = () => {
                 />
             </div>
         </template>
-        <LanguageDisplayCard
-            v-for="language in languages"
-            :key="language._id"
-            :languagesDoc="language"
-            :has-local-changes="hasLocalChanges"
-        />
+        <div class="mt-1 flex flex-col gap-[3px]">
+            <LanguageDisplayCard
+                v-for="language in languages"
+                :key="language._id"
+                :languagesDoc="language"
+                :has-local-changes="hasLocalChanges"
+            />
+        </div>
     </BasePage>
 </template>

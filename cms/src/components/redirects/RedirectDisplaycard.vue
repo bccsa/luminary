@@ -41,7 +41,6 @@ const redirectGroups = computed(() =>
         :title="redirectDoc.slug"
         :updated-time-utc="redirectDoc.updatedTimeUtc"
         @click="isModalVisible = true"
-        class="mb-1"
     >
         <template #title-extension>
             <div class="flex items-center gap-1">

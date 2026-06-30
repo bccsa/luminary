@@ -242,7 +242,7 @@ const handleGraphOpen = (groupId: string) => {
             </div>
         </template>
 
-        <div v-show="currentTab === 'overview'" class="mt-1">
+        <div v-show="currentTab === 'overview'" class="mt-1 flex flex-col gap-[3px]">
             <p class="mb-2 text-sm text-gray-500">
                 <span>
                     Configure access permissions for the groups listed below to control who can

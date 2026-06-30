@@ -57,7 +57,7 @@ const userProviderLabel = computed(() => {
 </script>
 
 <template>
-    <div class="mt-1 flex flex-col">
+    <div class="flex flex-col">
         <DisplayCard
             :title="usersDoc.name"
             :updatedTimeUtc="usersDoc.updatedTimeUtc"

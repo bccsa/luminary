@@ -169,43 +169,45 @@ const displayedUsers = computed<UserDto[]>(() =>
                 v-model:query-options="queryOptions"
             />
         </template>
-        <p class="mb-2 mt-1 px-2 py-1 text-gray-500">
-            Users only need to be created when they require special permissions that are not already
-            automatically granted. It's possible to add multiple user objects with the same email
-            address. This allows different administrators to independently assign access to the same
-            individual for different groups they manage.
-        </p>
-        <FtsStaleResultsBanner
-            v-if="searchActive"
-            :visible="searchIsStale"
-            :loading="searchIsLoading"
-            @refresh="search.refresh()"
-        />
-        <UserDisplayCard
-            v-for="user in displayedUsers"
-            :key="user._id"
-            :usersDoc="user"
-            :has-local-changes="hasLocalChanges"
-            v-model="isEditUserModalVisible"
-            @edit="(id) => (selectedUserId = id)"
-        />
+        <div class="mt-1 flex flex-col gap-[3px]">
+            <p class="mb-2 px-2 py-1 text-gray-500">
+                Users only need to be created when they require special permissions that are not
+                already automatically granted. It's possible to add multiple user objects with the
+                same email address. This allows different administrators to independently assign
+                access to the same individual for different groups they manage.
+            </p>
+            <FtsStaleResultsBanner
+                v-if="searchActive"
+                :visible="searchIsStale"
+                :loading="searchIsLoading"
+                @refresh="search.refresh()"
+            />
+            <UserDisplayCard
+                v-for="user in displayedUsers"
+                :key="user._id"
+                :usersDoc="user"
+                :has-local-changes="hasLocalChanges"
+                v-model="isEditUserModalVisible"
+                @edit="(id) => (selectedUserId = id)"
+            />
 
-        <div
-            v-if="searchActive && !searchIsLoading && displayedUsers.length === 0"
-            class="flex h-32 w-full items-center justify-center gap-2"
-        >
-            <ExclamationTriangleIcon class="h-6 w-6 text-zinc-500" />
-            <p class="text-sm text-zinc-500">No users found.</p>
-        </div>
+            <div
+                v-if="searchActive && !searchIsLoading && displayedUsers.length === 0"
+                class="flex h-32 w-full items-center justify-center gap-2"
+            >
+                <ExclamationTriangleIcon class="h-6 w-6 text-zinc-500" />
+                <p class="text-sm text-zinc-500">No users found.</p>
+            </div>
 
-        <!-- Infinite-scroll trigger for the server-paged search results -->
-        <div v-if="searchActive" ref="searchSentinel" class="h-px w-full"></div>
+            <!-- Infinite-scroll trigger for the server-paged search results -->
+            <div v-if="searchActive" ref="searchSentinel" class="h-px w-full"></div>
 
-        <div
-            v-if="searchActive && searchIsLoading"
-            class="flex h-16 w-full items-center justify-center"
-        >
-            <LoadingBar />
+            <div
+                v-if="searchActive && searchIsLoading"
+                class="flex h-16 w-full items-center justify-center"
+            >
+                <LoadingBar />
+            </div>
         </div>
 
         <CreateOrEditUser
