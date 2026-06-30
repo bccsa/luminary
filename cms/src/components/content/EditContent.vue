@@ -450,9 +450,14 @@ const actionsWrapperProps = computed(() => ({
         <template #topBarActionsDesktop>
             <EditContentActionsWrapper v-bind="actionsWrapperProps" :mobile="false" />
         </template>
-        <div class="flex flex-col gap-0 lg:h-full lg:min-h-0 lg:flex-row lg:gap-2 lg:overflow-hidden">
+        <div
+            class="flex flex-col gap-0 lg:h-full lg:min-h-0 lg:flex-row lg:gap-2 lg:overflow-hidden"
+        >
             <!-- sidebar -->
-            <div class="w-full flex-shrink-0 lg:h-full lg:min-h-0 lg:w-[336px]" v-if="editableParent">
+            <div
+                class="w-full flex-shrink-0 lg:h-full lg:min-h-0 lg:w-[336px]"
+                v-if="editableParent"
+            >
                 <div class="scrollbar-hide lg:h-full lg:min-h-0 lg:overflow-y-auto lg:pb-2">
                     <div class="flex flex-col gap-2 pb-0 lg:pb-4">
                         <EditContentParent
@@ -591,8 +596,12 @@ const actionsWrapperProps = computed(() => ({
                 </div>
             </div>
             <!-- main content instance -->
-            <div class="flex w-full min-w-0 flex-1 flex-col lg:h-full lg:min-h-0 lg:overflow-hidden lg:pb-4">
-                <div class="mb-4 flex w-full flex-1 flex-col bg-white lg:mb-0 lg:min-h-0 lg:overflow-hidden">
+            <div
+                class="flex w-full min-w-0 flex-1 flex-col lg:h-full lg:min-h-0 lg:overflow-hidden lg:pb-4"
+            >
+                <div
+                    class="mb-4 flex w-full flex-1 flex-col bg-white lg:mb-0 lg:min-h-0 lg:overflow-hidden"
+                >
                     <EmptyState
                         v-if="!selectedContent"
                         :icon="icon"
@@ -602,7 +611,10 @@ const actionsWrapperProps = computed(() => ({
                         class="mb-3 flex flex-col items-center justify-center lg:mb-0"
                     >
                         <div class="relative flex flex-col items-center lg:inline-block">
-                            <LDropdown v-model:show="showLanguageSelector" placement="bottom-center">
+                            <LDropdown
+                                v-model:show="showLanguageSelector"
+                                placement="bottom-center"
+                            >
                                 <template #trigger>
                                     <LButton
                                         :icon="PlusIcon"

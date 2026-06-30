@@ -51,7 +51,20 @@ const isContentDirty = computed(() => {
     const existingWithoutParentMedia = { ...props.existingContent };
     delete existingWithoutParentMedia.parentMedia;
 
-    return !_.isEqual(editableWithoutParentMedia, existingWithoutParentMedia);
+    // ArrayBuffer-safe deep compare: content can carry binary upload payloads
+    // (imageData/parentImageData.uploadData[].fileData), and lodash's default isEqual
+    // throws "incompatible receiver" reading byteLength on a reactive/cross-realm buffer.
+    return !_.isEqualWith(editableWithoutParentMedia, existingWithoutParentMedia, (x, y) => {
+        const isBuf = (v: unknown) => Object.prototype.toString.call(v) === "[object ArrayBuffer]";
+        if (isBuf(x) || isBuf(y)) {
+            try {
+                return (x as ArrayBuffer)?.byteLength === (y as ArrayBuffer)?.byteLength;
+            } catch {
+                return true; // cross-realm buffer; treat as unchanged
+            }
+        }
+        return undefined;
+    });
 });
 
 const emit = defineEmits<{

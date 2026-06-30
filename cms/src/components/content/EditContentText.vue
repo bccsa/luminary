@@ -1,9 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { type ContentDto, type LanguageDto } from "luminary-shared";
-import LCard from "@/components/common/LCard.vue";
 import RichTextEditor from "../editor/RichTextEditor.vue";
-import { lightPolish } from "./lightPolish";
 
 type Props = {
     selectedLanguage?: LanguageDto;
@@ -29,18 +27,7 @@ const downloadFilename = computed(() => {
 
 <template>
     <div v-if="content" class="flex w-full flex-col lg:h-full lg:min-h-0 lg:flex-1 lg:overflow-hidden">
-        <LCard v-if="!lightPolish" class="flex flex-col bg-white lg:min-h-0 lg:flex-1">
-            <RichTextEditor
-                class="w-full lg:min-h-0 lg:flex-1"
-                v-model:text="content.text"
-                v-model:text-language="content.language"
-                :download-filename="downloadFilename"
-                :disabled="disabled"
-                data-test="richTextEditor"
-            />
-        </LCard>
         <RichTextEditor
-            v-else
             class="w-full lg:h-full lg:min-h-0 lg:flex-1 lg:overflow-hidden"
             v-model:text="content.text"
             v-model:text-language="content.language"

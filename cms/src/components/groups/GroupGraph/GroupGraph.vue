@@ -49,7 +49,7 @@ const selectedGroupId = ref<string | null>(null);
 const segClass = (active: boolean) =>
     `rounded-none shadow-none ring-0 ${active ? "bg-zinc-100 text-zinc-950" : "bg-white text-zinc-600"}`;
 const isFullscreen = ref(false);
-const contextMenu = ref<{ groupId: string; groupName: string; x: number; y: number } | null>(null);
+const contextMenu = ref<{ groupId: string; x: number; y: number } | null>(null);
 const showSearch = ref(false);
 const {
     layoutDirection,
@@ -154,7 +154,6 @@ function openNodeContextMenu({ event, node }: NodeMouseEvent) {
 
     contextMenu.value = {
         groupId: node.id,
-        groupName: group.name || "(unnamed group)",
         x: Math.max(8, x),
         y: Math.max(8, y),
     };
@@ -421,9 +420,6 @@ watch(isFullscreen, () => {
                 @click.stop
                 @contextmenu.prevent
             >
-                <div class="border-b border-zinc-100 px-3 py-2 text-xs font-medium text-zinc-500">
-                    {{ contextMenu.groupName }}
-                </div>
                 <LButton
                     variant="tertiary"
                     size="sm"

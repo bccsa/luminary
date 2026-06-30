@@ -102,6 +102,10 @@ global.URL.revokeObjectURL = () => {
     // No-op for tests
 };
 
+// jsdom does not implement Element.prototype.scrollIntoView; LDropdown calls it on open
+// and the rejection surfaces as an unhandled error that fails the run.
+Element.prototype.scrollIntoView = () => {};
+
 beforeAll(async () => {
     initConfig({
         cms: true,
