@@ -76,7 +76,7 @@ const availableGroups = computed(() => {
 const original = computed(() => {
     return editable.value.find((g) => g._id == group.value._id);
 });
-const isNewGroup = computed(() => !original.value);
+const isNewGroup = computed(() => !group.value._rev);
 
 const hasChangedGroupName = computed(() => {
     if (!original.value) return false;
