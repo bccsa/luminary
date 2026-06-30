@@ -5,7 +5,6 @@ import {
     CHART_COLUMN_WIDTH,
     CHART_ROW_HEIGHT,
     CHART_TOP_OFFSET,
-    DENSE_ANIMATED_EDGES_THRESHOLD,
     TREE_COLUMN_WIDTH,
     TREE_ROW_HEIGHT,
     chartLanes,
@@ -206,12 +205,7 @@ export function useGroupGraphLayout(
     });
 
     const chartEdges = computed(() => {
-        const chartNodeIds = new Set(
-            chartNodes.value.filter((node) => node.type === "chartGroup").map((node) => node.id),
-        );
-        const sparseDirectAnimation =
-            selectedAccess.value.directEdges.size > DENSE_ANIMATED_EDGES_THRESHOLD;
-
+        const chartNodeIds = new Set(allGroups().map((group) => group._id));
         return edges.value
             .filter((edge) => chartNodeIds.has(edge.source) && chartNodeIds.has(edge.target))
             .map((edge) => {
@@ -227,7 +221,7 @@ export function useGroupGraphLayout(
                     source: edge.source,
                     target: edge.target,
                     type: "bezier",
-                    animated: direct,
+                    animated: active,
                     selectable: false,
                     focusable: false,
                     interactionWidth: 0,
@@ -239,15 +233,12 @@ export function useGroupGraphLayout(
                     },
                     style: {
                         stroke,
-                        strokeDasharray:
-                            direct && sparseDirectAnimation
-                                ? "1 16"
-                                : inherited
-                                  ? "6 5"
-                                  : undefined,
-                        strokeLinecap:
-                            direct && sparseDirectAnimation ? ("round" as const) : undefined,
-                        strokeWidth: direct && sparseDirectAnimation ? 3.2 : active ? 2.8 : 1.2,
+                        // Both direct + inherited edges animate (active path flows), so
+                        // each dash period must divide VueFlow's 10-unit `dashdraw` travel
+                        // or the dashes teleport every cycle: "1 9" and "5 5" are period 10.
+                        strokeDasharray: direct ? "1 9" : inherited ? "5 5" : undefined,
+                        strokeLinecap: direct ? ("round" as const) : undefined,
+                        strokeWidth: direct ? 3.2 : active ? 2.8 : 1.2,
                         opacity: active ? 1 : 0.2,
                     },
                 };

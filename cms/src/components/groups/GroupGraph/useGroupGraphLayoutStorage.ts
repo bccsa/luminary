@@ -112,14 +112,25 @@ export function useGroupGraphLayoutStorage(allGroups: () => GroupDto[]) {
 
     function saveNodePosition({ node, nodes }: NodeDragEvent) {
         const movedNodes = nodes.length ? nodes : [node];
+        const movedPositions = Object.fromEntries(
+            movedNodes.map((movedNode) => [
+                movedNode.id,
+                { x: movedNode.position.x, y: movedNode.position.y },
+            ]),
+        );
+        if (
+            movedNodes.every((movedNode) => {
+                const position = manualNodePositions.value[movedNode.id];
+                return (
+                    position?.x === movedNode.position.x && position?.y === movedNode.position.y
+                );
+            })
+        )
+            return;
+
         manualNodePositions.value = {
             ...manualNodePositions.value,
-            ...Object.fromEntries(
-                movedNodes.map((movedNode) => [
-                    movedNode.id,
-                    { x: movedNode.position.x, y: movedNode.position.y },
-                ]),
-            ),
+            ...movedPositions,
         };
     }
 

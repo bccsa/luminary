@@ -1,12 +1,8 @@
 <script setup lang="ts">
 import { ref } from "vue";
-import { ExclamationTriangleIcon, InformationCircleIcon } from "@heroicons/vue/24/outline";
+import { InformationCircleIcon } from "@heroicons/vue/24/outline";
 import LButton from "@/components/button/LButton.vue";
 import LDropdown from "@/components/common/LDropdown.vue";
-
-withDefaults(defineProps<{ showPermissionOptimisationTip?: boolean }>(), {
-    showPermissionOptimisationTip: false,
-});
 
 const showLegend = ref(false);
 </script>
@@ -24,18 +20,9 @@ const showLegend = ref(false);
             <LButton
                 size="sm"
                 variant="secondary"
-                :icon="
-                    showPermissionOptimisationTip ? ExclamationTriangleIcon : InformationCircleIcon
-                "
-                :main-dynamic-css="
-                    showPermissionOptimisationTip
-                        ? 'bg-amber-50 text-amber-800 ring-amber-300 hover:bg-amber-100'
-                        : ''
-                "
+                :icon="InformationCircleIcon"
                 class="h-9 w-9 shadow-md"
-                :aria-label="
-                    showPermissionOptimisationTip ? 'Large permission path' : 'Visualisation'
-                "
+                aria-label="Visualisation"
             />
         </template>
         <div class="legend-drawer w-[calc(100vw-1.5rem)] px-3 py-2 text-xs sm:w-max sm:max-w-2xl">
@@ -99,17 +86,6 @@ const showLegend = ref(false);
                         </dt>
                         <dd class="opacity-50">Not in path</dd>
                     </dl>
-                </div>
-            </div>
-            <div
-                v-if="showPermissionOptimisationTip"
-                class="mt-2 rounded-md border border-amber-100 bg-amber-50 px-3 py-2 text-zinc-600"
-            >
-                <div class="text-xs font-semibold text-zinc-800">Large permission path</div>
-                <div class="mt-0.5 text-[11px] leading-4">
-                    This group is being used as a broad shortcut through many inherited access
-                    paths. Consider granting access through smaller role or content groups instead.
-                    It keeps permissions easier to review and reduces the reach of any one group.
                 </div>
             </div>
         </div>

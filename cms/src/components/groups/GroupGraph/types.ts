@@ -43,8 +43,6 @@ export const TREE_MAX_COLUMNS = 8;
 export const GRID_SIZE = 22;
 export const KEYBOARD_PAN_STEP = 80;
 export const STORAGE_KEY = "group_graph_custom_layout";
-export const DENSE_ANIMATED_EDGES_THRESHOLD = 38;
-export const LARGE_PERMISSION_PATH_THRESHOLD = 24;
 
 export const chartLanes = [
     { key: "admin", title: "Admin" },

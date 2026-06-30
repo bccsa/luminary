@@ -13,11 +13,11 @@ import {
     HandRaisedIcon,
     MinusIcon,
     PlusSmallIcon,
+    XMarkIcon,
 } from "@heroicons/vue/24/outline";
 import type { GroupDto } from "luminary-shared";
 import {
     GRID_SIZE,
-    LARGE_PERMISSION_PATH_THRESHOLD,
     TREE_MAX_COLUMNS,
     TREE_MIN_COLUMNS,
 } from "./types";
@@ -88,20 +88,6 @@ function keepValidSelection() {
     if (selectedGroupId.value && !groupById.value.has(selectedGroupId.value))
         selectedGroupId.value = null;
 }
-
-const selectedPermissionFootprint = computed(() => {
-    if (!selectedGroupId.value) return 0;
-
-    return (
-        selectedAccess.value.directEdges.size +
-        selectedAccess.value.inheritedEdges.size +
-        selectedAccess.value.upstreamEdges.size +
-        selectedAccess.value.downstreamEdges.size
-    );
-});
-const showPermissionOptimisationTip = computed(
-    () => selectedPermissionFootprint.value > LARGE_PERMISSION_PATH_THRESHOLD,
-);
 
 function openContextGroup() {
     if (!contextMenu.value) return;
@@ -210,17 +196,19 @@ watch(isFullscreen, () => {
     <component
         :is="isFullscreen ? LModal : 'div'"
         v-model:isVisible="isFullscreen"
-        heading="Info"
+        heading=""
         no-divider
         no-padding
+        transparent-header
         large-modal
         stick-to-edges
+        :show-closing-button="false"
         :class="isFullscreen ? '' : 'h-full min-h-0 w-full'"
     >
         <div
             ref="graphRoot"
             class="relative min-h-0 select-none overflow-hidden outline-none focus:outline-none focus-visible:outline-none"
-            :class="isFullscreen ? 'h-[calc(100dvh-2.75rem)] w-screen' : 'h-full w-full'"
+            :class="isFullscreen ? 'h-[100dvh] w-screen' : 'h-full w-full'"
             tabindex="0"
             aria-label="Group visualisation. Hold Space to switch between select and drag, use middle mouse to drag, use arrow keys to pan, plus and minus to zoom, Tab to move through groups, Enter or Space to focus a group. Command K opens search. Command F opens fullscreen."
             @auxclick.prevent
@@ -249,7 +237,9 @@ watch(isFullscreen, () => {
                 @node-click="({ node }) => selectNode(node)"
                 @node-double-click="openNodeGroup"
                 @node-context-menu="openNodeContextMenu"
+                @node-drag="saveNodePosition"
                 @node-drag-stop="saveNodePosition"
+                @selection-drag="saveNodePosition"
                 @selection-drag-stop="saveNodePosition"
                 @pane-click="clearFocus"
             >
@@ -289,122 +279,135 @@ watch(isFullscreen, () => {
             </VueFlow>
 
             <div
-                class="pointer-events-none absolute left-3 right-3 top-3 z-40 flex flex-wrap items-start justify-end gap-2 sm:right-4 sm:top-4 sm:flex-nowrap"
+                class="pointer-events-none absolute left-3 right-3 top-1 z-40 flex items-start gap-2 py-2 sm:right-4 sm:top-2"
             >
                 <div
-                    class="pointer-events-auto flex h-9 shrink-0 divide-x divide-zinc-300 overflow-hidden rounded-md shadow-sm ring-1 ring-zinc-300"
+                    class="pointer-events-auto -my-2 min-w-0 flex-1 overflow-x-auto py-2 scrollbar-hide"
                 >
-                    <LButton
-                        size="sm"
-                        variant="secondary"
-                        :icon="CursorArrowRaysIcon"
-                        :main-dynamic-css="segClass(interactionMode === 'select')"
-                        @click="interactionMode = 'select'"
-                    >
-                        Select
-                    </LButton>
-                    <LButton
-                        size="sm"
-                        variant="secondary"
-                        :icon="HandRaisedIcon"
-                        :main-dynamic-css="segClass(interactionMode === 'drag')"
-                        @click="interactionMode = 'drag'"
-                    >
-                        Drag
-                    </LButton>
+                    <div class="flex w-max flex-nowrap items-start gap-2 sm:ml-auto">
+                        <div
+                            class="pointer-events-auto flex h-9 shrink-0 divide-x divide-zinc-300 overflow-hidden rounded-md shadow-sm ring-1 ring-zinc-300"
+                        >
+                            <LButton
+                                size="sm"
+                                variant="secondary"
+                                :icon="CursorArrowRaysIcon"
+                                :main-dynamic-css="segClass(interactionMode === 'select')"
+                                @click="interactionMode = 'select'"
+                            >
+                                Select
+                            </LButton>
+                            <LButton
+                                size="sm"
+                                variant="secondary"
+                                :icon="HandRaisedIcon"
+                                :main-dynamic-css="segClass(interactionMode === 'drag')"
+                                @click="interactionMode = 'drag'"
+                            >
+                                Drag
+                            </LButton>
+                        </div>
+                        <div
+                            class="pointer-events-auto hidden h-9 shrink-0 divide-x divide-zinc-300 overflow-hidden rounded-md shadow-sm ring-1 ring-zinc-300 sm:flex"
+                        >
+                            <LButton
+                                size="sm"
+                                variant="secondary"
+                                :main-dynamic-css="segClass(isTopToBottom)"
+                                @click="layoutDirection = 'TB'"
+                            >
+                                Top down
+                            </LButton>
+                            <LButton
+                                size="sm"
+                                variant="secondary"
+                                :main-dynamic-css="segClass(!isTopToBottom)"
+                                @click="layoutDirection = 'LR'"
+                            >
+                                Left right
+                            </LButton>
+                        </div>
+                        <div
+                            class="pointer-events-auto hidden h-9 shrink-0 items-center gap-2 rounded-md bg-white px-3 text-xs text-zinc-600 shadow-sm ring-1 ring-zinc-300 sm:flex"
+                        >
+                            <label for="group-graph-columns-desktop" class="font-medium">
+                                Columns
+                            </label>
+                            <input
+                                id="group-graph-columns-desktop"
+                                type="range"
+                                :min="TREE_MIN_COLUMNS"
+                                :max="TREE_MAX_COLUMNS"
+                                step="1"
+                                :value="treeColumnCount"
+                                class="h-2 w-28 cursor-pointer appearance-none rounded-lg bg-gray-200 accent-gray-700"
+                                @input="updateTreeColumnCount"
+                            />
+                            <span class="w-3 text-right font-medium text-zinc-700">
+                                {{ treeColumnCount }}
+                            </span>
+                        </div>
+                        <LButton
+                            v-if="hasUnsavedLayout"
+                            size="sm"
+                            variant="secondary"
+                            class="pointer-events-auto h-9 shrink-0"
+                            @click="saveCustomLayout"
+                        >
+                            Save custom layout
+                        </LButton>
+                        <LButton
+                            v-if="savedLayout"
+                            size="sm"
+                            variant="secondary"
+                            class="pointer-events-auto hidden h-9 shrink-0 sm:flex"
+                            @click="applyStoredLayout()"
+                        >
+                            Use saved layout
+                        </LButton>
+                        <LButton
+                            size="sm"
+                            variant="secondary"
+                            class="pointer-events-auto hidden h-9 shrink-0 sm:flex"
+                            @click="resetLayout"
+                        >
+                            Reset layout
+                        </LButton>
+                        <LButton
+                            v-if="savedLayout"
+                            size="sm"
+                            variant="secondary"
+                            class="pointer-events-auto hidden h-9 shrink-0 sm:flex"
+                            @click="clearSavedLayout"
+                        >
+                            Clear saved layout
+                        </LButton>
+                        <GraphLegend v-if="!isFullscreen" />
+                        <GraphSettingsMenu
+                            v-model:layout-direction="layoutDirection"
+                            v-model:tree-column-count="treeColumnCount"
+                            :saved-layout-exists="!!savedLayout"
+                            @apply-saved="applyStoredLayout()"
+                            @reset="resetLayout"
+                            @clear-saved="clearSavedLayout"
+                        />
+                        <LButton
+                            v-if="!isFullscreen"
+                            size="sm"
+                            variant="secondary"
+                            :icon="isFullscreen ? ArrowsPointingInIcon : ArrowsPointingOutIcon"
+                            class="pointer-events-auto h-9 w-9 shrink-0"
+                            @click="isFullscreen = !isFullscreen"
+                        />
+                    </div>
                 </div>
-                <div
-                    class="pointer-events-auto hidden h-9 shrink-0 divide-x divide-zinc-300 overflow-hidden rounded-md shadow-sm ring-1 ring-zinc-300 sm:flex"
-                >
-                    <LButton
-                        size="sm"
-                        variant="secondary"
-                        :main-dynamic-css="segClass(isTopToBottom)"
-                        @click="layoutDirection = 'TB'"
-                    >
-                        Top down
-                    </LButton>
-                    <LButton
-                        size="sm"
-                        variant="secondary"
-                        :main-dynamic-css="segClass(!isTopToBottom)"
-                        @click="layoutDirection = 'LR'"
-                    >
-                        Left right
-                    </LButton>
-                </div>
-                <div
-                    class="pointer-events-auto hidden h-9 shrink-0 items-center gap-2 rounded-md bg-white px-3 text-xs text-zinc-600 shadow-sm ring-1 ring-zinc-300 sm:flex"
-                >
-                    <label for="group-graph-columns-desktop" class="font-medium"> Columns </label>
-                    <input
-                        id="group-graph-columns-desktop"
-                        type="range"
-                        :min="TREE_MIN_COLUMNS"
-                        :max="TREE_MAX_COLUMNS"
-                        step="1"
-                        :value="treeColumnCount"
-                        class="h-2 w-28 cursor-pointer appearance-none rounded-lg bg-gray-200 accent-gray-700"
-                        @input="updateTreeColumnCount"
-                    />
-                    <span class="w-3 text-right font-medium text-zinc-700">
-                        {{ treeColumnCount }}
-                    </span>
-                </div>
                 <LButton
-                    v-if="hasUnsavedLayout"
+                    v-if="isFullscreen"
                     size="sm"
                     variant="secondary"
-                    class="pointer-events-auto h-9 shrink-0"
-                    @click="saveCustomLayout"
-                >
-                    Save custom layout
-                </LButton>
-                <LButton
-                    v-if="savedLayout"
-                    size="sm"
-                    variant="secondary"
-                    class="pointer-events-auto hidden h-9 shrink-0 sm:flex"
-                    @click="applyStoredLayout()"
-                >
-                    Use saved layout
-                </LButton>
-                <LButton
-                    size="sm"
-                    variant="secondary"
-                    class="pointer-events-auto hidden h-9 shrink-0 sm:flex"
-                    @click="resetLayout"
-                >
-                    Reset layout
-                </LButton>
-                <LButton
-                    v-if="savedLayout"
-                    size="sm"
-                    variant="secondary"
-                    class="pointer-events-auto hidden h-9 shrink-0 sm:flex"
-                    @click="clearSavedLayout"
-                >
-                    Clear saved layout
-                </LButton>
-                <GraphLegend
-                    v-if="!isFullscreen"
-                    :show-permission-optimisation-tip="showPermissionOptimisationTip"
-                />
-                <GraphSettingsMenu
-                    v-model:layout-direction="layoutDirection"
-                    v-model:tree-column-count="treeColumnCount"
-                    :saved-layout-exists="!!savedLayout"
-                    @apply-saved="applyStoredLayout()"
-                    @reset="resetLayout"
-                    @clear-saved="clearSavedLayout"
-                />
-                <LButton
-                    v-if="!isFullscreen"
-                    size="sm"
-                    variant="secondary"
-                    :icon="isFullscreen ? ArrowsPointingInIcon : ArrowsPointingOutIcon"
+                    :icon="XMarkIcon"
                     class="pointer-events-auto h-9 w-9 shrink-0"
-                    @click="isFullscreen = !isFullscreen"
+                    @click="isFullscreen = false"
                 />
             </div>
 
