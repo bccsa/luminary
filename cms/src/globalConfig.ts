@@ -39,7 +39,9 @@ export const sidebarSectionExpanded = ref({ posts: false, tags: false, access: f
 /**
  * The preferred CMS language ID as Vue ref.
  */
-export const cmsLanguageIdAsRef = ref(typeof localStorage !== "undefined" ? localStorage.getItem("cms_selectedLanguage") || "" : "");
+export const cmsLanguageIdAsRef = ref(
+    typeof localStorage !== "undefined" ? localStorage.getItem("cms_selectedLanguage") || "" : "",
+);
 watch(cmsLanguageIdAsRef, (newVal) => {
     if (typeof localStorage !== "undefined") localStorage.setItem("cms_selectedLanguage", newVal);
 });
@@ -131,3 +133,17 @@ export async function initLanguage() {
         cmsDefaultLanguage.value = defaultLang;
     });
 }
+
+export const isMac = computed(() => {
+    if (typeof navigator === "undefined") return false;
+    const uaDataPlatform = (navigator as any).userAgentData?.platform?.toLowerCase?.() ?? "";
+    if (uaDataPlatform) return uaDataPlatform.includes("mac");
+
+    const ua = (navigator.userAgent || "").toLowerCase();
+    return (
+        ua.includes("mac os") ||
+        ua.includes("macintosh") ||
+        ua.includes("iphone") ||
+        ua.includes("ipad")
+    );
+});

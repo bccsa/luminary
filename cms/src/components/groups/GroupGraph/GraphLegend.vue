@@ -3,6 +3,7 @@ import { ref } from "vue";
 import { InformationCircleIcon } from "@heroicons/vue/24/outline";
 import LButton from "@/components/button/LButton.vue";
 import LDropdown from "@/components/common/LDropdown.vue";
+import { isMac } from "@/globalConfig";
 
 const showLegend = ref(false);
 </script>
@@ -50,13 +51,17 @@ const showLegend = ref(false);
                         <dd>Fit view</dd>
                         <dt class="font-medium text-zinc-600">Tab</dt>
                         <dd>Move through groups</dd>
-                        <dt class="font-medium text-zinc-600">Enter / Space</dt>
+                        <dt class="font-medium text-zinc-600">Enter</dt>
                         <dd>Select group</dd>
                         <dt class="font-medium text-zinc-600">Esc</dt>
                         <dd>Close or clear</dd>
-                        <dt class="font-medium text-zinc-600">⌘/Ctrl+K</dt>
+                        <dt class="font-medium text-zinc-600">
+                            {{ isMac ? "⌘+K" : "Ctrl+K" }}
+                        </dt>
                         <dd>Search groups</dd>
-                        <dt class="font-medium text-zinc-600">⌘/Ctrl+F</dt>
+                        <dt class="font-medium text-zinc-600">
+                            {{ isMac ? "⌘+F" : "Ctrl+F" }}
+                        </dt>
                         <dd>Open fullscreen</dd>
                     </dl>
                 </div>
