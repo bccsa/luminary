@@ -31,38 +31,15 @@ Keep the save path doc-type-agnostic (no Content/Post/Tag specifics).
 updates for the (now-`HybridQuery`, API-only) live-only types. Remove once those screens are verified
 live (HybridQuery subscribes to the rooms on demand).
 
-### Stale test failures from the `GroupOverview` / `hasLocalChanges` migrations
+### ~~Stale test failures from the `GroupOverview` / `hasLocalChanges` migrations~~ (RESOLVED)
 
-The `GroupOverview` read migrated to `useHybridQuery`/`toEditable`, but its specs were not updated
-alongside. All reproduce at HEAD (verified by stashing the work and re-running) — recording them so
-they aren't mistaken for regressions.
-
-- **`components/groups/EditGroup.spec.ts` — type error + 3 failing tests.** The prop is typed
-  `groupQuery: ReturnType<typeof toEditable<GroupDto>>` (public `updateShadow`), but the spec still
-  passes `mockGroupQuery as ApiLiveQueryAsEditable<GroupDto>` (private `updateShadow`) → not
-  structurally assignable (`vue-tsc` error). The 3 runtime failures ("calls duplicate function…",
-  "displays EditAclByGroup components…", "removes an assigned group…") are mount/render failures
-  unrelated to local-change state. Update the spec to pass a `toEditable<GroupDto>` mock.
-
-- **`components/groups/GroupOverview.spec.ts` — 3 failing tests.** The spec mocks a `/search` API
-  returning all four groups but seeds only `Super Admins` into Dexie, then asserts all four render
-  and that the API was queried (`mockApiRequest`). Since `GroupOverview` migrated to `useHybridQuery`
-  (Dexie-first for the synced `Group` type), it reads Dexie and never hits the mocked API — so only
-  `Super Admins` renders and `mockApiRequest` stays `undefined`. Update the spec (seed all four
-  groups into Dexie, or assert the Dexie-first read).
-
-- **`components/content/EditContent.spec.ts` — unhandled rejection in lodash `equalByTag`.**
-  Symptom: a flaky `TypeError: Method get ArrayBuffer.prototype.byteLength called on incompatible
-receiver` surfaces as an unhandled rejection under the full (parallel) run; it passes in isolation.
-  Root cause: `EditContentValidation.vue`'s `isContentDirty` computed deep-compares content with a
-  plain `_.isEqual` and only strips `parentMedia` before comparing. `ContentDto` also carries
-  `parentImageData` (plus `imageData`/`media`), which hold `uploadData[].fileData: ArrayBuffer`. Plain
-  `_.isEqual` recurses into that buffer — reached through a Vue reactive proxy — and lodash's
-  `byteLength` access throws. Because it runs inside a reactive `computed`, the throw escapes as an
-  unhandled rejection. Fix: use `_.isEqualWith` with an ArrayBuffer customizer (same pattern already in
-  `EditContentParent.vue` and `arrayBufferCustomizer` in `shared/src/util/toEditable/toEditable.ts`):
-  compare buffers by `byteLength` inside a try/catch instead of letting lodash recurse into them.
-  Tests pass; pre-existing.
+- `EditGroup.spec.ts` / `GroupOverview.spec.ts` — already updated for the `useHybridQuery`/`toEditable`
+  migration; both pass at HEAD.
+- `EditContentValidation.vue`'s `isContentDirty` now uses `_.isEqualWith` with an ArrayBuffer customizer
+  (mirrors `EditContentParent.vue`), so the deep-compare no longer throws on `imageData`/`parentImageData`
+  buffers.
+- The remaining full-run breaker was 21 `el.scrollIntoView is not a function` unhandled rejections from
+  `LDropdown` (jsdom doesn't implement `scrollIntoView`) — stubbed in `vitest.setup.ts`. Full suite is green.
 
 ### Include language selection (mangoIsPublished language selection logic) in sync.
 
