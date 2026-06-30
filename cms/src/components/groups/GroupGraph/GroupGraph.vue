@@ -139,26 +139,29 @@ function fitInitialView() {
     nextTick(() => requestAnimationFrame(() => fitView({ padding: 0.18, duration: 0 })));
 }
 
+function showNodeMenu(groupId: string, point: { clientX: number; clientY: number }) {
+    const group = groupById.value.get(groupId);
+    if (!group) return;
+
+    selectedGroupId.value = groupId;
+    const rect = graphRoot.value?.getBoundingClientRect();
+    const x = rect ? point.clientX - rect.left : point.clientX;
+    const y = rect ? point.clientY - rect.top : point.clientY;
+
+    contextMenu.value = {
+        groupId,
+        x: Math.max(8, x),
+        y: Math.max(8, y),
+    };
+}
+
 function openNodeContextMenu({ event, node }: NodeMouseEvent) {
     if (!isInteractiveNode(node)) return;
     if (!(event instanceof MouseEvent)) return;
 
     event.preventDefault();
     event.stopPropagation();
-
-    const group = groupById.value.get(node.id);
-    if (!group) return;
-
-    selectedGroupId.value = node.id;
-    const rect = graphRoot.value?.getBoundingClientRect();
-    const x = rect ? event.clientX - rect.left : event.offsetX;
-    const y = rect ? event.clientY - rect.top : event.offsetY;
-
-    contextMenu.value = {
-        groupId: node.id,
-        x: Math.max(8, x),
-        y: Math.max(8, y),
-    };
+    showNodeMenu(node.id, event);
 }
 
 function openNodeGroup({ event, node }: NodeMouseEvent) {
@@ -259,6 +262,7 @@ watch(isFullscreen, () => {
                         :data="data"
                         :source-position="sourcePosition ?? sourceHandlePosition"
                         :target-position="targetPosition ?? targetHandlePosition"
+                        @hold="showNodeMenu"
                         @select="selectGroup"
                     />
                 </template>
