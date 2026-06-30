@@ -98,11 +98,6 @@ describe("useAuthProviders", () => {
             cms: true,
             docsIndex: CMS_DOCS_INDEX,
             apiUrl: `http://localhost:${port}`,
-            syncList: [
-                { type: DocType.AuthProvider, contentOnly: true, syncPriority: 10 },
-                { type: DocType.AutoGroupMappings, contentOnly: true, syncPriority: 20 },
-                { type: DocType.Group, contentOnly: true, syncPriority: 30 },
-            ],
         });
         getRest({ reset: true });
     });

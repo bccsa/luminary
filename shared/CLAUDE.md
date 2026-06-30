@@ -52,7 +52,7 @@ in that consumer's own docs, not here.)
 
 `src/luminary.ts` exposes a single `init(config)` that, in order, sets the shared config, opens Dexie (`initDatabase`), creates the Socket.io connection (`getSocket`), and starts the REST sync (`getRest` + `initSync`). Calling code does this once at app startup. The exported surface area for consumers is everything in `src/index.ts`.
 
-`SharedConfig` (`src/config.ts`) is the single configuration object: `cms` flag, app-specific `docsIndex` string appended to the shared Dexie index, `apiUrl`, the `syncList` of doc-type sync queries, and a `Ref<Uuid[]>` of active language IDs (used by Socket.io and FTS filtering).
+`SharedConfig` (`src/config.ts`) is the single configuration object: `cms` flag, app-specific `docsIndex` string appended to the shared Dexie index, `apiUrl`, and a `Ref<Uuid[]>` of active language IDs (used by Socket.io and FTS filtering). What gets synced is owned by the sync engine (the consumer's `sync()` calls), not declared in config.
 
 ### Data layer — `src/db/database.ts`
 
@@ -82,7 +82,7 @@ The sync system is documented in detail in `src/api/sync/README.md`. Read it bef
 
 ### Socket.io live updates — `src/socket/socketio.ts`
 
-The socket emits `joinSocketGroups` on connect with the configured `syncList`, then pushes `data` events. Incoming docs are filtered against `syncList` and `appLanguageIdsAsRef` before being bulk-put into Dexie. `accessMap` and `maxUploadFileSize` are received via a `clientConfig` event. Auth failures (`err.message === "auth_failed"`) disable reconnection so a stale token doesn't loop.
+The socket emits `clientConfigReq` on connect (the connect handshake — declares the `cms` mode and any connect-time `docTypes`), then pushes `data` events. Incoming docs are filtered against `syncList` and `appLanguageIdsAsRef` before being bulk-put into Dexie. `accessMap` and `maxUploadFileSize` are received via a `clientConfig` event. Auth failures (`err.message === "auth_failed"`) disable reconnection so a stale token doesn't loop. (`clientConfigReq` was formerly named `joinSocketGroups`, which the server still accepts as a deprecated alias — ADR 0005. The whole Socket.io live-update transport is slated to migrate to Server-Sent Events (SSE) when SSE is implemented.)
 
 `isConnected` is a Vue ref that drives `HybridQuery`'s online/offline behavior.
 

@@ -507,6 +507,23 @@ describe("Socketio (mocked)", () => {
             expect(accessMapToGroupsSpy).not.toHaveBeenCalled();
             expect(socket.join).not.toHaveBeenCalled();
         });
+
+        it("C4: deprecated joinSocketGroups alias delegates to clientConfigReq (backwards compat, ADR 0005)", () => {
+            accessMapToGroupsSpy.mockReturnValue({ [DocType.Post]: ["g1"] } as any);
+
+            const socket = makeSocket();
+            gateway.joinSocketGroups({ docTypes: [{ type: "post" }] } as any, socket);
+
+            // Same observable behaviour as clientConfigReq: clientConfig emit + room joins.
+            expect(socket.emit).toHaveBeenCalledWith("clientConfig", expect.any(Object));
+            expect(accessMapToGroupsSpy).toHaveBeenCalledWith(
+                socket.data.userDetails.accessMap,
+                AclPermission.View,
+                ["post"],
+            );
+            expect(socket.join).toHaveBeenCalledWith("post-g1");
+            expect(socket.join).toHaveBeenCalledWith("deleteCmd-g1");
+        });
     });
 
     // =========================================================================

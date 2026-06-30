@@ -130,4 +130,4 @@ Some fields are decorated with both `@IsNotEmpty()` and `@IsOptional()`, which i
 | `src/jwt/processJwt.spec.ts` | Missing JWT_MAPPING, invalid JSON parsing, mapping evaluation errors, email-only login |
 | `src/changeRequests/documentProcessing/processStorageDto.spec.ts` | Credential deletion failures, credential update errors, encryption failures |
 | `src/changeRequests/documentProcessing/processMediaDto.spec.ts` | Missing bucket ID, bucket not found, missing DB for deletion |
-| `src/socketio.spec.ts` | joinSocketGroups, clientConfig, database update broadcasts, anonymous connection |
+| `src/socketio.spec.ts` | clientConfigReq (+ deprecated joinSocketGroups alias), clientConfig, database update broadcasts, anonymous connection |

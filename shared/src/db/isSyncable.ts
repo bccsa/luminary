@@ -8,8 +8,8 @@ import type { MangoSelector, Predicate } from "../util/MangoQuery/MangoTypes";
 /**
  * "May this document from the **live socket firehose** be persisted to IndexedDB?" — narrows the
  * access-scoped Socket.io `data` feed (every doc the user *can* see) to what this client actually
- * **syncs**. Derived from **sync's `syncList`** (the live source of truth) — NOT the static
- * `config.syncList`. Used by the sync live persister (`api/sync/liveSync.ts`).
+ * **syncs**. Derived from **sync's `syncList`** (the sync engine's live source of truth). Used by
+ * the sync live persister (`api/sync/liveSync.ts`).
  *
  * NOT used by HybridQuery's `persistOffline`: that path persists content the consumer *explicitly
  * fetched for display* (already permission-scoped by the API), gated only by `type === Content` —

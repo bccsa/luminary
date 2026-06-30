@@ -73,11 +73,6 @@ async function Startup() {
         contentPublishDateCutoff: installedStandalone
             ? undefined // no cutoff → full corpus
             : Date.now() - BROWSER_CONTENT_SYNC_WINDOW_MS,
-        // What gets synced is owned by sync (see src/sync.ts); the socket rooms for
-        // those types are joined dynamically by sync. The app has no live-only
-        // types (SingleContent reads synced content / language, whose rooms sync
-        // already joins), so this stays empty.
-        syncList: [],
     }).catch((err) => {
         console.error(err);
         Sentry?.captureException(err);

@@ -7,7 +7,6 @@ import router from "./router";
 import {
     changeReqErrors,
     changeReqWarnings,
-    DocType,
     getSocket,
     init,
     serverError,
@@ -48,16 +47,6 @@ async function Startup() {
         // sync keeps its OPEN_MIN default (full content sync) and HybridQuery's
         // older-tail supplement never fires.
         contentPublishDateCutoff: undefined,
-        // What gets synced (and may be persisted to IndexedDB) is owned by sync
-        // (see src/sync.ts); sync joins the socket rooms for those types. This list
-        // is now ONLY the transitional live-only types — docs we display live but
-        // never sync. Their rooms are joined at the connect handshake so live socket
-        // updates arrive. Remove once the CMS migrates these to HybridQuery (which
-        // subscribes to rooms on demand).
-        syncList: [
-            { type: DocType.User },
-            { type: DocType.AutoGroupMappings },
-        ],
     }).catch((err) => {
         console.error(err);
         Sentry.captureException(err);

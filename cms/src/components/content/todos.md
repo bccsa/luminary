@@ -46,11 +46,18 @@ Verify per file that the surrounding code holds a `toEditable` instance — some
 naively swapped. `duplicate` stages the clone (returns it, does not save); for an immediate-save
 flow do `const c = duplicate(id); if (c) await save(c._id)`.
 
-### Remove the transitional socket handshake
+### ~~Remove the transitional socket handshake~~ (RESOLVED)
 
-`main.ts:57` keeps `User` + `AutoGroupMappings` in the init `syncList` only so the socket pushes
-updates for the (now-`HybridQuery`, API-only) live-only types. Remove once those screens are verified
-live (HybridQuery subscribes to the rooms on demand).
+`main.ts` no longer keeps `User` + `AutoGroupMappings` in the init `syncList` — the `init()`
+config no longer takes a sync list at all (`config.syncList` / `ApiSyncQuery` were removed).
+Those live-only types are served by `HybridQuery` in API-only mode, which subscribes to their
+socket rooms on demand (and re-joins on reconnect). The connect handshake event itself was also
+renamed `joinSocketGroups` → `clientConfigReq` (it bootstraps the connection — delivers the
+accessMap and declares CMS mode — rather than "joining groups"); the API keeps `joinSocketGroups`
+as a deprecated alias for backwards compat (ADR 0005).
+
+**Future:** the whole Socket.io live-update transport should migrate to Server-Sent Events (SSE)
+when SSE is implemented — see #1740.
 
 ### ~~Stale test failures from the `GroupOverview` / `hasLocalChanges` migrations~~ (RESOLVED)
 

@@ -12,7 +12,7 @@ import {
     mockGroupDtoSuperAdmins,
     superAdminAccessMap,
 } from "@/tests/mockdata";
-import { accessMap, DocType, getRest, initConfig, isConnected, db } from "luminary-shared";
+import { accessMap, getRest, initConfig, isConnected, db } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import { ref } from "vue";
 
@@ -85,7 +85,6 @@ describe("GroupOverview", () => {
             docsIndex:
                 "type, parentId, updatedTimeUtc, slug, language, docType, redirect, [parentId+type], [parentId+parentType], [type+tagType], publishDate, expiryDate, [type+language+status+parentPinned], [type+language+status], [type+postType], [type+docType], title, parentPinned",
             apiUrl: `http://localhost:${port}`,
-            syncList: [{ type: DocType.Group, contentOnly: true, syncPriority: 10 }],
         });
 
         // Reset the rest api client to use the new config

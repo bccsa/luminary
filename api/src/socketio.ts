@@ -36,9 +36,10 @@ type ClientDataReq = {
 };
 
 /**
- * Dynamic room (un)subscription request. Unlike `joinSocketGroups` (which carries
- * `ApiSyncQuery` objects), this carries a plain array of doc types — the server
- * expands each to the `${docType}-${group}` rooms the user's accessMap grants.
+ * Dynamic room (un)subscription request. Unlike the `clientConfigReq` handshake
+ * (whose `docTypes` historically carried `{ type }` objects), this carries a plain
+ * array of doc types — the server expands each to the `${docType}-${group}` rooms
+ * the user's accessMap grants.
  */
 type ClientRoomReq = {
     docTypes: Array<DocType>;
@@ -76,7 +77,11 @@ type EmitEvents = {
  * Socket.io received messages type definitions
  */
 interface ReceiveEvents {
-    clientDataReq: (a: ClientDataReq) => void;
+    // Connect handshake: bootstraps the connection (declares CMS mode, triggers the
+    // clientConfig reply). `joinSocketGroups` is the deprecated alias kept for old
+    // clients during the rename window (ADR 0005).
+    clientConfigReq: (a: ClientDataReq) => void;
+    joinSocketGroups: (a: ClientDataReq) => void;
     changeRequest: (b: ChangeReqDto) => void;
     joinRooms: (a: ClientRoomReq) => void;
     leaveRooms: (a: ClientRoomReq) => void;
@@ -93,7 +98,7 @@ interface InterServerEvents {}
  */
 interface SocketData {
     userDetails: JwtUserDetails;
-    /** Connection mode, set from the `joinSocketGroups` handshake. true = CMS, false/undefined = app. */
+    /** Connection mode, set from the `clientConfigReq` handshake. true = CMS, false/undefined = app. */
     cms?: boolean;
 }
 
@@ -235,11 +240,35 @@ export class Socketio implements OnGatewayInit {
     }
 
     /**
-     *  Join client to socket groups, to receive live updates
+     * Deprecated alias for {@link clientConfigReq}. Kept so clients deployed before the
+     * `joinSocketGroups` → `clientConfigReq` rename still hand-shake. Remove once every
+     * client emits `clientConfigReq` (tracked by the SSE-migration ticket, since SSE
+     * retires this event anyway). Wire-contract rename, additive per ADR 0005: deploy the
+     * API (accepts both names) before the clients.
+     *
+     * NestJS registers one message per handler (`@SubscribeMessage` overwrites its
+     * metadata, so it can't be stacked) — hence this thin delegating method rather than a
+     * second decorator on `clientConfigReq`.
+     */
+    @SubscribeMessage("joinSocketGroups")
+    joinSocketGroups(
+        @MessageBody() reqData: ClientDataReq,
+        @ConnectedSocket() socket: ClientSocket,
+    ) {
+        return this.clientConfigReq(reqData, socket);
+    }
+
+    /**
+     * Connect handshake: reply with the client config + accessMap, record the connection
+     * mode (CMS vs app), and join any doc-type rooms the request declares. Runs once per
+     * (re)connect.
+     *
+     * FUTURE: migrate the whole Socket.io live-update transport to Server-Sent Events (SSE)
+     * when SSE is implemented — see #1740.
      * @param reqData
      * @param socket
      */
-    @SubscribeMessage("joinSocketGroups")
+    @SubscribeMessage("clientConfigReq")
     clientConfigReq(
         @MessageBody() reqData: ClientDataReq,
         @ConnectedSocket() socket: ClientSocket,
@@ -280,7 +309,7 @@ export class Socketio implements OnGatewayInit {
      * Dynamically subscribe a client to live updates for the given doc types. Used by
      * sync (for synced types) and HybridQuery (for non-synced types it queries) so the
      * client only receives the change feed it currently needs. Additive to
-     * `joinSocketGroups` — the connect handshake still owns the `clientConfig` reply.
+     * `clientConfigReq` — the connect handshake still owns the `clientConfig` reply.
      * @param reqData
      * @param socket
      */
@@ -320,7 +349,7 @@ export class Socketio implements OnGatewayInit {
      * matching `deleteCmd-${group}` rooms. The room set depends on the connection mode (see
      * {@link roomConfig}): app connections join base `${docType}-${group}` rooms via View; CMS
      * connections join `${docType}-${group}-cms` rooms via CmsView. `deleteCmd-${group}` rooms are
-     * shared (un-suffixed) by both modes. Shared by the connect handshake (`joinSocketGroups`) and
+     * shared (un-suffixed) by both modes. Shared by the connect handshake (`clientConfigReq`) and
      * dynamic `joinRooms`.
      */
     private joinDocTypeRooms(socket: ClientSocket, docTypes: Array<DocType>) {

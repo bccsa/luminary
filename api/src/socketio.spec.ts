@@ -65,7 +65,26 @@ describe("Socketio", () => {
         });
     }, 10000);
 
-    it("should respond to joinSocketGroups with clientConfig", (done) => {
+    it("should respond to clientConfigReq with clientConfig", (done) => {
+        const client = connectClient();
+
+        client.on("connect", () => {
+            client.emit("clientConfigReq", {
+                docTypes: [{ type: "post" }, { type: "tag" }],
+            });
+        });
+
+        client.on("clientConfig", (config: any) => {
+            expect(config.maxUploadFileSize).toBeDefined();
+            expect(config.accessMap).toBeDefined();
+            client.disconnect();
+            done();
+        });
+    }, 10000);
+
+    // Backwards-compat: clients deployed before the joinSocketGroups → clientConfigReq
+    // rename still hand-shake via the deprecated alias (ADR 0005).
+    it("should respond to the deprecated joinSocketGroups alias with clientConfig", (done) => {
         const client = connectClient();
 
         client.on("connect", () => {
@@ -87,7 +106,7 @@ describe("Socketio", () => {
         let joined = false;
 
         client.on("connect", () => {
-            client.emit("joinSocketGroups", {
+            client.emit("clientConfigReq", {
                 docTypes: [{ type: "post" }],
             });
         });
@@ -205,10 +224,10 @@ describe("Socketio", () => {
         };
 
         appClient.on("connect", () =>
-            appClient.emit("joinSocketGroups", { docTypes: [{ type: "post" }], cms: false }),
+            appClient.emit("clientConfigReq", { docTypes: [{ type: "post" }], cms: false }),
         );
         cmsClient.on("connect", () =>
-            cmsClient.emit("joinSocketGroups", { docTypes: [{ type: "post" }], cms: true }),
+            cmsClient.emit("clientConfigReq", { docTypes: [{ type: "post" }], cms: true }),
         );
         appClient.on("clientConfig", () => {
             appReady = true;

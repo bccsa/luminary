@@ -50,7 +50,6 @@ describe("RestApi", () => {
             cms: false,
             docsIndex: "type",
             apiUrl: "https://api.example.com",
-            syncList: [{ type: "post", sync: true }],
         };
     }
 
@@ -60,7 +59,7 @@ describe("RestApi", () => {
     });
 
     it("throws without apiUrl", () => {
-        mockConfig = { apiUrl: "", syncList: [{ type: "post" }] };
+        mockConfig = { apiUrl: "" };
         expect(() => getRest({ reset: true })).toThrow("API URL");
     });
 

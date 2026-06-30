@@ -24,14 +24,6 @@ describe("syncLocalChanges", () => {
         initConfig({
             cms: true,
             docsIndex: "parentId, language, [type+docType]",
-            syncList: [
-                { type: DocType.Tag, syncPriority: 2, skipWaitForLanguageSync: true },
-                { type: DocType.Post, syncPriority: 2, skipWaitForLanguageSync: true },
-                { type: DocType.Redirect, syncPriority: 2, skipWaitForLanguageSync: true },
-                { type: DocType.Language, syncPriority: 1, skipWaitForLanguageSync: true },
-                { type: DocType.Group, syncPriority: 1, skipWaitForLanguageSync: true },
-                { type: DocType.User, sync: false },
-            ],
             apiUrl: "http://localhost:12344",
             appLanguageIdsAsRef: ref([]),
         });

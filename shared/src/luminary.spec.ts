@@ -49,7 +49,6 @@ describe("init", () => {
             cms: false,
             docsIndex: "type",
             apiUrl: "https://api.example.com",
-            syncList: [{ type: "post" as any }],
         };
 
         await init(config);

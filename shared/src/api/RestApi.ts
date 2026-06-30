@@ -52,32 +52,6 @@ export type ApiFtsQuery = {
     maxTrigramDocPercent?: number;
 };
 
-/**
- * API Sync query object. This is used to construct Search API queries for syncing data from the server,
- * but is also passed to the Socket.io connection to filter the data that is sent to the client.
- */
-export type ApiSyncQuery = {
-    type: DocType;
-    /**
-     * If true, only include content documents for the specified (Post / Tag) document type for syncing.
-     */
-    contentOnly?: boolean;
-    /**
-     * If true, the query is used for syncing. If false, the query is used for live updates only.
-     * @default true
-     */
-    sync?: boolean; // true if the query is used for syncing
-    /**
-     * 10 is default, lower number is higher priority
-     */
-    syncPriority?: number;
-    /**
-     * When true, sync immediately and do not want for the language sync to finish
-     * TODO: Rename to something more meaningful
-     */
-    skipWaitForLanguageSync?: boolean;
-};
-
 export type ChangeRequestQuery = {
     id: number;
     doc: any;
@@ -107,9 +81,6 @@ class RestApi {
         if (!config.apiUrl) {
             throw new Error("The REST API connection requires an API URL");
         }
-        // NOTE: `config.syncList` is no longer required. What gets synced is owned by
-        // sync (the consumer's `sync()` calls); `config.syncList` only declares the
-        // transitional live-only socket rooms (e.g. CMS User / AutoGroupMappings).
 
         this.http = new HttpReq(config.apiUrl || "");
 

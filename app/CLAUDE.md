@@ -29,7 +29,7 @@ The boot sequence is order-sensitive — read `main.ts` before reordering anythi
 
 1. Pinia is installed early so watchers registered during startup can resolve stores.
 2. `warmMangoCaches()` hydrates Mango query caches from localStorage before any IDB query.
-3. `init()` from `luminary-shared` sets up IndexedDB, the socket, and the doc sync list (`AuthProvider`, `Tag`, `Post`, `Language`, `Redirect`, `Storage` — each with a `syncPriority`; `contentOnly` docs are scoped by language).
+3. `init()` from `luminary-shared` sets up IndexedDB and the socket. What gets synced (and which socket rooms are joined) is owned by the sync engine in `src/sync.ts` (`AuthProvider`, `Tag`, `Post`, `Language`, `Redirect`, `Storage`; `contentOnly` docs scoped by language) — not declared in the `init()` config.
 4. A `connect_error` listener for `auth_failed` is registered **before** `setupAuth()` — otherwise the first failure event is lost and the client loops. Handles `provider_not_found` (forces provider re-pick) and silent refresh via `refreshTokenSilently({ ignoreCache: true })`.
 5. i18n is initialised before mount because splash-screen components call `useI18n()` at setup time.
 6. After mount: `initAuthLangSync`, `initLanguage`, `initSync`, plugin loading, then `markAppReady()`.

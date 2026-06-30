@@ -50,7 +50,6 @@ await init({
     cms: false,
     apiUrl: "https://api.example.org",
     docsIndex: ",slug,parentTagType", // appended to the shared Dexie index
-    syncList: [/* per-type sync queries */],
     appLanguageIdsAsRef: languageIds,  // Ref<Uuid[]>
 });
 ```
@@ -58,7 +57,7 @@ await init({
 | Export | Description |
 | --- | --- |
 | `init(config)` | One-shot startup: config → database → socket → REST sync → query layer. |
-| `SharedConfig` | The single configuration object (`cms` flag, `apiUrl`, `docsIndex`, `syncList`, active-language ref, content cutoff, retention TTL). |
+| `SharedConfig` | The single configuration object (`cms` flag, `apiUrl`, `docsIndex`, active-language ref, content cutoff, retention TTL). |
 | `initConfig(config)` | Set/replace the shared config (called by `init`). |
 | `getContentPublishDateCutoff()` | The configured content `publishDate` cutoff — single source of truth bounding sync depth and query routing. |
 | `getOfflineRetentionTtl()` | Configured TTL for offline-persisted below-cutoff content. |
@@ -107,10 +106,11 @@ Autonomous, incremental backwards-in-time sync per `(type, memberOf, languages)`
 ### Transport — `src/socket/`, `src/api/`
 
 The socket client reports the configured **`cms` mode** (`config.cms`) to the server in its
-`joinSocketGroups` handshake. The server uses it to scope which live-update rooms the connection
-joins, so a CMS-mode consumer receives CMS-scoped documents (including drafts and expired content)
-while a default consumer receives only published documents (expired content arriving as a body-less
-cleanup signal). The mode is purely a request — the server enforces the corresponding permission.
+`clientConfigReq` handshake (formerly `joinSocketGroups`, which the server still accepts as a
+deprecated alias). The server uses it to scope which live-update rooms the connection joins, so a
+CMS-mode consumer receives CMS-scoped documents (including drafts and expired content) while a
+default consumer receives only published documents (expired content arriving as a body-less cleanup
+signal). The mode is purely a request — the server enforces the corresponding permission.
 
 | Export | Description |
 | --- | --- |

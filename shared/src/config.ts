@@ -1,6 +1,5 @@
 import { ref, Ref } from "vue";
 import { Uuid } from "./types";
-import { ApiSyncQuery } from "./api/RestApi";
 import { OPEN_MIN } from "./api/sync/utils";
 
 export const changeReqWarnings = ref<string[]>([]);
@@ -35,15 +34,6 @@ export type SharedConfig = {
      */
     apiUrl: string;
     /**
-     * Transitional "live-only" socket-room declaration. What gets *synced* (and what
-     * may be persisted to IndexedDB) is owned entirely by sync — this list no longer
-     * gates persistence. It only declares doc-type rooms to join at the connect
-     * handshake for live-only data (e.g. the CMS's `User` / `AutoGroupMappings`).
-     * Leave empty/omitted when every displayed type is either synced by sync or
-     * subscribed on demand by HybridQuery.
-     */
-    syncList?: Array<ApiSyncQuery>;
-    /**
      * Array of language IDs of languages to be included in sync
      */
     appLanguageIdsAsRef?: Ref<Uuid[]>;
@@ -69,12 +59,6 @@ const DEFAULT_OFFLINE_RETENTION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 export let config: SharedConfig;
 
 export function initConfig(newConfig: SharedConfig) {
-    // set default values
-    newConfig.syncList?.forEach((s) => {
-        if (!s.contentOnly) s.contentOnly = false;
-        if (s.sync == undefined) s.sync = true;
-    });
-
     config = newConfig;
 }
 

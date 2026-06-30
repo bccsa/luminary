@@ -153,8 +153,9 @@ Every read carries a `cms` flag: the CMS sends `cms: true`, the app `cms: false`
 ### Socket.io rooms: base vs `-cms`
 
 Live updates can't read the `cms` flag off each message, and the AccessMap is per-**user** (a CMS
-user holds both `View` and `CmsView`), so the connection declares its mode in the `joinSocketGroups`
-handshake (`cms: true | false`). The server routes it to one of two room sets per group:
+user holds both `View` and `CmsView`), so the connection declares its mode in the `clientConfigReq`
+handshake (`cms: true | false`; the API also accepts the deprecated `joinSocketGroups` alias for
+older clients, see ADR 0005). The server routes it to one of two room sets per group:
 
 - **base `${docType}-${group}`** — app connections join these via `View`.
 - **`${docType}-${group}-cms`** — CMS connections join these via `CmsView`.
