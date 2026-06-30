@@ -73,7 +73,6 @@ const sourceHandlePosition = computed(() =>
 );
 
 const accessGraph = useGroupAccessGraph(() => props.allGroups, selectedGroupId);
-const { edges, selectedAccess } = accessGraph;
 
 const { chartNodes, chartEdges } = useGroupGraphLayout(() => props.allGroups, accessGraph, {
     selectedGroupId,
@@ -83,6 +82,15 @@ const { chartNodes, chartEdges } = useGroupGraphLayout(() => props.allGroups, ac
     sourceHandlePosition,
     targetHandlePosition,
 });
+
+// Switching layout direction re-lays-out for that direction. Manual drag positions
+// belong to the previous direction's coordinate system, so keep them and the reflowed
+// nodes would mix two layouts and overlap — drop them so the new direction lays out clean.
+function selectLayoutDirection(direction: "TB" | "LR") {
+    if (layoutDirection.value === direction) return;
+    layoutDirection.value = direction;
+    resetLayout();
+}
 
 function keepValidSelection() {
     if (selectedGroupId.value && !groupById.value.has(selectedGroupId.value))
@@ -177,15 +185,9 @@ watch(
     { immediate: true, deep: true },
 );
 
-watch(
-    () => [
-        props.allGroups.length,
-        edges.value.length,
-        layoutDirection.value,
-        treeColumnCount.value,
-    ],
-    () => nextTick(() => fitView({ padding: 0.18, duration: 250 })),
-);
+// Center only on initial mount (VueFlow's fit-view-on-init) and on manual re-center
+// (the fit button). Layout-direction / column / data changes intentionally do NOT
+// re-center — the user positions the view themselves after the first fit.
 
 watch(isFullscreen, () => {
     nextTick(() => graphRoot.value?.focus());
@@ -230,6 +232,7 @@ watch(isFullscreen, () => {
                 :selection-key-code="interactionMode === 'select' ? true : null"
                 :snap-to-grid="true"
                 :snap-grid="[GRID_SIZE, GRID_SIZE]"
+                :fit-view-on-init="true"
                 :edges-updatable="false"
                 :disable-keyboard-a11y="true"
                 :zoom-on-double-click="false"
@@ -314,7 +317,7 @@ watch(isFullscreen, () => {
                                 size="sm"
                                 variant="secondary"
                                 :main-dynamic-css="segClass(isTopToBottom)"
-                                @click="layoutDirection = 'TB'"
+                                @click="selectLayoutDirection('TB')"
                             >
                                 Top down
                             </LButton>
@@ -322,7 +325,7 @@ watch(isFullscreen, () => {
                                 size="sm"
                                 variant="secondary"
                                 :main-dynamic-css="segClass(!isTopToBottom)"
-                                @click="layoutDirection = 'LR'"
+                                @click="selectLayoutDirection('LR')"
                             >
                                 Left right
                             </LButton>
@@ -384,7 +387,8 @@ watch(isFullscreen, () => {
                         </LButton>
                         <GraphLegend v-if="!isFullscreen" />
                         <GraphSettingsMenu
-                            v-model:layout-direction="layoutDirection"
+                            :layout-direction="layoutDirection"
+                            @update:layout-direction="selectLayoutDirection"
                             v-model:tree-column-count="treeColumnCount"
                             :saved-layout-exists="!!savedLayout"
                             @apply-saved="applyStoredLayout()"
