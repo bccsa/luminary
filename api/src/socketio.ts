@@ -18,7 +18,7 @@ import { JwtUserDetails } from "./auth/authIdentity.service";
 import { S3Service } from "./s3/s3.service";
 import { WINSTON_MODULE_PROVIDER } from "nest-winston";
 import { Logger } from "winston";
-import { AuthIdentityService } from "./auth/authIdentity.service";
+import { IdentityCacheService } from "./auth/identityCache.service";
 
 /**
  * Data request from client type definition
@@ -104,7 +104,7 @@ export class Socketio implements OnGatewayInit {
         private readonly logger: Logger,
         private db: DbService,
         private s3: S3Service,
-        private authIdentityService: AuthIdentityService,
+        private identityCacheService: IdentityCacheService,
     ) {}
 
     afterInit(server: Server<ReceiveEvents, EmitEvents, InterServerEvents, SocketData>) {
@@ -128,7 +128,7 @@ export class Socketio implements OnGatewayInit {
             }
 
             try {
-                const authIdentity = await this.authIdentityService.resolveOrDefault(
+                const authIdentity = await this.identityCacheService.resolveOrDefault(
                     token,
                     providerId,
                 );

@@ -18,6 +18,7 @@ import { FtsSearchService } from "./endpoints/ftsSearch.service";
 import { FtsSearchController } from "./endpoints/ftsSearch.controller";
 import { StorageStatusController } from "./endpoints/storageStatus.controller";
 import { AuthIdentityService } from "./auth/authIdentity.service";
+import { IdentityCacheService } from "./auth/identityCache.service";
 import { QueryRateLimiterService } from "./ratelimit/queryRateLimiter.service";
 
 let winstonTransport: winston.transport;
@@ -71,6 +72,7 @@ if (!process.env.NODE_ENV || process.env.NODE_ENV === "development") {
         FtsSearchService,
         ChangeRequestService,
         AuthIdentityService,
+        IdentityCacheService,
     ],
 })
 export class AppModule {}
