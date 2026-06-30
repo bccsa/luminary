@@ -11,6 +11,7 @@ type Props = {
     largeModal?: boolean;
     stickToEdges?: boolean;
     noPadding?: boolean;
+    transparentHeader?: boolean;
     showClosingButton?: boolean;
     // When true, the modal cannot be dismissed by clicking outside of it or pressing Escape.
     preventClose?: boolean;
@@ -20,6 +21,7 @@ const props = withDefaults(defineProps<Props>(), {
     largeModal: false,
     noDivider: false,
     noPadding: false,
+    transparentHeader: false,
     showClosingButton: true,
     preventClose: false,
 });
@@ -78,7 +80,9 @@ const isMobileScreen = breakpoints.smaller("sm");
                 <div
                     :class="[
                         'flex w-full items-center justify-between',
-                        'mb-2',
+                        transparentHeader
+                            ? 'pointer-events-none absolute left-0 right-0 top-0 z-10 p-2'
+                            : 'mb-2',
                     ]"
                 >
                     <div class="flex items-center">
@@ -93,7 +97,11 @@ const isMobileScreen = breakpoints.smaller("sm");
                         <div v-if="$slots.rightHeading">
                             <slot name="rightHeading" />
                         </div>
-                        <div v-if="showClosingButton" class="ml-2">
+                        <div
+                            v-if="showClosingButton"
+                            class="ml-2"
+                            :class="{ 'pointer-events-auto': transparentHeader }"
+                        >
                             <LButton
                                 @click="tryClose()"
                                 :icon="XMarkIcon"
@@ -109,7 +117,7 @@ const isMobileScreen = breakpoints.smaller("sm");
                     :class="[
                         noDivider ? '' : 'divide-y divide-zinc-200',
                         'flex min-h-0 flex-1 flex-col',
-                        noPadding ? '-m-5 mt-0' : '',
+                        noPadding ? (transparentHeader ? '-m-5' : '-m-5 mt-0') : '',
                     ]"
                 >
                     <slot />
