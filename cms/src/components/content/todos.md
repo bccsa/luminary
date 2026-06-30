@@ -70,7 +70,7 @@ Need to think it through a bit more before implementing
 
 ### FTS in CMS not clearing deleted items
 
-When filtering with FTS in the CMS, and deleting / adding an item (e.g. user), the FTS result is not updated removing the deleted item. A simple way to do this is perhaps listening for incoming docs (including DeleteCmd's) (using the same listener as the corresponding HybridQuery), and evict it from the search result if it passes the filter used by the HybridQuery
+~~When filtering with FTS in the CMS, and deleting / adding an item (e.g. user), the FTS result is not updated removing the deleted item. A simple way to do this is perhaps listening for incoming docs (including DeleteCmd's) (using the same listener as the corresponding HybridQuery), and evict it from the search result if it passes the filter used by the HybridQuery~~ — `attachFtsLiveSync` in `shared/src/fts/ftsLiveSync.ts`, wired into `useFtsSearch` + `useServerFtsSearch`.
 
 ### Cms Sidebar
 

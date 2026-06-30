@@ -6,6 +6,10 @@ vi.mock("../api/RestApi", () => ({
 }));
 vi.mock("../socket/socketio", () => ({
     isConnected: ref(true),
+    getSocket: () => ({
+        on: vi.fn(),
+        off: vi.fn(),
+    }),
 }));
 
 import { useServerFtsSearch } from "./useServerFtsSearch";

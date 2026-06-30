@@ -3,6 +3,7 @@ import { getRest, type ApiFtsQuery } from "../api/RestApi";
 import { config } from "../config";
 import { isConnected } from "../socket/socketio";
 import type { BaseDocumentDto, DocType } from "../types";
+import { attachFtsLiveSync } from "./ftsLiveSync";
 
 /** Field + direction for the server strict sort. `field` is validated server-side per doctype. */
 export type ServerFtsSort = { field: string; direction: "asc" | "desc" };
@@ -143,6 +144,15 @@ export function useServerFtsSearch(
     });
 
     if (getCurrentScope()) {
+        attachFtsLiveSync(
+            docs,
+            {
+                getId: (d) => d._id!,
+                patch: (d, live) => ({ ...d, ...live }),
+            },
+            { docType },
+        );
+
         onScopeDispose(() => {
             if (debounceTimer) clearTimeout(debounceTimer);
             generation++; // invalidate any in-flight search

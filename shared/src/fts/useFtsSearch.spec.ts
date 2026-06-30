@@ -5,6 +5,25 @@ vi.mock("./ftsSearch", () => ({
     ftsSearch: vi.fn(),
 }));
 
+vi.mock("../socket/socketio", () => ({
+    isConnected: ref(true),
+    getSocket: () => ({
+        on: vi.fn(),
+        off: vi.fn(),
+    }),
+}));
+
+vi.mock("../util/useDexieLiveQuery/useDexieLiveQuery", () => ({
+    useDexieLiveQuery: vi.fn(() => ref([])),
+}));
+
+vi.mock("../db/database", () => ({
+    db: {
+        docs: { where: () => ({ anyOf: () => ({ toArray: async () => [] }) }) },
+        validateDeleteCommand: vi.fn(() => true),
+    },
+}));
+
 // Keep the real shouldUseApiFts (drives routing from real config + isConnected);
 // only stub the network call.
 vi.mock("./ftsSearchApi", async (importOriginal) => {

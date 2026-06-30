@@ -5,7 +5,8 @@ import { getContentPublishDateCutoff } from "../config";
 import { isConnected } from "../socket/socketio";
 import { OPEN_MIN } from "../api/sync/utils";
 import type { FtsSearchOptions, FtsSearchResult, FtsSort } from "./types";
-import type { DocType, PublishStatus } from "../types";
+import { DocType, type ContentDto, type PublishStatus } from "../types";
+import { attachFtsLiveSync } from "./ftsLiveSync";
 
 /**
  * Reactive non-language filters forwarded to each search. Changing the ref triggers a
@@ -260,8 +261,16 @@ export function useFtsSearch(
         }
     });
 
-    // Cleanup timer on scope dispose
     if (getCurrentScope()) {
+        attachFtsLiveSync(
+            results,
+            {
+                getId: (r) => r.docId,
+                patch: (r, live) => ({ ...r, doc: live as ContentDto }),
+            },
+            { docType: DocType.Content, watchDexie: true },
+        );
+
         onScopeDispose(() => {
             if (debounceTimer) clearTimeout(debounceTimer);
             if (stopQueryWatch) stopQueryWatch();
