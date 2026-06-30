@@ -64,15 +64,6 @@ receiver` surfaces as an unhandled rejection under the full (parallel) run; it p
   compare buffers by `byteLength` inside a try/catch instead of letting lodash recurse into them.
   Tests pass; pre-existing.
 
-### Remove the `NODE_OPTIONS` localStorage shim from the test scripts
-
-The `test`/`test:watch`/`test:unit` scripts in `cms/package.json` still prefix
-`NODE_OPTIONS='--experimental-webstorage --localstorage-file=/tmp/luminary-ls.json'`. That shim is
-now redundant: `vitest.localstorage.ts` (loaded first via `setupFiles` in `vitest.config.ts`) provides
-an in-memory `localStorage` for jsdom on Node 26. Drop the `NODE_OPTIONS` prefix from all three scripts
-so the scripts are plain `vitest`. (The same shim setup file was added to `app/`; check whether `app/`'s
-scripts carry the prefix too.)
-
 ### Include language selection (mangoIsPublished language selection logic) in sync.
 
 Need to think it through a bit more before implementing
