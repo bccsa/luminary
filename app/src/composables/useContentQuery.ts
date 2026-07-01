@@ -1,4 +1,4 @@
-import { onServerPrefetch, shallowRef } from "vue";
+import { onServerPrefetch, shallowRef, type ShallowRef } from "vue";
 import {
     useHybridQuery,
     type ContentDto,
@@ -99,7 +99,7 @@ export type UseContentQueryOptions = HybridQueryOptions & {
 export function useContentQuery(
     selector: () => MangoSelector[],
     options: UseContentQueryOptions = {},
-) {
+): ShallowRef<ContentDto[]> {
     const {
         sort,
         limit,

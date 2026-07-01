@@ -11,7 +11,7 @@ import {
 import { Bars3Icon as Bars3IconSolid } from "@heroicons/vue/24/solid";
 import ThemeSelectorModal from "./ThemeSelectorModal.vue";
 import { useRouter } from "vue-router";
-import { computed, ref, type ComputedRef } from "vue";
+import { computed, onMounted, ref, type ComputedRef } from "vue";
 import {
     ShieldCheckIcon,
     BookmarkIcon,
@@ -51,6 +51,11 @@ const showThemeSelector = ref(false);
 const showLanguageModal = ref(false);
 const showLogoutDialog = ref(false);
 const menuOpen = ref(false);
+const isMounted = ref(false);
+
+onMounted(() => {
+    isMounted.value = true;
+});
 
 const { t } = useI18n();
 const menuLabel = computed(() => t("profile_menu.title"));
@@ -521,22 +526,24 @@ const sidebarNavigation = computed(() =>
         </template>
     </MobileSidebar>
 
-    <LanguageModal
-        :isVisible="showLanguageModal"
-        @close="showLanguageModal = false"
-    />
-    <ThemeSelectorModal
-        :isVisible="showThemeSelector"
-        @close="showThemeSelector = false"
-    />
+    <template v-if="isMounted">
+        <LanguageModal
+            :isVisible="showLanguageModal"
+            @close="showLanguageModal = false"
+        />
+        <ThemeSelectorModal
+            :isVisible="showThemeSelector"
+            @close="showThemeSelector = false"
+        />
 
-    <LDialog
-        v-model:open="showLogoutDialog"
-        :title="t('logout.modal.title')"
-        :description="t('logout.modal.description')"
-        :primaryAction="confirmLogout"
-        :primaryButtonText="t('logout.modal.button_logout')"
-        :secondaryAction="() => (showLogoutDialog = false)"
-        :secondaryButtonText="t('logout.modal.button_cancel')"
-    />
+        <LDialog
+            v-model:open="showLogoutDialog"
+            :title="t('logout.modal.title')"
+            :description="t('logout.modal.description')"
+            :primaryAction="confirmLogout"
+            :primaryButtonText="t('logout.modal.button_logout')"
+            :secondaryAction="() => (showLogoutDialog = false)"
+            :secondaryButtonText="t('logout.modal.button_cancel')"
+        />
+    </template>
 </template>
