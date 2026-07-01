@@ -60,10 +60,10 @@ describe("BasePage", () => {
     it("keeps content inset by default and can remove it", () => {
         const defaultPage = mount(BasePage);
         expect(defaultPage.find('[data-test="base-page-content"]').classes()).toEqual(
-            expect.arrayContaining([expect.stringMatching(/^(sm:px-4|lg:px-8)$/)]),
+            expect.arrayContaining([expect.stringMatching(/^lg:px-8$/)]),
         );
         expect(defaultPage.find("[data-topbar]").classes()).toEqual(
-            expect.arrayContaining([expect.stringMatching(/^(sm:px-4|lg:px-8)$/)]),
+            expect.arrayContaining([expect.stringMatching(/^(px-3|lg:px-8)$/)]),
         );
 
         const edgeToEdgePage = mount(BasePage, {
@@ -75,7 +75,7 @@ describe("BasePage", () => {
         });
         const contentClasses = edgeToEdgePage.find('[data-test="base-page-content"]').classes();
         expect(contentClasses).not.toContain("lg:px-8");
-        expect(contentClasses).not.toContain("sm:px-4");
+        expect(contentClasses).not.toContain("px-3");
         expect(contentClasses).not.toContain("lg:ml-8");
         expect(contentClasses).not.toContain("sm:ml-4");
 
@@ -97,7 +97,7 @@ describe("BasePage", () => {
 
         const filterBar = wrapper.find("[data-test='filter-bar']");
         expect(filterBar.element.parentElement?.className).toEqual(
-            expect.stringMatching(/(sm:px-4|lg:px-8)/),
+            expect.stringMatching(/(px-3|lg:px-8)/),
         );
         expect(filterBar.element.parentElement?.parentElement?.className).toEqual(
             expect.stringMatching(/bg-white/),

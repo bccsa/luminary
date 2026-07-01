@@ -56,7 +56,7 @@ function collapse() {
         :class="[
             bare
                 ? ''
-                : 'border-y border-zinc-200 px-2 shadow-zinc-300/60 sm:mx-0 sm:rounded-md sm:border',
+                : 'border-y border-zinc-300 px-2 shadow-zinc-300/60 sm:mx-0 sm:rounded-md sm:border sm:border-zinc-200',
             {
                 'shadow-none': !bare && props.shadow === 'none',
                 'shadow-sm': !bare && props.shadow === 'small',

@@ -60,7 +60,7 @@ const createNew = () => {
                 @click="createNew"
             />
         </template>
-        <div class="mt-1 flex flex-col gap-[3px]">
+        <div class="flex flex-col gap-[3px]">
             <EmptyState
                 v-if="!isLoading && !hasAnyContent"
                 title="No languages yet"

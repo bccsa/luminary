@@ -5,7 +5,6 @@ import { type Component, computed, provide, ref } from "vue";
 import { RouterLink, useRouter, type RouteLocationRaw } from "vue-router";
 import TopBar from "./navigation/TopBar.vue";
 import LoadingBar from "./LoadingBar.vue";
-import { isSmallScreen } from "@/globalConfig";
 import { breakpointsTailwind, useBreakpoints } from "@vueuse/core";
 import { basePageScrollKey } from "@/keys/basePageScroll";
 
@@ -41,19 +40,26 @@ const isMobileScreen = breakpoints.smaller("lg");
 const scrollContainer = ref<HTMLElement | null>(null);
 provide(basePageScrollKey, scrollContainer);
 
+/** Horizontal inset for chrome controls (top bar, filter row). Always includes mobile padding. */
+const chromeInsetClasses = computed(() => {
+    if (!props.contentInset) return "";
+    return "px-3 lg:px-8";
+});
+
+/** Horizontal inset for scrollable page content — desktop only; mobile list rows bleed edge-to-edge. */
 const contentInsetClasses = computed(() => {
     if (!props.contentInset) return "";
-    return isSmallScreen.value ? "sm:px-4" : "lg:px-8";
+    return "lg:px-8";
 });
 
 const topBarInsetClasses = computed(() => {
     if (!props.contentInset) {
         if (isEditContentPage.value || isEditLanguagePage.value) {
-            return isMobileScreen.value ? "px-4" : "lg:px-8";
+            return isMobileScreen.value ? "px-3" : "lg:px-8";
         }
-        return isSmallScreen.value ? "sm:pl-5 sm:pr-4" : "lg:pl-9 lg:pr-5";
+        return "pl-4 pr-3 lg:pl-9 lg:pr-5";
     }
-    return isSmallScreen.value ? "sm:px-4" : "lg:px-8";
+    return chromeInsetClasses.value;
 });
 
 const handleMobileSidebarToggle = () => {
@@ -85,8 +91,6 @@ const handleMobileSidebarToggle = () => {
                         class="text-zinc-500"
                         :class="{
                             'ml-1.5': isEditContentPage || isEditLanguagePage,
-                            'max-sm:ml-5':
-                                isMobileScreen && !isEditContentPage && !isEditLanguagePage,
                         }"
                         @click="handleMobileSidebarToggle"
                     >
@@ -179,7 +183,7 @@ const handleMobileSidebarToggle = () => {
                     v-if="$slots.internalPageHeader"
                     class="w-full flex-shrink-0 border-b border-t border-zinc-300 border-t-zinc-100 bg-white shadow"
                 >
-                    <div class="py-2" :class="contentInsetClasses">
+                    <div class="py-2" :class="chromeInsetClasses">
                         <slot name="internalPageHeader" />
                     </div>
                 </div>
@@ -194,7 +198,10 @@ const handleMobileSidebarToggle = () => {
                         data-test="base-page-scroll-container"
                         class="flex min-h-0 flex-1 flex-col scrollbar-hide"
                         :class="[
-                            { 'sm:mt-1': contentInset && !$slots.internalPageHeader },
+                            {
+                                'mt-[3px]': contentInset && $slots.internalPageHeader,
+                                'mt-1': contentInset && !$slots.internalPageHeader,
+                            },
                             isEditContentPage
                                 ? 'overflow-y-auto lg:overflow-hidden'
                                 : 'overflow-y-auto',
@@ -206,6 +213,7 @@ const handleMobileSidebarToggle = () => {
                         v-if="$slots.footer"
                         data-test="base-page-footer"
                         class="flex-shrink-0 border-t border-zinc-200 bg-white pb-2 pt-2 lg:pb-4"
+                        :class="contentInset && contentInsetClasses"
                     >
                         <slot name="footer" />
                     </div>

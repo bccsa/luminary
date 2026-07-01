@@ -223,7 +223,7 @@ defineExpose({
             </LModal>
         </template>
 
-        <div class="mt-1 flex flex-col gap-[3px]">
+        <div class="flex flex-col gap-[3px]">
             <EmptyState
                 v-if="!hasAnyContent"
                 title="No auth provider configured"

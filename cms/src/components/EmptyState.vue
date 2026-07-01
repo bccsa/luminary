@@ -27,7 +27,7 @@ const goBackOrHome = useGoBackOrHome();
 </script>
 
 <template>
-    <div class="rounded-md border-2 border-dashed border-zinc-200 py-12 text-center">
+    <div class="mx-3 rounded-md border-2 border-dashed border-zinc-200 py-12 text-center lg:mx-0">
         <component
             :is="icon ?? DocumentPlusIcon"
             class="mx-auto h-10 w-10 text-zinc-400"

@@ -173,7 +173,7 @@ const hasAnyContent = computed(() => (users.value?.length ?? 0) > 0);
                 v-model:query-options="queryOptions"
             />
         </template>
-        <div class="mt-1 flex flex-col gap-[3px]">
+        <div class="flex flex-col gap-[3px]">
             <p v-if="hasAnyContent" class="mb-2 px-2 py-1 text-zinc-500">
                 Users only need to be created when they require special permissions that are not
                 already automatically granted. It's possible to add multiple user objects with the

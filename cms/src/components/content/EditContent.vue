@@ -460,8 +460,8 @@ const actionsWrapperProps = computed(() => ({
                 class="w-full flex-shrink-0 lg:h-full lg:min-h-0 lg:w-[336px]"
                 v-if="editableParent"
             >
-                <div class="scrollbar-hide px-2 lg:h-full lg:min-h-0 lg:overflow-y-auto lg:pb-2 lg:pt-2">
-                    <div class="flex flex-col gap-2 pb-0 lg:pb-4">
+                <div class="scrollbar-hide lg:h-full lg:min-h-0 lg:overflow-y-auto lg:px-2 lg:pb-2 lg:pt-2">
+                    <div class="flex flex-col gap-[3px] pb-0 lg:gap-2 lg:pb-4">
                         <EditContentParent
                             v-if="editableParent"
                             :docType="props.docType"
