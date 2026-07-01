@@ -79,6 +79,8 @@ const { sentinel: searchSentinel } = useInfiniteScrollLoadMore({
 const displayedRedirects = computed<RedirectDto[]>(() =>
     searchActive.value ? (search.docs.value as RedirectDto[]) : visibleRedirects.value,
 );
+
+const hasAnyContent = computed(() => (redirects.value?.length ?? 0) > 0);
 </script>
 
 <template>
@@ -90,7 +92,7 @@ const displayedRedirects = computed<RedirectDto[]>(() =>
     >
         <template #topBarActionsDesktop>
             <LButton
-                v-if="canCreateNew && !isSmallScreen"
+                v-if="canCreateNew && hasAnyContent && !isSmallScreen"
                 variant="primary"
                 :icon="PlusIcon"
                 @click="isCreateOrEditModalVisible = true"
@@ -101,13 +103,13 @@ const displayedRedirects = computed<RedirectDto[]>(() =>
         </template>
         <template #topBarActionsMobile>
             <PlusIcon
-                v-if="canCreateNew && isSmallScreen"
+                v-if="canCreateNew && hasAnyContent && isSmallScreen"
                 class="h-8 w-8 cursor-pointer rounded bg-zinc-100 p-1 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-700"
                 @click="isCreateOrEditModalVisible = true"
             />
         </template>
 
-        <template #internalPageHeader>
+        <template v-if="hasAnyContent" #internalPageHeader>
             <div
                 class="relative z-20 flex flex-col gap-1 overflow-visible"
             >
@@ -142,7 +144,16 @@ const displayedRedirects = computed<RedirectDto[]>(() =>
             />
 
             <EmptyState
-                v-if="searchActive && !searchIsLoading && displayedRedirects.length === 0"
+                v-if="!browseLoading && !hasAnyContent"
+                title="No redirects yet"
+                description="Create a redirect to send visitors from one URL to another."
+                :button-text="canCreateNew ? 'Create redirect' : undefined"
+                :button-action="canCreateNew ? () => (isCreateOrEditModalVisible = true) : undefined"
+                :button-permission="canCreateNew"
+            />
+
+            <EmptyState
+                v-else-if="searchActive && !searchIsLoading && displayedRedirects.length === 0"
                 title="No redirects found"
                 description="No redirects match your search criteria."
             />

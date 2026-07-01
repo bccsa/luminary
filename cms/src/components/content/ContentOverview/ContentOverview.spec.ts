@@ -305,7 +305,11 @@ describe("ContentOverview.vue", () => {
         //@ts-ignore as this code is valid
         wrapper.vm.selectedLanguage = "lang-eng";
 
-        const searchInput = wrapper.find('[data-test="search-input"]');
+        let searchInput = wrapper.find('[data-test="search-input"]');
+        await waitForExpect(() => {
+            searchInput = wrapper.find('[data-test="search-input"]');
+            expect(searchInput.exists()).toBe(true);
+        });
 
         await searchInput.setValue("post 1");
         await searchInput.trigger("keydown.enter");
@@ -328,8 +332,14 @@ describe("ContentOverview.vue", () => {
             },
         });
 
-        await wrapper.find('[data-test="search-input"]').setValue("garden");
-        await wrapper.find('[data-test="search-input"]').trigger("keydown.enter");
+        let searchInput = wrapper.find('[data-test="search-input"]');
+        await waitForExpect(() => {
+            searchInput = wrapper.find('[data-test="search-input"]');
+            expect(searchInput.exists()).toBe(true);
+        });
+
+        await searchInput.setValue("garden");
+        await searchInput.trigger("keydown.enter");
 
         // Default search mode is strict ("exact matches") with an inline toggle link.
         await waitForExpect(() => {
@@ -397,7 +407,11 @@ describe("ContentOverview.vue", () => {
         //@ts-ignore as this code is valid
         wrapper.vm.selectedLanguage = "lang-eng";
 
-        const sortToggleBtn = wrapper.find('[data-test="sort-toggle-btn"]');
+        let sortToggleBtn = wrapper.find('[data-test="sort-toggle-btn"]');
+        await waitForExpect(() => {
+            sortToggleBtn = wrapper.find('[data-test="sort-toggle-btn"]');
+            expect(sortToggleBtn.exists()).toBe(true);
+        });
         await sortToggleBtn.trigger("click");
 
         const sortOptionTitle = wrapper.find('[data-test="sort-option-title"]');
@@ -471,10 +485,14 @@ describe("ContentOverview.vue", () => {
         //@ts-ignore as this code is valid
         wrapper.vm.selectedLanguage = "lang-eng";
 
+        await waitForExpect(() => {
+            expect(wrapper.findAllComponents(LSelect).length).toBeGreaterThan(0);
+        });
         const filterSelects = wrapper.findAllComponents(LSelect);
 
         await waitForExpect(async () => {
             const filterOptions = wrapper.findComponent(FilterOptions);
+            expect(filterOptions.exists()).toBe(true);
 
             await filterSelects[0]!.vm.$emit("update:modelValue", "translated");
             expect(filterOptions.props("queryOptions").translationStatus).toBe("translated");

@@ -86,6 +86,8 @@ const filteredProviders = computed(() => {
     return result;
 });
 
+const hasAnyContent = computed(() => authProviders.providers.length > 0);
+
 function resetFilters() {
     searchQuery.value = "";
     selectedGroupFilter.value = [];
@@ -105,7 +107,7 @@ defineExpose({
     >
         <template #topBarActionsDesktop>
             <LButton
-                v-if="authProviders.canEdit && !isSmallScreen"
+                v-if="authProviders.canEdit && hasAnyContent && !isSmallScreen"
                 variant="primary"
                 :icon="PlusIcon"
                 data-test="create-auth-provider"
@@ -116,13 +118,13 @@ defineExpose({
         </template>
         <template #topBarActionsMobile>
             <PlusIcon
-                v-if="authProviders.canEdit && isSmallScreen"
+                v-if="authProviders.canEdit && hasAnyContent && isSmallScreen"
                 class="h-8 w-8 cursor-pointer rounded bg-zinc-100 p-1 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-700"
                 @click="authProviders.openCreateModal"
             />
         </template>
 
-        <template #internalPageHeader>
+        <template v-if="hasAnyContent" #internalPageHeader>
             <!-- Desktop filter bar -->
             <div
                 v-if="!isSmallScreen"
@@ -230,7 +232,7 @@ defineExpose({
             </div>
 
             <EmptyState
-                v-else-if="!filteredProviders.length && !authProviders.providers.length"
+                v-else-if="!hasAnyContent"
                 title="No auth provider configured"
                 description="Get started by creating your first OIDC auth provider."
                 :button-text="authProviders.canEdit ? 'Create provider' : undefined"
@@ -239,7 +241,7 @@ defineExpose({
             />
 
             <EmptyState
-                v-else-if="!filteredProviders.length"
+                v-else-if="hasAnyContent && !filteredProviders.length"
                 title="No providers match the current filters"
                 description="Try adjusting your search or filter criteria."
             />

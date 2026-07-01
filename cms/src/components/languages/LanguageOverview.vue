@@ -14,6 +14,7 @@ import { computed } from "vue";
 import LButton from "../button/LButton.vue";
 import { isSmallScreen } from "@/globalConfig";
 import router from "@/router";
+import EmptyState from "@/components/EmptyState.vue";
 
 const canCreateNew = computed(() => hasAnyPermission(DocType.Language, AclPermission.Edit));
 
@@ -26,6 +27,8 @@ const {
 } = useSharedHybridQueryWithState<LanguageDto>(() => ({ selector: { type: DocType.Language } }), {
     live: true,
 });
+
+const hasAnyContent = computed(() => languages.value.length > 0);
 
 const createNew = () => {
     router.push({ name: "language", params: { id: db.uuid() } });
@@ -41,7 +44,7 @@ const createNew = () => {
     >
         <template #topBarActionsDesktop>
             <LButton
-                v-if="canCreateNew && !isSmallScreen"
+                v-if="canCreateNew && hasAnyContent && !isSmallScreen"
                 variant="primary"
                 :icon="PlusIcon"
                 @click="$router.push({ name: 'language', params: { id: db.uuid() } })"
@@ -52,12 +55,21 @@ const createNew = () => {
         </template>
         <template #topBarActionsMobile>
             <PlusIcon
-                v-if="canCreateNew && isSmallScreen"
+                v-if="canCreateNew && hasAnyContent && isSmallScreen"
                 class="h-8 w-8 cursor-pointer rounded bg-zinc-100 p-1 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-700"
                 @click="createNew"
             />
         </template>
         <div class="mt-1 flex flex-col gap-[3px]">
+            <EmptyState
+                v-if="!isLoading && !hasAnyContent"
+                title="No languages yet"
+                description="Add a language to start creating translated content."
+                :button-text="canCreateNew ? 'Create language' : undefined"
+                :button-action="canCreateNew ? createNew : undefined"
+                :button-permission="canCreateNew"
+                name="createLanguageBtn"
+            />
             <LanguageDisplayCard
                 v-for="language in languages"
                 :key="language._id"

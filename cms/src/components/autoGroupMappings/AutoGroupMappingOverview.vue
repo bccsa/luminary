@@ -168,6 +168,8 @@ const emptyStateDescription = computed(() =>
         : "No mappings have been configured yet.",
 );
 
+const hasAnyContent = computed(() => autoGroupMappings.mappings.length > 0);
+
 // No explicit teardown: useAutoGroupMappings' HybridQuery / useDexieLiveQuery register
 // onScopeDispose in this component's scope and tear down automatically on unmount.
 </script>
@@ -180,7 +182,7 @@ const emptyStateDescription = computed(() =>
     >
         <template #topBarActionsDesktop>
             <LButton
-                v-if="autoGroupMappings.canEdit && !isSmallScreen"
+                v-if="autoGroupMappings.canEdit && hasAnyContent && !isSmallScreen"
                 variant="primary"
                 :icon="PlusIcon"
                 @click="openCreate"
@@ -190,13 +192,13 @@ const emptyStateDescription = computed(() =>
         </template>
         <template #topBarActionsMobile>
             <PlusIcon
-                v-if="autoGroupMappings.canEdit && isSmallScreen"
+                v-if="autoGroupMappings.canEdit && hasAnyContent && isSmallScreen"
                 class="h-8 w-8 cursor-pointer rounded bg-zinc-100 p-1 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-700"
                 @click="openCreate"
             />
         </template>
 
-        <template #internalPageHeader>
+        <template v-if="hasAnyContent" #internalPageHeader>
             <!-- Desktop filter bar -->
             <div
                 v-if="!isSmallScreen"
@@ -344,7 +346,7 @@ const emptyStateDescription = computed(() =>
         </div>
 
         <EmptyState
-            v-if="!filteredMappings.length"
+            v-if="!autoGroupMappings.isLoading && !hasAnyContent"
             title="No auto group mappings configured"
             :description="emptyStateDescription"
             :button-text="autoGroupMappings.canEdit ? 'Create mapping' : undefined"
@@ -352,7 +354,13 @@ const emptyStateDescription = computed(() =>
             :button-permission="autoGroupMappings.canEdit"
         />
 
-        <div v-else class="mt-1 flex flex-col gap-[3px]">
+        <EmptyState
+            v-else-if="hasAnyContent && !filteredMappings.length"
+            title="No mappings match the current filters"
+            description="Try adjusting your search or filter criteria."
+        />
+
+        <div v-else-if="filteredMappings.length" class="mt-1 flex flex-col gap-[3px]">
             <AutoGroupMappingDisplayCard
                 v-for="mapping in filteredMappings"
                 :key="mapping._id"

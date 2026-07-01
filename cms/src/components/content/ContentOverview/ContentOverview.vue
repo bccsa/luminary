@@ -7,6 +7,7 @@ import {
     type ContentDto,
     PostType,
     useHybridQuery,
+    useHybridQueryWithState,
     useSharedHybridQuery,
     type GroupDto,
     hasAnyPermission,
@@ -134,6 +135,25 @@ const isLoading = computed(() =>
 );
 const hasMore = computed(() => (searchActive.value ? search.hasMore.value : browse.hasMore.value));
 
+const { output: anyContentOfType } = useHybridQueryWithState<ContentDto>(
+    () => ({
+        selector: {
+            $and: [
+                { type: DocType.Content },
+                { parentType: props.docType },
+                props.docType === DocType.Tag
+                    ? { parentTagType: props.tagOrPostType }
+                    : { parentPostType: props.tagOrPostType },
+            ],
+        },
+        $sort: [{ updatedTimeUtc: "desc" }],
+        $limit: 1,
+        use_index: "updatedTimeUtc-type-id-index",
+    }),
+    { live: true, persistOffline: false, cache: false, stripFields: ["fts", "ftsTokenCount", "text", "_rev"] },
+);
+const hasAnyContent = computed(() => (anyContentOfType.value?.length ?? 0) > 0);
+
 const onLoadMore = () => {
     if (searchActive.value) {
         search.loadMore();
@@ -197,7 +217,7 @@ const createNew = () => {
     >
         <template #topBarActionsDesktop>
             <LButton
-                v-if="canCreateNew && !isSmallScreen"
+                v-if="canCreateNew && hasAnyContent && !isSmallScreen"
                 variant="primary"
                 :icon="PlusIcon"
                 :is="RouterLink"
@@ -216,13 +236,13 @@ const createNew = () => {
         </template>
         <template #topBarActionsMobile>
             <PlusIcon
-                v-if="canCreateNew && isSmallScreen"
+                v-if="canCreateNew && hasAnyContent && isSmallScreen"
                 class="h-8 w-8 cursor-pointer rounded bg-zinc-100 p-1 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-700"
                 @click="createNew"
             />
         </template>
 
-        <template #internalPageHeader>
+        <template v-if="hasAnyContent" #internalPageHeader>
             <FilterOptions
                 :docType="props.docType"
                 :tagOrPostType="props.tagOrPostType"
@@ -271,7 +291,27 @@ const createNew = () => {
             />
 
             <EmptyState
-                v-if="!isLoading && contentDocs.length === 0"
+                v-if="!isLoading && !hasAnyContent"
+                :title="`No ${props.tagOrPostType}s yet`"
+                :description="`Get started by creating your first ${props.docType}.`"
+                :button-text="canCreateNew ? `Create ${props.docType}` : undefined"
+                :button-link="
+                    canCreateNew
+                        ? {
+                              name: 'edit',
+                              params: {
+                                  docType: docType,
+                                  tagOrPostType: tagOrPostType,
+                                  id: 'new',
+                              },
+                          }
+                        : undefined
+                "
+                :button-permission="canCreateNew"
+            />
+
+            <EmptyState
+                v-else-if="!isLoading && contentDocs.length === 0"
                 title="No content found"
                 description="No content found with the matched filter."
             />

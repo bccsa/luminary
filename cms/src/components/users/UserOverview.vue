@@ -137,6 +137,8 @@ const { sentinel: searchSentinel } = useInfiniteScrollLoadMore({
 const displayedUsers = computed<UserDto[]>(() =>
     searchActive.value ? (search.docs.value as UserDto[]) : visibleUsers.value,
 );
+
+const hasAnyContent = computed(() => (users.value?.length ?? 0) > 0);
 </script>
 
 <template>
@@ -148,7 +150,7 @@ const displayedUsers = computed<UserDto[]>(() =>
     >
         <template #topBarActionsDesktop>
             <LButton
-                v-if="canCreateNew && isConnected && !isSmallScreen"
+                v-if="canCreateNew && isConnected && hasAnyContent && !isSmallScreen"
                 variant="primary"
                 :icon="PlusIcon"
                 @click="openCreateUserModal"
@@ -159,12 +161,12 @@ const displayedUsers = computed<UserDto[]>(() =>
         </template>
         <template #topBarActionsMobile>
             <PlusIcon
-                v-if="canCreateNew && isConnected && isSmallScreen"
+                v-if="canCreateNew && isConnected && hasAnyContent && isSmallScreen"
                 class="h-8 w-8 cursor-pointer rounded bg-zinc-100 p-1 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-700"
                 @click="openCreateUserModal"
             />
         </template>
-        <template #internalPageHeader>
+        <template v-if="hasAnyContent" #internalPageHeader>
             <UserFilterOptions
                 :is-small-screen="isSmallScreen"
                 :groups="groups"
@@ -172,7 +174,7 @@ const displayedUsers = computed<UserDto[]>(() =>
             />
         </template>
         <div class="mt-1 flex flex-col gap-[3px]">
-            <p class="mb-2 px-2 py-1 text-zinc-500">
+            <p v-if="hasAnyContent" class="mb-2 px-2 py-1 text-zinc-500">
                 Users only need to be created when they require special permissions that are not
                 already automatically granted. It's possible to add multiple user objects with the
                 same email address. This allows different administrators to independently assign
@@ -194,7 +196,20 @@ const displayedUsers = computed<UserDto[]>(() =>
             />
 
             <EmptyState
-                v-if="!searchActive && searchIsLoading && displayedUsers.length === 0"
+                v-if="!isFetching && !hasAnyContent"
+                title="No users yet"
+                description="Create a user when someone needs special permissions beyond what is granted automatically."
+                :button-text="canCreateNew && isConnected ? 'Create user' : undefined"
+                :button-action="canCreateNew && isConnected ? openCreateUserModal : undefined"
+                :button-permission="canCreateNew && isConnected"
+            />
+
+            <EmptyState
+                v-else-if="
+                    hasAnyContent &&
+                    !displayedUsers.length &&
+                    !(searchActive ? searchIsLoading : browseLoading)
+                "
                 title="No users found"
                 description="No users match your search criteria."
             />

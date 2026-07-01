@@ -22,6 +22,7 @@ import ConfirmBeforeLeavingModal from "../modals/ConfirmBeforeLeavingModal.vue";
 import { type GroupOverviewQueryOptions } from "./GroupOverview/types";
 import { MapIcon, ListBulletIcon } from "@heroicons/vue/24/outline";
 import GroupGraph from "./GroupGraph/GroupGraph.vue";
+import EmptyState from "@/components/EmptyState.vue";
 
 const { output: groupsSource, isFetching } = useHybridQueryWithState<GroupDto>(
     () => ({
@@ -186,6 +187,8 @@ const handleGraphSelect = (groupId: string) => {
     newGroupId.value = groupId;
     showModal.value = true;
 };
+
+const hasAnyContent = computed(() => editable.value.length > 0);
 </script>
 
 <template>
@@ -202,7 +205,7 @@ const handleGraphSelect = (groupId: string) => {
         </template>
         <template #topBarActionsDesktop>
             <LButton
-                v-if="canCreateGroup && !isSmallScreen"
+                v-if="canCreateGroup && hasAnyContent && !isSmallScreen"
                 variant="primary"
                 :icon="PlusIcon"
                 @click="createGroup"
@@ -213,14 +216,14 @@ const handleGraphSelect = (groupId: string) => {
         </template>
         <template #topBarActionsMobile>
             <PlusIcon
-                v-if="canCreateGroup && isSmallScreen"
+                v-if="canCreateGroup && hasAnyContent && isSmallScreen"
                 class="h-8 w-8 cursor-pointer rounded bg-zinc-100 p-1 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-700"
                 @click="createGroup"
                 data-test="createGroupButton"
             />
         </template>
 
-        <template v-if="currentTab === 'overview'" #internalPageHeader>
+        <template v-if="currentTab === 'overview' && hasAnyContent" #internalPageHeader>
             <GroupFilterOptions
                 :groups="editable"
                 :reset="resetQueryOptions"
@@ -230,7 +233,7 @@ const handleGraphSelect = (groupId: string) => {
         </template>
 
         <div v-show="currentTab === 'overview'" class="mt-1 flex flex-col gap-[3px]">
-            <p class="mb-2 text-sm text-zinc-500">
+            <p v-if="hasAnyContent" class="mb-2 text-sm text-zinc-500">
                 <span>
                     Configure access permissions for the groups listed below to control who can
                     access them and their member documents.
@@ -240,6 +243,22 @@ const handleGraphSelect = (groupId: string) => {
                     potentially granting broader access than explicitly configured here.
                 </span>
             </p>
+
+            <EmptyState
+                v-if="!isFetching && !hasAnyContent"
+                title="No groups yet"
+                description="Create a group to configure access permissions for your content."
+                :button-text="canCreateGroup ? 'Create group' : undefined"
+                :button-action="canCreateGroup ? createGroup : undefined"
+                :button-permission="canCreateGroup"
+                data-test="createGroupButton"
+            />
+
+            <EmptyState
+                v-else-if="hasAnyContent && filteredGroups.length === 0"
+                title="No groups found"
+                description="No groups match your search criteria."
+            />
 
             <GroupDisplayCard
                 v-for="group in filteredGroups"
