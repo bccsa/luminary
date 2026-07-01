@@ -1,7 +1,6 @@
-// @vitest-environment node
 import { describe, it, expect } from "vitest";
 import type { ContentDto } from "luminary-shared";
-import { facetsFromDoc, facetsFromSelector, docKey } from "./facetKeys";
+import { facetsFromDoc, facetsFromSelector, docKey, keysForRecategorization } from "./facetKeys";
 
 /**
  * The core invariant of the facet-key system: for any query a page runs and any
@@ -47,6 +46,17 @@ describe("facetKeys — selector ∩ doc", () => {
         expect(d).toContain(docKey("P1"));
     });
 
+    it("recategorization includes both old and new parentTags", () => {
+        const keys = keysForRecategorization(
+            doc({ parentId: "P1", parentTags: ["news"] }),
+            doc({ parentId: "P1", parentTags: ["sports"] }),
+        );
+
+        expect(keys).toContain(docKey("P1"));
+        expect(keys).toContain(`facet:parentTags:news:${L}`);
+        expect(keys).toContain(`facet:parentTags:sports:${L}`);
+    });
+
     it("is language-scoped: an English page is NOT invalidated by a French doc change", () => {
         const sel = facetsFromSelector({ $and: [{ parentId: { $in: ["P1"] } }] }, "lang-eng");
         const frDoc = facetsFromDoc(doc({ parentId: "P1", language: "lang-fra" }));
@@ -58,6 +68,8 @@ describe("facetKeys — selector ∩ doc", () => {
 
     it("negative / range filters emit no facet ($ne, $exists)", () => {
         expect(facetsFromSelector({ $and: [{ parentPostType: { $ne: "page" } }] }, L)).toEqual([]);
-        expect(facetsFromSelector({ $and: [{ parentTagType: { $exists: false } }] }, L)).toEqual([]);
+        expect(facetsFromSelector({ $and: [{ parentTagType: { $exists: false } }] }, L)).toEqual(
+            [],
+        );
     });
 });
