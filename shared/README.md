@@ -79,7 +79,6 @@ The preferred way to read data. Pick the layer by where the data lives:
 | **`useDexieLiveQuery` / `useDexieLiveQueryWithDeps`** | Vue 3 wrapper around Dexie's `liveQuery` — the preferred primitive for reading directly from IndexedDB. → [useDexieLiveQuery docs](src/util/useDexieLiveQuery/README.md) |
 | **`mangoCompile` / `mangoToDexie`** | Mango-selector helpers: compile a selector to an in-memory predicate, or run a Mango query against a Dexie table with index pushdown. Plus `isProvablyEmpty`, `warmMangoCaches` (and the per-cache `clearMangoCache` / `getMangoCacheStats` / `clearDexieCache` / `getDexieCacheStats` management helpers). New to the selector syntax? Start with the [MangoQuery guide](src/util/MangoQuery/guide.md); reference docs: [MangoQuery docs](src/util/MangoQuery/README.md). |
 | **`toEditable`** | Clone a source ref into an editable copy that tracks user vs. source modifications so external updates don't clobber in-progress edits. (`createEditable` is a deprecated alias.) → [toEditable docs](src/util/toEditable/README.md) |
-| `useDexieLiveQueryAsEditable` *(deprecated)* | `useDexieLiveQuery` + `toEditable` in one. |
 
 ### Database (IndexedDB / Dexie) — `src/db/`
 

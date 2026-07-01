@@ -141,9 +141,8 @@ const { editable } = toEditable(source, {
   unedited items, but the editable copy is the source of truth until you save.
 - **Throws on a bad source.** `source` must be a defined `Ref` whose `.value` is
   an array; otherwise the call throws.
-- **Deprecated wrapper.** `useDexieLiveQueryAsEditable` bundles a live query with
-  `toEditable` and its own `save()`; it is deprecated. In new code, pair
-  `toEditable` directly with a query (see
+- **Pair with a query directly.** To combine editing with a live read, pair
+  `toEditable` with a query (see
   [useDexieLiveQuery](../useDexieLiveQuery/README.md) and
   [HybridQuery](../HybridQuery/README.md)) and use the built-in `save`.
 - **`createEditable` is deprecated.** It is a forwarding alias for `toEditable`

@@ -18,9 +18,9 @@ queries** so the direct reference-list reads can also share one subscription. On
 `globalConfig` — and every direct `useHybridQuery(() => ({ selector: { type } }))` reference-list read
 — can drop to a single safe, shared pattern. **Blocked:** `shared/` is the senior's right now.
 
-### Migrate the deprecated as-editable wrappers onto `toEditable.save`
+### Migrate the deprecated as-editable wrapper onto `toEditable.save`
 
-`useDexieLiveQueryAsEditable.save(id)` and `ApiLiveQueryAsEditable.save(id)` still hand-roll
+`ApiLiveQueryAsEditable.save(id)` still hand-rolls
 `db.upsert`/`getRest().changeRequest` + `updateShadow` instead of delegating to `toEditable.save`.
 Confirm `toEditable.save` covers the API path + the `LFormData` upload-data branch before swapping.
 Keep the save path doc-type-agnostic (no Content/Post/Tag specifics).

@@ -83,7 +83,6 @@ const limitedTodos = useDexieLiveQueryWithDeps(
   forever; never call this from a plain function invoked repeatedly (e.g.
   per-row/per-render helpers, or a `computed` getter re-evaluated outside the
   original scope), since each call leaks one more permanently-live subscription.
-- **Editable variant.** `useDexieLiveQueryAsEditable` wraps the result with
-  [`toEditable`](../toEditable/README.md) so the UI can edit a copy and diff against the
-  source. It is **deprecated** — prefer `useDexieLiveQuery` + `toEditable`
-  explicitly, or [`useHybridQuery`](../HybridQuery/README.md) for local-first reads.
+- **Editable reads.** To edit a copy and diff against the source, pair this with
+  [`toEditable`](../toEditable/README.md), or use
+  [`useHybridQuery`](../HybridQuery/README.md) for local-first reads.
