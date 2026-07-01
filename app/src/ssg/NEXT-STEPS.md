@@ -150,15 +150,14 @@ not-found `queryRemote` probe). We add a **static** layer for crawlers / JS-off.
 
 **Done & working:** prerender of content + `/explore` + `/watch`; no-flash hydration via
 shared's response cache; i18n SSR; lang-scoped facet-key manifest; scoped `build:affected`;
-polling ISR watcher (verified end-to-end on staging); OOM root-caused (seed 105KB→39KB).
+polling ISR watcher (verified end-to-end on staging); recategorization old-facet coverage
+via `ssg-doc-facets.json`; OOM root-caused (seed 105KB→39KB).
 
 **This pass adds:** CLS delay (1), empty-section gating (2), per-language statics (3),
 static redirects (4), and app-side content DeleteCmd handling.
 
 **Still open after this pass:**
 
-- **Recategorization old-facet coverage** relies on the periodic full `build:web` (no
-  prev-doc state in the watcher).
 - **Full `build:web` to completion** across all ~1934 routes on a production-sized dataset
   (the OOM fix's final confirmation) — user-run.
 - **CDN cache-eviction hook** (Cloudflare/Wrangler) — lives in the deploy repo.
