@@ -16,7 +16,6 @@ import LInput from "../forms/LInput.vue";
 import LCombobox from "../forms/LCombobox.vue";
 import LModal from "../modals/LModal.vue";
 import LTag from "../content/LTag.vue";
-import LoadingBar from "@/components/LoadingBar.vue";
 import EmptyState from "@/components/EmptyState.vue";
 import { isSmallScreen } from "@/globalConfig";
 import { useAuthProviders } from "@/composables/useAuthProviders";
@@ -104,6 +103,7 @@ defineExpose({
         title="Auth providers overview"
         :should-show-page-title="false"
         :onOpenMobileSidebar="onOpenMobileSidebar"
+        :loading="authProviders.isLoadingProviders"
     >
         <template #topBarActionsDesktop>
             <LButton
@@ -224,20 +224,14 @@ defineExpose({
         </template>
 
         <div class="mt-1 flex flex-col gap-[3px]">
-            <div
-                v-if="authProviders.isLoadingProviders && !authProviders.providers.length"
-                class="flex items-center justify-center py-12"
-            >
-                <LoadingBar />
-            </div>
-
             <EmptyState
-                v-else-if="!hasAnyContent"
+                v-if="!hasAnyContent"
                 title="No auth provider configured"
                 description="Get started by creating your first OIDC auth provider."
                 :button-text="authProviders.canEdit ? 'Create provider' : undefined"
                 :button-action="authProviders.canEdit ? authProviders.openCreateModal : undefined"
                 :button-permission="authProviders.canEdit"
+                show-back-button
             />
 
             <EmptyState

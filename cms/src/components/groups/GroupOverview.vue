@@ -252,6 +252,7 @@ const hasAnyContent = computed(() => editable.value.length > 0);
                 :button-action="canCreateGroup ? createGroup : undefined"
                 :button-permission="canCreateGroup"
                 data-test="createGroupButton"
+                show-back-button
             />
 
             <EmptyState

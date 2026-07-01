@@ -135,7 +135,7 @@ const isLoading = computed(() =>
 );
 const hasMore = computed(() => (searchActive.value ? search.hasMore.value : browse.hasMore.value));
 
-const { output: anyContentOfType } = useHybridQueryWithState<ContentDto>(
+const { output: anyContentOfType, isFetching: isCheckingForContent } = useHybridQueryWithState<ContentDto>(
     () => ({
         selector: {
             $and: [
@@ -214,6 +214,7 @@ const createNew = () => {
         :is-full-width="true"
         :title="`${capitaliseFirstLetter(props.tagOrPostType)} overview`"
         :should-show-page-title="false"
+        :loading="isCheckingForContent"
     >
         <template #topBarActionsDesktop>
             <LButton
@@ -308,6 +309,7 @@ const createNew = () => {
                         : undefined
                 "
                 :button-permission="canCreateNew"
+                show-back-button
             />
 
             <EmptyState

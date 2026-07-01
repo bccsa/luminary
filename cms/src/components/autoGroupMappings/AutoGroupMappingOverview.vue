@@ -352,6 +352,7 @@ const hasAnyContent = computed(() => autoGroupMappings.mappings.length > 0);
             :button-text="autoGroupMappings.canEdit ? 'Create mapping' : undefined"
             :button-action="autoGroupMappings.canEdit ? openCreate : undefined"
             :button-permission="autoGroupMappings.canEdit"
+            show-back-button
         />
 
         <EmptyState

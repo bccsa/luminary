@@ -202,6 +202,7 @@ const hasAnyContent = computed(() => (users.value?.length ?? 0) > 0);
                 :button-text="canCreateNew && isConnected ? 'Create user' : undefined"
                 :button-action="canCreateNew && isConnected ? openCreateUserModal : undefined"
                 :button-permission="canCreateNew && isConnected"
+                show-back-button
             />
 
             <EmptyState

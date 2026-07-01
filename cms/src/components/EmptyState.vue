@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { PlusIcon } from "@heroicons/vue/20/solid";
-import { DocumentPlusIcon } from "@heroicons/vue/24/outline";
+import { ArrowLeftIcon, DocumentPlusIcon } from "@heroicons/vue/24/outline";
 import type { Component } from "vue";
 import LButton from "@/components/button/LButton.vue";
 import { RouterLink, type RouteLocationRaw } from "vue-router";
+import { useGoBackOrHome } from "@/composables/useGoBackOrHome";
 
 withDefaults(
     defineProps<{
@@ -14,11 +15,15 @@ withDefaults(
         buttonAction?: Function;
         buttonLink?: RouteLocationRaw;
         buttonPermission?: boolean;
+        showBackButton?: boolean;
     }>(),
     {
         buttonPermission: true,
+        showBackButton: false,
     },
 );
+
+const goBackOrHome = useGoBackOrHome();
 </script>
 
 <template>
@@ -30,7 +35,16 @@ withDefaults(
         />
         <h3 class="mt-2 text-sm font-semibold text-zinc-900">{{ title }}</h3>
         <p class="mt-1 text-sm text-zinc-500">{{ description }}</p>
-        <div class="mt-6">
+        <div class="mt-6 flex flex-wrap items-center justify-center gap-3">
+            <LButton
+                v-if="showBackButton"
+                variant="secondary"
+                size="lg"
+                :icon="ArrowLeftIcon"
+                @click="goBackOrHome"
+            >
+                Go back
+            </LButton>
             <LButton
                 v-if="buttonText && (buttonAction || buttonLink) && buttonPermission"
                 @click="buttonAction ? buttonAction() : ''"

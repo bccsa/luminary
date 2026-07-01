@@ -150,6 +150,7 @@ const hasAnyContent = computed(() => (redirects.value?.length ?? 0) > 0);
                 :button-text="canCreateNew ? 'Create redirect' : undefined"
                 :button-action="canCreateNew ? () => (isCreateOrEditModalVisible = true) : undefined"
                 :button-permission="canCreateNew"
+                show-back-button
             />
 
             <EmptyState

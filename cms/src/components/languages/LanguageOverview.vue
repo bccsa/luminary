@@ -69,6 +69,7 @@ const createNew = () => {
                 :button-action="canCreateNew ? createNew : undefined"
                 :button-permission="canCreateNew"
                 name="createLanguageBtn"
+                show-back-button
             />
             <LanguageDisplayCard
                 v-for="language in languages"
