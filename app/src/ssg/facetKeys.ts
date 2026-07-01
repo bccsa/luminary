@@ -38,7 +38,10 @@ export const docKey = (parentId: string): DependencyKey => `doc:${parentId}`;
 const facetKey = (field: string, value: unknown, lang: string): DependencyKey =>
     `facet:${field}:${value}:${lang}`;
 
-type DocLike = Pick<ContentDto, "_id" | "parentId" | "parentTags" | "parentPinned" | "language">;
+export type DocLike = Pick<
+    ContentDto,
+    "_id" | "parentId" | "parentTags" | "parentPinned" | "language"
+>;
 
 /**
  * Keys a single content doc participates in (watcher side; also `keysForChangedDoc`).

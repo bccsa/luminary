@@ -6,6 +6,7 @@ import type { ViteSSGOptions } from "vite-ssg";
 import type { RouteRecordRaw } from "vue-router";
 import vue from "@vitejs/plugin-vue";
 import { buildTargetVirtuals } from "./vite-plugins/buildTargetVirtuals";
+import type { DocLike } from "./src/ssg/facetKeys";
 import { redirectFile, redirectHtml } from "./src/ssg/redirectHtml";
 import { buildRouteIndex, type SsgRouteIndex } from "./src/ssg/routeIndex";
 
@@ -72,7 +73,7 @@ const OUT_DIR = "dist-web";
 const WEB_ORIGIN = (env.VITE_WEB_ORIGIN || "").replace(/\/$/, "");
 type SsgLanguage = { _id?: string; languageCode?: string; default?: number };
 type SsgRedirect = { slug?: string; toSlug?: string; deleteReq?: number };
-type SsgContent = { _id?: string; parentId?: string; slug?: string; language?: string };
+type SsgContent = Partial<DocLike> & { slug?: string };
 
 // Scoped (incremental) rebuild mode: regenerate only the routes named in
 // SSG_ONLY_ROUTES (comma-separated), preserving every other prerendered file.
@@ -86,6 +87,7 @@ const IS_SCOPED = SCOPED_ROUTES.length > 0;
 const indexHtmlPath = () => join(process.cwd(), OUT_DIR, "index.html");
 const manifestPath = () => join(process.cwd(), OUT_DIR, "ssg-deps.json");
 const routeIndexPath = () => join(process.cwd(), OUT_DIR, "ssg-route-index.json");
+const docFacetsPath = () => join(process.cwd(), OUT_DIR, "ssg-doc-facets.json");
 
 // Build-in-progress lock, consumed by the ISR watcher (`src/ssg/watch.ts`): it must
 // not spawn a scoped rebuild while a build (the initial full `build:web`, or its own
@@ -129,6 +131,7 @@ function writeManifest() {
 // Captured during route enumeration so onFinished can emit sitemap.xml/robots.txt.
 let prerenderedRoutes: string[] = [];
 let routeIndex: SsgRouteIndex = { content: {}, parent: {} };
+let docFacets: Record<string, DocLike> = {};
 
 function writeSeoArtifacts() {
     const urls = prerenderedRoutes
@@ -152,6 +155,33 @@ function writeRouteIndex() {
     console.log(
         `[ssg] wrote ssg-route-index.json (${Object.keys(routeIndex.content).length} docs)`,
     );
+}
+
+function writeDocFacets() {
+    let merged = docFacets;
+    if (IS_SCOPED && existsSync(docFacetsPath())) {
+        const existing = JSON.parse(readFileSync(docFacetsPath(), "utf-8")) as Record<
+            string,
+            DocLike
+        >;
+        merged = { ...existing, ...docFacets };
+    }
+    writeFileSync(docFacetsPath(), JSON.stringify(merged));
+    console.log(
+        `[ssg] wrote ssg-doc-facets.json (${Object.keys(merged).length} docs` +
+            `${IS_SCOPED ? `, merged ${Object.keys(docFacets).length} enumerated` : ""})`,
+    );
+}
+
+function docFacetSnapshot(doc: SsgContent): DocLike | undefined {
+    if (!doc._id) return undefined;
+    return {
+        _id: doc._id,
+        parentId: doc.parentId ?? doc._id,
+        parentTags: doc.parentTags ?? [],
+        parentPinned: doc.parentPinned,
+        language: doc.language ?? "",
+    };
 }
 
 function localizedStaticPaths(staticRoutes: string[], langCodes: string[], defaultCode: string) {
@@ -224,7 +254,10 @@ async function fetchPublicSlugs(apiUrl: string): Promise<string[]> {
     const routeLang: Record<string, string> = {};
     const slugs = new Set<string>();
     routeIndex = buildRouteIndex(docs);
+    docFacets = {};
     for (const d of docs) {
+        const snapshot = docFacetSnapshot(d);
+        if (snapshot) docFacets[snapshot._id] = snapshot;
         if (!d.slug) continue;
         slugs.add(d.slug);
         if (d.language) routeLang[`/${d.slug}`] = d.language;
@@ -394,6 +427,7 @@ const config: UserConfig & { ssgOptions: ViteSSGOptions } = {
                 }
                 writeManifest();
                 writeRouteIndex();
+                writeDocFacets();
                 // Sitemap/robots reflect the full route set — only (re)write on a full build.
                 if (!IS_SCOPED) {
                     await writeRedirectFiles(env.VITE_API_URL);

@@ -4,6 +4,7 @@
         "vite-plugins/**/*.ts",
         "vite.config.*",
         "vitest.config.*",
+        "src/ssg/facetKeys.ts",
         "src/ssg/redirectHtml.ts",
         "src/ssg/routeIndex.ts",
         "cypress.config.*",

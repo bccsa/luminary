@@ -5,8 +5,8 @@
  * Reuses the SAME mechanism the prerender uses: the anonymous `POST /query`
  * (`queryRemote`) that `build:web`/`useContentQuery` fetch public content with. Every
  * `WATCH_POLL_MS` it asks for content/redirect/delete docs whose `updatedTimeUtc` is
- * newer than the last one seen. Content changes go through `keysForChangedDoc` →
- * `computeAffected(keys, manifest)` → a debounced, lock-serialized `build:affected`.
+ * newer than the last one seen. Content changes go through previous/new facet snapshots
+ * → `computeAffected(keys, manifest)` → a debounced, lock-serialized `build:affected`.
  * Redirect changes write/remove their meta-refresh file directly. DeleteCmds prune
  * deleted content route files + manifest entries, then regenerate surviving co-listed
  * pages via `doc:<parentId>`.
@@ -35,7 +35,7 @@ import {
     type RedirectDto,
 } from "luminary-shared";
 import { computeAffected, type DepsManifest } from "./computeAffected";
-import { docKey, keysForChangedDoc } from "./facetKeys";
+import { docKey, keysForChangedDoc, keysForRecategorization, type DocLike } from "./facetKeys";
 import { redirectFile, redirectHtml } from "./redirectHtml";
 import { emptyRouteIndex, resolveContentDelete, type SsgRouteIndex } from "./routeIndex";
 
@@ -44,6 +44,7 @@ const apiUrl = loadEnv("", process.cwd()).VITE_API_URL;
 const OUT_DIR = join(process.cwd(), "dist-web");
 const MANIFEST = join(OUT_DIR, "ssg-deps.json");
 const ROUTE_INDEX = join(OUT_DIR, "ssg-route-index.json");
+const DOC_FACETS = join(OUT_DIR, "ssg-doc-facets.json");
 const LOCK = join(OUT_DIR, ".ssg-building"); // written by the build, cleared on finish
 const POLL_MS = Number(process.env.WATCH_POLL_MS) || 10000;
 const DEBOUNCE_MS = Number(process.env.WATCH_DEBOUNCE_MS) || 4000;
@@ -58,6 +59,7 @@ const pendingRedirects = new Map<string, string | undefined>();
 const pendingDeletes = new Set<string>();
 let building = false; // a build:affected WE spawned is in flight
 let flushTimer: ReturnType<typeof setTimeout> | undefined;
+let docFacets: Record<string, DocLike> = {};
 
 function loadManifest(): DepsManifest {
     try {
@@ -83,8 +85,39 @@ function saveRouteIndex(index: SsgRouteIndex): void {
     writeFileSync(ROUTE_INDEX, JSON.stringify(index));
 }
 
+function loadDocFacets(): Record<string, DocLike> {
+    try {
+        return JSON.parse(readFileSync(DOC_FACETS, "utf-8")) as Record<string, DocLike>;
+    } catch {
+        return {};
+    }
+}
+
+function saveDocFacets(facets: Record<string, DocLike>): void {
+    try {
+        mkdirSync(OUT_DIR, { recursive: true });
+        writeFileSync(DOC_FACETS, JSON.stringify(facets));
+    } catch (e) {
+        console.warn("[watch] could not save ssg-doc-facets.json:", (e as Error)?.message ?? e);
+    }
+}
+
+function docFacetSnapshot(doc: ContentDto): DocLike {
+    return {
+        _id: doc._id,
+        parentId: doc.parentId,
+        parentTags: doc.parentTags ?? [],
+        parentPinned: doc.parentPinned,
+        language: doc.language,
+    };
+}
+
 function ingest(doc: ContentDto): void {
-    for (const k of keysForChangedDoc(doc)) pendingKeys.add(k);
+    const snapshot = docFacetSnapshot(doc);
+    const prev = docFacets[doc._id];
+    const keys = prev ? keysForRecategorization(prev, snapshot) : keysForChangedDoc(snapshot);
+    for (const k of keys) pendingKeys.add(k);
+    docFacets[doc._id] = snapshot;
     if (doc.slug) pendingSlugs.add(`/${doc.slug}`);
 }
 
@@ -240,6 +273,7 @@ async function poll(): Promise<void> {
             `[watch] ${contentDocs.length} content doc(s), ${redirects.length} redirect doc(s), ${deletes.length} delete cmd(s) changed since last poll`,
         );
         contentDocs.forEach(ingest);
+        if (contentDocs.length) saveDocFacets(docFacets);
         redirects.forEach(ingestRedirect);
         deletes.forEach(ingestDelete);
         schedule();
@@ -251,6 +285,7 @@ async function poll(): Promise<void> {
 async function main(): Promise<void> {
     if (!apiUrl) throw new Error("[watch] VITE_API_URL not set");
     initHybridQuery(new HttpReq(apiUrl));
+    docFacets = loadDocFacets();
     console.log(
         `[watch] polling ${apiUrl} every ${POLL_MS}ms for content/redirect/delete changes ` +
             `(since ${new Date(lastSeen).toISOString()})…`,
