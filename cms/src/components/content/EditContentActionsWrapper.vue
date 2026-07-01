@@ -113,7 +113,7 @@ const segmentedButtonMobile = ref<{ rootEl: HTMLElement | null } | null>(null);
         </LButton>
     </div>
     <!-- DESKTOP -->
-    <div v-else class="hidden items-center gap-1 pr-3 lg:flex">
+    <div v-else class="hidden items-center gap-1 lg:flex">
         <div v-if="isLocalChange" class="hidden h-9 items-center gap-2 lg:flex">
             <LBadge class="h-full" variant="warning">Offline changes</LBadge>
         </div>

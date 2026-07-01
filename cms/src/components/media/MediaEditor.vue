@@ -415,7 +415,7 @@ defineExpose({
             />
             <p
                 v-if="fileTypeDescription && parent?.mediaBucketId"
-                class="mt-1 text-xs text-gray-500"
+                class="mt-1 text-xs text-zinc-500"
             >
                 {{ fileTypeDescription }}
             </p>
@@ -524,7 +524,7 @@ defineExpose({
 
             <!-- No media fallback -->
             <div v-else class="my-4 text-center italic">
-                <p class="text-sm text-gray-500">No audio files uploaded yet.</p>
+                <p class="text-sm text-zinc-500">No audio files uploaded yet.</p>
             </div>
         </div>
 
@@ -541,21 +541,21 @@ defineExpose({
             <div class="mt-4">
                 <label
                     for="language-select"
-                    class="mb-2 mt-1 block text-sm font-medium text-gray-700"
+                    class="mb-2 mt-1 block text-sm font-medium text-zinc-700"
                 >
                     Choose which language this audio file belongs to:
                 </label>
                 <select
                     id="language-select"
                     v-model="selectedLanguageForUpload"
-                    class="block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                    class="block w-full rounded-md border border-zinc-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
                 >
                     <option v-for="lang in availableLanguages" :key="lang._id" :value="lang._id">
                         {{ lang.name }}
                         <span v-if="languageHasAudio(lang._id)"> (has audio)</span>
                     </option>
                 </select>
-                <p class="mt-2 text-xs text-gray-500">
+                <p class="mt-2 text-xs text-zinc-500">
                     Select a language for this audio file. If a language already has audio, it will
                     be replaced.
                 </p>
@@ -573,11 +573,11 @@ defineExpose({
             context="danger"
         >
             <div class="mt-4">
-                <p class="text-sm text-gray-700">
+                <p class="text-sm text-zinc-700">
                     The selected language already has an audio file. Uploading this new file will
                     replace the existing audio.
                 </p>
-                <p class="mt-3 text-sm font-medium text-gray-900">
+                <p class="mt-3 text-sm font-medium text-zinc-900">
                     Do you want to continue and replace the existing audio?
                 </p>
             </div>

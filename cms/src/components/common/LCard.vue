@@ -69,7 +69,8 @@ function collapse() {
             v-if="title || icon"
             data-test="card-header"
             :class="[
-                'flex items-center justify-between gap-4 px-2 sm:px-2',
+                'flex items-center justify-between gap-4',
+                bare ? 'px-0' : 'px-2 sm:px-2',
                 // Tighter header when nested as a bare section so it doesn't read as dead
                 // space below the divider / above the first field.
                 bare ? 'py-1.5' : 'py-3',
@@ -77,9 +78,9 @@ function collapse() {
             ]"
             @click="collapse"
         >
-            <div class="flex items-center gap-2">
-                <component v-if="icon" :is="icon" class="h-4 w-4 text-zinc-600" />
-                <h3 class="text-sm font-semibold leading-6 text-zinc-900">{{ title }}</h3>
+            <div class="flex items-center gap-1">
+                <component v-if="icon" :is="icon" class="h-5 w-5 text-zinc-400" />
+                <h3 class="text-sm font-medium leading-6 text-zinc-900">{{ title }}</h3>
             </div>
 
             <!-- Stop clicks on actions/chevron from bubbling to the header toggle: action buttons
@@ -110,16 +111,18 @@ function collapse() {
         >
             <div
                 :class="[
-                    {
-                        'px-2 py-1.5 sm:px-1': padding == 'normal',
-                        'pt-2': padding == 'none' && title,
-                    },
+                    bare && padding == 'normal'
+                        ? 'px-0 py-1.5'
+                        : padding == 'normal'
+                          ? 'px-2 py-1.5'
+                          : '',
+                    padding == 'none' && title ? (bare ? 'px-0 pt-2' : 'pt-2') : '',
                     fillHeight ? 'lg:min-h-0 lg:flex-1 lg:overflow-y-auto' : '',
                 ]"
             >
                 <slot />
             </div>
-            <div v-if="$slots.footer" class="bg-zinc-50 px-4 py-3 sm:px-2">
+            <div v-if="$slots.footer" class="bg-zinc-50 px-2 py-3">
                 <slot name="footer" />
             </div>
         </div>

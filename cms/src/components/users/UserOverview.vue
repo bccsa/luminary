@@ -5,7 +5,7 @@ import CreateOrEditUser from "@/components/users/CreateOrEditUser.vue";
 import UserFilterOptions, {
     type UserOverviewQueryOptions,
 } from "@/components/users/UserFilterOptions.vue";
-import { PlusIcon, ExclamationTriangleIcon } from "@heroicons/vue/24/outline";
+import { PlusIcon } from "@heroicons/vue/24/outline";
 import {
     AclPermission,
     db,
@@ -22,6 +22,7 @@ import { computed, ref, watch } from "vue";
 import LButton from "../button/LButton.vue";
 import LoadingBar from "../LoadingBar.vue";
 import FtsStaleResultsBanner from "@/components/common/FtsStaleResultsBanner.vue";
+import EmptyState from "@/components/EmptyState.vue";
 import { isSmallScreen } from "@/globalConfig";
 import {
     useInfiniteScrollList,
@@ -145,23 +146,23 @@ const displayedUsers = computed<UserDto[]>(() =>
         :is-full-width="true"
         :loading="!searchActive && browseLoading"
     >
-        <template #pageNav>
-            <div class="flex gap-4" v-if="canCreateNew && isConnected">
-                <LButton
-                    v-if="canCreateNew && !isSmallScreen"
-                    variant="primary"
-                    :icon="PlusIcon"
-                    @click="openCreateUserModal"
-                    name="createUserBtn"
-                >
-                    Create user
-                </LButton>
-                <PlusIcon
-                    v-else-if="canCreateNew && isSmallScreen"
-                    class="h-8 w-8 cursor-pointer rounded bg-zinc-100 p-1 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-700"
-                    @click="openCreateUserModal"
-                />
-            </div>
+        <template #topBarActionsDesktop>
+            <LButton
+                v-if="canCreateNew && isConnected && !isSmallScreen"
+                variant="primary"
+                :icon="PlusIcon"
+                @click="openCreateUserModal"
+                name="createUserBtn"
+            >
+                Create user
+            </LButton>
+        </template>
+        <template #topBarActionsMobile>
+            <PlusIcon
+                v-if="canCreateNew && isConnected && isSmallScreen"
+                class="h-8 w-8 cursor-pointer rounded bg-zinc-100 p-1 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-700"
+                @click="openCreateUserModal"
+            />
         </template>
         <template #internalPageHeader>
             <UserFilterOptions
@@ -171,7 +172,7 @@ const displayedUsers = computed<UserDto[]>(() =>
             />
         </template>
         <div class="mt-1 flex flex-col gap-[3px]">
-            <p class="mb-2 px-2 py-1 text-gray-500">
+            <p class="mb-2 px-2 py-1 text-zinc-500">
                 Users only need to be created when they require special permissions that are not
                 already automatically granted. It's possible to add multiple user objects with the
                 same email address. This allows different administrators to independently assign
@@ -192,13 +193,11 @@ const displayedUsers = computed<UserDto[]>(() =>
                 @edit="(id) => (selectedUserId = id)"
             />
 
-            <div
-                v-if="searchActive && !searchIsLoading && displayedUsers.length === 0"
-                class="flex h-32 w-full items-center justify-center gap-2"
-            >
-                <ExclamationTriangleIcon class="h-6 w-6 text-zinc-500" />
-                <p class="text-sm text-zinc-500">No users found.</p>
-            </div>
+            <EmptyState
+                v-if="!searchActive && searchIsLoading && displayedUsers.length === 0"
+                title="No users found"
+                description="No users match your search criteria."
+            />
 
             <!-- Infinite-scroll trigger for the server-paged search results -->
             <div v-if="searchActive" ref="searchSentinel" class="h-px w-full"></div>

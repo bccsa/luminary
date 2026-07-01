@@ -59,8 +59,11 @@ describe("BasePage", () => {
 
     it("keeps content inset by default and can remove it", () => {
         const defaultPage = mount(BasePage);
-        expect(defaultPage.find('[data-test="base-page-scroll-container"]').classes()).toEqual(
-            expect.arrayContaining([expect.stringMatching(/^(sm:ml-4|lg:ml-8)$/)]),
+        expect(defaultPage.find('[data-test="base-page-content"]').classes()).toEqual(
+            expect.arrayContaining([expect.stringMatching(/^(sm:px-4|lg:px-8)$/)]),
+        );
+        expect(defaultPage.find("[data-topbar]").classes()).toEqual(
+            expect.arrayContaining([expect.stringMatching(/^(sm:px-4|lg:px-8)$/)]),
         );
 
         const edgeToEdgePage = mount(BasePage, {
@@ -70,13 +73,11 @@ describe("BasePage", () => {
                 footer: "<span>Footer</span>",
             },
         });
-        const scrollClasses = edgeToEdgePage
-            .find('[data-test="base-page-scroll-container"]')
-            .classes();
-        expect(scrollClasses).not.toContain("lg:ml-8");
-        expect(scrollClasses).not.toContain("sm:ml-4");
-        expect(scrollClasses).not.toContain("lg:pr-8");
-        expect(scrollClasses).not.toContain("sm:pr-4");
+        const contentClasses = edgeToEdgePage.find('[data-test="base-page-content"]').classes();
+        expect(contentClasses).not.toContain("lg:px-8");
+        expect(contentClasses).not.toContain("sm:px-4");
+        expect(contentClasses).not.toContain("lg:ml-8");
+        expect(contentClasses).not.toContain("sm:ml-4");
 
         const actionsHeader = edgeToEdgePage.find("header");
         expect(actionsHeader.classes()).not.toContain("pl-4");
@@ -84,7 +85,20 @@ describe("BasePage", () => {
 
         const footer = edgeToEdgePage.find('[data-test="base-page-footer"]');
         expect(footer.classes()).not.toContain("px-6");
-        expect(footer.classes()).not.toContain("lg:pr-8");
+        expect(footer.classes()).not.toContain("lg:px-8");
+    });
+
+    it("applies content inset to internalPageHeader when contentInset is true", () => {
+        const wrapper = mount(BasePage, {
+            slots: {
+                internalPageHeader: "<div data-test='filter-bar'>Filters</div>",
+            },
+        });
+
+        const filterBar = wrapper.find("[data-test='filter-bar']");
+        expect(filterBar.element.parentElement?.parentElement?.className).toEqual(
+            expect.stringMatching(/(sm:px-4|lg:px-8)/),
+        );
     });
 
     it("renders the back link", async () => {

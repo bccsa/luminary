@@ -63,7 +63,7 @@ function updateTreeColumnCount(event: Event) {
                 :max="TREE_MAX_COLUMNS"
                 step="1"
                 :value="treeColumnCount"
-                class="h-2 w-40 cursor-pointer appearance-none rounded-lg bg-gray-200 accent-gray-700"
+                class="h-2 w-40 cursor-pointer appearance-none rounded-lg bg-zinc-200 accent-zinc-700"
                 @input="updateTreeColumnCount"
             />
         </div>

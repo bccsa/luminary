@@ -24,10 +24,11 @@ import { cmsLanguageIdAsRef, isSmallScreen } from "@/globalConfig";
 import FilterOptions from "./FilterOptions.vue";
 import ContentDisplayCard from "../ContentDisplayCard.vue";
 import LoadingBar from "../../LoadingBar.vue";
-import { PlusIcon, ExclamationTriangleIcon } from "@heroicons/vue/24/outline";
+import { PlusIcon } from "@heroicons/vue/24/outline";
 import { RouterLink } from "vue-router";
 import LButton from "@/components/button/LButton.vue";
 import FtsStaleResultsBanner from "@/components/common/FtsStaleResultsBanner.vue";
+import EmptyState from "@/components/EmptyState.vue";
 
 type Props = {
     docType: DocType.Post | DocType.Tag;
@@ -194,31 +195,31 @@ const createNew = () => {
         :title="`${capitaliseFirstLetter(props.tagOrPostType)} overview`"
         :should-show-page-title="false"
     >
-        <template #pageNav>
-            <div>
-                <LButton
-                    v-if="canCreateNew && !isSmallScreen"
-                    variant="primary"
-                    :icon="PlusIcon"
-                    :is="RouterLink"
-                    :to="{
-                        name: `edit`,
-                        params: {
-                            docType: docType,
-                            tagOrPostType: tagOrPostType,
-                            id: 'new',
-                        },
-                    }"
-                    data-test="create-button"
-                >
-                    Create {{ docType }}
-                </LButton>
-                <PlusIcon
-                    v-else-if="canCreateNew && isSmallScreen"
-                    class="h-8 w-8 cursor-pointer rounded bg-zinc-100 p-1 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-700"
-                    @click="createNew"
-                />
-            </div>
+        <template #topBarActionsDesktop>
+            <LButton
+                v-if="canCreateNew && !isSmallScreen"
+                variant="primary"
+                :icon="PlusIcon"
+                :is="RouterLink"
+                :to="{
+                    name: `edit`,
+                    params: {
+                        docType: docType,
+                        tagOrPostType: tagOrPostType,
+                        id: 'new',
+                    },
+                }"
+                data-test="create-button"
+            >
+                Create {{ docType }}
+            </LButton>
+        </template>
+        <template #topBarActionsMobile>
+            <PlusIcon
+                v-if="canCreateNew && isSmallScreen"
+                class="h-8 w-8 cursor-pointer rounded bg-zinc-100 p-1 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-700"
+                @click="createNew"
+            />
         </template>
 
         <template #internalPageHeader>
@@ -232,9 +233,8 @@ const createNew = () => {
             />
         </template>
 
-        <div v-if="cmsLanguageIdAsRef" class="mt-1">
-            <!-- Search mode indicator with an inline toggle to fuzzy "related" results -->
-            <div v-if="searchActive" class="mb-1 px-1 text-xs text-zinc-500">
+        <div v-if="cmsLanguageIdAsRef" class="mt-1 flex flex-col gap-[3px]">
+            <div v-if="searchActive" class="px-1 text-xs text-zinc-500">
                 {{ showRelated ? "Showing related results" : "Showing exact matches" }}
                 for "{{ (queryOptions.search ?? "").trim() }}".
                 <button
@@ -257,34 +257,30 @@ const createNew = () => {
                 @refresh="search.refresh()"
             />
 
-            <div class="mb-1 flex flex-col gap-[3px]">
-                <ContentDisplayCard
-                    v-for="contentDoc in contentDocs"
-                    data-test="content-row"
-                    :key="contentDoc._id"
-                    :groups="groups.filter((group) => contentDoc.memberOf?.includes(group._id))"
-                    :content-doc="contentDoc as ContentDto"
-                    :parent-type="queryOptions.parentType"
-                    :language-id="queryOptions.languageId"
-                    :languages="languages"
-                    :search-query="searchActive ? queryOptions.search : undefined"
-                    :hide-body-snippet="searchActive && !showRelated"
-                />
+            <ContentDisplayCard
+                v-for="contentDoc in contentDocs"
+                data-test="content-row"
+                :key="contentDoc._id"
+                :groups="groups.filter((group) => contentDoc.memberOf?.includes(group._id))"
+                :content-doc="contentDoc as ContentDto"
+                :parent-type="queryOptions.parentType"
+                :language-id="queryOptions.languageId"
+                :languages="languages"
+                :search-query="searchActive ? queryOptions.search : undefined"
+                :hide-body-snippet="searchActive && !showRelated"
+            />
 
-                <div
-                    class="flex h-32 w-full items-center justify-center gap-2"
-                    v-if="!isLoading && contentDocs.length === 0"
-                >
-                    <ExclamationTriangleIcon class="h-6 w-6 text-zinc-500" />
-                    <p class="text-sm text-zinc-500">No content found with the matched filter.</p>
-                </div>
+            <EmptyState
+                v-if="!isLoading && contentDocs.length === 0"
+                title="No content found"
+                description="No content found with the matched filter."
+            />
 
-                <!-- Infinite-scroll trigger -->
-                <div ref="loadMoreSentinel" class="h-px w-full"></div>
+            <!-- Infinite-scroll trigger -->
+            <div ref="loadMoreSentinel" class="h-px w-full"></div>
 
-                <div class="flex h-16 w-full items-center justify-center" v-if="isLoading">
-                    <LoadingBar />
-                </div>
+            <div class="flex h-16 w-full items-center justify-center" v-if="isLoading">
+                <LoadingBar />
             </div>
         </div>
     </BasePage>

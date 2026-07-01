@@ -387,6 +387,7 @@ const actionsWrapperProps = computed(() => ({
     <BasePage
         :icon="icon"
         :loading="isLoading"
+        :is-full-width="true"
         :backLinkParams="{
             docType: docType,
             tagOrPostType: tagOrPostType,
@@ -459,7 +460,7 @@ const actionsWrapperProps = computed(() => ({
                 class="w-full flex-shrink-0 lg:h-full lg:min-h-0 lg:w-[336px]"
                 v-if="editableParent"
             >
-                <div class="scrollbar-hide lg:h-full lg:min-h-0 lg:overflow-y-auto lg:pb-2 lg:pt-2">
+                <div class="scrollbar-hide px-2 lg:h-full lg:min-h-0 lg:overflow-y-auto lg:pb-2 lg:pt-2">
                     <div class="flex flex-col gap-2 pb-0 lg:pb-4">
                         <EditContentParent
                             v-if="editableParent"
@@ -486,7 +487,7 @@ const actionsWrapperProps = computed(() => ({
                                         />
 
                                         <div
-                                            class="my-2 border-t border-zinc-200"
+                                            class="border-t border-zinc-200 pt-3"
                                             role="separator"
                                             aria-hidden="true"
                                         />
@@ -503,9 +504,9 @@ const actionsWrapperProps = computed(() => ({
 
                                         <!-- light-polish: video sits with media in the
                                              settings card (the two merge later). -->
-                                        <template v-if="lightPolish">
+                                        <template v-if="lightPolish && selectedContent">
                                             <div
-                                                class="my-2 border-t border-zinc-200"
+                                                class="border-t border-zinc-200 pt-3"
                                                 role="separator"
                                                 aria-hidden="true"
                                             />
@@ -545,7 +546,7 @@ const actionsWrapperProps = computed(() => ({
 
                             <template v-if="selectedContent">
                                 <div
-                                    class="my-2 border-t border-zinc-200"
+                                    class="border-t border-zinc-200 pt-3"
                                     role="separator"
                                     aria-hidden="true"
                                 />
@@ -601,7 +602,7 @@ const actionsWrapperProps = computed(() => ({
                 class="flex w-full min-w-0 flex-1 flex-col lg:h-full lg:min-h-0 lg:overflow-hidden"
             >
                 <div
-                    class="flex w-full flex-1 flex-col bg-white lg:min-h-0 lg:overflow-hidden lg:border-l lg:border-zinc-200"
+                    class="flex w-full flex-1 flex-col bg-white lg:min-h-0 lg:overflow-hidden lg:border-l lg:border-zinc-200 lg:pr-8"
                 >
                     <EmptyState
                         v-if="!selectedContent"

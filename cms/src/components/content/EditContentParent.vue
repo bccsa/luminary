@@ -144,9 +144,7 @@ const useVerticalTileLayout = computed({
                         'pb-1.5': collapsed && parentIsValid,
                     }"
                 >
-                    <p>
-                        <ExclamationCircleIcon class="size-[18px] min-w-[18px] text-yellow-400" />
-                    </p>
+                    <ExclamationCircleIcon class="size-[18px] min-w-[18px] shrink-0 text-yellow-400" />
                     <p class="text-xs text-zinc-700">
                         Unsaved changes to {{ tagOrPostType }}'s settings.
                     </p>
@@ -156,13 +154,11 @@ const useVerticalTileLayout = computed({
                         <div
                             v-for="validation in parentValidations.filter((v) => !v.isValid)"
                             :key="validation.id"
-                            class="-mb-[1px] flex items-center gap-1"
+                            class="-mb-[1px] flex items-center gap-2"
                             :class="{ 'pb-1.5': collapsed && !parentIsValid }"
                         >
-                            <div class="flex items-center gap-2">
-                                <XCircleIcon class="size-[18px] min-w-[18px] text-red-400" />
-                                <span class="text-xs text-zinc-700">{{ validation.message }}</span>
-                            </div>
+                            <XCircleIcon class="size-[18px] min-w-[18px] shrink-0 text-red-400" />
+                            <span class="text-xs text-zinc-700">{{ validation.message }}</span>
                         </div>
                     </div>
                 </div>
@@ -190,7 +186,7 @@ const useVerticalTileLayout = computed({
             :language="language"
             :tagType="TagType.Topic"
             label="Topics"
-            class="mb-3"
+            class="mb-0"
             :disabled="disabled"
             :key="language?._id"
         />

@@ -10,7 +10,7 @@ import {
 import BasePage from "../BasePage.vue";
 import RedirectDisplaycard from "./RedirectDisplaycard.vue";
 import { PlusIcon } from "@heroicons/vue/20/solid";
-import { MagnifyingGlassIcon, ExclamationTriangleIcon } from "@heroicons/vue/24/outline";
+import { MagnifyingGlassIcon } from "@heroicons/vue/24/outline";
 import { computed, ref } from "vue";
 import { debouncedWatch } from "@vueuse/core";
 import LButton from "../button/LButton.vue";
@@ -18,6 +18,7 @@ import LInput from "@/components/forms/LInput.vue";
 import LoadingBar from "@/components/LoadingBar.vue";
 import FtsStaleResultsBanner from "@/components/common/FtsStaleResultsBanner.vue";
 import CreateOrEditRedirectModal from "./CreateOrEditRedirectModal.vue";
+import EmptyState from "@/components/EmptyState.vue";
 import { isSmallScreen } from "@/globalConfig";
 import {
     useInfiniteScrollList,
@@ -87,30 +88,30 @@ const displayedRedirects = computed<RedirectDto[]>(() =>
         :is-full-width="true"
         :loading="!searchActive && browseLoading"
     >
-        <template #pageNav>
-            <div class="flex gap-4" v-if="canCreateNew">
-                <LButton
-                    v-if="canCreateNew && !isSmallScreen"
-                    variant="primary"
-                    :icon="PlusIcon"
-                    @click="isCreateOrEditModalVisible = true"
-                    name="createLanguageBtn"
-                >
-                    Create redirect
-                </LButton>
-                <PlusIcon
-                    v-else-if="canCreateNew && isSmallScreen"
-                    class="h-8 w-8 cursor-pointer rounded bg-zinc-100 p-1 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-700"
-                    @click="isCreateOrEditModalVisible = true"
-                />
-            </div>
+        <template #topBarActionsDesktop>
+            <LButton
+                v-if="canCreateNew && !isSmallScreen"
+                variant="primary"
+                :icon="PlusIcon"
+                @click="isCreateOrEditModalVisible = true"
+                name="createLanguageBtn"
+            >
+                Create redirect
+            </LButton>
+        </template>
+        <template #topBarActionsMobile>
+            <PlusIcon
+                v-if="canCreateNew && isSmallScreen"
+                class="h-8 w-8 cursor-pointer rounded bg-zinc-100 p-1 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-700"
+                @click="isCreateOrEditModalVisible = true"
+            />
         </template>
 
         <template #internalPageHeader>
             <div
-                class="relative z-20 flex flex-col gap-1 overflow-visible border-b border-t border-zinc-300 border-t-zinc-100 bg-white pb-1 pt-2 shadow"
+                class="relative z-20 flex flex-col gap-1 overflow-visible pb-1 pt-2"
             >
-                <div class="flex h-10 w-full items-center gap-1 px-8">
+                <div class="flex h-10 w-full items-center gap-1">
                     <LInput
                         type="text"
                         :icon="MagnifyingGlassIcon"
@@ -140,13 +141,11 @@ const displayedRedirects = computed<RedirectDto[]>(() =>
                 :class="{ 'mb-4': i === displayedRedirects.length - 1 }"
             />
 
-            <div
+            <EmptyState
                 v-if="searchActive && !searchIsLoading && displayedRedirects.length === 0"
-                class="flex h-32 w-full items-center justify-center gap-2"
-            >
-                <ExclamationTriangleIcon class="h-6 w-6 text-zinc-500" />
-                <p class="text-sm text-zinc-500">No redirects found.</p>
-            </div>
+                title="No redirects found"
+                description="No redirects match your search criteria."
+            />
 
             <!-- Infinite-scroll trigger for the server-paged search results -->
             <div v-if="searchActive" ref="searchSentinel" class="h-px w-full"></div>

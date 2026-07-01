@@ -149,7 +149,7 @@ onMounted(() => {
                     v-if="canScrollLeft"
                     class="pointer-events-none absolute inset-y-0 left-0 z-10 flex w-12 items-center justify-start bg-gradient-to-r from-white to-transparent pl-1"
                 >
-                    <ChevronLeftIcon class="h-3 w-3 text-gray-400" />
+                    <ChevronLeftIcon class="h-3 w-3 text-zinc-400" />
                 </div>
                 <div
                     ref="scrollContainer"
@@ -176,7 +176,7 @@ onMounted(() => {
                     v-if="canScrollRight"
                     class="pointer-events-none absolute inset-y-0 right-0 z-10 flex w-12 items-center justify-end bg-gradient-to-l from-white to-transparent pr-1"
                 >
-                    <ChevronRightIcon class="h-3 w-3 text-gray-500" />
+                    <ChevronRightIcon class="h-3 w-3 text-zinc-500" />
                 </div>
             </div>
             <div v-else class="px-2 py-1 text-center text-[11px] text-zinc-500">

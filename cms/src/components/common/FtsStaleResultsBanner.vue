@@ -17,7 +17,7 @@ const emit = defineEmits<{
     <div
         v-if="visible"
         data-test="fts-stale-banner"
-        class="mb-2 flex items-center gap-2 rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-600"
+        class="flex items-center gap-2 rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-600"
     >
         <span>Results may have changed.</span>
         <button

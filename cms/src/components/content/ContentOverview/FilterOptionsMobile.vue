@@ -42,13 +42,13 @@ const showMobileQueryOptions = ref(false);
 
 <template>
     <div
-        class="relative z-20 flex flex-col gap-1 overflow-visible border-b border-t border-zinc-300 border-t-zinc-100 bg-white pb-1 pt-2 shadow max-sm:px-1 sm:px-4"
+        class="relative z-20 flex flex-col gap-1 overflow-visible pt-2"
     >
-        <div class="flex gap-1">
+        <div class="flex h-10 w-full items-center gap-1">
             <LInput
                 type="text"
                 :icon="showSearchIcon ? MagnifyingGlassIcon : undefined"
-                class="min-w-0 flex-grow"
+                class="h-full min-w-0 flex-grow"
                 name="search"
                 placeholder="Search..."
                 data-test="search-input"
@@ -62,10 +62,16 @@ const showMobileQueryOptions = ref(false);
                     <slot name="searchButton"></slot>
                 </template>
             </LInput>
-            <LButton :icon="AdjustmentsVerticalIcon" @click="showMobileQueryOptions = true" />
-            <LButton :icon="ArrowUturnLeftIcon" @click="reset()" />
+            <LButton class="h-full" :icon="AdjustmentsVerticalIcon" @click="showMobileQueryOptions = true" />
+            <LButton class="h-full w-10" :icon="ArrowUturnLeftIcon" @click="reset()" />
         </div>
-        <div class="flex w-full flex-col gap-1">
+        <div
+            v-if="
+                (queryOptions.tags && queryOptions.tags.length > 0) ||
+                (queryOptions.groups && queryOptions.groups.length > 0)
+            "
+            class="flex w-full flex-col gap-1"
+        >
             <div v-if="queryOptions.tags && queryOptions.tags?.length > 0" class="w-full">
                 <ul class="flex w-full flex-wrap gap-2">
                     <LTag

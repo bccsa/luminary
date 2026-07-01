@@ -199,6 +199,8 @@ const handleGraphSelect = (groupId: string) => {
                     @click="toggleView"
                 />
             </div>
+        </template>
+        <template #topBarActionsDesktop>
             <LButton
                 v-if="canCreateGroup && !isSmallScreen"
                 variant="primary"
@@ -208,8 +210,10 @@ const handleGraphSelect = (groupId: string) => {
             >
                 Create group
             </LButton>
+        </template>
+        <template #topBarActionsMobile>
             <PlusIcon
-                v-else-if="canCreateGroup && isSmallScreen"
+                v-if="canCreateGroup && isSmallScreen"
                 class="h-8 w-8 cursor-pointer rounded bg-zinc-100 p-1 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-700"
                 @click="createGroup"
                 data-test="createGroupButton"
@@ -226,7 +230,7 @@ const handleGraphSelect = (groupId: string) => {
         </template>
 
         <div v-show="currentTab === 'overview'" class="mt-1 flex flex-col gap-[3px]">
-            <p class="mb-2 text-sm text-gray-500">
+            <p class="mb-2 text-sm text-zinc-500">
                 <span>
                     Configure access permissions for the groups listed below to control who can
                     access them and their member documents.

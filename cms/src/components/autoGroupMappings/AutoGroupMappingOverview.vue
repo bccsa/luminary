@@ -22,6 +22,7 @@ import LTag from "../content/LTag.vue";
 import { isSmallScreen } from "@/globalConfig";
 import { useNotificationStore } from "@/stores/notification";
 import { useAutoGroupMappings } from "@/composables/useAutoGroupMappings";
+import EmptyState from "@/components/EmptyState.vue";
 
 const notification = useNotificationStore();
 
@@ -161,6 +162,12 @@ async function handleDelete(mappingId: string) {
     closeModal();
 }
 
+const emptyStateDescription = computed(() =>
+    autoGroupMappings.canEdit
+        ? "Click Create mapping to assign groups automatically based on JWT claims."
+        : "No mappings have been configured yet.",
+);
+
 // No explicit teardown: useAutoGroupMappings' HybridQuery / useDexieLiveQuery register
 // onScopeDispose in this component's scope and tear down automatically on unmount.
 </script>
@@ -171,31 +178,31 @@ async function handleDelete(mappingId: string) {
         :should-show-page-title="false"
         :loading="autoGroupMappings.isLoading"
     >
-        <template #pageNav>
-            <div class="flex items-center gap-3" v-if="autoGroupMappings.canEdit">
-                <LButton
-                    v-if="!isSmallScreen"
-                    variant="primary"
-                    :icon="PlusIcon"
-                    @click="openCreate"
-                >
-                    Create mapping
-                </LButton>
-                <PlusIcon
-                    v-else
-                    class="h-8 w-8 cursor-pointer rounded bg-zinc-100 p-1 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-700"
-                    @click="openCreate"
-                />
-            </div>
+        <template #topBarActionsDesktop>
+            <LButton
+                v-if="autoGroupMappings.canEdit && !isSmallScreen"
+                variant="primary"
+                :icon="PlusIcon"
+                @click="openCreate"
+            >
+                Create mapping
+            </LButton>
+        </template>
+        <template #topBarActionsMobile>
+            <PlusIcon
+                v-if="autoGroupMappings.canEdit && isSmallScreen"
+                class="h-8 w-8 cursor-pointer rounded bg-zinc-100 p-1 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-700"
+                @click="openCreate"
+            />
         </template>
 
         <template #internalPageHeader>
             <!-- Desktop filter bar -->
             <div
                 v-if="!isSmallScreen"
-                class="flex flex-col gap-1 overflow-visible border-b border-t border-zinc-300 border-t-zinc-100 bg-white pb-1 pt-2 shadow"
+                class="flex flex-col gap-1 overflow-visible pb-1 pt-2"
             >
-                <div class="flex h-10 w-full items-center gap-1 px-8">
+                <div class="flex h-10 w-full items-center gap-1">
                     <LInput
                         type="text"
                         :icon="MagnifyingGlassIcon"
@@ -229,7 +236,7 @@ async function handleDelete(mappingId: string) {
                 <!-- Selected group filter tags -->
                 <div
                     v-if="selectedGroupFilter.length > 0"
-                    class="mb-2 ml-8 flex w-full flex-col gap-1"
+                    class="mb-2 flex w-full flex-col gap-1"
                 >
                     <div class="w-full">
                         <ul class="flex w-full flex-wrap gap-2">
@@ -255,7 +262,7 @@ async function handleDelete(mappingId: string) {
             <!-- Mobile filter bar -->
             <div
                 v-else
-                class="z-20 flex flex-col gap-1 overflow-visible border-b border-t border-zinc-300 border-t-zinc-100 bg-white pb-1 pt-2 shadow max-sm:px-1 sm:px-4"
+                class="z-20 flex flex-col gap-1 overflow-visible pb-1 pt-2"
             >
                 <div class="flex gap-1">
                     <LInput
@@ -325,7 +332,7 @@ async function handleDelete(mappingId: string) {
         </template>
 
         <!-- Permission warnings -->
-        <div v-if="!autoGroupMappings.canView || !autoGroupMappings.canEdit" class="mb-1 p-2">
+        <div v-if="!autoGroupMappings.canView || !autoGroupMappings.canEdit" class="mb-1">
             <span v-if="!autoGroupMappings.canView" class="mb-1 flex gap-1 text-xs text-zinc-600">
                 <ExclamationCircleIcon class="h-4 min-h-4 w-4 min-w-4 text-red-400" />
                 No view permission
@@ -336,15 +343,16 @@ async function handleDelete(mappingId: string) {
             </span>
         </div>
 
-        <!-- Mapping list -->
-        <p v-if="!filteredMappings.length" class="mt-1 text-sm italic text-gray-400">
-            No auto group mappings configured.
-            <template v-if="autoGroupMappings.canEdit">
-                Click "Create mapping" to assign groups automatically based on JWT claims.
-            </template>
-        </p>
+        <EmptyState
+            v-if="!filteredMappings.length"
+            title="No auto group mappings configured"
+            :description="emptyStateDescription"
+            :button-text="autoGroupMappings.canEdit ? 'Create mapping' : undefined"
+            :button-action="autoGroupMappings.canEdit ? openCreate : undefined"
+            :button-permission="autoGroupMappings.canEdit"
+        />
 
-        <div class="mt-1 flex flex-col gap-[3px]">
+        <div v-else class="mt-1 flex flex-col gap-[3px]">
             <AutoGroupMappingDisplayCard
                 v-for="mapping in filteredMappings"
                 :key="mapping._id"

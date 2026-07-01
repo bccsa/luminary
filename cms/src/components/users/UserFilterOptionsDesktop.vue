@@ -20,9 +20,9 @@ const query = defineModel("query", { required: true });
 
 <template>
     <div
-        class="flex flex-col gap-1 overflow-visible border-b border-t border-zinc-300 border-t-zinc-100 bg-white pb-1 pt-2 shadow-md"
+        class="flex flex-col gap-1 overflow-visible pb-1 pt-2"
     >
-        <div class="flex w-full items-center gap-1 px-8 py-1">
+        <div class="flex w-full items-center gap-1 py-1">
             <LInput
                 type="text"
                 :icon="MagnifyingGlassIcon"

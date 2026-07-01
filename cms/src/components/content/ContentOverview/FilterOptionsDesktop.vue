@@ -44,9 +44,9 @@ const showSortOptions = ref(false);
 
 <template>
     <div
-        class="relative z-20 flex flex-col gap-1 overflow-visible border-b border-t border-zinc-300 border-t-zinc-100 bg-white pb-1 pt-2 shadow"
+        class="relative z-20 flex flex-col gap-1 overflow-visible pt-2"
     >
-        <div class="flex h-10 w-full items-center gap-1 px-8">
+        <div class="flex h-10 w-full items-center gap-1">
             <LInput
                 type="text"
                 :icon="showSearchIcon ? MagnifyingGlassIcon : undefined"
@@ -190,7 +190,13 @@ const showSortOptions = ref(false);
         </div>
 
         <!-- Selected Tags and Groups -->
-        <div class="ml-8 flex w-full flex-col gap-1">
+        <div
+            v-if="
+                (queryOptions.tags && queryOptions.tags.length > 0) ||
+                (queryOptions.groups && queryOptions.groups.length > 0)
+            "
+            class="flex w-full flex-col gap-1"
+        >
             <div v-if="queryOptions.tags && queryOptions.tags?.length > 0" class="w-full">
                 <ul class="flex w-full flex-wrap gap-2">
                     <LTag

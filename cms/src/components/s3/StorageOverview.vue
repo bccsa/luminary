@@ -17,6 +17,7 @@ import {
 } from "luminary-shared";
 import LDialog from "../common/LDialog.vue";
 import LoadingBar from "@/components/LoadingBar.vue";
+import EmptyState from "@/components/EmptyState.vue";
 import { useNotificationStore } from "@/stores/notification";
 import { changeReqErrors } from "luminary-shared";
 import { storageValidation } from "@/composables/storageValidation";
@@ -362,20 +363,18 @@ const saveBucket = async () => {
 </script>
 
 <template>
-    <div class="mt-1 sm:mt-0">
-        <div v-if="isLoading && !buckets.length" class="px-6 py-8">
+    <div class="mt-1">
+        <div v-if="isLoading && !buckets.length" class="flex items-center justify-center py-12">
             <LoadingBar />
         </div>
 
-        <div v-else-if="!buckets.length" class="px-6 py-8 text-center">
-            <h3 class="mt-2 text-sm font-medium text-gray-900">No S3 buckets configured</h3>
-            <p class="mt-1 text-sm text-gray-500">
-                {{ "Get started by creating your first S3 bucket configuration." }}
-            </p>
-        </div>
+        <EmptyState
+            v-else-if="!buckets.length"
+            title="No S3 buckets configured"
+            description="Get started by creating your first S3 bucket configuration."
+        />
 
-        <div v-else>
-            <div class="flex flex-col gap-[3px] overflow-y-auto scrollbar-hide">
+        <div v-else class="flex flex-col gap-[3px] overflow-y-auto scrollbar-hide">
                 <!-- Add bottom margin to last card so it doesn't overlap with basepage footer -->
                 <BucketDisplayCard
                     v-for="(bucket, i) in bucketsWithStatus"
@@ -389,7 +388,6 @@ const saveBucket = async () => {
                     @testConnection="handleTestConnection"
                 />
             </div>
-        </div>
     </div>
 
     <!-- Create/Edit Bucket Modal -->

@@ -39,25 +39,25 @@ const createNew = () => {
         :is-full-width="true"
         :loading="isLoading"
     >
-        <template #pageNav>
-            <div class="flex gap-4" v-if="canCreateNew">
-                <LButton
-                    v-if="canCreateNew && !isSmallScreen"
-                    variant="primary"
-                    :icon="PlusIcon"
-                    @click="$router.push({ name: 'language', params: { id: db.uuid() } })"
-                    name="createLanguageBtn"
-                >
-                    Create language
-                </LButton>
-                <PlusIcon
-                    v-else-if="canCreateNew && isSmallScreen"
-                    class="h-8 w-8 cursor-pointer rounded bg-zinc-100 p-1 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-700"
-                    @click="createNew"
-                />
-            </div>
+        <template #topBarActionsDesktop>
+            <LButton
+                v-if="canCreateNew && !isSmallScreen"
+                variant="primary"
+                :icon="PlusIcon"
+                @click="$router.push({ name: 'language', params: { id: db.uuid() } })"
+                name="createLanguageBtn"
+            >
+                Create language
+            </LButton>
         </template>
-        <div class="mt-1 flex flex-col gap-[3px] sm:mt-0">
+        <template #topBarActionsMobile>
+            <PlusIcon
+                v-if="canCreateNew && isSmallScreen"
+                class="h-8 w-8 cursor-pointer rounded bg-zinc-100 p-1 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-700"
+                @click="createNew"
+            />
+        </template>
+        <div class="mt-1 flex flex-col gap-[3px]">
             <LanguageDisplayCard
                 v-for="language in languages"
                 :key="language._id"

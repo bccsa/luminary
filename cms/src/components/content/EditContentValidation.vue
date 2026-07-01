@@ -159,6 +159,7 @@ const deleteTranslation = () => {
 
 <template>
     <RouterLink
+        class="block w-full"
         :to="{
             name: 'edit',
             params: {
@@ -178,7 +179,7 @@ const deleteTranslation = () => {
         <div
             v-if="languages.find((l) => l._id == editableContent?.language)"
             :class="[
-                'mx-1.5 rounded-md p-1.5 px-2 sm:px-1',
+                'rounded-md p-1.5',
                 {
                     'mb-0 cursor-default bg-yellow-100/40 shadow': isActive && !isCardCollapsed,
                     'border-1.5 cursor-default bg-white shadow': isActive && isCardCollapsed,
@@ -187,7 +188,7 @@ const deleteTranslation = () => {
             ]"
         >
             <div class="flex flex-col">
-                <span class="mx-1.5 flex items-center justify-between text-sm text-zinc-900">
+                <span class="flex items-center justify-between text-sm text-zinc-900">
                     <div class="flex h-8 w-full items-center justify-start">
                         {{ usedLanguage?.name }}
                     </div>

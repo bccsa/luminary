@@ -17,6 +17,7 @@ import LCombobox from "../forms/LCombobox.vue";
 import LModal from "../modals/LModal.vue";
 import LTag from "../content/LTag.vue";
 import LoadingBar from "@/components/LoadingBar.vue";
+import EmptyState from "@/components/EmptyState.vue";
 import { isSmallScreen } from "@/globalConfig";
 import { useAuthProviders } from "@/composables/useAuthProviders";
 import { computed, reactive, ref, useTemplateRef } from "vue";
@@ -102,32 +103,32 @@ defineExpose({
         :should-show-page-title="false"
         :onOpenMobileSidebar="onOpenMobileSidebar"
     >
-        <template #pageNav>
-            <div class="flex items-center gap-2">
-                <LButton
-                    v-if="authProviders.canEdit && !isSmallScreen"
-                    variant="primary"
-                    :icon="PlusIcon"
-                    data-test="create-auth-provider"
-                    @click="authProviders.openCreateModal"
-                >
-                    Create provider
-                </LButton>
-                <PlusIcon
-                    v-else-if="authProviders.canEdit && isSmallScreen"
-                    class="h-8 w-8 cursor-pointer rounded bg-zinc-100 p-1 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-700"
-                    @click="authProviders.openCreateModal"
-                />
-            </div>
+        <template #topBarActionsDesktop>
+            <LButton
+                v-if="authProviders.canEdit && !isSmallScreen"
+                variant="primary"
+                :icon="PlusIcon"
+                data-test="create-auth-provider"
+                @click="authProviders.openCreateModal"
+            >
+                Create provider
+            </LButton>
+        </template>
+        <template #topBarActionsMobile>
+            <PlusIcon
+                v-if="authProviders.canEdit && isSmallScreen"
+                class="h-8 w-8 cursor-pointer rounded bg-zinc-100 p-1 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-700"
+                @click="authProviders.openCreateModal"
+            />
         </template>
 
         <template #internalPageHeader>
             <!-- Desktop filter bar -->
             <div
                 v-if="!isSmallScreen"
-                class="flex flex-col gap-1 overflow-visible border-b border-t border-zinc-300 border-t-zinc-100 bg-white pb-1 pt-2 shadow"
+                class="flex flex-col gap-1 overflow-visible pb-1 pt-2"
             >
-                <div class="flex h-10 w-full items-center gap-1 px-8">
+                <div class="flex h-10 w-full items-center gap-1">
                     <LInput
                         type="text"
                         :icon="MagnifyingGlassIcon"
@@ -152,7 +153,7 @@ defineExpose({
                 </div>
 
                 <!-- Selected group filter tags -->
-                <div v-if="selectedGroupFilter.length > 0" class="ml-8 flex w-full flex-col gap-1">
+                <div v-if="selectedGroupFilter.length > 0" class="flex w-full flex-col gap-1">
                     <ul class="flex w-full flex-wrap gap-2">
                         <LTag
                             :icon="UserGroupIcon"
@@ -169,7 +170,7 @@ defineExpose({
             <!-- Mobile filter bar -->
             <div
                 v-else
-                class="z-20 flex flex-col gap-1 overflow-visible border-b border-t border-zinc-300 border-t-zinc-100 bg-white pb-1 pt-2 shadow max-sm:px-1 sm:px-4"
+                class="z-20 flex flex-col gap-1 overflow-visible pb-1 pt-2"
             >
                 <div class="flex gap-1">
                     <LInput
@@ -220,26 +221,30 @@ defineExpose({
             </LModal>
         </template>
 
-        <div class="mt-1">
-            <div v-if="authProviders.isLoadingProviders && !authProviders.providers.length" class="px-6 py-8">
+        <div class="mt-1 flex flex-col gap-[3px]">
+            <div
+                v-if="authProviders.isLoadingProviders && !authProviders.providers.length"
+                class="flex items-center justify-center py-12"
+            >
                 <LoadingBar />
             </div>
 
-            <div
+            <EmptyState
                 v-else-if="!filteredProviders.length && !authProviders.providers.length"
-                class="px-6 py-8 text-center"
-            >
-                <h3 class="mt-2 text-sm font-medium text-gray-900">No auth provider configured</h3>
-                <p class="mt-1 text-sm text-gray-500">
-                    Get started by creating your first OIDC auth provider.
-                </p>
-            </div>
+                title="No auth provider configured"
+                description="Get started by creating your first OIDC auth provider."
+                :button-text="authProviders.canEdit ? 'Create provider' : undefined"
+                :button-action="authProviders.canEdit ? authProviders.openCreateModal : undefined"
+                :button-permission="authProviders.canEdit"
+            />
 
-            <div v-else-if="!filteredProviders.length" class="px-6 py-8 text-center">
-                <p class="text-sm italic text-gray-400">No providers match the current filters.</p>
-            </div>
+            <EmptyState
+                v-else-if="!filteredProviders.length"
+                title="No providers match the current filters"
+                description="Try adjusting your search or filter criteria."
+            />
 
-            <div v-else class="flex flex-col gap-[3px]">
+            <template v-else>
                 <DisplayCard
                     v-for="(provider, i) in filteredProviders"
                     :key="provider._id || provider.label"
@@ -249,7 +254,7 @@ defineExpose({
                     :class="{ 'mb-4': i === filteredProviders.length - 1 }"
                     @edit="authProviders.editProvider"
                 />
-            </div>
+            </template>
         </div>
     </BasePage>
 
