@@ -79,7 +79,10 @@ const limitedTodos = useDexieLiveQueryWithDeps(
 
 - **Setup-only auto-cleanup.** Call inside a component `setup` / `<script setup>`
   so the subscription is torn down on unmount. Outside an effect scope it won't
-  auto-dispose.
+  auto-dispose — a dev-console warning fires, but the subscription still leaks
+  forever; never call this from a plain function invoked repeatedly (e.g.
+  per-row/per-render helpers, or a `computed` getter re-evaluated outside the
+  original scope), since each call leaks one more permanently-live subscription.
 - **Editable variant.** `useDexieLiveQueryAsEditable` wraps the result with
   [`toEditable`](../toEditable/README.md) so the UI can edit a copy and diff against the
   source. It is **deprecated** — prefer `useDexieLiveQuery` + `toEditable`

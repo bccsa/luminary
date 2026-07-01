@@ -59,6 +59,15 @@ export function useDexieLiveQuery<
     querier: (...data: any) => T | Promise<T>,
     options: UseDexieLiveQueryOptions<I, Immediate> = {},
 ): ShallowRef<Value<T, I>> {
+    if (!getCurrentScope()) {
+        console.warn(
+            "[useDexieLiveQuery] called with no active Vue effect scope — the Dexie " +
+                "subscription can never be cleaned up and will leak forever. Only call " +
+                "useDexieLiveQuery from a component setup()/<script setup>, or another " +
+                "composable/effectScope, so it can auto-dispose on scope teardown.",
+        );
+    }
+
     const { onError, initialValue, deps, ...rest } = options;
 
     const value = shallowRef<T | I | undefined>(initialValue);
