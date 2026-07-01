@@ -126,13 +126,13 @@ defineExpose({
             <!-- Desktop filter bar -->
             <div
                 v-if="!isSmallScreen"
-                class="flex flex-col gap-1 overflow-visible pb-1 pt-2"
+                class="flex flex-col gap-1 overflow-visible"
             >
                 <div class="flex h-10 w-full items-center gap-1">
                     <LInput
                         type="text"
                         :icon="MagnifyingGlassIcon"
-                        class="h-full flex-grow"
+                        class="h-full min-w-0 flex-grow"
                         name="search"
                         placeholder="Search..."
                         v-model="searchQuery"
@@ -170,20 +170,20 @@ defineExpose({
             <!-- Mobile filter bar -->
             <div
                 v-else
-                class="z-20 flex flex-col gap-1 overflow-visible pb-1 pt-2"
+                class="z-20 flex flex-col gap-1 overflow-visible"
             >
-                <div class="flex gap-1">
+                <div class="flex h-10 w-full items-center gap-1">
                     <LInput
                         type="text"
                         :icon="MagnifyingGlassIcon"
-                        class="flex-grow"
+                        class="h-full min-w-0 flex-grow"
                         name="search"
                         placeholder="Search..."
                         v-model="searchQuery"
                         :full-height="true"
                     />
-                    <LButton :icon="AdjustmentsVerticalIcon" @click="showMobileFilters = true" />
-                    <LButton :icon="ArrowUturnLeftIcon" @click="resetFilters" />
+                    <LButton class="h-full" :icon="AdjustmentsVerticalIcon" @click="showMobileFilters = true" />
+                    <LButton class="h-full w-10" :icon="ArrowUturnLeftIcon" @click="resetFilters" />
                 </div>
 
                 <!-- Selected group filter tags (mobile) -->

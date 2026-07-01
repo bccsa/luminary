@@ -84,6 +84,7 @@ const handleMobileSidebarToggle = () => {
                         data-test="chevron-icon"
                         class="text-zinc-500"
                         :class="{
+                            'ml-1.5': isEditContentPage || isEditLanguagePage,
                             'max-sm:ml-5':
                                 isMobileScreen && !isEditContentPage && !isEditLanguagePage,
                         }"
@@ -175,13 +176,19 @@ const handleMobileSidebarToggle = () => {
                 </header>
 
                 <div
+                    v-if="$slots.internalPageHeader"
+                    class="w-full flex-shrink-0 border-b border-t border-zinc-300 border-t-zinc-100 bg-white shadow"
+                >
+                    <div class="py-2" :class="contentInsetClasses">
+                        <slot name="internalPageHeader" />
+                    </div>
+                </div>
+
+                <div
                     data-test="base-page-content"
                     class="flex min-h-0 flex-1 flex-col"
                     :class="contentInsetClasses"
                 >
-                    <div v-if="$slots.internalPageHeader" class="w-full flex-shrink-0">
-                        <slot name="internalPageHeader" />
-                    </div>
                     <div
                         ref="scrollContainer"
                         data-test="base-page-scroll-container"

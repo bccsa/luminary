@@ -28,9 +28,9 @@ const showMobileQueryOptions = ref(false);
 
 <template>
     <div
-        class="z-20 flex flex-col gap-1 overflow-visible pb-1 pt-2"
+        class="z-20 flex flex-col gap-1 overflow-visible"
     >
-        <div class="flex gap-1">
+        <div class="flex h-10 w-full items-center gap-1">
             <LInput
                 type="text"
                 :icon="MagnifyingGlassIcon"
@@ -41,15 +41,14 @@ const showMobileQueryOptions = ref(false);
                 v-model="queryOptions.search"
                 :full-height="true"
             />
-            <LButton :icon="AdjustmentsVerticalIcon" @click="showMobileQueryOptions = true" />
-            <LButton :icon="ArrowUturnLeftIcon" @click="reset()" />
+            <LButton class="h-full" :icon="AdjustmentsVerticalIcon" @click="showMobileQueryOptions = true" />
+            <LButton class="h-full w-10" :icon="ArrowUturnLeftIcon" @click="reset()" />
         </div>
 
-        <div class="flex w-full flex-col gap-1">
-            <div
-                v-if="queryOptions.filterGroupIds && queryOptions.filterGroupIds?.length > 0"
-                class="w-full"
-            >
+        <div
+            v-if="queryOptions.filterGroupIds && queryOptions.filterGroupIds.length > 0"
+            class="flex w-full flex-col gap-1"
+        >
                 <ul class="flex w-full flex-wrap gap-2">
                     <LTag
                         :icon="UserGroupIcon"
@@ -66,7 +65,6 @@ const showMobileQueryOptions = ref(false);
                         {{ groups.find((g) => g._id == group)?.name }}
                     </LTag>
                 </ul>
-            </div>
         </div>
     </div>
     <LModal heading="Filter options" v-model:is-visible="showMobileQueryOptions">

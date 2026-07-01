@@ -19,9 +19,9 @@ const queryOptions = defineModel<GroupOverviewQueryOptions>("queryOptions", { re
 
 <template>
     <div
-        class="flex flex-col gap-1 overflow-visible pb-1 pt-2"
+        class="relative z-20 flex flex-col gap-1 overflow-visible"
     >
-        <div class="flex w-full items-center gap-1 py-1">
+        <div class="flex h-10 w-full items-center gap-1">
             <LInput
                 type="text"
                 :icon="MagnifyingGlassIcon"
@@ -33,7 +33,7 @@ const queryOptions = defineModel<GroupOverviewQueryOptions>("queryOptions", { re
                 :full-height="true"
             />
 
-            <div class="relative flex gap-1">
+            <div class="relative flex h-full items-center gap-1">
                 <LCombobox
                     :options="
                         groups.map((group: GroupDto) => ({
@@ -48,17 +48,16 @@ const queryOptions = defineModel<GroupOverviewQueryOptions>("queryOptions", { re
                     :icon="UserGroupIcon"
                 />
 
-                <LButton @click="reset()" class="w-10">
+                <LButton @click="reset()" class="h-full w-10">
                     <ArrowUturnLeftIcon class="h-4 w-4" />
                 </LButton>
             </div>
         </div>
 
-        <div class="flex w-full flex-col gap-1">
-            <div
-                v-if="queryOptions.filterGroupIds && queryOptions.filterGroupIds?.length > 0"
-                class="w-full"
-            >
+        <div
+            v-if="queryOptions.filterGroupIds && queryOptions.filterGroupIds.length > 0"
+            class="flex w-full flex-col gap-1"
+        >
                 <ul class="flex w-full flex-wrap gap-2">
                     <LTag
                         :icon="UserGroupIcon"
@@ -75,7 +74,6 @@ const queryOptions = defineModel<GroupOverviewQueryOptions>("queryOptions", { re
                         {{ groups.find((g) => g._id == group)?.name }}
                     </LTag>
                 </ul>
-            </div>
         </div>
     </div>
 </template>

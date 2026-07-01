@@ -20,13 +20,13 @@ const query = defineModel("query", { required: true });
 
 <template>
     <div
-        class="flex flex-col gap-1 overflow-visible pb-1 pt-2"
+        class="relative z-20 flex flex-col gap-1 overflow-visible"
     >
-        <div class="flex w-full items-center gap-1 py-1">
+        <div class="flex h-10 w-full items-center gap-1">
             <LInput
                 type="text"
                 :icon="MagnifyingGlassIcon"
-                class="flex-grow"
+                class="h-full min-w-0 flex-grow"
                 name="search"
                 placeholder="Search..."
                 data-test="search-input"
@@ -34,7 +34,7 @@ const query = defineModel("query", { required: true });
                 :full-height="true"
             />
 
-            <div class="relative flex gap-1">
+            <div class="relative flex h-full items-center gap-1">
                 <LCombobox
                     :options="
                         groups.map((group: GroupDto) => ({
@@ -49,15 +49,17 @@ const query = defineModel("query", { required: true });
                     :icon="UserGroupIcon"
                 />
 
-                <LButton @click="reset()" class="w-10">
+                <LButton @click="reset()" class="h-full w-10">
                     <ArrowUturnLeftIcon class="h-4 w-4" />
                 </LButton>
             </div>
         </div>
 
         <!-- Selected Groups -->
-        <div class="flex w-full flex-col gap-1">
-            <div v-if="queryOptions.groups && queryOptions.groups?.length > 0" class="w-full">
+        <div
+            v-if="queryOptions.groups && queryOptions.groups.length > 0"
+            class="flex w-full flex-col gap-1"
+        >
                 <ul class="flex w-full flex-wrap gap-2">
                     <LTag
                         :icon="UserGroupIcon"
@@ -74,7 +76,6 @@ const query = defineModel("query", { required: true });
                         {{ groups.find((g) => g._id == group)?.name }}
                     </LTag>
                 </ul>
-            </div>
         </div>
     </div>
 </template>

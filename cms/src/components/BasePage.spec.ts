@@ -96,8 +96,11 @@ describe("BasePage", () => {
         });
 
         const filterBar = wrapper.find("[data-test='filter-bar']");
-        expect(filterBar.element.parentElement?.parentElement?.className).toEqual(
+        expect(filterBar.element.parentElement?.className).toEqual(
             expect.stringMatching(/(sm:px-4|lg:px-8)/),
+        );
+        expect(filterBar.element.parentElement?.parentElement?.className).toEqual(
+            expect.stringMatching(/bg-white/),
         );
     });
 
