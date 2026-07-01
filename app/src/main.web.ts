@@ -9,6 +9,7 @@ import { ViteSSG } from "vite-ssg";
 import { createPinia } from "pinia";
 import App from "./App.vue";
 import { routes } from "./router/routes";
+import { localizedStaticRoutes } from "./router/localizedRoutes";
 import { initI18n } from "./i18n";
 import { DocType, HttpReq, initHybridQuery, queryRemote, type LanguageDto } from "luminary-shared";
 import { apiUrl, appLanguageIdsAsRef, cmsLanguages, isAppLoading } from "./globalConfig";
@@ -26,17 +27,25 @@ let ssgLanguages: LanguageDto[] | undefined;
 // page's feeds (and its chrome's UI strings) render in its own language.
 function ssrRouteLang(routePath?: string): string {
     const g = globalThis as Record<string, unknown>;
+    const codeToId = g.__SSG_LANG_CODE_TO_ID__ as Record<string, string> | undefined;
     const map = g.__SSG_ROUTE_LANG__ as Record<string, string> | undefined;
     const def = (g.__SSG_DEFAULT_LANG__ as string) || "";
+    const firstSegment = routePath?.split("/").filter(Boolean)[0];
+    if (firstSegment && codeToId?.[firstSegment]) return codeToId[firstSegment];
     return (routePath && map?.[routePath]) || def;
+}
+
+function langCodeToId(langs: LanguageDto[]): Record<string, string> {
+    return Object.fromEntries(langs.map((l) => [l.languageCode, l._id]).filter(([code]) => code));
 }
 
 export const createApp = ViteSSG(
     App,
     { routes },
-    async ({ app, initialState, routePath }) => {
+    async ({ app, initialState, routePath, router }) => {
         const pinia = createPinia();
         app.use(pinia);
+        let langs: LanguageDto[] = [];
 
         // Make the render language + its translations available BEFORE i18n installs,
         // so i18n's immediate watch emits real UI strings (not raw `menu.home` keys)
@@ -53,7 +62,7 @@ export const createApp = ViteSSG(
             initHybridQuery(new HttpReq(apiUrl));
 
             if (!ssgLanguages) ssgLanguages = await queryRemote<LanguageDto>(LANGUAGES_QUERY);
-            const langs = ssgLanguages;
+            langs = ssgLanguages;
             cmsLanguages.value = langs;
 
             // Serialize ALL languages so the client's first render has every
@@ -63,6 +72,8 @@ export const createApp = ViteSSG(
             const defaultId = langs.find((l) => l.default === 1)?._id;
             const keep = new Set([lang, defaultId].filter(Boolean) as string[]);
             initialState.renderLang = lang;
+            initialState.defaultLanguageCode = langs.find((l) => l.default === 1)?.languageCode;
+            initialState.langCodeToId = langCodeToId(langs);
             initialState.languages = langs.map((l) =>
                 keep.has(l._id) ? l : { ...l, translations: {} },
             );
@@ -72,8 +83,19 @@ export const createApp = ViteSSG(
             // is per-URL-language; the user can still switch via the language modal.)
             const lang = (initialState.renderLang as string) || "";
             appLanguageIdsAsRef.value = lang ? [lang] : [];
-            const langs = (initialState.languages as LanguageDto[] | undefined) ?? [];
+            langs = (initialState.languages as LanguageDto[] | undefined) ?? [];
             if (langs.length) cmsLanguages.value = langs;
+        }
+
+        const defaultCode =
+            (initialState.defaultLanguageCode as string | undefined) ||
+            langs.find((l) => l.default === 1)?.languageCode ||
+            "";
+        for (const route of localizedStaticRoutes(
+            langs.map((l) => l.languageCode),
+            defaultCode,
+        )) {
+            router.addRoute(route);
         }
 
         app.use(initI18n());
@@ -101,8 +123,10 @@ export const createApp = ViteSSG(
             try {
                 const { initWebClient } = await import("./ssg/clientRuntime");
                 await initWebClient();
+                const { setupAuth } = await import("./auth");
+                await setupAuth(app, router);
             } catch (err) {
-                console.error("[web] client runtime init failed", err);
+                console.error("[web] client runtime/auth init failed", err);
             }
         }
     },

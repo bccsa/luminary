@@ -8,7 +8,7 @@ import { CheckCircleIcon } from "@heroicons/vue/20/solid";
 import { PlusCircleIcon } from "@heroicons/vue/24/outline";
 import { handleLanguageChange, markLanguageSwitch } from "@/util/isLangSwitch";
 
-import { computed } from "vue";
+import { computed, type ShallowRef } from "vue";
 import { useI18n } from "vue-i18n";
 
 type Props = {
@@ -21,10 +21,13 @@ const { t } = useI18n();
 // Language is a fully-synced type, so HybridQuery reads from IndexedDB only.
 // Only the i18n singleton in globalConfig needs `translations`; the modal reads
 // just id/name/default, so drop the heavy strings map to keep it off the heap.
-const languages = useHybridQuery<LanguageDto>(() => ({ selector: { type: DocType.Language } }), {
-    live: true,
-    stripFields: ["translations", "_rev"],
-});
+const languages: ShallowRef<LanguageDto[]> = useHybridQuery<LanguageDto>(
+    () => ({ selector: { type: DocType.Language } }),
+    {
+        live: true,
+        stripFields: ["translations", "_rev"],
+    },
+);
 
 const emit = defineEmits(["close"]);
 

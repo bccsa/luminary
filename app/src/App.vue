@@ -109,8 +109,8 @@ const routeKey = computed(() => {
     return router.currentRoute.value.fullPath;
 });
 
-// On the web/SSG tier the prerendered HTML is the signed-out, content-only
-// baseline: the interactive/auth-aware chrome (menu, modals, audio player) is
+// On the web/SSG tier the prerendered HTML is the signed-out, content-first
+// baseline: the interactive/auth-aware chrome (modals, audio player) is
 // rendered only AFTER mount so the first client render matches the SSR output
 // (clean hydration). On native/SPA there is no prerender, so chrome renders
 // immediately as before — behaviour is unchanged there.
@@ -170,7 +170,6 @@ onErrorCaptured((err) => {
         <!-- Mobile Navigation (mobile only) -->
         <!-- <MobileMenu class="w-full lg:hidden z-10" /> -->
         <MobileMenu
-            v-if="showChrome"
             class="z-50 w-full border-t-2 border-t-zinc-100/25 dark:border-t-slate-700/50 lg:hidden"
         />
 

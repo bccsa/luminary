@@ -1,11 +1,13 @@
 import { fileURLToPath, URL } from "node:url";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { defineConfig, loadEnv, type Plugin, type UserConfig } from "vite";
 import type { ViteSSGOptions } from "vite-ssg";
 import type { RouteRecordRaw } from "vue-router";
 import vue from "@vitejs/plugin-vue";
 import { buildTargetVirtuals } from "./vite-plugins/buildTargetVirtuals";
+import { redirectFile, redirectHtml } from "./src/ssg/redirectHtml";
+import { buildRouteIndex, type SsgRouteIndex } from "./src/ssg/routeIndex";
 
 const env = loadEnv("", process.cwd());
 
@@ -68,6 +70,9 @@ function hqCacheScript(cache: Record<string, string>): string {
 
 const OUT_DIR = "dist-web";
 const WEB_ORIGIN = (env.VITE_WEB_ORIGIN || "").replace(/\/$/, "");
+type SsgLanguage = { _id?: string; languageCode?: string; default?: number };
+type SsgRedirect = { slug?: string; toSlug?: string; deleteReq?: number };
+type SsgContent = { _id?: string; parentId?: string; slug?: string; language?: string };
 
 // Scoped (incremental) rebuild mode: regenerate only the routes named in
 // SSG_ONLY_ROUTES (comma-separated), preserving every other prerendered file.
@@ -80,6 +85,7 @@ const IS_SCOPED = SCOPED_ROUTES.length > 0;
 
 const indexHtmlPath = () => join(process.cwd(), OUT_DIR, "index.html");
 const manifestPath = () => join(process.cwd(), OUT_DIR, "ssg-deps.json");
+const routeIndexPath = () => join(process.cwd(), OUT_DIR, "ssg-route-index.json");
 
 // Build-in-progress lock, consumed by the ISR watcher (`src/ssg/watch.ts`): it must
 // not spawn a scoped rebuild while a build (the initial full `build:web`, or its own
@@ -107,7 +113,10 @@ function writeManifest() {
     const fresh = capture().manifest;
     let merged: Record<string, string[]> = fresh;
     if (IS_SCOPED && existsSync(manifestPath())) {
-        const existing = JSON.parse(readFileSync(manifestPath(), "utf-8")) as Record<string, string[]>;
+        const existing = JSON.parse(readFileSync(manifestPath(), "utf-8")) as Record<
+            string,
+            string[]
+        >;
         merged = { ...existing, ...fresh };
     }
     writeFileSync(manifestPath(), JSON.stringify(merged));
@@ -119,6 +128,7 @@ function writeManifest() {
 
 // Captured during route enumeration so onFinished can emit sitemap.xml/robots.txt.
 let prerenderedRoutes: string[] = [];
+let routeIndex: SsgRouteIndex = { content: {}, parent: {} };
 
 function writeSeoArtifacts() {
     const urls = prerenderedRoutes
@@ -135,6 +145,21 @@ function writeSeoArtifacts() {
     writeFileSync(join(process.cwd(), OUT_DIR, "robots.txt"), robots);
 
     console.log(`[ssg] wrote sitemap.xml (${prerenderedRoutes.length} urls) + robots.txt`);
+}
+
+function writeRouteIndex() {
+    writeFileSync(routeIndexPath(), JSON.stringify(routeIndex));
+    console.log(
+        `[ssg] wrote ssg-route-index.json (${Object.keys(routeIndex.content).length} docs)`,
+    );
+}
+
+function localizedStaticPaths(staticRoutes: string[], langCodes: string[], defaultCode: string) {
+    return [...new Set(langCodes)]
+        .filter((code) => code && code !== defaultCode)
+        .flatMap((code) =>
+            staticRoutes.map((route) => (route === "/" ? `/${code}` : `/${code}${route}`)),
+        );
 }
 
 /**
@@ -187,15 +212,18 @@ async function fetchPublicSlugs(apiUrl: string): Promise<string[]> {
     if (!res.ok) {
         throw new Error(`[ssg] route enumeration failed: ${res.status} ${res.statusText}`);
     }
-    const data = (await res.json()) as { docs?: Array<{ slug?: string; language?: string }> };
+    const data = (await res.json()) as { docs?: SsgContent[] };
     const docs = data.docs ?? [];
     if (docs.length >= LIMIT) {
-        console.warn(`[ssg] enumeration returned ${LIMIT} docs (limit) — slugs may be truncated; paginate with a stable sort.`);
+        console.warn(
+            `[ssg] enumeration returned ${LIMIT} docs (limit) — slugs may be truncated; paginate with a stable sort.`,
+        );
     }
     // Build the route→language map so each page prerenders in its own language
     // (read by main.web.ts via globalThis). Same Node process as the SSR render.
     const routeLang: Record<string, string> = {};
     const slugs = new Set<string>();
+    routeIndex = buildRouteIndex(docs);
     for (const d of docs) {
         if (!d.slug) continue;
         slugs.add(d.slug);
@@ -205,15 +233,40 @@ async function fetchPublicSlugs(apiUrl: string): Promise<string[]> {
     return [...slugs];
 }
 
-// The CMS default language id — the render language for non-content routes (home).
-async function fetchDefaultLanguage(apiUrl: string): Promise<string> {
+async function fetchLanguages(apiUrl: string): Promise<SsgLanguage[]> {
     const res = await fetch(`${apiUrl}/search`, {
         headers: { "X-Query": JSON.stringify({ apiVersion: "0.0.0", types: ["language"] }) },
     });
-    if (!res.ok) return "";
-    const data = (await res.json()) as { docs?: Array<{ _id?: string; default?: number }> };
-    const langs = data.docs ?? [];
-    return (langs.find((l) => l.default === 1) ?? langs[0])?._id ?? "";
+    if (!res.ok) return [];
+    const data = (await res.json()) as { docs?: SsgLanguage[] };
+    return data.docs ?? [];
+}
+
+async function fetchRedirects(apiUrl: string): Promise<SsgRedirect[]> {
+    const LIMIT = 10000;
+    const query = { apiVersion: "0.0.0", types: ["redirect"], contentOnly: false, limit: LIMIT };
+    const res = await fetch(`${apiUrl}/search`, {
+        headers: { "X-Query": JSON.stringify(query) },
+    });
+    if (!res.ok) {
+        throw new Error(`[ssg] redirect enumeration failed: ${res.status} ${res.statusText}`);
+    }
+    const data = (await res.json()) as { docs?: SsgRedirect[] };
+    return data.docs ?? [];
+}
+
+async function writeRedirectFiles(apiUrl: string): Promise<void> {
+    const redirects = await fetchRedirects(apiUrl);
+    let written = 0;
+    for (const redirect of redirects) {
+        if (!redirect.slug || !redirect.toSlug || redirect.deleteReq) continue;
+        const file = join(process.cwd(), OUT_DIR, redirectFile(redirect.slug));
+        if (existsSync(file)) continue; // prerendered content/static route wins
+        mkdirSync(dirname(file), { recursive: true });
+        writeFileSync(file, redirectHtml(redirect.toSlug));
+        written++;
+    }
+    console.log(`[ssg] wrote ${written} static redirect file(s)`);
 }
 
 const config: UserConfig & { ssgOptions: ViteSSGOptions } = {
@@ -263,8 +316,19 @@ const config: UserConfig & { ssgOptions: ViteSSGOptions } = {
             // route by main.web.ts to pick the render language) — including on a
             // scoped rebuild, which still needs the language for its routes.
             const slugs = await fetchPublicSlugs(apiUrl);
-            (globalThis as Record<string, unknown>).__SSG_DEFAULT_LANG__ =
-                await fetchDefaultLanguage(apiUrl);
+            const languages = await fetchLanguages(apiUrl);
+            const defaultLanguage = languages.find((l) => l.default === 1) ?? languages[0];
+            const langCodes = languages
+                .map((l) => l.languageCode)
+                .filter((code): code is string => !!code);
+            const g = globalThis as Record<string, unknown>;
+            g.__SSG_DEFAULT_LANG__ = defaultLanguage?._id ?? "";
+            g.__SSG_DEFAULT_LANG_CODE__ = defaultLanguage?.languageCode ?? "";
+            g.__SSG_LANG_CODE_TO_ID__ = Object.fromEntries(
+                languages
+                    .filter((l) => l.languageCode && l._id)
+                    .map((l) => [l.languageCode as string, l._id as string]),
+            );
 
             // Scoped rebuild: render only the named routes (map is now populated).
             if (IS_SCOPED) {
@@ -280,21 +344,23 @@ const config: UserConfig & { ssgOptions: ViteSSGOptions } = {
             // Static public routes flagged for prerender (non-dynamic).
             const staticRoutes = routes
                 .filter(
-                    (r) =>
-                        r.meta?.prerender &&
-                        typeof r.path === "string" &&
-                        !r.path.includes(":"),
+                    (r) => r.meta?.prerender && typeof r.path === "string" && !r.path.includes(":"),
                 )
                 .map((r) => r.path as string);
+            const localizedRoutes = localizedStaticPaths(
+                staticRoutes,
+                langCodes,
+                defaultLanguage?.languageCode ?? "",
+            );
 
             const slugRoutes = slugs.map((s) => `/${s}`);
 
-            const all = [...new Set([...staticRoutes, ...slugRoutes])].filter(
+            const all = [...new Set([...staticRoutes, ...localizedRoutes, ...slugRoutes])].filter(
                 (p) => !exclude.has(p),
             );
             console.log(
                 `[ssg] prerendering ${all.length} routes ` +
-                    `(${staticRoutes.length} static + ${slugRoutes.length} content)`,
+                    `(${staticRoutes.length + localizedRoutes.length} static + ${slugRoutes.length} content)`,
             );
             prerenderedRoutes = all;
             return all;
@@ -319,17 +385,24 @@ const config: UserConfig & { ssgOptions: ViteSSGOptions } = {
                 ? renderedHTML.replace("</head>", `${script}</head>`)
                 : script + renderedHTML;
         },
-        onFinished: () => {
-            // Restore the prerendered home if this scoped rebuild didn't include it.
-            if (preservedIndexHtml !== undefined) {
-                writeFileSync(indexHtmlPath(), preservedIndexHtml);
-                console.log("[ssg] restored prerendered index.html (/, not in scope)");
+        onFinished: async () => {
+            try {
+                // Restore the prerendered home if this scoped rebuild didn't include it.
+                if (preservedIndexHtml !== undefined) {
+                    writeFileSync(indexHtmlPath(), preservedIndexHtml);
+                    console.log("[ssg] restored prerendered index.html (/, not in scope)");
+                }
+                writeManifest();
+                writeRouteIndex();
+                // Sitemap/robots reflect the full route set — only (re)write on a full build.
+                if (!IS_SCOPED) {
+                    await writeRedirectFiles(env.VITE_API_URL);
+                    writeSeoArtifacts();
+                }
+            } finally {
+                // Release the build lock so the ISR watcher may regenerate again.
+                if (existsSync(lockPath())) rmSync(lockPath());
             }
-            writeManifest();
-            // Sitemap/robots reflect the full route set — only (re)write on a full build.
-            if (!IS_SCOPED) writeSeoArtifacts();
-            // Release the build lock so the ISR watcher may regenerate again.
-            if (existsSync(lockPath())) rmSync(lockPath());
         },
     },
 };
