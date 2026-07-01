@@ -9,6 +9,7 @@ import {
     changeReqWarnings,
     getSocket,
     init,
+    isConnected,
     serverError,
 } from "luminary-shared";
 import { apiUrl, initLanguage } from "@/globalConfig";
@@ -88,6 +89,17 @@ async function Startup() {
                 }
             },
         );
+
+        // A tab backgrounded during sleep/long idle can end up with the socket
+        // disconnected and auto-reconnect turned off (see socketio.ts's auth_failed
+        // handling) with no future retry scheduled. Foregrounding the tab is the
+        // natural moment to try again — any resulting auth failure is handled by
+        // the connect_error listener above, same as any other reconnect.
+        document.addEventListener("visibilitychange", () => {
+            if (document.visibilityState === "visible" && !isConnected.value) {
+                socket.reconnect();
+            }
+        });
     }
 
     await auth.setupAuth(app);
