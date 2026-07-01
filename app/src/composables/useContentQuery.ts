@@ -10,6 +10,7 @@ import {
     writeResponseCache,
 } from "luminary-shared";
 import { appLanguageIdsAsRef } from "@/globalConfig";
+import { hasPersistedSession } from "@/auth";
 import { mangoIsPublished } from "@/util/mangoIsPublished";
 import { docKey, facetsFromSelector } from "@/ssg/facetKeys";
 import { reportKeys } from "@/ssg/dependencyCapture";
@@ -139,7 +140,18 @@ export function useContentQuery(
         use_index: useIndex,
     });
 
-    const hybridOptions = { live, cache, persistOffline, stripFields, ...rest };
+    const hybridOptions = {
+        live,
+        cache,
+        persistOffline,
+        stripFields,
+        ...rest,
+        // Auth-scope the response-cache key: the SSG build always seeds the `:anon`
+        // entry (see the SSR branch below), so a returning logged-in client must
+        // read/write a different `:auth` entry rather than painting the public seed
+        // or overwriting it with personalized data (see useContentQuery.spec.ts).
+        cacheId: `${rest.cacheId ?? ""}:${hasPersistedSession() ? "auth" : "anon"}`,
+    };
 
     // --- Web/SSG PRERENDER (Node) only. The browser client + native both fall through
     // to the identical hybrid query below; on the client `cache: true` seeds the first
@@ -157,7 +169,9 @@ export function useContentQuery(
                 // bespoke snapshot store. vite-ssg serializes these `hqcache:*` entries
                 // into the page HTML (see vite.config.web.ts).
                 writeResponseCache(
-                    structuralCacheKey(q, rest.cacheId),
+                    // Prerendering is always anonymous — see the client branch's
+                    // `hybridOptions.cacheId` above for the `:auth` counterpart.
+                    structuralCacheKey(q, `${rest.cacheId ?? ""}:anon`),
                     { local: docs, remote: [] },
                     limit,
                     rest.cacheStripFields,

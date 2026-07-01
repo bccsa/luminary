@@ -164,7 +164,7 @@ export async function resolveActiveProvider(): Promise<ProviderConfig | null> {
  * Read the clientId out of Auth0's localStorage cache key, without touching
  * IndexedDB. Returns null when there is no Auth0 cache present.
  */
-function findActiveAuth0ClientId(): string | null {
+export function findActiveAuth0ClientId(): string | null {
     if (typeof localStorage === "undefined") return null;
     for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
@@ -173,6 +173,17 @@ function findActiveAuth0ClientId(): string | null {
         if (clientId) return clientId;
     }
     return null;
+}
+
+/**
+ * Fast synchronous check for "was there a session on this device" — no async
+ * token validation/refresh, no Dexie lookup. Safe to call at module/component
+ * setup time, before setupAuth() has resolved. Used only to auth-scope the
+ * response cache key so the SSG build's anonymous seed is never shown to a
+ * returning logged-in user.
+ */
+export function hasPersistedSession(): boolean {
+    return findActiveAuth0ClientId() !== null || readPersistedProvider() !== null;
 }
 
 function buildAuth0Options(p: ProviderConfig) {
@@ -331,4 +342,5 @@ export default {
     loginWithProvider,
     resolveActiveProvider,
     refreshTokenSilently,
+    hasPersistedSession,
 };

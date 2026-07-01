@@ -118,6 +118,11 @@ const isWeb = import.meta.env.VITE_BUILD_TARGET === "web";
 const isMounted = ref(false);
 onMounted(() => {
     isMounted.value = true;
+    // Reveal content hidden by vite.config.web.ts's pre-paint auth gate (see
+    // authGateScript there for why): by now Vue's first render has landed, using the
+    // auth-scoped response cache, so it's never the wrong (public) content. No-op when
+    // the gate never engaged (logged-out reload, or the native/SPA build).
+    document.documentElement.classList.remove("ssg-auth-pending");
 });
 const showChrome = computed(() => !isWeb || isMounted.value);
 
