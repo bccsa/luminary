@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { type GroupAclEntryDto, AclPermission, type GroupDto } from "luminary-shared";
-import { toRaw, computed, ref } from "vue";
+import { toRaw, computed, ref, onMounted } from "vue";
 import { capitaliseFirstLetter } from "@/util/string";
 import { isPermissionAvailable, validateAclEntry } from "./permissions";
 import { CheckCircleIcon } from "@heroicons/vue/20/solid";
 import _ from "lodash";
 import { isMobileScreen } from "@/globalConfig";
-import { PencilSquareIcon } from "@heroicons/vue/24/outline";
+import { PencilSquareIcon, ChevronLeftIcon, ChevronRightIcon } from "@heroicons/vue/24/outline";
 import LDropdown from "@/components/common/LDropdown.vue";
 type Props = {
     /**
@@ -45,6 +45,22 @@ const activePermissions = computed(() => {
             aclEntry.value!.permission.includes(p),
     );
 });
+
+const scrollContainer = ref(null);
+const canScrollLeft = ref(false);
+const canScrollRight = ref(false);
+
+const checkScroll = () => {
+    if (scrollContainer.value) {
+        const { scrollLeft, scrollWidth, clientWidth } = scrollContainer.value;
+        canScrollLeft.value = scrollLeft > 1;
+        canScrollRight.value = scrollLeft + clientWidth < scrollWidth - 1;
+    }
+};
+
+onMounted(() => {
+    checkScroll();
+});
 </script>
 
 <template>
@@ -55,8 +71,18 @@ const activePermissions = computed(() => {
         >
             {{ capitaliseFirstLetter(aclEntry.type) }}
         </div>
-        <div class="min-w-0 border-x border-b border-zinc-200 px-1 py-1.5">
-            <div class="flex items-center gap-1 overflow-x-auto scrollbar-hide">
+        <div class="relative min-w-0 border-x border-b border-zinc-200 px-1 py-1.5">
+            <div
+                v-if="canScrollLeft"
+                class="pointer-events-none absolute inset-y-0 left-0 z-10 flex w-9 items-center justify-start bg-gradient-to-r from-white to-transparent pl-1"
+            >
+                <ChevronLeftIcon class="h-3 w-3 text-gray-500" />
+            </div>
+            <div
+                ref="scrollContainer"
+                @scroll="checkScroll"
+                class="flex items-center gap-1 overflow-x-auto scrollbar-hide"
+            >
                 <div
                     v-for="aclPermission in activePermissions"
                     :key="aclPermission"
@@ -65,6 +91,12 @@ const activePermissions = computed(() => {
                 >
                     {{ capitaliseFirstLetter(aclPermission) }}
                 </div>
+            </div>
+            <div
+                v-if="canScrollRight"
+                class="pointer-events-none absolute inset-y-0 right-0 z-10 flex w-9 items-center justify-end bg-gradient-to-l from-white to-transparent pr-1"
+            >
+                <ChevronRightIcon class="h-3 w-3 text-gray-500" />
             </div>
         </div>
         <div class="flex h-full items-center border-b border-zinc-200 pl-1">

@@ -185,7 +185,7 @@ onMounted(() => {
         </template>
     </DisplayCard>
 
-    <LModal v-model:isVisible="isVisible" :heading="assignedGroup.name" noDivider>
+    <LModal largeModal v-model:isVisible="isVisible" :heading="assignedGroup.name" noDivider>
         <div class="flex min-h-72 flex-col">
             <div v-if="typesWithActivePermissions.length > 0" class="mb-2 text-xs text-zinc-500">
                 <span class="font-semibold text-zinc-700">{{ assignedGroup.name }}</span>
