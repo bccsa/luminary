@@ -73,12 +73,19 @@ async function Startup() {
 
     const socket = getSocket();
 
+    // Guards the visibilitychange-triggered reconnect below against firing again
+    // while a previous attempt is still in flight (e.g. rapid tab switching, or a
+    // slow Auth0 round-trip during startup) — otherwise each flip restarts the
+    // handshake and the connection state visibly flaps.
+    let reconnecting = false;
+
     // Register the apiAuthFailed listener BEFORE setupAuth(), because setupAuth()
     // may connect the socket with an expired token — if the listener isn't ready
     // by then, the event is lost and the client loops forever.
     socket.on(
         "connect_error",
         async (err: Error & { data?: { type?: string; reason?: string } }) => {
+            reconnecting = false;
             if (err.data?.type !== "auth_failed" && err.message !== "auth_failed") return;
 
             const reason = err.data?.reason;
@@ -113,19 +120,26 @@ async function Startup() {
         },
     );
 
+    await setupAuth(app, router);
+    socket.connect(); // ensure socket connects for public users (no-op if auth already called reconnect())
+
     // A tab backgrounded during sleep/long idle can end up with the socket
     // disconnected and auto-reconnect turned off (see socketio.ts's auth_failed
     // handling) with no future retry scheduled. Foregrounding the tab is the
     // natural moment to try again — any resulting auth failure is handled by
-    // the connect_error listener above, same as any other reconnect.
+    // the connect_error listener above, same as any other reconnect. Registered
+    // after setupAuth() so it can't race the initial (possibly slow, Auth0-backed)
+    // connection attempt; `reconnecting` stops repeat visibility flips from
+    // restarting an attempt that's already in flight.
+    watch(isConnected, (connected) => {
+        if (connected) reconnecting = false;
+    });
     document.addEventListener("visibilitychange", () => {
-        if (document.visibilityState === "visible" && !isConnected.value) {
+        if (document.visibilityState === "visible" && !isConnected.value && !reconnecting) {
+            reconnecting = true;
             socket.reconnect();
         }
     });
-
-    await setupAuth(app, router);
-    socket.connect(); // ensure socket connects for public users (no-op if auth already called reconnect())
 
     // Install all plugins before mounting — components rendered during the
     // splash screen (e.g. SearchModal) call useI18n() at setup time.

@@ -48,6 +48,12 @@ async function Startup() {
 
     const socket = getSocket();
 
+    // Guards the visibilitychange-triggered reconnect below against firing again
+    // while a previous attempt is still in flight (e.g. rapid tab switching, or a
+    // slow Auth0 round-trip during startup) — otherwise each flip restarts the
+    // handshake and the connection state visibly flaps.
+    let reconnecting = false;
+
     // Register the apiAuthFailed listener BEFORE setupAuth(), because setupAuth()
     // may connect the socket with an expired token — if the listener isn't ready
     // by then, the event is lost and the client loops forever.
@@ -55,6 +61,7 @@ async function Startup() {
         socket.on(
             "connect_error",
             async (err: Error & { data?: { type?: string; reason?: string } }) => {
+                reconnecting = false;
                 if (err.data?.type !== "auth_failed" && err.message !== "auth_failed") return;
 
                 const reason = err.data?.reason;
@@ -89,17 +96,6 @@ async function Startup() {
                 }
             },
         );
-
-        // A tab backgrounded during sleep/long idle can end up with the socket
-        // disconnected and auto-reconnect turned off (see socketio.ts's auth_failed
-        // handling) with no future retry scheduled. Foregrounding the tab is the
-        // natural moment to try again — any resulting auth failure is handled by
-        // the connect_error listener above, same as any other reconnect.
-        document.addEventListener("visibilitychange", () => {
-            if (document.visibilityState === "visible" && !isConnected.value) {
-                socket.reconnect();
-            }
-        });
     }
 
     await auth.setupAuth(app);
@@ -110,6 +106,26 @@ async function Startup() {
     // default-groups map and deleteRevoked would purge local data. The pending
     // re-login/refresh connects the socket instead.
     if (!(readPersistedProvider() && !auth.activeProviderId.value)) socket.connect();
+
+    if (!isAuthBypassed) {
+        // A tab backgrounded during sleep/long idle can end up with the socket
+        // disconnected and auto-reconnect turned off (see socketio.ts's auth_failed
+        // handling) with no future retry scheduled. Foregrounding the tab is the
+        // natural moment to try again — any resulting auth failure is handled by
+        // the connect_error listener above, same as any other reconnect. Registered
+        // after setupAuth() so it can't race the initial (possibly slow, Auth0-backed)
+        // connection attempt; `reconnecting` stops repeat visibility flips from
+        // restarting an attempt that's already in flight.
+        watch(isConnected, (connected) => {
+            if (connected) reconnecting = false;
+        });
+        document.addEventListener("visibilitychange", () => {
+            if (document.visibilityState === "visible" && !isConnected.value && !reconnecting) {
+                reconnecting = true;
+                socket.reconnect();
+            }
+        });
+    }
 
     // Show notification on server error (5xx), debounced to avoid flooding.
     // CMS has no i18n layer; copy is owned here rather than in the shared lib.
