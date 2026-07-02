@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { RTextEditor, type ToolbarItem, type DownloadFormat } from "rte-vue";
-import { ref, toRefs, nextTick } from "vue";
+import { ref, toRefs, nextTick, useTemplateRef } from "vue";
 import type { Component } from "vue";
 import { type Editor } from "@tiptap/vue-3";
 import {
@@ -17,6 +17,7 @@ import LDropdown from "../common/LDropdown.vue";
 import BulletlistIcon from "./icons/BulletListIcon.vue";
 import NumberedListIcon from "./icons/NumberedListIcon.vue";
 import { useNotificationStore } from "@/stores/notification";
+import { usePinnedToolbarBelowTopbar } from "@/composables/usePinnedToolbarBelowTopbar";
 
 type Props = {
     title?: string;
@@ -30,6 +31,12 @@ const { disabled } = toRefs(props);
 const text = defineModel<string>("text");
 
 const rteRef = ref<InstanceType<typeof RTextEditor> | undefined>(undefined);
+const toolbarEl = useTemplateRef<HTMLElement>("toolbarEl");
+const toolbarSentinel = useTemplateRef<HTMLElement>("toolbarSentinel");
+const { placeholderHeight, pinnedStyle, toolbarClass } = usePinnedToolbarBelowTopbar(
+    toolbarEl,
+    toolbarSentinel,
+);
 const showModal = ref(false);
 const url = ref("");
 
@@ -76,17 +83,17 @@ const toolbarButtonClass =
     "!rounded-none !border-0 !shadow-none !bg-zinc-100 px-2 py-1.5 text-sm text-zinc-700 hover:!bg-zinc-200 active:!bg-zinc-300";
 
 const toolbarClasses = {
-    root: "-mx-4 flex h-full flex-col px-4",
+    root: "flex min-h-0 flex-1 flex-col",
     header: "flex items-center gap-2",
     icon: "h-6 w-6 text-zinc-600",
     title: "text-sm font-medium text-zinc-700",
-    toolbar: "flex flex-nowrap overflow-x-auto scrollbar-hide gap-4",
-    toolbarGroup: "flex shrink-0 pb-2 !gap-0 !rounded-md !overflow-hidden !shadow-none",
+    toolbar: "flex flex-nowrap items-center gap-4 overflow-x-auto scrollbar-hide",
+    toolbarGroup: "flex shrink-0 !gap-0 !overflow-hidden !rounded-md !shadow-none pb-0",
     button: `${toolbarButtonClass} first:!rounded-l-md last:!rounded-r-md`,
     buttonActive: "!bg-zinc-300",
-    editor: "flex flex-1 flex-col min-h-0",
+    editor: "flex min-h-0 flex-1 flex-col overflow-hidden",
     editorContent:
-        "prose overflow-hidden prose-zinc lg:prose-sm max-w-none p-3 ring-1 ring-inset border-0 focus:ring-2 focus:ring-inset focus:outline-none rounded-md ring-zinc-300 hover:ring-zinc-400 focus:ring-zinc-950 mb-1 flex-1 min-h-0 bg-white",
+        "prose prose-zinc lg:prose-sm max-w-none min-h-0 flex-1 border-0 bg-white px-0 py-0 ring-0 focus:outline-none focus:ring-0 rounded-none lg:h-full",
     placeholder: "text-zinc-400",
 } as const;
 
@@ -136,6 +143,7 @@ defineExpose({
         v-bind="$attrs"
         v-model="text"
         content-format="html"
+        class="flex w-full flex-col lg:h-full lg:min-h-0 lg:flex-1 lg:overflow-hidden"
         :disabled="props.disabled"
         :uploader="true"
         :downloader="true"
@@ -164,7 +172,20 @@ defineExpose({
         "
     >
         <template #toolbar="{ groups, isActive, isDisabled, getLabel, runCommand }">
-            <div :class="toolbarClasses.toolbar">
+            <div ref="toolbarSentinel" class="h-px w-full shrink-0" aria-hidden="true" />
+            <div
+                v-if="placeholderHeight > 0"
+                class="w-full shrink-0"
+                :style="{ height: `${placeholderHeight}px` }"
+                aria-hidden="true"
+            />
+            <div
+                ref="toolbarEl"
+                class="w-full shrink-0 border-b border-zinc-200 bg-white px-4 py-2 lg:static"
+                :class="toolbarClass"
+                :style="pinnedStyle"
+            >
+                <div :class="[toolbarClasses.toolbar, 'toolbar-scroll']">
                 <div v-for="(group, gi) in groups" :key="gi" :class="toolbarClasses.toolbarGroup">
                     <template v-for="item in group" :key="item">
                         <!-- Download: opens a menu to pick the document type -->
@@ -229,6 +250,7 @@ defineExpose({
                         </button>
                     </template>
                 </div>
+                </div>
             </div>
         </template>
     </RTextEditor>
@@ -268,26 +290,59 @@ defineExpose({
 </template>
 
 <style scoped>
+.toolbar-scroll {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+.toolbar-scroll::-webkit-scrollbar {
+    display: none;
+}
+
+:deep(.rte-root) {
+    display: flex;
+    width: 100%;
+    flex-direction: column;
+    gap: 0;
+}
+
 :deep(.rte-editor) {
+    display: flex;
+    width: 100%;
+    flex-direction: column;
     border: 0;
     border-radius: 0;
     background: transparent;
 }
 
 :deep(.rte-editor-content) {
-    height: 100%;
+    display: flex;
+    width: 100%;
+    flex-direction: column;
+    margin-bottom: 0 !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    background-color: #fff;
+    box-shadow: none !important;
+}
+
+:deep(.rte-editor-content .tiptap) {
     display: flex;
     flex-direction: column;
 }
 
 :deep(.rte-editor-content .ProseMirror) {
-    height: 100%;
     width: 100%;
-    margin: 0 auto;
+    margin: 0;
     box-sizing: border-box;
-    flex: 1;
-    overflow-y: auto;
+    padding: 0.5rem 1rem 1rem;
+    background: transparent;
     outline: none;
+}
+
+:deep(.rte-placeholder) {
+    top: 0.5rem;
+    left: 1rem;
 }
 
 :deep(.rte-editor-content .ProseMirror-focused) {
@@ -296,5 +351,66 @@ defineExpose({
 
 :deep(.rte-editor-content .ProseMirror > :first-child) {
     margin-top: 0;
+}
+
+@media (min-width: 1024px) {
+    :deep(.rte-root) {
+        min-height: 0;
+        flex: 1 1 0%;
+    }
+
+    /* Flex, not grid: the editor-content must take the flexible row whether or not the
+       placeholder is rendered. With `grid-template-rows: auto minmax(0,1fr)` the content
+       landed in the `auto` row when no placeholder showed (i.e. once you typed text), so
+       the editable area only grew to the text height instead of filling the box. */
+    :deep(.rte-editor) {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        flex: 1 1 0%;
+    }
+
+    :deep(.rte-editor-content) {
+        min-height: 0 !important;
+        height: 100%;
+        flex: 1 1 0%;
+        overflow: hidden;
+    }
+
+    :deep(.rte-editor-content .tiptap) {
+        min-height: 0;
+        height: 100%;
+        flex: 1 1 0%;
+    }
+
+    :deep(.rte-editor-content .ProseMirror) {
+        min-height: 0;
+        flex: 1 1 0%;
+        height: 100%;
+        overflow-y: auto;
+        /* Thin, modern scrollbar (Firefox). zinc-300 thumb on a transparent track. */
+        scrollbar-width: thin;
+        scrollbar-color: #d4d4d8 transparent;
+    }
+
+    /* WebKit/Blink: 8px thumb, pill-shaped, inset 2px so it reads as ~4px. */
+    :deep(.rte-editor-content .ProseMirror::-webkit-scrollbar) {
+        width: 8px;
+    }
+
+    :deep(.rte-editor-content .ProseMirror::-webkit-scrollbar-track) {
+        background: transparent;
+    }
+
+    :deep(.rte-editor-content .ProseMirror::-webkit-scrollbar-thumb) {
+        border-radius: 9999px;
+        border: 2px solid transparent;
+        background-clip: padding-box;
+        background-color: #d4d4d8;
+    }
+
+    :deep(.rte-editor-content .ProseMirror:hover::-webkit-scrollbar-thumb) {
+        background-color: #a1a1aa;
+    }
 }
 </style>

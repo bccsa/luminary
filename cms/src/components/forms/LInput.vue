@@ -25,9 +25,13 @@ type Props = {
     fullHeight?: boolean;
     leftAddOn?: string;
     rightAddOn?: string;
+    rightAddOnDisabled?: boolean;
     inputType?: "input" | "textarea";
-    autocomplete?: "on" | "off";
+    autocomplete?: string | boolean;
     onBlur?: Function;
+    rightAddOnClick?: () => void;
+    /** Extra right padding on the input when trailing slot content is shown */
+    trailingPaddingClass?: string;
 };
 
 const props = withDefaults(defineProps<Props>(), {
@@ -144,7 +148,8 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                         'rounded-l-md': !leftAddOn,
                         'rounded-r-md': !rightAddOn,
                         'pl-10': icon,
-                        'pr-10': state == 'error',
+                        'pr-10': state == 'error' && !trailingPaddingClass,
+                        [trailingPaddingClass ?? '']: trailingPaddingClass,
                         'resize-none': inputType === 'textarea',
                     },
                     'block w-full border-0 py-2 ring-1 ring-inset focus:ring-2 focus:ring-inset disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500 disabled:ring-zinc-200 sm:text-sm sm:leading-6',
@@ -157,13 +162,23 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                 v-bind="attrsWithoutStyles"
                 :aria-describedby="$slots.default ? `${id}-message` : undefined"
                 :rows="inputType === 'textarea' ? '1' : undefined"
-                :autocomplete="autocomplete && inputType == 'input' ? autocomplete : 'on'"
+                :autocomplete="autocomplete ?? 'on'"
             />
 
             <span
                 v-if="rightAddOn"
-                class="inline-flex items-center rounded-r-md border border-l-0 px-3 sm:text-sm"
-                :class="[addOnStates[computedState]]"
+                class="inline-flex items-center rounded-r-md border border-l-0 px-3"
+                :class="[
+                    addOnStates[computedState],
+                    {
+                        'cursor-pointer bg-zinc-100 text-zinc-600 hover:bg-zinc-300 hover:text-zinc-900':
+                            !rightAddOnDisabled,
+                        'cursor-not-allowed bg-zinc-200 text-zinc-400 opacity-50':
+                            rightAddOnDisabled,
+                    },
+                ]"
+                :rightAddOnDisabled="rightAddOnDisabled"
+                @click="rightAddOnClick"
             >
                 {{ rightAddOn }}
             </span>
@@ -173,6 +188,15 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                 class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3"
             >
                 <ExclamationCircleIcon class="h-5 w-5 text-red-500" aria-hidden="true" />
+            </div>
+
+            <div
+                v-if="$slots.searchButton"
+                class="pointer-events-none absolute inset-y-0 right-1.5 flex items-center"
+            >
+                <div class="pointer-events-auto flex items-center gap-1">
+                    <slot name="searchButton" />
+                </div>
             </div>
         </div>
 

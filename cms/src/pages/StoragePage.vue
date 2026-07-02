@@ -17,28 +17,28 @@ const createNew = () => {
 
 <template>
     <BasePage title="S3 Storage Overview" :should-show-page-title="true">
-        <template #pageNav>
-            <div class="flex gap-4">
-                <LButton
-                    v-if="!isSmallScreen && canEdit"
-                    variant="primary"
-                    :icon="PlusIcon"
-                    @click="createNew"
-                    name="createBucketBtn"
-                >
-                    Add Bucket
-                </LButton>
-                <PlusIcon
-                    v-else-if="isSmallScreen && canEdit"
-                    class="h-6 w-6 text-zinc-500"
-                    @click="createNew"
-                />
-            </div>
+        <template #topBarActionsDesktop>
+            <LButton
+                v-if="!isSmallScreen && canEdit"
+                variant="primary"
+                :icon="PlusIcon"
+                @click="createNew"
+                name="createBucketBtn"
+            >
+                Add Bucket
+            </LButton>
+        </template>
+        <template #topBarActionsMobile>
+            <PlusIcon
+                v-if="isSmallScreen && canEdit"
+                class="h-6 w-6 text-zinc-500"
+                @click="createNew"
+            />
         </template>
 
         <div class="space-y-1">
             <div>
-                <p class="text-gray-600">
+                <p class="text-zinc-600">
                     Manage S3 bucket configurations for file storage and uploads.
                 </p>
             </div>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import {
     MagnifyingGlassIcon,
     TagIcon,
@@ -9,7 +9,7 @@ import {
     LanguageIcon,
     CloudArrowUpIcon,
 } from "@heroicons/vue/24/outline";
-import { type ContentOverviewQueryOptions } from "../query";
+import { type ContentOverviewQueryOptions } from "./types";
 import type { ContentDto, GroupDto } from "luminary-shared";
 import LButton from "@/components/button/LButton.vue";
 import LRadio from "@/components/forms/LRadio.vue";
@@ -18,6 +18,7 @@ import LSelect from "@/components/forms/LSelect.vue";
 import LInput from "@/components/forms/LInput.vue";
 import LModal from "@/components/modals/LModal.vue";
 import LTag from "../LTag.vue";
+import { groupLabel } from "@/util/groups";
 
 type Props = {
     translationOptions: any[];
@@ -25,6 +26,9 @@ type Props = {
     tagContentDocs: ContentDto[];
     groups: GroupDto[];
     reset: Function;
+    clearSearch: () => void;
+    search: () => void;
+    trailingPaddingClass?: string;
 };
 
 defineProps<Props>();
@@ -33,28 +37,43 @@ const queryOptions = defineModel<ContentOverviewQueryOptions>("queryOptions", { 
 // Debouncing the search term so it is the only unique query option that needs a seperate defineModel
 const query = defineModel("query");
 
+const showSearchIcon = computed(() => !String(query.value ?? "").length);
+
 const showMobileQueryOptions = ref(false);
 </script>
 
 <template>
     <div
-        class="z-20 flex flex-col gap-1 overflow-visible border-b border-t border-zinc-300 border-t-zinc-100 bg-white pb-1 pt-2 shadow max-sm:px-1 sm:px-4"
+        class="relative z-20 flex flex-col gap-1 overflow-visible"
     >
-        <div class="flex gap-1">
+        <div class="flex h-10 w-full items-center gap-1">
             <LInput
                 type="text"
-                :icon="MagnifyingGlassIcon"
-                class="flex-grow"
+                :icon="showSearchIcon ? MagnifyingGlassIcon : undefined"
+                class="h-full min-w-0 flex-grow"
                 name="search"
                 placeholder="Search..."
                 data-test="search-input"
                 v-model="query as string"
                 :full-height="true"
-            />
-            <LButton :icon="AdjustmentsVerticalIcon" @click="showMobileQueryOptions = true" />
-            <LButton :icon="ArrowUturnLeftIcon" @click="reset()" />
+                :trailing-padding-class="trailingPaddingClass"
+                @keydown.esc="clearSearch()"
+                @keydown.enter="search()"
+            >
+                <template #searchButton>
+                    <slot name="searchButton"></slot>
+                </template>
+            </LInput>
+            <LButton class="h-full" :icon="AdjustmentsVerticalIcon" @click="showMobileQueryOptions = true" />
+            <LButton class="h-full w-10" :icon="ArrowUturnLeftIcon" @click="reset()" />
         </div>
-        <div class="flex w-full flex-col gap-1">
+        <div
+            v-if="
+                (queryOptions.tags && queryOptions.tags.length > 0) ||
+                (queryOptions.groups && queryOptions.groups.length > 0)
+            "
+            class="flex w-full flex-col gap-1"
+        >
             <div v-if="queryOptions.tags && queryOptions.tags?.length > 0" class="w-full">
                 <ul class="flex w-full flex-wrap gap-2">
                     <LTag
@@ -85,13 +104,18 @@ const showMobileQueryOptions = ref(false);
                             }
                         "
                     >
-                        {{ groups.find((g) => g._id == group)?.name }}
+                        {{ groupLabel(group, groups) }}
                     </LTag>
                 </ul>
             </div>
         </div>
     </div>
-    <LModal heading="Filter options" v-model:is-visible="showMobileQueryOptions">
+    <LModal
+        heading="Filter options"
+        v-model:is-visible="showMobileQueryOptions"
+        @keydown.esc="reset()"
+        @keydown.enter="search()"
+    >
         <div class="flex flex-col gap-2">
             <LSelect
                 label="Translation Status"
@@ -142,6 +166,7 @@ const showMobileQueryOptions = ref(false);
                 data-test="filter-select"
                 v-model="queryOptions.orderBy"
                 :options="[
+                    { value: 'relevance', label: 'Relevance' },
                     { value: 'title', label: 'Title' },
                     { value: 'publishDate', label: 'Publish Date' },
                     { value: 'expiryDate', label: 'Expiry Date' },
@@ -150,7 +175,8 @@ const showMobileQueryOptions = ref(false);
                 :icon="LanguageIcon"
             />
 
-            <div class="mt-3 flex w-full gap-1">
+            <!-- Direction is meaningless for relevance (always best-match first). -->
+            <div v-if="queryOptions.orderBy !== 'relevance'" class="mt-3 flex w-full gap-1">
                 <LRadio
                     class="w-1/2"
                     label="Ascending"

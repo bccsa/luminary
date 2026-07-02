@@ -82,7 +82,7 @@ watch(
 <template>
     <div class="rounded-md border border-zinc-200 bg-white p-2">
         <div class="mb-1 flex items-center justify-between">
-            <label class="block text-xs font-medium text-gray-700">Icon</label>
+            <label class="block text-xs font-medium text-zinc-700">Icon</label>
             <LButton
                 v-if="isBucketSelected"
                 :icon="ArrowUpOnSquareIcon"
@@ -101,7 +101,7 @@ watch(
                 @change="handleFileChange"
             />
         </div>
-        <div class="rounded-md border border-gray-200 bg-white p-2">
+        <div class="rounded-md border border-zinc-200 bg-white p-2">
             <ImageEditor
                 ref="imageEditorRef"
                 v-model:parent="provider as unknown as ContentParentDto"
@@ -111,7 +111,7 @@ watch(
             />
         </div>
         <div class="mt-2">
-            <label for="icon-opacity" class="mb-1 block text-xs font-medium text-gray-700">
+            <label for="icon-opacity" class="mb-1 block text-xs font-medium text-zinc-700">
                 Icon Opacity
             </label>
             <div class="flex items-center gap-2">
@@ -122,7 +122,7 @@ watch(
                     max="1"
                     step="0.01"
                     :value="localOpacity"
-                    class="h-2 w-full flex-1 cursor-pointer appearance-none rounded-lg bg-gray-200 accent-gray-700"
+                    class="h-2 w-full flex-1 cursor-pointer appearance-none rounded-lg bg-zinc-200 accent-zinc-700"
                     :disabled="disabled"
                     @input="localOpacity = ($event.target as HTMLInputElement).valueAsNumber"
                     @change="
@@ -132,7 +132,7 @@ watch(
                         )
                     "
                 />
-                <span class="w-10 text-right text-xs text-gray-600">
+                <span class="w-10 text-right text-xs text-zinc-600">
                     {{ Math.round(localOpacity * 100) }}%
                 </span>
             </div>

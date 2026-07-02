@@ -84,7 +84,18 @@ describe("ContentDisplayCard", () => {
     });
 
     it("routes to default language translation", async () => {
-        cmsDefaultLanguage.value = mockData.mockLanguageDtoSwa;
+        // globalConfig.initLanguage() keeps cmsDefaultLanguage synced to the default (default===1)
+        // language, so forcing a non-default value here would be reactively overwritten — a race
+        // that flakes under full-suite load. Seed Swahili AS the default instead: the watcher
+        // converges cmsDefaultLanguage to it deterministically, while props.languageId stays
+        // English, so the test still proves the card routes by cmsDefaultLanguage, not languageId.
+        const swaDefault = { ...mockData.mockLanguageDtoSwa, default: 1 };
+        const engNonDefault = { ...mockData.mockLanguageDtoEng, default: 0 };
+        await db.docs.bulkPut([swaDefault, engNonDefault]);
+
+        await waitForExpect(() => {
+            expect(cmsDefaultLanguage.value?._id).toBe(swaDefault._id);
+        });
 
         const wrapper = mount(ContentDisplayCard, {
             props: {
@@ -96,12 +107,8 @@ describe("ContentDisplayCard", () => {
                 ],
                 contentDoc: mockData.mockEnglishContentDto,
                 parentType: mockData.mockEnglishContentDto.parentType as DocType.Post | DocType.Tag,
-                languageId: mockData.mockLanguageDtoEng._id,
-                languages: [
-                    mockData.mockLanguageDtoEng,
-                    mockData.mockLanguageDtoFra,
-                    mockData.mockLanguageDtoSwa,
-                ],
+                languageId: engNonDefault._id,
+                languages: [engNonDefault, mockData.mockLanguageDtoFra, swaDefault],
             },
         });
 
@@ -121,7 +128,7 @@ describe("ContentDisplayCard", () => {
                 name: "edit",
                 params: {
                     docType: DocType.Post,
-                    languageCode: cmsDefaultLanguage.value?.languageCode,
+                    languageCode: swaDefault.languageCode,
                     id: mockData.mockEnglishContentDto.parentId,
                     tagOrPostType: mockData.mockPostDto.postType,
                 },

@@ -76,6 +76,8 @@ export type UserDto = ContentBaseDto & {
     userId?: string;
     providerId?: string;
     externalUserId?: string;
+    /** Server-set trigram FTS index (name + email) for strict server-side search. */
+    fts?: string[];
 };
 
 export type ContentDto = ContentBaseDto & {
@@ -239,6 +241,8 @@ export type RedirectDto = ContentBaseDto & {
     redirectType: RedirectType;
     slug: string;
     toSlug?: string;
+    /** Server-set trigram FTS index (slug + toSlug) for strict server-side search. */
+    fts?: string[];
 };
 
 /**

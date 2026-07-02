@@ -137,6 +137,15 @@ How much content is pre-synced into IndexedDB depends on whether the app is runn
 
 Because the tier is captured at startup (like the frozen session clock above), installing the app takes effect on the **next** launch.
 
+### Language tiering (selected languages + on-demand fallback)
+
+Sync downloads content only for the user's **selected** languages ([`appLanguageIdsAsRef`](src/globalConfig.ts)) — the CMS default language is **not** force-synced. A post/tag with no translation in a selected language is still shown:
+
+- The display-side language priority uses [`appDisplayLanguageIdsAsRef`](src/globalConfig.ts) (selected languages + the CMS default appended as the final fallback), so selection is deterministic and renders one tile per post.
+- The fallback translation is **fetched on demand** by `HybridQuery` (`fetchUnsyncedFallback`, on by default via [`useContentQuery`](src/composables/useContentQuery.ts)) and **cached offline** via `persistOffline`. Live updates for fallback content are kept on receipt by the shared `isSyncableDoc` language-priority gate. See [`shared/src/util/HybridQuery/README.md`](../shared/src/util/HybridQuery/README.md).
+
+This means a fallback post is visible online and offline once seen, without paying to sync the default language to every device.
+
 ### Matomo analytics
 
 `initAnalytics()` ([`src/analytics.ts`](src/analytics.ts)) tags each Matomo session with its display mode (`installed` vs `browser`) so install adoption and its effect on the sync window can be measured.

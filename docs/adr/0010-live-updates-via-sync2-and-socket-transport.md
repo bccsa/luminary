@@ -57,6 +57,47 @@ in `db/database.ts`) also lingered — instantiated nowhere, but still exporting
 - **The legacy sync is removed.** `rest/sync.ts` and the `syncMap` machinery are
   deleted; `syncActive` is rewired to reflect real sync activity.
 
+> **Note (2026-06-25) — why deletions use a separate `DeleteCmd` doc, not doc pruning:**
+> Because clients sync permission-scoped Mango `/query` windows (ordered by
+> `updatedTimeUtc`), not CouchDB's `_changes`/replication feed, a document that
+> leaves a client's filter scope — hard-deleted, unpublished (non-CMS clients only
+> query `status:published`), or moved out of a group the client belongs to — simply
+> stops appearing in future query windows while its stale copy lingers in local
+> Dexie forever. `DeleteCmd` is the always-syncable, content-free, independently-routed
+> signal that closes this blind spot (`isSyncable` returns `true` for it
+> unconditionally; it carries `memberOf`/`newMemberOf` so it can be delivered to
+> *removed* groups and let clients self-classify).
+>
+> We considered replacing it by **pruning the original doc** into a tombstone
+> (keep the `_id`, strip heavy fields, flag it `deleted`, let it sync via the normal
+> path — which, unlike a CouchDB `_deleted` tombstone, still shows up in Mango). The
+> conclusion was to **keep `DeleteCmd`**, because the three triggers are not
+> symmetric in how many *audiences* one event must serve:
+>
+> - **Permission change** has two audiences: retained-group clients (*keepers*, who
+>   need the genuine update) and removed-group clients (*droppers*, who must delete).
+>   The updated doc's new `memberOf` routes only to keepers; droppers no longer match
+>   its scope. A single pruned doc carries one `memberOf` and routes one way, so it
+>   cannot serve both — and a user in *both* a removed and a retained group must
+>   **not** delete (handled today by the `verifyAccess(newMemberOf, …)` check, which
+>   pruning would have to re-implement).
+> - **Status change** also has two audiences needing opposite payloads of the same
+>   `_id`: the CMS must keep editing the **full draft**, while app clients must drop
+>   it and must **never receive draft content**. Pruning (stripping content) breaks
+>   CMS editing; *not* pruning leaks unpublished content to public devices. CouchDB
+>   stores one doc per `_id` and sync ships whole docs (no per-recipient field
+>   projection), so this case inherently needs two representations — a full draft and
+>   a content-free drop signal (which is a `DeleteCmd` by another name).
+> - **Permanent deletion** is the only single-audience case (everyone holding the doc
+>   must drop it), so a tombstone *would* work and is arguably cleaner (natural
+>   last-write-wins, no orphan reconciliation). But adopting it only here means
+>   running tombstones *and* `DeleteCmd` side by side, it relocates special-casing
+>   from a separate type into every content read/query path (tombstones must be
+>   filtered everywhere content, `availableTranslations`, and FTS corpus stats are
+>   computed), saves no storage, and — per ADR 0005 — deployed clients understand
+>   `DeleteCmd` but not a tombstone flag, forcing a long dual-path deprecation. The
+>   simplification did not justify the cost.
+
 ## Consequences
 
 - One definition of what's synced (sync); the `config.syncList` drift class of bug

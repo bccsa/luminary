@@ -10,6 +10,12 @@ type Props = {
     collapsible?: boolean;
     defaultCollapsed?: boolean;
     fillHeight?: boolean;
+    /**
+     * Render without the card chrome (border / shadow / rounding / outer padding) so the
+     * card can be nested inside another card as a plain section. The header + slots still
+     * render. Used to merge several cards into one (see EditContent's "Basic" card).
+     */
+    bare?: boolean;
 };
 
 const props = withDefaults(defineProps<Props>(), {
@@ -18,24 +24,22 @@ const props = withDefaults(defineProps<Props>(), {
     collapsible: false,
     defaultCollapsed: false,
     fillHeight: false,
+    bare: false,
     blurEffect: false,
 });
 
-// Optional v-model:collapsed support
+// Optional v-model:collapsed support. `defineModel` already emits `update:collapsed` on write, so
+// it is the single emit source — the redundant `defineEmits` + explicit `emit` are gone (they made
+// `update:collapsed` fire twice per toggle).
 const modelCollapsed = defineModel<boolean>("collapsed", { default: false });
 const collapsed = ref(modelCollapsed?.value ?? props.defaultCollapsed);
 
-const emit = defineEmits<{
-    (e: "update:collapsed", value: boolean): void;
-}>();
-
-// Sync v-model if defined
+// Keep the local state and the (optional) v-model in sync.
 watch(modelCollapsed, (newVal) => {
     if (newVal !== undefined) collapsed.value = newVal;
 });
 watch(collapsed, (newVal) => {
     if (modelCollapsed.value !== undefined) modelCollapsed.value = newVal;
-    emit("update:collapsed", newVal);
 });
 
 function collapse() {
@@ -49,28 +53,39 @@ function collapse() {
 
 <template>
     <div
-        class="border-y-2 border-zinc-200 px-2 shadow-zinc-300/60 sm:mx-0 sm:rounded-md sm:border-2"
-        :class="{
-            'shadow-none': props.shadow === 'none',
-            'shadow-sm': props.shadow === 'small',
-            'bg-zinc-50': collapsed,
-            'lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:overflow-hidden': fillHeight,
-            'overflow-visible': !fillHeight,
-        }"
+        :class="[
+            bare
+                ? ''
+                : 'border-y border-zinc-300 px-2 shadow-zinc-300/60 sm:mx-0 sm:rounded-md sm:border sm:border-zinc-200',
+            {
+                'shadow-none': !bare && props.shadow === 'none',
+                'shadow-sm': !bare && props.shadow === 'small',
+                'lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:overflow-hidden': fillHeight,
+                'overflow-visible': !fillHeight,
+            },
+        ]"
     >
         <div
             v-if="title || icon"
+            data-test="card-header"
             :class="[
-                'flex items-center justify-between gap-4 px-2 py-3 sm:px-2',
+                'flex items-center justify-between gap-4',
+                bare ? 'px-0' : 'px-2 sm:px-2',
+                // Tighter header when nested as a bare section so it doesn't read as dead
+                // space below the divider / above the first field.
+                bare ? 'py-1.5' : 'py-3',
                 { 'cursor-pointer': collapsible },
             ]"
+            @click="collapse"
         >
-            <div class="flex items-center gap-2">
-                <component v-if="icon" :is="icon" class="h-4 w-4 text-zinc-600" />
-                <h3 class="text-sm font-semibold leading-6 text-zinc-900">{{ title }}</h3>
+            <div class="flex items-center gap-1">
+                <component v-if="icon" :is="icon" class="h-5 w-5 text-zinc-400" />
+                <h3 class="text-sm font-medium leading-6 text-zinc-900">{{ title }}</h3>
             </div>
 
-            <div class="flex items-center gap-2">
+            <!-- Stop clicks on actions/chevron from bubbling to the header toggle: action buttons
+                 must not collapse the card, and the chevron toggles via its own handler. -->
+            <div class="flex items-center gap-2" @click.stop>
                 <slot v-if="!collapsed" name="actions" />
                 <button @click="collapse" v-if="collapsible" data-test="collapse-button">
                     <ChevronDownIcon
@@ -96,16 +111,18 @@ function collapse() {
         >
             <div
                 :class="[
-                    {
-                        'px-2 py-1.5 sm:px-1': padding == 'normal',
-                        'pt-2': padding == 'none' && title,
-                    },
+                    bare && padding == 'normal'
+                        ? 'px-0 py-1.5'
+                        : padding == 'normal'
+                          ? 'px-2 py-1.5'
+                          : '',
+                    padding == 'none' && title ? (bare ? 'px-0 pt-2' : 'pt-2') : '',
                     fillHeight ? 'lg:min-h-0 lg:flex-1 lg:overflow-y-auto' : '',
                 ]"
             >
                 <slot />
             </div>
-            <div v-if="$slots.footer" class="bg-zinc-50 px-4 py-3 sm:px-2">
+            <div v-if="$slots.footer" class="bg-zinc-50 px-2 py-3">
                 <slot name="footer" />
             </div>
         </div>

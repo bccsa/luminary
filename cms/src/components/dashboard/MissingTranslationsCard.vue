@@ -20,6 +20,7 @@ const allParentTranslations = computed(() => {
 
     const parentLanguageMap = new Map<string, Set<string>>();
     const parentTitleMap = new Map<string, string>();
+    const parentLangMap = new Map<string, string>();
     const parentTypeMap = new Map<
         string,
         { parentType?: DocType; parentPostType?: PostType; parentTagType?: TagType }
@@ -33,6 +34,7 @@ const allParentTranslations = computed(() => {
 
         if (doc.language === cmsLanguageIdAsRef.value || !parentTitleMap.has(doc.parentId)) {
             parentTitleMap.set(doc.parentId, doc.title);
+            parentLangMap.set(doc.parentId, doc.language);
             parentTypeMap.set(doc.parentId, {
                 parentType: doc.parentType,
                 parentPostType: doc.parentPostType,
@@ -48,6 +50,7 @@ const allParentTranslations = computed(() => {
         translatedLanguages: langs,
         translated: langs.size,
         total,
+        language: parentLangMap.get(parentId) ?? cmsLanguageIdAsRef.value,
         ...parentTypeMap.get(parentId),
     }));
 });
@@ -64,7 +67,7 @@ watch(missingTranslations, () => nextTick(update));
 </script>
 
 <template>
-    <LCard v-if="missingTranslations.length > 0" fillHeight class="-mx-1 lg:mx-0">
+    <LCard v-if="missingTranslations.length > 0" fillHeight>
         <div class="flex flex-col gap-2 lg:h-full">
             <div class="flex items-center justify-center gap-2">
                 <PencilSquareIcon class="h-4 w-4 text-zinc-600" />
@@ -99,7 +102,7 @@ watch(missingTranslations, () => nextTick(update));
                 </div>
             </div>
             <div class="lg:min-h-0 lg:flex-1 lg:overflow-hidden">
-                <ul ref="listEl" class="-mx-1.5 divide-y divide-zinc-100 lg:mx-0">
+                <ul ref="listEl" class="divide-y divide-zinc-100">
                     <li
                         v-for="item in missingTranslations"
                         :key="item.parentId"

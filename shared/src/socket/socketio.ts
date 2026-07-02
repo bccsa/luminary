@@ -39,9 +39,23 @@ class SocketIO {
         this.socket = io(config.apiUrl, { autoConnect: false });
 
         this.socket.on("connect", () => {
-            // Always request fresh config/access map on connect; stay offline until server responds
+            // Connect handshake: request fresh config/access map and declare the connection
+            // mode; stay offline until the server responds. `cms` routes this socket to the
+            // right rooms — CMS (cms:true) → CmsView-scoped `-cms` rooms (drafts/expired, full);
+            // app (cms:false) → base rooms (published only; expired stripped; drafts withheld).
+            // No connect-time rooms are declared (`docTypes: []`): synced types are joined by
+            // sync (`setBaseRooms`), live-only types on demand by HybridQuery. The field is kept
+            // (empty) for the server's wire contract.
+            //
+            // The event was renamed `joinSocketGroups` → `clientConfigReq`; the server still
+            // accepts the old name as a deprecated alias (ADR 0005). FUTURE: migrate this whole
+            // Socket.io live-update transport to Server-Sent Events (SSE) when SSE lands — see
+            // bccsa/luminary#1740.
             isConnected.value = false;
-            this.socket.emit("joinSocketGroups", { docTypes: config.syncList ?? [] });
+            this.socket.emit("clientConfigReq", {
+                docTypes: [],
+                cms: config.cms === true,
+            });
         });
 
         this.socket.on("disconnect", () => {

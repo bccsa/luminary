@@ -1,57 +1,58 @@
 {
     "_id": "group-super-admins",
     "type": "group",
+    "memberOf": ["group-super-admins"],
     "name": "Super Admins",
     "acl": [
         {
             "type": "post",
             "groupId": "group-super-admins",
-            "permission": ["view", "edit", "delete", "translate", "publish"]
+            "permission": ["view", "edit", "delete", "translate", "publish", "cmsView"]
         },
         {
             "type": "tag",
             "groupId": "group-super-admins",
-            "permission": ["view", "edit", "delete", "assign", "translate", "publish"]
+            "permission": ["view", "edit", "delete", "assign", "translate", "publish", "cmsView"]
         },
         {
             "type": "group",
             "groupId": "group-super-admins",
-            "permission": ["view", "edit", "delete", "assign"]
+            "permission": ["view", "edit", "delete", "assign", "cmsView"]
         },
         {
             "type": "user",
             "groupId": "group-super-admins",
-            "permission": ["view", "edit"]
+            "permission": ["view", "edit", "cmsView"]
         },
         {
             "type": "language",
             "groupId": "group-super-admins",
-            "permission": ["view", "edit", "delete", "assign", "translate"]
+            "permission": ["view", "edit", "delete", "assign", "translate", "cmsView"]
         },
         {
             "type": "redirect",
             "groupId": "group-super-admins",
-            "permission": ["view", "edit", "delete", "assign", "translate", "publish"]
+            "permission": ["view", "edit", "delete", "assign", "translate", "publish", "cmsView"]
         },
         {
             "type": "user",
             "groupId": "group-super-admins",
-            "permission": ["view", "edit", "delete"]
+            "permission": ["view", "edit", "delete", "cmsView"]
         },
         {
             "type": "storage",
             "groupId": "group-super-admins",
-            "permission": ["view", "edit", "delete", "assign"]
+            "permission": ["view", "edit", "delete", "assign", "cmsView"]
         },
         {
             "type": "authProvider",
             "groupId": "group-super-admins",
-            "permission": ["view", "edit", "delete", "assign"]
+            "permission": ["view", "edit", "delete", "assign", "cmsView"]
         },
         {
             "type": "autoGroupMappings",
             "groupId": "group-super-admins",
-            "permission": ["view", "edit", "delete", "assign"]
+            "permission": ["view", "edit", "delete", "assign", "cmsView"]
         }
     ]
 }

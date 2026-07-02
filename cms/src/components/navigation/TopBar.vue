@@ -1,10 +1,10 @@
 <template>
-    <div class="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
-        <div class="relative flex flex-1 items-center justify-between gap-1">
+    <div class="flex min-w-0 flex-1 items-center gap-x-1 self-stretch">
+        <div class="flex min-w-0 flex-1 items-center">
             <slot name="quickActions" />
         </div>
-    </div>
-    <div v-if="$slots.contentActions">
-        <slot name="contentActions" />
+        <div v-if="$slots.contentActions" class="flex shrink-0 items-center gap-1">
+            <slot name="contentActions" />
+        </div>
     </div>
 </template>

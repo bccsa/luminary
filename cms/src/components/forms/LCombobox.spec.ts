@@ -243,6 +243,60 @@ describe("LCombobox", () => {
         });
     });
 
+    it("lets escape bubble after the dropdown is closed", async () => {
+        const onKeydown = vi.fn();
+        const wrapper = mount(
+            {
+                components: { LCombobox },
+                setup() {
+                    return {
+                        onKeydown,
+                        options: [
+                            { id: 0, label: "Test Label 1", value: "test-1" },
+                            { id: 1, label: "Test Label 2", value: "test-2" },
+                            { id: 2, label: "Test Label 3", value: "test-3" },
+                        ],
+                        selectedOptions: ref<Array<string | number>>([]),
+                    };
+                },
+                template: `
+                    <div @keydown="onKeydown">
+                        <LCombobox
+                            :options="options"
+                            v-model:selected-options="selectedOptions"
+                        />
+                    </div>
+                `,
+            },
+            {
+                global: { stubs: { Teleport: true } },
+            },
+        );
+        await wrapper.find("[name='options-open-btn']").trigger("click");
+        await wrapper.vm.$nextTick();
+
+        await waitForExpect(() => {
+            expect(wrapper.find("[data-test='options']").exists()).toBe(true);
+        });
+
+        const searchElement = wrapper.find("[name='option-search']");
+        const pressEscape = () =>
+            searchElement.element.dispatchEvent(
+                new KeyboardEvent("keydown", {
+                    key: "Escape",
+                    bubbles: true,
+                    cancelable: true,
+                }),
+            );
+
+        pressEscape();
+        await wrapper.vm.$nextTick();
+        expect(onKeydown).not.toHaveBeenCalled();
+
+        pressEscape();
+        expect(onKeydown).toHaveBeenCalledTimes(1);
+    });
+
     it("highlights correctly when navigating with down arrow key", async () => {
         Element.prototype.scrollIntoView = vi.fn();
 
@@ -388,6 +442,31 @@ describe("LCombobox", () => {
             expect(items[1].text()).toContain("Bravo");
             expect(items[2].text()).toContain("Charlie");
             expect(items[3].text()).toContain("delta");
+        });
+    });
+
+    it("preserves option order when sorting is disabled", async () => {
+        const wrapper = mount(LCombobox, {
+            props: {
+                options: [
+                    { id: 0, label: "Charlie", value: "c" },
+                    { id: 1, label: "alpha", value: "a" },
+                    { id: 2, label: "Bravo", value: "b" },
+                ],
+                selectedOptions: [],
+                sortOptions: false,
+            },
+            global: { stubs: { Teleport: true } },
+        });
+
+        await wrapper.find("[name='options-open-btn']").trigger("click");
+        await wrapper.vm.$nextTick();
+
+        await waitForExpect(() => {
+            const items = wrapper.findAll("[name='list-item']");
+            expect(items[0].text()).toContain("Charlie");
+            expect(items[1].text()).toContain("alpha");
+            expect(items[2].text()).toContain("Bravo");
         });
     });
 

@@ -5,7 +5,7 @@ import {
     type MangoSelector,
     type HybridQueryOptions,
 } from "luminary-shared";
-import { appLanguageIdsAsRef } from "@/globalConfig";
+import { appDisplayLanguageIdsAsRef } from "@/globalConfig";
 import { mangoIsPublished } from "@/util/mangoIsPublished";
 
 /**
@@ -81,6 +81,10 @@ export function useContentQuery(
         live = true,
         cache = false,
         persistOffline = true,
+        // Fetch (and offline-cache) the fallback translation of a post that has no translation in
+        // the user's selected languages — so it still appears without syncing the default language.
+        // On by default for content feeds; pass `false` to opt a call site out.
+        fetchUnsyncedFallback = true,
         // Strip heavy / never-rendered fields from the live result (heap) — and, as a
         // consequence, from the response cache too. Tiles read none of these off the
         // feed doc: the search engine reads `fts`/`ftsTokenCount` from Dexie,
@@ -100,7 +104,7 @@ export function useContentQuery(
                     { type: DocType.Content },
                     ...selector(),
                     ...(publishedFilter
-                        ? mangoIsPublished(languageFilter ? appLanguageIdsAsRef.value : [], {
+                        ? mangoIsPublished(languageFilter ? appDisplayLanguageIdsAsRef.value : [], {
                               includeScheduled,
                           })
                         : []),
@@ -110,6 +114,6 @@ export function useContentQuery(
             ...(limit !== undefined ? { $limit: limit } : {}),
             use_index: useIndex,
         }),
-        { live, cache, persistOffline, stripFields, ...rest },
+        { live, cache, persistOffline, stripFields, fetchUnsyncedFallback, ...rest },
     );
 }

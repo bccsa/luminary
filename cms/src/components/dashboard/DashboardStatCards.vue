@@ -48,9 +48,9 @@ const contentByParentType = computed(() => {
     return { post, tag };
 });
 
-const canViewPosts = hasAnyPermission(DocType.Post, AclPermission.View);
-const canViewTags = hasAnyPermission(DocType.Tag, AclPermission.View);
-const canViewGroups = hasAnyPermission(DocType.Group, AclPermission.View);
+const canViewPosts = hasAnyPermission(DocType.Post, AclPermission.CmsView);
+const canViewTags = hasAnyPermission(DocType.Tag, AclPermission.CmsView);
+const canViewGroups = hasAnyPermission(DocType.Group, AclPermission.CmsView);
 </script>
 
 <template>

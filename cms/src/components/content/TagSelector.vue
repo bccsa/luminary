@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, type Component } from "vue";
 import {
-    db,
     AclPermission,
     DocType,
     TagType,
@@ -9,7 +8,7 @@ import {
     type LanguageDto,
     verifyAccess,
     type ContentParentDto,
-    useDexieLiveQueryWithDeps,
+    useHybridQuery,
 } from "luminary-shared";
 import { getPreferredContentLanguage } from "@/util/getPreferredContentLanguage";
 import LCombobox, { type ComboboxOption } from "@/components/forms/LCombobox.vue";
@@ -28,27 +27,26 @@ const props = withDefaults(defineProps<Props>(), {
 });
 const parent = defineModel<ContentParentDto>("parent");
 
-const tags = useDexieLiveQueryWithDeps(
-    props,
-    () => {
-        if (!parent.value) return [];
-        if (!props.language) return [];
-
-        return db.docs
-            .where({ type: DocType.Content, parentTagType: props.tagType })
-            .filter((doc) => {
-                // Check if the content is in the selected / default / first available language
-                return (
-                    getPreferredContentLanguage(
-                        (doc as ContentDto).availableTranslations || [],
-                        props.language?._id,
-                    ) == doc.language
-                );
-            })
-            .sortBy("title") as unknown as Promise<ContentDto[]>;
-    },
-    { initialValue: [] as ContentDto[] },
+// Tag content for this tagType (Content is synced → Dexie-first on the [type+parentTagType]
+// index). The thunk auto-tracks `props.tagType`. The per-language selection is a cross-doc
+// condition (depends on availableTranslations), kept as a client-side computed below.
+const tagContent = useHybridQuery<ContentDto>(
+    () => ({ selector: { type: DocType.Content, parentTagType: props.tagType } }),
+    { live: true },
 );
+
+const tags = computed<ContentDto[]>(() => {
+    if (!parent.value || !props.language) return [];
+    return tagContent.value
+        .filter(
+            (doc) =>
+                getPreferredContentLanguage(
+                    doc.availableTranslations || [],
+                    props.language?._id,
+                ) == doc.language,
+        )
+        .sort((a, b) => (b.publishDate ?? 0) - (a.publishDate ?? 0));
+});
 
 const assignable = computed(() =>
     tags.value.filter(
@@ -106,6 +104,7 @@ const showEditModal = ref(false);
             :selected-labels="selectedOptions"
             :show-selected-labels="true"
             :showSelectedInDropdown="false"
+            :sort-options="false"
             v-model:showEditModal="showEditModal"
         >
             <template #actions>

@@ -9,6 +9,7 @@ import { MongoQueryDto } from "../dto/MongoQueryDto";
 import { MongoComparisonCriteria, MongoSelectorDto } from "../dto/MongoSelectorDto";
 import { LanguageDto } from "../dto/LanguageDto";
 import { expandMangoSelector } from "../util/expandMangoQuery";
+import { isExpiredContent, stripExpiredContent } from "../util/stripExpiredContent";
 
 @Injectable()
 export class QueryService {
@@ -130,10 +131,15 @@ export class QueryService {
                 permissionCheckTypes.push(type as DocType);
         }
 
-        // TODO: Get view permissions based CMS access if CMS view permissions are set (future)
+        // CMS-scoped requests (cms:true) are permission-gated by CmsView; app/public requests by
+        // View. A CmsView ACL entry always also carries View (see validateAcl), so CMS users keep
+        // their app-side published access too. When the caller holds no CmsView on any requested
+        // group the resulting empty groups fall through to the same 403 guards as a missing View —
+        // so requesting cms:true without CmsView is Forbidden, not a silent published-only result.
+        const isCms = query.cms === true;
         const userViewGroups = PermissionSystem.accessMapToGroups(
             userDetails.accessMap,
-            AclPermission.View,
+            isCms ? AclPermission.CmsView : AclPermission.View,
             [...permissionCheckTypes],
         );
 
@@ -265,7 +271,19 @@ export class QueryService {
         // only knowable post-hoc). Set here, not in executeFindQuery, so the auth /
         // languages / search callers of that method are unaffected.
         (query as any).execution_stats = true;
-        return this.db.executeFindQuery(query);
+        const result = await this.db.executeFindQuery(query);
+
+        // Data minimization (covers both sync and HybridQuery — both POST /query): a non-CMS
+        // response can only contain an expired Content doc via the app's includeExpired update-sync,
+        // returned purely so the client can prune its stale copy — never to display. Strip the body
+        // so it never crosses the wire. CMS (cms:true / CmsView-validated) responses keep full docs.
+        // See util/stripExpiredContent.ts; the Socket.io base-room emit applies the same projection.
+        if (!isCms && Array.isArray(result?.docs)) {
+            result.docs = result.docs.map((doc: any) =>
+                isExpiredContent(doc, now) ? stripExpiredContent(doc) : doc,
+            );
+        }
+        return result;
     }
 }
 

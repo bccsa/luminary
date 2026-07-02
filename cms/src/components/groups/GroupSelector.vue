@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import {
-    db,
     DocType,
     type Uuid,
     type GroupDto,
     verifyAccess,
     AclPermission,
+    useSharedHybridQuery,
 } from "luminary-shared";
 import LCombobox, { type ComboboxOption } from "../forms/LCombobox.vue";
 import { UserGroupIcon, ChevronRightIcon } from "@heroicons/vue/24/outline";
@@ -25,8 +25,14 @@ const props = withDefaults(defineProps<Props>(), {
 // Bind the model for selected groups using Vue's defineModel
 const groups = defineModel<Uuid[]>("groups", { required: true });
 
-// Reactive list of all available groups from the database
-const availableGroups = db.whereTypeAsRef<GroupDto[]>(DocType.Group, []);
+// Reactive list of all available groups. useHybridQuery (Dexie-first for the synced Group type)
+// replaces the deprecated, RxJS-backed db.whereTypeAsRef — the last such read in the monorepo.
+const availableGroups = useSharedHybridQuery<GroupDto>(
+    () => ({ selector: { type: DocType.Group } }),
+    {
+        live: true,
+    },
+);
 
 // Compute assignable groups based on access control:
 // - Must have EDIT access to the document type
@@ -56,7 +62,7 @@ const selectedGroupOptions = computed<ComboboxOption[]>(() =>
     groups.value.map((groupId) => {
         const group = availableGroups.value?.find((g) => g._id === groupId);
 
-        if (group && verifyAccess([group._id], DocType.Group, AclPermission.View, "any")) {
+        if (group && verifyAccess([group._id], DocType.Group, AclPermission.CmsView, "any")) {
             const canAssign =
                 verifyAccess([group._id], DocType.Group, AclPermission.Assign, "any") &&
                 verifyAccess([group._id], props.docType, AclPermission.Edit, "any");

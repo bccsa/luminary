@@ -2,20 +2,33 @@
 import BasePage from "@/components/BasePage.vue";
 import LanguageDisplayCard from "@/components/languages/LanguageDisplayCard.vue";
 import { PlusIcon } from "@heroicons/vue/24/outline";
-import { AclPermission, db, DocType, hasAnyPermission, type LanguageDto } from "luminary-shared";
-import { computed, ref, watch } from "vue";
+import {
+    AclPermission,
+    db,
+    DocType,
+    hasAnyPermission,
+    useSharedHybridQueryWithState,
+    type LanguageDto,
+} from "luminary-shared";
+import { computed } from "vue";
 import LButton from "../button/LButton.vue";
 import { isSmallScreen } from "@/globalConfig";
 import router from "@/router";
+import EmptyState from "@/components/EmptyState.vue";
 
 const canCreateNew = computed(() => hasAnyPermission(DocType.Language, AclPermission.Edit));
-const languages = db.whereTypeAsRef<LanguageDto[]>(DocType.Language, []);
 
-const isLoading = ref(true);
-const stopLoadingWatcher = watch(languages, () => {
-    isLoading.value = false;
-    stopLoadingWatcher();
+// `isFetching` settles to false when the read completes even with no languages; a fires-once watch
+// on the output would hang on an empty result (HybridQuery dedupes [] → []).
+const {
+    output: languages,
+    isFetching: isLoading,
+    hasLocalChanges,
+} = useSharedHybridQueryWithState<LanguageDto>(() => ({ selector: { type: DocType.Language } }), {
+    live: true,
 });
+
+const hasAnyContent = computed(() => languages.value.length > 0);
 
 const createNew = () => {
     router.push({ name: "language", params: { id: db.uuid() } });
@@ -29,28 +42,41 @@ const createNew = () => {
         :is-full-width="true"
         :loading="isLoading"
     >
-        <template #pageNav>
-            <div class="flex gap-4" v-if="canCreateNew">
-                <LButton
-                    v-if="canCreateNew && !isSmallScreen"
-                    variant="primary"
-                    :icon="PlusIcon"
-                    @click="$router.push({ name: 'language', params: { id: db.uuid() } })"
-                    name="createLanguageBtn"
-                >
-                    Create language
-                </LButton>
-                <PlusIcon
-                    v-else-if="canCreateNew && isSmallScreen"
-                    class="h-8 w-8 cursor-pointer rounded bg-zinc-100 p-1 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-700"
-                    @click="createNew"
-                />
-            </div>
+        <template #topBarActionsDesktop>
+            <LButton
+                v-if="canCreateNew && hasAnyContent && !isSmallScreen"
+                variant="primary"
+                :icon="PlusIcon"
+                @click="$router.push({ name: 'language', params: { id: db.uuid() } })"
+                name="createLanguageBtn"
+            >
+                Create language
+            </LButton>
         </template>
-        <LanguageDisplayCard
-            v-for="language in languages"
-            :key="language._id"
-            :languagesDoc="language"
-        />
+        <template #topBarActionsMobile>
+            <PlusIcon
+                v-if="canCreateNew && hasAnyContent && isSmallScreen"
+                class="h-8 w-8 cursor-pointer rounded bg-zinc-100 p-1 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-700"
+                @click="createNew"
+            />
+        </template>
+        <div class="flex flex-col gap-[3px]">
+            <EmptyState
+                v-if="!isLoading && !hasAnyContent"
+                title="No languages yet"
+                description="Add a language to start creating translated content."
+                :button-text="canCreateNew ? 'Create language' : undefined"
+                :button-action="canCreateNew ? createNew : undefined"
+                :button-permission="canCreateNew"
+                name="createLanguageBtn"
+                show-back-button
+            />
+            <LanguageDisplayCard
+                v-for="language in languages"
+                :key="language._id"
+                :languagesDoc="language"
+                :has-local-changes="hasLocalChanges"
+            />
+        </div>
     </BasePage>
 </template>

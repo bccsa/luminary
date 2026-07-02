@@ -4,7 +4,7 @@ import SettingsPage from "./SettingsPage.vue";
 import { mount, flushPromises } from "@vue/test-utils";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
-import { db, isConnected, accessMap, init, DocType } from "luminary-shared";
+import { db, isConnected, accessMap, init } from "luminary-shared";
 import * as mockData from "@/tests/mockdata";
 import { cmsLanguageIdAsRef } from "@/globalConfig";
 import waitForExpect from "wait-for-expect";
@@ -43,37 +43,6 @@ describe("purgeLocalDatabase", () => {
             cms: true,
             docsIndex: "",
             apiUrl: "localhost:3000",
-            syncList: [
-                {
-                    type: DocType.Tag,
-                    syncPriority: 2,
-                    skipWaitForLanguageSync: true,
-                },
-                {
-                    type: DocType.Post,
-                    syncPriority: 2,
-                    skipWaitForLanguageSync: true,
-                },
-                {
-                    type: DocType.Redirect,
-                    syncPriority: 2,
-                    skipWaitForLanguageSync: true,
-                },
-                {
-                    type: DocType.Language,
-                    syncPriority: 1,
-                    skipWaitForLanguageSync: true,
-                },
-                {
-                    type: DocType.Group,
-                    syncPriority: 1,
-                    skipWaitForLanguageSync: true,
-                },
-                {
-                    type: DocType.User,
-                    sync: false,
-                },
-            ],
         });
 
         await db.docs.bulkPut([mockData.mockPostDto]);

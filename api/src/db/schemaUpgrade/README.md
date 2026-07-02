@@ -8,9 +8,21 @@ This directory contains database schema upgrade scripts that migrate existing Co
 
 ### Schema Version Tracking
 
--   Schema version is stored in a CouchDB document with `_id: "_schemas"` containing a `schemaVersion` field
--   The version starts at 0 (when the document doesn't exist) and increments with each upgrade
+-   Schema version is stored in a CouchDB document with `_id: "dbSchema"` containing a `version` field
+-   The version reads as `0` when the document doesn't exist (a fresh database) and increments with each upgrade
 -   Accessed via `DbService.getSchemaVersion()` and `DbService.setSchemaVersion()`
+
+### Fresh-database initializer (`initSchemaVersion`)
+
+Every versioned upgrade (`v9`..`vN`) guards on an *exact* prior version (e.g. `v18` only runs when the version is exactly `17`). On a brand-new database the version reads as `0`, so **none** of them run and the `dbSchema` document would never be created — leaving the version permanently unset.
+
+To prevent this, `initSchemaVersion` runs **first** in the chain (before `v9`). When the version is `0` it stamps the `dbSchema` document at `FRESH_DB_SCHEMA_VERSION` (defined in `freshDbSchemaVersion.ts`). It is a strict **no-op** on any database that already has a `dbSchema` document, so existing and mid-upgrade databases are never touched.
+
+`FRESH_DB_SCHEMA_VERSION` is set to **one below** the newest FTS-backfill upgrade (`17`, i.e. one below `v18`) rather than the absolute latest. Seeding writes raw JSON and bypasses `processUserDto`/`processRedirectDto`, so freshly-seeded User/Redirect docs have no `fts` field. Stamping at `17` lets the chain still run `v18` over the seeded docs, computing their `fts` so the strict server-side `/fts` search can find them. (`v18` only touches the DB — unlike `v17`, which needs S3 — so it is safe to run on a fresh DB.)
+
+> When you add a new upgrade, set `FRESH_DB_SCHEMA_VERSION` to the version just below the newest upgrade that must run over seeded data, and confirm that upgrade is safe to execute against a fresh database.
+>
+> **Note:** seeded **Content** docs still have no `fts` (the `v13` content backfill is not re-run on a fresh DB, since stamping that low would also drag in `v16`/`v17` side effects). Content created through the change-request pipeline gets `fts` at write time; only seed sample Content is unindexed.
 
 ### Execution Flow
 
@@ -20,7 +32,7 @@ Schema upgrades are executed during API startup (in `main.ts`):
 2. Database seeding (only if `npm run seed` is run)
 3. Permission system initialization
 4. S3 change listener initialization
-5. **Schema upgrades run sequentially** (only executes upgrades newer than current version)
+5. **Schema upgrades run sequentially** — `initSchemaVersion` first (stamps a fresh DB at the latest version), then each versioned upgrade newer than the current version
 6. API starts serving requests
 
 ### Upgrade Function Structure
@@ -122,7 +134,7 @@ Schema upgrades can be safely removed when:
 ### Current Baseline
 
 
-**Current Schema Version**: 17 (as of 2026-06-18)
+**Current Schema Version**: 18 (as of 2026-06-22)
 
 All production databases are expected to be at version 10 or higher. Historical upgrades v1-v9 have been removed as they are no longer needed.
 
@@ -162,3 +174,11 @@ Enforces the slug invariant — per slug, published Content and a Redirect are m
 ### v17 — ThumbHash backfill (2026-06-18)
 
 Backfills ThumbHash placeholders (`ImageFileCollectionDto.thumbHash`, a ~25-byte base64 blurred preview) for pre-existing images. ThumbHash is only generated at image-upload time, so older images lack it. For each Post/Tag whose image collections are missing a ThumbHash, it fetches the smallest stored variant from that doc's bucket (S3), encodes the hash, re-saves the parent, and re-denormalises `imageData` onto child Content docs' `parentImageData`. Each save bumps `updatedTimeUtc` so clients re-sync and show blurs for old content. Per-image fetch/encode failures are logged and skipped (a missing S3 object must not block startup); a DB-level failure re-throws so the version stays put and the next startup retries (the per-collection `thumbHash` skip makes that idempotent).
+
+### v18 — User/Redirect FTS backfill (2026-06-22)
+
+Backfills the server-authoritative `fts` trigram index on existing User (name + email) and Redirect (slug + toSlug) documents so the strict server-side `/fts` search can find them without a full table scan. Mirrors the Content backfill (v13) but uses the per-doctype field configs and writes no `ftsTokenCount` (these doctypes use strict substring search, not BM25). Uses `insertDoc` to preserve `updatedTimeUtc` — `fts` is a server-only index field that must not churn already-synced clients. Docs with no indexable text are skipped (they remain listable via browse, just not searchable). Also requires the new `fts-trigram-index-user` / `fts-trigram-index-redirect` CouchDB views (seeded as design docs); those build on first access after deploy.
+
+### v19 — CmsView ACL backfill (2026-06-25)
+
+Backfills the new `CmsView` ACL permission (GitHub #160). CmsView gates CMS-scoped (`cms:true`) reads/sync — what a user may see in the CMS, including drafts and expired Content. At deploy no group holds it. To avoid broadly auto-granting it (CmsView must stay a real, narrowable permission), the upgrade grants it only to the standard system groups: `group-super-admins` gets `CmsView` on **every** ACL entry (full CMS visibility on all doc types), and `group-public-users` gets it on **AuthProvider** entries only (so the CMS login screen can read the providers for any user opening it). Everyone else — editors, etc. — is granted `CmsView` explicitly via ACL administration; the seeded Group fixtures grant `group-public-editors`/`group-private-editors` `CmsView` on Post/Tag/Redirect/Storage **and Language** (the CMS language sync is CmsView-gated, so without it an editor would sync no languages and the content sync — which needs at least one selected language — never runs). Idempotent (only pushes `CmsView` where missing), a safe no-op when re-run — including on fresh DBs and when `npm run seed` runs the upgrade chain. Uses `insertDoc` to preserve `updatedTimeUtc`: the granted access takes effect via the server-recomputed AccessMap delivered on connect. On the client, `deleteRevoked()` (`shared/src/db/database.ts`) reconciles the local `syncList` with each access change — trimming columns for revoked groups so a later re-grant re-walks — so a client momentarily narrowed during the rollout self-heals on its next access-loss/regain (logout→login) cycle without a cache clear.

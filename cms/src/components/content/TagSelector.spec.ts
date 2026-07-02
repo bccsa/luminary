@@ -80,6 +80,42 @@ describe("TagSelector.vue", () => {
         });
     });
 
+    it("orders available tags by latest publish date", async () => {
+        await db.docs.bulkPut([
+            {
+                ...mockData.mockCategoryContentDto,
+                _id: "content-tag-category1",
+                parentId: "tag-category1",
+                title: "ZZZ Newest",
+                publishDate: 2000000000000,
+            } as ContentDto,
+            {
+                ...mockData.mockCategoryContentDto,
+                _id: "content-category-2",
+                parentId: "tag-category2",
+                title: "AAA Oldest",
+                publishDate: 1000000000000,
+            } as ContentDto,
+        ]);
+
+        const wrapper = mount(TagSelector, {
+            props: {
+                tagType: TagType.Category,
+                language: mockData.mockLanguageDtoEng,
+                parent: { ...mockData.mockPostDto, tags: [] },
+            },
+            global: { stubs: { Teleport: true } },
+        });
+
+        await waitForExpect(() => {
+            const combobox = wrapper.findComponent(LCombobox);
+            const labels = combobox.props("options").map((option) => option.label);
+
+            expect(combobox.props("sortOptions")).toBe(false);
+            expect(labels.indexOf("ZZZ Newest")).toBeLessThan(labels.indexOf("AAA Oldest"));
+        });
+    });
+
     it("can filter on tags", async () => {
         const wrapper = mount(TagSelector, {
             props: {

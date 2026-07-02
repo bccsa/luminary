@@ -1,4 +1,5 @@
-import type { BaseDocumentDto } from "../../types";
+import { computed, type ComputedRef } from "vue";
+import type { BaseDocumentDto, Uuid } from "../../types";
 import { DocType } from "../../types";
 import { syncList } from "../../api/sync/state";
 import { splitChunkTypeString, OPEN_MIN } from "../../api/sync/utils";
@@ -40,6 +41,34 @@ export function typeIsInSyncList(type: DocType | undefined): boolean {
         if (splitChunkTypeString(entry.chunkType).type === type) return true;
     }
     return false;
+}
+
+const _membershipRefs = new Map<DocType, ComputedRef<boolean>>();
+
+/**
+ * Per-`DocType`-memoized reactive twin of {@link typeIsInSyncList}: "does at least one
+ * syncList entry currently track `type`?", as a `ComputedRef<boolean>`. It delegates to
+ * `typeIsInSyncList`, so the reactive and imperative reads share ONE predicate and can't
+ * diverge.
+ *
+ * The point is to watch the derived BOOLEAN, not `syncList` itself: `syncList` mutates on
+ * every sync chunk (block ranges, eof, new columns), but membership for a given type flips
+ * `false→true` exactly once (when its first column registers) and stays true — so a
+ * `watch` on this ref fires once per genuine flip, not per chunk. The `computed` caches, so
+ * the `syncList` scan runs once globally per syncList change per type, regardless of how
+ * many `HybridQuery` instances depend on it.
+ *
+ * Module-level `computed` (no owning effect scope) is intentional: it lives for the module
+ * lifetime, exactly like `syncList`; there is at most one entry per `DocType` (a handful).
+ * Returns the SAME ref for a given type on every call.
+ */
+export function typeInSyncListRef(type: DocType): ComputedRef<boolean> {
+    let r = _membershipRefs.get(type);
+    if (!r) {
+        r = computed(() => typeIsInSyncList(type));
+        _membershipRefs.set(type, r);
+    }
+    return r;
 }
 
 /**
@@ -87,6 +116,36 @@ export function withPublishDate(selector: MangoSelector, cutoff: number): MangoS
 }
 
 /**
+ * Append the combined **older-tail OR fallback-language** clause as a single AND condition:
+ * `{ $or: [ { publishDate: { $lte: cutoff } }, { language: { $nin: fallbackLanguageIds } } ] }`.
+ *
+ * This lets ONE supplement query cover both slices the API must supply for partially-synced
+ * content — the below-cutoff older tail (synced languages) AND content in non-synced ("fallback")
+ * languages of any age — so a content feed issues a single scan instead of two. The `$nin` keeps
+ * the fallback branch disjoint from the synced-language docs the local read already serves; the
+ * caller's own language-priority clauses restrict it to genuine fallbacks. At `OPEN_MIN` the
+ * `publishDate` branch matches nothing, so the clause degrades to the fallback branch alone.
+ */
+export function withPublishDateOrFallback(
+    selector: MangoSelector,
+    cutoff: number,
+    fallbackLanguageIds: readonly Uuid[],
+): MangoSelector {
+    const expanded = expandMangoSelector(selector);
+    return {
+        $and: [
+            ...(expanded.$and ?? []),
+            {
+                $or: [
+                    { publishDate: { $lte: cutoff } },
+                    { language: { $nin: [...fallbackLanguageIds] } },
+                ],
+            } as MangoSelector,
+        ],
+    };
+}
+
+/**
  * Decide what (if anything) `HybridQuery` should POST to the API after running
  * the local Dexie read. Pure — no Vue / no I/O.
  *
@@ -106,30 +165,46 @@ export function withPublishDate(selector: MangoSelector, cutoff: number): MangoS
  *
  * Cutoff comes from `getContentPublishDateCutoff()` (`SharedConfig`), so this
  * function reflects the same global value sync uses to floor content sync depth.
+ *
+ * **Fallback-language fetch (`fallbackLanguageIds`).** When a non-empty synced-language set is
+ * passed, the appended clause becomes the COMBINED `{ $or: [ publishDate <= cutoff, language $nin
+ * synced ] }` (see {@link withPublishDateOrFallback}) so ONE supplement covers both the older tail
+ * AND content in non-synced languages — a content feed issues a single scan rather than two. With
+ * fallback on, the short-circuits relax: the supplement fires even when the local page is full (a
+ * fallback post can out-rank a local one — full `$limit`, trimmed by `applySortLimit`) and even at
+ * `OPEN_MIN` (a non-synced-language post is never local regardless of cutoff). Pass `undefined` /
+ * empty to keep the original older-tail-only behaviour.
  */
 export function decideContentApiQuery<T extends BaseDocumentDto>(
     query: MangoQuery,
     localDocs: readonly T[],
+    fallbackLanguageIds?: readonly Uuid[],
 ): MangoQuery | undefined {
     const cutoff = getContentPublishDateCutoff();
+    const fallback =
+        fallbackLanguageIds && fallbackLanguageIds.length > 0 ? fallbackLanguageIds : undefined;
 
-    // No cutoff configured ⇒ sync syncs all content, so the local read is
-    // complete and the API has no older tail to supply. The supplement POST
-    // would carry `publishDate <= OPEN_MIN` and match nothing — skip it. The
-    // caller then drops any stale response-cache seed (same end state as an
-    // empty POST) and, in live mode, skips the no-op supplement listener.
-    if (cutoff === OPEN_MIN) return undefined;
+    // Append either the older-tail clause alone, or the combined older-tail-OR-fallback clause.
+    const appendTail = (selector: MangoSelector): MangoSelector =>
+        fallback
+            ? withPublishDateOrFallback(selector, cutoff, fallback)
+            : withPublishDate(selector, cutoff);
+
+    // No cutoff AND no fallback ⇒ sync has all synced-language content, so the API has nothing to
+    // supply — skip. (With fallback we still POST: a non-synced-language post is never local,
+    // cutoff or not.)
+    if (cutoff === OPEN_MIN && !fallback) return undefined;
 
     // 1. limit-shortfall
     if (typeof query.$limit === "number") {
-        // `>=` (not strict equality) defends against mangoToDexie ever returning
-        // more rows than requested; clamping below also keeps the API limit
-        // non-negative if the invariant is ever violated.
-        if (localDocs.length >= query.$limit) return undefined;
+        // Without fallback, a full local page means the API has nothing newer to add → skip. WITH
+        // fallback, a fallback post can out-rank a local one, so we must still POST — full `$limit`
+        // (not shortfall), and `applySortLimit` trims the merged union.
+        if (!fallback && localDocs.length >= query.$limit) return undefined;
         return {
-            selector: withPublishDate(query.selector, cutoff),
+            selector: appendTail(query.selector),
             $sort: query.$sort,
-            $limit: Math.max(0, query.$limit - localDocs.length),
+            $limit: fallback ? query.$limit : Math.max(0, query.$limit - localDocs.length),
             use_index: query.use_index,
         };
     }
@@ -148,12 +223,12 @@ export function decideContentApiQuery<T extends BaseDocumentDto>(
         const narrowed = conditions.map((c, i) =>
             i === idHit.index ? ({ _id: { $in: missing } } as MangoSelector) : c,
         );
-        return { selector: withPublishDate({ $and: narrowed }, cutoff) };
+        return { selector: appendTail({ $and: narrowed }) };
     }
 
     // 3. always-post (no limit, no id list)
     return {
-        selector: withPublishDate(query.selector, cutoff),
+        selector: appendTail(query.selector),
         $sort: query.$sort,
         use_index: query.use_index,
     };
@@ -238,9 +313,7 @@ export function planRemoteContentQueries(api: MangoQuery): MangoQuery[] {
     const idHit = findInList(conditions, "parentId");
     if (!idHit) return [api];
 
-    return (
-        fanOut(api, conditions, idHit, PARENT_ID_INDEX, (id) => ({ parentId: id })) ?? [api]
-    );
+    return fanOut(api, conditions, idHit, PARENT_ID_INDEX, (id) => ({ parentId: id })) ?? [api];
 }
 
 /**

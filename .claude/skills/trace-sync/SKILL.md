@@ -80,7 +80,7 @@ curl -u admin:<pw> http://localhost:5984/<db>/<docId>
 
 ### 8. Socket room delivery (for live updates only)
 
-For real-time updates (not initial sync), the doc flows through Socket.io rooms `${docType}-${groupId}`. The server emits to the room when `DbService` fires an `update` event. If the user is missing **live** updates but a manual refresh works, the issue is room membership — check what rooms the client joined on `joinSocketGroups` (server-side `socketio.ts`).
+For real-time updates (not initial sync), the doc flows through Socket.io rooms `${docType}-${groupId}`. The server emits to the room when `DbService` fires an `update` event. If the user is missing **live** updates but a manual refresh works, the issue is room membership — check what rooms the client joined on the `clientConfigReq` handshake (formerly `joinSocketGroups`, still accepted as an alias) and via dynamic `joinRooms` (server-side `socketio.ts`).
 
 ### 9. CMS-specific: language scoping
 

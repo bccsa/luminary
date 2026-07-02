@@ -135,6 +135,39 @@ export async function evictStaleBelowCutoff(): Promise<void> {
     scheduleCorpusStatsRecompute();
 }
 
+/**
+ * Prune Content in languages the client no longer syncs — e.g. the user un-ticked a language for
+ * offline ("Available offline"). Deletes docs in those languages whose retention deadline has
+ * passed or was never set, so recently-served / offline-pinned docs survive (they degrade to
+ * fetch-on-demand rather than vanishing). Seeks the `language` index per language — no full scan.
+ * Inert in CMS. Call after committing a reduced synced set; pruned-but-still-wanted docs are
+ * re-fetched on demand by `HybridQuery`.
+ */
+export async function pruneUnsyncedLanguageContent(languageIds: readonly string[]): Promise<void> {
+    if (config.cms || !languageIds.length) return;
+    await flushRetention(); // don't prune a doc that was just touched but not yet written
+    const now = DateTime.now().toMillis();
+
+    let deletedAny = false;
+    for (const language of languageIds) {
+        const ids = (await db.docs
+            .where("language")
+            .equals(language)
+            .and((d) => d.type === DocType.Content)
+            .primaryKeys()) as string[];
+        if (!ids.length) continue;
+
+        const stamps = await db.retention.bulkGet(ids);
+        const stale = ids.filter((_id, i) => (stamps[i]?.retainUntil ?? 0) <= now);
+        if (!stale.length) continue;
+
+        await db.docs.bulkDelete(stale);
+        await db.retention.bulkDelete(stale);
+        deletedAny = true;
+    }
+    if (deletedAny) scheduleCorpusStatsRecompute();
+}
+
 /** Best-effort flush of pending stamps when the page is hidden / unloaded. Registered once. */
 function registerHideFlush(): void {
     if (hideFlushRegistered) return;

@@ -25,6 +25,7 @@ describe("RedirectRow.vue", () => {
         const wrapper = mount(RedirectRow, {
             props: {
                 redirectDoc: mockRedirectDto,
+                hasLocalChanges: () => false,
             },
         });
 

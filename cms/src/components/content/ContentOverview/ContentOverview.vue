@@ -2,29 +2,34 @@
 import BasePage from "@/components/BasePage.vue";
 
 import {
-    db,
     DocType,
     TagType,
-    type Uuid,
     type ContentDto,
     PostType,
-    useDexieLiveQueryWithDeps,
+    useHybridQuery,
+    useHybridQueryWithState,
+    useSharedHybridQuery,
     type GroupDto,
-    useDexieLiveQuery,
     hasAnyPermission,
     AclPermission,
+    type LanguageDto,
 } from "luminary-shared";
 import { computed, ref, watch } from "vue";
-import ContentTable from "@/components/content/ContentTable.vue";
 import { capitaliseFirstLetter } from "@/util/string";
 import router from "@/router";
-import { contentOverviewQuery, type ContentOverviewQueryOptions } from "../query";
+import { type ContentOverviewQueryOptions } from "./types";
+import { useContentBrowseQuery } from "./useContentBrowseQuery";
+import { useContentSearchQuery } from "./useContentSearchQuery";
+import { useInfiniteScrollLoadMore } from "@/composables/useInfiniteScrollList";
 import { cmsLanguageIdAsRef, isSmallScreen } from "@/globalConfig";
 import FilterOptions from "./FilterOptions.vue";
-import LPaginator from "@/components/common/LPaginator.vue";
+import ContentDisplayCard from "../ContentDisplayCard.vue";
+import LoadingBar from "../../LoadingBar.vue";
 import { PlusIcon } from "@heroicons/vue/24/outline";
 import { RouterLink } from "vue-router";
 import LButton from "@/components/button/LButton.vue";
+import FtsStaleResultsBanner from "@/components/common/FtsStaleResultsBanner.vue";
+import EmptyState from "@/components/EmptyState.vue";
 
 type Props = {
     docType: DocType.Post | DocType.Tag;
@@ -33,6 +38,10 @@ type Props = {
 
 const props = defineProps<Props>();
 
+const PAGE_SIZE = 20;
+/** Minimum characters before switching from browse to FTS search mode. */
+const SEARCH_MIN_CHARS = 3;
+
 const defaultQueryOptions: ContentOverviewQueryOptions = {
     languageId: cmsLanguageIdAsRef.value || "",
     parentType: props.docType,
@@ -40,8 +49,6 @@ const defaultQueryOptions: ContentOverviewQueryOptions = {
     translationStatus: "all",
     orderBy: "updatedTimeUtc",
     orderDirection: "desc",
-    pageSize: 20,
-    pageIndex: 0,
     tags: [],
     groups: [],
     search: "",
@@ -56,6 +63,8 @@ function mergeNewFields(saved: string | null): ContentOverviewQueryOptions {
     return {
         ...defaultQueryOptions,
         ...parsed,
+        parentType: props.docType,
+        tagOrPostType: props.tagOrPostType,
         tags: parsed.tags ?? [],
         groups: parsed.groups ?? [],
     };
@@ -84,33 +93,109 @@ watch(
     { immediate: true },
 );
 
-const tableRefreshKey = computed(() => JSON.stringify(queryOptions.value));
-
 router.currentRoute.value.meta.title = `${capitaliseFirstLetter(props.tagOrPostType)} overview`;
 
-const tagContentDocs = useDexieLiveQueryWithDeps(
-    cmsLanguageIdAsRef,
-    async (_cmsLanguageIdAsRef: Uuid) => {
-        const docs = (await db.docs
-            .where({
-                type: DocType.Content,
-                parentType: DocType.Tag,
-                language: _cmsLanguageIdAsRef,
-            })
-            .sortBy("publishDate")) as unknown as ContentDto[];
-        return docs.reverse();
-    },
-    { initialValue: [] as ContentDto[] },
+// --- Data sources: FTS search when a query is present, HybridQuery browse otherwise ---
+
+const searchActive = computed(
+    () => (queryOptions.value.search ?? "").trim().length >= SEARCH_MIN_CHARS,
 );
 
-const groups = useDexieLiveQuery(
-    () => db.docs.where({ type: DocType.Group }).toArray() as unknown as Promise<GroupDto[]>,
-    { initialValue: [] as GroupDto[] },
+// Search modes: strict (default — substring AND on title/author, ordered by the sort
+// dropdown) vs related (fuzzy BM25 relevance). The "Show related results" button flips it;
+// reset to strict whenever the query text changes.
+const showRelated = ref(false);
+watch(
+    () => queryOptions.value.search,
+    () => {
+        showRelated.value = false;
+    },
+);
+
+/** Browse window size. Bumped by infinite scroll; reset whenever a browse filter changes. */
+const browseLimit = ref(PAGE_SIZE);
+watch(
+    // Reset the window on any change except the search box (search has its own paging).
+    () => JSON.stringify({ ...queryOptions.value, search: "" }),
+    () => {
+        browseLimit.value = PAGE_SIZE;
+    },
+);
+
+const browse = useContentBrowseQuery(() => queryOptions.value, browseLimit);
+const search = useContentSearchQuery(
+    () => queryOptions.value,
+    () => showRelated.value,
+);
+const searchIsStale = search.isStale;
+
+const contentDocs = computed(() => (searchActive.value ? search.docs.value : browse.docs.value));
+const isLoading = computed(() =>
+    searchActive.value ? search.isLoading.value : browse.isLoading.value,
+);
+const hasMore = computed(() => (searchActive.value ? search.hasMore.value : browse.hasMore.value));
+
+const { output: anyContentOfType, isFetching: isCheckingForContent } = useHybridQueryWithState<ContentDto>(
+    () => ({
+        selector: {
+            $and: [
+                { type: DocType.Content },
+                { parentType: props.docType },
+                props.docType === DocType.Tag
+                    ? { parentTagType: props.tagOrPostType }
+                    : { parentPostType: props.tagOrPostType },
+            ],
+        },
+        $sort: [{ updatedTimeUtc: "desc" }],
+        $limit: 1,
+        use_index: "updatedTimeUtc-type-id-index",
+    }),
+    { live: true, persistOffline: false, cache: false, stripFields: ["fts", "ftsTokenCount", "text", "_rev"] },
+);
+const hasAnyContent = computed(() => (anyContentOfType.value?.length ?? 0) > 0);
+
+const onLoadMore = () => {
+    if (searchActive.value) {
+        search.loadMore();
+    } else {
+        browseLimit.value += PAGE_SIZE;
+    }
+};
+
+const { sentinel: loadMoreSentinel } = useInfiniteScrollLoadMore({
+    hasMore: () => hasMore.value,
+    isLoading: () => isLoading.value,
+    onLoadMore,
+});
+
+// --- Supporting data for the filter UI and cards ---
+
+const tagContentDocsRaw = useHybridQuery<ContentDto>(
+    () => ({
+        selector: {
+            type: DocType.Content,
+            parentType: DocType.Tag,
+            language: cmsLanguageIdAsRef.value,
+        },
+    }),
+    { live: true },
+);
+// Preserve the previous publishDate-desc order. The old read used in-memory `.sortBy().reverse()`;
+// sort in a computed (not a HybridQuery `$sort`) to avoid a mangoToDexie sort-index warning.
+const tagContentDocs = computed(() =>
+    [...tagContentDocsRaw.value].sort((a, b) => (b.publishDate ?? 0) - (a.publishDate ?? 0)),
+);
+
+const groups = useSharedHybridQuery<GroupDto>(() => ({ selector: { type: DocType.Group } }), {
+    live: true,
+});
+
+const languages = useSharedHybridQuery<LanguageDto>(
+    () => ({ selector: { type: DocType.Language } }),
+    { live: true },
 );
 
 const canCreateNew = computed(() => hasAnyPermission(props.docType, AclPermission.Edit));
-
-const contentDocsTotal = contentOverviewQuery({ ...queryOptions.value, count: true });
 
 const createNew = () => {
     router.push({
@@ -129,64 +214,116 @@ const createNew = () => {
         :is-full-width="true"
         :title="`${capitaliseFirstLetter(props.tagOrPostType)} overview`"
         :should-show-page-title="false"
+        :loading="isCheckingForContent"
     >
-        <template #pageNav>
-            <div>
-                <LButton
-                    v-if="canCreateNew && !isSmallScreen"
-                    variant="primary"
-                    :icon="PlusIcon"
-                    :is="RouterLink"
-                    :to="{
-                        name: `edit`,
-                        params: {
-                            docType: docType,
-                            tagOrPostType: tagOrPostType,
-                            id: 'new',
-                        },
-                    }"
-                    data-test="create-button"
-                >
-                    Create {{ docType }}
-                </LButton>
-                <PlusIcon
-                    v-else-if="canCreateNew && isSmallScreen"
-                    class="h-8 w-8 cursor-pointer rounded bg-zinc-100 p-1 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-700"
-                    @click="createNew"
-                />
-            </div>
+        <template #topBarActionsDesktop>
+            <LButton
+                v-if="canCreateNew && hasAnyContent && !isSmallScreen"
+                variant="primary"
+                :icon="PlusIcon"
+                :is="RouterLink"
+                :to="{
+                    name: `edit`,
+                    params: {
+                        docType: docType,
+                        tagOrPostType: tagOrPostType,
+                        id: 'new',
+                    },
+                }"
+                data-test="create-button"
+            >
+                Create {{ docType }}
+            </LButton>
+        </template>
+        <template #topBarActionsMobile>
+            <PlusIcon
+                v-if="canCreateNew && hasAnyContent && isSmallScreen"
+                class="h-8 w-8 cursor-pointer rounded bg-zinc-100 p-1 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-700"
+                @click="createNew"
+            />
         </template>
 
-        <template #internalPageHeader>
+        <template v-if="hasAnyContent" #internalPageHeader>
             <FilterOptions
+                :docType="props.docType"
+                :tagOrPostType="props.tagOrPostType"
                 :is-small-screen="isSmallScreen"
                 :groups="groups"
                 :tagContentDocs="tagContentDocs"
                 v-model:query-options="queryOptions"
             />
         </template>
-        <div>
-            <div class="mt-1">
-                <ContentTable
-                    v-if="cmsLanguageIdAsRef"
-                    v-model:page-index="queryOptions.pageIndex as number"
-                    :key="tableRefreshKey"
-                    :groups="groups"
-                    :queryOptions="queryOptions"
-                    :content-docs-total="contentDocsTotal?.count"
-                    data-test="content-table"
-                />
+
+        <div v-if="cmsLanguageIdAsRef" class="flex flex-col gap-[3px]">
+            <div v-if="searchActive" class="px-2 py-1 text-xs text-zinc-500">
+                {{ showRelated ? "Showing related results" : "Showing exact matches" }}
+                for "{{ (queryOptions.search ?? "").trim() }}".
+                <button
+                    type="button"
+                    class="text-zinc-600 underline hover:text-zinc-900"
+                    data-test="toggle-related"
+                    @click="showRelated = !showRelated"
+                >
+                    Click here to show {{ showRelated ? "exact matches" : "related results" }}
+                </button>
+                <span v-if="showRelated" class="block text-zinc-400">
+                    Related results are ranked by relevance — sorting is not applied.
+                </span>
+            </div>
+
+            <FtsStaleResultsBanner
+                v-if="searchActive"
+                :visible="searchIsStale"
+                :loading="isLoading"
+                @refresh="search.refresh()"
+            />
+
+            <ContentDisplayCard
+                v-for="contentDoc in contentDocs"
+                data-test="content-row"
+                :key="contentDoc._id"
+                :groups="groups.filter((group) => contentDoc.memberOf?.includes(group._id))"
+                :content-doc="contentDoc as ContentDto"
+                :parent-type="queryOptions.parentType"
+                :language-id="queryOptions.languageId"
+                :languages="languages"
+                :search-query="searchActive ? queryOptions.search : undefined"
+                :hide-body-snippet="searchActive && !showRelated"
+            />
+
+            <EmptyState
+                v-if="!isLoading && !hasAnyContent"
+                :title="`No ${props.tagOrPostType}s yet`"
+                :description="`Get started by creating your first ${props.docType}.`"
+                :button-text="canCreateNew ? `Create ${props.docType}` : undefined"
+                :button-link="
+                    canCreateNew
+                        ? {
+                              name: 'edit',
+                              params: {
+                                  docType: docType,
+                                  tagOrPostType: tagOrPostType,
+                                  id: 'new',
+                              },
+                          }
+                        : undefined
+                "
+                :button-permission="canCreateNew"
+                show-back-button
+            />
+
+            <EmptyState
+                v-else-if="!isLoading && contentDocs.length === 0"
+                title="No content found"
+                description="No content found with the matched filter."
+            />
+
+            <!-- Infinite-scroll trigger -->
+            <div ref="loadMoreSentinel" class="h-px w-full"></div>
+
+            <div class="flex h-16 w-full items-center justify-center" v-if="isLoading">
+                <LoadingBar />
             </div>
         </div>
-        <template #footer>
-            <div class="w-full sm:px-8">
-                <LPaginator
-                    :amountOfDocs="contentDocsTotal?.count as number"
-                    v-model:index="queryOptions.pageIndex as number"
-                    v-model:page-size="queryOptions.pageSize as number"
-                    variant="extended"
-                />
-            </div>
-        </template>
     </BasePage>
 </template>

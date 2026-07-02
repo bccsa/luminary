@@ -305,7 +305,7 @@ defineExpose({
             />
             <p
                 v-if="fileTypeDescription && parent?.imageBucketId"
-                class="mt-1 text-xs text-gray-500"
+                class="mt-1 text-xs text-zinc-500"
             >
                 {{ fileTypeDescription }}
             </p>
@@ -409,7 +409,7 @@ defineExpose({
 
             <!-- No images fallback -->
             <div v-else class="my-4 text-center italic">
-                <p class="text-sm text-gray-500">No images uploaded yet.</p>
+                <p class="text-sm text-zinc-500">No images uploaded yet.</p>
             </div>
         </div>
     </div>

@@ -20,56 +20,36 @@ export type ApiFtsQuery = {
     offset?: number;
     cms?: boolean;
     tags?: Array<string>;
+    /**
+     * Restrict to docs whose `memberOf` intersects these group IDs. Used by the strict aux
+     * (non-Content) search; applied after permission scoping (narrows only).
+     */
+    groups?: Array<string>;
     status?: PublishStatus;
     publishedAfter?: number;
     publishedBefore?: number;
+    /** Strict mode: require every query word (≥3 chars) as a substring of the searchable fields. */
+    matchAllWords?: boolean;
+    /**
+     * Strict mode: order by this field/direction instead of relevance. The Content path allows
+     * title/publishDate/expiryDate/updatedTimeUtc; aux doctypes allow their own fields
+     * (e.g. name/email/slug/lastLogin/updatedTimeUtc), validated server-side per doctype.
+     */
+    sort?: {
+        field:
+            | "title"
+            | "publishDate"
+            | "expiryDate"
+            | "updatedTimeUtc"
+            | "name"
+            | "email"
+            | "slug"
+            | "lastLogin";
+        direction: "asc" | "desc";
+    };
     bm25k1?: number;
     bm25b?: number;
     maxTrigramDocPercent?: number;
-};
-
-export type ApiSearchQuery = {
-    apiVersion?: string;
-    limit?: number;
-    offset?: number;
-    sort?: Array<{ [key: string]: "asc" | "desc" }>;
-    groups?: Array<string>;
-    types?: Array<DocType>;
-    contentOnly?: boolean;
-    queryString?: string;
-    from?: number;
-    to?: number;
-    languages?: Array<string>;
-    includeDeleteCmds?: boolean;
-    docId?: string;
-    slug?: string;
-    parentId?: string;
-};
-
-/**
- * API Sync query object. This is used to construct Search API queries for syncing data from the server,
- * but is also passed to the Socket.io connection to filter the data that is sent to the client.
- */
-export type ApiSyncQuery = {
-    type: DocType;
-    /**
-     * If true, only include content documents for the specified (Post / Tag) document type for syncing.
-     */
-    contentOnly?: boolean;
-    /**
-     * If true, the query is used for syncing. If false, the query is used for live updates only.
-     * @default true
-     */
-    sync?: boolean; // true if the query is used for syncing
-    /**
-     * 10 is default, lower number is higher priority
-     */
-    syncPriority?: number;
-    /**
-     * When true, sync immediately and do not want for the language sync to finish
-     * TODO: Rename to something more meaningful
-     */
-    skipWaitForLanguageSync?: boolean;
 };
 
 export type ChangeRequestQuery = {
@@ -101,9 +81,6 @@ class RestApi {
         if (!config.apiUrl) {
             throw new Error("The REST API connection requires an API URL");
         }
-        // NOTE: `config.syncList` is no longer required. What gets synced is owned by
-        // sync (the consumer's `sync()` calls); `config.syncList` only declares the
-        // transitional live-only socket rooms (e.g. CMS User / AutoGroupMappings).
 
         this.http = new HttpReq(config.apiUrl || "");
 
@@ -112,11 +89,6 @@ class RestApi {
             { initialValue: [] as unknown as LocalChangeDto[] },
         );
         syncLocalChanges(localChanges);
-    }
-
-    async search(query: ApiSearchQuery) {
-        query.apiVersion = "0.0.0";
-        return await this.http.get("search", query); //TODO: Add type: ApiQueryResult<T>
     }
 
     /**

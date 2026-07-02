@@ -40,10 +40,13 @@ npm run build
    Return to the `app` / `cms` directory and
 
 ```sh
-npm ci --install-links
+npm ci
 ```
 
-_Remember that steps 2 and 3 need to be done every time changes are made to the shared library._
+_The app/cms consume `shared/src` directly via a Vite alias, so editing shared source
+hot-reloads with no rebuild. Step 2 (`npm run build` in `shared/`) is only needed again
+when a shared **type/signature** changes, so the consumer's type-check sees the new
+`dist/index.d.ts`._
 
 4. Then start a live-reloading server with:
 

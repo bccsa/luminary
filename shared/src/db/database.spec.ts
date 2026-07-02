@@ -18,18 +18,18 @@ import {
     AclPermission,
     DeleteCmdDto,
     DocType,
-    PostType,
     TagType,
     type ContentDto,
     type PostDto,
     type TagDto,
 } from "../types";
 import { db, getDbVersion, initDatabase } from "../db/database";
+import { syncList } from "../api/sync/state";
 import { accessMap } from "../permissions/permissions";
 import { isConnected } from "../socket/socketio";
 import { DateTime } from "luxon";
 import { initConfig } from "../config";
-import { config } from "../config";
+import { config, changeReqErrors } from "../config";
 
 describe("Database", async () => {
     beforeAll(async () => {
@@ -57,6 +57,38 @@ describe("Database", async () => {
         await db.localChanges.clear();
     });
 
+    describe("bulkPut FTS stripping", () => {
+        it("strips fts/ftsTokenCount from non-Content docs but keeps them on Content", async () => {
+            const userDoc = {
+                _id: "user-fts-strip",
+                type: DocType.User,
+                updatedTimeUtc: 1,
+                memberOf: ["group-super-admins"],
+                name: "Jane",
+                email: "jane@example.com",
+                fts: ["jan:1", "ane:1"],
+            } as any;
+            const contentDoc = {
+                ...mockEnglishContentDto,
+                _id: "content-fts-keep",
+                fts: ["gar:3"],
+                ftsTokenCount: 5,
+            } as any;
+
+            await db.bulkPut([userDoc, contentDoc]);
+
+            const storedUser = (await db.docs.get("user-fts-strip")) as any;
+            const storedContent = (await db.docs.get("content-fts-keep")) as any;
+
+            // Non-Content: fts stripped, other fields preserved.
+            expect(storedUser.fts).toBeUndefined();
+            expect(storedUser.name).toBe("Jane");
+            // Content: index fields retained (offline search needs them).
+            expect(storedContent.fts).toEqual(["gar:3"]);
+            expect(storedContent.ftsTokenCount).toBe(5);
+        });
+    });
+
     it("can generate a V4 UUID", async () => {
         const uuid = db.uuid();
         const verified = uuid.match(
@@ -66,56 +98,10 @@ describe("Database", async () => {
         expect(verified![0]).toBe(uuid);
     });
 
-    it("can convert a Dexie query to a Vue ref", async () => {
-        const posts = db.toRef(() => db.docs.where("_id").equals(mockPostDto._id).toArray(), []);
-
-        await waitForExpect(() => {
-            expect(posts.value).toEqual([mockPostDto]);
-        });
-    });
-
     it("can get a document by its id", async () => {
         const post = await db.get<ContentDto>(mockPostDto._id);
 
         expect(post).toEqual(mockPostDto);
-    });
-
-    it("can get a document as a ref by its id", async () => {
-        const post = db.getAsRef<ContentDto>(mockPostDto._id);
-
-        await waitForExpect(() => {
-            expect(post.value).toEqual(mockPostDto);
-        });
-    });
-
-    it("returns the initial value of a ref while waiting for the query to complete", async () => {
-        const post = db.getAsRef<PostDto>(mockPostDto._id, mockPostDto);
-
-        expect(post.value).toEqual(mockPostDto);
-    });
-
-    it("can get all documents of a certain type as a ref", async () => {
-        const posts = db.whereTypeAsRef<PostDto[]>(DocType.Post);
-
-        await waitForExpect(() => {
-            expect(posts.value).toEqual([mockPostDto]);
-        });
-    });
-
-    it("can get all documents of a certain type as a ref filtered by tag type", async () => {
-        const categories = db.whereTypeAsRef<TagDto[]>(DocType.Tag, undefined, TagType.Category);
-
-        await waitForExpect(() => {
-            expect(categories.value).toEqual([mockCategoryDto]);
-        });
-    });
-
-    it("can get all documents of a certain type as a ref filtered by post type", async () => {
-        const posts = db.whereTypeAsRef<PostDto[]>(DocType.Post, undefined, PostType.Blog);
-
-        await waitForExpect(() => {
-            expect(posts.value).toEqual([mockPostDto]);
-        });
     });
 
     it("can get documents by their parentId", async () => {
@@ -123,15 +109,6 @@ describe("Database", async () => {
 
         expect(postContent.some((c) => c._id == mockEnglishContentDto._id)).toBe(true);
         expect(postContent.some((c) => c._id == mockFrenchContentDto._id)).toBe(true);
-    });
-
-    it("can get documents by their parentId as a ref", async () => {
-        const postContent = db.whereParentAsRef(mockPostDto._id, DocType.Post);
-
-        await waitForExpect(() => {
-            expect(postContent.value.some((c) => c._id == mockEnglishContentDto._id)).toBe(true);
-            expect(postContent.value.some((c) => c._id == mockFrenchContentDto._id)).toBe(true);
-        });
     });
 
     it("can get documents by their parentId and parent document type", async () => {
@@ -150,24 +127,16 @@ describe("Database", async () => {
         expect(postContent).toEqual([mockFrenchContentDto]);
     });
 
-    it("can detect if a local change is queued for a given document ID", async () => {
-        const isLocalChange = db.isLocalChangeAsRef(mockPostDto._id);
-        await db.upsert({ doc: mockPostDto });
-
-        await waitForExpect(() => {
-            expect(isLocalChange.value).toBe(true);
-        });
-    });
-
     it("cant insert a document if localChangesOnly is true", async () => {
-        const isLocalChange = db.isLocalChangeAsRef(mockPostDto._id);
-        await db.upsert({ doc: mockPostDto, localChangesOnly: true });
+        // Use a fresh id (mockPostDto is seeded in beforeEach) so "not in docs" is meaningful.
+        const freshDoc = { ...mockPostDto, _id: "post-local-changes-only" } as PostDto;
+        await db.upsert({ doc: freshDoc, localChangesOnly: true });
 
-        await waitForExpect(() => {
-            const post = db.getAsRef<PostDto>(mockPostDto._id);
-            expect(post.value).toBe(undefined);
-            expect(isLocalChange.value).toBe(true);
-        });
+        // The doc is not written to the docs table...
+        expect(await db.docs.get(freshDoc._id)).toBeUndefined();
+        // ...but the change is queued in localChanges.
+        const queued = await db.localChanges.where("docId").equals(freshDoc._id).first();
+        expect(queued?.doc).toEqual(freshDoc);
     });
 
     it("can get tags by tag type with only the (required) languageId set", async () => {
@@ -381,32 +350,12 @@ describe("Database", async () => {
         expect(tags[0]._id).toBe(mockCategoryDto._id); // Only the first category should be returned
     });
 
-    it("can get tags by tag type as a ref", async () => {
-        const tags = db.tagsWhereTagTypeAsRef(TagType.Category, {
-            languageId: mockLanguageDtoEng._id,
-        });
-
-        await waitForExpect(() => {
-            expect(tags.value).toEqual([mockCategoryDto]);
-        });
-    });
-
     it("can get content documents by tag", async () => {
         const docs = await db.contentWhereTag(mockCategoryDto._id, {
             languageId: mockLanguageDtoEng._id,
         });
 
         expect(docs).toEqual([mockEnglishContentDto]);
-    });
-
-    it("can get content documents by tag as a ref", async () => {
-        const docs = db.contentWhereTagAsRef(mockCategoryDto._id, {
-            languageId: mockLanguageDtoEng._id,
-        });
-
-        await waitForExpect(() => {
-            expect(docs.value).toEqual([mockEnglishContentDto]);
-        });
     });
 
     it("can sort and limit content documents by tag", async () => {
@@ -532,12 +481,9 @@ describe("Database", async () => {
 
     it("can upsert a document into the database and queue the change to be sent to the API", async () => {
         await db.upsert({ doc: mockPostDto });
-        const isLocalChange = db.isLocalChangeAsRef(mockPostDto._id);
 
         // Check if the local change is queued
         await waitForExpect(async () => {
-            expect(isLocalChange.value).toBe(true);
-
             const localChange = await db.localChanges
                 .where("docId")
                 .equals(mockPostDto._id)
@@ -646,6 +592,54 @@ describe("Database", async () => {
         expect(post).toBeUndefined();
     });
 
+    it("does not surface a changeReqError when the rejection is a concurrent delete", async () => {
+        changeReqErrors.value = [];
+
+        // Queue a local change
+        await db.upsert({ doc: mockEnglishContentDto });
+        const localChange = await db.localChanges
+            .where("docId")
+            .equals(mockEnglishContentDto._id)
+            .first();
+        expect(localChange).toBeDefined();
+
+        // Apply the rejection CouchDB reports for a write against an already-deleted doc
+        await db.applyLocalChangeAck({ ack: AckStatus.Rejected, message: "deleted" }, localChange!);
+
+        // No error toast for this case — the local copy is already cleaned up below
+        expect(changeReqErrors.value).toEqual([]);
+
+        // Check if the local change is removed
+        const localChangeAfter = await db.localChanges
+            .where("docId")
+            .equals(mockEnglishContentDto._id)
+            .first();
+        expect(localChangeAfter).toBeUndefined();
+
+        // Check if the document is removed from the database
+        const post = await db.get<ContentDto>(mockEnglishContentDto._id);
+        expect(post).toBeUndefined();
+    });
+
+    it("still surfaces a changeReqError for other rejection reasons", async () => {
+        changeReqErrors.value = [];
+
+        // Queue a local change
+        await db.upsert({ doc: mockEnglishContentDto });
+        const localChange = await db.localChanges
+            .where("docId")
+            .equals(mockEnglishContentDto._id)
+            .first();
+        expect(localChange).toBeDefined();
+
+        await db.applyLocalChangeAck(
+            { ack: AckStatus.Rejected, message: "Some other error" },
+            localChange!,
+        );
+
+        expect(changeReqErrors.value).toEqual(["Some other error"]);
+    });
+
     it("can purge the local database", async () => {
         // Queue a local change and check if it exists in the docs and localChanges tables
         await db.upsert({ doc: mockPostDto });
@@ -664,6 +658,19 @@ describe("Database", async () => {
         // Check that the docs table is empty
         const docs = await db.docs.toArray();
         expect(docs.length).toBe(0);
+    });
+
+    it("purge also clears the retention table and the response cache", async () => {
+        await db.docs.bulkPut([mockPostDto]);
+        await db.retention.put({ docId: mockPostDto._id, retainUntil: Date.now() + 1e9 });
+        localStorage.setItem("hqcache:some-feed", JSON.stringify({ local: [mockPostDto], remote: [] }));
+        localStorage.setItem("languages", '["lang-en"]'); // unrelated key must survive
+
+        await db.purge();
+
+        expect((await db.retention.toArray()).length).toBe(0);
+        expect(localStorage.getItem("hqcache:some-feed")).toBeNull();
+        expect(localStorage.getItem("languages")).toBe('["lang-en"]');
     });
 
     describe("revoked documents", () => {
@@ -724,6 +731,7 @@ describe("Database", async () => {
                 "group-public-users": {
                     [DocType.Post]: {
                         view: true,
+                        cmsView: true,
                         assign: true,
                     },
                 },
@@ -793,13 +801,16 @@ describe("Database", async () => {
                 "group-public-users": {
                     [DocType.Post]: {
                         view: true,
+                        cmsView: true,
                         assign: true,
                     },
                     [DocType.Tag]: {
                         view: true,
+                        cmsView: true,
                     },
                     [DocType.Language]: {
                         view: true,
+                        cmsView: true,
                     },
                 },
             };
@@ -849,6 +860,7 @@ describe("Database", async () => {
                 "group-public-users": {
                     [DocType.Group]: {
                         view: true,
+                        cmsView: true,
                         assign: true,
                     },
                 },
@@ -859,6 +871,122 @@ describe("Database", async () => {
                 const remainingDocs = await db.docs.toArray();
                 expect(remainingDocs).toHaveLength(1);
                 expect(remainingDocs.find((doc) => doc._id === "group-public-users")).toBeDefined();
+            });
+        });
+
+        it("does NOT purge groups when the accessMap transitions to empty (not yet loaded)", async () => {
+            // Regression: an empty accessMap is the not-loaded default, not "no access". Purging on
+            // it matched every group with an `acl` field and deleted them all before clientConfig
+            // populated the real map. The guard in the accessMap watcher must short-circuit instead.
+            const group = {
+                _id: "group-public-users",
+                type: DocType.Group,
+                acl: [{ type: DocType.Group, groupId: "g2", permission: [AclPermission.View] }],
+                updatedTimeUtc: 0,
+            };
+            await db.docs.bulkPut([group]);
+
+            // Populated map → watcher runs deleteRevoked; the accessible group is kept.
+            accessMap.value = {
+                "group-public-users": {
+                    [DocType.Group]: { view: true, assign: true, cmsView: true },
+                },
+            };
+            isConnected.value = true;
+            await waitForExpect(async () => {
+                expect(await db.docs.get("group-public-users")).toBeDefined();
+            });
+
+            // Transition to an empty map (simulating a not-loaded/cleared state). The watcher
+            // fires but the guard must short-circuit, so the group survives.
+            accessMap.value = {};
+            await new Promise((resolve) => setTimeout(resolve, 50));
+
+            const remainingGroups = await db.docs.where("type").equals(DocType.Group).toArray();
+            expect(remainingGroups).toHaveLength(1);
+            expect(remainingGroups[0]._id).toBe("group-public-users");
+        });
+    });
+
+    // Regression (#160 partial-sync): deleteRevoked() must keep syncList consistent with the docs
+    // it evicts. Otherwise a revoked group's docs leave `docs` while its column stays at `eof`, so
+    // a later re-grant (same memberOf — no growth path triggers) trusts the stale eof and never
+    // re-walks → only the ~1000ms head-tolerance re-fetch survives ("one post / one tag"). This is
+    // the same failure the one-time Group recovery patches, generalised to every doc type.
+    describe("revoked syncList reconciliation", () => {
+        afterEach(async () => {
+            isConnected.value = false;
+            accessMap.value = {};
+            syncList.value = [];
+            await db.setSyncList();
+            await db.docs.clear();
+        });
+
+        it("drops a column whose only group lost access (full loss → re-walk on re-grant)", async () => {
+            await db.docs.clear();
+            await db.docs.bulkPut([
+                { _id: "p1", type: DocType.Post, memberOf: ["g-private"], updatedTimeUtc: 0 },
+            ] as PostDto[]);
+            syncList.value = [
+                { chunkType: "post", memberOf: ["g-private"], blockStart: 1e15, blockEnd: 0, eof: true },
+            ];
+            await db.setSyncList();
+
+            // Access shrinks to g-public only (g-private revoked) — mirrors CMS logout→public.
+            isConnected.value = true;
+            accessMap.value = {
+                "g-public": { [DocType.Post]: { view: true, cmsView: true } },
+            };
+
+            await waitForExpect(async () => {
+                // doc evicted (existing behaviour) AND the now-orphan eof column is gone (the fix)
+                expect(await db.docs.get("p1")).toBeUndefined();
+                expect(syncList.value.some((e) => e.chunkType === "post")).toBe(false);
+            });
+        });
+
+        it("trims only the revoked group from a multi-group column (partial loss)", async () => {
+            await db.docs.clear();
+            syncList.value = [
+                {
+                    chunkType: "post",
+                    memberOf: ["g-private", "g-public"],
+                    blockStart: 1e15,
+                    blockEnd: 0,
+                    eof: true,
+                },
+            ];
+            await db.setSyncList();
+
+            isConnected.value = true;
+            accessMap.value = {
+                "g-public": { [DocType.Post]: { view: true, cmsView: true } },
+            };
+
+            await waitForExpect(() => {
+                const col = syncList.value.find((e) => e.chunkType === "post");
+                expect(col).toBeDefined();
+                expect(col!.memberOf).toEqual(["g-public"]);
+            });
+        });
+
+        it("trims Content/DeleteCmd columns by their parent (subType) permission", async () => {
+            await db.docs.clear();
+            syncList.value = [
+                { chunkType: "content:post", memberOf: ["g-private"], blockStart: 1e15, blockEnd: 0, eof: true, languages: ["lang1"] },
+                { chunkType: "deleteCmd:post", memberOf: ["g-private"], blockStart: 1e15, blockEnd: 0, eof: true },
+            ];
+            await db.setSyncList();
+
+            isConnected.value = true;
+            accessMap.value = {
+                "g-public": { [DocType.Post]: { view: true, cmsView: true } },
+            };
+
+            await waitForExpect(() => {
+                // g-private revoked on Post → its Content & DeleteCmd children's columns drop too
+                expect(syncList.value.some((e) => e.chunkType.startsWith("content"))).toBe(false);
+                expect(syncList.value.some((e) => e.chunkType.startsWith("deleteCmd"))).toBe(false);
             });
         });
     });
@@ -900,6 +1028,39 @@ describe("Database", async () => {
         expect(remainingDocs).toHaveLength(2);
 
         config.cms = true;
+    });
+
+    // Temporary — remove with the recovery block after 2026-09-01 (bccsa/luminary#1730).
+    describe("one-time Group syncList recovery", () => {
+        afterEach(async () => {
+            syncList.value = [];
+            await db.setSyncList();
+        });
+
+        it("drops the Group syncList block once so purged clients re-fetch groups", async () => {
+            localStorage.removeItem("groupSyncListReset_v1");
+            syncList.value = [
+                { chunkType: "group", memberOf: ["g1"], blockStart: 100, blockEnd: 0, eof: true },
+                { chunkType: "post", memberOf: ["g1"], blockStart: 100, blockEnd: 0, eof: true },
+            ];
+            await db.setSyncList();
+
+            await initDatabase(); // runs the recovery once
+
+            expect(syncList.value.some((e) => e.chunkType === "group")).toBe(false);
+            expect(syncList.value.some((e) => e.chunkType === "post")).toBe(true);
+            expect(localStorage.getItem("groupSyncListReset_v1")).toBe("1");
+
+            // Idempotent: a fresh Group block seeded afterwards is left untouched on re-init.
+            syncList.value = [
+                { chunkType: "group", memberOf: ["g1"], blockStart: 100, blockEnd: 0, eof: true },
+            ];
+            await db.setSyncList();
+
+            await initDatabase();
+
+            expect(syncList.value.some((e) => e.chunkType === "group")).toBe(true);
+        });
     });
 
     it("upgrade indexdb version by changing the docs index", async () => {
@@ -1007,11 +1168,14 @@ describe("Database", async () => {
 
             accessMap.value = {
                 "group-public-content": {
-                    [DocType.Post]: { [AclPermission.View]: true },
-                    [DocType.Tag]: { [AclPermission.View]: true },
+                    [DocType.Post]: { [AclPermission.View]: true, [AclPermission.CmsView]: true },
+                    [DocType.Tag]: { [AclPermission.View]: true, [AclPermission.CmsView]: true },
                 },
                 "group-languages": {
-                    [DocType.Language]: { [AclPermission.View]: true },
+                    [DocType.Language]: {
+                        [AclPermission.View]: true,
+                        [AclPermission.CmsView]: true,
+                    },
                 },
             };
 

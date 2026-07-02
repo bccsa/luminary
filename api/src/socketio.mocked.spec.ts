@@ -1,6 +1,6 @@
 import { Socketio } from "./socketio";
 import { PermissionSystem } from "./permissions/permissions.service";
-import { AclPermission, DocType } from "./enums";
+import { AclPermission, DocType, PublishStatus } from "./enums";
 
 /**
  * PURE, fully-mocked unit test for the Socketio gateway.
@@ -232,7 +232,7 @@ describe("Socketio (mocked)", () => {
     // B. db "update" fan-out
     // =========================================================================
     describe("db 'update' fan-out", () => {
-        it("B1: normal doc with memberOf -> emit to `${type}-${group}` rooms with docs:[update] and version", async () => {
+        it("B1: normal doc with memberOf -> emit to app and CMS rooms with docs:[update] and version", async () => {
             const { toMock, emitMock, updateHandler } = initGateway();
 
             const update = {
@@ -244,9 +244,10 @@ describe("Socketio (mocked)", () => {
             await updateHandler(update);
 
             expect(mockDb.getDoc).not.toHaveBeenCalled();
-            expect(toMock).toHaveBeenCalledTimes(1);
+            expect(toMock).toHaveBeenCalledTimes(2);
+            expect(toMock).toHaveBeenCalledWith(["post-g1-cms", "post-g2-cms"]);
             expect(toMock).toHaveBeenCalledWith(["post-g1", "post-g2"]);
-            expect(emitMock).toHaveBeenCalledTimes(1);
+            expect(emitMock).toHaveBeenCalledTimes(2);
             expect(emitMock).toHaveBeenCalledWith("data", {
                 docs: [update],
                 version: 1234,
@@ -275,18 +276,79 @@ describe("Socketio (mocked)", () => {
                 _id: "content-1",
                 type: "content",
                 parentId: "post-parent",
+                status: PublishStatus.Published,
                 updatedTimeUtc: 999,
             };
             await updateHandler(update);
 
             expect(mockDb.getDoc).toHaveBeenCalledWith("post-parent");
             // rooms derive from the PARENT (type "post" + parent.memberOf)
+            expect(toMock).toHaveBeenCalledWith(["post-g1-cms", "post-g2-cms"]);
             expect(toMock).toHaveBeenCalledWith(["post-g1", "post-g2"]);
             // but the emitted doc is the ORIGINAL content update, not the parent
             expect(emitMock).toHaveBeenCalledWith("data", {
                 docs: [update],
                 version: 999,
             });
+        });
+
+        it("B2b: draft-status content doc -> cms rooms get the full doc, base (app) rooms get NO emit", async () => {
+            const parent = { _id: "post-parent", type: "post", memberOf: ["g1", "g2"] };
+            mockDb.getDoc.mockResolvedValue({ docs: [parent] });
+
+            const { toMock, emitMock, updateHandler } = initGateway();
+
+            const update = {
+                _id: "content-1",
+                type: "content",
+                parentId: "post-parent",
+                status: PublishStatus.Draft,
+                updatedTimeUtc: 999,
+            };
+            await updateHandler(update);
+
+            // Only the -cms room set is targeted; the app (base) room set never receives an emit for a draft.
+            expect(toMock).toHaveBeenCalledTimes(1);
+            expect(toMock).toHaveBeenCalledWith(["post-g1-cms", "post-g2-cms"]);
+            expect(emitMock).toHaveBeenCalledTimes(1);
+            expect(emitMock).toHaveBeenCalledWith("data", {
+                docs: [update],
+                version: 999,
+            });
+        });
+
+        it("B2c: published-but-expired content doc -> cms rooms get the full doc, base rooms get a stripped cleanup stub", async () => {
+            const parent = { _id: "post-parent", type: "post", memberOf: ["g1", "g2"] };
+            mockDb.getDoc.mockResolvedValue({ docs: [parent] });
+
+            const { toMock, emitMock, updateHandler } = initGateway();
+
+            const update = {
+                _id: "content-1",
+                _rev: "1-abc",
+                type: "content",
+                parentId: "post-parent",
+                status: PublishStatus.Published,
+                expiryDate: Date.now() - 1000,
+                updatedTimeUtc: 999,
+                title: "Secret title that must not leak to expired app clients",
+                memberOf: ["g1", "g2"],
+                language: "eng",
+            };
+            await updateHandler(update);
+
+            expect(toMock).toHaveBeenCalledTimes(2);
+            // Emit order mirrors the source: cms rooms first (always full), then base rooms (stripped).
+            expect(toMock.mock.calls[0]).toEqual([["post-g1-cms", "post-g2-cms"]]);
+            expect(toMock.mock.calls[1]).toEqual([["post-g1", "post-g2"]]);
+
+            expect(emitMock).toHaveBeenCalledTimes(2);
+            expect(emitMock.mock.calls[0]).toEqual(["data", { docs: [update], version: 999 }]);
+
+            const baseDoc = emitMock.mock.calls[1][1].docs[0];
+            expect(baseDoc).not.toHaveProperty("title");
+            expect(baseDoc._id).toBe("content-1");
+            expect(baseDoc.expiryDate).toBe(update.expiryDate);
         });
 
         it("B3: content doc whose parent is missing (empty docs) -> logger.warn + NO emit", async () => {
@@ -506,6 +568,23 @@ describe("Socketio (mocked)", () => {
             expect(socket.emit).toHaveBeenCalledWith("clientConfig", expect.any(Object));
             expect(accessMapToGroupsSpy).not.toHaveBeenCalled();
             expect(socket.join).not.toHaveBeenCalled();
+        });
+
+        it("C4: deprecated joinSocketGroups alias delegates to clientConfigReq (backwards compat, ADR 0005)", () => {
+            accessMapToGroupsSpy.mockReturnValue({ [DocType.Post]: ["g1"] } as any);
+
+            const socket = makeSocket();
+            gateway.joinSocketGroups({ docTypes: [{ type: "post" }] } as any, socket);
+
+            // Same observable behaviour as clientConfigReq: clientConfig emit + room joins.
+            expect(socket.emit).toHaveBeenCalledWith("clientConfig", expect.any(Object));
+            expect(accessMapToGroupsSpy).toHaveBeenCalledWith(
+                socket.data.userDetails.accessMap,
+                AclPermission.View,
+                ["post"],
+            );
+            expect(socket.join).toHaveBeenCalledWith("post-g1");
+            expect(socket.join).toHaveBeenCalledWith("deleteCmd-g1");
         });
     });
 

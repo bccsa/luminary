@@ -5,7 +5,17 @@ import CreateOrEditUser from "./CreateOrEditUser.vue";
 import LDialog from "../common/LDialog.vue";
 import LSelect from "../forms/LSelect.vue";
 import { createTestingPinia } from "@pinia/testing";
-import { accessMap, db, DocType, getRest, initConfig, isConnected } from "luminary-shared";
+import {
+    AckStatus,
+    accessMap,
+    db,
+    DocType,
+    getRest,
+    initConfig,
+    initHybridQuery,
+    HttpReq,
+    isConnected,
+} from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import { setActivePinia } from "pinia";
 import {
@@ -22,7 +32,8 @@ const mockAuthProvider: AuthProviderDto = {
     domain: "example.auth0.com",
     audience: "https://example.auth0.com",
     clientId: "client-abc",
-    label: "Example",
+    label: "login.bcc.button",
+    displayName: "Example",
     memberOf: ["group-super-admins"],
     updatedTimeUtc: 1704114000000,
 };
@@ -66,16 +77,10 @@ vi.mock("@auth0/auth0-vue", async (importOriginal) => {
 const app = express();
 const port = 1234;
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-let mockApiRequest: string;
-app.get("/search", (req, res) => {
-    mockApiRequest = req.headers["x-query"] as string;
+// User is non-synced → served API-only via HybridQuery, which POSTs to /query.
+app.post("/query", (_req, res) => {
     res.setHeader("Content-Type", "application/json");
-    res.end(
-        JSON.stringify({
-            docs: [mockUserDto],
-        }),
-    );
+    res.end(JSON.stringify({ docs: [mockUserDto] }));
 });
 
 app.listen(port, () => {
@@ -86,18 +91,16 @@ describe("CreateOrEditUser.vue", () => {
     beforeAll(async () => {
         accessMap.value = superAdminAccessMap;
         initConfig({
-            cms: false,
+            cms: true,
             docsIndex:
                 "type, parentId, updatedTimeUtc, slug, language, docType, redirect, [parentId+type], [parentId+parentType], [type+tagType], publishDate, expiryDate, [type+language+status+parentPinned], [type+language+status], [type+postType], [type+docType], title, parentPinned",
             apiUrl: `http://localhost:${port}`,
-            syncList: [
-                { type: DocType.User, contentOnly: true, syncPriority: 10 },
-                { type: DocType.Group, contentOnly: true, syncPriority: 10 },
-            ],
         });
 
         // Reset the rest api client to use the new config
         getRest({ reset: true });
+        // Wire HybridQuery's HTTP transport so the API-only User query can POST /query.
+        initHybridQuery(new HttpReq(`http://localhost:${port}`));
     });
 
     beforeEach(async () => {
@@ -113,6 +116,25 @@ describe("CreateOrEditUser.vue", () => {
 
     afterEach(async () => {
         vi.clearAllMocks();
+    });
+
+    it("can open create mode without waiting on a user fetch", async () => {
+        const newId = db.uuid();
+        const wrapper = mount(CreateOrEditUser, {
+            props: {
+                id: newId,
+                isVisible: true,
+                isCreate: true,
+            },
+        });
+
+        await nextTick();
+
+        expect(wrapper.text()).not.toContain("Loading...");
+        const userName = wrapper.find('[data-test="userName"]');
+        expect(userName.exists()).toBe(true);
+        expect(userName.attributes("value")).toBe("New user");
+        expect(wrapper.find('[data-test="groupSelector"]').exists()).toBe(true);
     });
 
     it("should display the passed user", async () => {
@@ -302,15 +324,31 @@ describe("CreateOrEditUser.vue", () => {
 
         let deleteModalButton;
         await waitForExpect(async () => {
-            deleteModalButton = wrapper.find('[data-test="modal-primary-button"]');
-            expect(deleteModalButton.exists()).toBe(true);
+            deleteModalButton = wrapper
+                .findAll('[data-test="modal-primary-button"]')
+                .find((button) => button.text() === "Delete");
+            expect(deleteModalButton).toBeTruthy();
         });
 
-        const saveSpy = vi.spyOn(getRest(), "changeRequest");
+        const saveSpy = vi
+            .spyOn(getRest(), "changeRequest")
+            .mockResolvedValue({ ack: AckStatus.Accepted });
 
-        await deleteModalButton!.trigger("click"); // Accept dialog
-        await nextTick();
+        try {
+            await deleteModalButton!.trigger("click"); // Accept dialog
 
-        expect(saveSpy).toHaveBeenCalled();
+            await waitForExpect(() => {
+                expect(saveSpy).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        doc: expect.objectContaining({
+                            _id: mockUserDto._id,
+                            deleteReq: 1,
+                        }),
+                    }),
+                );
+            });
+        } finally {
+            saveSpy.mockRestore();
+        }
     });
 });

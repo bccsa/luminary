@@ -15,8 +15,6 @@ import { _contentBaseDto } from "../dto/_contentBaseDto";
 import { ContentDto } from "../dto/ContentDto";
 import { isEqualDoc } from "../util/isEqualDoc";
 import { isDeepStrictEqual } from "util";
-import { RedirectDto } from "../dto/RedirectDto";
-import { calcGroups, type SearchOptions } from "./db.searchFunctions";
 import { assertNoNullInArrayOperators } from "./assertNoNullInArrayOperators";
 
 /**
@@ -89,6 +87,9 @@ export type FtsCandidateValue = [
     Uuid, // [5] language
     Uuid[], // [6] memberOf
     Uuid[], // [7] parentTags
+    number | null, // [8] updatedTimeUtc (for strict-mode sort)
+    string | null, // [9] title (for strict-mode substring match + sort)
+    string | null, // [10] author (for strict-mode substring match)
 ];
 
 /** A single candidate row returned by {@link DbService.ftsTrigramCandidates}. */
@@ -96,6 +97,35 @@ export type FtsCandidateRow = {
     trigram: string;
     docId: Uuid;
     value: FtsCandidateValue;
+};
+
+/**
+ * Named per-row metadata emitted by the per-doctype *aux* FTS trigram views
+ * (`fts-trigram-index-user`, `fts-trigram-index-redirect`). Unlike {@link FtsCandidateValue}
+ * (a positional tuple), aux views emit a self-describing object: `memberOf` for permission
+ * scoping plus the searchable/sortable fields used by the strict search path. Strict mode
+ * does not score, so there is no `tf`.
+ */
+export type UserFtsMeta = {
+    memberOf: Uuid[];
+    name: string | null;
+    email: string | null;
+    lastLogin: number | null;
+    updatedTimeUtc: number | null;
+};
+
+export type RedirectFtsMeta = {
+    memberOf: Uuid[];
+    slug: string | null;
+    toSlug: string | null;
+    updatedTimeUtc: number | null;
+};
+
+/** A single candidate row returned by {@link DbService.ftsAuxTrigramCandidates}. */
+export type AuxFtsCandidateRow<M> = {
+    trigram: string;
+    docId: Uuid;
+    value: M;
 };
 
 /**
@@ -832,172 +862,48 @@ export class DbService extends EventEmitter {
     }
 
     /**
-     * Configurable database search function
-     * @param {SearchOptions} options - Search options.
-     * @returns - Promise containing a DbQueryResult object
+     * FTS (aux doctypes): document frequency per trigram for a per-doctype trigram view
+     * (e.g. `fts-trigram-index-user`), served by the view's `_count` reduce with `group=true`.
+     * Used to keep the rarest (most discriminative) trigrams within the candidate budget.
      */
-    search(options: SearchOptions): Promise<DbQueryResult> {
-        if (options.slug) return this.searchBySlug(options);
-        if (options.parentId) return this.getContentByParentId(options.parentId);
-
-        // TODO: move queries to separate functions similar to searchBySlug
-        return new Promise(async (resolve, reject) => {
-            // Construct time selectors
-            const selectors = [];
-            if (options.from) {
-                selectors.push({
-                    updatedTimeUtc: {
-                        $gte: options.from - this.syncTolerance,
-                    },
-                });
-            }
-
-            if (options.to) {
-                selectors.push({
-                    updatedTimeUtc: {
-                        $lte: options.to + this.syncTolerance,
-                    },
-                });
-            }
-
-            const timeSelector = [];
-            if (selectors.length > 0) {
-                timeSelector.push({
-                    $and: selectors,
-                });
-            }
-
-            const docIdSelector = options.docId ? [{ _id: options.docId }] : [];
-
-            const languageSelector =
-                options.languages?.length > 0 ? [{ language: { $in: options.languages } }] : [];
-
-            const docQuery = {
-                selector: { $and: [...timeSelector, ...docIdSelector] },
-                limit: options.limit || Number.MAX_SAFE_INTEGER,
-                sort: options.sort || [{ updatedTimeUtc: "desc" }],
-            };
-
-            const $or = [];
-            Object.values(options.types).forEach((docType: DocType) => {
-                // only allow user to access the document type if it is included the users userAccess object
-                if (!options.userAccess[docType]) return;
-
-                // reduce user requested groups to only the groups the user has access to
-                // default groups to user access groups if not provided
-                const groups = calcGroups(docType, options);
-
-                if (docType !== DocType.Group && !options.contentOnly)
-                    $or.push({
-                        $and: [{ type: { $in: [docType] } }, { memberOf: { $in: groups } }],
-                    });
-
-                // content only docs
-                if (docType === DocType.Post || docType === DocType.Tag)
-                    if (options.contentOnly)
-                        $or.push({
-                            $and: [
-                                { type: { $in: [DocType.Content] } },
-                                { memberOf: { $in: groups } },
-                                { parentType: docType },
-                                { status: PublishStatus.Published },
-                                {
-                                    $or: [
-                                        { expiryDate: { $gt: Date.now() } },
-                                        { expiryDate: { $exists: false } },
-                                    ],
-                                },
-                                ...languageSelector,
-                            ],
-                        });
-                    else
-                        $or.push({
-                            $and: [
-                                { type: { $in: [DocType.Content] } },
-                                { memberOf: { $in: groups } },
-                                { parentType: docType },
-                                ...languageSelector,
-                            ],
-                        });
-
-                // groups docs
-                if (docType === DocType.Group && !options.contentOnly) {
-                    $or.push({
-                        $and: [
-                            { type: DocType.Group },
-                            { _id: { $in: options.userAccess[DocType.Group] } },
-                        ],
-                    });
-                }
-            });
-
-            if ($or.length < 1)
-                resolve({
-                    docs: [],
-                    warnings: ["User does not have access to view any documents"],
-                });
-            docQuery.selector["$and"].push({ $or });
-
-            this.executeFindQuery(docQuery)
-                .then((res) => resolve(res))
-                .catch((err) => reject(err));
+    async ftsAuxTrigramDf(viewName: string, trigrams: string[]): Promise<Map<string, number>> {
+        await this.ensureConnected();
+        const df = new Map<string, number>();
+        if (!trigrams || trigrams.length === 0) return df;
+        const res = await this.db.view(viewName, viewName, {
+            ...FTS_STALE_READ,
+            keys: trigrams,
+            group: true,
+            reduce: true,
         });
+        for (const row of res.rows) {
+            df.set(row.key, row.value);
+        }
+        return df;
     }
 
     /**
-     * Perform a database search by slug
-     * @param options {SearchOptions} - Search options.
-     * @returns - Promise containing a DbQueryResult object
+     * FTS (aux doctypes): candidate rows for the given trigrams from a per-doctype trigram
+     * view (non-reduced). Each row carries the named metadata object emitted by the view
+     * (see {@link UserFtsMeta} / {@link RedirectFtsMeta}), so permission/filter checks run
+     * without loading the documents.
      */
-    async searchBySlug(options: SearchOptions): Promise<DbQueryResult> {
-        const docQuery = {
-            selector: { slug: options.slug },
-            limit: Number.MAX_SAFE_INTEGER,
-        } as nano.MangoQuery;
-
-        const res = await this.executeFindQuery(docQuery);
-
-        // validate the result against the user access
-        res.docs = res.docs.filter((doc: ContentDto | RedirectDto) => {
-            if (
-                doc.type == DocType.Content &&
-                options.userAccess[(doc as ContentDto).parentType] &&
-                doc.memberOf.some((m: string) =>
-                    (options.userAccess[(doc as ContentDto).parentType] as string[]).includes(m),
-                )
-            ) {
-                return true;
-            }
-
-            if (
-                doc.type == DocType.Redirect &&
-                options.userAccess[doc.type] &&
-                doc.memberOf.some((m: string) =>
-                    (options.userAccess[doc.type] as string[]).includes(m),
-                )
-            ) {
-                return true;
-            }
-            return false;
+    async ftsAuxTrigramCandidates<M>(
+        viewName: string,
+        trigrams: string[],
+    ): Promise<AuxFtsCandidateRow<M>[]> {
+        await this.ensureConnected();
+        if (!trigrams || trigrams.length === 0) return [];
+        const res = await this.db.view(viewName, viewName, {
+            ...FTS_STALE_READ,
+            keys: trigrams,
+            reduce: false,
         });
-
-        // sort the result by updatedTimeUtc in descending order
-        res.docs.sort((a: ContentDto | RedirectDto, b: ContentDto | RedirectDto) => {
-            return b.updatedTimeUtc - a.updatedTimeUtc;
-        });
-
-        // Check if a redirect document is found, and return the first match. Else, return the first content document.
-        const redirects = res.docs.filter(
-            (doc: ContentDto | RedirectDto) => doc.type == DocType.Redirect,
-        ) as RedirectDto[];
-
-        if (redirects.length > 0) {
-            res.docs = [redirects[0]];
-        } else {
-            res.docs = [res.docs[0]];
-        }
-
-        return res;
+        return res.rows.map((row: any) => ({
+            trigram: row.key,
+            docId: row.id,
+            value: row.value as M,
+        }));
     }
 
     /**

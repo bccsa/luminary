@@ -134,4 +134,30 @@ describe("permissions", () => {
         result = getAccessibleGroups(AclPermission.Create);
         expect(result).toEqual({});
     });
+
+    // CmsView (#160) is just another permission — there is NO implicit View→CmsView substitution.
+    // Callers (CMS code) ask for CmsView explicitly; View and CmsView resolve independently.
+    describe("CmsView is taken at face value (no substitution, #160)", () => {
+        it("getAccessibleGroups(CmsView) returns only the CmsView groups; View is independent", () => {
+            accessMap.value = {
+                g1: { [DocType.Post]: { view: true, cmsView: true } },
+                g2: { [DocType.Post]: { view: true } }, // View but NOT CmsView
+            };
+
+            expect(getAccessibleGroups(AclPermission.View)[DocType.Post].sort()).toEqual([
+                "g1",
+                "g2",
+            ]);
+            expect(getAccessibleGroups(AclPermission.CmsView)[DocType.Post]).toEqual(["g1"]);
+        });
+
+        it("verifyAccess / hasAnyPermission resolve View and CmsView independently", () => {
+            accessMap.value = { g1: { [DocType.Post]: { view: true } } }; // View but not CmsView
+
+            expect(verifyAccess(["g1"], DocType.Post, AclPermission.View)).toBe(true);
+            expect(verifyAccess(["g1"], DocType.Post, AclPermission.CmsView)).toBe(false);
+            expect(hasAnyPermission(DocType.Post, AclPermission.View)).toBe(true);
+            expect(hasAnyPermission(DocType.Post, AclPermission.CmsView)).toBe(false);
+        });
+    });
 });

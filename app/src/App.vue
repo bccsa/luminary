@@ -2,7 +2,13 @@
 import { RouterView } from "vue-router";
 import { computed, onErrorCaptured, watch } from "vue";
 import { isConnected } from "luminary-shared";
-import { appName, isAppLoading, userPreferencesAsRef, mediaQueue } from "./globalConfig";
+import {
+    appName,
+    isAppLoading,
+    userPreferencesAsRef,
+    mediaQueue,
+    localCacheVersion,
+} from "./globalConfig";
 import LoadingBar from "@/components/LoadingBar.vue";
 import { useNotificationStore } from "./stores/notification";
 import { ArrowLeftEndOnRectangleIcon, SignalSlashIcon } from "@heroicons/vue/20/solid";
@@ -136,7 +142,12 @@ onErrorCaptured((err) => {
     >
         <div class="flex-1 overflow-y-scroll scrollbar-hide">
             <RouterView v-slot="{ Component }">
-                <KeepAlive include="HomePage,ExplorePage,VideoPage">
+                <!-- :key on KeepAlive — bumping localCacheVersion (on clear-local-cache) discards the
+                     cached page instances so Home/Explore/Watch re-create from the purged cache. -->
+                <KeepAlive
+                    :key="localCacheVersion"
+                    include="HomePage,ExplorePage,VideoPage"
+                >
                     <component
                         :is="Component"
                         :key="routeKey"

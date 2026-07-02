@@ -4,30 +4,37 @@ import LBadge from "../common/LBadge.vue";
 import { UserGroupIcon } from "@heroicons/vue/20/solid";
 import { ArrowRightIcon } from "@heroicons/vue/24/outline";
 import {
-    db,
     DocType,
     AclPermission,
     verifyAccess,
     type RedirectDto,
     type GroupDto,
+    useSharedHybridQuery,
 } from "luminary-shared";
 import { computed, ref } from "vue";
 import CreateOrEditRedirectModal from "./CreateOrEditRedirectModal.vue";
 
 type Props = {
     redirectDoc: RedirectDto;
+    // Reactive `(id) => boolean` from the overview's useHybridQueryWithState bundle.
+    hasLocalChanges: (id: string) => boolean;
 };
 
 const props = defineProps<Props>();
-const isLocalChanges = db.isLocalChangeAsRef(props.redirectDoc._id);
+const isLocalChanges = computed(() => props.hasLocalChanges(props.redirectDoc._id));
 const isModalVisible = ref(false);
 
-const availableGroups = db.whereTypeAsRef<GroupDto[]>(DocType.Group, []);
+const availableGroups = useSharedHybridQuery<GroupDto>(
+    () => ({ selector: { type: DocType.Group } }),
+    {
+        live: true,
+    },
+);
 const redirectGroups = computed(() =>
     availableGroups.value?.filter(
         (g) =>
             props.redirectDoc.memberOf.includes(g._id) &&
-            verifyAccess([g._id], DocType.Group, AclPermission.View, "any"),
+            verifyAccess([g._id], DocType.Group, AclPermission.CmsView, "any"),
     ),
 );
 </script>
@@ -37,7 +44,6 @@ const redirectGroups = computed(() =>
         :title="redirectDoc.slug"
         :updated-time-utc="redirectDoc.updatedTimeUtc"
         @click="isModalVisible = true"
-        class="mb-1"
     >
         <template #title-extension>
             <div class="flex items-center gap-1">

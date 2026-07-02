@@ -1,6 +1,12 @@
 <script setup lang="ts">
-import { ref } from "vue";
-import { db, DocType, AclPermission, verifyAccess, type RedirectDto } from "luminary-shared";
+import { ref, computed } from "vue";
+import {
+    db,
+    DocType,
+    AclPermission,
+    verifyAccess,
+    type RedirectDto,
+} from "luminary-shared";
 import LBadge from "../common/LBadge.vue";
 import { DateTime } from "luxon";
 import LButton from "../button/LButton.vue";
@@ -9,10 +15,12 @@ import CreateOrEditRedirectModal from "./CreateOrEditRedirectModal.vue";
 
 type Props = {
     redirectDoc: RedirectDto;
+    // Reactive `(id) => boolean` from RedirectTable's useHybridQueryWithState bundle.
+    hasLocalChanges: (id: string) => boolean;
 };
 const props = defineProps<Props>();
 
-const isLocalChanges = db.isLocalChangeAsRef(props.redirectDoc._id);
+const isLocalChanges = computed(() => props.hasLocalChanges(props.redirectDoc._id));
 const isModalVisible = ref(false);
 </script>
 

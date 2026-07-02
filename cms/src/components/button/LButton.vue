@@ -87,6 +87,10 @@ const props = withDefaults(defineProps<Props>(), {
 const slots = useSlots();
 const isSegmented = computed(() => props.segmented || Boolean(slots.left) || Boolean(slots.right));
 const rightSegmentRef = ref<HTMLElement | null>(null);
+// Root element of the segmented control, exposed so a slotted dropdown can size itself to the
+// whole button rather than just the segment it lives in.
+const rootRef = ref<HTMLElement | null>(null);
+defineExpose({ rootEl: rootRef });
 const emit = defineEmits<{
     (e: "left-click", event: MouseEvent): void;
     (e: "main-click", event: MouseEvent): void;
@@ -174,6 +178,7 @@ function handleSegmentClick(segment: Segment, event: MouseEvent) {
     <!-- ====================== SEGMENTED MODE ====================== -->
     <div
         v-if="isSegmented"
+        ref="rootRef"
         role="group"
         class="inline-flex items-stretch"
         :class="{ 'pointer-events-none opacity-50': disabled }"

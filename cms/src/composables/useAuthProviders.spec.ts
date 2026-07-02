@@ -24,8 +24,8 @@ import { CMS_DOCS_INDEX } from "@/docsIndex";
 // ============================
 const authProviderAdminAccessMap = {
     "group-super-admins": {
-        authProvider: { view: true, edit: true, delete: true, assign: true },
-        group: { view: true, edit: true, assign: true },
+        authProvider: { view: true, cmsView: true, edit: true, delete: true, assign: true },
+        group: { view: true, cmsView: true, edit: true, assign: true },
     },
 };
 
@@ -52,21 +52,7 @@ expressApp.use(express.json());
 const randomPort = () => Math.floor(Math.random() * (65535 - 1024 + 1)) + 1024;
 const port = randomPort();
 
-let providerSearchDocs: AuthProviderDto[] = [];
-let lastChangeRequest: any = null;
-
-expressApp.get("/search", (req, res) => {
-    const query = JSON.parse(req.headers["x-query"] as string);
-    res.setHeader("Content-Type", "application/json");
-    if (query.types?.includes(DocType.AuthProvider)) {
-        res.end(JSON.stringify({ docs: providerSearchDocs }));
-    } else {
-        res.end(JSON.stringify({ docs: [] }));
-    }
-});
-
-expressApp.post("/changerequest", (req, res) => {
-    lastChangeRequest = req.body;
+expressApp.post("/changerequest", (_req, res) => {
     res.setHeader("Content-Type", "application/json");
     res.end(JSON.stringify({ ack: AckStatus.Accepted }));
 });
@@ -100,11 +86,6 @@ describe("useAuthProviders", () => {
             cms: true,
             docsIndex: CMS_DOCS_INDEX,
             apiUrl: `http://localhost:${port}`,
-            syncList: [
-                { type: DocType.AuthProvider, contentOnly: true, syncPriority: 10 },
-                { type: DocType.AutoGroupMappings, contentOnly: true, syncPriority: 20 },
-                { type: DocType.Group, contentOnly: true, syncPriority: 30 },
-            ],
         });
         getRest({ reset: true });
     });
@@ -112,10 +93,10 @@ describe("useAuthProviders", () => {
     beforeEach(async () => {
         accessMap.value = authProviderAdminAccessMap as any;
         setActivePinia(createTestingPinia());
-        await db.docs.bulkPut([mockGroupDtoSuperAdmins]);
+        // Providers are now read from IndexedDB via useHybridQuery (Dexie-first), so seed the
+        // local docs table rather than the API search endpoint.
+        await db.docs.bulkPut([mockGroupDtoSuperAdmins, mockProvider]);
         isConnected.value = true;
-        providerSearchDocs = [mockProvider];
-        lastChangeRequest = null;
     });
 
     afterEach(async () => {
@@ -127,7 +108,7 @@ describe("useAuthProviders", () => {
     // ── Data loading ─────────────────────────────────────────────────────────
 
     describe("data loading", () => {
-        it("loads providers from the API", async () => {
+        it("loads providers from the local database", async () => {
             const [c, teardown] = withSetup(() => useAuthProviders());
             try {
                 await waitForExpect(() => {
@@ -151,8 +132,8 @@ describe("useAuthProviders", () => {
             }
         });
 
-        it("returns empty providers when the API returns none", async () => {
-            providerSearchDocs = [];
+        it("returns empty providers when there are none in the local database", async () => {
+            await db.docs.where("type").equals(DocType.AuthProvider).delete();
             const [c, teardown] = withSetup(() => useAuthProviders());
             try {
                 await waitForExpect(() => {
@@ -542,6 +523,7 @@ describe("useAuthProviders", () => {
             const [c, teardown] = withSetup(() => useAuthProviders());
             try {
                 c.openCreateModal();
+                const newId = c.currentProvider.value!._id;
                 c.currentProvider.value!.label = "Brand New";
                 c.currentProvider.value!.domain = "new.auth0.com";
                 c.currentProvider.value!.clientId = "new-client";
@@ -549,6 +531,9 @@ describe("useAuthProviders", () => {
                 await c.saveProvider();
                 expect(c.showModal.value).toBe(true);
                 expect(c.isLoading.value).toBe(false);
+                // Offline-first: save writes the new provider to the local docs table.
+                const saved = (await db.docs.get(newId)) as AuthProviderDto | undefined;
+                expect(saved?.label).toBe("Brand New");
             } finally {
                 teardown();
             }
@@ -607,6 +592,8 @@ describe("useAuthProviders", () => {
                 await c.confirmDelete();
                 expect(c.showDeleteModal.value).toBe(false);
                 expect(c.providerToDelete.value).toBeUndefined();
+                // Offline-first: delete removes the provider from the local docs table.
+                expect(await db.docs.get("provider-1")).toBeUndefined();
             } finally {
                 teardown();
             }
@@ -647,7 +634,7 @@ describe("useAuthProviders", () => {
                 // Remove delete permission from the access map
                 accessMap.value = {
                     "group-super-admins": {
-                        authProvider: { view: true, edit: true }, // no delete
+                        authProvider: { view: true, cmsView: true, edit: true }, // no delete
                     },
                 } as any;
                 c.editProvider(c.providers.value[0]);

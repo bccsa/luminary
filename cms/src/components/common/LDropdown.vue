@@ -16,6 +16,11 @@ const props = defineProps<{
         | "bottom-center";
     triggerClass?: string;
     width?: "auto" | "full" | "default";
+    panelClass?: string;
+    // Optional element to size the panel against instead of the trigger. Useful when the trigger is
+    // only one part of a wider control (e.g. the chevron of a segmented button) but the panel should
+    // match the full control's width.
+    anchorEl?: HTMLElement | null;
 }>();
 
 const show = defineModel<boolean>("show", { required: true });
@@ -35,8 +40,10 @@ const {
     width: triggerWidth,
     update,
 } = useElementBounding(triggerRef);
-const { height: windowHeight } = useWindowSize();
+const { height: windowHeight, width: windowWidth } = useWindowSize();
 const { width: panelWidth } = useElementBounding(panelRef);
+// When `anchorEl` is supplied, the panel is sized to it rather than the trigger.
+const { width: anchorWidth } = useElementBounding(() => props.anchorEl ?? null);
 
 const onTriggerClick = (event: MouseEvent) => {
     if (event.defaultPrevented) return;
@@ -51,13 +58,20 @@ onClickOutside(
     { ignore: [triggerRef] },
 );
 
+function scrollMenuItemIntoView(el: HTMLElement) {
+    el.scrollIntoView({ block: "nearest" });
+}
+
 // Focus first menuitem on open
 const focusFirst = () => {
     if (!panelRef.value) return;
     const first = panelRef.value.querySelector<HTMLElement>(
         '[role="menuitem"],button,a,[tabindex]:not([tabindex="-1"])',
     );
-    first?.focus();
+    if (first) {
+        first.focus();
+        scrollMenuItemIntoView(first);
+    }
 };
 
 watch(show, (val) => {
@@ -77,10 +91,12 @@ const onPanelKeydown = (e: KeyboardEvent) => {
         e.preventDefault();
         const next = items[(currentIndex + 1 + items.length) % items.length];
         next.focus();
+        scrollMenuItemIntoView(next);
     } else if (e.key === "ArrowUp") {
         e.preventDefault();
         const prev = items[(currentIndex - 1 + items.length) % items.length];
         prev.focus();
+        scrollMenuItemIntoView(prev);
     } else if (e.key === "Enter") {
         if (currentIndex >= 0) {
             e.preventDefault();
@@ -111,12 +127,14 @@ const panelStyle = computed(() => {
     const styleBottom = flip ? windowHeight.value - triggerTop.value + 2 : triggerBottom.value + 2;
 
     const style: Record<string, string> = {};
+    // Size against the anchor element when provided, otherwise the trigger.
+    const referenceWidth = props.anchorEl ? anchorWidth.value : triggerWidth.value;
     switch (props.width) {
         case "auto":
-            style.minWidth = `${triggerWidth.value}px`;
+            style.minWidth = `${referenceWidth}px`;
             break;
         case "full":
-            style.width = `${triggerWidth.value}px`;
+            style.width = `${referenceWidth}px`;
             break;
         case "default":
         default:
@@ -157,6 +175,14 @@ const panelStyle = computed(() => {
             style.left = `${triggerRight.value - panelWidth.value}px`;
             break;
     }
+
+    const left = Number.parseFloat(style.left);
+    if (Number.isFinite(left)) {
+        const margin = 8;
+        const maxLeft = Math.max(margin, windowWidth.value - panelWidth.value - margin);
+        style.left = `${Math.min(Math.max(left, margin), maxLeft)}px`;
+    }
+
     return style;
 });
 
@@ -169,6 +195,8 @@ const paddingClass = computed(() =>
             ? "p-3"
             : "p-0",
 );
+
+defineExpose({ panelRef });
 </script>
 
 <template>
@@ -195,13 +223,16 @@ const paddingClass = computed(() =>
                 ref="panelRef"
                 :id="panelId"
                 class="fixed z-[9999] max-h-60 overflow-y-auto rounded-md bg-white shadow-lg ring-1 ring-black/5 scrollbar-hide focus:outline-none"
-                :class="[props.placement?.startsWith('top') ? 'origin-bottom' : 'origin-top']"
+                :class="[
+                    props.placement?.startsWith('top') ? 'origin-bottom' : 'origin-top',
+                    props.panelClass,
+                ]"
                 role="menu"
                 data-dropdown-panel
                 @keydown="onPanelKeydown"
                 :style="panelStyle"
             >
-                <div :class="paddingClass">
+                <div class="flex flex-col" :class="paddingClass">
                     <slot />
                 </div>
             </div>

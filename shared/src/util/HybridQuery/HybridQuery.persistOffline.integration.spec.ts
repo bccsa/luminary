@@ -105,23 +105,33 @@ describe("HybridQuery persistOffline — real Dexie integration", () => {
         expect(await db.retention.get("remote-old2")).toBeDefined();
     });
 
-    it("hard floor: a non-syncable supplement doc is shown but NEVER written to IndexedDB", async () => {
+    it("type floor: viewed content persists regardless of sync scope; non-content never does", async () => {
         post.mockResolvedValue({
             docs: [
-                content("ok", below1), // parentType Post → syncable
-                content("not-syncable", below2, { parentType: DocType.Tag }), // Tag not in syncList
+                content("post-content", below1), // parentType Post (in syncList)
+                // Tag content is NOT in the syncList scope, yet it's content the user fetched for
+                // display (permission-scoped by the API) → it IS cached now (not gated by syncList).
+                content("tag-content", below2, { parentType: DocType.Tag }),
+                // A non-content type (CMS user PII) is the hard floor — never written.
+                { _id: "pii", type: DocType.User, updatedTimeUtc: 1, memberOf: ["g1"] } as any,
             ],
         });
 
         const q = make({ persistOffline: true });
 
         await vi.waitFor(async () => {
-            expect(await db.docs.get("ok")).toBeDefined();
+            expect(await db.docs.get("post-content")).toBeDefined();
         });
-        // Both visible in the merged output…
-        expect(q.output.value.map((d) => d._id).sort()).toEqual(["not-syncable", "ok"]);
-        // …but the non-syncable one is gated out of IndexedDB by isSyncableDoc.
-        expect(await db.docs.get("not-syncable")).toBeUndefined();
+        // All three are visible in the merged output…
+        expect(q.output.value.map((d) => d._id).sort()).toEqual([
+            "pii",
+            "post-content",
+            "tag-content",
+        ]);
+        // …content of any parentType is cached (the syncList scope no longer gates persistOffline)…
+        expect(await db.docs.get("tag-content")).toBeDefined();
+        // …but the non-content doc is dropped by the type floor.
+        expect(await db.docs.get("pii")).toBeUndefined();
     });
 
     it("persistOffline off: the supplement shows in output but is NOT persisted or stamped", async () => {

@@ -7,40 +7,31 @@ import {
     DocType,
     type StorageDto,
     type S3CredentialDto,
-    useDexieLiveQuery,
     type GroupDto,
     AclPermission,
     verifyAccess,
     StorageType,
     useStorageStatus,
     hasAnyPermission,
+    useSharedHybridQuery,
 } from "luminary-shared";
 import LDialog from "../common/LDialog.vue";
 import LoadingBar from "@/components/LoadingBar.vue";
+import EmptyState from "@/components/EmptyState.vue";
 import { useNotificationStore } from "@/stores/notification";
 import { changeReqErrors } from "luminary-shared";
 import { storageValidation } from "@/composables/storageValidation";
+import { assignableGroups } from "@/util/groups";
 
-// Reactive database queries
-const groups = useDexieLiveQuery(
-    () => db.docs.where({ type: "group" }).toArray() as unknown as Promise<GroupDto[]>,
-    { initialValue: [] as GroupDto[] },
-);
-
-// Filter groups to only show those where user has both Edit and Assign permissions
-const availableGroups = computed(() => {
-    return groups.value.filter((group) => {
-        return (
-            verifyAccess([group._id], DocType.Group, AclPermission.Edit) &&
-            verifyAccess([group._id], DocType.Group, AclPermission.Assign)
-        );
-    });
+// Reactive database queries.
+const groups = useSharedHybridQuery<GroupDto>(() => ({ selector: { type: DocType.Group } }), {
+    live: true,
 });
+const availableGroups = computed(() => assignableGroups(groups.value));
 
-const buckets = useDexieLiveQuery(
-    () => db.docs.where({ type: "storage" }).toArray() as unknown as Promise<StorageDto[]>,
-    { initialValue: [] as StorageDto[] },
-);
+const buckets = useSharedHybridQuery<StorageDto>(() => ({ selector: { type: DocType.Storage } }), {
+    live: true,
+});
 
 // Delete permission check
 const canDelete = computed(() => hasAnyPermission(DocType.Storage, AclPermission.Delete));
@@ -372,26 +363,18 @@ const saveBucket = async () => {
 </script>
 
 <template>
-    <div>
-        <div class="border-b border-gray-200 py-1.5">
-            <div class="px-3 sm:px-0">
-                <!-- <h2 class="text-lg font-medium text-gray-900">S3 Buckets</h2> -->
-            </div>
-        </div>
-
-        <div v-if="isLoading && !buckets.length" class="px-6 py-8">
+    <div class="mt-1">
+        <div v-if="isLoading && !buckets.length" class="flex items-center justify-center py-12">
             <LoadingBar />
         </div>
 
-        <div v-else-if="!buckets.length" class="px-6 py-8 text-center">
-            <h3 class="mt-2 text-sm font-medium text-gray-900">No S3 buckets configured</h3>
-            <p class="mt-1 text-sm text-gray-500">
-                {{ "Get started by creating your first S3 bucket configuration." }}
-            </p>
-        </div>
+        <EmptyState
+            v-else-if="!buckets.length"
+            title="No S3 buckets configured"
+            description="Get started by creating your first S3 bucket configuration."
+        />
 
-        <div v-else>
-            <div class="flex flex-col gap-[3px] overflow-y-auto scrollbar-hide">
+        <div v-else class="flex flex-col gap-[3px] overflow-y-auto scrollbar-hide">
                 <!-- Add bottom margin to last card so it doesn't overlap with basepage footer -->
                 <BucketDisplayCard
                     v-for="(bucket, i) in bucketsWithStatus"
@@ -405,7 +388,6 @@ const saveBucket = async () => {
                     @testConnection="handleTestConnection"
                 />
             </div>
-        </div>
     </div>
 
     <!-- Create/Edit Bucket Modal -->

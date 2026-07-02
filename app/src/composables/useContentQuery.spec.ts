@@ -47,4 +47,12 @@ describe("useContentQuery", () => {
         expect(o.cache).toBe(false);
         expect(o.persistOffline).toBe(true);
     });
+
+    it("defaults fetchUnsyncedFallback to true and forwards an override", () => {
+        useContentQuery(() => []);
+        expect(lastOptions().fetchUnsyncedFallback).toBe(true);
+
+        useContentQuery(() => [], { fetchUnsyncedFallback: false });
+        expect(lastOptions().fetchUnsyncedFallback).toBe(false);
+    });
 });

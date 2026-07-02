@@ -57,6 +57,53 @@ describe("BasePage", () => {
         expect(wrapper.text()).toContain("Default slot content");
     });
 
+    it("keeps content inset by default and can remove it", () => {
+        const defaultPage = mount(BasePage);
+        expect(defaultPage.find('[data-test="base-page-content"]').classes()).toEqual(
+            expect.arrayContaining([expect.stringMatching(/^lg:px-8$/)]),
+        );
+        expect(defaultPage.find("[data-topbar]").classes()).toEqual(
+            expect.arrayContaining([expect.stringMatching(/^(px-3|lg:px-8)$/)]),
+        );
+
+        const edgeToEdgePage = mount(BasePage, {
+            props: { contentInset: false },
+            slots: {
+                actions: "<button>Action</button>",
+                footer: "<span>Footer</span>",
+            },
+        });
+        const contentClasses = edgeToEdgePage.find('[data-test="base-page-content"]').classes();
+        expect(contentClasses).not.toContain("lg:px-8");
+        expect(contentClasses).not.toContain("px-3");
+        expect(contentClasses).not.toContain("lg:ml-8");
+        expect(contentClasses).not.toContain("sm:ml-4");
+
+        const actionsHeader = edgeToEdgePage.find("header");
+        expect(actionsHeader.classes()).not.toContain("pl-4");
+        expect(actionsHeader.classes()).not.toContain("pr-8");
+
+        const footer = edgeToEdgePage.find('[data-test="base-page-footer"]');
+        expect(footer.classes()).not.toContain("px-6");
+        expect(footer.classes()).not.toContain("lg:px-8");
+    });
+
+    it("applies content inset to internalPageHeader when contentInset is true", () => {
+        const wrapper = mount(BasePage, {
+            slots: {
+                internalPageHeader: "<div data-test='filter-bar'>Filters</div>",
+            },
+        });
+
+        const filterBar = wrapper.find("[data-test='filter-bar']");
+        expect(filterBar.element.parentElement?.className).toEqual(
+            expect.stringMatching(/(px-3|lg:px-8)/),
+        );
+        expect(filterBar.element.parentElement?.parentElement?.className).toEqual(
+            expect.stringMatching(/bg-white/),
+        );
+    });
+
     it("renders the back link", async () => {
         const wrapper = mount(BasePage, {
             props: { backLinkLocation: { name: "posts.index" }, backLinkText: "Posts" },
@@ -69,7 +116,6 @@ describe("BasePage", () => {
                         template:
                             '<div><slot name="quickActions" /><slot name="contentActions" /></div>',
                     },
-                    MobileSideBar: { template: "<div />" },
                 },
             },
         });

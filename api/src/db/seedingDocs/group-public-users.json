@@ -1,6 +1,7 @@
 {
     "_id": "group-public-users",
     "type": "group",
+    "memberOf": ["group-public-users"],
     "name": "Public Users",
     "acl": [
         {
@@ -37,6 +38,16 @@
             "type": "storage",
             "groupId": "group-super-admins",
             "permission": ["view", "edit", "delete", "assign"]
+        },
+        {
+            "type": "authProvider",
+            "groupId": "group-super-admins",
+            "permission": ["view", "cmsView"]
+        },
+        {
+            "type": "authProvider",
+            "groupId": "group-public-users",
+            "permission": ["view", "cmsView"]
         }
     ]
 }

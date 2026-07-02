@@ -1,6 +1,7 @@
 {
     "_id": "group-languages",
     "type": "group",
+    "memberOf": ["group-languages"],
     "name": "Languages",
     "acl": [
         {
@@ -26,22 +27,22 @@
         {
             "type": "language",
             "groupId": "group-public-editors",
-            "permission": ["view", "translate"]
+            "permission": ["view", "translate", "cmsView"]
         },
         {
             "type": "storage",
             "groupId": "group-public-editors",
-            "permission": ["view"]
+            "permission": ["view", "cmsView"]
         },
         {
             "type": "language",
             "groupId": "group-private-editors",
-            "permission": ["view", "translate"]
+            "permission": ["view", "translate", "cmsView"]
         },
         {
             "type": "storage",
             "groupId": "group-private-editors",
-            "permission": ["view"]
+            "permission": ["view", "cmsView"]
         }
     ]
 }

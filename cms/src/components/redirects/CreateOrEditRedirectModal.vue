@@ -1,20 +1,21 @@
 <script setup lang="ts">
-import { ref, computed, watch, toRaw } from "vue";
+import { ref, computed, watch } from "vue";
 import {
     AclPermission,
+    AckStatus,
     db,
     DocType,
     type RedirectDto,
     RedirectType,
     verifyAccess,
     type GroupDto,
-    type ApiSearchQuery,
-    useDexieLiveQuery,
-    ApiLiveQuery,
+    type Uuid,
+    useHybridQuery,
+    useSharedHybridQuery,
+    toEditable,
 } from "luminary-shared";
 import LInput from "@/components/forms/LInput.vue";
 import LButton from "@/components/button/LButton.vue";
-import _ from "lodash";
 import {
     CheckCircleIcon,
     ExclamationCircleIcon,
@@ -26,7 +27,6 @@ import { TrashIcon } from "@heroicons/vue/24/outline";
 import LDialog from "../common/LDialog.vue";
 import LCombobox from "../forms/LCombobox.vue";
 
-// Props for visibility and Redirect to edit
 type Props = {
     isVisible: boolean;
     redirect?: RedirectDto;
@@ -39,95 +39,125 @@ const emit = defineEmits(["close"]);
 const isNew = computed(() => !props.redirect);
 const showDeleteModal = ref(false);
 
-const editable = ref<RedirectDto>({
-    _id: db.uuid(), // Generate new ID for create mode
-    slug: "",
-    redirectType: RedirectType.Permanent,
-    memberOf: [],
-    type: DocType.Redirect,
-    updatedTimeUtc: Date.now(),
-});
+const currentId = ref<Uuid>(props.redirect?._id ?? db.uuid());
 
-// Track the previous state for dirty checking
-const previous = ref<RedirectDto>();
+function createTemplate(id: Uuid): RedirectDto {
+    return {
+        _id: id,
+        slug: "",
+        redirectType: RedirectType.Permanent,
+        memberOf: [],
+        type: DocType.Redirect,
+        updatedTimeUtc: Date.now(),
+    };
+}
 
-// Watch the passed `Redirect` prop to set the modal in edit mode
+const redirectSource = ref<RedirectDto[]>([]);
+
+const liveRedirect = useHybridQuery<RedirectDto>(
+    () =>
+        props.redirect
+            ? { selector: { type: DocType.Redirect, _id: props.redirect._id }, $limit: 1 }
+            : { selector: { _id: { $in: [] } } },
+    { live: true },
+);
+
 watch(
-    () => props.redirect,
-    (redirect) => {
-        if (redirect) {
-            editable.value = _.cloneDeep(redirect);
-            previous.value = { ...redirect }; // Save the previous state for dirty checking
-        } else {
-            // Reset to a new Redirect if no Redirect is passed (create mode)
-            editable.value = {
-                _id: db.uuid(), // Generate new ID for create mode
-                slug: "",
-                redirectType: RedirectType.Permanent,
-                memberOf: [],
-                type: DocType.Redirect,
-                updatedTimeUtc: Date.now(),
-            };
-        }
+    liveRedirect,
+    () => {
+        if (liveRedirect.value.length) redirectSource.value = liveRedirect.value;
     },
     { immediate: true },
 );
 
+const redirectEditable = toEditable<RedirectDto>(redirectSource);
+const { remove: removeRedirect, save: saveRedirect } = redirectEditable;
+
+function hydrateFromRedirect(redirect: RedirectDto) {
+    currentId.value = redirect._id;
+    redirectSource.value = [redirect];
+    redirectEditable.editable.value.splice(0, redirectEditable.editable.value.length, {
+        ...redirect,
+    });
+    redirectEditable.updateShadow(redirect._id);
+}
+
+function seedCreateTemplate() {
+    redirectEditable.editable.value.splice(
+        0,
+        redirectEditable.editable.value.length,
+        createTemplate(currentId.value),
+    );
+}
+
+const editable = computed<RedirectDto>({
+    get: () => redirectEditable.editable.value[0],
+    set: (val) => {
+        const arr = redirectEditable.editable.value;
+        if (arr.length === 0) arr.push(val);
+        else arr.splice(0, 1, val);
+    },
+});
+
+watch(
+    () => props.redirect,
+    (redirect) => {
+        if (redirect) hydrateFromRedirect(redirect);
+        else {
+            currentId.value = db.uuid();
+            redirectSource.value = [];
+            seedCreateTemplate();
+        }
+    },
+);
+
+if (props.redirect) hydrateFromRedirect(props.redirect);
+else seedCreateTemplate();
+
+const isDirty = computed(() => {
+    const doc = editable.value;
+    if (!doc) return false;
+    return redirectEditable.isEdited.value(doc._id);
+});
+
 const save = async () => {
-    // Bypass save if a new redirect is being deleted
-    if (!(isNew.value && editable.value.deleteReq)) {
-        editable.value.updatedTimeUtc = Date.now();
-        await db.upsert({ doc: editable.value });
+    const doc = editable.value;
+    if (!doc) return;
+
+    doc.updatedTimeUtc = Date.now();
+    const res = await saveRedirect(doc._id);
+
+    if (res?.ack !== AckStatus.Accepted) {
+        addNotification({
+            title: !isNew.value ? "Failed to update redirect" : "Failed to create redirect",
+            description: res?.message ?? "The redirect could not be saved",
+            state: "error",
+        });
+        return;
     }
 
-    if (!editable.value.deleteReq) {
-        useNotificationStore().addNotification({
-            title: !isNew.value ? `Redirect updated` : `Redirect created`,
-            description: `Redirecting ${editable.value.slug} to ${editable.value.toSlug ?? "HOMEPAGE"}`,
-            state: "success",
-        });
-    }
+    addNotification({
+        title: !isNew.value ? `Redirect updated` : `Redirect created`,
+        description: `Redirecting ${doc.slug} to ${doc.toSlug ?? "HOMEPAGE"}`,
+        state: "success",
+    });
     emit("close");
 };
 
 const canSave = computed(() => {
+    const doc = editable.value;
+    if (!doc) return false;
     return (
-        editable.value.slug?.trim() !== "" &&
-        editable.value.memberOf.length > 0 &&
+        doc.slug?.trim() !== "" &&
+        doc.memberOf.length > 0 &&
         isDirty.value &&
         isSlugUnique.value == true
     );
 });
 
 const isTemporary = computed(() => {
-    return editable.value.redirectType == RedirectType.Temporary;
+    return editable.value?.redirectType == RedirectType.Temporary;
 });
-
-const redirectQuery = ref<ApiSearchQuery>({
-    types: [DocType.Redirect],
-    docId: props.redirect ? props.redirect._id : undefined,
-});
-const apiLiveQuery = new ApiLiveQuery<RedirectDto>(redirectQuery);
-const original = apiLiveQuery.toRef();
-
-const isDirty = ref(false);
-watch(
-    [editable, original, () => props.redirect],
-    () => {
-        // In edit mode, use `previous` (set synchronously when modal opens) to avoid
-        // briefly showing "Revert" while original from ApiLiveQuery is still loading.
-        const reference = props.redirect && previous.value ? previous.value : original.value;
-        if (!reference) {
-            isDirty.value = true;
-            return;
-        }
-        isDirty.value = !_.isEqual(
-            { ...toRaw(reference), updatedTimeUtc: 0, _rev: "" },
-            { ...toRaw(editable.value), updatedTimeUtc: 0, _rev: "" },
-        );
-    },
-    { deep: true, immediate: true },
-);
 
 const redirectExplanation = computed(() => {
     return isTemporary.value
@@ -136,20 +166,15 @@ const redirectExplanation = computed(() => {
 });
 
 const isSlugUnique = ref(true);
-const groups = useDexieLiveQuery(
-    () => db.docs.where({ type: DocType.Group }).toArray() as unknown as Promise<GroupDto[]>,
-    { initialValue: [] as GroupDto[] },
-);
+const groups = useSharedHybridQuery<GroupDto>(() => ({ selector: { type: DocType.Group } }), {
+    live: true,
+});
 
 watch(
-    () => editable.value.slug,
-    async () => {
-        if (editable.value.slug.length > 0) {
-            const slugIsUnique = await Slug.checkUnique(
-                editable.value.slug,
-                editable.value._id,
-                DocType.Redirect,
-            );
+    () => editable.value?.slug,
+    async (slug) => {
+        if (slug && slug.length > 0) {
+            const slugIsUnique = await Slug.checkUnique(slug, editable.value._id, DocType.Redirect);
             isSlugUnique.value = slugIsUnique ? slugIsUnique : false;
         }
     },
@@ -160,13 +185,13 @@ const validateSlug = (slug: string | undefined) => {
     return slug.replace(/[^a-zA-Z0-9-_]/g, "").toLowerCase();
 };
 
-// Redirect deletion
 const canDelete = computed(() => {
-    if (!editable.value) return false;
-    return verifyAccess(editable.value.memberOf, DocType.Redirect, AclPermission.Delete, "all");
+    const doc = editable.value;
+    if (!doc) return false;
+    return verifyAccess(doc.memberOf, DocType.Redirect, AclPermission.Delete, "all");
 });
 
-const deleteRedirect = () => {
+const deleteRedirect = async () => {
     if (!canDelete.value) {
         addNotification({
             title: "Access denied",
@@ -176,23 +201,38 @@ const deleteRedirect = () => {
         return;
     }
 
-    editable.value.deleteReq = 1;
+    const doc = editable.value;
+    if (!doc) return;
 
-    save();
+    try {
+        const res = await removeRedirect(doc._id);
+        if (res?.ack !== AckStatus.Accepted) {
+            addNotification({
+                title: "Failed to delete redirect",
+                description: res?.message ?? "The redirect could not be deleted",
+                state: "error",
+            });
+            return;
+        }
 
-    addNotification({
-        title: `Redirect deleted`,
-        description: `The redirect was successfully deleted`,
-        state: "success",
-    });
+        emit("close");
+        addNotification({
+            title: `Redirect deleted`,
+            description: `The redirect was successfully deleted`,
+            state: "success",
+        });
+    } catch (error) {
+        console.error("Error deleting redirect:", error);
+        addNotification({
+            title: "Failed to delete redirect",
+            description: error instanceof Error ? error.message : "An unknown error occurred",
+            state: "error",
+        });
+    }
 };
 
 const revertChanges = () => {
-    if (props.redirect && previous.value) {
-        editable.value = _.cloneDeep(previous.value);
-    } else if (original.value) {
-        editable.value = _.cloneDeep(original.value);
-    }
+    redirectEditable.revert(currentId.value);
 };
 </script>
 
@@ -209,7 +249,7 @@ const revertChanges = () => {
         secondaryButtonText="Cancel"
         stickToEdges
     >
-        <div class="mb-2 flex flex-col items-center">
+        <div v-if="editable" class="mb-2 flex flex-col items-center">
             <div class="mb-1 flex w-full gap-1">
                 <LButton
                     class="w-1/2"
@@ -228,7 +268,7 @@ const revertChanges = () => {
             <p class="text-xs text-zinc-500">{{ redirectExplanation }}</p>
         </div>
 
-        <div class="relative">
+        <div v-if="editable" class="relative">
             <LInput
                 label="From *"
                 name="RedirectFromSlug"
@@ -243,6 +283,7 @@ const revertChanges = () => {
         </div>
 
         <LInput
+            v-if="editable"
             label="To"
             name="RedirectToSlug"
             v-model="editable.toSlug"
@@ -252,6 +293,7 @@ const revertChanges = () => {
         />
 
         <LCombobox
+            v-if="editable"
             label="Group Membership"
             :options="
                 groups.map((group: GroupDto) => ({
@@ -297,9 +339,9 @@ const revertChanges = () => {
         :title="`Delete redirect?`"
         :description="`Are you sure you want to delete this redirect? This action cannot be undone.`"
         :primaryAction="
-            () => {
+            async () => {
                 showDeleteModal = false;
-                deleteRedirect();
+                await deleteRedirect();
             }
         "
         :secondaryAction="() => (showDeleteModal = false)"

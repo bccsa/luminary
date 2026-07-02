@@ -5,16 +5,19 @@ import LBadge from "@/components/common/LBadge.vue";
 import { DateTime } from "luxon";
 import { ClockIcon } from "@heroicons/vue/24/outline";
 import { isMobileScreen } from "@/globalConfig";
+import { computed } from "vue";
 
 type Props = {
     languagesDoc: LanguageDto;
+    // Reactive `(id) => boolean` from the overview's useHybridQueryWithState bundle.
+    hasLocalChanges: (id: string) => boolean;
 };
 const props = defineProps<Props>();
-const isLocalChanges = db.isLocalChangeAsRef(props.languagesDoc._id);
+const isLocalChanges = computed(() => props.hasLocalChanges(props.languagesDoc._id));
 </script>
 
 <template>
-    <div class="mb-1 flex flex-col">
+    <div class="flex flex-col">
         <DisplayCard
             title=""
             :updatedTimeUtc="0"

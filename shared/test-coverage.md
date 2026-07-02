@@ -43,16 +43,12 @@ These files achieved full statement, branch, function, and line coverage:
 | `src/index.ts` | 0% stmts | **Barrel re-export file.** Importing it triggers side effects from all modules (socket.io, database, etc.) that require full runtime setup. Not worth testing — it's just `export * from` statements. Should be excluded from coverage. |
 | `src/fts/index.ts` | 0% stmts | Same as above — barrel re-export. |
 | `src/api/sync/index.ts` | 0% stmts | Same as above — barrel re-export. |
-| `src/util/useDexieLiveQueryAsEditable/index.ts` | 0% stmts | Single line re-export. |
 | `database.ts` | 92.72% | Uncovered lines involve IndexedDB version upgrade logic (`dbVersion` changes) and `deleteExpiredDocs` edge cases. These require complex Dexie lifecycle events that are hard to simulate in unit tests. The upgrade and blocked-database paths (lines 970-977, 1014-1017) involve async Dexie internals. |
 | `socketio.ts` | 93.03% | Uncovered: `reconnect()` method (lines 148-152), `on()/off()` wrapper methods. The `SocketIO` constructor binds real `socket.io-client` events — the mock in `socketio.spec.ts` can't easily cover `reconnect` without triggering actual disconnection flows. Functions coverage is 71% because `on`, `off`, `disconnect`, `reconnect` are simple pass-through wrappers. |
 | `compileTemplateSelector.ts` | 93.61% | Uncovered: defensive `console.warn` branches (lines 725-728, 736-740) for "shouldn't happen in normalized templates" cases like unexpected array values for field keys. These branches exist for robustness but are unreachable when input comes through `normalizeSelector`. Function coverage is 76% because some internal helper functions are only called transitively. |
 | `permissions.ts` | 94.59% | Lines 34-35, 39-40: Edge case branches in `verifyAccess` for groups validation. |
 | `s3Utils.ts` | 95.76% | Lines 73-77: Outer catch block in `testS3Credentials` — only reachable if all inner validations pass but an unexpected runtime error occurs. Defensive code. |
 | `LFormData.ts` | 94% | Lines 87-93: The `super.set` fallback path — `FormData.set()` is always available in jsdom, so the `else` branch (delete + append) is unreachable. Lines 136-137: `ArrayBufferView` with non-`SharedArrayBuffer` fallback branch. |
-| `ApiLiveQuery.ts` | 92.05% | Lines 116-118, 125-127: Cleanup/dispose logic and error handling in socket event listeners. These require precise timing of component lifecycle events that are hard to reproduce. |
-| `ApiLiveQueryAsEditable.ts` | 87.35% | Lines 67-70, 80-86: Complex edit conflict detection and shadow copy update logic. Edge cases involving concurrent edits during socket updates. |
-| `applySocketData.ts` | 90.2% | Lines 134, 136-140: Edge cases in socket data merge (null doc handling, type mismatches). |
 | `mangoToDexie.ts` | 92.42% | Lines ~900-924: Rarely-hit Dexie pushdown analysis branches for complex multi-field queries. |
 | `queryCache.ts` | 97.29% | Lines 229-230, 294-295: Cache expiry timer edge cases and localStorage fallback paths. |
 | `createEditable.ts` | 94.33% | Lines 206-208, 217-227: Complex shadow copy comparison logic for detecting concurrent modifications. |
@@ -67,9 +63,7 @@ These files achieved full statement, branch, function, and line coverage:
 
 1. **Exclude barrel `index.ts` files from coverage** — they contain no logic and drag down numbers. Add `"**/index.ts"` to the coverage exclude list if desired (though some index files export `warmMangoCaches` with logic).
 
-2. **ApiLiveQuery suite** — the ~90% coverage could be pushed to ~95% by adding tests for cleanup/dispose paths and error re-subscription logic. Requires more complex Vue lifecycle simulation.
-
-3. **database.ts** — the uncovered 7% involves Dexie version upgrade internals that are integration-level concerns. Consider integration tests if needed.
+2. **database.ts** — the uncovered 7% involves Dexie version upgrade internals that are integration-level concerns. Consider integration tests if needed.
 
 ## Files Created/Modified
 

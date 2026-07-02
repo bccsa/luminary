@@ -11,7 +11,7 @@ const provider = defineModel<AuthProviderDto>("provider", { required: true });
 
 <template>
     <div class="min-w-0 w-full max-w-full">
-        <label for="provider-label" class="mb-1 block text-xs font-medium text-gray-700">
+        <label for="provider-label" class="mb-1 block text-xs font-medium text-zinc-700">
             Label
         </label>
         <LInput
@@ -25,10 +25,10 @@ const provider = defineModel<AuthProviderDto>("provider", { required: true });
         />
 
         <div class="mt-2">
-            <label for="provider-display-name" class="mb-1 block text-xs font-medium text-gray-700">
+            <label for="provider-display-name" class="mb-1 block text-xs font-medium text-zinc-700">
                 Display name
             </label>
-            <p class="mb-1 text-[11px] text-gray-500">
+            <p class="mb-1 text-[11px] text-zinc-500">
                 You can use embedded translation lookups with [[key.path]] or enter a translation key
                 directly (key.subkey).
             </p>
@@ -41,7 +41,7 @@ const provider = defineModel<AuthProviderDto>("provider", { required: true });
                 :disabled="disabled"
                 @update:model-value="provider.displayName = $event"
             />
-            <p class="mt-1 text-[11px] text-gray-500">
+            <p class="mt-1 text-[11px] text-zinc-500">
                 This name is shown in CMS lists and dialogs.
             </p>
         </div>

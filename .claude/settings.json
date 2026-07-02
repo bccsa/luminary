@@ -5,5 +5,8 @@
       "Bash(npm view:*)",
       "Bash(npm run:*)"
     ]
+  },
+  "enabledPlugins": {
+    "ponytail@ponytail": true
   }
 }

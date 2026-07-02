@@ -1,17 +1,5 @@
 <script setup lang="ts">
-import {
-    AclPermission,
-    DocType,
-    hasAnyPermission,
-    ApiLiveQueryAsEditable,
-    type AutoGroupMappingsDto,
-    type AuthProviderDto,
-    type ApiSearchQuery,
-    type GroupDto,
-    db,
-    useDexieLiveQuery,
-    AckStatus,
-} from "luminary-shared";
+import { AckStatus, type AutoGroupMappingsDto } from "luminary-shared";
 import BasePage from "../BasePage.vue";
 import AutoGroupMappingDisplayCard from "./AutoGroupMappingDisplayCard.vue";
 import CreateOrEditAutoGroupMappingModal from "./CreateOrEditAutoGroupMappingModal.vue";
@@ -24,7 +12,7 @@ import {
     AdjustmentsVerticalIcon,
     MagnifyingGlassIcon,
 } from "@heroicons/vue/24/outline";
-import { computed, ref, nextTick, onBeforeUnmount } from "vue";
+import { computed, reactive, ref } from "vue";
 import LButton from "../button/LButton.vue";
 import LInput from "../forms/LInput.vue";
 import LSelect from "../forms/LSelect.vue";
@@ -33,30 +21,16 @@ import LModal from "../modals/LModal.vue";
 import LTag from "../content/LTag.vue";
 import { isSmallScreen } from "@/globalConfig";
 import { useNotificationStore } from "@/stores/notification";
+import { useAutoGroupMappings } from "@/composables/useAutoGroupMappings";
+import EmptyState from "@/components/EmptyState.vue";
+import { groupLabel } from "@/util/groups";
 
 const notification = useNotificationStore();
 
-const canView = computed(() => hasAnyPermission(DocType.AutoGroupMappings, AclPermission.View));
-const canEdit = computed(() => hasAnyPermission(DocType.AutoGroupMappings, AclPermission.Edit));
-
-// Query all auto group mapping documents
-const mappingQuery = new ApiLiveQueryAsEditable<AutoGroupMappingsDto>(
-    ref<ApiSearchQuery>({ types: [DocType.AutoGroupMappings] }),
-    { filterFn: (item) => ({ ...item }) },
-);
-const mappings = mappingQuery.editable;
-
-// Query all auth providers for the provider filter and selector
-const providerQuery = new ApiLiveQueryAsEditable<AuthProviderDto>(
-    ref<ApiSearchQuery>({ types: [DocType.AuthProvider] }),
-    { filterFn: (item) => ({ ...item }) },
-);
-const providers = providerQuery.editable;
-
-const groups = useDexieLiveQuery(
-    () => db.docs.where({ type: "group" }).toArray() as unknown as Promise<GroupDto[]>,
-    { initialValue: [] as GroupDto[] },
-);
+// Data layer: HybridQuery (mappings API-only + providers Dexie-first) + toEditable, plus the
+// create/update/delete primitives. See useAutoGroupMappings for the API-only rationale.
+// `reactive` unwraps the composable's refs so members are read via dot notation (no `.value`).
+const autoGroupMappings = reactive(useAutoGroupMappings());
 
 // ── Filter state ────────────────────────────────────────────────────────────
 
@@ -70,27 +44,22 @@ const GLOBAL_FILTER = "__global__";
 const providerFilterOptions = computed(() => [
     { value: "", label: "All providers" },
     { value: GLOBAL_FILTER, label: "Global (All Users)" },
-    ...providers.value.map((p) => ({
+    ...autoGroupMappings.providers.map((p) => ({
         value: p._id,
         label: p.displayName || p.label || p.domain || p._id,
     })),
 ]);
 
 const groupFilterOptions = computed(() =>
-    groups.value.map((g) => ({
+    autoGroupMappings.groups.map((g) => ({
         id: g._id,
         label: g.name,
         value: g._id,
     })),
 );
 
-const isLoading = computed(
-    () =>
-        (mappingQuery.isLoading.value || providerQuery.isLoading.value) && !mappings.value.length,
-);
-
 const filteredMappings = computed(() => {
-    let result = mappings.value;
+    let result = autoGroupMappings.mappings;
     if (selectedProviderFilter.value === GLOBAL_FILTER) {
         result = result.filter((m) => !m.providerId);
     } else if (selectedProviderFilter.value) {
@@ -107,7 +76,7 @@ const filteredMappings = computed(() => {
             const pName = providerName(m.providerId).toLowerCase();
             const desc = (m.description ?? "").toLowerCase();
             const groupNames = (m.groupIds ?? [])
-                .map((gid) => groups.value.find((g) => g._id === gid)?.name ?? "")
+                .map((gid) => autoGroupMappings.groups.find((g) => g._id === gid)?.name ?? "")
                 .join(" ")
                 .toLowerCase();
             return pName.includes(q) || desc.includes(q) || groupNames.includes(q);
@@ -118,7 +87,7 @@ const filteredMappings = computed(() => {
 
 function providerName(providerId: string | undefined): string {
     if (!providerId) return "(no provider)";
-    const p = providers.value.find((prov) => prov._id === providerId);
+    const p = autoGroupMappings.providers.find((prov) => prov._id === providerId);
     return p?.displayName || p?.label || p?.domain || providerId;
 }
 
@@ -148,34 +117,18 @@ function closeModal() {
     editingMapping.value = undefined;
 }
 
-async function saveMapping(doc: AutoGroupMappingsDto) {
-    const existing = mappings.value.find((m) => m._id === doc._id);
-
-    if (existing) {
-        const idx = mappings.value.findIndex((m) => m._id === doc._id);
-        if (idx >= 0) {
-            mappings.value[idx] = doc;
-            await nextTick();
-            const res = await mappingQuery.save(doc._id);
-            if (res?.ack === AckStatus.Rejected) {
-                notification.addNotification({
-                    title: "Failed to save",
-                    description: res.message || "The server rejected the update.",
-                    state: "error",
-                });
-                return;
-            }
-        }
-    } else {
-        const res = await mappingQuery.duplicate(doc);
-        if (res?.ack === AckStatus.Rejected) {
-            notification.addNotification({
-                title: "Failed to create",
-                description: res.message || "The server rejected the creation.",
-                state: "error",
-            });
-            return;
-        }
+async function handleSave(doc: AutoGroupMappingsDto) {
+    const existing = autoGroupMappings.mappings.some((m) => m._id === doc._id);
+    const res = await autoGroupMappings.saveMapping(doc);
+    if (res && res.ack === AckStatus.Rejected) {
+        notification.addNotification({
+            title: existing ? "Failed to save" : "Failed to create",
+            description:
+                res.message ||
+                (existing ? "The server rejected the update." : "The server rejected the creation."),
+            state: "error",
+        });
+        return;
     }
 
     // Update editingMapping so the modal re-syncs with the saved state
@@ -191,15 +144,9 @@ async function saveMapping(doc: AutoGroupMappingsDto) {
     });
 }
 
-async function deleteMapping(mappingId: string) {
-    const mapping = mappings.value.find((m) => m._id === mappingId);
-    if (!mapping) return;
-
-    mapping.deleteReq = 1;
-    await nextTick();
-
-    const res = await mappingQuery.save(mappingId);
-    if (res?.ack === AckStatus.Rejected) {
+async function handleDelete(mappingId: string) {
+    const res = await autoGroupMappings.deleteMapping(mappingId);
+    if (res && res.ack === AckStatus.Rejected) {
         notification.addNotification({
             title: "Failed to delete",
             description: res.message || "The server rejected the update.",
@@ -216,43 +163,53 @@ async function deleteMapping(mappingId: string) {
     closeModal();
 }
 
-onBeforeUnmount(() => {
-    mappingQuery.stopLiveQuery();
-    providerQuery.stopLiveQuery();
-});
+const emptyStateDescription = computed(() =>
+    autoGroupMappings.canEdit
+        ? "Click Create mapping to assign groups automatically based on JWT claims."
+        : "No mappings have been configured yet.",
+);
+
+const hasAnyContent = computed(() => autoGroupMappings.mappings.length > 0);
+
+// No explicit teardown: useAutoGroupMappings' HybridQuery / useDexieLiveQuery register
+// onScopeDispose in this component's scope and tear down automatically on unmount.
 </script>
 
 <template>
-    <BasePage title="Auto Group Mappings" :should-show-page-title="false" :loading="isLoading">
-        <template #pageNav>
-            <div class="flex items-center gap-3" v-if="canEdit">
-                <LButton
-                    v-if="!isSmallScreen"
-                    variant="primary"
-                    :icon="PlusIcon"
-                    @click="openCreate"
-                >
-                    Create mapping
-                </LButton>
-                <PlusIcon
-                    v-else
-                    class="h-8 w-8 cursor-pointer rounded bg-zinc-100 p-1 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-700"
-                    @click="openCreate"
-                />
-            </div>
+    <BasePage
+        title="Auto Group Mappings"
+        :should-show-page-title="false"
+        :loading="autoGroupMappings.isLoading"
+    >
+        <template #topBarActionsDesktop>
+            <LButton
+                v-if="autoGroupMappings.canEdit && hasAnyContent && !isSmallScreen"
+                variant="primary"
+                :icon="PlusIcon"
+                @click="openCreate"
+            >
+                Create mapping
+            </LButton>
+        </template>
+        <template #topBarActionsMobile>
+            <PlusIcon
+                v-if="autoGroupMappings.canEdit && hasAnyContent && isSmallScreen"
+                class="h-8 w-8 cursor-pointer rounded bg-zinc-100 p-1 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-700"
+                @click="openCreate"
+            />
         </template>
 
-        <template #internalPageHeader>
+        <template v-if="hasAnyContent" #internalPageHeader>
             <!-- Desktop filter bar -->
             <div
                 v-if="!isSmallScreen"
-                class="flex flex-col gap-1 overflow-visible border-b border-t border-zinc-300 border-t-zinc-100 bg-white pb-1 pt-2 shadow"
+                class="flex flex-col gap-1 overflow-visible"
             >
-                <div class="flex h-10 w-full items-center gap-1 px-8">
+                <div class="flex h-10 w-full items-center gap-1">
                     <LInput
                         type="text"
                         :icon="MagnifyingGlassIcon"
-                        class="h-full flex-grow"
+                        class="h-full min-w-0 flex-grow"
                         name="search"
                         placeholder="Search..."
                         v-model="searchQuery"
@@ -282,7 +239,7 @@ onBeforeUnmount(() => {
                 <!-- Selected group filter tags -->
                 <div
                     v-if="selectedGroupFilter.length > 0"
-                    class="mb-2 ml-8 flex w-full flex-col gap-1"
+                    class="mb-2 flex w-full flex-col gap-1"
                 >
                     <div class="w-full">
                         <ul class="flex w-full flex-wrap gap-2">
@@ -298,7 +255,7 @@ onBeforeUnmount(() => {
                                     }
                                 "
                             >
-                                {{ groups.find((g) => g._id === groupId)?.name }}
+                                {{ groupLabel(groupId, autoGroupMappings.groups) }}
                             </LTag>
                         </ul>
                     </div>
@@ -308,20 +265,20 @@ onBeforeUnmount(() => {
             <!-- Mobile filter bar -->
             <div
                 v-else
-                class="z-20 flex flex-col gap-1 overflow-visible border-b border-t border-zinc-300 border-t-zinc-100 bg-white pb-1 pt-2 shadow max-sm:px-1 sm:px-4"
+                class="z-20 flex flex-col gap-1 overflow-visible"
             >
-                <div class="flex gap-1">
+                <div class="flex h-10 w-full items-center gap-1">
                     <LInput
                         type="text"
                         :icon="MagnifyingGlassIcon"
-                        class="flex-grow"
+                        class="h-full min-w-0 flex-grow"
                         name="search"
                         placeholder="Search..."
                         v-model="searchQuery"
                         :full-height="true"
                     />
-                    <LButton :icon="AdjustmentsVerticalIcon" @click="showMobileFilters = true" />
-                    <LButton :icon="ArrowUturnLeftIcon" @click="resetFilters" />
+                    <LButton class="h-full" :icon="AdjustmentsVerticalIcon" @click="showMobileFilters = true" />
+                    <LButton class="h-full w-10" :icon="ArrowUturnLeftIcon" @click="resetFilters" />
                 </div>
 
                 <!-- Selected group filter tags (mobile) -->
@@ -340,7 +297,7 @@ onBeforeUnmount(() => {
                                     }
                                 "
                             >
-                                {{ groups.find((g) => g._id === groupId)?.name }}
+                                {{ groupLabel(groupId, autoGroupMappings.groups) }}
                             </LTag>
                         </ul>
                     </div>
@@ -378,31 +335,39 @@ onBeforeUnmount(() => {
         </template>
 
         <!-- Permission warnings -->
-        <div v-if="!canView || !canEdit" class="mb-1 p-2">
-            <span v-if="!canView" class="mb-1 flex gap-1 text-xs text-zinc-600">
+        <div v-if="!autoGroupMappings.canView || !autoGroupMappings.canEdit" class="mb-1">
+            <span v-if="!autoGroupMappings.canView" class="mb-1 flex gap-1 text-xs text-zinc-600">
                 <ExclamationCircleIcon class="h-4 min-h-4 w-4 min-w-4 text-red-400" />
                 No view permission
             </span>
-            <span v-if="!canEdit" class="flex gap-1 text-xs text-zinc-600">
+            <span v-if="!autoGroupMappings.canEdit" class="flex gap-1 text-xs text-zinc-600">
                 <ExclamationCircleIcon class="h-4 min-h-4 w-4 min-w-4 text-red-400" />
                 No edit permission
             </span>
         </div>
 
-        <!-- Mapping list -->
-        <p v-if="!filteredMappings.length" class="mt-1 text-sm italic text-gray-400">
-            No auto group mappings configured.
-            <template v-if="canEdit">
-                Click "Create mapping" to assign groups automatically based on JWT claims.
-            </template>
-        </p>
+        <EmptyState
+            v-if="!autoGroupMappings.isLoading && !hasAnyContent"
+            title="No auto group mappings configured"
+            :description="emptyStateDescription"
+            :button-text="autoGroupMappings.canEdit ? 'Create mapping' : undefined"
+            :button-action="autoGroupMappings.canEdit ? openCreate : undefined"
+            :button-permission="autoGroupMappings.canEdit"
+            show-back-button
+        />
 
-        <div class="mt-1">
+        <EmptyState
+            v-else-if="hasAnyContent && !filteredMappings.length"
+            title="No mappings match the current filters"
+            description="Try adjusting your search or filter criteria."
+        />
+
+        <div v-else-if="filteredMappings.length" class="flex flex-col gap-[3px]">
             <AutoGroupMappingDisplayCard
                 v-for="mapping in filteredMappings"
                 :key="mapping._id"
                 :mapping="mapping"
-                :groups="groups"
+                :groups="autoGroupMappings.groups"
                 :provider-name="providerName(mapping.providerId)"
                 @click="openEdit(mapping)"
             />
@@ -412,12 +377,12 @@ onBeforeUnmount(() => {
             v-if="isModalVisible"
             :is-visible="isModalVisible"
             :mapping="editingMapping"
-            :providers="providers"
-            :groups="groups"
-            :disabled="!canEdit"
+            :providers="autoGroupMappings.providers"
+            :groups="autoGroupMappings.groups"
+            :disabled="!autoGroupMappings.canEdit"
             @close="closeModal"
-            @save="saveMapping"
-            @delete="deleteMapping"
+            @save="handleSave"
+            @delete="handleDelete"
         />
     </BasePage>
 </template>

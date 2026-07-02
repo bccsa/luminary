@@ -343,29 +343,6 @@ prompt_service_credentials() {
 }
 
 # ============================================================
-# GIT HOOK SETUP
-# ============================================================
-
-# Install the post-checkout git hook to the .git/hooks directory.
-# This hook rebuilds the shared library when developers switch branches,
-# preventing version mismatches between app/cms and shared library.
-setup_git_hooks() {
-  local hook_source="$LUMINARY_ROOT/scripts/post-checkout"
-  local hook_dest="$LUMINARY_ROOT/.git/hooks/post-checkout"
-
-  if [[ ! -f "$hook_source" ]]; then
-    warn "post-checkout hook not found at $hook_source. Skipping git hooks setup."
-    return
-  fi
-
-  info "Installing git hook (post-checkout)..."
-  mkdir -p "$LUMINARY_ROOT/.git/hooks"
-  cp "$hook_source" "$hook_dest"
-  chmod +x "$hook_dest"
-  success "Git hook installed and made executable."
-}
-
-# ============================================================
 # PORT AVAILABILITY CHECK
 # ============================================================
 
@@ -602,9 +579,9 @@ sync_credentials_from_docker() {
 # ============================================================
 
 # Install dependencies and build all subprojects.
-# Order matters: shared must be built first (it's a dependency of app/cms).
-# Then install app and cms with --install-links to use the local shared build.
-# Finally, seed the API database with initial data.
+# Order matters: shared must be built first so app/cms can resolve its TYPES from
+# shared/dist/index.d.ts (app/cms consume shared/src directly at runtime via a Vite
+# alias, so no relinking is needed). Finally, seed the API database with initial data.
 setup_projects() {
   info "Installing and building all Luminary subprojects..."
   cd "$LUMINARY_ROOT"
@@ -616,16 +593,16 @@ setup_projects() {
   npm run build
   success "Shared library built"
 
-  # Install and link app (uses shared as dependency)
-  info "Installing app with shared library link..."
+  # Install app (consumes shared/src directly via Vite alias)
+  info "Installing app..."
   cd "$LUMINARY_ROOT/app"
-  npm ci --install-links || npm install
+  npm ci || npm install
   success "App installed"
 
-  # Install and link cms (uses shared as dependency)
-  info "Installing cms with shared library link..."
+  # Install cms (consumes shared/src directly via Vite alias)
+  info "Installing cms..."
   cd "$LUMINARY_ROOT/cms"
-  npm ci --install-links || npm install
+  npm ci || npm install
   success "CMS installed"
 
   # Install API and seed database with initial data
@@ -777,7 +754,7 @@ Luminary CLI - Setup & Management Tool
 
 COMMANDS:
 
-  setup               Complete setup: prerequisites, environment, git hooks,
+  setup               Complete setup: prerequisites, environment,
                       database services, and project builds
 
   start               Start all services (API, CMS, App)
@@ -857,7 +834,6 @@ main() {
         setup_env_wizard "$project"
       done
 
-      setup_git_hooks
       setup_projects
       setup_auth
       

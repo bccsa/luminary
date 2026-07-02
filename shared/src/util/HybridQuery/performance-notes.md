@@ -15,7 +15,8 @@ low-memory ChromeOS devices.
 > in-tree — see the commit that removed them from this file for the per-item
 > fixes. The items below are the remaining (Medium-severity) optimisations,
 > left open for future profiling. Original audit numbers are kept so they stay
-> traceable against that commit; the gap from #1–#8 is intentional.
+> traceable against that commit; the gaps (#1–#8, and #12 — see Verified
+> non-issues) are intentional.
 
 ## Open items (Medium severity)
 
@@ -46,12 +47,6 @@ Adds two `resolveRange` calls per inner iteration, plus the existing
 columns this is a hot path during the post-sync merge phase. Pre-existing
 structure, mildly amplified.
 
-### 12. Remote fetch has no timeout or retry
-[useHybridQuery.ts:111-121](./useHybridQuery.ts#L111-L121)
-
-Flaky network = permanent `isLoading=true`. The `.catch` logs and does
-nothing. Pre-existing for `ApiLiveQuery`; new code follows the same pattern.
-
 ### 13. `initSync` rewrites the whole syncList on every cold start with legacy entries
 [sync.ts:79-86](../../api/sync/sync.ts#L79-L86)
 
@@ -63,6 +58,14 @@ One-time per upgrade per device. Listed for completeness.
 
 Listed so future audits don't re-investigate:
 
+- **Remote fetch can no longer hang in a permanent loading state** *(was open item #12)* —
+  resolved by the `isFetching`/`error` rework in `HybridQuery`. `_postAndMerge` settles the
+  remote leg in a `finally` (`_settleRemote`) whether the POST resolves, fails, or bails on a
+  stale generation, so a flaky network no longer leaves loading stuck on; a total remote failure
+  surfaces via the `error` ref. Offline POSTs are parked on the reconnect watcher and settle
+  immediately ([HybridQuery.ts](./HybridQuery.ts) `_runApiWhenOnline` / `_postAndMerge`). There
+  is still no explicit timeout or automatic retry beyond the offline→reconnect re-fire — listed
+  here so it isn't re-flagged as a hang.
 - **Wire format unchanged for default callers** — confirmed at
   [syncBatch.ts:73-83](../../api/sync/syncBatch.ts#L73-L83). No extra bytes
   on the request for users without a publishDate cutoff. Good for metered

@@ -1,6 +1,13 @@
-import { describe, it, expect } from "vitest";
-import { planRemoteContentQueries, FANOUT_MAX_PARENTS } from "./queryIntrospection";
-import type { MangoQuery } from "../MangoQuery/MangoTypes";
+import { describe, it, expect, beforeAll } from "vitest";
+import {
+    decideContentApiQuery,
+    planRemoteContentQueries,
+    withPublishDateOrFallback,
+    FANOUT_MAX_PARENTS,
+} from "./queryIntrospection";
+import { initConfig, config } from "../../config";
+import { OPEN_MIN } from "../../api/sync/utils";
+import type { MangoQuery, MangoSelector } from "../MangoQuery/MangoTypes";
 
 /** A content supplement query (as decideContentApiQuery would produce it) with a parentId $in. */
 function contentApi(parentIds: string[], opts: { sort?: boolean } = {}): MangoQuery {
@@ -138,5 +145,83 @@ describe("planRemoteContentQueries — parentId fan-out", () => {
             selector: { $and: [{ type: { $eq: "content" } }, { parentId: { $in: ["p1", "p2"] } }] },
         } as MangoQuery;
         expect(planRemoteContentQueries(api)).toHaveLength(2);
+    });
+});
+
+describe("withPublishDateOrFallback", () => {
+    it("appends a combined $or of the older-tail cutoff and the language $nin", () => {
+        const out = withPublishDateOrFallback({ $and: [{ type: "content" }] }, 1000, [
+            "lang-en",
+            "lang-fr",
+        ]);
+        const and = (out as { $and: MangoSelector[] }).$and;
+        expect(and).toContainEqual({ type: "content" });
+        expect(and).toContainEqual({
+            $or: [
+                { publishDate: { $lte: 1000 } },
+                { language: { $nin: ["lang-en", "lang-fr"] } },
+            ],
+        });
+    });
+});
+
+describe("decideContentApiQuery — fallback fold-in (FU-1: one combined supplement)", () => {
+    beforeAll(() =>
+        initConfig({ cms: false, docsIndex: "", apiUrl: "", contentPublishDateCutoff: 1000 }),
+    );
+
+    const feed = (over: Partial<MangoQuery> = {}): MangoQuery =>
+        ({
+            selector: { $and: [{ type: "content" }, { status: "published" }] },
+            $sort: [{ publishDate: "desc" }],
+            $limit: 20,
+            use_index: "content-publishDate-index",
+            ...over,
+        }) as MangoQuery;
+
+    const orClause = (q: MangoQuery | undefined): unknown =>
+        q &&
+        (q.selector as { $and: MangoSelector[] }).$and.find(
+            (c) => (c as Record<string, unknown>).$or,
+        );
+    const hasNin = (q: MangoQuery | undefined): boolean =>
+        !!JSON.stringify(q?.selector ?? {}).includes('"$nin"');
+
+    it("without fallback langs, appends only publishDate <= cutoff (unchanged)", () => {
+        const out = decideContentApiQuery(feed(), []);
+        expect(hasNin(out)).toBe(false);
+        expect(
+            (out!.selector as { $and: MangoSelector[] }).$and,
+        ).toContainEqual({ publishDate: { $lte: 1000 } });
+    });
+
+    it("an empty fallback list is treated as no fallback", () => {
+        expect(hasNin(decideContentApiQuery(feed(), []))).toBe(false);
+    });
+
+    it("with fallback langs, appends ONE combined $or[publishDate<=cutoff, language $nin]", () => {
+        const out = decideContentApiQuery(feed(), [], ["lang-en", "lang-fr"]);
+        expect(orClause(out)).toEqual({
+            $or: [
+                { publishDate: { $lte: 1000 } },
+                { language: { $nin: ["lang-en", "lang-fr"] } },
+            ],
+        });
+        // full $limit (not a shortfall) so a fallback post can out-rank a local one
+        expect(out!.$limit).toBe(20);
+    });
+
+    it("with fallback, still POSTs even when the local page is already full", () => {
+        const full = Array.from({ length: 20 }, (_v, i) => ({ _id: `d${i}` })) as any[];
+        // without fallback → undefined (local satisfies); with fallback → still a query
+        expect(decideContentApiQuery(feed(), full)).toBeUndefined();
+        expect(decideContentApiQuery(feed(), full, ["lang-en"])).toBeDefined();
+    });
+
+    it("with fallback, fires even at OPEN_MIN (no cutoff); without, it does not", () => {
+        config.contentPublishDateCutoff = OPEN_MIN;
+        expect(decideContentApiQuery(feed(), [])).toBeUndefined();
+        expect(hasNin(decideContentApiQuery(feed(), [], ["lang-en"]))).toBe(true);
+        config.contentPublishDateCutoff = 1000;
     });
 });

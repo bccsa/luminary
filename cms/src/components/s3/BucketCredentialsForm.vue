@@ -25,8 +25,8 @@ const updateField = (field: keyof S3CredentialDto, value: string) => {
 
 <template>
     <div class="space-y-2">
-        <h3 class="text-sm font-medium text-gray-700">S3 Credentials</h3>
-        <p class="text-xs text-gray-500">
+        <h3 class="text-sm font-medium text-zinc-700">S3 Credentials</h3>
+        <p class="text-xs text-zinc-500">
             {{
                 isEditing
                     ? "Update the S3 credentials for this bucket. Leave all fields empty to keep existing credentials."
@@ -37,7 +37,7 @@ const updateField = (field: keyof S3CredentialDto, value: string) => {
         <div class="space-y-2">
             <!-- Endpoint -->
             <div>
-                <label for="bucket-endpoint" class="mb-1 block text-xs font-medium text-gray-700">
+                <label for="bucket-endpoint" class="mb-1 block text-xs font-medium text-zinc-700">
                     S3 Endpoint URL
                     <span v-if="!isEditing" class="text-red-500">*</span>
                 </label>
@@ -67,14 +67,14 @@ const updateField = (field: keyof S3CredentialDto, value: string) => {
                         }
                     "
                 />
-                <p class="mt-0.5 text-[11px] text-gray-500">
+                <p class="mt-0.5 text-[11px] text-zinc-500">
                     The S3 endpoint URL where your bucket is hosted
                 </p>
             </div>
 
             <!-- Bucket Name (S3 Bucket Name) -->
             <div>
-                <label for="s3-bucket-name" class="mb-1 block text-xs font-medium text-gray-700">
+                <label for="s3-bucket-name" class="mb-1 block text-xs font-medium text-zinc-700">
                     Bucket Name
                     <span v-if="!isEditing" class="text-red-500">*</span>
                 </label>
@@ -91,14 +91,14 @@ const updateField = (field: keyof S3CredentialDto, value: string) => {
                     @blur="() => touchField('bucketName')"
                     @input="() => touchField('bucketName')"
                 />
-                <p class="mt-0.5 text-[11px] text-gray-500">
+                <p class="mt-0.5 text-[11px] text-zinc-500">
                     The name of your S3 bucket (without the endpoint URL)
                 </p>
             </div>
 
             <!-- Access Key -->
             <div>
-                <label for="bucket-access-key" class="mb-1 block text-xs font-medium text-gray-700">
+                <label for="bucket-access-key" class="mb-1 block text-xs font-medium text-zinc-700">
                     Access Key ID
                     <span v-if="!isEditing" class="text-red-500">*</span>
                 </label>
@@ -119,7 +119,7 @@ const updateField = (field: keyof S3CredentialDto, value: string) => {
 
             <!-- Secret Key -->
             <div>
-                <label for="bucket-secret-key" class="mb-1 block text-xs font-medium text-gray-700">
+                <label for="bucket-secret-key" class="mb-1 block text-xs font-medium text-zinc-700">
                     Secret Access Key
                     <span v-if="!isEditing" class="text-red-500">*</span>
                 </label>

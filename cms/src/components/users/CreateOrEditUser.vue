@@ -5,23 +5,20 @@ import LCard from "../common/LCard.vue";
 import LInput from "../forms/LInput.vue";
 import {
     AclPermission,
-    ApiLiveQuery,
+    AckStatus,
     DocType,
     isConnected,
     hasAnyPermission,
     verifyAccess,
-    type ApiSearchQuery,
     type AuthProviderDto,
     type UserDto,
     type Uuid,
-    getRest,
-    AckStatus,
-    useDexieLiveQuery,
-    db,
+    useSharedHybridQuery,
+    useHybridQueryWithState,
     type GroupDto,
+    toEditable,
 } from "luminary-shared";
-import { computed, ref, toRaw, watch } from "vue";
-import _ from "lodash";
+import { computed, ref, watch } from "vue";
 import { useNotificationStore } from "@/stores/notification";
 import { ArrowUturnLeftIcon, TrashIcon } from "@heroicons/vue/24/solid";
 import LDialog from "../common/LDialog.vue";
@@ -33,65 +30,128 @@ import LSelect from "../forms/LSelect.vue";
 type Props = {
     id: Uuid;
     isVisible: boolean;
+    /** Create mode: skip fetching a non-existent user id from the API. */
+    isCreate?: boolean;
 };
-const props = defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), { isCreate: false });
 
 const emit = defineEmits(["close"]);
 
-const userQuery = ref<ApiSearchQuery>({
-    types: [DocType.User],
-    docId: props.id,
-});
+// User is a non-synced type → HybridQuery serves it API-only (REST + on-demand socket rooms).
+// Auto-disposes on unmount. Create mode uses a provably-empty selector (same as redirect create).
+const { output: liveUsers, isFetching: isLoadingUser } = useHybridQueryWithState<UserDto>(
+    () =>
+        props.isCreate
+            ? { selector: { _id: { $in: [] } } }
+            : { selector: { type: DocType.User, _id: props.id } },
+    { live: true },
+);
 
-const apiLiveQuery = new ApiLiveQuery<UserDto>(userQuery);
-const original = apiLiveQuery.toRef();
-const isLoading = apiLiveQuery.isLoadingAsRef();
+const isLoading = computed(() => !props.isCreate && isLoadingUser.value);
 
 const { addNotification } = useNotificationStore();
 
 const showDeleteModal = ref(false);
 
-const editable = ref<UserDto>({
-    _id: props.id,
-    type: DocType.User,
-    updatedTimeUtc: Date.now(),
-    memberOf: [],
-    email: "",
-    name: "New user",
-});
+const currentId = ref<Uuid>(props.id);
 
-// Clone the original user when it's loaded into the editable object
-const originalLoadedHandler = watch(original, () => {
-    if (!original.value) return;
-    editable.value = _.cloneDeep(original.value);
+function createTemplate(id: Uuid): UserDto {
+    return {
+        _id: id,
+        type: DocType.User,
+        updatedTimeUtc: Date.now(),
+        memberOf: [],
+        email: "",
+        name: "New user",
+    };
+}
 
-    originalLoadedHandler();
-});
+const userSource = ref<UserDto[]>([]);
 
-const groups = useDexieLiveQuery(
-    () => db.docs.where({ type: DocType.Group }).toArray() as unknown as Promise<GroupDto[]>,
-    { initialValue: [] as GroupDto[] },
+watch(
+    liveUsers,
+    () => {
+        if (liveUsers.value?.length) userSource.value = liveUsers.value;
+    },
+    { immediate: true },
 );
 
-const authProviders = useDexieLiveQuery(
-    () =>
-        db.docs.where({ type: DocType.AuthProvider }).toArray() as unknown as Promise<
-            AuthProviderDto[]
-        >,
-    { initialValue: [] as AuthProviderDto[] },
+const userEditable = toEditable<UserDto>(userSource);
+
+function hydrateFromUser(user: UserDto) {
+    currentId.value = user._id;
+    userSource.value = [user];
+    userEditable.editable.value.splice(0, userEditable.editable.value.length, { ...user });
+    userEditable.updateShadow(user._id);
+}
+
+function seedCreateTemplate() {
+    userEditable.editable.value.splice(
+        0,
+        userEditable.editable.value.length,
+        createTemplate(currentId.value),
+    );
+}
+
+const editable = computed<UserDto>({
+    get: () => userEditable.editable.value[0],
+    set: (val) => {
+        const arr = userEditable.editable.value;
+        if (arr.length === 0) arr.push(val);
+        else arr.splice(0, 1, val);
+    },
+});
+
+function syncFromApi() {
+    if (props.isCreate) return;
+    if (isLoadingUser.value) return;
+    if (liveUsers.value?.length) {
+        hydrateFromUser(liveUsers.value[0]);
+    } else {
+        userSource.value = [];
+        seedCreateTemplate();
+    }
+}
+
+watch(
+    () => props.id,
+    (id) => {
+        currentId.value = id;
+        if (props.isCreate) seedCreateTemplate();
+    },
+);
+
+watch([liveUsers, isLoadingUser], syncFromApi, { immediate: !props.isCreate });
+
+if (props.isCreate) {
+    currentId.value = props.id;
+    seedCreateTemplate();
+}
+
+const isNew = computed(() => props.isCreate || userSource.value.length === 0);
+
+const isDirty = computed(() => {
+    const doc = editable.value;
+    if (!doc) return false;
+    return userEditable.isEdited.value(doc._id);
+});
+
+const groups = useSharedHybridQuery<GroupDto>(() => ({ selector: { type: DocType.Group } }), {
+    live: true,
+});
+const authProviders = useSharedHybridQuery<AuthProviderDto>(
+    () => ({ selector: { type: DocType.AuthProvider } }),
+    { live: true },
 );
 
 const providerOptions = computed(() => [
     { label: "Choose a provider this user belongs to", value: "" },
     ...authProviders.value.map((p) => ({
-        label: p.label || "Unnamed provider",
+        label: p.displayName || p.domain || "Unnamed provider",
         value: p._id,
     })),
 ]);
 
-// Bound separately from editable.providerId so the LSelect always has a
-// string value; writes to editable clear the field when "Any provider" is
-// picked (empty string → undefined).
 const selectedProviderId = computed({
     get: () => editable.value?.providerId ?? "",
     set: (value: string | number | null | undefined) => {
@@ -100,27 +160,6 @@ const selectedProviderId = computed({
         editable.value.providerId = next;
     },
 });
-
-// Check if the user is dirty (has unsaved changes)
-const isDirty = ref(false);
-watch(
-    [editable, original],
-    () => {
-        if (!original.value) {
-            isDirty.value = true;
-            return;
-        }
-
-        isDirty.value = !_.isEqual(
-            { ...toRaw(original.value), updatedTimeUtc: 0, _rev: "" },
-            { ...toRaw(editable.value), updatedTimeUtc: 0, _rev: "" },
-        );
-    },
-    { deep: true, immediate: true },
-);
-
-// Track if this is a new user
-const isNew = computed(() => !original.value?._id);
 
 const hasGroupsSelected = computed(() => editable.value && editable.value.memberOf.length > 0);
 const isEmailFilled = computed(() => editable.value && editable.value.email.trim().length > 0);
@@ -139,11 +178,12 @@ const canDelete = computed(() => {
 });
 
 const revertChanges = () => {
-    editable.value = _.cloneDeep(original.value) as UserDto;
+    userEditable.revert(currentId.value);
 };
 
 const deleteUser = async () => {
-    if (!editable.value) return;
+    const doc = editable.value;
+    if (!doc) return;
 
     if (!canDelete.value) {
         addNotification({
@@ -154,43 +194,44 @@ const deleteUser = async () => {
         return;
     }
 
-    editable.value.deleteReq = 1;
+    const userId = doc._id;
+    const userName = doc.name;
+    const res = await userEditable.remove(userId);
 
-    await save();
+    if (res?.ack !== AckStatus.Accepted) {
+        addNotification({
+            title: "Failed to delete user",
+            description: res?.message ?? "The user could not be deleted",
+            state: "error",
+        });
+        return;
+    }
 
     addNotification({
-        title: `${capitaliseFirstLetter(editable.value.name)} deleted`,
+        title: `${capitaliseFirstLetter(userName)} deleted`,
         description: `The user was successfully deleted`,
         state: "success",
     });
 
+    emit("close");
     router.push("/users");
 };
 
 const save = async () => {
-    // Bypass save if the user is new and marked for deletion
-    if (isNew.value && editable.value.deleteReq) {
-        return;
-    }
+    const doc = editable.value;
+    if (!doc) return;
 
-    const res = await getRest().changeRequest({
-        id: 1, // Not used for direct API change request calls.
-        doc: editable.value,
+    doc.updatedTimeUtc = Date.now();
+    const res = await userEditable.save(doc._id);
+
+    useNotificationStore().addNotification({
+        title: res && res.ack == AckStatus.Accepted ? `${doc.name} saved` : "Error saving changes",
+        description:
+            res && res.ack == AckStatus.Accepted
+                ? ""
+                : `Failed to save changes with error: ${res ? res.message : "Unknown error"}`,
+        state: res && res.ack == AckStatus.Accepted ? "success" : "error",
     });
-
-    if (!editable.value.deleteReq) {
-        useNotificationStore().addNotification({
-            title:
-                res && res.ack == AckStatus.Accepted
-                    ? `${editable.value.name} saved`
-                    : "Error saving changes",
-            description:
-                res && res.ack == AckStatus.Accepted
-                    ? ""
-                    : `Failed to save changes with error: ${res ? res.message : "Unknown error"}`,
-            state: res && res.ack == AckStatus.Accepted ? "success" : "error",
-        });
-    }
     emit("close");
 };
 
@@ -224,7 +265,7 @@ const saveDisabled = computed(() => {
             >
             <LBadge v-if="isDirty" variant="warning" class="mr-2">Unsaved changes</LBadge>
         </div>
-        <LCard class="!border-0 !p-0">
+        <LCard v-if="editable" class="!border-0 !p-0">
             <LInput
                 label="Name"
                 name="userName"
@@ -303,13 +344,12 @@ const saveDisabled = computed(() => {
 
         <LDialog
             v-model:open="showDeleteModal"
-            :title="`Delete ${editable.name}?`"
+            :title="`Delete ${editable?.name ?? 'user'}?`"
             :description="`Are you sure you want to delete this user? This action cannot be undone.`"
             :primaryAction="
-                () => {
+                async () => {
                     showDeleteModal = false;
-                    deleteUser();
-                    emit('close');
+                    await deleteUser();
                 }
             "
             :secondaryAction="() => (showDeleteModal = false)"

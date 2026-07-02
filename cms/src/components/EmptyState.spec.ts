@@ -1,7 +1,16 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { mount } from "@vue/test-utils";
-import EmptyState from "./EmptyState.vue";
 import { DocumentPlusIcon } from "@heroicons/vue/24/outline";
+
+const { mockGoBackOrHome } = vi.hoisted(() => ({
+    mockGoBackOrHome: vi.fn(),
+}));
+
+vi.mock("@/composables/useGoBackOrHome", () => ({
+    useGoBackOrHome: () => mockGoBackOrHome,
+}));
+
+import EmptyState from "./EmptyState.vue";
 
 describe("EmptyState", () => {
     afterEach(() => {
@@ -72,6 +81,21 @@ describe("EmptyState", () => {
         });
 
         expect(wrapper.find("button").exists()).toBe(false);
+    });
+
+    it("renders a go back button when showBackButton is true", async () => {
+        const wrapper = mount(EmptyState, {
+            props: {
+                title: "Empty state title",
+                description: "Empty state description",
+                showBackButton: true,
+            },
+        });
+
+        const backButton = wrapper.findAll("button").find((b) => b.text().includes("Go back"));
+        expect(backButton).toBeDefined();
+        await backButton!.trigger("click");
+        expect(mockGoBackOrHome).toHaveBeenCalled();
     });
 
     it("renders the default slot", async () => {

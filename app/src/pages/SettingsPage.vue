@@ -7,7 +7,12 @@ import LoadingSpinner from "@/components/LoadingSpinner.vue";
 import { db, isConnected } from "luminary-shared";
 import { useNotificationStore } from "@/stores/notification";
 import { useI18n } from "vue-i18n";
-import { getDeviceInfo, isDataSaverEnabled, userDataSaverEnabled } from "@/globalConfig";
+import {
+    getDeviceInfo,
+    isDataSaverEnabled,
+    userDataSaverEnabled,
+    localCacheVersion,
+} from "@/globalConfig";
 import { useNetworkSpeedEstimator } from "@/composables/useNetworkSpeedEstimator";
 import BasePage from "@/components/BasePage.vue";
 import { triggerSync } from "@/sync";
@@ -54,6 +59,9 @@ const deleteLocalData = async () => {
     isClearing.value = true;
     try {
         await db.purge();
+        // Invalidate the kept-alive overview pages so they re-create from the now-empty cache
+        // instead of showing their pre-purge state.
+        localCacheVersion.value++;
         triggerSync();
 
         addNotification({

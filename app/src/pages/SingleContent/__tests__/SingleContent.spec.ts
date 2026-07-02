@@ -116,7 +116,7 @@ describe("SingleContent", () => {
         await db.docs.clear();
         await db.localChanges.clear();
 
-        // IndexedDB-only path; avoid ApiLiveQuery from other specs leaving isConnected true
+        // IndexedDB-only path; avoid a live query from other specs leaving isConnected true
         isConnected.value = false;
 
         // Ensure router mock is clean for each test
