@@ -203,6 +203,30 @@ describe("useFtsSearch", () => {
         scope.stop();
     });
 
+    it("runSearch cancels a pending debounced search so the query is only searched once", async () => {
+        isConnected.value = true;
+        initConfig({ ...CUTOFF } as any);
+        mockFtsSearchApi.mockResolvedValue([makeResult("a1")]);
+
+        const scope = effectScope();
+        let result: any;
+        const queryRef = ref("");
+        scope.run(() => {
+            result = useFtsSearch(queryRef, { debounceMs: 250 });
+        });
+
+        queryRef.value = "garden plants";
+        await nextTick();
+
+        result.runSearch();
+        await vi.advanceTimersByTimeAsync(10);
+        expect(mockFtsSearchApi).toHaveBeenCalledTimes(1);
+
+        await vi.advanceTimersByTimeAsync(300);
+        expect(mockFtsSearchApi).toHaveBeenCalledTimes(1);
+        scope.stop();
+    });
+
     it("debounceMs: 0 acts as trigger-only mode", async () => {
         const scope = effectScope();
         scope.run(() => {
