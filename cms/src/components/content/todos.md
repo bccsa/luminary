@@ -36,7 +36,7 @@ Verdict: **not ready to merge** until the blockers below are done (+ dead-code s
 
 #### Verification
 
-- [ ] Run API jest suite locally/CI (DB-dependent — not run in audit)
+- [x] ~~Run API jest suite locally/CI (DB-dependent — not run in audit)~~ — **706/706 pass** locally with `npm test -- --runInBand` (~3m; parallel default hit 13-suite `beforeAll` timeouts from CouchDB setup contention). Requires CouchDB + MinIO per `.env.test`. CI: `api-unit-tests.yml` runs `npm run test` on PR.
 
 ---
 
