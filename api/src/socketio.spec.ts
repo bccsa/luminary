@@ -3,16 +3,20 @@ import { Socketio } from "./socketio";
 import { INestApplication } from "@nestjs/common";
 import { createTestingModule } from "./test/testingModule";
 import { DbService } from "./db/db.service";
+import { AuthIdentityService } from "./auth/authIdentity.service";
+import { PermissionSystem } from "./permissions/permissions.service";
 
 describe("Socketio", () => {
     const oldEnv = process.env;
     let server: Socketio;
     let app: INestApplication;
     let db: DbService;
+    let authIdentityService: AuthIdentityService;
 
     async function createNestApp(): Promise<INestApplication> {
         const { testingModule, dbService } = await createTestingModule("socketio");
         db = dbService;
+        authIdentityService = testingModule.get<AuthIdentityService>(AuthIdentityService);
         return testingModule.createNestApplication();
     }
 
@@ -172,6 +176,14 @@ describe("Socketio", () => {
     // the `-cms` rooms via CmsView) but NOT an app-mode connection (base rooms via View). Content is
     // routed via its parent Post's memberOf, so a parent post is created first.
     it("routes a draft Content doc to the CMS (-cms) room only, not the app base room", (done) => {
+        (authIdentityService.resolveOrDefault as jest.Mock).mockResolvedValue({
+            status: "anonymous",
+            userDetails: {
+                groups: ["group-super-admins"],
+                accessMap: PermissionSystem.getAccessMap(["group-super-admins"]),
+            },
+        });
+
         const appClient = connectClient();
         const cmsClient = connectClient();
         let appReady = false;

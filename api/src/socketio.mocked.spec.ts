@@ -1,6 +1,6 @@
 import { Socketio } from "./socketio";
 import { PermissionSystem } from "./permissions/permissions.service";
-import { AclPermission, DocType } from "./enums";
+import { AclPermission, DocType, PublishStatus } from "./enums";
 
 /**
  * PURE, fully-mocked unit test for the Socketio gateway.
@@ -232,7 +232,7 @@ describe("Socketio (mocked)", () => {
     // B. db "update" fan-out
     // =========================================================================
     describe("db 'update' fan-out", () => {
-        it("B1: normal doc with memberOf -> emit to `${type}-${group}` rooms with docs:[update] and version", async () => {
+        it("B1: normal doc with memberOf -> emit to app and CMS rooms with docs:[update] and version", async () => {
             const { toMock, emitMock, updateHandler } = initGateway();
 
             const update = {
@@ -244,9 +244,10 @@ describe("Socketio (mocked)", () => {
             await updateHandler(update);
 
             expect(mockDb.getDoc).not.toHaveBeenCalled();
-            expect(toMock).toHaveBeenCalledTimes(1);
+            expect(toMock).toHaveBeenCalledTimes(2);
+            expect(toMock).toHaveBeenCalledWith(["post-g1-cms", "post-g2-cms"]);
             expect(toMock).toHaveBeenCalledWith(["post-g1", "post-g2"]);
-            expect(emitMock).toHaveBeenCalledTimes(1);
+            expect(emitMock).toHaveBeenCalledTimes(2);
             expect(emitMock).toHaveBeenCalledWith("data", {
                 docs: [update],
                 version: 1234,
@@ -275,12 +276,14 @@ describe("Socketio (mocked)", () => {
                 _id: "content-1",
                 type: "content",
                 parentId: "post-parent",
+                status: PublishStatus.Published,
                 updatedTimeUtc: 999,
             };
             await updateHandler(update);
 
             expect(mockDb.getDoc).toHaveBeenCalledWith("post-parent");
             // rooms derive from the PARENT (type "post" + parent.memberOf)
+            expect(toMock).toHaveBeenCalledWith(["post-g1-cms", "post-g2-cms"]);
             expect(toMock).toHaveBeenCalledWith(["post-g1", "post-g2"]);
             // but the emitted doc is the ORIGINAL content update, not the parent
             expect(emitMock).toHaveBeenCalledWith("data", {
