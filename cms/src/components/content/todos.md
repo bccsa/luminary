@@ -8,7 +8,9 @@
 delete idiom (`deleteReq = 1; await nextTick(); save()`) with `remove(id)` where a `toEditable`
 handle is in scope:
 
-- `cms/src/composables/useAutoGroupMappings.ts` — `deleteMapping` → `remove(id)`.
+- ~~`cms/src/composables/useAuthProviders.ts` — `duplicateProvider` → `duplicate(id, clone => { … })`;~~
+  ~~`confirmDelete` (deleteReq + nextTick + save) → `remove(id)`.~~ (implemented)
+- ~~`cms/src/composables/useAutoGroupMappings.ts` — `deleteMapping` → `remove(id)`.~~ (implemented)
 - `cms/src/components/redirects/CreateOrEditRedirectModal.vue` — `deleteRedirect` → `remove`.
 - `cms/src/components/users/CreateOrEditUser.vue` — `deleteUser` → `remove`.
 - Content (`EditContent.vue` / `useEditContentSource.ts`) — the multi-doc parent+children duplicate

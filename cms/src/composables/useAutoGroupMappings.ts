@@ -2,7 +2,6 @@ import { computed, nextTick } from "vue";
 import {
     DocType,
     AclPermission,
-    AckStatus,
     hasAnyPermission,
     useSharedHybridQuery,
     useHybridQueryWithState,
@@ -48,7 +47,8 @@ export function useAutoGroupMappings() {
     const mappingEditable = toEditable<AutoGroupMappingsDto>(mappingsSource, {
         filterFn: (item) => ({ ...item }),
     });
-    const mappings = mappingEditable.editable;
+    const { editable, save, remove } = mappingEditable;
+    const mappings = editable;
 
     // Auth providers + groups (read-only reference lists).
     const providers = useSharedHybridQuery<AuthProviderDto>(
@@ -71,16 +71,13 @@ export function useAutoGroupMappings() {
         // Let toEditable's dirty-tracking watchers flush so save()'s internal isEdited check
         // sees the staged edit (mirrors useAuthProviders / the overview's prior nextTick).
         await nextTick();
-        return mappingEditable.save(doc._id);
+        return save(doc._id);
     }
 
     /** Flag a mapping for deletion and persist (POST delete for this non-synced type). */
     async function deleteMapping(id: Uuid): Promise<ChangeReqAckDto | undefined> {
-        const mapping = mappings.value.find((m) => m._id === id);
-        if (!mapping) return { ack: AckStatus.Accepted };
-        mapping.deleteReq = 1;
-        await nextTick();
-        return mappingEditable.save(id);
+        await remove(id);
+        return save(id);
     }
 
     return {
