@@ -780,13 +780,13 @@ ENVIRONMENT VARIABLES (optional):
 EXAMPLES:
 
   # Full setup from scratch
-  ./scripts/automate-luminary.sh setup
+  ./scripts/setup-dev.sh setup
 
   # Restart backend after code changes
-  ./scripts/automate-luminary.sh restart-api
+  ./scripts/setup-dev.sh restart-api
 
   # Reset database and reseed
-  ./scripts/automate-luminary.sh reset-db
+  ./scripts/setup-dev.sh reset-db
 
 EOF
 }
@@ -840,7 +840,7 @@ main() {
       success "Luminary setup complete!"
       info "Next steps:"
       info "  1. Verify .env files in api/, cms/, and app/ folders"
-      info "  2. Run './scripts/automate-luminary.sh start' to launch services"
+      info "  2. Run './scripts/setup-dev.sh start' to launch services"
       info "  3. Access: API (3000), CMS (4175), App (4174)"
       ;;
 

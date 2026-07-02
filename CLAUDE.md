@@ -11,13 +11,13 @@ Luminary is an offline-first content platform. The repo is a monorepo with no ro
 - `app/` — Offline-first Vue 3 PWA (Vite, port 4174). See `app/CLAUDE.md`.
 - `cms/` — Vue 3 CMS SPA (Vite, port 4175). See `cms/CLAUDE.md`.
 - `playwright-tests/` — Standalone E2E suite targeting **deployed** environments. Not wired into any package build. See `playwright-tests/README.md`.
-- `docs/` — ADRs (`docs/adr/`) and architecture diagrams.
+- `docs/` — ADRs (`docs/adr/`), guides, architecture, and feature docs. Index: `docs/README.md`.
 
 **Always read the relevant subpackage's `CLAUDE.md` before working there.** This file only covers cross-package concerns.
 
 ## Local setup
 
-The wizard `./scripts/automate-luminary.sh setup` provisions CouchDB + MinIO containers, writes `.env` files, and installs in the correct order. For manual installs, the order matters:
+The wizard `./scripts/setup-dev.sh setup` provisions CouchDB + MinIO containers, writes `.env` files, and installs in the correct order. For manual installs, the order matters:
 
 ```sh
 cd shared && npm ci && npm run build      # build emits dist/ — app/cms resolve shared TYPES from dist/index.d.ts

@@ -61,7 +61,7 @@ cd luminary/scripts
 2. Run the setup wizard:
 
 ```bash
-./automate-luminary.sh setup
+./setup-dev.sh setup
 ```
 
 3. Follow the prompts - the wizard will ask you for:
@@ -204,7 +204,7 @@ kill -9 <PID>
 ```bash
 docker stop luminary-couchdb luminary-storage
 docker rm luminary-couchdb luminary-storage
-./automate-luminary.sh setup
+./setup-dev.sh setup
 ```
 
 ### "Name or password is incorrect" when seeding database
@@ -215,7 +215,7 @@ This means your database password in the `.env` file doesn't match the Docker co
 
 ```bash
 # Re-run the setup to sync credentials
-./automate-luminary.sh setup
+./setup-dev.sh setup
 ```
 
 ### Multi-line JWT secret not working

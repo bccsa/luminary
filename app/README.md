@@ -6,7 +6,7 @@ This is the frontend of the Luminary app. It's an offline-first Vue app that run
 
 Cross-cutting services follow a **contract + injection key + build-time virtual module** pattern: Vite resolves each `virtual:…` id to an entry under **`src/build-time/plugins/<name>/`**, and **`src/build-time/contracts/plugin-registry.ts`** registers those services on the app. Feature code uses **`inject`** with keys from **`token.ts`** under **`src/build-time/contracts/`**, not direct imports of adapter code.
 
-**Example in this repo:** the **demo banner** (`virtual:demo-banner`, `src/build-time/plugins/demo-banner/`). Full pattern and diagrams: **[docs/vue-plugin-architecture/README.md](../docs/vue-plugin-architecture/README.md)**. Step-by-step for a **second** plugin: **[Adding another build-swapped plugin](../docs/vue-plugin-architecture/README.md#adding-another-plugin)**.
+**Example in this repo:** the **demo banner** (`virtual:demo-banner`, `src/build-time/plugins/demo-banner/`). Full pattern and diagrams: **[docs/features/vue-plugin-architecture/README.md](../docs/features/vue-plugin-architecture/README.md)**. Step-by-step for a **second** plugin: **[Adding another build-swapped plugin](../docs/features/vue-plugin-architecture/README.md#adding-another-plugin)**.
 
 ## Project structure
 
@@ -67,7 +67,7 @@ app/
 
 UI strings are stored in CouchDB language documents and loaded at runtime via `src/i18n.ts` using [vue-i18n](https://vue-i18n.intlify.dev/). The default English strings are seeded from `api/src/db/seedingDocs/lang-eng.json`.
 
-See [docs/translations.md](../docs/translations.md) for details on:
+See [docs/guides/translations.md](../docs/guides/translations.md) for details on:
 
 - How to add or update translation strings
 - Strings that contain named interpolation placeholders (`{variable}`)
@@ -76,7 +76,7 @@ See [docs/translations.md](../docs/translations.md) for details on:
 
 ## Local setup
 
-Refer to the [setup guide](../docs/setup-vue-app.md).
+Refer to the [setup guide](../docs/guides/setup-vue-app.md).
 
 When running `npm run dev` the local reloading server of the app will start at http://localhost:4174.
 
