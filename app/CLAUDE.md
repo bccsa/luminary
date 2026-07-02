@@ -52,7 +52,7 @@ Uses `@auth0/auth0-vue` with multiple providers selected at runtime from `AuthPr
 
 ### i18n
 
-UI strings live in CouchDB Language documents, loaded at runtime (`src/i18n.ts`). English seed is `../api/src/db/seedingDocs/lang-eng.json`. See `../docs/translations.md` for the workflow.
+UI strings live in CouchDB Language documents, loaded at runtime (`src/i18n.ts`). English seed is `../api/src/db/seedingDocs/lang-eng.json`. See `../docs/guides/translations.md` for the workflow.
 
 ### Plugins
 
