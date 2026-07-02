@@ -57,7 +57,6 @@ The following files achieved 100% statement/line coverage:
 | `src/db/MongoQueryTemplates/validators/sync.ts` | 70% | 70% | 30, 40-42 | User document type filtering (line 30) and optional field validation (lines 40-42) require specific query structures. |
 | `src/endpoints/changeRequest.controller.ts` | 77% | 77% | 63-76, 112 | Concatenated JSON recovery logic (lines 63-76) requires multipart requests with malformed JSON that can be partially recovered. |
 | `src/endpoints/query.service.ts` | 84% | 84% | 26-34, 189, 196-200, 246 | Language update event handler (lines 26-34) fires on DB events. `memberOf` extraction variants (line 189 `$elemMatch.$in`) and invalid memberOf (lines 196-200) require specific query structures. |
-| `src/endpoints/search.service.ts` | 91% | 91% | 50, 67, 96 | Slug search path (line 50), user permission forbidden (line 67), and db.search error catch (line 96). |
 | `src/s3/s3.service.ts` | 90% | 90% | 70, 81-93, 123, etc. | S3 initialization retry, credential update listener, stale instance cleanup, and bucket deletion require long-running S3 operations and specific timing. Pre-existing test failures in `s3.service.spec.ts`. |
 | `src/permissions/permissions.service.ts` | 98% | 98% | 184, 214, 274, 698 | Branch-only gaps: specific permission matrix combinations that are edge cases. |
 | `src/changeRequests/aclValidation.ts` | 80% | 96% | 82 | Single uncovered line: Group type Edit + Assign branch ordering edge case. |
@@ -107,7 +106,6 @@ Some fields are decorated with both `@IsNotEmpty()` and `@IsOptional()`, which i
 | `src/util/patchFileData.spec.ts` | Binary reference patching |
 | `src/auth/auth.guard.spec.ts` | JWT auth guard |
 | `src/endpoints/query.controller.spec.ts` | Query REST controller |
-| `src/endpoints/search.controller.spec.ts` | Search REST controller |
 | `src/app.controller.spec.ts` | App protected endpoint |
 | `src/app.module.spec.ts` | Module compilation |
 | `src/main.spec.ts` | Bootstrap function |
@@ -116,7 +114,6 @@ Some fields are decorated with both `@IsNotEmpty()` and `@IsOptional()`, which i
 | `src/dto/ChangeDto.spec.ts` | Change DTO validation |
 | `src/dto/DeleteCmdDto.spec.ts` | DeleteCmd DTO validation |
 | `src/dto/DocsReqDto.spec.ts` | DocsReq DTO validation |
-| `src/dto/SearchReqDto.spec.ts` | SearchReq DTO validation |
 | `src/dto/ChangeReqAckDto.spec.ts` | ChangeReqAck DTO |
 | `src/dto/StorageDto.spec.ts` | Storage DTO validation |
 

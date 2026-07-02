@@ -31,7 +31,7 @@ Verdict: **not ready to merge** until the blockers below are done (+ dead-code s
 
 #### Backwards-compat / ops (confirm before merge)
 
-- [ ] Confirm `/search` hard-removal is safe (API deploys after clients; no in-the-wild caller)
+- [x] ~~Confirm `/search` hard-removal is safe (API deploys after clients; no in-the-wild caller)~~ — **confirmed:** this branch removes all callers (`ApiLiveQuery`, `RestApi.search`, `http.get` + `X-Query`); reads now use `POST /query` / `POST /fts`. App on `main` already off `/search`. **CMS on `main` still calls it** — deploy CMS (this PR) before/with API removal; no repo/playwright/scripts external caller found.
 - [ ] Confirm v19 `CmsView` on `AuthProvider` for `group-public-users` is intended ops on existing prod DB (`api/src/db/schemaUpgrade/v19.ts:55`)
 
 #### Verification
