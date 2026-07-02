@@ -7,7 +7,7 @@ import {
     verifyAccess,
     type LanguageDto,
 } from "luminary-shared";
-import { computed, ref, toRaw, watch } from "vue";
+import { computed, effectScope, ref, toRaw, watch } from "vue";
 
 export let Sentry: typeof import("@sentry/vue") | null = null;
 
@@ -105,37 +105,40 @@ export async function initLanguage() {
     // load it routes Dexie-only; on a cold start (before sync has registered `language`) it
     // routes API-only once, then re-routes to Dexie-only automatically once sync registers
     // `language` in the syncList (the cold-start re-route in HybridQuery).
-    const sharedLanguages = useSharedHybridQuery<LanguageDto>(
-        { selector: { type: DocType.Language } },
-        { live: true },
-    );
+    const scope = effectScope(true);
+    scope.run(() => {
+        const sharedLanguages = useSharedHybridQuery<LanguageDto>(
+            { selector: { type: DocType.Language } },
+            { live: true },
+        );
 
-    watch(
-        sharedLanguages,
-        (languages) => {
-            cmsLanguages.value = _.uniqBy(languages, "_id").sort((a, b) =>
-                a._id > b._id ? 1 : -1,
-            );
+        watch(
+            sharedLanguages,
+            (languages) => {
+                cmsLanguages.value = _.uniqBy(languages, "_id").sort((a, b) =>
+                    a._id > b._id ? 1 : -1,
+                );
 
-            const defaultLang = languages.find((l) => l.default === 1);
+                const defaultLang = languages.find((l) => l.default === 1);
 
-            // If no language is selected yet (fresh session: the synchronous read above ran
-            // before languages had synced into Dexie), select now that they've arrived.
-            if (!cmsLanguageIdAsRef.value && languages.length) {
-                cmsLanguageIdAsRef.value = (defaultLang ?? languages[0])._id;
-            }
+                // If no language is selected yet (fresh session: the synchronous read above ran
+                // before languages had synced into Dexie), select now that they've arrived.
+                if (!cmsLanguageIdAsRef.value && languages.length) {
+                    cmsLanguageIdAsRef.value = (defaultLang ?? languages[0])._id;
+                }
 
-            translatableLanguagesAsRef.value = languages.filter((lang) =>
-                verifyAccess(lang.memberOf, DocType.Language, AclPermission.Translate, "any"),
-            );
+                translatableLanguagesAsRef.value = languages.filter((lang) =>
+                    verifyAccess(lang.memberOf, DocType.Language, AclPermission.Translate, "any"),
+                );
 
-            // Prevent updating the value if the language is the same
-            if (_.isEqual(toRaw(cmsDefaultLanguage.value), toRaw(defaultLang))) return;
+                // Prevent updating the value if the language is the same
+                if (_.isEqual(toRaw(cmsDefaultLanguage.value), toRaw(defaultLang))) return;
 
-            cmsDefaultLanguage.value = defaultLang;
-        },
-        { immediate: true },
-    );
+                cmsDefaultLanguage.value = defaultLang;
+            },
+            { immediate: true },
+        );
+    });
 }
 
 export const isMac = computed(() => {

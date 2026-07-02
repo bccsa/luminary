@@ -182,7 +182,8 @@ const revertChanges = () => {
 };
 
 const deleteUser = async () => {
-    if (!editable.value) return;
+    const doc = editable.value;
+    if (!doc) return;
 
     if (!canDelete.value) {
         addNotification({
@@ -193,16 +194,26 @@ const deleteUser = async () => {
         return;
     }
 
-    editable.value.deleteReq = 1;
+    const userId = doc._id;
+    const userName = doc.name;
+    const res = await userEditable.remove(userId);
 
-    await save();
+    if (res?.ack !== AckStatus.Accepted) {
+        addNotification({
+            title: "Failed to delete user",
+            description: res?.message ?? "The user could not be deleted",
+            state: "error",
+        });
+        return;
+    }
 
     addNotification({
-        title: `${capitaliseFirstLetter(editable.value.name)} deleted`,
+        title: `${capitaliseFirstLetter(userName)} deleted`,
         description: `The user was successfully deleted`,
         state: "success",
     });
 
+    emit("close");
     router.push("/users");
 };
 
@@ -210,22 +221,17 @@ const save = async () => {
     const doc = editable.value;
     if (!doc) return;
 
-    if (isNew.value && doc.deleteReq) return;
-
     doc.updatedTimeUtc = Date.now();
     const res = await userEditable.save(doc._id);
 
-    if (!doc.deleteReq) {
-        useNotificationStore().addNotification({
-            title:
-                res && res.ack == AckStatus.Accepted ? `${doc.name} saved` : "Error saving changes",
-            description:
-                res && res.ack == AckStatus.Accepted
-                    ? ""
-                    : `Failed to save changes with error: ${res ? res.message : "Unknown error"}`,
-            state: res && res.ack == AckStatus.Accepted ? "success" : "error",
-        });
-    }
+    useNotificationStore().addNotification({
+        title: res && res.ack == AckStatus.Accepted ? `${doc.name} saved` : "Error saving changes",
+        description:
+            res && res.ack == AckStatus.Accepted
+                ? ""
+                : `Failed to save changes with error: ${res ? res.message : "Unknown error"}`,
+        state: res && res.ack == AckStatus.Accepted ? "success" : "error",
+    });
     emit("close");
 };
 
@@ -341,10 +347,9 @@ const saveDisabled = computed(() => {
             :title="`Delete ${editable?.name ?? 'user'}?`"
             :description="`Are you sure you want to delete this user? This action cannot be undone.`"
             :primaryAction="
-                () => {
+                async () => {
                     showDeleteModal = false;
-                    deleteUser();
-                    emit('close');
+                    await deleteUser();
                 }
             "
             :secondaryAction="() => (showDeleteModal = false)"

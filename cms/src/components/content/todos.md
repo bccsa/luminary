@@ -15,6 +15,10 @@ handle is in scope:
 - `cms/src/components/users/CreateOrEditUser.vue` — `deleteUser` → `remove`.
 - ~~Content (`EditContent.vue` / `useEditContentSource.ts`) — parent `deleteParent` → `remove`;~~
   ~~translation delete-on-save → `remove` in `save()`. Multi-doc duplicate stays out of scope.~~ (implemented)
+- ~~`cms/src/components/users/CreateOrEditUser.vue` — `deleteUser` → `remove`.~~ (implemented)
+- Content (`EditContent.vue` / `useEditContentSource.ts`) — the multi-doc parent+children duplicate
+  via `buildContentDuplicate`/`installClones` is out of scope (cross-source, reparenting,
+  image-bucket duplication); only the single-doc `deleteReq` paths are candidates for `remove`.
 
 Already migrated: `useAuthProviders.ts` (`duplicateProvider`, `confirmDelete`), `EditGroup.vue`
 (`duplicateGroup`, `deleteGroup`), `useAutoGroupMappings.ts` (`deleteMapping`),

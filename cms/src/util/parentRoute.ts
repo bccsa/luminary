@@ -21,7 +21,9 @@ export function parentRoute(doc: ParentRoutable) {
             ? (doc.parentPostType ?? PostType.Blog)
             : (doc.parentTagType ?? TagType.Category);
 
-    const languageCode = cmsLanguages.value.find((_doc) => _doc._id == doc.language)?.languageCode;
+    const langDoc = cmsLanguages.value.find((_doc) => _doc._id === doc.language);
+    const languageCode = langDoc?.languageCode || doc.language;
+
     //This allows us to pass the language down from the database-contained languages, and match a document id to the id of a language, so that it loads in that specific language.
     return {
         name: "edit",

@@ -20,6 +20,7 @@ const allParentTranslations = computed(() => {
 
     const parentLanguageMap = new Map<string, Set<string>>();
     const parentTitleMap = new Map<string, string>();
+    const parentLangMap = new Map<string, string>();
     const parentTypeMap = new Map<
         string,
         { parentType?: DocType; parentPostType?: PostType; parentTagType?: TagType }
@@ -33,6 +34,7 @@ const allParentTranslations = computed(() => {
 
         if (doc.language === cmsLanguageIdAsRef.value || !parentTitleMap.has(doc.parentId)) {
             parentTitleMap.set(doc.parentId, doc.title);
+            parentLangMap.set(doc.parentId, doc.language);
             parentTypeMap.set(doc.parentId, {
                 parentType: doc.parentType,
                 parentPostType: doc.parentPostType,
@@ -48,6 +50,7 @@ const allParentTranslations = computed(() => {
         translatedLanguages: langs,
         translated: langs.size,
         total,
+        language: parentLangMap.get(parentId) ?? cmsLanguageIdAsRef.value,
         ...parentTypeMap.get(parentId),
     }));
 });

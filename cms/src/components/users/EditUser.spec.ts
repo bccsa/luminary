@@ -6,6 +6,7 @@ import LDialog from "../common/LDialog.vue";
 import LSelect from "../forms/LSelect.vue";
 import { createTestingPinia } from "@pinia/testing";
 import {
+    AckStatus,
     accessMap,
     db,
     DocType,
@@ -335,15 +336,31 @@ describe("CreateOrEditUser.vue", () => {
 
         let deleteModalButton;
         await waitForExpect(async () => {
-            deleteModalButton = wrapper.find('[data-test="modal-primary-button"]');
-            expect(deleteModalButton.exists()).toBe(true);
+            deleteModalButton = wrapper
+                .findAll('[data-test="modal-primary-button"]')
+                .find((button) => button.text() === "Delete");
+            expect(deleteModalButton).toBeTruthy();
         });
 
-        const saveSpy = vi.spyOn(getRest(), "changeRequest");
+        const saveSpy = vi
+            .spyOn(getRest(), "changeRequest")
+            .mockResolvedValue({ ack: AckStatus.Accepted });
 
-        await deleteModalButton!.trigger("click"); // Accept dialog
-        await nextTick();
+        try {
+            await deleteModalButton!.trigger("click"); // Accept dialog
 
-        expect(saveSpy).toHaveBeenCalled();
+            await waitForExpect(() => {
+                expect(saveSpy).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        doc: expect.objectContaining({
+                            _id: mockUserDto._id,
+                            deleteReq: 1,
+                        }),
+                    }),
+                );
+            });
+        } finally {
+            saveSpy.mockRestore();
+        }
     });
 });
