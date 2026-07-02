@@ -321,6 +321,49 @@ describe("ContentOverview.vue", () => {
         });
     });
 
+    it("clearing the search input keeps other filter and sort state", async () => {
+        const wrapper = mount(ContentOverview, {
+            global: {
+                plugins: [createTestingPinia()],
+            },
+            props: {
+                docType: DocType.Post,
+                tagOrPostType: PostType.Blog,
+            },
+        });
+
+        //@ts-ignore as this code is valid
+        wrapper.vm.selectedLanguage = "lang-eng";
+
+        let sortToggleBtn = wrapper.find('[data-test="sort-toggle-btn"]');
+        await waitForExpect(() => {
+            sortToggleBtn = wrapper.find('[data-test="sort-toggle-btn"]');
+            expect(sortToggleBtn.exists()).toBe(true);
+        });
+        await sortToggleBtn.trigger("click");
+        await wrapper.find('[data-test="sort-option-title"]').trigger("input");
+
+        let searchInput = wrapper.find('[data-test="search-input"]');
+        await searchInput.setValue("post 1");
+        await searchInput.trigger("keydown.enter");
+
+        await waitForExpect(() => {
+            expect(wrapper.findComponent(FilterOptions).props("queryOptions")).toMatchObject({
+                search: "post 1",
+                orderBy: "title",
+            });
+        });
+
+        await searchInput.setValue("");
+
+        await waitForExpect(() => {
+            expect(wrapper.findComponent(FilterOptions).props("queryOptions")).toMatchObject({
+                search: "",
+                orderBy: "title",
+            });
+        });
+    });
+
     it("shows the search-mode toggle and switches between exact and related results", async () => {
         const wrapper = mount(ContentOverview, {
             global: {

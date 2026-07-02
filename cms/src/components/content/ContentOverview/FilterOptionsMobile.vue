@@ -26,6 +26,7 @@ type Props = {
     tagContentDocs: ContentDto[];
     groups: GroupDto[];
     reset: Function;
+    clearSearch: () => void;
     search: () => void;
     trailingPaddingClass?: string;
 };
@@ -56,7 +57,7 @@ const showMobileQueryOptions = ref(false);
                 v-model="query as string"
                 :full-height="true"
                 :trailing-padding-class="trailingPaddingClass"
-                @keydown.esc="reset()"
+                @keydown.esc="clearSearch()"
                 @keydown.enter="search()"
             >
                 <template #searchButton>

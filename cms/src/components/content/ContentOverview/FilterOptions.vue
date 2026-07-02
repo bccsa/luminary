@@ -75,6 +75,13 @@ const trailingPaddingClass = computed(() => {
     return "";
 });
 
+const clearSearch = () => {
+    queryOptions.value.search = "";
+    searchTerm.value = "";
+    showSearchButton.value = false;
+    showResetButton.value = false;
+};
+
 const resetQueryOptions = () => {
     queryOptions.value = {
         languageId: queryOptions.value.languageId,
@@ -93,14 +100,14 @@ const resetQueryOptions = () => {
     const storageKey = `queryOptions_${props.docType}_${props.tagOrPostType}`;
     sessionStorage.removeItem(storageKey);
     showSearchButton.value = false;
+    showResetButton.value = false;
 };
 
 watch(
     () => searchTerm.value,
     (newVal) => {
         if (!newVal || newVal.length === 0) {
-            resetQueryOptions();
-            showResetButton.value = false;
+            clearSearch();
             return;
         }
         if (newVal.length >= 3) {
@@ -117,6 +124,7 @@ watch(
         v-model:query="searchTerm"
         v-model:query-options="queryOptions"
         :reset="resetQueryOptions"
+        :clear-search="clearSearch"
         :search="search"
         :trailing-padding-class="trailingPaddingClass"
         :status-options="statusOptions"
@@ -139,7 +147,7 @@ watch(
                     v-if="showResetButton"
                     type="button"
                     aria-label="Clear search"
-                    @click="resetQueryOptions"
+                    @click="clearSearch"
                 >
                     <XMarkIcon class="h-5 w-5 cursor-pointer text-zinc-500" />
                 </button>
@@ -157,7 +165,7 @@ watch(
         :translation-options="translationOptions"
         :tag-content-docs="tagContentDocs"
         @keydown.enter="search"
-        @keydown.esc="resetQueryOptions"
+        @keydown.esc="clearSearch"
         v-else
     >
         <template #searchButton>
@@ -175,7 +183,7 @@ watch(
                     v-if="showResetButton"
                     type="button"
                     aria-label="Clear search"
-                    @click="resetQueryOptions"
+                    @click="clearSearch"
                 >
                     <XMarkIcon class="h-5 w-5 cursor-pointer text-zinc-500" />
                 </button>
