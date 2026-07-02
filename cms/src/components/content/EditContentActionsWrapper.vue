@@ -19,6 +19,7 @@ type Props = {
     newDocument: boolean;
     isLocalChange: boolean;
     isDirty: boolean;
+    isSaving?: boolean;
     actions: Array<{
         name: string;
         action: Function;
@@ -50,11 +51,13 @@ const segmentedButtonMobile = ref<{ rootEl: HTMLElement | null } | null>(null);
             ref="segmentedButtonMobile"
             variant="primary"
             segmented
-            :left-action="isDirty && !newDocument ? () => revert() : undefined"
-            :main-action="async () => await save()"
+            :left-action="isDirty && !newDocument && !isSaving ? () => revert() : undefined"
+            :main-action="isSaving ? undefined : async () => await save()"
             dropdown-anchor
             :main-dynamic-css="
-                !isDirty ? '!bg-zinc-400 !text-zinc-100 !ring-zinc-400 pointer-events-none' : ''
+                !isDirty || isSaving
+                    ? '!bg-zinc-400 !text-zinc-100 !ring-zinc-400 pointer-events-none'
+                    : ''
             "
         >
             <template v-if="isDirty && !newDocument" #left>
@@ -122,11 +125,13 @@ const segmentedButtonMobile = ref<{ rootEl: HTMLElement | null } | null>(null);
             ref="segmentedButtonDesktop"
             variant="primary"
             segmented
-            :left-action="isDirty && !newDocument ? () => revert() : undefined"
-            :main-action="async () => await save()"
+            :left-action="isDirty && !newDocument && !isSaving ? () => revert() : undefined"
+            :main-action="isSaving ? undefined : async () => await save()"
             dropdown-anchor
             :main-dynamic-css="
-                !isDirty ? '!bg-zinc-400 !text-zinc-100 !ring-zinc-400 pointer-events-none' : ''
+                !isDirty || isSaving
+                    ? '!bg-zinc-400 !text-zinc-100 !ring-zinc-400 pointer-events-none'
+                    : ''
             "
         >
             <template v-if="isDirty && !newDocument" #left>

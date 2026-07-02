@@ -66,6 +66,10 @@ export const cmsDefaultLanguage = ref<LanguageDto | undefined>();
  */
 export const translatableLanguagesAsRef = ref<LanguageDto[]>([]);
 
+// Owns the detached scope created below — stopped and replaced on every call so a re-init
+// (tests remounting, a future re-auth path) can't leak a duplicate live-query subscription.
+let languageScope: ReturnType<typeof effectScope> | undefined;
+
 export async function initLanguage() {
     if (cmsLanguageIdAsRef.value && cmsLanguages.value.length > 1) return;
 
@@ -105,8 +109,9 @@ export async function initLanguage() {
     // load it routes Dexie-only; on a cold start (before sync has registered `language`) it
     // routes API-only once, then re-routes to Dexie-only automatically once sync registers
     // `language` in the syncList (the cold-start re-route in HybridQuery).
-    const scope = effectScope(true);
-    scope.run(() => {
+    languageScope?.stop();
+    languageScope = effectScope(true);
+    languageScope.run(() => {
         const sharedLanguages = useSharedHybridQuery<LanguageDto>(
             { selector: { type: DocType.Language } },
             { live: true },

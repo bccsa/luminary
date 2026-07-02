@@ -836,6 +836,44 @@ describe("EditContent.vue", () => {
         });
     });
 
+    it("does not create a duplicate redirect when the save button is triggered twice in rapid succession", async () => {
+        const wrapper = mount(EditContent, {
+            props: {
+                docType: DocType.Post,
+                id: mockData.mockPostDto._id,
+                languageCode: "eng",
+                tagOrPostType: PostType.Blog,
+            },
+        });
+
+        await waitForExpect(async () => {
+            const editContentBasic = wrapper.findComponent(EditContentBasic);
+            const toogle = editContentBasic.findAllComponents(LTextToggle)[0];
+            const visible = toogle.find('[data-test="text-toggle-left-value"]');
+            expect(visible.exists()).toBe(true);
+
+            expect(wrapper.find('[data-test="slugSpan"]').exists()).toBe(true);
+            await wrapper.find('[data-test="slugSpan"]').trigger("click");
+            await wrapper.find('[name="slug"]').setValue("new-slug");
+            await wrapper.find('[name="slug"]').trigger("change");
+        });
+
+        await waitForExpect(async () => {
+            const saveButton = wrapper.find('[data-test="save-button"]');
+            // Two clicks back-to-back, neither awaited before the next fires — reproduces a
+            // rapid double-click racing buildRedirects against the first save's still-stale
+            // existingContent (see EditContent.vue's isSaving guard).
+            saveButton.trigger("click");
+            await saveButton.trigger("click");
+        });
+
+        await waitForExpect(async () => {
+            const res = await db.localChanges.toArray();
+            const redirects = res.filter((o) => o.doc?.type === DocType.Redirect);
+            expect(redirects.length).toBe(1);
+        });
+    });
+
     it("should generate redirects for all translations when multiple slugs are changed", async () => {
         const wrapper = mount(EditContent, {
             props: {

@@ -167,7 +167,13 @@ const createRedirect = async () => {
     );
 };
 
+// Guards against a rapid second save re-entering while the first is still in flight — e.g.
+// buildRedirects reading stale existingContent (not yet refreshed by the first save's write)
+// and creating a duplicate redirect for the same slug change.
+const isSaving = ref(false);
+
 const saveChanges = async () => {
+    if (isSaving.value) return;
     if (!isValid.value) {
         notify("error", "Changes not saved", "There are validation errors that prevent saving");
         return;
@@ -196,13 +202,18 @@ const saveChanges = async () => {
         return;
     }
 
-    await createRedirect();
-    await source.save();
-    notify(
-        "success",
-        `${capitaliseFirstLetter(props.tagOrPostType)} saved`,
-        `The ${props.tagOrPostType} was saved successfully`,
-    );
+    isSaving.value = true;
+    try {
+        await createRedirect();
+        await source.save();
+        notify(
+            "success",
+            `${capitaliseFirstLetter(props.tagOrPostType)} saved`,
+            `The ${props.tagOrPostType} was saved successfully`,
+        );
+    } finally {
+        isSaving.value = false;
+    }
 };
 
 const revertChanges = () => {
@@ -366,6 +377,7 @@ const actionsWrapperProps = computed(() => ({
     isPublished: selectedContentExisting.value?.status === PublishStatus.Published,
     newDocument,
     isDirty: isDirty.value,
+    isSaving: isSaving.value,
     isLocalChange: hasLocalChanges.value,
     actions: contentActions.value,
 }));

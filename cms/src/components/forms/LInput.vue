@@ -162,7 +162,7 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                 v-bind="attrsWithoutStyles"
                 :aria-describedby="$slots.default ? `${id}-message` : undefined"
                 :rows="inputType === 'textarea' ? '1' : undefined"
-                :autocomplete="autocomplete ?? 'off'"
+                :autocomplete="autocomplete ?? 'on'"
             />
 
             <span

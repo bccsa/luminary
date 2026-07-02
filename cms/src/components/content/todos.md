@@ -27,7 +27,7 @@ Verdict: **not ready to merge** until the blockers below are done (+ dead-code s
 - [x] Remove orphaned `api/src/validation/IsSortOptions.ts`
 - [x] Update CMS specs still mocking removed `/search` + `x-query` (`useAuthProviders.spec`, `GroupOverview.spec`, `EditUser.spec`)
 - [x] Remove unused deps `@vue-flow/minimap` + `@vue-flow/controls` in `cms/package.json`; dead `groups` prop on GroupGraph
-- [ ] **Low-risk behaviour bugs:** socket patch reintroducing server-only `fts` into display docs; `cms/.../forms/LInput.vue` default `autocomplete` flipped `on`→`off`; `initLanguage` detached effectScope never stopped; `buildRedirects` duplicate on rapid second save
+- [x] **Low-risk behaviour bugs:** socket patch reintroducing server-only `fts` into display docs; `cms/.../forms/LInput.vue` default `autocomplete` flipped `on`→`off`; `initLanguage` detached effectScope never stopped; `buildRedirects` duplicate on rapid second save
 
 #### Backwards-compat / ops (confirm before merge)
 

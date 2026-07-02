@@ -93,10 +93,18 @@ export function attachFtsLiveSync<T>(
                 // Same gate HybridQuery uses — e.g. CMS keeps status-change deletes local.
                 if (db.validateDeleteCommand(cmd)) toDrop.add(cmd.docId);
             } else if (doc.type === docType && doc._id) {
+                // Server-only fields (fts/ftsTokenCount are never for display, per stripExpiredContent's
+                // KEEP_FIELDS convention) — strip before this doc can patch a display-bound result row.
+                // The raw socket push otherwise reintroduces them into rows a read-time projection
+                // (e.g. useContentBrowseQuery's STRIP_FIELDS) already stripped.
+                const cleanDoc: Record<string, unknown> = { ...(doc as Record<string, unknown>) };
+                delete cleanDoc.fts;
+                delete cleanDoc.ftsTokenCount;
+
                 if (inResults.has(doc._id)) {
                     // deleteReq can arrive before the DeleteCmd (or for types that never sync cmd).
                     if ((doc as BaseDocumentDto).deleteReq) toDrop.add(doc._id);
-                    else patches.push({ id: doc._id, doc });
+                    else patches.push({ id: doc._id, doc: cleanDoc as Partial<BaseDocumentDto> });
                 } else if (
                     stale &&
                     q.length >= 3 &&
