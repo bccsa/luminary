@@ -343,7 +343,7 @@ describe("ContentOverview.vue", () => {
         await sortToggleBtn.trigger("click");
         await wrapper.find('[data-test="sort-option-title"]').trigger("input");
 
-        let searchInput = wrapper.find('[data-test="search-input"]');
+        const searchInput = wrapper.find('[data-test="search-input"]');
         await searchInput.setValue("post 1");
         await searchInput.trigger("keydown.enter");
 
