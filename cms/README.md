@@ -6,7 +6,7 @@ This is the backend CMS for Luminary, an offline-first Vue app that communicates
 
 The CMS supports connecting to multiple S3-compatible storage buckets for flexible content organization. You can configure different buckets for images, media, and other content types, each with their own credentials and settings.
 
-📖 **[Complete S3 Multi-Bucket Guide](../docs/features/s3-multi-bucket/README.md)**
+📖 **[Complete S3 Multi-Bucket Guide](../docs/s3-multi-bucket-architecture.md)**
 
 ## Project Structure
 
@@ -54,7 +54,7 @@ cms/
 
 ## Local setup
 
-Refer to the [setup guide](../docs/guides/setup-vue-app.md).
+Refer to the [setup guide](../docs/setup-vue-app.md).
 
 When running `npm run dev` the local reloading server of the app will start at http://localhost:4175.
 

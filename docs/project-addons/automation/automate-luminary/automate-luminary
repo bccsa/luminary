@@ -1,0 +1,303 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# ============================================================
+# Luminary CLI - Cross-platform Setup & Management
+# ============================================================
+
+# --- Logging ---
+info()    { echo -e "\033[1;34m[INFO]\033[0m $*"; }
+warn()    { echo -e "\033[1;33m[WARN]\033[0m $*"; }
+error()   { echo -e "\033[1;31m[ERROR]\033[0m $*" >&2; }
+success() { echo -e "\033[1;32m[SUCCESS]\033[0m $*"; }
+
+# --- OS Detection ---
+OS="$(uname -s)"
+case "$OS" in
+  Linux*)     PLATFORM="linux";;
+  Darwin*)    PLATFORM="macos";;
+  CYGWIN*|MINGW*|MSYS*) PLATFORM="windows";;
+  *) error "Unsupported OS: $OS"; exit 1;;
+esac
+info "Detected platform: $PLATFORM"
+
+# --- Default environment variables (can be overridden at runtime) ---
+: "${LUMINARY_COUCHDB_USER:=admin}"
+: "${LUMINARY_COUCHDB_PASSWORD:=yourpassword}"
+: "${LUMINARY_MINIO_ROOT_USER:=minio}"
+: "${LUMINARY_MINIO_ROOT_PASSWORD:=minio123}"
+
+# --- Self-installation ---
+self_install() {
+  if [[ "$PLATFORM" == "windows" ]]; then
+    local target="$USERPROFILE\\bin\\luminary.cmd"
+    mkdir -p "$(dirname "$target")"
+    # Create a .cmd shim that invokes Bash with this script
+    cat > "$target" <<EOF
+@echo off
+setlocal
+set SCRIPT_PATH=%~dp0luminary
+bash "%SCRIPT_PATH%" %*
+endlocal
+EOF
+    success "Installed Luminary CLI to $target. Make sure this folder is in your PATH."
+  else
+    local target="/usr/local/bin/luminary"
+    if [[ "$0" != "$target" ]]; then
+      info "Installing Luminary CLI globally to $target..."
+      sudo cp "$0" "$target"
+      sudo chmod +x "$target"
+      success "Installed globally. You can now use the 'luminary' command anywhere."
+    fi
+  fi
+}
+
+# --- Locate luminary folder ---
+find_luminary_root() {
+  # Allow override via LUMINARY_ROOT
+  if [[ -n "${LUMINARY_ROOT:-}" ]]; then
+    info "Using LUMINARY_ROOT override: $LUMINARY_ROOT"
+    echo "$LUMINARY_ROOT"
+    return
+  fi
+
+  local dir="$(pwd)"
+  while [[ "$dir" != "/" && "$dir" != "" ]]; do
+    if [[ -d "$dir/luminary" ]]; then
+      echo "$dir/luminary"
+      return
+    fi
+    dir="$(dirname "$dir")"
+  done
+
+  # Fallback: search home directory
+  local found
+  found=$(find ~ -type d -name "luminary" 2>/dev/null | head -n1 || true)
+  if [[ -n "$found" ]]; then
+    echo "$found"
+    return
+  fi
+
+  error "Could not find 'luminary' folder. Place it somewhere accessible. You can also set LUMINARY_ROOT to override the search."
+  exit 1
+}
+LUMINARY_ROOT="$(find_luminary_root)"
+info "Found Luminary folder at: $LUMINARY_ROOT"
+
+# --- Requirements Check ---
+check_requirements() {
+  local missing=()
+  for cmd in docker npm git curl; do
+    if ! command -v $cmd &>/dev/null; then
+      missing+=("$cmd")
+    fi
+  done
+
+  if [[ ${#missing[@]} -gt 0 ]]; then
+    error "Missing required commands: ${missing[*]}"
+    exit 1
+  fi
+}
+
+# --- Docker check ---
+install_docker() {
+  if ! command -v docker &>/dev/null; then
+    warn "Docker not found."
+    if [[ "$PLATFORM" == "windows" ]]; then
+      warn "Please install Docker Desktop manually: https://www.docker.com/products/docker-desktop/"
+      exit 1
+    elif [[ "$PLATFORM" == "macos" ]]; then
+      warn "Please install Docker Desktop for macOS: https://www.docker.com/products/docker-desktop/"
+      exit 1
+    else
+      info "Attempting to install Docker on Linux..."
+      sudo apt-get update
+      sudo apt-get install -y docker.io
+      success "Docker installed."
+    fi
+  fi
+}
+
+# --- Setup CouchDB ---
+setup_couchdb() {
+  info "Starting CouchDB container..."
+  if docker ps -a --format '{{.Names}}' | grep -q '^luminary-couchdb$'; then
+    warn "CouchDB container already exists."
+    if ! docker ps --format '{{.Names}}' | grep -q '^luminary-couchdb$'; then
+      info "Starting existing CouchDB container..."
+      docker start luminary-couchdb
+    fi
+    success "CouchDB running at http://localhost:5984"
+  else
+    docker run -d \
+      --name luminary-couchdb \
+      -p 5984:5984 \
+      -e COUCHDB_USER="$LUMINARY_COUCHDB_USER" \
+      -e COUCHDB_PASSWORD="$LUMINARY_COUCHDB_PASSWORD" \
+      couchdb
+    success "CouchDB running at http://localhost:5984"
+  fi
+}
+
+# --- Setup MinIO ---
+setup_minio() {
+  info "Starting MinIO container..."
+  if docker ps -a --format '{{.Names}}' | grep -q '^luminary-storage$'; then
+    warn "MinIO container already exists. Skipping creation."
+    if ! docker ps --format '{{.Names}}' | grep -q '^luminary-storage$'; then
+      info "Starting existing MinIO container..."
+      docker start luminary-storage
+      success "MinIO started at http://localhost:9001"
+    else
+      success "MinIO already running at http://localhost:9001"
+    fi
+  else
+    docker run -d \
+      -p 9000:9000 \
+      -p 9001:9001 \
+      --name luminary-storage \
+      -e "MINIO_ROOT_USER=$LUMINARY_MINIO_ROOT_USER" \
+      -e "MINIO_ROOT_PASSWORD=$LUMINARY_MINIO_ROOT_PASSWORD" \
+      quay.io/minio/minio server /data --console-address ":9001"
+    success "MinIO running at http://localhost:9001"
+  fi
+}
+
+# --- Install & build subprojects ---
+setup_projects() {
+  info "Installing Luminary subprojects..."
+  cd "$LUMINARY_ROOT"
+
+  for sub in shared cms app api; do
+    info "Installing $sub..."
+    cd "$LUMINARY_ROOT/$sub"
+    npm ci || true
+    [[ "$sub" == "shared" ]] && npm run build || true
+    [[ "$sub" == "api" ]] && cp -n .env.example .env && npm run seed || true
+  done
+
+  success "All subprojects installed and built."
+}
+
+# --- Start / Restart Services ---
+start_all() {
+  info "Starting all services..."
+  (cd "$LUMINARY_ROOT/api" && npm run start:dev) &
+  (cd "$LUMINARY_ROOT/cms" && npm run dev) &
+  (cd "$LUMINARY_ROOT/app" && npm run dev) &
+  success "API → http://localhost:3000, CMS → http://localhost:4175, App → http://localhost:4174"
+  wait
+}
+
+restart_all() {
+  pkill -f "npm run start:dev" || true
+  pkill -f "npm run dev" || true
+  start_all
+}
+
+restart_api() {
+  pgrep -f "$LUMINARY_ROOT/api.*npm run start:dev" | xargs -r kill || true
+  (cd "$LUMINARY_ROOT/api" && npm run start:dev &)
+  success "API restarted at http://localhost:3000"
+}
+
+restart_cms() {
+  pgrep -f "$LUMINARY_ROOT/cms.*npm run dev" | xargs -r kill || true
+  (cd "$LUMINARY_ROOT/cms" && npm run dev &)
+  success "CMS restarted at http://localhost:4175"
+}
+
+restart_app() {
+  pgrep -f "$LUMINARY_ROOT/app.*npm run dev" | xargs -r kill || true
+  (cd "$LUMINARY_ROOT/app" && npm run dev &)
+  success "App restarted at http://localhost:4174"
+}
+
+start_api() {
+  cd "$LUMINARY_ROOT/api"
+  npm run start:dev
+}
+
+# --- Reset CouchDB Database ---
+reset_database() {
+  local env_file="$LUMINARY_ROOT/api/.env"
+  if [[ ! -f "$env_file" ]]; then
+    error ".env file not found in API folder. Cannot determine database name."
+    exit 1
+  fi
+
+  local db_name
+  db_name=$(grep -E '^COUCHDB_DATABASE=' "$env_file" | cut -d '=' -f2 || echo "luminary_db")
+  info "Resetting CouchDB database: $db_name"
+
+  local user="${LUMINARY_COUCHDB_USER:-admin}"
+  local pass="${LUMINARY_COUCHDB_PASSWORD:-yourpassword}"
+  local url="http://localhost:5984/$db_name"
+
+  if curl -s -f -u "$user:$pass" "$url" >/dev/null 2>&1; then
+    info "Deleting existing database..."
+    curl -s -X DELETE -u "$user:$pass" "$url"
+    success "Database deleted."
+  else
+    warn "Database does not exist. Skipping delete."
+  fi
+
+  info "Creating new database..."
+  curl -s -X PUT -u "$user:$pass" "$url"
+  success "Database recreated."
+
+  info "Seeding database..."
+  cd "$LUMINARY_ROOT/api"
+  npm run seed
+  success "Database reseeded successfully."
+}
+
+# --- Help ---
+usage() {
+  cat <<EOF
+Luminary CLI
+============
+
+Requirements:
+  - docker
+  - npm
+  - git
+  - curl
+
+Commands:
+  setup           Install Docker, CouchDB, MinIO, build & seed all projects
+  start           Start API, CMS, and App
+  restart         Restart all services
+  restart-api     Restart only API
+  restart-cms     Restart only CMS
+  restart-app     Restart only App
+  start-api       Start only API
+  reset-db        Delete, recreate, and reseed the CouchDB database
+
+Environment Variables (optional for setup/reset-db):
+  LUMINARY_COUCHDB_USER
+  LUMINARY_COUCHDB_PASSWORD
+  LUMINARY_MINIO_ACCESS_KEY
+  LUMINARY_MINIO_SECRET_KEY
+EOF
+}
+
+# --- Entry point ---
+case "${1:-}" in
+  setup)
+    self_install
+    install_docker
+    check_requirements
+    setup_couchdb
+    setup_minio
+    setup_projects
+    ;;
+  start) start_all ;;
+  restart) restart_all ;;
+  restart-api) restart_api ;;
+  restart-cms) restart_cms ;;
+  restart-app) restart_app ;;
+  start-api) start_api ;;
+  reset-db) reset_database ;;
+  *) usage ;;
+esac

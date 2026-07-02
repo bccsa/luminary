@@ -6,7 +6,7 @@ The REST API enables clients to request bulk data efficiently. Designed to addre
 
 ## Drawing
 
-![API Workflow Diagram](./workflow.drawio.png)
+![API Workflow Diagram](./docs-api-sync.drawio.png)
 
 ---
 

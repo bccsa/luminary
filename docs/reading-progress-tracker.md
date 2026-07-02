@@ -2,8 +2,8 @@
 
 **Related**
 
-- App handbook (setup and env): [`app/README.md`](../../../app/README.md)
-- Implementation: [`app/src/composables/useReadingProgressTracker.ts`](../../../app/src/composables/useReadingProgressTracker.ts)
+- App handbook (setup and env): [`app/README.md`](../app/README.md)
+- Implementation: [`app/src/composables/useReadingProgressTracker.ts`](../app/src/composables/useReadingProgressTracker.ts)
 
 The app tracks how far a user has read through the **text body** of a content page and saves that progress locally. The homepage **Continue** row shows content still in progress (reading and/or video). Video (or audio) on the same page does not disable tracking when text is present.
 
