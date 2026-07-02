@@ -6,6 +6,7 @@ import LTag from "../content/LTag.vue";
 import { type GroupDto } from "luminary-shared";
 import { type GroupOverviewQueryOptions } from "./GroupOverview/types.js";
 import { MagnifyingGlassIcon, UserGroupIcon, ArrowUturnLeftIcon } from "@heroicons/vue/24/outline";
+import { groupLabel } from "@/util/groups";
 
 type Props = {
     groups: GroupDto[];
@@ -71,7 +72,7 @@ const queryOptions = defineModel<GroupOverviewQueryOptions>("queryOptions", { re
                             }
                         "
                     >
-                        {{ groups.find((g) => g._id == group)?.name }}
+                        {{ groupLabel(group, groups) }}
                     </LTag>
                 </ul>
         </div>

@@ -20,6 +20,7 @@ import LButton from "@/components/button/LButton.vue";
 import LInput from "@/components/forms/LInput.vue";
 import LTag from "../LTag.vue";
 import LDropdown from "@/components/common/LDropdown.vue";
+import { groupLabel } from "@/util/groups";
 
 type Props = {
     translationOptions: any[];
@@ -228,7 +229,7 @@ const showSortOptions = ref(false);
                             }
                         "
                     >
-                        {{ groups.find((g) => g._id == group)?.name }}
+                        {{ groupLabel(group, groups) }}
                     </LTag>
                 </ul>
             </div>

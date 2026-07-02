@@ -6,6 +6,7 @@ import LCombobox from "@/components/forms/LCombobox.vue";
 import LButton from "@/components/button/LButton.vue";
 import LInput from "@/components/forms/LInput.vue";
 import LTag from "../content/LTag.vue";
+import { groupLabel } from "@/util/groups";
 
 type Props = {
     groups: GroupDto[];
@@ -73,7 +74,7 @@ const query = defineModel("query", { required: true });
                             }
                         "
                     >
-                        {{ groups.find((g) => g._id == group)?.name }}
+                        {{ groupLabel(group, groups) }}
                     </LTag>
                 </ul>
         </div>

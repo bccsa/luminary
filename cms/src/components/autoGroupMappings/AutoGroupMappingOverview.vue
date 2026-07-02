@@ -23,6 +23,7 @@ import { isSmallScreen } from "@/globalConfig";
 import { useNotificationStore } from "@/stores/notification";
 import { useAutoGroupMappings } from "@/composables/useAutoGroupMappings";
 import EmptyState from "@/components/EmptyState.vue";
+import { groupLabel } from "@/util/groups";
 
 const notification = useNotificationStore();
 
@@ -254,7 +255,7 @@ const hasAnyContent = computed(() => autoGroupMappings.mappings.length > 0);
                                     }
                                 "
                             >
-                                {{ autoGroupMappings.groups.find((g) => g._id === groupId)?.name }}
+                                {{ groupLabel(groupId, autoGroupMappings.groups) }}
                             </LTag>
                         </ul>
                     </div>
@@ -296,7 +297,7 @@ const hasAnyContent = computed(() => autoGroupMappings.mappings.length > 0);
                                     }
                                 "
                             >
-                                {{ autoGroupMappings.groups.find((g) => g._id === groupId)?.name }}
+                                {{ groupLabel(groupId, autoGroupMappings.groups) }}
                             </LTag>
                         </ul>
                     </div>

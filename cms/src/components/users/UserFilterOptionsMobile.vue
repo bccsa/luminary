@@ -13,6 +13,7 @@ import LCombobox from "@/components/forms/LCombobox.vue";
 import LInput from "@/components/forms/LInput.vue";
 import LModal from "@/components/modals/LModal.vue";
 import LTag from "../content/LTag.vue";
+import { groupLabel } from "@/util/groups";
 
 type Props = {
     groups: GroupDto[];
@@ -61,7 +62,7 @@ const showMobileQueryOptions = ref(false);
                             }
                         "
                     >
-                        {{ groups.find((g) => g._id == group)?.name }}
+                        {{ groupLabel(group, groups) }}
                     </LTag>
                 </ul>
         </div>

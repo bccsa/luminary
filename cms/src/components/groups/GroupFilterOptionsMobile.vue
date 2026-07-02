@@ -6,6 +6,7 @@ import LTag from "../content/LTag.vue";
 import LModal from "../modals/LModal.vue";
 import { ref } from "vue";
 import { type GroupDto } from "luminary-shared";
+import { groupLabel } from "@/util/groups";
 import { type GroupOverviewQueryOptions } from "./GroupOverview/types.js";
 import {
     MagnifyingGlassIcon,
@@ -62,7 +63,7 @@ const showMobileQueryOptions = ref(false);
                             }
                         "
                     >
-                        {{ groups.find((g) => g._id == group)?.name }}
+                        {{ groupLabel(group, groups) }}
                     </LTag>
                 </ul>
         </div>

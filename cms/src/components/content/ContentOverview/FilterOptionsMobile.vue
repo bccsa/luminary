@@ -18,6 +18,7 @@ import LSelect from "@/components/forms/LSelect.vue";
 import LInput from "@/components/forms/LInput.vue";
 import LModal from "@/components/modals/LModal.vue";
 import LTag from "../LTag.vue";
+import { groupLabel } from "@/util/groups";
 
 type Props = {
     translationOptions: any[];
@@ -102,7 +103,7 @@ const showMobileQueryOptions = ref(false);
                             }
                         "
                     >
-                        {{ groups.find((g) => g._id == group)?.name }}
+                        {{ groupLabel(group, groups) }}
                     </LTag>
                 </ul>
             </div>

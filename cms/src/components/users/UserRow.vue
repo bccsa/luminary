@@ -13,6 +13,7 @@ import LButton from "../button/LButton.vue";
 import { EyeIcon, PencilSquareIcon } from "@heroicons/vue/20/solid";
 import LBadge from "../common/LBadge.vue";
 import { ref, watch, computed } from "vue";
+import { groupLabel } from "@/util/groups";
 
 type Props = {
     usersDoc: UserDto;
@@ -53,9 +54,7 @@ watch(groups, (newGroups) => {
         <td class="py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3">
             <div class="flex max-w-xs flex-wrap gap-2">
                 <LBadge
-                    v-for="g in usersDoc.memberOf.map(
-                        (g) => group.find((gr) => gr._id === g)?.name,
-                    )"
+                    v-for="g in usersDoc.memberOf.map((g) => groupLabel(g, group))"
                     :key="g"
                     type="default"
                     class="text-lg"
