@@ -52,18 +52,6 @@ expressApp.use(express.json());
 const randomPort = () => Math.floor(Math.random() * (65535 - 1024 + 1)) + 1024;
 const port = randomPort();
 
-let providerSearchDocs: AuthProviderDto[] = [];
-
-expressApp.get("/search", (req, res) => {
-    const query = JSON.parse(req.headers["x-query"] as string);
-    res.setHeader("Content-Type", "application/json");
-    if (query.types?.includes(DocType.AuthProvider)) {
-        res.end(JSON.stringify({ docs: providerSearchDocs }));
-    } else {
-        res.end(JSON.stringify({ docs: [] }));
-    }
-});
-
 expressApp.post("/changerequest", (_req, res) => {
     res.setHeader("Content-Type", "application/json");
     res.end(JSON.stringify({ ack: AckStatus.Accepted }));
@@ -109,7 +97,6 @@ describe("useAuthProviders", () => {
         // local docs table rather than the API search endpoint.
         await db.docs.bulkPut([mockGroupDtoSuperAdmins, mockProvider]);
         isConnected.value = true;
-        providerSearchDocs = [mockProvider];
     });
 
     afterEach(async () => {
@@ -146,7 +133,6 @@ describe("useAuthProviders", () => {
         });
 
         it("returns empty providers when there are none in the local database", async () => {
-            providerSearchDocs = [];
             await db.docs.where("type").equals(DocType.AuthProvider).delete();
             const [c, teardown] = withSetup(() => useAuthProviders());
             try {

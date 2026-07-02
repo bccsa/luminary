@@ -183,11 +183,6 @@ describe("SideBar", () => {
         expect(wrapper.text()).toContain("Sign out");
     });
 
-    it("hides the Sandbox link when not in dev mode", () => {
-        const wrapper = mount(SideBar);
-        expect(wrapper.text()).not.toContain("Sandbox");
-    });
-
     it("closes the mobile drawer when a navigation link is clicked", async () => {
         const wrapper = mount(SideBar, { props: { open: true } });
 

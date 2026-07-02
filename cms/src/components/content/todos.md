@@ -10,23 +10,23 @@ Verdict: **not ready to merge** until the blockers below are done (+ dead-code s
 
 - [ ] ~~**Server-FTS results silently pruned on browser-tab app** — `shared/src/fts/useFtsSearch.ts` + `shared/src/fts/ftsLiveSync.ts`: gate `watchDexie` prune to `source === 'local'`~~ (implemented)
 - [ ] ~~**Clearing search wipes all filter/sort/tag/group state** — `cms/src/components/content/ContentOverview/FilterOptions.vue`: on empty search only set `queryOptions.value.search = ""`; keep `resetQueryOptions()` for the explicit reset button~~ (implemented)
-- [ ] **GroupGraph interaction inverted / dead** — `cms/src/components/groups/GroupOverview.vue`: `@open` → edit modal; `@select` → highlight only
+- [ ] ~~**GroupGraph interaction inverted / dead** — `cms/src/components/groups/GroupOverview.vue`: `@open` → edit modal; `@select` → highlight only~~ (implemented)
 - [ ] ~~**App user can deselect every language → no offline content** — `app/src/components/navigation/LanguageModal.vue`: disable removing the last language~~ (implemented)
 
 #### Should-fix (medium)
 
 - [ ] **`EditGroup` reads `props.groupQuery.liveData` that `toEditable` never returns** — `cms/src/components/groups/EditGroup.vue:78-83`
-- [ ] **GroupGraph `downstreamReach` is O(N²·E) on every ACL keystroke** — `cms/src/components/groups/GroupGraph/useGroupAccessGraph.ts`: precompute adjacency map
-- [ ] **Test coverage gaps:** `removeTarget()` stale-access sweep (`api/src/permissions/permissions.service.ts:429`); socket expired-Content stripping (`api/src/socketio.ts:232-238`); `config.cms → payload.cms` in HybridQuery (`shared/src/util/HybridQuery/HybridQuery.ts:112`); replace deleted `query.*.spec.ts` browse-path coverage
+- [x] **GroupGraph `downstreamReach` is O(N²·E) on every ACL keystroke** — `cms/src/components/groups/GroupGraph/useGroupAccessGraph.ts`: precompute adjacency map
+- [x] **Test coverage gaps:** `removeTarget()` stale-access sweep (`api/src/permissions/permissions.service.ts:429`); socket expired-Content stripping (`api/src/socketio.ts:232-238`); `config.cms → payload.cms` in HybridQuery (`shared/src/util/HybridQuery/HybridQuery.ts:112`); replace deleted `query.*.spec.ts` browse-path coverage
 
 #### Cleanup — dead code & leftover artifacts
 
 - [ ] Remove `cms/src/components/content/todos.md` from source (this file)
-- [ ] Remove `cms/src/components/content/lightPolish.ts` (dead alternate layout behind flag)
-- [ ] Remove orphaned `cms/src/components/navigation/ProfileMenu.vue` & `MobileSideBar.vue`; fix router still referencing removed `sandbox` route
-- [ ] Remove orphaned `api/src/validation/IsSortOptions.ts`
-- [ ] Update CMS specs still mocking removed `/search` + `x-query` (`useAuthProviders.spec`, `GroupOverview.spec`, `EditUser.spec`)
-- [ ] Remove unused deps `@vue-flow/minimap` + `@vue-flow/controls` in `cms/package.json`; dead `groups` prop on GroupGraph
+- [x] Remove `cms/src/components/content/lightPolish.ts` (dead alternate layout behind flag)
+- [x] Remove orphaned `cms/src/components/navigation/ProfileMenu.vue` & `MobileSideBar.vue`; fix router still referencing removed `sandbox` route
+- [x] Remove orphaned `api/src/validation/IsSortOptions.ts`
+- [x] Update CMS specs still mocking removed `/search` + `x-query` (`useAuthProviders.spec`, `GroupOverview.spec`, `EditUser.spec`)
+- [x] Remove unused deps `@vue-flow/minimap` + `@vue-flow/controls` in `cms/package.json`; dead `groups` prop on GroupGraph
 - [ ] **Low-risk behaviour bugs:** socket patch reintroducing server-only `fts` into display docs; `cms/.../forms/LInput.vue` default `autocomplete` flipped `on`→`off`; `initLanguage` detached effectScope never stopped; `buildRedirects` duplicate on rapid second save
 
 #### Backwards-compat / ops (confirm before merge)

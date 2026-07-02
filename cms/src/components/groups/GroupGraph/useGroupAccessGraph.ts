@@ -38,23 +38,42 @@ export function useGroupAccessGraph(
         return [...edgeMap.values()];
     });
 
+    // Adjacency maps built once per `edges` change (O(E)) so downstream/upstream walks below
+    // look up a group's neighbors in O(1) instead of re-scanning the full edge list per step.
+    const forwardAdjacency = computed(() => {
+        const map = new Map<string, FlowEdge[]>();
+        for (const edge of edges.value) {
+            const list = map.get(edge.source);
+            if (list) list.push(edge);
+            else map.set(edge.source, [edge]);
+        }
+        return map;
+    });
+
+    const backwardAdjacency = computed(() => {
+        const map = new Map<string, FlowEdge[]>();
+        for (const edge of edges.value) {
+            const list = map.get(edge.target);
+            if (list) list.push(edge);
+            else map.set(edge.target, [edge]);
+        }
+        return map;
+    });
+
     const downstreamReach = computed(() => {
         const reach = new Map<string, number>();
+        const adjacency = forwardAdjacency.value;
 
         allGroups().forEach((group) => {
             const visited = new Set<string>();
-            const queue = edges.value
-                .filter((edge) => edge.source === group._id)
-                .map((edge) => edge.target);
+            const queue = (adjacency.get(group._id) ?? []).map((edge) => edge.target);
 
             while (queue.length) {
                 const current = queue.shift()!;
                 if (visited.has(current) || current === group._id) continue;
 
                 visited.add(current);
-                edges.value
-                    .filter((edge) => edge.source === current)
-                    .forEach((edge) => queue.push(edge.target));
+                (adjacency.get(current) ?? []).forEach((edge) => queue.push(edge.target));
             }
 
             reach.set(group._id, visited.size);
@@ -93,8 +112,8 @@ export function useGroupAccessGraph(
             nodeSet: Set<string>,
             edgeSet: Set<string>,
         ) => {
-            const seen = new Set<string>([start]);
             const queue = nextEdges(start).map((edge) => ({ edge, depth: 1 }));
+            const seen = new Set<string>([start]);
 
             while (queue.length) {
                 const { edge, depth } = queue.shift()!;
@@ -117,14 +136,14 @@ export function useGroupAccessGraph(
 
         walk(
             selectedId,
-            (id) => edges.value.filter((edge) => edge.source === id),
+            (id) => forwardAdjacency.value.get(id) ?? [],
             (edge) => edge.target,
             downstreamNodes,
             downstreamEdges,
         );
         walk(
             selectedId,
-            (id) => edges.value.filter((edge) => edge.target === id),
+            (id) => backwardAdjacency.value.get(id) ?? [],
             (edge) => edge.source,
             upstreamNodes,
             upstreamEdges,

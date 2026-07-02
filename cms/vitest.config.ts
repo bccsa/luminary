@@ -18,7 +18,6 @@ export default mergeConfig(
                     "postcss.config.js",
                     "tailwind.config.ts",
                     ".eslintrc.cjs",
-                    "src/pages/internal/ComponentSandbox.vue",
                     "src/main.ts",
                 ],
             },

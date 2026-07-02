@@ -77,18 +77,6 @@ vi.mock("@auth0/auth0-vue", async (importOriginal) => {
 const app = express();
 const port = 1234;
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-let mockApiRequest: string;
-app.get("/search", (req, res) => {
-    mockApiRequest = req.headers["x-query"] as string;
-    res.setHeader("Content-Type", "application/json");
-    res.end(
-        JSON.stringify({
-            docs: [mockUserDto],
-        }),
-    );
-});
-
 // User is non-synced → served API-only via HybridQuery, which POSTs to /query.
 app.post("/query", (_req, res) => {
     res.setHeader("Content-Type", "application/json");

@@ -292,6 +292,65 @@ describe("Socketio (mocked)", () => {
             });
         });
 
+        it("B2b: draft-status content doc -> cms rooms get the full doc, base (app) rooms get NO emit", async () => {
+            const parent = { _id: "post-parent", type: "post", memberOf: ["g1", "g2"] };
+            mockDb.getDoc.mockResolvedValue({ docs: [parent] });
+
+            const { toMock, emitMock, updateHandler } = initGateway();
+
+            const update = {
+                _id: "content-1",
+                type: "content",
+                parentId: "post-parent",
+                status: PublishStatus.Draft,
+                updatedTimeUtc: 999,
+            };
+            await updateHandler(update);
+
+            // Only the -cms room set is targeted; the app (base) room set never receives an emit for a draft.
+            expect(toMock).toHaveBeenCalledTimes(1);
+            expect(toMock).toHaveBeenCalledWith(["post-g1-cms", "post-g2-cms"]);
+            expect(emitMock).toHaveBeenCalledTimes(1);
+            expect(emitMock).toHaveBeenCalledWith("data", {
+                docs: [update],
+                version: 999,
+            });
+        });
+
+        it("B2c: published-but-expired content doc -> cms rooms get the full doc, base rooms get a stripped cleanup stub", async () => {
+            const parent = { _id: "post-parent", type: "post", memberOf: ["g1", "g2"] };
+            mockDb.getDoc.mockResolvedValue({ docs: [parent] });
+
+            const { toMock, emitMock, updateHandler } = initGateway();
+
+            const update = {
+                _id: "content-1",
+                _rev: "1-abc",
+                type: "content",
+                parentId: "post-parent",
+                status: PublishStatus.Published,
+                expiryDate: Date.now() - 1000,
+                updatedTimeUtc: 999,
+                title: "Secret title that must not leak to expired app clients",
+                memberOf: ["g1", "g2"],
+                language: "eng",
+            };
+            await updateHandler(update);
+
+            expect(toMock).toHaveBeenCalledTimes(2);
+            // Emit order mirrors the source: cms rooms first (always full), then base rooms (stripped).
+            expect(toMock.mock.calls[0]).toEqual([["post-g1-cms", "post-g2-cms"]]);
+            expect(toMock.mock.calls[1]).toEqual([["post-g1", "post-g2"]]);
+
+            expect(emitMock).toHaveBeenCalledTimes(2);
+            expect(emitMock.mock.calls[0]).toEqual(["data", { docs: [update], version: 999 }]);
+
+            const baseDoc = emitMock.mock.calls[1][1].docs[0];
+            expect(baseDoc).not.toHaveProperty("title");
+            expect(baseDoc._id).toBe("content-1");
+            expect(baseDoc.expiryDate).toBe(update.expiryDate);
+        });
+
         it("B3: content doc whose parent is missing (empty docs) -> logger.warn + NO emit", async () => {
             mockDb.getDoc.mockResolvedValue({ docs: [], warnings: ["Document not found"] });
 

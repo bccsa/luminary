@@ -52,7 +52,7 @@ type NavigationEntry = {
 };
 
 // `open` drives the mobile drawer (slide-in overlay). On lg+ the sidebar is always a static column,
-// so this is a no-op there. Replaces the old MobileSideBar wrapper + its `update:open` plumbing.
+// so this is a no-op there.
 const open = defineModel<boolean>("open", { default: false });
 
 // Desktop collapse: shrinks the column to an icon-only rail. The state is shared with App.vue (which
@@ -178,7 +178,7 @@ const closeDrawer = () => {
     open.value = false;
 };
 
-// --- Footer (was ProfileMenu): user, language, logout ---
+// --- Footer: user, language, logout ---
 // Only call useAuth0() if the plugin was actually installed at boot. Otherwise fall back to mock
 // user data and a no-op logout.
 const auth0 = isAuthBypassed || !isAuthPluginInstalled.value ? null : useAuth0();
@@ -317,7 +317,7 @@ const navItemClass = computed(() => [
                 </li>
             </ul>
 
-            <!-- Preferences: language, settings, sandbox (dev) -->
+            <!-- Preferences: language, settings -->
             <div class="mt-2 border-t border-zinc-200 pt-3">
                 <button
                     type="button"

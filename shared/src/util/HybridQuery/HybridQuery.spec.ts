@@ -41,9 +41,9 @@ const mocks = vi.hoisted(() => {
             return r;
         }),
         validateDeleteCommandMock: vi.fn(() => true),
-        // Stand-in for SharedConfig — only `appLanguageIdsAsRef` (the synced language set) is read
-        // by HybridQuery, to decide the fallback-language supplement. Mutated per test.
-        config: { appLanguageIdsAsRef: ref<string[]>([]) },
+        // Stand-in for SharedConfig — `appLanguageIdsAsRef` (the synced language set) decides the
+        // fallback-language supplement; `cms` gates the queryRemote scope-forwarding. Mutated per test.
+        config: { appLanguageIdsAsRef: ref<string[]>([]), cms: false },
         socketDataHandlers,
         getSocketMock: vi.fn(() => socketMock),
         // Room subscription manager: subscribeRooms returns a fresh disposer per call so a
@@ -156,6 +156,7 @@ describe("HybridQuery", () => {
         mocks.syncList.value = [];
         mocks.cutoff = 1000;
         mocks.config.appLanguageIdsAsRef.value = [];
+        mocks.config.cms = false;
         mocks.useDexieLiveQueryMock.mockClear();
         mocks.liveRefs.length = 0;
         mocks.validateDeleteCommandMock.mockReset();
@@ -2812,6 +2813,7 @@ describe("queryRemote", () => {
     beforeEach(() => {
         _resetHybridQueryForTests();
         postHttpMock = vi.fn();
+        mocks.config.cms = false;
     });
 
     afterEach(() => {
@@ -2862,5 +2864,31 @@ describe("queryRemote", () => {
 
         const docs = await queryRemote({ selector: { type: "post" } });
         expect(docs).toEqual([]);
+    });
+
+    it("forwards cms:true onto the wire payload when config.cms is true", async () => {
+        postHttpMock.mockResolvedValueOnce({ docs: [] });
+        initHybridQuery({ post: postHttpMock } as any);
+        mocks.config.cms = true;
+
+        await queryRemote({ selector: { type: "post" } });
+
+        expect(postHttpMock).toHaveBeenCalledWith("query", {
+            selector: { type: "post" },
+            identifier: "hybridQuery",
+            limit: DEFAULT_REMOTE_QUERY_LIMIT,
+            cms: true,
+        });
+    });
+
+    it("omits cms from the wire payload when config.cms is false (non-CMS consumers unaffected)", async () => {
+        postHttpMock.mockResolvedValueOnce({ docs: [] });
+        initHybridQuery({ post: postHttpMock } as any);
+        mocks.config.cms = false;
+
+        await queryRemote({ selector: { type: "post" } });
+
+        const payload = postHttpMock.mock.calls[0][1];
+        expect(payload).not.toHaveProperty("cms");
     });
 });

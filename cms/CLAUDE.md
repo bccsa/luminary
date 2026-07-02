@@ -60,6 +60,6 @@ The CMS UI is English-only — there is no i18n layer. Translation infrastructur
 - Path alias `@` → `src/` (in `vite.config.ts` + tsconfig).
 - Tailwind for styling; `prettier-plugin-tailwindcss` reorders classes on format.
 - Sentry is initialised in `main.ts` only when `import.meta.env.PROD`. The `Sentry` re-exported from `globalConfig` may be undefined elsewhere — null-check.
-- Vitest globals enabled (`describe`/`it`/`expect` are ambient); `jsdom` environment; coverage excludes `src/main.ts` and `src/pages/internal/ComponentSandbox.vue`.
+- Vitest globals enabled (`describe`/`it`/`expect` are ambient); `jsdom` environment; coverage excludes `src/main.ts`.
 - Migration in progress: feature folders should colocate a `__tests__/` subdirectory (e.g. `pages/ComponentFolder/__tests__/`). New tests follow this pattern.
 - `LImage` is the standard image component, including for small icons like auth provider logos.

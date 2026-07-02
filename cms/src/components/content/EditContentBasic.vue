@@ -18,7 +18,6 @@ import { BackspaceIcon } from "@heroicons/vue/20/solid";
 import FormLabel from "../forms/FormLabel.vue";
 import { Slug } from "@/util/slug";
 import { ExclamationCircleIcon } from "@heroicons/vue/16/solid";
-import { lightPolish } from "./lightPolish";
 
 type Props = {
     selectedLanguage?: LanguageDto;
@@ -248,12 +247,12 @@ const clearExpiryDate = () => {
                     Please set a publish date before using the expiry shortcut.
                 </div>
 
-                <!-- Title — light-polish: full-width (label on its own row) so it doesn't clip -->
-                <FormLabel :class="lightPolish ? 'col-span-2' : ''">Title</FormLabel>
+                <!-- Title — full-width (label on its own row) so it doesn't clip -->
+                <FormLabel class="col-span-2">Title</FormLabel>
                 <LInput
                     name="title"
                     required
-                    :class="lightPolish ? 'col-span-2' : ''"
+                    class="col-span-2"
                     :disabled="disabled"
                     v-model="content.title"
                     @focus="isEditingTitle = true"
@@ -346,9 +345,9 @@ const clearExpiryDate = () => {
                     v-model="publishDateString"
                 />
 
-                <!-- light-polish: tuck expiry behind a disclosure to cut clutter -->
+                <!-- tuck expiry behind a disclosure to cut clutter -->
                 <button
-                    v-if="lightPolish && !showExpiry && !content.expiryDate"
+                    v-if="!showExpiry && !content.expiryDate"
                     type="button"
                     data-test="add-expiry"
                     class="col-span-2 -mt-1 mb-1 flex w-fit items-center gap-1 text-sm text-zinc-500 hover:text-zinc-700"
@@ -357,7 +356,7 @@ const clearExpiryDate = () => {
                     + Add expiry date
                 </button>
 
-                <template v-if="!lightPolish || showExpiry || content.expiryDate">
+                <template v-if="showExpiry || content.expiryDate">
                     <!-- Expiry date -->
                     <FormLabel class="self-start">Expiry date</FormLabel>
                     <LInput

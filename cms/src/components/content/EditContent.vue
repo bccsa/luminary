@@ -44,7 +44,6 @@ import { clientAppUrl, cmsLanguages } from "@/globalConfig";
 import EditContentImage from "./EditContentImage.vue";
 import EditContentMedia from "./EditContentMedia.vue";
 import LCard from "@/components/common/LCard.vue";
-import { lightPolish } from "./lightPolish";
 import EditContentActionsWrapper from "./EditContentActionsWrapper.vue";
 import { TrashIcon } from "@heroicons/vue/24/outline";
 import LButton from "@/components/button/LButton.vue";
@@ -356,16 +355,6 @@ const contentActions = computed(() => {
     return actions;
 });
 
-const isLanguageSelectorCollapsed = ref(false);
-const languageSelectorHeight = ref(0);
-
-const onSelectorCollapsedUpdate = (val: boolean) => {
-    isLanguageSelectorCollapsed.value = val;
-};
-const onSelectorHeightUpdate = (val: number) => {
-    languageSelectorHeight.value = val;
-};
-
 // Shared props for the mobile + desktop action bars (they differ only by `mobile`).
 const actionsWrapperProps = computed(() => ({
     revert: revertChanges,
@@ -418,7 +407,7 @@ const actionsWrapperProps = computed(() => ({
 
         <template #languageSelector>
             <div
-                v-if="lightPolish && selectedLanguage && translationLanguages.length > 1"
+                v-if="selectedLanguage && translationLanguages.length > 1"
                 class="flex px-1 lg:hidden"
             >
                 <LDropdown v-model:show="showQuickLang" placement="bottom-end">
@@ -514,7 +503,7 @@ const actionsWrapperProps = computed(() => ({
 
                                         <!-- light-polish: video sits with media in the
                                              settings card (the two merge later). -->
-                                        <template v-if="lightPolish && selectedContent">
+                                        <template v-if="selectedContent">
                                             <div
                                                 class="border-t border-zinc-200 pt-3"
                                                 role="separator"
@@ -531,10 +520,10 @@ const actionsWrapperProps = computed(() => ({
                             </template>
                         </EditContentParent>
 
-                        <!-- light-polish: Translations + the per-translation fields, merged
-                             into a single "Basic" card (each child renders `bare`). Video lives
-                             in the settings card above. -->
-                        <LCard v-if="lightPolish" title="Basic" class="bg-white">
+                        <!-- Translations + the per-translation fields, merged into a single
+                             "Basic" card (each child renders `bare`). Video lives in the
+                             settings card above. -->
+                        <LCard title="Basic" class="bg-white">
                             <EditContentParentValidation
                                 bare
                                 :tag-or-post-type="props.tagOrPostType"
@@ -568,40 +557,6 @@ const actionsWrapperProps = computed(() => ({
                                 />
                             </template>
                         </LCard>
-
-                        <!-- Original layout (flag off): separate Translations / Video / Basic cards. -->
-                        <template v-else>
-                            <div class="sticky top-0 z-10 lg:static">
-                                <EditContentParentValidation
-                                    :tag-or-post-type="props.tagOrPostType"
-                                    :can-translate="canTranslate"
-                                    :can-delete="canDelete"
-                                    :can-publish="canPublish"
-                                    :can-edit="canEditParent"
-                                    v-if="editableContent"
-                                    v-model:editableParent="editableParent"
-                                    v-model:editableContent="editableContent"
-                                    :languages="cmsLanguages"
-                                    :untranslatedLanguages="untranslatedLanguages"
-                                    :isContentItemDirty="isContentItemDirty"
-                                    :existingContent="existingContent"
-                                    @updateIsValid="(val) => (isValid = val)"
-                                    @create-translation="(language) => createTranslation(language)"
-                                    @update:selectorCollapsed="onSelectorCollapsedUpdate"
-                                    @update:selectorHeight="onSelectorHeightUpdate"
-                                />
-                            </div>
-                            <EditContentVideo
-                                v-model:content="selectedContent"
-                                :disabled="!canTranslate"
-                            />
-                            <EditContentBasic
-                                v-model:content="selectedContent"
-                                :selectedLanguage="selectedLanguage!"
-                                :disabled="!canTranslate"
-                                :disable-publish="!canPublish"
-                            />
-                        </template>
                     </div>
                 </div>
             </div>

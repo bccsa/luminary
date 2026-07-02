@@ -277,9 +277,8 @@ const hasAnyContent = computed(() => editable.value.length > 0);
                 <GroupGraph
                     v-if="currentTab === 'graph'"
                     class="h-full w-full"
-                    :groups="filteredGroups"
                     :all-groups="editable"
-                    @select="handleGraphSelect"
+                    @open="handleGraphSelect"
                 />
             </KeepAlive>
         </div>

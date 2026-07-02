@@ -29,8 +29,6 @@ import "@vue-flow/core/dist/style.css";
 import "@vue-flow/core/dist/theme-default.css";
 
 const props = defineProps<{
-    // ponytail: dead prop, never read; the graph always renders allGroups. Remove with parent in a follow-up.
-    groups: GroupDto[];
     allGroups: GroupDto[];
 }>();
 
