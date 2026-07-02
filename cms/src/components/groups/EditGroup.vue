@@ -9,7 +9,6 @@ import {
     type GroupDto,
     isConnected,
     toEditable,
-    db,
 } from "luminary-shared";
 import { TrashIcon } from "@heroicons/vue/24/outline";
 import ConfirmBeforeLeavingModal from "@/components/modals/ConfirmBeforeLeavingModal.vue";
@@ -34,7 +33,7 @@ type Props = {
 const props = defineProps<Props>();
 
 const group = defineModel<GroupDto>("group", { required: true });
-const { editable, isEdited, revert, save } = props.groupQuery;
+const { editable, isEdited, revert, save, duplicate, remove } = props.groupQuery;
 const showDeleteConfirm = ref(false);
 const isDeleting = ref(false);
 
@@ -226,7 +225,7 @@ const deleteGroup = async () => {
     }
 
     isDeleting.value = true;
-    group.value.deleteReq = 1;
+    await remove(group.value._id);
 
     const res = await save(group.value._id);
 
@@ -250,22 +249,20 @@ const duplicateGroup = async () => {
         return;
     }
 
-    const duplicatedGroupId = db.uuid();
+    const duplicatedGroup = duplicate(original.value._id, (clone) => {
+        clone.name = `${original.value?.name} - copy`;
+        clone.updatedTimeUtc = Date.now();
+        return clone;
+    });
 
-    const duplicatedGroup: GroupDto = {
-        ...original.value,
-        _id: duplicatedGroupId,
-        _rev: undefined,
-        name: `${original.value.name} - copy`,
-        updatedTimeUtc: Date.now(),
-
-        acl: original.value.acl.map((aclEntry) => ({
-            ...aclEntry,
-            permission: [...aclEntry.permission],
-        })),
-    };
-
-    editable.value.push(duplicatedGroup);
+    if (!duplicatedGroup) {
+        addNotification({
+            title: "Error duplicating group",
+            description: "Failed to initialize the clone.",
+            state: "error",
+        });
+        return;
+    }
 
     const res = await save(duplicatedGroup._id);
 
