@@ -117,6 +117,8 @@ const decreasePriority = (id: string) => {
     }
 };
 const removeFromSelected = (id: string) => {
+    // At least one preferred language must remain — empty order breaks sync + offline content.
+    if (draftOrder.value.length <= 1) return;
     // Block offline ONLY for a language whose content is actually downloaded (in the committed
     // synced set) — removing it prunes content that can't be re-fetched offline. A language added
     // (or ticked) while offline has nothing downloaded yet, so it can be removed freely.
@@ -159,6 +161,7 @@ const orderEquals = (a: string[], b: string[]) =>
     a.length === b.length && a.every((id, i) => id === b[i]);
 
 const save = () => {
+    if (draftOrder.value.length === 0) return;
     const orderChanged = !orderEquals(draftOrder.value, appLanguageIdsAsRef.value);
     const previousSynced = [...appSyncedLanguageIdsAsRef.value];
     // Commit both atomically: one re-sync + one display rebuild at most.
@@ -248,6 +251,7 @@ const cancel = () => emit("close");
                         <ArrowDownIcon class="h-4 w-4" />
                     </button>
                     <button
+                        v-if="draftOrder.length > 1"
                         type="button"
                         data-test="remove-language-button"
                         @click="removeFromSelected(language._id)"

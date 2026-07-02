@@ -160,6 +160,29 @@ describe("LanguageModal.vue", () => {
         expect(appSyncedLanguageIdsAsRef.value).toContain(mockLanguageDtoFra._id);
     });
 
+    it("does not allow removing the last preferred language", async () => {
+        const wrapper = mountModal();
+        await waitForExpect(async () => {
+            expect((await wrapper.findAll('[data-test="remove-language-button"]')).length).toBe(0);
+        });
+
+        appLanguageIdsAsRef.value = [mockLanguageDtoEng._id, mockLanguageDtoFra._id];
+        appSyncedLanguageIdsAsRef.value = [mockLanguageDtoEng._id, mockLanguageDtoFra._id];
+        await wrapper.setProps({ isVisible: false });
+        await wrapper.setProps({ isVisible: true });
+
+        await waitForExpect(async () => {
+            expect((await wrapper.findAll('[data-test="remove-language-button"]')).length).toBe(2);
+        });
+
+        await (await wrapper.findAll('[data-test="remove-language-button"]'))[1]!.trigger("click");
+        expect((await wrapper.findAll('[data-test="remove-language-button"]')).length).toBe(0);
+
+        // Last language — no remove button, and Save keeps English selected.
+        await wrapper.find('[data-test="save-languages"]').trigger("click");
+        expect(appLanguageIdsAsRef.value).toEqual([mockLanguageDtoEng._id]);
+    });
+
     describe("offline behaviour", () => {
         beforeEach(() => {
             isConnected.value = false;
