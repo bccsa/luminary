@@ -8,16 +8,16 @@ Verdict: **not ready to merge** until the blockers below are done (+ dead-code s
 
 #### Must-fix before merge
 
-- [ ] ~~**Server-FTS results silently pruned on browser-tab app** — `shared/src/fts/useFtsSearch.ts` + `shared/src/fts/ftsLiveSync.ts`: gate `watchDexie` prune to `source === 'local'`~~ (implemented)
-- [ ] ~~**Clearing search wipes all filter/sort/tag/group state** — `cms/src/components/content/ContentOverview/FilterOptions.vue`: on empty search only set `queryOptions.value.search = ""`; keep `resetQueryOptions()` for the explicit reset button~~ (implemented)
-- [ ] ~~**GroupGraph interaction inverted / dead** — `cms/src/components/groups/GroupOverview.vue`: `@open` → edit modal; `@select` → highlight only~~ (implemented)
-- [ ] ~~**App user can deselect every language → no offline content** — `app/src/components/navigation/LanguageModal.vue`: disable removing the last language~~ (implemented)
+- [x] ~~**Server-FTS results silently pruned on browser-tab app** — `shared/src/fts/useFtsSearch.ts` + `shared/src/fts/ftsLiveSync.ts`: gate `watchDexie` prune to `source === 'local'`~~ (implemented)
+- [x] ~~**Clearing search wipes all filter/sort/tag/group state** — `cms/src/components/content/ContentOverview/FilterOptions.vue`: on empty search only set `queryOptions.value.search = ""`; keep `resetQueryOptions()` for the explicit reset button~~ (implemented)
+- [x] ~~**GroupGraph interaction inverted / dead** — `cms/src/components/groups/GroupOverview.vue`: `@open` → edit modal; `@select` → highlight only~~ (implemented)
+- [x] ~~**App user can deselect every language → no offline content** — `app/src/components/navigation/LanguageModal.vue`: disable removing the last language~~ (implemented)
 
 #### Should-fix (medium)
 
 - [ ] **`EditGroup` reads `props.groupQuery.liveData` that `toEditable` never returns** — `cms/src/components/groups/EditGroup.vue:78-83`
-- [x] **GroupGraph `downstreamReach` is O(N²·E) on every ACL keystroke** — `cms/src/components/groups/GroupGraph/useGroupAccessGraph.ts`: precompute adjacency map
-- [x] **Test coverage gaps:** `removeTarget()` stale-access sweep (`api/src/permissions/permissions.service.ts:429`); socket expired-Content stripping (`api/src/socketio.ts:232-238`); `config.cms → payload.cms` in HybridQuery (`shared/src/util/HybridQuery/HybridQuery.ts:112`); replace deleted `query.*.spec.ts` browse-path coverage
+- [x] ~~**GroupGraph `downstreamReach` is O(N²·E) on every ACL keystroke** — `cms/src/components/groups/GroupGraph/useGroupAccessGraph.ts`: precompute adjacency map~~ (implemented)
+- [x] ~~**Test coverage gaps:** `removeTarget()` stale-access sweep (`api/src/permissions/permissions.service.ts:429`); socket expired-Content stripping (`api/src/socketio.ts:232-238`); `config.cms → payload.cms` in HybridQuery (`shared/src/util/HybridQuery/HybridQuery.ts:112`); replace deleted `query.*.spec.ts` browse-path coverage~~(implemented)
 
 #### Cleanup — dead code & leftover artifacts
 
