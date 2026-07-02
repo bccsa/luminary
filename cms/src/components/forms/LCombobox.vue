@@ -177,6 +177,14 @@ const onInlineBackspace = () => {
         }
     }
 };
+
+const onEscape = (e: KeyboardEvent) => {
+    if (!showDropdown.value && query.value === "") return;
+    e.preventDefault();
+    e.stopPropagation();
+    query.value = "";
+    showDropdown.value = false;
+};
 </script>
 
 <template>
@@ -283,12 +291,7 @@ const onInlineBackspace = () => {
                                     }
                                 }
                             "
-                            @keydown.escape.prevent.stop="
-                                () => {
-                                    query = '';
-                                    showDropdown = false;
-                                }
-                            "
+                            @keydown.escape="onEscape"
                             @keydown.down="
                                 () => {
                                     if (!showDropdown) showDropdown = true;
@@ -362,12 +365,7 @@ const onInlineBackspace = () => {
                                         }
                                     }
                                 "
-                                @keydown.escape.prevent.stop="
-                                    () => {
-                                        query = '';
-                                        showDropdown = false;
-                                    }
-                                "
+                                @keydown.escape="onEscape"
                                 @keydown.down="
                                     () => {
                                         if (!showDropdown) showDropdown = true;
