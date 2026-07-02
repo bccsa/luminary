@@ -38,17 +38,17 @@ describe("AllExceptionsFilter", () => {
         jest.restoreAllMocks();
     });
 
-    it("returns a user-friendly message for unknown exceptions", () => {
+    it("returns the real message for unknown exceptions", () => {
         filter.catch(new Error("db connection failed"), mockHost);
 
         expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
         expect(mockResponse.send).toHaveBeenCalledWith({
             statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-            message: "Something went wrong on the server. Please try again in a minute.",
+            message: "db connection failed",
         });
     });
 
-    it("returns a user-friendly message for 5xx HttpExceptions", () => {
+    it("returns the real message for 5xx HttpExceptions", () => {
         const exception = new HttpException("Service Unavailable", HttpStatus.SERVICE_UNAVAILABLE);
 
         filter.catch(exception, mockHost);
@@ -56,7 +56,7 @@ describe("AllExceptionsFilter", () => {
         expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.SERVICE_UNAVAILABLE);
         expect(mockResponse.send).toHaveBeenCalledWith({
             statusCode: HttpStatus.SERVICE_UNAVAILABLE,
-            message: "Something went wrong on the server. Please try again in a minute.",
+            message: "Service Unavailable",
         });
     });
 
@@ -112,7 +112,7 @@ describe("AllExceptionsFilter", () => {
         expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
         expect(mockResponse.send).toHaveBeenCalledWith({
             statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-            message: "Something went wrong on the server. Please try again in a minute.",
+            message: "some string error",
         });
     });
 
