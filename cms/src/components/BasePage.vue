@@ -78,7 +78,7 @@ const handleMobileSidebarToggle = () => {
             <div class="relative z-30 flex-shrink-0">
                 <div
                     data-topbar
-                    class="flex h-12 shrink-0 items-center gap-x-3 bg-white shadow-sm sm:gap-x-3"
+                    class="flex h-12 shrink-0 items-center gap-x-1 bg-white shadow-sm sm:gap-x-3"
                     :class="[
                         { 'border-b border-zinc-200': !$slots.internalPageHeader },
                         topBarInsetClasses,
@@ -90,7 +90,7 @@ const handleMobileSidebarToggle = () => {
                         data-test="chevron-icon"
                         class="text-zinc-500"
                         :class="{
-                            'ml-1.5 max-lg:ml-0 max-lg:-ml-1':
+                            'ml-1.5 max-lg:-ml-1 max-lg:ml-0':
                                 isEditContentPage || isEditLanguagePage,
                         }"
                         @click="handleMobileSidebarToggle"

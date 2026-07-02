@@ -198,9 +198,11 @@ const hasAnyContent = computed(() => editable.value.length > 0);
                 <LButton
                     variant="secondary"
                     :icon="currentTab === 'overview' ? MapIcon : ListBulletIcon"
-                    :aria-label="currentTab === 'overview' ? 'Show visualisation' : 'Show overview'"
+                    :aria-label="currentTab === 'overview' ? 'Show visualisation' : 'Show list'"
                     @click="toggleView"
-                />
+                >
+                    {{ currentTab === "overview" ? "Graph" : "List" }}
+                </LButton>
             </div>
         </template>
         <template #topBarActionsDesktop>

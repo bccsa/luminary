@@ -1,5 +1,5 @@
 <template>
-    <div class="flex min-w-0 flex-1 items-center gap-x-3 self-stretch lg:gap-x-6">
+    <div class="flex min-w-0 flex-1 items-center gap-x-1 self-stretch">
         <div class="flex min-w-0 flex-1 items-center">
             <slot name="quickActions" />
         </div>
