@@ -2,6 +2,7 @@ import { computed, ref, watch, type ComputedRef, type Ref, type WritableComputed
 import {
     db,
     DocType,
+    AckStatus,
     type ContentDto,
     type ContentParentDto,
     type PostDto,
@@ -53,6 +54,8 @@ export type UseEditContentSource = {
     isLoading: Ref<boolean>;
     /** Persist the parent + edited content children and re-baseline the dirty state. */
     save: () => Promise<void>;
+    /** Delete the parent document (does not mark content children for deletion). */
+    deleteParent: () => Promise<boolean>;
     /** Revert the parent and all content children to their last-saved state. */
     revert: () => void;
     /**
@@ -136,7 +139,9 @@ export function useEditContentSource(options: UseEditContentSourceOptions): UseE
         persistOffline: true,
         backPatchFields: ["imageData", "media"],
     });
+    const { remove: removeParent } = parentEditable;
     const contentEditable = toEditable<ContentDto>(contentSource, { persistOffline: true });
+    const { remove: removeContent, save: saveContent } = contentEditable;
     const editableContent = contentEditable.editable;
 
     // Single-doc adapter: callers bind a single doc, but toEditable works on arrays.
@@ -252,8 +257,6 @@ export function useEditContentSource(options: UseEditContentSourceOptions): UseE
     const save = async () => {
         const parent = editableParent.value;
         if (!parent) return;
-        // New doc being deleted before it was ever persisted → nothing to do.
-        if (!existingParent.value && parent.deleteReq) return;
 
         // The parent is always persisted on save (even when unedited): this is the editor's
         // established contract, so it is written directly rather than via parentEditable.save()
@@ -261,21 +264,17 @@ export function useEditContentSource(options: UseEditContentSourceOptions): UseE
         await db.upsert({ doc: parent });
         parentEditable.updateShadow(parent._id);
 
-        if (!parent.deleteReq) {
-            // Content children delegate to toEditable.save(): it no-ops unedited rows, writes
-            // locally via db.upsert (these sources persist offline), and re-baselines the shadow.
-            await Promise.all(
-                editableContent.value.map((c: ContentDto) => {
-                    const existed = existingContent.value?.some((d) => d._id === c._id);
-                    // Delete request for a row that was never saved → nothing to upsert.
-                    if (c.deleteReq && !existed) {
-                        contentEditable.updateShadow(c._id);
-                        return Promise.resolve();
-                    }
-                    return contentEditable.save(c._id);
-                }),
-            );
-        }
+        const children = [...editableContent.value];
+        await Promise.all(
+            children.map((c) => (c.deleteReq ? removeContent(c._id) : saveContent(c._id))),
+        );
+    };
+
+    const deleteParent = async (): Promise<boolean> => {
+        const parent = editableParent.value;
+        if (!parent) return false;
+        const res = await removeParent(parent._id);
+        return res?.ack === AckStatus.Accepted;
     };
 
     const revert = () => {
@@ -311,6 +310,7 @@ export function useEditContentSource(options: UseEditContentSourceOptions): UseE
         hasLocalChanges,
         isLoading,
         save,
+        deleteParent,
         revert,
         installClones,
     };

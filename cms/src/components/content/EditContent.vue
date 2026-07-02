@@ -225,8 +225,17 @@ const deleteParent = async () => {
         notify("error", "Insufficient Permissions", "You do not have delete permission");
         return;
     }
-    editableParent.value.deleteReq = 1;
-    source.save();
+
+    const deleted = await source.deleteParent();
+    if (!deleted) {
+        notify(
+            "error",
+            `Failed to delete ${props.tagOrPostType}`,
+            `The ${props.tagOrPostType} could not be deleted`,
+        );
+        return;
+    }
+
     notify(
         "success",
         `${capitaliseFirstLetter(props.tagOrPostType)} deleted`,

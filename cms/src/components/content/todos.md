@@ -13,9 +13,8 @@ handle is in scope:
 - ~~`cms/src/composables/useAutoGroupMappings.ts` — `deleteMapping` → `remove(id)`.~~ (implemented)
 - ~~`cms/src/components/redirects/CreateOrEditRedirectModal.vue` — `deleteRedirect` → `remove`.~~ (implemented)
 - `cms/src/components/users/CreateOrEditUser.vue` — `deleteUser` → `remove`.
-- Content (`EditContent.vue` / `useEditContentSource.ts`) — the multi-doc parent+children duplicate
-  via `buildContentDuplicate`/`installClones` is out of scope (cross-source, reparenting,
-  image-bucket duplication); only the single-doc `deleteReq` paths are candidates for `remove`.
+- ~~Content (`EditContent.vue` / `useEditContentSource.ts`) — parent `deleteParent` → `remove`;~~
+  ~~translation delete-on-save → `remove` in `save()`. Multi-doc duplicate stays out of scope.~~ (implemented)
 
 Already migrated: `useAuthProviders.ts` (`duplicateProvider`, `confirmDelete`) and `EditGroup.vue`
 (`duplicateGroup`, `deleteGroup`).
