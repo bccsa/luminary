@@ -11,6 +11,7 @@ import { isDataSaverEnabled, userDataSaverEnabled, localCacheVersion } from "@/g
 vi.mock("@/globalConfig", async () => {
     const { ref, watch } = await import("vue");
     const userDataSaverEnabled = ref(false);
+    const localCacheVersion = ref(0);
     watch(userDataSaverEnabled, (enabled) => {
         localStorage.setItem("dataSaver", String(enabled));
     });
@@ -18,6 +19,7 @@ vi.mock("@/globalConfig", async () => {
         getDeviceInfo: () => ({ platform: "Test OS", userAgent: "Test Browser" }),
         isDataSaverEnabled: vi.fn(() => false),
         userDataSaverEnabled,
+        localCacheVersion,
     };
 });
 vi.mock("@/components/BasePage.vue", async () => {
