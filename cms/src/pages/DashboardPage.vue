@@ -81,7 +81,7 @@ const expiredContent = computed(() => {
 
 <template>
     <BasePage title="Dashboard" :should-show-page-title="false" is-full-width>
-        <div class="flex flex-col gap-3 pt-1 lg:h-full lg:min-h-0">
+        <div class="flex flex-col gap-3 py-1 lg:h-full lg:min-h-0">
             <DashboardHeader />
 
             <DashboardStatCards
