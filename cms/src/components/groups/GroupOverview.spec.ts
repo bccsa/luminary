@@ -57,6 +57,7 @@ const randomPort = () => {
 // in github actions
 const port = randomPort();
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 let mockApiRequest: string;
 app.get("/search", (req, res) => {
     mockApiRequest = req.headers["x-query"] as string;

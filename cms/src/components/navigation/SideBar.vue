@@ -15,7 +15,6 @@ import {
     ArrowRightEndOnRectangleIcon,
     UserIcon,
 } from "@heroicons/vue/20/solid";
-import { PlayIcon } from "@heroicons/vue/16/solid";
 
 import {
     appName,

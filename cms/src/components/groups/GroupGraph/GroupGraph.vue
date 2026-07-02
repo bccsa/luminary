@@ -16,11 +16,7 @@ import {
     XMarkIcon,
 } from "@heroicons/vue/24/outline";
 import type { GroupDto } from "luminary-shared";
-import {
-    GRID_SIZE,
-    TREE_MAX_COLUMNS,
-    TREE_MIN_COLUMNS,
-} from "./types";
+import { GRID_SIZE, TREE_MAX_COLUMNS, TREE_MIN_COLUMNS } from "./types";
 import { useGroupAccessGraph } from "./useGroupAccessGraph";
 import { useGroupGraphLayout } from "./useGroupGraphLayout";
 import { useGroupGraphLayoutStorage } from "./useGroupGraphLayoutStorage";
@@ -107,10 +103,6 @@ function openContextGroup() {
 function clearFocus() {
     contextMenu.value = null;
     selectedGroupId.value = null;
-}
-
-function closeContextMenu() {
-    contextMenu.value = null;
 }
 
 function isInteractiveNode(node: { type?: string; data?: { dimmed?: boolean } }) {

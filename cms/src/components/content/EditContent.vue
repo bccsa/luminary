@@ -349,9 +349,7 @@ const contentActions = computed(() => {
 
 const isLanguageSelectorCollapsed = ref(false);
 const languageSelectorHeight = ref(0);
-const mainContentStickyStyle = computed(() =>
-    isLanguageSelectorCollapsed.value ? { top: languageSelectorHeight.value + "px" } : undefined,
-);
+
 const onSelectorCollapsedUpdate = (val: boolean) => {
     isLanguageSelectorCollapsed.value = val;
 };
@@ -461,7 +459,9 @@ const actionsWrapperProps = computed(() => ({
                 class="w-full flex-shrink-0 lg:h-full lg:min-h-0 lg:w-[336px]"
                 v-if="editableParent"
             >
-                <div class="scrollbar-hide lg:h-full lg:min-h-0 lg:overflow-y-auto lg:px-2 lg:pb-2 lg:pt-2">
+                <div
+                    class="scrollbar-hide lg:h-full lg:min-h-0 lg:overflow-y-auto lg:px-2 lg:pb-2 lg:pt-2"
+                >
                     <div class="flex flex-col gap-[3px] pb-0 lg:gap-2 lg:pb-4">
                         <EditContentParent
                             v-if="editableParent"
