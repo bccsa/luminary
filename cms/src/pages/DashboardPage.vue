@@ -13,7 +13,6 @@ import {
     PublishStatus,
     useDexieLiveQuery,
     useHybridQuery,
-    useSharedHybridQuery,
     type ContentDto,
     type PostDto,
     type TagDto,
@@ -39,7 +38,7 @@ const tags = useHybridQuery<TagDto>(
     { live: true },
 );
 
-const groups = useSharedHybridQuery<GroupDto>(() => ({ selector: { type: DocType.Group } }), {
+const groups = useHybridQuery<GroupDto>(() => ({ selector: { type: DocType.Group } }), {
     live: true,
 });
 
