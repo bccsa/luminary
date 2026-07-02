@@ -111,7 +111,7 @@ const expiredContent = computed(() => {
                     <RecentActivityCard :content-docs="contentDocs" />
                     <ScheduledContentCard :scheduled-content="scheduledContent" />
                 </div>
-
+                
                 <!-- Right column (1/3 width) -->
                 <div class="flex flex-col gap-3 lg:min-h-0">
                     <LanguageCoverageCard
