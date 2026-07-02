@@ -125,9 +125,18 @@ const save = async () => {
     if (!doc) return;
 
     doc.updatedTimeUtc = Date.now();
-    await saveRedirect(doc._id);
+    const res = await saveRedirect(doc._id);
 
-    useNotificationStore().addNotification({
+    if (res?.ack !== AckStatus.Accepted) {
+        addNotification({
+            title: !isNew.value ? "Failed to update redirect" : "Failed to create redirect",
+            description: res?.message ?? "The redirect could not be saved",
+            state: "error",
+        });
+        return;
+    }
+
+    addNotification({
         title: !isNew.value ? `Redirect updated` : `Redirect created`,
         description: `Redirecting ${doc.slug} to ${doc.toSlug ?? "HOMEPAGE"}`,
         state: "success",
