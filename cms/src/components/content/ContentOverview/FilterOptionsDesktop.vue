@@ -44,9 +44,7 @@ const showSortOptions = ref(false);
 </script>
 
 <template>
-    <div
-        class="relative z-20 flex flex-col gap-1 overflow-visible"
-    >
+    <div class="relative z-20 flex flex-col gap-1 overflow-visible">
         <div class="flex h-10 w-full items-center gap-1">
             <LInput
                 type="text"
@@ -56,6 +54,7 @@ const showSortOptions = ref(false);
                 placeholder="Search..."
                 data-test="search-input"
                 v-model="query as string"
+                :autocomplete="'off'"
                 :full-height="true"
                 :trailing-padding-class="trailingPaddingClass"
                 @keydown.enter="search"
