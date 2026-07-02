@@ -16,7 +16,6 @@ import {
 } from "@heroicons/vue/16/solid";
 import LBadge, { variants } from "../common/LBadge.vue";
 import { RouterLink } from "vue-router";
-import _ from "lodash";
 import { capitaliseFirstLetter } from "@/util/string";
 import LDialog from "../common/LDialog.vue";
 
@@ -25,6 +24,7 @@ type Props = {
     existingContent?: ContentDto;
     isLanguageSelectorSticky?: boolean;
     canDelete: boolean;
+    dirty: boolean;
 };
 const props = defineProps<Props>();
 const editableContent = defineModel<ContentDto>("editableContent");
@@ -39,32 +39,6 @@ const showDeleteModal = ref(false);
 const usedLanguage = computed(() => {
     if (!editableContent.value || !sortedLanguages.value) return null;
     return sortedLanguages.value.find((l) => editableContent.value?.language == l._id);
-});
-
-const isContentDirty = computed(() => {
-    if (!editableContent.value || !props.existingContent) return false;
-
-    // Create copies without parentMedia for comparison since parentMedia is synchronized from parent
-    const editableWithoutParentMedia = { ...editableContent.value };
-    delete editableWithoutParentMedia.parentMedia;
-
-    const existingWithoutParentMedia = { ...props.existingContent };
-    delete existingWithoutParentMedia.parentMedia;
-
-    // ArrayBuffer-safe deep compare: content can carry binary upload payloads
-    // (imageData/parentImageData.uploadData[].fileData), and lodash's default isEqual
-    // throws "incompatible receiver" reading byteLength on a reactive/cross-realm buffer.
-    return !_.isEqualWith(editableWithoutParentMedia, existingWithoutParentMedia, (x, y) => {
-        const isBuf = (v: unknown) => Object.prototype.toString.call(v) === "[object ArrayBuffer]";
-        if (isBuf(x) || isBuf(y)) {
-            try {
-                return (x as ArrayBuffer)?.byteLength === (y as ArrayBuffer)?.byteLength;
-            } catch {
-                return true; // cross-realm buffer; treat as unchanged
-            }
-        }
-        return undefined;
-    });
 });
 
 const emit = defineEmits<{
@@ -220,7 +194,7 @@ const deleteTranslation = () => {
                 </span>
             </div>
 
-            <div v-if="!isValid || isContentDirty" class="mt-2 flex flex-col gap-0.5">
+            <div v-if="!isValid || dirty" class="mt-2 flex flex-col gap-0.5">
                 <div class="flex items-center gap-2">
                     <p>
                         <ExclamationCircleIcon class="h-4 w-4 text-yellow-400" />

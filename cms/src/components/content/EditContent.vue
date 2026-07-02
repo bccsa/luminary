@@ -85,9 +85,10 @@ const {
     newDocument,
     editableParent,
     editableContent,
-    existingParent,
     existingContent,
     isDirty,
+    isParentDirty,
+    isContentItemDirty,
     hasLocalChanges,
     isLoading,
 } = source;
@@ -467,7 +468,7 @@ const actionsWrapperProps = computed(() => ({
                             :docType="props.docType"
                             :tagOrPostType="props.tagOrPostType"
                             :language="selectedLanguage"
-                            :existingParent="existingParent"
+                            :isParentDirty="isParentDirty"
                             :disabled="!canEditParent"
                             :newDocument="newDocument"
                             v-model:parent="editableParent"
@@ -537,9 +538,8 @@ const actionsWrapperProps = computed(() => ({
                                 v-model:editableContent="editableContent"
                                 :languages="cmsLanguages"
                                 :untranslatedLanguages="untranslatedLanguages"
-                                :dirty="isDirty"
+                                :isContentItemDirty="isContentItemDirty"
                                 :existingContent="existingContent"
-                                :existingParent="existingParent"
                                 @updateIsValid="(val) => (isValid = val)"
                                 @create-translation="(language) => createTranslation(language)"
                             />
@@ -574,9 +574,8 @@ const actionsWrapperProps = computed(() => ({
                                     v-model:editableContent="editableContent"
                                     :languages="cmsLanguages"
                                     :untranslatedLanguages="untranslatedLanguages"
-                                    :dirty="isDirty"
+                                    :isContentItemDirty="isContentItemDirty"
                                     :existingContent="existingContent"
-                                    :existingParent="existingParent"
                                     @updateIsValid="(val) => (isValid = val)"
                                     @create-translation="(language) => createTranslation(language)"
                                     @update:selectorCollapsed="onSelectorCollapsedUpdate"

@@ -1,4 +1,4 @@
-import { computed, ref, watch, type Ref, type WritableComputedRef } from "vue";
+import { computed, ref, watch, type ComputedRef, type Ref, type WritableComputedRef } from "vue";
 import {
     db,
     DocType,
@@ -40,6 +40,10 @@ export type UseEditContentSource = {
     existingContent: Ref<ContentDto[] | undefined>;
     /** True when the parent or any content child has unsaved user edits. */
     isDirty: Ref<boolean>;
+    /** True when the parent itself has unsaved user edits (excludes content children). */
+    isParentDirty: Ref<boolean>;
+    /** Per-content-item dirty check, keyed by content `_id`. */
+    isContentItemDirty: ComputedRef<(id: Uuid) => boolean>;
     /**
      * True when the parent or any content child has a change saved locally and queued for
      * upload but not yet acknowledged by the server (pending offline change).
@@ -229,6 +233,15 @@ export function useEditContentSource(options: UseEditContentSourceOptions): UseE
         return editableContent.value.some((c) => contentEditable.isEdited.value(c._id));
     });
 
+    // Parent-only dirty signal for EditContentParent's settings banner.
+    const isParentDirty = computed(
+        () => !!editableParent.value && parentEditable.isEdited.value(editableParent.value._id),
+    );
+
+    // Per-content-item dirty signal for EditContentValidation's per-translation badge,
+    // keyed by content _id (rendered once per translation in a v-for).
+    const isContentItemDirty = computed(() => (id: Uuid) => contentEditable.isEdited.value(id));
+
     // Pending offline changes: the parent or any content child has a change queued in
     // localChanges (saved locally, not yet acked by the server).
     const hasLocalChanges = computed(() => {
@@ -293,6 +306,8 @@ export function useEditContentSource(options: UseEditContentSourceOptions): UseE
         existingParent,
         existingContent,
         isDirty,
+        isParentDirty,
+        isContentItemDirty,
         hasLocalChanges,
         isLoading,
         save,

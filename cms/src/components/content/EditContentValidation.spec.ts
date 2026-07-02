@@ -30,6 +30,7 @@ describe("EditContentValidation.vue", () => {
                 languages: [mockData.mockLanguageDtoEng],
                 editableContent: { ...mockData.mockEnglishContentDto, title: "" },
                 canDelete: true,
+                dirty: false,
             },
         });
 
@@ -42,6 +43,7 @@ describe("EditContentValidation.vue", () => {
                 languages: [mockData.mockLanguageDtoEng],
                 editableContent: { ...mockData.mockEnglishContentDto, slug: "" },
                 canDelete: true,
+                dirty: false,
             },
         });
 
@@ -58,6 +60,7 @@ describe("EditContentValidation.vue", () => {
                     expiryDate: 1604114000000,
                 },
                 canDelete: true,
+                dirty: false,
             },
         });
 
@@ -70,6 +73,7 @@ describe("EditContentValidation.vue", () => {
                 languages: [mockData.mockLanguageDtoFra],
                 editableContent: { ...mockData.mockFrenchContentDto, title: "" },
                 canDelete: true,
+                dirty: false,
             },
         });
 
@@ -83,6 +87,7 @@ describe("EditContentValidation.vue", () => {
                     languages: [mockData.mockLanguageDtoFra],
                     editableContent: mockData.mockFrenchContentDto,
                     canDelete: true,
+                    dirty: false,
                 },
             });
 
@@ -101,6 +106,7 @@ describe("EditContentValidation.vue", () => {
                         expiryDate: Date.now() - 1,
                     },
                     canDelete: true,
+                    dirty: false,
                 },
             });
 
@@ -119,6 +125,7 @@ describe("EditContentValidation.vue", () => {
                         publishDate: Date.now() + 100000,
                     },
                     canDelete: true,
+                    dirty: false,
                 },
             });
 
@@ -137,6 +144,7 @@ describe("EditContentValidation.vue", () => {
                         status: PublishStatus.Draft,
                     },
                     canDelete: true,
+                    dirty: false,
                 },
             });
 
@@ -159,6 +167,7 @@ describe("EditContentValidation.vue", () => {
                         status: PublishStatus.Published,
                     },
                     canDelete: true,
+                    dirty: false,
                 },
             });
 
@@ -178,6 +187,7 @@ describe("EditContentValidation.vue", () => {
                         status: PublishStatus.Published,
                     },
                     canDelete: false,
+                    dirty: false,
                 },
             });
 

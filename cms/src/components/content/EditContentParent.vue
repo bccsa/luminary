@@ -14,7 +14,6 @@ import TagSelector from "./TagSelector.vue";
 import GroupSelector from "../groups/GroupSelector.vue";
 import { capitaliseFirstLetter } from "@/util/string";
 import LToggle from "@/components/forms/LToggle.vue";
-import _ from "lodash";
 import { ExclamationCircleIcon, XCircleIcon } from "@heroicons/vue/20/solid";
 import { validate, type Validation } from "./ContentValidator";
 
@@ -22,32 +21,12 @@ type Props = {
     docType: DocType;
     tagOrPostType: TagType | PostType;
     language?: LanguageDto;
-    existingParent: ContentParentDto | undefined;
+    isParentDirty: boolean;
     disabled: boolean;
     newDocument?: boolean;
 };
-const props = defineProps<Props>();
+defineProps<Props>();
 const parent = defineModel<ContentParentDto>("parent");
-
-// ArrayBuffer-safe deep compare: parents can carry binary upload payloads
-// (imageData.uploadData[].fileData), and lodash's default isEqual throws
-// "incompatible receiver" reading byteLength on a cross-realm/reactive buffer.
-const parentChanged = computed(
-    () =>
-        !!parent.value &&
-        !_.isEqualWith(parent.value, props.existingParent, (x, y) => {
-            const isBuf = (v: unknown) =>
-                Object.prototype.toString.call(v) === "[object ArrayBuffer]";
-            if (isBuf(x) || isBuf(y)) {
-                try {
-                    return (x as ArrayBuffer)?.byteLength === (y as ArrayBuffer)?.byteLength;
-                } catch {
-                    return true; // cross-realm buffer; treat as unchanged
-                }
-            }
-            return undefined;
-        }),
-);
 
 // Parent validation
 const parentValidations = ref([] as Validation[]);
@@ -137,10 +116,10 @@ const useVerticalTileLayout = computed({
         <template #persistent="{ collapsed }">
             <div class="flex flex-col px-2">
                 <div
-                    v-if="parentChanged"
+                    v-if="isParentDirty"
                     class="flex items-center gap-2"
                     :class="{
-                        'my-0.5': parentChanged,
+                        'my-0.5': isParentDirty,
                         'pb-1.5': collapsed && parentIsValid,
                     }"
                 >

@@ -25,8 +25,7 @@ describe("EditContentParent.vue", () => {
                 tagOrPostType: TagType.Category,
                 parent: parent.value,
                 disabled: false,
-                existingContent: [],
-                existingParent: mockData.mockPostDto,
+                isParentDirty: false,
             },
         });
 
@@ -48,8 +47,7 @@ describe("EditContentParent.vue", () => {
                 tagOrPostType: TagType.Category,
                 parent: parent.value,
                 disabled: false,
-                existingContent: [],
-                existingParent: mockData.mockCategoryDto,
+                isParentDirty: false,
             },
         });
 
@@ -74,8 +72,7 @@ describe("EditContentParent.vue", () => {
                 tagOrPostType: TagType.Category,
                 parent: parent.value,
                 disabled: false,
-                existingContent: [],
-                existingParent: mockData.mockCategoryDto,
+                isParentDirty: false,
             },
         });
 
@@ -108,8 +105,7 @@ describe("EditContentParent.vue", () => {
                 parent: parent.value,
                 language: mockData.mockLanguageDtoEng,
                 disabled: false,
-                existingContent: [],
-                existingParent: mockData.mockPostDto,
+                isParentDirty: false,
             },
         });
 
@@ -129,8 +125,7 @@ describe("EditContentParent.vue", () => {
                 parent: parent.value,
                 language: mockData.mockLanguageDtoEng,
                 disabled: false,
-                existingContent: [],
-                existingParent: mockData.mockPostDto,
+                isParentDirty: false,
             },
         });
 
@@ -148,8 +143,7 @@ describe("EditContentParent.vue", () => {
                 parent: { ...mockData.mockPostDto, memberOf: [] },
                 language: mockData.mockLanguageDtoEng,
                 disabled: false,
-                existingContent: [],
-                existingParent: mockData.mockPostDto,
+                isParentDirty: true,
             },
         });
 
@@ -164,8 +158,7 @@ describe("EditContentParent.vue", () => {
                 parent: mockData.mockPostDto,
                 language: mockData.mockLanguageDtoEng,
                 disabled: false,
-                existingContent: [],
-                existingParent: mockData.mockPostDto,
+                isParentDirty: false,
             },
         });
 
@@ -180,8 +173,7 @@ describe("EditContentParent.vue", () => {
                 parent: { ...mockData.mockPostDto, memberOf: [] },
                 language: mockData.mockLanguageDtoEng,
                 disabled: false,
-                existingContent: [],
-                existingParent: mockData.mockPostDto,
+                isParentDirty: false,
             },
         });
 

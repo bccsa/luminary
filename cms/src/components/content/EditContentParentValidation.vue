@@ -25,8 +25,7 @@ import LDropdown from "../common/LDropdown.vue";
 
 type Props = {
     languages: LanguageDto[];
-    dirty: boolean;
-    existingParent: ContentParentDto | undefined;
+    isContentItemDirty: (id: Uuid) => boolean;
     existingContent: ContentDto[] | undefined;
     canEdit: boolean;
     canTranslate: boolean;
@@ -288,6 +287,7 @@ watch(
                         :key="content._id"
                         @isValid="(val) => setOverallValidation(content._id, val)"
                         :existingContent="existingContent?.find((c) => c._id == content._id)"
+                        :dirty="isContentItemDirty(content._id)"
                         :can-delete="canDelete"
                         :isCardCollapsed="isLanguageSelectorCollapsed"
                     />
