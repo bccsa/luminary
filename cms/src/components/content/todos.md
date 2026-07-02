@@ -31,10 +31,10 @@ Keep the save path doc-type-agnostic (no Content/Post/Tag specifics).
 clone (`_.cloneDeep(toRaw)` + `db.uuid()` + `delete _rev` + push) and delete
 (`deleteReq = 1; await nextTick(); save()`) idioms where a `toEditable` handle is in scope:
 
-- `cms/src/composables/useAuthProviders.ts` — `duplicateProvider` → `duplicate(id, clone => { … })`;
+- ~~`cms/src/composables/useAuthProviders.ts` — `duplicateProvider` → `duplicate(id, clone => { … })`;~~ (implemented)
   `confirmDelete` (deleteReq + nextTick + save) → `remove(id)`.
 - `cms/src/composables/useAutoGroupMappings.ts` — `deleteMapping` → `remove(id)`.
-- `cms/src/components/groups/EditGroup.vue` — `duplicateGroup` → `duplicate` + `save`; `deleteGroup` → `remove`.
+- ~~`cms/src/components/groups/EditGroup.vue` — `duplicateGroup` → `duplicate` + `save`; `deleteGroup` → `remove`.~~ (implemented)
 - `cms/src/components/redirects/CreateOrEditRedirectModal.vue` — `deleteRedirect` → `remove`.
 - `cms/src/components/users/CreateOrEditUser.vue` — `deleteUser` → `remove`.
 - Content (`EditContent.vue` / `useEditContentSource.ts`) — the multi-doc parent+children duplicate

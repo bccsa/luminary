@@ -15,7 +15,6 @@ import {
 } from "luminary-shared";
 import { useNotificationStore } from "@/stores/notification";
 import { assignableGroups } from "@/util/groups";
-import _ from "lodash";
 
 export function useAuthProviders() {
     const notification = useNotificationStore();
@@ -33,6 +32,8 @@ export function useAuthProviders() {
         persistOffline: true,
         filterFn: (item) => ({ ...item }),
     });
+
+    const { duplicate, remove, save } = providerEditable;
     const providers = providerEditable.editable;
     const providerIsModified = providerEditable.isModified;
 
@@ -180,12 +181,9 @@ export function useAuthProviders() {
                 providerToDelete.value.displayName || providerToDelete.value.label;
             const providerId = providerToDelete.value._id;
 
-            const providerInEditable = providers.value.find((p) => p._id === providerId);
-            if (providerInEditable) {
-                providerInEditable.deleteReq = 1;
-                await nextTick();
-                await providerEditable.save(providerId);
-            }
+            await remove(providerId);
+
+            await save(providerId);
 
             showDeleteModal.value = false;
             providerToDelete.value = undefined;
@@ -253,18 +251,17 @@ export function useAuthProviders() {
         const provider = currentProvider.value;
         if (!provider) return;
 
-        const newId = db.uuid();
+        const clonedProvider = duplicate(provider._id, (clone) => {
+            clone.label = (clone.label ?? "") + " (copy)";
 
-        const clonedProvider = _.cloneDeep(toRaw(provider)) as AuthProviderDto;
-        clonedProvider._id = newId;
-        delete clonedProvider._rev;
-        clonedProvider.label = (clonedProvider.label ?? "") + " (Copy)";
-        if (clonedProvider.imageData?.fileCollections) {
-            clonedProvider.imageData.fileCollections = [];
-        }
+            if (clone.imageData?.fileCollections) {
+                clone.imageData.fileCollections = [];
+            }
+            return clone;
+        });
 
-        providers.value.push(clonedProvider);
-        editingProviderId.value = newId;
+        if (!clonedProvider) return;
+        editingProviderId.value = clonedProvider._id;
 
         notification.addNotification({
             title: "Provider duplicated",
