@@ -549,7 +549,13 @@ class Database extends Dexie {
      */
     async applyLocalChangeAck(ack: ChangeReqAckDto, localChange: LocalChangeDto) {
         if (ack.ack == "rejected") {
-            changeReqErrors.value.push(ack.message || "Unknown error occured");
+            // CouchDB's own tombstone reason for a write against an already-deleted doc —
+            // i.e. another client deleted this doc before our change synced. The cleanup
+            // below (deleting the local copy) already reconciles state correctly, so this
+            // isn't an actionable error for the user.
+            if (ack.message !== "deleted") {
+                changeReqErrors.value.push(ack.message || "Unknown error occured");
+            }
             if (ack.docs && Array.isArray(ack.docs)) {
                 // Replace our local copy(s) with the provided database version
                 await this.docs.bulkPut(ack.docs);

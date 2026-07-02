@@ -29,7 +29,7 @@ import { accessMap } from "../permissions/permissions";
 import { isConnected } from "../socket/socketio";
 import { DateTime } from "luxon";
 import { initConfig } from "../config";
-import { config } from "../config";
+import { config, changeReqErrors } from "../config";
 
 describe("Database", async () => {
     beforeAll(async () => {
@@ -590,6 +590,54 @@ describe("Database", async () => {
         // Check if the document is removed from the database
         const post = await db.get<ContentDto>(mockEnglishContentDto._id);
         expect(post).toBeUndefined();
+    });
+
+    it("does not surface a changeReqError when the rejection is a concurrent delete", async () => {
+        changeReqErrors.value = [];
+
+        // Queue a local change
+        await db.upsert({ doc: mockEnglishContentDto });
+        const localChange = await db.localChanges
+            .where("docId")
+            .equals(mockEnglishContentDto._id)
+            .first();
+        expect(localChange).toBeDefined();
+
+        // Apply the rejection CouchDB reports for a write against an already-deleted doc
+        await db.applyLocalChangeAck({ ack: AckStatus.Rejected, message: "deleted" }, localChange!);
+
+        // No error toast for this case — the local copy is already cleaned up below
+        expect(changeReqErrors.value).toEqual([]);
+
+        // Check if the local change is removed
+        const localChangeAfter = await db.localChanges
+            .where("docId")
+            .equals(mockEnglishContentDto._id)
+            .first();
+        expect(localChangeAfter).toBeUndefined();
+
+        // Check if the document is removed from the database
+        const post = await db.get<ContentDto>(mockEnglishContentDto._id);
+        expect(post).toBeUndefined();
+    });
+
+    it("still surfaces a changeReqError for other rejection reasons", async () => {
+        changeReqErrors.value = [];
+
+        // Queue a local change
+        await db.upsert({ doc: mockEnglishContentDto });
+        const localChange = await db.localChanges
+            .where("docId")
+            .equals(mockEnglishContentDto._id)
+            .first();
+        expect(localChange).toBeDefined();
+
+        await db.applyLocalChangeAck(
+            { ack: AckStatus.Rejected, message: "Some other error" },
+            localChange!,
+        );
+
+        expect(changeReqErrors.value).toEqual(["Some other error"]);
     });
 
     it("can purge the local database", async () => {
