@@ -40,7 +40,7 @@ const segmentedButtonMobile = ref<{ rootEl: HTMLElement | null } | null>(null);
 
 <template>
     <!-- MOBILE -->
-    <div v-if="mobile" class="relative flex items-center gap-1 pr-2 lg:hidden">
+    <div v-if="mobile" class="relative flex items-center gap-1 pr-1 lg:hidden">
         <div v-if="isLocalChange" class="mr-7 flex h-9 w-10 items-center lg:hidden">
             <LBadge class="h-full" variant="warning">Offline changes</LBadge>
         </div>

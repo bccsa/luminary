@@ -90,7 +90,8 @@ const handleMobileSidebarToggle = () => {
                         data-test="chevron-icon"
                         class="text-zinc-500"
                         :class="{
-                            'ml-1.5': isEditContentPage || isEditLanguagePage,
+                            'ml-1.5 max-lg:ml-0 max-lg:-ml-1':
+                                isEditContentPage || isEditLanguagePage,
                         }"
                         @click="handleMobileSidebarToggle"
                     >
