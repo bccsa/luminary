@@ -32,7 +32,7 @@ Verdict: **not ready to merge** until the blockers below are done (+ dead-code s
 #### Backwards-compat / ops (confirm before merge)
 
 - [x] ~~Confirm `/search` hard-removal is safe (API deploys after clients; no in-the-wild caller)~~ — **confirmed:** this branch removes all callers (`ApiLiveQuery`, `RestApi.search`, `http.get` + `X-Query`); reads now use `POST /query` / `POST /fts`. App on `main` already off `/search`. **CMS on `main` still calls it** — deploy CMS (this PR) before/with API removal; no repo/playwright/scripts external caller found.
-- [ ] Confirm v19 `CmsView` on `AuthProvider` for `group-public-users` is intended ops on existing prod DB (`api/src/db/schemaUpgrade/v19.ts:55`)
+- [x] ~~Confirm v19 `CmsView` on `AuthProvider` for `group-public-users` is intended ops on existing prod DB (`api/src/db/schemaUpgrade/v19.ts:55`)~~ — **confirmed (intended):** ADR 0013 + v19 README. CMS login (`SelectionModal`) reads AuthProviders with `cms:true`; guests hold `group-public-users` (AutoGroupMappings / `add-auth-provider` defaults). v19 only **adds** `cmsView` to existing AuthProvider ACL rows on that group — not Post/Tag/etc. Idempotent `insertDoc`; prod that ran `add-auth-provider` already has the AuthProvider `view` row to patch. Fresh seeds mirror this in `group-public-users.json`.
 
 #### Verification
 
