@@ -177,6 +177,33 @@ describe("attachFtsLiveSync", () => {
         scope.stop();
     });
 
+    it("does not prune missing Dexie ids when dexiePrune is false (api FTS path)", async () => {
+        const scope = effectScope();
+        const results = ref([
+            { docId: "c1", doc: { _id: "c1", title: "One" } },
+            { docId: "c2", doc: { _id: "c2", title: "Two" } },
+        ]);
+
+        scope.run(() =>
+            attachFtsLiveSync(
+                results,
+                {
+                    getId: (r) => r.docId,
+                    patch: (r, live) => ({ ...r, doc: live as any }),
+                },
+                { docType: DocType.Content, watchDexie: true, dexiePrune: () => false },
+            ),
+        );
+
+        mocks.liveRefs[0]!.ref.value = [{ _id: "c2", title: "Two updated" }];
+        await nextTick();
+
+        expect(results.value).toHaveLength(2);
+        expect(results.value[0]!.docId).toBe("c1");
+        expect(results.value[1]!.doc).toMatchObject({ _id: "c2", title: "Two updated" });
+        scope.stop();
+    });
+
     it("sets stale when a new matching doc arrives and results are empty", () => {
         const scope = effectScope();
         const results = ref<{ _id: string; name?: string }[]>([]);

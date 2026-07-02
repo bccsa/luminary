@@ -8,7 +8,7 @@ Verdict: **not ready to merge** until the blockers below are done (+ dead-code s
 
 #### Must-fix before merge
 
-- [ ] **Server-FTS results silently pruned on browser-tab app** — `shared/src/fts/useFtsSearch.ts` + `shared/src/fts/ftsLiveSync.ts`: gate `watchDexie` prune to `source === 'local'`
+- [ ] ~~**Server-FTS results silently pruned on browser-tab app** — `shared/src/fts/useFtsSearch.ts` + `shared/src/fts/ftsLiveSync.ts`: gate `watchDexie` prune to `source === 'local'`~~ (implemented)
 - [ ] **Clearing search wipes all filter/sort/tag/group state** — `cms/src/components/content/ContentOverview/FilterOptions.vue`: on empty search only set `queryOptions.value.search = ""`; keep `resetQueryOptions()` for the explicit reset button
 - [ ] **GroupGraph interaction inverted / dead** — `cms/src/components/groups/GroupOverview.vue`: `@open` → edit modal; `@select` → highlight only
 - [ ] **App user can deselect every language → no offline content** — `app/src/components/navigation/LanguageModal.vue`: disable removing the last language

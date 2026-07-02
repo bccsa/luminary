@@ -286,6 +286,7 @@ export function useFtsSearch(
             {
                 docType: DocType.Content,
                 watchDexie: true,
+                dexiePrune: () => source.value === "local",
                 stale: isStale,
                 query: queryRef,
                 strictMatch: options.strictMatch,

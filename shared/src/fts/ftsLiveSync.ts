@@ -21,6 +21,12 @@ export type FtsLiveSyncOptions = {
     docType: DocType;
     /** Re-query Dexie for current result ids and prune when docs vanish (local FTS path). */
     watchDexie?: boolean;
+    /**
+     * When {@link watchDexie} is enabled, prune result rows whose ids are absent from Dexie
+     * only while this is true. Use for hybrid search: API results may reference docs not
+     * stored locally (below the sync cutoff) — do not drop those when source is `"api"`.
+     */
+    dexiePrune?: Ref<boolean> | (() => boolean);
     /** When set, new plausible matches flag results as stale (Option B refresh banner). */
     stale?: Ref<boolean>;
     /** Active search query — used with {@link ftsMightMatchQuery} for stale detection. */
@@ -44,6 +50,11 @@ function readStrict(strictMatch?: Ref<boolean> | (() => boolean)): boolean {
     return typeof strictMatch === "function" ? strictMatch() : strictMatch.value;
 }
 
+function readFlag(flag?: Ref<boolean> | (() => boolean), defaultValue = true): boolean {
+    if (flag === undefined) return defaultValue;
+    return typeof flag === "function" ? flag() : flag.value;
+}
+
 /**
  * Keep in-memory FTS search results aligned with live doc changes.
  *
@@ -59,7 +70,7 @@ export function attachFtsLiveSync<T>(
 ): void {
     if (!getCurrentScope()) return;
 
-    const { docType, watchDexie = false, stale, query, strictMatch } = options;
+    const { docType, watchDexie = false, dexiePrune, stale, query, strictMatch } = options;
     const { getId, patch } = adapter;
 
     const pruneIds = (ids: Iterable<string>) => {
@@ -157,7 +168,7 @@ export function attachFtsLiveSync<T>(
 
             const liveById = new Map((docs ?? []).map((d) => [d._id, d]));
             const missing = resultIds.value.filter((id) => !liveById.has(id));
-            if (missing.length) pruneIds(missing);
+            if (missing.length && readFlag(dexiePrune)) pruneIds(missing);
 
             // Covers local edits that land in Dexie before (or without) a socket push.
             let changed = false;
