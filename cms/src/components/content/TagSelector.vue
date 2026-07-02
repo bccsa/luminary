@@ -45,7 +45,7 @@ const tags = computed<ContentDto[]>(() => {
                     props.language?._id,
                 ) == doc.language,
         )
-        .sort((a, b) => (a.title ?? "").localeCompare(b.title ?? ""));
+        .sort((a, b) => (b.publishDate ?? 0) - (a.publishDate ?? 0));
 });
 
 const assignable = computed(() =>
@@ -104,6 +104,7 @@ const showEditModal = ref(false);
             :selected-labels="selectedOptions"
             :show-selected-labels="true"
             :showSelectedInDropdown="false"
+            :sort-options="false"
             v-model:showEditModal="showEditModal"
         >
             <template #actions>

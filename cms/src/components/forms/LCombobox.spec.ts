@@ -445,6 +445,31 @@ describe("LCombobox", () => {
         });
     });
 
+    it("preserves option order when sorting is disabled", async () => {
+        const wrapper = mount(LCombobox, {
+            props: {
+                options: [
+                    { id: 0, label: "Charlie", value: "c" },
+                    { id: 1, label: "alpha", value: "a" },
+                    { id: 2, label: "Bravo", value: "b" },
+                ],
+                selectedOptions: [],
+                sortOptions: false,
+            },
+            global: { stubs: { Teleport: true } },
+        });
+
+        await wrapper.find("[name='options-open-btn']").trigger("click");
+        await wrapper.vm.$nextTick();
+
+        await waitForExpect(() => {
+            const items = wrapper.findAll("[name='list-item']");
+            expect(items[0].text()).toContain("Charlie");
+            expect(items[1].text()).toContain("alpha");
+            expect(items[2].text()).toContain("Bravo");
+        });
+    });
+
     it("keeps filtered options sorted alphabetically", async () => {
         const wrapper = mount(LCombobox, {
             props: {

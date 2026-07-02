@@ -44,6 +44,7 @@ type Props = {
     inlineTags?: boolean;
     noBorder?: boolean;
     placeholder?: string;
+    sortOptions?: boolean;
 };
 
 const props = withDefaults(defineProps<Props>(), {
@@ -52,6 +53,7 @@ const props = withDefaults(defineProps<Props>(), {
     showSelectedInDropdown: true,
     showSelectedLabels: true,
     showIcon: true,
+    sortOptions: true,
 });
 
 const emit = defineEmits(["select"]);
@@ -82,12 +84,11 @@ const normalize = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
 
 const filtered = computed(() => {
     const normalizedQuery = normalize(query.value);
-    return optionsList.value
-        .filter((o) => {
-            if (!props.showSelectedInDropdown && o.selected) return false;
-            return normalize(o.label).includes(normalizedQuery);
-        })
-        .sort((a, b) => a.label.localeCompare(b.label));
+    const options = optionsList.value.filter((o) => {
+        if (!props.showSelectedInDropdown && o.selected) return false;
+        return normalize(o.label).includes(normalizedQuery);
+    });
+    return props.sortOptions ? options.sort((a, b) => a.label.localeCompare(b.label)) : options;
 });
 
 const highlightedIndex = ref(-1);
