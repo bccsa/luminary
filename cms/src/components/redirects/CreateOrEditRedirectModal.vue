@@ -2,6 +2,7 @@
 import { ref, computed, watch } from "vue";
 import {
     AclPermission,
+    AckStatus,
     db,
     DocType,
     type RedirectDto,
@@ -70,6 +71,7 @@ watch(
 );
 
 const redirectEditable = toEditable<RedirectDto>(redirectSource);
+const { remove: removeRedirect, save: saveRedirect } = redirectEditable;
 
 function hydrateFromRedirect(redirect: RedirectDto) {
     currentId.value = redirect._id;
@@ -122,18 +124,14 @@ const save = async () => {
     const doc = editable.value;
     if (!doc) return;
 
-    if (!(isNew.value && doc.deleteReq)) {
-        doc.updatedTimeUtc = Date.now();
-        await redirectEditable.save(doc._id);
-    }
+    doc.updatedTimeUtc = Date.now();
+    await saveRedirect(doc._id);
 
-    if (!doc.deleteReq) {
-        useNotificationStore().addNotification({
-            title: !isNew.value ? `Redirect updated` : `Redirect created`,
-            description: `Redirecting ${doc.slug} to ${doc.toSlug ?? "HOMEPAGE"}`,
-            state: "success",
-        });
-    }
+    useNotificationStore().addNotification({
+        title: !isNew.value ? `Redirect updated` : `Redirect created`,
+        description: `Redirecting ${doc.slug} to ${doc.toSlug ?? "HOMEPAGE"}`,
+        state: "success",
+    });
     emit("close");
 };
 
@@ -184,7 +182,7 @@ const canDelete = computed(() => {
     return verifyAccess(doc.memberOf, DocType.Redirect, AclPermission.Delete, "all");
 });
 
-const deleteRedirect = () => {
+const deleteRedirect = async () => {
     if (!canDelete.value) {
         addNotification({
             title: "Access denied",
@@ -194,15 +192,34 @@ const deleteRedirect = () => {
         return;
     }
 
-    editable.value.deleteReq = 1;
+    const doc = editable.value;
+    if (!doc) return;
 
-    save();
+    try {
+        const res = await removeRedirect(doc._id);
+        if (res?.ack !== AckStatus.Accepted) {
+            addNotification({
+                title: "Failed to delete redirect",
+                description: res?.message ?? "The redirect could not be deleted",
+                state: "error",
+            });
+            return;
+        }
 
-    addNotification({
-        title: `Redirect deleted`,
-        description: `The redirect was successfully deleted`,
-        state: "success",
-    });
+        emit("close");
+        addNotification({
+            title: `Redirect deleted`,
+            description: `The redirect was successfully deleted`,
+            state: "success",
+        });
+    } catch (error) {
+        console.error("Error deleting redirect:", error);
+        addNotification({
+            title: "Failed to delete redirect",
+            description: error instanceof Error ? error.message : "An unknown error occurred",
+            state: "error",
+        });
+    }
 };
 
 const revertChanges = () => {
@@ -223,7 +240,7 @@ const revertChanges = () => {
         secondaryButtonText="Cancel"
         stickToEdges
     >
-        <div class="mb-2 flex flex-col items-center">
+        <div v-if="editable" class="mb-2 flex flex-col items-center">
             <div class="mb-1 flex w-full gap-1">
                 <LButton
                     class="w-1/2"
@@ -242,7 +259,7 @@ const revertChanges = () => {
             <p class="text-xs text-zinc-500">{{ redirectExplanation }}</p>
         </div>
 
-        <div class="relative">
+        <div v-if="editable" class="relative">
             <LInput
                 label="From *"
                 name="RedirectFromSlug"
@@ -257,6 +274,7 @@ const revertChanges = () => {
         </div>
 
         <LInput
+            v-if="editable"
             label="To"
             name="RedirectToSlug"
             v-model="editable.toSlug"
@@ -266,6 +284,7 @@ const revertChanges = () => {
         />
 
         <LCombobox
+            v-if="editable"
             label="Group Membership"
             :options="
                 groups.map((group: GroupDto) => ({
@@ -311,9 +330,9 @@ const revertChanges = () => {
         :title="`Delete redirect?`"
         :description="`Are you sure you want to delete this redirect? This action cannot be undone.`"
         :primaryAction="
-            () => {
+            async () => {
                 showDeleteModal = false;
-                deleteRedirect();
+                await deleteRedirect();
             }
         "
         :secondaryAction="() => (showDeleteModal = false)"

@@ -11,7 +11,7 @@ handle is in scope:
 - ~~`cms/src/composables/useAuthProviders.ts` — `duplicateProvider` → `duplicate(id, clone => { … })`;~~
   ~~`confirmDelete` (deleteReq + nextTick + save) → `remove(id)`.~~ (implemented)
 - ~~`cms/src/composables/useAutoGroupMappings.ts` — `deleteMapping` → `remove(id)`.~~ (implemented)
-- `cms/src/components/redirects/CreateOrEditRedirectModal.vue` — `deleteRedirect` → `remove`.
+- ~~`cms/src/components/redirects/CreateOrEditRedirectModal.vue` — `deleteRedirect` → `remove`.~~ (implemented)
 - `cms/src/components/users/CreateOrEditUser.vue` — `deleteUser` → `remove`.
 - Content (`EditContent.vue` / `useEditContentSource.ts`) — the multi-doc parent+children duplicate
   via `buildContentDuplicate`/`installClones` is out of scope (cross-source, reparenting,
