@@ -280,7 +280,7 @@ const cancel = () => emit("close");
         </div>
 
         <template #footer>
-            <div class="flex w-full gap-2">
+            <div class="flex w-full flex-col gap-2 sm:flex-row">
                 <LButton
                     variant="secondary"
                     size="lg"
