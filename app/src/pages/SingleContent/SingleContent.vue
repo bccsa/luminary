@@ -60,9 +60,18 @@ import LoadingBar from "@/components/LoadingBar.vue";
 import { activeImageCollection } from "@/components/images/LImageProvider.vue";
 import { isExternalNavigation } from "@/router";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
+import ContinueReadingPrompt from "@/components/content/ContinueReadingPrompt.vue";
 import LHighlightable from "@/components/common/LHighlightable.vue";
 import DropdownMenu from "@/components/common/DropdownMenu.vue";
 import { markPageReady } from "@/util/renderState";
+import {
+    computeEstimatedReadingMinutes,
+    resolveReadingSpeedWpm,
+} from "@/util/readingTime";
+import {
+    resolveArticleScrollContainer,
+    useReadingProgressTracker,
+} from "@/composables/useReadingProgressTracker";
 
 const router = useRouter();
 
@@ -467,9 +476,60 @@ watch(
 );
 
 const openedFromExternalLink = ref(false);
+const articleProseRef = ref<HTMLElement | null>(null);
+const scrollContainer = ref<HTMLElement | Window>(window);
+
+const readingTrackerEnabled = computed(
+    () => !!content.value?._id && !!content.value?.text,
+);
+
+const contentId = computed(() => content.value?._id);
+
+const contentLanguage = computed(() =>
+    languages.value.find((l) => l._id === content.value?.language),
+);
+
+const averageReadingSpeed = computed(() =>
+    resolveReadingSpeedWpm(contentLanguage.value?.averageReadingSpeed),
+);
+
+function setScrollContainer() {
+    scrollContainer.value = resolveArticleScrollContainer();
+}
+
+const {
+    hasResumableProgress,
+    savedProgressPercent,
+    restoreScrollPosition,
+} = useReadingProgressTracker({
+    contentId,
+    articleRoot: articleProseRef,
+    scrollContainer,
+    enabled: readingTrackerEnabled,
+    averageReadingSpeed,
+});
+
+/** Hide the resume prompt for this visit after the user continues or dismisses. */
+const continuePromptHandled = ref(false);
+
+watch(contentId, () => {
+    continuePromptHandled.value = false;
+});
+
+function onContinueReading() {
+    continuePromptHandled.value = true;
+    restoreScrollPosition();
+}
 
 onMounted(() => {
     openedFromExternalLink.value = isExternalNavigation();
+    setScrollContainer();
+});
+
+watch([isLoading, text], () => {
+    if (!isLoading.value && text.value) {
+        nextTick(setScrollContainer);
+    }
 });
 
 // Track whether the user explicitly switched language via the quick selector
@@ -579,14 +639,9 @@ const playAudio = () => {
     }
 };
 
-const readingTime = computed<number>(() => {
-    if (!content.value) return 0;
-    const wordCount = content.value.wordCount!;
-    const currentLanguage = languages.value.find((l) => l._id === content.value?.language);
-    const readingSpeed = currentLanguage?.averageReadingSpeed || 200;
-
-    return Math.ceil(wordCount / readingSpeed);
-});
+const readingTime = computed<number>(() =>
+    computeEstimatedReadingMinutes(content.value?.wordCount ?? 0, averageReadingSpeed.value),
+);
 
 watch([isLoading, content, is404], async () => {
     if (is404.value) {
@@ -881,6 +936,7 @@ watch([isLoading, content, is404], async () => {
                         :content-id="content._id"
                     >
                         <div
+                            ref="articleProseRef"
                             v-html="text"
                             class="prose prose-zinc mt-8 max-w-full dark:prose-invert lg:prose-lg prose-headings:font-bold prose-a:text-yellow-600 dark:prose-a:text-yellow-400"
                             :class="{
@@ -910,6 +966,14 @@ watch([isLoading, content, is404], async () => {
             <IgnorePagePadding ignoreBottom>
                 <CopyrightBanner />
             </IgnorePagePadding>
+
+            <ContinueReadingPrompt
+                v-if="readingTrackerEnabled"
+                :visible="hasResumableProgress && !continuePromptHandled"
+                :progress-percent="savedProgressPercent"
+                @continue="onContinueReading"
+                @dismiss="continuePromptHandled = true"
+            />
         </div>
     </BasePage>
 

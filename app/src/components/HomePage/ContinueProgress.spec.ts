@@ -12,8 +12,13 @@ import {
 } from "@/tests/mockdata";
 import { db, type ContentDto, DocType, PostType } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
-import { appLanguageIdsAsRef } from "@/globalConfig";
-import ContinueWatching from "./ContinueWatching.vue";
+import {
+    appLanguageIdsAsRef,
+    setMediaProgress,
+    setReadingProgress,
+    syncContentProgressFromStorage,
+} from "@/globalConfig";
+import ContinueProgress from "./ContinueProgress.vue";
 
 vi.mock("vue-router");
 vi.mock("vue-i18n", () => ({
@@ -22,22 +27,18 @@ vi.mock("vue-i18n", () => ({
     }),
 }));
 
-/**
- * Helper: set localStorage "mediaProgress" to a list of watched content IDs.
- */
-function setMediaProgress(contentIds: string[]) {
-    const entries = contentIds.map((contentId) => ({
-        mediaId: `media-${contentId}`,
-        contentId,
-    }));
-    localStorage.setItem("mediaProgress", JSON.stringify(entries));
+function setWatchingProgress(contentIds: string[]) {
+    [...contentIds].reverse().forEach((contentId, index) => {
+        setMediaProgress(`media-${contentId}`, contentId, 60 + index, 300);
+    });
 }
 
-describe("ContinueWatching", () => {
+describe("ContinueProgress", () => {
     beforeEach(async () => {
         await db.docs.clear();
         await db.localChanges.clear();
         localStorage.clear();
+        syncContentProgressFromStorage();
 
         await db.docs.bulkPut([mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa]);
         appLanguageIdsAsRef.value = [mockLanguageDtoEng._id];
@@ -51,24 +52,40 @@ describe("ContinueWatching", () => {
         localStorage.clear();
     });
 
-    it("displays watched content that is published", async () => {
+    it("displays content with video progress that is published", async () => {
         await db.docs.bulkPut([mockEnglishContentDto]);
-        setMediaProgress([mockEnglishContentDto._id]);
+        setWatchingProgress([mockEnglishContentDto._id]);
 
-        const wrapper = mount(ContinueWatching);
+        const wrapper = mount(ContinueProgress);
 
         await waitForExpect(() => {
             expect(wrapper.text()).toContain(mockEnglishContentDto.title);
         });
     });
 
-    it("does not render when there is no media progress", async () => {
+    it("displays content with reading progress that is published", async () => {
+        const textContent: ContentDto = {
+            ...mockEnglishContentDto,
+            _id: "content-read-eng",
+            title: "Reading Article",
+            video: undefined,
+            text: "<p>Hello world</p>",
+        };
+        await db.docs.bulkPut([textContent]);
+        setReadingProgress(textContent._id, 42);
+
+        const wrapper = mount(ContinueProgress);
+
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain("Reading Article");
+        });
+    });
+
+    it("does not render when there is no content progress", async () => {
         await db.docs.bulkPut([mockEnglishContentDto]);
-        // No media progress set in localStorage
 
-        const wrapper = mount(ContinueWatching);
+        const wrapper = mount(ContinueProgress);
 
-        // The component should not render the collection (v-if="watchedContent.length > 0")
         await waitForExpect(() => {
             expect(wrapper.text()).not.toContain(mockEnglishContentDto.title);
         });
@@ -82,9 +99,9 @@ describe("ContinueWatching", () => {
             title: "Page Content",
         };
         await db.docs.bulkPut([mockEnglishContentDto, pageContent]);
-        setMediaProgress([mockEnglishContentDto._id, pageContent._id]);
+        setWatchingProgress([mockEnglishContentDto._id, pageContent._id]);
 
-        const wrapper = mount(ContinueWatching);
+        const wrapper = mount(ContinueProgress);
 
         await waitForExpect(() => {
             expect(wrapper.text()).toContain(mockEnglishContentDto.title);
@@ -98,9 +115,9 @@ describe("ContinueWatching", () => {
             title: "Category Content",
         };
         await db.docs.bulkPut([mockEnglishContentDto, categoryContent]);
-        setMediaProgress([mockEnglishContentDto._id, categoryContent._id]);
+        setWatchingProgress([mockEnglishContentDto._id, categoryContent._id]);
 
-        const wrapper = mount(ContinueWatching);
+        const wrapper = mount(ContinueProgress);
 
         await waitForExpect(() => {
             expect(wrapper.text()).toContain(mockEnglishContentDto.title);
@@ -116,9 +133,9 @@ describe("ContinueWatching", () => {
             title: "Future Content",
         };
         await db.docs.bulkPut([mockEnglishContentDto, futureContent]);
-        setMediaProgress([mockEnglishContentDto._id, futureContent._id]);
+        setWatchingProgress([mockEnglishContentDto._id, futureContent._id]);
 
-        const wrapper = mount(ContinueWatching);
+        const wrapper = mount(ContinueProgress);
 
         await waitForExpect(() => {
             expect(wrapper.text()).toContain(mockEnglishContentDto.title);
@@ -130,13 +147,13 @@ describe("ContinueWatching", () => {
         const expiredContent: ContentDto = {
             ...mockEnglishContentDto,
             _id: "content-expired-eng",
-            expiryDate: 1000, // far in the past
+            expiryDate: 1000,
             title: "Expired Content",
         };
         await db.docs.bulkPut([mockEnglishContentDto, expiredContent]);
-        setMediaProgress([mockEnglishContentDto._id, expiredContent._id]);
+        setWatchingProgress([mockEnglishContentDto._id, expiredContent._id]);
 
-        const wrapper = mount(ContinueWatching);
+        const wrapper = mount(ContinueProgress);
 
         await waitForExpect(() => {
             expect(wrapper.text()).toContain(mockEnglishContentDto.title);
@@ -152,9 +169,9 @@ describe("ContinueWatching", () => {
             title: "Not a Content Doc",
         };
         await db.docs.bulkPut([mockEnglishContentDto, nonContent as any]);
-        setMediaProgress([mockEnglishContentDto._id, nonContent._id]);
+        setWatchingProgress([mockEnglishContentDto._id, nonContent._id]);
 
-        const wrapper = mount(ContinueWatching);
+        const wrapper = mount(ContinueProgress);
 
         await waitForExpect(() => {
             expect(wrapper.text()).toContain(mockEnglishContentDto.title);
@@ -164,9 +181,9 @@ describe("ContinueWatching", () => {
 
     it("handles missing documents gracefully (IDs not in database)", async () => {
         await db.docs.bulkPut([mockEnglishContentDto]);
-        setMediaProgress([mockEnglishContentDto._id, "nonexistent-id"]);
+        setWatchingProgress([mockEnglishContentDto._id, "nonexistent-id"]);
 
-        const wrapper = mount(ContinueWatching);
+        const wrapper = mount(ContinueProgress);
 
         await waitForExpect(() => {
             expect(wrapper.text()).toContain(mockEnglishContentDto.title);
@@ -174,67 +191,60 @@ describe("ContinueWatching", () => {
     });
 
     it("handles invalid JSON in localStorage gracefully", async () => {
-        localStorage.setItem("mediaProgress", "not-valid-json");
+        localStorage.setItem("contentProgress", "not-valid-json");
+        syncContentProgressFromStorage();
 
-        const wrapper = mount(ContinueWatching);
+        const wrapper = mount(ContinueProgress);
 
-        // Should not crash, and should not render content
         await waitForExpect(() => {
             expect(wrapper.html()).toBeDefined();
         });
     });
 
-    it("cleans up event listeners and intervals on unmount", () => {
+    it("cleans up storage listeners on unmount", () => {
         const removeEventSpy = vi.spyOn(window, "removeEventListener");
-        const clearIntervalSpy = vi.spyOn(window, "clearInterval");
 
-        const wrapper = mount(ContinueWatching);
+        const wrapper = mount(ContinueProgress);
         wrapper.unmount();
 
         expect(removeEventSpy).toHaveBeenCalledWith("storage", expect.any(Function));
-        expect(clearIntervalSpy).toHaveBeenCalled();
     });
 
-    it("preserves the watched order from localStorage regardless of database order", async () => {
-        // Create three content documents with IDs that sort alphabetically as A < B < C
+    it("preserves progress order regardless of database order", async () => {
         const contentA: ContentDto = {
             ...mockEnglishContentDto,
             _id: "content-aaa",
-            title: "Alpha Video",
-            slug: "alpha-video",
+            title: "Alpha Content",
+            slug: "alpha-content",
         };
         const contentB: ContentDto = {
             ...mockEnglishContentDto,
             _id: "content-bbb",
-            title: "Bravo Video",
-            slug: "bravo-video",
+            title: "Bravo Content",
+            slug: "bravo-content",
         };
         const contentC: ContentDto = {
             ...mockEnglishContentDto,
             _id: "content-ccc",
-            title: "Charlie Video",
-            slug: "charlie-video",
+            title: "Charlie Content",
+            slug: "charlie-content",
         };
 
-        // Insert into database (Dexie will store by primary key order: A, B, C)
         await db.docs.bulkPut([contentA, contentB, contentC]);
+        setWatchingProgress([contentC._id, contentB._id, contentA._id]);
 
-        // Set localStorage in reverse order: C, B, A (last watched first)
-        setMediaProgress([contentC._id, contentB._id, contentA._id]);
-
-        const wrapper = mount(ContinueWatching);
+        const wrapper = mount(ContinueProgress);
 
         await waitForExpect(() => {
-            expect(wrapper.text()).toContain("Alpha Video");
-            expect(wrapper.text()).toContain("Bravo Video");
-            expect(wrapper.text()).toContain("Charlie Video");
+            expect(wrapper.text()).toContain("Alpha Content");
+            expect(wrapper.text()).toContain("Bravo Content");
+            expect(wrapper.text()).toContain("Charlie Content");
         });
 
-        // Verify the DOM order matches the localStorage order (C, B, A), not database order
         const html = wrapper.html();
-        const posC = html.indexOf("Charlie Video");
-        const posB = html.indexOf("Bravo Video");
-        const posA = html.indexOf("Alpha Video");
+        const posC = html.indexOf("Charlie Content");
+        const posB = html.indexOf("Bravo Content");
+        const posA = html.indexOf("Alpha Content");
 
         expect(posC).toBeLessThan(posB);
         expect(posB).toBeLessThan(posA);
