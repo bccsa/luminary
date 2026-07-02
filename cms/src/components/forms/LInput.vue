@@ -27,7 +27,7 @@ type Props = {
     rightAddOn?: string;
     rightAddOnDisabled?: boolean;
     inputType?: "input" | "textarea";
-    autocomplete?: "on" | "off";
+    autocomplete?: string | boolean;
     onBlur?: Function;
     rightAddOnClick?: () => void;
     /** Extra right padding on the input when trailing slot content is shown */
@@ -162,7 +162,7 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                 v-bind="attrsWithoutStyles"
                 :aria-describedby="$slots.default ? `${id}-message` : undefined"
                 :rows="inputType === 'textarea' ? '1' : undefined"
-                autocomplete="off"
+                :autocomplete="autocomplete ?? 'off'"
             />
 
             <span

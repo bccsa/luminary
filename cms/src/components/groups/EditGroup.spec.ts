@@ -42,14 +42,14 @@ vi.mock("luminary-shared", async (importOriginal) => {
     };
 });
 
-const { verifyAccess, isConnected } = await import("luminary-shared");
+const { verifyAccess, isConnected, db } = await import("luminary-shared");
 
 describe("EditGroup", () => {
     // The component's prop is `ReturnType<typeof toEditable<GroupDto>>`; the specs also
     // configure the test-only `liveData` / `duplicate` helpers, so allow those too.
     let mockGroupQuery: Partial<ReturnType<typeof toEditable<GroupDto>>> & {
         liveData?: ComputedRef<GroupDto[]>;
-        duplicate?: ReturnType<typeof vi.fn>;
+        duplicate?: (id: string, modify?: (clone: GroupDto) => GroupDto) => GroupDto | undefined;
     };
     let testGroup: GroupDto;
     let allGroups: GroupDto[];
@@ -80,7 +80,19 @@ describe("EditGroup", () => {
             isEdited: computed(() => isEditedMock),
             revert: vi.fn(),
             save: vi.fn().mockResolvedValue({ ack: AckStatus.Accepted }),
-            duplicate: vi.fn().mockResolvedValue({ ack: AckStatus.Accepted }),
+            duplicate: vi.fn((id: string, modify?: (clone: GroupDto) => GroupDto) => {
+                const source = allGroups.find((group) => group._id === id);
+                if (!source) return undefined;
+
+                const clone = structuredClone(source) as GroupDto;
+                clone._id = db.uuid();
+                clone._rev = undefined;
+                delete clone.deleteReq;
+
+                const duplicatedGroup = modify ? modify(clone) : clone;
+                allGroups.push(duplicatedGroup);
+                return duplicatedGroup;
+            }),
             editable: ref(allGroups),
         };
 
