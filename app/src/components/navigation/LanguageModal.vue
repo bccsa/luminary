@@ -13,7 +13,7 @@ import {
     normalizeSyncedLanguages,
 } from "@/globalConfig";
 import LModal from "../form/LModal.vue";
-import { ArrowDownIcon, ArrowUpIcon, XMarkIcon } from "@heroicons/vue/24/solid";
+import { ArrowDownIcon, ArrowUpIcon, CheckIcon, XMarkIcon } from "@heroicons/vue/24/solid";
 import { PlusCircleIcon } from "@heroicons/vue/24/outline";
 import { markLanguageSwitch } from "@/util/isLangSwitch";
 import { useNotificationStore } from "@/stores/notification";
@@ -206,49 +206,54 @@ const cancel = () => emit("close");
                 :key="language._id"
                 class="flex w-full items-center gap-3 p-3"
             >
-                <input
-                    type="checkbox"
-                    :checked="isOfflineChecked(language._id)"
-                    :disabled="language._id === primaryId"
-                    :title="
-                        language._id === primaryId
-                            ? t('language.modal.primaryAlwaysOffline')
-                            : t('language.modal.availableOffline')
-                    "
-                    :aria-label="t('language.modal.availableOffline')"
-                    data-test="offline-checkbox"
-                    class="h-4 w-4 cursor-pointer rounded border-zinc-300 text-yellow-500 focus:ring-yellow-500 disabled:cursor-auto disabled:opacity-50 dark:border-slate-600 dark:bg-slate-700"
-                    @change="toggleSynced(language._id)"
-                />
+                <div class="relative flex h-4 w-4 shrink-0 items-center justify-center">
+                    <input
+                        type="checkbox"
+                        :checked="isOfflineChecked(language._id)"
+                        :disabled="language._id === primaryId"
+                        :title="
+                            language._id === primaryId
+                                ? t('language.modal.primaryAlwaysOffline')
+                                : t('language.modal.availableOffline')
+                        "
+                        :aria-label="t('language.modal.availableOffline')"
+                        data-test="offline-checkbox"
+                        class="peer h-4 w-4 cursor-pointer appearance-none rounded-full border border-zinc-300 checked:border-yellow-500 checked:bg-yellow-500 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-1 disabled:cursor-auto disabled:opacity-50 dark:border-slate-600 dark:bg-slate-700 dark:checked:border-yellow-500 dark:checked:bg-yellow-500"
+                        @change="toggleSynced(language._id)"
+                    />
+                    <CheckIcon
+                        class="pointer-events-none absolute h-2.5 w-2.5 text-white opacity-0 peer-checked:opacity-100"
+                    />
+                </div>
 
                 <span class="flex-1 text-sm">{{ language.name }}</span>
 
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-1">
                     <button
                         v-if="language._id !== draftOrder[0]"
                         type="button"
                         data-test="increase-priority"
                         @click="increasePriority(language._id)"
-                        class="flex cursor-pointer items-center rounded-full px-1 hover:text-yellow-600 dark:hover:text-yellow-500"
+                        class="flex cursor-pointer items-center rounded-full p-1 text-zinc-400 hover:bg-zinc-100 hover:text-yellow-600 dark:text-slate-500 dark:hover:bg-slate-600 dark:hover:text-yellow-500"
                     >
-                        <ArrowUpIcon class="h-6 w-6" />
+                        <ArrowUpIcon class="h-4 w-4" />
                     </button>
                     <button
                         v-if="language._id !== draftOrder[draftOrder.length - 1]"
                         type="button"
                         data-test="decrease-priority"
                         @click="decreasePriority(language._id)"
-                        class="flex cursor-pointer items-center rounded-full px-1 hover:text-yellow-600 dark:hover:text-yellow-500"
+                        class="flex cursor-pointer items-center rounded-full p-1 text-zinc-400 hover:bg-zinc-100 hover:text-yellow-600 dark:text-slate-500 dark:hover:bg-slate-600 dark:hover:text-yellow-500"
                     >
-                        <ArrowDownIcon class="h-6 w-6" />
+                        <ArrowDownIcon class="h-4 w-4" />
                     </button>
                     <button
                         type="button"
                         data-test="remove-language-button"
                         @click="removeFromSelected(language._id)"
-                        class="flex cursor-pointer items-center rounded-full px-1 text-zinc-500 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-500"
+                        class="flex cursor-pointer items-center rounded-full p-1 text-zinc-400 hover:bg-zinc-100 hover:text-red-600 dark:text-slate-500 dark:hover:bg-slate-600 dark:hover:text-red-500"
                     >
-                        <XMarkIcon class="h-6 w-6" />
+                        <XMarkIcon class="h-4 w-4" />
                     </button>
                 </div>
             </div>
@@ -263,7 +268,7 @@ const cancel = () => emit("close");
                 v-for="language in availableLanguages"
                 :id="language._id"
                 :key="language._id"
-                class="flex w-full cursor-pointer items-center gap-1 p-3"
+                class="flex w-full cursor-pointer items-center gap-2 rounded-lg p-3 hover:bg-zinc-100 dark:hover:bg-slate-600"
                 data-test="add-language-button"
                 @click="addLanguage(language._id)"
             >
