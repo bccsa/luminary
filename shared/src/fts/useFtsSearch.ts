@@ -203,6 +203,12 @@ export function useFtsSearch(
     }
 
     function runSearch() {
+        // Drop any pending debounced run so an explicit runSearch (Enter, recent pick, modal
+        // reopen) cannot double-fire alongside the query watcher.
+        if (debounceTimer) {
+            clearTimeout(debounceTimer);
+            debounceTimer = undefined;
+        }
         const q = queryRef.value.trim();
         currentQuery = q;
         doSearch(q, 0, false);
