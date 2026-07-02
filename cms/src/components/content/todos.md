@@ -12,28 +12,24 @@ handle is in scope:
   ~~`confirmDelete` (deleteReq + nextTick + save) → `remove(id)`.~~ (implemented)
 - ~~`cms/src/composables/useAutoGroupMappings.ts` — `deleteMapping` → `remove(id)`.~~ (implemented)
 - ~~`cms/src/components/redirects/CreateOrEditRedirectModal.vue` — `deleteRedirect` → `remove`.~~ (implemented)
-- `cms/src/components/users/CreateOrEditUser.vue` — `deleteUser` → `remove`.
-- ~~Content (`EditContent.vue` / `useEditContentSource.ts`) — parent `deleteParent` → `remove`;~~
-  ~~translation delete-on-save → `remove` in `save()`. Multi-doc duplicate stays out of scope.~~ (implemented)
 - ~~`cms/src/components/users/CreateOrEditUser.vue` — `deleteUser` → `remove`.~~ (implemented)
-- Content (`EditContent.vue` / `useEditContentSource.ts`) — the multi-doc parent+children duplicate
-  via `buildContentDuplicate`/`installClones` is out of scope (cross-source, reparenting,
-  image-bucket duplication); only the single-doc `deleteReq` paths are candidates for `remove`.
+- ~~Content (`EditContent.vue` / `useEditContentSource.ts`) — parent `deleteParent` → `remove`;~~
+  ~~translation delete-on-save → `remove` in `save()`.~~ (implemented)
 
 Already migrated: `useAuthProviders.ts` (`duplicateProvider`, `confirmDelete`), `EditGroup.vue`
 (`duplicateGroup`, `deleteGroup`), `useAutoGroupMappings.ts` (`deleteMapping`),
-`CreateOrEditRedirectModal.vue` (`deleteRedirect`), and `EditContent.vue` /
-`useEditContentSource.ts` (`deleteParent`, translation delete-on-save via `remove` in `save()`).
-Multi-doc content duplicate (`buildContentDuplicate` / `installClones`) remains hand-rolled.
+`CreateOrEditRedirectModal.vue` (`deleteRedirect`), `CreateOrEditUser.vue` (`deleteUser`), and
+`EditContent.vue` / `useEditContentSource.ts` (`deleteParent`, translation delete-on-save via
+`remove` in `save()`).
 
-Note: in `CreateOrEditRedirectModal.vue` and `CreateOrEditUser.vue` the delete path sets
-`deleteReq = 1` then falls through the shared `save()` (which itself branches on `deleteReq` for
-notification copy / new-doc skip), so swapping in `remove(id)` means untangling that shared save —
-not a naive substitution.
+**Out of scope:** multi-doc content duplicate (`buildContentDuplicate` / `installClones` — cross-source,
+reparenting, image-bucket duplication); non-`toEditable` deletes (`StorageOverview.vue`,
+`EditLanguage.vue`); `deleteReq` used only as a UI staging flag (translation delete in
+`EditContentValidation.vue`, confirm-dialog preview in `EditGroup.vue`).
 
 Verify per file that the surrounding code holds a `toEditable` instance — some `deleteReq` toggles
-(e.g. a confirm-dialog preview, as in `EditGroup.vue`) or non-`toEditable` deletes
-(`StorageOverview.vue`) must NOT be naively swapped.
+(e.g. a confirm-dialog preview, as in `EditGroup.vue`) or non-`toEditable` deletes must NOT be
+naively swapped.
 
 ### Include language selection (mangoIsPublished language selection logic) in sync.
 
