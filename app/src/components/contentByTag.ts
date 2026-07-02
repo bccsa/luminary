@@ -1,4 +1,4 @@
-import { ref, watch, type Ref, type ShallowRef } from "vue";
+import { computed, type ComputedRef, type Ref, type ShallowRef } from "vue";
 import { type ContentDto } from "luminary-shared";
 
 export type ContentByTag = {
@@ -8,87 +8,62 @@ export type ContentByTag = {
 };
 
 /**
- * Sort content by tag
- * @param content
- * @param tags
- * @returns a Vue ref of type ContentByTag[]
+ * Group content by tag/category.
+ *
+ * Derived via `computed` (NOT a watcher) on purpose: Vue SSR does not run
+ * watchers, only computeds/template render. The web/SSG build fills the source
+ * refs in `onServerPrefetch` and then renders to string — a `computed` is
+ * evaluated lazily at that render, so the grouped rows appear in the prerendered
+ * HTML. A `watch(..., { immediate: true })` would compute once against the
+ * still-empty refs and never re-run server-side, leaving the groups empty in the
+ * static output (this was the bug). The sources (`useContentQuery` /
+ * `useHybridQuery` results) update by ref reassignment, so the computed re-runs on
+ * every live update too.
+ *
+ * @returns `{ tagged, untagged }` as read-only computed refs.
  */
 export const contentByTag = (
     content: Ref<ContentDto[]> | ShallowRef<ContentDto[]>,
     tags: Ref<ContentDto[]> | ShallowRef<ContentDto[]>,
     options: { includeUntagged?: boolean } = {},
-) => {
-    const result = {
-        tagged: ref<ContentByTag[]>([]),
-        untagged: ref<ContentDto[]>([]),
-    };
+): { tagged: ComputedRef<ContentByTag[]>; untagged: ComputedRef<ContentDto[]> } => {
+    const tagged = computed<ContentByTag[]>(() => {
+        const out: ContentByTag[] = [];
 
-    watch(
-        [content, tags],
-        () => {
-            // Remove tags that no longer exist
-            for (let i = result.tagged.value.length - 1; i >= 0; i--) {
-                if (!tags.value.some((c) => c._id === result.tagged.value[i].tag._id)) {
-                    result.tagged.value.splice(i, 1);
-                }
-            }
+        tags.value.forEach((tag) => {
+            const filtered = content.value.filter(
+                (c) => c.publishDate && c.parentTags && c.parentTags.includes(tag.parentId),
+            );
 
-            // Add new tags to the result
-            tags.value.forEach((tag) => {
-                const filtered = content.value.filter(
-                    (c) => c.publishDate && c.parentTags && c.parentTags.includes(tag.parentId),
-                );
+            if (!filtered.length) return; // drop tags with no content
 
-                const isPinned = tag.parentPinned && tag.parentPinned > 0;
+            const isPinned = !!tag.parentPinned && tag.parentPinned > 0;
 
-                const sorted = filtered.sort((a, b) => {
-                    // Check if this tag/category is pinned (parentPinned > 0)
-                    return isPinned
-                        ? (b.publishDate ?? 0) - (a.publishDate ?? 0) // Pinned: descending (newest first)
-                        : (a.publishDate ?? 0) - (b.publishDate ?? 0); // Unpinned: ascending (oldest first)
-                });
+            const sorted = [...filtered].sort((a, b) =>
+                isPinned
+                    ? (b.publishDate ?? 0) - (a.publishDate ?? 0) // Pinned: descending (newest first)
+                    : (a.publishDate ?? 0) - (b.publishDate ?? 0), // Unpinned: ascending (oldest first)
+            );
 
-                if (sorted.length) {
-                    const index = result.tagged.value.findIndex((r) => r.tag._id === tag._id);
+            // Always the actual newest (highest) date, regardless of pinned sort order.
+            const newestContentDate = Math.max(...filtered.map((c) => c.publishDate ?? 0));
 
-                    // For newestContentDate, always use the actual newest (highest) date
-                    const newestContentDate = Math.max(...filtered.map((c) => c.publishDate ?? 0));
+            out.push({ tag, newestContentDate, content: sorted });
+        });
 
-                    if (index !== -1) {
-                        Object.assign(result.tagged.value[index], {
-                            newestContentDate,
-                            content: sorted,
-                        });
-                    } else {
-                        result.tagged.value.push({
-                            tag,
-                            newestContentDate,
-                            content: sorted,
-                        });
-                    }
+        out.sort((a, b) => b.newestContentDate - a.newestContentDate);
 
-                    result.tagged.value.sort((a, b) => b.newestContentDate - a.newestContentDate);
-                } else {
-                    // Remove tags with no content
-                    const index = result.tagged.value.findIndex((r) => r.tag._id === tag._id);
+        return out;
+    });
 
-                    if (index !== -1) {
-                        result.tagged.value.splice(index, 1);
-                    }
-                }
-            });
+    const untagged = computed<ContentDto[]>(() => {
+        if (!options.includeUntagged) return [];
+        return content.value.filter(
+            (c) =>
+                !c.parentTags ||
+                !c.parentTags.some((t) => tags.value.some((tag) => tag.parentId === t)),
+        );
+    });
 
-            // get untagged content
-            if (options.includeUntagged) {
-                result.untagged.value = content.value.filter(
-                    (c) =>
-                        !c.parentTags ||
-                        !c.parentTags.some((t) => tags.value.some((tag) => tag.parentId === t)),
-                );
-            }
-        },
-        { immediate: true, deep: true },
-    );
-
-    return result;
+    return { tagged, untagged };
 };

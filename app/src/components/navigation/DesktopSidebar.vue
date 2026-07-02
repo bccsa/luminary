@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { getNavigationItems } from "./navigationItems";
 import { useSearchOverlay } from "@/composables/useSearchOverlay";
@@ -49,6 +49,16 @@ const isItemActive = (routeActive: boolean) => routeActive && !isSearchOpen.valu
 const showThemeSelector = ref(false);
 const showLanguageModal = ref(false);
 const showLogoutDialog = ref(false);
+
+// The sidebar itself prerenders on the web/SSG build, but the interactive
+// overlays below do not — LanguageModal runs a Dexie-backed `useHybridQuery` at
+// setup, which cannot execute during the Node prerender. They're never needed in
+// the static HTML, so only mount them on the client (after mount). On native this
+// flips true immediately.
+const isMounted = ref(false);
+onMounted(() => {
+    isMounted.value = true;
+});
 
 const navIconClass = "h-5 w-5 flex-shrink-0";
 const navLabelClass = "truncate text-sm font-medium";
@@ -189,10 +199,11 @@ const handleLogin = () => {
                 v-for="item in navigationItems.slice(0, -1)"
                 :key="item.name"
                 :to="item.to"
-                v-slot="{ isActive, navigate }"
+                v-slot="{ isActive, href, navigate }"
                 custom
             >
-                <span
+                <a
+                    :href="href"
                     :class="navItemClasses(isItemActive(isActive))"
                     :title="item.name"
                     @click="navigate"
@@ -206,7 +217,7 @@ const handleLogin = () => {
                         v-if="!collapsed"
                         :class="navLabelClass"
                     >{{ item.name }}</span>
-                </span>
+                </a>
             </RouterLink>
 
             <span
@@ -231,10 +242,11 @@ const handleLogin = () => {
 
             <RouterLink
                 :to="{ name: 'bookmarks' }"
-                v-slot="{ isActive, navigate }"
+                v-slot="{ isActive, href, navigate }"
                 custom
             >
-                <span
+                <a
+                    :href="href"
                     :class="navItemClasses(isActive)"
                     :title="t('profile_menu.bookmarks')"
                     @click="navigate"
@@ -248,7 +260,7 @@ const handleLogin = () => {
                         v-if="!collapsed"
                         :class="navLabelClass"
                     >{{ t("profile_menu.bookmarks") }}</span>
-                </span>
+                </a>
             </RouterLink>
 
             <div
@@ -293,10 +305,11 @@ const handleLogin = () => {
 
                 <RouterLink
                     :to="{ name: 'settings' }"
-                    v-slot="{ isActive, navigate }"
+                    v-slot="{ isActive, href, navigate }"
                     custom
                 >
-                    <span
+                    <a
+                        :href="href"
                         :class="navItemClasses(isActive)"
                         :title="t('profile_menu.settings')"
                         @click="navigate"
@@ -310,7 +323,7 @@ const handleLogin = () => {
                             v-if="!collapsed"
                             :class="navLabelClass"
                         >{{ t("profile_menu.settings") }}</span>
-                    </span>
+                    </a>
                 </RouterLink>
             </div>
         </div>
@@ -385,21 +398,25 @@ const handleLogin = () => {
         </div>
     </nav>
 
-    <ThemeSelectorModal
-        :isVisible="showThemeSelector"
-        @close="showThemeSelector = false"
-    />
-    <LanguageModal
-        :isVisible="showLanguageModal"
-        @close="showLanguageModal = false"
-    />
-    <LDialog
-        v-model:open="showLogoutDialog"
-        :title="t('logout.modal.title')"
-        :description="t('logout.modal.description')"
-        :primaryAction="confirmLogout"
-        :primaryButtonText="t('logout.modal.button_logout')"
-        :secondaryAction="() => (showLogoutDialog = false)"
-        :secondaryButtonText="t('logout.modal.button_cancel')"
-    />
+    <!-- Client-only: these overlays are interactive (and LanguageModal is
+         Dexie-backed), so they must not render during the Node prerender. -->
+    <template v-if="isMounted">
+        <ThemeSelectorModal
+            :isVisible="showThemeSelector"
+            @close="showThemeSelector = false"
+        />
+        <LanguageModal
+            :isVisible="showLanguageModal"
+            @close="showLanguageModal = false"
+        />
+        <LDialog
+            v-model:open="showLogoutDialog"
+            :title="t('logout.modal.title')"
+            :description="t('logout.modal.description')"
+            :primaryAction="confirmLogout"
+            :primaryButtonText="t('logout.modal.button_logout')"
+            :secondaryAction="() => (showLogoutDialog = false)"
+            :secondaryButtonText="t('logout.modal.button_cancel')"
+        />
+    </template>
 </template>

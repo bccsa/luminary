@@ -28,6 +28,7 @@ import {
     ACTIVE_PROVIDER_KEY,
     activeProviderId,
     clearAuth0Cache,
+    hasPersistedSession,
     openProviderModal,
     persistActiveProvider,
     readPersistedProvider,
@@ -354,6 +355,38 @@ describe("auth", () => {
                 JSON.stringify({ _id: "x", clientId: "c", audience: "a" }),
             );
             expect(readPersistedProvider()).toBeNull();
+        });
+    });
+
+    // hasPersistedSession backs useContentQuery's response-cache auth scoping
+    // (fix for "flash of public content" on reload while logged in) — it must
+    // stay a pure, synchronous localStorage peek, no Dexie/async work.
+    describe("hasPersistedSession", () => {
+        it("returns false on empty storage", () => {
+            expect(hasPersistedSession()).toBe(false);
+        });
+
+        it("returns true from the Auth0 session cache key alone", () => {
+            localStorage.setItem(
+                `@@auth0spajs@@::${providerA.clientId}::${providerA.audience}::openid profile email offline_access`,
+                JSON.stringify({ body: {} }),
+            );
+            expect(hasPersistedSession()).toBe(true);
+        });
+
+        it("returns true from the persisted-provider fallback alone (issue #1671 eviction case)", () => {
+            persistActiveProvider(providerA);
+            expect(hasPersistedSession()).toBe(true);
+        });
+
+        it("returns false after clearAuth0Cache wipes both signals", () => {
+            localStorage.setItem(
+                `@@auth0spajs@@::${providerA.clientId}::${providerA.audience}::openid profile email offline_access`,
+                JSON.stringify({ body: {} }),
+            );
+            persistActiveProvider(providerA);
+            clearAuth0Cache();
+            expect(hasPersistedSession()).toBe(false);
         });
     });
 

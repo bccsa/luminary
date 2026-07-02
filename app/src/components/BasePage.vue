@@ -13,6 +13,25 @@ import { getRouteHistory } from "@/router";
 
 const showNotifications = !queryParams.has("supress-notifications");
 
+// On the web/SSG build the desktop sidebar IS prerendered — its nav / logo /
+// theme+language controls are public, the profile block self-gates on auth (false
+// during the prerender, so it matches the first client render), and its
+// interactive/Dexie-backed overlays mount client-side (see DesktopSidebar). What
+// still cannot exist during the Node prerender is the per-user notification chrome
+// (synced Dexie data) + the toast Teleport — those stay gated to AFTER mount so
+// the prerendered HTML and the first client render match (clean hydration). On
+// native showChrome is always true → behaviour unchanged.
+const isWeb = import.meta.env.VITE_BUILD_TARGET === "web";
+const isMounted = ref(false);
+const showChrome = computed(() => !isWeb || isMounted.value);
+
+// On the web/SSG tier, hold the notifications back a few seconds after hydration
+// so the first paint stays still (the account/offline banners render in main flow
+// and would otherwise shove content down right as the page settles — a layout
+// shift that hurts CLS/SEO). Native renders them immediately (behaviour unchanged).
+const WEB_NOTIFICATION_DELAY_MS = 3000; // ponytail: tune if CLS budget changes
+const notificationsReady = ref(!isWeb);
+
 defineProps<{
     content?: ContentDto;
     showBackButton?: boolean;
@@ -34,6 +53,8 @@ const handleArrowKeyFocus = (e: KeyboardEvent) => {
 };
 
 onMounted(() => {
+    isMounted.value = true;
+    if (isWeb) setTimeout(() => (notificationsReady.value = true), WEB_NOTIFICATION_DELAY_MS);
     document.addEventListener("keydown", handleArrowKeyFocus);
 });
 
@@ -44,7 +65,8 @@ onUnmounted(() => {
 
 <template>
     <div class="flex h-full w-full scrollbar-hide">
-        <!-- Desktop left sidebar -->
+        <!-- Desktop left sidebar — prerendered on the web build too (public nav /
+             logo; the auth/Dexie bits self-defer inside the component). -->
         <DesktopSidebar />
 
         <!-- Content column -->
@@ -57,7 +79,10 @@ onUnmounted(() => {
                 <template #quickControls><slot name="quickControls" /></template>
             </TopBar>
 
-            <Teleport to="body">
+            <Teleport
+                v-if="notificationsReady"
+                to="body"
+            >
                 <NotificationToastManager v-if="showNotifications" />
             </Teleport>
 
@@ -94,7 +119,7 @@ onUnmounted(() => {
                 >
                     <div class="w-full lg:w-3/4 lg:max-w-3xl">
                         <NotificationBannerManager
-                            v-if="showNotifications"
+                            v-if="showNotifications && notificationsReady"
                             class="[&>div]:mb-2"
                         />
                     </div>
@@ -102,7 +127,7 @@ onUnmounted(() => {
 
                 <!-- Notification for mobile (desktopTopBar pages) and all non-desktopTopBar pages. -->
                 <NotificationBannerManager
-                    v-if="showNotifications"
+                    v-if="showNotifications && notificationsReady"
                     :class="desktopTopBar ? 'lg:hidden' : 'px-2'"
                 />
 
@@ -110,7 +135,7 @@ onUnmounted(() => {
             </main>
 
             <div class="sticky bottom-0">
-                <NotificationBottomManager v-if="showNotifications" />
+                <NotificationBottomManager v-if="showNotifications && notificationsReady" />
                 <slot name="footer" />
             </div>
         </div>

@@ -16,10 +16,18 @@ vi.mock("luminary-shared", async (importOriginal) => {
     });
 });
 
+const hasPersistedSessionMock = vi.fn(() => false);
+vi.mock("@/auth", () => ({
+    hasPersistedSession: () => hasPersistedSessionMock(),
+}));
+
 import { useContentQuery } from "./useContentQuery";
 
 describe("useContentQuery", () => {
-    beforeEach(() => useHybridQueryMock.mockClear());
+    beforeEach(() => {
+        useHybridQueryMock.mockClear();
+        hasPersistedSessionMock.mockReset().mockReturnValue(false);
+    });
 
     const lastOptions = () =>
         (useHybridQueryMock.mock.calls.at(-1)![1] ?? {}) as Record<string, unknown>;
@@ -46,5 +54,28 @@ describe("useContentQuery", () => {
         expect(o.live).toBe(true);
         expect(o.cache).toBe(false);
         expect(o.persistOffline).toBe(true);
+    });
+
+    // Response-cache auth scoping — fix for "flash of public content" on reload
+    // while logged in (the SSG build always seeds the `:anon` entry; a returning
+    // authenticated client must read/write a distinct `:auth` entry instead).
+    describe("cacheId auth scoping", () => {
+        it("suffixes an anonymous client's cacheId with :anon", () => {
+            hasPersistedSessionMock.mockReturnValue(false);
+            useContentQuery(() => [], { cache: true, cacheId: "home-pinned" });
+            expect(lastOptions().cacheId).toBe("home-pinned:anon");
+        });
+
+        it("suffixes a logged-in client's cacheId with :auth", () => {
+            hasPersistedSessionMock.mockReturnValue(true);
+            useContentQuery(() => [], { cache: true, cacheId: "home-pinned" });
+            expect(lastOptions().cacheId).toBe("home-pinned:auth");
+        });
+
+        it("does not leak the literal string 'undefined' when no cacheId is passed", () => {
+            hasPersistedSessionMock.mockReturnValue(false);
+            useContentQuery(() => [], { cache: true });
+            expect(lastOptions().cacheId).toBe(":anon");
+        });
     });
 });

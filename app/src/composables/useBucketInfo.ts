@@ -1,39 +1,57 @@
-import { computed, type Ref } from "vue";
-import { type StorageDto, useHybridQuery, type Uuid } from "luminary-shared";
+import { computed, onServerPrefetch, shallowRef, type Ref } from "vue";
+import {
+    type StorageDto,
+    useHybridQuery,
+    type Uuid,
+    queryRemote,
+    structuralCacheKey,
+    writeResponseCache,
+} from "luminary-shared";
+
+// Storage is fully-synced public reference data. The query shape is constant, so a
+// fixed `cacheId` keeps its response-cache entry distinct from any same-shaped query.
+// ponytail: unlike useContentQuery's cacheId, this is NOT auth-scoped — bucket/CDN
+// metadata has no per-user variation, so one shared cache entry is correct as-is.
+const STORAGE_QUERY = { selector: { type: "storage" } };
+const STORAGE_CACHE_ID = "storage-buckets";
 
 /**
- * Get bucket information for constructing image URLs
+ * Resolve a storage bucket (for building image URLs) from the fully-synced `storage`
+ * reference docs.
+ *
+ * On the browser — web AND native — this is the normal local-first hybrid query; its
+ * `cache: true` seed makes the bucket available on the first render. On the web/SSG
+ * build the prerender (Node, no Dexie) fetches the buckets once via the shared
+ * `queryRemote` and primes the SAME response cache, so the hydrating client builds
+ * real CDN image URLs on first paint with no flash.
  */
 export function useBucketInfo(bucketId: Ref<Uuid | undefined>) {
-    // Get all storage buckets from the database. Storage is a fully-synced type,
-    // so HybridQuery reads from IndexedDB only.
-    //
-    // `cache: true` seeds the bucket list from localStorage on the synchronous
-    // first frame. Without it, `bucketBaseUrl` is undefined for the first tick(s)
-    // (until the async Dexie read lands), so every <LImage> builds an empty srcset
-    // and paints its fallback, then swaps to the real image once the URL resolves —
-    // a visible image flash on reload. Seeding the buckets removes that swap.
-    const allBuckets = useHybridQuery<StorageDto>(() => ({ selector: { type: "storage" } }), {
-        live: true,
-        cache: true,
-    });
+    let allBuckets: Ref<StorageDto[]>;
 
-    // Get the specific bucket by ID
-    const bucket = computed(() => {
-        if (!bucketId.value) return null;
-        return allBuckets.value.find((b) => b._id === bucketId.value) || null;
-    });
+    if (import.meta.env.SSR) {
+        const out = shallowRef<StorageDto[]>([]);
+        onServerPrefetch(async () => {
+            const docs = await queryRemote<StorageDto>(STORAGE_QUERY);
+            out.value = docs;
+            writeResponseCache(structuralCacheKey(STORAGE_QUERY, STORAGE_CACHE_ID), {
+                local: docs,
+                remote: [],
+            });
+        });
+        allBuckets = out;
+    } else {
+        allBuckets = useHybridQuery<StorageDto>(() => STORAGE_QUERY, {
+            live: true,
+            cache: true,
+            cacheId: STORAGE_CACHE_ID,
+        });
+    }
 
-    // Construct the base URL for images from this bucket
-    const bucketBaseUrl = computed(() => {
-        if (!bucket.value) return;
+    const bucket = computed(() =>
+        bucketId.value ? allBuckets.value.find((b) => b._id === bucketId.value) || null : null,
+    );
 
-        // Use the publicUrl from the bucket
-        return bucket.value.publicUrl;
-    });
+    const bucketBaseUrl = computed(() => bucket.value?.publicUrl);
 
-    return {
-        bucket,
-        bucketBaseUrl,
-    };
+    return { bucket, bucketBaseUrl };
 }
