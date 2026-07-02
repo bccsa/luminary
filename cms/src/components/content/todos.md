@@ -16,8 +16,11 @@ handle is in scope:
 - ~~Content (`EditContent.vue` / `useEditContentSource.ts`) — parent `deleteParent` → `remove`;~~
   ~~translation delete-on-save → `remove` in `save()`. Multi-doc duplicate stays out of scope.~~ (implemented)
 
-Already migrated: `useAuthProviders.ts` (`duplicateProvider`, `confirmDelete`) and `EditGroup.vue`
-(`duplicateGroup`, `deleteGroup`).
+Already migrated: `useAuthProviders.ts` (`duplicateProvider`, `confirmDelete`), `EditGroup.vue`
+(`duplicateGroup`, `deleteGroup`), `useAutoGroupMappings.ts` (`deleteMapping`),
+`CreateOrEditRedirectModal.vue` (`deleteRedirect`), and `EditContent.vue` /
+`useEditContentSource.ts` (`deleteParent`, translation delete-on-save via `remove` in `save()`).
+Multi-doc content duplicate (`buildContentDuplicate` / `installClones`) remains hand-rolled.
 
 Note: in `CreateOrEditRedirectModal.vue` and `CreateOrEditUser.vue` the delete path sets
 `deleteReq = 1` then falls through the shared `save()` (which itself branches on `deleteReq` for
