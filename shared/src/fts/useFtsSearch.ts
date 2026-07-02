@@ -25,6 +25,8 @@ export type UseFtsSearchReturn = {
     runSearch: () => void;
     /** Invalidate any in-flight search and cancel a pending debounced run. Does not clear results. */
     cancel: () => void;
+    /** Cancel in-flight work and clear all search state (results, pagination, last query). */
+    reset: () => void;
     /** Where the current results came from: "local" (offline index) or "api" (server-side /fts). */
     source: Ref<"local" | "api">;
     /**
@@ -104,7 +106,9 @@ export function useFtsSearch(
 
     async function doSearch(query: string, offset: number, append: boolean) {
         if (!query || query.length < 3) {
-            if (!append) {
+            // Always clear on an empty/short query — even when paginating, so loadMore cannot
+            // resurrect stale results after the user clears the search box.
+            if (!append || !query) {
                 results.value = [];
                 totalLoaded.value = 0;
                 hasMore.value = false;
@@ -177,6 +181,17 @@ export function useFtsSearch(
         isSearching.value = false;
     }
 
+    function reset() {
+        cancel();
+        currentQuery = "";
+        results.value = [];
+        totalLoaded.value = 0;
+        hasMore.value = false;
+        lastSearchedQuery.value = "";
+        isPartial.value = false;
+        source.value = "local";
+    }
+
     let stopQueryWatch: WatchStopHandle | null = null;
 
     function startQueryWatch() {
@@ -242,6 +257,7 @@ export function useFtsSearch(
         lastSearchedQuery,
         runSearch,
         cancel,
+        reset,
         source,
         isPartial,
     };
