@@ -1,0 +1,28 @@
+{
+    "_id": "_design/sync-content-alwaysOffline-index",
+    "language": "query",
+    "views": {
+        "sync-content-alwaysOffline-index": {
+            "map": {
+                "fields": {
+                    "updatedTimeUtc": "desc",
+                    "parentType": "asc"
+                },
+                "partial_filter_selector": {
+                    "type": {
+                        "$eq": "content"
+                    },
+                    "parentAlwaysOffline": {
+                        "$eq": true
+                    }
+                }
+            },
+            "reduce": "_count",
+            "options": {
+                "def": {
+                    "fields": ["updatedTimeUtc", "parentType"]
+                }
+            }
+        }
+    }
+}
