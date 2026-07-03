@@ -4,14 +4,37 @@ import { ftsSearchApi, shouldUseApiFts } from "./ftsSearchApi";
 import { getContentPublishDateCutoff } from "../config";
 import { isConnected } from "../socket/socketio";
 import { OPEN_MIN } from "../api/sync/utils";
-import type { FtsSearchOptions, FtsSearchResult } from "./types";
+import type { FtsSearchOptions, FtsSearchResult, FtsSort } from "./types";
+import { DocType, type ContentDto, type PublishStatus } from "../types";
+import { attachFtsLiveSync, markFtsStale } from "./ftsLiveSync";
+
+/**
+ * Reactive non-language filters forwarded to each search. Changing the ref triggers a
+ * fresh search (same as changing `languageId`). All fields are optional and only narrow
+ * when present. See {@link FtsSearchOptions}.
+ */
+export type FtsFilterOptions = {
+    types?: DocType[];
+    tags?: string[];
+    status?: PublishStatus;
+    publishedAfter?: number;
+    publishedBefore?: number;
+    /** Strict mode: require every query word (≥3 chars) as a substring of title/author. */
+    matchAllWords?: boolean;
+    /** Strict mode: order by this field/direction instead of relevance. */
+    sort?: FtsSort;
+};
 
 export type UseFtsSearchOptions = {
     languageId?: Ref<string | undefined>;
+    /** Reactive extra filters (type/tag/status/publishDate). A change re-runs the search. */
+    filters?: Ref<FtsFilterOptions | undefined>;
     /** Debounce delay in ms before running search. Use 0 or 'manual' to only search when runSearch() is called. */
     debounceMs?: number | "manual" | Ref<number | "manual">;
     pageSize?: number;
     maxTrigramDocPercent?: number;
+    /** Strict substring heuristic for stale detection; false = fuzzy/related content mode. */
+    strictMatch?: Ref<boolean> | (() => boolean);
 };
 
 export type UseFtsSearchReturn = {
@@ -34,6 +57,9 @@ export type UseFtsSearchReturn = {
      * (e.g. "showing offline results — connect for full search").
      */
     isPartial: Ref<boolean>;
+    isStale: Ref<boolean>;
+    refresh: () => Promise<void>;
+    markStale: () => void;
 };
 
 /**
@@ -57,6 +83,7 @@ export function useFtsSearch(
     const hasMore = ref(false);
     const source = ref<"local" | "api">("local");
     const isPartial = ref(false);
+    const isStale = ref(false);
     /** When using triggerOnly, this is the query last passed to doSearch (so UI can show "no results" vs "press Go"). */
     const lastSearchedQuery = ref("");
 
@@ -82,6 +109,7 @@ export function useFtsSearch(
         const opts: FtsSearchOptions = {
             query,
             languageId: options.languageId?.value,
+            ...(options.filters?.value ?? {}),
             limit: pageSize,
             offset,
             maxTrigramDocPercent,
@@ -110,6 +138,7 @@ export function useFtsSearch(
                 hasMore.value = false;
                 isPartial.value = false;
                 lastSearchedQuery.value = "";
+                isStale.value = false;
             }
             isSearching.value = false;
             return;
@@ -146,6 +175,7 @@ export function useFtsSearch(
             source.value = usedLocal ? "local" : "api";
             // Local results are an incomplete view only when a sync cutoff is in effect.
             isPartial.value = usedLocal && cutoffSet();
+            if (!append) isStale.value = false;
         } catch (e) {
             console.error("FTS search error:", e);
         } finally {
@@ -159,6 +189,11 @@ export function useFtsSearch(
     async function loadMore() {
         if (isSearching.value || !hasMore.value) return;
         await doSearch(currentQuery, totalLoaded.value, true);
+    }
+
+    async function refresh() {
+        isStale.value = false;
+        await doSearch(currentQuery, 0, false);
     }
 
     function runSearch() {
@@ -187,6 +222,7 @@ export function useFtsSearch(
         stopQueryWatch = watch(
             queryRef,
             (newQuery) => {
+                isStale.value = false;
                 if (debounceTimer) clearTimeout(debounceTimer);
                 // Invalidate any in-flight search before the debounce, so a slow previous
                 // doSearch can't publish stale results after the query has changed.
@@ -217,6 +253,21 @@ export function useFtsSearch(
         });
     }
 
+    // Watch filter changes — re-search immediately with current query (deep: the ref
+    // holds a plain object the caller may mutate field-by-field).
+    if (options.filters) {
+        watch(
+            options.filters,
+            () => {
+                isStale.value = false;
+                if (currentQuery) {
+                    doSearch(currentQuery, 0, false);
+                }
+            },
+            { deep: true },
+        );
+    }
+
     // Upgrade partial (offline/fallback) results when connectivity returns: re-run the
     // current search so it routes to the API and replaces the incomplete local view.
     watch(isConnected, (online) => {
@@ -225,8 +276,23 @@ export function useFtsSearch(
         }
     });
 
-    // Cleanup timer on scope dispose
     if (getCurrentScope()) {
+        attachFtsLiveSync(
+            results,
+            {
+                getId: (r) => r.docId,
+                patch: (r, live) => ({ ...r, doc: live as ContentDto }),
+            },
+            {
+                docType: DocType.Content,
+                watchDexie: true,
+                dexiePrune: () => source.value === "local",
+                stale: isStale,
+                query: queryRef,
+                strictMatch: options.strictMatch,
+            },
+        );
+
         onScopeDispose(() => {
             if (debounceTimer) clearTimeout(debounceTimer);
             if (stopQueryWatch) stopQueryWatch();
@@ -244,5 +310,8 @@ export function useFtsSearch(
         cancel,
         source,
         isPartial,
+        isStale,
+        refresh,
+        markStale: () => markFtsStale(isStale),
     };
 }

@@ -35,12 +35,12 @@ function normalizeDomainString(value: string | undefined): string {
 <template>
     <div class="rounded-md border border-b border-zinc-200 bg-white p-2 pb-2">
         <div class="mb-2 flex items-center justify-between">
-            <h3 class="text-sm font-medium text-gray-900">Auth Configuration</h3>
+            <h3 class="text-sm font-medium text-zinc-900">Auth Configuration</h3>
         </div>
 
         <div class="space-y-2">
             <div>
-                <label for="domain" class="mb-1 block text-xs font-medium text-gray-700">
+                <label for="domain" class="mb-1 block text-xs font-medium text-zinc-700">
                     Domain
                     <span v-if="!isEditing" class="text-red-500">*</span>
                 </label>
@@ -58,7 +58,7 @@ function normalizeDomainString(value: string | undefined): string {
             </div>
 
             <div>
-                <label for="clientId" class="mb-1 block text-xs font-medium text-gray-700">
+                <label for="clientId" class="mb-1 block text-xs font-medium text-zinc-700">
                     Client ID
                     <span v-if="!isEditing" class="text-red-500">*</span>
                 </label>
@@ -75,7 +75,7 @@ function normalizeDomainString(value: string | undefined): string {
             </div>
 
             <div>
-                <label for="audience" class="mb-1 block text-xs font-medium text-gray-700">
+                <label for="audience" class="mb-1 block text-xs font-medium text-zinc-700">
                     Audience
                     <span v-if="!isEditing" class="text-red-500">*</span>
                 </label>
@@ -89,7 +89,7 @@ function normalizeDomainString(value: string | undefined): string {
                     :required="!isEditing"
                     @update:model-value="provider.audience = $event"
                 />
-                <p class="mt-0.5 text-[11px] text-gray-500">
+                <p class="mt-0.5 text-[11px] text-zinc-500">
                     The API identifier/audience configured in your auth provider
                 </p>
             </div>

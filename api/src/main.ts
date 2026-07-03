@@ -48,6 +48,12 @@ export async function bootstrap() {
     // Seed database with default data if requested
     if (process.argv.length >= 3 && process.argv[2] === "seed") {
         await upsertSeedingDocs(dbService);
+        // Run the schema upgrade chain over the just-seeded data before exiting. Seeding writes
+        // raw JSON (it bypasses process*Dto), so without this a freshly-seeded DB has no `dbSchema`
+        // doc and no server-side `fts` on its User/Redirect docs — initSchemaVersion stamps the
+        // fresh-DB baseline and v18 backfills that index. Safe in seed mode: on a fresh DB only
+        // v18 runs, which is DB-only (no S3, no PermissionSystem needed).
+        await upgradeDbSchema(dbService);
         console.log("Database seeded with default data.");
         process.exit(0);
     }
@@ -64,7 +70,7 @@ export async function bootstrap() {
     app.enableCors({
         origin: JSON.parse(process.env.CORS_ORIGIN),
         //allowedHeaders might have to be made configurable. The shared client library supports injection of custom headers (use for x-auth-provider-id and the Authorization header), and could potentially be used for other custom headers as well.
-        allowedHeaders: ["X-Query", "Authorization", "Content-Type", "x-auth-provider-id"],
+        allowedHeaders: ["Authorization", "Content-Type", "x-auth-provider-id"],
     });
 
     app.useGlobalPipes(new ValidationPipe());

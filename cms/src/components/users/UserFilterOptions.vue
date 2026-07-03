@@ -8,8 +8,6 @@ import UserFilterOptionsDesktop from "./UserFilterOptionsDesktop.vue";
 export type UserOverviewQueryOptions = {
     groups?: string[];
     search?: string;
-    pageSize?: number;
-    pageIndex?: number;
 };
 
 type FilterOptionsProps = {
@@ -36,8 +34,6 @@ const resetQueryOptions = () => {
     queryOptions.value = {
         groups: [],
         search: "",
-        pageSize: 20,
-        pageIndex: 0,
     };
     debouncedSearchTerm.value = "";
 };

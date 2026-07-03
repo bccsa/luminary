@@ -10,9 +10,9 @@ import {
     LanguageIcon,
     CloudArrowUpIcon,
 } from "@heroicons/vue/24/outline";
-import { type ContentOverviewQueryOptions } from "../query";
+import { type ContentOverviewQueryOptions } from "./types";
 import { type ContentDto, type GroupDto } from "luminary-shared";
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import LRadio from "@/components/forms/LRadio.vue";
 import LCombobox from "@/components/forms/LCombobox.vue";
 import LSelect from "@/components/forms/LSelect.vue";
@@ -20,6 +20,7 @@ import LButton from "@/components/button/LButton.vue";
 import LInput from "@/components/forms/LInput.vue";
 import LTag from "../LTag.vue";
 import LDropdown from "@/components/common/LDropdown.vue";
+import { groupLabel } from "@/util/groups";
 
 type Props = {
     translationOptions: any[];
@@ -27,6 +28,8 @@ type Props = {
     tagContentDocs: ContentDto[];
     groups: GroupDto[];
     reset: Function;
+    search: () => void;
+    trailingPaddingClass?: string;
 };
 
 defineProps<Props>();
@@ -35,24 +38,31 @@ const queryOptions = defineModel<ContentOverviewQueryOptions>("queryOptions", { 
 // Debouncing the search term so it is the only unique query option that needs a seperate defineModel
 const query = defineModel("query", { required: true });
 
+const showSearchIcon = computed(() => !String(query.value ?? "").length);
+
 const showSortOptions = ref(false);
 </script>
 
 <template>
-    <div
-        class="flex flex-col gap-1 overflow-visible border-b border-t border-zinc-300 border-t-zinc-100 bg-white pb-1 pt-2 shadow"
-    >
-        <div class="flex h-10 w-full items-center gap-1 px-8">
+    <div class="relative z-20 flex flex-col gap-1 overflow-visible">
+        <div class="flex h-10 w-full items-center gap-1">
             <LInput
                 type="text"
-                :icon="MagnifyingGlassIcon"
-                class="h-full flex-grow"
+                :icon="showSearchIcon ? MagnifyingGlassIcon : undefined"
+                class="h-full min-w-0 flex-grow"
                 name="search"
                 placeholder="Search..."
                 data-test="search-input"
                 v-model="query as string"
+                :autocomplete="'off'"
                 :full-height="true"
-            />
+                :trailing-padding-class="trailingPaddingClass"
+                @keydown.enter="search"
+            >
+                <template #searchButton>
+                    <slot name="searchButton"></slot>
+                </template>
+            </LInput>
 
             <div class="relative flex h-full items-center gap-1">
                 <LSelect
@@ -104,15 +114,18 @@ const showSortOptions = ref(false);
                     class="h-full"
                 >
                     <template #trigger>
-                        <LButton
-                            class="h-full"
-                            data-test="sort-toggle-btn"
-                        >
+                        <LButton class="h-full" data-test="sort-toggle-btn">
                             <ArrowsUpDownIcon class="h-full w-4" />
                         </LButton>
                     </template>
 
                     <div class="flex flex-col">
+                        <LRadio
+                            label="Relevance"
+                            value="relevance"
+                            v-model="queryOptions.orderBy"
+                            data-test="sort-option-relevance"
+                        />
                         <LRadio
                             label="Title"
                             value="title"
@@ -138,34 +151,37 @@ const showSortOptions = ref(false);
                             data-test="sort-option-last-updated"
                         />
                     </div>
-                    <hr class="my-2" />
-                    <div class="flex flex-col gap-1">
-                        <LButton
-                            class="flex justify-stretch"
-                            data-test="ascending-sort-toggle"
-                            :class="
-                                queryOptions.orderDirection == 'asc'
-                                    ? 'bg-zinc-100'
-                                    : 'bg-white'
-                            "
-                            :icon="ArrowUpIcon"
-                            @click="queryOptions.orderDirection = 'asc'"
-                            >Ascending</LButton
-                        >
-                        <LButton
-                            class="flex justify-stretch"
-                            data-test="descending-sort-toggle"
-                            :class="
-                                queryOptions.orderDirection == 'desc'
-                                    ? 'bg-zinc-100'
-                                    : 'bg-white'
-                            "
-                            variant="secondary"
-                            :icon="ArrowDownIcon"
-                            @click="queryOptions.orderDirection = 'desc'"
-                            >Descending</LButton
-                        >
-                    </div>
+                    <!-- Direction is meaningless for relevance (always best-match first). -->
+                    <template v-if="queryOptions.orderBy !== 'relevance'">
+                        <hr class="my-2" />
+                        <div class="flex flex-col gap-1">
+                            <LButton
+                                class="flex justify-stretch"
+                                data-test="ascending-sort-toggle"
+                                :class="
+                                    queryOptions.orderDirection == 'asc'
+                                        ? 'bg-zinc-100'
+                                        : 'bg-white'
+                                "
+                                :icon="ArrowUpIcon"
+                                @click="queryOptions.orderDirection = 'asc'"
+                                >Ascending</LButton
+                            >
+                            <LButton
+                                class="flex justify-stretch"
+                                data-test="descending-sort-toggle"
+                                :class="
+                                    queryOptions.orderDirection == 'desc'
+                                        ? 'bg-zinc-100'
+                                        : 'bg-white'
+                                "
+                                variant="secondary"
+                                :icon="ArrowDownIcon"
+                                @click="queryOptions.orderDirection = 'desc'"
+                                >Descending</LButton
+                            >
+                        </div>
+                    </template>
                 </LDropdown>
                 <LButton @click="reset()" class="h-full w-10">
                     <ArrowUturnLeftIcon class="h-4 w-4" />
@@ -174,7 +190,13 @@ const showSortOptions = ref(false);
         </div>
 
         <!-- Selected Tags and Groups -->
-        <div class="ml-8 flex w-full flex-col gap-1">
+        <div
+            v-if="
+                (queryOptions.tags && queryOptions.tags.length > 0) ||
+                (queryOptions.groups && queryOptions.groups.length > 0)
+            "
+            class="flex w-full flex-col gap-1"
+        >
             <div v-if="queryOptions.tags && queryOptions.tags?.length > 0" class="w-full">
                 <ul class="flex w-full flex-wrap gap-2">
                     <LTag
@@ -206,7 +228,7 @@ const showSortOptions = ref(false);
                             }
                         "
                     >
-                        {{ groups.find((g) => g._id == group)?.name }}
+                        {{ groupLabel(group, groups) }}
                     </LTag>
                 </ul>
             </div>

@@ -412,6 +412,167 @@ describe("FTS Indexer and Search", () => {
         });
     });
 
+    describe("ftsSearch local filters", () => {
+        // All docs share the word "garden" so the trigram search matches them all;
+        // the filters then narrow the result set.
+        async function ingestGarden(overrides: Partial<ContentDto> & { _id: string }) {
+            const g = generateSimpleFtsEntries("garden", 3.0);
+            await ingestDocWithFts(makeContentDoc({ title: "garden", ...overrides }), g.entries, g.tokenCount);
+        }
+
+        beforeEach(async () => {
+            await db.docs.clear();
+            await ingestGarden({
+                _id: "post-pub",
+                parentType: DocType.Post,
+                parentTags: ["tag-a"],
+                status: PublishStatus.Published,
+                publishDate: 1000,
+            });
+            await ingestGarden({
+                _id: "tag-draft",
+                parentType: DocType.Tag,
+                parentTags: ["tag-b"],
+                status: PublishStatus.Draft,
+                publishDate: 5000,
+            });
+            await ingestGarden({
+                _id: "post-draft",
+                parentType: DocType.Post,
+                parentTags: ["tag-a", "tag-b"],
+                status: PublishStatus.Draft,
+                publishDate: 3000,
+            });
+            await recomputeCorpusStats();
+        });
+
+        it("filters by parent type", async () => {
+            const ids = (await ftsSearch({ query: "garden", types: [DocType.Tag], maxTrigramDocPercent: 100 })).map(
+                (r) => r.docId,
+            );
+            expect(ids).toEqual(["tag-draft"]);
+        });
+
+        it("filters by tag intersection", async () => {
+            const ids = (await ftsSearch({ query: "garden", tags: ["tag-b"], maxTrigramDocPercent: 100 })).map((r) => r.docId);
+            expect(ids.sort()).toEqual(["post-draft", "tag-draft"]);
+        });
+
+        it("filters by status", async () => {
+            const ids = (await ftsSearch({ query: "garden", status: PublishStatus.Draft, maxTrigramDocPercent: 100 })).map(
+                (r) => r.docId,
+            );
+            expect(ids.sort()).toEqual(["post-draft", "tag-draft"]);
+        });
+
+        it("filters by publishDate bounds", async () => {
+            const ids = (
+                await ftsSearch({
+                    query: "garden",
+                    publishedAfter: 2000,
+                    publishedBefore: 4000,
+                    maxTrigramDocPercent: 100,
+                })
+            ).map((r) => r.docId);
+            expect(ids).toEqual(["post-draft"]);
+        });
+
+        it("combines filters (parity with the API path)", async () => {
+            const ids = (
+                await ftsSearch({
+                    query: "garden",
+                    types: [DocType.Post],
+                    status: PublishStatus.Draft,
+                    maxTrigramDocPercent: 100,
+                })
+            ).map((r) => r.docId);
+            expect(ids).toEqual(["post-draft"]);
+        });
+    });
+
+    describe("ftsSearch strict mode (matchAllWords + sort)", () => {
+        // Each doc carries "garden" trigrams (so it's a trigram candidate); the strict
+        // substring filter then narrows by the actual title/author text.
+        async function ingestStrict(
+            id: string,
+            overrides: Partial<ContentDto> & { _id?: string },
+        ) {
+            const g = generateSimpleFtsEntries("garden", 3.0);
+            await ingestDocWithFts(makeContentDoc({ _id: id, ...overrides }), g.entries, g.tokenCount);
+        }
+
+        beforeEach(async () => {
+            await db.docs.clear();
+            await ingestStrict("party", { title: "Garden party", updatedTimeUtc: 100 });
+            await ingestStrict("guide", { title: "Gardening guide", updatedTimeUtc: 300 });
+            // Trigram candidate, but the title does NOT contain "garden" → excluded by strict.
+            await ingestStrict("other", { title: "Unrelated thing", updatedTimeUtc: 200 });
+            await recomputeCorpusStats();
+        });
+
+        it("keeps only title substring matches, ordered by the sort field", async () => {
+            const ids = (
+                await ftsSearch({
+                    query: "garden",
+                    matchAllWords: true,
+                    sort: { field: "updatedTimeUtc", direction: "desc" },
+                    maxTrigramDocPercent: 100,
+                })
+            ).map((r) => r.docId);
+            expect(ids).toEqual(["guide", "party"]); // "other" excluded; sorted by updatedTimeUtc desc
+        });
+
+        it("supports partial (substring) matching", async () => {
+            const ids = (
+                await ftsSearch({ query: "gard", matchAllWords: true, maxTrigramDocPercent: 100 })
+            )
+                .map((r) => r.docId)
+                .sort();
+            expect(ids).toEqual(["guide", "party"]);
+        });
+
+        it("matches against author too", async () => {
+            await ingestStrict("byauthor", {
+                title: "Unrelated",
+                author: "Garden Smith",
+                updatedTimeUtc: 50,
+            });
+            await recomputeCorpusStats();
+            const ids = (
+                await ftsSearch({ query: "garden", matchAllWords: true, maxTrigramDocPercent: 100 })
+            ).map((r) => r.docId);
+            expect(ids).toContain("byauthor");
+        });
+
+        it("ANDs across query words", async () => {
+            await db.docs.clear();
+            await ingestStrict("both", { title: "Garden meeting notes" });
+            await ingestStrict("oneonly", { title: "Garden party" });
+            await recomputeCorpusStats();
+            const ids = (
+                await ftsSearch({
+                    query: "garden meeting",
+                    matchAllWords: true,
+                    maxTrigramDocPercent: 100,
+                })
+            ).map((r) => r.docId);
+            expect(ids).toEqual(["both"]);
+        });
+
+        it("sorts by title ascending (case-insensitive)", async () => {
+            const ids = (
+                await ftsSearch({
+                    query: "garden",
+                    matchAllWords: true,
+                    sort: { field: "title", direction: "asc" },
+                    maxTrigramDocPercent: 100,
+                })
+            ).map((r) => r.docId);
+            // "Garden party" < "Gardening guide" case-insensitively
+            expect(ids).toEqual(["party", "guide"]);
+        });
+    });
+
     describe("selectTrigramsWithinDfBudget", () => {
         const t = (token: string, df: number) => ({ token, df });
 

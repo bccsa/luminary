@@ -53,11 +53,6 @@ export const router = createRouter({
                     : { name: "dashboard" },
             children: [
                 {
-                    path: "sandbox",
-                    name: "sandbox",
-                    component: () => import("../pages/internal/ComponentSandbox.vue"),
-                },
-                {
                     path: "dashboard",
                     name: "dashboard",
                     component: Dashboard,
@@ -101,7 +96,7 @@ export const router = createRouter({
                                 title: "Groups",
                                 canAccess: {
                                     docType: DocType.Group,
-                                    permission: AclPermission.View,
+                                    permission: AclPermission.CmsView,
                                 },
                                 onlineOnly: true,
                             },
@@ -128,14 +123,12 @@ export const router = createRouter({
                     path: "auto-group-mappings",
                     name: "auto-group-mappings",
                     component: () =>
-                        import(
-                            "../components/autoGroupMappings/AutoGroupMappingOverview.vue"
-                        ),
+                        import("../components/autoGroupMappings/AutoGroupMappingOverview.vue"),
                     meta: {
                         title: "Auto Group Mappings",
                         canAccess: {
                             docType: DocType.AutoGroupMappings,
-                            permission: AclPermission.View,
+                            permission: AclPermission.CmsView,
                         },
                     },
                 },
@@ -153,7 +146,7 @@ export const router = createRouter({
                                 title: "Users",
                                 canAccess: {
                                     docType: DocType.User,
-                                    permission: AclPermission.View,
+                                    permission: AclPermission.CmsView,
                                 },
                             },
                         },
@@ -173,7 +166,7 @@ export const router = createRouter({
                         title: "Storage",
                         canAccess: {
                             docType: DocType.Storage,
-                            permission: AclPermission.View,
+                            permission: AclPermission.CmsView,
                         },
                         onlineOnly: true,
                     },
@@ -186,7 +179,7 @@ export const router = createRouter({
                         title: "Auth Providers",
                         canAccess: {
                             docType: DocType.AuthProvider,
-                            permission: AclPermission.View,
+                            permission: AclPermission.CmsView,
                         },
                     },
                 },

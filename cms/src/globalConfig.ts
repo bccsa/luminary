@@ -3,11 +3,11 @@ import {
     AclPermission,
     db,
     DocType,
-    useDexieLiveQuery,
+    useSharedHybridQuery,
     verifyAccess,
     type LanguageDto,
 } from "luminary-shared";
-import { computed, ref, toRaw, watch } from "vue";
+import { computed, effectScope, ref, toRaw, watch } from "vue";
 
 export let Sentry: typeof import("@sentry/vue") | null = null;
 
@@ -39,9 +39,11 @@ export const sidebarSectionExpanded = ref({ posts: false, tags: false, access: f
 /**
  * The preferred CMS language ID as Vue ref.
  */
-export const cmsLanguageIdAsRef = ref(localStorage.getItem("cms_selectedLanguage") || "");
+export const cmsLanguageIdAsRef = ref(
+    typeof localStorage !== "undefined" ? localStorage.getItem("cms_selectedLanguage") || "" : "",
+);
 watch(cmsLanguageIdAsRef, (newVal) => {
-    localStorage.setItem("cms_selectedLanguage", newVal);
+    if (typeof localStorage !== "undefined") localStorage.setItem("cms_selectedLanguage", newVal);
 });
 
 /**
@@ -63,6 +65,10 @@ export const cmsDefaultLanguage = ref<LanguageDto | undefined>();
  * Array of languages to which the CMS user have translate access to
  */
 export const translatableLanguagesAsRef = ref<LanguageDto[]>([]);
+
+// Owns the detached scope created below — stopped and replaced on every call so a re-init
+// (tests remounting, a future re-auth path) can't leak a duplicate live-query subscription.
+let languageScope: ReturnType<typeof effectScope> | undefined;
 
 export async function initLanguage() {
     if (cmsLanguageIdAsRef.value && cmsLanguages.value.length > 1) return;
@@ -96,27 +102,60 @@ export async function initLanguage() {
         else if (languages.length > 0) cmsLanguageIdAsRef.value = languages[0]._id;
     }
 
-    const _cmsLanguages = useDexieLiveQuery(
-        () =>
-            db.docs.where("type").equals("language").toArray() as unknown as Promise<LanguageDto[]>,
-        { initialValue: [] as LanguageDto[] },
-    );
-
-    watch(_cmsLanguages, (languages) => {
-        cmsLanguages.value.slice(0, cmsLanguages.value.length);
-        cmsLanguages.value.push(...languages);
-        cmsLanguages.value = _.uniqBy(cmsLanguages.value, "_id");
-        cmsLanguages.value.sort((a, b) => (a._id > b._id ? 1 : -1));
-
-        const defaultLang = languages.find((l) => l.default === 1);
-
-        translatableLanguagesAsRef.value = languages.filter((lang) =>
-            verifyAccess(lang.memberOf, DocType.Language, AclPermission.Translate, "any"),
+    // Language is a fully-synced type. This SHARED HybridQuery is the single language
+    // subscription for the whole CMS — every reference read of `{ type: language }`
+    // (sidebar, modals, overviews) reuses this same instance, so there is one Dexie live
+    // query and at most one cold-start `/query` rather than one per call site. On a warm
+    // load it routes Dexie-only; on a cold start (before sync has registered `language`) it
+    // routes API-only once, then re-routes to Dexie-only automatically once sync registers
+    // `language` in the syncList (the cold-start re-route in HybridQuery).
+    languageScope?.stop();
+    languageScope = effectScope(true);
+    languageScope.run(() => {
+        const sharedLanguages = useSharedHybridQuery<LanguageDto>(
+            { selector: { type: DocType.Language } },
+            { live: true },
         );
 
-        // Prevent updating the value if the language is the same
-        if (_.isEqual(toRaw(cmsDefaultLanguage.value), toRaw(defaultLang))) return;
+        watch(
+            sharedLanguages,
+            (languages) => {
+                cmsLanguages.value = _.uniqBy(languages, "_id").sort((a, b) =>
+                    a._id > b._id ? 1 : -1,
+                );
 
-        cmsDefaultLanguage.value = defaultLang;
+                const defaultLang = languages.find((l) => l.default === 1);
+
+                // If no language is selected yet (fresh session: the synchronous read above ran
+                // before languages had synced into Dexie), select now that they've arrived.
+                if (!cmsLanguageIdAsRef.value && languages.length) {
+                    cmsLanguageIdAsRef.value = (defaultLang ?? languages[0])._id;
+                }
+
+                translatableLanguagesAsRef.value = languages.filter((lang) =>
+                    verifyAccess(lang.memberOf, DocType.Language, AclPermission.Translate, "any"),
+                );
+
+                // Prevent updating the value if the language is the same
+                if (_.isEqual(toRaw(cmsDefaultLanguage.value), toRaw(defaultLang))) return;
+
+                cmsDefaultLanguage.value = defaultLang;
+            },
+            { immediate: true },
+        );
     });
 }
+
+export const isMac = computed(() => {
+    if (typeof navigator === "undefined") return false;
+    const uaDataPlatform = (navigator as any).userAgentData?.platform?.toLowerCase?.() ?? "";
+    if (uaDataPlatform) return uaDataPlatform.includes("mac");
+
+    const ua = (navigator.userAgent || "").toLowerCase();
+    return (
+        ua.includes("mac os") ||
+        ua.includes("macintosh") ||
+        ua.includes("iphone") ||
+        ua.includes("ipad")
+    );
+});

@@ -65,3 +65,18 @@ The endpoint returns `[{ docId, score, wordMatchScore, doc }]` for the requested
 - Corpus stats served here cover the full server corpus (including drafts) vs. the client's synced-subset stats — minor BM25 differences, acceptable. Serving API corpus stats to clients for unified scoring is a possible future step.
 - The trigram view is large (embedded per-trigram metadata); this is an accepted storage cost for query performance and correctness.
 - The client-side routing between this endpoint and local search — and the rule that server results are not persisted — landed as a separate change; see ADR 0011. That change chose **single-source routing (no local+server merge)**: because this endpoint's corpus is a superset of the locally-synced subset, its result is already complete, so merging local results would only add duplicates and df-scope ranking inconsistency.
+
+## Amendment (2026-06-22): strict search for non-Content doctypes (User, Redirect)
+
+The strict path (substring-AND on small fields + field sort, no BM25) generalises to admin doctypes that need a "find by (part of a) name" lookup rather than relevance. The same `/fts` endpoint now also serves **User** (name + email) and **Redirect** (slug + toSlug) so their CMS overviews can search/sort/paginate server-side instead of pulling every doc and filtering in memory.
+
+Design (`AUX_FTS_CONFIG` + `searchAux` in `ftsSearch.service.ts`):
+
+- **One endpoint, parameterised by doctype.** A request whose `types` is a single aux doctype routes to `searchAux`; the Content path is untouched. No new endpoints.
+- **One trigram view per doctype** (`fts-trigram-index-user`, `fts-trigram-index-redirect`), each emitting a **named metadata object** (`{ memberOf, …searchable fields, …sort fields }`) instead of the Content view's positional tuple — self-describing and less brittle as fields are added.
+- **Strict-only ⇒ no BM25, no corpus stats.** The `fts` trigrams only generate candidates; the substring-AND check on the emitted field text is the precise filter. Over-common-trigram pruning is skipped (these corpora are small); the rarest-trigram candidate-row budget still applies. Sort reuses the Content strict comparator (nulls last, case-insensitive, `_id` tie-break).
+- **Permission** reuses the `memberOf ∩ View-groups` scoping; an optional explicit `groups` filter narrows further (post-permission, never widens).
+- **Indexing.** `fts` is computed at write time in `processUserDto`/`processRedirectDto` from strict-only field configs (`USER_FTS_FIELDS`/`REDIRECT_FTS_FIELDS`); no `ftsTokenCount`. Existing docs are backfilled by schema upgrade **v18**; the two views build lazily on first access after deploy (`npm run seed` pushes the design docs).
+- **Server-only, no offline.** These doctypes' `fts` is **not** used by the client offline engine; it is stripped from non-Content docs on `db.bulkPut` so it can't pollute the local `*fts` index. Consumers search via the server-only `useServerFtsSearch` composable; offline yields an empty result set.
+
+This keeps the "change one, change all" mirror rule (ADR 0009) scoped to the **Content** field/BM25 config — the aux field configs are strict-only with no client counterpart.

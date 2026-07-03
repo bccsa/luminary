@@ -39,6 +39,13 @@ export type QueryConfig = {
      */
     maxLimit: number;
     /**
+     * Maximum distinct languages a NON-CMS query may reference (via `language` field constraints).
+     * Requests above this are rejected with 400. Guards query cost; CMS queries are exempt (they
+     * sync all languages). Keep in step with the client's preferred-language cap (cap + 1 for the
+     * auto-appended default). Environment variable: QUERY_MAX_LANGUAGES (default 4).
+     */
+    maxLanguages: number;
+    /**
      * A completed query examining more than this many docs is logged as expensive
      * (likely a full / large table scan). Environment variable:
      * QUERY_EXPENSIVE_DOCS_EXAMINED (default 1000).
@@ -122,6 +129,7 @@ export default () =>
         } as SyncConfig,
         query: {
             maxLimit: parseInt(process.env.QUERY_MAX_LIMIT, 10) || 500,
+            maxLanguages: parseInt(process.env.QUERY_MAX_LANGUAGES, 10) || 4,
             expensiveDocsExamined: parseInt(process.env.QUERY_EXPENSIVE_DOCS_EXAMINED, 10) || 1000,
             expensiveExaminedRatio: parseInt(process.env.QUERY_EXPENSIVE_EXAMINED_RATIO, 10) || 10,
             rateLimit: {

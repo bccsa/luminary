@@ -104,7 +104,7 @@ describe("EditContent.vue - Duplication", () => {
         });
 
         // Click the dropdown chevron to open the menu
-        const dropdownTrigger = wrapper.find('[role="button"][aria-haspopup="menu"]');
+        const dropdownTrigger = wrapper.find('[data-test="dropdown-trigger"]');
         expect(dropdownTrigger.exists()).toBe(true);
         await dropdownTrigger.trigger("click");
         await nextTick();
@@ -164,7 +164,7 @@ describe("EditContent.vue - Duplication", () => {
         });
 
         // Click the dropdown chevron to open the menu
-        const dropdownTrigger = wrapper.find('[role="button"][aria-haspopup="menu"]');
+        const dropdownTrigger = wrapper.find('[data-test="dropdown-trigger"]');
         expect(dropdownTrigger.exists()).toBe(true);
         await dropdownTrigger.trigger("click");
         await nextTick();
@@ -247,7 +247,7 @@ describe("EditContent.vue - Duplication", () => {
         });
 
         // Click the dropdown chevron to open the menu
-        const dropdownTrigger = wrapper.find('[role="button"][aria-haspopup="menu"]');
+        const dropdownTrigger = wrapper.find('[data-test="dropdown-trigger"]');
         expect(dropdownTrigger.exists()).toBe(true);
         await dropdownTrigger.trigger("click");
         await nextTick();
@@ -307,7 +307,7 @@ describe("EditContent.vue - Duplication", () => {
         });
 
         // Open the dropdown menu and trigger duplication
-        const dropdownTrigger = wrapper.find('[role="button"][aria-haspopup="menu"]');
+        const dropdownTrigger = wrapper.find('[data-test="dropdown-trigger"]');
         expect(dropdownTrigger.exists()).toBe(true);
         await dropdownTrigger.trigger("click");
         await nextTick();
@@ -367,7 +367,7 @@ describe("EditContent.vue - Duplication", () => {
             expect(wrapper.text()).toContain("English");
         });
 
-        const dropdownTrigger = wrapper.find('[role="button"][aria-haspopup="menu"]');
+        const dropdownTrigger = wrapper.find('[data-test="dropdown-trigger"]');
         await dropdownTrigger.trigger("click");
         await nextTick();
 
@@ -423,7 +423,7 @@ describe("EditContent.vue - Duplication", () => {
             expect(wrapper.text()).toContain("English");
         });
 
-        const dropdownTrigger = wrapper.find('[role="button"][aria-haspopup="menu"]');
+        const dropdownTrigger = wrapper.find('[data-test="dropdown-trigger"]');
         await dropdownTrigger.trigger("click");
         await nextTick();
 
@@ -501,7 +501,7 @@ describe("EditContent.vue - Duplication", () => {
             expect(vm.editableParent.imageData?.fileCollections.length).toBeGreaterThan(0);
         });
 
-        const dropdownTrigger = wrapper.find('[role="button"][aria-haspopup="menu"]');
+        const dropdownTrigger = wrapper.find('[data-test="dropdown-trigger"]');
         await dropdownTrigger.trigger("click");
         await nextTick();
 
@@ -541,7 +541,7 @@ describe("EditContent.vue - Duplication", () => {
             expect(wrapper.text()).toContain("English");
         });
 
-        const dropdownTrigger = wrapper.find('[role="button"][aria-haspopup="menu"]');
+        const dropdownTrigger = wrapper.find('[data-test="dropdown-trigger"]');
         await dropdownTrigger.trigger("click");
         await nextTick();
 
@@ -583,7 +583,7 @@ describe("EditContent.vue - Duplication", () => {
             expect(wrapper.text()).toContain("English");
         });
 
-        const dropdownTrigger = wrapper.find('[role="button"][aria-haspopup="menu"]');
+        const dropdownTrigger = wrapper.find('[data-test="dropdown-trigger"]');
         await dropdownTrigger.trigger("click");
         await nextTick();
 
@@ -640,7 +640,7 @@ describe("EditContent.vue - Duplication", () => {
             expect(vm.editableParent.tagType).toBe(TagType.Category);
         });
 
-        const dropdownTrigger = wrapper.find('[role="button"][aria-haspopup="menu"]');
+        const dropdownTrigger = wrapper.find('[data-test="dropdown-trigger"]');
         expect(dropdownTrigger.exists()).toBe(true);
         await dropdownTrigger.trigger("click");
         await nextTick();
@@ -687,7 +687,7 @@ describe("EditContent.vue - Duplication", () => {
             expect(wrapper.text()).toContain("English");
         });
 
-        const dropdownTrigger = wrapper.find('[role="button"][aria-haspopup="menu"]');
+        const dropdownTrigger = wrapper.find('[data-test="dropdown-trigger"]');
         await dropdownTrigger.trigger("click");
         await nextTick();
 
@@ -744,7 +744,7 @@ describe("EditContent.vue - Duplication", () => {
             expect(vm.editableParent.media).toBeDefined();
         });
 
-        const dropdownTrigger = wrapper.find('[role="button"][aria-haspopup="menu"]');
+        const dropdownTrigger = wrapper.find('[data-test="dropdown-trigger"]');
         await dropdownTrigger.trigger("click");
         await nextTick();
 

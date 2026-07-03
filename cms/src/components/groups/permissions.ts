@@ -1,12 +1,15 @@
 import { AclPermission, DocType, type GroupAclEntryDto, type GroupDto } from "luminary-shared";
 import { computed, toRaw } from "vue";
 
+// CmsView is assignable on every CMS-managed doc type: it gates CMS-scoped (cms:true)
+// visibility/sync, including drafts and expired Content. Mirrors api/src/changeRequests/aclValidation.ts.
 export const availablePermissionsPerDocType = {
     [DocType.Group]: [
         AclPermission.View,
         AclPermission.Edit,
         AclPermission.Delete,
         AclPermission.Assign,
+        AclPermission.CmsView,
     ],
     [DocType.Language]: [
         AclPermission.View,
@@ -14,6 +17,7 @@ export const availablePermissionsPerDocType = {
         AclPermission.Delete,
         AclPermission.Assign,
         AclPermission.Translate,
+        AclPermission.CmsView,
     ],
     [DocType.Post]: [
         AclPermission.View,
@@ -21,6 +25,7 @@ export const availablePermissionsPerDocType = {
         AclPermission.Delete,
         AclPermission.Translate,
         AclPermission.Publish,
+        AclPermission.CmsView,
     ],
     [DocType.Tag]: [
         AclPermission.View,
@@ -29,26 +34,40 @@ export const availablePermissionsPerDocType = {
         AclPermission.Assign,
         AclPermission.Translate,
         AclPermission.Publish,
+        AclPermission.CmsView,
     ],
-    [DocType.User]: [AclPermission.View, AclPermission.Edit, AclPermission.Delete],
-    [DocType.Redirect]: [AclPermission.View, AclPermission.Edit, AclPermission.Delete],
+    [DocType.User]: [
+        AclPermission.View,
+        AclPermission.Edit,
+        AclPermission.Delete,
+        AclPermission.CmsView,
+    ],
+    [DocType.Redirect]: [
+        AclPermission.View,
+        AclPermission.Edit,
+        AclPermission.Delete,
+        AclPermission.CmsView,
+    ],
     [DocType.Storage]: [
         AclPermission.View,
         AclPermission.Edit,
         AclPermission.Assign,
         AclPermission.Delete,
+        AclPermission.CmsView,
     ],
     [DocType.AuthProvider]: [
         AclPermission.View,
         AclPermission.Edit,
         AclPermission.Delete,
         AclPermission.Assign,
+        AclPermission.CmsView,
     ],
     [DocType.AutoGroupMappings]: [
         AclPermission.View,
         AclPermission.Edit,
         AclPermission.Delete,
         AclPermission.Assign,
+        AclPermission.CmsView,
     ],
 };
 

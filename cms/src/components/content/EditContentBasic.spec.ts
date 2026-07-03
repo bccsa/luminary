@@ -185,6 +185,11 @@ describe("EditContentBasic.vue", () => {
             },
         });
 
+        // Expiry controls sit behind an "+ Add expiry date" disclosure (light polish);
+        // reveal it first. Guarded so the test passes whether or not the flag is on.
+        const addExpiry = wrapper.find('[data-test="add-expiry"]');
+        if (addExpiry.exists()) await addExpiry.trigger("click");
+
         // Numbers shorcuts buttons
         const one = wrapper.find("[name='1']");
         const two = wrapper.find("[name='2']");
@@ -422,6 +427,11 @@ describe("EditContentBasic.vue", () => {
                 disablePublish: false,
             },
         });
+
+        // Expiry controls sit behind an "+ Add expiry date" disclosure (light polish);
+        // reveal it first. Guarded so the test passes whether or not the flag is on.
+        const addExpiry = wrapper.find('[data-test="add-expiry"]');
+        if (addExpiry.exists()) await addExpiry.trigger("click");
 
         // Find the expiry date shortcut buttons
         const one = wrapper.find("[name='1']");

@@ -12,7 +12,7 @@ import {
     mockGroupDtoSuperAdmins,
     superAdminAccessMap,
 } from "@/tests/mockdata";
-import { accessMap, DocType, getRest, initConfig, isConnected, db } from "luminary-shared";
+import { accessMap, getRest, initConfig, isConnected, db } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import { ref } from "vue";
 
@@ -57,22 +57,6 @@ const randomPort = () => {
 // in github actions
 const port = randomPort();
 
-let mockApiRequest: string;
-app.get("/search", (req, res) => {
-    mockApiRequest = req.headers["x-query"] as string;
-    res.setHeader("Content-Type", "application/json");
-    res.end(
-        JSON.stringify({
-            docs: [
-                mockGroupDtoPublicContent,
-                mockGroupDtoPublicUsers,
-                mockGroupDtoPublicEditors,
-                mockGroupDtoSuperAdmins,
-            ],
-        }),
-    );
-});
-
 app.listen(port, () => {
     console.log(`Mock api running on port ${port}.`);
 });
@@ -81,11 +65,10 @@ describe("GroupOverview", () => {
     beforeAll(async () => {
         accessMap.value = superAdminAccessMap;
         initConfig({
-            cms: false,
+            cms: true,
             docsIndex:
                 "type, parentId, updatedTimeUtc, slug, language, docType, redirect, [parentId+type], [parentId+parentType], [type+tagType], publishDate, expiryDate, [type+language+status+parentPinned], [type+language+status], [type+postType], [type+docType], title, parentPinned",
             apiUrl: `http://localhost:${port}`,
-            syncList: [{ type: DocType.Group, contentOnly: true, syncPriority: 10 }],
         });
 
         // Reset the rest api client to use the new config
@@ -97,7 +80,12 @@ describe("GroupOverview", () => {
 
     beforeEach(async () => {
         setActivePinia(createTestingPinia());
-        await db.bulkPut([mockGroupDtoSuperAdmins]);
+        await db.bulkPut([
+            mockGroupDtoPublicContent,
+            mockGroupDtoPublicUsers,
+            mockGroupDtoPublicEditors,
+            mockGroupDtoSuperAdmins,
+        ]);
         await db.localChanges.clear();
         isConnected.value = true; // Simulate a connected state
     });
@@ -134,11 +122,12 @@ describe("GroupOverview", () => {
         });
     });
 
-    it("can correctly query the api", async () => {
-        mount(GroupOverview);
+    it("loads groups from the local database", async () => {
+        const wrapper = mount(GroupOverview);
 
         await waitForExpect(() => {
-            expect(JSON.parse(mockApiRequest).types[0]).toBe(DocType.Group);
+            expect(wrapper.text()).toContain("Public Content");
+            expect(wrapper.text()).toContain("Super Admins");
         });
     });
 

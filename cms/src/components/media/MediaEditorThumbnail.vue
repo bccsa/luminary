@@ -157,13 +157,13 @@ onBeforeUnmount(() => {
             <div class="-mt-4 flex items-center justify-center">
                 <PlayIcon
                     v-if="!isPlaying && (hover || !mediaElementError)"
-                    class="h-8 w-8 text-gray-600 transition group-hover:scale-110"
+                    class="h-8 w-8 text-zinc-600 transition group-hover:scale-110"
                 />
                 <PauseIcon
                     v-else-if="isPlaying && !mediaElementError"
-                    class="h-8 w-8 text-gray-600 transition group-hover:scale-110"
+                    class="h-8 w-8 text-zinc-600 transition group-hover:scale-110"
                 />
-                <MusicalNoteIcon v-else class="h-8 w-8 text-gray-500 opacity-70" />
+                <MusicalNoteIcon v-else class="h-8 w-8 text-zinc-500 opacity-70" />
             </div>
             <!-- Scrim when hovering -->
             <div v-show="hover && !mediaElementError" class="absolute inset-0 rounded"></div>
@@ -207,13 +207,13 @@ onBeforeUnmount(() => {
             <div class="-mt-4 flex items-center justify-center">
                 <PlayIcon
                     v-if="!isPlaying && (hover || !mediaElementError)"
-                    class="h-8 w-8 text-gray-600 transition group-hover:scale-110"
+                    class="h-8 w-8 text-zinc-600 transition group-hover:scale-110"
                 />
                 <PauseIcon
                     v-else-if="isPlaying && !mediaElementError"
-                    class="h-8 w-8 text-gray-600 transition group-hover:scale-110"
+                    class="h-8 w-8 text-zinc-600 transition group-hover:scale-110"
                 />
-                <MusicalNoteIcon v-else class="h-8 w-8 text-gray-500 opacity-70" />
+                <MusicalNoteIcon v-else class="h-8 w-8 text-zinc-500 opacity-70" />
             </div>
             <!-- Scrim when hovering -->
             <div v-show="hover && !mediaElementError" class="absolute inset-0 rounded"></div>

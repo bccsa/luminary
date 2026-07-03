@@ -165,3 +165,21 @@ export function writeResponseCache<T extends BaseDocumentDto>(
         }
     }
 }
+
+/**
+ * Remove ALL persisted response-cache windows (the `hqcache:` localStorage entries). Called when
+ * the local cache is cleared (`db.purge`) so a subsequent mount cannot seed a stale window from a
+ * now-purged dataset. Best-effort; tolerates an unavailable `localStorage`.
+ */
+export function clearResponseCache(): void {
+    try {
+        const keys: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (k && k.startsWith(STORAGE_PREFIX)) keys.push(k);
+        }
+        keys.forEach((k) => localStorage.removeItem(k));
+    } catch {
+        /* ignore — localStorage unavailable */
+    }
+}

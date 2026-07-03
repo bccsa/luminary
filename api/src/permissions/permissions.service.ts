@@ -426,9 +426,35 @@ export class PermissionSystem extends EventEmitter {
                 });
             });
 
+            Object.values(groupMap).forEach((group: PermissionSystem) => {
+                group.removeTarget(docId);
+            });
+
             // Delete from groupMap
             delete groupMap[docId];
         }
+    }
+
+    private removeTarget(target: Uuid) {
+        delete this._groupTypePermissionMap[target];
+        delete this._accessMap[target];
+        delete this._targetRouteTypeMap[target];
+
+        Object.keys(this._typePermissionGroupMap).forEach((type: DocType) => {
+            Object.keys(this._typePermissionGroupMap[type]).forEach(
+                (permission: AclPermission) => {
+                    delete this._typePermissionGroupMap[type][permission][target];
+
+                    if (Object.keys(this._typePermissionGroupMap[type][permission]).length == 0) {
+                        delete this._typePermissionGroupMap[type][permission];
+                    }
+                },
+            );
+
+            if (Object.keys(this._typePermissionGroupMap[type]).length == 0) {
+                delete this._typePermissionGroupMap[type];
+            }
+        });
     }
 
     /**

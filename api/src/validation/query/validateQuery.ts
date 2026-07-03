@@ -8,12 +8,26 @@ export type ValidationResult = {
 export type ValidateQueryOptions = {
     /** Maximum allowed `limit` (rejected above this). Defaults to DEFAULT_MAX_LIMIT. */
     maxLimit?: number;
+    /**
+     * Maximum number of distinct languages a NON-CMS query may reference (via `language` field
+     * constraints). Rejected above this. CMS queries (`cms: true`) are exempt — they sync all
+     * available languages. Defaults to DEFAULT_MAX_LANGUAGES.
+     */
+    maxLanguages?: number;
     /** Override the set of pinnable index names (used by tests). Defaults to the registry. */
     indexNames?: ReadonlySet<string>;
 };
 
 /** Fallback cap when the caller doesn't supply one (mirrors the API config default). */
 export const DEFAULT_MAX_LIMIT = 500;
+
+/**
+ * Fallback language cap when the caller doesn't supply one. The app lets a user pick at most 3
+ * preferred languages, with the default (English) auto-appended for display — so a legitimate
+ * non-CMS content query references at most 4 distinct languages (sync keep ≤3; display ≤4). Keep
+ * this in step with the client's preferred-language cap (cap + 1 for the auto-appended default).
+ */
+export const DEFAULT_MAX_LANGUAGES = 4;
 
 /**
  * DoS guards on the selector shape. A pathological selector (deeply nested logical
@@ -78,12 +92,19 @@ const ALLOWED_TOP_LEVEL_KEYS = new Set([
  *  - an operator policy (no `$regex` / `$where`; `$elemMatch` only on array fields;
  *    no `null` member in an `$in` / `$nin` / `$all` array — it crashes CouchDB's
  *    `_find` with an unhandled `function_clause`),
- *  - selector depth / clause-count caps.
+ *  - selector depth / clause-count caps,
+ *  - a per-request language cap for NON-CMS queries (guards query cost; CMS is exempt as it
+ *    syncs all languages). Enforced here, before query.service injects the permission-language
+ *    filter, so it caps the client-requested set — not the (possibly larger) permission set.
  *
  * Never mutates the input query.
  */
 export function validateQuery(query: any, options: ValidateQueryOptions = {}): ValidationResult {
-    const { maxLimit = DEFAULT_MAX_LIMIT, indexNames = getIndexNameRegistry() } = options;
+    const {
+        maxLimit = DEFAULT_MAX_LIMIT,
+        maxLanguages = DEFAULT_MAX_LANGUAGES,
+        indexNames = getIndexNameRegistry(),
+    } = options;
 
     if (query === null || typeof query !== "object" || Array.isArray(query)) {
         return fail("query must be an object");
@@ -133,9 +154,16 @@ export function validateQuery(query: any, options: ValidateQueryOptions = {}): V
         if (!indexNames.has(query.use_index)) return fail(`Unknown index '${query.use_index}'`);
     }
 
-    // Single recursive walk of the selector: operator policy + DoS guards.
-    const walkError = walkSelector(query.selector);
+    // Single recursive walk of the selector: operator policy + DoS guards + language collection.
+    const { error: walkError, languages } = walkSelector(query.selector);
     if (walkError) return fail(walkError);
+
+    // Language cap — NON-CMS only. A content query names its languages via `language` field
+    // constraints; non-content queries name none (size 0), so this only ever bites content. CMS
+    // (`cms: true`) is exempt: it legitimately syncs every available language.
+    if (query.cms !== true && languages.size > maxLanguages) {
+        return fail(`query references too many languages (max ${maxLanguages})`);
+    }
 
     return { valid: true, error: "" };
 }
@@ -148,14 +176,23 @@ function fail(error: string): ValidationResult {
  * Recursively walk the selector enforcing the operator policy and the depth /
  * clause-count caps in a single traversal. `owningField` is the nearest enclosing
  * document field name (not a logical/comparison operator), so `$elemMatch` can be
- * allowed only when it sits directly under an allowed array field. Returns an error
- * string on the first violation, or null when the selector is clean.
+ * allowed only when it sits directly under an allowed array field. Also collects the
+ * distinct language ids referenced by `language` field constraints (equality, `$eq`, or
+ * `$in` members) for the language cap. Returns the first error (or null when clean) plus
+ * the collected language set.
  */
-function walkSelector(selector: any): string | null {
+function walkSelector(selector: any): { error: string | null; languages: Set<string> } {
     let clauseCount = 0;
+    const languages = new Set<string>();
 
     function walk(node: any, owningField: string | undefined, depth: number): string | null {
-        if (node === null || typeof node !== "object") return null;
+        if (node === null || typeof node !== "object") {
+            // Leaf: a string directly under the `language` field is a referenced language id
+            // (covers `{language: x}`, `{language: {$eq: x}}`, and each `{language: {$in: […]}}`
+            // member — all arrive here as string leaves whose nearest owning field is `language`).
+            if (typeof node === "string" && owningField === "language") languages.add(node);
+            return null;
+        }
         if (depth > MAX_SELECTOR_DEPTH) {
             return `selector nesting exceeds maximum depth (${MAX_SELECTOR_DEPTH})`;
         }
@@ -202,7 +239,8 @@ function walkSelector(selector: any): string | null {
         return null;
     }
 
-    return walk(selector, undefined, 0);
+    const error = walk(selector, undefined, 0);
+    return { error, languages };
 }
 
 export default validateQuery;

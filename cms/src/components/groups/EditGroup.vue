@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, toRaw, watch } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 import {
     type GroupAclEntryDto,
     AclPermission,
@@ -8,8 +8,7 @@ import {
     AckStatus,
     type GroupDto,
     isConnected,
-    ApiLiveQueryAsEditable,
-    db,
+    toEditable,
 } from "luminary-shared";
 import { TrashIcon } from "@heroicons/vue/24/outline";
 import ConfirmBeforeLeavingModal from "@/components/modals/ConfirmBeforeLeavingModal.vue";
@@ -28,13 +27,13 @@ import LCombobox from "../forms/LCombobox.vue";
 const { addNotification } = useNotificationStore();
 
 type Props = {
-    groupQuery: ApiLiveQueryAsEditable<GroupDto>;
+    groupQuery: ReturnType<typeof toEditable<GroupDto>>;
     openModal: boolean;
 };
 const props = defineProps<Props>();
 
 const group = defineModel<GroupDto>("group", { required: true });
-const { liveData, isEdited, revert, duplicate, save } = props.groupQuery;
+const { editable, isEdited, revert, save, duplicate, remove } = props.groupQuery;
 const showDeleteConfirm = ref(false);
 const isDeleting = ref(false);
 
@@ -56,7 +55,7 @@ const isEditingGroupName = ref(false);
 const groupNameInput = ref<HTMLInputElement>();
 
 const assignedGroups = computed(() => {
-    return liveData.value
+    return editable.value
         .filter((g) => group.value.acl.some((acl) => acl.groupId == g._id))
         .sort((a, b) => {
             if (a.name < b.name) return -1;
@@ -66,7 +65,7 @@ const assignedGroups = computed(() => {
 });
 
 const availableGroups = computed(() => {
-    return liveData.value.filter((g) => {
+    return editable.value.filter((g) => {
         if (group.value.acl.some((acl) => acl.groupId == g._id)) return false;
 
         return verifyAccess([g._id], DocType.Group, AclPermission.Assign);
@@ -74,9 +73,10 @@ const availableGroups = computed(() => {
 });
 
 const original = computed(() => {
-    return liveData.value.find((g) => g._id == group.value._id);
+    return editable.value.find((g) => g._id == group.value._id);
 });
-const isNewGroup = computed(() => !original.value);
+
+const isNewGroup = computed(() => !group.value._rev && isEdited.value(group.value._id));
 
 const hasChangedGroupName = computed(() => {
     if (!original.value) return false;
@@ -89,9 +89,11 @@ const isEmpty = computed(() => {
     );
 });
 
+const isLocallyPersisted = computed(() => !group.value._rev && !isDirty.value);
+
 const disabled = computed(() => {
-    // Enable editing for new / unsaved groups
-    if (isNewGroup.value) {
+    if (isNewGroup.value || isLocallyPersisted.value) {
+        // Enable editing for new / unsaved groups
         return false;
     }
 
@@ -193,7 +195,7 @@ const handleFocusOut = () => {
 };
 
 const handleSelect = (option: { value: string }) => {
-    const selectedGroup = liveData.value.find((g) => g._id === option.value);
+    const selectedGroup = editable.value.find((g) => g._id === option.value);
     if (selectedGroup) {
         addAssignedGroup(selectedGroup);
     }
@@ -226,9 +228,7 @@ const deleteGroup = async () => {
     }
 
     isDeleting.value = true;
-    group.value.deleteReq = 1;
-
-    const res = await save(group.value._id);
+    const res = await remove(group.value._id);
 
     if (res && res.ack == AckStatus.Accepted) {
         addNotification({
@@ -250,10 +250,22 @@ const duplicateGroup = async () => {
         return;
     }
 
-    const duplicatedGroup: GroupDto = { ...toRaw(original.value), _id: db.uuid() };
-    duplicatedGroup.name = `${duplicatedGroup.name} - copy`;
+    const duplicatedGroup = duplicate(original.value._id, (clone) => {
+        clone.name = `${original.value?.name} - copy`;
+        clone.updatedTimeUtc = Date.now();
+        return clone;
+    });
 
-    const res = await duplicate(duplicatedGroup);
+    if (!duplicatedGroup) {
+        addNotification({
+            title: "Error duplicating group",
+            description: "Failed to initialize the clone.",
+            state: "error",
+        });
+        return;
+    }
+
+    const res = await save(duplicatedGroup._id);
 
     addNotification({
         title:
@@ -404,6 +416,7 @@ const duplicateGroup = async () => {
                     context="danger"
                     :icon="TrashIcon"
                     class="mr-2"
+                    :disabled="!hasEditPermission || !isConnected"
                 >
                     Delete
                 </LButton>

@@ -222,7 +222,7 @@ const handleRevert = () => {
                 <div class="rounded-md border border-zinc-200 bg-white p-2">
                     <label
                         for="provider-sort-index"
-                        class="mb-1 block text-xs font-medium text-gray-700"
+                        class="mb-1 block text-xs font-medium text-zinc-700"
                     >
                         Sort Index
                     </label>

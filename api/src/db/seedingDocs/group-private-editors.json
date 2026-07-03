@@ -1,17 +1,18 @@
 {
     "_id": "group-private-editors",
     "type": "group",
+    "memberOf": ["group-private-editors"],
     "name": "Editors Private",
     "acl": [
         {
             "type": "post",
             "groupId": "group-super-admins",
-            "permission": ["view", "edit", "delete", "translate", "publish"]
+            "permission": ["view", "edit", "delete", "translate", "publish", "cmsView"]
         },
         {
             "type": "tag",
             "groupId": "group-super-admins",
-            "permission": ["view", "edit", "delete", "assign", "translate", "publish"]
+            "permission": ["view", "edit", "delete", "assign", "translate", "publish", "cmsView"]
         },
         {
             "type": "group",
@@ -31,12 +32,12 @@
         {
             "type": "redirect",
             "groupId": "group-super-admins",
-            "permission": ["view", "edit"]
+            "permission": ["view", "edit", "cmsView"]
         },
         {
             "type": "storage",
             "groupId": "group-super-admins",
-            "permission": ["view", "edit"]
+            "permission": ["view", "edit", "cmsView"]
         }
     ]
 }

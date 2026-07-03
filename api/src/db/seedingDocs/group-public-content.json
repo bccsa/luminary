@@ -1,6 +1,7 @@
 {
     "_id": "group-public-content",
     "type": "group",
+    "memberOf": ["group-public-content"],
     "name": "Public Content",
     "acl": [
         {
@@ -31,12 +32,12 @@
         {
             "type": "post",
             "groupId": "group-public-editors",
-            "permission": ["view", "edit", "translate", "publish"]
+            "permission": ["view", "edit", "translate", "publish", "cmsView"]
         },
         {
             "type": "tag",
             "groupId": "group-public-editors",
-            "permission": ["view", "translate", "assign"]
+            "permission": ["view", "translate", "assign", "cmsView"]
         },
         {
             "type": "group",
@@ -46,12 +47,12 @@
         {
             "type": "redirect",
             "groupId": "group-public-editors",
-            "permission": ["view"]
+            "permission": ["view", "cmsView"]
         },
         {
             "type": "storage",
             "groupId": "group-public-editors",
-            "permission": ["view"]
+            "permission": ["view", "cmsView"]
         },
         {
             "type": "post",

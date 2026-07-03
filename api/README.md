@@ -131,3 +131,58 @@ The load tester currently tests the API for Luminary Client app sync loads on th
 # load tester help
 $ npx ts-node load_tester --help
 ```
+
+## CMS view permission (`CmsView`) and CMS-scoped live updates
+
+The CMS sees more than the app — drafts, scheduled, and expired Content — and that extra
+visibility is gated by a dedicated ACL permission, **`CmsView`** (GitHub #160, see ADR 0013).
+Plain `View` is the app/public gate (published content only); `CmsView` is the CMS gate.
+
+### The `cms` request flag
+
+Every read carries a `cms` flag: the CMS sends `cms: true`, the app `cms: false`. The flag
+**requests** CMS-scoped results; the actual gate is the permission:
+
+- **`POST /query`** and **`POST /fts`** select the permission per request: `cms ? CmsView : View`.
+  A `cms: true` request returns drafts/expired only for groups where the caller holds `CmsView`.
+  If the caller holds no `CmsView` on any requested group, the request is **403 Forbidden** (the
+  same fail-closed behaviour as a missing `View`) — it does **not** silently fall back to
+  published-only. `QueryService` remains the data-leakage boundary; for non-`cms` requests it
+  still injects the published/scheduled/expiry filters before the query runs.
+
+### Socket.io rooms: base vs `-cms`
+
+Live updates can't read the `cms` flag off each message, and the AccessMap is per-**user** (a CMS
+user holds both `View` and `CmsView`), so the connection declares its mode in the `clientConfigReq`
+handshake (`cms: true | false`; the API also accepts the deprecated `joinSocketGroups` alias for
+older clients, see ADR 0005). The server routes it to one of two room sets per group:
+
+- **base `${docType}-${group}`** — app connections join these via `View`.
+- **`${docType}-${group}-cms`** — CMS connections join these via `CmsView`.
+
+A CMS connection joins **only** `-cms` rooms (never base), so base-room guarding can never corrupt
+its full copy. `deleteCmd-${group}` rooms are shared (un-suffixed) by both modes. On a document
+update:
+
+- **`-cms` rooms** receive the **full** doc for **every** status (published, draft, expired) — this
+  is what gives CMS users live draft/expired collaboration.
+- **base rooms** receive only what the app may hold: published-and-live Content and all non-Content
+  docs in full; **expired** Content as a stripped cleanup stub (see below); **draft** Content is
+  withheld entirely.
+
+### Data minimization & the expiry edge case
+
+A non-CMS client only ever receives an expired Content doc so it can *prune* its stale local copy
+(it never displays it), so the body must not cross the wire. `api/src/util/stripExpiredContent.ts`
+projects an expired doc down to a minimal cleanup stub (identity, grouping, status/expiry, sync
+cursor — no title/body/SEO/media/FTS). The same projection is applied in two places: the `/query`
+response for non-`cms` callers, and the Socket.io base-room emit.
+
+The stub still carries `expiryDate`/`status`, so the app's `deleteExpired()` prunes the doc rather
+than orphaning the stale, still-visible version on the device (the edge case from #433). **Do not**
+"optimize" the base-room rule to drop expired Content entirely — that reintroduces the orphan bug.
+Unpublish (published → draft) is handled separately: the now-draft doc is withheld from base rooms
+and the app is evicted by the existing app-only `DeleteReason.StatusChange` DeleteCmd.
+
+CMS users are auto-granted `CmsView` on deploy by schema upgrade `v19` (every ACL entry that already
+has Edit/Translate/Publish), so existing editors keep working through the rollout.

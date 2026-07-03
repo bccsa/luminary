@@ -5,7 +5,6 @@ import CreateOrEditUser from "@/components/users/CreateOrEditUser.vue";
 import UserFilterOptions, {
     type UserOverviewQueryOptions,
 } from "@/components/users/UserFilterOptions.vue";
-import LPaginator from "@/components/common/LPaginator.vue";
 import { PlusIcon } from "@heroicons/vue/24/outline";
 import {
     AclPermission,
@@ -13,38 +12,47 @@ import {
     DocType,
     hasAnyPermission,
     type UserDto,
-    type ApiSearchQuery,
-    ApiLiveQuery,
+    useSharedHybridQuery,
+    useHybridQueryWithState,
     type GroupDto,
-    useDexieLiveQuery,
     isConnected,
+    useServerFtsSearch,
 } from "luminary-shared";
-import { computed, ref, watch, onBeforeUnmount } from "vue";
+import { computed, ref, watch } from "vue";
 import LButton from "../button/LButton.vue";
+import LoadingBar from "../LoadingBar.vue";
+import FtsStaleResultsBanner from "@/components/common/FtsStaleResultsBanner.vue";
+import EmptyState from "@/components/EmptyState.vue";
 import { isSmallScreen } from "@/globalConfig";
+import {
+    useInfiniteScrollList,
+    useInfiniteScrollLoadMore,
+} from "@/composables/useInfiniteScrollList";
 
 const canCreateNew = computed(() => hasAnyPermission(DocType.User, AclPermission.Edit));
 
-const usersQuery = ref<ApiSearchQuery>({
-    types: [DocType.User],
-});
-
-const apiLiveQuery = new ApiLiveQuery<UserDto>(usersQuery);
-const users = apiLiveQuery.toArrayAsRef();
-
-onBeforeUnmount(() => {
-    apiLiveQuery.stopLiveQuery();
-});
+// User is a non-synced type → HybridQuery serves it API-only (REST + on-demand socket rooms).
+// Auto-disposes on unmount.
+const {
+    output: users,
+    isFetching,
+    hasLocalChanges,
+} = useHybridQueryWithState<UserDto>(() => ({ selector: { type: DocType.User } }), { live: true });
 
 const isEditUserModalVisible = ref(false);
 const isNewUserModalVisible = ref(false);
 const selectedUserId = ref<string>("");
+/** Stable id for the create modal — must not call db.uuid() in the template (re-renders would re-query forever). */
+const newUserId = ref("");
+
+function openCreateUserModal() {
+    newUserId.value = db.uuid();
+    isNewUserModalVisible.value = true;
+}
 
 const defaultQueryOptions: UserOverviewQueryOptions = {
     groups: [],
     search: "",
-    pageSize: 20,
-    pageIndex: 0,
 };
 const savedQueryOptions = () => sessionStorage.getItem("userOverviewQueryOptions");
 function mergeNewFields(saved: string | null): UserOverviewQueryOptions {
@@ -53,8 +61,6 @@ function mergeNewFields(saved: string | null): UserOverviewQueryOptions {
         ...defaultQueryOptions,
         ...parsed,
         groups: parsed.groups ?? [],
-        pageSize: parsed.pageSize ?? 20,
-        pageIndex: parsed.pageIndex ?? 0,
     };
 }
 const queryOptions = ref<UserOverviewQueryOptions>(
@@ -67,15 +73,18 @@ watch(
     },
     { deep: true },
 );
-// Reset to first page when search or groups change
-watch([() => queryOptions.value.search, () => queryOptions.value.groups], () => {
-    queryOptions.value.pageIndex = 0;
+
+const groups = useSharedHybridQuery<GroupDto>(() => ({ selector: { type: DocType.Group } }), {
+    live: true,
 });
-const groups = useDexieLiveQuery(
-    () => db.docs.where({ type: DocType.Group }).toArray() as unknown as Promise<GroupDto[]>,
-    { initialValue: [] as GroupDto[] },
+
+/** Minimum characters before switching from in-memory browse to server-side FTS search. */
+const SEARCH_MIN_CHARS = 3;
+const searchActive = computed(
+    () => (queryOptions.value.search ?? "").trim().length >= SEARCH_MIN_CHARS,
 );
 
+// --- Browse (no / short search): API-only pull + in-memory filter + windowed scroll ---
 const filteredUsers = computed(() => {
     const list = users.value ?? [];
     const search = (queryOptions.value.search ?? "").trim().toLowerCase();
@@ -98,18 +107,38 @@ const filteredUsers = computed(() => {
     });
 });
 
-const paginatedUsers = computed(() => {
-    const pageSize = queryOptions.value.pageSize ?? 20;
-    const pageIndex = queryOptions.value.pageIndex ?? 0;
-    const start = pageIndex * pageSize;
-    return filteredUsers.value.slice(start, start + pageSize);
+const { visible: visibleUsers } = useInfiniteScrollList(filteredUsers, {
+    pageSize: 20,
+    resetWhen: [() => queryOptions.value.search, () => queryOptions.value.groups],
 });
 
-const totalUsers = computed(() => filteredUsers.value.length);
+const browseLoading = computed(() => isFetching.value && !(users.value?.length ?? 0));
 
-const isLoading = computed(
-    () => apiLiveQuery.isLoading.value && !(users.value?.length ?? 0),
+// --- Search (≥3 chars): server-side strict FTS. The group filter is forwarded to the server
+// (memberOf ∩ groups). The search term is already debounced upstream (UserFilterOptions,
+// 500ms), so the composable's own debounce is disabled. ---
+const searchTerm = computed(() => queryOptions.value.search ?? "");
+const search = useServerFtsSearch(searchTerm, {
+    docType: DocType.User,
+    filters: () => ({ groups: queryOptions.value.groups }),
+    pageSize: 20,
+    debounceMs: 0,
+});
+const searchIsLoading = search.isLoading;
+const searchIsStale = search.isStale;
+
+const { sentinel: searchSentinel } = useInfiniteScrollLoadMore({
+    hasMore: () => searchActive.value && search.hasMore.value,
+    isLoading: () => search.isLoading.value,
+    onLoadMore: () => search.loadMore(),
+});
+
+// --- Unified display: server results when searching, the in-memory window when browsing ---
+const displayedUsers = computed<UserDto[]>(() =>
+    searchActive.value ? (search.docs.value as UserDto[]) : visibleUsers.value,
 );
+
+const hasAnyContent = computed(() => (users.value?.length ?? 0) > 0);
 </script>
 
 <template>
@@ -117,65 +146,96 @@ const isLoading = computed(
         title="User overview"
         :should-show-page-title="false"
         :is-full-width="true"
-        :loading="isLoading"
+        :loading="!searchActive && browseLoading"
     >
-        <template #pageNav>
-            <div class="flex gap-4" v-if="canCreateNew && isConnected">
-                <LButton
-                    v-if="canCreateNew && !isSmallScreen"
-                    variant="primary"
-                    :icon="PlusIcon"
-                    @click="isNewUserModalVisible = true"
-                    name="createUserBtn"
-                >
-                    Create user
-                </LButton>
-                <PlusIcon
-                    v-else-if="canCreateNew && isSmallScreen"
-                    class="h-8 w-8 cursor-pointer rounded bg-zinc-100 p-1 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-700"
-                    @click="isNewUserModalVisible = true"
-                />
-            </div>
+        <template #topBarActionsDesktop>
+            <LButton
+                v-if="canCreateNew && isConnected && hasAnyContent && !isSmallScreen"
+                variant="primary"
+                :icon="PlusIcon"
+                @click="openCreateUserModal"
+                name="createUserBtn"
+            >
+                Create user
+            </LButton>
         </template>
-        <template #internalPageHeader>
+        <template #topBarActionsMobile>
+            <PlusIcon
+                v-if="canCreateNew && isConnected && hasAnyContent && isSmallScreen"
+                class="h-8 w-8 cursor-pointer rounded bg-zinc-100 p-1 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-700"
+                @click="openCreateUserModal"
+            />
+        </template>
+        <template v-if="hasAnyContent" #internalPageHeader>
             <UserFilterOptions
                 :is-small-screen="isSmallScreen"
                 :groups="groups"
                 v-model:query-options="queryOptions"
             />
         </template>
-        <p class="mb-2 mt-1 px-2 py-1 text-gray-500">
-            Users only need to be created when they require special permissions that are not already
-            automatically granted. It's possible to add multiple user objects with the same email
-            address. This allows different administrators to independently assign access to the same
-            individual for different groups they manage.
-        </p>
-        <UserDisplayCard
-            v-for="user in paginatedUsers"
-            :key="user._id"
-            :usersDoc="user"
-            v-model="isEditUserModalVisible"
-            @edit="(id) => (selectedUserId = id)"
-        />
+        <div class="flex flex-col gap-[3px]">
+            <p v-if="hasAnyContent" class="mb-2 px-2 py-1 text-zinc-500">
+                Users only need to be created when they require special permissions that are not
+                already automatically granted. It's possible to add multiple user objects with the
+                same email address. This allows different administrators to independently assign
+                access to the same individual for different groups they manage.
+            </p>
+            <FtsStaleResultsBanner
+                v-if="searchActive"
+                :visible="searchIsStale"
+                :loading="searchIsLoading"
+                @refresh="search.refresh()"
+            />
+            <UserDisplayCard
+                v-for="user in displayedUsers"
+                :key="user._id"
+                :usersDoc="user"
+                :has-local-changes="hasLocalChanges"
+                v-model="isEditUserModalVisible"
+                @edit="(id) => (selectedUserId = id)"
+            />
+
+            <EmptyState
+                v-if="!isFetching && !hasAnyContent"
+                title="No users yet"
+                description="Create a user when someone needs special permissions beyond what is granted automatically."
+                :button-text="canCreateNew && isConnected ? 'Create user' : undefined"
+                :button-action="canCreateNew && isConnected ? openCreateUserModal : undefined"
+                :button-permission="canCreateNew && isConnected"
+                show-back-button
+            />
+
+            <EmptyState
+                v-else-if="
+                    hasAnyContent &&
+                    !displayedUsers.length &&
+                    !(searchActive ? searchIsLoading : browseLoading)
+                "
+                title="No users found"
+                description="No users match your search criteria."
+            />
+
+            <!-- Infinite-scroll trigger for the server-paged search results -->
+            <div v-if="searchActive" ref="searchSentinel" class="h-px w-full"></div>
+
+            <div
+                v-if="searchActive && searchIsLoading"
+                class="flex h-16 w-full items-center justify-center"
+            >
+                <LoadingBar />
+            </div>
+        </div>
+
         <CreateOrEditUser
             v-if="isEditUserModalVisible || isNewUserModalVisible"
             :isVisible="isEditUserModalVisible || isNewUserModalVisible"
-            :id="isNewUserModalVisible ? db.uuid() : selectedUserId"
+            :id="isNewUserModalVisible ? newUserId : selectedUserId"
+            :is-create="isNewUserModalVisible"
             @close="
                 isEditUserModalVisible = false;
                 isNewUserModalVisible = false;
+                if (searchActive) search.markStale();
             "
         />
-
-        <template #footer>
-            <div class="w-full sm:px-8">
-                <LPaginator
-                    :amountOfDocs="totalUsers"
-                    v-model:index="queryOptions.pageIndex as number"
-                    v-model:page-size="queryOptions.pageSize as number"
-                    variant="extended"
-                />
-            </div>
-        </template>
     </BasePage>
 </template>

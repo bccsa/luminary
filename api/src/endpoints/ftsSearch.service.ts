@@ -20,6 +20,54 @@ import {
     queryWords,
     wordMatchScore,
 } from "../util/ftsScoring";
+import { normalizeText } from "../util/ftsIndexing";
+
+/** Document fields a strict (sorted) Content FTS search may order by. */
+const FTS_SORT_FIELDS = new Set(["title", "publishDate", "expiryDate", "updatedTimeUtc"]);
+
+/**
+ * Per-doctype config for the strict-only *aux* FTS path (non-Content doctypes such as User
+ * and Redirect). Each has its own trigram view emitting a named metadata object; the path
+ * does substring-AND on {@link AuxFtsConfig.matchFields} + field sort + permission/group
+ * filtering, with no BM25/relevance.
+ */
+type AuxFtsConfig = {
+    docType: DocType;
+    /** CouchDB trigram view (== design-doc id) for this doctype. */
+    viewName: string;
+    /** Metadata fields the query is substring-AND matched against. */
+    matchFields: string[];
+    /** Allowlisted sort fields for this doctype. */
+    sortFields: Set<string>;
+    /** Used when the request omits a valid sort. */
+    defaultSort: { field: string; direction: "asc" | "desc" };
+};
+
+const AUX_FTS_CONFIG: Partial<Record<DocType, AuxFtsConfig>> = {
+    [DocType.User]: {
+        docType: DocType.User,
+        viewName: "fts-trigram-index-user",
+        matchFields: ["name", "email"],
+        sortFields: new Set(["name", "email", "updatedTimeUtc", "lastLogin"]),
+        defaultSort: { field: "name", direction: "asc" },
+    },
+    [DocType.Redirect]: {
+        docType: DocType.Redirect,
+        viewName: "fts-trigram-index-redirect",
+        matchFields: ["slug", "toSlug"],
+        sortFields: new Set(["slug", "updatedTimeUtc"]),
+        defaultSort: { field: "updatedTimeUtc", direction: "desc" },
+    },
+};
+
+/** Doc-level metadata captured for the strict path (substring match + field sort). */
+type StrictMeta = {
+    title: string | null;
+    author: string | null;
+    publishDate: number | null;
+    expiryDate: number | null;
+    updatedTimeUtc: number | null;
+};
 
 /**
  * Minimum number of candidate documents fetched and exact-scored per query. The
@@ -116,6 +164,14 @@ export class FtsSearchService {
         const maxTrigramDocPercent = req.maxTrigramDocPercent ?? FTS_MAX_TRIGRAM_DOC_PERCENT;
         const types = req.types && req.types.length ? req.types : [DocType.Post, DocType.Tag];
 
+        // Aux (non-Content) FTS: a single non-Content doctype with its own trigram view and a
+        // strict-only path (substring + sort + group/permission filters; no BM25). Routed
+        // before the Content-specific setup below, which assumes Post/Tag/Content metadata.
+        if (types.length === 1) {
+            const auxConfig = AUX_FTS_CONFIG[types[0]];
+            if (auxConfig) return this.searchAux(req, userDetails, auxConfig);
+        }
+
         // status / draft filters are a CMS-only capability
         if (req.status && !cms)
             throw new HttpException(
@@ -123,17 +179,32 @@ export class FtsSearchService {
                 HttpStatus.BAD_REQUEST,
             );
 
+        // Strict mode: substring AND on title/author + order by a document field, instead
+        // of fuzzy BM25 relevance. Validate the sort field against the allowlist.
+        let sortSpec: { field: string; direction: "asc" | "desc" } | undefined;
+        if (req.sort) {
+            if (
+                !FTS_SORT_FIELDS.has(req.sort.field) ||
+                (req.sort.direction !== "asc" && req.sort.direction !== "desc")
+            )
+                throw new HttpException("invalid 'sort'", HttpStatus.BAD_REQUEST);
+            sortSpec = req.sort;
+        }
+        const strict = req.matchAllWords === true || sortSpec != null;
+
         // Step 1: query trigrams
         const trigrams = generateSearchTrigrams(req.queryString);
         if (trigrams.length === 0) return [];
 
         // Step 2: permission context (in-memory). NOTE: accessMapToGroups returns a
         // Map-typed value that is used as a plain object via property access.
-        const userViewGroups = PermissionSystem.accessMapToGroups(userDetails.accessMap, AclPermission.View, [
-            DocType.Post,
-            DocType.Tag,
-            DocType.Language,
-        ]);
+        // CMS-scoped searches (cms:true) are gated by CmsView (drafts/expired visible); app/public
+        // searches by View. No CmsView on any requested group → the empty groups below yield 403.
+        const userViewGroups = PermissionSystem.accessMapToGroups(
+            userDetails.accessMap,
+            cms ? AclPermission.CmsView : AclPermission.View,
+            [DocType.Post, DocType.Tag, DocType.Language],
+        );
 
         // Per-parentType View groups as Sets for O(1) membership checks in the hot filter loop.
         const groupsByParentType: Record<string, Set<Uuid>> = {};
@@ -195,10 +266,23 @@ export class FtsSearchService {
         const candidates = await this.db.ftsTrigramCandidates(keptTrigrams);
         const perDocTf = new Map<string, Map<string, number>>();
         const accessibleDfDocs = new Map<string, Set<string>>(); // trigram → distinct surviving docIds
+        // Doc-level metadata for the strict path (captured once per surviving doc).
+        const perDocMeta = new Map<string, StrictMeta>();
 
         for (const row of candidates) {
-            const [tf, parentType, status, publishDate, expiryDate, language, memberOf, parentTags] =
-                row.value;
+            const [
+                tf,
+                parentType,
+                status,
+                publishDate,
+                expiryDate,
+                language,
+                memberOf,
+                parentTags,
+                updatedTimeUtc,
+                title,
+                author,
+            ] = row.value;
 
             // parentType / requested types
             if (!requestedTypes.has(parentType)) continue;
@@ -242,8 +326,52 @@ export class FtsSearchService {
                 accessibleDfDocs.set(row.trigram, dfSet);
             }
             dfSet.add(row.docId);
+
+            // Capture doc-level metadata once (strict path: substring match + field sort).
+            if (strict && !perDocMeta.has(row.docId)) {
+                perDocMeta.set(row.docId, {
+                    title,
+                    author,
+                    publishDate,
+                    expiryDate,
+                    updatedTimeUtc,
+                });
+            }
         }
         if (perDocTf.size === 0) return [];
+
+        // ---- Strict path: substring AND on title/author + field sort, over the full
+        // matched set (no top-K, no BM25). Candidate gen already used the rarest-trigram
+        // pruning, so matching docs are surfaced; the substring check is the precise filter.
+        if (strict) {
+            const words = queryWords(req.queryString);
+            const matched: Array<{ docId: string; meta: StrictMeta }> = [];
+            for (const [docId, meta] of perDocMeta) {
+                if (req.matchAllWords) {
+                    const title = normalizeText(meta.title ?? "");
+                    const author = normalizeText(meta.author ?? "");
+                    if (!words.every((w) => title.includes(w) || author.includes(w))) continue;
+                }
+                matched.push({ docId, meta });
+            }
+            if (sortSpec) sortStrict(matched, sortSpec.field, sortSpec.direction);
+            const pageIds = matched.slice(offset, offset + limit).map((m) => m.docId);
+            if (pageIds.length === 0) return [];
+
+            const fetched = await this.db.getDocs(pageIds, [DocType.Content]);
+            const docMap = new Map<string, ContentDto>(
+                (fetched.docs as ContentDto[]).map((d) => [d._id, d]),
+            );
+            return pageIds
+                .map((id) => docMap.get(id))
+                .filter((d): d is ContentDto => !!d)
+                .map((doc) => ({
+                    docId: doc._id,
+                    score: 0,
+                    wordMatchScore: 0,
+                    doc: stripFtsFields(doc),
+                }));
+        }
 
         // IDF over the accessible/visible subset (distinct surviving docIds)
         const idfMap = new Map<string, number>();
@@ -313,6 +441,117 @@ export class FtsSearchService {
             doc: stripFtsFields(r.doc),
         }));
     }
+
+    /**
+     * Strict-only FTS for an aux (non-Content) doctype: substring-AND on the doctype's
+     * searchable fields + field sort + permission/group filtering, with no BM25/relevance.
+     * Reads per-doc metadata from the doctype's trigram view (no doc loads) until the page is
+     * sliced, then fetches only that page's bodies. See {@link AUX_FTS_CONFIG}.
+     */
+    private async searchAux(
+        req: FtsSearchReqDto,
+        userDetails: JwtUserDetails,
+        cfg: AuxFtsConfig,
+    ): Promise<FtsSearchResultDto[]> {
+        const limit = req.limit && req.limit > 0 ? req.limit : FTS_DEFAULT_LIMIT;
+        const offset = req.offset && req.offset > 0 ? req.offset : 0;
+
+        // Sort: validate against this doctype's allowlist; default when unset/omitted.
+        let sortSpec = cfg.defaultSort;
+        if (req.sort) {
+            if (
+                !cfg.sortFields.has(req.sort.field) ||
+                (req.sort.direction !== "asc" && req.sort.direction !== "desc")
+            )
+                throw new HttpException("invalid 'sort'", HttpStatus.BAD_REQUEST);
+            sortSpec = req.sort;
+        }
+
+        // Query trigrams (≥3-char words only). Nothing usable ⇒ no matches.
+        const trigrams = generateSearchTrigrams(req.queryString);
+        if (trigrams.length === 0) return [];
+
+        // Permission: groups for this doctype only. CMS-scoped (cms:true) aux searches are gated by
+        // CmsView, app/public searches by View — mirrors the Content path so the CMS only sees aux
+        // results (Users/Redirects) for groups it holds CmsView on.
+        const viewGroups = PermissionSystem.accessMapToGroups(
+            userDetails.accessMap,
+            req.cms === true ? AclPermission.CmsView : AclPermission.View,
+            [cfg.docType],
+        );
+        const groups = new Set<Uuid>(viewGroups[cfg.docType] || []);
+        if (groups.size === 0) throw new HttpException("Forbidden", HttpStatus.FORBIDDEN);
+
+        // Explicit UI group filter (narrows within the permitted set).
+        const requestedGroups = req.groups && req.groups.length ? new Set(req.groups) : null;
+
+        // Document frequency → keep the rarest (most discriminative) trigrams within the
+        // candidate-row budget. No over-common (maxTrigramDocPercent) cut: these corpora are
+        // small, the substring check below is the precise filter, and there are no aux corpus
+        // stats to derive a percentage from.
+        const df = await this.db.ftsAuxTrigramDf(cfg.viewName, trigrams);
+        const usableTrigrams = trigrams.filter((t) => (df.get(t) || 0) > 0);
+        if (usableTrigrams.length === 0) return [];
+        const rankedByDf = usableTrigrams
+            .map((t) => ({ t, d: df.get(t) || 0 }))
+            .sort((a, b) => a.d - b.d);
+        let rowBudget = 0;
+        const keptTrigrams: string[] = [];
+        for (const { t, d } of rankedByDf) {
+            if (keptTrigrams.length >= FTS_MIN_TRIGRAMS && rowBudget + d > FTS_CANDIDATE_ROW_BUDGET)
+                break;
+            keptTrigrams.push(t);
+            rowBudget += d;
+        }
+
+        // Candidate rows → first metadata per accessible doc (permission ∩ memberOf, then the
+        // explicit UI group filter). Metadata is read straight from the embedded view value.
+        const candidates = await this.db.ftsAuxTrigramCandidates<Record<string, any>>(
+            cfg.viewName,
+            keptTrigrams,
+        );
+        const perDocMeta = new Map<string, Record<string, any>>();
+        for (const row of candidates) {
+            if (perDocMeta.has(row.docId)) continue;
+            const meta = row.value;
+            const memberOf: Uuid[] = meta.memberOf || [];
+            if (!memberOf.some((g) => groups.has(g))) continue; // permission
+            if (requestedGroups && !memberOf.some((g) => requestedGroups.has(g))) continue; // UI filter
+            perDocMeta.set(row.docId, meta);
+        }
+        if (perDocMeta.size === 0) return [];
+
+        // Strict substring AND over the doctype's searchable fields (aux is always strict).
+        const words = queryWords(req.queryString);
+        const matched: Array<{ docId: string; meta: Record<string, any> }> = [];
+        for (const [docId, meta] of perDocMeta) {
+            const ok = words.every((w) =>
+                cfg.matchFields.some((f) => normalizeText(meta[f] ?? "").includes(w)),
+            );
+            if (ok) matched.push({ docId, meta });
+        }
+        if (matched.length === 0) return [];
+
+        // Sort the full matched set, then paginate.
+        sortStrict(matched, sortSpec.field, sortSpec.direction);
+        const pageIds = matched.slice(offset, offset + limit).map((m) => m.docId);
+        if (pageIds.length === 0) return [];
+
+        // Fetch only the page's docs for the body; strip the server-only fts index field.
+        const fetched = await this.db.getDocs(pageIds, [cfg.docType]);
+        const docMap = new Map<string, Record<string, any>>(
+            (fetched.docs as Record<string, any>[]).map((d) => [d._id, d]),
+        );
+        return pageIds
+            .map((id) => docMap.get(id))
+            .filter((d): d is Record<string, any> => !!d)
+            .map((doc) => ({
+                docId: doc._id,
+                score: 0,
+                wordMatchScore: 0,
+                doc: stripAuxFtsFields(doc) as Partial<ContentDto>,
+            }));
+    }
 }
 
 /**
@@ -324,4 +563,44 @@ function stripFtsFields(doc: ContentDto): Partial<ContentDto> {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { fts, ftsTokenCount, ...rest } = doc as Record<string, any>;
     return rest as Partial<ContentDto>;
+}
+
+/**
+ * Remove the server-only `fts` index field from an aux-doctype (User/Redirect) document
+ * before returning it. Display-only; clients must not persist it — it would otherwise pollute
+ * the offline Content FTS index. (Aux docs have no `ftsTokenCount`.)
+ */
+function stripAuxFtsFields(doc: Record<string, any>): Record<string, any> {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { fts, ...rest } = doc;
+    return rest;
+}
+
+/**
+ * Order strict-mode matches in place by a metadata field (Content or aux doctype). Missing/
+ * null values sort last (both directions); ties break by `docId`; strings compare
+ * case-insensitively. Kept identical to the client's `sortByField`
+ * (`shared/src/fts/ftsSearch.ts`) so a partially-synced client gets the same order whether a
+ * search routes local or to this endpoint.
+ */
+function sortStrict(
+    arr: Array<{ docId: string; meta: Record<string, any> }>,
+    field: string,
+    direction: "asc" | "desc",
+): void {
+    const dir = direction === "asc" ? 1 : -1;
+    const norm = (v: unknown): any => (typeof v === "string" ? v.toLowerCase() : v);
+    arr.sort((a, b) => {
+        const av = norm(a.meta[field]);
+        const bv = norm(b.meta[field]);
+        const an = av == null;
+        const bn = bv == null;
+        if (an || bn) {
+            if (an && bn) return a.docId < b.docId ? -1 : a.docId > b.docId ? 1 : 0;
+            return an ? 1 : -1; // nulls last, regardless of direction
+        }
+        if (av < bv) return -1 * dir;
+        if (av > bv) return 1 * dir;
+        return a.docId < b.docId ? -1 : a.docId > b.docId ? 1 : 0;
+    });
 }

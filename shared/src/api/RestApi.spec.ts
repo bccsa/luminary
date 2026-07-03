@@ -50,7 +50,6 @@ describe("RestApi", () => {
             cms: false,
             docsIndex: "type",
             apiUrl: "https://api.example.com",
-            syncList: [{ type: "post", sync: true }],
         };
     }
 
@@ -60,7 +59,7 @@ describe("RestApi", () => {
     });
 
     it("throws without apiUrl", () => {
-        mockConfig = { apiUrl: "", syncList: [{ type: "post" }] };
+        mockConfig = { apiUrl: "" };
         expect(() => getRest({ reset: true })).toThrow("API URL");
     });
 
@@ -76,13 +75,6 @@ describe("RestApi", () => {
         const rest1 = getRest({ reset: true });
         const rest2 = getRest({ reset: true });
         expect(rest1).not.toBe(rest2);
-    });
-
-    it("search delegates to http.get with apiVersion", async () => {
-        setValidConfig();
-        const rest = getRest({ reset: true });
-        await rest.search({ limit: 10 });
-        expect(mockGet).toHaveBeenCalledWith("search", expect.objectContaining({ apiVersion: "0.0.0" }));
     });
 
     it("changeRequest delegates to http.post", async () => {

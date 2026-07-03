@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this package is
 
-`luminary-shared` is a Vue 3 frontend library that consumers (the Luminary APP and CMS) install to talk to the Luminary sync API. It owns: IndexedDB (Dexie) storage, REST + Socket.io transport, document syncing, an offline FTS search engine, permissions/ACL evaluation, and a set of Vue composables (`useDexieLiveQuery`, `ApiLiveQuery`, `createEditable`, …) that bridge IndexedDB ↔ Vue reactivity.
+`luminary-shared` is a Vue 3 frontend library that consumers (the Luminary APP and CMS) install to talk to the Luminary sync API. It owns: IndexedDB (Dexie) storage, REST + Socket.io transport, document syncing, an offline FTS search engine, permissions/ACL evaluation, and a set of Vue composables (`useDexieLiveQuery`, `useHybridQuery`, `toEditable`, …) that bridge IndexedDB ↔ Vue reactivity.
 
 This is published to npm as `luminary-shared`. The bundle is the lib output from `src/index.ts`; everything callers can use is re-exported there.
 
@@ -13,9 +13,10 @@ Because it's a standalone published library, its documentation (this file and th
 ## Common commands
 
 ```sh
+npm run dev           # vite dev server (rarely needed — this is a library, not an app)
 npm run build         # vue-tsc + vite build → dist/
 npm run test          # vitest run (one-shot)
-npm run test:watch    # vitest watch mode
+npm run test:watch    # vitest watch mode (test:unit is an alias for the same)
 npm run lint          # eslint .vue/.ts/.cjs/.mjs/.tsx
 npm run lint:fix
 npm run format        # prettier --write src/
@@ -25,15 +26,25 @@ npm run type-check    # vue-tsc --noEmit + vite build
 Run a single test file: `npx vitest run src/path/to/file.spec.ts`
 Run a single test by name: `npx vitest run -t "test name pattern"`
 
-## Local install in consuming projects
+## Dependency contract (vue/dexie are peers)
 
-Installing this package via plain `npm install ../shared` breaks IndexedDB reactivity because the symlink hides the real package boundary from Dexie. Always use the `--install-links` flag when installing from a sibling checkout:
+`vue` and `dexie` are **peerDependencies** — a consumer provides them so the library
+shares the consumer's single instance. Two copies of either break IndexedDB reactivity
+(Dexie `liveQuery` identity) and Vue reactivity. The build keeps them external
+(`rollup-plugin-auto-external` externalizes peer deps), and the published package ships
+only `dist/` (`exports`: `types` → `dist/index.d.ts`, `default` → `dist/index.js`).
 
-```sh
-npm install --install-links ../shared
-```
+## Local / monorepo consumption
 
-After making local changes, run `npm run build` here, then re-run the install command in the consuming project.
+A sibling checkout can be consumed via a plain `file:`/symlink install **provided the
+consumer forces a single `vue`/`dexie` copy** (e.g. bundler `dedupe`). The recommended
+setup consumes `src/` directly (bundler alias `luminary-shared` → `./src/index.ts`),
+which gives HMR of library changes with no rebuild. `npm run build` is still needed to
+refresh `dist/` for publishing and for the consumer's **TypeScript** type resolution, so
+a type/signature change shows up after a rebuild while behavioural changes hot-reload.
+
+(How a specific consumer wires this — its Vite alias, `dedupe`, `tsconfig` paths — lives
+in that consumer's own docs, not here.)
 
 ## Architecture
 
@@ -41,7 +52,7 @@ After making local changes, run `npm run build` here, then re-run the install co
 
 `src/luminary.ts` exposes a single `init(config)` that, in order, sets the shared config, opens Dexie (`initDatabase`), creates the Socket.io connection (`getSocket`), and starts the REST sync (`getRest` + `initSync`). Calling code does this once at app startup. The exported surface area for consumers is everything in `src/index.ts`.
 
-`SharedConfig` (`src/config.ts`) is the single configuration object: `cms` flag, app-specific `docsIndex` string appended to the shared Dexie index, `apiUrl`, the `syncList` of doc-type sync queries, and a `Ref<Uuid[]>` of active language IDs (used by Socket.io and FTS filtering).
+`SharedConfig` (`src/config.ts`) is the single configuration object: `cms` flag, app-specific `docsIndex` string appended to the shared Dexie index, `apiUrl`, and a `Ref<Uuid[]>` of active language IDs (used by Socket.io and FTS filtering). What gets synced is owned by the sync engine (the consumer's `sync()` calls), not declared in config.
 
 ### Data layer — `src/db/database.ts`
 
@@ -56,7 +67,7 @@ Schema versioning is **automatic**: `bumpDBVersion` compares the JSON-serialized
 
 The exported singleton is `db`, available after `initDatabase()` resolves. `db.upsert(...)` is the standard write path: it writes to `docs` and queues a `localChange` for upload (or, for deletes with `deleteReq`, removes from `docs` and queues the delete). `db.bulkPut(docs)` handles incoming docs from the API including `DeleteCmd` resolution (with a stale-delete guard — skips deletes whose target is already newer).
 
-`db.deleteRevoked()` watches `accessMap` and removes any docs the user no longer has access to. `db.deleteExpired()` purges past-expiry docs on non-CMS clients on startup.
+`db.deleteRevoked()` removes any docs the user no longer has access to **and** reconciles `syncList` to match — trimming each column's `memberOf` to the still-accessible groups (via the canonical `trim()` primitive) and dropping columns whose groups were all revoked. This keeps the sync cursor in lockstep with the stored docs: an `eof` column left standing after its docs are evicted would otherwise suppress the re-walk on a later re-grant (the `memberOf` is unchanged, so the new-groups growth path never fires), leaving only the ~1s head-tolerance re-fetch — the access-loss half of incremental sync, symmetric to the access-gain growth path. It is driven by a watcher on `accessMap` (set up in `initDatabase`) that fires on map changes — **not** immediately at init, and it short-circuits when `accessMap` is empty: an empty map is the not-loaded `useLocalStorage` default, not "no access", and purging on it would delete every group/doc before the server's `clientConfig` populates the real map. Full teardown (logout) goes through `db.purge()` instead, which also clears `syncList`. `db.deleteExpired()` purges past-expiry docs on non-CMS clients on startup.
 
 ### Sync — `src/api/sync/`
 
@@ -71,9 +82,9 @@ The sync system is documented in detail in `src/api/sync/README.md`. Read it bef
 
 ### Socket.io live updates — `src/socket/socketio.ts`
 
-The socket emits `joinSocketGroups` on connect with the configured `syncList`, then pushes `data` events. Incoming docs are filtered against `syncList` and `appLanguageIdsAsRef` before being bulk-put into Dexie. `accessMap` and `maxUploadFileSize` are received via a `clientConfig` event. Auth failures (`err.message === "auth_failed"`) disable reconnection so a stale token doesn't loop.
+The socket emits `clientConfigReq` on connect (the connect handshake — declares the `cms` mode and any connect-time `docTypes`), then pushes `data` events. Incoming docs are filtered against `syncList` and `appLanguageIdsAsRef` before being bulk-put into Dexie. `accessMap` and `maxUploadFileSize` are received via a `clientConfig` event. Auth failures (`err.message === "auth_failed"`) disable reconnection so a stale token doesn't loop. (`clientConfigReq` was formerly named `joinSocketGroups`, which the server still accepts as a deprecated alias — ADR 0005. The whole Socket.io live-update transport is slated to migrate to Server-Sent Events (SSE) when SSE is implemented.)
 
-`isConnected` is a Vue ref that drives `ApiLiveQuery`'s online/offline behavior.
+`isConnected` is a Vue ref that drives `HybridQuery`'s online/offline behavior.
 
 ### Permissions — `src/permissions/permissions.ts`
 
@@ -83,12 +94,9 @@ The socket emits `joinSocketGroups` on connect with the configured `syncList`, t
 
 The library's "public composable" surface:
 
-- **`useDexieLiveQuery` / `useDexieLiveQueryWithDeps`** (`util/useDexieLiveQuery/`) — Vue 3 wrapper around Dexie's `liveQuery`. This is the **preferred** way to read from IndexedDB; the older `db.toRef`, `db.getAsRef`, `db.whereTypeAsRef`, etc. on the `Database` class are deprecated and log a warning when called.
-- **`useDexieLiveQueryAsEditable`** — same but wraps the result with `createEditable` so the UI can edit a copy and diff against the source.
-- **`createEditable`** — produces a clone of a source ref that the UI can mutate. Tracks user vs. source modifications so external updates don't clobber in-progress edits.
-- **`ApiLiveQuery` / `ApiLiveQueryAsEditable`** (`util/ApiLiveQuery/`) — same idea but talks to the REST API + Socket.io directly instead of IndexedDB. Used for queries that can't or shouldn't be cached locally (e.g. CMS searches).
+- **`useDexieLiveQuery` / `useDexieLiveQueryWithDeps`** (`util/useDexieLiveQuery/`) — Vue 3 wrapper around Dexie's `liveQuery`. This is the way to read reactively from IndexedDB. (The former `db.toRef` / `db.getAsRef` / `db.whereTypeAsRef` / `db.whereParentAsRef` / … ref-returning helpers on the `Database` class — which wrapped `liveQuery` via `@vueuse/rxjs` — have been removed; use `useHybridQuery` for `db.docs` reads and `useDexieLiveQuery` for other tables. The non-reactive raw helpers like `db.get`, `db.whereParent`, `db.tagsWhereTagType`, `db.contentWhereTag` remain.)
+- **`toEditable`** — converts a source ref into a clone that the UI can mutate. Tracks user vs. source modifications so external updates don't clobber in-progress edits. (Formerly `createEditable`, which remains as a deprecated alias.)
 - **`MangoQuery/`** — Mango-syntax query helpers. `mangoCompile(selector)` returns an in-memory predicate; `mangoToDexie(table, query)` translates a Mango query into a Dexie `Collection` with index pushdown where possible and an in-memory filter for the rest. Both use template-based caching (structure normalized, values extracted) with `localStorage` persistence via `warmMangoCaches()`. See `mangoCompile.md` and `mangoToDexie.md`.
-- **`LFormData`** — `FormData` subclass that serializes nested objects + binary attachments into the multipart format the API expects.
 - **`asyncArray`** (`filterAsync`, `someAsync`), **`watchValue`** — small async/reactivity utilities used across the lib.
 
 ### Full-text search — `src/fts/`
@@ -99,7 +107,7 @@ Offline fuzzy search using **trigram indexing + BM25**. Read `src/fts/README.md`
 - Searches use `db.docs.where("fts").between(trigram + ":", trigram + ";")` per trigram, parse TF, compute BM25 against `corpusStats` (stored under `luminaryInternals["corpusStats"]`).
 - `scheduleCorpusStatsRecompute()` is debounced (10s) and called from every doc-mutation path (`bulkPut` with content, `deleteRevoked`, `deleteExpired`, `purge`) plus on startup.
 - The field config (title=3.0, summary=1.5, text=1.0, author=1.0) and BM25 params are **hard-coded identically** in `api/src/util/ftsIndexing.ts`, `api/src/util/ftsScoring.ts`, and `shared/src/fts/ftsSearch.ts` — if you change one, change all (ADR 0009/0010).
-- **Routing (ADR 0011):** `useFtsSearch` routes each search to local (offline / full-sync) or the server-side `/fts` endpoint (online + a `publishDate` cutoff is set, or CMS) via `shouldUseApiFts()` + `ftsSearchApi`. Single source per search (no merge); falls back to local on API failure and exposes `source` / `isPartial`. **Server results are trimmed (`fts`/`ftsTokenCount` stripped) and must never be `bulkPut`/persisted** — they'd break the `*fts` offline index.
+- **Routing (ADR 0011):** `useFtsSearch` routes each search to local (offline, or no `publishDate` cutoff — full sync, incl. the CMS) or the server-side `/fts` endpoint (online + a `publishDate` cutoff is set) via `shouldUseApiFts()` + `ftsSearchApi`. Single source per search (no merge); falls back to local on API failure and exposes `source` / `isPartial`. **Server results are trimmed (`fts`/`ftsTokenCount` stripped) and must never be `bulkPut`/persisted** — they'd break the `*fts` offline index.
 - Local search optimizations (perf): high-df trigram pruning, a language pre-filter before loading docs, and top-K-only word-match. See `README.md`.
 - Consumer surface is `useFtsSearch(query, options)` (Vue composable, debounced, paginated) or `ftsSearch(opts)` / `ftsSearchApi(opts)` (direct calls).
 

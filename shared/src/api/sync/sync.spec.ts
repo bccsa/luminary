@@ -8,7 +8,7 @@ import { syncList } from "./state";
 import { DocType } from "../../types";
 import * as utils from "./utils";
 import { OPEN_MAX, OPEN_MIN } from "./utils";
-import { merge, mergeHorizontal } from "./merge";
+import { merge } from "./merge";
 import { initConfig } from "../../config";
 
 // Mock dependencies
@@ -1017,12 +1017,13 @@ describe("sync module", () => {
                 includeDeleteCmds: true,
             });
 
-            // Verify a DeleteCmd chunk was pushed to syncList for the new language column
+            // Verify a DeleteCmd chunk was pushed to syncList for the content column. It is
+            // language-UNSCOPED (`languages: undefined`) so it covers deletes in every language.
             const deleteCmdChunk = syncList.value.find(
-                (chunk) => chunk.chunkType === "deleteCmd:post" && chunk.languages?.includes("en"),
+                (chunk) => chunk.chunkType === "deleteCmd:post",
             );
             expect(deleteCmdChunk).toBeDefined();
-            expect(deleteCmdChunk?.languages).toEqual(["en"]);
+            expect(deleteCmdChunk?.languages).toBeUndefined();
             expect(deleteCmdChunk?.blockStart).toBe(6000);
             expect(deleteCmdChunk?.blockEnd).toBe(4000);
             expect(deleteCmdChunk?.eof).toBe(false);
@@ -1051,13 +1052,13 @@ describe("sync module", () => {
                 includeDeleteCmds: true,
             });
 
-            // Verify merge was called with correct parameters including languages.
-            // DeleteCmd path always uses open publishDate bounds.
+            // Verify merge was called for the DeleteCmd sibling with open publishDate bounds and a
+            // language-UNSCOPED set (deletes of any downloaded doc, incl. fallbacks, must propagate).
             expect(merge).toHaveBeenCalledWith({
                 type: DocType.DeleteCmd,
                 subType: DocType.Post,
                 memberOf: ["group1"],
-                languages: ["en"],
+                languages: undefined,
                 limit: 100,
                 includeDeleteCmds: true,
                 publishDateMin: OPEN_MIN,
@@ -1213,13 +1214,15 @@ describe("sync module", () => {
             );
         });
 
-        it("should merge deleteCmd languages when adding a new language via horizontal merge", async () => {
-            // Pre-populate syncList: existing deleteCmd:post entry for "en" (already synced)
+        it("keeps a single language-unscoped deleteCmd column when adding a new content language", async () => {
+            // Pre-populate syncList: an existing UNSCOPED deleteCmd:post entry (the post-migration
+            // shape — DeleteCmd columns are language-unscoped so a delete of any downloaded doc,
+            // including a non-synced fallback translation, propagates).
             syncList.value = [
                 {
                     chunkType: "deleteCmd:post",
                     memberOf: ["group1"],
-                    languages: ["en"],
+                    languages: undefined,
                     blockStart: 5000,
                     blockEnd: 3000,
                     eof: true,
@@ -1274,22 +1277,14 @@ describe("sync module", () => {
                 includeDeleteCmds: true,
             });
 
-            // After sync: the new deleteCmd:post entry for ["fr"] was pushed to syncList.
-            // merge() was mocked (no-op), so verify both entries exist first.
-            const deleteCmdBefore = syncList.value.filter(
+            // Adding a new content language must NOT create a second DeleteCmd column: the single
+            // unscoped column (matched by filterByTypeMemberOf with languages:undefined) already
+            // covers every language, so `hasDeleteCmdEntries` is true and no new column is pushed.
+            const deleteCmdCols = syncList.value.filter(
                 (chunk) => chunk.chunkType === "deleteCmd:post",
             );
-            expect(deleteCmdBefore).toHaveLength(2);
-
-            // Now run the real mergeHorizontal (exposed via mock factory's vi.importActual)
-            // to verify the fix correctly combines deleteCmd languages.
-            mergeHorizontal({ type: DocType.DeleteCmd, subType: DocType.Post });
-
-            const deleteCmdAfter = syncList.value.filter(
-                (chunk) => chunk.chunkType === "deleteCmd:post",
-            );
-            expect(deleteCmdAfter).toHaveLength(1);
-            expect(deleteCmdAfter[0].languages).toEqual(["en", "fr"]);
+            expect(deleteCmdCols).toHaveLength(1);
+            expect(deleteCmdCols[0].languages).toBeUndefined();
         });
 
         it("should call db.deleteExpired after a Content update sync (non-CMS, firstSync=false)", async () => {

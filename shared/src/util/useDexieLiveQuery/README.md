@@ -1,21 +1,36 @@
 # useDexieLiveQuery
 
-[Dexie](https://dexie.org) integration for Vue 3
+## Overview
 
-### Peer dependencies
+A Vue 3 wrapper around [Dexie](https://dexie.org)'s `liveQuery` that turns a
+Dexie query into a reactive `Ref`. The query re-runs automatically whenever the
+underlying IndexedDB data changes — including across browser tabs — so the
+returned ref always reflects the current database state.
 
-```shell
+This is the primitive for reading reactively from IndexedDB. (The former
+`db.toRef` / `db.getAsRef` / `db.whereTypeAsRef` / … ref-returning helpers on the
+`Database` class — which wrapped `liveQuery` via `@vueuse/rxjs` — have been
+removed; use `useHybridQuery` for `db.docs` reads and `useDexieLiveQuery` for
+other tables.)
+
+> Adapted from the upstream
+> [`useDexieLiveQuery`](https://github.com/devweissmikhail/useDexieLiveQuery)
+> project — see [origin.md](origin.md).
+
+## Peer dependencies
+
+```sh
 npm install dexie
 ```
 
-## Examples
+## Usage
 
 ```typescript
-import { useDexieLiveQuery } from "./utils/useDexieLiveQuery";
+import { useDexieLiveQuery } from "luminary-shared";
 
 const allTodos = useDexieLiveQuery(() => db.todos.toArray(), { initialValue: [] });
 
-// Loaded status
+// Track a "loaded" status alongside the data
 
 const { todos, loaded } = useDexieLiveQuery(
     () => db.todos.toArray().then((todos) => ({ todos, loaded: true })),
@@ -23,27 +38,28 @@ const { todos, loaded } = useDexieLiveQuery(
 );
 ```
 
-### With deps
+### With dependencies
+
+Use `useDexieLiveQueryWithDeps` when the query depends on reactive sources: it
+re-subscribes whenever a dependency changes (similar to Vue's
+[`watch`](https://vuejs.org/api/reactivity-core.html#watch), but you return the
+Dexie query from the callback).
 
 ```typescript
-import { useDexieLiveQuery, useDexieLiveQueryWithDeps } from "./utils/useDexieLiveQuery";
+import { useDexieLiveQuery, useDexieLiveQueryWithDeps } from "luminary-shared";
 import { ref } from "vue";
 
 const activeListId = useDexieLiveQuery(() =>
     db.keyval.get("activeListId").then((res) => res?.value),
 );
 
-// Alternative to watch (https://vuejs.org/api/reactivity-core.html#watch),
-// but you should return the request function in the callback
-
 const sortedTodos = useDexieLiveQueryWithDeps(
     activeListId,
-    (activeListId: string | undefined) => {
-        return db.todos.where("listId").equals(activeListId).toArray();
-    },
+    (activeListId: string | undefined) =>
+        db.todos.where("listId").equals(activeListId).toArray(),
     {
         initialValue: [],
-        /* Supported all watch options, default: immediate: true */
+        /* Supports all watch options; default: immediate: true */
     },
 );
 
@@ -58,3 +74,15 @@ const limitedTodos = useDexieLiveQueryWithDeps(
     { initialValue: [] },
 );
 ```
+
+## Caveats
+
+- **Setup-only auto-cleanup.** Call inside a component `setup` / `<script setup>`
+  so the subscription is torn down on unmount. Outside an effect scope it won't
+  auto-dispose — a dev-console warning fires, but the subscription still leaks
+  forever; never call this from a plain function invoked repeatedly (e.g.
+  per-row/per-render helpers, or a `computed` getter re-evaluated outside the
+  original scope), since each call leaks one more permanently-live subscription.
+- **Editable reads.** To edit a copy and diff against the source, pair this with
+  [`toEditable`](../toEditable/README.md), or use
+  [`useHybridQuery`](../HybridQuery/README.md) for local-first reads.

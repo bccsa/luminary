@@ -6,11 +6,15 @@ import { effectScope, isRef } from "vue";
 // registers `onScopeDispose` in its constructor (the real auto-teardown wiring).
 const mocks = vi.hoisted(() => {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { shallowRef, getCurrentScope, onScopeDispose } = require("vue");
+    const { shallowRef, computed, ref, getCurrentScope, onScopeDispose } = require("vue");
     const ctorCalls: Array<{ query: any; options: any }> = [];
     const disposeSpy = vi.fn();
     class FakeHybridQuery {
         output = shallowRef<any[]>([]);
+        _localPending = ref(true);
+        isFetching = computed(() => this._localPending.value);
+        error = shallowRef<unknown | undefined>(undefined);
+        hasLocalChanges = computed(() => (_id: string) => false);
         constructor(query: any, options: any) {
             ctorCalls.push({ query, options });
             if (getCurrentScope()) onScopeDispose(() => this.dispose());
@@ -24,7 +28,7 @@ const mocks = vi.hoisted(() => {
 
 vi.mock("./HybridQuery", () => ({ HybridQuery: mocks.FakeHybridQuery }));
 
-import { useHybridQuery } from "./useHybridQuery";
+import { useHybridQuery, useHybridQueryWithState } from "./useHybridQuery";
 
 describe("useHybridQuery", () => {
     beforeEach(() => {
@@ -76,5 +80,49 @@ describe("useHybridQuery", () => {
     it("does not throw (and registers no disposal) outside an effect scope", () => {
         expect(() => useHybridQuery({ selector: { type: "content" } })).not.toThrow();
         expect(mocks.disposeSpy).not.toHaveBeenCalled();
+    });
+});
+
+describe("useHybridQueryWithState", () => {
+    beforeEach(() => {
+        mocks.ctorCalls.length = 0;
+        mocks.disposeSpy.mockClear();
+    });
+
+    it("constructs HybridQuery with the query + options and returns { output, isFetching, error, hasLocalChanges }", () => {
+        const query = { selector: { type: "content" } };
+        const { output, isFetching, error, hasLocalChanges } = useHybridQueryWithState(query, {
+            live: true,
+        });
+
+        expect(mocks.ctorCalls).toEqual([{ query, options: { live: true } }]);
+        expect(isRef(output)).toBe(true);
+        expect(isRef(isFetching)).toBe(true);
+        expect(isRef(error)).toBe(true);
+        expect(isRef(hasLocalChanges)).toBe(true);
+        expect(output.value).toEqual([]);
+        expect(isFetching.value).toBe(true);
+        expect(error.value).toBeUndefined();
+        expect(hasLocalChanges.value("x")).toBe(false);
+    });
+
+    it("useHybridQuery delegates to the same construction path (single instance, output only)", () => {
+        const query = { selector: { type: "content" } };
+        const out = useHybridQuery(query, { cache: true });
+
+        // One construction, identical to what the stateful form would do.
+        expect(mocks.ctorCalls).toEqual([{ query, options: { cache: true } }]);
+        expect(isRef(out)).toBe(true);
+    });
+
+    it("auto-disposes the instance when the owning effect scope stops", () => {
+        const scope = effectScope();
+        scope.run(() => {
+            useHybridQueryWithState({ selector: { type: "content" } });
+        });
+        expect(mocks.disposeSpy).not.toHaveBeenCalled();
+
+        scope.stop();
+        expect(mocks.disposeSpy).toHaveBeenCalledTimes(1);
     });
 });

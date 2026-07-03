@@ -6,6 +6,7 @@ import {
     type GroupDto,
     type AuthProviderDto,
     DocType,
+    useSharedHybridQuery,
 } from "luminary-shared";
 import LBadge from "@/components/common/LBadge.vue";
 import { DateTime } from "luxon";
@@ -15,12 +16,19 @@ import { breakpointsTailwind, useBreakpoints } from "@vueuse/core";
 
 type Props = {
     usersDoc: UserDto;
+    // Reactive `(id) => boolean` from the overview's useHybridQueryWithState bundle.
+    hasLocalChanges: (id: string) => boolean;
 };
 const props = defineProps<Props>();
-const isLocalChanges = db.isLocalChangeAsRef(props.usersDoc._id);
+const isLocalChanges = computed(() => props.hasLocalChanges(props.usersDoc._id));
 
-const groups = db.whereTypeAsRef<GroupDto[]>(DocType.Group);
-const authProviders = db.whereTypeAsRef<AuthProviderDto[]>(DocType.AuthProvider);
+const groups = useSharedHybridQuery<GroupDto>(() => ({ selector: { type: DocType.Group } }), {
+    live: true,
+});
+const authProviders = useSharedHybridQuery<AuthProviderDto>(
+    () => ({ selector: { type: DocType.AuthProvider } }),
+    { live: true },
+);
 
 const emit = defineEmits<{ (e: "edit", id: string): void }>();
 const showEditModal = defineModel<boolean>();
@@ -40,10 +48,16 @@ const userGroups = computed(() => {
 const userProvider = computed(() =>
     authProviders.value?.find((p) => p._id === props.usersDoc.providerId),
 );
+
+const userProviderLabel = computed(() => {
+    const provider = userProvider.value;
+    if (!provider) return "";
+    return provider.displayName || provider.domain || "Auth provider";
+});
 </script>
 
 <template>
-    <div class="mt-1 flex flex-col">
+    <div class="flex flex-col">
         <DisplayCard
             :title="usersDoc.name"
             :updatedTimeUtc="usersDoc.updatedTimeUtc"
@@ -96,7 +110,7 @@ const userProvider = computed(() =>
                         :icon="KeyIcon"
                         withIcon
                     >
-                        {{ userProvider.label || userProvider.domain }}
+                        {{ userProviderLabel }}
                     </LBadge>
                     <div class="flex items-center gap-1">
                         <UserGroupIcon class="h-4 w-4 text-zinc-400" />
@@ -126,7 +140,7 @@ const userProvider = computed(() =>
                         :icon="KeyIcon"
                         withIcon
                     >
-                        {{ userProvider.label || userProvider.domain }}
+                        {{ userProviderLabel }}
                     </LBadge>
                     <div class="flex flex-1 flex-wrap items-center gap-1">
                         <UserGroupIcon class="h-4 w-4 text-zinc-400" />

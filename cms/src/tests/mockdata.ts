@@ -816,6 +816,7 @@ export const superAdminAccessMap = {
     "group-super-admins": {
         post: {
             view: true,
+            cmsView: true,
             create: true,
             edit: true,
             translate: true,
@@ -824,6 +825,7 @@ export const superAdminAccessMap = {
         },
         tag: {
             view: true,
+            cmsView: true,
             create: true,
             edit: true,
             translate: true,
@@ -833,6 +835,7 @@ export const superAdminAccessMap = {
         },
         language: {
             view: true,
+            cmsView: true,
             create: true,
             edit: true,
             translate: true,
@@ -841,6 +844,7 @@ export const superAdminAccessMap = {
         },
         group: {
             view: true,
+            cmsView: true,
             create: true,
             edit: true,
             translate: true,
@@ -850,6 +854,7 @@ export const superAdminAccessMap = {
         },
         redirect: {
             view: true,
+            cmsView: true,
             create: true,
             edit: true,
             delete: true,
@@ -859,11 +864,20 @@ export const superAdminAccessMap = {
         },
         user: {
             view: true,
+            cmsView: true,
             edit: true,
             delete: true,
         },
         storage: {
             view: true,
+            cmsView: true,
+            edit: true,
+            assign: true,
+            delete: true,
+        },
+        authProvider: {
+            view: true,
+            cmsView: true,
             edit: true,
             assign: true,
             delete: true,
@@ -872,6 +886,7 @@ export const superAdminAccessMap = {
     "group-private-content": {
         post: {
             view: true,
+            cmsView: true,
             create: true,
             edit: true,
             translate: true,
@@ -880,6 +895,7 @@ export const superAdminAccessMap = {
         },
         tag: {
             view: true,
+            cmsView: true,
             create: true,
             edit: true,
             translate: true,
@@ -889,6 +905,7 @@ export const superAdminAccessMap = {
         },
         language: {
             view: true,
+            cmsView: true,
             create: true,
             edit: true,
             translate: true,
@@ -897,6 +914,7 @@ export const superAdminAccessMap = {
         },
         group: {
             view: true,
+            cmsView: true,
             create: true,
             edit: true,
             translate: true,
@@ -906,6 +924,7 @@ export const superAdminAccessMap = {
         },
         redirect: {
             view: true,
+            cmsView: true,
             create: true,
             edit: true,
             delete: true,
@@ -915,11 +934,13 @@ export const superAdminAccessMap = {
         },
         user: {
             view: true,
+            cmsView: true,
             edit: true,
             delete: true,
         },
         storage: {
             view: true,
+            cmsView: true,
             edit: true,
             assign: true,
             delete: true,
@@ -928,6 +949,7 @@ export const superAdminAccessMap = {
     "group-public-content": {
         post: {
             view: true,
+            cmsView: true,
             create: true,
             edit: true,
             translate: true,
@@ -936,6 +958,7 @@ export const superAdminAccessMap = {
         },
         tag: {
             view: true,
+            cmsView: true,
             create: true,
             edit: true,
             translate: true,
@@ -945,6 +968,7 @@ export const superAdminAccessMap = {
         },
         language: {
             view: true,
+            cmsView: true,
             create: true,
             edit: true,
             translate: true,
@@ -953,6 +977,7 @@ export const superAdminAccessMap = {
         },
         group: {
             view: true,
+            cmsView: true,
             create: true,
             edit: true,
             translate: true,
@@ -962,6 +987,7 @@ export const superAdminAccessMap = {
         },
         redirect: {
             view: true,
+            cmsView: true,
             create: true,
             edit: true,
             delete: true,
@@ -971,12 +997,14 @@ export const superAdminAccessMap = {
         },
         user: {
             view: true,
+            cmsView: true,
             create: true,
             edit: true,
             delete: true,
         },
         storage: {
             view: true,
+            cmsView: true,
             edit: true,
             assign: true,
 
@@ -986,6 +1014,7 @@ export const superAdminAccessMap = {
     "group-private-editors": {
         post: {
             view: true,
+            cmsView: true,
             create: true,
             edit: true,
             translate: true,
@@ -994,6 +1023,7 @@ export const superAdminAccessMap = {
         },
         tag: {
             view: true,
+            cmsView: true,
             create: true,
             edit: true,
             translate: true,
@@ -1003,6 +1033,7 @@ export const superAdminAccessMap = {
         },
         language: {
             view: true,
+            cmsView: true,
             create: true,
             edit: true,
             translate: true,
@@ -1011,6 +1042,7 @@ export const superAdminAccessMap = {
         },
         group: {
             view: true,
+            cmsView: true,
             create: true,
             edit: true,
             translate: true,
@@ -1020,6 +1052,7 @@ export const superAdminAccessMap = {
         },
         redirect: {
             view: true,
+            cmsView: true,
             create: true,
             edit: true,
             delete: true,
@@ -1029,6 +1062,7 @@ export const superAdminAccessMap = {
         },
         user: {
             view: true,
+            cmsView: true,
             create: true,
             edit: true,
             delete: true,
@@ -1037,6 +1071,7 @@ export const superAdminAccessMap = {
     "group-public-editors": {
         post: {
             view: true,
+            cmsView: true,
             create: true,
             edit: true,
             translate: true,
@@ -1045,6 +1080,7 @@ export const superAdminAccessMap = {
         },
         tag: {
             view: true,
+            cmsView: true,
             create: true,
             edit: true,
             translate: true,
@@ -1054,6 +1090,7 @@ export const superAdminAccessMap = {
         },
         language: {
             view: true,
+            cmsView: true,
             create: true,
             edit: true,
             translate: true,
@@ -1062,6 +1099,7 @@ export const superAdminAccessMap = {
         },
         group: {
             view: true,
+            cmsView: true,
             create: true,
             edit: true,
             translate: true,
@@ -1071,6 +1109,7 @@ export const superAdminAccessMap = {
         },
         redirect: {
             view: true,
+            cmsView: true,
             create: true,
             edit: true,
             delete: true,
@@ -1080,6 +1119,7 @@ export const superAdminAccessMap = {
         },
         user: {
             view: true,
+            cmsView: true,
             create: true,
             edit: true,
             delete: true,
@@ -1088,6 +1128,7 @@ export const superAdminAccessMap = {
     "group-private-users": {
         post: {
             view: true,
+            cmsView: true,
             create: true,
             edit: true,
             translate: true,
@@ -1096,6 +1137,7 @@ export const superAdminAccessMap = {
         },
         tag: {
             view: true,
+            cmsView: true,
             create: true,
             edit: true,
             translate: true,
@@ -1105,6 +1147,7 @@ export const superAdminAccessMap = {
         },
         language: {
             view: true,
+            cmsView: true,
             create: true,
             edit: true,
             translate: true,
@@ -1113,6 +1156,7 @@ export const superAdminAccessMap = {
         },
         group: {
             view: true,
+            cmsView: true,
             create: true,
             edit: true,
             translate: true,
@@ -1122,6 +1166,7 @@ export const superAdminAccessMap = {
         },
         redirect: {
             view: true,
+            cmsView: true,
             create: true,
             edit: true,
             delete: true,
@@ -1131,6 +1176,7 @@ export const superAdminAccessMap = {
         },
         user: {
             view: true,
+            cmsView: true,
             create: true,
             edit: true,
             delete: true,
@@ -1139,6 +1185,7 @@ export const superAdminAccessMap = {
     "group-public-users": {
         post: {
             view: true,
+            cmsView: true,
             create: true,
             edit: true,
             translate: true,
@@ -1147,6 +1194,7 @@ export const superAdminAccessMap = {
         },
         tag: {
             view: true,
+            cmsView: true,
             create: true,
             edit: true,
             translate: true,
@@ -1156,6 +1204,7 @@ export const superAdminAccessMap = {
         },
         language: {
             view: true,
+            cmsView: true,
             create: true,
             edit: true,
             translate: true,
@@ -1164,6 +1213,7 @@ export const superAdminAccessMap = {
         },
         group: {
             view: true,
+            cmsView: true,
             create: true,
             edit: true,
             translate: true,
@@ -1173,6 +1223,7 @@ export const superAdminAccessMap = {
         },
         redirect: {
             view: true,
+            cmsView: true,
             create: true,
             edit: true,
             delete: true,
@@ -1182,6 +1233,7 @@ export const superAdminAccessMap = {
         },
         user: {
             view: true,
+            cmsView: true,
             create: true,
             edit: true,
             delete: true,
@@ -1190,6 +1242,7 @@ export const superAdminAccessMap = {
     "group-languages": {
         post: {
             view: true,
+            cmsView: true,
             create: true,
             edit: true,
             translate: true,
@@ -1198,6 +1251,7 @@ export const superAdminAccessMap = {
         },
         tag: {
             view: true,
+            cmsView: true,
             create: true,
             edit: true,
             translate: true,
@@ -1207,6 +1261,7 @@ export const superAdminAccessMap = {
         },
         language: {
             view: true,
+            cmsView: true,
             create: true,
             edit: true,
             translate: true,
@@ -1215,6 +1270,7 @@ export const superAdminAccessMap = {
         },
         group: {
             view: true,
+            cmsView: true,
             create: true,
             edit: true,
             translate: true,
@@ -1223,6 +1279,7 @@ export const superAdminAccessMap = {
         },
         redirect: {
             view: true,
+            cmsView: true,
             create: true,
             edit: true,
             delete: true,
@@ -1232,6 +1289,7 @@ export const superAdminAccessMap = {
         },
         user: {
             view: true,
+            cmsView: true,
             create: true,
             edit: true,
             delete: true,
@@ -1243,6 +1301,7 @@ export const fullAccessToAllContentMap = {
     "group-private-content": {
         post: {
             view: true,
+            cmsView: true,
             create: true,
             edit: true,
             translate: true,
@@ -1250,6 +1309,7 @@ export const fullAccessToAllContentMap = {
         },
         tag: {
             view: true,
+            cmsView: true,
             create: true,
             edit: true,
             translate: true,
@@ -1258,6 +1318,7 @@ export const fullAccessToAllContentMap = {
         },
         language: {
             view: true,
+            cmsView: true,
             create: true,
             edit: true,
             translate: true,
@@ -1267,6 +1328,7 @@ export const fullAccessToAllContentMap = {
     "group-public-content": {
         post: {
             view: true,
+            cmsView: true,
             create: true,
             edit: true,
             translate: true,
@@ -1274,6 +1336,7 @@ export const fullAccessToAllContentMap = {
         },
         tag: {
             view: true,
+            cmsView: true,
             create: true,
             edit: true,
             translate: true,
@@ -1282,6 +1345,7 @@ export const fullAccessToAllContentMap = {
         },
         language: {
             view: true,
+            cmsView: true,
             create: true,
             edit: true,
             translate: true,
@@ -1291,6 +1355,7 @@ export const fullAccessToAllContentMap = {
     "group-languages": {
         post: {
             view: true,
+            cmsView: true,
             create: true,
             edit: true,
             translate: true,
@@ -1298,6 +1363,7 @@ export const fullAccessToAllContentMap = {
         },
         tag: {
             view: true,
+            cmsView: true,
             create: true,
             edit: true,
             translate: true,
@@ -1306,6 +1372,7 @@ export const fullAccessToAllContentMap = {
         },
         language: {
             view: true,
+            cmsView: true,
             create: true,
             edit: true,
             translate: true,
@@ -1318,6 +1385,7 @@ export const viewAccessToAllContentMap = {
     "group-private-content": {
         post: {
             view: true,
+            cmsView: true,
             create: false,
             edit: false,
             translate: false,
@@ -1325,6 +1393,7 @@ export const viewAccessToAllContentMap = {
         },
         tag: {
             view: true,
+            cmsView: true,
             create: false,
             edit: false,
             translate: false,
@@ -1332,6 +1401,7 @@ export const viewAccessToAllContentMap = {
         },
         language: {
             view: true,
+            cmsView: true,
             create: false,
             edit: false,
             translate: false,
@@ -1341,6 +1411,7 @@ export const viewAccessToAllContentMap = {
     "group-public-content": {
         post: {
             view: true,
+            cmsView: true,
             create: false,
             edit: false,
             translate: false,
@@ -1348,6 +1419,7 @@ export const viewAccessToAllContentMap = {
         },
         tag: {
             view: true,
+            cmsView: true,
             create: false,
             edit: false,
             translate: false,
@@ -1355,6 +1427,7 @@ export const viewAccessToAllContentMap = {
         },
         language: {
             view: true,
+            cmsView: true,
             create: false,
             edit: false,
             translate: false,
@@ -1364,6 +1437,7 @@ export const viewAccessToAllContentMap = {
     "group-languages": {
         post: {
             view: true,
+            cmsView: true,
             create: false,
             edit: false,
             translate: false,
@@ -1371,6 +1445,7 @@ export const viewAccessToAllContentMap = {
         },
         tag: {
             view: true,
+            cmsView: true,
             create: false,
             edit: false,
             translate: false,
@@ -1378,6 +1453,7 @@ export const viewAccessToAllContentMap = {
         },
         language: {
             view: true,
+            cmsView: true,
             create: false,
             edit: false,
             translate: false,
@@ -1388,19 +1464,19 @@ export const viewAccessToAllContentMap = {
 
 export const translateAccessToAllContentMap = {
     "group-private-content": {
-        post: { view: true, translate: true },
-        tag: { view: true, translate: true },
-        language: { view: true, translate: true },
+        post: { view: true, cmsView: true, translate: true },
+        tag: { view: true, cmsView: true, translate: true },
+        language: { view: true, cmsView: true, translate: true },
     },
     "group-public-content": {
-        post: { view: true, translate: true },
-        tag: { view: true, translate: true },
-        language: { view: true, translate: true },
+        post: { view: true, cmsView: true, translate: true },
+        tag: { view: true, cmsView: true, translate: true },
+        language: { view: true, cmsView: true, translate: true },
     },
     "group-languages": {
-        post: { view: true, translate: true },
-        tag: { view: true, translate: true },
-        language: { view: true, translate: true },
+        post: { view: true, cmsView: true, translate: true },
+        tag: { view: true, cmsView: true, translate: true },
+        language: { view: true, cmsView: true, translate: true },
     },
 } as AccessMap;
 

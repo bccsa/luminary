@@ -59,26 +59,6 @@ export class HttpReq<T> {
         return regex.test(this.apiUrl) ? this.apiUrl : `${schema}${this.apiUrl}`;
     }
 
-    async get(endpoint: string, query: T) {
-        console.warn(
-            "The API GET call containing an X-Query header is deprecated and should be replaced with POST calls containing a MangoQuery",
-        );
-        const headers: any = {
-            "X-Query": JSON.stringify(query),
-            ...customHeaders,
-        };
-
-        try {
-            const res = await fetch(`${this.getUrl()}/${endpoint}`, {
-                method: "GET",
-                headers: headers,
-            });
-            return await handleResponse(res);
-        } catch (err) {
-            // do not display error when fetch is unable to contact the api, since the app is build to support offline mode
-        }
-    }
-
     async getWithQueryParams(endpoint: string, params: Record<string, string>) {
         const headers: any = { ...customHeaders };
 

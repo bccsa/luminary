@@ -6,6 +6,8 @@ import { type ContentDto } from "luminary-shared";
 import { ref, watch } from "vue";
 type Props = {
     disabled: boolean;
+    /** Render as a plain section (no card chrome / collapse) for nesting in another card. */
+    bare?: boolean;
 };
 defineProps<Props>();
 const content = defineModel<ContentDto>("content");
@@ -30,10 +32,11 @@ watch(
         v-if="content"
         title="Video"
         :icon="VideoCameraIcon"
-        collapsible
-        :collapsed="collapsed"
+        :collapsible="!bare"
+        :collapsed="bare ? false : collapsed"
+        :bare="bare"
         data-test="videoContent"
-        class="bg-white"
+        :class="bare ? '' : 'bg-white'"
     >
         <LInput
             name="video"

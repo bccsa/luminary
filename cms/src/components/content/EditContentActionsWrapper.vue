@@ -19,6 +19,7 @@ type Props = {
     newDocument: boolean;
     isLocalChange: boolean;
     isDirty: boolean;
+    isSaving?: boolean;
     actions: Array<{
         name: string;
         action: Function;
@@ -31,24 +32,32 @@ defineProps<Props>();
 
 const showContentActionsMenuDesktop = ref(false);
 const showContentActionsMenuMobile = ref(false);
+
+// Refs to the segmented buttons so each dropdown panel can size itself to the full button width
+// (its own trigger is just the chevron segment).
+const segmentedButtonDesktop = ref<{ rootEl: HTMLElement | null } | null>(null);
+const segmentedButtonMobile = ref<{ rootEl: HTMLElement | null } | null>(null);
 </script>
 
 <template>
     <!-- MOBILE -->
-    <div v-if="mobile" class="relative flex items-center gap-1 pr-3 lg:hidden">
+    <div v-if="mobile" class="relative flex items-center gap-1 pr-1 lg:hidden">
         <div v-if="isLocalChange" class="mr-7 flex h-9 w-10 items-center lg:hidden">
             <LBadge class="h-full" variant="warning">Offline changes</LBadge>
         </div>
 
         <!-- SEGMENTED BUTTON + DROPDOWN -->
         <LButton
+            ref="segmentedButtonMobile"
             variant="primary"
             segmented
-            :left-action="isDirty && !newDocument ? () => revert() : undefined"
-            :main-action="async () => await save()"
+            :left-action="isDirty && !newDocument && !isSaving ? () => revert() : undefined"
+            :main-action="isSaving ? undefined : async () => await save()"
             dropdown-anchor
             :main-dynamic-css="
-                !isDirty ? '!bg-zinc-400 !text-zinc-100 !ring-zinc-400 pointer-events-none' : ''
+                !isDirty || isSaving
+                    ? '!bg-zinc-400 !text-zinc-100 !ring-zinc-400 pointer-events-none'
+                    : ''
             "
         >
             <template v-if="isDirty && !newDocument" #left>
@@ -67,6 +76,7 @@ const showContentActionsMenuMobile = ref(false);
                     padding="small"
                     placement="bottom-end"
                     width="auto"
+                    :anchor-el="segmentedButtonMobile?.rootEl"
                     class="h-full"
                     trigger-class="flex flex-1 items-center justify-center px-3"
                 >
@@ -106,19 +116,22 @@ const showContentActionsMenuMobile = ref(false);
         </LButton>
     </div>
     <!-- DESKTOP -->
-    <div v-else class="hidden items-center gap-1 pr-3 lg:flex">
+    <div v-else class="hidden items-center gap-1 lg:flex">
         <div v-if="isLocalChange" class="hidden h-9 items-center gap-2 lg:flex">
             <LBadge class="h-full" variant="warning">Offline changes</LBadge>
         </div>
         <!-- SEGMENTED BUTTON + DROPDOWN -->
         <LButton
+            ref="segmentedButtonDesktop"
             variant="primary"
             segmented
-            :left-action="isDirty && !newDocument ? () => revert() : undefined"
-            :main-action="async () => await save()"
+            :left-action="isDirty && !newDocument && !isSaving ? () => revert() : undefined"
+            :main-action="isSaving ? undefined : async () => await save()"
             dropdown-anchor
             :main-dynamic-css="
-                !isDirty ? '!bg-zinc-400 !text-zinc-100 !ring-zinc-400 pointer-events-none' : ''
+                !isDirty || isSaving
+                    ? '!bg-zinc-400 !text-zinc-100 !ring-zinc-400 pointer-events-none'
+                    : ''
             "
         >
             <template v-if="isDirty && !newDocument" #left>
@@ -139,6 +152,7 @@ const showContentActionsMenuMobile = ref(false);
                     padding="small"
                     placement="bottom-end"
                     width="auto"
+                    :anchor-el="segmentedButtonDesktop?.rootEl"
                     class="h-full"
                     trigger-class="flex h-full w-full items-center justify-center px-3"
                 >

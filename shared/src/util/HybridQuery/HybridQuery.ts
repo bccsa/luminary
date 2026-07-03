@@ -1,9 +1,12 @@
 import {
+    computed,
     effectScope,
     getCurrentScope,
     onScopeDispose,
+    ref,
     shallowRef,
     watch,
+    type ComputedRef,
     type ShallowRef,
     type WatchStopHandle,
 } from "vue";
@@ -16,7 +19,9 @@ import {
     type BaseDocumentDto,
     type DeleteCmdDto,
     DocType,
+    type Uuid,
 } from "../../types";
+import { useHasLocalChanges } from "../useHasLocalChange";
 import { isProvablyEmpty } from "../MangoQuery/isProvablyEmpty";
 import { sanitizeArrayOperators } from "../MangoQuery/sanitizeArrayOperators";
 import { mangoCompile } from "../MangoQuery/mangoCompile";
@@ -29,6 +34,7 @@ import {
     planRemoteContentQueries,
     readType,
     toDeleteSelector,
+    typeInSyncListRef,
     typeIsInSyncList,
 } from "./queryIntrospection";
 import {
@@ -37,9 +43,8 @@ import {
     structuralCacheKey,
     writeResponseCache,
 } from "./responseCache";
-import { isSyncableDoc } from "../../db/isSyncable";
 import { touchRetention } from "../../db/retention";
-import { getContentPublishDateCutoff } from "../../config";
+import { config, getContentPublishDateCutoff } from "../../config";
 import { OPEN_MIN } from "../../api/sync/utils";
 
 /**
@@ -51,6 +56,13 @@ import { OPEN_MIN } from "../../api/sync/utils";
 export const DEFAULT_REMOTE_QUERY_LIMIT = 500;
 
 let _httpService: HttpReq<any> | undefined;
+
+// Test-only registry of live instances, so `_resetHybridQueryForTests()` can dispose
+// any a test left undisposed (a non-content instance now holds a persistent syncList
+// membership watch — see `_watchMembership` — which would otherwise fire across tests
+// when the shared mock mutates `syncList`). Populated only in test mode, so production
+// (where instances are scope-disposed) carries no global instance set.
+const _testInstances = new Set<{ dispose: () => void }>();
 
 /**
  * Wire the HTTP service used by `HybridQuery` / `queryRemote` for the remote path.
@@ -70,6 +82,10 @@ export function _resetHybridQueryForTests(): void {
         throw new Error("_resetHybridQueryForTests is only available in test mode");
     }
     _httpService = undefined;
+    // Dispose any instance the previous test left alive so its membership/socket/Dexie
+    // watchers can't fire into the next test when the shared mocks are reset.
+    Array.from(_testInstances).forEach((q) => q.dispose());
+    _testInstances.clear();
 }
 
 /**
@@ -93,6 +109,11 @@ export async function queryRemote<T = unknown>(query: MangoQuery): Promise<T[]> 
         identifier: "hybridQuery",
         limit: typeof query.$limit === "number" ? query.$limit : DEFAULT_REMOTE_QUERY_LIMIT,
     };
+    // Match the consumer's scope: CMS reads (config.cms) are CmsView-gated server-side and include
+    // drafts/expired; app reads stay View-gated + published-only. The remote supplement otherwise
+    // defaulted to View while CMS sync used CmsView — an inconsistent window. No cms flag ⇒ cms:false,
+    // so omit it when false (wire payload unchanged for non-CMS consumers).
+    if (config.cms === true) payload.cms = true;
     if (Array.isArray(query.$sort)) payload.sort = query.$sort;
     // Forward the client-chosen index hint to the API (validated against an
     // allowlist there). Same pattern as sync/syncBatch.ts — index selection
@@ -230,13 +251,15 @@ export type HybridQueryOptions = {
      * Distinct from {@link cache} (which keeps a localStorage *window* for first
      * paint): this persists the *documents* themselves, durably. The two compose.
      *
-     * Privacy: only docs the client's `syncList` permits in IndexedDB are written
-     * (the same `isSyncableDoc` gate the socket feed uses) — so a `persistOffline`
-     * query over a non-syncable type (e.g. the CMS's `user`) persists **nothing**,
-     * regardless of this flag. Persisted docs are retention-managed and evicted once
-     * stale (see `db/retention.ts`).
+     * Privacy / scope: only fetched **Content** is written (the type check is the floor) — the API
+     * has already permission-scoped what it returned, and a non-content type (e.g. the CMS's `user`)
+     * persists **nothing**, regardless of this flag. Deliberately NOT gated on `isSyncableDoc`: that
+     * needs a populated `syncList` content entry, which sync only creates after fetching a content
+     * doc — so when everything is below the sync cutoff (nothing to sync) it would persist nothing.
+     * Persisted docs are retention-managed and evicted once stale (see `db/retention.ts`).
      */
     persistOffline?: boolean;
+
 };
 
 /**
@@ -323,6 +346,28 @@ export type HybridQueryOptions = {
  */
 export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
     public readonly output: ShallowRef<T[]>;
+    // `true` from (re)build until the generation's COMPLETE first result settles —
+    // the local Dexie read AND (where applicable) the remote supplement POST. Data
+    // may already be painted (local landed, or a cache seed) while this is still true
+    // (remote in flight): it tracks "still fetching", not "has no data". A query rebuild
+    // (reactive thunk / live) re-enters loading. Derived from two independent pending
+    // flags so the content branch's two phases compose without a bespoke state machine;
+    // offline settles the remote leg immediately (parked, not fetching).
+    public readonly isFetching: ComputedRef<boolean>;
+    // Last routing/remote/local-read error for the current generation, or undefined.
+    // Last-error-wins; cleared synchronously on every rebuild.
+    public readonly error: ShallowRef<unknown | undefined>;
+    // Reactive queryable `(id) => boolean`: does the document have a change queued locally
+    // (saved via `db.upsert`) but not yet acknowledged by the server? Independent of this
+    // query's result window — it reflects the global outgoing-change queue, so a consumer can
+    // flag the pending-offline state of any doc it renders (e.g. an overview row). Backed by a
+    // single process-wide subscription shared across all instances (see `useHasLocalChanges`).
+    public readonly hasLocalChanges: ComputedRef<(id: Uuid) => boolean>;
+    // `isFetching = _localPending || _remotePending`. _localPending: the local read
+    // hasn't produced its first result. _remotePending: a supplement POST is owed and
+    // hasn't settled (resolved / rejected / dropped because no API is needed).
+    private readonly _localPending = ref(false);
+    private readonly _remotePending = ref(false);
 
     // The query thunk. A plain MangoQuery is normalized to `() => query`. In live
     // mode it is auto-tracked (re-evaluated when any ref it reads changes); in
@@ -388,6 +433,9 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
         this._cacheStripFields = options.cacheStripFields ?? [];
         this._stripFields = options.stripFields ?? [];
         this.output = shallowRef<T[]>([]);
+        this.error = shallowRef<unknown | undefined>(undefined);
+        this.isFetching = computed(() => this._localPending.value || this._remotePending.value);
+        this.hasLocalChanges = useHasLocalChanges();
 
         // Auto-teardown on unmount when constructed inside a Vue effect scope
         // (e.g. <script setup>). Vue's withAsyncContext keeps the scope valid
@@ -395,6 +443,9 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
         // sits after an `await` in the script. A non-component caller will see no
         // active scope and must call `dispose()` manually.
         if (getCurrentScope()) onScopeDispose(() => this.dispose());
+
+        // Test-only: register for blanket teardown in `_resetHybridQueryForTests`.
+        if (import.meta.env?.MODE === "test") _testInstances.add(this);
 
         if (typeof query === "function") {
             // A query THUNK is reactive — independent of `live`. The getter runs the
@@ -444,6 +495,13 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
         this._seededRemoteIds.clear();
         this._apiDecided = false;
         this._tombstones.clear();
+        // Re-enter loading for the new generation. _generation++ above has already
+        // disarmed any stale callback (the gen guard), so these synchronous writes are
+        // safe; _run adjusts _remotePending per route (and clears _localPending for the
+        // API-only branch, which reads no local).
+        this.error.value = undefined;
+        this._localPending.value = true;
+        this._remotePending.value = false;
         // Strip null/undefined from any $in/$nin/$all BEFORE the selector forks into
         // the local Dexie read and the remote API POST — a null member crashes
         // CouchDB's _find (function_clause / 500). One choke point keeps both legs
@@ -466,6 +524,7 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
     dispose(): void {
         if (this._disposed) return;
         this._disposed = true;
+        if (import.meta.env?.MODE === "test") _testInstances.delete(this);
         // Stop the top-level query watch FIRST so a dep write racing teardown can't
         // start a new generation after we've disposed.
         this._stopQueryWatch?.();
@@ -475,6 +534,46 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
     }
 
     // ── internals ────────────────────────────────────────────────────────────
+
+    // Settle the remote pending flag for `gen`, but only if it is still the live
+    // generation — a superseded generation's late POST must never clear the current
+    // generation's loading state. (The local leg settles inline inside the onLocal
+    // callbacks, which already carry the same generation guard.)
+    private _settleRemote(gen: number): void {
+        if (gen !== this._generation || this._disposed) return;
+        this._remotePending.value = false;
+    }
+
+    // Non-content branches only. Re-route this generation when `type`'s syncList
+    // membership FLIPS — `false→true` when sync first registers the type (cold start:
+    // a query built before its type was synced re-routes from API-only to Dexie-only
+    // once both Dexie AND the syncList entry exist — db.bulkPut precedes the
+    // syncList.push, so the local read is already populated → no flash), and `true→false`
+    // on revoke (deleteRevoked trims the column and purges the Dexie docs, so we fall
+    // back to the API). The watched value is the per-type memoized membership BOOLEAN, so
+    // the callback fires once per genuine flip — never on the per-chunk block-range / eof
+    // churn that mutates `syncList` during a sync. Registered in `_generationDisposers`,
+    // so a query-thunk rebuild tears this down and `_run` installs a fresh watch for the
+    // new type (no stale-type tracking). `immediate: false` — the initial route was
+    // already decided synchronously by the `typeIsInSyncList(type)` read in `_run`.
+    private _watchMembership(type: DocType, gen: number): void {
+        const stop = watch(
+            typeInSyncListRef(type),
+            () => {
+                // The structural teardown (watch stop) already prevents a fired-after-stop
+                // callback; the gen/dispose guard is belt-and-braces against a flip racing
+                // a rebuild that has already bumped `_generation`.
+                if (gen !== this._generation || this._disposed) return;
+                // `_rebuild` keeps `output` across the rebuild (no flash), bumps
+                // `_generation` (disarming this generation's in-flight POST / local read /
+                // socket cb via the gen guard), and re-runs `_run` — which now reads the
+                // flipped membership and takes the opposite branch.
+                this._rebuild(this._queryFn());
+            },
+            { immediate: false },
+        );
+        this._generationDisposers.add(stop);
+    }
 
     private _run(): void {
         // Capture the generation so every async/event callback this method wires up
@@ -498,6 +597,10 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
             // the empty initial build.
             if (isProvablyEmpty(this._query.selector)) {
                 if (this.output.value.length) this.output.value = [];
+                // This branch never recomputes, so settle loading here (synchronous,
+                // current generation) — otherwise isFetching would hang true forever.
+                this._localPending.value = false;
+                this._remotePending.value = false;
                 return;
             }
 
@@ -514,6 +617,9 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
             // Deliberately AFTER the provably-empty guard so an empty-`$in` query —
             // which shares a structural key with its populated form — never repaints
             // stale content.
+            // NB: do NOT settle loading here. The seed is a first-paint accelerant; the
+            // authoritative local read and remote POST are still in flight, so isFetching
+            // stays true (painted-from-cache is still "fetching", not "settled").
             if (this._cache) {
                 const seed = readResponseCache<T>(this._cacheKey);
                 if (seed) {
@@ -534,23 +640,32 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
                 // the (one-shot) API-supplement decision. Later live emissions
                 // update `_local` only — the `_apiDecided` gate keeps the API
                 // one-shot ("exclude live updates from the API").
-                this._startLocal((local) => {
+                this._startLocal(gen, (local) => {
                     if (gen !== this._generation || this._disposed) return;
                     try {
                         this._setLocal(local);
+                        // Local has produced a result — settle the local leg. Idempotent
+                        // on later live re-emissions.
+                        this._localPending.value = false;
                         if (this._apiDecided) return;
                         this._apiDecided = true;
+                        // ONE supplement decided off the FIRST local result: the below-cutoff
+                        // older tail. Skipped entirely under a full-corpus sync (no cutoff), where
+                        // the local read is complete (see decideContentApiQuery).
                         const api = decideContentApiQuery(this._query, local);
                         if (api) {
-                            void this._runApiWhenOnline(api, gen);
-                            // Live mode: keep the remote supplement live off the
-                            // socket changefeed, filtered by the supplement query.
+                            // A supplement is owed — keep loading true until the POST settles
+                            // (or offline-defers). _postAndMerge / _runApiWhenOnline own clearing
+                            // _remotePending.
+                            this._remotePending.value = true;
+                            void this._runApiWhenOnline([api], gen);
+                            // Live mode: keep the supplement live off the socket changefeed,
+                            // filtered by the supplement query.
                             if (this._live) this._startRemoteLive(api, DocType.Content, gen);
                         } else {
-                            // Local fully satisfies the query — no older tail will be
-                            // fetched, so no POST will arrive to supersede a seeded
-                            // remote. Drop it now so a stale older-tail doc can't linger
-                            // in the merged window.
+                            // Local fully satisfies the query (no older-tail owed) — no POST will
+                            // arrive to supersede a seeded remote. Drop it now so a stale older-tail
+                            // doc can't linger in the merged window.
                             this._dropSeededRemote();
                         }
                     } catch (err) {
@@ -562,19 +677,27 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
 
             if (typeIsInSyncList(type)) {
                 // Fully-synced type → Dexie only, no API supplement.
-                this._startLocal((local) => {
+                this._startLocal(gen, (local) => {
                     if (gen !== this._generation || this._disposed) return;
                     try {
                         this._setLocal(local);
+                        // Local only — loading settles on the first local result.
+                        this._localPending.value = false;
                     } catch (err) {
                         console.error("[HybridQuery] local update failed:", err);
                     }
                 });
+                // Re-route to API-only if this type is later REVOKED (membership true→false).
+                // `type` is non-undefined here (it passed typeIsInSyncList).
+                this._watchMembership(type as DocType, gen);
                 return;
             }
 
             // Non-content type not in syncList → fetch from API only, no Dexie read.
-            void this._runApiWhenOnline(this._query, gen);
+            // No local leg: settle local now, the remote POST owns loading from here.
+            this._localPending.value = false;
+            this._remotePending.value = true;
+            void this._runApiWhenOnline([this._query], gen);
             // Live mode: these docs never flow through Dexie (sync doesn't sync this
             // type), so the socket listener is their only live path.
             if (this._live) {
@@ -585,6 +708,11 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
                 if (type) this._generationDisposers.add(subscribeRooms([type]));
                 this._startRemoteLive(this._query, type, gen);
             }
+            // COLD-START RE-ROUTE: when sync first registers this type (membership
+            // false→true), flip to Dexie-only. Independent of `live`. Typeless queries
+            // (readType → undefined) get no membership watch — they intentionally stay
+            // API-only (the "safe by default" arm).
+            if (type) this._watchMembership(type, gen);
         } catch (err) {
             // Belt-and-braces: anything that escaped the inner handlers (the
             // reconnect-watcher setup, an unexpected throw in queryIntrospection
@@ -607,10 +735,13 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
      *   `effectScope` the class owns — `dispose()` → `scope.stop()` →
      *   `useDexieLiveQuery`'s `onScopeDispose` → `liveQuery` unsubscribe.
      */
-    private _startLocal(onLocal: (docs: T[]) => void): void {
+    private _startLocal(gen: number, onLocal: (docs: T[]) => void): void {
         if (!this._live) {
             void mangoToDexie<T>(db.docs, this._query).then(onLocal, (err) => {
+                if (gen === this._generation && !this._disposed) this.error.value = err;
                 console.error("[HybridQuery] local read failed:", err);
+                // Route the empty set on so the local leg still settles and the content
+                // branch still makes its API decision (preserves the original behaviour).
                 onLocal([]);
             });
             return;
@@ -622,7 +753,13 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
         this._generationDisposers.add(() => scope.stop());
         scope.run(() => {
             const source = useDexieLiveQuery<T[]>(() => mangoToDexie<T>(db.docs, this._query), {
-                onError: (err) => console.error("[HybridQuery] live local read failed:", err),
+                // A live read that errors and never emits keeps _localPending true (same
+                // silent risk as before this change); surface the error so consumers can
+                // at least react to it.
+                onError: (err) => {
+                    if (gen === this._generation && !this._disposed) this.error.value = err;
+                    console.error("[HybridQuery] live local read failed:", err);
+                },
             });
             // `immediate: true` fires synchronously with the ref's initial value
             // (`undefined`) — guarded out so we never pass `undefined` to
@@ -639,9 +776,9 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
         });
     }
 
-    private async _runApiWhenOnline(api: MangoQuery, gen: number): Promise<void> {
+    private async _runApiWhenOnline(apis: MangoQuery[], gen: number): Promise<void> {
         if (isConnected.value) {
-            await this._postAndMerge(api, gen);
+            await this._postAndMerge(apis, gen);
             return;
         }
         // Offline — defer the POST until `isConnected` flips true. Run-once
@@ -653,22 +790,29 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
             ran = true;
             stop();
             this._generationDisposers.delete(stop);
-            void this._postAndMerge(api, gen);
+            // The deferred POST runs in the background; it deliberately does NOT
+            // re-enter loading (data has already painted from local/cache, and
+            // flipping isFetching back to true on a late reconnect would surprise
+            // empty-state consumers). _postAndMerge's settle is then a no-op.
+            void this._postAndMerge(apis, gen);
         });
         this._generationDisposers.add(stop);
+        // Parked on the reconnect watcher — not actively fetching, so settle the remote
+        // leg now (offline settles the remote leg to false).
+        this._settleRemote(gen);
     }
 
-    private async _postAndMerge(api: MangoQuery, gen: number): Promise<void> {
+    private async _postAndMerge(apis: MangoQuery[], gen: number): Promise<void> {
         try {
-            // A multi-parent content supplement is fanned into per-parent POSTs so each
-            // seeks the parentId index instead of forcing one publishDate-window scan;
-            // results are merged by id. Non-fan-out queries return a single [api].
+            // The older-tail supplement is expanded via planRemoteContentQueries: a multi-parent
+            // content supplement fans into per-parent POSTs so each seeks the parentId index instead
+            // of forcing one publishDate-window scan; non-fan-out queries return a single [api]. All
+            // resulting POSTs settle together here as ONE remote leg, and results are merged by id.
             //
-            // allSettled (not all): one parent's transient failure must not blank the
-            // whole fan-out — keep the parents that succeeded. If EVERY query fails we
-            // leave `_remote` untouched (preserving any cache seed, healing on remount),
-            // matching the pre-fan-out single-POST behaviour.
-            const queries = planRemoteContentQueries(api);
+            // allSettled (not all): one query's transient failure must not blank the whole batch —
+            // keep the queries that succeeded. If EVERY query fails we leave `_remote` untouched
+            // (preserving any cache seed, healing on remount), matching the prior behaviour.
+            const queries = apis.flatMap((api) => planRemoteContentQueries(api));
             const settled = await Promise.allSettled(queries.map((q) => queryRemote<T>(q)));
             // A rebuild (dep change) or dispose may have superseded this POST while
             // it was in flight — its result belongs to a dead generation.
@@ -685,6 +829,10 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
                     `[HybridQuery] ${settled.length - fulfilled.length}/${settled.length} remote query(ies) failed:`,
                     firstErr?.reason,
                 );
+                // Surface the failure only when EVERY query failed (total failure below).
+                // A partial fan-out failure keeps the succeeded subset, so it must not
+                // raise `error` — that would be misleading.
+                if (fulfilled.length === 0) this.error.value = firstErr?.reason;
             }
             // Total failure: keep the current `_remote` (and its seed) and heal later.
             if (fulfilled.length === 0) return;
@@ -692,13 +840,20 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
             const remote = fulfilled.reduce<T[]>((acc, s) => mergeById(acc, s.value), []);
             this._setRemote(remote);
 
-            // Offline persistence (opt-in): write the syncable subset to IndexedDB so
-            // these older-tail docs are openable offline, and stamp their retention.
+            // Offline persistence (opt-in): write the fetched CONTENT to IndexedDB so these
+            // older-tail docs are openable offline, and stamp their retention.
             // Fire-and-forget — the in-memory `_remote` already makes the list correct.
-            // The `isSyncableDoc` floor means a non-syncable type (e.g. CMS `user`) is
-            // never persisted, regardless of the flag.
+            //
+            // Gate on `type === Content`, NOT `isSyncableDoc`: the latter requires a populated
+            // `syncList` content entry, which sync only creates once it has *fetched* a content
+            // doc (`syncBatch` pushes the entry under `if (fetchedDocs.length)`). When every doc is
+            // below the sync `publishDate` cutoff, sync fetches nothing → no entry → `isSyncableDoc`
+            // would reject everything and persist nothing. `persistOffline` caches what HybridQuery
+            // explicitly fetched for display, and the API has already permission-scoped it, so the
+            // type check is the correct floor (it still excludes non-content types like the CMS
+            // `user`, which must never touch IndexedDB).
             if (this._persistOffline) {
-                const toPersist = remote.filter(isSyncableDoc);
+                const toPersist = remote.filter((d) => d.type === DocType.Content);
                 if (toPersist.length) {
                     void db
                         .bulkPut(toPersist)
@@ -707,7 +862,12 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
                 }
             }
         } catch (err) {
+            if (gen === this._generation && !this._disposed) this.error.value = err;
             console.error("[HybridQuery] remote query failed:", err);
+        } finally {
+            // Settle the remote leg whether the POST resolved, failed, or bailed on a
+            // stale generation (the gen guard inside makes the stale case a no-op).
+            this._settleRemote(gen);
         }
     }
 

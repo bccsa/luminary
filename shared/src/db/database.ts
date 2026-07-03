@@ -1,4 +1,4 @@
-import Dexie, { Collection, IndexableType, type Table, liveQuery } from "dexie";
+import Dexie, { Collection, IndexableType, type Table } from "dexie";
 import {
     AclPermission,
     BaseDocumentDto,
@@ -8,16 +8,13 @@ import {
     DeleteReason,
     DocType,
     LocalChangeDto,
-    PostType,
     PublishStatus,
     TagDto,
     TagType,
     Uuid,
 } from "../types";
 import { scheduleCorpusStatsRecompute } from "../fts/ftsIndexer";
-import { useObservable } from "@vueuse/rxjs";
-import type { Observable } from "rxjs";
-import { type Ref, toRaw, watch } from "vue";
+import { toRaw, watch } from "vue";
 import { DateTime } from "luxon";
 import { v4 as uuidv4 } from "uuid";
 import { filterAsync, someAsync } from "../util/asyncArray";
@@ -200,51 +197,10 @@ class Database extends Dexie {
     }
 
     /**
-     * Convert a Dexie query to a Vue ref by making use of Dexie's liveQuery and @vueuse/rxjs' useObservable
-     * @deprecated For document (db.docs) reads use HybridQuery (useHybridQuery). For other Dexie reactivity (e.g. localChanges) use useDexieLiveQuery / useDexieLiveQueryWithDeps / useDexieLiveQueryAsEditable.
-     * @param query - The query to convert to a ref. The query should be passed as a function as it only gets executed by the liveQuery.
-     * @param initialValue - The initial value of the ref while waiting for the query to complete
-     * @returns Vue Ref
-     */
-    toRef<T extends BaseDocumentDto | BaseDocumentDto[] | boolean | LocalChangeDto[]>(
-        query: () => Promise<T>,
-        initialValue?: T,
-    ) {
-        return useObservable(
-            liveQuery(async () => {
-                return await query();
-            }) as unknown as Observable<T>,
-            { initialValue },
-        ) as Ref<T>;
-    }
-
-    /**
      * Get an IndexedDB document by its id
      */
     get<T extends BaseDocumentDto>(id: Uuid) {
         return this.docs.get(id) as unknown as Promise<T>;
-    }
-
-    /**
-     * Get an IndexedDB document as Vue Ref by its id
-     * @deprecated Use HybridQuery (useHybridQuery) instead
-     * @param initialValue - The initial value of the ref while waiting for the query to complete
-     */
-    getAsRef<T extends BaseDocumentDto>(id: Uuid, initialValue?: T) {
-        return this.toRef<T>(() => this.docs.get(id) as unknown as Promise<T>, initialValue);
-    }
-
-    /**
-     * Get an IndexedDB document by its slug as Vue Ref
-     * @deprecated Use HybridQuery (useHybridQuery) instead
-     * @param slug - The slug of the document to get
-     * @param initialValue - The initial value of the ref while waiting for the query to complete
-     */
-    getBySlugAsRef<T extends BaseDocumentDto>(slug: string, initialValue?: T) {
-        return this.toRef<T>(
-            () => this.docs.where("slug").equals(slug).first() as unknown as Promise<T>,
-            initialValue,
-        );
     }
 
     /**
@@ -253,8 +209,7 @@ class Database extends Dexie {
     async bulkPut(docs: BaseDocumentDto[]) {
         const candidateDeleteCmds = docs.filter(
             (doc) =>
-                doc.type === DocType.DeleteCmd &&
-                this.validateDeleteCommand(doc as DeleteCmdDto),
+                doc.type === DocType.DeleteCmd && this.validateDeleteCommand(doc as DeleteCmdDto),
         ) as DeleteCmdDto[];
 
         // Bulk-fetch target docs once, then skip any deleteCmd whose target is already
@@ -279,7 +234,20 @@ class Database extends Dexie {
         }
 
         const nonDeleteDocs = docs.filter((doc) => doc.type !== DocType.DeleteCmd);
-        const result = await this.docs.bulkPut(nonDeleteDocs);
+
+        // Content is the only doctype whose `fts` index is used locally (offline trigram search
+        // via the `*fts` MultiEntry index). Other doctypes (e.g. User/Redirect) may carry a
+        // server-only `fts` used only by the `/fts` endpoint; strip it before persisting so it
+        // can't pollute the offline Content index (stray matches + df/IDF skew) or bloat Dexie.
+        const cleanedDocs = nonDeleteDocs.map((doc) => {
+            if (doc.type === DocType.Content) return doc;
+            const d = doc as Record<string, any>;
+            if (d.fts === undefined && d.ftsTokenCount === undefined) return doc;
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const { fts, ftsTokenCount, ...rest } = d;
+            return rest as BaseDocumentDto;
+        });
+        const result = await this.docs.bulkPut(cleanedDocs);
 
         // Update corpus stats if this batch contained ContentDtos
         if (nonDeleteDocs.length > 0 && nonDeleteDocs[0].type === DocType.Content) {
@@ -294,52 +262,6 @@ class Database extends Dexie {
      */
     async someByType(docType: DocType) {
         return (await this.docs.where("type").equals(docType).first()) != undefined;
-    }
-
-    /**
-     * Return true if there are some documents of the specified DocType as Vue Ref
-     * @deprecated Use HybridQuery (useHybridQuery) instead
-     */
-    someByTypeAsRef(docType: DocType) {
-        return this.toRef<boolean>(
-            () => this.someByType(docType) as unknown as Promise<boolean>,
-            false,
-        );
-    }
-
-    /**
-     * Get all IndexedDB documents of a certain type as Vue Ref
-     * @deprecated Use HybridQuery (useHybridQuery) instead
-     * @param initialValue - The initial value of the ref while waiting for the query to complete
-     * @param postOrTagType - Optional: The tag type or post type to filter by
-     * TODO: Add pagination
-     */
-    whereTypeAsRef<T extends BaseDocumentDto[]>(
-        docType: DocType,
-        initialValue?: T,
-        postOrTagType?: TagType | PostType,
-    ) {
-        if (postOrTagType) {
-            // Check if postOrTagType is a TagType by checking if it's included in TagType values
-            const isTagType = Object.values(TagType).includes(postOrTagType as TagType);
-
-            const query = {
-                type: docType,
-                ...(isTagType
-                    ? { tagType: postOrTagType as TagType }
-                    : { postType: postOrTagType as PostType }),
-            };
-
-            return this.toRef<T>(
-                () => this.docs.where(query).toArray() as unknown as Promise<T>,
-                initialValue,
-            );
-        }
-
-        return this.toRef<T>(
-            () => this.docs.where("type").equals(docType).toArray() as unknown as Promise<T>,
-            initialValue,
-        );
     }
 
     /**
@@ -364,25 +286,6 @@ class Database extends Dexie {
         if (languageId) res = res.and((d) => d.language == languageId);
 
         return res.toArray() as unknown as Promise<ContentDto[]>;
-    }
-
-    /**
-     * Get IndexedDB documents by their parentId(s) as Vue Ref
-     * @deprecated Use HybridQuery (useHybridQuery) instead
-     * @param parentId - The parentId(s) to filter by
-     * @param parentType - Optional: The parent type to filter by
-     * @param initialValue - The initial value of the ref while waiting for the query to complete
-     */
-    whereParentAsRef(
-        parentId: Uuid | Uuid[],
-        parentType?: DocType.Post | DocType.Tag,
-        languageId?: Uuid,
-        initialValue?: ContentDto[],
-    ) {
-        return this.toRef<ContentDto[]>(
-            () => this.whereParent(parentId, parentType, languageId),
-            initialValue,
-        );
     }
 
     /**
@@ -488,14 +391,6 @@ class Database extends Dexie {
     }
 
     /**
-     * Get all tags of a certain tag type as Vue Ref
-     * @deprecated Use HybridQuery (useHybridQuery) instead
-     */
-    tagsWhereTagTypeAsRef(tagType: TagType, options?: QueryOptions) {
-        return this.toRef<TagDto[]>(() => this.tagsWhereTagType(tagType, options), []);
-    }
-
-    /**
      * Get all content documents that are tagged with the passed tag ID. If no tagId is passed, return all posts and tags.
      */
     async contentWhereTag(tagId?: Uuid, options?: QueryOptions) {
@@ -562,14 +457,6 @@ class Database extends Dexie {
         }
 
         return (await res.toArray()) as unknown as Promise<ContentDto[]>;
-    }
-
-    /**
-     * Get all posts and tags that are tagged with the passed tag ID as Vue Ref
-     * @deprecated Use HybridQuery (useHybridQuery) instead
-     */
-    contentWhereTagAsRef(tagId?: Uuid, options?: QueryOptions) {
-        return this.toRef<ContentDto[]>(() => this.contentWhereTag(tagId, options), []);
     }
 
     /**
@@ -649,23 +536,6 @@ class Database extends Dexie {
     }
 
     /**
-     * Check if a document is queued in the localChanges table
-     * @deprecated - use useDexieLiveQueryAsEditable instead
-     */
-    isLocalChangeAsRef(docId: Uuid) {
-        return this.toRef<boolean>(
-            () =>
-                this.localChanges
-                    .where({ docId })
-                    .first()
-                    .then((res) => {
-                        return res ? true : false;
-                    }) as unknown as Promise<boolean>,
-            false,
-        );
-    }
-
-    /**
      * Get all local changes
      */
     getLocalChanges() {
@@ -679,7 +549,13 @@ class Database extends Dexie {
      */
     async applyLocalChangeAck(ack: ChangeReqAckDto, localChange: LocalChangeDto) {
         if (ack.ack == "rejected") {
-            changeReqErrors.value.push(ack.message || "Unknown error occured");
+            // CouchDB's own tombstone reason for a write against an already-deleted doc —
+            // i.e. another client deleted this doc before our change synced. The cleanup
+            // below (deleting the local copy) already reconciles state correctly, so this
+            // isn't an actionable error for the user.
+            if (ack.message !== "deleted") {
+                changeReqErrors.value.push(ack.message || "Unknown error occured");
+            }
             if (ack.docs && Array.isArray(ack.docs)) {
                 // Replace our local copy(s) with the provided database version
                 await this.docs.bulkPut(ack.docs);
@@ -738,7 +614,11 @@ class Database extends Dexie {
      * @param options - changeDocs: If true, deletes change documents instead of regular documents
      */
     deleteRevoked() {
-        const groupsPerDocType = getAccessibleGroups(AclPermission.View);
+        // CMS visibility is gated by CmsView, the app's by View (GitHub #160). Choose explicitly
+        // from the consumer mode — no hidden substitution.
+        const groupsPerDocType = getAccessibleGroups(
+            config.cms ? AclPermission.CmsView : AclPermission.View,
+        );
 
         Object.values(DocType)
             .filter((t) => t !== DocType.Content) // Exclude content documents as they are deleted together with their parent's document type
@@ -762,7 +642,45 @@ class Database extends Dexie {
                 }
             });
 
+        // Keep `syncList` consistent with the docs just evicted. A column must never claim coverage
+        // of a group the user can no longer access: an `eof` column left standing after its docs are
+        // gone suppresses the re-walk on a later re-grant (the memberOf is unchanged, so the
+        // new-groups growth path never triggers), leaving only the ~1000ms head-tolerance re-fetch —
+        // the "one post / one tag" partial-sync bug (#160). This is the symmetric half of the doc
+        // eviction above and generalises the one-time Group-only `resetGroupSyncListForRecovery`.
+        this.reconcileSyncListToAccess(groupsPerDocType);
+
         scheduleCorpusStatsRecompute();
+    }
+
+    /**
+     * Trim every `syncList` column to the groups the user can still access, dropping columns whose
+     * groups were all revoked. Mirrors {@link deleteRevoked}'s doc eviction so the sync cursor and
+     * the stored docs stay in lockstep. A column's permission doc type is `subType ?? type`: Content
+     * (`content:post`) and DeleteCmd (`deleteCmd:post`) inherit their parent Post/Tag groups, exactly
+     * as the eviction does via the `parentType` match.
+     *
+     * Delegates the per-column work to the canonical {@link trim} primitive (the documented
+     * "user left groups" path), once per distinct chunkType, passing only `memberOf` so language and
+     * publishDate coverage is left intact. After a partial revoke a column shrinks to its surviving
+     * groups; a later re-grant of the dropped group then arrives as a genuine memberOf growth (a
+     * fresh column walked to depth, then merged) — the incremental path, not a reset.
+     */
+    private async reconcileSyncListToAccess(groupsPerDocType: Record<DocType, Uuid[]>) {
+        const [{ syncList }, { trim }, { splitChunkTypeString }] = await Promise.all([
+            import("../api/sync/state"),
+            import("../api/sync/trim"),
+            import("../api/sync/utils"),
+        ]);
+
+        // Snapshot the distinct chunkTypes before trim() mutates the list in place.
+        const chunkTypes = Array.from(new Set(syncList.value.map((e) => e.chunkType)));
+        for (const chunkType of chunkTypes) {
+            const { type, subType } = splitChunkTypeString(chunkType);
+            trim({ type, subType, memberOf: groupsPerDocType[subType ?? type] ?? [] });
+        }
+
+        await this.setSyncList();
     }
 
     /**
@@ -800,9 +718,16 @@ class Database extends Dexie {
 
         if (
             cmd.deleteReason == DeleteReason.PermissionChange &&
-            // Only delete the document if the client does not have access to the updated MemberOf group
+            // Only delete the document if the client does not have access to the updated MemberOf
+            // group, evaluated against the consumer's visibility gate: CmsView for the CMS, View
+            // for the app (GitHub #160).
             cmd.newMemberOf &&
-            !verifyAccess(cmd.newMemberOf, cmd.docType, AclPermission.View, "any")
+            !verifyAccess(
+                cmd.newMemberOf,
+                cmd.docType,
+                config.cms ? AclPermission.CmsView : AclPermission.View,
+                "any",
+            )
         ) {
             return true;
         }
@@ -816,10 +741,17 @@ class Database extends Dexie {
     async purge() {
         const { syncList } = await import("../api/sync/state");
         syncList.value = [];
+        // Also drop the HybridQuery response-cache windows (localStorage) so a later mount can't
+        // seed a stale first-paint window from the now-purged dataset.
+        const { clearResponseCache } = await import("../util/HybridQuery/responseCache");
+        clearResponseCache();
         await Promise.all([
             this.docs.clear(),
             this.localChanges.clear(),
             this.luminaryInternals.clear(),
+            // Drop offline-retention stamps too — their docs are being cleared, so leaving the rows
+            // would orphan them.
+            this.retention.clear(),
         ]);
     }
 }
@@ -861,14 +793,25 @@ export async function initDatabase() {
         db.deleteExpired();
     }, 5000);
 
-    // Listen for changes to the access map and delete documents that the user no longer has access to
-    watchValue(
-        accessMap,
-        () => {
-            db.deleteRevoked();
-        },
-        { immediate: true },
-    );
+    // Listen for changes to the access map and delete documents that the user no longer has access to.
+    // No `{ immediate: true }`: at init the persisted accessMap may be empty (not-loaded) or stale,
+    // and purging against it can over-delete. The server-authoritative map arrives via the socket
+    // `clientConfig` event shortly after init and triggers this watcher with real data.
+    watchValue(accessMap, (value) => {
+        // An empty accessMap means "not loaded yet" (the useLocalStorage default), NOT "no access".
+        // Purging on it would match every group with an `acl` field (and every doc with a
+        // `memberOf`) and delete them all before the server's clientConfig socket event populates
+        // the real map. Logout cleanup goes through purge(), not here.
+        if (Object.keys(value).length === 0) return;
+        db.deleteRevoked();
+    });
+
+    // One-time recovery for clients hit by the historical `deleteRevoked()` over-purge bug:
+    // their Group docs were deleted from `docs` while the Group `syncList` block stayed at `eof`,
+    // so sync never re-fetched them. Drop the Group block(s) so the next sync starts fresh and
+    // re-fetches all accessible groups. Gated by a localStorage flag so it runs at most once.
+    // Remove after 2026-09-01 — see bccsa/luminary#1730.
+    await resetGroupSyncListForRecovery();
 
     // Watch syncList for changes and persist to IndexedDB
     import("../api/sync/state").then(({ syncList }) => {
@@ -880,6 +823,43 @@ export async function initDatabase() {
             { deep: true },
         );
     });
+}
+
+/**
+ * One-time recovery: reset the Group `syncList` block(s) so clients previously purged by the
+ * `deleteRevoked()` over-purge bug re-fetch their groups on next sync. Idempotent via a
+ * localStorage flag. Temporary — remove after 2026-09-01 (bccsa/luminary#1730).
+ *
+ * Note: the general access-loss reconciliation in `deleteRevoked()` now keeps `syncList` in step
+ * with evicted docs for every doc type, so this is no longer the mechanism that prevents the bug —
+ * it only un-sticks any client that was already stuck (Group block at `eof` after a purge) and that
+ * has not since undergone an access-loss event to self-heal. Not re-bumped for the CmsView rollout:
+ * that feature is unreleased, so no client is stuck from it.
+ */
+async function resetGroupSyncListForRecovery() {
+    const RECOVERY_FLAG = "groupSyncListReset_v1";
+    if (localStorage.getItem(RECOVERY_FLAG)) return;
+
+    const [{ syncList }, { splitChunkTypeString }] = await Promise.all([
+        import("../api/sync/state"),
+        import("../api/sync/utils"),
+    ]);
+
+    // Load the persisted syncList into the in-memory ref before mutating it.
+    await db.getSyncList();
+
+    const hadGroupBlock = syncList.value.some(
+        (entry) => splitChunkTypeString(entry.chunkType).type === DocType.Group,
+    );
+
+    if (hadGroupBlock) {
+        syncList.value = syncList.value.filter(
+            (entry) => splitChunkTypeString(entry.chunkType).type !== DocType.Group,
+        );
+        await db.setSyncList();
+    }
+
+    localStorage.setItem(RECOVERY_FLAG, "1");
 }
 
 /**

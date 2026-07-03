@@ -91,4 +91,31 @@ describe("validateAcl", () => {
         expect(result[0].permission).toContain(AclPermission.Edit);
         expect(result[1].permission).toContain(AclPermission.Publish);
     });
+
+    // CmsView (GitHub #160) is assignable on every CMS-managed doc type.
+    it.each([
+        DocType.Group,
+        DocType.Language,
+        DocType.Post,
+        DocType.Tag,
+        DocType.User,
+        DocType.Redirect,
+        DocType.Storage,
+        DocType.AuthProvider,
+        DocType.AutoGroupMappings,
+    ])("should accept CmsView on doc type %s", (docType) => {
+        const acl = [createEntry(docType, "g1", [AclPermission.View, AclPermission.CmsView])];
+        const result = validateAcl(acl);
+
+        expect(result[0].permission).toContain(AclPermission.CmsView);
+        expect(result[0].permission).toContain(AclPermission.View);
+    });
+
+    it("should strip CmsView from a doc type not in availablePermissionsPerDocType", () => {
+        // Crypto is an internal doc type with no ACL config → all permissions stripped, entry removed.
+        const acl = [createEntry(DocType.Crypto, "g1", [AclPermission.View, AclPermission.CmsView])];
+        const result = validateAcl(acl);
+
+        expect(result).toHaveLength(0);
+    });
 });

@@ -109,10 +109,10 @@ const handleFileChange = () => {
         </LCard>
 
         <div v-else>
-            <div class="flex items-center justify-between gap-3 px-1">
+            <div class="flex items-center justify-between gap-3">
                 <div class="flex items-center gap-2">
-                    <FilmIcon class="h-4 w-4 text-zinc-600" />
-                    <h3 class="text-sm font-semibold leading-6 text-zinc-900">Media</h3>
+                    <FilmIcon class="h-5 w-5 text-zinc-400" />
+                    <h3 class="text-sm font-medium leading-6 text-zinc-900">Media</h3>
                 </div>
                 <div class="flex items-center gap-2">
                     <LButton

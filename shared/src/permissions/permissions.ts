@@ -13,6 +13,11 @@ export const accessMap: Ref<AccessMap> = useLocalStorage("accessMap", {});
 
 /**
  * Verify if the user has access to a group for the specified document type and permission.
+ *
+ * The permission is taken at face value — callers choose it explicitly. In particular, CMS
+ * visibility is gated by `CmsView`, so CMS consumers pass `AclPermission.CmsView` here (and to
+ * {@link getAccessibleGroups}); the app passes `AclPermission.View`. (GitHub #160 — there is no
+ * implicit View→CmsView substitution; the distinction lives at the call site.)
  */
 export const verifyAccess = (
     targetGroups: Uuid[],

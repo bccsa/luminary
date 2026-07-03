@@ -9,7 +9,13 @@ vi.mock("../fts/ftsIndexer", async (importOriginal) => {
 });
 
 import { db, initDatabase } from "./database";
-import { touchRetention, flushRetention, evictStaleBelowCutoff, resetRetentionBuffer } from "./retention";
+import {
+    touchRetention,
+    flushRetention,
+    evictStaleBelowCutoff,
+    pruneUnsyncedLanguageContent,
+    resetRetentionBuffer,
+} from "./retention";
 import { initConfig, config } from "../config";
 import { scheduleCorpusStatsRecompute } from "../fts/ftsIndexer";
 import { DocType, type BaseDocumentDto } from "../types";
@@ -315,6 +321,56 @@ describe("retention", () => {
             touchRetention(["once-b"]);
             expect(docAdd).not.toHaveBeenCalledWith("visibilitychange", expect.anything());
             expect(winAdd).not.toHaveBeenCalledWith("pagehide", expect.anything());
+        });
+    });
+
+    describe("pruneUnsyncedLanguageContent (cleanup of un-ticked languages)", () => {
+        const langContent = (_id: string, language: string): BaseDocumentDto =>
+            ({
+                _id,
+                type: DocType.Content,
+                language,
+                publishDate: CUTOFF + 5000, // above cutoff — eviction-by-cutoff would NOT touch these
+                updatedTimeUtc: 1,
+                memberOf: [],
+            }) as unknown as BaseDocumentDto;
+
+        it("deletes un-stamped Content in the given languages, keeps other languages", async () => {
+            await db.docs.bulkPut([
+                langContent("fr1", "lang-fr"),
+                langContent("fr2", "lang-fr"),
+                langContent("en1", "lang-en"),
+            ]);
+
+            await pruneUnsyncedLanguageContent(["lang-fr"]);
+
+            expect(await db.docs.get("fr1")).toBeUndefined();
+            expect(await db.docs.get("fr2")).toBeUndefined();
+            expect(await db.docs.get("en1")).toBeDefined(); // not in the pruned set
+            expect(scheduleCorpusStatsRecompute).toHaveBeenCalled();
+        });
+
+        it("keeps a recently-served (retention-stamped) doc", async () => {
+            await db.docs.bulkPut([langContent("fr-pinned", "lang-fr"), langContent("fr-cold", "lang-fr")]);
+            touchRetention(["fr-pinned"]); // active deadline in the future
+            await flushRetention();
+
+            await pruneUnsyncedLanguageContent(["lang-fr"]);
+
+            expect(await db.docs.get("fr-pinned")).toBeDefined(); // survived (stamped)
+            expect(await db.docs.get("fr-cold")).toBeUndefined(); // pruned (no stamp)
+        });
+
+        it("is a no-op for an empty language list and in CMS mode", async () => {
+            await db.docs.bulkPut([langContent("fr1", "lang-fr")]);
+
+            await pruneUnsyncedLanguageContent([]);
+            expect(await db.docs.get("fr1")).toBeDefined();
+
+            config.cms = true;
+            await pruneUnsyncedLanguageContent(["lang-fr"]);
+            expect(await db.docs.get("fr1")).toBeDefined();
+            config.cms = false;
         });
     });
 });

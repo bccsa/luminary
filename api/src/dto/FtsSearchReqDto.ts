@@ -5,6 +5,7 @@ import {
     IsEnum,
     IsNotEmpty,
     IsNumber,
+    IsObject,
     IsOptional,
     IsString,
 } from "class-validator";
@@ -76,6 +77,17 @@ export class FtsSearchReqDto {
     @Expose()
     tags?: Array<Uuid>;
 
+    /**
+     * Restrict to docs whose `memberOf` intersects these group IDs. An explicit UI filter,
+     * applied *after* permission scoping (it can only narrow access, never widen it). Used by
+     * the aux (non-Content) strict search; ignored by the Content path.
+     */
+    @IsOptional()
+    @IsArray()
+    @IsString({ each: true })
+    @Expose()
+    groups?: Array<Uuid>;
+
     /** Restrict to this publish status. CMS-only (rejected unless `cms` is true). */
     @IsOptional()
     @IsEnum(PublishStatus)
@@ -93,6 +105,38 @@ export class FtsSearchReqDto {
     @IsNumber()
     @Expose()
     publishedBefore?: number;
+
+    /**
+     * Strict mode: keep only docs where every query word (≥3 chars) is a substring of
+     * `title` or `author` (AND across words). Pairs with {@link sort} for a precise,
+     * field-ordered "find by name" search instead of fuzzy relevance.
+     */
+    @IsOptional()
+    @IsBoolean()
+    @Expose()
+    matchAllWords?: boolean;
+
+    /**
+     * Strict mode: order results by this document field/direction instead of BM25
+     * relevance, over the full match set before pagination. `field` is validated against a
+     * per-doctype allowlist in the service (Content: title/publishDate/expiryDate/updatedTimeUtc;
+     * aux doctypes: e.g. name/email/slug/lastLogin/updatedTimeUtc).
+     */
+    @IsOptional()
+    @IsObject()
+    @Expose()
+    sort?: {
+        field:
+            | "title"
+            | "publishDate"
+            | "expiryDate"
+            | "updatedTimeUtc"
+            | "name"
+            | "email"
+            | "slug"
+            | "lastLogin";
+        direction: "asc" | "desc";
+    };
 
     // ── BM25 tuning overrides (optional; default to the shared client values) ──
 

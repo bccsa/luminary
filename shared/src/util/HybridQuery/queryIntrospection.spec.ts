@@ -1,6 +1,12 @@
-import { describe, it, expect } from "vitest";
-import { planRemoteContentQueries, FANOUT_MAX_PARENTS } from "./queryIntrospection";
-import type { MangoQuery } from "../MangoQuery/MangoTypes";
+import { describe, it, expect, beforeAll } from "vitest";
+import {
+    decideContentApiQuery,
+    planRemoteContentQueries,
+    FANOUT_MAX_PARENTS,
+} from "./queryIntrospection";
+import { initConfig, config } from "../../config";
+import { OPEN_MIN } from "../../api/sync/utils";
+import type { MangoQuery, MangoSelector } from "../MangoQuery/MangoTypes";
 
 /** A content supplement query (as decideContentApiQuery would produce it) with a parentId $in. */
 function contentApi(parentIds: string[], opts: { sort?: boolean } = {}): MangoQuery {
@@ -138,5 +144,43 @@ describe("planRemoteContentQueries — parentId fan-out", () => {
             selector: { $and: [{ type: { $eq: "content" } }, { parentId: { $in: ["p1", "p2"] } }] },
         } as MangoQuery;
         expect(planRemoteContentQueries(api)).toHaveLength(2);
+    });
+});
+
+describe("decideContentApiQuery — older-tail supplement", () => {
+    beforeAll(() =>
+        initConfig({ cms: false, docsIndex: "", apiUrl: "", contentPublishDateCutoff: 1000 }),
+    );
+
+    const feed = (over: Partial<MangoQuery> = {}): MangoQuery =>
+        ({
+            selector: { $and: [{ type: "content" }, { status: "published" }] },
+            $sort: [{ publishDate: "desc" }],
+            $limit: 20,
+            use_index: "content-publishDate-index",
+            ...over,
+        }) as MangoQuery;
+
+    it("appends publishDate <= cutoff to the supplement selector", () => {
+        const out = decideContentApiQuery(feed(), []);
+        expect((out!.selector as { $and: MangoSelector[] }).$and).toContainEqual({
+            publishDate: { $lte: 1000 },
+        });
+    });
+
+    it("fetches only the shortfall (limit − local) when the local page is partial", () => {
+        const local = Array.from({ length: 5 }, (_v, i) => ({ _id: `d${i}` })) as any[];
+        expect(decideContentApiQuery(feed(), local)!.$limit).toBe(15);
+    });
+
+    it("returns undefined when the local page is already full", () => {
+        const full = Array.from({ length: 20 }, (_v, i) => ({ _id: `d${i}` })) as any[];
+        expect(decideContentApiQuery(feed(), full)).toBeUndefined();
+    });
+
+    it("returns undefined at OPEN_MIN (full-corpus sync — nothing to supplement)", () => {
+        config.contentPublishDateCutoff = OPEN_MIN;
+        expect(decideContentApiQuery(feed(), [])).toBeUndefined();
+        config.contentPublishDateCutoff = 1000;
     });
 });

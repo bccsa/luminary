@@ -41,7 +41,6 @@ const badgeVariant = computed(() => (isGlobal.value ? "warning" : "default"));
         :updated-time-utc="0"
         :show-date="false"
         @click="$emit('click')"
-        class="mb-1"
     >
         <template #desktopFooter>
             <div class="flex w-full flex-1 flex-wrap items-center gap-1">

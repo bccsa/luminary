@@ -2,30 +2,22 @@
 import LModal from "../modals/LModal.vue";
 import { ExclamationTriangleIcon } from "@heroicons/vue/24/outline";
 import { loginWithProvider } from "@/auth";
-import {
-    db,
-    DocType,
-    mangoToDexie,
-    useDexieLiveQuery,
-    type AuthProviderDto,
-} from "luminary-shared";
+import { DocType, type AuthProviderDto, useSharedHybridQuery } from "luminary-shared";
 import { computed } from "vue";
 import { storageSelection } from "@/composables/storageSelection";
 
 const isVisible = defineModel<boolean>("isVisible");
 const storage = storageSelection();
 
-const allProviders = useDexieLiveQuery(
-    async () => {
-        const list = await mangoToDexie<AuthProviderDto>(db.docs, {
-            selector: { type: DocType.AuthProvider },
-        });
-        return list.sort((a, b) => (a.sortIndex ?? 0) - (b.sortIndex ?? 0));
-    },
-    { initialValue: [] as AuthProviderDto[] },
+// Auth-provider list; sort by sortIndex in a computed (sortIndex is unindexed).
+const allProviders = useSharedHybridQuery<AuthProviderDto>(
+    () => ({ selector: { type: DocType.AuthProvider } }),
+    { live: true },
 );
 
-const providers = computed(() => allProviders.value ?? []);
+const providers = computed(() =>
+    [...allProviders.value].sort((a, b) => (a.sortIndex ?? 0) - (b.sortIndex ?? 0)),
+);
 
 const hasIcon = (provider: AuthProviderDto) =>
     provider.imageData?.fileCollections?.some((fc) => fc.imageFiles?.length > 0) ?? false;

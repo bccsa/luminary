@@ -1,6 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { readResponseCache, structuralCacheKey, writeResponseCache } from "./responseCache";
+import {
+    clearResponseCache,
+    readResponseCache,
+    structuralCacheKey,
+    writeResponseCache,
+} from "./responseCache";
 import type { MangoQuery } from "../MangoQuery/MangoTypes";
 
 // The internal localStorage namespace — kept in sync with responseCache.ts so a
@@ -177,6 +182,21 @@ describe("responseCache", () => {
             vi.restoreAllMocks();
 
             expect(readResponseCache("k")).toBeUndefined();
+        });
+    });
+
+    describe("clearResponseCache", () => {
+        it("removes every hqcache entry but leaves other localStorage keys", () => {
+            writeResponseCache("a", win([doc("a")], []));
+            writeResponseCache("b", win([doc("b")], []));
+            localStorage.setItem("languages", '["lang-en"]'); // unrelated key
+
+            clearResponseCache();
+
+            expect(readResponseCache("a")).toBeUndefined();
+            expect(readResponseCache("b")).toBeUndefined();
+            expect(localStorage.getItem(STORAGE_PREFIX + "a")).toBeNull();
+            expect(localStorage.getItem("languages")).toBe('["lang-en"]'); // untouched
         });
     });
 });

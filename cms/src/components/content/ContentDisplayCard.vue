@@ -9,6 +9,7 @@ import {
     AclPermission,
     verifyAccess,
     type GroupDto,
+    useHybridQueryWithState,
 } from "luminary-shared";
 import { computed, ref, watch } from "vue";
 import LBadge from "../common/LBadge.vue";
@@ -16,6 +17,7 @@ import DisplayCard from "../common/DisplayCard.vue";
 import { RouterLink } from "vue-router";
 import { TagIcon, UserGroupIcon } from "@heroicons/vue/24/outline";
 import { cmsDefaultLanguage } from "@/globalConfig";
+import { buildSearchHighlight } from "./ContentOverview/searchHighlight";
 
 type Props = {
     groups: GroupDto[];
@@ -23,12 +25,41 @@ type Props = {
     parentType: DocType.Post | DocType.Tag;
     languageId: Uuid;
     languages: LanguageDto[];
+    /**
+     * When set (search mode), the card shows why it matched: a highlighted title,
+     * an author-match line, and a content snippet. When undefined (browse), the card
+     * renders normally.
+     */
+    searchQuery?: string;
+    /**
+     * Strict search matches only title/author, so the body snippet is irrelevant —
+     * suppress it. (Related/fuzzy search leaves it on.)
+     */
+    hideBodySnippet?: boolean;
 };
 
 const props = defineProps<Props>();
 
-const contentDocs = db.whereParentAsRef(props.contentDoc.parentId, props.parentType, undefined, []);
-const isLocalChange = db.isLocalChangeAsRef(props.contentDoc._id);
+const highlight = computed(() =>
+    props.searchQuery && props.searchQuery.trim()
+        ? buildSearchHighlight(props.contentDoc, props.searchQuery)
+        : undefined,
+);
+
+// All translations of this card's parent (no language filter), Dexie-first via HybridQuery. The
+// top-level `type` is required — without it HybridQuery.readType returns undefined and routes
+// API-only. `parentId` alone scopes to the parent (parentType is redundant given the unique
+// parentId), and `{ type, parentId }` matches the `[type+parentId]` index — no full-table-scan warning.
+const { output: contentDocs, hasLocalChanges } = useHybridQueryWithState<ContentDto>(
+    () => ({
+        selector: {
+            type: DocType.Content,
+            parentId: props.contentDoc.parentId,
+        },
+    }),
+    { live: true },
+);
+const isLocalChange = computed(() => hasLocalChanges.value(props.contentDoc._id));
 
 const tagsContent = ref<ContentDto[]>([]);
 
@@ -87,7 +118,7 @@ const navigateToLanguage = (language: LanguageDto) => {
 };
 
 const navigateTo = computed(() => {
-    if (verifyAccess(props.contentDoc.memberOf, props.parentType, AclPermission.View)) {
+    if (verifyAccess(props.contentDoc.memberOf, props.parentType, AclPermission.CmsView)) {
         return {
             name: "edit",
             params: {
@@ -105,10 +136,11 @@ const navigateTo = computed(() => {
 <template>
     <DisplayCard
         :title="contentDoc.title"
+        :title-html="highlight?.titleHtml"
         :updated-time-utc="contentDoc.updatedTimeUtc"
         :is-local-change="isLocalChange"
         :navigate-to="navigateTo"
-        :can-navigate="verifyAccess(contentDoc.memberOf, parentType, AclPermission.View)"
+        :can-navigate="verifyAccess(contentDoc.memberOf, parentType, AclPermission.CmsView)"
     >
         <template #topBadges>
             <RouterLink
@@ -153,6 +185,28 @@ const navigateTo = computed(() => {
         </template>
 
         <template #content>
+            <!-- Search-match context (search mode only) -->
+            <div
+                v-if="
+                    highlight &&
+                    (highlight.authorHtml || (highlight.snippetHtml && !hideBodySnippet))
+                "
+                data-test="search-match"
+                class="flex flex-col gap-0.5 py-1 [&_mark]:rounded [&_mark]:bg-amber-200 [&_mark]:px-0"
+            >
+                <p v-if="highlight.authorHtml" class="text-xs text-zinc-500">
+                    <span class="text-zinc-400">Author:</span>
+                    <!-- eslint-disable-next-line vue/no-v-html (caller-escaped highlight HTML) -->
+                    <span v-html="highlight.authorHtml"></span>
+                </p>
+                <!-- eslint-disable-next-line vue/no-v-html (caller-escaped highlight HTML) -->
+                <p
+                    v-if="highlight.snippetHtml && !hideBodySnippet"
+                    class="line-clamp-2 text-xs text-zinc-500"
+                    v-html="highlight.snippetHtml"
+                ></p>
+            </div>
+
             <div class="flex w-full items-center gap-2 py-1 text-xs">
                 <div v-if="tagsContent.length > 0" class="flex w-full items-center gap-1 sm:w-1/2">
                     <div>

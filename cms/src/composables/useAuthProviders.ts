@@ -1,44 +1,46 @@
-import { ref, computed, nextTick, watch, toRaw, onBeforeUnmount } from "vue";
+import { ref, computed, nextTick, watch, toRaw } from "vue";
 import {
     db,
     DocType,
     type AuthProviderDto,
-    useDexieLiveQuery,
+    useSharedHybridQuery,
+    toEditable,
+    queryLocal,
     type GroupDto,
     AclPermission,
     verifyAccess,
     hasAnyPermission,
     changeReqErrors,
     AckStatus,
-    ApiLiveQueryAsEditable,
-    type ApiSearchQuery,
 } from "luminary-shared";
 import { useNotificationStore } from "@/stores/notification";
-import _ from "lodash";
+import { assignableGroups } from "@/util/groups";
 
 export function useAuthProviders() {
     const notification = useNotificationStore();
 
-    const groups = useDexieLiveQuery(
-        () => db.docs.where({ type: "group" }).toArray() as unknown as Promise<GroupDto[]>,
-        { initialValue: [] as GroupDto[] },
-    );
+    const groups = useSharedHybridQuery<GroupDto>(() => ({ selector: { type: DocType.Group } }), {
+        live: true,
+    });
+    const availableGroups = computed(() => assignableGroups(groups.value));
 
-    const availableGroups = computed(() =>
-        groups.value.filter(
-            (group) =>
-                verifyAccess([group._id], DocType.Group, AclPermission.Edit) &&
-                verifyAccess([group._id], DocType.Group, AclPermission.Assign),
-        ),
+    const providersSource = useSharedHybridQuery<AuthProviderDto>(
+        () => ({ selector: { type: DocType.AuthProvider } }),
+        { live: true, persistOffline: true },
     );
+    const providerEditable = toEditable<AuthProviderDto>(providersSource, {
+        persistOffline: true,
+        filterFn: (item) => ({ ...item }),
+    });
 
-    const providerQuery = new ApiLiveQueryAsEditable<AuthProviderDto>(
-        ref<ApiSearchQuery>({ types: [DocType.AuthProvider] }),
-        { filterFn: (item) => ({ ...item }) },
-    );
-    const providers = providerQuery.editable;
-    const isLoadingProviders = providerQuery.isLoading;
-    const providerIsModified = providerQuery.isModified;
+    const { duplicate, remove, save } = providerEditable;
+    const providers = providerEditable.editable;
+    const providerIsModified = providerEditable.isModified;
+
+    const isLoadingProviders = ref(true);
+    queryLocal<AuthProviderDto>({ selector: { type: DocType.AuthProvider } }).finally(() => {
+        isLoadingProviders.value = false;
+    });
 
     const canDelete = computed(() => hasAnyPermission(DocType.AuthProvider, AclPermission.Delete));
     const canEdit = computed(() => hasAnyPermission(DocType.AuthProvider, AclPermission.Edit));
@@ -56,7 +58,7 @@ export function useAuthProviders() {
 
     const isEditing = computed(() => {
         if (!canEdit.value || !editingProviderId.value) return false;
-        return providerQuery.liveData.value.some((p) => p._id === editingProviderId.value);
+        return providersSource.value.some((p) => p._id === editingProviderId.value);
     });
 
     const currentProvider = computed({
@@ -76,7 +78,7 @@ export function useAuthProviders() {
 
     function isProviderEdited(id: string | undefined): boolean {
         if (!id) return false;
-        return providerQuery.isEdited.value(id);
+        return providerEditable.isEdited.value(id);
     }
 
     function openModal() {
@@ -89,7 +91,7 @@ export function useAuthProviders() {
 
     function revertProvider() {
         if (!editingProviderId.value) return;
-        providerQuery.revert(editingProviderId.value);
+        providerEditable.revert(editingProviderId.value);
     }
 
     watch(
@@ -179,11 +181,14 @@ export function useAuthProviders() {
                 providerToDelete.value.displayName || providerToDelete.value.label;
             const providerId = providerToDelete.value._id;
 
-            const providerInEditable = providers.value.find((p) => p._id === providerId);
-            if (providerInEditable) {
-                providerInEditable.deleteReq = 1;
-                await nextTick();
-                await providerQuery.save(providerId);
+            const res = await remove(providerId);
+            if (res?.ack === AckStatus.Rejected) {
+                notification.addNotification({
+                    title: "Failed to delete provider",
+                    description: res.message || "The server rejected the delete.",
+                    state: "error",
+                });
+                return;
             }
 
             showDeleteModal.value = false;
@@ -214,11 +219,16 @@ export function useAuthProviders() {
             const provider = currentProvider.value;
             if (!provider || !editingProviderId.value) return;
 
+            // Let toEditable's dirty-tracking watchers flush so isEdited (used here and inside
+            // save()) reflects edits made in the same tick — e.g. a just-created provider whose
+            // fields were set synchronously before saving. Mirrors confirmDelete's nextTick.
+            await nextTick();
+
             const label = provider.displayName || provider.label || provider._id;
             const creating = !isEditing.value;
 
-            if (creating || providerQuery.isEdited.value(editingProviderId.value)) {
-                const providerRes = await providerQuery.save(editingProviderId.value);
+            if (creating || providerEditable.isEdited.value(editingProviderId.value)) {
+                const providerRes = await providerEditable.save(editingProviderId.value);
                 if (providerRes?.ack === AckStatus.Rejected) {
                     errors.value = [
                         providerRes.message ||
@@ -247,18 +257,17 @@ export function useAuthProviders() {
         const provider = currentProvider.value;
         if (!provider) return;
 
-        const newId = db.uuid();
+        const clonedProvider = duplicate(provider._id, (clone) => {
+            clone.label = (clone.label ?? "") + " (copy)";
 
-        const clonedProvider = _.cloneDeep(toRaw(provider)) as AuthProviderDto;
-        clonedProvider._id = newId;
-        delete clonedProvider._rev;
-        clonedProvider.label = (clonedProvider.label ?? "") + " (Copy)";
-        if (clonedProvider.imageData?.fileCollections) {
-            clonedProvider.imageData.fileCollections = [];
-        }
+            if (clone.imageData?.fileCollections) {
+                clone.imageData.fileCollections = [];
+            }
+            return clone;
+        });
 
-        providers.value.push(clonedProvider);
-        editingProviderId.value = newId;
+        if (!clonedProvider) return;
+        editingProviderId.value = clonedProvider._id;
 
         notification.addNotification({
             title: "Provider duplicated",
@@ -266,10 +275,6 @@ export function useAuthProviders() {
             state: "success",
         });
     }
-
-    onBeforeUnmount(() => {
-        providerQuery.stopLiveQuery();
-    });
 
     return {
         groups,

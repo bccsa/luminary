@@ -13,9 +13,7 @@ import { computed, ref, watch } from "vue";
 import TagSelector from "./TagSelector.vue";
 import GroupSelector from "../groups/GroupSelector.vue";
 import { capitaliseFirstLetter } from "@/util/string";
-import FormLabel from "@/components/forms/FormLabel.vue";
 import LToggle from "@/components/forms/LToggle.vue";
-import _ from "lodash";
 import { ExclamationCircleIcon, XCircleIcon } from "@heroicons/vue/20/solid";
 import { validate, type Validation } from "./ContentValidator";
 
@@ -23,7 +21,7 @@ type Props = {
     docType: DocType;
     tagOrPostType: TagType | PostType;
     language?: LanguageDto;
-    existingParent: ContentParentDto | undefined;
+    isParentDirty: boolean;
     disabled: boolean;
     newDocument?: boolean;
 };
@@ -118,16 +116,14 @@ const useVerticalTileLayout = computed({
         <template #persistent="{ collapsed }">
             <div class="flex flex-col px-2">
                 <div
-                    v-if="parent && !_.isEqual(parent, existingParent)"
+                    v-if="isParentDirty"
                     class="flex items-center gap-2"
                     :class="{
-                        'my-0.5': parent && !_.isEqual(parent, existingParent),
+                        'my-0.5': isParentDirty,
                         'pb-1.5': collapsed && parentIsValid,
                     }"
                 >
-                    <p>
-                        <ExclamationCircleIcon class="size-[18px] min-w-[18px] text-yellow-400" />
-                    </p>
+                    <ExclamationCircleIcon class="size-[18px] min-w-[18px] shrink-0 text-yellow-400" />
                     <p class="text-xs text-zinc-700">
                         Unsaved changes to {{ tagOrPostType }}'s settings.
                     </p>
@@ -137,13 +133,11 @@ const useVerticalTileLayout = computed({
                         <div
                             v-for="validation in parentValidations.filter((v) => !v.isValid)"
                             :key="validation.id"
-                            class="-mb-[1px] flex items-center gap-1"
+                            class="-mb-[1px] flex items-center gap-2"
                             :class="{ 'pb-1.5': collapsed && !parentIsValid }"
                         >
-                            <div class="flex items-center gap-2">
-                                <XCircleIcon class="size-[18px] min-w-[18px] text-red-400" />
-                                <span class="text-xs text-zinc-700">{{ validation.message }}</span>
-                            </div>
+                            <XCircleIcon class="size-[18px] min-w-[18px] shrink-0 text-red-400" />
+                            <span class="text-xs text-zinc-700">{{ validation.message }}</span>
                         </div>
                     </div>
                 </div>
@@ -171,44 +165,44 @@ const useVerticalTileLayout = computed({
             :language="language"
             :tagType="TagType.Topic"
             label="Topics"
-            class="mb-3"
+            class="mb-0"
             :disabled="disabled"
             :key="language?._id"
         />
 
-        <!-- Toggle for Publish Date Visibility -->
-        <div class="mt-2 flex items-center justify-between gap-1">
-            <FormLabel>Show publish date</FormLabel>
-            <LToggle v-model="parent.publishDateVisible" :disabled="disabled" class="mr-[4px]" />
-        </div>
+        <!-- Display options — grouped under a divider with uniform spacing and lighter,
+             regular-weight labels so they read as quick on/off settings rather than
+             competing with the bold Group/Categories/Topics section headers above. -->
+        <div class="mt-4 flex flex-col gap-2.5 border-t border-zinc-200 pt-3">
+            <div class="flex items-center justify-between gap-2">
+                <span class="text-sm text-zinc-700">Show publish date</span>
+                <LToggle v-model="parent.publishDateVisible" :disabled="disabled" />
+            </div>
 
-        <!-- Toggle: show as Coming soon when scheduled with a future publish date -->
-        <div
-            class="mt-2 flex items-center justify-between gap-1"
-            :class="{ 'mb-2': docType !== DocType.Tag }"
-        >
-            <FormLabel>Show as Coming soon</FormLabel>
-            <LToggle v-model="showComingSoon" :disabled="disabled" class="mr-[4px]" />
-        </div>
+            <!-- Show as "Coming soon" when scheduled with a future publish date. -->
+            <div class="flex items-center justify-between gap-2">
+                <span class="text-sm text-zinc-700">Show as Coming soon</span>
+                <LToggle v-model="showComingSoon" :disabled="disabled" />
+            </div>
 
-        <div
-            v-if="docType == DocType.Tag && parent && (parent as TagDto).pinned != undefined"
-            class="mt-3 flex items-center justify-between"
-            :class="{ 'my-3': docType == DocType.Tag }"
-        >
-            <FormLabel>Pinned</FormLabel>
-            <LToggle v-model="pinned" :disabled="disabled" class="mr-[4px]" />
-        </div>
+            <div
+                v-if="docType == DocType.Tag && parent && (parent as TagDto).pinned != undefined"
+                class="flex items-center justify-between gap-2"
+            >
+                <span class="text-sm text-zinc-700">Pinned</span>
+                <LToggle v-model="pinned" :disabled="disabled" />
+            </div>
 
-        <div
-            v-if="
-                docType == DocType.Tag &&
-                (tagOrPostType === TagType.Category || tagOrPostType === TagType.Topic)
-            "
-            class="mt-2 flex items-center justify-between gap-1"
-        >
-            <FormLabel>Vertical Tile</FormLabel>
-            <LToggle v-model="useVerticalTileLayout" :disabled="disabled" class="mr-[4px]" />
+            <div
+                v-if="
+                    docType == DocType.Tag &&
+                    (tagOrPostType === TagType.Category || tagOrPostType === TagType.Topic)
+                "
+                class="flex items-center justify-between gap-2"
+            >
+                <span class="text-sm text-zinc-700">Vertical Tile</span>
+                <LToggle v-model="useVerticalTileLayout" :disabled="disabled" />
+            </div>
         </div>
 
         <slot name="supplementary" />

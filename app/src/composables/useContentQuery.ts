@@ -5,7 +5,7 @@ import {
     type MangoSelector,
     type HybridQueryOptions,
 } from "luminary-shared";
-import { appLanguageIdsAsRef } from "@/globalConfig";
+import { appDisplayLanguageIdsAsRef } from "@/globalConfig";
 import { mangoIsPublished } from "@/util/mangoIsPublished";
 
 /**
@@ -100,7 +100,7 @@ export function useContentQuery(
                     { type: DocType.Content },
                     ...selector(),
                     ...(publishedFilter
-                        ? mangoIsPublished(languageFilter ? appLanguageIdsAsRef.value : [], {
+                        ? mangoIsPublished(languageFilter ? appDisplayLanguageIdsAsRef.value : [], {
                               includeScheduled,
                           })
                         : []),

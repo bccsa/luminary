@@ -1,3 +1,4 @@
+import { computed, type ComputedRef } from "vue";
 import type { BaseDocumentDto } from "../../types";
 import { DocType } from "../../types";
 import { syncList } from "../../api/sync/state";
@@ -40,6 +41,34 @@ export function typeIsInSyncList(type: DocType | undefined): boolean {
         if (splitChunkTypeString(entry.chunkType).type === type) return true;
     }
     return false;
+}
+
+const _membershipRefs = new Map<DocType, ComputedRef<boolean>>();
+
+/**
+ * Per-`DocType`-memoized reactive twin of {@link typeIsInSyncList}: "does at least one
+ * syncList entry currently track `type`?", as a `ComputedRef<boolean>`. It delegates to
+ * `typeIsInSyncList`, so the reactive and imperative reads share ONE predicate and can't
+ * diverge.
+ *
+ * The point is to watch the derived BOOLEAN, not `syncList` itself: `syncList` mutates on
+ * every sync chunk (block ranges, eof, new columns), but membership for a given type flips
+ * `false→true` exactly once (when its first column registers) and stays true — so a
+ * `watch` on this ref fires once per genuine flip, not per chunk. The `computed` caches, so
+ * the `syncList` scan runs once globally per syncList change per type, regardless of how
+ * many `HybridQuery` instances depend on it.
+ *
+ * Module-level `computed` (no owning effect scope) is intentional: it lives for the module
+ * lifetime, exactly like `syncList`; there is at most one entry per `DocType` (a handful).
+ * Returns the SAME ref for a given type on every call.
+ */
+export function typeInSyncListRef(type: DocType): ComputedRef<boolean> {
+    let r = _membershipRefs.get(type);
+    if (!r) {
+        r = computed(() => typeIsInSyncList(type));
+        _membershipRefs.set(type, r);
+    }
+    return r;
 }
 
 /**
@@ -106,6 +135,8 @@ export function withPublishDate(selector: MangoSelector, cutoff: number): MangoS
  *
  * Cutoff comes from `getContentPublishDateCutoff()` (`SharedConfig`), so this
  * function reflects the same global value sync uses to floor content sync depth.
+ * When there is no cutoff (`OPEN_MIN` — full-corpus sync) the API has nothing to
+ * supply, so this returns `undefined` and the read is Dexie-only.
  */
 export function decideContentApiQuery<T extends BaseDocumentDto>(
     query: MangoQuery,
@@ -113,18 +144,12 @@ export function decideContentApiQuery<T extends BaseDocumentDto>(
 ): MangoQuery | undefined {
     const cutoff = getContentPublishDateCutoff();
 
-    // No cutoff configured ⇒ sync syncs all content, so the local read is
-    // complete and the API has no older tail to supply. The supplement POST
-    // would carry `publishDate <= OPEN_MIN` and match nothing — skip it. The
-    // caller then drops any stale response-cache seed (same end state as an
-    // empty POST) and, in live mode, skips the no-op supplement listener.
+    // No cutoff ⇒ sync has all synced-language content, so the API has nothing to supply — skip.
     if (cutoff === OPEN_MIN) return undefined;
 
     // 1. limit-shortfall
     if (typeof query.$limit === "number") {
-        // `>=` (not strict equality) defends against mangoToDexie ever returning
-        // more rows than requested; clamping below also keeps the API limit
-        // non-negative if the invariant is ever violated.
+        // A full local page means the API has nothing older to add → skip.
         if (localDocs.length >= query.$limit) return undefined;
         return {
             selector: withPublishDate(query.selector, cutoff),
@@ -238,9 +263,7 @@ export function planRemoteContentQueries(api: MangoQuery): MangoQuery[] {
     const idHit = findInList(conditions, "parentId");
     if (!idHit) return [api];
 
-    return (
-        fanOut(api, conditions, idHit, PARENT_ID_INDEX, (id) => ({ parentId: id })) ?? [api]
-    );
+    return fanOut(api, conditions, idHit, PARENT_ID_INDEX, (id) => ({ parentId: id })) ?? [api];
 }
 
 /**

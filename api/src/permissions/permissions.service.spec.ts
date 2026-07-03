@@ -640,6 +640,109 @@ describe("PermissionService", () => {
             ]);
         });
 
+        it("removeTarget sweeps a removed group from every remaining group's accessible-groups map across multiple types/permissions, without disturbing siblings", () => {
+            const parent: GroupDto = new GroupDto();
+            parent._id = "group-test-remove-target-parent";
+            parent.type = DocType.Group;
+            parent.updatedTimeUtc = 3;
+            parent.name = "Test Remove-Target Parent";
+            parent.acl = [];
+
+            const targetA: GroupDto = new GroupDto();
+            targetA._id = "group-test-remove-target-a";
+            targetA.type = DocType.Group;
+            targetA.updatedTimeUtc = 3;
+            targetA.name = "Test Remove-Target A";
+            targetA.acl = [
+                {
+                    type: DocType.Post,
+                    groupId: "group-test-remove-target-parent",
+                    permission: [AclPermission.View],
+                },
+                {
+                    type: DocType.Tag,
+                    groupId: "group-test-remove-target-parent",
+                    permission: [AclPermission.Edit],
+                },
+            ];
+
+            const targetB: GroupDto = new GroupDto();
+            targetB._id = "group-test-remove-target-b";
+            targetB.type = DocType.Group;
+            targetB.updatedTimeUtc = 3;
+            targetB.name = "Test Remove-Target B";
+            targetB.acl = [
+                {
+                    type: DocType.Post,
+                    groupId: "group-test-remove-target-parent",
+                    permission: [AclPermission.View],
+                },
+                {
+                    type: DocType.Tag,
+                    groupId: "group-test-remove-target-parent",
+                    permission: [AclPermission.Edit],
+                },
+            ];
+
+            PermissionSystem.upsertGroups([parent, targetA, targetB]);
+
+            // Sanity: both targets are reachable through both type/permission branches before removal
+            const postBefore = PermissionSystem.getAccessibleGroups(
+                [DocType.Post],
+                AclPermission.View,
+                ["group-test-remove-target-parent"],
+            );
+            expect(postBefore[DocType.Post].length).toBe(2);
+            expect(postBefore[DocType.Post].includes("group-test-remove-target-a")).toBe(true);
+            expect(postBefore[DocType.Post].includes("group-test-remove-target-b")).toBe(true);
+
+            const tagBefore = PermissionSystem.getAccessibleGroups(
+                [DocType.Tag],
+                AclPermission.Edit,
+                ["group-test-remove-target-parent"],
+            );
+            expect(tagBefore[DocType.Tag].length).toBe(2);
+            expect(tagBefore[DocType.Tag].includes("group-test-remove-target-a")).toBe(true);
+            expect(tagBefore[DocType.Tag].includes("group-test-remove-target-b")).toBe(true);
+
+            PermissionSystem.removeGroups(["group-test-remove-target-a"]);
+
+            // The removed group is swept from both branches; the sibling target is untouched
+            const postAfter = PermissionSystem.getAccessibleGroups(
+                [DocType.Post],
+                AclPermission.View,
+                ["group-test-remove-target-parent"],
+            );
+            expect(postAfter[DocType.Post].length).toBe(1);
+            expect(postAfter[DocType.Post].includes("group-test-remove-target-b")).toBe(true);
+
+            const tagAfter = PermissionSystem.getAccessibleGroups(
+                [DocType.Tag],
+                AclPermission.Edit,
+                ["group-test-remove-target-parent"],
+            );
+            expect(tagAfter[DocType.Tag].length).toBe(1);
+            expect(tagAfter[DocType.Tag].includes("group-test-remove-target-b")).toBe(true);
+
+            expect(
+                PermissionSystem.verifyAccess(
+                    ["group-test-remove-target-b"],
+                    DocType.Post,
+                    AclPermission.View,
+                    ["group-test-remove-target-parent"],
+                ),
+            ).toBe(true);
+
+            // Removing an already-removed (or never-registered) group is a no-op, not an error
+            expect(() => PermissionSystem.removeGroups(["group-test-remove-target-a"])).not.toThrow();
+            expect(() => PermissionSystem.removeGroups(["group-test-never-existed"])).not.toThrow();
+
+            PermissionSystem.removeGroups([
+                "group-test-remove-target-b",
+                "group-test-remove-target-parent",
+            ]);
+        });
+
         it("can remove an ACL", () => {
             // Update an existing document with less ACL entries
             PermissionSystem.upsertGroups([

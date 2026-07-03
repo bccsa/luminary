@@ -149,7 +149,7 @@ function handleDelete() {
             <div class="space-y-2" v-if="bucket">
                 <!-- bucket name -->
                 <div>
-                    <label for="bucket-name" class="mb-1 block text-xs font-medium text-gray-700"
+                    <label for="bucket-name" class="mb-1 block text-xs font-medium text-zinc-700"
                         >Name</label
                     >
                     <LInput
@@ -183,7 +183,7 @@ function handleDelete() {
 
                 <!-- bucket public URL -->
                 <div>
-                    <label for="bucket-path" class="mb-1 block text-xs font-medium text-gray-700"
+                    <label for="bucket-path" class="mb-1 block text-xs font-medium text-zinc-700"
                         >Public URL</label
                     >
                     <LInput
@@ -213,7 +213,7 @@ function handleDelete() {
                             }
                         "
                     />
-                    <p v-if="!isEditing" class="mt-0.5 text-[11px] text-gray-500">
+                    <p v-if="!isEditing" class="mt-0.5 text-[11px] text-zinc-500">
                         Must be set manually including "http://" or "https://"
                     </p>
                 </div>
@@ -233,7 +233,7 @@ function handleDelete() {
 
                 <!-- Allowed File Types -->
                 <div>
-                    <label class="mb-1 block text-xs font-medium text-gray-700">
+                    <label class="mb-1 block text-xs font-medium text-zinc-700">
                         Allowed File Types
                     </label>
                     <div class="space-y-1.5">
@@ -275,7 +275,7 @@ function handleDelete() {
                             </LButton>
                         </div>
                     </div>
-                    <p class="mt-0.5 text-[11px] text-gray-500">
+                    <p class="mt-0.5 text-[11px] text-zinc-500">
                         e.g., "image/*", "video/mp4", "application/pdf"
                     </p>
                 </div>
@@ -340,7 +340,7 @@ function handleDelete() {
                 <!-- S3 Credentials -->
                 <div v-if="shouldShowCredentialsSection" class="border-t pt-2">
                     <div class="mb-2 flex items-center justify-between">
-                        <h3 class="text-sm font-medium text-gray-900">
+                        <h3 class="text-sm font-medium text-zinc-900">
                             S3 Credentials
                             <span v-if="!isEditing" class="text-red-500">*</span>
                         </h3>
@@ -396,7 +396,7 @@ function handleDelete() {
                         <div>
                             <label
                                 for="endpoint"
-                                class="mb-1 block text-xs font-medium text-gray-700"
+                                class="mb-1 block text-xs font-medium text-zinc-700"
                             >
                                 S3 Endpoint
                                 <span v-if="!isEditing" class="text-red-500">*</span>
@@ -434,7 +434,7 @@ function handleDelete() {
                                     }
                                 "
                             />
-                            <p class="mt-0.5 text-[11px] text-gray-500">
+                            <p class="mt-0.5 text-[11px] text-zinc-500">
                                 Examples of endpoint: <br />
                                 • MinIO: http://localhost:9000 <br />
                                 • AWS S3: https://s3.amazonaws.com <br />
@@ -446,7 +446,7 @@ function handleDelete() {
                         <div>
                             <label
                                 for="bucketName"
-                                class="mb-1 block text-xs font-medium text-gray-700"
+                                class="mb-1 block text-xs font-medium text-zinc-700"
                             >
                                 Bucket Name
                                 <span v-if="!isEditing" class="text-red-500">*</span>
@@ -470,7 +470,7 @@ function handleDelete() {
                                 @blur="() => touchField('bucketName')"
                                 @input="() => touchField('bucketName')"
                             />
-                            <p class="mt-0.5 text-[11px] text-gray-500">
+                            <p class="mt-0.5 text-[11px] text-zinc-500">
                                 The actual bucket name (do not include in endpoint)
                             </p>
                         </div>
@@ -479,7 +479,7 @@ function handleDelete() {
                         <div>
                             <label
                                 for="accessKey"
-                                class="mb-1 block text-xs font-medium text-gray-700"
+                                class="mb-1 block text-xs font-medium text-zinc-700"
                             >
                                 Access Key
                                 <span v-if="!isEditing" class="text-red-500">*</span>
@@ -509,7 +509,7 @@ function handleDelete() {
                         <div>
                             <label
                                 for="secretKey"
-                                class="mb-1 block text-xs font-medium text-gray-700"
+                                class="mb-1 block text-xs font-medium text-zinc-700"
                             >
                                 Secret Key
                                 <span v-if="!isEditing" class="text-red-500">*</span>

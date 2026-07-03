@@ -10,6 +10,8 @@ type Props = {
     noDivider?: boolean;
     largeModal?: boolean;
     stickToEdges?: boolean;
+    noPadding?: boolean;
+    transparentHeader?: boolean;
     showClosingButton?: boolean;
     // When true, the modal cannot be dismissed by clicking outside of it or pressing Escape.
     preventClose?: boolean;
@@ -18,6 +20,8 @@ type Props = {
 const props = withDefaults(defineProps<Props>(), {
     largeModal: false,
     noDivider: false,
+    noPadding: false,
+    transparentHeader: false,
     showClosingButton: true,
     preventClose: false,
 });
@@ -52,7 +56,7 @@ const isMobileScreen = breakpoints.smaller("sm");
         <div
             :class="[
                 'fixed inset-x-0 top-0 z-50 flex h-[100dvh] items-center justify-center bg-zinc-800 bg-opacity-50 backdrop-blur-sm',
-                stickToEdges && isMobileScreen ? '' : 'p-2',
+                noPadding || (stickToEdges && isMobileScreen) ? '' : 'p-2',
             ]"
             @mousedown.self="tryDismiss()"
             data-test="modal-backdrop"
@@ -69,11 +73,18 @@ const isMobileScreen = breakpoints.smaller("sm");
                     isMobileScreen && stickToEdges
                         ? 'w-[100vw] max-w-none rounded-none'
                         : largeModal
-                          ? 'w-fit min-w-[448px] max-w-[100%]'
+                          ? 'w-fit max-w-[100%]'
                           : 'w-full max-w-md',
                 ]"
             >
-                <div class="mb-2 flex w-full items-center justify-between">
+                <div
+                    :class="[
+                        'flex w-full items-center justify-between',
+                        transparentHeader
+                            ? 'pointer-events-none absolute left-0 right-0 top-0 z-10 p-2'
+                            : 'mb-2',
+                    ]"
+                >
                     <div class="flex items-center">
                         <h2 v-if="heading" class="text-lg font-semibold">
                             {{ heading }}
@@ -86,7 +97,11 @@ const isMobileScreen = breakpoints.smaller("sm");
                         <div v-if="$slots.rightHeading">
                             <slot name="rightHeading" />
                         </div>
-                        <div v-if="showClosingButton" class="ml-2">
+                        <div
+                            v-if="showClosingButton"
+                            class="ml-2"
+                            :class="{ 'pointer-events-auto': transparentHeader }"
+                        >
                             <LButton
                                 @click="tryClose()"
                                 :icon="XMarkIcon"
@@ -102,6 +117,7 @@ const isMobileScreen = breakpoints.smaller("sm");
                     :class="[
                         noDivider ? '' : 'divide-y divide-zinc-200',
                         'flex min-h-0 flex-1 flex-col',
+                        noPadding ? (transparentHeader ? '-m-5' : '-m-5 mt-0') : '',
                     ]"
                 >
                     <slot />

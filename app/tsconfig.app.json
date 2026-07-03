@@ -7,7 +7,10 @@
         "noEmit": true,
         "baseUrl": ".",
         "paths": {
-            "@/*": ["./src/*"]
+            "@/*": ["./src/*"],
+            "vue": ["./node_modules/vue"],
+            "dexie": ["./node_modules/dexie"],
+            "@vueuse/core": ["./node_modules/@vueuse/core"]
         }
     }
 }

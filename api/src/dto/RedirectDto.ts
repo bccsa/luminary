@@ -1,6 +1,6 @@
 import { RedirectType } from "../enums";
 import { _contentBaseDto } from "./_contentBaseDto";
-import { IsEnum, IsNotEmpty, IsOptional, IsString } from "class-validator";
+import { IsArray, IsEnum, IsNotEmpty, IsOptional, IsString } from "class-validator";
 import { Expose } from "class-transformer";
 
 export class RedirectDto extends _contentBaseDto {
@@ -18,4 +18,15 @@ export class RedirectDto extends _contentBaseDto {
     @IsOptional()
     @Expose()
     toSlug?: string;
+
+    /**
+     * Server-authoritative trigram FTS index (`"trigram:tf"` entries) over slug + toSlug,
+     * powering the strict server-side `/fts` search. Set by `processRedirectDto`; clients
+     * must not set it.
+     */
+    @IsOptional()
+    @IsArray()
+    @IsString({ each: true })
+    @Expose()
+    fts?: string[];
 }

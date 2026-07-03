@@ -11,15 +11,15 @@ const provider = defineModel<AuthProviderDto>("provider", { required: true });
 
 <template>
     <div class="rounded-md border border-zinc-200 bg-white p-2">
-        <h3 class="mb-2 text-sm font-medium text-gray-900">Appearance</h3>
+        <h3 class="mb-2 text-sm font-medium text-zinc-900">Appearance</h3>
         <div class="grid grid-cols-2 gap-4">
             <div>
-                <label class="mb-1 block text-xs font-medium text-gray-700"
+                <label class="mb-1 block text-xs font-medium text-zinc-700"
                     >Text Color</label
                 >
                 <div class="flex items-center gap-2">
                     <div
-                        class="relative h-[38px] w-[38px] flex-shrink-0 overflow-hidden rounded-md border border-gray-300"
+                        class="relative h-[38px] w-[38px] flex-shrink-0 overflow-hidden rounded-md border border-zinc-300"
                     >
                         <input
                             type="color"
@@ -47,12 +47,12 @@ const provider = defineModel<AuthProviderDto>("provider", { required: true });
                 </div>
             </div>
             <div>
-                <label class="mb-1 block text-xs font-medium text-gray-700"
+                <label class="mb-1 block text-xs font-medium text-zinc-700"
                     >Background Color</label
                 >
                 <div class="flex items-center gap-2">
                     <div
-                        class="relative h-[38px] w-[38px] flex-shrink-0 overflow-hidden rounded-md border border-gray-300"
+                        class="relative h-[38px] w-[38px] flex-shrink-0 overflow-hidden rounded-md border border-zinc-300"
                     >
                         <input
                             type="color"

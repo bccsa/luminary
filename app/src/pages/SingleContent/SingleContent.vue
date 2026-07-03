@@ -50,6 +50,7 @@ import { userPreferencesAsRef } from "@/globalConfig";
 import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
 import LModal from "@/components/form/LModal.vue";
 import CopyrightBanner from "@/components/content/CopyrightBanner.vue";
+import FallbackLanguageBadge from "@/components/content/FallbackLanguageBadge.vue";
 import { useI18n } from "vue-i18n";
 import ImageModal from "@/components/images/ImageModal.vue";
 import BasePage from "@/components/BasePage.vue";
@@ -239,8 +240,8 @@ watch(content, (c) => {
 });
 
 // Available translations + their languages. HybridQuery merges the local read with
-// the below-cutoff API supplement (replacing the old mangoToDexie + ApiLiveQuery
-// pair); the language list is a fully-synced type read straight from IndexedDB.
+// the below-cutoff API supplement; the language list is a fully-synced type read
+// straight from IndexedDB.
 const isLoadingTranslations = ref(false);
 
 // Per-document lookup → response cache stays off (the useContentQuery default). The
@@ -834,6 +835,11 @@ watch([isLoading, content, is404], async () => {
                                         : ""
                                 }}
                             </div>
+
+                            <!-- Fallback language: shown when the article isn't available in a
+                                 language the user chose (it fell through to the default / another).
+                                 Renders nothing for chosen-language content, so no stray separator. -->
+                            <FallbackLanguageBadge :content="content" />
                         </div>
 
                         <!-- Bookmark Button -->

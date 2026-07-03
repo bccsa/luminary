@@ -375,9 +375,11 @@ describe("EditContent.vue", () => {
             },
         });
 
-        const triggerButton = wrapper.find('[data-test="add-translation-button"]');
-        expect(triggerButton.exists()).toBe(true);
-        await triggerButton.trigger("click");
+        // The parent loads asynchronously, so wait for the empty-state button.
+        await waitForExpect(() => {
+            expect(wrapper.find('[data-test="add-translation-button"]').exists()).toBe(true);
+        });
+        await wrapper.find('[data-test="add-translation-button"]').trigger("click");
 
         // Wait for component to load and language selector to appear
         await waitForExpect(() => {
@@ -427,6 +429,14 @@ describe("EditContent.vue", () => {
     });
 
     it("renders an empty state when no language is selected", async () => {
+        // Remove every translation so no content is selected for the default language
+        // → the "select a language" empty state renders deterministically.
+        await db.docs.bulkDelete([
+            mockData.mockEnglishContentDto._id,
+            mockData.mockFrenchContentDto._id,
+            mockData.mockSwahiliContentDto._id,
+        ]);
+
         const wrapper = mount(EditContent, {
             props: {
                 docType: DocType.Post,
@@ -823,6 +833,44 @@ describe("EditContent.vue", () => {
             expect(redirect.length).toBe(1);
             expect((redirect[0].doc as any).slug).toBe("post1-eng");
             expect((redirect[0].doc as any).toSlug).toBe("new-slug");
+        });
+    });
+
+    it("does not create a duplicate redirect when the save button is triggered twice in rapid succession", async () => {
+        const wrapper = mount(EditContent, {
+            props: {
+                docType: DocType.Post,
+                id: mockData.mockPostDto._id,
+                languageCode: "eng",
+                tagOrPostType: PostType.Blog,
+            },
+        });
+
+        await waitForExpect(async () => {
+            const editContentBasic = wrapper.findComponent(EditContentBasic);
+            const toogle = editContentBasic.findAllComponents(LTextToggle)[0];
+            const visible = toogle.find('[data-test="text-toggle-left-value"]');
+            expect(visible.exists()).toBe(true);
+
+            expect(wrapper.find('[data-test="slugSpan"]').exists()).toBe(true);
+            await wrapper.find('[data-test="slugSpan"]').trigger("click");
+            await wrapper.find('[name="slug"]').setValue("new-slug");
+            await wrapper.find('[name="slug"]').trigger("change");
+        });
+
+        await waitForExpect(async () => {
+            const saveButton = wrapper.find('[data-test="save-button"]');
+            // Two clicks back-to-back, neither awaited before the next fires — reproduces a
+            // rapid double-click racing buildRedirects against the first save's still-stale
+            // existingContent (see EditContent.vue's isSaving guard).
+            saveButton.trigger("click");
+            await saveButton.trigger("click");
+        });
+
+        await waitForExpect(async () => {
+            const res = await db.localChanges.toArray();
+            const redirects = res.filter((o) => o.doc?.type === DocType.Redirect);
+            expect(redirects.length).toBe(1);
         });
     });
 
@@ -1296,5 +1344,30 @@ describe("EditContent.vue", () => {
             },
             15000,
         );
+
+        it("optional boolean toggles clear dirty state when toggled back off", async () => {
+            const wrapper = await loadWithoutUserEdits({}, [
+                mockData.mockStorageDto,
+                mockData.mockStorageDtoWithEncryptedCredentials,
+            ]);
+
+            expect(wrapper.find('[data-test="revert-changes-button"]').exists()).toBe(false);
+
+            const parentSettings = wrapper.findComponent(EditContentParent);
+            await parentSettings.find('[data-test="collapse-button"]').trigger("click");
+
+            const comingSoonToggle = parentSettings.findAllComponents({ name: "LToggle" })[1];
+            await comingSoonToggle.vm.$emit("update:modelValue", true);
+
+            await waitForExpect(() => {
+                expect(wrapper.find('[data-test="revert-changes-button"]').exists()).toBe(true);
+            });
+
+            await comingSoonToggle.vm.$emit("update:modelValue", false);
+
+            await waitForExpect(() => {
+                expect(wrapper.find('[data-test="revert-changes-button"]').exists()).toBe(false);
+            });
+        });
     });
 });

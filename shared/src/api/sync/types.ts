@@ -79,7 +79,17 @@ export type SyncListEntry = {
      */
     memberOf: string[];
     /**
-     * Array of languages this sync entry applies to (for content document types only)
+     * Array of languages this sync entry applies to (Content columns only). Two caveats:
+     *
+     * - **Content columns are no longer language-disjoint.** The Content sync query uses a set-based
+     *   priority-fallback keep (`contentLanguageKeepSelector`), so a column keyed on languages `L`
+     *   also stores *fallback* docs whose own `language ∉ L` (a post with no `L` translation). Merge
+     *   and `trim` key on this declared set, never on the docs' actual languages, so they still work;
+     *   the fallback docs are retention-managed like any other. Do not assume `column ⊇ its docs'
+     *   languages`.
+     * - **DeleteCmd columns are language-UNSCOPED** (`languages: undefined`): a delete of any
+     *   downloaded doc — including a non-`L` fallback translation, whose DeleteCmd carries that
+     *   language — must propagate, so a single unscoped DeleteCmd column covers every language.
      */
     languages?: string[];
     /**

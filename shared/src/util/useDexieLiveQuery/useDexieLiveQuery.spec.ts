@@ -120,6 +120,29 @@ describe("useDexieLiveQuery", () => {
         expect(result.value).toBeUndefined();
         expect(mockSubscribe).toHaveBeenCalled();
     });
+
+    it("warns when called with no active effect scope, and still returns a usable ref", () => {
+        const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+        const result = useDexieLiveQuery(() => Promise.resolve("data"));
+
+        expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("no active Vue effect scope"));
+        expect(result.value).toBeUndefined();
+        expect(mockSubscribe).toHaveBeenCalled();
+
+        warnSpy.mockRestore();
+    });
+
+    it("does not warn when called inside an active effect scope", () => {
+        const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+        const scope = effectScope();
+        scope.run(() => {
+            useDexieLiveQuery(() => Promise.resolve("data"));
+        });
+
+        expect(warnSpy).not.toHaveBeenCalled();
+        scope.stop();
+        warnSpy.mockRestore();
+    });
 });
 
 describe("useDexieLiveQueryWithDeps", () => {

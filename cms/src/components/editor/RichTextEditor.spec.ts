@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { mount } from "@vue/test-utils";
+import { nextTick } from "vue";
 import type { Transaction } from "@tiptap/pm/state";
 import RichTextEditor from "./RichTextEditor.vue";
 import waitForExpect from "wait-for-expect";
@@ -83,6 +84,28 @@ describe("RichTextEditor", () => {
             expect(textValue).toContain("Testing Testing 123");
             expect(textValue!.startsWith("<")).toBe(true);
         });
+    });
+
+    it("stores an emptied editor as '' instead of '<p></p>' (so a cleared field isn't left dirty)", async () => {
+        const wrapper = mount(RichTextEditor, {
+            props: { disabled: false, text: undefined, textLanguage: "lang-eng" },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.vm.editor).toBeDefined();
+        });
+        const editor = wrapper.vm.editor!;
+
+        // Type real content (emitting an update) — the model receives the HTML.
+        editor.commands.setContent("<p>Hello</p>", true);
+        await nextTick();
+        expect(wrapper.vm.text).toBe("<p>Hello</p>");
+
+        // Clear through the editor: rte-vue serialises the empty doc as "<p></p>"; the wrapper must
+        // normalise it to "" so it reads as unset rather than a phantom edit.
+        editor.commands.clearContent(true);
+        await nextTick();
+        expect(wrapper.vm.text).toBe("");
     });
 
     it("updates editor content when text prop changes externally (from page size change - where formatting of text may change", async () => {

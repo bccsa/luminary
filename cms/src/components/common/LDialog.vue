@@ -35,7 +35,7 @@ withDefaults(defineProps<Props>(), {
         :stickToEdges="stickToEdges"
         :showClosingButton="showClosingButton"
     >
-        <p v-if="description" class="shrink-0 text-sm text-gray-500">{{ description }}</p>
+        <p v-if="description" class="shrink-0 text-sm text-zinc-500">{{ description }}</p>
         <div class="min-h-0 flex-1 overflow-y-scroll scrollbar-hide">
             <slot name="default" />
         </div>

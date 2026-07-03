@@ -1,7 +1,7 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { mount } from "@vue/test-utils";
-import { ref, computed } from "vue";
+import { ref, computed, type ComputedRef } from "vue";
 import { createTestingPinia } from "@pinia/testing";
 import { setActivePinia } from "pinia";
 import EditGroup from "./EditGroup.vue";
@@ -17,10 +17,11 @@ import {
     DocType,
     type GroupDto,
     AckStatus,
-    type ApiLiveQueryAsEditable,
+    toEditable,
     AclPermission,
 } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
+import LDialog from "../common/LDialog.vue";
 
 // Mock clipboard API
 Object.assign(navigator, {
@@ -42,10 +43,15 @@ vi.mock("luminary-shared", async (importOriginal) => {
     };
 });
 
-const { verifyAccess, isConnected } = await import("luminary-shared");
+const { verifyAccess, isConnected, db } = await import("luminary-shared");
 
 describe("EditGroup", () => {
-    let mockGroupQuery: Partial<ApiLiveQueryAsEditable<GroupDto>>;
+    // The component's prop is `ReturnType<typeof toEditable<GroupDto>>`; the specs also
+    // configure the test-only `liveData` / `duplicate` helpers, so allow those too.
+    let mockGroupQuery: Partial<ReturnType<typeof toEditable<GroupDto>>> & {
+        liveData?: ComputedRef<GroupDto[]>;
+        duplicate?: (id: string, modify?: (clone: GroupDto) => GroupDto) => GroupDto | undefined;
+    };
     let testGroup: GroupDto;
     let allGroups: GroupDto[];
     let isEditedMock: any;
@@ -58,13 +64,13 @@ describe("EditGroup", () => {
 
         // Set up test data
         allGroups = [
-            mockGroupDtoPublicContent,
-            mockGroupDtoPublicEditors,
-            mockGroupDtoPublicUsers,
-            mockGroupDtoSuperAdmins,
+            { ...mockGroupDtoPublicContent, _rev: "1-mock" },
+            { ...mockGroupDtoPublicEditors, _rev: "1-mock" },
+            { ...mockGroupDtoPublicUsers, _rev: "1-mock" },
+            { ...mockGroupDtoSuperAdmins, _rev: "1-mock" },
         ];
 
-        testGroup = { ...mockGroupDtoPublicContent };
+        testGroup = { ...mockGroupDtoPublicContent, _rev: "1-mock" };
 
         // Create isEdited mock function
         isEditedMock = vi.fn().mockReturnValue(false);
@@ -75,8 +81,21 @@ describe("EditGroup", () => {
             isEdited: computed(() => isEditedMock),
             revert: vi.fn(),
             save: vi.fn().mockResolvedValue({ ack: AckStatus.Accepted }),
-            duplicate: vi.fn().mockResolvedValue({ ack: AckStatus.Accepted }),
-            editable: ref([testGroup]),
+            remove: vi.fn().mockResolvedValue({ ack: AckStatus.Accepted }),
+            duplicate: vi.fn((id: string, modify?: (clone: GroupDto) => GroupDto) => {
+                const source = allGroups.find((group) => group._id === id);
+                if (!source) return undefined;
+
+                const clone = structuredClone(source) as GroupDto;
+                clone._id = db.uuid();
+                clone._rev = undefined;
+                delete clone.deleteReq;
+
+                const duplicatedGroup = modify ? modify(clone) : clone;
+                allGroups.push(duplicatedGroup);
+                return duplicatedGroup;
+            }),
+            editable: ref(allGroups),
         };
 
         // Set default access map to super admin for most tests
@@ -96,7 +115,7 @@ describe("EditGroup", () => {
     const createWrapper = (group = testGroup, props = {}) => {
         return mount(EditGroup, {
             props: {
-                groupQuery: mockGroupQuery as ApiLiveQueryAsEditable<GroupDto>,
+                groupQuery: mockGroupQuery as ReturnType<typeof toEditable<GroupDto>>,
                 group: group,
                 openModal: true,
                 "onUpdate:group": vi.fn(),
@@ -225,6 +244,19 @@ describe("EditGroup", () => {
         });
     });
 
+    describe("Delete Group", () => {
+        it("deletes through remove without a follow-up save", async () => {
+            const wrapper = createWrapper();
+
+            await wrapper.find('[data-test="delete-button"]').trigger("click");
+            const confirmDelete = wrapper.findAllComponents(LDialog).at(-1)!;
+            await (confirmDelete.props("primaryAction") as () => Promise<void>)();
+
+            expect(mockGroupQuery.remove).toHaveBeenCalledWith(testGroup._id);
+            expect(mockGroupQuery.save).not.toHaveBeenCalledWith(testGroup._id);
+        });
+    });
+
     describe("Status Badges", () => {
         it("shows 'Unsaved changes' badge when group is dirty", () => {
             isEditedMock.mockReturnValue(true);
@@ -279,7 +311,8 @@ describe("EditGroup", () => {
         });
 
         it("does not show duplicate button for new groups", () => {
-            const newGroup = { ...testGroup, _id: "new-group-id" };
+            isEditedMock.mockReturnValue(true);
+            const newGroup = { ...testGroup, _id: "new-group-id", _rev: undefined };
             // Modify the mock to not include the new group in live data
             const modifiedMockQuery = {
                 ...mockGroupQuery,
@@ -288,7 +321,7 @@ describe("EditGroup", () => {
 
             const wrapper = mount(EditGroup, {
                 props: {
-                    groupQuery: modifiedMockQuery as ApiLiveQueryAsEditable<GroupDto>,
+                    groupQuery: modifiedMockQuery as ReturnType<typeof toEditable<GroupDto>>,
                     group: newGroup,
                     openModal: true,
                     "onUpdate:group": vi.fn(),
@@ -333,13 +366,28 @@ describe("EditGroup", () => {
 
             await wrapper.find('[data-test="duplicateGroup"]').trigger("click");
 
-            expect(mockGroupQuery.duplicate).toHaveBeenCalled();
+            expect(mockGroupQuery.save).toHaveBeenCalled();
+        });
+
+        it("keeps copied ACL accessors instead of making the duplicate self-referential", async () => {
+            const { db } = await import("luminary-shared");
+            vi.mocked(db.uuid).mockReturnValue("new-uuid-123");
+
+            const wrapper = createWrapper();
+
+            await wrapper.find('[data-test="duplicateGroup"]').trigger("click");
+
+            const copy = allGroups.find((group) => group._id === "new-uuid-123");
+            expect(copy?.acl.map((entry) => entry.groupId)).toEqual(
+                testGroup.acl.map((entry) => entry.groupId),
+            );
         });
     });
 
     describe("Computed Properties", () => {
         it("shows new group behavior when group is not in live data", () => {
-            const newGroup = { ...testGroup, _id: "new-group-id" };
+            isEditedMock.mockReturnValue(true);
+            const newGroup = { ...testGroup, _id: "new-group-id", _rev: undefined };
             // Create a modified mock that doesn't include the new group
             const modifiedMockQuery = {
                 ...mockGroupQuery,
@@ -348,7 +396,7 @@ describe("EditGroup", () => {
 
             const wrapper = mount(EditGroup, {
                 props: {
-                    groupQuery: modifiedMockQuery as ApiLiveQueryAsEditable<GroupDto>,
+                    groupQuery: modifiedMockQuery as ReturnType<typeof toEditable<GroupDto>>,
                     group: newGroup,
                     openModal: true,
                     "onUpdate:group": vi.fn(),
@@ -416,7 +464,8 @@ describe("EditGroup", () => {
         });
 
         it("handles missing original group gracefully", () => {
-            const newGroup = { ...testGroup, _id: "non-existent-id" };
+            isEditedMock.mockReturnValue(true);
+            const newGroup = { ...testGroup, _id: "non-existent-id", _rev: undefined };
             // Create a modified mock that doesn't include the new group
             const modifiedMockQuery = {
                 ...mockGroupQuery,
@@ -425,7 +474,7 @@ describe("EditGroup", () => {
 
             const wrapper = mount(EditGroup, {
                 props: {
-                    groupQuery: modifiedMockQuery as ApiLiveQueryAsEditable<GroupDto>,
+                    groupQuery: modifiedMockQuery as ReturnType<typeof toEditable<GroupDto>>,
                     group: newGroup,
                     openModal: true,
                     "onUpdate:group": vi.fn(),

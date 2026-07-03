@@ -34,6 +34,8 @@ const { results, isSearching, loadMore, hasMore } = useFtsSearch(query, {
     languageId,
     debounceMs: 300,
     pageSize: 20,
+    // Optional reactive filters; changing the ref re-runs the search.
+    filters: ref({ types: [DocType.Post], tags: ["tag-id"], status: PublishStatus.Published }),
 });
 ```
 
@@ -48,8 +50,43 @@ const results = await ftsSearch({
     limit: 20,
     offset: 0,
     maxTrigramDocPercent: 50,
+    // Optional filters (each narrows only when present):
+    types: [DocType.Post], // restrict to these parent content types
+    tags: ["tag-id"], // restrict to content whose parentTags intersect these
+    status: PublishStatus.Published, // restrict to a single publish status
+    publishedAfter: 0, // publishDate >= bound
+    publishedBefore: Date.now(), // publishDate <= bound
+
+    // Strict mode (a precise "find by name" search instead of fuzzy relevance):
+    matchAllWords: true, // keep only docs where every query word (≥3 chars) is a SUBSTRING
+    //                      of `title` or `author` (AND across words; partial/typeahead —
+    //                      "sund" matches "Sunday"). Body/summary are not consulted.
+    sort: { field: "updatedTimeUtc", direction: "desc" }, // order by a field, not relevance
 });
 ```
+
+These filters apply identically on the local and server (`/fts`) paths, so a search returns the same set regardless of where it runs. Visibility (published/scheduled/expired) is **not** applied implicitly — the local index returns every permitted doc it holds; a caller that wants only published results passes `status` / `publishedBefore` itself.
+
+**Strict vs relevance.** With no `sort`/`matchAllWords`, search ranks by fuzzy BM25 relevance over all fields (the default). With `matchAllWords` + `sort`, it becomes a strict, field-ordered lookup: every query word must appear as a substring of `title`/`author`, and the full match set is ordered by the chosen field before pagination. Because matching is scoped to `title`/`author` (carried in the server's trigram-index metadata), it is **exact on both the local and server paths**; the sort comparator (nulls last, case-insensitive strings, `_id` tie-break) is mirrored too, so a partially-synced client gets the same order whether a search runs locally or against `/fts`.
+
+### Server-only strict search for other doctypes — `useServerFtsSearch`
+
+`useFtsSearch` / `ftsSearch` above are Content-specific (BM25 relevance over title/summary/text/author, backed by the offline index). Some **non-Content doctypes** also carry a server-computed `fts` index — currently `UserDto` (name + email) and `RedirectDto` (slug + toSlug). For those, `useServerFtsSearch` runs a **server-only strict** search via `/fts`: substring-AND over the doctype's searchable fields, a field sort, and optional filters, with debouncing and infinite-scroll paging.
+
+```typescript
+import { ref } from "vue";
+import { useServerFtsSearch, DocType } from "luminary-shared";
+
+const query = ref("");
+const { docs, isLoading, hasMore, loadMore } = useServerFtsSearch(query, {
+    docType: DocType.User,
+    sort: () => ({ field: "name", direction: "asc" }), // omit → the server's per-doctype default
+    filters: () => ({ groups: ["group-id"] }), // narrow to memberOf ∩ groups (post-permission)
+    pageSize: 20,
+});
+```
+
+Unlike `useFtsSearch` it does **not** touch the offline index and does **not** fall back to local: there is no relevance ranking, and offline (or on any API error) it yields an empty result set. Results are display-only (trimmed of `fts`) — never persist them to IndexedDB. Each doctype's matchable fields, sortable fields, and default sort are defined server-side (see ADR 0010); a query shorter than 3 characters is a no-op.
 
 ### FtsSearchResult
 
@@ -67,11 +104,15 @@ The `useFtsSearch` composable additionally exposes `source: Ref<"local" \| "api"
 
 The library can search the **local** IndexedDB index or a **server-side** `/fts` endpoint that searches the full corpus the user is permitted to see (useful when only a subset of content is synced to the device). `useFtsSearch` routes each search automatically; `ftsSearch` / `ftsSearchApi` can be called directly.
 
-`shouldUseApiFts()` decides the route:
+`shouldUseApiFts()` decides the route purely on whether the local index can be missing
+permitted docs — i.e. whether a `publishDate` sync cutoff is in effect:
 
 - **Offline** (`isConnected === false`) → local.
-- **Full sync** (no `publishDate` cutoff) and not CMS → local (everything is on the device).
-- **Online and (a cutoff is set, or `SharedConfig.cms`)** → server `/fts`.
+- **No cutoff** (full content sync — every permitted doc is on the device) → local. This
+  covers a fully-synced consumer with no cutoff (e.g. the CMS, which never sets one), and
+  mirrors `HybridQuery`'s content routing (which also skips the API supplement with no cutoff).
+- **Online + a `publishDate` cutoff is set** (selective sync) → server `/fts`, since local
+  holds only the recent subset above the cutoff.
 
 Properties of the routing:
 
@@ -89,6 +130,8 @@ FTS data lives directly on Content documents as a `string[]` field called `fts`,
 
 - **`docs` table**: Content documents carry `fts` (trigram strings) and `ftsTokenCount` (raw token count for BM25)
 - **`luminaryInternals` table**: Stores corpus stats under key `"corpusStats"` for BM25 scoring
+
+> Other doctypes (e.g. `UserDto`, `RedirectDto`) carry a **server-only** `fts` used solely by the `/fts` strict search. It is stripped on client ingest (`db.bulkPut`) so it never enters the local `*fts` index — only Content is searched offline.
 
 ### Server-Side Indexing
 
@@ -162,6 +205,8 @@ Hard-coded identically in `api/src/util/ftsIndexing.ts` and `shared/src/fts/ftsS
 { name: "text", isHtml: true, boost: 1.0 },
 { name: "author", boost: 1.0 },
 ```
+
+Non-Content doctypes use their own server-only field configs (`USER_FTS_FIELDS`, `REDIRECT_FTS_FIELDS` in `api/src/util/ftsIndexing.ts`) for strict substring search. These have **no** client mirror (the offline engine is Content-only), so they are not bound by the "change one, change all" rule above.
 
 ## Low-End Device Design Decisions
 

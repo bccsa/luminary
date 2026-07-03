@@ -6,21 +6,26 @@ import {
     AclPermission,
     verifyAccess,
     type GroupDto,
+    useSharedHybridQueryWithState,
 } from "luminary-shared";
 import { DateTime } from "luxon";
 import LButton from "../button/LButton.vue";
 import { EyeIcon, PencilSquareIcon } from "@heroicons/vue/20/solid";
 import LBadge from "../common/LBadge.vue";
-import { ref, watch } from "vue";
+import { ref, watch, computed } from "vue";
+import { groupLabel } from "@/util/groups";
 
 type Props = {
     usersDoc: UserDto;
 };
 const props = defineProps<Props>();
 
-const isLocalChanges = db.isLocalChangeAsRef(props.usersDoc._id);
+const { output: groups, hasLocalChanges } = useSharedHybridQueryWithState<GroupDto>(
+    () => ({ selector: { type: DocType.Group } }),
+    { live: true },
+);
+const isLocalChanges = computed(() => hasLocalChanges.value(props.usersDoc._id));
 
-const groups = db.whereTypeAsRef<GroupDto[]>(DocType.Group);
 const group = ref<GroupDto[]>([]);
 
 watch(groups, (newGroups) => {
@@ -49,9 +54,7 @@ watch(groups, (newGroups) => {
         <td class="py-2 pl-4 pr-3 text-sm font-medium text-zinc-700 sm:pl-3">
             <div class="flex max-w-xs flex-wrap gap-2">
                 <LBadge
-                    v-for="g in usersDoc.memberOf.map(
-                        (g) => group.find((gr) => gr._id === g)?.name,
-                    )"
+                    v-for="g in usersDoc.memberOf.map((g) => groupLabel(g, group))"
                     :key="g"
                     type="default"
                     class="text-lg"

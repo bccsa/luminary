@@ -16,7 +16,6 @@ import {
 } from "@heroicons/vue/16/solid";
 import LBadge, { variants } from "../common/LBadge.vue";
 import { RouterLink } from "vue-router";
-import _ from "lodash";
 import { capitaliseFirstLetter } from "@/util/string";
 import LDialog from "../common/LDialog.vue";
 
@@ -25,6 +24,7 @@ type Props = {
     existingContent?: ContentDto;
     isLanguageSelectorSticky?: boolean;
     canDelete: boolean;
+    dirty: boolean;
 };
 const props = defineProps<Props>();
 const editableContent = defineModel<ContentDto>("editableContent");
@@ -39,19 +39,6 @@ const showDeleteModal = ref(false);
 const usedLanguage = computed(() => {
     if (!editableContent.value || !sortedLanguages.value) return null;
     return sortedLanguages.value.find((l) => editableContent.value?.language == l._id);
-});
-
-const isContentDirty = computed(() => {
-    if (!editableContent.value || !props.existingContent) return false;
-
-    // Create copies without parentMedia for comparison since parentMedia is synchronized from parent
-    const editableWithoutParentMedia = { ...editableContent.value };
-    delete editableWithoutParentMedia.parentMedia;
-
-    const existingWithoutParentMedia = { ...props.existingContent };
-    delete existingWithoutParentMedia.parentMedia;
-
-    return !_.isEqual(editableWithoutParentMedia, existingWithoutParentMedia);
 });
 
 const emit = defineEmits<{
@@ -146,6 +133,7 @@ const deleteTranslation = () => {
 
 <template>
     <RouterLink
+        class="block w-full"
         :to="{
             name: 'edit',
             params: {
@@ -165,7 +153,7 @@ const deleteTranslation = () => {
         <div
             v-if="languages.find((l) => l._id == editableContent?.language)"
             :class="[
-                'mx-1.5 rounded-md p-1.5 px-2 sm:px-1',
+                'rounded-md p-1.5',
                 {
                     'mb-0 cursor-default bg-yellow-100/40 shadow': isActive && !isCardCollapsed,
                     'border-1.5 cursor-default bg-white shadow': isActive && isCardCollapsed,
@@ -174,7 +162,7 @@ const deleteTranslation = () => {
             ]"
         >
             <div class="flex flex-col">
-                <span class="mx-1.5 flex items-center justify-between text-sm text-zinc-900">
+                <span class="flex items-center justify-between text-sm text-zinc-900">
                     <div class="flex h-8 w-full items-center justify-start">
                         {{ usedLanguage?.name }}
                     </div>
@@ -206,7 +194,7 @@ const deleteTranslation = () => {
                 </span>
             </div>
 
-            <div v-if="!isValid || isContentDirty" class="mt-2 flex flex-col gap-0.5">
+            <div v-if="!isValid || dirty" class="mt-2 flex flex-col gap-0.5">
                 <div class="flex items-center gap-2">
                     <p>
                         <ExclamationCircleIcon class="h-4 w-4 text-yellow-400" />

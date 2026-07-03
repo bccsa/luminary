@@ -44,6 +44,7 @@ type Props = {
     inlineTags?: boolean;
     noBorder?: boolean;
     placeholder?: string;
+    sortOptions?: boolean;
 };
 
 const props = withDefaults(defineProps<Props>(), {
@@ -52,6 +53,7 @@ const props = withDefaults(defineProps<Props>(), {
     showSelectedInDropdown: true,
     showSelectedLabels: true,
     showIcon: true,
+    sortOptions: true,
 });
 
 const emit = defineEmits(["select"]);
@@ -82,15 +84,15 @@ const normalize = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
 
 const filtered = computed(() => {
     const normalizedQuery = normalize(query.value);
-    return optionsList.value
-        .filter((o) => {
-            if (!props.showSelectedInDropdown && o.selected) return false;
-            return normalize(o.label).includes(normalizedQuery);
-        })
-        .sort((a, b) => a.label.localeCompare(b.label));
+    const options = optionsList.value.filter((o) => {
+        if (!props.showSelectedInDropdown && o.selected) return false;
+        return normalize(o.label).includes(normalizedQuery);
+    });
+    return props.sortOptions ? options.sort((a, b) => a.label.localeCompare(b.label)) : options;
 });
 
 const highlightedIndex = ref(-1);
+const dropdownRef = ref<{ panelRef: HTMLElement | null } | null>(null);
 
 watch(showDropdown, (val) => {
     if (val) {
@@ -98,6 +100,16 @@ watch(showDropdown, (val) => {
     } else {
         highlightedIndex.value = -1;
     }
+});
+
+watch(highlightedIndex, async (index) => {
+    if (index < 0 || !showDropdown.value) return;
+    await nextTick();
+    const panel = dropdownRef.value?.panelRef;
+    if (!panel) return;
+    panel
+        .querySelectorAll<HTMLElement>('[name="list-item"]')
+        [index]?.scrollIntoView({ block: "nearest" });
 });
 
 watch(query, (newVal) => {
@@ -166,6 +178,14 @@ const onInlineBackspace = () => {
         }
     }
 };
+
+const onEscape = (e: KeyboardEvent) => {
+    if (!showDropdown.value && query.value === "") return;
+    e.preventDefault();
+    e.stopPropagation();
+    query.value = "";
+    showDropdown.value = false;
+};
 </script>
 
 <template>
@@ -215,6 +235,7 @@ const onInlineBackspace = () => {
             :showClosingButton="false"
         >
             <LDropdown
+                ref="dropdownRef"
                 v-model:show="showDropdown"
                 placement="bottom-start"
                 width="full"
@@ -271,12 +292,7 @@ const onInlineBackspace = () => {
                                     }
                                 }
                             "
-                            @keydown.escape.prevent.stop="
-                                () => {
-                                    query = '';
-                                    showDropdown = false;
-                                }
-                            "
+                            @keydown.escape="onEscape"
                             @keydown.down="
                                 () => {
                                     if (!showDropdown) showDropdown = true;
@@ -350,12 +366,7 @@ const onInlineBackspace = () => {
                                         }
                                     }
                                 "
-                                @keydown.escape.prevent.stop="
-                                    () => {
-                                        query = '';
-                                        showDropdown = false;
-                                    }
-                                "
+                                @keydown.escape="onEscape"
                                 @keydown.down="
                                     () => {
                                         if (!showDropdown) showDropdown = true;

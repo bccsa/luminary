@@ -12,7 +12,7 @@ import {
     DocType,
     PublishStatus,
     useDexieLiveQuery,
-    useDexieLiveQueryWithDeps,
+    useHybridQuery,
     type ContentDto,
     type PostDto,
     type TagDto,
@@ -24,33 +24,36 @@ import { computed } from "vue";
 
 // --- Shared data queries ---
 
-const posts = useDexieLiveQuery(
-    () => db.docs.where({ type: DocType.Post }).toArray() as unknown as Promise<PostDto[]>,
-    { initialValue: [] as PostDto[] },
+const posts = useHybridQuery<PostDto>(
+    () => ({
+        selector: { type: DocType.Post },
+    }),
+    { live: true },
 );
 
-const tags = useDexieLiveQuery(
-    () => db.docs.where({ type: DocType.Tag }).toArray() as unknown as Promise<TagDto[]>,
-    { initialValue: [] as TagDto[] },
+const tags = useHybridQuery<TagDto>(
+    () => ({
+        selector: { type: DocType.Tag },
+    }),
+    { live: true },
 );
 
-const groups = useDexieLiveQuery(
-    () => db.docs.where({ type: DocType.Group }).toArray() as unknown as Promise<GroupDto[]>,
-    { initialValue: [] as GroupDto[] },
+const groups = useHybridQuery<GroupDto>(() => ({ selector: { type: DocType.Group } }), {
+    live: true,
+});
+
+const allContentDocs = useHybridQuery<ContentDto>(
+    () => ({
+        selector: { type: DocType.Content },
+    }),
+    { live: true },
 );
 
-const allContentDocs = useDexieLiveQuery(
-    () => db.docs.where({ type: DocType.Content }).toArray() as unknown as Promise<ContentDto[]>,
-    { initialValue: [] as ContentDto[] },
-);
-
-const contentDocs = useDexieLiveQueryWithDeps(
-    cmsLanguageIdAsRef,
-    (langId: string) =>
-        db.docs.where({ type: DocType.Content, language: langId }).toArray() as unknown as Promise<
-            ContentDto[]
-        >,
-    { initialValue: [] as ContentDto[] },
+const contentDocs = useHybridQuery<ContentDto>(
+    () => ({
+        selector: { type: DocType.Content, language: cmsLanguageIdAsRef.value },
+    }),
+    { live: true },
 );
 
 const pendingChanges = useDexieLiveQuery(
@@ -77,7 +80,7 @@ const expiredContent = computed(() => {
 
 <template>
     <BasePage title="Dashboard" :should-show-page-title="false" is-full-width>
-        <div class="flex flex-col gap-3 p-3 sm:p-4 lg:h-full lg:min-h-0">
+        <div class="flex flex-col gap-3 py-1 lg:h-full lg:min-h-0">
             <DashboardHeader />
 
             <DashboardStatCards
@@ -108,7 +111,7 @@ const expiredContent = computed(() => {
                     <RecentActivityCard :content-docs="contentDocs" />
                     <ScheduledContentCard :scheduled-content="scheduledContent" />
                 </div>
-
+                
                 <!-- Right column (1/3 width) -->
                 <div class="flex flex-col gap-3 lg:min-h-0">
                     <LanguageCoverageCard

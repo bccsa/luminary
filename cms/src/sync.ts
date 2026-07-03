@@ -58,8 +58,9 @@ watch(
  * Initialize auth-provider and language document sync watcher.
  *
  * AutoGroupMappings are intentionally NOT synced here:
- * they are edited directly against the API via ApiLiveQuery, so there is no
- * need to mirror them into Dexie for offline editing.
+ * they are served live via HybridQuery in API-only mode (fetched over REST, kept
+ * live by subscribing to the type's socket rooms on demand — see
+ * useAutoGroupMappings), so there is no need to mirror them into Dexie.
  */
 export function initAuthLangSync() {
     watch(
@@ -72,7 +73,9 @@ export function initAuthLangSync() {
 
             setCancelSync(false);
 
-            const access = getAccessibleGroups(AclPermission.View);
+            // CMS visibility is gated by CmsView (GitHub #160): request exactly the CmsView group
+            // set the server returns for cms:true. Asked for explicitly — not derived from View.
+            const access = getAccessibleGroups(AclPermission.CmsView);
 
             // Sync auth providers
             if (access[DocType.AuthProvider] && access[DocType.AuthProvider].length) {
@@ -116,7 +119,9 @@ export function initSync() {
         () => syncIterators.value.content,
         async () => {
             if (!isConnected.value) return;
-            const access = getAccessibleGroups(AclPermission.View);
+            // CMS visibility is gated by CmsView (GitHub #160): request exactly the CmsView group
+            // set the server returns for cms:true. Asked for explicitly — not derived from View.
+            const access = getAccessibleGroups(AclPermission.CmsView);
 
             // Sync posts and related content docs
             if (access[DocType.Post] && access[DocType.Post].length) {

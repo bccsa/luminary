@@ -5,7 +5,7 @@ import { QueryService } from "./query.service";
 import { DbService } from "../db/db.service";
 import { WINSTON_MODULE_PROVIDER } from "nest-winston";
 import type { Logger } from "winston";
-import { DocType, PublishStatus } from "../enums";
+import { AclPermission, DocType, PublishStatus } from "../enums";
 import { MongoQueryDto } from "../dto/MongoQueryDto";
 import { MongoSelectorDto } from "../dto/MongoSelectorDto";
 import * as permissions from "../permissions/permissions.service";
@@ -844,6 +844,116 @@ describe("QueryService", () => {
             await new Promise((r) => setImmediate(r));
             expect(qs.languages).toHaveLength(2);
             expect(qs.languages.map((l: any) => l._id).sort()).toEqual(["lang-eng", "lang-fra"]);
+        });
+    });
+
+    describe("CmsView permission gating (#160)", () => {
+        it("uses View permission for non-cms (app) requests", async () => {
+            const access = { [DocType.Post]: ["a"] } as any;
+            (permissions.PermissionSystem.accessMapToGroups as jest.Mock).mockReturnValueOnce(
+                access,
+            );
+
+            const query = makeQuery((s) => {
+                (s as any).type = DocType.Post;
+            });
+            await service.query(query, mockUser);
+
+            expect(permissions.PermissionSystem.accessMapToGroups).toHaveBeenCalledWith(
+                mockUser.accessMap,
+                AclPermission.View,
+                expect.any(Array),
+            );
+        });
+
+        it("uses CmsView permission for cms:true requests", async () => {
+            const access = { [DocType.Post]: ["a"] } as any;
+            (permissions.PermissionSystem.accessMapToGroups as jest.Mock).mockReturnValueOnce(
+                access,
+            );
+
+            const query = makeQuery((s) => {
+                (s as any).type = DocType.Post;
+            });
+            (query as any).cms = true;
+            await service.query(query, mockUser);
+
+            expect(permissions.PermissionSystem.accessMapToGroups).toHaveBeenCalledWith(
+                mockUser.accessMap,
+                AclPermission.CmsView,
+                expect.any(Array),
+            );
+        });
+
+        it("strips the expired Content body for non-cms (includeExpired) responses", async () => {
+            const access = {
+                [DocType.Post]: ["gp1"],
+                [DocType.Language]: ["lang-g1"],
+            } as any;
+            (permissions.PermissionSystem.accessMapToGroups as jest.Mock).mockReturnValueOnce(
+                access,
+            );
+            (service as any).languages = [{ _id: "lang-eng", memberOf: ["lang-g1"] }];
+
+            const query = makeQuery((s) => {
+                (s as any).type = DocType.Content;
+                (s as any).parentType = DocType.Post;
+            });
+            (query as any).includeExpired = true; // app update-sync path that returns expired docs
+
+            const expiredDoc = {
+                _id: "c1",
+                type: DocType.Content,
+                status: PublishStatus.Published,
+                expiryDate: 1, // far in the past → expired
+                updatedTimeUtc: 5,
+                memberOf: ["gp1"],
+                language: "lang-eng",
+                title: "secret title",
+                text: "<p>secret body</p>",
+                fts: ["sec:1"],
+            };
+            dbService.executeFindQuery.mockResolvedValueOnce({ docs: [expiredDoc] });
+
+            const res = await service.query(query, mockUser);
+
+            expect(res.docs[0]._id).toBe("c1");
+            expect(res.docs[0].expiryDate).toBe(1);
+            expect(res.docs[0]).not.toHaveProperty("title");
+            expect(res.docs[0]).not.toHaveProperty("text");
+            expect(res.docs[0]).not.toHaveProperty("fts");
+        });
+
+        it("does NOT strip expired Content for cms:true responses", async () => {
+            const access = {
+                [DocType.Post]: ["gp1"],
+                [DocType.Language]: ["lang-g1"],
+            } as any;
+            (permissions.PermissionSystem.accessMapToGroups as jest.Mock).mockReturnValueOnce(
+                access,
+            );
+            (service as any).languages = [{ _id: "lang-eng", memberOf: ["lang-g1"] }];
+
+            const query = makeQuery((s) => {
+                (s as any).type = DocType.Content;
+                (s as any).parentType = DocType.Post;
+            });
+            (query as any).cms = true;
+
+            const expiredDoc = {
+                _id: "c1",
+                type: DocType.Content,
+                status: PublishStatus.Published,
+                expiryDate: 1,
+                memberOf: ["gp1"],
+                language: "lang-eng",
+                title: "secret title",
+            };
+            dbService.executeFindQuery.mockResolvedValueOnce({ docs: [expiredDoc] });
+
+            const res = await service.query(query, mockUser);
+
+            expect(res.docs[0]).toHaveProperty("title", "secret title");
         });
     });
 });

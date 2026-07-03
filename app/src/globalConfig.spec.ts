@@ -1,8 +1,14 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
+    appDisplayLanguageIdsAsRef,
     appLanguageAsRef,
     appLanguageIdsAsRef,
+    appSyncedLanguageIdsAsRef,
+    MAX_PREFERRED_LANGUAGES,
+    MAX_SYNCED_LANGUAGES,
+    normalizePreferredLanguages,
+    normalizeSyncedLanguages,
     initLanguage,
     setMediaProgress,
     getMediaDuration,
@@ -47,6 +53,115 @@ describe("globalConfig.ts", () => {
         await db.docs.bulkPut([mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa]);
         await waitForExpect(async () => {
             expect(appLanguageAsRef.value).toEqual(mockLanguageDtoEng);
+        });
+    });
+
+    it("does NOT force the CMS default into the selected (synced) set", async () => {
+        // The user selects a non-default language only; the default must not be appended to the
+        // synced set (it is fetched on demand / kept as a fallback instead).
+        appLanguageIdsAsRef.value = [mockLanguageDtoFra._id];
+        await waitForExpect(() => {
+            expect(appLanguageIdsAsRef.value).toEqual([mockLanguageDtoFra._id]);
+        });
+    });
+
+    it("appDisplayLanguageIdsAsRef appends the CMS default as the display fallback", async () => {
+        appLanguageIdsAsRef.value = [mockLanguageDtoFra._id];
+        await waitForExpect(() => {
+            // selected (fra) + default (eng) appended, default kept out of the synced set above.
+            expect(appDisplayLanguageIdsAsRef.value).toEqual([
+                mockLanguageDtoFra._id,
+                mockLanguageDtoEng._id,
+            ]);
+        });
+    });
+
+    it("appDisplayLanguageIdsAsRef does not duplicate the default when already selected", async () => {
+        appLanguageIdsAsRef.value = [mockLanguageDtoEng._id, mockLanguageDtoFra._id];
+        await waitForExpect(() => {
+            expect(appDisplayLanguageIdsAsRef.value).toEqual([
+                mockLanguageDtoEng._id,
+                mockLanguageDtoFra._id,
+            ]);
+        });
+    });
+
+    describe("normalizeSyncedLanguages", () => {
+        it("force-includes the primary even from an empty synced set", () => {
+            expect(normalizeSyncedLanguages([], ["fr", "sw"])).toEqual(["fr"]);
+        });
+
+        it("drops ids that are not in the preferred order", () => {
+            expect(normalizeSyncedLanguages(["fr", "stale"], ["fr", "sw"])).toEqual(["fr"]);
+        });
+
+        it("keeps a valid ticked extra alongside the primary", () => {
+            expect(normalizeSyncedLanguages(["fr", "sw"], ["fr", "sw"]).sort()).toEqual(["fr", "sw"]);
+        });
+
+        it("on reorder, force-adds the new primary WITHOUT dropping previously-synced languages", () => {
+            // synced was [fr]; user promotes sw to primary → order [sw, fr]. fr stays (sticky), sw added.
+            expect(normalizeSyncedLanguages(["fr"], ["sw", "fr"])).toEqual(["sw", "fr"]);
+        });
+
+        it("returns an empty set only when there is no preferred order", () => {
+            expect(normalizeSyncedLanguages(["fr"], [])).toEqual([]);
+        });
+
+        it("caps the synced set to MAX_SYNCED_LANGUAGES (keeping the primary)", () => {
+            const order = ["a", "b", "c", "d"]; // preferred would itself be capped upstream
+            const result = normalizeSyncedLanguages(["a", "b", "c", "d"], order);
+            expect(result.length).toBe(MAX_SYNCED_LANGUAGES);
+            expect(result).toContain("a"); // primary retained
+        });
+    });
+
+    describe("normalizePreferredLanguages", () => {
+        it("caps the preferred order to MAX_PREFERRED_LANGUAGES", () => {
+            expect(normalizePreferredLanguages(["a", "b", "c", "d", "e"])).toEqual(
+                ["a", "b", "c", "d", "e"].slice(0, MAX_PREFERRED_LANGUAGES),
+            );
+        });
+
+        it("drops null/undefined ids and de-duplicates, preserving order", () => {
+            expect(
+                normalizePreferredLanguages([
+                    "a",
+                    null as unknown as string,
+                    "a",
+                    "b",
+                    undefined as unknown as string,
+                ]),
+            ).toEqual(["a", "b"]);
+        });
+
+        it("is idempotent", () => {
+            const once = normalizePreferredLanguages(["a", "b", "c", "d"]);
+            expect(normalizePreferredLanguages(once)).toEqual(once);
+        });
+    });
+
+    it("initLanguage seeds the synced set with the primary and persists it", async () => {
+        await waitForExpect(() => {
+            expect(appSyncedLanguageIdsAsRef.value.length).toBeGreaterThan(0);
+            // always contains the primary (first preferred) language
+            expect(appSyncedLanguageIdsAsRef.value).toContain(appLanguageIdsAsRef.value[0]);
+        });
+    });
+
+    it("REGRESSION: the synced set reactively tracks the preferred order (never left empty)", async () => {
+        // Guards the persistence-break root cause: an empty synced set at startup would skip
+        // content sync. A module-load watcher keeps it normalized from the preferred order.
+        appLanguageIdsAsRef.value = [mockLanguageDtoFra._id, mockLanguageDtoSwa._id];
+        await waitForExpect(() => {
+            // synced defaults to the primary of the preferred order — non-empty.
+            expect(appSyncedLanguageIdsAsRef.value).toContain(mockLanguageDtoFra._id);
+        });
+
+        // Promote a new primary → the synced set picks it up (offline baseline follows the primary).
+        appLanguageIdsAsRef.value = [mockLanguageDtoSwa._id, mockLanguageDtoFra._id];
+        await waitForExpect(() => {
+            expect(appSyncedLanguageIdsAsRef.value).toContain(mockLanguageDtoSwa._id);
         });
     });
 

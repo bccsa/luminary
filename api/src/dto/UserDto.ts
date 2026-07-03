@@ -1,4 +1,4 @@
-import { IsEmail, IsNotEmpty, IsNumber, IsOptional, IsString } from "class-validator";
+import { IsArray, IsEmail, IsNotEmpty, IsNumber, IsOptional, IsString } from "class-validator";
 import { _contentBaseDto } from "./_contentBaseDto";
 import { Expose } from "class-transformer";
 
@@ -36,4 +36,15 @@ export class UserDto extends _contentBaseDto {
     @IsString()
     @Expose()
     externalUserId?: string;
+
+    /**
+     * Server-authoritative trigram FTS index (`"trigram:tf"` entries) over name + email,
+     * powering the strict server-side `/fts` search. Set by `processUserDto`; clients must
+     * not set it.
+     */
+    @IsOptional()
+    @IsArray()
+    @IsString({ each: true })
+    @Expose()
+    fts?: string[];
 }

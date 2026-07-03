@@ -20,14 +20,36 @@ Each sync operation creates entries in the `syncList` array with the following s
 
 ```typescript
 {
-  type: string;              // Document type or "type:parentType" (e.g., "content:post")
+  chunkType: string;         // Combined type + subType (e.g. "content:post", "deleteCmd:group")
   memberOf: string[];        // Array of group IDs
   languages?: string[];      // Array of language codes (content types only)
   blockStart: number;        // Latest updatedTimeUtc in this chunk
   blockEnd: number;          // Oldest updatedTimeUtc in this chunk
   eof?: boolean;             // True when oldest available data is reached
+  publishDateMin?: number;   // Inclusive publishDate lower bound (Content / DeleteCmd entries only)
+  publishDateMax?: number;   // Inclusive publishDate upper bound (Content / DeleteCmd entries only)
 }
 ```
+
+`chunkType` is the runner's `type` and optional `subType` joined as `"type:subType"`
+(the `type` alone when there is no subType). The `publishDate*` bounds are set only on
+`Content` and its sibling `DeleteCmd` entries — other chunk types have no `publishDate`
+field and leave them undefined (treated as an open range).
+
+**Language keep (Content).** `languages` is the language *set* a Content column applies to. The
+Content sync query does not filter by exact membership: it uses a **set-based priority-fallback
+keep** — keep a doc if its `language` is in the set, OR (fallback) none of the set's languages has a
+published translation of that document (so the doc's own translation is the last-resort fallback).
+This lets a client hold every candidate translation it might display without syncing every language
+(the ordered "best translation" pick is a display concern, not a keep concern). Consequently a Content
+column is **not** language-disjoint — it also stores fallback docs whose own `language` is outside the
+set; merge and `trim` key on the declared set, never on the docs' actual languages. With the `cms`
+flag the keep degrades to a flat membership, since a CMS client syncs all languages and the fallback
+branch is vacuous.
+
+**DeleteCmd columns are language-unscoped** (`languages: undefined`): a delete of any downloaded doc —
+including a fallback translation whose `DeleteCmd` carries a non-set language — must propagate, so one
+unscoped `DeleteCmd` column covers every language.
 
 ### Autonomous Runners
 
@@ -46,8 +68,7 @@ The sync system spawns autonomous runners that:
 Initialize the sync module with an HTTP service before using any sync functions. (this is called internally in the Luminary Shared library)
 
 ```typescript
-import { initSync } from "./sync";
-import { httpService } from "./http";
+import { initSync } from "luminary-shared";
 
 initSync(httpService);
 ```
@@ -56,18 +77,29 @@ initSync(httpService);
 
 Start an autonomous sync runner for a specific document type.
 
-**Options:**
+**Options** (`SyncRunnerOptions`):
 
-- `type` (string): Document type or combined type:parentType (e.g., "content:post")
-- `memberOf` (string[]): Array of memberOf group IDs to sync
-- `languages` (string[]): Array of language codes (for content types only)
-- `limit` (number): Maximum documents to fetch per request
-- `cms` (boolean, optional): Flag indicating CMS sync
+- `type` (`DocType`): Document type to sync.
+- `subType` (`DocType`, optional): Parent type for `Content` (e.g. `DocType.Post`) or the
+  target docType for `DeleteCmd`. Combined with `type` to form the entry's `chunkType`.
+- `memberOf` (string[]): Array of memberOf group IDs to sync.
+- `languages` (string[], optional): Array of language IDs (content types only).
+- `limit` (number): Maximum documents to fetch per request.
+- `cms` (boolean, optional): Flag indicating CMS sync.
+- `includeDeleteCmds` (boolean, optional): Also sync the sibling `DeleteCmd` column so
+  deletions propagate. Defaults to `true`.
+- `publishDateMin` / `publishDateMax` (number, optional): Inclusive `publishDate` bounds for
+  the column. Only meaningful for `Content` (and its `DeleteCmd` sibling); leave undefined for
+  other types — an undefined bound is treated as an open range.
+
+> The `type`/`subType` examples below use illustrative type names (e.g. `"content:post"`) as
+> shorthand for the resulting `chunkType`. In real calls `type` and `subType` are `DocType`
+> enum values, e.g. `sync({ type: DocType.Content, subType: DocType.Post, … })`.
 
 **Example:**
 
 ```typescript
-import { sync } from "./sync";
+import { sync } from "luminary-shared";
 
 // Sync basic document type
 await sync({
@@ -105,8 +137,8 @@ Control the cancellation flag to stop or allow sync operations. The implementing
 **Example:**
 
 ```typescript
-import { setCancelSync, sync } from "./sync";
-import { isConnected } from "./socket/socketio";
+import { setCancelSync, sync } from "luminary-shared";
+import { isConnected } from "luminary-shared";
 import { watch } from "vue";
 
 // Watch for connectivity changes and control sync accordingly
@@ -140,22 +172,31 @@ watch(isConnected, async (connected) => {
 - Set to `true`: When device loses network connectivity, app goes into background, or user manually stops sync
 - Set to `false`: When connectivity is restored, app comes to foreground, or ready to restart sync
 
-### `trim(options: { memberOf: string[]; languages?: string[] })`
+### `trim(options: SyncBaseOptions)`
 
-Remove unused memberOf groups and languages from all syncList entries to prevent buildup.
+Remove unused memberOf groups and languages from the syncList entries **matching the given
+`type`/`subType`** (i.e. one chunk type per call), to prevent unused group/language buildup.
+Entries that lose all their groups or languages are dropped entirely.
 
-**Options:**
+**Options** (`SyncBaseOptions`):
 
-- `memberOf` (string[]): Array of group IDs to keep
-- `languages` (string[], optional): Array of language codes to keep
+- `type` (`DocType`): The document type whose entries to trim.
+- `subType` (`DocType`, optional): Parent type / target docType narrowing the `chunkType`.
+- `memberOf` (string[]): Group IDs to **keep** (others are removed).
+- `languages` (string[], optional): Language IDs to keep (content types only).
+- `publishDateMin` / `publishDateMax` (number, optional): When set, `Content` entries fully
+  outside this range are dropped and partially-overlapping ones are clamped to the intersection.
+  `DeleteCmd` entries are always kept open so deletes keep propagating.
 
 **Example:**
 
 ```typescript
-import { trim } from "./sync";
+import { trim, DocType } from "luminary-shared";
 
-// Trim to keep only active groups and languages
+// Keep only active groups and languages for content:post entries
 trim({
+    type: DocType.Content,
+    subType: DocType.Post,
     memberOf: ["group1", "group2"],
     languages: ["en", "es"],
 });
@@ -166,6 +207,11 @@ trim({
 - After user leaves groups (remove old group data)
 - After language preferences change (remove unused language data)
 - Periodically to clean up unused sync state
+
+> Note: on access **revoke**, `db.deleteRevoked()` already calls `trim()` automatically (once per
+> distinct chunkType, keeping the still-accessible groups) so the syncList stays consistent with the
+> docs it evicts. A column left at `eof` after its docs are removed would otherwise block the re-walk
+> when access is later re-granted.
 
 ## How Sync Works
 
@@ -250,7 +296,7 @@ The sync system constructs Mango queries in this format:
 ### Basic Document Sync
 
 ```typescript
-import { initSync, sync } from "./sync";
+import { initSync, sync } from "luminary-shared";
 
 // Initialize once at app startup
 initSync(httpService);
@@ -300,8 +346,8 @@ await sync({
 Use `setCancelSync()` to control synchronization based on connectivity state:
 
 ```typescript
-import { sync, setCancelSync } from "./sync";
-import { isConnected } from "./socket/socketio";
+import { sync, setCancelSync } from "luminary-shared";
+import { isConnected } from "luminary-shared";
 import { watch } from "vue";
 
 // Watch for connectivity changes
@@ -338,8 +384,10 @@ watch(isConnected, async (connected) => {
 Use `trim()` to clean up unused data:
 
 ```typescript
-// User left 'group3' - remove it from sync state
+// User left 'group3' - remove it from the content:post sync state
 trim({
+    type: DocType.Content,
+    subType: DocType.Post,
     memberOf: ["group1", "group2"],
     languages: currentLanguages,
 });

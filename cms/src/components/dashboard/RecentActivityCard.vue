@@ -29,11 +29,11 @@ function formatRelativeTime(timestamp: number): string {
 </script>
 
 <template>
-    <LCard title="Recent activity" :icon="ClockIcon" fillHeight class="-mx-1 lg:mx-0">
+    <LCard title="Recent activity" :icon="ClockIcon" fillHeight>
         <div v-if="recentContent.length === 0" class="py-6 text-center text-sm text-zinc-400">
             No content found for the selected language.
         </div>
-        <ul v-else ref="listEl" class="-mx-1.5 divide-y divide-zinc-100 lg:mx-0">
+        <ul v-else ref="listEl" class="divide-y divide-zinc-100">
             <li
                 v-for="doc in recentContent"
                 :key="doc._id"

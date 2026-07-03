@@ -279,8 +279,8 @@ function updateConditionValues(mappingIdx: number, conditionIdx: number, value: 
         <!-- Section header -->
         <div class="mb-1 flex items-start justify-between gap-2">
             <div>
-                <label class="text-sm font-medium text-gray-800">Group Assignments</label>
-                <p class="mt-0.5 text-[11px] text-gray-400">
+                <label class="text-sm font-medium text-zinc-800">Group Assignments</label>
+                <p class="mt-0.5 text-[11px] text-zinc-400">
                     Assign one or more groups when all conditions are true (AND). e.g. Assign
                     "St Mary's Editors" and "St Mary's Reviewers" if Authenticated and churchName
                     equals "St Mary's".
@@ -313,7 +313,7 @@ function updateConditionValues(mappingIdx: number, conditionIdx: number, value: 
             v-for="{ mapping, originalIndex: aIdx } in filteredMappings"
             :key="aIdx"
             :id="'group-mapping-' + aIdx"
-            class="mt-2 rounded-md border border-gray-200 bg-white"
+            class="mt-2 rounded-md border border-zinc-200 bg-white"
         >
             <!-- Group selector -->
             <div class="flex w-full items-center gap-2 px-2 py-1">
@@ -333,7 +333,7 @@ function updateConditionValues(mappingIdx: number, conditionIdx: number, value: 
                 />
                 <button
                     type="button"
-                    class="shrink-0 text-gray-300 transition-colors hover:text-red-500 disabled:pointer-events-none"
+                    class="shrink-0 text-zinc-300 transition-colors hover:text-red-500 disabled:pointer-events-none"
                     :disabled="disabled"
                     @click="removeGroupMapping(aIdx)"
                     aria-label="Remove rule"
@@ -343,14 +343,14 @@ function updateConditionValues(mappingIdx: number, conditionIdx: number, value: 
             </div>
 
             <!-- Conditions -->
-            <div class="border-t border-gray-100 px-3 pb-2 pt-1">
-                <p class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+            <div class="border-t border-zinc-100 px-3 pb-2 pt-1">
+                <p class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
                     Additional Conditions (AND)
                 </p>
 
                 <p
                     v-if="mapping.conditions.filter((c: AuthProviderCondition) => c.type !== 'authenticated').length === 0"
-                    class="mb-1 text-[11px] italic text-gray-400"
+                    class="mb-1 text-[11px] italic text-zinc-400"
                 >
                     Assigned to all authenticated users.
                 </p>
@@ -366,7 +366,7 @@ function updateConditionValues(mappingIdx: number, conditionIdx: number, value: 
                             class="group flex cursor-pointer items-center gap-1.5 px-2 py-1.5"
                             @click="!disabled && startEdit(aIdx, cIdx)"
                         >
-                            <span class="min-w-0 flex-1 truncate font-mono text-xs text-gray-700">
+                            <span class="min-w-0 flex-1 truncate font-mono text-xs text-zinc-700">
                                 <span
                                     v-if="conditionSummary(cond).prefix"
                                     class="mr-1 font-semibold text-zinc-400"
@@ -384,7 +384,7 @@ function updateConditionValues(mappingIdx: number, conditionIdx: number, value: 
                                         class="mx-1 font-semibold text-zinc-400"
                                         >{{ part.text }}</span
                                     >
-                                    <span v-else class="text-gray-700">{{ part.text }}</span>
+                                    <span v-else class="text-zinc-700">{{ part.text }}</span>
                                 </template>
                             </span>
                             <PencilSquareIcon
@@ -393,7 +393,7 @@ function updateConditionValues(mappingIdx: number, conditionIdx: number, value: 
                             />
                             <button
                                 type="button"
-                                class="shrink-0 text-gray-300 transition-colors hover:text-red-500 disabled:pointer-events-none"
+                                class="shrink-0 text-zinc-300 transition-colors hover:text-red-500 disabled:pointer-events-none"
                                 :disabled="disabled"
                                 @click.stop="removeCondition(aIdx, cIdx)"
                                 aria-label="Remove condition"
@@ -484,7 +484,7 @@ function updateConditionValues(mappingIdx: number, conditionIdx: number, value: 
                                 </button>
                                 <button
                                     type="button"
-                                    class="flex h-5 w-5 items-center justify-center rounded text-gray-400 transition-colors hover:text-red-500 disabled:pointer-events-none"
+                                    class="flex h-5 w-5 items-center justify-center rounded text-zinc-400 transition-colors hover:text-red-500 disabled:pointer-events-none"
                                     :disabled="disabled"
                                     @click="removeCondition(aIdx, cIdx)"
                                     aria-label="Remove condition"
@@ -507,7 +507,7 @@ function updateConditionValues(mappingIdx: number, conditionIdx: number, value: 
             </div>
         </div>
 
-        <p v-if="!mappings.length" class="mt-2 text-[11px] italic text-gray-400">
+        <p v-if="!mappings.length" class="mt-2 text-[11px] italic text-zinc-400">
             No rules yet. Click "+ Add Rule" to assign a group based on JWT claims.
         </p>
     </div>
