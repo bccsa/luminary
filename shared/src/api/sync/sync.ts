@@ -280,8 +280,13 @@ async function _runSync(options: SyncRunnerOptions): Promise<void> {
     // path that does something with publishDate is wrapped in `if (type === Content)` and
     // every comparison goes through `resolveRange` which treats undefined as OPEN_MIN/MAX.
     if (options.type === DocType.Content) {
-        options.publishDateMin = options.publishDateMin ?? getContentPublishDateCutoff();
-        options.publishDateMax = options.publishDateMax ?? OPEN_MAX;
+        if (options.alwaysOfflineOnly) {
+            options.publishDateMin = OPEN_MIN;
+            options.publishDateMax = OPEN_MAX;
+        } else {
+            options.publishDateMin = options.publishDateMin ?? getContentPublishDateCutoff();
+            options.publishDateMax = options.publishDateMax ?? OPEN_MAX;
+        }
     }
 
     const deleteCmdSubType = options.type === DocType.Content ? options.subType : options.type;
@@ -373,6 +378,7 @@ export async function _sync(options: SyncRunnerOptions): Promise<void> {
         const existingRanges = getPublishDateRanges({
             type: options.type,
             subType: options.subType,
+            alwaysOfflineOnly: options.alwaysOfflineOnly,
         });
         const requested = resolveRange(options.publishDateMin, options.publishDateMax);
 

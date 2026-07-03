@@ -1170,4 +1170,63 @@ describe("syncBatch", () => {
             expect(syncList.value[0].publishDateMax).toBe(5000);
         });
     });
+
+    describe("alwaysOfflineOnly sync column", () => {
+        function makeContentDocs(count: number): BaseDocumentDto[] {
+            return Array.from({ length: count }, (_, i) => ({
+                id: `c-${i}`,
+                type: DocType.Content,
+                parentType: DocType.Post,
+                language: "en",
+                updatedTimeUtc: 5000 - i,
+                memberOf: ["g1"],
+                parentAlwaysOffline: true,
+            })) as any;
+        }
+
+        it("injects parentAlwaysOffline selector, omits publishDate, and uses the always-offline index", async () => {
+            const docs = makeContentDocs(2);
+            const capturedBodies: any[] = [];
+            const http = {
+                post: vi.fn(async (_path: string, body: any) => {
+                    capturedBodies.push(body);
+                    return { docs };
+                }),
+            };
+            await syncBatch({
+                type: DocType.Content,
+                subType: DocType.Post,
+                memberOf: ["g1"],
+                languages: ["en"],
+                limit: 10,
+                initialSync: true,
+                httpService: http as any,
+                alwaysOfflineOnly: true,
+                publishDateMin: OPEN_MIN,
+                publishDateMax: OPEN_MAX,
+            });
+            expect(capturedBodies[0].selector.parentAlwaysOffline).toBe(true);
+            expect(capturedBodies[0].selector.publishDate).toBeUndefined();
+            expect(capturedBodies[0].use_index).toBe("sync-content-alwaysOffline-index");
+        });
+
+        it("pushes content:post:alwaysOffline chunkType", async () => {
+            const docs = makeContentDocs(2);
+            const http = { post: vi.fn(async () => ({ docs })) };
+            await syncBatch({
+                type: DocType.Content,
+                subType: DocType.Post,
+                memberOf: ["g1"],
+                languages: ["en"],
+                limit: 10,
+                initialSync: true,
+                httpService: http as any,
+                alwaysOfflineOnly: true,
+                publishDateMin: OPEN_MIN,
+                publishDateMax: OPEN_MAX,
+            });
+            expect(syncList.value).toHaveLength(1);
+            expect(syncList.value[0].chunkType).toBe("content:post:alwaysOffline");
+        });
+    });
 });
