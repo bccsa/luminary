@@ -1344,5 +1344,30 @@ describe("EditContent.vue", () => {
             },
             15000,
         );
+
+        it("optional boolean toggles clear dirty state when toggled back off", async () => {
+            const wrapper = await loadWithoutUserEdits({}, [
+                mockData.mockStorageDto,
+                mockData.mockStorageDtoWithEncryptedCredentials,
+            ]);
+
+            expect(wrapper.find('[data-test="revert-changes-button"]').exists()).toBe(false);
+
+            const parentSettings = wrapper.findComponent(EditContentParent);
+            await parentSettings.find('[data-test="collapse-button"]').trigger("click");
+
+            const comingSoonToggle = parentSettings.findAllComponents({ name: "LToggle" })[1];
+            await comingSoonToggle.vm.$emit("update:modelValue", true);
+
+            await waitForExpect(() => {
+                expect(wrapper.find('[data-test="revert-changes-button"]').exists()).toBe(true);
+            });
+
+            await comingSoonToggle.vm.$emit("update:modelValue", false);
+
+            await waitForExpect(() => {
+                expect(wrapper.find('[data-test="revert-changes-button"]').exists()).toBe(false);
+            });
+        });
     });
 });
