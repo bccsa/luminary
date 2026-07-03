@@ -26,7 +26,7 @@
 import { DateTime } from "luxon";
 import { db, type RetentionEntry } from "./database";
 import { config, getContentPublishDateCutoff, getOfflineRetentionTtl } from "../config";
-import { DocType } from "../types";
+import { DocType, type ContentDto } from "../types";
 import { OPEN_MIN } from "../api/sync/utils";
 import { scheduleCorpusStatsRecompute } from "../fts/ftsIndexer";
 
@@ -122,7 +122,10 @@ export async function evictStaleBelowCutoff(): Promise<void> {
     const ids = (await db.docs
         .where("publishDate")
         .below(cutoff)
-        .and((d) => d.type === DocType.Content)
+        .and((d) => {
+            if (d.type !== DocType.Content) return false;
+            return (d as ContentDto).parentAlwaysOffline !== true;
+        })
         .primaryKeys()) as string[];
     if (!ids.length) return;
 

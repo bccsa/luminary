@@ -153,4 +153,28 @@ describe("liveSync.applyLiveData (sync live persister)", () => {
         expect(ids).toContain("kept"); // below-cutoff but retention-listed
         expect(ids).not.toContain("uncached"); // below-cutoff, not kept → dropped
     });
+
+    it("persists below-cutoff Content when parentAlwaysOffline is true without a retention row", async () => {
+        const CUTOFF = 1_000_000;
+        config.contentPublishDateCutoff = CUTOFF;
+        syncList.value = [
+            entry({ chunkType: `${DocType.Content}:${DocType.Post}`, languages: ["en"] }),
+        ];
+
+        await applyLiveData({
+            docs: [
+                {
+                    type: DocType.Content,
+                    _id: "always-offline",
+                    parentType: DocType.Post,
+                    language: "en",
+                    publishDate: CUTOFF - 1000,
+                    parentAlwaysOffline: true,
+                },
+            ] as any,
+        });
+
+        const ids = (await db.docs.toArray()).map((d) => d._id);
+        expect(ids).toContain("always-offline");
+    });
 });
