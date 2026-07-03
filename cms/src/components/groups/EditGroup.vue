@@ -228,9 +228,7 @@ const deleteGroup = async () => {
     }
 
     isDeleting.value = true;
-    await remove(group.value._id);
-
-    const res = await save(group.value._id);
+    const res = await remove(group.value._id);
 
     if (res && res.ack == AckStatus.Accepted) {
         addNotification({

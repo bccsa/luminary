@@ -181,9 +181,15 @@ export function useAuthProviders() {
                 providerToDelete.value.displayName || providerToDelete.value.label;
             const providerId = providerToDelete.value._id;
 
-            await remove(providerId);
-
-            await save(providerId);
+            const res = await remove(providerId);
+            if (res?.ack === AckStatus.Rejected) {
+                notification.addNotification({
+                    title: "Failed to delete provider",
+                    description: res.message || "The server rejected the delete.",
+                    state: "error",
+                });
+                return;
+            }
 
             showDeleteModal.value = false;
             providerToDelete.value = undefined;

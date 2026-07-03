@@ -76,8 +76,7 @@ export function useAutoGroupMappings() {
 
     /** Flag a mapping for deletion and persist (POST delete for this non-synced type). */
     async function deleteMapping(id: Uuid): Promise<ChangeReqAckDto | undefined> {
-        await remove(id);
-        return save(id);
+        return remove(id);
     }
 
     return {

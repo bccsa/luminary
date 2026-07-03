@@ -21,6 +21,7 @@ import {
     AclPermission,
 } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
+import LDialog from "../common/LDialog.vue";
 
 // Mock clipboard API
 Object.assign(navigator, {
@@ -80,6 +81,7 @@ describe("EditGroup", () => {
             isEdited: computed(() => isEditedMock),
             revert: vi.fn(),
             save: vi.fn().mockResolvedValue({ ack: AckStatus.Accepted }),
+            remove: vi.fn().mockResolvedValue({ ack: AckStatus.Accepted }),
             duplicate: vi.fn((id: string, modify?: (clone: GroupDto) => GroupDto) => {
                 const source = allGroups.find((group) => group._id === id);
                 if (!source) return undefined;
@@ -239,6 +241,19 @@ describe("EditGroup", () => {
             const wrapper = createWrapper();
 
             expect(wrapper.find('[data-test="saveChanges"]').exists()).toBe(false);
+        });
+    });
+
+    describe("Delete Group", () => {
+        it("deletes through remove without a follow-up save", async () => {
+            const wrapper = createWrapper();
+
+            await wrapper.find('[data-test="delete-button"]').trigger("click");
+            const confirmDelete = wrapper.findAllComponents(LDialog).at(-1)!;
+            await (confirmDelete.props("primaryAction") as () => Promise<void>)();
+
+            expect(mockGroupQuery.remove).toHaveBeenCalledWith(testGroup._id);
+            expect(mockGroupQuery.save).not.toHaveBeenCalledWith(testGroup._id);
         });
     });
 

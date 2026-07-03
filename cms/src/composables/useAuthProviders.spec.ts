@@ -18,6 +18,7 @@ import { mockGroupDtoSuperAdmins } from "@/tests/mockdata";
 import { useAuthProviders } from "./useAuthProviders";
 import waitForExpect from "wait-for-expect";
 import { CMS_DOCS_INDEX } from "@/docsIndex";
+import { useNotificationStore } from "@/stores/notification";
 
 // ============================
 // Access map with auth provider permissions
@@ -644,6 +645,28 @@ describe("useAuthProviders", () => {
                 expect(c.showDeleteModal.value).toBe(true);
             } finally {
                 accessMap.value = authProviderAdminAccessMap as any;
+                teardown();
+            }
+        });
+
+        it("keeps the delete modal open when remove rejects", async () => {
+            const [c, teardown] = withSetup(() => useAuthProviders());
+            const notification = useNotificationStore();
+            try {
+                c.providerToDelete.value = { ...mockProvider, _id: "missing-provider" };
+                c.showDeleteModal.value = true;
+
+                await c.confirmDelete();
+
+                expect(c.showDeleteModal.value).toBe(true);
+                expect(c.providerToDelete.value?._id).toBe("missing-provider");
+                expect(notification.addNotification).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        title: "Failed to delete provider",
+                        state: "error",
+                    }),
+                );
+            } finally {
                 teardown();
             }
         });
