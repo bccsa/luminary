@@ -8,6 +8,11 @@ import { initConfig, config } from "../../config";
 import { OPEN_MIN } from "../../api/sync/utils";
 import type { MangoQuery, MangoSelector } from "../MangoQuery/MangoTypes";
 
+/** Below-cutoff tail appended by `withPublishDate` on content API supplements. */
+const publishDateTail = (cutoff: number) => ({
+    $or: [{ publishDate: { $lte: cutoff } }, { parentAlwaysOffline: true }],
+});
+
 /** A content supplement query (as decideContentApiQuery would produce it) with a parentId $in. */
 function contentApi(parentIds: string[], opts: { sort?: boolean } = {}): MangoQuery {
     const { sort = true } = opts;
@@ -161,11 +166,11 @@ describe("decideContentApiQuery — older-tail supplement", () => {
             ...over,
         }) as MangoQuery;
 
-    it("appends publishDate <= cutoff to the supplement selector", () => {
+    it("appends the below-cutoff/always-offline tail to the supplement selector", () => {
         const out = decideContentApiQuery(feed(), []);
-        expect((out!.selector as { $and: MangoSelector[] }).$and).toContainEqual({
-            publishDate: { $lte: 1000 },
-        });
+        expect(
+            (out!.selector as { $and: MangoSelector[] }).$and,
+        ).toContainEqual(publishDateTail(1000));
     });
 
     it("fetches only the shortfall (limit − local) when the local page is partial", () => {

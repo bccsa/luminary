@@ -129,6 +129,11 @@ import {
 import { readResponseCache, structuralCacheKey, writeResponseCache } from "./responseCache";
 import { OPEN_MIN } from "../../api/sync/utils";
 
+/** Below-cutoff tail appended by `withPublishDate` on content API supplements. */
+const publishDateTail = (cutoff: number) => ({
+    $or: [{ publishDate: { $lte: cutoff } }, { parentAlwaysOffline: true }],
+});
+
 /** Drain pending micro/macrotasks + a tick so the background async work runs. */
 const flush = async () => {
     await nextTick();
@@ -241,7 +246,7 @@ describe("HybridQuery", () => {
             });
             expect(postHttpMock).toHaveBeenCalledTimes(1);
             expect(postHttpMock).toHaveBeenCalledWith("query", {
-                selector: { $and: [{ type: "content" }, { publishDate: { $lte: 1000 } }] },
+                selector: { $and: [{ type: "content" }, publishDateTail(1000)] },
                 identifier: "hybridQuery",
                 limit: DEFAULT_REMOTE_QUERY_LIMIT,
             });
@@ -398,7 +403,7 @@ describe("HybridQuery", () => {
             await flush();
 
             expect(postHttpMock).toHaveBeenCalledWith("query", {
-                selector: { $and: [{ type: "content" }, { publishDate: { $lte: 1000 } }] },
+                selector: { $and: [{ type: "content" }, publishDateTail(1000)] },
                 identifier: "hybridQuery",
                 limit: 6,
                 sort: [{ publishDate: "desc" }],
@@ -462,7 +467,7 @@ describe("HybridQuery", () => {
             expect(sel.$and).toHaveLength(3);
             expect(sel.$and).toContainEqual({ type: "content" });
             expect(sel.$and).toContainEqual({ _id: { $in: ["b", "c"] } });
-            expect(sel.$and).toContainEqual({ publishDate: { $lte: 1000 } });
+            expect(sel.$and).toContainEqual(publishDateTail(1000));
         });
 
         it("cutoff === OPEN_MIN ⇒ no POST (full sync, local read is complete)", async () => {
@@ -498,7 +503,7 @@ describe("HybridQuery", () => {
 
             expect(postHttpMock).toHaveBeenCalledTimes(1);
             expect(postHttpMock).toHaveBeenCalledWith("query", {
-                selector: { $and: [{ type: "content" }, { publishDate: { $lte: 0 } }] },
+                selector: { $and: [{ type: "content" }, publishDateTail(0)] },
                 identifier: "hybridQuery",
                 limit: DEFAULT_REMOTE_QUERY_LIMIT,
             });
@@ -519,7 +524,7 @@ describe("HybridQuery", () => {
 
             expect(postHttpMock).toHaveBeenCalledTimes(1);
             expect(postHttpMock).toHaveBeenCalledWith("query", {
-                selector: { $and: [{ type: "content" }, { publishDate: { $lte: -1 } }] },
+                selector: { $and: [{ type: "content" }, publishDateTail(-1)] },
                 identifier: "hybridQuery",
                 limit: DEFAULT_REMOTE_QUERY_LIMIT,
             });
@@ -1004,9 +1009,7 @@ describe("HybridQuery", () => {
 
             expect(postHttpMock).toHaveBeenCalledTimes(1);
             const payload = postHttpMock.mock.calls[0]![1] as { selector: { $and: any[] } };
-            expect(payload.selector.$and).toContainEqual({
-                publishDate: { $lte: 42_000_000 },
-            });
+            expect(payload.selector.$and).toContainEqual(publishDateTail(42_000_000));
         });
     });
 
