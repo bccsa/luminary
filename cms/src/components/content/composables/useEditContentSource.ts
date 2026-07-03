@@ -138,6 +138,13 @@ export function useEditContentSource(options: UseEditContentSourceOptions): UseE
     const parentEditable = toEditable<ContentParentDto>(parentSource, {
         persistOffline: true,
         backPatchFields: ["imageData", "media"],
+        // Optional booleans: UI writes `false`, DB often omits the field — treat as equal for dirty checks.
+        filterFn: (item) => {
+            const copy = { ...item };
+            if (copy.showComingSoon === false) delete copy.showComingSoon;
+            if (copy.useVerticalTileLayout === false) delete copy.useVerticalTileLayout;
+            return copy;
+        },
     });
     const { remove: removeParent } = parentEditable;
     const contentEditable = toEditable<ContentDto>(contentSource, { persistOffline: true });
