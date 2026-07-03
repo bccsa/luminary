@@ -76,7 +76,7 @@ const original = computed(() => {
     return editable.value.find((g) => g._id == group.value._id);
 });
 
-const isNewGroup = computed(() => !group.value._rev);
+const isNewGroup = computed(() => !group.value._rev && isEdited.value(group.value._id));
 
 const hasChangedGroupName = computed(() => {
     if (!original.value) return false;
@@ -89,9 +89,11 @@ const isEmpty = computed(() => {
     );
 });
 
+const isLocallyPersisted = computed(() => !group.value._rev && !isDirty.value);
+
 const disabled = computed(() => {
-    // Enable editing for new / unsaved groups
-    if (isNewGroup.value) {
+    if (isNewGroup.value || isLocallyPersisted.value) {
+        // Enable editing for new / unsaved groups
         return false;
     }
 
