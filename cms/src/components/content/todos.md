@@ -15,13 +15,13 @@ Verdict: **not ready to merge** until the blockers below are done (+ dead-code s
 
 #### Should-fix (medium)
 
-- [ ] **`EditGroup` reads `props.groupQuery.liveData` that `toEditable` never returns** — `cms/src/components/groups/EditGroup.vue:78-83`
+- [x] **`EditGroup` reads `props.groupQuery.liveData` that `toEditable` never returns** — `cms/src/components/groups/EditGroup.vue:78-83`
 - [x] ~~**GroupGraph `downstreamReach` is O(N²·E) on every ACL keystroke** — `cms/src/components/groups/GroupGraph/useGroupAccessGraph.ts`: precompute adjacency map~~ (implemented)
 - [x] ~~**Test coverage gaps:** `removeTarget()` stale-access sweep (`api/src/permissions/permissions.service.ts:429`); socket expired-Content stripping (`api/src/socketio.ts:232-238`); `config.cms → payload.cms` in HybridQuery (`shared/src/util/HybridQuery/HybridQuery.ts:112`); replace deleted `query.*.spec.ts` browse-path coverage~~(implemented)
 
 #### Cleanup — dead code & leftover artifacts
 
-- [ ] ~~Remove `cms/src/components/content/todos.md` from source (this file)~~
+- [ ] Remove `cms/src/components/content/todos.md` from source (this file)
 - [x] ~~Remove `cms/src/components/content/lightPolish.ts` (dead alternate layout behind flag)~~
 - [x] ~~Remove orphaned `cms/src/components/navigation/ProfileMenu.vue` & `MobileSideBar.vue`; fix router still referencing removed `sandbox` route~~
 - ~~[x] Remove orphaned `api/src/validation/IsSortOptions.ts`~~
