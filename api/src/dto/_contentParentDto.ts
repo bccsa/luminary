@@ -32,6 +32,11 @@ export class _contentParentDto extends _contentBaseDto {
     @IsOptional()
     @IsBoolean()
     @Expose()
+    alwaysOffline?: boolean;
+
+    @IsOptional()
+    @IsBoolean()
+    @Expose()
     useVerticalTileLayout?: boolean;
 
     @IsOptional()
