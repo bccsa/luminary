@@ -63,6 +63,7 @@ let lastSeen = Number(process.env.WATCH_SINCE) || Date.now();
 // --- pending-change buffer (coalesced across the debounce window) ---
 const pendingKeys = new Set<string>();
 const pendingSlugs = new Set<string>();
+const pendingRoutes = new Set<string>(); // routes from a failed build:affected, requeued for the next flush
 const pendingRouteDeletes = new Set<string>();
 const pendingRedirects = new Map<string, string | undefined>();
 const pendingDeletes = new Set<string>();
@@ -283,6 +284,7 @@ function flush(): void {
     if (
         !pendingKeys.size &&
         !pendingSlugs.size &&
+        !pendingRoutes.size &&
         !pendingRouteDeletes.size &&
         !pendingRedirects.size &&
         !pendingDeletes.size
@@ -305,10 +307,15 @@ function flush(): void {
     writeRedirects(redirects, manifest);
     if (redirects.size) saveRedirectIndex(redirectIndex);
 
-    const routes = new Set([...computeAffected(pendingKeys, manifest), ...pendingSlugs]);
+    const routes = new Set([
+        ...computeAffected(pendingKeys, manifest),
+        ...pendingSlugs,
+        ...pendingRoutes,
+    ]);
     for (const route of removedRoutes) routes.delete(route);
     pendingKeys.clear();
     pendingSlugs.clear();
+    pendingRoutes.clear();
     if (!routes.size) return;
 
     const routeList = [...routes].sort();
@@ -326,14 +333,19 @@ function flush(): void {
     child.on("exit", (code) => {
         building = false;
         console.log(`[watch] build:affected exited (${code})`);
+        if (code !== 0) {
+            console.log(`[watch] build:affected failed — requeuing ${routeList.length} route(s)`);
+            for (const route of routeList) pendingRoutes.add(route);
+        }
         if (
             pendingKeys.size ||
             pendingSlugs.size ||
+            pendingRoutes.size ||
             pendingRouteDeletes.size ||
             pendingRedirects.size ||
             pendingDeletes.size
         )
-            schedule(); // changes arrived mid-build
+            schedule(); // changes arrived mid-build, or a failed build's routes need retry
     });
 }
 
