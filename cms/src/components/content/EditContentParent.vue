@@ -92,6 +92,18 @@ const showComingSoon = computed({
     },
 });
 
+// Convert alwaysOffline to a boolean for the toggle
+const alwaysOffline = computed({
+    get() {
+        return parent.value?.alwaysOffline ?? false;
+    },
+    set(value: boolean) {
+        if (parent.value) {
+            parent.value.alwaysOffline = value;
+        }
+    },
+});
+
 const useVerticalTileLayout = computed({
     get() {
         return parent.value?.useVerticalTileLayout ?? false;
@@ -183,6 +195,12 @@ const useVerticalTileLayout = computed({
             <div class="flex items-center justify-between gap-2">
                 <span class="text-sm text-zinc-700">Show as Coming soon</span>
                 <LToggle v-model="showComingSoon" :disabled="disabled" />
+            </div>
+
+            <!-- Force-sync to app clients regardless of publishDate cutoff -->
+            <div class="flex items-center justify-between gap-2">
+                <span class="text-sm text-zinc-700">Always available offline</span>
+                <LToggle v-model="alwaysOffline" :disabled="disabled" />
             </div>
 
             <div
