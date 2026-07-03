@@ -11,6 +11,6 @@
 
 4. Fix ISR watcher polling so batches over 10 docs cannot be skipped before `lastSeen` advances.
 
-5. Fix `SingleContent` not-found state so invalid, draft, scheduled, and expired slugs render `NotFoundPage`.
+~~5. Fix `SingleContent` not-found state so invalid, draft, scheduled, and expired slugs render `NotFoundPage`.~~
 
 6. Requeue failed `build:affected` routes in the ISR watcher instead of clearing pending invalidations on spawn.

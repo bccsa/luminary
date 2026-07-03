@@ -169,8 +169,7 @@ function routeRedirect(redirect: RedirectDto): boolean {
 // by the bind watch on the client, or by the not-found timer. During the prerender
 // the content is fetched in onServerPrefetch and present at render, so the loading
 // branch is never serialized.
-const isLoading = ref(true);
-const is404 = ref(false);
+const isLoading = ref(!import.meta.env.SSR);
 
 let notFoundTimer: ReturnType<typeof setTimeout> | undefined;
 const clearNotFoundTimer = () => {
@@ -295,11 +294,41 @@ const availableTranslations = computed<ContentDto[]>(() => {
     return published.length > 1 ? published : [];
 });
 
-const languages = computed<LanguageDto[]>(() =>
-    cmsLanguages.value.filter((lang) =>
-        availableTranslations.value.some((t) => t.language === lang._id),
-    ),
-);
+const localLanguages = ref<LanguageDto[]>([]);
+
+if (!import.meta.env.SSR) {
+    watch(
+        availableTranslations,
+        async (translations) => {
+            const ids = [...new Set(translations.map((t) => t.language))];
+            if (!ids.length) {
+                localLanguages.value = [];
+                return;
+            }
+            localLanguages.value = await queryLocal<LanguageDto>({
+                selector: { $and: [{ type: DocType.Language }, { _id: { $in: ids } }] },
+            });
+        },
+        { immediate: true },
+    );
+}
+
+const languages = computed<LanguageDto[]>(() => {
+    const byId = new Map([...cmsLanguages.value, ...localLanguages.value].map((l) => [l._id, l]));
+    return availableTranslations.value.map(
+        (t) =>
+            byId.get(t.language) ??
+            ({
+                _id: t.language,
+                type: DocType.Language,
+                updatedTimeUtc: 0,
+                memberOf: [],
+                languageCode: t.language.replace(/^lang-/, ""),
+                name: t.language,
+                translations: {},
+            } as LanguageDto),
+    );
+});
 
 // Reciprocal hreflang alternates (language code + slug) for the SEO head.
 const hreflangAlternates = computed(() =>
@@ -409,17 +438,11 @@ const tags = useContentQuery(
 const categoryTags = computed(() => tags.value.filter((t) => t.parentTagType == TagType.Category));
 const selectedCategoryId = ref<Uuid | undefined>();
 
-// isLoading / is404 are declared alongside the content sources above.
-
 // The content query already filters publish state, so `content` is either a valid
 // published doc or absent — 404 is purely "resolved to nothing".
-const check404 = () => {
+const is404 = computed(() => {
     if (isLoading.value) return false; // Don't show 404 during loading
     return !content.value;
-};
-
-watch(content, () => {
-    is404.value = check404();
 });
 
 // Function to toggle bookmark for the current content
