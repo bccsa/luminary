@@ -147,7 +147,22 @@ export function useEditContentSource(options: UseEditContentSourceOptions): UseE
         },
     });
     const { remove: removeParent } = parentEditable;
-    const contentEditable = toEditable<ContentDto>(contentSource, { persistOffline: true });
+    const contentEditable = toEditable<ContentDto>(contentSource, {
+        persistOffline: true,
+        // Optional fields: the UI writes "" / undefined where the DB simply omits the key. Strip
+        // every empty own-key so typing-then-clearing any optional field reads clean again — both
+        // sides are filtered before the dirty compare, so this is symmetric and needs no per-field
+        // list to keep in sync with ContentDto. `0`/`false` are left intact (strict checks), and
+        // required fields (title/slug) are never empty at save time.
+        filterFn: (item) => {
+            const copy = { ...item };
+            for (const key of Object.keys(copy) as (keyof ContentDto)[]) {
+                if (copy[key] === "" || copy[key] === undefined)
+                    delete (copy as Record<string, unknown>)[key];
+            }
+            return copy;
+        },
+    });
     const { remove: removeContent, save: saveContent } = contentEditable;
     const editableContent = contentEditable.editable;
 
