@@ -63,13 +63,13 @@ describe("EditGroup", () => {
 
         // Set up test data
         allGroups = [
-            mockGroupDtoPublicContent,
-            mockGroupDtoPublicEditors,
-            mockGroupDtoPublicUsers,
-            mockGroupDtoSuperAdmins,
+            { ...mockGroupDtoPublicContent, _rev: "1-mock" },
+            { ...mockGroupDtoPublicEditors, _rev: "1-mock" },
+            { ...mockGroupDtoPublicUsers, _rev: "1-mock" },
+            { ...mockGroupDtoSuperAdmins, _rev: "1-mock" },
         ];
 
-        testGroup = { ...mockGroupDtoPublicContent };
+        testGroup = { ...mockGroupDtoPublicContent, _rev: "1-mock" };
 
         // Create isEdited mock function
         isEditedMock = vi.fn().mockReturnValue(false);
@@ -296,7 +296,8 @@ describe("EditGroup", () => {
         });
 
         it("does not show duplicate button for new groups", () => {
-            const newGroup = { ...testGroup, _id: "new-group-id" };
+            isEditedMock.mockReturnValue(true);
+            const newGroup = { ...testGroup, _id: "new-group-id", _rev: undefined };
             // Modify the mock to not include the new group in live data
             const modifiedMockQuery = {
                 ...mockGroupQuery,
@@ -370,7 +371,8 @@ describe("EditGroup", () => {
 
     describe("Computed Properties", () => {
         it("shows new group behavior when group is not in live data", () => {
-            const newGroup = { ...testGroup, _id: "new-group-id" };
+            isEditedMock.mockReturnValue(true);
+            const newGroup = { ...testGroup, _id: "new-group-id", _rev: undefined };
             // Create a modified mock that doesn't include the new group
             const modifiedMockQuery = {
                 ...mockGroupQuery,
@@ -447,7 +449,8 @@ describe("EditGroup", () => {
         });
 
         it("handles missing original group gracefully", () => {
-            const newGroup = { ...testGroup, _id: "non-existent-id" };
+            isEditedMock.mockReturnValue(true);
+            const newGroup = { ...testGroup, _id: "non-existent-id", _rev: undefined };
             // Create a modified mock that doesn't include the new group
             const modifiedMockQuery = {
                 ...mockGroupQuery,

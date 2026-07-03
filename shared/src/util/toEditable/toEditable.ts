@@ -82,9 +82,9 @@ export function toEditable<T extends BaseDocumentDto>(
     }
 
     const editable = ref<Array<T>>(
-        _.cloneDeep(toRaw(source.value)).map((item) => _applyModifier(item)),
+        cloneDeep(toRaw(source.value)).map((item) => _applyModifier(item)),
     ) as Ref<Array<T>>;
-    const shadow = ref<Array<T>>(_.cloneDeep(toRaw(source.value))) as Ref<Array<T>>;
+    const shadow = ref<Array<T>>(cloneDeep(toRaw(source.value))) as Ref<Array<T>>;
 
     const backPatchFields = options.backPatchFields ?? [];
 
@@ -133,9 +133,9 @@ export function toEditable<T extends BaseDocumentDto>(
             );
 
             if (added.length > 0) {
-                shadow.value.push(..._.cloneDeep(added));
+                shadow.value.push(...cloneDeep(added));
                 if (!editable.value.find((e) => e._id === added[0]._id))
-                    editable.value.push(..._.cloneDeep(added).map((item) => _applyModifier(item)));
+                    editable.value.push(...cloneDeep(added).map((item) => _applyModifier(item)));
             }
 
             if (removed.length > 0) {
@@ -167,7 +167,7 @@ export function toEditable<T extends BaseDocumentDto>(
                 for (const updatedItem of sourceUpdated) {
                     const shadowIndex = shadow.value.findIndex((s) => s._id === updatedItem._id);
                     if (shadowIndex !== -1) {
-                        shadow.value[shadowIndex] = _.cloneDeep(updatedItem as T);
+                        shadow.value[shadowIndex] = cloneDeep(updatedItem as T);
                     }
                 }
 
@@ -178,7 +178,7 @@ export function toEditable<T extends BaseDocumentDto>(
                     );
                     if (editableIndex !== -1) {
                         editable.value[editableIndex] = _applyModifier(
-                            _.cloneDeep(updatedItem as T),
+                            cloneDeep(updatedItem as T),
                         );
                     }
                 }
@@ -196,8 +196,8 @@ export function toEditable<T extends BaseDocumentDto>(
                     if (!shadowItem || !editableItem) continue;
                     for (const field of backPatchFields) {
                         if (backPatchFieldEqual(sourceItem[field], shadowItem[field])) continue; // unchanged in source
-                        editableItem[field] = _.cloneDeep(sourceItem[field]);
-                        shadowItem[field] = _.cloneDeep(sourceItem[field]);
+                        editableItem[field] = cloneDeep(sourceItem[field]);
+                        shadowItem[field] = cloneDeep(sourceItem[field]);
                     }
                 }
             }
@@ -208,7 +208,7 @@ export function toEditable<T extends BaseDocumentDto>(
     // monitor the editable array for new items and run the modify function if provided
     let oldValue: Array<T> | undefined;
     if (!oldValue) {
-        oldValue = [..._.cloneDeep(editable.value)];
+        oldValue = [...cloneDeep(editable.value)];
     }
     watch(
         editable,
@@ -227,7 +227,7 @@ export function toEditable<T extends BaseDocumentDto>(
                 }
             }
 
-            oldValue = [..._.cloneDeep(newValue)]; // Update oldValue to the current state of editable
+            oldValue = [...cloneDeep(newValue)]; // Update oldValue to the current state of editable
         },
         { deep: true, immediate: true },
     );
@@ -270,7 +270,7 @@ export function toEditable<T extends BaseDocumentDto>(
         if (shadowItem) {
             // Revert the item to its original state from the shadow data
             // If a modify function is provided, apply it to the original item
-            editable.value[editableIndex] = _applyModifier(_.cloneDeep(toRaw(shadowItem)));
+            editable.value[editableIndex] = _applyModifier(cloneDeep(toRaw(shadowItem)));
         } else {
             // Item not found in shadow, so it's a new item. Remove it from editable.
             editable.value.splice(editableIndex, 1);
@@ -289,9 +289,9 @@ export function toEditable<T extends BaseDocumentDto>(
         const index = shadow.value.findIndex((i) => i._id === id);
         if (index === -1) {
             // If the item is not found in the shadow array, add it. This is for new items to improve dirty checking accuracy
-            shadow.value.push(_.cloneDeep(toRaw(editableItem)));
+            shadow.value.push(cloneDeep(toRaw(editableItem)));
         } else {
-            shadow.value[index] = _.cloneDeep(toRaw(editableItem));
+            shadow.value[index] = cloneDeep(toRaw(editableItem));
         }
     };
 
@@ -368,7 +368,7 @@ export function toEditable<T extends BaseDocumentDto>(
             editable.value.find((i) => i._id === id) ?? source?.value.find((i) => i._id === id);
         if (!item) return undefined;
 
-        let clone = _.cloneDeep(toRaw(item)) as T;
+        let clone = cloneDeep(toRaw(item)) as T;
         clone._id = db.uuid();
         clone._rev = undefined;
         delete clone.deleteReq;
@@ -454,6 +454,28 @@ export function toEditable<T extends BaseDocumentDto>(
  * which lodash detects before recursing into the buffer, so byte length is a sufficient (and safe)
  * comparison here.
  */
+function cloneArrayBuffer(buffer: ArrayBuffer): ArrayBuffer {
+    try {
+        const ab = toRaw(buffer) as ArrayBuffer;
+        const copy = new ArrayBuffer(ab.byteLength);
+        new Uint8Array(copy).set(new Uint8Array(ab));
+        return copy;
+    } catch {
+        return structuredClone(toRaw(buffer) as ArrayBuffer);
+    }
+}
+
+function cloneDeepCustomizer(value: unknown): unknown | undefined {
+    if (Object.prototype.toString.call(value) === "[object ArrayBuffer]") {
+        return cloneArrayBuffer(value as ArrayBuffer);
+    }
+    return undefined;
+}
+
+function cloneDeep<T>(value: T): T {
+    return _.cloneDeepWith(value, cloneDeepCustomizer) as T;
+}
+
 function arrayBufferCustomizer(x: unknown, y: unknown): boolean | undefined {
     if (
         Object.prototype.toString.call(x) === "[object ArrayBuffer]" &&
