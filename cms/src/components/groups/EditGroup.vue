@@ -75,12 +75,8 @@ const availableGroups = computed(() => {
 const original = computed(() => {
     return editable.value.find((g) => g._id == group.value._id);
 });
-const liveData = computed(
-    () => (props.groupQuery as { liveData?: { value: GroupDto[] } }).liveData?.value,
-);
-const isNewGroup = computed(
-    () => !group.value._rev && !liveData.value?.some((g) => g._id == group.value._id),
-);
+
+const isNewGroup = computed(() => !group.value._rev);
 
 const hasChangedGroupName = computed(() => {
     if (!original.value) return false;
