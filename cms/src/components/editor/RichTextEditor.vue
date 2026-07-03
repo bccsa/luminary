@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { RTextEditor, type ToolbarItem, type DownloadFormat } from "rte-vue";
-import { ref, toRefs, nextTick, useTemplateRef } from "vue";
+import { computed, ref, toRefs, nextTick, useTemplateRef } from "vue";
 import type { Component } from "vue";
 import { type Editor } from "@tiptap/vue-3";
 import {
@@ -18,6 +18,7 @@ import BulletlistIcon from "./icons/BulletListIcon.vue";
 import NumberedListIcon from "./icons/NumberedListIcon.vue";
 import { useNotificationStore } from "@/stores/notification";
 import { usePinnedToolbarBelowTopbar } from "@/composables/usePinnedToolbarBelowTopbar";
+import { isEmptyRichText } from "./isEmptyRichText";
 
 type Props = {
     title?: string;
@@ -29,6 +30,17 @@ type Props = {
 const props = defineProps<Props>();
 const { disabled } = toRefs(props);
 const text = defineModel<string>("text");
+
+// rte-vue writes an empty editor back as "<p></p>" (not ""), so clearing the editor would leave the
+// bound field non-empty and read as a permanent edit against an unset baseline. Normalise an empty
+// document to "" (which the content dirty check treats as unset). isEmptyRichText is false for
+// non-text-but-present content (images, rules), so nothing is ever dropped.
+const editorText = computed<string | undefined>({
+    get: () => text.value,
+    set: (val) => {
+        text.value = isEmptyRichText(val) ? "" : val;
+    },
+});
 
 const rteRef = ref<InstanceType<typeof RTextEditor> | undefined>(undefined);
 const toolbarEl = useTemplateRef<HTMLElement>("toolbarEl");
@@ -141,7 +153,7 @@ defineExpose({
     <RTextEditor
         ref="rteRef"
         v-bind="$attrs"
-        v-model="text"
+        v-model="editorText"
         content-format="html"
         class="flex w-full flex-col lg:h-full lg:min-h-0 lg:flex-1 lg:overflow-hidden"
         :disabled="props.disabled"
