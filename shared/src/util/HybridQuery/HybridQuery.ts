@@ -260,16 +260,6 @@ export type HybridQueryOptions = {
      */
     persistOffline?: boolean;
 
-    /**
-     * Content only. When `true`, in addition to the below-cutoff older-tail supplement, issue a
-     * second remote query for content in languages NOT in `config.appLanguageIdsAsRef` (the
-     * synced set), fetched **without** the `publishDate` cutoff — so a post whose only published
-     * translation is in a non-synced ("fallback") language still appears, without syncing that
-     * language. Pairs with {@link persistOffline} to cache the fetched fallback content durably.
-     * No-op when the synced set is empty (an empty `$nin` would match the whole corpus). Off by
-     * default. See the module README.
-     */
-    fetchUnsyncedFallback?: boolean;
 };
 
 /**
@@ -391,9 +381,6 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
     // Offline document persistence (opt-in). When true, the supplement's syncable
     // older-tail docs are bulkPut to IndexedDB. See {@link HybridQueryOptions.persistOffline}.
     private readonly _persistOffline: boolean;
-    // Fallback-language fetch (opt-in, content only). When true, a second supplement fetches
-    // content in non-synced languages without the cutoff. See {@link HybridQueryOptions.fetchUnsyncedFallback}.
-    private readonly _fetchUnsyncedFallback: boolean;
     // Response caching (opt-in). `_cacheKey` is the current generation's structural
     // fingerprint; "" when caching is disabled. See {@link HybridQueryOptions.cache}.
     private readonly _cache: boolean;
@@ -441,7 +428,6 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
         this._queryFn = typeof query === "function" ? query : () => query;
         this._live = options.live ?? false;
         this._persistOffline = options.persistOffline ?? false;
-        this._fetchUnsyncedFallback = options.fetchUnsyncedFallback ?? false;
         this._cache = options.cache ?? false;
         this._cacheId = options.cacheId;
         this._cacheStripFields = options.cacheStripFields ?? [];
@@ -664,14 +650,9 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
                         if (this._apiDecided) return;
                         this._apiDecided = true;
                         // ONE supplement decided off the FIRST local result: the below-cutoff
-                        // older tail (synced languages), combined — when fallback is enabled —
-                        // with content in NON-synced languages (any age) as a single `$or` clause.
-                        // Merging the two slices into one query means a content feed issues a
-                        // single API scan instead of two (see decideContentApiQuery / FU-1).
-                        const synced = config?.appLanguageIdsAsRef?.value ?? [];
-                        const fallbackLangs =
-                            this._fetchUnsyncedFallback && synced.length ? synced : undefined;
-                        const api = decideContentApiQuery(this._query, local, fallbackLangs);
+                        // older tail. Skipped entirely under a full-corpus sync (no cutoff), where
+                        // the local read is complete (see decideContentApiQuery).
+                        const api = decideContentApiQuery(this._query, local);
                         if (api) {
                             // A supplement is owed — keep loading true until the POST settles
                             // (or offline-defers). _postAndMerge / _runApiWhenOnline own clearing
@@ -679,12 +660,12 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
                             this._remotePending.value = true;
                             void this._runApiWhenOnline([api], gen);
                             // Live mode: keep the supplement live off the socket changefeed,
-                            // filtered by the combined supplement query.
+                            // filtered by the supplement query.
                             if (this._live) this._startRemoteLive(api, DocType.Content, gen);
                         } else {
-                            // Local fully satisfies the query and no fallback is owed — no POST
-                            // will arrive to supersede a seeded remote. Drop it now so a stale
-                            // older-tail doc can't linger in the merged window.
+                            // Local fully satisfies the query (no older-tail owed) — no POST will
+                            // arrive to supersede a seeded remote. Drop it now so a stale older-tail
+                            // doc can't linger in the merged window.
                             this._dropSeededRemote();
                         }
                     } catch (err) {
@@ -823,11 +804,10 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
 
     private async _postAndMerge(apis: MangoQuery[], gen: number): Promise<void> {
         try {
-            // Each supplement (older-tail and, when enabled, the fallback-language leg) is
-            // expanded via planRemoteContentQueries: a multi-parent content supplement fans into
-            // per-parent POSTs so each seeks the parentId index instead of forcing one
-            // publishDate-window scan; non-fan-out queries return a single [api]. All resulting
-            // POSTs settle together here as ONE remote leg, and results are merged by id.
+            // The older-tail supplement is expanded via planRemoteContentQueries: a multi-parent
+            // content supplement fans into per-parent POSTs so each seeks the parentId index instead
+            // of forcing one publishDate-window scan; non-fan-out queries return a single [api]. All
+            // resulting POSTs settle together here as ONE remote leg, and results are merged by id.
             //
             // allSettled (not all): one query's transient failure must not blank the whole batch —
             // keep the queries that succeeded. If EVERY query fails we leave `_remote` untouched
@@ -861,7 +841,7 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
             this._setRemote(remote);
 
             // Offline persistence (opt-in): write the fetched CONTENT to IndexedDB so these
-            // older-tail / fallback docs are openable offline, and stamp their retention.
+            // older-tail docs are openable offline, and stamp their retention.
             // Fire-and-forget — the in-memory `_remote` already makes the list correct.
             //
             // Gate on `type === Content`, NOT `isSyncableDoc`: the latter requires a populated

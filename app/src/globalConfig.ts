@@ -127,16 +127,50 @@ watch(
 );
 
 /**
+ * Product cap on how many languages a user may prefer / sync. Enforced authoritatively by the API
+ * (`QUERY_MAX_LANGUAGES`); these client-side caps keep the UI within it and give good UX. The
+ * display default (English) is auto-appended in `appDisplayLanguageIdsAsRef` and is NOT counted
+ * against the preferred cap, so a content query references at most cap + 1 languages.
+ */
+export const MAX_PREFERRED_LANGUAGES = 3;
+export const MAX_SYNCED_LANGUAGES = 3;
+
+/**
+ * Normalize the preferred order: drop null/duplicate ids and cap to MAX_PREFERRED_LANGUAGES. Applied
+ * on load (`initLanguage` + a module watcher, to normalize an over-cap persisted set) and on the
+ * LanguageModal Save commit.
+ */
+export const normalizePreferredLanguages = (order: string[]): string[] =>
+    [...new Set(order.filter((id) => id != null))].slice(0, MAX_PREFERRED_LANGUAGES);
+
+/**
  * Normalize a synced-language set against the preferred order: drop ids that are no longer preferred
- * (or invalid), and force-include the primary (the first preferred language) so at least one
- * language is always synced (guarantees ≥1 → the fallback leg never issues an empty `$nin`). Applied
- * at the points that can break the invariant — the LanguageModal Save commit and `initLanguage`.
+ * (or invalid), force-include the primary (the first preferred language) so at least one language is
+ * always synced (guarantees ≥1), and cap to MAX_SYNCED_LANGUAGES. Applied at the points that can
+ * break the invariant — the LanguageModal Save commit and `initLanguage`. (Since the preferred order
+ * is itself capped, `synced ⊆ order` is already ≤ cap; the slice is a defensive backstop.)
  */
 export const normalizeSyncedLanguages = (synced: string[], order: string[]): string[] => {
     const primary = order[0];
-    const next = synced.filter((id) => id != null && order.includes(id));
-    return primary && !next.includes(primary) ? [primary, ...next] : next;
+    let next = synced.filter((id) => id != null && order.includes(id));
+    if (primary && !next.includes(primary)) next = [primary, ...next];
+    return next.slice(0, MAX_SYNCED_LANGUAGES);
 };
+
+// Cap the preferred set to MAX_PREFERRED_LANGUAGES. Self-normalizing: idempotent, so the change-guard
+// stops it re-firing after one convergence tick. `immediate` also normalizes an over-cap persisted set
+// on load (before content sync runs), so downstream reads never see more than the cap. Declared before
+// the synced ref/watcher so the preferred set is capped before the synced set is normalized against it.
+watch(
+    appLanguageIdsAsRef,
+    (order) => {
+        const normalized = normalizePreferredLanguages(order);
+        const changed =
+            normalized.length !== order.length || normalized.some((id, i) => id !== order[i]);
+        if (changed) appLanguageIdsAsRef.value = normalized;
+    },
+    { deep: true, immediate: true },
+);
 
 /**
  * The set of languages the user has chosen to **sync** (download for offline) — the "Available
@@ -257,9 +291,11 @@ export const initLanguage = () => {
             (_languages) => {
                 if (!_languages || _languages.length === 0) return;
 
-                // Filter out invalid language IDs
-                appLanguageIdsAsRef.value = appLanguageIdsAsRef.value.filter((id) =>
-                    _languages.some((lang) => lang._id === id),
+                // Filter out invalid language IDs and cap to the preferred-language limit.
+                appLanguageIdsAsRef.value = normalizePreferredLanguages(
+                    appLanguageIdsAsRef.value.filter((id) =>
+                        _languages.some((lang) => lang._id === id),
+                    ),
                 );
 
                 // If user still has no preferred languages, set browser preferred or CMS default

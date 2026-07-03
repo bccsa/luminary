@@ -1,5 +1,6 @@
 import { db } from "../../db/database";
 import { BaseDocumentDto, DocType } from "../../types";
+import { contentLanguageKeepSelector } from "./keepSelector";
 import { merge } from "./merge";
 import { syncList, syncTolerance } from "./state";
 import { cancelSync } from "./sync";
@@ -88,17 +89,31 @@ export async function syncBatch(options: SyncOptions) {
     // Add parentType and language selectors to content queries
     if (options.type === DocType.Content && options.subType) {
         mangoQuery.selector.parentType = options.subType;
-        mangoQuery.selector.language = { $in: options.languages || [] };
+        const langs = options.languages || [];
+        if (options.cms) {
+            // CMS syncs all available languages: a flat membership returns all content, and the
+            // set-based keep's fallback branch would be vacuous while bloating the selector with
+            // one negation per language. So CMS keeps the simple flat filter.
+            mangoQuery.selector.language = { $in: langs };
+        } else if (langs.length) {
+            // App: set-based priority-fallback keep (shared with the live gate via
+            // contentLanguageKeepSelector) — a synced language OR the last-resort fallback
+            // translation. Downloads exactly the set the local read can later pick the best
+            // translation from, offline, with no per-feed API supplement. ANDed with the existing
+            // top-level equality keys (CouchDB implicit-ANDs top-level fields with the injected $or).
+            Object.assign(mangoQuery.selector, contentLanguageKeepSelector(langs));
+        } else {
+            // Empty language set → match nothing (don't let an absent set fetch the whole corpus).
+            mangoQuery.selector.language = { $in: [] };
+        }
     }
 
-    // Add docType selector for deleteCmd queries
+    // Add docType selector for deleteCmd queries. DeleteCmds are language-UNSCOPED: a delete of any
+    // downloaded doc — including a non-synced fallback translation, whose DeleteCmd carries that
+    // (non-synced) language — must propagate, or the doc would linger in IndexedDB forever. DeleteCmds
+    // are tiny, so fetching every language's content DeleteCmds is cheap.
     if (options.type === DocType.DeleteCmd && options.subType) {
         mangoQuery.selector.docType = options.subType;
-
-        // Filter DeleteCmds by language for content-based delete commands
-        if (options.languages && options.languages.length > 0) {
-            mangoQuery.selector.language = { $in: options.languages };
-        }
     }
 
     // Inject publishDate range selector for Content queries when the range is narrowed.

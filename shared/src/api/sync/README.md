@@ -36,6 +36,21 @@ Each sync operation creates entries in the `syncList` array with the following s
 `Content` and its sibling `DeleteCmd` entries — other chunk types have no `publishDate`
 field and leave them undefined (treated as an open range).
 
+**Language keep (Content).** `languages` is the language *set* a Content column applies to. The
+Content sync query does not filter by exact membership: it uses a **set-based priority-fallback
+keep** — keep a doc if its `language` is in the set, OR (fallback) none of the set's languages has a
+published translation of that document (so the doc's own translation is the last-resort fallback).
+This lets a client hold every candidate translation it might display without syncing every language
+(the ordered "best translation" pick is a display concern, not a keep concern). Consequently a Content
+column is **not** language-disjoint — it also stores fallback docs whose own `language` is outside the
+set; merge and `trim` key on the declared set, never on the docs' actual languages. With the `cms`
+flag the keep degrades to a flat membership, since a CMS client syncs all languages and the fallback
+branch is vacuous.
+
+**DeleteCmd columns are language-unscoped** (`languages: undefined`): a delete of any downloaded doc —
+including a fallback translation whose `DeleteCmd` carries a non-set language — must propagate, so one
+unscoped `DeleteCmd` column covers every language.
+
 ### Autonomous Runners
 
 The sync system spawns autonomous runners that:

@@ -80,6 +80,32 @@ describe("LanguageModal.vue", () => {
         expect(hidden.find("h2").exists()).toBe(false);
     });
 
+    it("blocks adding beyond the preferred-language cap (hides the add list at the cap)", async () => {
+        // Seed a 4th language so there IS one available to add.
+        const german = {
+            ...mockLanguageDtoEng,
+            _id: "lang-deu",
+            languageCode: "deu",
+            name: "German",
+            default: 0,
+        };
+        await db.docs.bulkPut([german]);
+        // Preferred already at the cap of 3.
+        appLanguageIdsAsRef.value = [
+            mockLanguageDtoEng._id,
+            mockLanguageDtoFra._id,
+            mockLanguageDtoSwa._id,
+        ];
+
+        const wrapper = mountModal();
+        await waitForExpect(() => {
+            expect(wrapper.find('[data-test="save-languages"]').exists()).toBe(true);
+        });
+
+        // At the cap the "add language" list is hidden, so the 4th language cannot be added.
+        expect((await wrapper.findAll('[data-test="add-language-button"]')).length).toBe(0);
+    });
+
     it("stages edits — adding a language does NOT touch the live ref until Save", async () => {
         const wrapper = mountModal();
         const frBtn = await addButtonFor(wrapper, mockLanguageDtoFra.name);

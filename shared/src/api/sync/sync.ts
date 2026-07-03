@@ -128,6 +128,12 @@ export async function initSync(httpService: HttpReq<any>) {
         if (type !== DocType.Content && type !== DocType.DeleteCmd) continue;
         if (entry.publishDateMin === undefined) entry.publishDateMin = OPEN_MIN;
         if (entry.publishDateMax === undefined) entry.publishDateMax = OPEN_MAX;
+        // Content DeleteCmd columns are now language-UNSCOPED (deletes of any downloaded doc —
+        // including a non-synced fallback translation, whose DeleteCmd carries that language — must
+        // propagate). Strip `languages` off legacy scoped DeleteCmd entries so they converge onto the
+        // unscoped identity via the degenerate-reset / mergeVertical paths below instead of
+        // accumulating a second column alongside the newly-pushed unscoped one.
+        if (type === DocType.DeleteCmd && entry.languages !== undefined) entry.languages = undefined;
     }
 
     // Drop subset columns whose superset (same chunkType + languages + publishDate) is already
@@ -289,6 +295,7 @@ async function _runSync(options: SyncRunnerOptions): Promise<void> {
         ...options,
         type: DocType.DeleteCmd,
         subType: deleteCmdSubType,
+        languages: undefined, // DeleteCmd columns are language-unscoped — target the unscoped entry
     });
 
     // After trim, drop stale subset entries: entries whose superset (same chunkType + languages
@@ -304,6 +311,7 @@ async function _runSync(options: SyncRunnerOptions): Promise<void> {
         ...options,
         type: DocType.DeleteCmd,
         subType: deleteCmdSubType,
+        languages: undefined, // DeleteCmd columns are language-unscoped — merge the unscoped entry
     });
 
     // Runtime degeneracy self-heal — companion to initSync's startup check. If runtime drift
@@ -458,10 +466,15 @@ export async function _sync(options: SyncRunnerOptions): Promise<void> {
         // DeleteCmd entries are intentionally always stored with an open publishDate range
         // so that deletes propagate regardless of the user's content cutoff. Use open bounds
         // when filtering and inserting so a single DeleteCmd column covers all content columns.
+        // They are also language-UNSCOPED (`languages: undefined`): a delete of any downloaded doc —
+        // including a non-synced fallback translation whose DeleteCmd carries that language — must
+        // propagate, so a single unscoped DeleteCmd column covers every language of the content
+        // columns. (Non-content syncs never pass `languages`, so this is a no-op for them.)
         const deleteCmdOptions = {
             ...options,
             type: DocType.DeleteCmd,
             subType: deleteCmdSubType,
+            languages: undefined,
             publishDateMin: OPEN_MIN,
             publishDateMax: OPEN_MAX,
         };
@@ -478,7 +491,7 @@ export async function _sync(options: SyncRunnerOptions): Promise<void> {
             syncList.value.push({
                 chunkType: getChunkTypeString(DocType.DeleteCmd, deleteCmdSubType),
                 memberOf: options.memberOf,
-                languages: options.languages,
+                languages: undefined, // language-unscoped — see deleteCmdOptions above
                 blockStart: syncResult.blockStart,
                 blockEnd: syncResult.blockEnd,
                 eof: syncResult.eof,

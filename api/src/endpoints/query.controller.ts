@@ -62,9 +62,10 @@ export class QueryController {
             this.configService.get<boolean>("validation.bypassTemplateValidation") || false;
 
         const maxLimit = this.configService.get<number>("query.maxLimit") ?? 500;
+        const maxLanguages = this.configService.get<number>("query.maxLanguages") ?? 4;
 
         let validationResult = { valid: true, error: "" };
-        if (!bypassValidation) validationResult = validateQuery(body, { maxLimit });
+        if (!bypassValidation) validationResult = validateQuery(body, { maxLimit, maxLanguages });
 
         if (!validationResult.valid) {
             throw new BadRequestException(`Invalid query: ${validationResult.error}`);

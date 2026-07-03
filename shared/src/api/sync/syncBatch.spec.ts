@@ -63,13 +63,73 @@ describe("syncBatch", () => {
         expect(http.post.mock.calls.length).toBeGreaterThanOrEqual(1);
         const body = capturedBodies[0];
         expect(body.selector.parentType).toBe(DocType.Post);
-        expect(body.selector.language.$in).toEqual(languages);
+        // Non-CMS content uses the set-based priority-fallback keep ($or), NOT a flat $in: the
+        // first branch is the synced-language membership, the second is the last-resort fallback
+        // (one negated availableTranslations elemMatch per synced language).
+        expect(body.selector.language).toBeUndefined();
+        expect(body.selector.$or[0].language.$in).toEqual(languages);
+        expect(
+            body.selector.$or[1].$and.map(
+                (c: any) => c.$not.availableTranslations.$elemMatch.$eq,
+            ),
+        ).toEqual(languages);
         expect(body.identifier).toBe("sync");
         // Content uses the de-partitioned single index regardless of parentType.
         expect(body.use_index).toBe("sync-content-index");
     });
 
-    it("builds mango query for deleteCmd type including docType and language selector", async () => {
+    it("uses a flat language $in for CMS content sync (no fallback keep)", async () => {
+        const docs = makeDocs(5, 5000, 10);
+        const capturedBodies: any[] = [];
+        const http = {
+            post: vi.fn(async (_path: string, body: any) => {
+                capturedBodies.push(body);
+                return { docs };
+            }),
+        };
+        const languages = ["en", "es", "fr"];
+        await syncBatch({
+            type: DocType.Content,
+            subType: DocType.Post,
+            memberOf: ["g1"],
+            limit: 10,
+            initialSync: true,
+            languages,
+            cms: true,
+            httpService: http as any,
+        });
+        const body = capturedBodies[0];
+        // CMS syncs all available languages, so a flat membership is correct and the fallback
+        // branch would be vacuous — no $or.
+        expect(body.selector.$or).toBeUndefined();
+        expect(body.selector.language.$in).toEqual(languages);
+    });
+
+    it("matches nothing (language $in []) for non-CMS content sync with an empty language set", async () => {
+        const docs: any[] = [];
+        const capturedBodies: any[] = [];
+        const http = {
+            post: vi.fn(async (_path: string, body: any) => {
+                capturedBodies.push(body);
+                return { docs };
+            }),
+        };
+        await syncBatch({
+            type: DocType.Content,
+            subType: DocType.Post,
+            memberOf: ["g1"],
+            limit: 10,
+            initialSync: true,
+            languages: [],
+            httpService: http as any,
+        });
+        const body = capturedBodies[0];
+        // An absent language set must match nothing (never fetch the whole corpus).
+        expect(body.selector.$or).toBeUndefined();
+        expect(body.selector.language.$in).toEqual([]);
+    });
+
+    it("builds mango query for deleteCmd type: docType only, NO language selector (unscoped)", async () => {
         const docs = makeDocs(5, 5000, 10);
         const capturedBodies: any[] = [];
         const http = {
@@ -91,7 +151,9 @@ describe("syncBatch", () => {
         expect(http.post.mock.calls.length).toBeGreaterThanOrEqual(1);
         const body = capturedBodies[0];
         expect(body.selector.docType).toBe(DocType.Post);
-        expect(body.selector.language.$in).toEqual(languages);
+        // DeleteCmds are language-UNSCOPED: even when a language set is passed, no language selector
+        // is added, so a delete of any downloaded doc (incl. a non-synced fallback) propagates.
+        expect(body.selector.language).toBeUndefined();
         // DeleteCmd index naming is unchanged (still per-docType).
         expect(body.use_index).toBe("sync-post-deleteCmd-index");
     });
@@ -925,8 +987,9 @@ describe("syncBatch", () => {
             // Regression: when at defaults the selector must look identical to a call
             // that didn't even know about publishDate.
             expect(capturedBodies[0].selector.publishDate).toBeUndefined();
+            // Non-CMS content carries the language keep as a top-level `$or` (not a `language` key).
             expect(Object.keys(capturedBodies[0].selector).sort()).toEqual(
-                ["language", "memberOf", "parentType", "type", "updatedTimeUtc"].sort(),
+                ["$or", "memberOf", "parentType", "type", "updatedTimeUtc"].sort(),
             );
         });
 

@@ -137,14 +137,13 @@ How much content is pre-synced into IndexedDB depends on whether the app is runn
 
 Because the tier is captured at startup (like the frozen session clock above), installing the app takes effect on the **next** launch.
 
-### Language tiering (selected languages + on-demand fallback)
+### Language tiering (synced languages + fallback, all via sync)
 
-Sync downloads content only for the user's **selected** languages ([`appLanguageIdsAsRef`](src/globalConfig.ts)) — the CMS default language is **not** force-synced. A post/tag with no translation in a selected language is still shown:
+**Language caps.** A user may pick at most **3 preferred** languages ([`appLanguageIdsAsRef`](src/globalConfig.ts)); the CMS default (English) is auto-appended for display only (in [`appDisplayLanguageIdsAsRef`](src/globalConfig.ts)) and is not counted against the cap. The **synced** set ([`appSyncedLanguageIdsAsRef`](src/globalConfig.ts)) — the "Available offline" toggle — must be a subset of the preferred set and is likewise capped at **3** (the primary is always synced). These caps are enforced client-side in [`globalConfig.ts`](src/globalConfig.ts) (`normalizePreferredLanguages` / `normalizeSyncedLanguages`) and the [`LanguageModal`](src/components/navigation/LanguageModal.vue), and **authoritatively by the API** (`QUERY_MAX_LANGUAGES`, default 4 = 3 + the default; non-CMS only).
 
-- The display-side language priority uses [`appDisplayLanguageIdsAsRef`](src/globalConfig.ts) (selected languages + the CMS default appended as the final fallback), so selection is deterministic and renders one tile per post.
-- The fallback translation is **fetched on demand** by `HybridQuery` (`fetchUnsyncedFallback`, on by default via [`useContentQuery`](src/composables/useContentQuery.ts)) and **cached offline** via `persistOffline`. Live updates for fallback content are kept on receipt by the shared `isSyncableDoc` language-priority gate. See [`shared/src/util/HybridQuery/README.md`](../shared/src/util/HybridQuery/README.md).
+Sync downloads content for the user's **synced** languages **plus the last-resort fallback**: a post whose only published translation is in a non-synced language is downloaded via sync's set-based language keep, so it is present offline and picked by the display-side priority ([`appDisplayLanguageIdsAsRef`](src/globalConfig.ts)) with **no per-feed API query**. (A preferred-but-**unsynced** language is intentionally not downloaded — you see the best synced/fallback translation.) See [`shared/src/api/sync/README.md`](../shared/src/api/sync/README.md).
 
-This means a fallback post is visible online and offline once seen, without paying to sync the default language to every device.
+> The old per-feed on-demand fallback fetch (`HybridQuery`'s `fetchUnsyncedFallback`) is **deprecated and off by default** — fallback content now arrives through sync. Content browsing therefore depends on sync having populated IndexedDB (there is no full API-only content fetch); a fresh install shows content once initial sync fills the window.
 
 ### Matomo analytics
 

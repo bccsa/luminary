@@ -3,6 +3,7 @@ import {
     MAX_SELECTOR_DEPTH,
     MAX_SELECTOR_CLAUSES,
     DEFAULT_MAX_LIMIT,
+    DEFAULT_MAX_LANGUAGES,
 } from "./validateQuery";
 
 describe("validateQuery", () => {
@@ -174,6 +175,88 @@ describe("validateQuery", () => {
             const res = validateQuery(q, { maxLimit: 50 });
             expect(res.valid).toBe(false);
             expect(res.error).toMatch(/limit exceeds maximum \(50\)/);
+        });
+    });
+
+    describe("language cap (non-CMS only)", () => {
+        // A content query names its languages via `language` field constraints. The cap counts the
+        // DISTINCT ids and rejects a non-CMS query over the limit; CMS is exempt (syncs all languages).
+        const over = () => DEFAULT_MAX_LANGUAGES + 1;
+        const langs = (n: number) => Array.from({ length: n }, (_v, i) => `lang-${i}`);
+
+        it("rejects a non-CMS query over the default language cap (via $in)", () => {
+            const q: any = {
+                selector: { type: "content", language: { $in: langs(over()) } },
+            };
+            const res = validateQuery(q);
+            expect(res.valid).toBe(false);
+            expect(res.error).toMatch(/too many languages/);
+        });
+
+        it("accepts a query at the cap (default = preferred cap + auto-appended default)", () => {
+            const q: any = {
+                selector: { type: "content", language: { $in: langs(DEFAULT_MAX_LANGUAGES) } },
+            };
+            expect(validateQuery(q).valid).toBe(true);
+        });
+
+        it("exempts CMS queries (cms: true) — they sync all languages", () => {
+            const q: any = {
+                selector: { type: "content", language: { $in: langs(over()) } },
+                cms: true,
+            };
+            expect(validateQuery(q).valid).toBe(true);
+        });
+
+        it("counts DISTINCT languages (duplicates in $in do not inflate the count)", () => {
+            const q: any = {
+                selector: { type: "content", language: { $in: ["a", "a", "b", "b"] } },
+            };
+            expect(validateQuery(q).valid).toBe(true);
+        });
+
+        it("collects languages across the mangoIsPublished-style equality/negation shape", () => {
+            // 5 distinct languages expressed as `{language: x}` equalities → over the default cap.
+            const q: any = {
+                selector: {
+                    $or: langs(over()).map((l) => ({
+                        $and: [
+                            { language: l },
+                            { $not: { availableTranslations: { $elemMatch: { $eq: l } } } },
+                        ],
+                    })),
+                },
+            };
+            expect(validateQuery(q).valid).toBe(false);
+        });
+
+        it("does not count availableTranslations ids as referenced languages", () => {
+            // Only two `language` values; the availableTranslations negations reference more ids but
+            // must NOT count against the cap.
+            const q: any = {
+                selector: {
+                    $or: [
+                        { language: { $in: ["a", "b"] } },
+                        {
+                            $and: langs(over()).map((l) => ({
+                                $not: { availableTranslations: { $elemMatch: { $eq: l } } },
+                            })),
+                        },
+                    ],
+                },
+            };
+            expect(validateQuery(q).valid).toBe(true);
+        });
+
+        it("leaves non-content queries (no language clause) unaffected", () => {
+            expect(validateQuery(validSyncQuery()).valid).toBe(true);
+        });
+
+        it("honors a custom maxLanguages option", () => {
+            const q: any = { selector: { type: "content", language: { $in: langs(3) } } };
+            const res = validateQuery(q, { maxLanguages: 2 });
+            expect(res.valid).toBe(false);
+            expect(res.error).toMatch(/too many languages \(max 2\)/);
         });
     });
 

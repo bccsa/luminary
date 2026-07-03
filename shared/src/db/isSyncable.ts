@@ -1,6 +1,7 @@
 import { DocType, type BaseDocumentDto } from "../types";
 import { syncList } from "../api/sync/state";
 import { splitChunkTypeString } from "../api/sync/utils";
+import { contentLanguageKeepSelector } from "../api/sync/keepSelector";
 import type { SyncListEntry } from "../api/sync/types";
 import { mangoCompile } from "../util/MangoQuery/mangoCompile";
 import type { MangoSelector, Predicate } from "../util/MangoQuery/MangoTypes";
@@ -56,20 +57,9 @@ function buildSelector(entry: SyncListEntry): MangoSelector | undefined {
         // socket distributes all languages; this filters on receipt so a non-synced "fallback"
         // translation is still persisted, mirroring the app's display language-priority selection
         // WITHOUT syncing every language. Set-based (order is irrelevant for the keep decision).
+        // Shared with the sync backfill (syncBatch) via contentLanguageKeepSelector so the two agree.
         return {
-            $and: [
-                base,
-                {
-                    $or: [
-                        { language: { $in: langs } },
-                        {
-                            $and: langs.map((l) => ({
-                                $not: { availableTranslations: { $elemMatch: { $eq: l } } },
-                            })),
-                        },
-                    ],
-                },
-            ],
+            $and: [base, contentLanguageKeepSelector(langs)],
         } as MangoSelector;
     }
     return { type } as MangoSelector;

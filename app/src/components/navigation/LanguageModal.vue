@@ -10,6 +10,9 @@ import LButton from "../button/LButton.vue";
 import {
     appLanguageIdsAsRef,
     appSyncedLanguageIdsAsRef,
+    MAX_PREFERRED_LANGUAGES,
+    MAX_SYNCED_LANGUAGES,
+    normalizePreferredLanguages,
     normalizeSyncedLanguages,
 } from "@/globalConfig";
 import LModal from "../form/LModal.vue";
@@ -92,9 +95,13 @@ const availableLanguages = computed(() =>
         .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0)),
 );
 
+// A user may prefer at most MAX_PREFERRED_LANGUAGES; the add list is hidden once at the cap.
+const canAddMore = computed(() => draftOrder.value.length < MAX_PREFERRED_LANGUAGES);
+
 // ── Draft mutations: order ──
 const addLanguage = (id: string) => {
     if (draftOrder.value.includes(id)) return;
+    if (draftOrder.value.length >= MAX_PREFERRED_LANGUAGES) return; // cap the preferred set
     draftOrder.value.push(id);
     if (!isConnected.value) notifyAddDeferred(); // its content can only download once online
 };
@@ -142,7 +149,10 @@ const toggleSynced = (id: string) => {
     if (id === primaryId.value) return; // primary is always synced
     const i = draftSynced.value.indexOf(id);
     if (i === -1) {
-        // Ticking ON = mark for download → only happens once online.
+        // Ticking ON = mark for download → only happens once online. Cap the synced set (the primary
+        // is always counted; naturally ≤ the preferred cap, but guard explicitly for future-proofing).
+        const syncedCount = draftOrder.value.filter((oid) => isOfflineChecked(oid)).length;
+        if (syncedCount >= MAX_SYNCED_LANGUAGES) return;
         draftSynced.value.push(id);
         if (!isConnected.value) notifyAddDeferred();
     } else {
@@ -162,11 +172,13 @@ const orderEquals = (a: string[], b: string[]) =>
 
 const save = () => {
     if (draftOrder.value.length === 0) return;
-    const orderChanged = !orderEquals(draftOrder.value, appLanguageIdsAsRef.value);
+    // Cap the preferred order defensively (the UI already blocks going over) before committing.
+    const nextOrder = normalizePreferredLanguages(draftOrder.value);
+    const orderChanged = !orderEquals(nextOrder, appLanguageIdsAsRef.value);
     const previousSynced = [...appSyncedLanguageIdsAsRef.value];
     // Commit both atomically: one re-sync + one display rebuild at most.
-    appLanguageIdsAsRef.value = [...draftOrder.value];
-    appSyncedLanguageIdsAsRef.value = normalizeSyncedLanguages(draftSynced.value, draftOrder.value);
+    appLanguageIdsAsRef.value = nextOrder;
+    appSyncedLanguageIdsAsRef.value = normalizeSyncedLanguages(draftSynced.value, nextOrder);
 
     // Clean up content for languages no longer synced (un-ticked). Recently-served / pinned docs
     // survive (retention-gated); the rest degrade to fetch-on-demand. Fire-and-forget. Only while
@@ -267,7 +279,10 @@ const cancel = () => emit("close");
             {{ t("language.modal.offlineCaption") }}
         </p>
 
-        <div class="divide-y divide-zinc-200 dark:divide-slate-600">
+        <div
+            v-if="canAddMore"
+            class="divide-y divide-zinc-200 dark:divide-slate-600"
+        >
             <div
                 v-for="language in availableLanguages"
                 :id="language._id"

@@ -5,6 +5,9 @@ import {
     appLanguageAsRef,
     appLanguageIdsAsRef,
     appSyncedLanguageIdsAsRef,
+    MAX_PREFERRED_LANGUAGES,
+    MAX_SYNCED_LANGUAGES,
+    normalizePreferredLanguages,
     normalizeSyncedLanguages,
     initLanguage,
     setMediaProgress,
@@ -103,6 +106,38 @@ describe("globalConfig.ts", () => {
 
         it("returns an empty set only when there is no preferred order", () => {
             expect(normalizeSyncedLanguages(["fr"], [])).toEqual([]);
+        });
+
+        it("caps the synced set to MAX_SYNCED_LANGUAGES (keeping the primary)", () => {
+            const order = ["a", "b", "c", "d"]; // preferred would itself be capped upstream
+            const result = normalizeSyncedLanguages(["a", "b", "c", "d"], order);
+            expect(result.length).toBe(MAX_SYNCED_LANGUAGES);
+            expect(result).toContain("a"); // primary retained
+        });
+    });
+
+    describe("normalizePreferredLanguages", () => {
+        it("caps the preferred order to MAX_PREFERRED_LANGUAGES", () => {
+            expect(normalizePreferredLanguages(["a", "b", "c", "d", "e"])).toEqual(
+                ["a", "b", "c", "d", "e"].slice(0, MAX_PREFERRED_LANGUAGES),
+            );
+        });
+
+        it("drops null/undefined ids and de-duplicates, preserving order", () => {
+            expect(
+                normalizePreferredLanguages([
+                    "a",
+                    null as unknown as string,
+                    "a",
+                    "b",
+                    undefined as unknown as string,
+                ]),
+            ).toEqual(["a", "b"]);
+        });
+
+        it("is idempotent", () => {
+            const once = normalizePreferredLanguages(["a", "b", "c", "d"]);
+            expect(normalizePreferredLanguages(once)).toEqual(once);
         });
     });
 
