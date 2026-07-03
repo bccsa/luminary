@@ -4,6 +4,7 @@ import {
     AclPermission,
     DocType,
     getAccessibleGroups,
+    getContentPublishDateCutoff,
     isConnected,
     setCancelSync,
     sync,
@@ -112,6 +113,8 @@ export function initSync() {
             if (!appSyncedLanguageIdsAsRef.value.length) return;
 
             const access = getAccessibleGroups(AclPermission.View);
+            const hasPublishDateCutoff =
+                getContentPublishDateCutoff() > Number.MIN_SAFE_INTEGER;
 
             // Sync post content docs
             if (access[DocType.Post] && access[DocType.Post].length) {
@@ -125,6 +128,19 @@ export function initSync() {
                 }).catch((err) => {
                     Sentry?.captureException(err);
                 });
+                if (hasPublishDateCutoff) {
+                    sync({
+                        type: DocType.Content,
+                        subType: DocType.Post,
+                        memberOf: access[DocType.Post],
+                        languages: appLanguageIdsAsRef.value,
+                        limit: 100,
+                        cms: false,
+                        alwaysOfflineOnly: true,
+                    }).catch((err) => {
+                        Sentry?.captureException(err);
+                    });
+                }
             }
 
             // Sync tag content docs
@@ -139,6 +155,19 @@ export function initSync() {
                 }).catch((err) => {
                     Sentry?.captureException(err);
                 });
+                if (hasPublishDateCutoff) {
+                    sync({
+                        type: DocType.Content,
+                        subType: DocType.Tag,
+                        memberOf: access[DocType.Tag],
+                        languages: appLanguageIdsAsRef.value,
+                        limit: 100,
+                        cms: false,
+                        alwaysOfflineOnly: true,
+                    }).catch((err) => {
+                        Sentry?.captureException(err);
+                    });
+                }
             }
 
             // Sync redirects
