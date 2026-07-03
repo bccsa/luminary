@@ -251,6 +251,49 @@ describe("FtsSearchService", () => {
         expect(dbService.ftsTrigramCandidates).toHaveBeenCalledWith(["gar", "ard", "rde"]);
     });
 
+    it("does not fetch candidates when the rarest trigram exceeds the row budget", async () => {
+        dbService.ftsCorpusStats.mockResolvedValue({ docCount: 10000, totalTokenCount: 100000 });
+        dbService.ftsTrigramDf.mockResolvedValue(
+            new Map([
+                ["gar", 4000],
+                ["ard", 4100],
+                ["rde", 4200],
+                ["den", 4300],
+            ]),
+        );
+
+        const res = await service.search(makeReq({ queryString: "garden" }), mockUser);
+
+        expect(res).toEqual([]);
+        expect(dbService.ftsTrigramCandidates).not.toHaveBeenCalled();
+    });
+
+    it("returns private cost stats from searchWithStats", async () => {
+        dbService.ftsTrigramCandidates.mockResolvedValue([
+            row("d1", "gar", value({ tf: 1 })),
+            row("d2", "ard", value({ tf: 2 })),
+        ]);
+        dbService.getDocs.mockResolvedValue({
+            docs: [
+                { _id: "d1", title: "garden", ftsTokenCount: 10 },
+                { _id: "d2", title: "garden bed", ftsTokenCount: 10 },
+            ],
+        });
+
+        const { results, stats } = await service.searchWithStats(makeReq(), mockUser);
+
+        expect(results).toHaveLength(2);
+        expect(stats).toMatchObject({
+            trigrams: 4,
+            keptTrigrams: 4,
+            estimatedCandidateRows: 12,
+            candidateRows: 2,
+            survivors: 2,
+            topK: 2,
+            candidateRowBudget: 3000,
+        });
+    });
+
     it("caps the exact-scored set at max(150, offset + limit)", async () => {
         const rows = Array.from({ length: 200 }, (_, i) => row(`d${i}`, "gar", value()));
         dbService.ftsTrigramCandidates.mockResolvedValue(rows);

@@ -88,11 +88,23 @@ const FTS_TOP_K_MIN = 150;
  * shrinks the candidate scan and the JS filter loop with minimal ranking impact.
  *
  * `FTS_CANDIDATE_ROW_BUDGET` caps the summed df of kept trigrams (≈ candidate rows fetched).
- * `FTS_MIN_TRIGRAMS` is a floor: always keep at least this many of the rarest trigrams even
- * if that exceeds the budget, so short/uncommon queries still match.
  */
 const FTS_CANDIDATE_ROW_BUDGET = 3000;
-const FTS_MIN_TRIGRAMS = 3;
+
+export type FtsSearchStats = {
+    trigrams: number;
+    keptTrigrams: number;
+    estimatedCandidateRows: number;
+    candidateRows: number;
+    survivors: number;
+    topK: number;
+    candidateRowBudget: number;
+};
+
+export type FtsSearchWithStats = {
+    results: FtsSearchResultDto[];
+    stats: FtsSearchStats;
+};
 
 /**
  * Server-side full-text search.
@@ -155,6 +167,22 @@ export class FtsSearchService {
     }
 
     async search(req: FtsSearchReqDto, userDetails: JwtUserDetails): Promise<FtsSearchResultDto[]> {
+        return (await this.searchWithStats(req, userDetails)).results;
+    }
+
+    async searchWithStats(
+        req: FtsSearchReqDto,
+        userDetails: JwtUserDetails,
+    ): Promise<FtsSearchWithStats> {
+        const stats: FtsSearchStats = {
+            trigrams: 0,
+            keptTrigrams: 0,
+            estimatedCandidateRows: 0,
+            candidateRows: 0,
+            survivors: 0,
+            topK: 0,
+            candidateRowBudget: FTS_CANDIDATE_ROW_BUDGET,
+        };
         const now = Date.now();
         const cms = req.cms === true;
         const limit = req.limit && req.limit > 0 ? req.limit : FTS_DEFAULT_LIMIT;
@@ -194,7 +222,8 @@ export class FtsSearchService {
 
         // Step 1: query trigrams
         const trigrams = generateSearchTrigrams(req.queryString);
-        if (trigrams.length === 0) return [];
+        stats.trigrams = trigrams.length;
+        if (trigrams.length === 0) return { results: [], stats };
 
         // Step 2: permission context (in-memory). NOTE: accessMapToGroups returns a
         // Map-typed value that is used as a plain object via property access.
@@ -233,7 +262,7 @@ export class FtsSearchService {
             this.db.ftsCorpusStats(),
             this.db.ftsTrigramDf(trigrams),
         ]);
-        if (N === 0) return [];
+        if (N === 0) return { results: [], stats };
         const avgdl = totalTokenCount / N || 1;
 
         // Drop over-common trigrams
@@ -242,28 +271,28 @@ export class FtsSearchService {
             const d = df.get(t) || 0;
             return d > 0 && d <= maxDocCount;
         });
-        if (usableTrigrams.length === 0) return [];
+        if (usableTrigrams.length === 0) return { results: [], stats };
 
         // High-df pruning: keep the most discriminative (lowest-df) trigrams within a
-        // candidate-row budget. Sort rarest-first and greedily add until the summed df
-        // would exceed the budget (but always keep at least FTS_MIN_TRIGRAMS).
+        // strict candidate-row budget. Sort rarest-first and stop before a trigram
+        // would push the summed df over budget.
         const rankedByDf = usableTrigrams
             .map((t) => ({ t, d: df.get(t) || 0 }))
             .sort((a, b2) => a.d - b2.d);
         let rowBudget = 0;
         const keptTrigrams: string[] = [];
         for (const { t, d } of rankedByDf) {
-            if (
-                keptTrigrams.length >= FTS_MIN_TRIGRAMS &&
-                rowBudget + d > FTS_CANDIDATE_ROW_BUDGET
-            )
-                break;
+            if (rowBudget + d > FTS_CANDIDATE_ROW_BUDGET) break;
             keptTrigrams.push(t);
             rowBudget += d;
         }
+        stats.keptTrigrams = keptTrigrams.length;
+        stats.estimatedCandidateRows = rowBudget;
+        if (keptTrigrams.length === 0) return { results: [], stats };
 
         // Step 4: fetch candidate rows and filter in JS straight from the embedded metadata
         const candidates = await this.db.ftsTrigramCandidates(keptTrigrams);
+        stats.candidateRows = candidates.length;
         const perDocTf = new Map<string, Map<string, number>>();
         const accessibleDfDocs = new Map<string, Set<string>>(); // trigram → distinct surviving docIds
         // Doc-level metadata for the strict path (captured once per surviving doc).
@@ -338,7 +367,8 @@ export class FtsSearchService {
                 });
             }
         }
-        if (perDocTf.size === 0) return [];
+        stats.survivors = perDocTf.size;
+        if (perDocTf.size === 0) return { results: [], stats };
 
         // ---- Strict path: substring AND on title/author + field sort, over the full
         // matched set (no top-K, no BM25). Candidate gen already used the rarest-trigram
@@ -399,6 +429,7 @@ export class FtsSearchService {
             topK = prelim.slice(0, topKCap);
         }
         const topKIds = topK.map((c) => c.docId);
+        stats.topK = topKIds.length;
 
         // Step 7: fetch the top-K docs for the full BM25 + word-match pass and the
         // returned doc body.
@@ -434,12 +465,13 @@ export class FtsSearchService {
         });
 
         // Step 8: paginate and trim the FTS index fields before returning
-        return scored.slice(offset, offset + limit).map((r) => ({
+        const results = scored.slice(offset, offset + limit).map((r) => ({
             docId: r.docId,
             score: r.score,
             wordMatchScore: r.wordMatchScore,
             doc: stripFtsFields(r.doc),
         }));
+        return { results, stats };
     }
 
     /**
