@@ -15,8 +15,14 @@ import {
     normalizeSyncedLanguages,
 } from "@/globalConfig";
 import LModal from "../form/LModal.vue";
-import { ArrowDownIcon, ArrowUpIcon, CheckIcon, XMarkIcon } from "@heroicons/vue/24/solid";
-import { PlusCircleIcon } from "@heroicons/vue/24/outline";
+import {
+    ArrowDownIcon,
+    ArrowDownTrayIcon,
+    ArrowUpIcon,
+    CheckIcon,
+    XMarkIcon,
+} from "@heroicons/vue/24/solid";
+import { InformationCircleIcon, PlusCircleIcon } from "@heroicons/vue/24/outline";
 import { markLanguageSwitch } from "@/util/isLangSwitch";
 import { useNotificationStore } from "@/stores/notification";
 
@@ -203,7 +209,7 @@ const cancel = () => emit("close");
         <transition-group
             name="language"
             tag="div"
-            class="divide-y divide-zinc-200 dark:divide-slate-600"
+            class="flex flex-col gap-2"
             enter-active-class="transition duration-100 ease-in-out"
             enter-from-class="opacity-0 transform -translate-y-2"
             enter-to-class="opacity-100 transform translate-y-0"
@@ -212,86 +218,104 @@ const cancel = () => emit("close");
             leave-to-class="opacity-0 transform translate-y-2"
             move-class="transition duration-100 ease-in-out"
         >
+            <!-- One segmented bar: [action buttons | language | offline toggle]; the toggle's own
+                 fill is what separates it, no divider lines needed. -->
             <div
                 v-for="language in languagesSelected"
                 :id="language._id"
                 :key="language._id"
-                class="flex w-full items-center gap-3 p-3"
+                class="flex w-full items-stretch overflow-hidden rounded-xl bg-zinc-50 ring-1 ring-zinc-200 dark:bg-slate-600/30 dark:ring-slate-500/50"
             >
-                <div class="relative flex h-4 w-4 shrink-0 items-center justify-center">
-                    <input
-                        type="checkbox"
-                        :checked="isOfflineChecked(language._id)"
-                        :disabled="language._id === primaryId"
-                        :title="
-                            language._id === primaryId
-                                ? t('language.modal.primaryAlwaysOffline')
-                                : t('language.modal.availableOffline')
-                        "
-                        :aria-label="t('language.modal.availableOffline')"
-                        data-test="offline-checkbox"
-                        class="peer h-4 w-4 cursor-pointer appearance-none rounded-full border border-zinc-300 checked:border-yellow-500 checked:bg-yellow-500 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-1 disabled:cursor-auto disabled:opacity-50 dark:border-slate-600 dark:bg-slate-700 dark:checked:border-yellow-500 dark:checked:bg-yellow-500"
-                        @change="toggleSynced(language._id)"
-                    />
-                    <CheckIcon
-                        class="pointer-events-none absolute h-2.5 w-2.5 text-white opacity-0 peer-checked:opacity-100"
-                    />
-                </div>
-
-                <span class="flex-1 text-sm">{{ language.name }}</span>
-
-                <div class="flex items-center gap-1">
+                <!-- Reorder arrows are always rendered so every row's columns align; at the ends they
+                     render faded + disabled (no data-test, non-clickable) instead of leaving a gap. -->
+                <div
+                    v-if="draftOrder.length > 1"
+                    class="flex shrink-0 items-center gap-0.5 px-2 py-2"
+                >
                     <button
-                        v-if="language._id !== draftOrder[0]"
                         type="button"
-                        data-test="increase-priority"
+                        :disabled="language._id === draftOrder[0]"
+                        :data-test="language._id === draftOrder[0] ? undefined : 'increase-priority'"
                         @click="increasePriority(language._id)"
-                        class="flex cursor-pointer items-center rounded-full p-1 text-zinc-400 hover:bg-zinc-100 hover:text-yellow-600 dark:text-slate-500 dark:hover:bg-slate-600 dark:hover:text-yellow-500"
+                        class="flex cursor-pointer items-center rounded-full p-1 text-zinc-400 hover:bg-zinc-200 hover:text-yellow-600 disabled:pointer-events-none disabled:opacity-25 dark:text-slate-400 dark:hover:bg-slate-600 dark:hover:text-yellow-500"
                     >
                         <ArrowUpIcon class="h-4 w-4" />
                     </button>
                     <button
-                        v-if="language._id !== draftOrder[draftOrder.length - 1]"
                         type="button"
-                        data-test="decrease-priority"
+                        :disabled="language._id === draftOrder[draftOrder.length - 1]"
+                        :data-test="
+                            language._id === draftOrder[draftOrder.length - 1]
+                                ? undefined
+                                : 'decrease-priority'
+                        "
                         @click="decreasePriority(language._id)"
-                        class="flex cursor-pointer items-center rounded-full p-1 text-zinc-400 hover:bg-zinc-100 hover:text-yellow-600 dark:text-slate-500 dark:hover:bg-slate-600 dark:hover:text-yellow-500"
+                        class="flex cursor-pointer items-center rounded-full p-1 text-zinc-400 hover:bg-zinc-200 hover:text-yellow-600 disabled:pointer-events-none disabled:opacity-25 dark:text-slate-400 dark:hover:bg-slate-600 dark:hover:text-yellow-500"
                     >
                         <ArrowDownIcon class="h-4 w-4" />
                     </button>
                     <button
-                        v-if="draftOrder.length > 1"
                         type="button"
                         data-test="remove-language-button"
                         @click="removeFromSelected(language._id)"
-                        class="flex cursor-pointer items-center rounded-full p-1 text-zinc-400 hover:bg-zinc-100 hover:text-red-600 dark:text-slate-500 dark:hover:bg-slate-600 dark:hover:text-red-500"
+                        class="flex cursor-pointer items-center rounded-full p-1 text-zinc-400 hover:bg-zinc-200 hover:text-red-600 dark:text-slate-400 dark:hover:bg-slate-600 dark:hover:text-red-500"
                     >
                         <XMarkIcon class="h-4 w-4" />
                     </button>
                 </div>
+
+                <div class="flex min-w-0 flex-1 items-center px-3 py-2">
+                    <span class="truncate text-sm font-semibold">{{ language.name }}</span>
+                </div>
+
+                <!-- Offline toggle: the right segment fills yellow when the language is synced offline.
+                     A real checkbox fills the segment and drives state (a11y + tests unchanged). -->
+                <label
+                    class="relative flex shrink-0 cursor-pointer items-center px-3"
+                    :title="
+                        language._id === primaryId
+                            ? t('language.modal.primaryAlwaysOffline')
+                            : t('language.modal.availableOffline')
+                    "
+                >
+                    <input
+                        type="checkbox"
+                        :checked="isOfflineChecked(language._id)"
+                        :disabled="language._id === primaryId"
+                        :aria-label="t('language.modal.availableOffline')"
+                        data-test="offline-checkbox"
+                        class="peer absolute inset-0 h-full w-full cursor-pointer appearance-none bg-transparent checked:bg-yellow-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-yellow-600 disabled:cursor-auto dark:checked:bg-yellow-500"
+                        @change="toggleSynced(language._id)"
+                    />
+                    <component
+                        :is="isOfflineChecked(language._id) ? CheckIcon : ArrowDownTrayIcon"
+                        class="pointer-events-none relative h-4 w-4 text-zinc-500 peer-checked:text-yellow-950 dark:text-slate-300"
+                    />
+                </label>
             </div>
         </transition-group>
 
-        <p class="px-3 py-2 text-xs text-zinc-500 dark:text-slate-400">
+        <p
+            class="mt-2 flex items-center gap-1.5 border-t border-zinc-200 px-3 pt-3 pb-1 text-xs text-zinc-500 dark:border-slate-600 dark:text-slate-400"
+        >
+            <InformationCircleIcon class="h-4 w-4 shrink-0" />
             {{ t("language.modal.offlineCaption") }}
         </p>
 
         <div
             v-if="canAddMore"
-            class="divide-y divide-zinc-200 dark:divide-slate-600"
+            class="mt-1 flex flex-col gap-2 border-t border-zinc-200 pt-3 dark:border-slate-600"
         >
             <div
                 v-for="language in availableLanguages"
                 :id="language._id"
                 :key="language._id"
-                class="flex w-full cursor-pointer items-center gap-2 rounded-lg p-3 hover:bg-zinc-100 dark:hover:bg-slate-600"
+                class="flex w-full cursor-pointer items-center gap-2 rounded-xl border border-dashed border-zinc-300 px-3 py-2.5 text-zinc-500 transition-colors hover:border-yellow-400 hover:bg-yellow-50 hover:text-yellow-700 dark:border-slate-500 dark:text-slate-400 dark:hover:border-yellow-500/60 dark:hover:bg-slate-600 dark:hover:text-yellow-500"
                 data-test="add-language-button"
                 @click="addLanguage(language._id)"
             >
-                <PlusCircleIcon
-                    class="h-5 w-5 cursor-pointer text-zinc-500 hover:text-yellow-600 dark:text-slate-400 dark:hover:text-yellow-500"
-                />
-                <span class="text-sm">{{ language.name }}</span>
+                <PlusCircleIcon class="h-5 w-5 shrink-0" />
+                <span class="text-sm font-medium">{{ language.name }}</span>
             </div>
         </div>
 
