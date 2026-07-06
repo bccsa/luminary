@@ -115,15 +115,16 @@ const { visible: visibleUsers, sentinel: browseSentinel } = useInfiniteScrollLis
 const browseLoading = computed(() => isFetching.value && !(users.value?.length ?? 0));
 
 // --- Search (≥3 chars): server-side strict FTS. The group filter is forwarded to the server
-// (memberOf ∩ groups). The search term is already debounced upstream (UserFilterOptions,
-// 500ms), so the composable's own debounce is disabled. ---
+// (memberOf ∩ groups). Trigger-only: the search box (UserFilterOptions.vue) only commits
+// queryOptions.search on Enter/Go, so re-run explicitly on each committed change. ---
 const searchTerm = computed(() => queryOptions.value.search ?? "");
 const search = useServerFtsSearch(searchTerm, {
     docType: DocType.User,
     filters: () => ({ groups: queryOptions.value.groups }),
     pageSize: 20,
-    debounceMs: 0,
+    debounceMs: "manual",
 });
+watch(searchTerm, () => search.runSearch(), { immediate: true });
 const searchIsLoading = search.isLoading;
 const searchIsStale = search.isStale;
 

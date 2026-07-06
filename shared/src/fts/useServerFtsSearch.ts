@@ -25,8 +25,8 @@ export type UseServerFtsSearchOptions = {
     filters?: MaybeRefOrGetter<ServerFtsFilters | undefined>;
     /** Page size (default 20). */
     pageSize?: number;
-    /** Debounce delay in ms before searching (default 300). */
-    debounceMs?: number;
+    /** Debounce delay in ms before searching, or "manual" to only search via {@link UseServerFtsSearchReturn.runSearch} (default 300). */
+    debounceMs?: number | "manual";
 };
 
 export type UseServerFtsSearchReturn = {
@@ -41,6 +41,8 @@ export type UseServerFtsSearchReturn = {
     refresh: () => Promise<void>;
     /** Flag results stale (e.g. after creating a doc while searching). */
     markStale: () => void;
+    /** Run a search immediately using the current query (for `debounceMs: "manual"`). */
+    runSearch: () => void;
 };
 
 /** Minimum query length before searching (a shorter query yields no usable trigrams). */
@@ -67,6 +69,7 @@ export function useServerFtsSearch(
     options: UseServerFtsSearchOptions,
 ): UseServerFtsSearchReturn {
     const { docType, pageSize = 20, debounceMs = 300 } = options;
+    const isTriggerOnly = debounceMs === "manual";
 
     const docs = ref<Partial<BaseDocumentDto>[]>([]);
     const isLoading = ref(false);
@@ -134,23 +137,43 @@ export function useServerFtsSearch(
         await doSearch(0, false);
     }
 
-    // Re-run on query / sort / filter changes (debounced). The JSON snapshot keeps the watch
-    // robust against object-identity churn and detects deep changes to sort/filters.
+    function runSearch() {
+        if (debounceTimer) {
+            clearTimeout(debounceTimer);
+            debounceTimer = undefined;
+        }
+        isStale.value = false;
+        generation++;
+        doSearch(0, false);
+    }
+
+    // Re-run on query changes (debounced). "manual" mode skips this watcher entirely — the
+    // caller is expected to invoke runSearch() explicitly (e.g. on Enter/Go), mirroring
+    // useFtsSearch's trigger-only mode.
+    if (!isTriggerOnly) {
+        watch(
+            () => queryRef.value.trim(),
+            () => {
+                isStale.value = false;
+                if (debounceTimer) clearTimeout(debounceTimer);
+                // Invalidate any in-flight search before the debounce window opens.
+                generation++;
+                debounceTimer = setTimeout(() => doSearch(0, false), debounceMs as number);
+            },
+            { immediate: true },
+        );
+    }
+
+    // Sort/filter changes re-run immediately regardless of query debounce mode. The JSON
+    // snapshot keeps the watch robust against object-identity churn and detects deep changes.
     watch(
-        () =>
-            JSON.stringify({
-                q: queryRef.value.trim(),
-                sort: read(options.sort) ?? null,
-                filters: read(options.filters) ?? null,
-            }),
+        () => JSON.stringify({ sort: read(options.sort) ?? null, filters: read(options.filters) ?? null }),
         () => {
             isStale.value = false;
             if (debounceTimer) clearTimeout(debounceTimer);
-            // Invalidate any in-flight search before the debounce window opens.
             generation++;
-            debounceTimer = setTimeout(() => doSearch(0, false), debounceMs);
+            doSearch(0, false);
         },
-        { immediate: true },
     );
 
     // Re-run when connectivity returns (an offline attempt yields nothing — server-only).
@@ -174,5 +197,14 @@ export function useServerFtsSearch(
         });
     }
 
-    return { docs, isLoading, hasMore, loadMore, isStale, refresh, markStale: () => markFtsStale(isStale) };
+    return {
+        docs,
+        isLoading,
+        hasMore,
+        loadMore,
+        isStale,
+        refresh,
+        markStale: () => markFtsStale(isStale),
+        runSearch,
+    };
 }

@@ -18,6 +18,7 @@ import { groupLabel } from "@/util/groups";
 type Props = {
     groups: GroupDto[];
     reset: Function;
+    search: () => void;
 };
 
 defineProps<Props>();
@@ -42,7 +43,12 @@ const showMobileQueryOptions = ref(false);
                 data-test="search-input"
                 v-model="query as string"
                 :full-height="true"
-            />
+                @keydown.enter="search()"
+            >
+                <template #searchButton>
+                    <slot name="searchButton"></slot>
+                </template>
+            </LInput>
             <LButton class="h-full" :icon="AdjustmentsVerticalIcon" @click="showMobileQueryOptions = true" />
             <LButton class="h-full w-10" :icon="ArrowUturnLeftIcon" @click="reset()" />
         </div>

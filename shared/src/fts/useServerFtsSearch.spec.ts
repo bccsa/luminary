@@ -151,6 +151,43 @@ describe("useServerFtsSearch", () => {
         scope.stop();
     });
 
+    it("manual mode does not search on query change, only via runSearch()", async () => {
+        const scope = effectScope();
+        const query = ref("");
+        let api!: ReturnType<typeof useServerFtsSearch>;
+        scope.run(() => {
+            api = useServerFtsSearch(query, { docType: DocType.User, debounceMs: "manual" });
+        });
+        await settle();
+
+        query.value = "garden";
+        await settle();
+        expect(ftsMock).not.toHaveBeenCalled();
+
+        api.runSearch();
+        await settle();
+        expect(ftsMock).toHaveBeenCalledWith(expect.objectContaining({ queryString: "garden" }));
+        scope.stop();
+    });
+
+    it("manual mode still re-searches immediately on sort/filter changes", async () => {
+        const scope = effectScope();
+        const query = ref("garden");
+        const sort = ref<{ field: string; direction: "asc" | "desc" } | undefined>(undefined);
+        scope.run(() =>
+            useServerFtsSearch(query, { docType: DocType.User, sort, debounceMs: "manual" }),
+        );
+        await settle();
+        expect(ftsMock).not.toHaveBeenCalled();
+
+        sort.value = { field: "name", direction: "asc" };
+        await settle();
+        expect(ftsMock).toHaveBeenCalledWith(
+            expect.objectContaining({ sort: { field: "name", direction: "asc" } }),
+        );
+        scope.stop();
+    });
+
     it("refresh clears isStale and re-runs from offset 0", async () => {
         ftsMock.mockResolvedValue(apiDocs("u", 1));
         const scope = effectScope();

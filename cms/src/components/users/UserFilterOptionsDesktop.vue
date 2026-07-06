@@ -11,6 +11,7 @@ import { groupLabel } from "@/util/groups";
 type Props = {
     groups: GroupDto[];
     reset: Function;
+    search: () => void;
 };
 
 defineProps<Props>();
@@ -33,7 +34,12 @@ const query = defineModel("query", { required: true });
                 data-test="search-input"
                 v-model="query as string"
                 :full-height="true"
-            />
+                @keydown.enter="search"
+            >
+                <template #searchButton>
+                    <slot name="searchButton"></slot>
+                </template>
+            </LInput>
 
             <div class="relative flex h-full items-center gap-1">
                 <LCombobox
