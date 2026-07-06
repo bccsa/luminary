@@ -33,22 +33,15 @@ export const MAX_PREFERRED_LANGUAGES = 3;
 export const AUTO_APPENDED_DEFAULT_LANGUAGES = 1;
 
 /**
- * Extra languages allowed above the exact client maximum. Without it the cap would sit exactly on
- * the largest legitimate query (zero headroom, GitHub #1765): any future language dimension — or a
- * query that legitimately references one more id — would trip a spurious 400. One slot of headroom
- * removes that fragile boundary; CMS queries are exempt and the query-cost delta of one extra
- * language is negligible.
- */
-export const LANGUAGE_CAP_HEADROOM = 1;
-
-/**
  * Fallback language cap when the caller doesn't supply one. Derived so the pieces move together
- * instead of being restated as a magic number: preferred (3) + auto-appended default (1) +
- * headroom (1) = 5. A legitimate non-CMS content query references at most preferred + default
- * distinct languages; the headroom keeps the boundary off that exact maximum.
+ * instead of being restated as a magic number: preferred (3) + auto-appended default (1) = 4. A
+ * legitimate non-CMS content query never references more than this — the client-side selection
+ * cap is a fixed UX invariant (`normalizePreferredLanguages` hard-slices to
+ * `MAX_PREFERRED_LANGUAGES`), independent of how many languages exist in the system. Growing the
+ * language catalog doesn't grow a single query's language count; only bumping the client cap
+ * itself would, and that already requires updating `MAX_PREFERRED_LANGUAGES` here in lockstep.
  */
-export const DEFAULT_MAX_LANGUAGES =
-    MAX_PREFERRED_LANGUAGES + AUTO_APPENDED_DEFAULT_LANGUAGES + LANGUAGE_CAP_HEADROOM;
+export const DEFAULT_MAX_LANGUAGES = MAX_PREFERRED_LANGUAGES + AUTO_APPENDED_DEFAULT_LANGUAGES;
 
 /**
  * DoS guards on the selector shape. A pathological selector (deeply nested logical

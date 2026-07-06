@@ -195,23 +195,19 @@ describe("validateQuery", () => {
             expect(res.error).toMatch(/too many languages/);
         });
 
-        it("accepts a query at the cap (derived: preferred + default + headroom)", () => {
+        it("accepts a query at the cap (derived: preferred + auto-appended default)", () => {
             const q: any = {
                 selector: { type: "content", language: { $in: langs(DEFAULT_MAX_LANGUAGES) } },
             };
             expect(validateQuery(q).valid).toBe(true);
         });
 
-        it("keeps headroom above the client maximum (preferred + auto-appended default) [#1765]", () => {
-            // The cap must not sit exactly on the largest legitimate client query, or any future
-            // language dimension trips a spurious 400. There must be at least one spare slot.
+        it("derives the cap exactly from the client maximum (preferred + auto-appended default) [#1765]", () => {
+            // No headroom: the client-side selection cap is a fixed UX invariant
+            // (normalizePreferredLanguages hard-slices to MAX_PREFERRED_LANGUAGES), independent of
+            // how many languages exist in the system — so the derived cap can sit exactly on it.
             const clientMax = MAX_PREFERRED_LANGUAGES + AUTO_APPENDED_DEFAULT_LANGUAGES;
-            expect(DEFAULT_MAX_LANGUAGES).toBeGreaterThan(clientMax);
-            // A query at the client maximum is accepted comfortably (not on the boundary).
-            const q: any = {
-                selector: { type: "content", language: { $in: langs(clientMax) } },
-            };
-            expect(validateQuery(q).valid).toBe(true);
+            expect(DEFAULT_MAX_LANGUAGES).toBe(clientMax);
         });
 
         it("exempts CMS queries (cms: true) — they sync all languages", () => {
