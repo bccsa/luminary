@@ -61,8 +61,8 @@ async function Startup() {
         socket.on(
             "connect_error",
             async (err: Error & { data?: { type?: string; reason?: string } }) => {
-                reconnecting = false;
                 if (err.data?.type !== "auth_failed" && err.message !== "auth_failed") return;
+                reconnecting = false;
 
                 const reason = err.data?.reason;
 
@@ -118,6 +118,9 @@ async function Startup() {
         // restarting an attempt that's already in flight.
         watch(isConnected, (connected) => {
             if (connected) reconnecting = false;
+        });
+        socket.on("disconnect", () => {
+            reconnecting = false;
         });
         document.addEventListener("visibilitychange", () => {
             if (document.visibilityState === "visible" && !isConnected.value && !reconnecting) {
