@@ -4,14 +4,12 @@ import type { Router } from "vue-router";
 import * as Sentry from "@sentry/vue";
 import { db, getSocket, removeCustomHeader, setCustomHeader } from "luminary-shared";
 import type { AuthProviderDto } from "luminary-shared";
+import { ACTIVE_PROVIDER_KEY, LEGACY_AUTH0_CACHE_PREFIX, OIDC_USER_PREFIX } from "./authStorage";
 
-const OIDC_USER_PREFIX = "oidc.user:";
+export { ACTIVE_PROVIDER_KEY } from "./authStorage";
+
 const OIDC_STATE_PREFIX = "oidc.";
-const LEGACY_AUTH0_CACHE_PREFIX = "@@auth0spajs@@::";
 const LEGACY_AUTH0_STATE_PREFIX = "a0.spajs.";
-
-/** The selected provider, retained across the OIDC redirect. */
-export const ACTIVE_PROVIDER_KEY = "activeAuthProvider";
 
 /** Currently active OAuth provider document id (or null when unauthenticated). */
 export const activeProviderId = ref<string | null>(null);

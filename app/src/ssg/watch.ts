@@ -33,7 +33,6 @@ import {
     type ContentDto,
     type DeleteCmdDto,
     type RedirectDto,
-    type MangoQuery,
 } from "luminary-shared";
 import { computeAffected, type DepsManifest } from "./computeAffected";
 import { docKey, keysForChangedDoc, keysForRecategorization, type DocLike } from "./facetKeys";
@@ -45,6 +44,7 @@ import {
     routeForSlug,
     type SsgRouteIndex,
 } from "./routeIndex";
+import { fetchWatchChanges, WATCH_POLL_SPECS, watchCursor, type WatchCursor } from "./watchPoll";
 
 const apiUrl = loadEnv("", process.cwd()).VITE_API_URL;
 
@@ -58,7 +58,7 @@ const POLL_MS = Number(process.env.WATCH_POLL_MS) || 10000;
 const DEBOUNCE_MS = Number(process.env.WATCH_DEBOUNCE_MS) || 4000;
 // Only react to changes AFTER launch (the initial build:web already has everything older).
 // Override with WATCH_SINCE=<epoch-ms> to backfill from a point in time (also: testing).
-let lastSeen = Number(process.env.WATCH_SINCE) || Date.now();
+let lastSeen: WatchCursor = watchCursor(Number(process.env.WATCH_SINCE) || Date.now());
 
 // --- pending-change buffer (coalesced across the debounce window) ---
 const pendingKeys = new Set<string>();
@@ -71,19 +71,6 @@ let building = false; // a build:affected WE spawned is in flight
 let flushTimer: ReturnType<typeof setTimeout> | undefined;
 let docFacets: Record<string, DocLike> = {};
 let redirectIndex: SsgRedirectIndex = {};
-
-function changedSinceQuery(
-    type: DocType,
-    extra: Record<string, string | number | boolean>[] = [],
-): MangoQuery {
-    return {
-        selector: {
-            $and: [{ type }, ...extra, { updatedTimeUtc: { $gt: lastSeen } }],
-        },
-        $sort: [{ updatedTimeUtc: "desc" }],
-        $limit: 10,
-    };
-}
 
 function loadManifest(): DepsManifest {
     try {
@@ -356,26 +343,17 @@ async function poll(): Promise<void> {
         // Same anonymous POST /query the prerender uses — newest-changed public docs.
         // The API requires `type` and DeleteCmd `docType` to be simple equality values,
         // so keep these as separate queries rather than one `$in` query.
-        const [contentDocs, redirects, ...deleteBatches] = await Promise.all([
-            queryRemote<ContentDto>(changedSinceQuery(DocType.Content)),
-            queryRemote<RedirectDto>(changedSinceQuery(DocType.Redirect)),
-            queryRemote<DeleteCmdDto>(
-                changedSinceQuery(DocType.DeleteCmd, [{ docType: DocType.Content }]),
-            ),
-            queryRemote<DeleteCmdDto>(
-                changedSinceQuery(DocType.DeleteCmd, [{ docType: DocType.Post }]),
-            ),
-            queryRemote<DeleteCmdDto>(
-                changedSinceQuery(DocType.DeleteCmd, [{ docType: DocType.Tag }]),
-            ),
-            queryRemote<DeleteCmdDto>(
-                changedSinceQuery(DocType.DeleteCmd, [{ docType: DocType.Redirect }]),
-            ),
-        ]);
-        const deletes = deleteBatches.flat();
-        const docs: WatchDoc[] = [...contentDocs, ...redirects, ...deletes];
+        const result = await fetchWatchChanges<WatchDoc>(
+            (query) => queryRemote<WatchDoc>(query),
+            WATCH_POLL_SPECS,
+            lastSeen,
+        );
+        const docs = result.docs;
         if (!docs.length) return;
-        lastSeen = Math.max(lastSeen, ...docs.map((d) => d.updatedTimeUtc));
+        const contentDocs = docs.filter((d): d is ContentDto => d.type === DocType.Content);
+        const redirects = docs.filter((d): d is RedirectDto => d.type === DocType.Redirect);
+        const deletes = docs.filter((d): d is DeleteCmdDto => d.type === DocType.DeleteCmd);
+        lastSeen = result.cursor;
         console.log(
             `[watch] ${contentDocs.length} content doc(s), ${redirects.length} redirect doc(s), ${deletes.length} delete cmd(s) changed since last poll`,
         );
@@ -396,7 +374,7 @@ async function main(): Promise<void> {
     redirectIndex = loadRedirectIndex();
     console.log(
         `[watch] polling ${apiUrl} every ${POLL_MS}ms for content/redirect/delete changes ` +
-            `(since ${new Date(lastSeen).toISOString()})…`,
+            `(since ${new Date(lastSeen.updatedTimeUtc).toISOString()})…`,
     );
     if (!existsSync(MANIFEST)) {
         console.log(

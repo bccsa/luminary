@@ -13,7 +13,12 @@ Cross-package E2E tests live in `../playwright-tests/` (separate `playwright.con
 Run everything from `app/`:
 
 - `npm run dev` — Vite dev server on http://localhost:4174 (strict port)
+- `npm run dev:web` — web/SSG dev server via `vite.config.web.ts`
 - `npm run build` — runs `type-check` and `build-only` in parallel
+- `npm run build:web` — full SSG prerender into `dist-web/`
+- `SSG_ONLY_ROUTES="/a,/b" npm run build:affected` — scoped SSG rebuild for listed routes
+- `npm run watch:ssg` — polling ISR watcher; deploy repo starts this before `build:web`
+- `npm run preview:web` — preview `dist-web/` on port 4174
 - `npm run type-check` — `vue-tsc --build --force`
 - `npm run test` / `npm run test:unit` — Vitest (jsdom). Pass a path or `-t "name"` to run a subset, e.g. `npm run test -- src/pages/HomePage.spec.ts -t "renders"`.
 - `npm run lint` / `npm run lint:fix`
@@ -23,7 +28,7 @@ Install with a plain `npm install` (the shared lib is linked via `file:../shared
 
 ## Architecture
 
-### Startup flow (`src/main.ts`)
+### Native/SPA startup (`src/main.ts`)
 
 The boot sequence is order-sensitive — read `main.ts` before reordering anything:
 
@@ -33,6 +38,12 @@ The boot sequence is order-sensitive — read `main.ts` before reordering anythi
 4. A `connect_error` listener for `auth_failed` is registered **before** `setupAuth()` — otherwise the first failure event is lost and the client loops. Handles `provider_not_found` (forces provider re-pick) and silent refresh via `refreshTokenSilently({ ignoreCache: true })`.
 5. i18n is initialised before mount because splash-screen components call `useI18n()` at setup time.
 6. After mount: `initAuthLangSync`, `initLanguage`, `initSync`, plugin loading, then `markAppReady()`.
+
+### Web/SSG startup (`src/main.web.ts`)
+
+`main.web.ts` is the web-only ViteSSG entry. Native keeps using `main.ts`; do not move web boot code into the native path. The web build uses `vite.config.web.ts`, writes `dist-web/`, has no service worker, and hydrates prerendered public pages by seeding `luminary-shared`'s `hqcache:*` response cache before the ES module boots.
+
+During prerender, `main.web.ts` installs Pinia, initializes i18n from public `Language` docs fetched through anonymous `queryRemote`, adds localized public static routes, and sets the render language from the URL/route map. On the client it restores the serialized language/Pinia state, then dynamically imports `src/ssg/clientRuntime.ts` and `src/auth.ts` before mount so hydration uses the live shared data layer.
 
 ### Data layer
 
@@ -44,7 +55,13 @@ Uses `@auth0/auth0-vue` with multiple providers selected at runtime from `AuthPr
 
 ### Routing & pages
 
-`src/router/` defines routes; page-level components are in `src/pages/` and feature components in `src/components/`. The repo is mid-migration to colocate `__tests__/` next to feature folders (see `pages/SingleContent/`, `components/HomePage/`, etc.). New tests should follow that pattern.
+`src/router/routes.ts` is the shared route table used by both native (`router/index.ts`) and web (`main.web.ts`). `src/router/localizedRoutes.ts` adds web-only locale-prefixed public static routes (`/<code>`, `/<code>/explore`, `/<code>/watch`); keep native routes unchanged unless the native app actually needs the same URL shape.
+
+Page-level components are in `src/pages/` and feature components in `src/components/`. The repo is mid-migration to colocate `__tests__/` next to feature folders (see `pages/SingleContent/`, `components/HomePage/`, etc.). New tests should follow that pattern.
+
+### Web SSG/ISR
+
+`src/ssg/README.md` is the detailed reference. The short version: `vite.config.web.ts` enumerates public routes, prerenders them with `vite-ssg`, emits SEO artifacts and SSG sidecars, and supports scoped rebuilds via `SSG_ONLY_ROUTES`. `src/ssg/watch.ts` polls anonymous `/query` for changed public content/redirect/delete docs, computes affected routes from `ssg-deps.json`, and runs `build:affected`. Cloud upload and edge-cache purge live in the separate deploy repo.
 
 ### Render state (for prerender/SSG tooling)
 

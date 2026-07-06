@@ -73,6 +73,7 @@ import {
     resolveArticleScrollContainer,
     useReadingProgressTracker,
 } from "@/composables/useReadingProgressTracker";
+import { articleJsonLd, languageCodeForContent } from "./articleHead";
 
 const router = useRouter();
 
@@ -350,9 +351,7 @@ useHead(
         const title = hasDoc ? `${c!.seoTitle || c!.title} - ${appName}` : appName;
         const description = (hasDoc && (c!.seoString || c!.summary)) || "";
         const url = hasDoc ? `${WEB_ORIGIN}/${c!.slug}` : WEB_ORIGIN || "/";
-        // content.language is a doc id like "lang-eng"; strip the prefix to a
-        // best-effort ISO-639 code. TODO: map to a proper BCP-47 code.
-        const lang = (c?.language || "").replace(/^lang-/, "") || "en";
+        const lang = languageCodeForContent(c?.language, cmsLanguages.value);
 
         const alts = hreflangAlternates.value;
         const altLinks = alts.map((a) => ({
@@ -393,20 +392,7 @@ useHead(
                 ? [
                       {
                           type: "application/ld+json",
-                          innerHTML: JSON.stringify({
-                              "@context": "https://schema.org",
-                              "@type": "Article",
-                              headline: c!.title,
-                              description,
-                              author: c!.author ? { "@type": "Person", name: c!.author } : undefined,
-                              datePublished: c!.publishDate
-                                  ? new Date(c!.publishDate).toISOString()
-                                  : undefined,
-                              dateModified: c!.updatedTimeUtc
-                                  ? new Date(c!.updatedTimeUtc).toISOString()
-                                  : undefined,
-                              inLanguage: c!.language,
-                          }),
+                          textContent: JSON.stringify(articleJsonLd(c!, description, lang)),
                       },
                   ]
                 : [],

@@ -53,6 +53,10 @@ import {
     showProviderSelectionModal,
     useAuth,
 } from "./auth";
+import {
+    LEGACY_AUTH0_CACHE_PREFIX,
+    ACTIVE_PROVIDER_KEY as STORAGE_ACTIVE_PROVIDER_KEY,
+} from "./authStorage";
 
 const providerA: AuthProviderDto = {
     _id: "provider-a",
@@ -243,6 +247,15 @@ describe("auth", () => {
         it("returns true from a legacy Auth0 session cache key alone", () => {
             localStorage.setItem(
                 `@@auth0spajs@@::${providerA.clientId}::${providerA.audience}::openid profile email offline_access`,
+                JSON.stringify({ body: {} }),
+            );
+            expect(hasPersistedSession()).toBe(true);
+        });
+
+        it("uses the shared storage constants", () => {
+            expect(STORAGE_ACTIVE_PROVIDER_KEY).toBe(ACTIVE_PROVIDER_KEY);
+            localStorage.setItem(
+                `${LEGACY_AUTH0_CACHE_PREFIX}${providerA.clientId}::${providerA.audience}::openid profile email offline_access`,
                 JSON.stringify({ body: {} }),
             );
             expect(hasPersistedSession()).toBe(true);

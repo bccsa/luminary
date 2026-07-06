@@ -10,6 +10,7 @@ import type { DocLike } from "./src/ssg/facetKeys";
 import { redirectFile, redirectHtml } from "./src/ssg/redirectHtml";
 import { buildRedirectIndex } from "./src/ssg/redirectIndex";
 import { buildRouteIndex, type SsgRouteIndex } from "./src/ssg/routeIndex";
+import { ACTIVE_PROVIDER_KEY, LEGACY_AUTH0_CACHE_PREFIX, OIDC_USER_PREFIX } from "./src/authStorage";
 
 const env = loadEnv("", process.cwd());
 
@@ -77,23 +78,26 @@ function hqCacheScript(cache: Record<string, string>): string {
 // be long, especially on Safari). Without this, a returning logged-in user watches the
 // public content sit on screen for that whole window, then sees it swap once Vue mounts
 // and hydrates into the auth-scoped content — the "flash". This hides `#app` via CSS,
-// synchronously, ONLY when a persisted Auth0 session looks present (mirrors
-// `hasPersistedSession()` in src/auth.ts — duplicated here since this must run before
-// any JS module loads, so it can't import that module; keep the two in sync), and is
+// synchronously, ONLY when a persisted OIDC or legacy-Auth0 session looks present
+// (mirrors `hasPersistedSession()` in src/auth.ts). This config can share only the
+// storage constants because the gate must run before any app JS module loads, and is
 // revealed by App.vue's onMounted once Vue's first (correctly auth-scoped) render has
 // landed — so a logged-out reload is completely unaffected (no class ever added), and a
 // logged-in reload never paints the wrong content, only a brief neutral hidden window.
 const AUTH_GATE_CLASS = "ssg-auth-pending";
 function authGateScript(): string {
+    const oidcUserPrefix = JSON.stringify(OIDC_USER_PREFIX);
+    const legacyAuth0Prefix = JSON.stringify(LEGACY_AUTH0_CACHE_PREFIX);
+    const activeProviderKey = JSON.stringify(ACTIVE_PROVIDER_KEY);
     return (
         `<style>html.${AUTH_GATE_CLASS} #app{visibility:hidden}</style>` +
         `<script>(function(){try{` +
         `var h=false;` +
         `for(var i=0;i<localStorage.length;i++){` +
         `var k=localStorage.key(i);` +
-        `if(k&&k.indexOf("@@auth0spajs@@::")===0){h=true;break}` +
+        `if(k&&(k.indexOf(${oidcUserPrefix})===0||k.indexOf(${legacyAuth0Prefix})===0)){h=true;break}` +
         `}` +
-        `if(!h)h=!!localStorage.getItem("activeAuthProvider");` +
+        `if(!h)h=!!localStorage.getItem(${activeProviderKey});` +
         `if(h)document.documentElement.classList.add("${AUTH_GATE_CLASS}")` +
         `}catch(e){}})();</script>`
     );
@@ -445,7 +449,8 @@ const config: UserConfig & { ssgOptions: ViteSSGOptions } = {
             // Auth gate is unconditional (every page); the cache seed is only injected
             // when the page actually primed one.
             const cache = readHqCache();
-            const script = authGateScript() + (Object.keys(cache).length ? hqCacheScript(cache) : "");
+            const script =
+                authGateScript() + (Object.keys(cache).length ? hqCacheScript(cache) : "");
             return renderedHTML.includes("</head>")
                 ? renderedHTML.replace("</head>", `${script}</head>`)
                 : script + renderedHTML;
