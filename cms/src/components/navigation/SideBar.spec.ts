@@ -183,6 +183,25 @@ describe("SideBar", () => {
         expect(wrapper.text()).toContain("Sign out");
     });
 
+    it("shows the install action when the browser exposes a PWA install prompt", async () => {
+        const prompt = vi.fn().mockResolvedValue(undefined);
+        const event = Object.assign(new Event("beforeinstallprompt", { cancelable: true }), {
+            prompt,
+            userChoice: Promise.resolve({ outcome: "dismissed" as const }),
+        });
+        window.dispatchEvent(event);
+
+        const wrapper = mount(SideBar);
+        const installButton = wrapper.find("[data-test='install-app']");
+
+        expect(installButton.exists()).toBe(true);
+
+        await installButton.trigger("click");
+        await flushPromises();
+
+        expect(prompt).toHaveBeenCalled();
+    });
+
     it("closes the mobile drawer when a navigation link is clicked", async () => {
         const wrapper = mount(SideBar, { props: { open: true } });
 

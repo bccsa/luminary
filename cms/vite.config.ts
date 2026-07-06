@@ -1,10 +1,35 @@
 import { fileURLToPath, URL } from "node:url";
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import vue from "@vitejs/plugin-vue";
+import { VitePWA } from "vite-plugin-pwa";
+
+const env = loadEnv("", process.cwd());
 
 // https://vitejs.dev/config/
 export default defineConfig({
-    plugins: [vue()],
+    plugins: [
+        vue(),
+        VitePWA({
+            registerType: "autoUpdate",
+            manifest: {
+                name: env.VITE_APP_NAME,
+                short_name: env.VITE_APP_NAME,
+                theme_color: "#ffffff",
+                background_color: "#ffffff",
+                icons: [
+                    {
+                        src: "/pwa-icon-192.png",
+                        sizes: "192x192",
+                        type: "image/png",
+                    },
+                ],
+            },
+            workbox: {
+                globPatterns: ["**/*.{ico,png,svg}"],
+                navigateFallback: null,
+            },
+        }),
+    ],
     resolve: {
         alias: {
             "@": fileURLToPath(new URL("./src", import.meta.url)),

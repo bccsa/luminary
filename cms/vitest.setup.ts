@@ -3,7 +3,7 @@ import { RouterLinkStub, config, enableAutoUnmount } from "@vue/test-utils";
 import { initDatabase, initConfig, db } from "luminary-shared";
 import { syncList } from "../shared/src/api/sync/state";
 import { CMS_DOCS_INDEX } from "./src/docsIndex";
-import { afterEach, beforeAll, beforeEach } from "vitest";
+import { afterEach, beforeAll, beforeEach, vi } from "vitest";
 
 // Every CMS doc type, tracked across all standard fixture groups. `deleteRevoked()` reconciles the
 // runtime syncList against each test's accessMap (trimming a column to the groups that map actually
@@ -105,6 +105,19 @@ global.URL.revokeObjectURL = () => {
 // jsdom does not implement Element.prototype.scrollIntoView; LDropdown calls it on open
 // and the rejection surfaces as an unhandled error that fails the run.
 Element.prototype.scrollIntoView = () => {};
+
+window.matchMedia = vi.fn().mockImplementation((query) => {
+    return {
+        matches: false,
+        media: query,
+        onchange: null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+    };
+});
 
 beforeAll(async () => {
     initConfig({

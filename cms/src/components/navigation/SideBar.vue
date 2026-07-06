@@ -13,6 +13,7 @@ import {
     Cog6ToothIcon,
     LanguageIcon,
     ArrowRightEndOnRectangleIcon,
+    ArrowDownTrayIcon,
     UserIcon,
 } from "@heroicons/vue/20/solid";
 
@@ -25,6 +26,7 @@ import {
     sidebarSectionExpanded,
 } from "@/globalConfig";
 import { useDesktopSidebar } from "@/composables/useDesktopSidebar";
+import { useInstallPrompt } from "@/composables/useInstallPrompt";
 import { computed, ref } from "vue";
 import {
     AclPermission,
@@ -60,6 +62,7 @@ const open = defineModel<boolean>("open", { default: false });
 // sidebar is a full-width drawer, so we never want to hide the labels there even if `collapsed` is set.
 const { collapsed, toggleCollapsed } = useDesktopSidebar();
 const isCollapsed = computed(() => collapsed.value && !isMobileScreen.value);
+const { isInstallable, promptInstall } = useInstallPrompt();
 
 const navigation = computed(() => [
     { name: "Dashboard", to: { name: "dashboard" }, icon: HomeIcon, visible: true },
@@ -343,6 +346,28 @@ const navItemClass = computed(() => [
                 </RouterLink>
             </div>
         </nav>
+
+        <div
+            v-if="isInstallable"
+            class="border-t border-zinc-200 py-3"
+            :class="isCollapsed ? 'px-2' : 'px-3'"
+        >
+            <button
+                type="button"
+                :class="[
+                    'flex w-full rounded-md text-sm font-medium text-zinc-600 hover:bg-zinc-200',
+                    isCollapsed
+                        ? 'justify-center p-2.5'
+                        : 'items-center gap-3 px-3 py-2.5 text-left',
+                ]"
+                title="Install app"
+                data-test="install-app"
+                @click="promptInstall"
+            >
+                <ArrowDownTrayIcon :class="navIconClass" aria-hidden="true" />
+                <span v-if="!isCollapsed">Install app</span>
+            </button>
+        </div>
 
         <!-- Account: sign out + signed-in user, pinned to the bottom (like the app) -->
         <div class="border-t border-zinc-200 py-3" :class="isCollapsed ? 'px-2' : 'px-3'">
