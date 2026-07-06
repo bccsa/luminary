@@ -448,25 +448,11 @@ const _contentProgress: ContentProgressEntry[] = readContentProgressFromStorage(
 
 export const contentProgressAsRef = ref<ContentProgressEntry[]>([..._contentProgress]);
 
-export const readingProgressAsRef = ref<ReadingProgress[]>([]);
-
-function updateReadingProgressRef() {
-    readingProgressAsRef.value = _contentProgress
-        .filter((entry) => entry.reading !== undefined)
-        .map((entry) => ({
-            contentId: entry.contentId,
-            progress: entry.reading!.progress,
-        }));
-}
-
 function applyContentProgressList(list: ContentProgressEntry[]) {
     _contentProgress.length = 0;
     _contentProgress.push(...list);
     contentProgressAsRef.value = [..._contentProgress];
-    updateReadingProgressRef();
 }
-
-updateReadingProgressRef();
 
 function persistContentProgress() {
     localStorage.setItem(CONTENT_PROGRESS_KEY, JSON.stringify(_contentProgress));
@@ -745,7 +731,12 @@ export const getReadingProgress = (contentId: Uuid): number => {
 export const setReadingProgress = (contentId: Uuid, progress: number) => {
     const clampedProgress = Math.min(Math.max(progress, 0), 100);
     const existing = findContentProgressEntry(contentId);
-    if (existing?.reading?.progress === clampedProgress) return;
+    // Unchanged progress on an entry that's already most-recent is a true no-op (the common
+    // hot-path case while scrolling within one segment) — skip the write. An unchanged-progress
+    // revisit of content that's no longer at the front still needs to bump recency so it
+    // re-surfaces in the continue-reading row, so only short-circuit when both hold.
+    const alreadyMostRecent = _contentProgress[0]?.contentId === contentId;
+    if (existing?.reading?.progress === clampedProgress && alreadyMostRecent) return;
 
     const entry = touchContentProgressEntry(contentId);
     entry.reading = { progress: clampedProgress };

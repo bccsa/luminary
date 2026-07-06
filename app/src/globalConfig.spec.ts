@@ -21,7 +21,7 @@ import {
     nextInMediaQueue,
     isInstalledStandalone,
     getReadingProgress,
-    readingProgressAsRef,
+    contentProgressAsRef,
     removeReadingProgress,
     setReadingProgress,
     syncContentProgressFromStorage,
@@ -383,8 +383,29 @@ describe("globalConfig.ts", () => {
             removeReadingProgress(testContentId);
             expect(getReadingProgress(testContentId)).toBe(0);
             expect(
-                readingProgressAsRef.value.find((p) => p.contentId === testContentId),
+                contentProgressAsRef.value.find((p) => p.contentId === testContentId)?.reading,
             ).toBeUndefined();
+        });
+
+        it("bumps recency on an unchanged-progress revisit that is no longer most-recent", () => {
+            const otherContentId = "other-content-id";
+            setReadingProgress(testContentId, 45);
+            setReadingProgress(otherContentId, 10);
+
+            // otherContentId is now most-recent; re-report the same progress for testContentId.
+            setReadingProgress(testContentId, 45);
+
+            expect(contentProgressAsRef.value[0].contentId).toBe(testContentId);
+            removeReadingProgress(otherContentId);
+        });
+
+        it("does not rewrite recency for a same-progress update that is already most-recent", () => {
+            setReadingProgress(testContentId, 45);
+            const beforeUpdatedAt = contentProgressAsRef.value[0].updatedAt;
+
+            setReadingProgress(testContentId, 45);
+
+            expect(contentProgressAsRef.value[0].updatedAt).toBe(beforeUpdatedAt);
         });
 
         it("syncContentProgressFromStorage reloads from localStorage", () => {
@@ -402,9 +423,9 @@ describe("globalConfig.ts", () => {
             syncContentProgressFromStorage();
 
             expect(getReadingProgress(testContentId)).toBe(33);
-            expect(readingProgressAsRef.value).toEqual([
-                { contentId: testContentId, progress: 33 },
-            ]);
+            expect(
+                contentProgressAsRef.value.find((p) => p.contentId === testContentId)?.reading,
+            ).toEqual({ progress: 33 });
         });
 
         it("watchContentProgressStorage reacts to storage events", () => {
@@ -423,9 +444,9 @@ describe("globalConfig.ts", () => {
             window.dispatchEvent(new StorageEvent("storage", { key: "contentProgress" }));
 
             expect(getReadingProgress(testContentId)).toBe(72);
-            expect(readingProgressAsRef.value).toEqual([
-                { contentId: testContentId, progress: 72 },
-            ]);
+            expect(
+                contentProgressAsRef.value.find((p) => p.contentId === testContentId)?.reading,
+            ).toEqual({ progress: 72 });
 
             stop();
         });
