@@ -10,12 +10,11 @@ import type { MangoSelector } from "../../util/MangoQuery/MangoTypes";
  * ordered priority pick is a display concern, not a keep concern — order is irrelevant here). Used
  * by both the sync backfill and the live keep gate so the two agree on what a client persists.
  *
- * Returns just the `$or` clause; the caller ANDs it into its own base selector. An empty `langs`
- * returns `{}` (match-all) — callers needing match-nothing semantics for the empty case must guard
- * it before calling.
+ * Returns just the `$or` clause; the caller ANDs it into its own base selector. `langs` must be
+ * non-empty: both callers (isSyncable, syncBatch) handle the empty case themselves (match-nothing)
+ * before calling, so this builds the keep unconditionally.
  */
 export function contentLanguageKeepSelector(langs: readonly Uuid[]): MangoSelector {
-    if (!langs.length) return {};
     return {
         $or: [
             { language: { $in: [...langs] } },

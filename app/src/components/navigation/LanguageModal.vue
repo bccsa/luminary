@@ -11,7 +11,6 @@ import {
     appLanguageIdsAsRef,
     appSyncedLanguageIdsAsRef,
     MAX_PREFERRED_LANGUAGES,
-    MAX_SYNCED_LANGUAGES,
     normalizePreferredLanguages,
     normalizeSyncedLanguages,
 } from "@/globalConfig";
@@ -149,10 +148,8 @@ const toggleSynced = (id: string) => {
     if (id === primaryId.value) return; // primary is always synced
     const i = draftSynced.value.indexOf(id);
     if (i === -1) {
-        // Ticking ON = mark for download → only happens once online. Cap the synced set (the primary
-        // is always counted; naturally ≤ the preferred cap, but guard explicitly for future-proofing).
-        const syncedCount = draftOrder.value.filter((oid) => isOfflineChecked(oid)).length;
-        if (syncedCount >= MAX_SYNCED_LANGUAGES) return;
+        // Ticking ON = mark for download → only happens once online. The synced set can't exceed the
+        // preferred cap: only preferred (draftOrder) languages are toggleable and each is added once.
         draftSynced.value.push(id);
         if (!isConnected.value) notifyAddDeferred();
     } else {
