@@ -295,6 +295,26 @@ describe("validateQuery", () => {
             expect(res.valid).toBe(false);
             expect(res.error).toMatch(/too many languages/);
         });
+
+        it("does not count languages under a $not-wrapped $in toward the cap", () => {
+            // {language: {$not: {$in: [...]}}} excludes every listed id — same as a bare $nin.
+            const q: any = {
+                selector: { type: "content", language: { $not: { $in: langs(over()) } } },
+            };
+            expect(validateQuery(q).valid).toBe(true);
+        });
+
+        it("does not count a $not-wrapped $eq language toward the cap", () => {
+            const q: any = {
+                selector: {
+                    $and: [
+                        { language: { $in: langs(DEFAULT_MAX_LANGUAGES) } },
+                        { language: { $not: { $eq: "lang-excluded" } } },
+                    ],
+                },
+            };
+            expect(validateQuery(q).valid).toBe(true);
+        });
     });
 
     describe("use_index (registry membership)", () => {
