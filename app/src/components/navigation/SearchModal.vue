@@ -97,7 +97,7 @@ const ftsRet = useFtsSearch(searchQuery as any, {
         languageId: languageId as any,
         debounceMs: computed(() => (isManualSearchMode.value ? "manual" : 250)) as any,
         pageSize: 40,
-    } as any);
+    });
 const {
     results: ftsResults,
     isSearching,
