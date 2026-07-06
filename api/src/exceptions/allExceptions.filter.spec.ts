@@ -38,13 +38,13 @@ describe("AllExceptionsFilter", () => {
         jest.restoreAllMocks();
     });
 
-    it("returns the real message for unknown exceptions", () => {
+    it("returns a generic message for unknown exceptions, never the raw error", () => {
         filter.catch(new Error("db connection failed"), mockHost);
 
         expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
         expect(mockResponse.send).toHaveBeenCalledWith({
             statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-            message: "db connection failed",
+            message: "Internal server error",
         });
     });
 
@@ -106,13 +106,13 @@ describe("AllExceptionsFilter", () => {
         expect(loggerErrorSpy).not.toHaveBeenCalled();
     });
 
-    it("handles non-Error, non-HttpException values as 500", () => {
+    it("handles non-Error, non-HttpException values as 500 with a generic message", () => {
         filter.catch("some string error", mockHost);
 
         expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
         expect(mockResponse.send).toHaveBeenCalledWith({
             statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-            message: "some string error",
+            message: "Internal server error",
         });
     });
 
