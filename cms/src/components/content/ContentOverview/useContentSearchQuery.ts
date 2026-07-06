@@ -5,7 +5,7 @@ import {
     PublishStatus,
     type FtsFilterOptions,
 } from "luminary-shared";
-import { computed } from "vue";
+import { computed, watch } from "vue";
 import type { ContentOverviewQueryOptions } from "./types";
 import { isUntranslatedRow } from "./cmsLanguageSelector";
 import { sessionNow } from "@/util/sessionNow";
@@ -74,10 +74,11 @@ export function useContentSearchQuery(
         filters,
         pageSize: PAGE_SIZE,
         strictMatch: () => !related(),
-        // The search box is already debounced upstream (FilterOptions, 500ms); keep this
-        // small so a settled query re-runs promptly without a second long debounce.
-        debounceMs: 150,
+        // Trigger-only: the search box (FilterOptions.vue) only commits queryRef on
+        // Enter/Go, so re-run explicitly on each committed change rather than debouncing.
+        debounceMs: "manual",
     });
+    watch(queryRef, () => fts.runSearch(), { immediate: true });
 
     const docs = computed<ContentDto[]>(() => {
         const o = opts();

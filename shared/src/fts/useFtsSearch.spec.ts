@@ -246,6 +246,42 @@ describe("useFtsSearch", () => {
         scope.stop();
     });
 
+    it("runSearch dedupes against a same-query search already in flight from the debounce", async () => {
+        isConnected.value = true;
+        initConfig({ ...CUTOFF } as any);
+        let resolveApi: (v: ReturnType<typeof makeResult>[]) => void = () => {};
+        mockFtsSearchApi.mockReturnValue(new Promise((r) => (resolveApi = r)));
+
+        const scope = effectScope();
+        let result: any;
+        const queryRef = ref("");
+        scope.run(() => {
+            result = useFtsSearch(queryRef, { debounceMs: 250 });
+        });
+
+        queryRef.value = "garden plants";
+        await nextTick();
+
+        // Debounce fires and the search is now in flight (unresolved).
+        await vi.advanceTimersByTimeAsync(250);
+        expect(mockFtsSearchApi).toHaveBeenCalledTimes(1);
+
+        // User hits Enter for the same query while that search is still pending.
+        result.runSearch();
+        await nextTick();
+        expect(mockFtsSearchApi).toHaveBeenCalledTimes(1);
+
+        resolveApi([makeResult("a1")]);
+        await vi.advanceTimersByTimeAsync(10);
+        expect(result.results.value).toHaveLength(1);
+
+        // A later runSearch(), once the prior search has settled, is not deduped.
+        result.runSearch();
+        await vi.advanceTimersByTimeAsync(10);
+        expect(mockFtsSearchApi).toHaveBeenCalledTimes(2);
+        scope.stop();
+    });
+
     it("debounceMs: 0 acts as trigger-only mode", async () => {
         const scope = effectScope();
         scope.run(() => {
