@@ -24,6 +24,7 @@ import waitForExpect from "wait-for-expect";
 import {
     appLanguageIdsAsRef,
     appName,
+    cmsLanguages,
     initLanguage,
     userPreferencesAsRef,
     cmsUrl,
@@ -41,6 +42,7 @@ import * as auth from "@/auth";
 import LImage from "@/components/images/LImage.vue";
 import ImageModal from "@/components/images/ImageModal.vue";
 import { resolveNotificationText, useNotificationStore } from "@/stores/notification";
+import { articleJsonLd, languageCodeForContent } from "../articleHead";
 
 const routeReplaceMock = vi.hoisted(() => vi.fn());
 const mockIsExternalNavigation = vi.hoisted(() => vi.fn());
@@ -173,6 +175,7 @@ describe("SingleContent", () => {
         syncContentProgressFromStorage();
         await db.docs.clear();
         cmsUrl.value = "";
+        cmsLanguages.value = [];
         isConnected.value = false;
     });
 
@@ -295,6 +298,7 @@ describe("SingleContent", () => {
     });
 
     it("sets the meta data correctly", async () => {
+        cmsLanguages.value = [mockLanguageDtoEng, mockLanguageDtoFra];
         mount(SingleContent, {
             props: {
                 slug: mockEnglishContentDto.slug,
@@ -307,6 +311,18 @@ describe("SingleContent", () => {
             expect(document.title).toBe(`${mockEnglishContentDto.seoTitle} - ${appName}`);
             expect(metaDescription?.getAttribute("content")).toBe(mockEnglishContentDto.seoString);
         });
+    });
+
+    it("builds Article JSON-LD with the language code, not the language doc id", () => {
+        const lang = languageCodeForContent(mockEnglishContentDto.language, [mockLanguageDtoEng]);
+        const jsonLd = articleJsonLd(
+            mockEnglishContentDto,
+            mockEnglishContentDto.seoString ?? "",
+            lang,
+        );
+
+        expect(jsonLd.inLanguage).toBe(mockLanguageDtoEng.languageCode);
+        expect(jsonLd.inLanguage).not.toBe(mockEnglishContentDto.language);
     });
 
     it("can add and remove a bookmark", async () => {

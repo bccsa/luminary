@@ -4,6 +4,7 @@
         "vite-plugins/**/*.ts",
         "vite.config.*",
         "vitest.config.*",
+        "src/authStorage.ts",
         "src/ssg/facetKeys.ts",
         "src/ssg/redirectIndex.ts",
         "src/ssg/redirectHtml.ts",
