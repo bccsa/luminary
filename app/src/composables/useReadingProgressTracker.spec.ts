@@ -728,7 +728,7 @@ describe("useReadingProgressTracker", () => {
         advanceDwellMs(BLOCK_ONE_DWELL_MS);
 
         expect(getReadingProgress(TEST_CONTENT_ID)).toBe(0);
-        expect(localStorage.getItem("contentProgress")).toBe("[]");
+        expect(localStorage.getItem("contentProgress")).toBe(null);
         wrapper.unmount();
     });
 
