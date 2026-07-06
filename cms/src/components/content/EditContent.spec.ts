@@ -821,6 +821,15 @@ describe("EditContent.vue", () => {
             expect(redirect.length).toBe(1);
             expect((redirect[0].doc as any).slug).toBe("post1-eng");
             expect((redirect[0].doc as any).toSlug).toBe("new-slug");
+
+            const contentIndex = res.findIndex(
+                (o) => o.doc?._id === mockData.mockEnglishContentDto._id,
+            );
+            const redirectIndex = res.findIndex((o) => o.doc?.type === DocType.Redirect);
+            expect(contentIndex).toBeGreaterThan(-1);
+            expect(redirectIndex).toBeGreaterThan(-1);
+            expect((res[contentIndex].doc as any).slug).toBe("new-slug");
+            expect(contentIndex).toBeLessThan(redirectIndex);
         });
     });
 

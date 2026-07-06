@@ -12,6 +12,7 @@ import {
     TagType,
     type ContentDto,
     type LanguageDto,
+    type RedirectDto,
     type TagDto,
     type Uuid,
     verifyAccess,
@@ -152,11 +153,8 @@ const createTranslation = (language: LanguageDto) => {
 
 const isValid = ref(true);
 
-// Create redirects (old slug → new slug) for any published translation whose slug
-// changed and the user has redirect-edit access to.
-const createRedirect = async () => {
-    if (!existingContent.value) return;
-    const redirects = buildRedirects(editableContent.value, existingContent.value);
+// Persist prepared redirects (old slug → new slug) after content has vacated old slugs.
+const createRedirects = async (redirects: RedirectDto[]) => {
     await Promise.all(redirects.map((redirect) => db.upsert({ doc: redirect })));
     redirects.forEach((redirect) =>
         notify(
@@ -204,8 +202,11 @@ const saveChanges = async () => {
 
     isSaving.value = true;
     try {
-        await createRedirect();
+        const redirects = existingContent.value
+            ? buildRedirects(editableContent.value, existingContent.value)
+            : [];
         await source.save();
+        await createRedirects(redirects);
         notify(
             "success",
             `${capitaliseFirstLetter(props.tagOrPostType)} saved`,
