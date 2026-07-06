@@ -12,11 +12,14 @@ import { FastifyReply, FastifyRequest } from "fastify";
  * Global exception filter that:
  *  1. Silently swallows `ERR_STREAM_PREMATURE_CLOSE` — fires when the client
  *     aborts mid-response and is noise, not a real failure.
- *  2. Passes 4xx `HttpException`s through with their original message.
- *  3. For 5xx / unknown errors, logs the real cause server-side and also
- *     returns it as `message` — clients log/report the real error, and
- *     display their own friendly copy. Never sends `.stack` (paths/queries
- *     may appear there); `.message` is assumed safe to expose.
+ *  2. Passes `HttpException`s through with their original message, regardless
+ *     of status — these are deliberately authored by our own code, so the
+ *     text is safe to expose.
+ *  3. For anything else (unexpected errors, ours or a dependency's), logs the
+ *     real cause server-side (never `.stack` to the client — paths/queries
+ *     may appear there) but returns a generic message. An arbitrary Error's
+ *     `.message` was never vetted for client exposure and may contain
+ *     internals (e.g. a DB connection string).
  */
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
@@ -32,13 +35,17 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
         if (response.sent || response.raw?.writableEnded) return;
 
-        if (exception instanceof HttpException && exception.getStatus() < 500) {
+        if (exception instanceof HttpException) {
             const status = exception.getStatus();
             const exceptionResponse = exception.getResponse();
             const message =
                 typeof exceptionResponse === "string"
                     ? exceptionResponse
                     : (exceptionResponse as { message?: string }).message ?? exception.message;
+
+            if (status >= 500) {
+                this.logger.error(`[${request.method} ${request.url}]`, exception.stack ?? message);
+            }
 
             response
                 .status(status)
@@ -47,21 +54,14 @@ export class AllExceptionsFilter implements ExceptionFilter {
             return;
         }
 
-        const status =
-            exception instanceof HttpException
-                ? exception.getStatus()
-                : HttpStatus.INTERNAL_SERVER_ERROR;
-
-        const actualMessage = exception instanceof Error ? exception.message : String(exception);
-
         this.logger.error(
             `[${request.method} ${request.url}]`,
-            exception instanceof Error ? exception.stack ?? actualMessage : exception,
+            exception instanceof Error ? exception.stack ?? exception.message : exception,
         );
 
         response
-            .status(status)
+            .status(HttpStatus.INTERNAL_SERVER_ERROR)
             .header("Content-Type", "application/json")
-            .send({ statusCode: status, message: actualMessage });
+            .send({ statusCode: HttpStatus.INTERNAL_SERVER_ERROR, message: "Internal server error" });
     }
 }
