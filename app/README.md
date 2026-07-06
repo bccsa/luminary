@@ -143,7 +143,7 @@ Because the tier is captured at startup (like the frozen session clock above), i
 
 Sync downloads content for the user's **synced** languages **plus the last-resort fallback**: a post whose only published translation is in a non-synced language is downloaded via sync's set-based language keep, so it is present offline and picked by the display-side priority ([`appDisplayLanguageIdsAsRef`](src/globalConfig.ts)) with **no per-feed API query**. (A preferred-but-**unsynced** language is intentionally not downloaded — you see the best synced/fallback translation.) See [`shared/src/api/sync/README.md`](../shared/src/api/sync/README.md).
 
-> The old per-feed on-demand fallback fetch (`HybridQuery`'s `fetchUnsyncedFallback`) is **deprecated and off by default** — fallback content now arrives through sync. Content browsing therefore depends on sync having populated IndexedDB (there is no full API-only content fetch); a fresh install shows content once initial sync fills the window.
+> The old per-feed on-demand fallback fetch (`HybridQuery`'s `fetchUnsyncedFallback`) has been **removed** — fallback content now arrives through sync. Content browsing therefore depends on sync having populated IndexedDB (there is no full API-only content fetch); a fresh install shows content once initial sync fills the window.
 
 ### Matomo analytics
 
