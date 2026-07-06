@@ -102,6 +102,6 @@ is RxJS-free — both `useHybridQuery` and `useDexieLiveQuery` subscribe to Dexi
 
 - Mechanism: `shared/src/util/HybridQuery/README.md`, `performance-notes.md`.
 - Migration tracking and the remaining carve-outs: `cms/src/components/content/todos.md`.
-- ADR 0010 (live updates via Sync2 + socket transport) and ADR 0011 (server-side response
+- ADR 0016 (live updates via Sync2 + socket transport) and ADR 0017 (server-side response
   caching for hard-to-index content queries) — the live-update and API-supplement paths
   HybridQuery builds on.

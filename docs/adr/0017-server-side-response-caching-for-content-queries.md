@@ -1,4 +1,4 @@
-# 11. Server-side response caching for hard-to-index content queries
+# 17. Server-side response caching for hard-to-index content queries
 
 Date: 2026-06-15
 

@@ -1,0 +1,28 @@
+name: Check ADR numbers
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - main
+    paths:
+      - docs/adr/**
+      - .github/workflows/adr-number-check.yml
+  workflow_call:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Check duplicate ADR numbers
+        run: |
+          if ls docs/adr | grep -oE '^[0-9]+' | sort | uniq -d | grep -q .; then
+            echo "Duplicate ADR numbers"
+            exit 1
+          fi

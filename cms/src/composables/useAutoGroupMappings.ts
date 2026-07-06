@@ -20,7 +20,7 @@ import {
  * with the caller.
  *
  * **Why HybridQuery in API-only mode.** AutoGroupMappings are a non-synced type — never
- * mirrored into IndexedDB (ADR 0010). Because the type is absent from the sync engine's
+ * mirrored into IndexedDB (ADR 0016). Because the type is absent from the sync engine's
  * `syncList`, both `typeIsInSyncList` and `isSyncableDoc` report false for it, so HybridQuery
  * fetches it over REST and keeps it live by subscribing to the type's socket rooms on demand,
  * and `toEditable.save()` POSTs each change straight to `/changerequest` (no Dexie write).
