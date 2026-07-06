@@ -744,6 +744,9 @@ export const getReadingProgress = (contentId: Uuid): number => {
  */
 export const setReadingProgress = (contentId: Uuid, progress: number) => {
     const clampedProgress = Math.min(Math.max(progress, 0), 100);
+    const existing = findContentProgressEntry(contentId);
+    if (existing?.reading?.progress === clampedProgress) return;
+
     const entry = touchContentProgressEntry(contentId);
     entry.reading = { progress: clampedProgress };
     applyContentProgressList([..._contentProgress]);
@@ -755,10 +758,10 @@ export const setReadingProgress = (contentId: Uuid, progress: number) => {
  */
 export const removeReadingProgress = (contentId: Uuid) => {
     const entry = findContentProgressEntry(contentId);
-    if (entry?.reading) {
-        delete entry.reading;
-        pruneEmptyContentProgressEntry(contentId);
-        applyContentProgressList([..._contentProgress]);
-    }
+    if (!entry?.reading) return;
+
+    delete entry.reading;
+    pruneEmptyContentProgressEntry(contentId);
+    applyContentProgressList([..._contentProgress]);
     persistContentProgress();
 };

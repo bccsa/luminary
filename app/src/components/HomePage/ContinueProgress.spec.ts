@@ -27,9 +27,9 @@ vi.mock("vue-i18n", () => ({
     }),
 }));
 
-function setWatchingProgress(contentIds: string[]) {
+function setProgress(contentIds: string[]) {
     [...contentIds].reverse().forEach((contentId, index) => {
-        setMediaProgress(`media-${contentId}`, contentId, 60 + index, 300);
+        setReadingProgress(contentId, 40 + index);
     });
 }
 
@@ -52,14 +52,14 @@ describe("ContinueProgress", () => {
         localStorage.clear();
     });
 
-    it("displays content with video progress that is published", async () => {
+    it("does not display content with only video progress", async () => {
         await db.docs.bulkPut([mockEnglishContentDto]);
-        setWatchingProgress([mockEnglishContentDto._id]);
+        setMediaProgress(`media-${mockEnglishContentDto._id}`, mockEnglishContentDto._id, 60, 300);
 
         const wrapper = mount(ContinueProgress);
 
         await waitForExpect(() => {
-            expect(wrapper.text()).toContain(mockEnglishContentDto.title);
+            expect(wrapper.text()).not.toContain(mockEnglishContentDto.title);
         });
     });
 
@@ -99,7 +99,7 @@ describe("ContinueProgress", () => {
             title: "Page Content",
         };
         await db.docs.bulkPut([mockEnglishContentDto, pageContent]);
-        setWatchingProgress([mockEnglishContentDto._id, pageContent._id]);
+        setProgress([mockEnglishContentDto._id, pageContent._id]);
 
         const wrapper = mount(ContinueProgress);
 
@@ -115,7 +115,7 @@ describe("ContinueProgress", () => {
             title: "Category Content",
         };
         await db.docs.bulkPut([mockEnglishContentDto, categoryContent]);
-        setWatchingProgress([mockEnglishContentDto._id, categoryContent._id]);
+        setProgress([mockEnglishContentDto._id, categoryContent._id]);
 
         const wrapper = mount(ContinueProgress);
 
@@ -133,7 +133,7 @@ describe("ContinueProgress", () => {
             title: "Future Content",
         };
         await db.docs.bulkPut([mockEnglishContentDto, futureContent]);
-        setWatchingProgress([mockEnglishContentDto._id, futureContent._id]);
+        setProgress([mockEnglishContentDto._id, futureContent._id]);
 
         const wrapper = mount(ContinueProgress);
 
@@ -151,7 +151,7 @@ describe("ContinueProgress", () => {
             title: "Expired Content",
         };
         await db.docs.bulkPut([mockEnglishContentDto, expiredContent]);
-        setWatchingProgress([mockEnglishContentDto._id, expiredContent._id]);
+        setProgress([mockEnglishContentDto._id, expiredContent._id]);
 
         const wrapper = mount(ContinueProgress);
 
@@ -169,7 +169,7 @@ describe("ContinueProgress", () => {
             title: "Not a Content Doc",
         };
         await db.docs.bulkPut([mockEnglishContentDto, nonContent as any]);
-        setWatchingProgress([mockEnglishContentDto._id, nonContent._id]);
+        setProgress([mockEnglishContentDto._id, nonContent._id]);
 
         const wrapper = mount(ContinueProgress);
 
@@ -181,7 +181,7 @@ describe("ContinueProgress", () => {
 
     it("handles missing documents gracefully (IDs not in database)", async () => {
         await db.docs.bulkPut([mockEnglishContentDto]);
-        setWatchingProgress([mockEnglishContentDto._id, "nonexistent-id"]);
+        setProgress([mockEnglishContentDto._id, "nonexistent-id"]);
 
         const wrapper = mount(ContinueProgress);
 
@@ -231,7 +231,7 @@ describe("ContinueProgress", () => {
         };
 
         await db.docs.bulkPut([contentA, contentB, contentC]);
-        setWatchingProgress([contentC._id, contentB._id, contentA._id]);
+        setProgress([contentC._id, contentB._id, contentA._id]);
 
         const wrapper = mount(ContinueProgress);
 
