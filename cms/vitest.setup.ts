@@ -72,6 +72,23 @@ beforeEach(() => {
     // Re-seed the runtime syncList before each test (reconciliation mutates it per test — see above).
     syncList.value = seededSyncList();
 
+    // Re-armed every test: some specs call vi.resetAllMocks()/clearAllMocks() in their own
+    // afterEach, which would otherwise wipe this mock's implementation for later tests and
+    // break any component using vueuse's useMediaQuery/useBreakpoints (window.matchMedia(...)
+    // returning undefined crashes on `"addEventListener" in mediaQuery`).
+    window.matchMedia = vi.fn().mockImplementation((query) => {
+        return {
+            matches: false,
+            media: query,
+            onchange: null,
+            addEventListener: vi.fn(),
+            removeEventListener: vi.fn(),
+            addListener: vi.fn(),
+            removeListener: vi.fn(),
+            dispatchEvent: vi.fn(),
+        };
+    });
+
     interceptedWarnings = [];
     console.warn = (...args: unknown[]) => {
         const message = args.map((a) => (typeof a === "string" ? a : String(a))).join(" ");
@@ -105,19 +122,6 @@ global.URL.revokeObjectURL = () => {
 // jsdom does not implement Element.prototype.scrollIntoView; LDropdown calls it on open
 // and the rejection surfaces as an unhandled error that fails the run.
 Element.prototype.scrollIntoView = () => {};
-
-window.matchMedia = vi.fn().mockImplementation((query) => {
-    return {
-        matches: false,
-        media: query,
-        onchange: null,
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-        addListener: vi.fn(),
-        removeListener: vi.fn(),
-        dispatchEvent: vi.fn(),
-    };
-});
 
 beforeAll(async () => {
     initConfig({
