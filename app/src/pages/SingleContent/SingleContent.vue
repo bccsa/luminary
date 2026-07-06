@@ -344,61 +344,62 @@ const hreflangAlternates = computed(() =>
 // SEO head — driven by the resolved content so it is correct in the raw prerendered
 // HTML and stays current on the client. (Runs on every build; @unhead/vue serializes
 // it during the prerender.)
-useHead(
-    computed(() => {
-        const c = content.value;
-        const hasDoc = !!c?.slug;
-        const title = hasDoc ? `${c!.seoTitle || c!.title} - ${appName}` : appName;
-        const description = (hasDoc && (c!.seoString || c!.summary)) || "";
-        const url = hasDoc ? `${WEB_ORIGIN}/${c!.slug}` : WEB_ORIGIN || "/";
-        const lang = languageCodeForContent(c?.language, cmsLanguages.value);
+if (import.meta.env.VITE_BUILD_TARGET === "web")
+    useHead(
+        computed(() => {
+            const c = content.value;
+            const hasDoc = !!c?.slug;
+            const title = hasDoc ? `${c!.seoTitle || c!.title} - ${appName}` : appName;
+            const description = (hasDoc && (c!.seoString || c!.summary)) || "";
+            const url = hasDoc ? `${WEB_ORIGIN}/${c!.slug}` : WEB_ORIGIN || "/";
+            const lang = languageCodeForContent(c?.language, cmsLanguages.value);
 
-        const alts = hreflangAlternates.value;
-        const altLinks = alts.map((a) => ({
-            rel: "alternate",
-            hreflang: a.code,
-            href: `${WEB_ORIGIN}/${a.slug}`,
-        }));
-        const xDefault = alts.find((a) => a.code === "en") ?? alts[0];
+            const alts = hreflangAlternates.value;
+            const altLinks = alts.map((a) => ({
+                rel: "alternate",
+                hreflang: a.code,
+                href: `${WEB_ORIGIN}/${a.slug}`,
+            }));
+            const xDefault = alts.find((a) => a.code === "en") ?? alts[0];
 
-        return {
-            title,
-            htmlAttrs: { lang },
-            link: [
-                { rel: "canonical", href: url },
-                ...altLinks,
-                ...(xDefault
+            return {
+                title,
+                htmlAttrs: { lang },
+                link: [
+                    { rel: "canonical", href: url },
+                    ...altLinks,
+                    ...(xDefault
+                        ? [
+                              {
+                                  rel: "alternate",
+                                  hreflang: "x-default",
+                                  href: `${WEB_ORIGIN}/${xDefault.slug}`,
+                              },
+                          ]
+                        : []),
+                ],
+                meta: [
+                    { name: "description", content: description },
+                    { property: "og:type", content: "article" },
+                    { property: "og:title", content: c?.seoTitle || c?.title || appName },
+                    { property: "og:description", content: description },
+                    { property: "og:url", content: url },
+                    { name: "twitter:card", content: "summary_large_image" },
+                    { name: "twitter:title", content: c?.seoTitle || c?.title || appName },
+                    { name: "twitter:description", content: description },
+                    { name: "robots", content: "index,follow" },
+                ],
+                script: hasDoc
                     ? [
                           {
-                              rel: "alternate",
-                              hreflang: "x-default",
-                              href: `${WEB_ORIGIN}/${xDefault.slug}`,
+                              type: "application/ld+json",
+                              textContent: JSON.stringify(articleJsonLd(c!, description, lang)),
                           },
                       ]
-                    : []),
-            ],
-            meta: [
-                { name: "description", content: description },
-                { property: "og:type", content: "article" },
-                { property: "og:title", content: c?.seoTitle || c?.title || appName },
-                { property: "og:description", content: description },
-                { property: "og:url", content: url },
-                { name: "twitter:card", content: "summary_large_image" },
-                { name: "twitter:title", content: c?.seoTitle || c?.title || appName },
-                { name: "twitter:description", content: description },
-                { name: "robots", content: "index,follow" },
-            ],
-            script: hasDoc
-                ? [
-                      {
-                          type: "application/ld+json",
-                          textContent: JSON.stringify(articleJsonLd(c!, description, lang)),
-                      },
-                  ]
-                : [],
-        };
-    }),
-);
+                    : [],
+            };
+        }),
+    );
 
 // Tags drive the category chips + RelatedContent — query-driven on every build now.
 // In the prerender the seam fetches them (chained AFTER `content` via ssrChain, so the
