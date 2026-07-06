@@ -22,12 +22,33 @@ export type ValidateQueryOptions = {
 export const DEFAULT_MAX_LIMIT = 500;
 
 /**
- * Fallback language cap when the caller doesn't supply one. The app lets a user pick at most 3
- * preferred languages, with the default (English) auto-appended for display — so a legitimate
- * non-CMS content query references at most 4 distinct languages (sync keep ≤3; display ≤4). Keep
- * this in step with the client's preferred-language cap (cap + 1 for the auto-appended default).
+ * The app caps a user's *preferred* languages to this many (mirrors
+ * `MAX_PREFERRED_LANGUAGES` in `app/src/globalConfig.ts`). Kept as a named constant so the
+ * language cap below is derived from it rather than a magic `4` that can silently drift out of
+ * step with the client. If the client cap changes, change this one to match.
  */
-export const DEFAULT_MAX_LANGUAGES = 4;
+export const MAX_PREFERRED_LANGUAGES = 3;
+
+/** The client auto-appends the default (display) language on top of the preferred set. */
+export const AUTO_APPENDED_DEFAULT_LANGUAGES = 1;
+
+/**
+ * Extra languages allowed above the exact client maximum. Without it the cap would sit exactly on
+ * the largest legitimate query (zero headroom, GitHub #1765): any future language dimension — or a
+ * query that legitimately references one more id — would trip a spurious 400. One slot of headroom
+ * removes that fragile boundary; CMS queries are exempt and the query-cost delta of one extra
+ * language is negligible.
+ */
+export const LANGUAGE_CAP_HEADROOM = 1;
+
+/**
+ * Fallback language cap when the caller doesn't supply one. Derived so the pieces move together
+ * instead of being restated as a magic number: preferred (3) + auto-appended default (1) +
+ * headroom (1) = 5. A legitimate non-CMS content query references at most preferred + default
+ * distinct languages; the headroom keeps the boundary off that exact maximum.
+ */
+export const DEFAULT_MAX_LANGUAGES =
+    MAX_PREFERRED_LANGUAGES + AUTO_APPENDED_DEFAULT_LANGUAGES + LANGUAGE_CAP_HEADROOM;
 
 /**
  * DoS guards on the selector shape. A pathological selector (deeply nested logical

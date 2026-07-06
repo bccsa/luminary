@@ -4,6 +4,8 @@ import {
     MAX_SELECTOR_CLAUSES,
     DEFAULT_MAX_LIMIT,
     DEFAULT_MAX_LANGUAGES,
+    MAX_PREFERRED_LANGUAGES,
+    AUTO_APPENDED_DEFAULT_LANGUAGES,
 } from "./validateQuery";
 
 describe("validateQuery", () => {
@@ -193,9 +195,21 @@ describe("validateQuery", () => {
             expect(res.error).toMatch(/too many languages/);
         });
 
-        it("accepts a query at the cap (default = preferred cap + auto-appended default)", () => {
+        it("accepts a query at the cap (derived: preferred + default + headroom)", () => {
             const q: any = {
                 selector: { type: "content", language: { $in: langs(DEFAULT_MAX_LANGUAGES) } },
+            };
+            expect(validateQuery(q).valid).toBe(true);
+        });
+
+        it("keeps headroom above the client maximum (preferred + auto-appended default) [#1765]", () => {
+            // The cap must not sit exactly on the largest legitimate client query, or any future
+            // language dimension trips a spurious 400. There must be at least one spare slot.
+            const clientMax = MAX_PREFERRED_LANGUAGES + AUTO_APPENDED_DEFAULT_LANGUAGES;
+            expect(DEFAULT_MAX_LANGUAGES).toBeGreaterThan(clientMax);
+            // A query at the client maximum is accepted comfortably (not on the boundary).
+            const q: any = {
+                selector: { type: "content", language: { $in: langs(clientMax) } },
             };
             expect(validateQuery(q).valid).toBe(true);
         });
@@ -216,7 +230,7 @@ describe("validateQuery", () => {
         });
 
         it("collects languages across the mangoIsPublished-style equality/negation shape", () => {
-            // 5 distinct languages expressed as `{language: x}` equalities → over the default cap.
+            // Over-cap distinct languages expressed as `{language: x}` equalities → rejected.
             const q: any = {
                 selector: {
                     $or: langs(over()).map((l) => ({

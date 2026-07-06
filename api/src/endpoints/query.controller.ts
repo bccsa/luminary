@@ -13,7 +13,7 @@ import {
 } from "@nestjs/common";
 import { QueryService } from "./query.service";
 import { MongoQueryDto } from "../dto/MongoQueryDto";
-import { validateQuery } from "../validation/query/validateQuery";
+import { validateQuery, DEFAULT_MAX_LANGUAGES } from "../validation/query/validateQuery";
 import { ConfigService } from "@nestjs/config";
 import { WINSTON_MODULE_PROVIDER } from "nest-winston";
 import { Logger } from "winston";
@@ -62,7 +62,8 @@ export class QueryController {
             this.configService.get<boolean>("validation.bypassTemplateValidation") || false;
 
         const maxLimit = this.configService.get<number>("query.maxLimit") ?? 500;
-        const maxLanguages = this.configService.get<number>("query.maxLanguages") ?? 4;
+        const maxLanguages =
+            this.configService.get<number>("query.maxLanguages") ?? DEFAULT_MAX_LANGUAGES;
 
         let validationResult = { valid: true, error: "" };
         if (!bypassValidation) validationResult = validateQuery(body, { maxLimit, maxLanguages });
