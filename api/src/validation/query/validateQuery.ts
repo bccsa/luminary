@@ -45,6 +45,14 @@ const LOGICAL_OPERATORS = new Set(["$and", "$or", "$nor", "$not"]);
 const ARRAY_OPERATORS = new Set(["$in", "$nin", "$all"]);
 
 /**
+ * Exclusion operators. Values under these reference languages the query wants to EXCLUDE, not
+ * include, so they must not count toward the per-request language cap: `{language: {$ne: "fr"}}`
+ * or `{language: {$nin: ["fr", "de"]}}` narrows the result, it doesn't widen the requested set.
+ * Descending into one clears the owning field so its leaves aren't collected as referenced ids.
+ */
+const EXCLUSION_OPERATORS = new Set(["$ne", "$nin"]);
+
+/**
  * Array fields on which `$elemMatch` is permitted:
  *  - `memberOf` — group permission filter (injected server-side).
  *  - `availableTranslations` — language-priority filtering in hybrid queries.
@@ -178,8 +186,9 @@ function fail(error: string): ValidationResult {
  * document field name (not a logical/comparison operator), so `$elemMatch` can be
  * allowed only when it sits directly under an allowed array field. Also collects the
  * distinct language ids referenced by `language` field constraints (equality, `$eq`, or
- * `$in` members) for the language cap. Returns the first error (or null when clean) plus
- * the collected language set.
+ * `$in` members) for the language cap — but NOT ids under exclusion operators (`$ne`/`$nin`),
+ * which narrow rather than widen the requested set. Returns the first error (or null when
+ * clean) plus the collected language set.
  */
 function walkSelector(selector: any): { error: string | null; languages: Set<string> } {
     let clauseCount = 0;
@@ -228,9 +237,14 @@ function walkSelector(selector: any): { error: string | null; languages: Set<str
             }
 
             // Logical operators ($and/$or/$nor/$not) and comparison operators ($in, $gte, …)
-            // don't introduce a new owning field; a plain field key does.
-            const nextOwningField =
-                LOGICAL_OPERATORS.has(key) || key.startsWith("$") ? owningField : key;
+            // don't introduce a new owning field; a plain field key does. Exclusion operators
+            // ($ne/$nin) clear the owning field so their (excluded) language ids aren't collected
+            // toward the cap — see EXCLUSION_OPERATORS.
+            const nextOwningField = EXCLUSION_OPERATORS.has(key)
+                ? undefined
+                : LOGICAL_OPERATORS.has(key) || key.startsWith("$")
+                  ? owningField
+                  : key;
 
             const err = walk(node[key], nextOwningField, depth + 1);
             if (err) return err;

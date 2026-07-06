@@ -258,6 +258,43 @@ describe("validateQuery", () => {
             expect(res.valid).toBe(false);
             expect(res.error).toMatch(/too many languages \(max 2\)/);
         });
+
+        it("does not count $nin-excluded languages toward the cap", () => {
+            // Excluding more than the cap of languages narrows the result — it must not be rejected.
+            const q: any = {
+                selector: { type: "content", language: { $nin: langs(over()) } },
+            };
+            expect(validateQuery(q).valid).toBe(true);
+        });
+
+        it("does not count a $ne-excluded language toward the cap", () => {
+            // `language` included ids are at the cap; the extra $ne exclusion must not push it over.
+            const q: any = {
+                selector: {
+                    $and: [
+                        { language: { $in: langs(DEFAULT_MAX_LANGUAGES) } },
+                        { language: { $ne: "lang-excluded" } },
+                    ],
+                },
+            };
+            expect(validateQuery(q).valid).toBe(true);
+        });
+
+        it("still counts included languages when exclusions are also present", () => {
+            // Over-cap INCLUDED ids ($in) are rejected even though a sibling $nin exclusion exists —
+            // the exclusion is ignored, the inclusion still counts.
+            const q: any = {
+                selector: {
+                    $and: [
+                        { language: { $in: langs(over()) } },
+                        { language: { $nin: ["x", "y"] } },
+                    ],
+                },
+            };
+            const res = validateQuery(q);
+            expect(res.valid).toBe(false);
+            expect(res.error).toMatch(/too many languages/);
+        });
     });
 
     describe("use_index (registry membership)", () => {
