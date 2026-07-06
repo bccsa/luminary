@@ -53,6 +53,16 @@ async function Startup() {
     // slow Auth0 round-trip during startup) — otherwise each flip restarts the
     // handshake and the connection state visibly flaps.
     let reconnecting = false;
+    let reconnectTimeout: ReturnType<typeof setTimeout> | undefined;
+
+    // Transport can connect while the server never sends clientConfig (see
+    // socketio.ts), in which case isConnected never flips true and no `disconnect`
+    // fires either — nothing would ever clear `reconnecting`. This timeout is the
+    // backstop so a stuck handshake doesn't permanently block future reconnects.
+    function stopReconnecting() {
+        reconnecting = false;
+        clearTimeout(reconnectTimeout);
+    }
 
     // Register the apiAuthFailed listener BEFORE setupAuth(), because setupAuth()
     // may connect the socket with an expired token — if the listener isn't ready
@@ -62,7 +72,7 @@ async function Startup() {
             "connect_error",
             async (err: Error & { data?: { type?: string; reason?: string } }) => {
                 if (err.data?.type !== "auth_failed" && err.message !== "auth_failed") return;
-                reconnecting = false;
+                stopReconnecting();
 
                 const reason = err.data?.reason;
 
@@ -117,14 +127,15 @@ async function Startup() {
         // connection attempt; `reconnecting` stops repeat visibility flips from
         // restarting an attempt that's already in flight.
         watch(isConnected, (connected) => {
-            if (connected) reconnecting = false;
+            if (connected) stopReconnecting();
         });
         socket.on("disconnect", () => {
-            reconnecting = false;
+            stopReconnecting();
         });
         document.addEventListener("visibilitychange", () => {
             if (document.visibilityState === "visible" && !isConnected.value && !reconnecting) {
                 reconnecting = true;
+                reconnectTimeout = setTimeout(() => (reconnecting = false), 20_000);
                 socket.reconnect();
             }
         });
