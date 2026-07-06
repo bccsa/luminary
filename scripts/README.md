@@ -19,8 +19,7 @@ This script will automatically:
 1. ✅ Set up CouchDB (database) and MinIO (file storage) using Docker
 2. ✅ Create `.env` configuration files for the API, app, and CMS
 3. ✅ Install all Node.js dependencies in the correct order
-4. ✅ Set up a Git hook to keep your shared library up-to-date
-5. ✅ Sync database and storage credentials automatically
+4. ✅ Sync database and storage credentials automatically
 
 **Time to complete**: 5-10 minutes
 

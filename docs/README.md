@@ -1,6 +1,10 @@
 # Luminary documentation
 
-Index of documentation in this folder. Package-specific handbooks live in each package's `README.md` (`api/`, `app/`, `cms/`, `shared/`).
+This folder holds only **cross-cutting** documentation — architecture decisions, diagrams that
+span multiple packages, and guides that don't belong to a single package. Documentation
+describing a single package's own implementation lives in that package instead, referenced from
+its `README.md` (and `CLAUDE.md`): [api/](../api/README.md), [app/](../app/README.md),
+[cms/](../cms/README.md), [shared/](../shared/README.md).
 
 ## Architecture decisions
 
@@ -8,41 +12,28 @@ Recorded in [`adr/`](adr/). Start with [ADR 0001 — Record architecture decisio
 
 ## Guides
 
-Contributor and workflow documentation:
+Contributor and workflow documentation spanning more than one package:
 
 | Guide | Description |
 |-------|-------------|
 | [setup-vue-app.md](guides/setup-vue-app.md) | VS Code setup, env, running app and CMS locally |
 | [translations.md](guides/translations.md) | i18n keys, CouchDB language docs, interpolation |
-| [project-automation.md](guides/project-automation.md) | Git hooks and `automate-luminary.sh` CLI |
-| [api-testing.md](guides/api-testing.md) | API unit testing notes (Jest, CouchDB reuse) |
 
-## Architecture
+Repo-wide local dev environment setup (CouchDB/MinIO/env files) is the [setup wizard in `scripts/`](../scripts/README.md).
+
+## Architecture diagrams
 
 Cross-cutting system design:
 
 | Doc | Description |
 |-----|-------------|
-| [rest-api/README.md](architecture/rest-api/README.md) | REST bulk sync API and SyncMap |
-| [socket-io-messages.md](architecture/socket-io-messages.md) | Socket.io message reference (API ↔ clients) |
 | [diagrams/](architecture/diagrams/) | ACL, sync, datamodel, permissions, client data flows |
 
-## Features
+Package-specific architecture now lives with its code:
 
-Feature-specific documentation (design, diagrams, constants):
-
-| Feature | Description |
-|---------|-------------|
-| [vue-plugin-architecture/](features/vue-plugin-architecture/) | Build-time plugin system (`virtual:*`, contracts, provide/inject) |
-| [s3-multi-bucket/](features/s3-multi-bucket/) | CMS multi-bucket S3 architecture |
-
-## Research
-
-Exploratory notes that may predate or differ from current ADRs:
-
-| Topic | Description |
-|-------|-------------|
-| [fts/](research/fts/) | Offline full-text search research (superseded by ADR 0009) |
+- REST bulk sync API, Socket.io messages, S3 multi-bucket storage — [api/docs/](../api/docs/), linked from [api/README.md](../api/README.md)
+- Build-time Vue plugin system — [app/docs/vue-plugin-architecture/](../app/docs/vue-plugin-architecture/), linked from [app/README.md](../app/README.md)
+- Offline FTS (trigram + BM25) — [shared/src/fts/README.md](../shared/src/fts/README.md)
 
 ## Archive
 

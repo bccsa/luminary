@@ -109,6 +109,10 @@ $ npm run test:unit
 $ npm run test:cov
 ```
 
+Jest (included with NestJS) is used for automated API unit testing. Each test file gets a fresh, seeded CouchDB database via `createTestingModule` (see `src/test/testingModule.ts`), seeded from [`src/db/designDocs`](src/db/designDocs) and [`src/db/seedingDocs`](src/db/seedingDocs).
+
+The Jest unit testing currently does not include teardown logic. Destroying documents does not delete them from the CouchDB database, it marks them as deleted — this does not work well with testing where we reuse the testing database (i.e. local testing on your computer), since CouchDB / nano complains that the document is deleted and hence cannot be recreated. In real-life scenarios recreating a deleted document should never occur, and if it does this would be an exception that should be logged to an error log instead of being processed. It therefore does not work to destroy our testing data set for local testing — the developer can rather delete the testing database on their computer once in a while if it gets too big.
+
 ## Lint
 
 ```sh
@@ -131,6 +135,12 @@ The load tester currently tests the API for Luminary Client app sync loads on th
 # load tester help
 $ npx ts-node load_tester --help
 ```
+
+## Documentation
+
+- [docs/rest-api/README.md](docs/rest-api/README.md) — REST bulk sync API and SyncMap
+- [docs/socket-io-messages.md](docs/socket-io-messages.md) — Socket.io message reference (API ↔ clients)
+- [docs/s3-multi-bucket/README.md](docs/s3-multi-bucket/README.md) — S3 multi-bucket storage architecture
 
 ## CMS view permission (`CmsView`) and CMS-scoped live updates
 
