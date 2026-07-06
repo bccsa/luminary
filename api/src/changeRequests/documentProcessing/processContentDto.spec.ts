@@ -95,6 +95,7 @@ describe("processContentDto", () => {
         expect(dbDoc.docs[0].parentTags).toEqual(["tag-category1", "tag-topicA"]);
         expect(dbDoc.docs[0].parentPostType).toEqual("blog");
         expect(dbDoc.docs[0].parentPublishDateVisible).toEqual(true);
+        expect(dbDoc.docs[0].parentAlwaysOffline).toBe(false);
     });
 
     it("can set essential properties from a parent tag document to a content document on content document submission", async () => {
