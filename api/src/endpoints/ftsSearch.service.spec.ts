@@ -251,7 +251,7 @@ describe("FtsSearchService", () => {
         expect(dbService.ftsTrigramCandidates).toHaveBeenCalledWith(["gar", "ard", "rde"]);
     });
 
-    it("does not fetch candidates when the rarest trigram exceeds the row budget", async () => {
+    it("keeps the min-trigram floor and reports over-budget stats", async () => {
         dbService.ftsCorpusStats.mockResolvedValue({ docCount: 10000, totalTokenCount: 100000 });
         dbService.ftsTrigramDf.mockResolvedValue(
             new Map([
@@ -262,10 +262,19 @@ describe("FtsSearchService", () => {
             ]),
         );
 
-        const res = await service.search(makeReq({ queryString: "garden" }), mockUser);
+        const { results, stats } = await service.searchWithStats(
+            makeReq({ queryString: "garden" }),
+            mockUser,
+        );
 
-        expect(res).toEqual([]);
-        expect(dbService.ftsTrigramCandidates).not.toHaveBeenCalled();
+        expect(results).toEqual([]);
+        expect(dbService.ftsTrigramCandidates).toHaveBeenCalledWith(["gar", "ard", "rde"]);
+        expect(stats).toMatchObject({
+            keptTrigrams: 3,
+            estimatedCandidateRows: 12300,
+            candidateRows: 0,
+            candidateRowBudget: 3000,
+        });
     });
 
     it("returns private cost stats from searchWithStats", async () => {
@@ -334,6 +343,34 @@ describe("FtsSearchService", () => {
             );
             // "Unrelated" has no "garden" substring → excluded; rest sorted by updatedTimeUtc desc.
             expect(res.map((r) => r.docId)).toEqual(["guide", "party"]);
+        });
+
+        it("returns stats from searchWithStats on the strict path", async () => {
+            dbService.ftsTrigramCandidates.mockResolvedValue([
+                row("old", "gar", value({ title: "Garden A", updatedTimeUtc: 100 })),
+                row("new", "gar", value({ title: "Garden B", updatedTimeUtc: 300 })),
+            ]);
+            echoDocs();
+
+            const { results, stats } = await service.searchWithStats(
+                makeReq({
+                    cms: true,
+                    matchAllWords: true,
+                    sort: { field: "updatedTimeUtc", direction: "desc" },
+                }),
+                mockUser,
+            );
+
+            expect(results.map((r) => r.docId)).toEqual(["new", "old"]);
+            expect(stats).toMatchObject({
+                trigrams: 4,
+                keptTrigrams: 4,
+                estimatedCandidateRows: 12,
+                candidateRows: 2,
+                survivors: 2,
+                topK: 0,
+                candidateRowBudget: 3000,
+            });
         });
 
         it("supports partial (substring) matching", async () => {
@@ -465,6 +502,30 @@ describe("FtsSearchService", () => {
             expect(dbService.getDocs).toHaveBeenCalledWith(expect.any(Array), [DocType.User]);
             // never touches the Content trigram view/path
             expect(dbService.ftsTrigramCandidates).not.toHaveBeenCalled();
+        });
+
+        it("returns stats from searchWithStats on the aux path", async () => {
+            dbService.ftsAuxTrigramCandidates.mockResolvedValue([
+                userRow("u-name", "gar", { name: "Gardener Joe" }),
+                userRow("u-email", "gar", { name: "Jane", email: "garden@x.com" }),
+            ]);
+            echoUsers();
+
+            const { results, stats } = await service.searchWithStats(
+                makeReq({ types: [DocType.User], cms: true, matchAllWords: true }),
+                mockUser,
+            );
+
+            expect(results.map((r) => r.docId)).toEqual(["u-name", "u-email"]);
+            expect(stats).toMatchObject({
+                trigrams: 4,
+                keptTrigrams: 4,
+                estimatedCandidateRows: 12,
+                candidateRows: 2,
+                survivors: 2,
+                topK: 0,
+                candidateRowBudget: 3000,
+            });
         });
 
         it("orders the full match set by the requested sort field", async () => {
