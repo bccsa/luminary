@@ -2,9 +2,7 @@
 import BasePage from "@/components/BasePage.vue";
 import UserDisplayCard from "@/components/users/UserDisplayCard.vue";
 import CreateOrEditUser from "@/components/users/CreateOrEditUser.vue";
-import UserFilterOptions, {
-    type UserOverviewQueryOptions,
-} from "@/components/users/UserFilterOptions.vue";
+import FilterOptions from "@/components/common/FilterOptions.vue";
 import { PlusIcon } from "@heroicons/vue/24/outline";
 import {
     AclPermission,
@@ -49,6 +47,11 @@ function openCreateUserModal() {
     newUserId.value = db.uuid();
     isNewUserModalVisible.value = true;
 }
+
+type UserOverviewQueryOptions = {
+    groups: string[];
+    search: string;
+};
 
 const defaultQueryOptions: UserOverviewQueryOptions = {
     groups: [],
@@ -167,10 +170,12 @@ const hasAnyContent = computed(() => (users.value?.length ?? 0) > 0);
             />
         </template>
         <template v-if="hasAnyContent" #internalPageHeader>
-            <UserFilterOptions
-                :is-small-screen="isSmallScreen"
+            <FilterOptions
+                v-model:search="queryOptions.search"
+                v-model:selected-groups="queryOptions.groups"
                 :groups="groups"
-                v-model:query-options="queryOptions"
+                :is-small-screen="isSmallScreen"
+                :debounce-ms="500"
             />
         </template>
         <div class="flex flex-col gap-[3px]">
