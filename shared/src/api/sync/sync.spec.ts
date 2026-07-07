@@ -236,6 +236,11 @@ describe("sync module", () => {
             expect(byChunkType["content:post"].publishDateMax).toBe(OPEN_MAX);
             expect(byChunkType["deleteCmd:post"].publishDateMin).toBe(OPEN_MIN);
             expect(byChunkType["deleteCmd:post"].publishDateMax).toBe(OPEN_MAX);
+            // The DeleteCmd migration also strips `languages` off legacy scoped entries so they
+            // converge onto the language-UNSCOPED identity (deletes of any downloaded doc must
+            // propagate regardless of synced languages). Content entries keep their `languages`.
+            expect(byChunkType["deleteCmd:post"].languages).toBeUndefined();
+            expect(byChunkType["content:post"].languages).toEqual(["en"]);
             // Non-Content non-DeleteCmd entry stays undefined — publishDate is dead weight there.
             expect(byChunkType["language"].publishDateMin).toBeUndefined();
             expect(byChunkType["language"].publishDateMax).toBeUndefined();
