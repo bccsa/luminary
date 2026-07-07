@@ -22,8 +22,12 @@ import { groupLabel } from "@/util/groups";
  * everything but search behind an "Adjustments" button opening a modal — driven by isSmallScreen
  * rather than separate Mobile/Desktop components, since the two layouts share all their state.
  *
- * Not a fit for ContentOverview, which has enough extra dimensions (status, translation, tags,
- * sort, a min-length "Go"-button search) to warrant its own dedicated FilterOptions.
+ * Pages with a search interaction or filter dimensions too specific to generalize (e.g.
+ * ContentOverview's Enter/Esc-driven min-length search, or filters beyond a single group set)
+ * can still reuse just the responsive shell: override the `search` slot with their own input and
+ * put every filter control — including a page-owned group filter — in `extra-filters` /
+ * `extra-filters-mobile`, with their own chip list in `selected-filters`. In that mode the
+ * `search` model and the built-in group filter are simply unused.
  */
 
 type FilterOptionsProps = {
@@ -47,7 +51,8 @@ const props = withDefaults(defineProps<FilterOptionsProps>(), {
 
 const emit = defineEmits<{ reset: [] }>();
 
-const search = defineModel<string>("search", { required: true });
+// Optional — unused when a page supplies its own `#search` slot content instead.
+const search = defineModel<string>("search", { default: "" });
 const selectedGroups = defineModel<string[]>("selectedGroups", { default: () => [] });
 
 const showGroupFilter = computed(() => props.groups.length > 0);
@@ -87,16 +92,18 @@ function handleReset() {
 <template>
     <div class="relative z-20 flex flex-col gap-1 overflow-visible">
         <div class="flex h-10 w-full items-center gap-1">
-            <LInput
-                type="text"
-                :icon="MagnifyingGlassIcon"
-                class="h-full min-w-0 flex-grow"
-                name="search"
-                :placeholder="searchPlaceholder"
-                data-test="search-input"
-                v-model="searchInput"
-                :full-height="true"
-            />
+            <slot name="search" :is-small-screen="isSmallScreen">
+                <LInput
+                    type="text"
+                    :icon="MagnifyingGlassIcon"
+                    class="h-full min-w-0 flex-grow"
+                    name="search"
+                    :placeholder="searchPlaceholder"
+                    data-test="search-input"
+                    v-model="searchInput"
+                    :full-height="true"
+                />
+            </slot>
 
             <template v-if="!isSmallScreen">
                 <div class="relative flex h-full items-center gap-1">
@@ -143,6 +150,10 @@ function handleReset() {
                 </LTag>
             </ul>
         </div>
+
+        <!-- Page-owned chip list (e.g. ContentOverview's tags + groups), for pages that don't use
+             the built-in group filter above. -->
+        <slot name="selected-filters" />
     </div>
 
     <LModal
