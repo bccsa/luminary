@@ -16,12 +16,12 @@ type Props = {
 defineProps<Props>();
 
 const queryOptions = defineModel<GroupOverviewQueryOptions>("queryOptions", { required: true });
+
+const query = defineModel("query", { required: true });
 </script>
 
 <template>
-    <div
-        class="relative z-20 flex flex-col gap-1 overflow-visible"
-    >
+    <div class="relative z-20 flex flex-col gap-1 overflow-visible">
         <div class="flex h-10 w-full items-center gap-1">
             <LInput
                 type="text"
@@ -30,9 +30,13 @@ const queryOptions = defineModel<GroupOverviewQueryOptions>("queryOptions", { re
                 name="search"
                 placeholder="Search..."
                 data-test="search-input"
-                v-model="queryOptions.search"
+                v-model="query as string"
                 :full-height="true"
-            />
+            >
+                <template #searchButton>
+                    <slot name="searchButton"></slot>
+                </template>
+            </LInput>
 
             <div class="relative flex h-full items-center gap-1">
                 <LCombobox
@@ -59,22 +63,22 @@ const queryOptions = defineModel<GroupOverviewQueryOptions>("queryOptions", { re
             v-if="queryOptions.filterGroupIds && queryOptions.filterGroupIds.length > 0"
             class="flex w-full flex-col gap-1"
         >
-                <ul class="flex w-full flex-wrap gap-2">
-                    <LTag
-                        :icon="UserGroupIcon"
-                        v-for="group in queryOptions.filterGroupIds"
-                        :key="group"
-                        @remove="
-                            () => {
-                                queryOptions.filterGroupIds = queryOptions.filterGroupIds?.filter(
-                                    (v) => v != group,
-                                );
-                            }
-                        "
-                    >
-                        {{ groupLabel(group, groups) }}
-                    </LTag>
-                </ul>
+            <ul class="flex w-full flex-wrap gap-2">
+                <LTag
+                    :icon="UserGroupIcon"
+                    v-for="group in queryOptions.filterGroupIds"
+                    :key="group"
+                    @remove="
+                        () => {
+                            queryOptions.filterGroupIds = queryOptions.filterGroupIds?.filter(
+                                (v) => v != group,
+                            );
+                        }
+                    "
+                >
+                    {{ groupLabel(group, groups) }}
+                </LTag>
+            </ul>
         </div>
     </div>
 </template>
