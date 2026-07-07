@@ -96,7 +96,6 @@ export type SocketIoConfig = {
 };
 
 export type Configuration = {
-    permissionMap: string;
     s3?: S3Config;
     s3Audio?: AudioS3Config;
     database?: DatabaseConfig;
@@ -130,7 +129,6 @@ export default () =>
                 strikeDecayMs: parseInt(process.env.QUERY_RATE_LIMIT_STRIKE_DECAY_MS, 10) || 600000,
             },
         } as QueryConfig,
-        permissionMap: process.env.PERMISSION_MAP,
         imageProcessing: {
             imageQuality: parseInt(process.env.S3_IMG_QUALITY, 10) || 80,
         } as ImageProcessingConfig,

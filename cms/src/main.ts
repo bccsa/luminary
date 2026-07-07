@@ -23,13 +23,6 @@ const app = createApp(App);
 // resolve a store (e.g. useNotificationStore) have an active Pinia instance.
 app.use(createPinia());
 
-if (import.meta.env.VITE_FAV_ICON) {
-    const favicon = document.getElementById("favicon") as HTMLLinkElement;
-    if (favicon) {
-        favicon.href = import.meta.env.VITE_LOGO_FAVICON;
-    }
-}
-
 if (import.meta.env.PROD) {
     Sentry.init({
         app,

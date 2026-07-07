@@ -38,5 +38,4 @@ export function getNavigationItems(t: (key: string) => string) {
         },
     ];
 
-    return navigationItems;
 }
