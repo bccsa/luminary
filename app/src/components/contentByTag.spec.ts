@@ -135,4 +135,48 @@ describe("contentByTag", () => {
             expect(resultWithoutUntagged.untagged.value).toEqual([]);
         });
     });
+
+    it("dedupes content across tags when dedupeAcrossTags is true, favoring the niche tag", async () => {
+        // "1" and "2" both belong to "a" (broad, 3 matches) and "b" (niche, 2 matches).
+        // "3" only belongs to "a".
+        const content = ref([
+            { _id: "1", publishDate: 1, parentTags: ["a", "b"] } as ContentDto,
+            { _id: "2", publishDate: 2, parentTags: ["a", "b"] } as ContentDto,
+            { _id: "3", publishDate: 3, parentTags: ["a"] } as ContentDto,
+        ]);
+        const tags = ref([
+            { _id: "a", parentId: "a" } as ContentDto,
+            { _id: "b", parentId: "b" } as ContentDto,
+        ]);
+
+        const result = contentByTag(content, tags, { dedupeAcrossTags: true });
+
+        await waitForExpect(() => {
+            const byTagId = Object.fromEntries(
+                result.tagged.value.map((r) => [r.tag._id, r.content.map((c) => c._id)]),
+            );
+            // "b" has fewer matches, so it claims "1" and "2" first.
+            expect(byTagId["b"]).toEqual(["1", "2"]);
+            // "a" is left with only the content "b" didn't claim.
+            expect(byTagId["a"]).toEqual(["3"]);
+        });
+    });
+
+    it("does not dedupe across tags by default", async () => {
+        const content = ref([{ _id: "1", publishDate: 1, parentTags: ["a", "b"] } as ContentDto]);
+        const tags = ref([
+            { _id: "a", parentId: "a" } as ContentDto,
+            { _id: "b", parentId: "b" } as ContentDto,
+        ]);
+
+        const result = contentByTag(content, tags);
+
+        await waitForExpect(() => {
+            const byTagId = Object.fromEntries(
+                result.tagged.value.map((r) => [r.tag._id, r.content.map((c) => c._id)]),
+            );
+            expect(byTagId["a"]).toEqual(["1"]);
+            expect(byTagId["b"]).toEqual(["1"]);
+        });
+    });
 });

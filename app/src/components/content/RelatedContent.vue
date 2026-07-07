@@ -37,7 +37,7 @@ const filtered = computed(() =>
     contentDocs.value.filter((item) => item._id !== props.selectedContent._id),
 );
 
-const contentByTopic = contentByTag(filtered, toRef(props.tags));
+const contentByTopic = contentByTag(filtered, toRef(props.tags), { dedupeAcrossTags: true });
 </script>
 
 <template>

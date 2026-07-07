@@ -16,7 +16,7 @@ export type ContentByTag = {
 export const contentByTag = (
     content: Ref<ContentDto[]> | ShallowRef<ContentDto[]>,
     tags: Ref<ContentDto[]> | ShallowRef<ContentDto[]>,
-    options: { includeUntagged?: boolean } = {},
+    options: { includeUntagged?: boolean; dedupeAcrossTags?: boolean } = {},
 ) => {
     const result = {
         tagged: ref<ContentByTag[]>([]),
@@ -33,11 +33,29 @@ export const contentByTag = (
                 }
             }
 
+            const matchesTag = (c: ContentDto, tag: ContentDto) =>
+                !!c.publishDate && !!c.parentTags && c.parentTags.includes(tag.parentId);
+
+            // When deduping, process the tag with the fewest matches first so a broad
+            // tag (e.g. "People in the Bible") doesn't claim items a niche tag needs.
+            const tagOrder = options.dedupeAcrossTags
+                ? [...tags.value].sort(
+                      (a, b) =>
+                          content.value.filter((c) => matchesTag(c, a)).length -
+                          content.value.filter((c) => matchesTag(c, b)).length,
+                  )
+                : tags.value;
+            const claimed = new Set<string>();
+
             // Add new tags to the result
-            tags.value.forEach((tag) => {
+            tagOrder.forEach((tag) => {
                 const filtered = content.value.filter(
-                    (c) => c.publishDate && c.parentTags && c.parentTags.includes(tag.parentId),
+                    (c) => matchesTag(c, tag) && !claimed.has(c._id),
                 );
+
+                if (options.dedupeAcrossTags) {
+                    filtered.forEach((c) => claimed.add(c._id));
+                }
 
                 const isPinned = tag.parentPinned && tag.parentPinned > 0;
 
