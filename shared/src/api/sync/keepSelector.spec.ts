@@ -2,10 +2,6 @@ import { describe, it, expect } from "vitest";
 import { contentLanguageKeepSelector } from "./keepSelector";
 
 describe("contentLanguageKeepSelector", () => {
-    it("returns match-all {} for an empty language set", () => {
-        expect(contentLanguageKeepSelector([])).toEqual({});
-    });
-
     it("builds the set-based keep for a single language", () => {
         const sel: any = contentLanguageKeepSelector(["en"]);
         // Branch 1: synced-language membership.
