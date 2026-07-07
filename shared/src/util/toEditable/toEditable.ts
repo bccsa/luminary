@@ -302,8 +302,16 @@ export function toEditable<T extends BaseDocumentDto>(
      * POSTed straight to the API `/changerequest` endpoint. No-ops (returns "accepted") when the
      * item has not been edited. The `filterFn` (if any) is applied to the item before saving.
      * @param id - The _id of the item to save.
+     * @param opts.awaitAck - Local (offline-persisted) path only: await the real outcome of the
+     * queued change (via {@link Database.waitForLocalChangeAck}) instead of immediately returning
+     * the optimistic "Accepted". The change is queued either way, so this has no effect on whether
+     * it eventually uploads — it only changes what `save` returns and when. Ignored on the API
+     * path, which already returns the real ack synchronously.
      */
-    const save = async (id: Uuid): Promise<ChangeReqAckDto | undefined> => {
+    const save = async (
+        id: Uuid,
+        opts?: { awaitAck?: boolean },
+    ): Promise<ChangeReqAckDto | undefined> => {
         if (!isEdited.value(id)) return { ack: AckStatus.Accepted };
 
         let item = toRaw(editable.value.find((i) => i._id === id));
@@ -314,7 +322,10 @@ export function toEditable<T extends BaseDocumentDto>(
 
         if (isPersistedOffline(item, options.persistOffline ?? false)) {
             // Local path: write to the docs table and queue a localChange for upload.
-            await db.upsert({ doc: item, overwriteLocalChanges: true } as UpsertOptions<T>);
+            const { localChangeId } = await db.upsert({
+                doc: item,
+                overwriteLocalChanges: true,
+            } as UpsertOptions<T>);
 
             // Below-cutoff Content lives in IndexedDB only because of offline persistence; refresh
             // its retention keep-alive so evictStaleBelowCutoff won't reap the doc we just saved.
@@ -325,6 +336,11 @@ export function toEditable<T extends BaseDocumentDto>(
             }
 
             updateShadow(id);
+
+            if (opts?.awaitAck) {
+                return await db.waitForLocalChangeAck(localChangeId);
+            }
+
             return {
                 ack: AckStatus.Accepted,
                 message: "Saved locally and queued for upload to the server",
@@ -395,9 +411,13 @@ export function toEditable<T extends BaseDocumentDto>(
      * Named `remove` (not `delete`) because `delete` is a reserved word and cannot be used as a
      * destructuring binding (`const { delete } = toEditable(...)`); callers may alias it if desired.
      * @param id - The _id of the item to remove.
+     * @param opts.awaitAck - Forwarded to {@link save} — see its doc for behavior.
      * @returns the save ack, or undefined when the underlying API call returned undefined.
      */
-    const remove = async (id: Uuid): Promise<ChangeReqAckDto | undefined> => {
+    const remove = async (
+        id: Uuid,
+        opts?: { awaitAck?: boolean },
+    ): Promise<ChangeReqAckDto | undefined> => {
         const editableIndex = editable.value.findIndex((i) => i._id === id);
         if (editableIndex === -1) return { ack: AckStatus.Rejected, message: "Item not found" };
 
@@ -413,7 +433,7 @@ export function toEditable<T extends BaseDocumentDto>(
         editable.value[editableIndex].deleteReq = 1;
         await nextTick();
 
-        const res = await save(id);
+        const res = await save(id, opts);
 
         if (res && res.ack === AckStatus.Accepted) {
             // Drop from both arrays for immediate UI feedback. On the local path the live source
