@@ -93,17 +93,11 @@ function pickRecentSearch(term: string) {
     }
 }
 
-const ftsRet = useFtsSearch(
-    searchQuery as any,
-    {
+const ftsRet = useFtsSearch(searchQuery as any, {
         languageId: languageId as any,
         debounceMs: computed(() => (isManualSearchMode.value ? "manual" : 250)) as any,
         pageSize: 40,
-    } as any,
-) as ReturnType<typeof useFtsSearch> & {
-    lastSearchedQuery: import("vue").Ref<string>;
-    runSearch: () => void;
-};
+    });
 const {
     results: ftsResults,
     isSearching,
@@ -111,7 +105,7 @@ const {
     hasMore,
     lastSearchedQuery,
     runSearch,
-    cancel,
+    reset: resetSearch,
     isPartial,
 } = ftsRet;
 
@@ -348,9 +342,7 @@ watch(
         if (newQuery !== oldQuery) selectedIndex.value = -1;
         if (!trimmed) {
             // Cancel any in-flight search first so a slow previous run can't repopulate results.
-            cancel();
-            ftsResults.value = [];
-            lastSearchedQuery.value = "";
+            resetSearch();
             selectedIndex.value = -1;
         }
     },
@@ -370,9 +362,7 @@ watch(isSearchOpen, (open) => {
         // Only clear results when they don't match the query we're about to show.
         // This keeps results in memory when reopening the modal for the same term.
         if (!q || lastSearchedQuery.value !== q) {
-            cancel();
-            ftsResults.value = [];
-            lastSearchedQuery.value = "";
+            resetSearch();
         }
     }
     selectedIndex.value = -1;

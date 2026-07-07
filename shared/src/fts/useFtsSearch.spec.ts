@@ -289,6 +289,37 @@ describe("useFtsSearch", () => {
         expect(mockFtsSearch).not.toHaveBeenCalled();
     });
 
+    it("reset() clears results and pagination so loadMore cannot repopulate", async () => {
+        const scope = effectScope();
+        let result: any;
+        scope.run(() => {
+            const queryRef = ref("quantum physics test");
+            const fullPage = Array.from({ length: 20 }, (_, i) => makeResult(`doc-${i}`));
+            mockFtsSearch.mockResolvedValue(fullPage);
+            result = useFtsSearch(queryRef, { debounceMs: "manual" });
+        });
+
+        result.runSearch();
+        await vi.advanceTimersByTimeAsync(10);
+
+        expect(result.results.value).toHaveLength(20);
+        expect(result.hasMore.value).toBe(true);
+
+        result.reset();
+        expect(result.results.value).toEqual([]);
+        expect(result.hasMore.value).toBe(false);
+        expect(result.totalLoaded.value).toBe(0);
+        expect(result.lastSearchedQuery.value).toBe("");
+
+        mockFtsSearch.mockClear();
+        await result.loadMore();
+        await vi.advanceTimersByTimeAsync(10);
+
+        expect(mockFtsSearch).not.toHaveBeenCalled();
+        expect(result.results.value).toEqual([]);
+        scope.stop();
+    });
+
     it("cancel() discards an in-flight search's results", async () => {
         const scope = effectScope();
         let result: any;
