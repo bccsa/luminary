@@ -134,4 +134,32 @@ describe("FilterOptions", () => {
 
         expect(wrapper.find("[data-test='extra']").exists()).toBe(true);
     });
+
+    it("replaces the built-in search input with the search slot when provided", () => {
+        const wrapper = mountFilterOptions({
+            slots: { search: "<input data-test='custom-search' />" },
+        });
+
+        expect(wrapper.find("[data-test='custom-search']").exists()).toBe(true);
+        expect(wrapper.find("[data-test='search-input']").exists()).toBe(false);
+    });
+
+    it("does not require the search model when a custom search slot owns it instead", () => {
+        // No `search`/`onUpdate:search` wired at all — mirrors a page (like ContentOverview)
+        // that binds its own search state entirely inside the `search` slot.
+        expect(() =>
+            mount(FilterOptions, {
+                props: { groups: mockGroups },
+                slots: { search: "<input data-test='custom-search' />" },
+            }),
+        ).not.toThrow();
+    });
+
+    it("renders page-owned chips via the selected-filters slot", () => {
+        const wrapper = mountFilterOptions({
+            slots: { "selected-filters": "<div data-test='custom-chips'>Custom chips</div>" },
+        });
+
+        expect(wrapper.find("[data-test='custom-chips']").exists()).toBe(true);
+    });
 });
