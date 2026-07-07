@@ -34,7 +34,6 @@ type Props = {
 defineProps<Props>();
 
 const queryOptions = defineModel<ContentOverviewQueryOptions>("queryOptions", { required: true });
-// Debouncing the search term so it is the only unique query option that needs a seperate defineModel
 const query = defineModel("query");
 
 const showSearchIcon = computed(() => !String(query.value ?? "").length);
@@ -43,9 +42,7 @@ const showMobileQueryOptions = ref(false);
 </script>
 
 <template>
-    <div
-        class="relative z-20 flex flex-col gap-1 overflow-visible"
-    >
+    <div class="relative z-20 flex flex-col gap-1 overflow-visible">
         <div class="flex h-10 w-full items-center gap-1">
             <LInput
                 type="text"
@@ -64,7 +61,11 @@ const showMobileQueryOptions = ref(false);
                     <slot name="searchButton"></slot>
                 </template>
             </LInput>
-            <LButton class="h-full" :icon="AdjustmentsVerticalIcon" @click="showMobileQueryOptions = true" />
+            <LButton
+                class="h-full"
+                :icon="AdjustmentsVerticalIcon"
+                @click="showMobileQueryOptions = true"
+            />
             <LButton class="h-full w-10" :icon="ArrowUturnLeftIcon" @click="reset()" />
         </div>
         <div

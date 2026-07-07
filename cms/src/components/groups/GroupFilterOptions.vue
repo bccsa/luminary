@@ -29,10 +29,8 @@ const search = () => {
         applySearch.value?.();
         return;
     }
-    if (query.value.length >= 3) {
-        queryOptions.value.search = query.value;
-        applySearch.value?.();
-    }
+    queryOptions.value.search = query.value;
+    applySearch.value?.();
 };
 
 const clearSearch = () => {
@@ -47,14 +45,13 @@ watch(
     (newVal) => {
         if (!newVal || newVal.length === 0) {
             search();
-            return;
-        }
-        if (newVal.length >= 3) {
-            showSearchButton.value = true;
-            showResetButton.value = true;
-        } else {
             showSearchButton.value = false;
             showResetButton.value = false;
+            return;
+        }
+        if (newVal.length > 0) {
+            showSearchButton.value = true;
+            showResetButton.value = true;
         }
     },
     { immediate: true },

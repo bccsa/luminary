@@ -169,8 +169,7 @@ const filteredGroups = computed(() => {
 });
 
 const showResults = () => {
-    queryOptions.value.search =
-        searchTerm.value && searchTerm.value.length >= 3 ? searchTerm.value : "";
+    queryOptions.value.search = searchTerm.value ? searchTerm.value : "";
     appliedQueryOptions.value = { ...queryOptions.value };
 };
 

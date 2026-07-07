@@ -115,6 +115,7 @@ watch(
             showResetButton.value = true;
         } else showSearchButton.value = false;
     },
+    { immediate: true },
 );
 </script>
 
@@ -155,6 +156,7 @@ watch(
         </template>
     </FilterOptionsMobile>
     <FilterOptionsDesktop
+        v-else
         :groups="groups"
         v-model:query="searchTerm"
         v-model:query-options="queryOptions"
@@ -166,7 +168,6 @@ watch(
         :tag-content-docs="tagContentDocs"
         @keydown.enter="search"
         @keydown.esc="clearSearch"
-        v-else
     >
         <template #searchButton>
             <div class="flex items-center gap-1">
