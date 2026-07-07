@@ -5,17 +5,8 @@ import FormModal from "./FormModal.vue";
 import LDialog from "../common/LDialog.vue";
 import LButton from "@/components/button/LButton.vue";
 import ConfirmBeforeLeavingModal from "@/components/modals/ConfirmBeforeLeavingModal.vue";
-import {
-    PlusIcon,
-    MagnifyingGlassIcon,
-    UserGroupIcon,
-    ArrowUturnLeftIcon,
-    AdjustmentsVerticalIcon,
-} from "@heroicons/vue/24/outline";
-import LInput from "../forms/LInput.vue";
-import LCombobox from "../forms/LCombobox.vue";
-import LModal from "../modals/LModal.vue";
-import LTag from "../content/LTag.vue";
+import { PlusIcon } from "@heroicons/vue/24/outline";
+import FilterOptions from "@/components/common/FilterOptions.vue";
 import EmptyState from "@/components/EmptyState.vue";
 import { isSmallScreen } from "@/globalConfig";
 import { useAuthProviders } from "@/composables/useAuthProviders";
@@ -56,15 +47,6 @@ function handleDuplicate() {
 
 const searchQuery = ref("");
 const selectedGroupFilter = ref<string[]>([]);
-const showMobileFilters = ref(false);
-
-const groupFilterOptions = computed(() =>
-    authProviders.groups.map((g: any) => ({
-        id: g._id,
-        label: g.name,
-        value: g._id,
-    })),
-);
 
 const filteredProviders = computed(() => {
     let result = authProviders.providers;
@@ -86,11 +68,6 @@ const filteredProviders = computed(() => {
 });
 
 const hasAnyContent = computed(() => authProviders.providers.length > 0);
-
-function resetFilters() {
-    searchQuery.value = "";
-    selectedGroupFilter.value = [];
-}
 
 defineExpose({
     openCreateModal: authProviders.openCreateModal,
@@ -125,102 +102,12 @@ defineExpose({
         </template>
 
         <template v-if="hasAnyContent" #internalPageHeader>
-            <!-- Desktop filter bar -->
-            <div
-                v-if="!isSmallScreen"
-                class="flex flex-col gap-1 overflow-visible"
-            >
-                <div class="flex h-10 w-full items-center gap-1">
-                    <LInput
-                        type="text"
-                        :icon="MagnifyingGlassIcon"
-                        class="h-full min-w-0 flex-grow"
-                        name="search"
-                        placeholder="Search..."
-                        v-model="searchQuery"
-                        :full-height="true"
-                    />
-                    <div class="relative flex h-full items-center gap-1">
-                        <LCombobox
-                            :options="groupFilterOptions"
-                            v-model:selected-options="selectedGroupFilter"
-                            :show-selected-in-dropdown="false"
-                            :showSelectedLabels="false"
-                            :icon="UserGroupIcon"
-                        />
-                        <LButton @click="resetFilters" class="h-full w-10">
-                            <ArrowUturnLeftIcon class="h-4 w-4" />
-                        </LButton>
-                    </div>
-                </div>
-
-                <!-- Selected group filter tags -->
-                <div v-if="selectedGroupFilter.length > 0" class="flex w-full flex-col gap-1">
-                    <ul class="flex w-full flex-wrap gap-2">
-                        <LTag
-                            :icon="UserGroupIcon"
-                            v-for="groupId in selectedGroupFilter"
-                            :key="groupId"
-                            @remove="() => { selectedGroupFilter = selectedGroupFilter.filter((v) => v !== groupId); }"
-                        >
-                            {{ authProviders.groups.find((g: any) => g._id === groupId)?.name }}
-                        </LTag>
-                    </ul>
-                </div>
-            </div>
-
-            <!-- Mobile filter bar -->
-            <div
-                v-else
-                class="z-20 flex flex-col gap-1 overflow-visible"
-            >
-                <div class="flex h-10 w-full items-center gap-1">
-                    <LInput
-                        type="text"
-                        :icon="MagnifyingGlassIcon"
-                        class="h-full min-w-0 flex-grow"
-                        name="search"
-                        placeholder="Search..."
-                        v-model="searchQuery"
-                        :full-height="true"
-                    />
-                    <LButton class="h-full" :icon="AdjustmentsVerticalIcon" @click="showMobileFilters = true" />
-                    <LButton class="h-full w-10" :icon="ArrowUturnLeftIcon" @click="resetFilters" />
-                </div>
-
-                <!-- Selected group filter tags (mobile) -->
-                <div v-if="selectedGroupFilter.length > 0" class="flex w-full flex-col gap-1">
-                    <ul class="flex w-full flex-wrap gap-2">
-                        <LTag
-                            :icon="UserGroupIcon"
-                            v-for="groupId in selectedGroupFilter"
-                            :key="groupId"
-                            @remove="() => { selectedGroupFilter = selectedGroupFilter.filter((v) => v !== groupId); }"
-                        >
-                            {{ authProviders.groups.find((g: any) => g._id === groupId)?.name }}
-                        </LTag>
-                    </ul>
-                </div>
-            </div>
-
-            <!-- Mobile filter modal -->
-            <LModal heading="Filter options" v-model:is-visible="showMobileFilters">
-                <div class="flex flex-col gap-2">
-                    <LCombobox
-                        label="Group Membership"
-                        :options="groupFilterOptions"
-                        v-model:selected-options="selectedGroupFilter"
-                        :show-selected-in-dropdown="false"
-                        :showSelectedLabels="false"
-                        :icon="UserGroupIcon"
-                    />
-                </div>
-                <template #footer>
-                    <LButton variant="primary" class="mt-2 w-full" @click="showMobileFilters = false">
-                        Close
-                    </LButton>
-                </template>
-            </LModal>
+            <FilterOptions
+                v-model:search="searchQuery"
+                v-model:selected-groups="selectedGroupFilter"
+                :groups="authProviders.groups"
+                :is-small-screen="isSmallScreen"
+            />
         </template>
 
         <div class="flex flex-col gap-[3px]">
