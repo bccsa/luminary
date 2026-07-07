@@ -10,11 +10,9 @@ import {
 import BasePage from "../BasePage.vue";
 import RedirectDisplaycard from "./RedirectDisplaycard.vue";
 import { PlusIcon } from "@heroicons/vue/20/solid";
-import { MagnifyingGlassIcon } from "@heroicons/vue/24/outline";
 import { computed, ref } from "vue";
-import { debouncedWatch } from "@vueuse/core";
 import LButton from "../button/LButton.vue";
-import LInput from "@/components/forms/LInput.vue";
+import FilterOptions from "@/components/common/FilterOptions.vue";
 import LoadingBar from "@/components/LoadingBar.vue";
 import FtsStaleResultsBanner from "@/components/common/FtsStaleResultsBanner.vue";
 import CreateOrEditRedirectModal from "./CreateOrEditRedirectModal.vue";
@@ -28,16 +26,9 @@ import {
 const canCreateNew = computed(() => hasAnyPermission(DocType.Redirect, AclPermission.Edit));
 const isCreateOrEditModalVisible = ref(false);
 
-// Debounced search term (mirrors the User overview's 500ms search debounce).
-const searchInput = ref("");
+// Debounced search term (mirrors the User overview's 500ms search debounce), owned by
+// FilterOptions' debounceMs prop.
 const searchTerm = ref("");
-debouncedWatch(
-    searchInput,
-    () => {
-        searchTerm.value = searchInput.value;
-    },
-    { debounce: 500 },
-);
 
 /** Minimum characters before switching from synced browse to server-side FTS search. */
 const SEARCH_MIN_CHARS = 3;
@@ -110,22 +101,11 @@ const hasAnyContent = computed(() => (redirects.value?.length ?? 0) > 0);
         </template>
 
         <template v-if="hasAnyContent" #internalPageHeader>
-            <div
-                class="relative z-20 flex flex-col gap-1 overflow-visible"
-            >
-                <div class="flex h-10 w-full items-center gap-1">
-                    <LInput
-                        type="text"
-                        :icon="MagnifyingGlassIcon"
-                        class="h-full min-w-0 flex-grow"
-                        name="search"
-                        placeholder="Search redirects..."
-                        data-test="search-input"
-                        v-model="searchInput"
-                        :full-height="true"
-                    />
-                </div>
-            </div>
+            <FilterOptions
+                v-model:search="searchTerm"
+                search-placeholder="Search redirects..."
+                :debounce-ms="500"
+            />
         </template>
 
         <div class="flex flex-col gap-[3px]">
