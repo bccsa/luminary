@@ -9,9 +9,10 @@ import {
     UserGroupIcon,
     LanguageIcon,
     CloudArrowUpIcon,
+    CalendarDaysIcon,
 } from "@heroicons/vue/24/outline";
 import { type ContentOverviewQueryOptions } from "./types";
-import { type ContentDto, type GroupDto } from "luminary-shared";
+import { db, type ContentDto, type GroupDto } from "luminary-shared";
 import { computed, ref } from "vue";
 import LRadio from "@/components/forms/LRadio.vue";
 import LCombobox from "@/components/forms/LCombobox.vue";
@@ -41,6 +42,25 @@ const query = defineModel("query", { required: true });
 const showSearchIcon = computed(() => !String(query.value ?? "").length);
 
 const showSortOptions = ref(false);
+const showDateFilters = ref(false);
+
+/** ISO `datetime-local` string <-> epoch-ms bridge for the four date-range filter fields. */
+function dateRangeField(key: "publishedAfter" | "publishedBefore" | "expiresAfter" | "expiresBefore") {
+    return computed<string | undefined>({
+        get: () => {
+            const value = queryOptions.value[key];
+            return value ? db.toIsoDateTime(value) || undefined : undefined;
+        },
+        set: (val) => {
+            queryOptions.value[key] = val ? db.fromIsoDateTime(val) : undefined;
+        },
+    });
+}
+
+const publishedAfterString = dateRangeField("publishedAfter");
+const publishedBeforeString = dateRangeField("publishedBefore");
+const expiresAfterString = dateRangeField("expiresAfter");
+const expiresBeforeString = dateRangeField("expiresBefore");
 </script>
 
 <template>
@@ -183,6 +203,64 @@ const showSortOptions = ref(false);
                         </div>
                     </template>
                 </LDropdown>
+
+                <LDropdown
+                    v-model:show="showDateFilters"
+                    placement="bottom-end"
+                    padding="medium"
+                    width="auto"
+                    panel-class="!max-h-96"
+                    data-test="date-filters-display"
+                    class="h-full"
+                >
+                    <template #trigger>
+                        <LButton class="h-full" data-test="date-filters-toggle-btn">
+                            <CalendarDaysIcon class="h-full w-4" />
+                        </LButton>
+                    </template>
+
+                    <div class="flex w-64 flex-col gap-3">
+                        <div>
+                            <p class="mb-1 text-sm font-medium text-zinc-700">Published between</p>
+                            <div class="flex flex-col gap-1">
+                                <LInput
+                                    name="publishedAfter"
+                                    type="datetime-local"
+                                    label="From"
+                                    data-test="published-after-input"
+                                    v-model="publishedAfterString"
+                                />
+                                <LInput
+                                    name="publishedBefore"
+                                    type="datetime-local"
+                                    label="To"
+                                    data-test="published-before-input"
+                                    v-model="publishedBeforeString"
+                                />
+                            </div>
+                        </div>
+                        <div>
+                            <p class="mb-1 text-sm font-medium text-zinc-700">Expires between</p>
+                            <div class="flex flex-col gap-1">
+                                <LInput
+                                    name="expiresAfter"
+                                    type="datetime-local"
+                                    label="From"
+                                    data-test="expires-after-input"
+                                    v-model="expiresAfterString"
+                                />
+                                <LInput
+                                    name="expiresBefore"
+                                    type="datetime-local"
+                                    label="To"
+                                    data-test="expires-before-input"
+                                    v-model="expiresBeforeString"
+                                />
+                            </div>
+                        </div>
+                    </div>
+                </LDropdown>
+
                 <LButton @click="reset()" class="h-full w-10">
                     <ArrowUturnLeftIcon class="h-4 w-4" />
                 </LButton>

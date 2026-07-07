@@ -28,6 +28,8 @@ export type ApiFtsQuery = {
     status?: PublishStatus;
     publishedAfter?: number;
     publishedBefore?: number;
+    expiresAfter?: number;
+    expiresBefore?: number;
     /** Strict mode: require every query word (≥3 chars) as a substring of the searchable fields. */
     matchAllWords?: boolean;
     /**

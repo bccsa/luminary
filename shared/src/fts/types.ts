@@ -71,6 +71,10 @@ export type FtsSearchOptions = {
     publishedAfter?: number;
     /** Restrict to content with `publishDate <= publishedBefore`. */
     publishedBefore?: number;
+    /** Restrict to content with `expiryDate >= expiresAfter`. */
+    expiresAfter?: number;
+    /** Restrict to content with `expiryDate <= expiresBefore`. */
+    expiresBefore?: number;
     /**
      * Strict mode: keep only docs where every query word (≥3 chars) is a **substring**
      * of `title` or `author` (AND across words). Combined with {@link FtsSearchOptions.sort}

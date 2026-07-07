@@ -39,7 +39,7 @@ describe("ftsSearchApi", () => {
         );
     });
 
-    it("forwards the type / tag / status / publishDate filters to the API query", async () => {
+    it("forwards the type / tag / status / publishDate / expiryDate filters to the API query", async () => {
         ftsMock.mockResolvedValue([]);
         await ftsSearchApi({
             query: "garden",
@@ -48,6 +48,8 @@ describe("ftsSearchApi", () => {
             status: "published" as any,
             publishedAfter: 100,
             publishedBefore: 200,
+            expiresAfter: 300,
+            expiresBefore: 400,
         });
         expect(ftsMock).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -56,6 +58,8 @@ describe("ftsSearchApi", () => {
                 status: "published",
                 publishedAfter: 100,
                 publishedBefore: 200,
+                expiresAfter: 300,
+                expiresBefore: 400,
             }),
         );
     });

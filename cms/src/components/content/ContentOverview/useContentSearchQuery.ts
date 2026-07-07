@@ -50,6 +50,12 @@ export function useContentSearchQuery(
             f.status = PublishStatus.Published;
         else if (ps === "draft") f.status = PublishStatus.Draft;
 
+        // User-selectable date-range filters (independent of publishStatus).
+        if (o.publishedAfter != null) f.publishedAfter = o.publishedAfter;
+        if (o.publishedBefore != null) f.publishedBefore = o.publishedBefore;
+        if (o.expiresAfter != null) f.expiresAfter = o.expiresAfter;
+        if (o.expiresBefore != null) f.expiresBefore = o.expiresBefore;
+
         // Strict (default): substring AND on title/author. Ordered by the overview's sort
         // dropdown — except "relevance", which omits the field sort so the exact matches
         // rank by BM25. Related: omit matchAllWords/sort → fuzzy BM25 over all fields.

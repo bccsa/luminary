@@ -209,6 +209,23 @@ describe("FtsSearchService", () => {
         expect(res.map((r) => r.docId)).toEqual(["inrange"]);
     });
 
+    it("applies the expiryDate range filter", async () => {
+        dbService.ftsTrigramCandidates.mockResolvedValue([
+            row("inrange", "gar", value({ expiryDate: 500 })),
+            row("tooearly", "gar", value({ expiryDate: 100 })),
+            row("toolate", "gar", value({ expiryDate: 900 })),
+        ]);
+        dbService.getDocs.mockResolvedValue({
+            docs: [{ _id: "inrange", title: "garden", ftsTokenCount: 10 }],
+        });
+
+        const res = await service.search(
+            makeReq({ cms: true, expiresAfter: 400, expiresBefore: 600 }),
+            mockUser,
+        );
+        expect(res.map((r) => r.docId)).toEqual(["inrange"]);
+    });
+
     it("ranks by score and returns trimmed docs without fts index fields", async () => {
         dbService.ftsTrigramCandidates.mockResolvedValue([
             row("low", "gar", value({ tf: 1 })),

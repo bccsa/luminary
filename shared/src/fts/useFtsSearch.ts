@@ -19,6 +19,8 @@ export type FtsFilterOptions = {
     status?: PublishStatus;
     publishedAfter?: number;
     publishedBefore?: number;
+    expiresAfter?: number;
+    expiresBefore?: number;
     /** Strict mode: require every query word (≥3 chars) as a substring of title/author. */
     matchAllWords?: boolean;
     /** Strict mode: order by this field/direction instead of relevance. */

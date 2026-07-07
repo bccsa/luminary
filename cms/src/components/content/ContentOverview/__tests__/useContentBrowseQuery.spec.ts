@@ -186,6 +186,38 @@ describe("useContentBrowseQuery", () => {
             scope.stop();
         });
 
+        it("filters by publishedAfter/publishedBefore range", async () => {
+            await db.bulkPut([
+                contentDoc({ _id: "in-range", publishDate: 500 }),
+                contentDoc({ _id: "too-early", publishDate: 100 }),
+                contentDoc({ _id: "too-late", publishDate: 900 }),
+            ]);
+
+            const { api, scope } = await run(
+                baseOptions({ publishedAfter: 400, publishedBefore: 600 }),
+            );
+            await waitForExpect(() => {
+                expect(api.docs.value.map((d) => d._id)).toEqual(["in-range"]);
+            });
+            scope.stop();
+        });
+
+        it("filters by expiresAfter/expiresBefore range", async () => {
+            await db.bulkPut([
+                contentDoc({ _id: "in-range", expiryDate: 500 }),
+                contentDoc({ _id: "too-early", expiryDate: 100 }),
+                contentDoc({ _id: "too-late", expiryDate: 900 }),
+            ]);
+
+            const { api, scope } = await run(
+                baseOptions({ expiresAfter: 400, expiresBefore: 600 }),
+            );
+            await waitForExpect(() => {
+                expect(api.docs.value.map((d) => d._id)).toEqual(["in-range"]);
+            });
+            scope.stop();
+        });
+
         it("combines tag + group + publish-status filters (AND, not OR)", async () => {
             await db.bulkPut([
                 contentDoc({

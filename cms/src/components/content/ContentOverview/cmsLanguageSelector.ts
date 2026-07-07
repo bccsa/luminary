@@ -131,3 +131,22 @@ export function publishStatusSelector(
     // expired
     return [{ status: PublishStatus.Published }, { expiryDate: { $lte: now } }];
 }
+
+/**
+ * Mango clauses (to be AND-ed) for the user-selectable publish/expiry date-range filters.
+ * Independent of {@link publishStatusSelector} — narrows further on top of whichever
+ * `publishStatus` is selected. Each bound is optional and only narrows when present.
+ */
+export function dateRangeSelector(
+    o: Pick<
+        ContentOverviewQueryOptions,
+        "publishedAfter" | "publishedBefore" | "expiresAfter" | "expiresBefore"
+    >,
+): MangoSelector[] {
+    const clauses: MangoSelector[] = [];
+    if (o.publishedAfter != null) clauses.push({ publishDate: { $gte: o.publishedAfter } });
+    if (o.publishedBefore != null) clauses.push({ publishDate: { $lte: o.publishedBefore } });
+    if (o.expiresAfter != null) clauses.push({ expiryDate: { $gte: o.expiresAfter } });
+    if (o.expiresBefore != null) clauses.push({ expiryDate: { $lte: o.expiresBefore } });
+    return clauses;
+}
