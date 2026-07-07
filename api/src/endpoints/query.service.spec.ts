@@ -315,6 +315,38 @@ describe("QueryService", () => {
         );
     });
 
+    it("reloads languages before rejecting a Content query when the cache is empty", async () => {
+        const access = {
+            [DocType.Post]: ["gp1"],
+            [DocType.Language]: ["lang-g1"],
+        } as any;
+        (permissions.PermissionSystem.accessMapToGroups as jest.Mock).mockReturnValueOnce(access);
+
+        (service as any).languages = [];
+        dbService.executeFindQuery.mockResolvedValueOnce({
+            docs: [{ _id: "lang-eng", type: DocType.Language, memberOf: ["lang-g1"] }],
+        });
+
+        const query = makeQuery((s) => {
+            (s as any).type = DocType.Content;
+            (s as any).parentType = DocType.Post;
+        });
+
+        await service.query(query, mockUser);
+
+        expect(dbService.executeFindQuery).toHaveBeenNthCalledWith(
+            1,
+            expect.objectContaining({
+                selector: { type: DocType.Language },
+                use_index: "sync-language-index",
+            }),
+        );
+        expect(dbService.executeFindQuery).toHaveBeenNthCalledWith(
+            2,
+            expect.objectContaining({ selector: expect.any(Object) }),
+        );
+    });
+
     it("throws 400 when multiple types are specified", async () => {
         const query = makeQuery((s) => {
             // Multiple types not allowed (using $in operator)
