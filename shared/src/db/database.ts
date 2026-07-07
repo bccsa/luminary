@@ -21,7 +21,7 @@ import { filterAsync, someAsync } from "../util/asyncArray";
 import { watchValue } from "../util/watchValue";
 import { accessMap, getAccessibleGroups, verifyAccess } from "../permissions/permissions";
 import { config } from "../config";
-import { changeReqErrors, changeReqWarnings } from "../config";
+import { changeReqErrors, changeReqRejectedDocs, changeReqWarnings } from "../config";
 import { cloneDeep } from "lodash-es";
 
 const dbName: string = "luminary-db";
@@ -559,6 +559,10 @@ class Database extends Dexie {
             if (ack.docs && Array.isArray(ack.docs)) {
                 // Replace our local copy(s) with the provided database version
                 await this.docs.bulkPut(ack.docs);
+
+                // Surface the corrected docs for consumers holding their own `toEditable`
+                // shadow copy, which won't pick up this bulkPut while the item is dirty.
+                changeReqRejectedDocs.value = ack.docs;
             } else {
                 // Otherwise attempt to delete the item, as it might have been a rejected create action
                 await this.docs.delete(localChange.doc._id);

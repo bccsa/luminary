@@ -1,9 +1,19 @@
 import { ref, Ref } from "vue";
-import { Uuid } from "./types";
+import { BaseDocumentDto, Uuid } from "./types";
 import { OPEN_MIN } from "./api/sync/utils";
 
 export const changeReqWarnings = ref<string[]>([]);
 export const changeReqErrors = ref<string[]>([]);
+
+/**
+ * Docs returned by a rejected change request ack (`ChangeReqAckDto.docs`), corrected to the
+ * server's actual persisted state. Populated in `Database.applyLocalChangeAck`, cleared at the
+ * start of the next `syncLocalChanges` send. Consumers that hold their own `toEditable` shadow
+ * copy (which does not re-sync from a Dexie `bulkPut` while the user has unsaved edits) watch
+ * this to reconcile specific fields — e.g. snapping a rejected slug change back — without
+ * clobbering the rest of the user's in-progress edit.
+ */
+export const changeReqRejectedDocs = ref<BaseDocumentDto[]>([]);
 
 /**
  * Signal emitted when an HTTP request fails with a 5xx status. Consumers

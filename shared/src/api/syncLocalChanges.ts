@@ -4,7 +4,7 @@ import { getRest } from "./RestApi";
 import { ChangeReqAckDto, LocalChangeDto } from "../types";
 import { db } from "../db/database";
 import { LFormData } from "../util/LFormData";
-import { changeReqErrors, changeReqWarnings } from "../config";
+import { changeReqErrors, changeReqRejectedDocs, changeReqWarnings } from "../config";
 
 async function send(change: LocalChangeDto): Promise<boolean> {
     const formData = new LFormData();
@@ -15,6 +15,7 @@ async function send(change: LocalChangeDto): Promise<boolean> {
 
     changeReqWarnings.value = [];
     changeReqErrors.value = [];
+    changeReqRejectedDocs.value = [];
     await db.applyLocalChangeAck(res, change);
     return true;
 }
