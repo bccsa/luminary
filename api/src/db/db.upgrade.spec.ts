@@ -46,10 +46,6 @@ jest.mock("./schemaUpgrade/v19", () => ({
     __esModule: true,
     default: jest.fn().mockResolvedValue(undefined),
 }));
-jest.mock("./schemaUpgrade/v20", () => ({
-    __esModule: true,
-    default: jest.fn().mockResolvedValue(undefined),
-}));
 
 import { upgradeDbSchema } from "./db.upgrade";
 import initSchemaVersion from "./schemaUpgrade/initSchemaVersion";
@@ -64,7 +60,6 @@ import v16 from "./schemaUpgrade/v16";
 import v17 from "./schemaUpgrade/v17";
 import v18 from "./schemaUpgrade/v18";
 import v19 from "./schemaUpgrade/v19";
-import v20 from "./schemaUpgrade/v20";
 
 describe("upgradeDbSchema", () => {
     const mockDb = {} as any;
@@ -88,7 +83,6 @@ describe("upgradeDbSchema", () => {
         expect(v17).toHaveBeenCalledWith(mockDb);
         expect(v18).toHaveBeenCalledWith(mockDb);
         expect(v19).toHaveBeenCalledWith(mockDb);
-        expect(v20).toHaveBeenCalledWith(mockDb);
     });
 
     it("should re-throw error and log it when an upgrade function fails", async () => {
