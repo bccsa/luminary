@@ -13,6 +13,7 @@ import {
     useHybridQuery,
     useSharedHybridQuery,
     toEditable,
+    changeReqRejectedDocs,
 } from "luminary-shared";
 import LInput from "@/components/forms/LInput.vue";
 import LButton from "@/components/button/LButton.vue";
@@ -234,6 +235,23 @@ const deleteRedirect = async () => {
 const revertChanges = () => {
     redirectEditable.revert(currentId.value);
 };
+
+// The optimistic local save (toEditable's persistOffline path) always reports success
+// immediately; the actual accept/reject only arrives later via the local-change sync. If the
+// server then rejects this redirect's slug (invariant violation — e.g. another redirect or
+// currently-published content already claims it), snap just the slug back to the persisted
+// value, keeping any other in-progress edits (toSlug, type, group membership) intact.
+watch(changeReqRejectedDocs, (docs) => {
+    const rejected = docs.find((d) => d._id === currentId.value) as RedirectDto | undefined;
+    if (!rejected || !("slug" in rejected) || !editable.value) return;
+
+    editable.value.slug = rejected.slug;
+    addNotification({
+        title: "Slug change reverted",
+        description: `This slug is already in use, so the change was reverted to "${rejected.slug}".`,
+        state: "error",
+    });
+});
 </script>
 
 <template>

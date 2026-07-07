@@ -4,7 +4,7 @@ import { mount } from "@vue/test-utils";
 import CreateOrEditRedirectModal from "./CreateOrEditRedirectModal.vue";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
-import { accessMap, db } from "luminary-shared";
+import { accessMap, changeReqRejectedDocs, db, type RedirectDto } from "luminary-shared";
 import { mockRedirectDto, superAdminAccessMap } from "@/tests/mockdata";
 import waitForExpect from "wait-for-expect";
 import LDialog from "../common/LDialog.vue";
@@ -22,6 +22,7 @@ describe("CreateOrEditRedirectModal.vue", () => {
         // Clear the database after each test
         await db.docs.clear();
         await db.localChanges.clear();
+        changeReqRejectedDocs.value = [];
     });
 
     describe("create mode", () => {
@@ -127,6 +128,42 @@ describe("CreateOrEditRedirectModal.vue", () => {
 
         // Assert the close event was emitted
         expect(wrapper.emitted().close).toBeTruthy();
+    });
+
+    it("reverts the slug but keeps other edits when the server rejects the redirect's slug", async () => {
+        const wrapper = mount(CreateOrEditRedirectModal, {
+            props: {
+                isVisible: true,
+                redirect: { ...mockRedirectDto },
+            },
+        });
+
+        await waitForExpect(() => {
+            const fromInput = wrapper.find("[name='RedirectFromSlug']").element as HTMLInputElement;
+            expect(fromInput.value).toBe("vod");
+        });
+
+        // User edits both the From slug (to something that will collide server-side) and the
+        // To slug in the same session.
+        await wrapper.find("[name='RedirectFromSlug']").setValue("taken-slug");
+        await wrapper.find("[name='RedirectFromSlug']").trigger("change");
+        await wrapper.find("[name='RedirectToSlug']").setValue("new-to-slug");
+        await wrapper.find("[name='RedirectToSlug']").trigger("change");
+
+        // Simulate the server rejecting the optimistic local save (async, after the modal
+        // already reported success) and returning the corrected doc: slug reverted, toSlug
+        // preserved from the submission.
+        changeReqRejectedDocs.value = [
+            { ...mockRedirectDto, slug: "vod", toSlug: "new-to-slug" } as RedirectDto,
+        ];
+
+        await waitForExpect(() => {
+            const fromInput = wrapper.find("[name='RedirectFromSlug']").element as HTMLInputElement;
+            expect(fromInput.value).toBe("vod");
+        });
+
+        const toInput = wrapper.find("[name='RedirectToSlug']").element as HTMLInputElement;
+        expect(toInput.value).toBe("new-to-slug");
     });
 
     it("can delete a redirect", async () => {
