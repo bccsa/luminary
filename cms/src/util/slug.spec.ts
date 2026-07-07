@@ -1,7 +1,7 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, afterEach } from "vitest";
 import { Slug } from "./slug";
-import { db, type ContentDto } from "luminary-shared";
+import { db, PublishStatus, type ContentDto } from "luminary-shared";
 import { mockEnglishContentDto } from "@/tests/mockdata";
 
 describe("Slug", () => {
@@ -33,6 +33,46 @@ describe("Slug", () => {
         const generatedSlug = await Slug.generate(title, mockEnglishContentDto._id);
 
         expect(generatedSlug).toBe("sample-title");
+    });
+
+    describe("hasPublishedContentCollision", () => {
+        it("returns false when no content occupies the slug", async () => {
+            const result = await Slug.hasPublishedContentCollision("free-slug", "some-id");
+            expect(result).toBe(false);
+        });
+
+        it("returns true when other published content occupies the slug", async () => {
+            await db.docs.put({ ...mockEnglishContentDto } as ContentDto);
+
+            const result = await Slug.hasPublishedContentCollision(
+                mockEnglishContentDto.slug,
+                "a-different-content-id",
+            );
+            expect(result).toBe(true);
+        });
+
+        it("excludes the given content id (the doc being renamed) from the collision check", async () => {
+            await db.docs.put({ ...mockEnglishContentDto } as ContentDto);
+
+            const result = await Slug.hasPublishedContentCollision(
+                mockEnglishContentDto.slug,
+                mockEnglishContentDto._id,
+            );
+            expect(result).toBe(false);
+        });
+
+        it("returns false when the occupying content is not published", async () => {
+            await db.docs.put({
+                ...mockEnglishContentDto,
+                status: PublishStatus.Draft,
+            } as ContentDto);
+
+            const result = await Slug.hasPublishedContentCollision(
+                mockEnglishContentDto.slug,
+                "a-different-content-id",
+            );
+            expect(result).toBe(false);
+        });
     });
 
     describe("generateNonUnique - bug prevention tests", () => {

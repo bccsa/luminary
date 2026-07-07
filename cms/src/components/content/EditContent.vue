@@ -12,11 +12,14 @@ import {
     TagType,
     type ContentDto,
     type LanguageDto,
+    type RedirectDto,
     type TagDto,
     type Uuid,
     verifyAccess,
     PostType,
+    changeReqRejectedDocs,
 } from "luminary-shared";
+import { Slug } from "@/util/slug";
 import { useEditContentSource } from "./composables/useEditContentSource";
 import { useContentLanguage } from "./composables/useContentLanguage";
 import { useContentPermissions } from "./composables/useContentPermissions";
@@ -153,19 +156,63 @@ const createTranslation = (language: LanguageDto) => {
 const isValid = ref(true);
 
 // Create redirects (old slug → new slug) for any published translation whose slug
-// changed and the user has redirect-edit access to.
+// changed and the user has redirect-edit access to. Each candidate is checked against
+// the same invariants the server enforces (a redirect's "from" slug must be unique and
+// must not be claimed by other currently-published content) before it is queued — a
+// candidate that would be rejected server-side has its originating translation's slug
+// reverted here instead, so the CMS never saves a rename with no working redirect behind it.
 const createRedirect = async () => {
     if (!existingContent.value) return;
-    const redirects = buildRedirects(editableContent.value, existingContent.value);
-    await Promise.all(redirects.map((redirect) => db.upsert({ doc: redirect })));
-    redirects.forEach((redirect) =>
+    const candidates = buildRedirects(editableContent.value, existingContent.value);
+
+    for (const { redirect, contentId } of candidates) {
+        const isSlugUnique = await Slug.checkUnique(redirect.slug, redirect._id, DocType.Redirect);
+        const publishedCollision = await Slug.hasPublishedContentCollision(
+            redirect.slug,
+            contentId,
+        );
+
+        if (!isSlugUnique || publishedCollision) {
+            const content = editableContent.value.find((c) => c._id === contentId);
+            if (content) content.slug = redirect.slug;
+            notify(
+                "error",
+                "Slug change reverted",
+                `The slug "${redirect.slug}" is still in use, so the rename to "${redirect.toSlug}" was reverted.`,
+            );
+            continue;
+        }
+
+        await db.upsert({ doc: redirect });
         notify(
             "info",
             "Redirect created",
             `A redirect was created from ${redirect.slug} to ${redirect.toSlug}`,
-        ),
-    );
+        );
+    }
 };
+
+// Backup for the races the pre-check above can't catch (e.g. another editor claims the slug
+// between the check and the server processing the request): if a redirect we just queued is
+// rejected after the fact, revert the matching translation's slug so the CMS doesn't keep
+// displaying a rename that has no working redirect behind it.
+watch(changeReqRejectedDocs, (docs) => {
+    for (const doc of docs) {
+        if (doc.type !== DocType.Redirect) continue;
+        const redirect = doc as RedirectDto;
+        if (!redirect.toSlug) continue;
+
+        const content = editableContent.value.find((c) => c.slug === redirect.toSlug);
+        if (!content) continue;
+
+        content.slug = redirect.slug;
+        notify(
+            "error",
+            "Slug change reverted",
+            `The rename to "${redirect.toSlug}" could not be completed, so the slug was reverted to "${redirect.slug}".`,
+        );
+    }
+});
 
 // Guards against a rapid second save re-entering while the first is still in flight — e.g.
 // buildRedirects reading stale existingContent (not yet refreshed by the first save's write)

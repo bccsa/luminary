@@ -1,5 +1,5 @@
 import { slugify } from "transliteration";
-import { db, DocType, type Uuid } from "luminary-shared";
+import { db, DocType, PublishStatus, type ContentDto, type Uuid } from "luminary-shared";
 
 /**
  * Functions to generate and validate slugs
@@ -66,5 +66,25 @@ export class Slug {
         }
 
         return true;
+    }
+
+    /**
+     * Returns true if a currently-published Content document (other than `excludeContentId`)
+     * already occupies `slug`. Mirrors the server's redirect-over-published-content invariant
+     * (`api/src/changeRequests/validateChangeRequest.ts`) so callers can check client-side
+     * before submitting a change request that the server would reject.
+     */
+    public static async hasPublishedContentCollision(slug: string, excludeContentId: Uuid) {
+        const matches = await db.docs
+            .where("slug")
+            .equals(slug)
+            .and((doc) => doc.type === DocType.Content)
+            .toArray();
+
+        return matches.some(
+            (doc) =>
+                doc._id !== excludeContentId &&
+                (doc as ContentDto).status === PublishStatus.Published,
+        );
     }
 }

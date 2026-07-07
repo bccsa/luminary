@@ -6,10 +6,13 @@ import {
     DocType,
     type ContentDto,
     type PostDto,
+    type RedirectDto,
     accessMap,
     PostType,
     PublishStatus,
     isConnected,
+    RedirectType,
+    changeReqRejectedDocs,
 } from "luminary-shared";
 import * as mockData from "@/tests/mockdata";
 import { setActivePinia } from "pinia";
@@ -100,6 +103,7 @@ describe("EditContent.vue", () => {
         await db.docs.clear();
         await db.localChanges.clear();
         vi.clearAllMocks();
+        changeReqRejectedDocs.value = [];
     });
 
     it("can load content from the database", async () => {
@@ -930,6 +934,144 @@ describe("EditContent.vue", () => {
             expect((fraRedirect!.doc as any).toSlug).toBe("new-fra-slug");
         });
     }, 15000);
+
+    it("reverts the slug instead of creating a redirect when the old slug is already claimed by another redirect", async () => {
+        await db.docs.put({
+            _id: "redirect-existing",
+            type: DocType.Redirect,
+            memberOf: ["group-public-content"],
+            updatedTimeUtc: 0,
+            redirectType: RedirectType.Permanent,
+            slug: mockData.mockEnglishContentDto.slug,
+            toSlug: "somewhere-else",
+        } as RedirectDto);
+
+        const wrapper = mount(EditContent, {
+            props: {
+                docType: DocType.Post,
+                id: mockData.mockPostDto._id,
+                languageCode: "eng",
+                tagOrPostType: PostType.Blog,
+            },
+        });
+
+        await waitForExpect(async () => {
+            expect(wrapper.find('[data-test="slugSpan"]').exists()).toBe(true);
+            await wrapper.find('[data-test="slugSpan"]').trigger("click");
+            await wrapper.find('[name="slug"]').setValue("new-slug");
+            await wrapper.find('[name="slug"]').trigger("change");
+        });
+
+        await waitForExpect(async () => {
+            await wrapper.find('[data-test="save-button"]').trigger("click");
+        });
+
+        await waitForExpect(() => {
+            const editableContent = (wrapper.vm as any).editableContent as ContentDto[];
+            const engContent = editableContent.find(
+                (c) => c.language === mockData.mockLanguageDtoEng._id,
+            );
+            expect(engContent?.slug).toBe(mockData.mockEnglishContentDto.slug);
+        });
+
+        await waitForExpect(async () => {
+            const res = await db.localChanges.toArray();
+            const redirects = res.filter((o) => o.doc?.type === DocType.Redirect);
+            expect(redirects.length).toBe(0);
+        });
+    });
+
+    it("reverts the slug instead of creating a redirect when another published content already occupies the old slug", async () => {
+        await db.docs.put({
+            ...mockData.mockEnglishContentDto,
+            _id: "content-duplicate-eng",
+            parentId: "post-duplicate",
+        } as ContentDto);
+
+        const wrapper = mount(EditContent, {
+            props: {
+                docType: DocType.Post,
+                id: mockData.mockPostDto._id,
+                languageCode: "eng",
+                tagOrPostType: PostType.Blog,
+            },
+        });
+
+        await waitForExpect(async () => {
+            expect(wrapper.find('[data-test="slugSpan"]').exists()).toBe(true);
+            await wrapper.find('[data-test="slugSpan"]').trigger("click");
+            await wrapper.find('[name="slug"]').setValue("new-slug");
+            await wrapper.find('[name="slug"]').trigger("change");
+        });
+
+        await waitForExpect(async () => {
+            await wrapper.find('[data-test="save-button"]').trigger("click");
+        });
+
+        await waitForExpect(() => {
+            const editableContent = (wrapper.vm as any).editableContent as ContentDto[];
+            const engContent = editableContent.find(
+                (c) => c.language === mockData.mockLanguageDtoEng._id,
+            );
+            expect(engContent?.slug).toBe(mockData.mockEnglishContentDto.slug);
+        });
+
+        await waitForExpect(async () => {
+            const res = await db.localChanges.toArray();
+            const redirects = res.filter((o) => o.doc?.type === DocType.Redirect);
+            expect(redirects.length).toBe(0);
+        });
+    });
+
+    it("reverts the slug via the backup watcher when a queued redirect is rejected asynchronously", async () => {
+        const wrapper = mount(EditContent, {
+            props: {
+                docType: DocType.Post,
+                id: mockData.mockPostDto._id,
+                languageCode: "eng",
+                tagOrPostType: PostType.Blog,
+            },
+        });
+
+        await waitForExpect(async () => {
+            expect(wrapper.find('[data-test="slugSpan"]').exists()).toBe(true);
+            await wrapper.find('[data-test="slugSpan"]').trigger("click");
+            await wrapper.find('[name="slug"]').setValue("new-slug");
+            await wrapper.find('[name="slug"]').trigger("change");
+        });
+
+        await waitForExpect(async () => {
+            await wrapper.find('[data-test="save-button"]').trigger("click");
+        });
+
+        await waitForExpect(async () => {
+            const res = await db.localChanges.toArray();
+            const redirects = res.filter((o) => o.doc?.type === DocType.Redirect);
+            expect(redirects.length).toBe(1);
+        });
+
+        // Simulate the queued redirect being rejected after the fact (a race the pre-check
+        // couldn't catch, e.g. another editor claimed the slug in between).
+        changeReqRejectedDocs.value = [
+            {
+                _id: "some-redirect-id",
+                type: DocType.Redirect,
+                memberOf: ["group-public-content"],
+                updatedTimeUtc: 0,
+                redirectType: RedirectType.Permanent,
+                slug: mockData.mockEnglishContentDto.slug,
+                toSlug: "new-slug",
+            } as RedirectDto,
+        ];
+
+        await waitForExpect(() => {
+            const editableContent = (wrapper.vm as any).editableContent as ContentDto[];
+            const engContent = editableContent.find(
+                (c) => c.language === mockData.mockLanguageDtoEng._id,
+            );
+            expect(engContent?.slug).toBe(mockData.mockEnglishContentDto.slug);
+        });
+    });
 
     describe("delete requests", () => {
         it("marks a post/tag document for deletion without marking associated content documents for deletion when the user deletes a post/tag", async () => {
