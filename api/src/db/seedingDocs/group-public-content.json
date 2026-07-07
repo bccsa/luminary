@@ -42,7 +42,7 @@
         {
             "type": "group",
             "groupId": "group-public-editors",
-            "permission": ["view"]
+            "permission": ["view", "cmsView"]
         },
         {
             "type": "redirect",
@@ -78,6 +78,36 @@
             "type": "storage",
             "groupId": "group-private-users",
             "permission": ["view"]
+        },
+        {
+            "type": "post",
+            "groupId": "group-super-admins",
+            "permission": ["view", "cmsView"]
+        },
+        {
+            "type": "tag",
+            "groupId": "group-super-admins",
+            "permission": ["view", "cmsView"]
+        },
+        {
+            "type": "language",
+            "groupId": "group-super-admins",
+            "permission": ["view", "cmsView"]
+        },
+        {
+            "type": "redirect",
+            "groupId": "group-super-admins",
+            "permission": ["view", "cmsView"]
+        },
+        {
+            "type": "storage",
+            "groupId": "group-super-admins",
+            "permission": ["view", "cmsView"]
+        },
+        {
+            "type": "group",
+            "groupId": "group-super-admins",
+            "permission": ["view", "cmsView"]
         }
     ]
 }

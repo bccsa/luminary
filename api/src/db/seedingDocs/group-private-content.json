@@ -37,12 +37,37 @@
         {
             "type": "group",
             "groupId": "group-private-editors",
-            "permission": ["view"]
+            "permission": ["view", "cmsView"]
         },
         {
             "type": "redirect",
             "groupId": "group-private-editors",
             "permission": ["view", "edit", "cmsView"]
+        },
+        {
+            "type": "post",
+            "groupId": "group-super-admins",
+            "permission": ["view", "cmsView"]
+        },
+        {
+            "type": "tag",
+            "groupId": "group-super-admins",
+            "permission": ["view", "cmsView"]
+        },
+        {
+            "type": "language",
+            "groupId": "group-super-admins",
+            "permission": ["view", "cmsView"]
+        },
+        {
+            "type": "redirect",
+            "groupId": "group-super-admins",
+            "permission": ["view", "cmsView"]
+        },
+        {
+            "type": "group",
+            "groupId": "group-super-admins",
+            "permission": ["view", "cmsView"]
         }
     ]
 }

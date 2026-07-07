@@ -6,6 +6,15 @@ import { AclPermission, DocType } from "../../enums";
  */
 const SUPER_ADMINS_GROUP_ID = "group-super-admins";
 const PUBLIC_USERS_GROUP_ID = "group-public-users";
+const CMS_EDITOR_GROUP_IDS = ["group-public-editors", "group-private-editors"];
+const CMS_EDITOR_DOC_TYPES = [
+    DocType.Group,
+    DocType.Language,
+    DocType.Post,
+    DocType.Redirect,
+    DocType.Storage,
+    DocType.Tag,
+];
 
 /**
  * Upgrade the database schema from version 18 to 19.
@@ -15,13 +24,15 @@ const PUBLIC_USERS_GROUP_ID = "group-public-users";
  * group holds it, so without a backfill the CMS would lose visibility until ACLs are updated. This
  * grants it narrowly to the standard system groups:
  *
- *  - `group-super-admins` → CmsView on every ACL entry assigned to it, across all target groups
- *    (full CMS visibility on all doc types).
+ *  - `group-super-admins` → direct CmsView rows on every target group/doc type in the existing
+ *    ACL graph (full CMS visibility without granting CmsView to public/private user groups).
  *  - `group-public-users` → CmsView on **AuthProvider** entries only, so the CMS can show the login
  *    providers to any user opening it (the login screen reads AuthProvider docs).
+ *  - `group-public-editors` / `group-private-editors` → CmsView on CMS-managed content, language,
+ *    group, redirect and storage entries, matching the seeded editor roles.
  *
- * Everyone else (editors, etc.) is granted CmsView explicitly via ACL administration / seeding — the
- * upgrade deliberately does NOT broadly grant it, so CmsView stays a real, narrowable permission.
+ * Everyone else is granted CmsView explicitly via ACL administration / seeding — the upgrade
+ * deliberately does NOT broadly grant it, so CmsView stays a real, narrowable permission.
  *
  * Idempotent: only pushes CmsView where missing, so re-running (e.g. `npm run seed` runs the upgrade
  * chain) is a no-op. Uses `insertDoc` to preserve `updatedTimeUtc`; the granted access takes effect
@@ -51,14 +62,36 @@ export default async function (db: DbService) {
                     }
                 };
 
+                const docTypes = new Set(
+                    doc.acl.map((entry: any) => entry.type).filter((type: any) => type),
+                );
+
                 doc.acl
                     .filter(
                         (entry: any) =>
                             entry.groupId === SUPER_ADMINS_GROUP_ID ||
                             (entry.groupId === PUBLIC_USERS_GROUP_ID &&
-                                entry.type === DocType.AuthProvider),
+                                entry.type === DocType.AuthProvider) ||
+                            (CMS_EDITOR_GROUP_IDS.includes(entry.groupId) &&
+                                CMS_EDITOR_DOC_TYPES.includes(entry.type)),
                     )
                     .forEach(grant);
+
+                docTypes.forEach((type: DocType) => {
+                    if (
+                        !doc.acl.some(
+                            (entry: any) =>
+                                entry.groupId === SUPER_ADMINS_GROUP_ID && entry.type === type,
+                        )
+                    ) {
+                        doc.acl.push({
+                            type,
+                            groupId: SUPER_ADMINS_GROUP_ID,
+                            permission: [AclPermission.View, AclPermission.CmsView],
+                        });
+                        changed = true;
+                    }
+                });
 
                 if (changed) {
                     await db.insertDoc(doc);

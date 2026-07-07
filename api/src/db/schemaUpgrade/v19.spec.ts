@@ -1,5 +1,6 @@
 import v19 from "./v19";
 import { AclPermission, DocType } from "../../enums";
+import { PermissionSystem } from "../../permissions/permissions.service";
 
 describe("v19 — CmsView ACL backfill", () => {
     function mockDb(version: number, groups: any[]) {
@@ -47,14 +48,82 @@ describe("v19 — CmsView ACL backfill", () => {
 
         await v19(db);
 
-        expect(inserted).toEqual([superAdmins, publicUsers, privateUsers]);
+        expect(inserted).toEqual([superAdmins, publicUsers, privateUsers, publicContent]);
         for (const g of [superAdmins, publicUsers, privateUsers]) {
             for (const e of g.acl) {
                 expect(e.permission).toContain(AclPermission.CmsView);
             }
         }
         expect(publicContent.acl[0].permission).not.toContain(AclPermission.CmsView);
+        expect(publicContent.acl).toContainEqual({
+            type: DocType.Post,
+            groupId: "group-super-admins",
+            permission: [AclPermission.View, AclPermission.CmsView],
+        });
         expect(db.setSchemaVersion).toHaveBeenCalledWith(19);
+    });
+
+    it("adds missing direct super-admin CmsView entries for every target group doc type", async () => {
+        const g = group("group-public-content", [
+            entry(DocType.Post, [AclPermission.View], "group-public-users"),
+            entry(DocType.Tag, [AclPermission.View], "group-public-editors"),
+            entry(DocType.Group, [AclPermission.View], "group-public-editors"),
+        ]);
+        const { db, inserted } = mockDb(18, [g]);
+
+        await v19(db);
+
+        expect(inserted).toEqual([g]);
+        for (const type of [DocType.Post, DocType.Tag, DocType.Group]) {
+            expect(g.acl).toContainEqual({
+                type,
+                groupId: "group-super-admins",
+                permission: [AclPermission.View, AclPermission.CmsView],
+            });
+        }
+        expect(g.acl[0].permission).not.toContain(AclPermission.CmsView);
+    });
+
+    it("gives super admins CmsView after the permission graph is rebuilt", async () => {
+        const groups = [
+            group("group-super-admins", []),
+            group("group-public-users", [
+                entry(DocType.Post, [AclPermission.View], "group-super-admins"),
+            ]),
+            group("group-test-content", [
+                entry(DocType.Post, [AclPermission.View], "group-public-users"),
+            ]),
+        ];
+        const { db } = mockDb(18, groups);
+
+        await v19(db);
+
+        PermissionSystem.upsertGroups([...groups]);
+
+        try {
+            expect(
+                PermissionSystem.verifyAccess(
+                    ["group-test-content"],
+                    DocType.Post,
+                    AclPermission.CmsView,
+                    ["group-super-admins"],
+                ),
+            ).toBe(true);
+            expect(
+                PermissionSystem.verifyAccess(
+                    ["group-test-content"],
+                    DocType.Post,
+                    AclPermission.CmsView,
+                    ["group-public-users"],
+                ),
+            ).toBe(false);
+        } finally {
+            PermissionSystem.removeGroups([
+                "group-super-admins",
+                "group-public-users",
+                "group-test-content",
+            ]);
+        }
     });
 
     it("grants CmsView to group-public-users only for AuthProvider entries", async () => {
@@ -73,23 +142,54 @@ describe("v19 — CmsView ACL backfill", () => {
         expect(provider.permission).toContain(AclPermission.CmsView);
     });
 
-    it("does NOT grant CmsView to other actor groups (editors etc. are manual / seeded)", async () => {
-        const g = group("group-public-content", [
+    it("grants CmsView to standard editor ACL entries for CMS-synced doc types", async () => {
+        const publicContent = group("group-public-content", [
             entry(DocType.Post, [AclPermission.View, AclPermission.Edit], "group-public-editors"),
+            entry(DocType.Group, [AclPermission.View], "group-public-editors"),
             entry(DocType.AuthProvider, [AclPermission.View], "group-public-editors"),
+        ]);
+        const languages = group("group-languages", [
+            entry(DocType.Language, [AclPermission.View], "group-private-editors"),
+            entry(DocType.Storage, [AclPermission.View], "group-private-editors"),
+        ]);
+        const { db, inserted } = mockDb(18, [publicContent, languages]);
+
+        await v19(db);
+
+        expect(inserted).toEqual([publicContent, languages]);
+        expect(publicContent.acl[0].permission).toContain(AclPermission.CmsView);
+        expect(publicContent.acl[1].permission).toContain(AclPermission.CmsView);
+        expect(publicContent.acl[2].permission).not.toContain(AclPermission.CmsView);
+        for (const e of languages.acl) expect(e.permission).toContain(AclPermission.CmsView);
+        expect(db.setSchemaVersion).toHaveBeenCalledWith(19);
+    });
+
+    it("does NOT grant CmsView to app-only user groups", async () => {
+        const g = group("group-public-content", [
+            entry(DocType.Post, [AclPermission.View], "group-public-users"),
+            entry(DocType.Language, [AclPermission.View], "group-private-users"),
         ]);
         const { db, inserted } = mockDb(18, [g]);
 
         await v19(db);
 
-        expect(inserted).toHaveLength(0);
-        for (const e of g.acl) expect(e.permission).not.toContain(AclPermission.CmsView);
+        expect(inserted).toEqual([g]);
+        for (const e of g.acl.filter((entry: any) => entry.groupId !== "group-super-admins")) {
+            expect(e.permission).not.toContain(AclPermission.CmsView);
+        }
         expect(db.setSchemaVersion).toHaveBeenCalledWith(19);
     });
 
     it("is idempotent — does not re-add CmsView already present", async () => {
         const g = group("group-public-users", [
             entry(DocType.Post, [AclPermission.View, AclPermission.CmsView], "group-super-admins"),
+            entry(DocType.Group, [AclPermission.View, AclPermission.CmsView], "group-super-admins"),
+            entry(
+                DocType.AuthProvider,
+                [AclPermission.View, AclPermission.CmsView],
+                "group-super-admins",
+            ),
+            entry(DocType.Group, [AclPermission.View, AclPermission.CmsView], "group-public-editors"),
             entry(
                 DocType.AuthProvider,
                 [AclPermission.View, AclPermission.CmsView],

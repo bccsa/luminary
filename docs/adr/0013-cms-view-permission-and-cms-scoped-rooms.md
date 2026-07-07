@@ -56,13 +56,14 @@ graph, AccessMap, and CMS group-editor UI are data-driven, so the value flows th
    existing app-only `DeleteReason.StatusChange` DeleteCmd.
 
 4. **Migration / grants.** CmsView is **not** auto-granted broadly (it must stay a real, narrowable
-   permission). Schema upgrade `v19` grants it only to the standard system groups: `group-super-admins`
-   on every doc type (full CMS visibility), and `group-public-users` on AuthProvider only (so the CMS
-   login screen reads the providers for any visitor). Editors and other roles are granted `CmsView`
-   explicitly via ACL administration; the seeded Group fixtures give `group-public-editors` /
-   `group-private-editors` `CmsView` on Post/Tag/Redirect/Storage. The upgrade runs at boot before
-   traffic, is idempotent, and a one-time client recovery (`groupSyncListReset_v2`) re-fetches groups
-   for clients whose sync block was left stuck during the rollout.
+   permission). Schema upgrade `v19` grants it only to the standard actor groups:
+   `group-super-admins` gets direct View + CmsView ACL rows on every target group/doc type already
+   present in the ACL graph (full CMS visibility without giving public/private users CmsView),
+   `group-public-users` gets CmsView on AuthProvider only (so the CMS login screen reads the
+   providers for any visitor), and `group-public-editors` / `group-private-editors` get CmsView on
+   Post/Tag/Language/Redirect/Storage/Group. The upgrade runs at boot before traffic, is idempotent,
+   and a one-time client recovery (`groupSyncListReset_v2`) re-fetches groups for clients whose sync
+   block was left stuck during the rollout.
 
 ## Considered and not chosen
 

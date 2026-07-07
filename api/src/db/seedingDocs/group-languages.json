@@ -43,6 +43,16 @@
             "type": "storage",
             "groupId": "group-private-editors",
             "permission": ["view", "cmsView"]
+        },
+        {
+            "type": "language",
+            "groupId": "group-super-admins",
+            "permission": ["view", "cmsView"]
+        },
+        {
+            "type": "storage",
+            "groupId": "group-super-admins",
+            "permission": ["view", "cmsView"]
         }
     ]
 }
