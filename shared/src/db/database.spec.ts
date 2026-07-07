@@ -29,7 +29,7 @@ import { accessMap } from "../permissions/permissions";
 import { isConnected } from "../socket/socketio";
 import { DateTime } from "luxon";
 import { initConfig } from "../config";
-import { config, changeReqErrors } from "../config";
+import { config, changeReqErrors, changeReqInfo } from "../config";
 
 describe("Database", async () => {
     beforeAll(async () => {
@@ -55,6 +55,7 @@ describe("Database", async () => {
         // Clear the database after each test
         await db.docs.clear();
         await db.localChanges.clear();
+        changeReqInfo.value = [];
     });
 
     describe("bulkPut FTS stripping", () => {
@@ -532,6 +533,19 @@ describe("Database", async () => {
         expect(localChangeAfter).toBeUndefined();
     });
 
+    it("stores accepted acknowledgement info", async () => {
+        changeReqInfo.value = [];
+        await db.upsert({ doc: mockPostDto });
+        const localChange = await db.localChanges.where("docId").equals(mockPostDto._id).first();
+
+        await db.applyLocalChangeAck(
+            { ack: AckStatus.Accepted, info: ["Created a redirect"] },
+            localChange!,
+        );
+
+        expect(changeReqInfo.value).toEqual(["Created a redirect"]);
+    });
+
     it("can apply a failed change request acknowledgement with a document", async () => {
         // Queue a local change
         await db.upsert({ doc: mockEnglishContentDto });
@@ -640,6 +654,53 @@ describe("Database", async () => {
         expect(changeReqErrors.value).toEqual(["Some other error"]);
     });
 
+    it("upsert returns the queued localChanges entry's id", async () => {
+        const { localChangeId } = await db.upsert({ doc: mockPostDto });
+        const localChange = await db.localChanges.get(localChangeId);
+        expect(localChange?.docId).toEqual(mockPostDto._id);
+    });
+
+    it("waitForLocalChangeAck resolves with the real ack once applyLocalChangeAck runs", async () => {
+        const { localChangeId } = await db.upsert({ doc: mockPostDto });
+        const localChange = await db.localChanges.get(localChangeId);
+
+        const waiter = db.waitForLocalChangeAck(localChangeId);
+        await db.applyLocalChangeAck({ ack: AckStatus.Accepted }, localChange!);
+
+        await expect(waiter).resolves.toEqual({ ack: AckStatus.Accepted });
+    });
+
+    it("waitForLocalChangeAck resolves with a rejected ack too", async () => {
+        const { localChangeId } = await db.upsert({ doc: mockEnglishContentDto });
+        const localChange = await db.localChanges.get(localChangeId);
+
+        const waiter = db.waitForLocalChangeAck(localChangeId);
+        await db.applyLocalChangeAck(
+            { ack: AckStatus.Rejected, message: "conflict" },
+            localChange!,
+        );
+
+        await expect(waiter).resolves.toEqual({ ack: AckStatus.Rejected, message: "conflict" });
+    });
+
+    it("waitForLocalChangeAck resolves a superseded change instead of hanging forever", async () => {
+        // First queued change for a doc — nobody ever sends/acks this one directly.
+        const { localChangeId: firstId } = await db.upsert({ doc: mockPostDto });
+        const waiter = db.waitForLocalChangeAck(firstId);
+
+        // A second edit to the same doc overwrites the queued change before the first
+        // ever gets a real ack — the waiter must not hang forever.
+        await db.upsert({
+            doc: { ...mockPostDto, title: "changed again" },
+            overwriteLocalChanges: true,
+        });
+
+        await expect(waiter).resolves.toEqual({
+            ack: AckStatus.Accepted,
+            message: "Superseded by a newer local change",
+        });
+    });
+
     it("can purge the local database", async () => {
         // Queue a local change and check if it exists in the docs and localChanges tables
         await db.upsert({ doc: mockPostDto });
@@ -663,7 +724,10 @@ describe("Database", async () => {
     it("purge also clears the retention table and the response cache", async () => {
         await db.docs.bulkPut([mockPostDto]);
         await db.retention.put({ docId: mockPostDto._id, retainUntil: Date.now() + 1e9 });
-        localStorage.setItem("hqcache:some-feed", JSON.stringify({ local: [mockPostDto], remote: [] }));
+        localStorage.setItem(
+            "hqcache:some-feed",
+            JSON.stringify({ local: [mockPostDto], remote: [] }),
+        );
         localStorage.setItem("languages", '["lang-en"]'); // unrelated key must survive
 
         await db.purge();
@@ -928,7 +992,13 @@ describe("Database", async () => {
                 { _id: "p1", type: DocType.Post, memberOf: ["g-private"], updatedTimeUtc: 0 },
             ] as PostDto[]);
             syncList.value = [
-                { chunkType: "post", memberOf: ["g-private"], blockStart: 1e15, blockEnd: 0, eof: true },
+                {
+                    chunkType: "post",
+                    memberOf: ["g-private"],
+                    blockStart: 1e15,
+                    blockEnd: 0,
+                    eof: true,
+                },
             ];
             await db.setSyncList();
 
@@ -973,8 +1043,21 @@ describe("Database", async () => {
         it("trims Content/DeleteCmd columns by their parent (subType) permission", async () => {
             await db.docs.clear();
             syncList.value = [
-                { chunkType: "content:post", memberOf: ["g-private"], blockStart: 1e15, blockEnd: 0, eof: true, languages: ["lang1"] },
-                { chunkType: "deleteCmd:post", memberOf: ["g-private"], blockStart: 1e15, blockEnd: 0, eof: true },
+                {
+                    chunkType: "content:post",
+                    memberOf: ["g-private"],
+                    blockStart: 1e15,
+                    blockEnd: 0,
+                    eof: true,
+                    languages: ["lang1"],
+                },
+                {
+                    chunkType: "deleteCmd:post",
+                    memberOf: ["g-private"],
+                    blockStart: 1e15,
+                    blockEnd: 0,
+                    eof: true,
+                },
             ];
             await db.setSyncList();
 
@@ -1206,9 +1289,7 @@ describe("Database", async () => {
             const equalTime = localTime;
 
             it("skips deleteCmd with reason 'deleted' when local doc is newer", async () => {
-                await db.docs.bulkPut([
-                    { ...mockEnglishContentDto, updatedTimeUtc: localTime },
-                ]);
+                await db.docs.bulkPut([{ ...mockEnglishContentDto, updatedTimeUtc: localTime }]);
 
                 await db.bulkPut([
                     {
@@ -1227,9 +1308,7 @@ describe("Database", async () => {
 
             it("skips deleteCmd with reason 'statusChange' when local doc is newer (non-CMS)", async () => {
                 config.cms = false;
-                await db.docs.bulkPut([
-                    { ...mockEnglishContentDto, updatedTimeUtc: localTime },
-                ]);
+                await db.docs.bulkPut([{ ...mockEnglishContentDto, updatedTimeUtc: localTime }]);
 
                 await db.bulkPut([
                     {
@@ -1247,9 +1326,7 @@ describe("Database", async () => {
             });
 
             it("skips deleteCmd with reason 'permissionChange' when local doc is newer", async () => {
-                await db.docs.bulkPut([
-                    { ...mockEnglishContentDto, updatedTimeUtc: localTime },
-                ]);
+                await db.docs.bulkPut([{ ...mockEnglishContentDto, updatedTimeUtc: localTime }]);
 
                 await db.bulkPut([
                     {
@@ -1269,9 +1346,7 @@ describe("Database", async () => {
             });
 
             it("skips deleteCmd when timestamps are equal (treats ties as superseded)", async () => {
-                await db.docs.bulkPut([
-                    { ...mockEnglishContentDto, updatedTimeUtc: localTime },
-                ]);
+                await db.docs.bulkPut([{ ...mockEnglishContentDto, updatedTimeUtc: localTime }]);
 
                 await db.bulkPut([
                     {
@@ -1288,9 +1363,7 @@ describe("Database", async () => {
             });
 
             it("applies deleteCmd when local doc is older than the deleteCmd", async () => {
-                await db.docs.bulkPut([
-                    { ...mockEnglishContentDto, updatedTimeUtc: olderTime },
-                ]);
+                await db.docs.bulkPut([{ ...mockEnglishContentDto, updatedTimeUtc: olderTime }]);
 
                 await db.bulkPut([
                     {
@@ -1329,9 +1402,7 @@ describe("Database", async () => {
                 const staleUnpublishTime = 2000;
 
                 // Catch-up content sync: newer republished content arrives first
-                await db.bulkPut([
-                    { ...mockEnglishContentDto, updatedTimeUtc: republishedTime },
-                ]);
+                await db.bulkPut([{ ...mockEnglishContentDto, updatedTimeUtc: republishedTime }]);
 
                 // Catch-up deleteCmd sync: stale unpublish deleteCmd arrives after
                 await db.bulkPut([
@@ -1374,5 +1445,4 @@ describe("Database", async () => {
             expect(deletedContent2).toBeUndefined();
         });
     });
-
 });

@@ -26,7 +26,6 @@ import { Slug } from "@/util/slug";
 import { TrashIcon } from "@heroicons/vue/24/outline";
 import LDialog from "../common/LDialog.vue";
 import LCombobox from "../forms/LCombobox.vue";
-import { awaitLocalChangeResolution } from "@/composables/awaitLocalChangeResolution";
 
 type Props = {
     isVisible: boolean;
@@ -126,28 +125,17 @@ const save = async () => {
     if (!doc) return;
 
     doc.updatedTimeUtc = Date.now();
-    const attempted = doc.updatedTimeUtc;
-    const res = await saveRedirect(doc._id);
+    const res = await saveRedirect(doc._id, { awaitAck: true });
 
     if (res?.ack !== AckStatus.Accepted) {
         addNotification({
             title: !isNew.value ? "Failed to update redirect" : "Failed to create redirect",
-            description: res?.message ?? "The redirect could not be saved",
+            description:
+                res?.message ??
+                "This redirect could not be saved — it may conflict with another redirect.",
             state: "error",
         });
         return;
-    }
-
-    if ((await awaitLocalChangeResolution(doc._id)) === "resolved") {
-        const stored = (await db.get<RedirectDto>(doc._id)) as RedirectDto | undefined;
-        if (stored?.updatedTimeUtc !== attempted) {
-            addNotification({
-                title: !isNew.value ? "Failed to update redirect" : "Failed to create redirect",
-                description: "This redirect could not be saved — it may conflict with another redirect.",
-                state: "error",
-            });
-            return;
-        }
     }
 
     addNotification({
@@ -219,26 +207,14 @@ const deleteRedirect = async () => {
     if (!doc) return;
 
     try {
-        const res = await removeRedirect(doc._id);
+        const res = await removeRedirect(doc._id, { awaitAck: true });
         if (res?.ack !== AckStatus.Accepted) {
             addNotification({
                 title: "Failed to delete redirect",
-                description: res?.message ?? "The redirect could not be deleted",
+                description: res?.message ?? "The redirect could not be deleted — please try again.",
                 state: "error",
             });
             return;
-        }
-
-        if ((await awaitLocalChangeResolution(doc._id)) === "resolved") {
-            const stored = (await db.get<RedirectDto>(doc._id)) as RedirectDto | undefined;
-            if (stored) {
-                addNotification({
-                    title: "Failed to delete redirect",
-                    description: "This redirect could not be deleted — please try again.",
-                    state: "error",
-                });
-                return;
-            }
         }
 
         emit("close");

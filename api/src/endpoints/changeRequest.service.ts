@@ -33,6 +33,9 @@ export class ChangeRequestService {
                 if (result.warnings && result.warnings.length > 0) {
                     ack.warnings = result.warnings;
                 }
+                if (result.info && result.info.length > 0) {
+                    ack.info = result.info;
+                }
 
                 return ack;
             })

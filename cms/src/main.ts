@@ -6,6 +6,7 @@ import App from "./App.vue";
 import router from "./router";
 import {
     changeReqErrors,
+    changeReqInfo,
     changeReqWarnings,
     getSocket,
     init,
@@ -123,8 +124,8 @@ async function Startup() {
         }
     });
 
-    // Show notification if a change request was rejected or accepted but has warnings
-    watch([changeReqWarnings, changeReqErrors], ([warnings, errors]) => {
+    // Show notification if a change request was rejected or accepted with server messages
+    watch([changeReqWarnings, changeReqErrors, changeReqInfo], ([warnings, errors, info]) => {
         if (warnings.length > 0) {
             useNotificationStore().addNotification({
                 title: "Warning",
@@ -143,6 +144,16 @@ async function Startup() {
                 timer: 60000,
             });
             changeReqErrors.value = [];
+        }
+
+        if (info.length > 0) {
+            useNotificationStore().addNotification({
+                title: "Info",
+                description: info.join("\n"),
+                state: "info",
+                timer: 60000,
+            });
+            changeReqInfo.value = [];
         }
     });
 

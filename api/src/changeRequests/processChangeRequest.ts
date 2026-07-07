@@ -21,13 +21,20 @@ import processUserDto from "./documentProcessing/processUserDto";
 import { UserDto } from "../dto/UserDto";
 import processRedirectDto from "./documentProcessing/processRedirectDto";
 import { RedirectDto } from "../dto/RedirectDto";
+import { createSlugChangeRedirect } from "./createSlugChangeRedirect";
+
+type ProcessChangeRequestResult = {
+    result: DbUpsertResult;
+    warnings?: string[];
+    info?: string[];
+};
 
 export async function processChangeRequest(
     userId: string,
     changeRequest: ChangeReqDto,
     groupMembership: Array<Uuid>,
     db: DbService,
-): Promise<{ result: DbUpsertResult; warnings?: string[] }> {
+): Promise<ProcessChangeRequestResult> {
     // Validate change request
     const validationResult = await validateChangeRequest(changeRequest, groupMembership, db);
 
@@ -79,9 +86,26 @@ export async function processChangeRequest(
     // Insert / update the document in the database
     const upsertResult = await db.upsertDoc(doc);
 
-    const res: { result: DbUpsertResult; warnings?: string[] } = {
+    const res: ProcessChangeRequestResult = {
         result: upsertResult,
     };
+
+    if (doc.type === DocType.Content && upsertResult.ok) {
+        const redirectResult = await createSlugChangeRedirect(
+            userId,
+            doc as ContentDto,
+            prevDoc as ContentDto | undefined,
+            groupMembership,
+            db,
+        );
+        if (redirectResult?.warning) {
+            if (!validationResult.warnings) validationResult.warnings = [];
+            validationResult.warnings.push(redirectResult.warning);
+        }
+        if (redirectResult?.info) {
+            res.info = [redirectResult.info];
+        }
+    }
 
     if (validationResult.warnings && validationResult.warnings.length > 0) {
         res.warnings = validationResult.warnings;

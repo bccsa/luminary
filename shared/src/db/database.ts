@@ -1,5 +1,6 @@
 import Dexie, { Collection, IndexableType, type Table } from "dexie";
 import {
+    AckStatus,
     AclPermission,
     BaseDocumentDto,
     ChangeReqAckDto,
@@ -21,7 +22,7 @@ import { filterAsync, someAsync } from "../util/asyncArray";
 import { watchValue } from "../util/watchValue";
 import { accessMap, getAccessibleGroups, verifyAccess } from "../permissions/permissions";
 import { config } from "../config";
-import { changeReqErrors, changeReqWarnings } from "../config";
+import { changeReqErrors, changeReqInfo, changeReqWarnings } from "../config";
 import { cloneDeep } from "lodash-es";
 
 const dbName: string = "luminary-db";
@@ -113,6 +114,10 @@ class Database extends Dexie {
     localChanges!: Table<Partial<LocalChangeDto>>; // Partial because it includes id which is only set after saving
     luminaryInternals!: Table<LuminaryInternals>;
     retention!: Table<RetentionEntry>;
+
+    // In-memory (not persisted) resolvers for callers awaiting the real server ack of a
+    // queued local change — see `upsert`'s `localChangeId` and `waitForLocalChangeAck`.
+    private localChangeAckWaiters = new Map<number, (ack: ChangeReqAckDto) => void>();
 
     /**
      * Luminary Shared Database class
@@ -462,8 +467,11 @@ class Database extends Dexie {
     /**
      * Update or insert a document into the database and queue the change to be sent to the API. If the deleteReq flag is set, the document will be deleted from the local database and the document with deleteReq flag will be queued to be sent to the API.
      * @param options {UpsertOptions} - The options to upsert a document
+     * @returns the queued `localChanges` entry's id — pass it to {@link waitForLocalChangeAck} to await the real server ack instead of assuming success.
      */
-    async upsert<T extends BaseDocumentDto>(options: UpsertOptions<T>) {
+    async upsert<T extends BaseDocumentDto>(
+        options: UpsertOptions<T>,
+    ): Promise<{ localChangeId: number }> {
         // Unwrap the (possibly) reactive object — toRaw is shallow, so cloneDeep is required
         // to strip nested reactive Proxies before IndexedDB's structured clone algorithm runs.
         const raw = cloneDeep(toRaw(options.doc));
@@ -485,14 +493,44 @@ class Database extends Dexie {
         }
 
         if (options.overwriteLocalChanges) {
-            // Delete the previous change from the localChanges table (if any)
+            // Delete the previous change from the localChanges table (if any). It will never
+            // get a real server ack now (superseded by the new queued change below), so resolve
+            // any caller awaiting THAT entry's ack via waitForLocalChangeAck first — otherwise
+            // it would hang forever.
+            const superseded = await this.localChanges.where({ docId: raw._id }).toArray();
             await this.localChanges.where({ docId: raw._id }).delete();
+            for (const change of superseded) {
+                if (change.id == null) continue;
+                const resolve = this.localChangeAckWaiters.get(change.id);
+                if (resolve) {
+                    this.localChangeAckWaiters.delete(change.id);
+                    resolve({
+                        ack: AckStatus.Accepted,
+                        message: "Superseded by a newer local change",
+                    });
+                }
+            }
         }
 
         // Queue the change to be sent to the API
-        await this.localChanges.put({
+        const localChangeId = await this.localChanges.put({
             doc: raw,
             docId: raw._id,
+        });
+        return { localChangeId };
+    }
+
+    /**
+     * Resolve once the real outcome of a queued local change (identified by the
+     * `localChangeId` `upsert` returned) is known: either the actual server ack, via
+     * {@link applyLocalChangeAck} once connectivity allows it to upload, or a synthetic
+     * `Accepted` if a later edit to the same doc supersedes it first (see `upsert`'s
+     * `overwriteLocalChanges` handling). Stays pending indefinitely while offline — the
+     * change is durably queued and will resolve once the app reconnects.
+     */
+    waitForLocalChangeAck(localChangeId: number): Promise<ChangeReqAckDto> {
+        return new Promise((resolve) => {
+            this.localChangeAckWaiters.set(localChangeId, resolve);
         });
     }
 
@@ -569,7 +607,17 @@ class Database extends Dexie {
             changeReqWarnings.value = ack.warnings;
         }
 
+        if (ack.ack == "accepted" && ack.info && ack.info.length > 0) {
+            changeReqInfo.value = ack.info;
+        }
+
         await this.localChanges.delete(localChange.id);
+
+        const resolve = this.localChangeAckWaiters.get(localChange.id);
+        if (resolve) {
+            this.localChangeAckWaiters.delete(localChange.id);
+            resolve(ack);
+        }
     }
 
     /**
