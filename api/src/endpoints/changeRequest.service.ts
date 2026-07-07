@@ -77,11 +77,20 @@ export class ChangeRequestService {
         }
 
         if (changeRequest.doc && status == AckStatus.Rejected) {
-            await this.db.getDoc(changeRequest.doc._id).then((res) => {
-                if (res.docs.length > 0) {
-                    ack.docs = [res.docs[0]];
+            const priorDocRes = await this.db.getDoc(changeRequest.doc._id);
+            const priorDoc = priorDocRes.docs.length > 0 ? priorDocRes.docs[0] : undefined;
+
+            if (priorDoc) {
+                if ("slug" in changeRequest.doc && "slug" in priorDoc) {
+                    // The slug is the only field the rejection invariant actually cares about
+                    // (see validateChangeRequest.ts). Revert just that field on the submitted
+                    // doc rather than replacing it wholesale with the persisted doc, so any
+                    // other legitimately-submitted edits aren't clobbered.
+                    ack.docs = [{ ...changeRequest.doc, slug: (priorDoc as { slug: string }).slug }];
+                } else {
+                    ack.docs = [priorDoc];
                 }
-            });
+            }
 
             // Handle rejected Post / Tag requests
             if (
@@ -100,6 +109,9 @@ export class ChangeRequestService {
                     ),
                 );
                 if (contentDocs.length > 0) {
+                    // ack.docs may still be unset here (no prior doc, e.g. the Post/Tag was
+                    // never actually persisted) — guard against pushing onto undefined.
+                    ack.docs = ack.docs ?? [];
                     ack.docs.push(...contentDocs);
                 }
             }
