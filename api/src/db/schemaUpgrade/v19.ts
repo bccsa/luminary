@@ -2,7 +2,7 @@ import { DbService } from "../db.service";
 import { AclPermission, DocType } from "../../enums";
 
 /**
- * Standard system groups whose CmsView grants this upgrade backfills (GitHub #160).
+ * Standard actor groups whose CmsView grants this upgrade backfills (GitHub #160).
  */
 const SUPER_ADMINS_GROUP_ID = "group-super-admins";
 const PUBLIC_USERS_GROUP_ID = "group-public-users";
@@ -15,7 +15,8 @@ const PUBLIC_USERS_GROUP_ID = "group-public-users";
  * group holds it, so without a backfill the CMS would lose visibility until ACLs are updated. This
  * grants it narrowly to the standard system groups:
  *
- *  - `group-super-admins` → CmsView on **every** ACL entry (full CMS visibility on all doc types).
+ *  - `group-super-admins` → CmsView on every ACL entry assigned to it, across all target groups
+ *    (full CMS visibility on all doc types).
  *  - `group-public-users` → CmsView on **AuthProvider** entries only, so the CMS can show the login
  *    providers to any user opening it (the login screen reads AuthProvider docs).
  *
@@ -50,15 +51,14 @@ export default async function (db: DbService) {
                     }
                 };
 
-                if (doc._id === SUPER_ADMINS_GROUP_ID) {
-                    // Super admins: CmsView on every doc type.
-                    doc.acl.forEach(grant);
-                } else if (doc._id === PUBLIC_USERS_GROUP_ID) {
-                    // Public users: CmsView on AuthProvider only (login providers visible in CMS).
-                    doc.acl
-                        .filter((entry: any) => entry.type === DocType.AuthProvider)
-                        .forEach(grant);
-                }
+                doc.acl
+                    .filter(
+                        (entry: any) =>
+                            entry.groupId === SUPER_ADMINS_GROUP_ID ||
+                            (entry.groupId === PUBLIC_USERS_GROUP_ID &&
+                                entry.type === DocType.AuthProvider),
+                    )
+                    .forEach(grant);
 
                 if (changed) {
                     await db.insertDoc(doc);

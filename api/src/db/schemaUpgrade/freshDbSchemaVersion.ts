@@ -14,8 +14,7 @@
  * to execute against a fresh database.
  *
  * Kept at 17 (not bumped to 18) when `v19` (CmsView backfill) was added: `v18` must still run on
- * fresh DBs to build seeded users'/redirects' `fts`. `v19` then also runs on fresh DBs, but it is
- * idempotent (grants CmsView only where missing) and DB-only, so it is safe — and seeded Group
- * fixtures already carry CmsView, making it a no-op there.
+ * fresh DBs to build seeded users'/redirects' `fts`. `v19` then also runs on fresh DBs; it is
+ * idempotent (grants CmsView only where missing) and DB-only, so it is safe.
  */
 export const FRESH_DB_SCHEMA_VERSION = 17;

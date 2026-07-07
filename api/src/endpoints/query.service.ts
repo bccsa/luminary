@@ -15,7 +15,6 @@ import { isExpiredContent, stripExpiredContent } from "../util/stripExpiredConte
 export class QueryService {
     /** List of languages for content filtering */
     private languages: LanguageDto[] = [];
-    private languagesLoad: Promise<void> | undefined;
 
     constructor(
         @Inject(WINSTON_MODULE_PROVIDER)
@@ -41,7 +40,6 @@ export class QueryService {
         // was down would otherwise be missed by the resumed change stream.
         this.db.on("disconnect", () => {
             this.languages = [];
-            this.languagesLoad = undefined;
         });
         this.db.on("reconnect", () => {
             this.loadLanguages();
@@ -50,8 +48,8 @@ export class QueryService {
         this.loadLanguages();
     }
 
-    private loadLanguages(): Promise<void> {
-        this.languagesLoad ??= this.db
+    private loadLanguages() {
+        this.db
             .executeFindQuery({
                 selector: { type: DocType.Language },
                 limit: Number.MAX_SAFE_INTEGER,
@@ -72,11 +70,7 @@ export class QueryService {
             })
             .catch((err) => {
                 this.logger.error("Failed to load languages cache", err);
-            })
-            .finally(() => {
-                this.languagesLoad = undefined;
             });
-        return this.languagesLoad;
     }
 
     async query(query: MongoQueryDto, userDetails: JwtUserDetails): Promise<DbQueryResult> {
@@ -157,8 +151,6 @@ export class QueryService {
         // Permission and publishing status filtering: Content documents
         if (type === DocType.Content) {
             const langViewGroups = userViewGroups[DocType.Language] || [];
-
-            if (this.languages.length === 0) await this.loadLanguages();
 
             // Filter languages to those the user has view access to
             const accessibleLanguages = this.languages
