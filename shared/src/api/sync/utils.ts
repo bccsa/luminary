@@ -104,9 +104,9 @@ export function subtractRanges(target: DateRange, covered: DateRange[]): DateRan
 export function getPublishDateRanges(options: {
     type: DocType;
     subType?: DocType;
-    alwaysOfflineOnly?: boolean;
+    alwaysOffline?: boolean;
 }): DateRange[] {
-    const chunkType = getChunkTypeString(options.type, options.subType, options.alwaysOfflineOnly);
+    const chunkType = getChunkTypeString(options.type, options.subType, options.alwaysOffline);
     const seen = new Set<string>();
     const ranges: DateRange[] = [];
 
@@ -245,10 +245,10 @@ export function getLanguages(): string[] {
  * to different publishDate windows are treated as separate columns.
  */
 export const filterByTypeMemberOf = (options: SyncBaseOptions) => (entry: SyncListEntry) => {
-    const { type, subType, alwaysOfflineOnly: entryOffline } = splitChunkTypeString(
+    const { type, subType, alwaysOffline: entryOffline } = splitChunkTypeString(
         entry.chunkType,
     );
-    if ((entryOffline ?? false) !== (options.alwaysOfflineOnly ?? false)) return false;
+    if ((entryOffline ?? false) !== (options.alwaysOffline ?? false)) return false;
 
     if (type !== options.type) return false;
     if (subType !== options.subType) return false;
@@ -297,12 +297,12 @@ export function arraysEqual(arr1: string[], arr2: string[]): boolean {
 export function splitChunkTypeString(type: string): {
     type: DocType;
     subType?: DocType;
-    alwaysOfflineOnly?: boolean;
+    alwaysOffline?: boolean;
 } {
-    const alwaysOfflineOnly = type.endsWith(":alwaysOffline");
-    const stripped = alwaysOfflineOnly ? type.slice(0, -":alwaysOffline".length) : type;
+    const alwaysOffline = type.endsWith(":alwaysOffline");
+    const stripped = alwaysOffline ? type.slice(0, -":alwaysOffline".length) : type;
     const [docType, subType] = stripped.split(":") as [DocType, DocType | undefined];
-    return { type: docType, subType, alwaysOfflineOnly: alwaysOfflineOnly || undefined };
+    return { type: docType, subType, alwaysOffline: alwaysOffline || undefined };
 }
 
 /**
@@ -311,8 +311,8 @@ export function splitChunkTypeString(type: string): {
 export function getChunkTypeString(
     type: DocType,
     subType?: DocType,
-    alwaysOfflineOnly?: boolean,
+    alwaysOffline?: boolean,
 ): string {
     const base = subType ? `${type}:${subType}` : type;
-    return alwaysOfflineOnly ? `${base}:alwaysOffline` : base;
+    return alwaysOffline ? `${base}:alwaysOffline` : base;
 }

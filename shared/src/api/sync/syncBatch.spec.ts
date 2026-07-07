@@ -1171,7 +1171,7 @@ describe("syncBatch", () => {
         });
     });
 
-    describe("alwaysOfflineOnly sync column", () => {
+    describe("alwaysOffline sync column", () => {
         function makeContentDocs(count: number): BaseDocumentDto[] {
             return Array.from({ length: count }, (_, i) => ({
                 id: `c-${i}`,
@@ -1201,7 +1201,7 @@ describe("syncBatch", () => {
                 limit: 10,
                 initialSync: true,
                 httpService: http as any,
-                alwaysOfflineOnly: true,
+                alwaysOffline: true,
                 publishDateMin: OPEN_MIN,
                 publishDateMax: OPEN_MAX,
             });
@@ -1221,7 +1221,7 @@ describe("syncBatch", () => {
                 limit: 10,
                 initialSync: true,
                 httpService: http as any,
-                alwaysOfflineOnly: true,
+                alwaysOffline: true,
                 publishDateMin: OPEN_MIN,
                 publishDateMax: OPEN_MAX,
             });

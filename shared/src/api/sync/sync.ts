@@ -21,7 +21,7 @@ import {
 import { trim } from "./trim";
 import { syncActive, syncList, syncTolerance } from "./state";
 import { merge } from "./merge";
-import { getContentPublishDateCutoff } from "../../config";
+import { getContentPublishDateCutoff, hasContentPublishDateCutoff } from "../../config";
 import { evictStaleBelowCutoff } from "../../db/retention";
 
 let _httpService: HttpReq<any>;
@@ -267,6 +267,18 @@ export async function sync(options: SyncRunnerOptions): Promise<void> {
     syncActive.value = true;
     try {
         await _runSync(options);
+
+        // Content callers get an automatic companion run that syncs always-offline
+        // docs (parentAlwaysOffline === true) regardless of the publishDate cutoff.
+        // Centralized here so callers don't need to know about `alwaysOffline` or
+        // issue a second sync() call themselves.
+        if (
+            options.type === DocType.Content &&
+            !options.alwaysOffline &&
+            hasContentPublishDateCutoff()
+        ) {
+            await _runSync({ ...options, alwaysOffline: true });
+        }
     } finally {
         if (--_activeRunners === 0) syncActive.value = false;
     }
@@ -280,7 +292,7 @@ async function _runSync(options: SyncRunnerOptions): Promise<void> {
     // path that does something with publishDate is wrapped in `if (type === Content)` and
     // every comparison goes through `resolveRange` which treats undefined as OPEN_MIN/MAX.
     if (options.type === DocType.Content) {
-        if (options.alwaysOfflineOnly) {
+        if (options.alwaysOffline) {
             options.publishDateMin = OPEN_MIN;
             options.publishDateMax = OPEN_MAX;
         } else {
@@ -378,7 +390,7 @@ export async function _sync(options: SyncRunnerOptions): Promise<void> {
         const existingRanges = getPublishDateRanges({
             type: options.type,
             subType: options.subType,
-            alwaysOfflineOnly: options.alwaysOfflineOnly,
+            alwaysOffline: options.alwaysOffline,
         });
         const requested = resolveRange(options.publishDateMin, options.publishDateMax);
 

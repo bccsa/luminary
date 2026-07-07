@@ -36,8 +36,11 @@ export type SyncBaseOptions = {
      * When true (Content only), sync only docs with `parentAlwaysOffline === true`,
      * regardless of the publishDate cutoff. Uses a separate sync column so progress
      * metadata stays distinct from the windowed-sync column.
+     *
+     * Internal — `sync()` sets this itself for the companion always-offline tail run
+     * when a content publishDate cutoff is configured. Callers should not set it.
      */
-    alwaysOfflineOnly?: boolean;
+    alwaysOffline?: boolean;
 };
 
 /**

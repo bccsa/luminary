@@ -72,7 +72,7 @@ export async function syncBatch(options: SyncOptions) {
         limit: options.limit,
         sort: [{ updatedTimeUtc: "desc" }],
         use_index:
-            options.type === DocType.Content && options.alwaysOfflineOnly
+            options.type === DocType.Content && options.alwaysOffline
                 ? "sync-content-alwaysOffline-index"
                 : options.type === DocType.Content
                   ? "sync-content-index"
@@ -108,7 +108,7 @@ export async function syncBatch(options: SyncOptions) {
             // Empty language set → match nothing (don't let an absent set fetch the whole corpus).
             mangoQuery.selector.language = { $in: [] };
         }
-        if (options.alwaysOfflineOnly) {
+        if (options.alwaysOffline) {
             mangoQuery.selector.parentAlwaysOffline = true;
         }
     }
@@ -125,7 +125,7 @@ export async function syncBatch(options: SyncOptions) {
     // DeleteCmd queries are intentionally never publishDate-filtered so deletes propagate
     // regardless of the user's cutoff. When both bounds are at defaults the selector is
     // omitted so the wire format stays byte-identical to clients that don't use publishDate.
-    if (options.type === DocType.Content && !options.alwaysOfflineOnly) {
+    if (options.type === DocType.Content && !options.alwaysOffline) {
         const pdMin = options.publishDateMin ?? OPEN_MIN;
         const pdMax = options.publishDateMax ?? OPEN_MAX;
         const isNarrowed = pdMin > OPEN_MIN || pdMax < OPEN_MAX;
@@ -204,7 +204,7 @@ export async function syncBatch(options: SyncOptions) {
             chunkType: getChunkTypeString(
                 options.type,
                 options.subType,
-                options.alwaysOfflineOnly,
+                options.alwaysOffline,
             ),
             memberOf: options.memberOf,
             languages: options.languages,
