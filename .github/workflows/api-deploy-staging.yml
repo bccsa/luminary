@@ -59,7 +59,7 @@ jobs:
         working-directory: api
 
       - name: Build Docker container
-        run: docker build . -t ${{ vars.DOCKER_IMAGE }}
+        run: docker build --no-cache . -t ${{ vars.DOCKER_IMAGE }}
         working-directory: api
 
       - name: Stop and remove old Docker container
