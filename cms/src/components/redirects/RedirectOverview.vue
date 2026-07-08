@@ -58,7 +58,9 @@ const {
     { live: true },
 );
 
-const { visible: visibleRedirects } = useInfiniteScrollList(redirects, { pageSize: 20 });
+const { visible: visibleRedirects, sentinel: browseSentinel } = useInfiniteScrollList(redirects, {
+    pageSize: 20,
+});
 
 // --- Search (≥3 chars): server-side strict FTS over slug + toSlug. The search term is already
 // debounced above, so the composable's own debounce is disabled. ---
@@ -110,9 +112,7 @@ const hasAnyContent = computed(() => (redirects.value?.length ?? 0) > 0);
         </template>
 
         <template v-if="hasAnyContent" #internalPageHeader>
-            <div
-                class="relative z-20 flex flex-col gap-1 overflow-visible"
-            >
+            <div class="relative z-20 flex flex-col gap-1 overflow-visible">
                 <div class="flex h-10 w-full items-center gap-1">
                     <LInput
                         type="text"
@@ -143,12 +143,17 @@ const hasAnyContent = computed(() => (redirects.value?.length ?? 0) > 0);
                 :class="{ 'mb-4': i === displayedRedirects.length - 1 }"
             />
 
+            <!-- Infinite-scroll trigger for the in-memory browse window -->
+            <div v-if="!searchActive" ref="browseSentinel" class="h-px w-full"></div>
+
             <EmptyState
                 v-if="!browseLoading && !hasAnyContent"
                 title="No redirects yet"
                 description="Create a redirect to send visitors from one URL to another."
                 :button-text="canCreateNew ? 'Create redirect' : undefined"
-                :button-action="canCreateNew ? () => (isCreateOrEditModalVisible = true) : undefined"
+                :button-action="
+                    canCreateNew ? () => (isCreateOrEditModalVisible = true) : undefined
+                "
                 :button-permission="canCreateNew"
                 show-back-button
             />
