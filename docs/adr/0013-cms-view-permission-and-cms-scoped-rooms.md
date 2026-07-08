@@ -61,9 +61,12 @@ graph, AccessMap, and CMS group-editor UI are data-driven, so the value flows th
    present in the ACL graph (full CMS visibility without giving public/private users CmsView),
    `group-public-users` gets CmsView on AuthProvider only (so the CMS login screen reads the
    providers for any visitor), and `group-public-editors` / `group-private-editors` get CmsView on
-   Post/Tag/Language/Redirect/Storage/Group. The upgrade runs at boot before traffic, is idempotent,
-   and a one-time client recovery (`groupSyncListReset_v2`) re-fetches groups for clients whose sync
-   block was left stuck during the rollout.
+   Post/Tag/Language/Redirect/Storage/Group. The upgrade runs at boot before traffic and is
+   idempotent. Clients narrowed during the rollout self-heal without a cache clear: `deleteRevoked()`
+   reconciles `syncList` with each access change, so a later re-grant re-walks the trimmed columns.
+   (The one-time `groupSyncListReset_v1` recovery in `shared/src/db/database.ts` was deliberately
+   **not** re-bumped for this rollout — it only un-sticks clients left stranded by the earlier #1730
+   over-purge.)
 
 ## Considered and not chosen
 
