@@ -58,6 +58,23 @@ export async function syncBatch(options: SyncOptions) {
         return { ...mergeResult, firstSync };
     }
 
+    // Both bounds at the floor: the column's only chunk already reaches updatedTimeUtc 0, so
+    // calcChunk's downward continuation (`blockStart = list[0].blockEnd`, `blockEnd = 0`) has nowhere
+    // left to walk. The resulting `{ $lte: 0, $gte: 0 }` selector can only match a doc whose
+    // updatedTimeUtc is exactly 0, which the API never writes.
+    //
+    // Reaching here means a stored chunk violates the `blockEnd === 0 ⟹ eof === true` invariant.
+    // `mergeVertical` used to break it (see the eof/blockEnd ordering fix there); this guard heals
+    // the `syncList`s that bug already persisted into clients' IndexedDB — a lone floor chunk with
+    // eof:false never merges, so it would otherwise re-issue this dead query on every sync tick
+    // forever. Seal the column instead of spending a round trip to learn nothing.
+    if (chunk.blockStart === 0 && chunk.blockEnd === 0) {
+        const mergeResult = merge(options);
+        mergeResult.eof = true;
+        markColumnEof(options);
+        return { ...mergeResult, firstSync };
+    }
+
     const mangoQuery: any = {
         selector: {
             type: options.type,

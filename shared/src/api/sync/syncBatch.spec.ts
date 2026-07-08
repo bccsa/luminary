@@ -41,6 +41,28 @@ describe("syncBatch", () => {
         setCancelSync(false); // reset for subsequent tests
     });
 
+    // A single chunk already walked to the floor leaves calcChunk's downward continuation with
+    // blockStart === blockEnd === 0, producing a `{ $lte: 0, $gte: 0 }` selector that can never
+    // match. Seal the column instead of spending the round trip.
+    it("seals the column instead of querying when the continuation range is at the floor", async () => {
+        syncList.value = [
+            { chunkType: "redirect", memberOf: ["g1"], blockStart: 5000, blockEnd: 0, eof: false },
+        ];
+        const http = { post: vi.fn() };
+
+        const res = await syncBatch({
+            type: DocType.Redirect,
+            memberOf: ["g1"],
+            limit: 500,
+            initialSync: false, // downward continuation → calcChunk yields { 0, 0 }
+            httpService: http as any,
+        });
+
+        expect(http.post).not.toHaveBeenCalled();
+        expect(res?.eof).toBe(true);
+        expect(syncList.value[0]!.eof).toBe(true); // sealed on the stored entry, not just the result
+    });
+
     // A permission failure (e.g. 403 from a missing CmsView grant) makes HttpReq return undefined.
     // That must surface as a named error, not an opaque TypeError on `res.docs`.
     it("throws a request-failed error when the query response is undefined (4xx/network)", async () => {

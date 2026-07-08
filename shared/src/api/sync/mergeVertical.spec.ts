@@ -988,3 +988,56 @@ describe("mergeVertical", () => {
         expect(syncList.value[0].eof).toBe(true);
     });
 });
+
+describe("mergeVertical — eof follows the merged floor", () => {
+    beforeEach(() => {
+        syncList.value = [];
+    });
+
+    // Regression: `blockEnd` took Math.min (deepest floor wins) while `eof` took `next.eof`
+    // unconditionally. The newest-first sort is not total — two chunks can share a blockStart — so
+    // `next` could be the SHALLOWER chunk, clearing eof on a chunk whose blockEnd is 0. calcChunk
+    // then produced the degenerate `{ blockStart: 0, blockEnd: 0 }` continuation, i.e. a
+    // `{ $lte: 0, $gte: 0 }` selector that can never match.
+    it("keeps eof:true when the floor-reaching chunk shares a blockStart with a shallower sibling", () => {
+        syncList.value = [
+            { chunkType: "post", memberOf: ["g1"], blockStart: 999, blockEnd: 0, eof: true },
+            { chunkType: "post", memberOf: ["g1"], blockStart: 999, blockEnd: 989, eof: false },
+        ];
+
+        mergeVertical({ type: DocType.Post, memberOf: ["g1"] });
+
+        expect(syncList.value).toHaveLength(1);
+        expect(syncList.value[0]!.blockEnd).toBe(0);
+        expect(syncList.value[0]!.eof).toBe(true); // was false — the bug
+    });
+
+    // The ordinary case must be unchanged: the strictly-older chunk owns the deeper floor, so its
+    // eof is the one that describes the merged range.
+    it("adopts the older chunk's eof when it owns the deeper floor", () => {
+        syncList.value = [
+            { chunkType: "post", memberOf: ["g1"], blockStart: 5000, blockEnd: 1000, eof: false },
+            { chunkType: "post", memberOf: ["g1"], blockStart: 1000, blockEnd: 0, eof: true },
+        ];
+
+        mergeVertical({ type: DocType.Post, memberOf: ["g1"] });
+
+        expect(syncList.value).toHaveLength(1);
+        expect(syncList.value[0]!.blockEnd).toBe(0);
+        expect(syncList.value[0]!.eof).toBe(true);
+    });
+
+    // ...and an incomplete older chunk must not seal a column just because the newer one is eof.
+    it("does not seal the column when the older chunk owning the floor is not eof", () => {
+        syncList.value = [
+            { chunkType: "post", memberOf: ["g1"], blockStart: 5000, blockEnd: 1000, eof: true },
+            { chunkType: "post", memberOf: ["g1"], blockStart: 1000, blockEnd: 500, eof: false },
+        ];
+
+        mergeVertical({ type: DocType.Post, memberOf: ["g1"] });
+
+        expect(syncList.value).toHaveLength(1);
+        expect(syncList.value[0]!.blockEnd).toBe(500);
+        expect(syncList.value[0]!.eof).toBe(false);
+    });
+});

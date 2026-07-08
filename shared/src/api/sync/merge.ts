@@ -40,11 +40,29 @@ export function mergeVertical(options: SyncBaseOptions) {
             // Merge chunks — use the older chunk's blockEnd to extend the range.
             // Only preserve current blockEnd for legacy {0, 0} entries (truly empty chunks
             // from before the fix that used queried boundaries for empty responses).
-            current.blockEnd =
+            const mergedBlockEnd =
                 next.blockStart === 0 && next.blockEnd === 0
                     ? current.blockEnd
                     : Math.min(current.blockEnd, next.blockEnd);
-            current.eof = next.eof;
+
+            // `eof` records whether the walk reached the bottom of the timeline below a chunk's
+            // `blockEnd`, so it belongs to whichever chunk owns the MERGED (deeper) floor — not
+            // unconditionally to `next`. The list is sorted by blockStart descending, so `next` is
+            // usually the older chunk and the two coincide. But that sort is not total: two chunks
+            // can share a `blockStart` (a clamped floor chunk `{T, 0, eof: true}` alongside its
+            // unclamped sibling `{T, n, eof: false}`), and then their order is arbitrary. Taking
+            // `next.eof` there clears eof on a chunk whose blockEnd is 0, stranding the column at
+            // `{blockEnd: 0, eof: false}` — a state `calcChunk` turns into the degenerate
+            // continuation `{blockStart: 0, blockEnd: 0}`, i.e. a `$lte: 0, $gte: 0` selector that
+            // can never match. Keep `eof` in step with the floor it describes.
+            if (mergedBlockEnd === current.blockEnd && mergedBlockEnd === next.blockEnd) {
+                // Same floor: either chunk having verified it is enough.
+                current.eof = current.eof === true || next.eof === true;
+            } else if (mergedBlockEnd === next.blockEnd) {
+                current.eof = next.eof;
+            } // else `current` already owned the deeper floor — its own eof still describes it.
+
+            current.blockEnd = mergedBlockEnd;
 
             // Remove next chunk from syncList
             const index = syncList.value.indexOf(next);
