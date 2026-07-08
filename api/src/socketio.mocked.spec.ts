@@ -112,7 +112,9 @@ describe("Socketio (mocked)", () => {
             await authMiddleware(socket, next);
 
             expect(mockAuth.resolveOrDefault).not.toHaveBeenCalled();
-            expect(mockLogger.warn).toHaveBeenCalledWith("Socket handshake: token without providerId");
+            expect(mockLogger.warn).toHaveBeenCalledWith(
+                "Socket handshake: token without providerId",
+            );
             expect(next).toHaveBeenCalledTimes(1);
             const err = next.mock.calls[0][0];
             expect(err).toBeInstanceOf(Error);
@@ -195,9 +197,12 @@ describe("Socketio (mocked)", () => {
 
             await authMiddleware(socket, next);
 
-            expect(mockLogger.warn).toHaveBeenCalledWith("Socket auth failed for providerId=prov-1", {
-                error: "weird",
-            });
+            expect(mockLogger.warn).toHaveBeenCalledWith(
+                "Socket auth failed for providerId=prov-1",
+                {
+                    error: "weird",
+                },
+            );
             const err = next.mock.calls[0][0];
             expect(err).toBeInstanceOf(Error);
             expect(err.message).toBe("auth_failed");
@@ -522,6 +527,9 @@ describe("Socketio (mocked)", () => {
                 maxUploadFileSize: 1e7,
                 maxMediaUploadFileSize: 1.5e7,
                 accessMap: socket.data.userDetails.accessMap,
+                // The mock identity carries no `identityLinked`, so the server reports false —
+                // the client must not purge its local DB against such a map (#1792).
+                identityLinked: false,
             });
 
             // accessMapToGroups called with deduped doc types
@@ -558,7 +566,24 @@ describe("Socketio (mocked)", () => {
                 maxUploadFileSize: 1e7,
                 maxMediaUploadFileSize: 0,
                 accessMap: socket.data.userDetails.accessMap,
+                identityLinked: false,
             });
+        });
+
+        // #1792: the flag is the client's only signal that an accessMap is a trustworthy basis for
+        // deleting local documents. A resolved User doc MUST be reported as linked, or the CMS would
+        // stop purging on genuine revocations.
+        it("C2b: passes identityLinked through from the resolved identity", () => {
+            accessMapToGroupsSpy.mockReturnValue({} as any);
+            const socket = makeSocket();
+            socket.data.userDetails.identityLinked = true;
+
+            gateway.clientConfigReq({ docTypes: [] } as any, socket);
+
+            expect(socket.emit).toHaveBeenCalledWith(
+                "clientConfig",
+                expect.objectContaining({ identityLinked: true }),
+            );
         });
 
         it("C3: empty deduped docTypes -> still emits clientConfig but joins nothing (accessMapToGroups not called)", () => {
