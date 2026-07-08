@@ -25,6 +25,8 @@ const i18n = createI18n({
             "language.modal.save": "Save",
             "language.modal.cancel": "Cancel",
             "language.modal.availableOffline": "Available offline",
+            "language.modal.reorder": "Drag to reorder",
+            "language.modal.remove": "Remove language",
             "language.modal.offlineCaption": "Downloaded languages are available offline.",
             "language.modal.primaryAlwaysOffline": "Your main language is always available offline",
             "language.modal.offline.add.title": "You're offline",
@@ -37,6 +39,23 @@ const i18n = createI18n({
 
 const mountModal = () =>
     mount(LanguageModal, { props: { isVisible: true }, global: { plugins: [i18n] } });
+
+// jsdom reports every rect as 0×0, so the drag maths (which derives the row pitch from the first
+// two rows' tops) would no-op. Give the rows a synthetic 48px pitch based on their sibling index.
+const ROW_HEIGHT = 48;
+const stubRowLayout = () =>
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (
+        this: HTMLElement,
+    ) {
+        const index = this.parentElement
+            ? Array.prototype.indexOf.call(this.parentElement.children, this)
+            : 0;
+        const top = index * ROW_HEIGHT;
+        return { top, bottom: top + ROW_HEIGHT, height: ROW_HEIGHT } as DOMRect;
+    });
+
+const rowIds = (wrapper: ReturnType<typeof mountModal>) =>
+    wrapper.findAll("[data-lang-row]").map((row) => row.attributes("id"));
 
 const addButtonFor = async (wrapper: ReturnType<typeof mountModal>, name: string) => {
     await waitForExpect(async () => {
@@ -155,16 +174,73 @@ describe("LanguageModal.vue", () => {
         expect((checkboxes[1]!.element as HTMLInputElement).checked).toBe(false);
 
         // Promote French to primary → its now-disabled checkbox shows ticked (always synced).
-        await wrapper.find('[data-test="increase-priority"]').trigger("click");
+        await wrapper.findAll('[data-test="drag-handle"]')[1]!.trigger("keydown", {
+            key: "ArrowUp",
+        });
         checkboxes = await wrapper.findAll('[data-test="offline-checkbox"]');
         const frenchAsPrimary = checkboxes[0]!.element as HTMLInputElement;
         expect(frenchAsPrimary.checked).toBe(true);
         expect(frenchAsPrimary.disabled).toBe(true);
 
         // Demote it back → reverts to un-ticked (it was never actually ticked).
-        await wrapper.find('[data-test="decrease-priority"]').trigger("click");
+        await wrapper.findAll('[data-test="drag-handle"]')[0]!.trigger("keydown", {
+            key: "ArrowDown",
+        });
         checkboxes = await wrapper.findAll('[data-test="offline-checkbox"]');
         expect((checkboxes[1]!.element as HTMLInputElement).checked).toBe(false);
+    });
+
+    describe("drag-to-reorder", () => {
+        afterEach(() => {
+            vi.restoreAllMocks();
+        });
+
+        it("dragging a row past its neighbour reorders it, and Save commits the new order", async () => {
+            appLanguageIdsAsRef.value = [mockLanguageDtoEng._id, mockLanguageDtoFra._id];
+            appSyncedLanguageIdsAsRef.value = [mockLanguageDtoEng._id];
+
+            const wrapper = mountModal();
+            await waitForExpect(async () => {
+                expect((await wrapper.findAll('[data-test="drag-handle"]')).length).toBe(2);
+            });
+            stubRowLayout();
+
+            // Grab English (row 0) and drag it a full row's height down.
+            await wrapper
+                .findAll('[data-test="drag-handle"]')[0]!
+                .trigger("pointerdown", { clientY: 0 });
+            window.dispatchEvent(new MouseEvent("pointermove", { clientY: ROW_HEIGHT + 5 }));
+            await wrapper.vm.$nextTick();
+
+            expect(rowIds(wrapper)).toEqual([mockLanguageDtoFra._id, mockLanguageDtoEng._id]);
+
+            window.dispatchEvent(new MouseEvent("pointerup"));
+            await wrapper.find('[data-test="save-languages"]').trigger("click");
+
+            expect(appLanguageIdsAsRef.value).toEqual([
+                mockLanguageDtoFra._id,
+                mockLanguageDtoEng._id,
+            ]);
+        });
+
+        it("ignores pointer movement after the drag has ended", async () => {
+            appLanguageIdsAsRef.value = [mockLanguageDtoEng._id, mockLanguageDtoFra._id];
+
+            const wrapper = mountModal();
+            await waitForExpect(async () => {
+                expect((await wrapper.findAll('[data-test="drag-handle"]')).length).toBe(2);
+            });
+            stubRowLayout();
+
+            await wrapper
+                .findAll('[data-test="drag-handle"]')[0]!
+                .trigger("pointerdown", { clientY: 0 });
+            window.dispatchEvent(new MouseEvent("pointerup"));
+            window.dispatchEvent(new MouseEvent("pointermove", { clientY: ROW_HEIGHT + 5 }));
+            await wrapper.vm.$nextTick();
+
+            expect(rowIds(wrapper)).toEqual([mockLanguageDtoEng._id, mockLanguageDtoFra._id]);
+        });
     });
 
     it("ticking a non-primary language commits it to the synced set on Save", async () => {
@@ -220,11 +296,15 @@ describe("LanguageModal.vue", () => {
             appSyncedLanguageIdsAsRef.value = [mockLanguageDtoEng._id, mockLanguageDtoFra._id];
             const wrapper = mountModal();
             await waitForExpect(async () => {
-                expect((await wrapper.findAll('[data-test="remove-language-button"]')).length).toBe(2);
+                expect((await wrapper.findAll('[data-test="remove-language-button"]')).length).toBe(
+                    2,
+                );
             });
 
             // Remove French (the second row → index 1).
-            await (await wrapper.findAll('[data-test="remove-language-button"]'))[1]!.trigger("click");
+            await (
+                await wrapper.findAll('[data-test="remove-language-button"]')
+            )[1]!.trigger("click");
 
             // Still two languages — the removal was blocked — and a toast was raised.
             expect((await wrapper.findAll('[data-test="remove-language-button"]')).length).toBe(2);
@@ -239,10 +319,14 @@ describe("LanguageModal.vue", () => {
             appSyncedLanguageIdsAsRef.value = [mockLanguageDtoEng._id];
             const wrapper = mountModal();
             await waitForExpect(async () => {
-                expect((await wrapper.findAll('[data-test="remove-language-button"]')).length).toBe(2);
+                expect((await wrapper.findAll('[data-test="remove-language-button"]')).length).toBe(
+                    2,
+                );
             });
 
-            await (await wrapper.findAll('[data-test="remove-language-button"]'))[1]!.trigger("click");
+            await (
+                await wrapper.findAll('[data-test="remove-language-button"]')
+            )[1]!.trigger("click");
             await wrapper.find('[data-test="save-languages"]').trigger("click");
 
             // French was removed (no downloaded content to clear) and no "clear" toast fired.

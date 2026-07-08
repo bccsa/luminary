@@ -15,18 +15,12 @@ import {
     normalizeSyncedLanguages,
 } from "@/globalConfig";
 import LModal from "../form/LModal.vue";
-import {
-    ArrowDownIcon,
-    ArrowDownTrayIcon,
-    ArrowUpIcon,
-    CheckIcon,
-    XMarkIcon,
-} from "@heroicons/vue/24/solid";
+import { ArrowDownTrayIcon, CheckIcon, XMarkIcon } from "@heroicons/vue/24/solid";
 import { InformationCircleIcon, PlusCircleIcon } from "@heroicons/vue/24/outline";
 import { markLanguageSwitch } from "@/util/isLangSwitch";
 import { useNotificationStore } from "@/stores/notification";
 
-import { computed, ref, watch } from "vue";
+import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 
 type Props = {
@@ -128,6 +122,76 @@ const decreasePriority = (id: string) => {
         ];
     }
 };
+
+// ── Drag-to-reorder ──────────────────────────────────────────────────────────
+// Pointer events, not HTML5 drag-and-drop: the modal is touch-first and DnD never fires on touch.
+// The grabbed row tracks the finger with a translate, and every full row of travel splices
+// `draftOrder` so the neighbours shuffle live underneath it.
+const draggingId = ref<string | null>(null);
+const dragTranslate = ref(0);
+let dragStartY = 0;
+let dragStartIndex = 0;
+let rowStep = 0; // px between adjacent row tops (rows are uniform height)
+
+const endDrag = () => {
+    draggingId.value = null;
+    dragTranslate.value = 0;
+    window.removeEventListener("pointermove", onDragMove);
+    window.removeEventListener("pointerup", endDrag);
+    window.removeEventListener("pointercancel", endDrag);
+};
+
+function onDragMove(e: PointerEvent) {
+    const id = draggingId.value;
+    if (!id || rowStep <= 0) return; // rowStep is 0 in jsdom (no layout) — drag is a no-op there
+    e.preventDefault(); // suppress text selection / touch scroll while dragging
+    // Clamp the travel to the list's own bounds, so a row can never be dragged outside it.
+    const last = draftOrder.value.length - 1;
+    const dy = Math.max(
+        -dragStartIndex * rowStep,
+        Math.min((last - dragStartIndex) * rowStep, e.clientY - dragStartY),
+    );
+    const target = dragStartIndex + Math.round(dy / rowStep);
+    const current = draftOrder.value.indexOf(id);
+    if (target !== current) {
+        draftOrder.value.splice(target, 0, draftOrder.value.splice(current, 1)[0]!);
+    }
+    // Subtract the travel the reorder itself already absorbed, so the row stays under the finger.
+    dragTranslate.value = dy - (target - dragStartIndex) * rowStep;
+}
+
+const startDrag = (id: string, e: PointerEvent) => {
+    if (draftOrder.value.length <= 1 || e.button > 0) return;
+    const handle = e.currentTarget as HTMLElement;
+    const row = handle.closest("[data-lang-row]");
+    const rows = (row?.parentElement?.children ?? []) as HTMLCollectionOf<HTMLElement>;
+    rowStep =
+        rows.length > 1
+            ? rows[1]!.getBoundingClientRect().top - rows[0]!.getBoundingClientRect().top
+            : 0;
+    dragStartY = e.clientY;
+    dragStartIndex = draftOrder.value.indexOf(id);
+    draggingId.value = id;
+    dragTranslate.value = 0;
+    handle.setPointerCapture?.(e.pointerId);
+    window.addEventListener("pointermove", onDragMove, { passive: false });
+    window.addEventListener("pointerup", endDrag);
+    window.addEventListener("pointercancel", endDrag);
+};
+
+// Keyboard equivalent of the drag: the handle is focusable and arrow keys nudge the row.
+const onHandleKeydown = (id: string, e: KeyboardEvent) => {
+    if (e.key === "ArrowUp") {
+        e.preventDefault();
+        increasePriority(id);
+    } else if (e.key === "ArrowDown") {
+        e.preventDefault();
+        decreasePriority(id);
+    }
+};
+
+onBeforeUnmount(endDrag);
+
 const removeFromSelected = (id: string) => {
     // At least one preferred language must remain — empty order breaks sync + offline content.
     if (draftOrder.value.length <= 1) return;
@@ -209,94 +273,140 @@ const cancel = () => emit("close");
         <transition-group
             name="language"
             tag="div"
-            class="flex flex-col gap-2"
+            :class="['flex flex-col gap-2', draggingId && 'select-none']"
             enter-active-class="transition duration-100 ease-in-out"
             enter-from-class="opacity-0 transform -translate-y-2"
             enter-to-class="opacity-100 transform translate-y-0"
             leave-active-class="transition duration-100 ease-in-out"
             leave-from-class="opacity-100 transform translate-y-0"
             leave-to-class="opacity-0 transform translate-y-2"
-            move-class="transition duration-100 ease-in-out"
+            :move-class="draggingId ? 'transition-none' : 'transition duration-100 ease-in-out'"
         >
-            <!-- One segmented bar: [action buttons | language | offline toggle]; the toggle's own
-                 fill is what separates it, no divider lines needed. -->
+            <!-- Row = [segmented bar] ×. The bar is [grip | language | offline toggle]; the toggle's
+                 own fill is what separates it, no divider lines needed. Remove sits OUTSIDE the bar
+                 at the trailing edge: it is destructive, so it stays as far as possible from the
+                 grip you press-and-hold, and the toggle keeps the bar's rounded right edge.
+                 `move-class` is disabled while dragging: TransitionGroup's FLIP writes to
+                 `transform`, which would fight the grabbed row's own translate. -->
             <div
                 v-for="language in languagesSelected"
                 :id="language._id"
                 :key="language._id"
-                class="flex w-full items-stretch overflow-hidden rounded-xl bg-zinc-50 ring-1 ring-zinc-200 dark:bg-slate-600/30 dark:ring-slate-500/50"
+                data-lang-row
+                :class="[
+                    'flex w-full items-center gap-1',
+                    draggingId === language._id && 'relative z-10',
+                ]"
+                :style="
+                    draggingId === language._id
+                        ? { transform: `translateY(${dragTranslate}px)` }
+                        : undefined
+                "
             >
-                <!-- Reorder arrows are always rendered so every row's columns align; at the ends they
-                     render faded + disabled (no data-test, non-clickable) instead of leaving a gap. -->
                 <div
-                    v-if="draftOrder.length > 1"
-                    class="flex shrink-0 items-center gap-0.5 px-2 py-2"
+                    :class="[
+                        'flex min-w-0 flex-1 items-stretch overflow-hidden rounded-xl bg-zinc-50 ring-1 ring-zinc-200 dark:bg-slate-600/30 dark:ring-slate-500/50',
+                        draggingId === language._id &&
+                            'shadow-lg ring-yellow-500 dark:ring-yellow-500',
+                    ]"
                 >
+                    <!-- Grab handle: `touch-none` stops the browser claiming the gesture as a scroll. -->
                     <button
+                        v-if="draftOrder.length > 1"
                         type="button"
-                        :disabled="language._id === draftOrder[0]"
-                        :data-test="language._id === draftOrder[0] ? undefined : 'increase-priority'"
-                        @click="increasePriority(language._id)"
-                        class="flex cursor-pointer items-center rounded-full p-1 text-zinc-400 hover:bg-zinc-200 hover:text-yellow-600 disabled:pointer-events-none disabled:opacity-25 dark:text-slate-400 dark:hover:bg-slate-600 dark:hover:text-yellow-500"
+                        data-test="drag-handle"
+                        :aria-label="t('language.modal.reorder')"
+                        :title="t('language.modal.reorder')"
+                        class="flex shrink-0 cursor-grab touch-none items-center py-2 pl-2 pr-1 text-zinc-400 hover:text-zinc-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-yellow-500 active:cursor-grabbing dark:text-slate-400 dark:hover:text-slate-200"
+                        @pointerdown="startDrag(language._id, $event)"
+                        @keydown="onHandleKeydown(language._id, $event)"
                     >
-                        <ArrowUpIcon class="h-4 w-4" />
+                        <svg
+                            class="h-4 w-4"
+                            viewBox="0 0 16 16"
+                            fill="currentColor"
+                            aria-hidden="true"
+                        >
+                            <circle
+                                cx="5.5"
+                                cy="3.5"
+                                r="1.4"
+                            />
+                            <circle
+                                cx="10.5"
+                                cy="3.5"
+                                r="1.4"
+                            />
+                            <circle
+                                cx="5.5"
+                                cy="8"
+                                r="1.4"
+                            />
+                            <circle
+                                cx="10.5"
+                                cy="8"
+                                r="1.4"
+                            />
+                            <circle
+                                cx="5.5"
+                                cy="12.5"
+                                r="1.4"
+                            />
+                            <circle
+                                cx="10.5"
+                                cy="12.5"
+                                r="1.4"
+                            />
+                        </svg>
                     </button>
-                    <button
-                        type="button"
-                        :disabled="language._id === draftOrder[draftOrder.length - 1]"
-                        :data-test="
-                            language._id === draftOrder[draftOrder.length - 1]
-                                ? undefined
-                                : 'decrease-priority'
+
+                    <div class="flex min-w-0 flex-1 items-center px-3 py-2">
+                        <span class="truncate text-sm font-semibold">{{ language.name }}</span>
+                    </div>
+
+                    <!-- Offline toggle: the right segment fills yellow when the language is synced
+                         offline. A real checkbox fills the segment and drives state (a11y + tests
+                         unchanged). -->
+                    <label
+                        class="relative flex shrink-0 cursor-pointer items-center px-3"
+                        :title="
+                            language._id === primaryId
+                                ? t('language.modal.primaryAlwaysOffline')
+                                : t('language.modal.availableOffline')
                         "
-                        @click="decreasePriority(language._id)"
-                        class="flex cursor-pointer items-center rounded-full p-1 text-zinc-400 hover:bg-zinc-200 hover:text-yellow-600 disabled:pointer-events-none disabled:opacity-25 dark:text-slate-400 dark:hover:bg-slate-600 dark:hover:text-yellow-500"
                     >
-                        <ArrowDownIcon class="h-4 w-4" />
-                    </button>
-                    <button
-                        type="button"
-                        data-test="remove-language-button"
-                        @click="removeFromSelected(language._id)"
-                        class="flex cursor-pointer items-center rounded-full p-1 text-zinc-400 hover:bg-zinc-200 hover:text-red-600 dark:text-slate-400 dark:hover:bg-slate-600 dark:hover:text-red-500"
-                    >
-                        <XMarkIcon class="h-4 w-4" />
-                    </button>
+                        <input
+                            type="checkbox"
+                            :checked="isOfflineChecked(language._id)"
+                            :disabled="language._id === primaryId"
+                            :aria-label="t('language.modal.availableOffline')"
+                            data-test="offline-checkbox"
+                            class="peer absolute inset-0 h-full w-full cursor-pointer appearance-none bg-transparent checked:bg-yellow-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-yellow-600 disabled:cursor-auto dark:checked:bg-yellow-500"
+                            @change="toggleSynced(language._id)"
+                        />
+                        <component
+                            :is="isOfflineChecked(language._id) ? CheckIcon : ArrowDownTrayIcon"
+                            class="pointer-events-none relative h-4 w-4 text-zinc-500 peer-checked:text-yellow-950 dark:text-slate-300"
+                        />
+                    </label>
                 </div>
 
-                <div class="flex min-w-0 flex-1 items-center px-3 py-2">
-                    <span class="truncate text-sm font-semibold">{{ language.name }}</span>
-                </div>
-
-                <!-- Offline toggle: the right segment fills yellow when the language is synced offline.
-                     A real checkbox fills the segment and drives state (a11y + tests unchanged). -->
-                <label
-                    class="relative flex shrink-0 cursor-pointer items-center px-3"
-                    :title="
-                        language._id === primaryId
-                            ? t('language.modal.primaryAlwaysOffline')
-                            : t('language.modal.availableOffline')
-                    "
+                <button
+                    v-if="draftOrder.length > 1"
+                    type="button"
+                    data-test="remove-language-button"
+                    :aria-label="t('language.modal.remove')"
+                    :title="t('language.modal.remove')"
+                    @click="removeFromSelected(language._id)"
+                    class="flex shrink-0 cursor-pointer items-center rounded-full p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 dark:text-slate-400 dark:hover:bg-slate-600 dark:hover:text-red-500"
                 >
-                    <input
-                        type="checkbox"
-                        :checked="isOfflineChecked(language._id)"
-                        :disabled="language._id === primaryId"
-                        :aria-label="t('language.modal.availableOffline')"
-                        data-test="offline-checkbox"
-                        class="peer absolute inset-0 h-full w-full cursor-pointer appearance-none bg-transparent checked:bg-yellow-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-yellow-600 disabled:cursor-auto dark:checked:bg-yellow-500"
-                        @change="toggleSynced(language._id)"
-                    />
-                    <component
-                        :is="isOfflineChecked(language._id) ? CheckIcon : ArrowDownTrayIcon"
-                        class="pointer-events-none relative h-4 w-4 text-zinc-500 peer-checked:text-yellow-950 dark:text-slate-300"
-                    />
-                </label>
+                    <XMarkIcon class="h-4 w-4" />
+                </button>
             </div>
         </transition-group>
 
         <p
-            class="mt-2 flex items-center gap-1.5 border-t border-zinc-200 px-3 pt-3 pb-1 text-xs text-zinc-500 dark:border-slate-600 dark:text-slate-400"
+            class="mt-2 flex items-center gap-1.5 border-t border-zinc-200 px-3 pb-1 pt-3 text-xs text-zinc-500 dark:border-slate-600 dark:text-slate-400"
         >
             <InformationCircleIcon class="h-4 w-4 shrink-0" />
             {{ t("language.modal.offlineCaption") }}
