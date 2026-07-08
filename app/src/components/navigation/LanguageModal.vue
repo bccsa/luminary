@@ -15,6 +15,7 @@ import {
     normalizeSyncedLanguages,
 } from "@/globalConfig";
 import LModal from "../form/LModal.vue";
+import DragHandleIcon from "../icons/DragHandleIcon.vue";
 import { ArrowDownTrayIcon, CheckIcon, XMarkIcon } from "@heroicons/vue/24/solid";
 import { InformationCircleIcon, PlusCircleIcon } from "@heroicons/vue/24/outline";
 import { markLanguageSwitch } from "@/util/isLangSwitch";
@@ -321,43 +322,7 @@ const cancel = () => emit("close");
                         @pointerdown="startDrag(language._id, $event)"
                         @keydown="onHandleKeydown(language._id, $event)"
                     >
-                        <svg
-                            class="h-4 w-4"
-                            viewBox="0 0 16 16"
-                            fill="currentColor"
-                            aria-hidden="true"
-                        >
-                            <circle
-                                cx="5.5"
-                                cy="3.5"
-                                r="1.4"
-                            />
-                            <circle
-                                cx="10.5"
-                                cy="3.5"
-                                r="1.4"
-                            />
-                            <circle
-                                cx="5.5"
-                                cy="8"
-                                r="1.4"
-                            />
-                            <circle
-                                cx="10.5"
-                                cy="8"
-                                r="1.4"
-                            />
-                            <circle
-                                cx="5.5"
-                                cy="12.5"
-                                r="1.4"
-                            />
-                            <circle
-                                cx="10.5"
-                                cy="12.5"
-                                r="1.4"
-                            />
-                        </svg>
+                        <DragHandleIcon class="h-4 w-4" />
                     </button>
 
                     <div class="flex min-w-0 flex-1 items-center px-3 py-2">
