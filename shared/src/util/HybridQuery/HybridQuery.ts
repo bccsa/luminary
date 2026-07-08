@@ -121,7 +121,12 @@ export async function queryRemote<T = unknown>(query: MangoQuery): Promise<T[]> 
     if (typeof query.use_index === "string") payload.use_index = query.use_index;
 
     const res = await _httpService.post("query", payload as any);
-    return (res?.docs ?? []) as T[];
+    // `HttpReq` returns undefined on any HTTP/network failure. Distinguish that from a legitimate
+    // empty result: `[]` reads as "the server has no such docs" and clobbers a cached window,
+    // whereas a rejection lets the caller's `allSettled` log it and keep what it already has.
+    // A permission failure (e.g. 403 from a missing CmsView grant) lands here.
+    if (!res) throw new Error("query request failed (see preceding HTTP error)");
+    return (res.docs ?? []) as T[];
 }
 
 /**
@@ -259,7 +264,6 @@ export type HybridQueryOptions = {
      * Persisted docs are retention-managed and evicted once stale (see `db/retention.ts`).
      */
     persistOffline?: boolean;
-
 };
 
 /**

@@ -15,6 +15,8 @@ import { isExpiredContent, stripExpiredContent } from "../util/stripExpiredConte
 export class QueryService {
     /** List of languages for content filtering */
     private languages: LanguageDto[] = [];
+    /** In-flight `loadLanguages()` promise, so concurrent callers share one query. */
+    private languagesLoad: Promise<void> | undefined;
 
     constructor(
         @Inject(WINSTON_MODULE_PROVIDER)
@@ -40,6 +42,7 @@ export class QueryService {
         // was down would otherwise be missed by the resumed change stream.
         this.db.on("disconnect", () => {
             this.languages = [];
+            this.languagesLoad = undefined;
         });
         this.db.on("reconnect", () => {
             this.loadLanguages();
@@ -48,8 +51,8 @@ export class QueryService {
         this.loadLanguages();
     }
 
-    private loadLanguages() {
-        this.db
+    private loadLanguages(): Promise<void> {
+        this.languagesLoad ??= this.db
             .executeFindQuery({
                 selector: { type: DocType.Language },
                 limit: Number.MAX_SAFE_INTEGER,
@@ -70,7 +73,13 @@ export class QueryService {
             })
             .catch((err) => {
                 this.logger.error("Failed to load languages cache", err);
+            })
+            // Clear the handle either way: a failed load must not be memoised, or the cache would
+            // stay empty until the process restarts and every Content query would 403.
+            .finally(() => {
+                this.languagesLoad = undefined;
             });
+        return this.languagesLoad;
     }
 
     async query(query: MongoQueryDto, userDetails: JwtUserDetails): Promise<DbQueryResult> {
@@ -151,6 +160,12 @@ export class QueryService {
         // Permission and publishing status filtering: Content documents
         if (type === DocType.Content) {
             const langViewGroups = userViewGroups[DocType.Language] || [];
+
+            // The cache is empty at boot (the constructor's load is not awaited) and between a DB
+            // `disconnect` and its `reconnect` reload. An empty cache yields zero accessible
+            // languages, which is indistinguishable from "no permission" below — a 403. Reload
+            // synchronously rather than deny access on a cold cache.
+            if (this.languages.length === 0) await this.loadLanguages();
 
             // Filter languages to those the user has view access to
             const accessibleLanguages = this.languages

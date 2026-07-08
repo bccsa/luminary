@@ -892,6 +892,21 @@ describe("HybridQuery", () => {
             expect(errSpy).toHaveBeenCalled();
         });
 
+        // HttpReq returns undefined on a 4xx (e.g. a 403 from a missing CmsView grant). Treating
+        // that as an empty remote result would clobber the local docs; it must reject instead.
+        it("undefined remote response (4xx) keeps local and logs, rather than emptying the result", async () => {
+            const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+            const local = [{ _id: "a", updatedTimeUtc: 1, type: "content" }];
+            mocks.mangoToDexieMock.mockResolvedValueOnce(local);
+            postHttpMock.mockResolvedValueOnce(undefined);
+
+            const q = new HybridQuery({ selector: { type: "content" } });
+            await flush();
+
+            expect(q.output.value).toEqual(local);
+            expect(errSpy).toHaveBeenCalled();
+        });
+
         it("logs (does not crash) when HTTP service is not wired", async () => {
             const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
             _resetHybridQueryForTests(); // un-wire
@@ -2709,7 +2724,6 @@ describe("HybridQuery", () => {
             expect(q.isFetching.value).toBe(false);
         });
     });
-
 });
 
 describe("queryRemote", () => {

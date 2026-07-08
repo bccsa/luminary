@@ -41,6 +41,21 @@ describe("syncBatch", () => {
         setCancelSync(false); // reset for subsequent tests
     });
 
+    // A permission failure (e.g. 403 from a missing CmsView grant) makes HttpReq return undefined.
+    // That must surface as a named error, not an opaque TypeError on `res.docs`.
+    it("throws a request-failed error when the query response is undefined (4xx/network)", async () => {
+        const http = { post: vi.fn(async () => undefined) };
+        await expect(
+            syncBatch({
+                type: DocType.Post,
+                memberOf: ["g1"],
+                limit: 10,
+                initialSync: true,
+                httpService: http as any,
+            }),
+        ).rejects.toThrow(/Query request failed/);
+    });
+
     it("builds mango query for content type including parentType and languages (first call)", async () => {
         const docs = makeDocs(5, 5000, 10);
         const capturedBodies: any[] = [];
@@ -69,9 +84,7 @@ describe("syncBatch", () => {
         expect(body.selector.language).toBeUndefined();
         expect(body.selector.$or[0].language.$in).toEqual(languages);
         expect(
-            body.selector.$or[1].$and.map(
-                (c: any) => c.$not.availableTranslations.$elemMatch.$eq,
-            ),
+            body.selector.$or[1].$and.map((c: any) => c.$not.availableTranslations.$elemMatch.$eq),
         ).toEqual(languages);
         expect(body.identifier).toBe("sync");
         // Content uses the de-partitioned single index regardless of parentType.

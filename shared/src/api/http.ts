@@ -41,8 +41,10 @@ async function handleResponse(res: Response) {
         return undefined;
     }
 
-    // Client error (4xx) - warn and return undefined
-    console.warn(`HTTP error: ${res.status} ${res.statusText}`);
+    // Client error (4xx) - warn and return undefined. Callers that cannot tell a failed request
+    // apart from an empty result (sync, HybridQuery) must treat `undefined` as an error, not as
+    // "no documents" — a 403 from a permission gate is otherwise silently indistinguishable.
+    console.warn(`HTTP error: ${res.status} ${res.statusText} (${res.url})`);
     return undefined;
 }
 

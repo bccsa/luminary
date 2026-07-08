@@ -51,10 +51,7 @@ export async function syncBatch(options: SyncOptions) {
     // Sealing the frontier there would falsely mark the column complete while leaving days of
     // data unfetched. In that case fall through so the gap-fill / vertical-merge paths can
     // resolve it instead of prematurely declaring eof.
-    if (
-        chunk.blockStart < chunk.blockEnd &&
-        chunk.blockEnd - chunk.blockStart <= syncTolerance
-    ) {
+    if (chunk.blockStart < chunk.blockEnd && chunk.blockEnd - chunk.blockStart <= syncTolerance) {
         const mergeResult = merge(options);
         mergeResult.eof = true;
         markColumnEof(options);
@@ -144,6 +141,10 @@ export async function syncBatch(options: SyncOptions) {
         return;
     }
 
+    // `HttpReq` returns undefined on any HTTP/network failure — without this guard the line below
+    // throws an opaque `TypeError` on `res.docs` instead of naming the real cause (e.g. a 403 from
+    // a missing CmsView grant), and never reaches its own "Invalid API response format" message.
+    if (!res) throw new Error("Query request failed (see preceding HTTP error)");
     if (!res.docs || !Array.isArray(res.docs)) throw new Error("Invalid API response format");
 
     // Surface API warnings (e.g. CouchDB "documents examined is high") together with the exact

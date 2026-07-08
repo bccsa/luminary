@@ -256,7 +256,9 @@ describe("HttpReq", () => {
 
             await http.post("endpoint", { selector: {} });
 
-            expect(console.warn).toHaveBeenCalledWith("HTTP error: 400 Bad Request");
+            expect(console.warn).toHaveBeenCalledWith(
+                expect.stringContaining("HTTP error: 400 Bad Request"),
+            );
         });
 
         it("does not set serverError for 4xx responses", async () => {

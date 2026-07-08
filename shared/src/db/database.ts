@@ -611,36 +611,49 @@ class Database extends Dexie {
 
     /**
      * Delete documents to which access has been revoked
-     * @param options - changeDocs: If true, deletes change documents instead of regular documents
+     *
+     * Awaited end-to-end: the per-docType evictions used to run as an unawaited
+     * `forEach(async …)`, so `deleteRevoked()` resolved while its deletes were still in flight and
+     * they could land *after* a concurrent sync had already re-fetched and `bulkPut` the same docs —
+     * silently re-deleting freshly synced data on some page loads but not others. Callers must await
+     * this before starting a sync pass.
      */
-    deleteRevoked() {
+    async deleteRevoked() {
         // CMS visibility is gated by CmsView, the app's by View (GitHub #160). Choose explicitly
         // from the consumer mode — no hidden substitution.
         const groupsPerDocType = getAccessibleGroups(
             config.cms ? AclPermission.CmsView : AclPermission.View,
         );
 
-        Object.values(DocType)
-            .filter((t) => t !== DocType.Content) // Exclude content documents as they are deleted together with their parent's document type
-            .forEach(async (docType) => {
-                let groups = groupsPerDocType[docType as DocType];
-                if (groups === undefined) groups = [];
+        await Promise.all(
+            Object.values(DocType)
+                .filter((t) => t !== DocType.Content) // Exclude content documents as they are deleted together with their parent's document type
+                .map(async (docType) => {
+                    let groups = groupsPerDocType[docType as DocType];
+                    if (groups === undefined) groups = [];
 
-                const revokedDocs = this.whereNotMemberOfAsCollection(groups, docType as DocType);
+                    const revokedDocs = this.whereNotMemberOfAsCollection(
+                        groups,
+                        docType as DocType,
+                    );
 
-                // Delete associated Language content documents
-                if (docType === DocType.Language) {
-                    const revokedLanguages = await revokedDocs.toArray();
-                    const revokedlanguageIds = revokedLanguages.map((l) => l._id);
-                    await this.docs.where("language").anyOf(revokedlanguageIds).delete();
-                }
+                    // Delete associated Language content documents
+                    if (docType === DocType.Language) {
+                        const revokedLanguages = await revokedDocs.toArray();
+                        const revokedlanguageIds = revokedLanguages.map((l) => l._id);
+                        await this.docs.where("language").anyOf(revokedlanguageIds).delete();
+                    }
 
-                const revokedIds = (await revokedDocs.primaryKeys()) as string[];
+                    const revokedIds = (await revokedDocs.primaryKeys()) as string[];
 
-                if (revokedIds.length > 0) {
-                    await this.whereNotMemberOfAsCollection(groups, docType as DocType).delete();
-                }
-            });
+                    if (revokedIds.length > 0) {
+                        await this.whereNotMemberOfAsCollection(
+                            groups,
+                            docType as DocType,
+                        ).delete();
+                    }
+                }),
+        );
 
         // Keep `syncList` consistent with the docs just evicted. A column must never claim coverage
         // of a group the user can no longer access: an `eof` column left standing after its docs are
@@ -648,7 +661,7 @@ class Database extends Dexie {
         // new-groups growth path never triggers), leaving only the ~1000ms head-tolerance re-fetch —
         // the "one post / one tag" partial-sync bug (#160). This is the symmetric half of the doc
         // eviction above and generalises the one-time Group-only `resetGroupSyncListForRecovery`.
-        this.reconcileSyncListToAccess(groupsPerDocType);
+        await this.reconcileSyncListToAccess(groupsPerDocType);
 
         scheduleCorpusStatsRecompute();
     }
@@ -803,7 +816,7 @@ export async function initDatabase() {
         // `memberOf`) and delete them all before the server's clientConfig socket event populates
         // the real map. Logout cleanup goes through purge(), not here.
         if (Object.keys(value).length === 0) return;
-        db.deleteRevoked();
+        db.deleteRevoked().catch((err) => console.error("deleteRevoked failed", err));
     });
 
     // One-time recovery for clients hit by the historical `deleteRevoked()` over-purge bug:
