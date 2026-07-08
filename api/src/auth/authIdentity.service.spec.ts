@@ -157,9 +157,7 @@ describe("AuthIdentityService", () => {
                 },
             ];
             const assigned = service.evaluateGroupAssignments({ role: "editor" }, mappings);
-            expect(assigned).toEqual(
-                expect.arrayContaining(["group-editors", "group-reviewers"]),
-            );
+            expect(assigned).toEqual(expect.arrayContaining(["group-editors", "group-reviewers"]));
             expect(assigned).toHaveLength(2);
         });
 
@@ -195,7 +193,11 @@ describe("AuthIdentityService", () => {
             (service as any).dbService = {
                 executeFindQuery: jest.fn().mockResolvedValue({
                     docs: [
-                        { type: DocType.AutoGroupMappings, groupIds: ["group-public"], providerId: "" },
+                        {
+                            type: DocType.AutoGroupMappings,
+                            groupIds: ["group-public"],
+                            providerId: "",
+                        },
                     ],
                 }),
             };
@@ -242,9 +244,20 @@ describe("AuthIdentityService", () => {
             (service as any).dbService = {
                 executeFindQuery: jest.fn().mockResolvedValue({
                     docs: [
-                        { type: DocType.AutoGroupMappings, groupIds: ["group-public"], providerId: "" },
-                        { type: DocType.AutoGroupMappings, groupIds: ["group-editors"], providerId: "" },
-                        { type: DocType.AutoGroupMappings, groupIds: ["group-public", "group-viewers"] },
+                        {
+                            type: DocType.AutoGroupMappings,
+                            groupIds: ["group-public"],
+                            providerId: "",
+                        },
+                        {
+                            type: DocType.AutoGroupMappings,
+                            groupIds: ["group-editors"],
+                            providerId: "",
+                        },
+                        {
+                            type: DocType.AutoGroupMappings,
+                            groupIds: ["group-public", "group-viewers"],
+                        },
                     ],
                 }),
             };
@@ -277,7 +290,11 @@ describe("AuthIdentityService", () => {
 
             // Admin user gets all three mappings
             const adminGroups = service.evaluateGroupAssignments({ role: "admin" }, mappings);
-            expect(adminGroups.sort()).toEqual(["group-admins", "group-editors", "group-reviewers"]);
+            expect(adminGroups.sort()).toEqual([
+                "group-admins",
+                "group-editors",
+                "group-reviewers",
+            ]);
 
             // Regular user gets only the authenticated mappings
             const regularGroups = service.evaluateGroupAssignments({ role: "viewer" }, mappings);
@@ -316,7 +333,10 @@ describe("AuthIdentityService", () => {
                 },
             ];
 
-            const groups = service.evaluateGroupAssignments({ role: "viewer", department: "sales" }, mappings);
+            const groups = service.evaluateGroupAssignments(
+                { role: "viewer", department: "sales" },
+                mappings,
+            );
             expect(groups).toEqual([]);
         });
 
@@ -325,15 +345,31 @@ describe("AuthIdentityService", () => {
             (service as any).dbService = {
                 executeFindQuery: jest.fn().mockResolvedValue({
                     docs: [
-                        { type: DocType.AutoGroupMappings, groupIds: ["group-public"], providerId: "" },
-                        { type: DocType.AutoGroupMappings, groupIds: ["group-free-tier"], providerId: "" },
-                        { type: DocType.AutoGroupMappings, groupIds: ["group-public", "group-basic"], providerId: "" },
+                        {
+                            type: DocType.AutoGroupMappings,
+                            groupIds: ["group-public"],
+                            providerId: "",
+                        },
+                        {
+                            type: DocType.AutoGroupMappings,
+                            groupIds: ["group-free-tier"],
+                            providerId: "",
+                        },
+                        {
+                            type: DocType.AutoGroupMappings,
+                            groupIds: ["group-public", "group-basic"],
+                            providerId: "",
+                        },
                     ],
                 }),
             };
 
             const defaultGroups = await service.getDefaultGroups();
-            expect(defaultGroups.sort()).toEqual(["group-basic", "group-free-tier", "group-public"]);
+            expect(defaultGroups.sort()).toEqual([
+                "group-basic",
+                "group-free-tier",
+                "group-public",
+            ]);
 
             // Provider-specific mappings evaluated separately
             const providerMappings: any = [
@@ -349,7 +385,10 @@ describe("AuthIdentityService", () => {
                 },
             ];
 
-            const dynamicGroups = service.evaluateGroupAssignments({ tier: "premium" }, providerMappings);
+            const dynamicGroups = service.evaluateGroupAssignments(
+                { tier: "premium" },
+                providerMappings,
+            );
             expect(dynamicGroups.sort()).toEqual(["group-premium", "group-verified"]);
 
             // Final merge (as resolveIdentity does)
@@ -547,7 +586,9 @@ describe("AuthGuard (Integrated)", () => {
             .mockResolvedValue({ sub: "auth0|123", email: "test@bccsa.org", email_verified: true });
 
         mockDbService.executeFindQuery
-            .mockResolvedValueOnce({ docs: [{ groupIds: ["group-public"], type: "autoGroupMappings" }] }) // getDefaultGroups (provider-less AutoGroupMappings)
+            .mockResolvedValueOnce({
+                docs: [{ groupIds: ["group-public"], type: "autoGroupMappings" }],
+            }) // getDefaultGroups (provider-less AutoGroupMappings)
             .mockResolvedValueOnce({ docs: [] }) // getAutoGroupMappings(providerId)
             .mockResolvedValueOnce({ docs: [] }) // userId lookup – no match
             .mockResolvedValueOnce({ docs: [] }) // externalUserId lookup – no match
@@ -636,7 +677,9 @@ describe("AuthGuard (Integrated)", () => {
         };
 
         mockDbService.executeFindQuery
-            .mockResolvedValueOnce({ docs: [{ groupIds: ["group-public"], type: "autoGroupMappings" }] }) // getDefaultGroups (provider-less AutoGroupMappings)
+            .mockResolvedValueOnce({
+                docs: [{ groupIds: ["group-public"], type: "autoGroupMappings" }],
+            }) // getDefaultGroups (provider-less AutoGroupMappings)
             .mockResolvedValueOnce({ docs: [] }) // getAutoGroupMappings(providerId)
             .mockResolvedValueOnce({ docs: [existingUser] }) // userId lookup – found
             .mockResolvedValueOnce({ docs: [existingUser] }); // email merge query
@@ -672,7 +715,9 @@ describe("AuthGuard (Integrated)", () => {
         };
 
         mockDbService.executeFindQuery
-            .mockResolvedValueOnce({ docs: [{ groupIds: ["group-public"], type: "autoGroupMappings" }] }) // getDefaultGroups (provider-less AutoGroupMappings)
+            .mockResolvedValueOnce({
+                docs: [{ groupIds: ["group-public"], type: "autoGroupMappings" }],
+            }) // getDefaultGroups (provider-less AutoGroupMappings)
             .mockResolvedValueOnce({ docs: [] }) // getAutoGroupMappings(providerId)
             .mockResolvedValueOnce({ docs: [] }) // userId lookup – no match
             .mockResolvedValueOnce({ docs: [existingUser] }) // externalUserId lookup – found
@@ -698,6 +743,84 @@ describe("AuthGuard (Integrated)", () => {
         );
     });
 
+    // resolveIdentity runs on EVERY authenticated request. Rewriting the User doc each time churned
+    // the Mango indexes its own lookups depend on, which intermittently made those lookups return
+    // nothing and silently degraded the identity to default + dynamic groups.
+    it("does not rewrite the user doc when lastLogin is recent", async () => {
+        const existingUser = {
+            _id: "user-456",
+            _rev: "1-def",
+            email: "test@bccsa.org",
+            name: "Test User",
+            memberOf: ["group-members"],
+            providerId: "provider-id",
+            externalUserId: "auth0|123",
+            lastLogin: Date.now() - 1000, // well inside LAST_LOGIN_THROTTLE_MS
+        };
+
+        mockDbService.executeFindQuery
+            .mockResolvedValueOnce({
+                docs: [{ groupIds: ["group-public"], type: "autoGroupMappings" }],
+            })
+            .mockResolvedValueOnce({ docs: [] })
+            .mockResolvedValueOnce({ docs: [] })
+            .mockResolvedValueOnce({ docs: [existingUser] })
+            .mockResolvedValueOnce({ docs: [existingUser] });
+
+        const mockContext = {
+            switchToHttp: () => ({
+                getRequest: () => ({
+                    headers: {
+                        authorization: "Bearer valid-token",
+                        "x-auth-provider-id": "provider-id",
+                    },
+                }),
+            }),
+        } as any;
+
+        expect(await guard.canActivate(mockContext)).toBe(true);
+        expect(mockDbService.upsertDoc).not.toHaveBeenCalled();
+    });
+
+    it("still writes when the identity link is backfilled, even with a recent lastLogin", async () => {
+        const unlinkedUser = {
+            _id: "user-457",
+            _rev: "1-def",
+            email: "test@bccsa.org",
+            name: "Test User",
+            memberOf: ["group-members"],
+            lastLogin: Date.now() - 1000,
+            // no providerId / externalUserId yet
+        };
+
+        mockDbService.executeFindQuery
+            .mockResolvedValueOnce({
+                docs: [{ groupIds: ["group-public"], type: "autoGroupMappings" }],
+            })
+            .mockResolvedValueOnce({ docs: [] })
+            .mockResolvedValueOnce({ docs: [] })
+            .mockResolvedValueOnce({ docs: [] })
+            .mockResolvedValueOnce({ docs: [unlinkedUser] }) // email fallback – found
+            .mockResolvedValueOnce({ docs: [unlinkedUser] }); // email merge query
+
+        const mockContext = {
+            switchToHttp: () => ({
+                getRequest: () => ({
+                    headers: {
+                        authorization: "Bearer valid-token",
+                        "x-auth-provider-id": "provider-id",
+                    },
+                }),
+            }),
+        } as any;
+
+        expect(await guard.canActivate(mockContext)).toBe(true);
+        expect(mockDbService.upsertDoc).toHaveBeenCalledTimes(1);
+        expect(mockDbService.upsertDoc).toHaveBeenCalledWith(
+            expect.objectContaining({ _id: "user-457", externalUserId: expect.any(String) }),
+        );
+    });
+
     it("should merge defaultGroups, dynamicGroups and staticGroups without duplicates", async () => {
         const existingUser = {
             _id: "user-789",
@@ -710,7 +833,9 @@ describe("AuthGuard (Integrated)", () => {
         };
 
         mockDbService.executeFindQuery
-            .mockResolvedValueOnce({ docs: [{ groupIds: ["group-public"], type: "autoGroupMappings" }] }) // getDefaultGroups (provider-less AutoGroupMappings)
+            .mockResolvedValueOnce({
+                docs: [{ groupIds: ["group-public"], type: "autoGroupMappings" }],
+            }) // getDefaultGroups (provider-less AutoGroupMappings)
             .mockResolvedValueOnce({ docs: [] }) // getAutoGroupMappings(providerId)
             .mockResolvedValueOnce({ docs: [] }) // userId lookup – no match
             .mockResolvedValueOnce({ docs: [existingUser] }) // externalUserId lookup
@@ -784,9 +909,7 @@ describe("AuthGuard (Integrated)", () => {
         await guard.canActivate(mockContext);
 
         const calls = mockDbService.executeFindQuery.mock.calls;
-        const userIdCall = calls.find(
-            (c: any[]) => c[0]?.selector?.userId !== undefined,
-        );
+        const userIdCall = calls.find((c: any[]) => c[0]?.selector?.userId !== undefined);
         const externalIdCall = calls.find(
             (c: any[]) => c[0]?.selector?.externalUserId !== undefined,
         );
@@ -825,9 +948,7 @@ describe("AuthGuard (Integrated)", () => {
                     {
                         _id: "m1",
                         groupIds: ["group-admins"],
-                        conditions: [
-                            { type: "claimEquals", claimPath: "role", value: "admin" },
-                        ],
+                        conditions: [{ type: "claimEquals", claimPath: "role", value: "admin" }],
                     },
                 ],
             }) // getAutoGroupMappings(providerId)
@@ -860,7 +981,9 @@ describe("AuthGuard (Integrated)", () => {
 
         await guard.canActivate(mockContext);
         const groups: string[] = capturedUser?.groups ?? [];
-        expect(groups).toEqual(expect.arrayContaining(["group-public", "group-admins", "group-members"]));
+        expect(groups).toEqual(
+            expect.arrayContaining(["group-public", "group-admins", "group-members"]),
+        );
         expect(capturedUser.userId).toBe("user-num-groups");
     });
 

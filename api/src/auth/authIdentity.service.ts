@@ -35,6 +35,20 @@ export type AuthFailureReason = "provider_not_found" | "token_invalid";
 
 export const AUTH_FAILURE_MESSAGE = "Invalid authentication token";
 
+/**
+ * Minimum age of `lastLogin` before `resolveIdentity` rewrites the User doc.
+ *
+ * `resolveIdentity` runs on EVERY authenticated request (the REST `AuthGuard` and the Socket.io
+ * handshake), not just at login. Writing `lastLogin` unconditionally rewrote the doc once per
+ * `/query` — tens of writes per page load, revision trees six figures deep, and constant
+ * invalidation of the very `email-type-index` / `externalUserId-type-index` that this function's
+ * own lookups depend on. Under that self-inflicted contention the lookups intermittently returned
+ * nothing, `primaryUser` came back null, and the identity silently degraded to
+ * `defaultGroups + dynamicGroups` — dropping the user's static groups and, on the client, tripping
+ * `deleteRevoked()` into purging every doc in them.
+ */
+export const LAST_LOGIN_THROTTLE_MS = 5 * 60 * 1000;
+
 @Injectable()
 export class AuthIdentityService implements OnModuleInit {
     private readonly logger = new Logger(AuthIdentityService.name);
@@ -402,7 +416,10 @@ export class AuthIdentityService implements OnModuleInit {
             }
 
             if (!primaryUser) {
-                this.logger.log(
+                // WARN, not LOG: for a provisioned user this is a silent privilege downgrade — the
+                // client receives a valid-looking but narrower accessMap and `deleteRevoked()`
+                // treats the missing groups as revoked, purging their local documents.
+                this.logger.warn(
                     `No matching user doc for login attempt on providerId=${providerId} — returning default + dynamic groups only`,
                 );
                 const mergedGroups = Array.from(new Set([...defaultGroups, ...dynamicGroups]));
@@ -423,10 +440,13 @@ export class AuthIdentityService implements OnModuleInit {
             // enabling account takeover via an untrusted IdP. To reassign a
             // user to a different provider, an admin must do it explicitly
             // from the CMS user edit form.
+            let identityLinked = false;
             if (externalUserId && !primaryUser.externalUserId) {
                 primaryUser = { ...primaryUser, externalUserId, providerId };
+                identityLinked = true;
             } else if (!primaryUser.providerId && providerId) {
                 primaryUser = { ...primaryUser, providerId };
+                identityLinked = true;
             }
 
             // Scope static groups to docs tied to the provider the user is
@@ -451,8 +471,15 @@ export class AuthIdentityService implements OnModuleInit {
                 allMemberOf = primaryUser.memberOf ?? [];
             }
 
-            // Persist identity link and lastLogin
-            await this.dbService.upsertDoc({ ...primaryUser, lastLogin: Date.now() });
+            // Persist the identity link immediately; throttle the `lastLogin` touch. See
+            // LAST_LOGIN_THROTTLE_MS — this runs on every authenticated request, so an
+            // unconditional write here is a per-request rewrite of the User doc.
+            const lastLoginIsStale =
+                !primaryUser.lastLogin ||
+                Date.now() - primaryUser.lastLogin > LAST_LOGIN_THROTTLE_MS;
+            if (identityLinked || lastLoginIsStale) {
+                await this.dbService.upsertDoc({ ...primaryUser, lastLogin: Date.now() });
+            }
 
             const staticGroups = Array.from(new Set(allMemberOf));
             const mergedGroups = Array.from(
