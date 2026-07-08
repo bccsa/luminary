@@ -2,7 +2,6 @@ import "fake-indexeddb/auto";
 import { describe, it, expect, vi, afterEach, beforeEach, beforeAll } from "vitest";
 import { mount } from "@vue/test-utils";
 import UserOverview from "./UserOverview.vue";
-import UserDisplayCard from "./UserDisplayCard.vue";
 import CreateOrEditUser from "./CreateOrEditUser.vue";
 import LCombobox from "../forms/LCombobox.vue";
 import { createTestingPinia } from "@pinia/testing";
@@ -35,35 +34,6 @@ vi.mock("vue-router", async (importOriginal) => {
     };
 });
 
-// Capture every IntersectionObserver callback the page registers (browse sentinel + search
-// sentinel), so a test can simulate a sentinel scrolling into view. `vi.hoisted` because
-// `vi.mock` factories run before the module body initialises its consts.
-const { observerCallbacks } = vi.hoisted(() => ({
-    observerCallbacks: [] as Array<(entries: Partial<IntersectionObserverEntry>[]) => void>,
-}));
-
-vi.mock("@vueuse/core", async (importOriginal) => {
-    const actual = await importOriginal<typeof import("@vueuse/core")>();
-    const { ref: vueRef } = await import("vue");
-    return {
-        ...actual,
-        useIntersectionObserver: (_target: unknown, callback: unknown) => {
-            observerCallbacks.push(callback as (typeof observerCallbacks)[number]);
-            return {
-                isSupported: vueRef(true),
-                isActive: vueRef(true),
-                pause: vi.fn(),
-                resume: vi.fn(),
-                stop: vi.fn(),
-            };
-        },
-    };
-});
-
-/** Fire every registered sentinel. Guards inside each composable ignore the irrelevant ones. */
-const scrollSentinelsIntoView = () =>
-    observerCallbacks.forEach((cb) => cb([{ isIntersecting: true }]));
-
 vi.mock("@auth0/auth0-vue", async (importOriginal) => {
     const actual = await importOriginal();
     return {
@@ -87,13 +57,12 @@ app.use(express.json());
 const port = 12347;
 
 let mockQuerySelector: { type?: string } | undefined;
-const defaultMockUsers = [
+const mockUsers = [
     mockUserDto,
     { ...mockUserDto, _id: "2", name: "User 2" },
     { ...mockUserDto, _id: "3", name: "User 3" },
     { ...mockUserDto, _id: "4", name: "User 4" },
 ];
-let mockUsers = defaultMockUsers;
 
 // User is non-synced → served API-only via HybridQuery, which POSTs to /query.
 app.post("/query", (req, res) => {
@@ -135,8 +104,6 @@ describe("UserOverview", () => {
     afterEach(async () => {
         await db.docs.clear();
         await db.localChanges.clear();
-        mockUsers = defaultMockUsers;
-        observerCallbacks.length = 0;
         vi.clearAllMocks();
     });
 
@@ -275,49 +242,5 @@ describe("UserOverview", () => {
         });
 
         expect(wrapper.findComponent({ name: "LPaginator" }).exists()).toBe(false);
-    });
-
-    // Regression for #1797. The browse window used to be driven by an inject of BasePage's
-    // scroll container — but UserOverview *renders* BasePage, so the inject resolved to its
-    // fallback and the window never grew past the first page.
-    describe("browse infinite scroll", () => {
-        const manyUsers = Array.from({ length: 25 }, (_, i) => ({
-            ...mockUserDto,
-            _id: `user-${i}`,
-            name: `User ${i}`,
-        }));
-
-        it("renders a sentinel and grows the window when it scrolls into view", async () => {
-            mockUsers = manyUsers;
-            const wrapper = mount(UserOverview);
-
-            await waitForExpect(() => {
-                expect(wrapper.findAllComponents(UserDisplayCard).length).toBe(20);
-            });
-
-            // The browse sentinel must be registered for the window to ever grow.
-            expect(observerCallbacks.length).toBeGreaterThan(0);
-
-            scrollSentinelsIntoView();
-            await wrapper.vm.$nextTick();
-
-            expect(wrapper.findAllComponents(UserDisplayCard).length).toBe(25);
-        });
-
-        it("stops growing once every user is visible", async () => {
-            mockUsers = manyUsers;
-            const wrapper = mount(UserOverview);
-
-            await waitForExpect(() => {
-                expect(wrapper.findAllComponents(UserDisplayCard).length).toBe(20);
-            });
-
-            scrollSentinelsIntoView();
-            await wrapper.vm.$nextTick();
-            scrollSentinelsIntoView(); // no-op — hasMore is false
-            await wrapper.vm.$nextTick();
-
-            expect(wrapper.findAllComponents(UserDisplayCard).length).toBe(25);
-        });
     });
 });

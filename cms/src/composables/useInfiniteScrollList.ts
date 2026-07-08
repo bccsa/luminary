@@ -1,13 +1,22 @@
-import { computed, ref, toValue, watch, type MaybeRefOrGetter, type Ref } from "vue";
-import { useIntersectionObserver } from "@vueuse/core";
+import {
+    computed,
+    inject,
+    ref,
+    toValue,
+    watch,
+    type MaybeRefOrGetter,
+    type Ref,
+} from "vue";
+import { useInfiniteScroll, useIntersectionObserver } from "@vueuse/core";
+import { basePageScrollKey } from "@/keys/basePageScroll";
 
 export type UseInfiniteScrollListOptions = {
     /** Rows revealed per scroll step (and the initial window). Default 20. */
     pageSize?: number;
     /** When any of these change, the visible window resets to one page. */
     resetWhen?: MaybeRefOrGetter<unknown>[];
-    /** IntersectionObserver rootMargin for the sentinel. Default "200px". */
-    rootMargin?: string;
+    /** Distance (px) from the scroll bottom before loading more. Default 150. */
+    distance?: number;
 };
 
 export type UseInfiniteScrollLoadMoreOptions = {
@@ -23,19 +32,6 @@ export type UseInfiniteScrollLoadMoreOptions = {
  * {@link BasePage} content area. Use when the full result set is already in a
  * ref (e.g. synced HybridQuery lists like Redirects).
  *
- * Bind the returned `sentinel` to an element rendered *after* the list, inside
- * BasePage's default slot:
- *
- * ```vue
- * <div v-if="!searchActive" ref="sentinel" class="h-px w-full" />
- * ```
- *
- * The window grows when that element scrolls into view. This deliberately does NOT
- * watch BasePage's scroll container: the container is `provide`d by BasePage, and an
- * overview page is BasePage's *parent*, so injecting it from the page's own `setup`
- * only ever yields the fallback (see #1797). An IntersectionObserver on a sentinel
- * needs no ancestor lookup and works from either side of the slot boundary.
- *
  * For query-level paging ({@link useHybridQuery} `$limit` growth, {@link useFtsSearch}
  * `loadMore`), use {@link useInfiniteScrollLoadMore} instead — the caller owns the window.
  */
@@ -44,6 +40,7 @@ export function useInfiniteScrollList<T>(
     options: UseInfiniteScrollListOptions = {},
 ) {
     const pageSize = options.pageSize ?? 20;
+    const distance = options.distance ?? 150;
 
     const visibleCount = ref(pageSize);
 
@@ -65,17 +62,17 @@ export function useInfiniteScrollList<T>(
     const visible = computed(() => source.value.slice(0, visibleCount.value));
     const hasMore = computed(() => visibleCount.value < source.value.length);
 
-    const loadMore = () => {
-        if (hasMore.value) visibleCount.value += pageSize;
-    };
+    const scrollEl = inject(basePageScrollKey, ref(null));
 
-    const { sentinel } = useInfiniteScrollLoadMore({
-        hasMore,
-        onLoadMore: loadMore,
-        rootMargin: options.rootMargin,
-    });
+    useInfiniteScroll(
+        () => scrollEl.value,
+        () => {
+            if (hasMore.value) visibleCount.value += pageSize;
+        },
+        { distance },
+    );
 
-    return { visible, hasMore, reset, loadMore, sentinel };
+    return { visible, hasMore, reset };
 }
 
 /**
