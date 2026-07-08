@@ -821,6 +821,56 @@ describe("AuthGuard (Integrated)", () => {
         );
     });
 
+    // #1792: the client uses this to decide whether the accessMap is trustworthy enough to purge
+    // its local database against. False = default + dynamic groups only.
+    it("marks the identity as linked when a User doc resolves", async () => {
+        const existingUser = {
+            _id: "user-linked",
+            _rev: "1-def",
+            email: "test@bccsa.org",
+            name: "Test User",
+            memberOf: ["group-members"],
+            providerId: "provider-id",
+            externalUserId: "auth0|123",
+        };
+
+        mockDbService.executeFindQuery
+            .mockResolvedValueOnce({
+                docs: [{ groupIds: ["group-public"], type: "autoGroupMappings" }],
+            })
+            .mockResolvedValueOnce({ docs: [] })
+            .mockResolvedValueOnce({ docs: [] })
+            .mockResolvedValueOnce({ docs: [existingUser] })
+            .mockResolvedValueOnce({ docs: [existingUser] });
+
+        const result = await authIdentityService.resolveIdentity("valid-token", "provider-id");
+        expect(result.identityLinked).toBe(true);
+    });
+
+    it("marks the identity as UNlinked when no User doc matches", async () => {
+        mockDbService.executeFindQuery
+            .mockResolvedValueOnce({
+                docs: [{ groupIds: ["group-public"], type: "autoGroupMappings" }],
+            })
+            .mockResolvedValueOnce({ docs: [] })
+            .mockResolvedValueOnce({ docs: [] }) // userId
+            .mockResolvedValueOnce({ docs: [] }) // externalUserId
+            .mockResolvedValueOnce({ docs: [] }); // email
+
+        const result = await authIdentityService.resolveIdentity("valid-token", "provider-id");
+        expect(result.identityLinked).toBe(false);
+    });
+
+    it("marks an anonymous identity as UNlinked", async () => {
+        mockDbService.executeFindQuery.mockResolvedValueOnce({
+            docs: [{ groupIds: ["group-public"], type: "autoGroupMappings" }],
+        });
+
+        const result = await authIdentityService.resolveOrDefault(undefined, undefined);
+        expect(result.status).toBe("anonymous");
+        expect(result.userDetails.identityLinked).toBe(false);
+    });
+
     it("should merge defaultGroups, dynamicGroups and staticGroups without duplicates", async () => {
         const existingUser = {
             _id: "user-789",

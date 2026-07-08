@@ -1,4 +1,4 @@
-import { Ref } from "vue";
+import { Ref, ref } from "vue";
 import { DocType, Uuid, AclPermission } from "../types";
 import { useLocalStorage } from "@vueuse/core";
 
@@ -10,6 +10,22 @@ export type AccessMap = {
  * Access map for the current user as a Vue ref
  */
 export const accessMap: Ref<AccessMap> = useLocalStorage("accessMap", {});
+
+/**
+ * Whether the server resolved the current {@link accessMap} from a matched User document. Delivered
+ * alongside the map on the socket's `clientConfig` event.
+ *
+ * `false` means the map carries only the server's default + dynamically-assigned groups: either the
+ * connection is anonymous, or its token is valid but no User document matched it. In that second
+ * case the map is a strict, silent subset of the identity's real access — indistinguishable in shape
+ * from a genuine revocation. A consumer that treats access loss as a signal to delete local
+ * documents (see `db.deleteRevoked`) must not act on an unlinked map.
+ *
+ * Deliberately NOT persisted: it describes the live connection, and a stale `true` restored from
+ * storage before the first `clientConfig` would defeat the guard. Defaults to `true` so a server
+ * predating this field keeps the pre-existing behaviour (ADR 0005).
+ */
+export const identityLinked: Ref<boolean> = ref(true);
 
 /**
  * Verify if the user has access to a group for the specified document type and permission.

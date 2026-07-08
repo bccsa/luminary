@@ -19,7 +19,12 @@ import { DateTime } from "luxon";
 import { v4 as uuidv4 } from "uuid";
 import { filterAsync, someAsync } from "../util/asyncArray";
 import { watchValue } from "../util/watchValue";
-import { accessMap, getAccessibleGroups, verifyAccess } from "../permissions/permissions";
+import {
+    accessMap,
+    getAccessibleGroups,
+    identityLinked,
+    verifyAccess,
+} from "../permissions/permissions";
 import { config } from "../config";
 import { changeReqErrors, changeReqWarnings } from "../config";
 import { cloneDeep } from "lodash-es";
@@ -816,6 +821,22 @@ export async function initDatabase() {
         // `memberOf`) and delete them all before the server's clientConfig socket event populates
         // the real map. Logout cleanup goes through purge(), not here.
         if (Object.keys(value).length === 0) return;
+
+        // A CMS user always has a User document — that doc's `memberOf` IS their access. When the
+        // server reports it could not resolve one (`identityLinked: false`, i.e. anonymous, or a
+        // valid token whose User doc did not match), the map it sent carries only default + dynamic
+        // groups: a silent subset of the real access, shaped exactly like a genuine revocation.
+        // Purging against it deletes documents the user still has every right to (GitHub #1792).
+        // The app is unaffected: an anonymous/auto-provisioned visitor legitimately has no User doc,
+        // so its default-group map IS authoritative and revocation must still evict.
+        if (config.cms && !identityLinked.value) {
+            console.warn(
+                "[deleteRevoked] skipped: the server could not resolve a User document for this " +
+                    "identity, so its accessMap may be missing groups. Not purging local documents.",
+            );
+            return;
+        }
+
         db.deleteRevoked().catch((err) => console.error("deleteRevoked failed", err));
     });
 

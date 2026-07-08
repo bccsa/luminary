@@ -17,6 +17,19 @@ export type JwtUserDetails = {
     name?: string;
     jwtPayload?: JWT.JwtPayload;
     accessMap?: AccessMap;
+    /**
+     * True when this identity's groups were resolved from a matched User document, i.e. the
+     * `accessMap` carries the user's static `memberOf` groups and not just
+     * `defaultGroups + dynamicGroups`.
+     *
+     * False for anonymous identities and for authenticated tokens with no matching User doc. The
+     * server cannot tell "the User-doc lookup failed" apart from "this is a brand-new user who has
+     * none yet" — auto-provisioning via AutoGroupMappings makes the latter legitimate. So it reports
+     * the *fact* rather than a verdict, and lets each consumer decide. Delivered to clients on the
+     * `clientConfig` socket event; a CMS client uses it to decline purging its local database
+     * against an accessMap that may be missing the user's real groups (GitHub #1792).
+     */
+    identityLinked?: boolean;
 };
 
 export type IdentityResult =
@@ -195,6 +208,7 @@ export class AuthIdentityService implements OnModuleInit {
             userDetails: {
                 groups: defaultGroups,
                 accessMap: PermissionSystem.getAccessMap(defaultGroups),
+                identityLinked: false,
             },
         };
     }
@@ -429,6 +443,7 @@ export class AuthIdentityService implements OnModuleInit {
                     email,
                     jwtPayload: payload as JWT.JwtPayload,
                     accessMap,
+                    identityLinked: false,
                 };
             }
 
@@ -494,6 +509,7 @@ export class AuthIdentityService implements OnModuleInit {
                 name: primaryUser.name,
                 jwtPayload: payload as JWT.JwtPayload,
                 accessMap,
+                identityLinked: true,
             };
         } catch (error) {
             if (error instanceof UnauthorizedException) throw error;

@@ -25,7 +25,7 @@ import {
 } from "../types";
 import { db, getDbVersion, initDatabase } from "../db/database";
 import { syncList } from "../api/sync/state";
-import { accessMap } from "../permissions/permissions";
+import { accessMap, identityLinked } from "../permissions/permissions";
 import { isConnected } from "../socket/socketio";
 import { DateTime } from "luxon";
 import { initConfig } from "../config";
@@ -663,7 +663,10 @@ describe("Database", async () => {
     it("purge also clears the retention table and the response cache", async () => {
         await db.docs.bulkPut([mockPostDto]);
         await db.retention.put({ docId: mockPostDto._id, retainUntil: Date.now() + 1e9 });
-        localStorage.setItem("hqcache:some-feed", JSON.stringify({ local: [mockPostDto], remote: [] }));
+        localStorage.setItem(
+            "hqcache:some-feed",
+            JSON.stringify({ local: [mockPostDto], remote: [] }),
+        );
         localStorage.setItem("languages", '["lang-en"]'); // unrelated key must survive
 
         await db.purge();
@@ -906,6 +909,50 @@ describe("Database", async () => {
             expect(remainingGroups).toHaveLength(1);
             expect(remainingGroups[0]._id).toBe("group-public-users");
         });
+
+        // Regression (#1792): when the server cannot resolve a User doc it returns an accessMap of
+        // default + dynamic groups only — a silent subset of the identity's real access, shaped
+        // exactly like a genuine revocation. A CMS client must not purge against it.
+        it("does NOT purge when the server reports the identity is not User-doc backed", async () => {
+            const docs = [
+                { _id: "g-kept", type: DocType.Group, acl: [{}], updatedTimeUtc: 0 },
+                { _id: "g-dropped", type: DocType.Group, acl: [{}], updatedTimeUtc: 0 },
+            ] as any;
+            await db.docs.bulkPut(docs);
+
+            identityLinked.value = false;
+
+            // A narrowed map that would normally evict `g-dropped`.
+            accessMap.value = {
+                "g-kept": { [DocType.Group]: { view: true, cmsView: true } },
+            };
+            isConnected.value = true;
+            await new Promise((resolve) => setTimeout(resolve, 50));
+
+            const remaining = await db.docs.where("type").equals(DocType.Group).toArray();
+            expect(remaining.map((d) => d._id).sort()).toEqual(["g-dropped", "g-kept"]);
+
+            identityLinked.value = true; // restore for sibling tests
+        });
+
+        it("purges normally once the identity IS User-doc backed", async () => {
+            const docs = [
+                { _id: "g-kept", type: DocType.Group, acl: [{}], updatedTimeUtc: 0 },
+                { _id: "g-dropped", type: DocType.Group, acl: [{}], updatedTimeUtc: 0 },
+            ] as any;
+            await db.docs.bulkPut(docs);
+
+            identityLinked.value = true;
+            accessMap.value = {
+                "g-kept": { [DocType.Group]: { view: true, cmsView: true } },
+            };
+            isConnected.value = true;
+
+            await waitForExpect(async () => {
+                const remaining = await db.docs.where("type").equals(DocType.Group).toArray();
+                expect(remaining.map((d) => d._id)).toEqual(["g-kept"]);
+            });
+        });
     });
 
     // Regression (#160 partial-sync): deleteRevoked() must keep syncList consistent with the docs
@@ -928,7 +975,13 @@ describe("Database", async () => {
                 { _id: "p1", type: DocType.Post, memberOf: ["g-private"], updatedTimeUtc: 0 },
             ] as PostDto[]);
             syncList.value = [
-                { chunkType: "post", memberOf: ["g-private"], blockStart: 1e15, blockEnd: 0, eof: true },
+                {
+                    chunkType: "post",
+                    memberOf: ["g-private"],
+                    blockStart: 1e15,
+                    blockEnd: 0,
+                    eof: true,
+                },
             ];
             await db.setSyncList();
 
@@ -973,8 +1026,21 @@ describe("Database", async () => {
         it("trims Content/DeleteCmd columns by their parent (subType) permission", async () => {
             await db.docs.clear();
             syncList.value = [
-                { chunkType: "content:post", memberOf: ["g-private"], blockStart: 1e15, blockEnd: 0, eof: true, languages: ["lang1"] },
-                { chunkType: "deleteCmd:post", memberOf: ["g-private"], blockStart: 1e15, blockEnd: 0, eof: true },
+                {
+                    chunkType: "content:post",
+                    memberOf: ["g-private"],
+                    blockStart: 1e15,
+                    blockEnd: 0,
+                    eof: true,
+                    languages: ["lang1"],
+                },
+                {
+                    chunkType: "deleteCmd:post",
+                    memberOf: ["g-private"],
+                    blockStart: 1e15,
+                    blockEnd: 0,
+                    eof: true,
+                },
             ];
             await db.setSyncList();
 
@@ -1206,9 +1272,7 @@ describe("Database", async () => {
             const equalTime = localTime;
 
             it("skips deleteCmd with reason 'deleted' when local doc is newer", async () => {
-                await db.docs.bulkPut([
-                    { ...mockEnglishContentDto, updatedTimeUtc: localTime },
-                ]);
+                await db.docs.bulkPut([{ ...mockEnglishContentDto, updatedTimeUtc: localTime }]);
 
                 await db.bulkPut([
                     {
@@ -1227,9 +1291,7 @@ describe("Database", async () => {
 
             it("skips deleteCmd with reason 'statusChange' when local doc is newer (non-CMS)", async () => {
                 config.cms = false;
-                await db.docs.bulkPut([
-                    { ...mockEnglishContentDto, updatedTimeUtc: localTime },
-                ]);
+                await db.docs.bulkPut([{ ...mockEnglishContentDto, updatedTimeUtc: localTime }]);
 
                 await db.bulkPut([
                     {
@@ -1247,9 +1309,7 @@ describe("Database", async () => {
             });
 
             it("skips deleteCmd with reason 'permissionChange' when local doc is newer", async () => {
-                await db.docs.bulkPut([
-                    { ...mockEnglishContentDto, updatedTimeUtc: localTime },
-                ]);
+                await db.docs.bulkPut([{ ...mockEnglishContentDto, updatedTimeUtc: localTime }]);
 
                 await db.bulkPut([
                     {
@@ -1269,9 +1329,7 @@ describe("Database", async () => {
             });
 
             it("skips deleteCmd when timestamps are equal (treats ties as superseded)", async () => {
-                await db.docs.bulkPut([
-                    { ...mockEnglishContentDto, updatedTimeUtc: localTime },
-                ]);
+                await db.docs.bulkPut([{ ...mockEnglishContentDto, updatedTimeUtc: localTime }]);
 
                 await db.bulkPut([
                     {
@@ -1288,9 +1346,7 @@ describe("Database", async () => {
             });
 
             it("applies deleteCmd when local doc is older than the deleteCmd", async () => {
-                await db.docs.bulkPut([
-                    { ...mockEnglishContentDto, updatedTimeUtc: olderTime },
-                ]);
+                await db.docs.bulkPut([{ ...mockEnglishContentDto, updatedTimeUtc: olderTime }]);
 
                 await db.bulkPut([
                     {
@@ -1329,9 +1385,7 @@ describe("Database", async () => {
                 const staleUnpublishTime = 2000;
 
                 // Catch-up content sync: newer republished content arrives first
-                await db.bulkPut([
-                    { ...mockEnglishContentDto, updatedTimeUtc: republishedTime },
-                ]);
+                await db.bulkPut([{ ...mockEnglishContentDto, updatedTimeUtc: republishedTime }]);
 
                 // Catch-up deleteCmd sync: stale unpublish deleteCmd arrives after
                 await db.bulkPut([
@@ -1374,5 +1428,4 @@ describe("Database", async () => {
             expect(deletedContent2).toBeUndefined();
         });
     });
-
 });

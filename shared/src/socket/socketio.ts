@@ -1,7 +1,7 @@
 import { io, Socket } from "socket.io-client";
 import { ref } from "vue";
 import { useLocalStorage } from "@vueuse/core";
-import { AccessMap, accessMap } from "../permissions/permissions";
+import { AccessMap, accessMap, identityLinked } from "../permissions/permissions";
 import { config, SharedConfig } from "../config";
 
 /**
@@ -11,6 +11,7 @@ type ClientConfig = {
     maxUploadFileSize: number;
     maxMediaUploadFileSize?: number;
     accessMap: AccessMap;
+    identityLinked?: boolean;
 };
 
 /**
@@ -79,6 +80,9 @@ class SocketIO {
         this.socket.on("clientConfig", (c: ClientConfig) => {
             if (c.maxUploadFileSize) maxUploadFileSize.value = c.maxUploadFileSize;
             if (c.maxMediaUploadFileSize) maxMediaUploadFileSize.value = c.maxMediaUploadFileSize;
+            // Set before `accessMap`: the accessMap watcher that drives `deleteRevoked()` reads this
+            // to decide whether the map is trustworthy enough to purge against.
+            identityLinked.value = c.identityLinked !== false;
             if (c.accessMap) accessMap.value = c.accessMap;
             isConnected.value = true; // Only set isConnected after configuration has been received from the API
         });

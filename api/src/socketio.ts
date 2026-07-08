@@ -51,6 +51,11 @@ type ClientRoomReq = {
 type ClientConfig = {
     maxUploadFileSize: number;
     maxMediaUploadFileSize?: number;
+    /**
+     * Whether this connection's accessMap was built from a matched User document (see
+     * `JwtUserDetails.identityLinked`). Additive field — older clients ignore it (ADR 0005).
+     */
+    identityLinked?: boolean;
 };
 
 /**
@@ -278,6 +283,7 @@ export class Socketio implements OnGatewayInit {
             maxUploadFileSize: this.config.socketIo.maxHttpBufferSize,
             maxMediaUploadFileSize: this.config.socketIo.maxMediaUploadFileSize || 0,
             accessMap: socket.data.userDetails.accessMap,
+            identityLinked: socket.data.userDetails.identityLinked === true,
         } as ClientConfig;
         socket.emit("clientConfig", clientConfig);
 
