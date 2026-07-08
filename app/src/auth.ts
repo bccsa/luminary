@@ -105,6 +105,29 @@ function setProviderIdHeader(id: string | null): void {
 export async function resolveActiveProvider(): Promise<ProviderConfig | null> {
     if (typeof sessionStorage === "undefined" || typeof localStorage === "undefined") return null;
 
+    // Deterministic fast path: trust the explicitly persisted provider when it
+    // still has an Auth0 session cache. The key scan below depends on
+    // localStorage enumeration order — with two providers' cache key sets
+    // present, the picked provider could flip between page loads, silently
+    // alternating x-auth-provider-id (the server then provider-scopes the
+    // user's static groups away and returns a reduced accessMap).
+    const persistedProvider = readPersistedProvider();
+    if (persistedProvider) {
+        const persistedDocs = await queryLocal<AuthProviderDto>({
+            selector: { type: DocType.AuthProvider },
+        });
+        const persistedDoc = persistedDocs.find((p) => p._id === persistedProvider._id);
+        if (persistedDoc && hasAuth0SessionCache(persistedDoc.clientId)) {
+            persistActiveProvider(persistedDoc); // refresh a possibly-stale persisted domain
+            return {
+                _id: persistedDoc._id,
+                domain: persistedDoc.domain,
+                clientId: persistedDoc.clientId,
+                audience: persistedDoc.audience,
+            };
+        }
+    }
+
     // The standard Auth0 token cache key is `<prefix><clientId>::<audience>::<scope>`,
     // so clientId + audience are both recoverable from it. (The sibling id-token
     // key `<prefix><clientId>::@@user@@` has no audience segment — skip it.)
@@ -158,6 +181,14 @@ export async function resolveActiveProvider(): Promise<ProviderConfig | null> {
         return { _id: persisted._id, domain: persisted.domain, clientId, audience };
     }
     return null;
+}
+
+/** True when Auth0 holds a session cache (token/user keys) for this clientId. */
+function hasAuth0SessionCache(clientId: string): boolean {
+    for (let i = 0; i < localStorage.length; i++) {
+        if (localStorage.key(i)?.startsWith(`${AUTH0_CACHE_PREFIX}${clientId}::`)) return true;
+    }
+    return false;
 }
 
 /**
@@ -296,6 +327,18 @@ export async function loginWithProvider(
     // Evict stale PKCE transactions from aborted attempts so the next
     // callback matches the fresh code_verifier.
     clearStoragePrefix(sessionStorage, AUTH0_TX_PREFIX);
+    // Evict other providers' Auth0 session caches: two coexisting
+    // @@auth0spajs@@ key sets make resolveActiveProvider's key-scan fallback
+    // enumeration-order dependent, so the active provider could flip between
+    // page loads.
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+        const key = localStorage.key(i);
+        if (
+            key?.startsWith(AUTH0_CACHE_PREFIX) &&
+            !key.startsWith(`${AUTH0_CACHE_PREFIX}${provider.clientId}::`)
+        )
+            localStorage.removeItem(key);
+    }
     const client = await createAuth0Client(buildAuth0Options(provider));
     await client.loginWithRedirect({
         authorizationParams: opts?.prompt ? { prompt: opts.prompt } : undefined,

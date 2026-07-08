@@ -15,10 +15,15 @@ vi.mock("@auth0/auth0-vue", () => ({
     createAuth0: mockCreateAuth0,
 }));
 
+vi.mock("@auth0/auth0-spa-js", () => ({
+    createAuth0Client: vi.fn(async () => ({ loginWithRedirect: vi.fn() })),
+}));
+
 import {
     ACTIVE_PROVIDER_KEY,
     activeProviderId,
     clearAuth0Cache,
+    loginWithProvider,
     openProviderModal,
     persistActiveProvider,
     readPersistedProvider,
@@ -123,6 +128,35 @@ describe("auth", () => {
                 JSON.stringify({ state: "s" }),
             );
             history.replaceState(null, "", "/?code=abc&state=xyz");
+
+            const resolved = await resolveActiveProvider();
+            expect(resolved?._id).toBe(providerA._id);
+        });
+
+        it("prefers the persisted provider over key-scan order when two providers' session caches coexist", async () => {
+            await db.docs.bulkPut([providerA, providerB]);
+            localStorage.setItem(
+                `@@auth0spajs@@::${providerA.clientId}::${providerA.audience}::openid profile email offline_access`,
+                JSON.stringify({ body: {} }),
+            );
+            localStorage.setItem(
+                `@@auth0spajs@@::${providerB.clientId}::${providerB.audience}::openid profile email offline_access`,
+                JSON.stringify({ body: {} }),
+            );
+            persistActiveProvider(providerB);
+
+            const resolved = await resolveActiveProvider();
+            expect(resolved?._id).toBe(providerB._id);
+        });
+
+        it("falls back to the key scan when the persisted provider has no Auth0 session cache", async () => {
+            await db.docs.bulkPut([providerA, providerB]);
+            localStorage.setItem(
+                `@@auth0spajs@@::${providerA.clientId}::${providerA.audience}::openid profile email offline_access`,
+                JSON.stringify({ body: {} }),
+            );
+            // Stale persisted pointer — Auth0 holds no session for provider B.
+            persistActiveProvider(providerB);
 
             const resolved = await resolveActiveProvider();
             expect(resolved?._id).toBe(providerA._id);
@@ -263,6 +297,26 @@ describe("auth", () => {
             );
 
             expect(await resolveActiveProvider()).toBeNull();
+        });
+    });
+
+    describe("loginWithProvider", () => {
+        it("evicts other providers' Auth0 localStorage caches so resolution stays deterministic", async () => {
+            localStorage.setItem(`@@auth0spajs@@::${providerA.clientId}::aud::scope`, "{}");
+            localStorage.setItem(`@@auth0spajs@@::${providerA.clientId}::@@user@@`, "{}");
+            localStorage.setItem(`@@auth0spajs@@::${providerB.clientId}::aud::scope`, "{}");
+
+            await loginWithProvider(providerB);
+
+            expect(
+                localStorage.getItem(`@@auth0spajs@@::${providerA.clientId}::aud::scope`),
+            ).toBeNull();
+            expect(
+                localStorage.getItem(`@@auth0spajs@@::${providerA.clientId}::@@user@@`),
+            ).toBeNull();
+            expect(
+                localStorage.getItem(`@@auth0spajs@@::${providerB.clientId}::aud::scope`),
+            ).not.toBeNull();
         });
     });
 

@@ -1024,6 +1024,65 @@ describe("AuthGuard (Integrated)", () => {
         expect(groups).not.toContain("group-readonly");
     });
 
+    it("should warn when provider scoping removes all static groups from a matched user", async () => {
+        mockJwtService.verifyAsync = jest
+            .fn()
+            .mockResolvedValue({ sub: "auth0|123", email: "test@bccsa.org", email_verified: true });
+
+        const docOtherProvider = {
+            _id: "user-other",
+            _rev: "1-bbb",
+            email: "test@bccsa.org",
+            name: "Test User",
+            providerId: "other-provider",
+            memberOf: ["group-super-admins"],
+        };
+
+        mockDbService.executeFindQuery
+            .mockResolvedValueOnce({ docs: [{ groupIds: ["group-public"], type: "autoGroupMappings" }] }) // getDefaultGroups
+            .mockResolvedValueOnce({ docs: [] }) // getAutoGroupMappings(providerId)
+            .mockResolvedValueOnce({ docs: [] }) // userId lookup – no match
+            .mockResolvedValueOnce({ docs: [] }) // externalUserId lookup – no match
+            .mockResolvedValueOnce({ docs: [docOtherProvider] }) // email lookup – primary
+            .mockResolvedValueOnce({ docs: [docOtherProvider] }); // email merge query
+
+        const warnSpy = jest
+            .spyOn((authIdentityService as any).logger, "warn")
+            .mockImplementation(() => undefined);
+
+        let capturedUser: any;
+        const mockContext = {
+            switchToHttp: () => ({
+                getRequest: () => {
+                    const req: any = {
+                        headers: {
+                            authorization: "Bearer valid-token",
+                            "x-auth-provider-id": "provider-id",
+                        },
+                    };
+                    Object.defineProperty(req, "user", {
+                        set(val) {
+                            capturedUser = val;
+                        },
+                        get() {
+                            return capturedUser;
+                        },
+                    });
+                    return req;
+                },
+            }),
+        } as any;
+
+        await guard.canActivate(mockContext);
+
+        expect(capturedUser.groups).toEqual(["group-public"]);
+        expect(warnSpy).toHaveBeenCalledWith(
+            expect.stringContaining("no static groups apply for providerId=provider-id"),
+        );
+
+        warnSpy.mockRestore();
+    });
+
     it("should include memberOf from provider-less docs regardless of the current provider", async () => {
         mockJwtService.verifyAsync = jest
             .fn()
