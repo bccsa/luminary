@@ -10,6 +10,7 @@ import { cmsLanguageIdAsRef } from "@/globalConfig";
 import waitForExpect from "wait-for-expect";
 import { useNotificationStore } from "@/stores/notification";
 import { ref } from "vue";
+import { CMS_DOCS_INDEX } from "@/docsIndex";
 
 vi.mock("vue-router", async (importOriginal) => {
     const actual = await importOriginal();
@@ -41,7 +42,7 @@ describe("purgeLocalDatabase", () => {
     beforeAll(async () => {
         await init({
             cms: true,
-            docsIndex: "",
+            docsIndex: CMS_DOCS_INDEX,
             apiUrl: "localhost:3000",
         });
 
@@ -164,5 +165,16 @@ describe("purgeLocalDatabase", () => {
         expect(wrapper.find("svg.animate-spin").exists()).toBe(false);
 
         purgeSpy.mockRestore();
+    });
+
+    it("opens the default affinity modal from settings", async () => {
+        const wrapper = mount(SettingsPage);
+
+        expect(wrapper.findComponent({ name: "DefaultAffinityModal" }).exists()).toBe(false);
+
+        await wrapper.find("button[data-test='openDefaultAffinityModal']").trigger("click");
+        await wrapper.vm.$nextTick();
+
+        expect(wrapper.findComponent({ name: "DefaultAffinityModal" }).exists()).toBe(true);
     });
 });

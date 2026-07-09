@@ -23,6 +23,8 @@ import processRedirectDto from "./documentProcessing/processRedirectDto";
 import { RedirectDto } from "../dto/RedirectDto";
 import processUserAffinityDto from "./documentProcessing/processUserAffinityDto";
 import { UserAffinityDto } from "../dto/UserAffinityDto";
+import processDefaultAffinityDto from "./documentProcessing/processDefaultAffinityDto";
+import { DefaultAffinityDto } from "../dto/DefaultAffinityDto";
 
 export async function processChangeRequest(
     userId: string,
@@ -73,6 +75,7 @@ export async function processChangeRequest(
         [DocType.User]: () => processUserDto(doc as UserDto),
         [DocType.Redirect]: () => processRedirectDto(doc as RedirectDto),
         [DocType.UserAffinity]: () => processUserAffinityDto(doc as UserAffinityDto, userId),
+        [DocType.DefaultAffinity]: () => processDefaultAffinityDto(doc as DefaultAffinityDto),
         [DocType.AutoGroupMappings]: () => {}, // No extra processing required, but needed to be part of the process map for access validation,
     };
 
