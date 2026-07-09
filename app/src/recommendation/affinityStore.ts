@@ -42,12 +42,28 @@ function persist() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(affinityProfile.value));
 }
 
+// --- throttled server push (at most once per PUSH_INTERVAL_MS) ---
+const PUSH_INTERVAL_MS = 30_000;
+let lastPush = 0;
+let pushTimer: ReturnType<typeof setTimeout> | undefined;
+
 // Seed from the server-delivered profile when this device has nothing for the current
 // user — a fresh device after login (local empty), or a different user signing in on a
 // shared device (owner changed). On a device already tracking the same user, the local
 // copy is newer (client-authoritative), so it is kept and our own pushes win.
 watch(serverAffinity, (server) => {
-    if (!server) return;
+    if (!server) {
+        // Logged out (or a guest reconnect) — drop the push throttle state so a
+        // different user logging in on this same device/tab isn't throttled by
+        // the previous user's `lastPush` timestamp. Any already-scheduled push
+        // still no-ops safely via its own `!cur?._id` check when it fires.
+        lastPush = 0;
+        if (pushTimer) {
+            clearTimeout(pushTimer);
+            pushTimer = undefined;
+        }
+        return;
+    }
     const storedOwner = localStorage.getItem(OWNER_KEY);
     const isEmpty = Object.keys(affinityProfile.value.affinity).length === 0;
     if (server.ownerId !== storedOwner || isEmpty) {
@@ -59,11 +75,6 @@ watch(serverAffinity, (server) => {
         if (server.ownerId) localStorage.setItem(OWNER_KEY, server.ownerId);
     }
 });
-
-// --- throttled server push (at most once per PUSH_INTERVAL_MS) ---
-const PUSH_INTERVAL_MS = 30_000;
-let lastPush = 0;
-let pushTimer: ReturnType<typeof setTimeout> | undefined;
 
 function schedulePush() {
     const owner = serverAffinity.value; // carries _id + ownerId once logged in
@@ -98,6 +109,12 @@ function schedulePush() {
  * ambiguous signal). Pass a stronger weight for a more confident signal: an explicit
  * bookmark or a video/audio track finishing to completion are both real intent, not
  * just "the page was open," and should move the profile further per event.
+ *
+ * Deliberately called unconditionally from its (SingleContent/VideoPlayer/AudioPlayer/
+ * LHighlightable) call sites, independent of `VITE_ENABLE_RECOMMENDATIONS` — only the
+ * "Recommended for you" UI render is feature-flagged (`HomePage.vue`). Tracking keeps
+ * running so the profile is already warm (not empty) the moment the flag is flipped on,
+ * rather than showing a cold "no recommendations yet" feed on rollout day.
  */
 export function recordAffinity(tagIds: Uuid[] | undefined, weight: number = EventWeight.Open) {
     if (!tagIds || tagIds.length === 0) return;

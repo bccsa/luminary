@@ -64,6 +64,8 @@ describe("sync.ts", () => {
             [DocType.Crypto]: [],
             [DocType.AuthProvider]: [],
             [DocType.AutoGroupMappings]: [],
+            [DocType.UserAffinity]: [],
+            [DocType.DefaultAffinity]: [],
         });
     });
 
@@ -120,6 +122,8 @@ describe("sync.ts", () => {
                 [DocType.Crypto]: [],
                 [DocType.AuthProvider]: [],
                 [DocType.AutoGroupMappings]: [],
+                [DocType.UserAffinity]: [],
+                [DocType.DefaultAffinity]: [],
             });
 
             initAuthLangSync();
@@ -145,6 +149,8 @@ describe("sync.ts", () => {
                 [DocType.Crypto]: [],
                 [DocType.AuthProvider]: [],
                 [DocType.AutoGroupMappings]: [],
+                [DocType.UserAffinity]: [],
+                [DocType.DefaultAffinity]: [],
             });
 
             initAuthLangSync();
@@ -170,6 +176,8 @@ describe("sync.ts", () => {
                 [DocType.Crypto]: [],
                 [DocType.AuthProvider]: [],
                 [DocType.AutoGroupMappings]: [],
+                [DocType.UserAffinity]: [],
+                [DocType.DefaultAffinity]: [],
             });
 
             initAuthLangSync();
@@ -201,6 +209,8 @@ describe("sync.ts", () => {
                 [DocType.Crypto]: [],
                 [DocType.AuthProvider]: [],
                 [DocType.AutoGroupMappings]: [],
+                [DocType.UserAffinity]: [],
+                [DocType.DefaultAffinity]: [],
             });
 
             initAuthLangSync();
@@ -227,6 +237,8 @@ describe("sync.ts", () => {
                 [DocType.Crypto]: [],
                 [DocType.AuthProvider]: [],
                 [DocType.AutoGroupMappings]: [],
+                [DocType.UserAffinity]: [],
+                [DocType.DefaultAffinity]: [],
             });
 
             initAuthLangSync();
@@ -288,6 +300,8 @@ describe("sync.ts", () => {
                 [DocType.Crypto]: [],
                 [DocType.AuthProvider]: [],
                 [DocType.AutoGroupMappings]: [],
+                [DocType.UserAffinity]: [],
+                [DocType.DefaultAffinity]: [],
             });
 
             cmsLanguages.value = [
@@ -355,6 +369,8 @@ describe("sync.ts", () => {
                 [DocType.Crypto]: [],
                 [DocType.AuthProvider]: [],
                 [DocType.AutoGroupMappings]: [],
+                [DocType.UserAffinity]: [],
+                [DocType.DefaultAffinity]: [],
             });
 
             initSync();
@@ -386,6 +402,8 @@ describe("sync.ts", () => {
                 [DocType.Crypto]: [],
                 [DocType.AuthProvider]: [],
                 [DocType.AutoGroupMappings]: [],
+                [DocType.UserAffinity]: [],
+                [DocType.DefaultAffinity]: [],
             });
 
             initSync();
@@ -420,6 +438,8 @@ describe("sync.ts", () => {
                 [DocType.Crypto]: [],
                 [DocType.AuthProvider]: [],
                 [DocType.AutoGroupMappings]: [],
+                [DocType.UserAffinity]: [],
+                [DocType.DefaultAffinity]: [],
             });
 
             cmsLanguages.value = [
