@@ -8,8 +8,9 @@ import { AuthProviderCondition, AutoGroupMappingsDto } from "../dto/AutoGroupMap
 import { DbService } from "../db/db.service";
 import { UserDto } from "../dto/UserDto";
 import { UserAffinityDto } from "../dto/UserAffinityDto";
+import { DefaultAffinityDto } from "../dto/DefaultAffinityDto";
 import { DocType, Uuid } from "../enums";
-import { userAffinityId } from "../util/userAffinity";
+import { userAffinityId, DEFAULT_AFFINITY_ID } from "../util/userAffinity";
 import { AccessMap, PermissionSystem } from "../permissions/permissions.service";
 
 export type JwtUserDetails = {
@@ -52,6 +53,10 @@ export class AuthIdentityService implements OnModuleInit {
     private providerCache: Map<string, AuthProviderDto> = new Map();
     private autoGroupMappingsCache: Map<string, AutoGroupMappingsDto[]> = new Map();
     private defaultGroupsCache: string[] | null = null;
+    // undefined = not yet loaded; null = loaded and none exists (a fresh DB before the
+    // schema upgrade / CMS admin has created one) — distinct so a real "none configured
+    // yet" result isn't refetched on every login.
+    private defaultAffinityCache: DefaultAffinityDto | null | undefined = undefined;
 
     constructor(
         private jwtService: JwtService,
@@ -80,6 +85,9 @@ export class AuthIdentityService implements OnModuleInit {
                 this.autoGroupMappingsCache.delete(doc.docId);
                 // A deleted mapping might have been a default — invalidate to be safe
                 this.defaultGroupsCache = null;
+                if (doc.docId === DEFAULT_AFFINITY_ID) this.defaultAffinityCache = undefined;
+            } else if (doc.type === DocType.DefaultAffinity) {
+                this.defaultAffinityCache = doc as DefaultAffinityDto;
             }
         });
 
@@ -89,15 +97,21 @@ export class AuthIdentityService implements OnModuleInit {
             this.providerCache.clear();
             this.autoGroupMappingsCache.clear();
             this.defaultGroupsCache = null;
+            this.defaultAffinityCache = undefined;
             this.jwksClients.clear();
         });
     }
 
     /**
-     * Load the caller's OWN affinity profile, or an empty scaffold carrying the
-     * correct id/owner so a first-time user still knows where to write. A single
-     * by-id point lookup (not a group query), so it scales regardless of how many
-     * affinity docs exist. Never throws — a missing/absent doc is normal.
+     * Load the caller's OWN affinity profile. A first-time user (no doc of their
+     * own yet) gets a scaffold cloned from the CMS-managed {@link DefaultAffinityDto}
+     * singleton (cold start) — a ONE-TIME seed: this scaffold is never itself
+     * persisted here, so once the client (which owns the working copy) starts
+     * mutating it via its own interactions, later edits to the global default no
+     * longer affect that user, exactly as with the mediaProgress/UserAffinity
+     * "clone once, then diverge" pattern. A single by-id point lookup (not a group
+     * query), so it scales regardless of how many affinity docs exist. Never
+     * throws — a missing/absent doc is normal.
      */
     private async getAffinity(userId: Uuid): Promise<UserAffinityDto> {
         const id = userAffinityId(userId);
@@ -107,12 +121,31 @@ export class AuthIdentityService implements OnModuleInit {
         } catch {
             // fall through to scaffold
         }
+        const defaultAffinity = await this.getDefaultAffinity();
         return {
             _id: id,
             type: DocType.UserAffinity,
             ownerId: userId,
-            affinity: {},
+            affinity: defaultAffinity ? { ...defaultAffinity.affinity } : {},
         } as UserAffinityDto;
+    }
+
+    /**
+     * Load (and cache) the CMS-managed default affinity singleton, or `undefined`
+     * if none has been configured yet. A direct `DbService` read — bypasses
+     * permissions entirely (as this whole class does for internal lookups), which
+     * is fine here: the caller only ever reads the doc's `affinity` map to seed a
+     * scaffold, never returns the doc itself to a client.
+     */
+    private async getDefaultAffinity(): Promise<DefaultAffinityDto | undefined> {
+        if (this.defaultAffinityCache !== undefined) return this.defaultAffinityCache ?? undefined;
+        try {
+            const res = await this.dbService.getDoc(DEFAULT_AFFINITY_ID);
+            this.defaultAffinityCache = (res.docs?.[0] as DefaultAffinityDto) ?? null;
+        } catch {
+            this.defaultAffinityCache = null;
+        }
+        return this.defaultAffinityCache ?? undefined;
     }
 
     async getAutoGroupMappings(providerId: string): Promise<AutoGroupMappingsDto[]> {

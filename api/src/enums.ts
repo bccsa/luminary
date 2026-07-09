@@ -27,6 +27,10 @@ export enum DocType {
     // Per-user private recommendation affinity profile. Owner-scoped, never
     // group-synced or /query-able (delivered via authIdentity/clientConfig).
     UserAffinity = "userAffinity",
+    // CMS-editable global baseline affinity profile (singleton). A normal
+    // group-scoped/permissioned doc (unlike UserAffinity) — cloned into a
+    // first-time user's own UserAffinity scaffold at login (cold start).
+    DefaultAffinity = "defaultAffinity",
 }
 
 /**
