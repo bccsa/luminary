@@ -106,6 +106,11 @@ export class QueryService {
             );
         if (type === DocType.Crypto || docType === DocType.Crypto)
             throw new HttpException("Forbidden", HttpStatus.FORBIDDEN);
+        // UserAffinity docs are per-user private and delivered only via
+        // authIdentity/clientConfig — never queryable (no group scoping exists
+        // to make them safe here). Same containment as Crypto.
+        if (type === DocType.UserAffinity || docType === DocType.UserAffinity)
+            throw new HttpException("Forbidden", HttpStatus.FORBIDDEN);
 
         if (type === DocType.DeleteCmd && !docType)
             throw new HttpException(

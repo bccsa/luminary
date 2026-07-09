@@ -16,6 +16,7 @@ import { RedirectDto } from "../dto/RedirectDto";
 import { StorageDto } from "../dto/StorageDto";
 import { AuthProviderDto } from "../dto/AuthProviderDto";
 import { AutoGroupMappingsDto } from "../dto/AutoGroupMappingsDto";
+import { UserAffinityDto } from "../dto/UserAffinityDto";
 /**
  * DocType to DTO map
  */
@@ -30,6 +31,7 @@ const DocTypeMap = {
     storage: StorageDto,
     authProvider: AuthProviderDto,
     autoGroupMappings: AutoGroupMappingsDto,
+    userAffinity: UserAffinityDto,
 };
 
 /**
@@ -42,6 +44,7 @@ export async function validateChangeRequest(
     data: any,
     groupMembership: Array<Uuid>,
     dbService: DbService,
+    userId?: Uuid,
 ): Promise<ValidationResult> {
     const changeRequest = plainToInstance(ChangeReqDto, data, {
         enableImplicitConversion: true,
@@ -117,6 +120,7 @@ export async function validateChangeRequest(
         changeRequest,
         groupMembership,
         dbService,
+        userId,
     );
     if (!accessValidationResult.validated) {
         return accessValidationResult;

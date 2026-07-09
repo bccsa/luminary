@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, watch, nextTick } from "vue";
 import { useRouter } from "vue-router";
-import { type ContentDto, db } from "luminary-shared";
+import { type ContentDto, db, EventWeight } from "luminary-shared";
 import { useContentQuery } from "@/composables/useContentQuery";
+import { recordAffinity } from "@/recommendation/affinityStore";
 import {
     PlayIcon,
     PauseIcon,
@@ -759,6 +760,9 @@ onMounted(() => {
             const audioSource = matchAudioFileUrl.value;
             if (audioSource && currentContent.value._id) {
                 removeMediaProgress(audioSource, currentContent.value._id);
+                // Finishing a track is a strong engagement signal — weight it above a
+                // plain open.
+                recordAffinity(currentContent.value.parentTags, EventWeight.Completion);
             }
         });
 

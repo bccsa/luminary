@@ -59,6 +59,7 @@ describe("sync.ts", () => {
             [DocType.Crypto]: [],
             [DocType.AuthProvider]: [],
             [DocType.AutoGroupMappings]: [],
+            [DocType.UserAffinity]: [],
         });
     });
 
@@ -129,6 +130,7 @@ describe("sync.ts", () => {
                 [DocType.Crypto]: [],
                 [DocType.AuthProvider]: [],
                 [DocType.AutoGroupMappings]: [],
+                [DocType.UserAffinity]: [],
             });
 
             initAuthLangSync();
@@ -154,6 +156,7 @@ describe("sync.ts", () => {
                 [DocType.Crypto]: [],
                 [DocType.AuthProvider]: [],
                 [DocType.AutoGroupMappings]: [],
+                [DocType.UserAffinity]: [],
             });
 
             initAuthLangSync();
@@ -179,6 +182,7 @@ describe("sync.ts", () => {
                 [DocType.Crypto]: [],
                 [DocType.AuthProvider]: [],
                 [DocType.AutoGroupMappings]: [],
+                [DocType.UserAffinity]: [],
             });
 
             initAuthLangSync();
@@ -209,6 +213,7 @@ describe("sync.ts", () => {
                 [DocType.Crypto]: [],
                 [DocType.AuthProvider]: [],
                 [DocType.AutoGroupMappings]: [],
+                [DocType.UserAffinity]: [],
             });
 
             initAuthLangSync();
@@ -235,6 +240,7 @@ describe("sync.ts", () => {
                 [DocType.Crypto]: [],
                 [DocType.AuthProvider]: [],
                 [DocType.AutoGroupMappings]: [],
+                [DocType.UserAffinity]: [],
             });
 
             initAuthLangSync();
@@ -297,6 +303,7 @@ describe("sync.ts", () => {
                 [DocType.Crypto]: [],
                 [DocType.AuthProvider]: [],
                 [DocType.AutoGroupMappings]: [],
+                [DocType.UserAffinity]: [],
             });
 
             initSync();
@@ -331,6 +338,7 @@ describe("sync.ts", () => {
                 [DocType.Crypto]: [],
                 [DocType.AuthProvider]: [],
                 [DocType.AutoGroupMappings]: [],
+                [DocType.UserAffinity]: [],
             });
 
             initSync();
@@ -365,6 +373,7 @@ describe("sync.ts", () => {
                 [DocType.Crypto]: [],
                 [DocType.AuthProvider]: [],
                 [DocType.AutoGroupMappings]: [],
+                [DocType.UserAffinity]: [],
             });
 
             initSync();
@@ -411,6 +420,7 @@ describe("sync.ts", () => {
                 [DocType.Crypto]: [],
                 [DocType.AuthProvider]: [],
                 [DocType.AutoGroupMappings]: [],
+                [DocType.UserAffinity]: [],
             });
 
             initSync();
@@ -445,6 +455,7 @@ describe("sync.ts", () => {
                 [DocType.Crypto]: [],
                 [DocType.AuthProvider]: [],
                 [DocType.AutoGroupMappings]: [],
+                [DocType.UserAffinity]: [],
             });
 
             initSync();
