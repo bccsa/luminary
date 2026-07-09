@@ -15,3 +15,4 @@ export * from "./config";
 export * from "./fts";
 export * from "./api/http";
 export * from "./ssg";
+export * from "./recommendation/affinity";
