@@ -16,8 +16,10 @@ import {
     type LanguageDto,
     verifyAccess,
     AclPermission,
+    EventWeight,
 } from "luminary-shared";
 import { useContentQuery } from "@/composables/useContentQuery";
+import { recordAffinity } from "@/recommendation/affinityStore";
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { BookmarkIcon as BookmarkIconSolid, TagIcon, SunIcon } from "@heroicons/vue/24/solid";
 import {
@@ -245,7 +247,11 @@ onUnmounted(clearNotFoundTimer);
 // deadline whenever a real content doc is displayed, so a below-cutoff article the
 // user reads isn't evicted as stale. No-op for the placeholder / undefined.
 watch(content, (c) => {
-    if (c && c._id) touchRetention([c._id]);
+    if (c && c._id) {
+        touchRetention([c._id]);
+        // Feed the opened content's tags into the recommendation affinity profile.
+        recordAffinity(c.parentTags);
+    }
 });
 
 // Available translations + their languages. HybridQuery merges the local read with
@@ -352,6 +358,8 @@ const toggleBookmark = () => {
         // Add to bookmarks
         if (!content.value) return;
         userPreferencesAsRef.value.bookmarks.push({ id: content.value.parentId, ts: Date.now() });
+        // Bookmarking is explicit, unambiguous intent — weight it above a plain open.
+        recordAffinity(content.value.parentTags, EventWeight.Bookmark);
         useNotificationStore().addNotification({
             id: "bookmark-added",
             title: t("bookmarks.notification.title"),
@@ -940,6 +948,7 @@ watch([isLoading, content, is404], async () => {
                     <LHighlightable
                         v-if="content.text"
                         :content-id="content._id"
+                        @highlighted="recordAffinity(content?.parentTags, EventWeight.Highlight)"
                     >
                         <div
                             ref="articleProseRef"

@@ -9,6 +9,11 @@ import {
 import { db } from "luminary-shared";
 
 const props = defineProps<{ contentId: string }>();
+// Fired only when a highlight is CREATED (not removed) — see finalizeHighlight(),
+// which is shared by both the add and remove paths. The parent (which knows the
+// content's tags) decides what to do with it; kept decoupled from recommendation
+// concerns here since this is a generic reusable component.
+const emit = defineEmits<{ highlighted: [] }>();
 
 const content = ref<HTMLElement | undefined>(undefined);
 const actionsMenu = ref<HTMLElement | undefined>(undefined);
@@ -158,6 +163,7 @@ function wrapTextNodes(range: Range, color: string) {
         }
     });
 
+    emit("highlighted");
     finalizeHighlight();
 }
 

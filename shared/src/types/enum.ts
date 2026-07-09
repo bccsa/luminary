@@ -11,6 +11,9 @@ export enum DocType {
     Crypto = "crypto",
     AuthProvider = "authProvider",
     AutoGroupMappings = "autoGroupMappings",
+    // Per-user private recommendation affinity profile. Owner-scoped, never
+    // group-synced or /query-able (delivered via authIdentity/clientConfig).
+    UserAffinity = "userAffinity",
 }
 
 export enum PublishStatus {
