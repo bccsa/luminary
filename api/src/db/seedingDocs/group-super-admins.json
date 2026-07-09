@@ -53,6 +53,11 @@
             "type": "autoGroupMappings",
             "groupId": "group-super-admins",
             "permission": ["view", "edit", "delete", "assign", "cmsView"]
+        },
+        {
+            "type": "defaultAffinity",
+            "groupId": "group-super-admins",
+            "permission": ["view", "edit", "delete", "assign", "cmsView"]
         }
     ]
 }

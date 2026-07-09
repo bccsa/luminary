@@ -1,0 +1,6 @@
+{
+    "_id": "default-affinity",
+    "type": "defaultAffinity",
+    "memberOf": ["group-super-admins"],
+    "affinity": {}
+}
