@@ -3,12 +3,18 @@ import { onMounted, onUnmounted, ref, watch } from "vue";
 import AudioVideoToggle from "../form/AudioVideoToggle.vue";
 import "videojs-mobile-ui";
 import type Player from "video.js/dist/types/player";
-import { type ContentDto } from "luminary-shared";
+import { type ContentDto, EventWeight } from "luminary-shared";
 import px from "./px.png";
 import { matchTrackLanguage } from "./audioTrackLanguage";
 import LImage from "../images/LImage.vue";
-import { appLanguagesPreferredAsRef, queryParams } from "@/globalConfig";
-import { getMediaProgress, removeMediaProgress, setMediaProgress } from "@/contentProgress";
+import {
+    appLanguagesPreferredAsRef,
+    getMediaProgress,
+    removeMediaProgress,
+    setMediaProgress,
+    queryParams,
+} from "@/globalConfig";
+import { recordAffinity } from "@/recommendation/affinityStore";
 import { extractAndBuildAudioMaster } from "./extractAndBuildAudioMaster";
 import { isYouTubeUrl, convertToVideoJSYouTubeUrl } from "@/util/youtube";
 
@@ -370,6 +376,11 @@ onMounted(async () => {
             // The 'ended' event fires when the video reaches the end, regardless of video source
             removeMediaProgress(videoSource, props.content._id);
             progressRemoved = true;
+            // Finishing a video is a strong engagement signal — weight it above a plain
+            // open. This is the single completion call site (of the player's several
+            // `ended`/near-end listeners) that fires for every source, so affinity isn't
+            // double-counted for YouTube videos wired to more than one of them.
+            recordAffinity(props.content.parentTags, EventWeight.Completion);
 
             try {
                 player?.exitFullscreen();

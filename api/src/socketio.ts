@@ -16,6 +16,7 @@ import { ChangeReqDto } from "./dto/ChangeReqDto";
 import { AccessMap } from "./permissions/permissions.service";
 import configuration, { Configuration } from "./configuration";
 import { JwtUserDetails } from "./auth/authIdentity.service";
+import { UserAffinityDto } from "./dto/UserAffinityDto";
 import { S3Service } from "./s3/s3.service";
 import { WINSTON_MODULE_PROVIDER } from "nest-winston";
 import { Logger } from "winston";
@@ -51,6 +52,9 @@ type ClientRoomReq = {
 type ClientConfig = {
     maxUploadFileSize: number;
     maxMediaUploadFileSize?: number;
+    accessMap?: AccessMap;
+    /** The caller's own recommendation affinity profile (per-user private). */
+    affinity?: UserAffinityDto;
 };
 
 /**
@@ -178,6 +182,11 @@ export class Socketio implements OnGatewayInit {
                 return;
             }
 
+            // UserAffinity docs are per-user private — never fan out over group
+            // rooms. (They also carry no memberOf, so the refGroups guard below
+            // would drop them anyway; this is explicit defense-in-depth.)
+            if (update.type === DocType.UserAffinity) return;
+
             // We are using a socket.io room per document type per group. Change documents are broadcasted to the document-group rooms of the documents they reference.
             // Content documents are broadcasted to their parent document-group rooms.
             let refDoc = update;
@@ -278,6 +287,7 @@ export class Socketio implements OnGatewayInit {
             maxUploadFileSize: this.config.socketIo.maxHttpBufferSize,
             maxMediaUploadFileSize: this.config.socketIo.maxMediaUploadFileSize || 0,
             accessMap: socket.data.userDetails.accessMap,
+            affinity: socket.data.userDetails.affinity,
         } as ClientConfig;
         socket.emit("clientConfig", clientConfig);
 

@@ -70,6 +70,28 @@ describe("QueryService", () => {
         );
     });
 
+    it("throws 403 for the per-user-private userAffinity type", async () => {
+        const query = makeQuery((s) => {
+            (s as any).type = DocType.UserAffinity;
+        });
+        await expect(service.query(query, mockUser)).rejects.toEqual(
+            new HttpException("Forbidden", HttpStatus.FORBIDDEN),
+        );
+        // Nothing may reach CouchDB — affinity docs are never queryable.
+        expect(dbService.executeFindQuery).not.toHaveBeenCalled();
+    });
+
+    it("throws 403 when userAffinity is requested via a DeleteCmd docType", async () => {
+        const query = makeQuery((s) => {
+            (s as any).type = DocType.DeleteCmd;
+            (s as any).docType = DocType.UserAffinity;
+        });
+        await expect(service.query(query, mockUser)).rejects.toEqual(
+            new HttpException("Forbidden", HttpStatus.FORBIDDEN),
+        );
+        expect(dbService.executeFindQuery).not.toHaveBeenCalled();
+    });
+
     it("adds memberOf $elemMatch.$in for Group type", async () => {
         const access = { [DocType.Group]: ["g1", "g2"] } as any;
         (permissions.PermissionSystem.accessMapToGroups as jest.Mock).mockReturnValueOnce(access);
@@ -515,9 +537,7 @@ describe("QueryService", () => {
 
         // Expiry date filter must NOT be present
         const hasExpiryFilter = sel.$and.some(
-            (c: any) =>
-                c.$or &&
-                c.$or.some((o: any) => o.expiryDate !== undefined),
+            (c: any) => c.$or && c.$or.some((o: any) => o.expiryDate !== undefined),
         );
         expect(hasExpiryFilter).toBe(false);
 

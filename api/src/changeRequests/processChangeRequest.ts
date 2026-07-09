@@ -21,6 +21,8 @@ import processUserDto from "./documentProcessing/processUserDto";
 import { UserDto } from "../dto/UserDto";
 import processRedirectDto from "./documentProcessing/processRedirectDto";
 import { RedirectDto } from "../dto/RedirectDto";
+import processUserAffinityDto from "./documentProcessing/processUserAffinityDto";
+import { UserAffinityDto } from "../dto/UserAffinityDto";
 
 export async function processChangeRequest(
     userId: string,
@@ -29,7 +31,12 @@ export async function processChangeRequest(
     db: DbService,
 ): Promise<{ result: DbUpsertResult; warnings?: string[] }> {
     // Validate change request
-    const validationResult = await validateChangeRequest(changeRequest, groupMembership, db);
+    const validationResult = await validateChangeRequest(
+        changeRequest,
+        groupMembership,
+        db,
+        userId,
+    );
 
     if (!validationResult.validated) {
         throw new Error(validationResult.error);
@@ -65,6 +72,7 @@ export async function processChangeRequest(
             processAuthProviderDto(doc as AuthProviderDto, prevDoc as AuthProviderDto, db),
         [DocType.User]: () => processUserDto(doc as UserDto),
         [DocType.Redirect]: () => processRedirectDto(doc as RedirectDto),
+        [DocType.UserAffinity]: () => processUserAffinityDto(doc as UserAffinityDto, userId),
         [DocType.AutoGroupMappings]: () => {}, // No extra processing required, but needed to be part of the process map for access validation,
     };
 
