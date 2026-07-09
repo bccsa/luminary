@@ -211,6 +211,9 @@ describe("LHighlightable", () => {
 
                 // The text should now have a <mark> element
                 expect(prose.element.innerHTML).toContain("<mark");
+                // Creating a highlight emits "highlighted" — the signal the recommendation
+                // engine's affinity tracking hooks into (SingleContent.vue).
+                expect(wrapper.emitted("highlighted")).toHaveLength(1);
             }
         }
 
@@ -261,6 +264,10 @@ describe("LHighlightable", () => {
             // The mark should be removed
             expect(prose.element.innerHTML).not.toContain("<mark");
             expect(prose.element.textContent).toContain("highlighted");
+            // Removing a highlight must NOT emit "highlighted" — finalizeHighlight() is
+            // shared by both the add and remove paths, and only the add path (wrapTextNodes)
+            // emits. Otherwise removing a highlight would double-count as positive affinity.
+            expect(wrapper.emitted("highlighted")).toBeFalsy();
         }
 
         wrapper.unmount();

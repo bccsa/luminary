@@ -3,6 +3,7 @@ import { ref } from "vue";
 import { useLocalStorage } from "@vueuse/core";
 import { AccessMap, accessMap } from "../permissions/permissions";
 import { config, SharedConfig } from "../config";
+import type { UserAffinityDto } from "../types";
 
 /**
  * Client configuration type definition
@@ -11,7 +12,17 @@ type ClientConfig = {
     maxUploadFileSize: number;
     maxMediaUploadFileSize?: number;
     accessMap: AccessMap;
+    /** The caller's own recommendation affinity profile (per-user private). */
+    affinity?: UserAffinityDto;
 };
+
+/**
+ * The caller's OWN affinity profile as last delivered by the server's `clientConfig`
+ * (per-user private; never synced through the group firehose). Undefined for guests
+ * or before the first connect. The consuming application decides how to persist and
+ * use it — the library only surfaces the delivered document, like {@link accessMap}.
+ */
+export const serverAffinity = ref<UserAffinityDto | undefined>(undefined);
 
 /**
  * Connection status as a Vue ref
@@ -84,6 +95,10 @@ class SocketIO {
             if (c.maxUploadFileSize) maxUploadFileSize.value = c.maxUploadFileSize;
             if (c.maxMediaUploadFileSize) maxMediaUploadFileSize.value = c.maxMediaUploadFileSize;
             if (c.accessMap) accessMap.value = c.accessMap;
+            // Surface the server-delivered affinity profile (per-user private).
+            // Undefined for guests — leave any prior value untouched only when the
+            // server omits it entirely (a fresh guest connect clears it via undefined).
+            serverAffinity.value = c.affinity;
             isConnected.value = true; // Only set isConnected after configuration has been received from the API
             this.stopForegroundReconnect();
         });

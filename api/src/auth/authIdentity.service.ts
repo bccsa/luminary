@@ -7,7 +7,9 @@ import { AuthProviderDto } from "../dto/AuthProviderDto";
 import { AuthProviderCondition, AutoGroupMappingsDto } from "../dto/AutoGroupMappingsDto";
 import { DbService } from "../db/db.service";
 import { UserDto } from "../dto/UserDto";
+import { UserAffinityDto } from "../dto/UserAffinityDto";
 import { DocType, Uuid } from "../enums";
+import { userAffinityId } from "../util/userAffinity";
 import { AccessMap, PermissionSystem } from "../permissions/permissions.service";
 
 export type JwtUserDetails = {
@@ -17,6 +19,14 @@ export type JwtUserDetails = {
     name?: string;
     jwtPayload?: JWT.JwtPayload;
     accessMap?: AccessMap;
+    /**
+     * The caller's OWN recommendation affinity profile (or an empty scaffold
+     * carrying the correct `_id`/`ownerId` if none is stored yet). Delivered to
+     * the client via the `clientConfig` socket event so the profile follows the
+     * user across devices without ever entering the group sync firehose.
+     * Undefined for guests (no `userId`).
+     */
+    affinity?: UserAffinityDto;
 };
 
 export type IdentityResult =
@@ -81,6 +91,28 @@ export class AuthIdentityService implements OnModuleInit {
             this.defaultGroupsCache = null;
             this.jwksClients.clear();
         });
+    }
+
+    /**
+     * Load the caller's OWN affinity profile, or an empty scaffold carrying the
+     * correct id/owner so a first-time user still knows where to write. A single
+     * by-id point lookup (not a group query), so it scales regardless of how many
+     * affinity docs exist. Never throws — a missing/absent doc is normal.
+     */
+    private async getAffinity(userId: Uuid): Promise<UserAffinityDto> {
+        const id = userAffinityId(userId);
+        try {
+            const res = await this.dbService.getDoc(id);
+            if (res.docs?.length) return res.docs[0] as UserAffinityDto;
+        } catch {
+            // fall through to scaffold
+        }
+        return {
+            _id: id,
+            type: DocType.UserAffinity,
+            ownerId: userId,
+            affinity: {},
+        } as UserAffinityDto;
     }
 
     async getAutoGroupMappings(providerId: string): Promise<AutoGroupMappingsDto[]> {
@@ -478,6 +510,7 @@ export class AuthIdentityService implements OnModuleInit {
                 name: primaryUser.name,
                 jwtPayload: payload as JWT.JwtPayload,
                 accessMap,
+                affinity: await this.getAffinity(primaryUser._id),
             };
         } catch (error) {
             if (error instanceof UnauthorizedException) throw error;
