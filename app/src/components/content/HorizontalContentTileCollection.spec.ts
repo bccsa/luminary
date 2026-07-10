@@ -295,7 +295,10 @@ describe("HorizontalContentTileCollection", () => {
         await wrapper.vm.$nextTick();
 
         // Both spin buttons should be hidden in portrait mode
-        // The ArrowLeftCircleIcon and ArrowRightCircleIcon use v-if, so they won't be in the DOM
-        expect(wrapper.find(".mt-7.h-10.w-10").exists()).toBe(false);
+        // The ArrowLeftCircleIcon and ArrowRightCircleIcon use v-if, so their SVGs
+        // won't be in the DOM (checked via the spin-button containers, robust to styling).
+        const spinContainers = wrapper.findAll(".group.absolute");
+        expect(spinContainers[0].find("svg").exists()).toBe(false);
+        expect(spinContainers[1].find("svg").exists()).toBe(false);
     });
 });
