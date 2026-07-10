@@ -1027,7 +1027,7 @@ describe("AuthGuard (Integrated)", () => {
     it("should warn when provider scoping removes all static groups from a matched user", async () => {
         mockJwtService.verifyAsync = jest
             .fn()
-            .mockResolvedValue({ sub: "auth0|123", email: "test@bccsa.org", email_verified: true });
+            .mockResolvedValue({ sub: "auth0|123", email: "test@user.org", email_verified: true });
 
         const docOtherProvider = {
             _id: "user-other",
