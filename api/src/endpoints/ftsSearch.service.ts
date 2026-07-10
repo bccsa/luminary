@@ -94,6 +94,21 @@ const FTS_TOP_K_MIN = 150;
 const FTS_CANDIDATE_ROW_BUDGET = 3000;
 const FTS_MIN_TRIGRAMS = 3;
 
+export type FtsSearchStats = {
+    trigrams: number;
+    keptTrigrams: number;
+    estimatedCandidateRows: number;
+    candidateRows: number;
+    survivors: number;
+    topK: number;
+    candidateRowBudget: number;
+};
+
+export type FtsSearchWithStats = {
+    results: FtsSearchResultDto[];
+    stats: FtsSearchStats;
+};
+
 /**
  * Server-side full-text search.
  *
@@ -155,6 +170,22 @@ export class FtsSearchService {
     }
 
     async search(req: FtsSearchReqDto, userDetails: JwtUserDetails): Promise<FtsSearchResultDto[]> {
+        return (await this.searchWithStats(req, userDetails)).results;
+    }
+
+    async searchWithStats(
+        req: FtsSearchReqDto,
+        userDetails: JwtUserDetails,
+    ): Promise<FtsSearchWithStats> {
+        const stats: FtsSearchStats = {
+            trigrams: 0,
+            keptTrigrams: 0,
+            estimatedCandidateRows: 0,
+            candidateRows: 0,
+            survivors: 0,
+            topK: 0,
+            candidateRowBudget: FTS_CANDIDATE_ROW_BUDGET,
+        };
         const now = Date.now();
         const cms = req.cms === true;
         const limit = req.limit && req.limit > 0 ? req.limit : FTS_DEFAULT_LIMIT;
@@ -169,7 +200,7 @@ export class FtsSearchService {
         // before the Content-specific setup below, which assumes Post/Tag/Content metadata.
         if (types.length === 1) {
             const auxConfig = AUX_FTS_CONFIG[types[0]];
-            if (auxConfig) return this.searchAux(req, userDetails, auxConfig);
+            if (auxConfig) return this.searchAux(req, userDetails, auxConfig, stats);
         }
 
         // status / draft filters are a CMS-only capability
@@ -194,7 +225,8 @@ export class FtsSearchService {
 
         // Step 1: query trigrams
         const trigrams = generateSearchTrigrams(req.queryString);
-        if (trigrams.length === 0) return [];
+        stats.trigrams = trigrams.length;
+        if (trigrams.length === 0) return { results: [], stats };
 
         // Step 2: permission context (in-memory). NOTE: accessMapToGroups returns a
         // Map-typed value that is used as a plain object via property access.
@@ -233,7 +265,7 @@ export class FtsSearchService {
             this.db.ftsCorpusStats(),
             this.db.ftsTrigramDf(trigrams),
         ]);
-        if (N === 0) return [];
+        if (N === 0) return { results: [], stats };
         const avgdl = totalTokenCount / N || 1;
 
         // Drop over-common trigrams
@@ -242,11 +274,11 @@ export class FtsSearchService {
             const d = df.get(t) || 0;
             return d > 0 && d <= maxDocCount;
         });
-        if (usableTrigrams.length === 0) return [];
+        if (usableTrigrams.length === 0) return { results: [], stats };
 
         // High-df pruning: keep the most discriminative (lowest-df) trigrams within a
-        // candidate-row budget. Sort rarest-first and greedily add until the summed df
-        // would exceed the budget (but always keep at least FTS_MIN_TRIGRAMS).
+        // candidate-row budget. Sort rarest-first and stop before a trigram would push
+        // the summed df over budget, after preserving the min-trigram recall floor.
         const rankedByDf = usableTrigrams
             .map((t) => ({ t, d: df.get(t) || 0 }))
             .sort((a, b2) => a.d - b2.d);
@@ -261,9 +293,13 @@ export class FtsSearchService {
             keptTrigrams.push(t);
             rowBudget += d;
         }
+        stats.keptTrigrams = keptTrigrams.length;
+        stats.estimatedCandidateRows = rowBudget;
+        if (keptTrigrams.length === 0) return { results: [], stats };
 
         // Step 4: fetch candidate rows and filter in JS straight from the embedded metadata
         const candidates = await this.db.ftsTrigramCandidates(keptTrigrams);
+        stats.candidateRows = candidates.length;
         const perDocTf = new Map<string, Map<string, number>>();
         const accessibleDfDocs = new Map<string, Set<string>>(); // trigram → distinct surviving docIds
         // Doc-level metadata for the strict path (captured once per surviving doc).
@@ -338,7 +374,8 @@ export class FtsSearchService {
                 });
             }
         }
-        if (perDocTf.size === 0) return [];
+        stats.survivors = perDocTf.size;
+        if (perDocTf.size === 0) return { results: [], stats };
 
         // ---- Strict path: substring AND on title/author + field sort, over the full
         // matched set (no top-K, no BM25). Candidate gen already used the rarest-trigram
@@ -356,13 +393,13 @@ export class FtsSearchService {
             }
             if (sortSpec) sortStrict(matched, sortSpec.field, sortSpec.direction);
             const pageIds = matched.slice(offset, offset + limit).map((m) => m.docId);
-            if (pageIds.length === 0) return [];
+            if (pageIds.length === 0) return { results: [], stats };
 
             const fetched = await this.db.getDocs(pageIds, [DocType.Content]);
             const docMap = new Map<string, ContentDto>(
                 (fetched.docs as ContentDto[]).map((d) => [d._id, d]),
             );
-            return pageIds
+            const results = pageIds
                 .map((id) => docMap.get(id))
                 .filter((d): d is ContentDto => !!d)
                 .map((doc) => ({
@@ -371,6 +408,7 @@ export class FtsSearchService {
                     wordMatchScore: 0,
                     doc: stripFtsFields(doc),
                 }));
+            return { results, stats };
         }
 
         // IDF over the accessible/visible subset (distinct surviving docIds)
@@ -399,6 +437,7 @@ export class FtsSearchService {
             topK = prelim.slice(0, topKCap);
         }
         const topKIds = topK.map((c) => c.docId);
+        stats.topK = topKIds.length;
 
         // Step 7: fetch the top-K docs for the full BM25 + word-match pass and the
         // returned doc body.
@@ -434,12 +473,13 @@ export class FtsSearchService {
         });
 
         // Step 8: paginate and trim the FTS index fields before returning
-        return scored.slice(offset, offset + limit).map((r) => ({
+        const results = scored.slice(offset, offset + limit).map((r) => ({
             docId: r.docId,
             score: r.score,
             wordMatchScore: r.wordMatchScore,
             doc: stripFtsFields(r.doc),
         }));
+        return { results, stats };
     }
 
     /**
@@ -452,7 +492,8 @@ export class FtsSearchService {
         req: FtsSearchReqDto,
         userDetails: JwtUserDetails,
         cfg: AuxFtsConfig,
-    ): Promise<FtsSearchResultDto[]> {
+        stats: FtsSearchStats,
+    ): Promise<FtsSearchWithStats> {
         const limit = req.limit && req.limit > 0 ? req.limit : FTS_DEFAULT_LIMIT;
         const offset = req.offset && req.offset > 0 ? req.offset : 0;
 
@@ -469,7 +510,8 @@ export class FtsSearchService {
 
         // Query trigrams (≥3-char words only). Nothing usable ⇒ no matches.
         const trigrams = generateSearchTrigrams(req.queryString);
-        if (trigrams.length === 0) return [];
+        stats.trigrams = trigrams.length;
+        if (trigrams.length === 0) return { results: [], stats };
 
         // Permission: groups for this doctype only. CMS-scoped (cms:true) aux searches are gated by
         // CmsView, app/public searches by View — mirrors the Content path so the CMS only sees aux
@@ -491,7 +533,7 @@ export class FtsSearchService {
         // stats to derive a percentage from.
         const df = await this.db.ftsAuxTrigramDf(cfg.viewName, trigrams);
         const usableTrigrams = trigrams.filter((t) => (df.get(t) || 0) > 0);
-        if (usableTrigrams.length === 0) return [];
+        if (usableTrigrams.length === 0) return { results: [], stats };
         const rankedByDf = usableTrigrams
             .map((t) => ({ t, d: df.get(t) || 0 }))
             .sort((a, b) => a.d - b.d);
@@ -503,6 +545,8 @@ export class FtsSearchService {
             keptTrigrams.push(t);
             rowBudget += d;
         }
+        stats.keptTrigrams = keptTrigrams.length;
+        stats.estimatedCandidateRows = rowBudget;
 
         // Candidate rows → first metadata per accessible doc (permission ∩ memberOf, then the
         // explicit UI group filter). Metadata is read straight from the embedded view value.
@@ -510,6 +554,7 @@ export class FtsSearchService {
             cfg.viewName,
             keptTrigrams,
         );
+        stats.candidateRows = candidates.length;
         const perDocMeta = new Map<string, Record<string, any>>();
         for (const row of candidates) {
             if (perDocMeta.has(row.docId)) continue;
@@ -519,7 +564,8 @@ export class FtsSearchService {
             if (requestedGroups && !memberOf.some((g) => requestedGroups.has(g))) continue; // UI filter
             perDocMeta.set(row.docId, meta);
         }
-        if (perDocMeta.size === 0) return [];
+        stats.survivors = perDocMeta.size;
+        if (perDocMeta.size === 0) return { results: [], stats };
 
         // Strict substring AND over the doctype's searchable fields (aux is always strict).
         const words = queryWords(req.queryString);
@@ -530,19 +576,19 @@ export class FtsSearchService {
             );
             if (ok) matched.push({ docId, meta });
         }
-        if (matched.length === 0) return [];
+        if (matched.length === 0) return { results: [], stats };
 
         // Sort the full matched set, then paginate.
         sortStrict(matched, sortSpec.field, sortSpec.direction);
         const pageIds = matched.slice(offset, offset + limit).map((m) => m.docId);
-        if (pageIds.length === 0) return [];
+        if (pageIds.length === 0) return { results: [], stats };
 
         // Fetch only the page's docs for the body; strip the server-only fts index field.
         const fetched = await this.db.getDocs(pageIds, [cfg.docType]);
         const docMap = new Map<string, Record<string, any>>(
             (fetched.docs as Record<string, any>[]).map((d) => [d._id, d]),
         );
-        return pageIds
+        const results = pageIds
             .map((id) => docMap.get(id))
             .filter((d): d is Record<string, any> => !!d)
             .map((doc) => ({
@@ -551,6 +597,7 @@ export class FtsSearchService {
                 wordMatchScore: 0,
                 doc: stripAuxFtsFields(doc) as Partial<ContentDto>,
             }));
+        return { results, stats };
     }
 }
 
