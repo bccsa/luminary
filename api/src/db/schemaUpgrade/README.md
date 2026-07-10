@@ -122,7 +122,7 @@ Schema upgrades can be safely removed when:
     curl http://admin:password@localhost:5984/database/_schemas
     ```
 2. **Archive old upgrades** (optional but recommended):
-    - Move old upgrade files to `docs/historical-upgrades/` for reference
+    - Move old upgrade files to `docs/archive/historical-upgrades/` for reference
     - Include git commit hash and date when they were removed
 3. **Remove from codebase**:
     - Delete old upgrade files

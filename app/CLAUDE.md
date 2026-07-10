@@ -52,11 +52,11 @@ Uses `@auth0/auth0-vue` with multiple providers selected at runtime from `AuthPr
 
 ### i18n
 
-UI strings live in CouchDB Language documents, loaded at runtime (`src/i18n.ts`). English seed is `../api/src/db/seedingDocs/lang-eng.json`. See `../docs/translations.md` for the workflow.
+UI strings live in CouchDB Language documents, loaded at runtime (`src/i18n.ts`). English seed is `../api/src/db/seedingDocs/lang-eng.json`. See `../docs/guides/translations.md` for the workflow.
 
 ### Plugins
 
-`VITE_PLUGIN_PATH` env var points to an out-of-tree plugins folder. The Vite + Vitest configs copy `$VITE_PLUGIN_PATH/*` into `src/plugins/` at the start of every `dev`, `build`, and `test` run. `VITE_PLUGINS` is a JSON array of plugin names to load. Plugin filename must equal the exported class name.
+`VITE_PLUGIN_PATH` env var points to an out-of-tree plugins folder. The Vite + Vitest configs copy `$VITE_PLUGIN_PATH/*` into `src/plugins/` at the start of every `dev`, `build`, and `test` run. `VITE_PLUGINS` is a JSON array of plugin names to load. Plugin filename must equal the exported class name. Full contract + injection-key + build-time virtual module pattern, diagrams, and a second-plugin walkthrough: `docs/vue-plugin-architecture/README.md`.
 
 ### Query string parameters
 

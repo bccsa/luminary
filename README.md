@@ -17,7 +17,7 @@ lu·​mi·​nary - ˈlü-mə-ˌner-ē
 - `app`: Web and native frontend app
 - `cms`: Backend CMS for managing content
 - `shared`: Shared library used by the CMS and app
-- `docs`: Documentation, including ADRs
+- `docs`: Cross-cutting documentation — see [docs/README.md](./docs/README.md) (ADRs, cross-package guides, architecture diagrams). Package-specific docs live with their code (each package's own `README.md`).
 
 ## Architectural Decision Records
 
@@ -49,4 +49,4 @@ See the [Shared readme](./shared/README.md)
 
 ### Project automation
 
-See the [Project automation readme](./docs/project-addons/automation/project-automation.md)
+See the [setup wizard guide](./scripts/README.md)

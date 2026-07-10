@@ -17,7 +17,7 @@ Luminary is an offline-first content platform. The repo is a monorepo with no ro
 
 ## Local setup
 
-The wizard `./scripts/automate-luminary.sh setup` provisions CouchDB + MinIO containers, writes `.env` files, and installs in the correct order. For manual installs, the order matters:
+The wizard `./scripts/setup-dev.sh setup` provisions CouchDB + MinIO containers, writes `.env` files, and installs in the correct order. For manual installs, the order matters:
 
 ```sh
 cd shared && npm ci && npm run build      # build emits dist/ — app/cms resolve shared TYPES from dist/index.d.ts

@@ -19,8 +19,7 @@ This script will automatically:
 1. ✅ Set up CouchDB (database) and MinIO (file storage) using Docker
 2. ✅ Create `.env` configuration files for the API, app, and CMS
 3. ✅ Install all Node.js dependencies in the correct order
-4. ✅ Set up a Git hook to keep your shared library up-to-date
-5. ✅ Sync database and storage credentials automatically
+4. ✅ Sync database and storage credentials automatically
 
 **Time to complete**: 5-10 minutes
 
@@ -61,7 +60,7 @@ cd luminary/scripts
 2. Run the setup wizard:
 
 ```bash
-./automate-luminary.sh setup
+./setup-dev.sh setup
 ```
 
 3. Follow the prompts - the wizard will ask you for:
@@ -204,7 +203,7 @@ kill -9 <PID>
 ```bash
 docker stop luminary-couchdb luminary-storage
 docker rm luminary-couchdb luminary-storage
-./automate-luminary.sh setup
+./setup-dev.sh setup
 ```
 
 ### "Name or password is incorrect" when seeding database
@@ -215,7 +214,7 @@ This means your database password in the `.env` file doesn't match the Docker co
 
 ```bash
 # Re-run the setup to sync credentials
-./automate-luminary.sh setup
+./setup-dev.sh setup
 ```
 
 ### Multi-line JWT secret not working
