@@ -12,7 +12,7 @@ import {
     serverError,
 } from "luminary-shared";
 import { apiUrl, initLanguage } from "@/globalConfig";
-import auth, { isAuthBypassed } from "./auth";
+import auth, { isAuthBypassed, readPersistedProvider } from "./auth";
 import { useNotificationStore } from "./stores/notification";
 import { initAuthLangSync, initSync } from "./sync";
 import { CMS_DOCS_INDEX } from "./docsIndex";
@@ -98,7 +98,13 @@ async function Startup() {
     }
 
     await auth.setupAuth(app);
-    socket.connect(); // ensure socket connects for public users (no-op if auth already called reconnect())
+    // Ensure the socket connects for visitors with no session (no-op if auth
+    // already called reconnect()). Skip when a persisted provider session
+    // exists but auth didn't complete (e.g. transient silent-refresh failure):
+    // an anonymous handshake would replace the persisted accessMap with the
+    // default-groups map and deleteRevoked would purge local data. The pending
+    // re-login/refresh connects the socket instead.
+    if (!(readPersistedProvider() && !auth.activeProviderId.value)) socket.connect();
 
     // Show notification on server error (5xx), debounced to avoid flooding.
     // CMS has no i18n layer; copy is owned here rather than in the shared lib.

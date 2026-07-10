@@ -451,6 +451,17 @@ export class AuthIdentityService implements OnModuleInit {
                 allMemberOf = primaryUser.memberOf ?? [];
             }
 
+            if (allMemberOf.length === 0) {
+                // A matched user with zero applicable static groups is almost always
+                // provider scoping (user doc stamped with a different providerId).
+                // The client silently receives a reduced access map — surface it.
+                this.logger.warn(
+                    `User ${primaryUser._id} matched but no static groups apply for providerId=${providerId} ` +
+                        `(user doc providerId=${primaryUser.providerId ?? "unset"}) — ` +
+                        `access map reduced to default + dynamic groups`,
+                );
+            }
+
             // Persist identity link and lastLogin
             await this.dbService.upsertDoc({ ...primaryUser, lastLogin: Date.now() });
 
