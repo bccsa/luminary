@@ -107,7 +107,7 @@ const filteredUsers = computed(() => {
     });
 });
 
-const { visible: visibleUsers } = useInfiniteScrollList(filteredUsers, {
+const { visible: visibleUsers, sentinel: browseSentinel } = useInfiniteScrollList(filteredUsers, {
     pageSize: 20,
     resetWhen: [() => queryOptions.value.search, () => queryOptions.value.groups],
 });
@@ -194,6 +194,8 @@ const hasAnyContent = computed(() => (users.value?.length ?? 0) > 0);
                 v-model="isEditUserModalVisible"
                 @edit="(id) => (selectedUserId = id)"
             />
+
+            <div v-if="!searchActive" ref="browseSentinel" class="h-px w-full"></div>
 
             <EmptyState
                 v-if="!isFetching && !hasAnyContent"
