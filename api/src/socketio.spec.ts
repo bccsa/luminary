@@ -30,15 +30,6 @@ describe("Socketio", () => {
     beforeAll(async () => {
         process.env = { ...oldEnv };
 
-        process.env.JWT_MAPPINGS = `{
-            "groups": {
-                "group-super-admins": "() => true"
-            },
-            "userId": "() => 'user-super-admin'",
-            "email": "() => 'test@123.com'",
-            "name": "() => 'Test User'"
-        }`;
-
         app = await createNestApp();
         await app.listen(process.env.PORT);
 

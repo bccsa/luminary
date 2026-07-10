@@ -11,7 +11,7 @@ import {
  * computed/watcher (outside a setup context), where `useI18n()` would throw.
  */
 export function getNavigationItems(t: (key: string) => string) {
-    const navigationItems = [
+    return [
         {
             name: t("menu.home"),
             defaultIcon: HomeIcon,
@@ -38,5 +38,4 @@ export function getNavigationItems(t: (key: string) => string) {
         },
     ];
 
-    return navigationItems;
 }

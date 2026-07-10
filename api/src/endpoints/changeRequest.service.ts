@@ -1,29 +1,15 @@
 import { ChangeReqDto } from "../dto/ChangeReqDto";
-import { Injectable, Inject } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import { DbService } from "../db/db.service";
 import { AckStatus, AclPermission, DocType, Uuid } from "../enums";
-import { WINSTON_MODULE_PROVIDER } from "nest-winston";
-import { Logger } from "winston";
 import { JwtUserDetails } from "../auth/authIdentity.service";
-import configuration, { Configuration } from "../configuration";
 import { processChangeRequest } from "../changeRequests/processChangeRequest";
 import { ChangeReqAckDto } from "../dto/ChangeReqAckDto";
 import { PermissionSystem } from "../permissions/permissions.service";
 
 @Injectable()
 export class ChangeRequestService {
-    private readonly test: any = [];
-    private permissionMap: any;
-    private config: Configuration;
-
-    constructor(
-        @Inject(WINSTON_MODULE_PROVIDER)
-        private readonly logger: Logger,
-        private db: DbService,
-    ) {
-        // Create config object with environmental variables
-        this.config = configuration();
-    }
+    constructor(private db: DbService) {}
 
     async changeRequest(
         changeRequest: ChangeReqDto,

@@ -107,18 +107,11 @@ Auth0 handles user authentication (login/logout) for Luminary. You'll need to cr
 4. Click **Create**
 5. Copy the **Identifier** → This is your `AUTH0_AUDIENCE`
 
-### Step 4: Get Your JWT Secret
-
-1. In your API settings (from Step 3), click the **Test** tab
-2. Scroll down to find your **Access Token** or **Certificate**
-3. Copy this value → This is your `JWT_SECRET`
-
 **That's it!** The setup wizard will ask you for these values:
 
 - `AUTH0_DOMAIN` - From Application Settings
 - `AUTH0_CLIENT_ID` - From Application Settings
 - `AUTH0_AUDIENCE` - From API Identifier
-- `JWT_SECRET` - From API Test tab
 
 ## 🔑 Environment Variables
 
@@ -133,12 +126,6 @@ The setup wizard configures environment variables across three sub-projects: **a
 The wizard will ask you for these values. Here's what each one does:
 
 ### For the API
-
-**`JWT_SECRET`** - The secret key for verifying user tokens
-
-- Can be single-line or multi-line
-- Where to find it: Auth0 Dashboard → Applications → APIs → Your API → Test tab
-- The wizard supports pasting multi-line certificates
 
 **`ENCRYPTION_KEY`** - For encrypting sensitive data in the database
 

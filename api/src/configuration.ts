@@ -1,8 +1,3 @@
-export type AuthConfig = {
-    jwtSecret: string;
-    jwtMappings: string;
-};
-
 export type DatabaseConfig = {
     connectionString: string;
     database: string;
@@ -101,10 +96,8 @@ export type SocketIoConfig = {
 };
 
 export type Configuration = {
-    permissionMap: string;
     s3?: S3Config;
     s3Audio?: AudioS3Config;
-    auth?: AuthConfig;
     database?: DatabaseConfig;
     sync?: SyncConfig;
     query?: QueryConfig;
@@ -115,10 +108,6 @@ export type Configuration = {
 
 export default () =>
     ({
-        auth: {
-            jwtSecret: process.env.JWT_SECRET,
-            jwtMappings: process.env.JWT_MAPPINGS,
-        } as AuthConfig,
         database: {
             connectionString: process.env.DB_CONNECTION_STRING,
             database: process.env.DB_DATABASE,
@@ -140,7 +129,6 @@ export default () =>
                 strikeDecayMs: parseInt(process.env.QUERY_RATE_LIMIT_STRIKE_DECAY_MS, 10) || 600000,
             },
         } as QueryConfig,
-        permissionMap: process.env.PERMISSION_MAP,
         imageProcessing: {
             imageQuality: parseInt(process.env.S3_IMG_QUALITY, 10) || 80,
         } as ImageProcessingConfig,

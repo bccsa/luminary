@@ -13,7 +13,7 @@ describe("ChangeRequest service", () => {
 
     beforeAll(async () => {
         service = (await createTestingModule("changereq-service")).dbService;
-        changeRequestService = new ChangeRequestService(undefined, service);
+        changeRequestService = new ChangeRequestService(service);
 
         mockUserDetails = {
             userId: "user-super-admin",
