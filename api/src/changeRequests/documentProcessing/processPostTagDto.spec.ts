@@ -95,8 +95,9 @@ describe("processPostTagDto", () => {
         await processChangeRequest("test-user", postCr, ["group-super-admins"], db);
         await processChangeRequest("test-user", contentCr, ["group-super-admins"], db);
 
+       
         let contentRes = await db.getDoc(contentCr.doc._id);
-        expect(contentRes.docs[0].parentAlwaysOffline).toBeFalsy();
+        expect(contentRes.docs[0].parentAlwaysOffline).toBeUndefined();
 
         const postUpdate = JSON.parse(JSON.stringify(postCr)) as ChangeReqDto;
         postUpdate.doc.alwaysOffline = true;
@@ -104,6 +105,13 @@ describe("processPostTagDto", () => {
 
         contentRes = await db.getDoc(contentCr.doc._id);
         expect(contentRes.docs[0].parentAlwaysOffline).toBe(true);
+
+        const postTurnOff = JSON.parse(JSON.stringify(postUpdate)) as ChangeReqDto;
+        postTurnOff.doc.alwaysOffline = false;
+        await processChangeRequest("test-user", postTurnOff, ["group-super-admins"], db);
+
+        contentRes = await db.getDoc(contentCr.doc._id);
+        expect(contentRes.docs[0].parentAlwaysOffline).toBeUndefined();
     });
 
     it("accepts a change request for a post with postType 'blog'", async () => {
