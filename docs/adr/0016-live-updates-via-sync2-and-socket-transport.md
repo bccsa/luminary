@@ -1,4 +1,4 @@
-# 10. Live updates via sync and a Socket.io transport
+# 16. Live updates via sync and a Socket.io transport
 
 Date: 2026-06-06
 
@@ -11,7 +11,8 @@ Accepted
 > `shared/src/api/sync/` (the whole `shared/src/rest/` directory became
 > `shared/src/api/`). References to the current engine below use the new names; the
 > now-deleted *legacy* `rest/sync.ts` is left at its original path. The ADR
-> filename and number (0010) are unchanged as the historical record.
+> content remains historical; this file was later renumbered to 0016 only to
+> resolve a duplicate ADR ID.
 
 ## Context
 
