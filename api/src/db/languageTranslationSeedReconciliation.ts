@@ -1,8 +1,11 @@
 import * as fs from "fs";
 import * as path from "path";
+import { Logger } from "@nestjs/common";
 import { DbService } from "./db.service";
 import { LanguageDto } from "../dto/LanguageDto";
 import { DocType } from "../enums";
+
+const logger = new Logger("LanguageTranslationSeedReconciliation");
 
 const SEEDED_LANGUAGE_IDS = ["lang-eng", "lang-fra"] as const;
 type SeededLanguageId = (typeof SEEDED_LANGUAGE_IDS)[number];
@@ -43,7 +46,6 @@ export async function reconcileLanguageTranslationSeeds(
     let unchangedCount = 0;
 
     await db.processAllDocs([DocType.Language], async (doc: LanguageDto) => {
-        if (!doc || doc.type !== DocType.Language) return;
         if (SEEDED_LANGUAGE_IDS.includes(doc._id as SeededLanguageId)) {
             seenSeedLanguages.add(doc._id);
         }
@@ -52,6 +54,9 @@ export async function reconcileLanguageTranslationSeeds(
         const nextTranslations: Record<string, string> = {};
         let changed = false;
 
+        // Pruning applies to every language, not just the seeded ones: any key absent from
+        // both seed files is dropped everywhere so a key removed from en/fr can't linger on
+        // other languages either.
         for (const [key, value] of Object.entries(currentTranslations)) {
             if (allowedKeys.has(key)) {
                 nextTranslations[key] = value;
@@ -85,13 +90,13 @@ export async function reconcileLanguageTranslationSeeds(
 
     for (const languageId of SEEDED_LANGUAGE_IDS) {
         if (!seenSeedLanguages.has(languageId)) {
-            console.warn(
-                `Language translation seed reconciliation skipped creating missing ${languageId} document`,
+            logger.warn(
+                `Language translation seed reconciliation found no ${languageId} document to reconcile`,
             );
         }
     }
 
-    console.info(
+    logger.log(
         `Language translation seed reconciliation complete: ${updatedCount} updated, ${unchangedCount} unchanged`,
     );
 }
