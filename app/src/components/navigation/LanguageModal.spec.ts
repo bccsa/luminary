@@ -205,16 +205,17 @@ describe("LanguageModal.vue", () => {
             });
             stubRowLayout();
 
-            // Grab English (row 0) and drag it a full row's height down.
-            await wrapper
-                .findAll('[data-test="drag-handle"]')[0]!
-                .trigger("pointerdown", { clientY: 0 });
-            window.dispatchEvent(new MouseEvent("pointermove", { clientY: ROW_HEIGHT + 5 }));
-            await wrapper.vm.$nextTick();
+            // Grab English (row 0) and drag it a full row's height down. Events are dispatched on
+            // the handle itself (not `window`): pointer capture retargets them there in real
+            // browsers, and Vue reuses the same DOM node for a keyed row across reorders, so a
+            // held reference stays valid even after the row moves.
+            const handle = wrapper.findAll('[data-test="drag-handle"]')[0]!;
+            await handle.trigger("pointerdown", { clientY: 0 });
+            await handle.trigger("pointermove", { clientY: ROW_HEIGHT + 5 });
 
             expect(rowIds(wrapper)).toEqual([mockLanguageDtoFra._id, mockLanguageDtoEng._id]);
 
-            window.dispatchEvent(new MouseEvent("pointerup"));
+            await handle.trigger("pointerup");
             await wrapper.find('[data-test="save-languages"]').trigger("click");
 
             expect(appLanguageIdsAsRef.value).toEqual([
@@ -232,12 +233,10 @@ describe("LanguageModal.vue", () => {
             });
             stubRowLayout();
 
-            await wrapper
-                .findAll('[data-test="drag-handle"]')[0]!
-                .trigger("pointerdown", { clientY: 0 });
-            window.dispatchEvent(new MouseEvent("pointerup"));
-            window.dispatchEvent(new MouseEvent("pointermove", { clientY: ROW_HEIGHT + 5 }));
-            await wrapper.vm.$nextTick();
+            const handle = wrapper.findAll('[data-test="drag-handle"]')[0]!;
+            await handle.trigger("pointerdown", { clientY: 0 });
+            await handle.trigger("pointerup");
+            await handle.trigger("pointermove", { clientY: ROW_HEIGHT + 5 });
 
             expect(rowIds(wrapper)).toEqual([mockLanguageDtoEng._id, mockLanguageDtoFra._id]);
         });

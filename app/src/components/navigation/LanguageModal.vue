@@ -20,8 +20,9 @@ import { ArrowDownTrayIcon, CheckIcon, XMarkIcon } from "@heroicons/vue/24/solid
 import { InformationCircleIcon, PlusCircleIcon } from "@heroicons/vue/24/outline";
 import { markLanguageSwitch } from "@/util/isLangSwitch";
 import { useNotificationStore } from "@/stores/notification";
+import { useDragReorder } from "@/composables/useDragReorder";
 
-import { computed, onBeforeUnmount, ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 
 type Props = {
@@ -125,60 +126,7 @@ const decreasePriority = (id: string) => {
 };
 
 // ── Drag-to-reorder ──────────────────────────────────────────────────────────
-// Pointer events, not HTML5 drag-and-drop: the modal is touch-first and DnD never fires on touch.
-// The grabbed row tracks the finger with a translate, and every full row of travel splices
-// `draftOrder` so the neighbours shuffle live underneath it.
-const draggingId = ref<string | null>(null);
-const dragTranslate = ref(0);
-let dragStartY = 0;
-let dragStartIndex = 0;
-let rowStep = 0; // px between adjacent row tops (rows are uniform height)
-
-const endDrag = () => {
-    draggingId.value = null;
-    dragTranslate.value = 0;
-    window.removeEventListener("pointermove", onDragMove);
-    window.removeEventListener("pointerup", endDrag);
-    window.removeEventListener("pointercancel", endDrag);
-};
-
-function onDragMove(e: PointerEvent) {
-    const id = draggingId.value;
-    if (!id || rowStep <= 0) return; // rowStep is 0 in jsdom (no layout) — drag is a no-op there
-    e.preventDefault(); // suppress text selection / touch scroll while dragging
-    // Clamp the travel to the list's own bounds, so a row can never be dragged outside it.
-    const last = draftOrder.value.length - 1;
-    const dy = Math.max(
-        -dragStartIndex * rowStep,
-        Math.min((last - dragStartIndex) * rowStep, e.clientY - dragStartY),
-    );
-    const target = dragStartIndex + Math.round(dy / rowStep);
-    const current = draftOrder.value.indexOf(id);
-    if (target !== current) {
-        draftOrder.value.splice(target, 0, draftOrder.value.splice(current, 1)[0]!);
-    }
-    // Subtract the travel the reorder itself already absorbed, so the row stays under the finger.
-    dragTranslate.value = dy - (target - dragStartIndex) * rowStep;
-}
-
-const startDrag = (id: string, e: PointerEvent) => {
-    if (draftOrder.value.length <= 1 || e.button > 0) return;
-    const handle = e.currentTarget as HTMLElement;
-    const row = handle.closest("[data-lang-row]");
-    const rows = (row?.parentElement?.children ?? []) as HTMLCollectionOf<HTMLElement>;
-    rowStep =
-        rows.length > 1
-            ? rows[1]!.getBoundingClientRect().top - rows[0]!.getBoundingClientRect().top
-            : 0;
-    dragStartY = e.clientY;
-    dragStartIndex = draftOrder.value.indexOf(id);
-    draggingId.value = id;
-    dragTranslate.value = 0;
-    handle.setPointerCapture?.(e.pointerId);
-    window.addEventListener("pointermove", onDragMove, { passive: false });
-    window.addEventListener("pointerup", endDrag);
-    window.addEventListener("pointercancel", endDrag);
-};
+const { draggingId, dragTranslate, startDrag, onDragMove, endDrag } = useDragReorder(draftOrder);
 
 // Keyboard equivalent of the drag: the handle is focusable and arrow keys nudge the row.
 const onHandleKeydown = (id: string, e: KeyboardEvent) => {
@@ -190,8 +138,6 @@ const onHandleKeydown = (id: string, e: KeyboardEvent) => {
         decreasePriority(id);
     }
 };
-
-onBeforeUnmount(endDrag);
 
 const removeFromSelected = (id: string) => {
     // At least one preferred language must remain — empty order breaks sync + offline content.
@@ -320,6 +266,10 @@ const cancel = () => emit("close");
                         :title="t('language.modal.reorder')"
                         class="flex shrink-0 cursor-grab touch-none items-center py-2 pl-2 pr-1 text-zinc-400 hover:text-zinc-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-yellow-500 active:cursor-grabbing dark:text-slate-400 dark:hover:text-slate-200"
                         @pointerdown="startDrag(language._id, $event)"
+                        @pointermove="onDragMove"
+                        @pointerup="endDrag"
+                        @pointercancel="endDrag"
+                        @lostpointercapture="endDrag"
                         @keydown="onHandleKeydown(language._id, $event)"
                     >
                         <DragHandleIcon class="h-4 w-4" />
