@@ -1,3 +1,4 @@
+import { Logger } from "@nestjs/common";
 import { DocType } from "../enums";
 import { reconcileLanguageTranslationSeeds } from "./languageTranslationSeedReconciliation";
 
@@ -28,8 +29,8 @@ describe("reconcileLanguageTranslationSeeds", () => {
 
     beforeEach(() => {
         jest.spyOn(Date, "now").mockReturnValue(123456789);
-        jest.spyOn(console, "info").mockImplementation();
-        jest.spyOn(console, "warn").mockImplementation();
+        jest.spyOn(Logger.prototype, "log").mockImplementation();
+        jest.spyOn(Logger.prototype, "warn").mockImplementation();
     });
 
     afterEach(() => {
