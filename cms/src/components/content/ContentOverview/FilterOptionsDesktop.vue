@@ -36,7 +36,8 @@ type Props = {
 defineProps<Props>();
 
 const queryOptions = defineModel<ContentOverviewQueryOptions>("queryOptions", { required: true });
-// Debouncing the search term so it is the only unique query option that needs a seperate defineModel
+// The typed-but-not-yet-committed search input — searching is trigger-only, so it only
+// reaches queryOptions.search on Enter/Go, hence its own model separate from queryOptions.
 const query = defineModel("query", { required: true });
 
 const showSearchIcon = computed(() => !String(query.value ?? "").length);

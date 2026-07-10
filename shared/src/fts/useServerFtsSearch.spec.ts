@@ -188,6 +188,33 @@ describe("useServerFtsSearch", () => {
         scope.stop();
     });
 
+    it("runSearch dedupes a same-query fresh search already in flight (double Go-click)", async () => {
+        let resolveApi: (v: ReturnType<typeof apiDocs>) => void = () => {};
+        ftsMock.mockReturnValue(new Promise((r) => (resolveApi = r)));
+        const scope = effectScope();
+        const query = ref("garden");
+        let api!: ReturnType<typeof useServerFtsSearch>;
+        scope.run(() => {
+            api = useServerFtsSearch(query, { docType: DocType.User, debounceMs: "manual" });
+        });
+        await settle();
+        expect(ftsMock).not.toHaveBeenCalled();
+
+        // First Go-click starts the search; second lands while it is still in flight.
+        api.runSearch();
+        api.runSearch();
+        await settle();
+        expect(ftsMock).toHaveBeenCalledTimes(1);
+
+        // Once the in-flight search settles, a later runSearch() is not deduped.
+        resolveApi(apiDocs("u", 1));
+        await settle();
+        api.runSearch();
+        await settle();
+        expect(ftsMock).toHaveBeenCalledTimes(2);
+        scope.stop();
+    });
+
     it("refresh clears isStale and re-runs from offset 0", async () => {
         ftsMock.mockResolvedValue(apiDocs("u", 1));
         const scope = effectScope();

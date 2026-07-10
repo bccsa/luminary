@@ -78,6 +78,10 @@ export function useServerFtsSearch(
 
     let debounceTimer: ReturnType<typeof setTimeout> | undefined;
     let generation = 0;
+    /** Query text of the fresh (offset-0) search currently in flight, if any — lets runSearch()
+     *  dedupe against a same-query search already started by a prior trigger (mirrors
+     *  useFtsSearch's guard). */
+    let inFlightFreshQuery: string | null = null;
 
     async function doSearch(offset: number, append: boolean) {
         const query = queryRef.value.trim();
@@ -92,6 +96,7 @@ export function useServerFtsSearch(
         }
 
         const myGeneration = ++generation;
+        if (!append) inFlightFreshQuery = query;
         isLoading.value = true;
         try {
             const filters = read(options.filters);
@@ -124,6 +129,9 @@ export function useServerFtsSearch(
             }
         } finally {
             if (myGeneration === generation) isLoading.value = false;
+            if (!append && inFlightFreshQuery === query) {
+                inFlightFreshQuery = null;
+            }
         }
     }
 
@@ -142,6 +150,9 @@ export function useServerFtsSearch(
             clearTimeout(debounceTimer);
             debounceTimer = undefined;
         }
+        // A same-query fresh search may already be in flight (a double Enter/Go-click, or the
+        // debounce fired just before this explicit trigger) — skip the redundant network call.
+        if (inFlightFreshQuery === queryRef.value.trim()) return;
         isStale.value = false;
         generation++;
         doSearch(0, false);
