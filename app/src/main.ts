@@ -13,7 +13,7 @@ import {
 } from "@/auth";
 import { useNotificationStore } from "./stores/notification";
 import { appPluginsManager } from "@/build-time/contracts/plugin-registry";
-import { getSocket, init, warmMangoCaches, serverError, isConnected } from "luminary-shared";
+import { getSocket, init, warmMangoCaches, serverError } from "luminary-shared";
 import {
     appSyncedLanguageIdsAsRef,
     initLanguage,
@@ -73,22 +73,6 @@ async function Startup() {
 
     const socket = getSocket();
 
-    // Guards the visibilitychange-triggered reconnect below against firing again
-    // while a previous attempt is still in flight (e.g. rapid tab switching, or a
-    // slow Auth0 round-trip during startup) — otherwise each flip restarts the
-    // handshake and the connection state visibly flaps.
-    let reconnecting = false;
-    let reconnectTimeout: ReturnType<typeof setTimeout> | undefined;
-
-    // Transport can connect while the server never sends clientConfig (see
-    // socketio.ts), in which case isConnected never flips true and no `disconnect`
-    // fires either — nothing would ever clear `reconnecting`. This timeout is the
-    // backstop so a stuck handshake doesn't permanently block future reconnects.
-    function stopReconnecting() {
-        reconnecting = false;
-        clearTimeout(reconnectTimeout);
-    }
-
     // Register the apiAuthFailed listener BEFORE setupAuth(), because setupAuth()
     // may connect the socket with an expired token — if the listener isn't ready
     // by then, the event is lost and the client loops forever.
@@ -96,8 +80,6 @@ async function Startup() {
         "connect_error",
         async (err: Error & { data?: { type?: string; reason?: string } }) => {
             if (err.data?.type !== "auth_failed" && err.message !== "auth_failed") return;
-            stopReconnecting();
-
             const reason = err.data?.reason;
 
             // Provider was deleted / never existed: don't re-attempt login with
@@ -132,28 +114,6 @@ async function Startup() {
 
     await setupAuth(app, router);
     socket.connect(); // ensure socket connects for public users (no-op if auth already called reconnect())
-
-    // A tab backgrounded during sleep/long idle can end up with the socket
-    // disconnected and auto-reconnect turned off (see socketio.ts's auth_failed
-    // handling) with no future retry scheduled. Foregrounding the tab is the
-    // natural moment to try again — any resulting auth failure is handled by
-    // the connect_error listener above, same as any other reconnect. Registered
-    // after setupAuth() so it can't race the initial (possibly slow, Auth0-backed)
-    // connection attempt; `reconnecting` stops repeat visibility flips from
-    // restarting an attempt that's already in flight.
-    watch(isConnected, (connected) => {
-        if (connected) stopReconnecting();
-    });
-    socket.on("disconnect", () => {
-        stopReconnecting();
-    });
-    document.addEventListener("visibilitychange", () => {
-        if (document.visibilityState === "visible" && !isConnected.value && !reconnecting) {
-            reconnecting = true;
-            reconnectTimeout = setTimeout(() => (reconnecting = false), 20_000);
-            socket.reconnect();
-        }
-    });
 
     // Install all plugins before mounting — components rendered during the
     // splash screen (e.g. SearchModal) call useI18n() at setup time.

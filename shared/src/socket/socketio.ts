@@ -30,6 +30,8 @@ export const maxMediaUploadFileSize = useLocalStorage("maxMediaUploadFileSize", 
 
 class SocketIO {
     private socket: Socket;
+    private foregroundReconnectInFlight = false;
+    private foregroundReconnectTimeout: ReturnType<typeof setTimeout> | undefined;
 
     /**
      * Create a new SocketIO instance
@@ -60,10 +62,12 @@ class SocketIO {
 
         this.socket.on("disconnect", () => {
             isConnected.value = false;
+            this.stopForegroundReconnect();
         });
 
         this.socket.on("connect_error", (err: Error & { data?: { type?: string } }) => {
             isConnected.value = false;
+            this.stopForegroundReconnect();
             // When the server rejects credentials in its middleware, it passes
             // next(new Error("auth_failed")). Stop auto-reconnection so the
             // client doesn't loop with the same stale token.
@@ -81,8 +85,42 @@ class SocketIO {
             if (c.maxMediaUploadFileSize) maxMediaUploadFileSize.value = c.maxMediaUploadFileSize;
             if (c.accessMap) accessMap.value = c.accessMap;
             isConnected.value = true; // Only set isConnected after configuration has been received from the API
+            this.stopForegroundReconnect();
         });
+
+        // A tab foregrounded after sleep or a long idle can have a disconnected
+        // socket with auto-reconnection disabled following an auth failure. Retry
+        // once when it becomes visible; consumer auth-error handlers remain
+        // responsible for refreshing credentials if the retry is rejected.
+        if (typeof document !== "undefined") {
+            document.addEventListener("visibilitychange", this.reconnectOnVisibilityChange);
+        }
     }
+
+    private stopForegroundReconnect() {
+        this.foregroundReconnectInFlight = false;
+        clearTimeout(this.foregroundReconnectTimeout);
+        this.foregroundReconnectTimeout = undefined;
+    }
+
+    private reconnectOnVisibilityChange = () => {
+        if (
+            document.visibilityState !== "visible" ||
+            isConnected.value ||
+            this.foregroundReconnectInFlight
+        ) {
+            return;
+        }
+
+        // Set this after reconnect(): its intentional disconnect synchronously
+        // emits `disconnect`, which clears a prior attempt's guard.
+        this.reconnect();
+        this.foregroundReconnectInFlight = true;
+        this.foregroundReconnectTimeout = setTimeout(() => {
+            this.foregroundReconnectInFlight = false;
+            this.foregroundReconnectTimeout = undefined;
+        }, 20_000);
+    };
 
     /**
      * Adds the listener function as an event listener for ev.
