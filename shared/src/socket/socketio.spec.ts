@@ -18,6 +18,14 @@ vi.spyOn(RestApi, "getRest").mockReturnValue({
 describe("socketio", () => {
     const socketServer = new Server(12345);
 
+    function foregroundDocument() {
+        Object.defineProperty(document, "visibilityState", {
+            configurable: true,
+            value: "visible",
+        });
+        document.dispatchEvent(new Event("visibilitychange"));
+    }
+
     beforeAll(async () => {
         initConfig({
             cms: true,
@@ -87,6 +95,62 @@ describe("socketio", () => {
 
         await waitForExpect(() => {
             expect(serverConnectCalled).toEqual(true);
+            expect(isConnected.value).toEqual(true);
+        });
+    });
+
+    it("reconnects when a disconnected tab becomes visible", async () => {
+        let serverConnectCalled = false;
+        socketServer.on("connection", (socket) => {
+            serverConnectCalled = true;
+            socket.emit("clientConfig", {});
+        });
+
+        getSocket().disconnect();
+        foregroundDocument();
+
+        await waitForExpect(() => {
+            expect(serverConnectCalled).toEqual(true);
+            expect(isConnected.value).toEqual(true);
+        });
+    });
+
+    it("does not start duplicate foreground reconnects while a handshake is pending", async () => {
+        let connectionCount = 0;
+        socketServer.on("connection", () => {
+            connectionCount += 1;
+        });
+
+        getSocket().disconnect();
+        foregroundDocument();
+        foregroundDocument();
+
+        await waitForExpect(() => {
+            expect(connectionCount).toEqual(1);
+        });
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        expect(connectionCount).toEqual(1);
+    });
+
+    it("allows a later foreground retry after the pending connection disconnects", async () => {
+        let connectionCount = 0;
+        socketServer.on("connection", (socket) => {
+            connectionCount += 1;
+            if (connectionCount === 1) socket.disconnect(true);
+            else socket.emit("clientConfig", {});
+        });
+
+        getSocket().disconnect();
+        foregroundDocument();
+
+        await waitForExpect(() => {
+            expect(connectionCount).toEqual(1);
+            expect(isConnected.value).toEqual(false);
+        });
+
+        foregroundDocument();
+        await waitForExpect(() => {
+            expect(connectionCount).toEqual(2);
             expect(isConnected.value).toEqual(true);
         });
     });

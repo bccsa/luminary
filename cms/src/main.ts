@@ -55,7 +55,6 @@ async function Startup() {
             "connect_error",
             async (err: Error & { data?: { type?: string; reason?: string } }) => {
                 if (err.data?.type !== "auth_failed" && err.message !== "auth_failed") return;
-
                 const reason = err.data?.reason;
 
                 // Provider was deleted / never existed: don't re-attempt login
