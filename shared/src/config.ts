@@ -74,6 +74,15 @@ export function getContentPublishDateCutoff(): number {
 }
 
 /**
+ * Whether a content publishDate cutoff is configured. Convenience wrapper around
+ * {@link getContentPublishDateCutoff} so callers don't need to know that "no cutoff"
+ * is represented as `OPEN_MIN`.
+ */
+export function hasContentPublishDateCutoff(): boolean {
+    return getContentPublishDateCutoff() !== OPEN_MIN;
+}
+
+/**
  * TTL (ms) for offline-persisted below-cutoff Content. Read by the retention buffer
  * when stamping a doc's keep-alive deadline. Defaults to 30 days when unset.
  */

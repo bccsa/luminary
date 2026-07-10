@@ -101,8 +101,12 @@ export function subtractRanges(target: DateRange, covered: DateRange[]): DateRan
  * for the given chunkType (type + optional subType). Used by the column-spawn
  * logic in `_sync` to detect when a new publishDate window needs its own runner.
  */
-export function getPublishDateRanges(options: { type: DocType; subType?: DocType }): DateRange[] {
-    const chunkType = getChunkTypeString(options.type, options.subType);
+export function getPublishDateRanges(options: {
+    type: DocType;
+    subType?: DocType;
+    alwaysOffline?: boolean;
+}): DateRange[] {
+    const chunkType = getChunkTypeString(options.type, options.subType, options.alwaysOffline);
     const seen = new Set<string>();
     const ranges: DateRange[] = [];
 
@@ -241,7 +245,10 @@ export function getLanguages(): string[] {
  * to different publishDate windows are treated as separate columns.
  */
 export const filterByTypeMemberOf = (options: SyncBaseOptions) => (entry: SyncListEntry) => {
-    const { type, subType } = splitChunkTypeString(entry.chunkType);
+    const { type, subType, alwaysOffline: entryOffline } = splitChunkTypeString(
+        entry.chunkType,
+    );
+    if ((entryOffline ?? false) !== (options.alwaysOffline ?? false)) return false;
 
     if (type !== options.type) return false;
     if (subType !== options.subType) return false;
@@ -287,14 +294,25 @@ export function arraysEqual(arr1: string[], arr2: string[]): boolean {
 /**
  * Split a combined chunk type string into its document type and optional subtype (parentType for content documents or docType for delete commands).
  */
-export function splitChunkTypeString(type: string): { type: DocType; subType?: DocType } {
-    const [docType, subType] = type.split(":") as [DocType, DocType | undefined];
-    return { type: docType, subType };
+export function splitChunkTypeString(type: string): {
+    type: DocType;
+    subType?: DocType;
+    alwaysOffline?: boolean;
+} {
+    const alwaysOffline = type.endsWith(":alwaysOffline");
+    const stripped = alwaysOffline ? type.slice(0, -":alwaysOffline".length) : type;
+    const [docType, subType] = stripped.split(":") as [DocType, DocType | undefined];
+    return { type: docType, subType, alwaysOffline: alwaysOffline || undefined };
 }
 
 /**
  * Get the chunk type string for a given document type and optional subtype (parentType for content documents or docType for delete commands).
  */
-export function getChunkTypeString(type: DocType, subType?: DocType): string {
-    return subType ? `${type}:${subType}` : type;
+export function getChunkTypeString(
+    type: DocType,
+    subType?: DocType,
+    alwaysOffline?: boolean,
+): string {
+    const base = subType ? `${type}:${subType}` : type;
+    return alwaysOffline ? `${base}:alwaysOffline` : base;
 }

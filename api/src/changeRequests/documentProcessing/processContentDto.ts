@@ -55,6 +55,10 @@ export default async function processContentDto(doc: ContentDto, db: DbService):
         }
         doc.parentPublishDateVisible = parentDoc.publishDateVisible;
         doc.parentShowComingSoon = parentDoc.showComingSoon;
+
+        if (parentDoc.alwaysOffline) doc.parentAlwaysOffline = true;
+        else delete doc.parentAlwaysOffline;
+
         doc.parentUseVerticalTileLayout = parentDoc.useVerticalTileLayout;
     }
 

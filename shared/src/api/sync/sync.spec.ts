@@ -1889,5 +1889,85 @@ describe("sync module", () => {
                 }),
             );
         });
+
+        it("sync() also triggers a companion always-offline run when a cutoff is configured", async () => {
+            await sync({
+                type: DocType.Content,
+                subType: DocType.Post,
+                memberOf: ["group1"],
+                languages: ["en"],
+                limit: 100,
+                includeDeleteCmds: false,
+            });
+
+            // Windowed run: floored to the configured cutoff.
+            expect(syncBatch).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    publishDateMin: CONFIGURED_CUTOFF,
+                    publishDateMax: OPEN_MAX,
+                }),
+            );
+            // Companion always-offline run: open publishDate bounds, regardless of the cutoff.
+            expect(syncBatch).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    alwaysOffline: true,
+                    publishDateMin: OPEN_MIN,
+                    publishDateMax: OPEN_MAX,
+                }),
+            );
+        });
+
+        it("does not trigger a companion run for an explicit alwaysOffline call (avoids recursion)", async () => {
+            await sync({
+                type: DocType.Content,
+                subType: DocType.Post,
+                memberOf: ["group1"],
+                languages: ["en"],
+                limit: 100,
+                includeDeleteCmds: false,
+                alwaysOffline: true,
+            });
+
+            expect(syncBatch).toHaveBeenCalledTimes(1);
+            expect(syncBatch).toHaveBeenCalledWith(
+                expect.objectContaining({ alwaysOffline: true }),
+            );
+        });
+
+        it("does not trigger a companion run for non-Content types even with a cutoff configured", async () => {
+            await sync({
+                type: DocType.Post,
+                memberOf: ["group1"],
+                limit: 100,
+                includeDeleteCmds: false,
+            });
+
+            expect(syncBatch).toHaveBeenCalledTimes(1);
+        });
+    });
+
+    describe("sync without a configured content publishDate cutoff", () => {
+        beforeEach(async () => {
+            await initSync(mockHttpService);
+            vi.mocked(syncBatch).mockResolvedValue(undefined);
+            vi.mocked(utils.getGroups).mockReturnValue(["group1"]);
+            vi.mocked(utils.getGroupSets).mockReturnValue([["group1"]]);
+            vi.mocked(utils.getLanguages).mockReturnValue(["en"]);
+            vi.mocked(utils.getLanguageSets).mockReturnValue([["en"]]);
+        });
+
+        it("does not trigger a companion always-offline run when no cutoff is configured", async () => {
+            await sync({
+                type: DocType.Content,
+                subType: DocType.Post,
+                memberOf: ["group1"],
+                languages: ["en"],
+                limit: 100,
+                includeDeleteCmds: false,
+            });
+
+            expect(syncBatch).toHaveBeenCalledTimes(1);
+            expect(vi.mocked(syncBatch).mock.calls[0][0].alwaysOffline).toBeUndefined();
+        });
     });
 });

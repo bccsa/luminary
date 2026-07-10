@@ -84,6 +84,36 @@ describe("processPostTagDto", () => {
         expect(contentRes.docs[0].parentShowComingSoon).toBe(true);
     });
 
+    it("cascades alwaysOffline from Post to child Content documents", async () => {
+        const postCr = changeRequest_post();
+        postCr.doc._id = "post-cascade-always-offline";
+
+        const contentCr = changeRequest_content();
+        contentCr.doc._id = "content-cascade-always-offline";
+        contentCr.doc.parentId = postCr.doc._id;
+
+        await processChangeRequest("test-user", postCr, ["group-super-admins"], db);
+        await processChangeRequest("test-user", contentCr, ["group-super-admins"], db);
+
+       
+        let contentRes = await db.getDoc(contentCr.doc._id);
+        expect(contentRes.docs[0].parentAlwaysOffline).toBeUndefined();
+
+        const postUpdate = JSON.parse(JSON.stringify(postCr)) as ChangeReqDto;
+        postUpdate.doc.alwaysOffline = true;
+        await processChangeRequest("test-user", postUpdate, ["group-super-admins"], db);
+
+        contentRes = await db.getDoc(contentCr.doc._id);
+        expect(contentRes.docs[0].parentAlwaysOffline).toBe(true);
+
+        const postTurnOff = JSON.parse(JSON.stringify(postUpdate)) as ChangeReqDto;
+        postTurnOff.doc.alwaysOffline = false;
+        await processChangeRequest("test-user", postTurnOff, ["group-super-admins"], db);
+
+        contentRes = await db.getDoc(contentCr.doc._id);
+        expect(contentRes.docs[0].parentAlwaysOffline).toBeUndefined();
+    });
+
     it("accepts a change request for a post with postType 'blog'", async () => {
         const changeRequest: ChangeReqDto = {
             doc: {

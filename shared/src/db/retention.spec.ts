@@ -201,6 +201,21 @@ describe("retention", () => {
             expect(scheduleCorpusStatsRecompute).toHaveBeenCalled();
         });
 
+        it("does not evict below-cutoff Content with parentAlwaysOffline even when retention is stale", async () => {
+            const now = Date.now();
+            await db.docs.bulkPut([
+                {
+                    ...(content("always-offline", 400) as object),
+                    parentAlwaysOffline: true,
+                } as BaseDocumentDto,
+            ]);
+            await seed("always-offline", now - 1e9);
+
+            await evictStaleBelowCutoff();
+
+            expect(await db.docs.get("always-offline")).toBeDefined();
+        });
+
         it("leaves a Content doc that has no publishDate (absent from the publishDate index)", async () => {
             // A Content doc with no publishDate isn't in the publishDate index, so the
             // below-cutoff range query never sees it → never evicted (documented: only

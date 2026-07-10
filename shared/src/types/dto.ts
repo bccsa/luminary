@@ -103,6 +103,7 @@ export type ContentDto = ContentBaseDto & {
     parentPostType?: PostType;
     parentPublishDateVisible?: boolean;
     parentShowComingSoon?: boolean;
+    parentAlwaysOffline?: boolean;
     parentPinned?: number;
     parentUseVerticalTileLayout?: boolean;
     parentTaggedDocs?: Uuid[];
@@ -122,6 +123,7 @@ export type ContentParentDto = ContentBaseDto & {
     tags: Uuid[];
     publishDateVisible: boolean;
     showComingSoon?: boolean;
+    alwaysOffline?: boolean;
     imageBucketId?: Uuid;
     media?: MediaDto;
     mediaBucketId?: Uuid;

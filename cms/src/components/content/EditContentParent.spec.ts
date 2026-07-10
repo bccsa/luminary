@@ -29,11 +29,11 @@ describe("EditContentParent.vue", () => {
             },
         });
 
-        // Publish date, Coming soon, then Pinned (Tag has three LToggle components)
+        // Publish date, Coming soon, Always offline, then Pinned (Tag has four LToggle components)
         const toggle = wrapper.findAllComponents({ name: "LToggle" });
-        expect(toggle[2].exists()).toBe(true);
+        expect(toggle[3].exists()).toBe(true);
 
-        expect(toggle[2].props("modelValue")).toBe(true);
+        expect(toggle[3].props("modelValue")).toBe(true);
     });
 
     it("test the tag Vertical Tile toggle for Category", async () => {
@@ -51,12 +51,12 @@ describe("EditContentParent.vue", () => {
             },
         });
 
-        // Find all LToggle components: Publish date, Coming soon, Pinned, Vertical Tile
+        // Find all LToggle components: Publish date, Coming soon, Always offline, Pinned, Vertical Tile
         const toggles = wrapper.findAllComponents({ name: "LToggle" });
-        expect(toggles.length).toBeGreaterThanOrEqual(4);
+        expect(toggles.length).toBeGreaterThanOrEqual(5);
 
-        // Vertical Tile toggle should be the 4th one (index 3)
-        const useVerticalTileLayoutToggle = toggles[3];
+        // Vertical Tile toggle should be the 5th one (index 4)
+        const useVerticalTileLayoutToggle = toggles[4];
         expect(useVerticalTileLayoutToggle.exists()).toBe(true);
         expect(useVerticalTileLayoutToggle.props("modelValue")).toBe(false);
     });
@@ -79,9 +79,9 @@ describe("EditContentParent.vue", () => {
         // Initial state: useVerticalTileLayout is false
         expect(parent.value.useVerticalTileLayout).toBe(false);
 
-        // Find and update the vertical tile toggle (4th toggle, index 3)
+        // Find and update the vertical tile toggle (5th toggle, index 4)
         const toggles = wrapper.findAllComponents({ name: "LToggle" });
-        const useVerticalTileLayoutToggle = toggles[3];
+        const useVerticalTileLayoutToggle = toggles[4];
 
         // Simulate user clicking the toggle
         useVerticalTileLayoutToggle.vm.$emit("update:modelValue", true);
@@ -91,6 +91,24 @@ describe("EditContentParent.vue", () => {
 
         // Verify the toggle now shows true
         expect(parent.value.useVerticalTileLayout).toBe(true);
+    });
+
+    it("test the always available offline toggle on Post", async () => {
+        const parent = ref<PostDto>({ ...mockData.mockPostDto, alwaysOffline: true });
+        const wrapper = mount(EditContentParent, {
+            props: {
+                docType: DocType.Post,
+                tagOrPostType: PostType.Blog,
+                parent: parent.value,
+                disabled: false,
+                isParentDirty: false,
+            },
+        });
+
+        const toggles = wrapper.findAllComponents({ name: "LToggle" });
+        // Publish date (0), Coming soon (1), Always offline (2)
+        expect(toggles[2].props("modelValue")).toBe(true);
+        expect(wrapper.text()).toContain("Always available offline");
     });
 
     it("test the show publishDate toggle", async () => {

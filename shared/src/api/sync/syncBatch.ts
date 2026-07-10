@@ -72,12 +72,14 @@ export async function syncBatch(options: SyncOptions) {
         limit: options.limit,
         sort: [{ updatedTimeUtc: "desc" }],
         use_index:
-            options.type === DocType.Content
-                ? "sync-content-index"
-                : "sync-" +
-                  (options.subType ? options.subType + "-" : "") +
-                  options.type +
-                  "-index",
+            options.type === DocType.Content && options.alwaysOffline
+                ? "sync-content-alwaysOffline-index"
+                : options.type === DocType.Content
+                  ? "sync-content-index"
+                  : "sync-" +
+                    (options.subType ? options.subType + "-" : "") +
+                    options.type +
+                    "-index",
         cms: options.cms,
         identifier: "sync", // Identifier for the API query validation template
     };
@@ -106,6 +108,9 @@ export async function syncBatch(options: SyncOptions) {
             // Empty language set → match nothing (don't let an absent set fetch the whole corpus).
             mangoQuery.selector.language = { $in: [] };
         }
+        if (options.alwaysOffline) {
+            mangoQuery.selector.parentAlwaysOffline = true;
+        }
     }
 
     // Add docType selector for deleteCmd queries. DeleteCmds are language-UNSCOPED: a delete of any
@@ -120,7 +125,7 @@ export async function syncBatch(options: SyncOptions) {
     // DeleteCmd queries are intentionally never publishDate-filtered so deletes propagate
     // regardless of the user's cutoff. When both bounds are at defaults the selector is
     // omitted so the wire format stays byte-identical to clients that don't use publishDate.
-    if (options.type === DocType.Content) {
+    if (options.type === DocType.Content && !options.alwaysOffline) {
         const pdMin = options.publishDateMin ?? OPEN_MIN;
         const pdMax = options.publishDateMax ?? OPEN_MAX;
         const isNarrowed = pdMin > OPEN_MIN || pdMax < OPEN_MAX;
@@ -196,7 +201,11 @@ export async function syncBatch(options: SyncOptions) {
             : { min: undefined, max: undefined };
         // Push chunk to chunk list
         syncList.value.push({
-            chunkType: getChunkTypeString(options.type, options.subType),
+            chunkType: getChunkTypeString(
+                options.type,
+                options.subType,
+                options.alwaysOffline,
+            ),
             memberOf: options.memberOf,
             languages: options.languages,
             blockStart,

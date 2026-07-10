@@ -31,11 +31,7 @@ export default async function processPostTagDto(
 
         // Remove images from S3
         if (doc.imageData && prevDoc?.imageData) {
-            const imageWarnings = await deleteImage(
-                prevDoc.imageData,
-                prevDoc.imageBucketId,
-                db,
-            );
+            const imageWarnings = await deleteImage(prevDoc.imageData, prevDoc.imageBucketId, db);
             warnings.push(...imageWarnings);
         }
 
@@ -170,6 +166,9 @@ export default async function processPostTagDto(
 
         contentDoc.parentPublishDateVisible = doc.publishDateVisible;
         contentDoc.parentShowComingSoon = doc.showComingSoon ?? false;
+
+        if (doc.alwaysOffline) contentDoc.parentAlwaysOffline = true;
+        else delete contentDoc.parentAlwaysOffline;
         contentDoc.parentUseVerticalTileLayout = doc.useVerticalTileLayout ?? false;
         await db.upsertDoc(contentDoc);
     }

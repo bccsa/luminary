@@ -104,15 +104,18 @@ export function findIdInList(
 }
 
 /**
- * Append `publishDate <= cutoff` to a selector as an additional AND clause.
- * Does not remove or modify any existing `publishDate` constraint — an existing
- * `$gte` lower bound is preserved, and an existing `$lte` upper bound intersects
- * with this one (the smaller wins semantically). Always returns a flat
- * `{ $and: [...] }` for predictability.
+ * Append a below-cutoff tail constraint to a selector as an additional AND clause.
+ * Matches content with `publishDate <= cutoff` OR `parentAlwaysOffline === true`
+ * so always-offline docs remain reachable via the API supplement even when older
+ * than the sync window. Does not remove or modify any existing `publishDate`
+ * constraint on the base selector. Always returns a flat `{ $and: [...] }`.
  */
 export function withPublishDate(selector: MangoSelector, cutoff: number): MangoSelector {
     const expanded = expandMangoSelector(selector);
-    return { $and: [...(expanded.$and ?? []), { publishDate: { $lte: cutoff } } as MangoSelector] };
+    const tailClause: MangoSelector = {
+        $or: [{ publishDate: { $lte: cutoff } }, { parentAlwaysOffline: true }],
+    };
+    return { $and: [...(expanded.$and ?? []), tailClause] };
 }
 
 /**

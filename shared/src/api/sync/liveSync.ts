@@ -55,7 +55,9 @@ export async function applyLiveData(data: ApiDataResponseDto): Promise<void> {
     const cutoff = getContentPublishDateCutoff();
     const isBelowCutoffContent = (d: BaseDocumentDto): boolean => {
         if (d.type !== DocType.Content) return false;
-        const pd = (d as ContentDto).publishDate;
+        const content = d as ContentDto;
+        if (content.parentAlwaysOffline === true) return false;
+        const pd = content.publishDate;
         return pd !== undefined && pd < cutoff;
     };
 
