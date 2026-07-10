@@ -116,7 +116,7 @@ const isMobileScreen = breakpoints.smaller("sm");
                 <div
                     :class="[
                         noDivider ? '' : 'divide-y divide-zinc-200',
-                        'flex min-h-0 flex-1 flex-col',
+                        'flex min-h-0 flex-1 flex-col overflow-y-auto',
                         noPadding ? (transparentHeader ? '-m-5' : '-m-5 mt-0') : '',
                     ]"
                 >

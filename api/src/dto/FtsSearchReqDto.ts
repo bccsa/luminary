@@ -106,6 +106,18 @@ export class FtsSearchReqDto {
     @Expose()
     publishedBefore?: number;
 
+    /** Restrict to content with `expiryDate` greater than or equal to this value. */
+    @IsOptional()
+    @IsNumber()
+    @Expose()
+    expiresAfter?: number;
+
+    /** Restrict to content with `expiryDate` less than or equal to this value. */
+    @IsOptional()
+    @IsNumber()
+    @Expose()
+    expiresBefore?: number;
+
     /**
      * Strict mode: keep only docs where every query word (≥3 chars) is a substring of
      * `title` or `author` (AND across words). Pairs with {@link sort} for a precise,

@@ -102,6 +102,8 @@ export async function ftsSearch(options: FtsSearchOptions): Promise<FtsSearchRes
         status,
         publishedAfter,
         publishedBefore,
+        expiresAfter,
+        expiresBefore,
         matchAllWords,
         sort,
         limit = DEFAULT_LIMIT,
@@ -187,6 +189,13 @@ export async function ftsSearch(options: FtsSearchOptions): Promise<FtsSearchRes
         if (
             publishedBefore !== undefined &&
             !(doc.publishDate != null && doc.publishDate <= publishedBefore)
+        )
+            return;
+        if (expiresAfter !== undefined && !(doc.expiryDate != null && doc.expiryDate >= expiresAfter))
+            return;
+        if (
+            expiresBefore !== undefined &&
+            !(doc.expiryDate != null && doc.expiryDate <= expiresBefore)
         )
             return;
 

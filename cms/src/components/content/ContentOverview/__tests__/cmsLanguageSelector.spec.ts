@@ -6,6 +6,7 @@ import {
     cmsLanguagePriority,
     translationStatusSelector,
     publishStatusSelector,
+    dateRangeSelector,
     isUntranslatedRow,
 } from "../cmsLanguageSelector";
 import { cmsLanguageIdAsRef, cmsDefaultLanguage, cmsLanguages } from "@/globalConfig";
@@ -153,6 +154,52 @@ describe("cmsLanguageSelector", () => {
             expect(publishStatusSelector("expired")).toEqual([
                 { status: PublishStatus.Published },
                 { expiryDate: { $lte: now } },
+            ]);
+        });
+    });
+
+    describe("dateRangeSelector", () => {
+        it("returns no clauses when no bound is set", () => {
+            expect(dateRangeSelector({})).toEqual([]);
+        });
+
+        it("adds a publishDate lower bound only when publishedAfter is set", () => {
+            expect(dateRangeSelector({ publishedAfter: 1000 })).toEqual([
+                { publishDate: { $gte: 1000 } },
+            ]);
+        });
+
+        it("adds a publishDate upper bound only when publishedBefore is set", () => {
+            expect(dateRangeSelector({ publishedBefore: 2000 })).toEqual([
+                { publishDate: { $lte: 2000 } },
+            ]);
+        });
+
+        it("adds an expiryDate lower bound only when expiresAfter is set", () => {
+            expect(dateRangeSelector({ expiresAfter: 3000 })).toEqual([
+                { expiryDate: { $gte: 3000 } },
+            ]);
+        });
+
+        it("adds an expiryDate upper bound only when expiresBefore is set", () => {
+            expect(dateRangeSelector({ expiresBefore: 4000 })).toEqual([
+                { expiryDate: { $lte: 4000 } },
+            ]);
+        });
+
+        it("combines all four bounds when all are set", () => {
+            expect(
+                dateRangeSelector({
+                    publishedAfter: 1000,
+                    publishedBefore: 2000,
+                    expiresAfter: 3000,
+                    expiresBefore: 4000,
+                }),
+            ).toEqual([
+                { publishDate: { $gte: 1000 } },
+                { publishDate: { $lte: 2000 } },
+                { expiryDate: { $gte: 3000 } },
+                { expiryDate: { $lte: 4000 } },
             ]);
         });
     });

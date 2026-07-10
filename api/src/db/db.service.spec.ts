@@ -1149,7 +1149,7 @@ describe("DbService", () => {
                         update.type === DocType.DeleteCmd &&
                         update.deleteReason === DeleteReason.StatusChange
                     ) {
-                        service.off("update", deleteCmdHandler1);
+                        service.off("update", deleteCmdHandler2);
                         updateEventDoc2 = update;
                     }
                 };

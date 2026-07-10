@@ -477,6 +477,23 @@ describe("FTS Indexer and Search", () => {
             expect(ids).toEqual(["post-draft"]);
         });
 
+        it("filters by expiryDate bounds", async () => {
+            await ingestGarden({ _id: "expires-early", expiryDate: 1000 });
+            await ingestGarden({ _id: "expires-mid", expiryDate: 3000 });
+            await ingestGarden({ _id: "expires-late", expiryDate: 5000 });
+            await recomputeCorpusStats();
+
+            const ids = (
+                await ftsSearch({
+                    query: "garden",
+                    expiresAfter: 2000,
+                    expiresBefore: 4000,
+                    maxTrigramDocPercent: 100,
+                })
+            ).map((r) => r.docId);
+            expect(ids).toEqual(["expires-mid"]);
+        });
+
         it("combines filters (parity with the API path)", async () => {
             const ids = (
                 await ftsSearch({

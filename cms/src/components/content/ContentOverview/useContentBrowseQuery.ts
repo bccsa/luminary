@@ -9,6 +9,7 @@ import type { ContentOverviewQueryOptions } from "./types";
 import {
     translationStatusSelector,
     publishStatusSelector,
+    dateRangeSelector,
     isUntranslatedRow,
 } from "./cmsLanguageSelector";
 
@@ -67,6 +68,7 @@ export function useContentBrowseQuery(opts: () => ContentOverviewQueryOptions, l
             // in-memory `publishStatusFilter`, which rejected non-selected-language docs).
             if (publishStatus !== "all") clauses.push({ language: o.languageId });
             clauses.push(...publishStatusSelector(publishStatus));
+            clauses.push(...dateRangeSelector(o));
 
             return {
                 selector: { $and: clauses },

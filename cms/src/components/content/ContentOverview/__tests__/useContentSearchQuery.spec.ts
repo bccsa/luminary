@@ -118,3 +118,70 @@ describe("useContentSearchQuery strict-mode sorting", () => {
         scope.stop();
     });
 });
+
+describe("useContentSearchQuery date range filters", () => {
+    beforeEach(async () => {
+        await db.docs.clear();
+        await db.bulkPut([
+            contentDoc({
+                _id: "in-range",
+                title: "Garden A",
+                publishDate: 500,
+                expiryDate: 500,
+                fts: GARDEN_FTS,
+                ftsTokenCount: 4,
+            }),
+            contentDoc({
+                _id: "too-early",
+                title: "Garden B",
+                publishDate: 100,
+                expiryDate: 100,
+                fts: GARDEN_FTS,
+                ftsTokenCount: 4,
+            }),
+            contentDoc({
+                _id: "too-late",
+                title: "Garden C",
+                publishDate: 900,
+                expiryDate: 900,
+                fts: GARDEN_FTS,
+                ftsTokenCount: 4,
+            }),
+        ]);
+        await db.bulkPut(
+            Array.from({ length: 6 }, (_, i) =>
+                contentDoc({ _id: `noise-${i}`, title: `Other ${i}`, fts: ["xyz:1"], ftsTokenCount: 1 }),
+            ),
+        );
+        await recomputeCorpusStats();
+    });
+
+    async function run(options: ContentOverviewQueryOptions) {
+        const scope = effectScope();
+        let api!: ReturnType<typeof useContentSearchQuery>;
+        scope.run(() => {
+            api = useContentSearchQuery(() => options);
+        });
+        await new Promise((r) => setTimeout(r, 200));
+        await nextTick();
+        return { api, scope };
+    }
+
+    it("filters by publishedAfter/publishedBefore range", async () => {
+        const { api, scope } = await run(
+            baseOptions({ publishedAfter: 400, publishedBefore: 600 }),
+        );
+        await waitForExpect(() => {
+            expect(api.docs.value.map((d) => d._id)).toEqual(["in-range"]);
+        });
+        scope.stop();
+    });
+
+    it("filters by expiresAfter/expiresBefore range", async () => {
+        const { api, scope } = await run(baseOptions({ expiresAfter: 400, expiresBefore: 600 }));
+        await waitForExpect(() => {
+            expect(api.docs.value.map((d) => d._id)).toEqual(["in-range"]);
+        });
+        scope.stop();
+    });
+});

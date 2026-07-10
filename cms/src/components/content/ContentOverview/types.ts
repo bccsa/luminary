@@ -21,4 +21,12 @@ export type ContentOverviewQueryOptions = {
     tags?: Uuid[];
     groups?: Uuid[];
     search?: string;
+    /** Restrict to content with `publishDate >= publishedAfter`. */
+    publishedAfter?: number;
+    /** Restrict to content with `publishDate <= publishedBefore`. */
+    publishedBefore?: number;
+    /** Restrict to content with `expiryDate >= expiresAfter`. */
+    expiresAfter?: number;
+    /** Restrict to content with `expiryDate <= expiresBefore`. */
+    expiresBefore?: number;
 };

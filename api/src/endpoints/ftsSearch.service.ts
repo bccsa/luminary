@@ -347,6 +347,13 @@ export class FtsSearchService {
                 (publishDate == null || publishDate > req.publishedBefore)
             )
                 continue;
+            if (req.expiresAfter != null && (expiryDate == null || expiryDate < req.expiresAfter))
+                continue;
+            if (
+                req.expiresBefore != null &&
+                (expiryDate == null || expiryDate > req.expiresBefore)
+            )
+                continue;
 
             // survivor → record tf and accessible df
             let tfMap = perDocTf.get(row.docId);

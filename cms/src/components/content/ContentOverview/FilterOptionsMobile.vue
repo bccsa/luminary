@@ -10,7 +10,7 @@ import {
     CloudArrowUpIcon,
 } from "@heroicons/vue/24/outline";
 import { type ContentOverviewQueryOptions } from "./types";
-import type { ContentDto, GroupDto } from "luminary-shared";
+import { db, type ContentDto, type GroupDto } from "luminary-shared";
 import LButton from "@/components/button/LButton.vue";
 import LRadio from "@/components/forms/LRadio.vue";
 import LCombobox from "@/components/forms/LCombobox.vue";
@@ -40,12 +40,30 @@ const query = defineModel("query");
 const showSearchIcon = computed(() => !String(query.value ?? "").length);
 
 const showMobileQueryOptions = ref(false);
+
+/** ISO `datetime-local` string <-> epoch-ms bridge for the four date-range filter fields. */
+function dateRangeField(
+    key: "publishedAfter" | "publishedBefore" | "expiresAfter" | "expiresBefore",
+) {
+    return computed<string | undefined>({
+        get: () => {
+            const value = queryOptions.value[key];
+            return value ? db.toIsoDateTime(value) || undefined : undefined;
+        },
+        set: (val) => {
+            queryOptions.value[key] = val ? db.fromIsoDateTime(val) : undefined;
+        },
+    });
+}
+
+const publishedAfterString = dateRangeField("publishedAfter");
+const publishedBeforeString = dateRangeField("publishedBefore");
+const expiresAfterString = dateRangeField("expiresAfter");
+const expiresBeforeString = dateRangeField("expiresBefore");
 </script>
 
 <template>
-    <div
-        class="relative z-20 flex flex-col gap-1 overflow-visible"
-    >
+    <div class="relative z-20 flex flex-col gap-1 overflow-visible">
         <div class="flex h-10 w-full items-center gap-1">
             <LInput
                 type="text"
@@ -64,7 +82,11 @@ const showMobileQueryOptions = ref(false);
                     <slot name="searchButton"></slot>
                 </template>
             </LInput>
-            <LButton class="h-full" :icon="AdjustmentsVerticalIcon" @click="showMobileQueryOptions = true" />
+            <LButton
+                class="h-full"
+                :icon="AdjustmentsVerticalIcon"
+                @click="showMobileQueryOptions = true"
+            />
             <LButton class="h-full w-10" :icon="ArrowUturnLeftIcon" @click="reset()" />
         </div>
         <div
@@ -112,11 +134,12 @@ const showMobileQueryOptions = ref(false);
     </div>
     <LModal
         heading="Filter options"
+        :stick-to-edges="true"
         v-model:is-visible="showMobileQueryOptions"
         @keydown.esc="reset()"
         @keydown.enter="search()"
     >
-        <div class="flex flex-col gap-2">
+        <div class="flex flex-col gap-2 pb-4">
             <LSelect
                 label="Translation Status"
                 data-test="filter-select"
@@ -160,7 +183,43 @@ const showMobileQueryOptions = ref(false);
                 :icon="UserGroupIcon"
             />
         </div>
-        <div class="mt-3">
+        <div class="flex flex-col gap-3 py-4">
+            <div class="flex flex-col gap-2">
+                <p class="text-sm font-medium text-zinc-700">Published between</p>
+                <LInput
+                    name="publishedAfter"
+                    type="datetime-local"
+                    label="From"
+                    data-test="published-after-input"
+                    v-model="publishedAfterString"
+                />
+                <LInput
+                    name="publishedBefore"
+                    type="datetime-local"
+                    label="To"
+                    data-test="published-before-input"
+                    v-model="publishedBeforeString"
+                />
+            </div>
+            <div class="flex flex-col gap-2">
+                <p class="text-sm font-medium text-zinc-700">Expires between</p>
+                <LInput
+                    name="expiresAfter"
+                    type="datetime-local"
+                    label="From"
+                    data-test="expires-after-input"
+                    v-model="expiresAfterString"
+                />
+                <LInput
+                    name="expiresBefore"
+                    type="datetime-local"
+                    label="To"
+                    data-test="expires-before-input"
+                    v-model="expiresBeforeString"
+                />
+            </div>
+        </div>
+        <div class="pt-4">
             <LSelect
                 label="Sort By"
                 data-test="filter-select"
