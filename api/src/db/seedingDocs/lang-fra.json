@@ -119,6 +119,8 @@
         "language.modal.save": "Enregistrer",
         "language.modal.cancel": "Annuler",
         "language.modal.availableOffline": "Disponible hors ligne",
+        "language.modal.reorder": "Glisser pour réorganiser",
+        "language.modal.remove": "Supprimer la langue",
         "language.modal.offlineCaption": "Les langues téléchargées sont disponibles hors ligne. Les autres langues s'affichent lorsque vous êtes en ligne.",
         "language.modal.primaryAlwaysOffline": "Votre langue principale est toujours disponible hors ligne",
         "language.modal.offline.add.title": "Vous êtes hors ligne",

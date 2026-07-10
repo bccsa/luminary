@@ -15,10 +15,12 @@ import {
     normalizeSyncedLanguages,
 } from "@/globalConfig";
 import LModal from "../form/LModal.vue";
-import { ArrowDownIcon, ArrowUpIcon, CheckIcon, XMarkIcon } from "@heroicons/vue/24/solid";
-import { PlusCircleIcon } from "@heroicons/vue/24/outline";
+import DragHandleIcon from "../icons/DragHandleIcon.vue";
+import { ArrowDownTrayIcon, CheckIcon, XMarkIcon } from "@heroicons/vue/24/solid";
+import { InformationCircleIcon, PlusCircleIcon } from "@heroicons/vue/24/outline";
 import { markLanguageSwitch } from "@/util/isLangSwitch";
 import { useNotificationStore } from "@/stores/notification";
+import { useDragReorder } from "@/composables/useDragReorder";
 
 import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
@@ -122,6 +124,21 @@ const decreasePriority = (id: string) => {
         ];
     }
 };
+
+// ── Drag-to-reorder ──────────────────────────────────────────────────────────
+const { draggingId, dragTranslate, startDrag, onDragMove, endDrag } = useDragReorder(draftOrder);
+
+// Keyboard equivalent of the drag: the handle is focusable and arrow keys nudge the row.
+const onHandleKeydown = (id: string, e: KeyboardEvent) => {
+    if (e.key === "ArrowUp") {
+        e.preventDefault();
+        increasePriority(id);
+    } else if (e.key === "ArrowDown") {
+        e.preventDefault();
+        decreasePriority(id);
+    }
+};
+
 const removeFromSelected = (id: string) => {
     // At least one preferred language must remain — empty order breaks sync + offline content.
     if (draftOrder.value.length <= 1) return;
@@ -203,95 +220,127 @@ const cancel = () => emit("close");
         <transition-group
             name="language"
             tag="div"
-            class="divide-y divide-zinc-200 dark:divide-slate-600"
+            :class="['flex flex-col gap-2', draggingId && 'select-none']"
             enter-active-class="transition duration-100 ease-in-out"
             enter-from-class="opacity-0 transform -translate-y-2"
             enter-to-class="opacity-100 transform translate-y-0"
             leave-active-class="transition duration-100 ease-in-out"
             leave-from-class="opacity-100 transform translate-y-0"
             leave-to-class="opacity-0 transform translate-y-2"
-            move-class="transition duration-100 ease-in-out"
+            :move-class="draggingId ? 'transition-none' : 'transition duration-100 ease-in-out'"
         >
+            <!-- Row = [segmented bar] ×. The bar is [grip | language | offline toggle]; the toggle's
+                 own fill is what separates it, no divider lines needed. Remove sits OUTSIDE the bar
+                 at the trailing edge: it is destructive, so it stays as far as possible from the
+                 grip you press-and-hold, and the toggle keeps the bar's rounded right edge.
+                 `move-class` is disabled while dragging: TransitionGroup's FLIP writes to
+                 `transform`, which would fight the grabbed row's own translate. -->
             <div
                 v-for="language in languagesSelected"
                 :id="language._id"
                 :key="language._id"
-                class="flex w-full items-center gap-3 p-3"
+                data-lang-row
+                :class="[
+                    'flex w-full items-center gap-1',
+                    draggingId === language._id && 'relative z-10',
+                ]"
+                :style="
+                    draggingId === language._id
+                        ? { transform: `translateY(${dragTranslate}px)` }
+                        : undefined
+                "
             >
-                <div class="relative flex h-4 w-4 shrink-0 items-center justify-center">
-                    <input
-                        type="checkbox"
-                        :checked="isOfflineChecked(language._id)"
-                        :disabled="language._id === primaryId"
+                <div
+                    :class="[
+                        'flex min-w-0 flex-1 items-stretch overflow-hidden rounded-xl bg-zinc-50 ring-1 ring-zinc-200 dark:bg-slate-600/30 dark:ring-slate-500/50',
+                        draggingId === language._id &&
+                            'shadow-lg ring-yellow-500 dark:ring-yellow-500',
+                    ]"
+                >
+                    <!-- Grab handle: `touch-none` stops the browser claiming the gesture as a scroll. -->
+                    <button
+                        v-if="draftOrder.length > 1"
+                        type="button"
+                        data-test="drag-handle"
+                        :aria-label="t('language.modal.reorder')"
+                        :title="t('language.modal.reorder')"
+                        class="flex shrink-0 cursor-grab touch-none items-center py-2 pl-2 pr-1 text-zinc-400 hover:text-zinc-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-yellow-500 active:cursor-grabbing dark:text-slate-400 dark:hover:text-slate-200"
+                        @pointerdown="startDrag(language._id, $event)"
+                        @pointermove="onDragMove"
+                        @pointerup="endDrag"
+                        @pointercancel="endDrag"
+                        @lostpointercapture="endDrag"
+                        @keydown="onHandleKeydown(language._id, $event)"
+                    >
+                        <DragHandleIcon class="h-4 w-4" />
+                    </button>
+
+                    <div class="flex min-w-0 flex-1 items-center px-3 py-2">
+                        <span class="truncate text-sm font-semibold">{{ language.name }}</span>
+                    </div>
+
+                    <!-- Offline toggle: the right segment fills yellow when the language is synced
+                         offline. A real checkbox fills the segment and drives state (a11y + tests
+                         unchanged). -->
+                    <label
+                        class="relative flex shrink-0 cursor-pointer items-center px-3"
                         :title="
                             language._id === primaryId
                                 ? t('language.modal.primaryAlwaysOffline')
                                 : t('language.modal.availableOffline')
                         "
-                        :aria-label="t('language.modal.availableOffline')"
-                        data-test="offline-checkbox"
-                        class="peer h-4 w-4 cursor-pointer appearance-none rounded-full border border-zinc-300 checked:border-yellow-500 checked:bg-yellow-500 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-1 disabled:cursor-auto disabled:opacity-50 dark:border-slate-600 dark:bg-slate-700 dark:checked:border-yellow-500 dark:checked:bg-yellow-500"
-                        @change="toggleSynced(language._id)"
-                    />
-                    <CheckIcon
-                        class="pointer-events-none absolute h-2.5 w-2.5 text-white opacity-0 peer-checked:opacity-100"
-                    />
+                    >
+                        <input
+                            type="checkbox"
+                            :checked="isOfflineChecked(language._id)"
+                            :disabled="language._id === primaryId"
+                            :aria-label="t('language.modal.availableOffline')"
+                            data-test="offline-checkbox"
+                            class="peer absolute inset-0 h-full w-full cursor-pointer appearance-none bg-transparent checked:bg-yellow-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-yellow-600 disabled:cursor-auto dark:checked:bg-yellow-500"
+                            @change="toggleSynced(language._id)"
+                        />
+                        <component
+                            :is="isOfflineChecked(language._id) ? CheckIcon : ArrowDownTrayIcon"
+                            class="pointer-events-none relative h-4 w-4 text-zinc-500 peer-checked:text-yellow-950 dark:text-slate-300"
+                        />
+                    </label>
                 </div>
 
-                <span class="flex-1 text-sm">{{ language.name }}</span>
-
-                <div class="flex items-center gap-1">
-                    <button
-                        v-if="language._id !== draftOrder[0]"
-                        type="button"
-                        data-test="increase-priority"
-                        @click="increasePriority(language._id)"
-                        class="flex cursor-pointer items-center rounded-full p-1 text-zinc-400 hover:bg-zinc-100 hover:text-yellow-600 dark:text-slate-500 dark:hover:bg-slate-600 dark:hover:text-yellow-500"
-                    >
-                        <ArrowUpIcon class="h-4 w-4" />
-                    </button>
-                    <button
-                        v-if="language._id !== draftOrder[draftOrder.length - 1]"
-                        type="button"
-                        data-test="decrease-priority"
-                        @click="decreasePriority(language._id)"
-                        class="flex cursor-pointer items-center rounded-full p-1 text-zinc-400 hover:bg-zinc-100 hover:text-yellow-600 dark:text-slate-500 dark:hover:bg-slate-600 dark:hover:text-yellow-500"
-                    >
-                        <ArrowDownIcon class="h-4 w-4" />
-                    </button>
-                    <button
-                        v-if="draftOrder.length > 1"
-                        type="button"
-                        data-test="remove-language-button"
-                        @click="removeFromSelected(language._id)"
-                        class="flex cursor-pointer items-center rounded-full p-1 text-zinc-400 hover:bg-zinc-100 hover:text-red-600 dark:text-slate-500 dark:hover:bg-slate-600 dark:hover:text-red-500"
-                    >
-                        <XMarkIcon class="h-4 w-4" />
-                    </button>
-                </div>
+                <button
+                    v-if="draftOrder.length > 1"
+                    type="button"
+                    data-test="remove-language-button"
+                    :aria-label="t('language.modal.remove')"
+                    :title="t('language.modal.remove')"
+                    @click="removeFromSelected(language._id)"
+                    class="flex shrink-0 cursor-pointer items-center rounded-full p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 dark:text-slate-400 dark:hover:bg-slate-600 dark:hover:text-red-500"
+                >
+                    <XMarkIcon class="h-4 w-4" />
+                </button>
             </div>
         </transition-group>
 
-        <p class="px-3 py-2 text-xs text-zinc-500 dark:text-slate-400">
+        <p
+            class="mt-2 flex items-center gap-1.5 border-t border-zinc-200 px-3 pb-1 pt-3 text-xs text-zinc-500 dark:border-slate-600 dark:text-slate-400"
+        >
+            <InformationCircleIcon class="h-4 w-4 shrink-0" />
             {{ t("language.modal.offlineCaption") }}
         </p>
 
         <div
             v-if="canAddMore"
-            class="divide-y divide-zinc-200 dark:divide-slate-600"
+            class="mt-1 flex flex-col gap-2 border-t border-zinc-200 pt-3 dark:border-slate-600"
         >
             <div
                 v-for="language in availableLanguages"
                 :id="language._id"
                 :key="language._id"
-                class="flex w-full cursor-pointer items-center gap-2 rounded-lg p-3 hover:bg-zinc-100 dark:hover:bg-slate-600"
+                class="flex w-full cursor-pointer items-center gap-2 rounded-xl border border-dashed border-zinc-300 px-3 py-2.5 text-zinc-500 transition-colors hover:border-yellow-400 hover:bg-yellow-50 hover:text-yellow-700 dark:border-slate-500 dark:text-slate-400 dark:hover:border-yellow-500/60 dark:hover:bg-slate-600 dark:hover:text-yellow-500"
                 data-test="add-language-button"
                 @click="addLanguage(language._id)"
             >
-                <PlusCircleIcon
-                    class="h-5 w-5 cursor-pointer text-zinc-500 hover:text-yellow-600 dark:text-slate-400 dark:hover:text-yellow-500"
-                />
-                <span class="text-sm">{{ language.name }}</span>
+                <PlusCircleIcon class="h-5 w-5 shrink-0" />
+                <span class="text-sm font-medium">{{ language.name }}</span>
             </div>
         </div>
 
