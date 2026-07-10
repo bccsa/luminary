@@ -1032,7 +1032,7 @@ describe("AuthGuard (Integrated)", () => {
         const docOtherProvider = {
             _id: "user-other",
             _rev: "1-bbb",
-            email: "test@bccsa.org",
+            email: "test@user.org",
             name: "Test User",
             providerId: "other-provider",
             memberOf: ["group-super-admins"],
