@@ -193,3 +193,12 @@
 .video-player .vjs-waiting:after {
     display: none !important;
 }
+
+/* iOS Safari renders the video-js tech element 1px lower than its absolutely-positioned
+   .video-player container, leaving a 1px gap at the top and an overhang at the bottom
+   (issue #813). Same iOS-Safari feature-query technique used in LHighlightable.vue. */
+@supports (-webkit-touch-callout: none) {
+    .video-player {
+        transform: translateY(-1px);
+    }
+}
