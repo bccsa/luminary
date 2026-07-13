@@ -17,6 +17,11 @@ const dateText = (content: ContentDto): string =>
     content.publishDate
         ? DateTime.fromMillis(content.publishDate).toLocaleString(DateTime.DATE_MED)
         : "";
+
+// Keep the chips to a single line: show the first few, then a "+N" chip for the rest.
+const MAX_VISIBLE_TAGS = 2;
+const visibleTags = (tags: string[]): string[] => tags.slice(0, MAX_VISIBLE_TAGS);
+const extraTagCount = (tags: string[]): number => Math.max(0, tags.length - MAX_VISIBLE_TAGS);
 </script>
 
 <template>
@@ -57,7 +62,7 @@ const dateText = (content: ContentDto): string =>
                 </div>
 
                 <div class="flex min-w-0 flex-1 flex-col gap-1">
-                    <h3 class="line-clamp-2 font-semibold text-zinc-800 dark:text-slate-50">
+                    <h3 class="truncate font-semibold text-zinc-800 dark:text-slate-50">
                         {{ item.content.title }}
                     </h3>
 
@@ -75,18 +80,24 @@ const dateText = (content: ContentDto): string =>
                         {{ dateText(item.content) }}
                     </p>
 
-                    <!-- Tags scroll horizontally when they overflow (same chip colour as the
-                         category tags under the bookmark icon, without the tag icon). -->
+                    <!-- One line of category chips (same colour as the category tags under the
+                         bookmark icon, without the tag icon), with a "+N" chip for any extras. -->
                     <div
                         v-if="item.tags.length"
-                        class="mt-0.5 flex gap-1.5 overflow-x-auto scrollbar-hide"
+                        class="mt-0.5 flex gap-1.5 overflow-hidden"
                     >
                         <span
-                            v-for="tag in item.tags"
+                            v-for="tag in visibleTags(item.tags)"
                             :key="tag"
                             class="shrink-0 whitespace-nowrap rounded-lg border border-yellow-500/25 bg-yellow-500/10 px-2 py-0.5 text-xs text-zinc-700 dark:bg-slate-700 dark:text-slate-100"
                         >
                             {{ tag }}
+                        </span>
+                        <span
+                            v-if="extraTagCount(item.tags)"
+                            class="shrink-0 whitespace-nowrap rounded-lg border border-yellow-500/25 bg-yellow-500/10 px-2 py-0.5 text-xs text-zinc-700 dark:bg-slate-700 dark:text-slate-100"
+                        >
+                            +{{ extraTagCount(item.tags) }}
                         </span>
                     </div>
                 </div>
