@@ -12,7 +12,7 @@ const { recommended } = useRecommendations();
         v-if="recommended.length > 0"
         :contentDocs="recommended"
         :title="t('home.recommended')"
-        :showPublishDate="true"
+        :showPublishDate="false"
         class="pb-1 pt-4"
     />
 </template>

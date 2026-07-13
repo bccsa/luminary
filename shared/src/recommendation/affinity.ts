@@ -22,20 +22,29 @@ export type AffinityProfile = {
 };
 
 /** Days for a score to halve under exponential decay. */
-const HALF_LIFE_DAYS = 30;
+const HALF_LIFE_DAYS = 45;
 const DAY_MS = 24 * 60 * 60 * 1000;
 /**
- * Score added to a tag per interaction (before clamping to 1). This is the
- * baseline weight for a low-confidence signal (opening a piece of content).
+ * Fraction of the remaining confidence added by a low-confidence interaction.
+ * This deliberately makes an ordinary open a weak signal: a profile should be
+ * built from a pattern of behaviour, not a handful of clicks.
  * Callers with a stronger signal (an explicit bookmark, finishing a video/audio
  * track) should pass a higher `weight` to {@link applyEvent} — see
  * `EventWeight` for the shared vocabulary.
  */
-const HIT_WEIGHT = 0.3;
+const HIT_WEIGHT = 0.04;
 /** Scores below this are pruned as negligible. */
 const MIN_SCORE = 0.01;
 /** Cap on tags kept in a profile (drop the weakest); bounds the doc size. */
 const MAX_TAGS = 50;
+/**
+ * Depth damping: event weight is multiplied by `DEPTH_SCALE / (DEPTH_SCALE + topicCount)`.
+ * A near-empty profile (few tracked topics) moves at full weight so it can bootstrap
+ * quickly; a broad, established profile (many topics already carry evidence) moves
+ * proportionally less per single event — one click shouldn't reshape a profile that
+ * already reflects a real pattern of behaviour.
+ */
+const DEPTH_SCALE = 20;
 
 /**
  * Shared vocabulary for interaction strength, so every call site agrees on relative
@@ -48,16 +57,16 @@ export const EventWeight = {
     /** Content was opened/viewed. Weak signal — could be an immediate bounce. */
     Open: HIT_WEIGHT,
     /** The user explicitly bookmarked the content. Strong, unambiguous intent. */
-    Bookmark: 0.6,
+    Bookmark: 0.25,
     /** A video/audio track played to completion. Strong engagement signal. */
-    Completion: 0.6,
+    Completion: 0.35,
     /**
      * The user highlighted a passage of text. Selecting specific text requires
      * closer engagement than a single tap (bookmark) — an equally strong,
      * unambiguous signal. Kept as its own named weight (not reused from
      * `Bookmark`) so the two can be tuned independently later.
      */
-    Highlight: 0.6,
+    Highlight: 0.3,
 } as const;
 
 const empty = (): AffinityProfile => ({ affinity: {}, lastDecayUtc: undefined });
@@ -78,8 +87,8 @@ export function decay(profile: AffinityProfile | undefined, now: number): Affini
 }
 
 /**
- * Record an interaction with `tagIds`: decay first, then bump each tag (clamped to
- * 1) by `weight` — see {@link EventWeight} for the shared scale. Defaults to the
+ * Record an interaction with `tagIds`: decay first, then add `weight` of each tag's
+ * remaining headroom — see {@link EventWeight} for the shared scale. Defaults to the
  * weakest signal (a plain open) so existing callers are unaffected.
  */
 export function applyEvent(
@@ -90,9 +99,17 @@ export function applyEvent(
 ): AffinityProfile {
     const decayed = decay(profile, now);
     const affinity = decayed.affinity;
+    // Depth damping uses the topic count *before* this event, so a profile's own
+    // breadth — not this event's tags — decides how strongly it can still move.
+    const depthFactor = DEPTH_SCALE / (DEPTH_SCALE + Object.keys(affinity).length);
     for (const tag of tagIds) {
         if (!tag) continue;
-        affinity[tag] = Math.min(1, (affinity[tag] ?? 0) + weight);
+        const current = affinity[tag] ?? 0;
+        // Diminishing returns: each event closes a fraction (`weight`, damped by profile
+        // depth) of the remaining gap to 1, so repeat casual opens can't saturate a tag
+        // as fast as one bookmark — score growth naturally slows as confidence in a tag
+        // rises, and further slows as the overall profile matures.
+        affinity[tag] = current + weight * depthFactor * (1 - current);
     }
     return { affinity: capTags(affinity, MAX_TAGS), lastDecayUtc: now };
 }
