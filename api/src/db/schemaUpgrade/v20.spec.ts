@@ -1,6 +1,6 @@
 import v20 from "./v20";
 import { AclPermission, DocType } from "../../enums";
-import { DEFAULT_AFFINITY_ID } from "../../util/userAffinity";
+import { DEFAULT_AFFINITY_ID } from "../../util/defaultAffinity";
 
 describe("v20 — default affinity ACL + singleton backfill", () => {
     function mockDb(version: number, groups: any[], existingDefaultAffinity: any[] = []) {
