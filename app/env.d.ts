@@ -3,6 +3,12 @@
 interface ImportMetaEnv {
     readonly VITE_APP_NAME: string;
 
+    readonly VITE_WEB_ORIGIN?: string;
+
+    readonly VITE_PUBLIC_ORGANIZATION_NAME?: string;
+
+    readonly VITE_PUBLIC_LOGO_PATH?: string;
+
     readonly VITE_API_URL: string;
 
     readonly VITE_SENTRY_DSN: string;

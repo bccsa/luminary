@@ -12,6 +12,7 @@ import type { FtsSearchResult } from "luminary-shared";
 // ── Hoisted (vi.mock factories run before imports; no mockdata here) ──────────
 
 const routePushMock = vi.hoisted(() => vi.fn());
+const routeMock = vi.hoisted(() => ({ path: "/", query: {} as Record<string, string> }));
 const loadMoreMock = vi.hoisted(() => vi.fn());
 const cancelMock = vi.hoisted(() => vi.fn());
 const resetMock = vi.hoisted(() => vi.fn());
@@ -32,6 +33,7 @@ const searchMockDoc = vi.hoisted(() => ({
 
 vi.mock("vue-router", () => ({
     useRouter: vi.fn().mockImplementation(() => ({ push: routePushMock })),
+    useRoute: vi.fn().mockImplementation(() => routeMock),
 }));
 
 vi.mock("vue-i18n", () => ({
@@ -146,6 +148,8 @@ describe("SearchButton", () => {
         cancelMock.mockReset();
         resetMock.mockReset();
         routePushMock.mockReset();
+        routeMock.path = "/";
+        routeMock.query = {};
         window.localStorage.clear();
         window.sessionStorage.clear();
         // Widen viewport so isMobileScreen matches desktop (lg); other tests set 600px and resize is global.
@@ -175,6 +179,19 @@ describe("SearchButton", () => {
             const wrapper = mountComponent();
             await openOverlay();
             expect(wrapper.find("input").isVisible()).toBe(true);
+        });
+
+        it("opens and executes the documented public /explore?q search", async () => {
+            routeMock.path = "/explore";
+            routeMock.query = { q: "public search" };
+            const wrapper = mountComponent();
+
+            await flushPromises();
+            await nextTick();
+
+            expect((wrapper.find("input").element as HTMLInputElement).value).toBe("public search");
+            expect(wrapper.find("input").isVisible()).toBe(true);
+            expect(runSearchMock).toHaveBeenCalled();
         });
 
         it("closes when ESC is pressed on the input", async () => {

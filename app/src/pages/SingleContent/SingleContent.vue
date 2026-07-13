@@ -70,7 +70,7 @@ import {
     resolveArticleScrollContainer,
     useReadingProgressTracker,
 } from "@/composables/useReadingProgressTracker";
-import { useContentHead } from "@/seo/contentHead";
+import { useContentHead, type PublicTaxonomy } from "@/seo/contentHead";
 import { useTranslationSwitcher } from "@/composables/useTranslationSwitcher";
 
 const router = useRouter();
@@ -336,11 +336,6 @@ const hreflangAlternates = computed(() =>
         .filter((a): a is { code: string; slug: string } => !!a),
 );
 
-// SEO head — driven by the resolved content so it is correct in the raw prerendered
-// HTML and stays current on the client. (Runs on every build; @unhead/vue serializes
-// it during the prerender.)
-useContentHead(content, hreflangAlternates);
-
 // Tags drive the category chips + RelatedContent — query-driven on every build now.
 // In the prerender the seam fetches them (chained AFTER `content` via ssrChain, so the
 // selector reads a resolved parent) and primes a per-slug cache for no-flash hydration.
@@ -363,6 +358,23 @@ const tags = useContentQuery(
 );
 
 const categoryTags = computed(() => tags.value.filter((t) => t.parentTagType == TagType.Category));
+const publicTaxonomy = computed<PublicTaxonomy[]>(() => {
+    const expectedIds = new Set(content.value?.parentTags ?? []);
+    const seen = new Set<string>();
+    return categoryTags.value.flatMap((tag) => {
+        // A tag must be one of the article's inherited public taxonomy IDs and
+        // have a slug before it can become a stable breadcrumb/JSON-LD entry.
+        if (!expectedIds.has(tag.parentId) || !tag.title || !tag.slug || seen.has(tag.parentId)) {
+            return [];
+        }
+        seen.add(tag.parentId);
+        return [{ name: tag.title, url: `/${tag.slug}` }];
+    });
+});
+
+// SEO head — driven by resolved public content and taxonomy so the prerendered
+// page, canonical metadata, Open Graph image and JSON-LD always agree.
+useContentHead(content, hreflangAlternates, publicTaxonomy);
 const selectedCategoryId = ref<Uuid | undefined>();
 
 // The content query already filters publish state, so `content` is either a valid

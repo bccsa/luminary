@@ -5,13 +5,14 @@ import { ArrowUturnLeftIcon } from "@heroicons/vue/20/solid";
 import { useInfiniteScroll } from "@vueuse/core";
 import { useSearchOverlay } from "@/composables/useSearchOverlay";
 import { appLanguageIdsAsRef, cmsLanguages, isMac, isMobileScreen } from "@/globalConfig";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import LImage from "@/components/images/LImage.vue";
 import { useFtsSearch, stripHtml } from "luminary-shared";
 import type { ContentDto, FtsSearchResult } from "luminary-shared";
 import { useI18n } from "vue-i18n";
 
 const router = useRouter();
+const route = useRoute();
 const { t } = useI18n();
 
 const { isSearchOpen, closeSearch } = useSearchOverlay();
@@ -521,6 +522,18 @@ const goToResult = (result: EnrichedResult) => {
 let handleGlobalKeydown: ((event: KeyboardEvent) => void) | null = null;
 
 onMounted(() => {
+    const applyExploreQuery = (value: unknown) => {
+        // Public structured-data contract: /explore?q=<URL-encoded query>.
+        // Only this anonymous route opens and executes the existing FTS search.
+        if (!route.path.endsWith("/explore") || typeof value !== "string") return;
+        const query = value.trim();
+        if (!query) return;
+        searchQuery.value = query;
+        isSearchOpen.value = true;
+    };
+    applyExploreQuery(route.query.q);
+    watch(() => route.query.q, applyExploreQuery);
+
     handleGlobalKeydown = (event: KeyboardEvent) => {
         if ((event.metaKey || event.ctrlKey) && event.key === "k" && !isOpen.value) {
             event.preventDefault();
