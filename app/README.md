@@ -78,7 +78,7 @@ See [docs/guides/translations.md](../docs/guides/translations.md) for details on
 
 The app tracks how far a user has read through article text and surfaces in-progress posts on the homepage **Continue Reading** row. Segment-based gates (visibility, skim detection, dwell time) ensure progress reflects actual reading, including long paragraphs on small screens.
 
-Full design, diagrams, and constants: **[docs/reading-progress-tracker/README.md](../docs/reading-progress-tracker/README.md)**.
+Full design, diagrams, and constants: **[docs/reading-progress-tracker/README.md](docs/reading-progress-tracker/README.md)**.
 
 ## Local setup
 
