@@ -10,6 +10,7 @@ import type { ContentDto } from "luminary-shared";
 import { ChevronLeftIcon } from "@heroicons/vue/24/outline";
 import { useRouter } from "vue-router";
 import { getRouteHistory } from "@/router";
+import { useHydrated } from "@/composables/useHydrated";
 
 const showNotifications = !queryParams.has("supress-notifications");
 
@@ -22,8 +23,7 @@ const showNotifications = !queryParams.has("supress-notifications");
 // the prerendered HTML and the first client render match (clean hydration). On
 // native showChrome is always true → behaviour unchanged.
 const isWeb = import.meta.env.VITE_BUILD_TARGET === "web";
-const isMounted = ref(false);
-const showChrome = computed(() => !isWeb || isMounted.value);
+const showChrome = useHydrated();
 
 // On the web/SSG tier, hold the notifications back a few seconds after hydration
 // so the first paint stays still (the account/offline banners render in main flow
@@ -53,7 +53,6 @@ const handleArrowKeyFocus = (e: KeyboardEvent) => {
 };
 
 onMounted(() => {
-    isMounted.value = true;
     if (isWeb) setTimeout(() => (notificationsReady.value = true), WEB_NOTIFICATION_DELAY_MS);
     document.addEventListener("keydown", handleArrowKeyFocus);
 });

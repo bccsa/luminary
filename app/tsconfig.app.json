@@ -2,11 +2,7 @@
     "extends": "@vue/tsconfig/tsconfig.dom.json",
     "include": ["env.d.ts", "src/**/*", "src/**/*.vue", "mockdata/**/*"],
     "exclude": [
-        "src/**/*.spec.ts",
-        "src/ssg/whatChanged.ts",
-        "src/ssg/verifyIsolation.ts",
-        "src/ssg/watch.ts",
-        "src/ssg/ssgNodeEnv.ts"
+        "src/**/*.spec.ts"
     ],
     "compilerOptions": {
         "composite": true,

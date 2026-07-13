@@ -98,7 +98,7 @@ function valuesOf(constraint: unknown): unknown[] {
     return []; // $ne / $exists / ranges → no facet
 }
 
-// --- Aliases kept so computeAffected.ts / whatChanged.ts / the watcher are unchanged ---
+// --- Deployment-side ISR helpers ---
 
 /** Keys a changed doc touches (watcher). Alias of {@link facetsFromDoc}. */
 export const keysForChangedDoc = (doc: DocLike): DependencyKey[] => facetsFromDoc(doc);

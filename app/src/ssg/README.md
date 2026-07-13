@@ -1,8 +1,8 @@
-# `app/src/ssg/` — Web prerendering (SSG) + dependency-tracked regeneration (ISR)
+# `app/src/ssg/` — Web prerendering (SSG)
 
 This folder holds the **web/SSG tier**: the machinery that prerenders the app's
-**public** content to crawlable static HTML and tracks, per page, the data each page
-read so we can regenerate only the pages that go stale on a content change.
+**public** content to crawlable static HTML and records, per page, the data each page
+read.
 
 > **Status:** Built and working. The content seam is **`useContentQuery`** itself, and
 > the **web client uses the identical local-first hybrid query as native** — there are
@@ -13,7 +13,7 @@ read so we can regenerate only the pages that go stale on a content change.
 > shared's `queryRemote` / `structuralCacheKey` / `writeResponseCache` replace it.
 
 The web build is driven from a **separate deployment repo** (this repo is a submodule of
-it); that repo owns upload-to-R2, edge-cache purge, and running the regeneration watcher.
+it); that repo owns deployment and incremental-regeneration orchestration.
 
 ---
 
@@ -24,9 +24,8 @@ use. But the app was **invisible to search engines and link previews** — every
 rendered client-side after a JS boot + data sync, so a crawler saw an empty shell.
 
 This branch adds a **web tier**: the app's **public** content prerendered to **crawlable
-static HTML** (SSG), plus **incremental regeneration** (ISR) so that when an editor
-changes content, only the affected static pages are rebuilt — quickly, not via a full
-site rebuild.
+static HTML** (SSG). Incremental regeneration (ISR) is orchestrated by the deployment
+repository.
 
 Non-goals: the web tier is **online-only, no service worker, no private/group-scoped
 content**. Offline and authed use stay the native shells' job.
@@ -52,14 +51,11 @@ content**. Offline and authed use stay the native shells' job.
 
 Run from `app/`:
 
-| Command                                                                                      | What it does                                                                                                                                                                                                                      |
-| -------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `npm run build:web`                                                                          | **Full** prerender → `dist-web/` (every public route) + `ssg-deps.json` + `sitemap.xml` + `robots.txt`.                                                                                                                           |
-| `SSG_ONLY_ROUTES="/a,/b" npm run build:affected`                                             | **Scoped** rebuild of only those routes; preserves all other files; **merges** their entries into `ssg-deps.json`.                                                                                                                |
-| `npm run preview:web`                                                                        | Serve `dist-web/` locally (test in Incognito / unregister old service workers first).                                                                                                                                             |
-| `npm run watch:ssg`                                                                          | **ISR watcher** — long-running. Boots the shared data layer headless and regenerates the affected pages (via `build:affected`) whenever public content changes. Start it BEFORE `build:web` so build-window changes are buffered. |
-| `npx vite-node src/ssg/whatChanged.ts <slug>`                                                | Simulate: "if this doc changed, what pages go stale?" (reads `dist-web/ssg-deps.json`).                                                                                                                                           |
-| `node src/ssg/verifyIsolation.ts snapshot > before.json` then `… check before.json <routes>` | Prove a scoped rebuild changed ONLY the intended files.                                                                                                                                                                           |
+| Command                                     | What it does                                                                                                       |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `npm run build:web`                         | **Full** prerender → `dist-web/` (every public route) + `ssg-deps.json` + `sitemap.xml` + `robots.txt` + `llms.txt`. |
+| `SSG_ONLY_ROUTES="/a,/b" npm run build:web` | **Scoped** rebuild of only those routes; preserves all other files; **merges** their entries into `ssg-deps.json`. |
+| `npm run preview:web`                       | Serve `dist-web/` locally (test in Incognito / unregister old service workers first).                              |
 
 The native/SPA build (`npm run build` → `dist/`, with its service worker) is
 **unchanged** and unaffected by anything here. Web config is `app/vite.config.web.ts`;
@@ -69,23 +65,18 @@ native is `app/vite.config.ts`.
 
 ## File map
 
-| File                           | Role                                                                                                                                                                                                                                                                                                                                                                        | Runs in          |
-| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
-| `../main.web.ts`               | Web entry (`ViteSSG`). Prerender: `initHybridQuery(HttpReq)` so `queryRemote` works in Node, set render language + fill `cmsLanguages` before i18n, add locale-prefixed static routes, serialize render/default langs via `initialState`. Client: restore those + boot the data layer (`clientRuntime`), minus the service worker. Branches only on `import.meta.env.SSR`.  | Node + browser   |
-| `../router/localizedRoutes.ts` | Pure route helper for locale-prefixed public static routes (`/<code>`, `/<code>/explore`, `/<code>/watch`). Imported by the web entry only; native routes stay unchanged.                                                                                                                                                                                                   | Node + browser   |
-| `../../vite.config.web.ts`     | Web build config: route enumeration, `concurrency:1`, dependency-capture hooks, **per-page `hqcache:*` → inline-script serialization**, writes `ssg-deps.json` / `ssg-route-index.json` / `ssg-redirect-index.json` / `ssg-doc-facets.json` / sitemap / robots / static redirect HTML, scoped-rebuild mode.                                                                        | Node (build)     |
-| `polyfills.ts`                 | Node shims jsdom lacks (localStorage/sessionStorage/matchMedia). Imported first in `main.web.ts`. The `localStorage` shim also backs `writeResponseCache` during the prerender.                                                                                                                                                                                             | Node (prerender) |
-| `clientRuntime.ts`             | Boots the data layer on the **browser client** after hydration (`init()` + sync + language). Dynamically imported (never in the prerender).                                                                                                                                                                                                                                 | browser          |
-| `facetKeys.ts`                 | **Pure** key vocabulary — the single source of truth. `docKey` + `facetsFromSelector` / `facetsFromDoc` (`facet:<field>:<value>:<lang>`), `keysForChangedDoc`, `keysForRecategorization`. No Vue/DOM/Vite deps → the deploy watcher imports this too.                                                                                                                       | anywhere         |
-| `dependencyCapture.ts`         | **Pure** render-time reporter (`reportKeys`) writing to `globalThis.__SSG_DEPS__`. No-op unless a capture is active (safe on client/native). The collector itself is initialised/reset by `vite.config.web.ts`.                                                                                                                                                             | Node (build)     |
-| `computeAffected.ts`           | **Pure** `computeAffected(changedKeys, manifest)` + `simulateAffected(doc, manifest, prevDoc?)`. Shared with the watcher.                                                                                                                                                                                                                                                   | anywhere         |
-| `routeIndex.ts`                | Pure content-id/parent-id → route sidecar helper for DeleteCmd handling and slug-change cleanup.                                                                                                                                                                                                                                                                            | Node             |
-| `redirectIndex.ts`             | Pure redirect id → slug sidecar helper, so redirect DeleteCmds can remove static redirect files.                                                                                                                                                                                                                                                                            | Node             |
-| `whatChanged.ts`               | CLI over `simulateAffected` (dev/inspection). Excluded from app type-check (Node tool).                                                                                                                                                                                                                                                                                     | Node CLI         |
-| `verifyIsolation.ts`           | CLI: sha256 snapshot/diff of `dist-web/**` to assert a scoped rebuild touched only intended files.                                                                                                                                                                                                                                                                          | Node CLI         |
-| `redirectHtml.ts`              | Pure static redirect renderer (`redirectHtml` + `redirectFile`) shared by full builds and the watcher.                                                                                                                                                                                                                                                                      | Node             |
-| `watch.ts`                     | **ISR watcher** — POLLS the anonymous `POST /query` (`queryRemote`, the prerender's own mechanism) for content/redirect/delete `updatedTimeUtc` changes, then runs content through previous/new facet snapshots → `computeAffected → build:affected`, writes/removes redirect HTML, and prunes deleted content routes. Debounced + serialized via the `.ssg-building` lock. | Node service     |
-| `ssgNodeEnv.ts`                | Node prelude for `watch.ts`: installs `window`/`localStorage` (+ event stubs) so `luminary-shared` can be imported for `queryRemote`. No Dexie/IndexedDB (REST-only). MUST be its first import.                                                                                                                                                                             | Node             |
+| File                           | Role                                                                                                                                                                                                                                                                                                                                                                       | Runs in          |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
+| `../main.web.ts`               | Web entry (`ViteSSG`). Prerender: `initHybridQuery(HttpReq)` so `queryRemote` works in Node, set render language + fill `cmsLanguages` before i18n, add locale-prefixed static routes, serialize render/default langs via `initialState`. Client: restore those + boot the data layer (`clientRuntime`), minus the service worker. Branches only on `import.meta.env.SSR`. | Node + browser   |
+| `../router/localizedRoutes.ts` | Pure route helper for locale-prefixed public static routes (`/<code>`, `/<code>/explore`, `/<code>/watch`). Imported by the web entry only; native routes stay unchanged.                                                                                                                                                                                                  | Node + browser   |
+| `../../vite.config.web.ts`     | Web build config: route enumeration, `concurrency:1`, dependency-capture hooks, **per-page `hqcache:*` → inline-script serialization**, writes `ssg-deps.json` / `ssg-route-index.json` / `ssg-redirect-index.json` / `ssg-doc-facets.json` / sitemap / robots / static redirect HTML, scoped-rebuild mode.                                                                | Node (build)     |
+| `polyfills.ts`                 | Node shims jsdom lacks (localStorage/sessionStorage/matchMedia). Imported first in `main.web.ts`. The `localStorage` shim also backs `writeResponseCache` during the prerender.                                                                                                                                                                                            | Node (prerender) |
+| `clientRuntime.ts`             | Boots the data layer on the **browser client** after hydration (`init()` + sync + language). Dynamically imported (never in the prerender).                                                                                                                                                                                                                                | browser          |
+| `facetKeys.ts`                 | **Pure** key vocabulary — the single source of truth. `docKey` + `facetsFromSelector` / `facetsFromDoc` (`facet:<field>:<value>:<lang>`), `keysForChangedDoc`, `keysForRecategorization`. No Vue/DOM/Vite deps → the deploy watcher imports this too.                                                                                                                      | anywhere         |
+| `dependencyCapture.ts`         | **Pure** render-time reporter (`reportKeys`) writing to `globalThis.__SSG_DEPS__`. No-op unless a capture is active (safe on client/native). The collector itself is initialised/reset by `vite.config.web.ts`.                                                                                                                                                            | Node (build)     |
+| `routeIndex.ts`                | Pure content-id/parent-id → route sidecar helper for DeleteCmd handling and slug-change cleanup.                                                                                                                                                                                                                                                                           | Node             |
+| `redirectIndex.ts`             | Pure redirect id → slug sidecar helper, so redirect DeleteCmds can remove static redirect files.                                                                                                                                                                                                                                                                           | Node             |
+| `redirectHtml.ts`              | Pure static redirect renderer (`redirectHtml` + `redirectFile`) shared by full builds and the watcher.                                                                                                                                                                                                                                                                     | Node             |
 
 Public-content reads go through shared directly: `queryRemote` (anonymous `POST /query`),
 `structuralCacheKey` + `writeResponseCache` (the first-paint seed). There is no app-side
@@ -159,48 +150,17 @@ and default language to bound page weight. The render language also rides `initi
 - **Doc facet snapshot**: `dist-web/ssg-doc-facets.json` = content id → last-known
   `parentId` / `parentTags` / `parentPinned` / `language`, so recategorization invalidates
   both old and new facet pages.
-- **Affected set** (`computeAffected.ts`, pure): `computeAffected(changedKeys, manifest)`
-  → routes whose key-set intersects; `simulateAffected(doc, manifest, prevDoc?)` for
-  inspection.
-- **Scoped rebuild** (`build:affected`): `SSG_ONLY_ROUTES=...` renders only those routes,
+- **Scoped rebuild** (`SSG_ONLY_ROUTES=... npm run build:web`): renders only those routes,
   `emptyOutDir:false` (keep other files), **merges** the manifest (not overwrites),
-  restores the SPA `index.html` if `/` wasn't in scope. Re-rendering unchanged content is
-  byte-idempotent (`verifyIsolation.ts` asserts only intended files changed).
-
-### ISR watcher — `watch.ts` (`npm run watch:ssg`)
-
-A standalone Node service the **deploy repo runs**, started **before** `build:web`. Every
-`WATCH_POLL_MS` (default 10s) it polls the anonymous `POST /query` (`queryRemote`) for
-content/redirect/delete docs with `updatedTimeUtc` newer than the last seen. Content docs
-use `ssg-doc-facets.json` to emit old∪new recategorization keys when a previous snapshot
-exists, then go through `computeAffected(ssg-deps.json)` → debounced, coalesced,
-lock-serialized `build:affected`; content slug changes prune the old route before any
-redirect file is written; redirects write/remove their static HTML; DeleteCmds prune content
-or redirect files, then regenerate surviving co-listed pages when content changed.
-
-- Serialized via a `dist-web/.ssg-building` lock (written by the build, cleared on
-  finish) so it never rebuilds during a build — including the initial `build:web`, whose
-  build-window changes it buffers (`lastSeen` stamped at launch; `WATCH_SINCE=<epoch-ms>`
-  override) and flushes after.
-- `ssgNodeEnv.ts` is a minimal Node prelude (window/localStorage/event stubs) so
-  `luminary-shared` can be imported for `queryRemote` — **REST-only, no Dexie/IndexedDB**.
-
-Why polling, not the socket: the socket scopes live `data` by rooms/accessMap (separate
-from REST query permissions) and runs the doc through shared's Dexie live-sync — extra
-coupling for a service whose job is just "what changed since T?". Polling reuses the
-prerender's exact public, anonymous path. Cost: up to `WATCH_POLL_MS` latency vs an
-instant push.
-
-**Deploy contract:** start `watch:ssg` BEFORE `build:web`. The watcher regenerates
-`dist-web` only and logs the changed routes; the deploy repo's uploader pushes those
-files to R2 and **purges exactly those edge paths**.
+  restores the SPA `index.html` if `/` wasn't in scope. Deployment-side ISR tooling
+  consumes the sidecars generated by this build.
 
 ### Deploy topology
 
 The web build is driven from a **separate deployment repo**; **this repo is a submodule
-of it**. The deploy repo owns: upload `dist-web/` → R2, edge-cache purge of exactly the
-changed paths, and running `watch:ssg` alongside `build:web`. This repo owns the
-prerender, the manifest, and the watcher logic. The prerender authenticates as
+of it**. The deploy repo owns upload `dist-web/` → R2, edge-cache purges, and all ISR
+watching/polling logic. This repo owns the prerender and its generated sidecars. The
+prerender authenticates as
 **anonymous** (default group mappings) to read public content.
 
 ---
@@ -227,14 +187,14 @@ prerender, the manifest, and the watcher logic. The prerender authenticates as
 
 ## Status
 
-**Working & verified at build level:** type-check, scoped `build:affected`, and the
+**Working & verified at build level:** type-check, scoped `SSG_ONLY_ROUTES=... npm run build:web`, and the
 native build are green. Article/tag pages prerender content + SEO + hreflang + related
 lists with the `hqcache` first-paint seed. `/explore`, `/watch`, and locale-prefixed
 static variants prerender. Sidebar uses real anchors. i18n SSR renders strings in the
 right language. Full builds also emit static meta-refresh redirect files.
 
 **ISR verified end-to-end:** the polling watcher detected a real changed doc on staging,
-computed the affected route, ran `build:affected`, and the page regenerated. Content
+computed the affected route, ran `SSG_ONLY_ROUTES=... npm run build:web`, and the page regenerated. Content
 delete support is implemented via `ssg-route-index.json`; recategorization old-facet
 coverage is backed by `ssg-doc-facets.json`. Live API verification is still user-run.
 
@@ -276,8 +236,6 @@ switch, 404, and nav links. Note `VITE_API_URL` must point at a running API.
 - Never import app-heavy `src/` modules into `vite.config.web.ts` (TS project-reference
   errors) — talk to the collector via `globalThis.__SSG_DEPS__`. Pure Node-safe helpers
   must be explicitly listed in `tsconfig.node.json` if the config imports them.
-- Don't import `@/globalConfig` in the watcher (heavy browser module — `new Image()` /
-  `document` at load); get `apiUrl` from `loadEnv`.
 
 ---
 
@@ -285,5 +243,5 @@ switch, 404, and nav links. Note `VITE_API_URL` must point at a running API.
 
 - Seam: `app/src/composables/useContentQuery.ts`. Web entry: `app/src/main.web.ts`.
   Web build config: `app/vite.config.web.ts`.
-- Pure infra: `facetKeys.ts` / `dependencyCapture.ts` / `computeAffected.ts` /
-  `redirectHtml.ts` / `routeIndex.ts`. Watcher: `watch.ts` + `ssgNodeEnv.ts`.
+- Pure infra: `facetKeys.ts` / `dependencyCapture.ts` /
+  `redirectHtml.ts` / `routeIndex.ts`.

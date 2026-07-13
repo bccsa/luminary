@@ -9,6 +9,7 @@ import { isConnected } from "luminary-shared";
 import { useNotificationStore, type Notification } from "@/stores/notification";
 import { useI18n } from "vue-i18n";
 import { ArrowLeftEndOnRectangleIcon } from "@heroicons/vue/24/outline";
+import { useHydrated } from "@/composables/useHydrated";
 
 // Force Vite to return a URL string for these SVG assets (usable in CSS `url(...)` and `<img :src>`),
 // regardless of any SVG/raw/component transforms/plugins.
@@ -30,9 +31,7 @@ const router = useRouter();
 // the per-user ProfileMenu (avatar/language/auth → Dexie) is rendered only after
 // mount so it doesn't crash during the Node prerender and the signed-out shell
 // matches the first client render. Native renders it immediately (unchanged).
-const isWeb = import.meta.env.VITE_BUILD_TARGET === "web";
-const isMounted = ref(false);
-const showProfile = computed(() => !isWeb || isMounted.value);
+const showProfile = useHydrated();
 
 const LOGO = import.meta.env.VITE_LOGO || defaultLogo;
 const LOGO_SMALL = import.meta.env.VITE_LOGO_SMALL || "";
@@ -62,7 +61,6 @@ const updateScreenSize = () => {
 let resizeObserver: ResizeObserver | undefined;
 
 onMounted(() => {
-    isMounted.value = true;
     const img = new Image();
     img.src = LOGO;
     img.onload = () => {

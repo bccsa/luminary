@@ -9,7 +9,7 @@ import HomePageSearch from "@/components/HomePage/HomePageSearch.vue";
 import { isMdScreen } from "@/globalConfig";
 import { nextTick, onActivated, ref } from "vue";
 import { markPageReady } from "@/util/renderState";
-import { useLocalizedStaticHead } from "@/composables/useLocalizedStaticHead";
+import { useLocalizedStaticHead } from "@/seo/contentHead";
 
 const pinnedResolved = ref(false);
 const newestResolved = ref(false);
