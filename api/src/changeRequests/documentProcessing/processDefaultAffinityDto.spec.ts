@@ -1,7 +1,7 @@
 import processDefaultAffinityDto from "./processDefaultAffinityDto";
 import { DefaultAffinityDto } from "../../dto/DefaultAffinityDto";
 import { DocType } from "../../enums";
-import { DEFAULT_AFFINITY_ID } from "../../util/userAffinity";
+import { DEFAULT_AFFINITY_ID } from "../../util/defaultAffinity";
 
 function makeDoc(affinity: Record<string, unknown>, id = DEFAULT_AFFINITY_ID): DefaultAffinityDto {
     return {

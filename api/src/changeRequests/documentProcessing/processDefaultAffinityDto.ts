@@ -1,5 +1,5 @@
 import { DefaultAffinityDto } from "../../dto/DefaultAffinityDto";
-import { DEFAULT_AFFINITY_ID } from "../../util/userAffinity";
+import { DEFAULT_AFFINITY_ID } from "../../util/defaultAffinity";
 
 /** Generous ceiling on the number of tags an editor can curate into the default profile. */
 const MAX_DEFAULT_TAGS = 200;

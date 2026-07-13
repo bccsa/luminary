@@ -1,14 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { applyEvent, decay, topTags, userAffinityId } from "./affinity";
+import { applyEvent, decay, topTags } from "./affinity";
 
 const DAY = 24 * 60 * 60 * 1000;
 const T0 = 1_700_000_000_000;
 
 describe("affinity scoring", () => {
-    it("derives a deterministic affinity doc id", () => {
-        expect(userAffinityId("user-1")).toBe("user-affinity-user-1");
-    });
-
     it("bumps a tag's score on an event and clamps at 1", () => {
         let p = applyEvent(undefined, ["tag-a"], T0);
         expect(p.affinity["tag-a"]).toBeCloseTo(0.3, 5);

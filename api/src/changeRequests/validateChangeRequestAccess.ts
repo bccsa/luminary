@@ -10,7 +10,6 @@ import { ContentDto } from "../dto/ContentDto";
 import { _baseDto } from "../dto/_baseDto";
 import { _contentBaseDto } from "../dto/_contentBaseDto";
 import { GroupDto } from "../dto/GroupDto";
-import { userAffinityId } from "../util/userAffinity";
 
 /**
  * Validate a change request against a user's access map
@@ -56,23 +55,6 @@ export async function validateChangeRequestAccess(
         return {
             validated: false,
             error: "Invalid document type - cannot submit Change documents",
-        };
-    }
-
-    // UserAffinity: owner-scoped, not group-scoped. A user may only write their
-    // OWN affinity doc, whose id is derived from their user id. No group ACL
-    // applies. Return early (before the memberOf guard below, which the doc
-    // intentionally can't satisfy — it belongs to no group).
-    if (doc.type === DocType.UserAffinity) {
-        if (!userId || doc._id !== userAffinityId(userId)) {
-            return {
-                validated: false,
-                error: "No access to this affinity document",
-            };
-        }
-        return {
-            validated: true,
-            validatedData: doc,
         };
     }
 
