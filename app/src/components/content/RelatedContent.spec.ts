@@ -160,4 +160,35 @@ describe("RelatedContent", () => {
             expect(wrapper.html()).not.toContain("Post 3");
         });
     });
+
+    it("shows the summary and a tag chip on each related post", async () => {
+        await db.docs.bulkPut([
+            {
+                ...mockEnglishContentDto,
+                parentId: "post-post2",
+                _id: "content-post2-eng",
+                title: "Post 2",
+                summary: "A short related summary",
+                parentTags: [mockTopicContentDto.parentId],
+            } as ContentDto,
+        ]);
+
+        const wrapper = mount(RelatedContent, {
+            props: {
+                tags: [{ ...mockTopicContentDto, parentTaggedDocs: ["post-post2"] }],
+                selectedContent: {
+                    ...mockEnglishContentDto,
+                    _id: "content-post3-eng",
+                    title: "Post 3",
+                },
+            },
+        });
+
+        await waitForExpect(() => {
+            // Summary shown in place of the publish date.
+            expect(wrapper.html()).toContain("A short related summary");
+            // The post's tag rendered as a chip (topic title resolved from its id).
+            expect(wrapper.html()).toContain(mockTopicContentDto.title);
+        });
+    });
 });
