@@ -1,6 +1,6 @@
 import { DbService } from "../db.service";
 import { AclPermission, DocType } from "../../enums";
-import { DEFAULT_AFFINITY_ID } from "../../util/userAffinity";
+import { DEFAULT_AFFINITY_ID } from "../../util/defaultAffinity";
 
 const SUPER_ADMINS_GROUP_ID = "group-super-admins";
 

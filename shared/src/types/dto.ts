@@ -94,21 +94,6 @@ export type UserDto = ContentBaseDto & {
 /** tag id → affinity score (0..1), time-decayed. */
 export type AffinityMap = Record<Uuid, number>;
 
-/**
- * Per-user private recommendation affinity profile. Owner-scoped: delivered to
- * its owner via authIdentity → clientConfig, written only by its owner, and
- * never synced through the group firehose or returned by /query. `_id` is
- * `user-affinity-<userId>` (see `userAffinityId`). `memberOf` is intentionally
- * absent — the doc belongs to no group.
- */
-export type UserAffinityDto = BaseDocumentDto & {
-    type: DocType.UserAffinity;
-    ownerId: Uuid;
-    affinity: AffinityMap;
-    /** epoch ms of the last decay application, for lazy exponential decay. */
-    lastDecayUtc?: number;
-};
-
 export type ContentDto = ContentBaseDto & {
     parentId: Uuid;
     language: Uuid;
