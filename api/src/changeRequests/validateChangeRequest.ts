@@ -44,7 +44,6 @@ export async function validateChangeRequest(
     data: any,
     groupMembership: Array<Uuid>,
     dbService: DbService,
-    userId?: Uuid,
 ): Promise<ValidationResult> {
     const changeRequest = plainToInstance(ChangeReqDto, data, {
         enableImplicitConversion: true,
@@ -120,7 +119,6 @@ export async function validateChangeRequest(
         changeRequest,
         groupMembership,
         dbService,
-        userId,
     );
     if (!accessValidationResult.validated) {
         return accessValidationResult;
