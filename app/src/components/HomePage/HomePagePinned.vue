@@ -35,9 +35,9 @@ const pinnedCategoryContent = useContentQuery(
     // This indexes the local Dexie read and lets the API older-tail supplement fan out to
     // per-parent index seeks when the combined parentId set is within the fan-out cap.
     // Featured content can predate the sync cutoff, so the supplement is REQUIRED to surface
-    // it (it is not in the local window); when the combined set exceeds the cap the
-    // supplement falls back to a content-partition scan. sort+limit bound the window;
-    // contentByTag re-sorts per category for display.
+    // it (it is not in the local window); above the client fan-out cap the API resolves the
+    // single request by fanning out to per-parent index seeks server-side.
+    // sort+limit bound the window; contentByTag re-sorts per category for display.
     { cache: true, limit: 50, sort: [{ publishDate: "desc" }] },
 );
 
