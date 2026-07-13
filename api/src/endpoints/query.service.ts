@@ -271,7 +271,7 @@ export class QueryService {
         // only knowable post-hoc). Set here, not in executeFindQuery, so the auth /
         // languages / search callers of that method are unaffected.
         (query as any).execution_stats = true;
-        const result = await this.db.executeFindQuery(query);
+        const result = await this.executeQuery(query, type as DocType);
 
         // Data minimization (covers both sync and HybridQuery — both POST /query): a non-CMS
         // response can only contain an expired Content doc via the app's includeExpired update-sync,
@@ -285,6 +285,119 @@ export class QueryService {
         }
         return result;
     }
+
+    /**
+     * A publishDate-led index must scan the Content partition before applying parentId,
+     * and no index can serve `parentId: { $in: [...] }` with a global publishDate sort.
+     * Fan out to per-parent index seeks and merge their results instead.
+     */
+    private async executeQuery(query: MongoQueryDto, type: DocType): Promise<DbQueryResult> {
+        if (type !== DocType.Content) return this.db.executeFindQuery(query);
+
+        const parentIdCriteria = findParentIdIn(query.selector.$and || []);
+        if (!parentIdCriteria) return this.db.executeFindQuery(query);
+
+        const rawIds = parentIdCriteria.$in;
+        if (!Array.isArray(rawIds)) return this.db.executeFindQuery(query);
+        if (rawIds.some((id) => typeof id !== "string")) {
+            throw new HttpException(
+                "'parentId.$in' values must be strings",
+                HttpStatus.BAD_REQUEST,
+            );
+        }
+
+        const parentIds = [...new Set(rawIds as string[])];
+        if (parentIds.length === 0) return { docs: [], blockStart: 0, blockEnd: 0 };
+
+        // ponytail: unbounded fan-out; add a concurrency cap if a parent set ever gets large
+        const results = await Promise.all(
+            parentIds.map((id) =>
+                this.db.executeFindQuery({
+                    ...query,
+                    selector: {
+                        $and: (query.selector.$and || []).map((condition) =>
+                            condition.parentId === parentIdCriteria ? { parentId: id } : condition,
+                        ),
+                    },
+                    use_index: "content-parentId-publishDate-index",
+                }),
+            ),
+        );
+
+        const seen = new Set<string>();
+        const docs = applySortAndLimit(
+            results
+                .flatMap((result) => result.docs || [])
+                .filter((doc) => !seen.has(doc._id) && (seen.add(doc._id), true)),
+            query.sort,
+            query.limit,
+        );
+        const result: DbQueryResult = {
+            docs,
+            execution_stats: {
+                total_keys_examined: results.reduce(
+                    (total, item) => total + (item.execution_stats?.total_keys_examined ?? 0),
+                    0,
+                ),
+                total_docs_examined: results.reduce(
+                    (total, item) => total + (item.execution_stats?.total_docs_examined ?? 0),
+                    0,
+                ),
+                execution_time_ms: results.reduce(
+                    (total, item) => total + (item.execution_stats?.execution_time_ms ?? 0),
+                    0,
+                ),
+                results_returned: docs.length,
+            },
+        };
+        setBlockRange(result);
+        return result;
+    }
+}
+
+function findParentIdIn(and: MongoSelectorDto[]): MongoComparisonCriteria | undefined {
+    for (const condition of and) {
+        const value = condition.parentId;
+        if (value && typeof value === "object" && !Array.isArray(value) && "$in" in value) {
+            return value as MongoComparisonCriteria;
+        }
+    }
+    return undefined;
+}
+
+function applySortAndLimit(
+    docs: any[],
+    sort: MongoQueryDto["sort"],
+    limit: number | undefined,
+): any[] {
+    let result = docs;
+    if (sort?.length) {
+        const [field, direction] = Object.entries(sort[0] || {})[0] || [];
+        if (field) {
+            const desc = direction === "desc";
+            result = docs.slice().sort((a, b) => {
+                const av = a?.[field];
+                const bv = b?.[field];
+                let cmp = 0;
+                if (av == null && bv != null) cmp = -1;
+                else if (av != null && bv == null) cmp = 1;
+                else if (av < bv) cmp = -1;
+                else if (av > bv) cmp = 1;
+                if (desc) cmp = -cmp;
+                if (cmp !== 0) return cmp;
+                return String(a?._id ?? "").localeCompare(String(b?._id ?? ""));
+            });
+        }
+    }
+    return typeof limit === "number" ? result.slice(0, Math.max(0, limit)) : result;
+}
+
+function setBlockRange(result: DbQueryResult): void {
+    const times = result.docs
+        .map((doc) => doc?.updatedTimeUtc)
+        .filter((value): value is number => typeof value === "number");
+    result.blockStart = times.length ? Math.max(...times) : 0;
+    result.blockEnd = times.length ? Math.min(...times) : 0;
 }
 
 /**
