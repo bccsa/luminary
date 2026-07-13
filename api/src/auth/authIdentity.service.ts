@@ -7,10 +7,9 @@ import { AuthProviderDto } from "../dto/AuthProviderDto";
 import { AuthProviderCondition, AutoGroupMappingsDto } from "../dto/AutoGroupMappingsDto";
 import { DbService } from "../db/db.service";
 import { UserDto } from "../dto/UserDto";
-import { UserAffinityDto } from "../dto/UserAffinityDto";
 import { DefaultAffinityDto } from "../dto/DefaultAffinityDto";
 import { DocType, Uuid } from "../enums";
-import { userAffinityId, DEFAULT_AFFINITY_ID } from "../util/userAffinity";
+import { DEFAULT_AFFINITY_ID } from "../util/userAffinity";
 import { AccessMap, PermissionSystem } from "../permissions/permissions.service";
 
 export type JwtUserDetails = {
@@ -20,14 +19,8 @@ export type JwtUserDetails = {
     name?: string;
     jwtPayload?: JWT.JwtPayload;
     accessMap?: AccessMap;
-    /**
-     * The caller's OWN recommendation affinity profile (or an empty scaffold
-     * carrying the correct `_id`/`ownerId` if none is stored yet). Delivered to
-     * the client via the `clientConfig` socket event so the profile follows the
-     * user across devices without ever entering the group sync firehose.
-     * Undefined for guests (no `userId`).
-     */
-    affinity?: UserAffinityDto;
+    /** CMS-managed affinity map used to seed a new client-local profile. */
+    defaultAffinity?: Record<Uuid, number>;
 };
 
 export type IdentityResult =
@@ -100,34 +93,6 @@ export class AuthIdentityService implements OnModuleInit {
             this.defaultAffinityCache = undefined;
             this.jwksClients.clear();
         });
-    }
-
-    /**
-     * Load the caller's OWN affinity profile. A first-time user (no doc of their
-     * own yet) gets a scaffold cloned from the CMS-managed {@link DefaultAffinityDto}
-     * singleton (cold start) — a ONE-TIME seed: this scaffold is never itself
-     * persisted here, so once the client (which owns the working copy) starts
-     * mutating it via its own interactions, later edits to the global default no
-     * longer affect that user, exactly as with the mediaProgress/UserAffinity
-     * "clone once, then diverge" pattern. A single by-id point lookup (not a group
-     * query), so it scales regardless of how many affinity docs exist. Never
-     * throws — a missing/absent doc is normal.
-     */
-    private async getAffinity(userId: Uuid): Promise<UserAffinityDto> {
-        const id = userAffinityId(userId);
-        try {
-            const res = await this.dbService.getDoc(id);
-            if (res.docs?.length) return res.docs[0] as UserAffinityDto;
-        } catch {
-            // fall through to scaffold
-        }
-        const defaultAffinity = await this.getDefaultAffinity();
-        return {
-            _id: id,
-            type: DocType.UserAffinity,
-            ownerId: userId,
-            affinity: defaultAffinity ? { ...defaultAffinity.affinity } : {},
-        } as UserAffinityDto;
     }
 
     /**
@@ -543,7 +508,7 @@ export class AuthIdentityService implements OnModuleInit {
                 name: primaryUser.name,
                 jwtPayload: payload as JWT.JwtPayload,
                 accessMap,
-                affinity: await this.getAffinity(primaryUser._id),
+                defaultAffinity: { ...(await this.getDefaultAffinity())?.affinity },
             };
         } catch (error) {
             if (error instanceof UnauthorizedException) throw error;
