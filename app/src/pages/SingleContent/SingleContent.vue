@@ -19,7 +19,8 @@ import {
 import { publishedNowConditions } from "@/util/mangoIsPublished";
 import { useContentQuery, useContentQueryWithState } from "@/composables/useContentQuery";
 import { recordAffinity } from "@/recommendation/affinityStore";
-import { computed, nextTick, onMounted, ref, watch } from "vue";
+import { markSeen } from "@/recommendation/seenStore";
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { BookmarkIcon as BookmarkIconSolid, TagIcon, SunIcon } from "@heroicons/vue/24/solid";
 import {
     BookmarkIcon as BookmarkIconOutline,
@@ -287,14 +288,28 @@ if (!isPrerender()) {
     watch([contentArr, isContentFetching], () => void resolveNotFound(), { immediate: true });
 
     // Keep a viewed article alive in the offline document store: refresh its retention
-    // deadline whenever a real content doc is displayed. No-op for undefined.
+    // deadline whenever a real content doc is displayed, so a below-cutoff article the
+    // user reads isn't evicted as stale. No-op for the placeholder / undefined.
+    //
+    // Affinity/seen tracking is gated behind a dwell timer: recording on mount would
+    // count a mis-tap or an immediately-closed shared link as real interest. Clearing
+    // the timer on every content change (incl. unmount) means only a page actually
+    // stayed open for DWELL_MS counts.
+    const DWELL_MS = 15000;
+    let dwellTimer: ReturnType<typeof setTimeout> | undefined;
     watch(content, (c) => {
+        clearTimeout(dwellTimer);
         if (c && c._id) {
             touchRetention([c._id]);
-            // Feed the opened content's tags into the recommendation affinity profile.
-            recordAffinity(c.parentTags);
+            const id = c._id;
+            const tags = c.parentTags;
+            dwellTimer = setTimeout(() => {
+                recordAffinity(tags);
+                markSeen(id);
+            }, DWELL_MS);
         }
     });
+    onUnmounted(() => clearTimeout(dwellTimer));
 }
 
 // Available translations and their languages, derived via computeds (render-safe during the prerender, where watchers don't run) so the dropdown and hreflang are correct in the static HTML. Languages come from shared `cmsLanguages`, so no separate Dexie-backed query is needed.

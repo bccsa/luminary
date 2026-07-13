@@ -11,14 +11,24 @@ import {
 } from "luminary-shared";
 import { useContentQuery } from "@/composables/useContentQuery";
 import { affinityProfile } from "@/recommendation/affinityStore";
+import { getSeenArticleIds, seenVersion } from "@/recommendation/seenStore";
 import { appDisplayLanguageIdsAsRef } from "@/globalConfig";
 import { sessionNow } from "@/util/sessionNow";
 
-const TOP_N_TAGS = 5;
-const LIMIT = 20;
+const TOP_N_TAGS = 12;
+/** Output cap on the fused feed. */
+const DEFAULT_LIMIT = 20;
+/** Candidate pool per leg. Must be >> DEFAULT_LIMIT: `useContentQuery` sorts by publishDate, so a
+ *  pool of DEFAULT_LIMIT would mean affinity only reshuffles the 20 newest tagged docs instead of
+ *  actually selecting from the tag neighbourhood. */
+const DEFAULT_RETRIEVAL_LIMIT = 1000;
 /** Reciprocal Rank Fusion constant (Cormack et al. 2009's default — de-weights rank
  *  swings far down either list without needing per-source score normalization). */
 const RRF_K = 60;
+/** Tag-affinity leg is the actual personalization signal; FTS is the serendipity leg
+ *  (vocabulary match, not affinity match) — it should contribute, not co-decide. */
+const TAG_LEG_WEIGHT = 1.5;
+const FTS_LEG_WEIGHT = 1;
 
 /**
  * Personalized "Recommended for you" feed.
@@ -32,9 +42,23 @@ const RRF_K = 60;
  *    the search page) — surfaces content that matches the user's interests by vocabulary
  *    even when it isn't literally tagged with one of the top tags (the "serendipity" leg).
  *
- * Already-seen content is dropped after fusion. Cold profile ⇒ empty (the UI hides itself).
+ * Each leg retrieves `retrievalLimit` candidates; already-seen content is dropped after
+ * fusion and the result is capped at `limit`. Cold profile ⇒ empty (the UI hides itself).
  */
-export function useRecommendations() {
+export type UseRecommendationsOptions = {
+    /** Maximum number of unseen, fused recommendations to expose. Defaults to 20. */
+    limit?: number;
+    /**
+     * Candidate pool fetched independently for each retrieval leg. It should be larger
+     * than `limit` so affinity and RRF rank a meaningful neighbourhood. Defaults to 1000.
+     */
+    retrievalLimit?: number;
+};
+
+export function useRecommendations({
+    limit = DEFAULT_LIMIT,
+    retrievalLimit = DEFAULT_RETRIEVAL_LIMIT,
+}: UseRecommendationsOptions = {}) {
     const tags = computed(() => topTags(affinityProfile.value, TOP_N_TAGS));
 
     const content = useContentQuery(
@@ -44,7 +68,7 @@ export function useRecommendations() {
             tags.value.length
                 ? [{ parentTags: { $elemMatch: { $in: tags.value } } }]
                 : [{ _id: { $in: [] } }],
-        { cache: true, cacheId: "recommended", limit: LIMIT },
+        { cache: true, cacheId: "recommended", limit: retrievalLimit },
     );
 
     // Resolve the top tags' own titles (for FTS query synthesis). `useContentQuery`'s
@@ -82,7 +106,7 @@ export function useRecommendations() {
                     languageId: appDisplayLanguageIdsAsRef.value[0],
                     status: PublishStatus.Published,
                     publishedBefore: now,
-                    limit: LIMIT,
+                    limit: retrievalLimit,
                 });
                 // ftsSearch has no expiry filter — drop expired content post-hoc (parity
                 // with the tag leg's mangoIsPublished check).
@@ -98,12 +122,15 @@ export function useRecommendations() {
         { immediate: true },
     );
 
-    const seen = computed(() => new Set(getSeenContentIds()));
+    const seen = computed(() => {
+        void seenVersion.value; // reactive dependency: getSeenContentIds itself reads localStorage
+        return new Set(getSeenContentIds());
+    });
 
     const recommended = computed(() =>
-        rank([...content.value], ftsResults.value, affinityProfile.value.affinity).filter(
-            (c) => !seen.value.has(c._id),
-        ),
+        rank([...content.value], ftsResults.value, affinityProfile.value.affinity)
+            .filter((c) => !seen.value.has(c._id))
+            .slice(0, limit),
     );
 
     return { recommended, hasTags: computed(() => tags.value.length > 0) };
@@ -130,11 +157,11 @@ export function rank(
 
     byTagScore.forEach((doc, i) => {
         docs.set(doc._id, doc);
-        rrfScore.set(doc._id, (rrfScore.get(doc._id) ?? 0) + 1 / (RRF_K + i + 1));
+        rrfScore.set(doc._id, (rrfScore.get(doc._id) ?? 0) + TAG_LEG_WEIGHT / (RRF_K + i + 1));
     });
     ftsCandidates.forEach((result, i) => {
         if (!docs.has(result.docId)) docs.set(result.docId, result.doc);
-        rrfScore.set(result.docId, (rrfScore.get(result.docId) ?? 0) + 1 / (RRF_K + i + 1));
+        rrfScore.set(result.docId, (rrfScore.get(result.docId) ?? 0) + FTS_LEG_WEIGHT / (RRF_K + i + 1));
     });
 
     return [...rrfScore.entries()]
@@ -143,18 +170,26 @@ export function rank(
         .filter((d): d is ContentDto => !!d);
 }
 
+/** Average, not sum, so a doc with many weak tags can't outrank one with a single
+ *  tag the user genuinely has strong affinity for. */
 function tagScore(doc: ContentDto, affinity: AffinityMap): number {
+    const tags = doc.parentTags ?? [];
+    if (!tags.length) return 0;
     let score = 0;
-    for (const tag of doc.parentTags ?? []) score += affinity[tag] ?? 0;
-    return score;
+    for (const tag of tags) score += affinity[tag] ?? 0;
+    return score / tags.length;
 }
 
-/** Content ids the user has already engaged with (reuses the mediaProgress list). */
+/** Content ids the user has already engaged with: audio/video progress (mediaProgress)
+ *  plus articles marked seen via a dwell-gated open (see `seenStore`). */
 function getSeenContentIds(): Uuid[] {
     try {
         const list = JSON.parse(localStorage.getItem("mediaProgress") || "[]");
-        return Array.isArray(list) ? list.map((e: { contentId: Uuid }) => e.contentId) : [];
+        const mediaIds = Array.isArray(list)
+            ? list.map((e: { contentId: Uuid }) => e.contentId)
+            : [];
+        return [...mediaIds, ...getSeenArticleIds()];
     } catch {
-        return [];
+        return getSeenArticleIds();
     }
 }
