@@ -9,12 +9,6 @@ import type { AffinityMap, Uuid } from "../types";
  * server never runs these; it only stores and restores the profile.
  */
 
-/** `_id` prefix for a {@link UserAffinityDto}. Mirrored on the API side. */
-export const USER_AFFINITY_ID_PREFIX = "user-affinity-";
-
-/** Deterministic affinity-doc id for a user (= the User doc `_id`). */
-export const userAffinityId = (userId: Uuid): string => `${USER_AFFINITY_ID_PREFIX}${userId}`;
-
 /**
  * Fixed `_id` of the singleton {@link DefaultAffinityDto} (the CMS-managed
  * cold-start baseline). Mirrored on the API side.
