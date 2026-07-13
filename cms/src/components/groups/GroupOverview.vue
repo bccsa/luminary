@@ -101,6 +101,7 @@ function mergeNewFields(saved: string | null): GroupOverviewQueryOptions {
 const queryOptions = ref<GroupOverviewQueryOptions>(
     mergeNewFields(savedQueryOptions()) as GroupOverviewQueryOptions,
 );
+const searchTerm = ref(queryOptions.value.search);
 
 watch(
     queryOptions,
@@ -117,41 +118,61 @@ const resetQueryOptions = () => {
         orderBy: "updatedTimeUtc",
         orderDirection: "desc",
     };
+    searchTerm.value = "";
+    appliedQueryOptions.value = { ...queryOptions.value };
 };
+
+const appliedQueryOptions = ref<GroupOverviewQueryOptions>(
+    mergeNewFields(savedQueryOptions()) as GroupOverviewQueryOptions,
+);
+
+const activeQueryOptions = computed(() => ({
+    ...appliedQueryOptions.value,
+    filterGroupIds: queryOptions.value.filterGroupIds ?? [],
+}));
 
 const filteredGroups = computed(() => {
     let result = [...editable.value];
 
-    if (queryOptions.value.search) {
-        const searchLower = queryOptions.value.search.toLowerCase();
+    if (activeQueryOptions.value.search) {
+        const searchLower = activeQueryOptions.value.search.toLowerCase();
         result = result.filter((group) => group.name.toLowerCase().includes(searchLower));
     }
 
-    if (queryOptions.value.filterGroupIds && queryOptions.value.filterGroupIds.length > 0) {
+    if (
+        activeQueryOptions.value.filterGroupIds &&
+        activeQueryOptions.value.filterGroupIds.length > 0
+    ) {
         result = result.filter((group) => {
-            return queryOptions.value.filterGroupIds.every((filterId) =>
+            return activeQueryOptions.value.filterGroupIds.every((filterId) =>
                 group.acl.some((aclEntry) => aclEntry.groupId === filterId),
             );
         });
     }
 
     result.sort((a, b) => {
-        if (queryOptions.value.orderBy === "name") {
+        if (activeQueryOptions.value.orderBy === "name") {
             const valA = a.name.toLowerCase();
             const valB = b.name.toLowerCase();
-            if (valA < valB) return queryOptions.value.orderDirection === "asc" ? -1 : 1;
-            if (valA > valB) return queryOptions.value.orderDirection === "asc" ? 1 : -1;
+            if (valA < valB) return activeQueryOptions.value.orderDirection === "asc" ? -1 : 1;
+            if (valA > valB) return activeQueryOptions.value.orderDirection === "asc" ? 1 : -1;
             return 0;
-        } else if (queryOptions.value.orderBy === "updatedTimeUtc") {
+        } else if (activeQueryOptions.value.orderBy === "updatedTimeUtc") {
             const valA = a.updatedTimeUtc || 0;
             const valB = b.updatedTimeUtc || 0;
-            return queryOptions.value.orderDirection === "asc" ? valA - valB : valB - valA;
+            return activeQueryOptions.value.orderDirection === "asc" ? valA - valB : valB - valA;
         }
         return 0;
     });
 
     return result;
 });
+
+const showResults = () => {
+    queryOptions.value.search = searchTerm.value ? searchTerm.value : "";
+    appliedQueryOptions.value = { ...queryOptions.value };
+};
+
 const newGroupId = ref("");
 const createGroup = async () => {
     const newGroup = {
@@ -229,8 +250,10 @@ const hasAnyContent = computed(() => editable.value.length > 0);
             <GroupFilterOptions
                 :groups="editable"
                 :reset="resetQueryOptions"
+                v-model:query="searchTerm"
                 v-model:query-options="queryOptions"
                 :isSmallScreen="isSmallScreen"
+                :apply-search="showResults"
             />
         </template>
 

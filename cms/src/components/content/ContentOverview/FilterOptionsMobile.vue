@@ -34,7 +34,6 @@ type Props = {
 defineProps<Props>();
 
 const queryOptions = defineModel<ContentOverviewQueryOptions>("queryOptions", { required: true });
-// Debouncing the search term so it is the only unique query option that needs a seperate defineModel
 const query = defineModel("query");
 
 const showSearchIcon = computed(() => !String(query.value ?? "").length);

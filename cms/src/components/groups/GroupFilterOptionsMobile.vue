@@ -18,6 +18,8 @@ import {
 type Props = {
     groups: GroupDto[];
     reset: Function;
+    search: () => void;
+    clearSearch: () => void;
 };
 
 defineProps<Props>();
@@ -25,12 +27,12 @@ defineProps<Props>();
 const queryOptions = defineModel<GroupOverviewQueryOptions>("queryOptions", { required: true });
 
 const showMobileQueryOptions = ref(false);
+
+const query = defineModel("query", { required: true });
 </script>
 
 <template>
-    <div
-        class="z-20 flex flex-col gap-1 overflow-visible"
-    >
+    <div class="z-20 flex flex-col gap-1 overflow-visible">
         <div class="flex h-10 w-full items-center gap-1">
             <LInput
                 type="text"
@@ -39,10 +41,20 @@ const showMobileQueryOptions = ref(false);
                 name="search"
                 placeholder="Search..."
                 data-test="search-input"
-                v-model="queryOptions.search"
+                v-model="query as string"
                 :full-height="true"
+                @keydown.esc="clearSearch()"
+                @keydown.enter="search()"
+            >
+                <template #searchButton>
+                    <slot name="searchButton"></slot>
+                </template>
+            </LInput>
+            <LButton
+                class="h-full"
+                :icon="AdjustmentsVerticalIcon"
+                @click="showMobileQueryOptions = true"
             />
-            <LButton class="h-full" :icon="AdjustmentsVerticalIcon" @click="showMobileQueryOptions = true" />
             <LButton class="h-full w-10" :icon="ArrowUturnLeftIcon" @click="reset()" />
         </div>
 
@@ -50,22 +62,22 @@ const showMobileQueryOptions = ref(false);
             v-if="queryOptions.filterGroupIds && queryOptions.filterGroupIds.length > 0"
             class="flex w-full flex-col gap-1"
         >
-                <ul class="flex w-full flex-wrap gap-2">
-                    <LTag
-                        :icon="UserGroupIcon"
-                        v-for="group in queryOptions.filterGroupIds"
-                        :key="group"
-                        @remove="
-                            () => {
-                                queryOptions.filterGroupIds = queryOptions.filterGroupIds?.filter(
-                                    (v) => v != group,
-                                );
-                            }
-                        "
-                    >
-                        {{ groupLabel(group, groups) }}
-                    </LTag>
-                </ul>
+            <ul class="flex w-full flex-wrap gap-2">
+                <LTag
+                    :icon="UserGroupIcon"
+                    v-for="group in queryOptions.filterGroupIds"
+                    :key="group"
+                    @remove="
+                        () => {
+                            queryOptions.filterGroupIds = queryOptions.filterGroupIds?.filter(
+                                (v) => v != group,
+                            );
+                        }
+                    "
+                >
+                    {{ groupLabel(group, groups) }}
+                </LTag>
+            </ul>
         </div>
     </div>
     <LModal heading="Filter options" v-model:is-visible="showMobileQueryOptions">
@@ -79,8 +91,8 @@ const showMobileQueryOptions = ref(false);
                     }))
                 "
                 v-model:selected-options="queryOptions.filterGroupIds"
-                :show-selected-in-dropdown="false"
-                :showSelectedLabels="false"
+                :show-selected-in-dropdown="true"
+                :showSelectedLabels="true"
                 :icon="UserGroupIcon"
             />
         </div>
