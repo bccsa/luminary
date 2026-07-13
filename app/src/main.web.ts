@@ -69,10 +69,11 @@ export const createApp = ViteSSG(
             // translation's name/code (SingleContent's language dropdown + hreflang),
             // but strip the heavy `translations` map from all except the render +
             // default language — i18n only needs those two — to keep page weight down.
-            const defaultId = langs.find((l) => l.default === 1)?._id;
+            const defaultLang = langs.find((l) => l.default === 1);
+            const defaultId = defaultLang?._id;
             const keep = new Set([lang, defaultId].filter(Boolean) as string[]);
             initialState.renderLang = lang;
-            initialState.defaultLanguageCode = langs.find((l) => l.default === 1)?.languageCode;
+            initialState.defaultLanguageCode = defaultLang?.languageCode;
             initialState.langCodeToId = langCodeToId(langs);
             initialState.languages = langs.map((l) =>
                 keep.has(l._id) ? l : { ...l, translations: {} },

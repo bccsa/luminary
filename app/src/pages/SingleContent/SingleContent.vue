@@ -782,11 +782,7 @@ watch([isLoading, content, is404], async () => {
                                 v-if="content.publishDate && content.parentPublishDateVisible"
                                 class="flex items-center text-center after:px-2 after:text-zinc-300 after:content-['•'] last:after:hidden dark:after:text-slate-700 sm:text-left"
                             >
-                                {{
-                                    content.publishDate
-                                        ? formatPublishDate(content.publishDate)
-                                        : ""
-                                }}
+                                {{ formatPublishDate(content.publishDate) }}
                             </div>
 
                             <!-- Fallback language: shown when the article isn't available in a
