@@ -185,7 +185,6 @@ describe("RelatedContent", () => {
         });
 
         await waitForExpect(() => {
-            // Summary shown in place of the publish date.
             expect(wrapper.html()).toContain("A short related summary");
             // The post's tag rendered as a chip (topic title resolved from its id).
             expect(wrapper.html()).toContain(mockTopicContentDto.title);
