@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import LCard from "@/components/common/LCard.vue";
+import LDialog from "@/components/common/LDialog.vue";
 import { Cog6ToothIcon } from "@heroicons/vue/20/solid";
 import {
     TagType,
@@ -7,6 +8,7 @@ import {
     type TagDto,
     type LanguageDto,
     type ContentParentDto,
+    type ContentDto,
     PostType,
 } from "luminary-shared";
 import { computed, ref, watch } from "vue";
@@ -16,6 +18,7 @@ import { capitaliseFirstLetter } from "@/util/string";
 import LToggle from "@/components/forms/LToggle.vue";
 import { ExclamationCircleIcon, XCircleIcon } from "@heroicons/vue/20/solid";
 import { validate, type Validation } from "./ContentValidator";
+import { translatableLanguagesAsRef } from "@/globalConfig";
 
 type Props = {
     docType: DocType;
@@ -24,8 +27,11 @@ type Props = {
     isParentDirty: boolean;
     disabled: boolean;
     newDocument?: boolean;
+    /** All (non-deleted) translations of the post/tag being edited — used to gate the
+     *  "link dates" toggle on translate access and to detect divergent existing dates. */
+    content?: ContentDto[];
 };
-defineProps<Props>();
+const props = defineProps<Props>();
 const parent = defineModel<ContentParentDto>("parent");
 
 // Parent validation
@@ -115,27 +121,62 @@ const useVerticalTileLayout = computed({
     },
 });
 
-const linkPublishDates = computed({
+// Non-deleted translations of this post/tag — the set the link-dates toggle reasons about.
+const nonDeletedContent = computed(() => (props.content ?? []).filter((c) => !c.deleteReq));
+
+// Setting the toggle is only allowed when the user has Translate access to every language
+// that has a translation on this post — otherwise saving one translation could silently move
+// the publish/expiry date of a sibling the user isn't authorised to touch. (The API enforces
+// this independently on the date cascade itself; this is just the CMS-side reflection of it.)
+const canManageLinkDates = computed(() => {
+    const languageIds = nonDeletedContent.value.map((c) => c.language);
+    if (languageIds.length === 0) return true;
+    return languageIds.every((id) => translatableLanguagesAsRef.value.some((l) => l._id === id));
+});
+
+const showLinkDatesConfirm = ref(false);
+
+const datesDiverge = () => {
+    const items = nonDeletedContent.value;
+    if (items.length < 2) return false;
+    return items.some(
+        (c) => c.publishDate !== items[0].publishDate || c.expiryDate !== items[0].expiryDate,
+    );
+};
+
+const linkDates = computed({
     get() {
-        return parent.value?.linkPublishDates ?? false;
+        return parent.value?.linkDates ?? false;
     },
     set(value: boolean) {
-        if (parent.value) {
-            parent.value.linkPublishDates = value;
+        if (!parent.value) return;
+        // Turning it on for an existing post whose translations already have divergent
+        // dates would silently overwrite them on the next translation save — confirm first.
+        if (value && !props.newDocument && datesDiverge()) {
+            showLinkDatesConfirm.value = true;
+            return;
         }
+        parent.value.linkDates = value;
     },
 });
 
-const linkExpiryDates = computed({
-    get() {
-        return parent.value?.linkExpiryDates ?? false;
-    },
-    set(value: boolean) {
-        if (parent.value) {
-            parent.value.linkExpiryDates = value;
-        }
-    },
-});
+// Harmonize every translation's dates to the one currently being edited (falling back to the
+// first translation), matching what the API cascade will do on the next translation save.
+const confirmLinkDates = () => {
+    showLinkDatesConfirm.value = false;
+    if (!parent.value) return;
+    parent.value.linkDates = true;
+
+    const source =
+        nonDeletedContent.value.find((c) => c.language === props.language?._id) ??
+        nonDeletedContent.value[0];
+    if (!source) return;
+    for (const c of nonDeletedContent.value) {
+        if (c === source) continue;
+        c.publishDate = source.publishDate;
+        c.expiryDate = source.expiryDate;
+    }
+};
 </script>
 
 <template>
@@ -246,16 +287,22 @@ const linkExpiryDates = computed({
 
             <!-- When linked, saving any translation's publish/expiry date propagates it to every other translation sharing this parent. -->
             <div class="flex items-center justify-between gap-2">
-                <span class="text-sm text-zinc-700">Link publish dates</span>
-                <LToggle v-model="linkPublishDates" :disabled="disabled" />
-            </div>
-
-            <div class="flex items-center justify-between gap-2">
-                <span class="text-sm text-zinc-700">Link expiry dates</span>
-                <LToggle v-model="linkExpiryDates" :disabled="disabled" />
+                <span class="text-sm text-zinc-700">Link publish &amp; expiry dates</span>
+                <LToggle v-model="linkDates" :disabled="disabled || !canManageLinkDates" />
             </div>
         </div>
 
         <slot name="supplementary" />
     </LCard>
+
+    <LDialog
+        v-model:open="showLinkDatesConfirm"
+        title="Overwrite other translations' dates?"
+        description="The translations of this post have different publish/expiry dates. Linking dates will overwrite all of them with the dates of the translation you're currently editing."
+        primaryButtonText="Overwrite"
+        secondaryButtonText="Cancel"
+        context="danger"
+        :primaryAction="confirmLinkDates"
+        :secondaryAction="() => (showLinkDatesConfirm = false)"
+    />
 </template>

@@ -158,12 +158,7 @@ export class ContentDto extends _contentBaseDto {
     @IsOptional() // Optional as it is set upon change request processing
     @IsBoolean()
     @Expose()
-    parentLinkPublishDates?: boolean;
-
-    @IsOptional() // Optional as it is set upon change request processing
-    @IsBoolean()
-    @Expose()
-    parentLinkExpiryDates?: boolean;
+    parentLinkDates?: boolean;
 
     @IsOptional() // Optional as it is set upon change request processing
     @IsArray()

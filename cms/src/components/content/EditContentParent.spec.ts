@@ -4,8 +4,17 @@ import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
 import { setActivePinia } from "pinia";
 import EditContentParent from "./EditContentParent.vue";
-import { DocType, type PostDto, PostType, type TagDto, TagType, accessMap } from "luminary-shared";
+import {
+    DocType,
+    type PostDto,
+    PostType,
+    type TagDto,
+    TagType,
+    accessMap,
+    type ContentDto,
+} from "luminary-shared";
 import * as mockData from "@/tests/mockdata";
+import { translatableLanguagesAsRef } from "@/globalConfig";
 import { ref } from "vue";
 
 describe("EditContentParent.vue", () => {
@@ -13,6 +22,10 @@ describe("EditContentParent.vue", () => {
         setActivePinia(createTestingPinia());
 
         accessMap.value = mockData.fullAccessToAllContentMap;
+        translatableLanguagesAsRef.value = [
+            mockData.mockLanguageDtoEng,
+            mockData.mockLanguageDtoFra,
+        ];
     });
 
     afterEach(async () => {});
@@ -111,10 +124,10 @@ describe("EditContentParent.vue", () => {
         expect(wrapper.text()).toContain("Always available offline");
     });
 
-    it("test the link publish dates toggle", async () => {
+    it("test the link dates toggle", async () => {
         const parent = ref<TagDto>({
             ...mockData.mockCategoryDto,
-            linkPublishDates: false,
+            linkDates: true,
         });
         const wrapper = mount(EditContentParent, {
             props: {
@@ -126,35 +139,68 @@ describe("EditContentParent.vue", () => {
             },
         });
 
-        // Publish date, Coming soon, Always offline, Pinned, Vertical Tile, then Link publish dates
+        // Publish date, Coming soon, Always offline, Pinned, Vertical Tile, then Link dates
         const toggles = wrapper.findAllComponents({ name: "LToggle" });
-        expect(toggles.length).toBeGreaterThanOrEqual(7);
+        expect(toggles.length).toBeGreaterThanOrEqual(6);
 
-        const linkPublishDatesToggle = toggles[5];
-        expect(linkPublishDatesToggle.exists()).toBe(true);
-        expect(linkPublishDatesToggle.props("modelValue")).toBe(false);
+        const linkDatesToggle = toggles[5];
+        expect(linkDatesToggle.exists()).toBe(true);
+        expect(linkDatesToggle.props("modelValue")).toBe(true);
     });
 
-    it("test the link expiry dates toggle", async () => {
-        const parent = ref<TagDto>({
-            ...mockData.mockCategoryDto,
-            linkExpiryDates: true,
-        });
+    it("disables the link dates toggle when the user lacks translate access to one of the post's translation languages", async () => {
+        translatableLanguagesAsRef.value = [mockData.mockLanguageDtoEng]; // no French access
+        const content: ContentDto[] = [
+            { ...mockData.mockEnglishContentDto, language: "lang-eng" },
+            { ...mockData.mockFrenchContentDto, language: "lang-fra" },
+        ];
         const wrapper = mount(EditContentParent, {
             props: {
                 docType: DocType.Tag,
                 tagOrPostType: TagType.Category,
-                parent: parent.value,
+                parent: { ...mockData.mockCategoryDto, linkDates: false },
                 disabled: false,
                 isParentDirty: false,
+                content,
             },
         });
 
-        // Link expiry dates is the 7th toggle (index 6)
         const toggles = wrapper.findAllComponents({ name: "LToggle" });
-        const linkExpiryDatesToggle = toggles[6];
-        expect(linkExpiryDatesToggle.exists()).toBe(true);
-        expect(linkExpiryDatesToggle.props("modelValue")).toBe(true);
+        expect(toggles[5].props("disabled")).toBe(true);
+    });
+
+    it("asks for confirmation before linking dates on an existing post with divergent dates", async () => {
+        const content: ContentDto[] = [
+            { ...mockData.mockEnglishContentDto, language: "lang-eng", publishDate: 100 },
+            { ...mockData.mockFrenchContentDto, language: "lang-fra", publishDate: 200 },
+        ];
+        const parent = ref<PostDto>({ ...mockData.mockPostDto, linkDates: false });
+        const wrapper = mount(EditContentParent, {
+            props: {
+                docType: DocType.Post,
+                tagOrPostType: PostType.Blog,
+                parent: parent.value,
+                language: mockData.mockLanguageDtoEng,
+                disabled: false,
+                isParentDirty: false,
+                newDocument: false,
+                content,
+            },
+        });
+
+        const toggles = wrapper.findAllComponents({ name: "LToggle" });
+        const linkDatesToggle = toggles[toggles.length - 1];
+        await linkDatesToggle.vm.$emit("update:modelValue", true);
+
+        // Not applied yet — waiting on confirmation
+        expect(parent.value.linkDates).toBe(false);
+        expect(wrapper.text()).toContain("Overwrite other translations' dates?");
+
+        await wrapper.find('[data-test="modal-primary-button"]').trigger("click");
+
+        expect(parent.value.linkDates).toBe(true);
+        // Harmonized to the currently-edited (English) translation's date
+        expect(content[1].publishDate).toBe(100);
     });
 
     it("test the show publishDate toggle", async () => {
