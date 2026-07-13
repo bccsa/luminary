@@ -20,25 +20,39 @@ const dateText = (content: ContentDto): string =>
 </script>
 
 <template>
-    <!-- Dynamic columns: the grid fits as many ~18rem cards as the width allows, so it is
-         one column on a phone and several on a wide screen with no fixed breakpoints. -->
-    <ul class="grid grid-cols-[repeat(auto-fit,minmax(18rem,1fr))] gap-x-6">
+    <!-- Mobile is a single-column list of image-left rows. From tablet up it becomes a grid of
+         image-on-top cards (the layout most content sites use for "related" — vertical cards
+         tile better than wide rows): two columns on tablet, three on desktop. -->
+    <ul class="grid grid-cols-1 sm:grid-cols-2 sm:gap-x-6 sm:gap-y-8 lg:grid-cols-3">
         <li
             v-for="item in items"
             :key="item.content._id"
-            class="border-b border-zinc-100 last:border-b-0 dark:border-slate-700"
+            class="border-b border-zinc-100 last:border-b-0 dark:border-slate-700 sm:border-0"
         >
             <RouterLink
                 :to="{ name: 'content', params: { slug: item.content.slug } }"
-                class="ease-out-expo group flex gap-3 py-3 transition hover:brightness-[1.15]"
+                class="ease-out-expo group flex gap-3 py-3 transition hover:brightness-[1.15] sm:flex-col sm:gap-2 sm:py-0"
             >
-                <div class="shrink-0">
+                <!-- Mobile: small thumbnail on the left. -->
+                <div class="shrink-0 sm:hidden">
                     <LImage
                         :image="item.content.parentImageData"
                         :content-parent-id="item.content.parentId"
                         :parent-image-bucket-id="item.content.parentImageBucketId"
                         aspectRatio="classic"
                         size="thumbnailCompact"
+                    />
+                </div>
+
+                <!-- Tablet and up: full-width image on top of the card. Only the visible image
+                     loads (both are lazy), so this doesn't fetch two files per card. -->
+                <div class="hidden sm:block">
+                    <LImage
+                        :image="item.content.parentImageData"
+                        :content-parent-id="item.content.parentId"
+                        :parent-image-bucket-id="item.content.parentImageBucketId"
+                        aspectRatio="classic"
+                        size="card"
                     />
                 </div>
 

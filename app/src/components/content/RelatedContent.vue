@@ -74,7 +74,7 @@ const items = computed(() =>
 <template>
     <section
         v-if="isNotTopic && items.length"
-        class="px-4 pb-2"
+        class="mx-auto w-full max-w-5xl px-4 pb-2"
     >
         <h2 class="pb-3 text-xl text-zinc-800 dark:text-zinc-200">
             {{ t("content.read_more") }}
