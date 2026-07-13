@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { RouterView } from "vue-router";
-import { computed, onErrorCaptured, onMounted, ref, watch } from "vue";
+import { computed, onErrorCaptured, onMounted, watch } from "vue";
 import { isConnected } from "luminary-shared";
 import {
     appName,
@@ -23,6 +23,7 @@ import { showProviderSelectionModal } from "@/auth";
 import AuthProviderSelectionModal from "@/components/authProvider/AuthProviderSelectionModal.vue";
 import { useI18n } from "vue-i18n";
 import defaultLogo from "@/assets/logo.svg?url";
+import { useHydrated } from "@/composables/useHydrated";
 
 const LOGO = import.meta.env.VITE_LOGO || defaultLogo;
 
@@ -120,17 +121,14 @@ const routeKey = computed(() => {
 // rendered only AFTER mount so the first client render matches the SSR output
 // (clean hydration). On native/SPA there is no prerender, so chrome renders
 // immediately as before — behaviour is unchanged there.
-const isWeb = import.meta.env.VITE_BUILD_TARGET === "web";
-const isMounted = ref(false);
+const showChrome = useHydrated();
 onMounted(() => {
-    isMounted.value = true;
     // Reveal content hidden by vite.config.web.ts's pre-paint auth gate (see
     // authGateScript there for why): by now Vue's first render has landed, using the
     // auth-scoped response cache, so it's never the wrong (public) content. No-op when
     // the gate never engaged (logged-out reload, or the native/SPA build).
     document.documentElement.classList.remove("ssg-auth-pending");
 });
-const showChrome = computed(() => !isWeb || isMounted.value);
 
 onErrorCaptured((err) => {
     console.error(err);

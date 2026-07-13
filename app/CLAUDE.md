@@ -16,8 +16,7 @@ Run everything from `app/`:
 - `npm run dev:web` — web/SSG dev server via `vite.config.web.ts`
 - `npm run build` — runs `type-check` and `build-only` in parallel
 - `npm run build:web` — full SSG prerender into `dist-web/`
-- `SSG_ONLY_ROUTES="/a,/b" npm run build:affected` — scoped SSG rebuild for listed routes
-- `npm run watch:ssg` — polling ISR watcher; deploy repo starts this before `build:web`
+- `SSG_ONLY_ROUTES="/a,/b" npm run build:web` — scoped SSG rebuild for listed routes
 - `npm run preview:web` — preview `dist-web/` on port 4174
 - `npm run type-check` — `vue-tsc --build --force`
 - `npm run test` / `npm run test:unit` — Vitest (jsdom). Pass a path or `-t "name"` to run a subset, e.g. `npm run test -- src/pages/HomePage.spec.ts -t "renders"`.
@@ -61,7 +60,7 @@ Page-level components are in `src/pages/` and feature components in `src/compone
 
 ### Web SSG/ISR
 
-`src/ssg/README.md` is the detailed reference. The short version: `vite.config.web.ts` enumerates public routes, prerenders them with `vite-ssg`, emits SEO artifacts and SSG sidecars, and supports scoped rebuilds via `SSG_ONLY_ROUTES`. `src/ssg/watch.ts` polls anonymous `/query` for changed public content/redirect/delete docs, computes affected routes from `ssg-deps.json`, and runs `build:affected`. Cloud upload and edge-cache purge live in the separate deploy repo.
+`src/ssg/README.md` is the detailed reference. The short version: `vite.config.web.ts` enumerates public routes, prerenders them with `vite-ssg`, emits SEO artifacts and SSG sidecars, and supports scoped rebuilds via `SSG_ONLY_ROUTES`. The separate deploy repo owns polling for changes, selecting affected routes, invoking the scoped build, Cloud upload, and edge-cache purge.
 
 ### Render state (for prerender/SSG tooling)
 

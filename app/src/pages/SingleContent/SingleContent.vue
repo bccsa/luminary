@@ -17,7 +17,6 @@ import {
 } from "luminary-shared";
 import { useContentQuery } from "@/composables/useContentQuery";
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
-import { useHead } from "@unhead/vue";
 import { BookmarkIcon as BookmarkIconSolid, TagIcon, SunIcon } from "@heroicons/vue/24/solid";
 import {
     BookmarkIcon as BookmarkIconOutline,
@@ -33,7 +32,6 @@ import {
     appLanguagePreferredIdAsRef,
     isDarkTheme,
     theme,
-    appLanguageAsRef,
     cmsLanguages,
     queryParams,
     addToMediaQueue,
@@ -59,7 +57,6 @@ import { SpeakerWaveIcon } from "@heroicons/vue/24/solid";
 import { markLanguageSwitch } from "@/util/isLangSwitch";
 import LoadingBar from "@/components/LoadingBar.vue";
 import { activeImageCollection } from "@/components/images/LImageProvider.vue";
-import { isExternalNavigation } from "@/router";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
 import ContinueReadingPrompt from "@/components/content/ContinueReadingPrompt.vue";
 import LHighlightable from "@/components/common/LHighlightable.vue";
@@ -73,7 +70,8 @@ import {
     resolveArticleScrollContainer,
     useReadingProgressTracker,
 } from "@/composables/useReadingProgressTracker";
-import { articleJsonLd, languageCodeForContent } from "./articleHead";
+import { useContentHead } from "@/seo/contentHead";
+import { useTranslationSwitcher } from "@/composables/useTranslationSwitcher";
 
 const router = useRouter();
 
@@ -85,11 +83,8 @@ const props = defineProps<Props>();
 const { t } = useI18n();
 const showCategoryModal = ref(false);
 const enableZoom = ref(false);
-const selectedLanguageId = ref(appLanguagePreferredIdAsRef.value);
 
 const currentImageIndex = ref(0);
-
-const WEB_ORIGIN = import.meta.env.VITE_WEB_ORIGIN || "";
 
 // Content by slug — the SAME local-first hybrid query on every build (web and
 // native). On the web build the prerender primes this query's response cache
@@ -344,62 +339,7 @@ const hreflangAlternates = computed(() =>
 // SEO head — driven by the resolved content so it is correct in the raw prerendered
 // HTML and stays current on the client. (Runs on every build; @unhead/vue serializes
 // it during the prerender.)
-if (import.meta.env.VITE_BUILD_TARGET === "web")
-    useHead(
-        computed(() => {
-            const c = content.value;
-            const hasDoc = !!c?.slug;
-            const title = hasDoc ? `${c!.seoTitle || c!.title} - ${appName}` : appName;
-            const description = (hasDoc && (c!.seoString || c!.summary)) || "";
-            const url = hasDoc ? `${WEB_ORIGIN}/${c!.slug}` : WEB_ORIGIN || "/";
-            const lang = languageCodeForContent(c?.language, cmsLanguages.value);
-
-            const alts = hreflangAlternates.value;
-            const altLinks = alts.map((a) => ({
-                rel: "alternate",
-                hreflang: a.code,
-                href: `${WEB_ORIGIN}/${a.slug}`,
-            }));
-            const xDefault = alts.find((a) => a.code === "en") ?? alts[0];
-
-            return {
-                title,
-                htmlAttrs: { lang },
-                link: [
-                    { rel: "canonical", href: url },
-                    ...altLinks,
-                    ...(xDefault
-                        ? [
-                              {
-                                  rel: "alternate",
-                                  hreflang: "x-default",
-                                  href: `${WEB_ORIGIN}/${xDefault.slug}`,
-                              },
-                          ]
-                        : []),
-                ],
-                meta: [
-                    { name: "description", content: description },
-                    { property: "og:type", content: "article" },
-                    { property: "og:title", content: c?.seoTitle || c?.title || appName },
-                    { property: "og:description", content: description },
-                    { property: "og:url", content: url },
-                    { name: "twitter:card", content: "summary_large_image" },
-                    { name: "twitter:title", content: c?.seoTitle || c?.title || appName },
-                    { name: "twitter:description", content: description },
-                    { name: "robots", content: "index,follow" },
-                ],
-                script: hasDoc
-                    ? [
-                          {
-                              type: "application/ld+json",
-                              textContent: JSON.stringify(articleJsonLd(c!, description, lang)),
-                          },
-                      ]
-                    : [],
-            };
-        }),
-    );
+useContentHead(content, hreflangAlternates);
 
 // Tags drive the category chips + RelatedContent — query-driven on every build now.
 // In the prerender the seam fetches them (chained AFTER `content` via ssrChain, so the
@@ -511,79 +451,6 @@ const selectedCategory = computed(() => {
     return tags.value.find((t) => t.parentId == selectedCategoryId.value);
 });
 
-// Force language from query param
-const langToForce = queryParams.get("langId");
-
-watch(
-    [availableTranslations, languages],
-    () => {
-        if (!langToForce || !availableTranslations.value.length || !languages.value.length) return;
-        const lang = languages.value.find((l) => l.languageCode === langToForce);
-        if (!lang) return;
-        const translation = availableTranslations.value.find((c) => c.language === lang._id);
-        if (!translation) return;
-        selectedLanguageId.value = lang._id;
-        contentOverride.value = translation;
-    },
-    { immediate: true },
-);
-
-const hasAutoNavigated = ref(false);
-const previousPreferredId = ref(appLanguagePreferredIdAsRef.value);
-
-/**
- * Watches for changes in the `content` reactive property.
- * When `content` is updated, it sets the `selectedLanguageId`
- * to the `language` property of the new `content` value, if available.
- */
-watch(
-    () => [content.value, appLanguagePreferredIdAsRef.value],
-    ([newContent, preferredId]) => {
-        if (!newContent) return;
-        const currentContent = newContent as ContentDto;
-
-        // Check if user actively changed their preferred language (via LanguageModal)
-        const preferredLanguageChanged = previousPreferredId.value !== preferredId;
-        previousPreferredId.value = preferredId as string;
-
-        // If user changed preferred language and a translation exists, switch to it smoothly
-        if (preferredLanguageChanged && hasAutoNavigated.value) {
-            // On page load: if preferred language exists and has translation → switch to it
-            const preferredTranslation = availableTranslations.value.find(
-                (t) => t.language === preferredId,
-            );
-            if (preferredTranslation && preferredTranslation.slug !== currentContent.slug) {
-                contentOverride.value = preferredTranslation;
-                const newUrl = router.resolve({
-                    name: "content",
-                    params: { slug: preferredTranslation.slug },
-                }).href;
-                window.history.replaceState(window.history.state, "", newUrl);
-                selectedLanguageId.value = preferredTranslation.language;
-                return;
-            }
-        }
-
-        // Only auto-navigate once on initial load, not when user changes preferences via LanguageModal
-        if (!hasAutoNavigated.value) {
-            hasAutoNavigated.value = true;
-            const preferredTranslation = availableTranslations.value.find(
-                (t) => t.language === preferredId,
-            );
-            // Navigate to preferred version
-            if (preferredTranslation && preferredTranslation.slug !== currentContent.slug) {
-                router.replace({ name: "content", params: { slug: preferredTranslation.slug } });
-                return;
-            }
-        }
-
-        // Otherwise, sync dropdown to current content's language
-        selectedLanguageId.value = currentContent.language;
-    },
-    { immediate: true },
-);
-
-const openedFromExternalLink = ref(false);
 const articleProseRef = ref<HTMLElement | null>(null);
 const scrollContainer = ref<HTMLElement | Window>(window);
 
@@ -630,7 +497,6 @@ function onContinueReading() {
 }
 
 onMounted(() => {
-    openedFromExternalLink.value = isExternalNavigation();
     setScrollContainer();
 });
 
@@ -640,91 +506,18 @@ watch([isLoading, text], () => {
     }
 });
 
-// Track whether the user explicitly switched language via the quick selector
-const userSwitchedLanguage = ref(false);
-
-// Quick language switch (dropdown)
-watch(selectedLanguageId, (newId) => {
-    if (!newId || !content.value) return;
-
-    const target = availableTranslations.value.find((c) => c.language === newId);
-    if (!target || target.slug === content.value.slug) return;
-
-    userSwitchedLanguage.value = true;
-    contentOverride.value = target;
-    const newUrl = router.resolve({ name: "content", params: { slug: target.slug } }).href;
-    window.history.replaceState(window.history.state, "", newUrl);
+const { selectedLanguageId, selectedLanguageCode } = useTranslationSwitcher({
+    content,
+    contentOverride,
+    translations: availableTranslations,
+    languages,
+    preferredLanguageId: appLanguagePreferredIdAsRef,
+    forcedLanguageCode: queryParams.get("langId"),
+    router,
+    translate: t,
 });
-
-// Show banner: only external navigation + preferred lang exists + different slug
-// Do not show banner if the user explicitly switched language via the quick selector
-watch(
-    () => [
-        content.value,
-        appLanguagePreferredIdAsRef.value,
-        openedFromExternalLink.value,
-        availableTranslations.value,
-    ],
-    ([cur, prefId, external, translations]) => {
-        if (!cur || !prefId || !external) return;
-        if (userSwitchedLanguage.value) return;
-        const currentContent = cur as ContentDto;
-        if (currentContent.language === prefId) return;
-
-        const preferred = (translations as ContentDto[]).find(
-            (t) => t.language === prefId && t.slug !== currentContent.slug,
-        );
-
-        if (!preferred) return;
-
-        setTimeout(() => {
-            useNotificationStore().addNotification({
-                id: "content-available",
-                title: () => t("notification.translation_available.title"),
-                description: () =>
-                    t("notification.translation_available.description", {
-                        language: appLanguageAsRef.value?.name,
-                    }),
-                state: "info",
-                type: "banner",
-                closable: true,
-                link: { name: "content", params: { slug: preferred.slug } },
-                openLink: true,
-            });
-        }, 800);
-    },
-    { immediate: true },
-);
-
-// Remove banner when user is on preferred language
-watch(
-    () => content.value?.language,
-    (lang) => {
-        if (lang === appLanguagePreferredIdAsRef.value) {
-            useNotificationStore().removeNotification("content-available");
-        }
-    },
-    { immediate: true },
-);
 
 const showDropdown = ref(false);
-
-const selectedLanguageCode = computed(() => {
-    if (!selectedLanguageId.value || !languages.value.length) return null;
-    const selectedLang = languages.value.find((lang) => lang._id === selectedLanguageId.value);
-    return selectedLang?.languageCode || null;
-});
-
-watch(
-    content,
-    (newContent) => {
-        if (!newContent) return;
-        if (selectedLanguageId.value !== newContent.language) {
-            selectedLanguageId.value = newContent.language;
-        }
-    },
-    { immediate: true },
-);
 
 const quickLanguageSwitch = (languageId: string) => {
     markLanguageSwitch();

@@ -21,7 +21,7 @@ Add a separate web/SSG tier beside the native build:
 - Public pages are prerendered from anonymous `/query` access only; private/group-scoped content remains runtime-only.
 - Hydration reuses `luminary-shared`'s existing response cache (`hqcache:*`) instead of an app-specific snapshot store.
 - The shared route table lives in `src/router/routes.ts`; web adds locale-prefixed public static routes with `src/router/localizedRoutes.ts`.
-- Each prerendered route records dependency keys in `ssg-deps.json`. The polling watcher reads changed content/redirect/delete docs, computes affected routes, and runs scoped `build:affected` rebuilds.
+- Each prerendered route records dependency keys in `ssg-deps.json`. The deployment repo's polling watcher reads changed content/redirect/delete docs, computes affected routes, and runs scoped `SSG_ONLY_ROUTES=… npm run build:web` rebuilds.
 - Uploading `dist-web/`, deleting remote objects, and purging Cloudflare/R2 edge paths remain the deploy repo's responsibility.
 
 ## Consequences

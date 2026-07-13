@@ -30,6 +30,7 @@ import { appLanguageAsRef } from "@/globalConfig";
 import { showPrivacyPolicyModal, useAuthWithPrivacyPolicy } from "@/composables/useAuthWithPrivacyPolicy";
 import { isConnected } from "luminary-shared";
 import { useNotificationStore, type Notification } from "@/stores/notification";
+import { useHydrated } from "@/composables/useHydrated";
 
 const { t } = useI18n();
 const { openSearch, isSearchOpen } = useSearchOverlay();
@@ -54,10 +55,7 @@ const showLogoutDialog = ref(false);
 // setup, which cannot execute during the Node prerender. They're never needed in
 // the static HTML, so only mount them on the client (after mount). On native this
 // flips true immediately.
-const isMounted = ref(false);
-onMounted(() => {
-    isMounted.value = true;
-});
+const isMounted = useHydrated();
 
 const navIconClass = "h-5 w-5 flex-shrink-0";
 const navLabelClass = "truncate text-sm font-medium";

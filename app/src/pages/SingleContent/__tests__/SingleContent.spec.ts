@@ -42,7 +42,7 @@ import * as auth from "@/auth";
 import LImage from "@/components/images/LImage.vue";
 import ImageModal from "@/components/images/ImageModal.vue";
 import { resolveNotificationText, useNotificationStore } from "@/stores/notification";
-import { articleJsonLd, languageCodeForContent } from "../articleHead";
+import { articleJsonLd, languageCodeForContent } from "@/seo/contentHead";
 
 const routeReplaceMock = vi.hoisted(() => vi.fn());
 const mockIsExternalNavigation = vi.hoisted(() => vi.fn());

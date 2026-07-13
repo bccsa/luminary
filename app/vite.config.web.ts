@@ -98,20 +98,22 @@ function authGateScript(): string {
         `if(k&&(k.indexOf(${oidcUserPrefix})===0||k.indexOf(${legacyAuth0Prefix})===0)){h=true;break}` +
         `}` +
         `if(!h)h=!!localStorage.getItem(${activeProviderKey});` +
-        `if(h)document.documentElement.classList.add("${AUTH_GATE_CLASS}")` +
+        `if(h){document.documentElement.classList.add("${AUTH_GATE_CLASS}");` +
+        `setTimeout(function(){document.documentElement.classList.remove("${AUTH_GATE_CLASS}")},3000)}` +
         `}catch(e){}})();</script>`
     );
 }
 
 const OUT_DIR = "dist-web";
 const WEB_ORIGIN = (env.VITE_WEB_ORIGIN || "").replace(/\/$/, "");
+const APP_NAME = env.VITE_APP_NAME || "Luminary";
 type SsgLanguage = { _id?: string; languageCode?: string; default?: number };
 type SsgRedirect = { _id?: string; slug?: string; toSlug?: string; deleteReq?: number };
-type SsgContent = Partial<DocLike> & { slug?: string };
+type SsgContent = Partial<DocLike> & { slug?: string; updatedTimeUtc?: number };
 
 // Scoped (incremental) rebuild mode: regenerate only the routes named in
 // SSG_ONLY_ROUTES (comma-separated), preserving every other prerendered file.
-// Driven by `npm run build:affected` (Phase 2 §3.5).
+// Driven by `SSG_ONLY_ROUTES=... npm run build:web` (Phase 2 §3.5).
 const SCOPED_ROUTES: string[] = (process.env.SSG_ONLY_ROUTES || "")
     .split(",")
     .map((r) => r.trim())
@@ -124,9 +126,9 @@ const routeIndexPath = () => join(process.cwd(), OUT_DIR, "ssg-route-index.json"
 const redirectIndexPath = () => join(process.cwd(), OUT_DIR, "ssg-redirect-index.json");
 const docFacetsPath = () => join(process.cwd(), OUT_DIR, "ssg-doc-facets.json");
 
-// Build-in-progress lock, consumed by the ISR watcher (`src/ssg/watch.ts`): it must
+// Build-in-progress lock, consumed by the deployment repo's ISR watcher: it must
 // not spawn a scoped rebuild while a build (the initial full `build:web`, or its own
-// `build:affected`) is writing `dist-web`. Written at build start, removed on finish.
+// scoped build) is writing `dist-web`. Written at build start, removed on finish.
 const lockPath = () => join(process.cwd(), OUT_DIR, ".ssg-building");
 const ssgBuildLock = (): Plugin => ({
     name: "ssg-build-lock",
@@ -167,10 +169,16 @@ function writeManifest() {
 let prerenderedRoutes: string[] = [];
 let routeIndex: SsgRouteIndex = { content: {}, parent: {} };
 let docFacets: Record<string, DocLike> = {};
+let routeLastmod: Record<string, string> = {};
 
 function writeSeoArtifacts() {
     const urls = prerenderedRoutes
-        .map((r) => `  <url><loc>${WEB_ORIGIN}${r}</loc></url>`)
+        .map(
+            (r) =>
+                `  <url><loc>${WEB_ORIGIN}${r}</loc>` +
+                (routeLastmod[r] ? `<lastmod>${routeLastmod[r]}</lastmod>` : "") +
+                `</url>`,
+        )
         .join("\n");
     const sitemap =
         `<?xml version="1.0" encoding="UTF-8"?>\n` +
@@ -178,11 +186,31 @@ function writeSeoArtifacts() {
     writeFileSync(join(process.cwd(), OUT_DIR, "sitemap.xml"), sitemap);
 
     const robots =
-        `User-agent: *\nAllow: /\n` +
+        `User-agent: *\nAllow: /\n\n` +
+        `User-agent: GPTBot\nAllow: /\n\n` +
+        `User-agent: ClaudeBot\nAllow: /\n\n` +
+        `User-agent: PerplexityBot\nAllow: /\n\n` +
+        `User-agent: Google-Extended\nAllow: /\n` +
         (WEB_ORIGIN ? `\nSitemap: ${WEB_ORIGIN}/sitemap.xml\n` : "\n");
     writeFileSync(join(process.cwd(), OUT_DIR, "robots.txt"), robots);
 
-    console.log(`[ssg] wrote sitemap.xml (${prerenderedRoutes.length} urls) + robots.txt`);
+    // Keep a compact, crawlable entry point for LLM-based clients alongside the
+    // standard crawler artifacts. Individual documents remain discoverable via
+    // the sitemap, which is kept current by the ISR rebuild pipeline.
+    const llms =
+        `# ${APP_NAME}\n\n` +
+        `> Public content from ${APP_NAME}.\n\n` +
+        `## Key pages\n\n` +
+        `- [Home](${WEB_ORIGIN}/): Latest public content.\n` +
+        `- [Explore](${WEB_ORIGIN}/explore): Browse public topics and content.\n` +
+        `- [Watch](${WEB_ORIGIN}/watch): Browse public video content.\n\n` +
+        `## Discovery\n\n` +
+        `- [Sitemap](${WEB_ORIGIN}/sitemap.xml): Canonical URLs for all public content.\n`;
+    writeFileSync(join(process.cwd(), OUT_DIR, "llms.txt"), llms);
+
+    console.log(
+        `[ssg] wrote sitemap.xml (${prerenderedRoutes.length} urls) + robots.txt + llms.txt`,
+    );
 }
 
 function writeRouteIndex() {
@@ -290,11 +318,15 @@ async function fetchPublicSlugs(apiUrl: string): Promise<string[]> {
     const slugs = new Set<string>();
     routeIndex = buildRouteIndex(docs);
     docFacets = {};
+    routeLastmod = {};
     for (const d of docs) {
         const snapshot = docFacetSnapshot(d);
         if (snapshot) docFacets[snapshot._id] = snapshot;
         if (!d.slug) continue;
         slugs.add(d.slug);
+        if (typeof d.updatedTimeUtc === "number") {
+            routeLastmod[`/${d.slug}`] = new Date(d.updatedTimeUtc).toISOString();
+        }
         if (d.language) routeLang[`/${d.slug}`] = d.language;
     }
     (globalThis as Record<string, unknown>).__SSG_ROUTE_LANG__ = routeLang;
