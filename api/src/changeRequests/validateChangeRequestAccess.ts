@@ -21,7 +21,6 @@ export async function validateChangeRequestAccess(
     changeRequest: ChangeReqDto,
     groupMembership: Array<Uuid>,
     dbService: DbService,
-    userId?: Uuid,
 ): Promise<ValidationResult> {
     // To save changes to a document / create a new document, a user needs to have the required permission
     // (e.g. edit, translate, assign) to all of the groups of which the document is a member of.
