@@ -3,6 +3,8 @@ import {
     defaultAffinity,
     applyEvent,
     EventWeight,
+    db,
+    TagType,
     type AffinityProfile,
     type Uuid,
 } from "luminary-shared";
@@ -52,8 +54,7 @@ watch(defaultAffinity, (serverDefault) => {
 
 /**
  * Record that the user engaged with a piece of content: fold its tag ids into the
- * affinity profile (with time decay) and persist it locally. Safe to call on every
- * content open — cheap and synchronous.
+ * affinity profile (with time decay) and persist it locally.
  *
  * `weight` defaults to {@link EventWeight.Open} (a plain view — the weakest, most
  * ambiguous signal). Pass a stronger weight for a more confident signal: an explicit
@@ -66,8 +67,25 @@ watch(defaultAffinity, (serverDefault) => {
  * running so the profile is already warm (not empty) the moment the flag is flipped on,
  * rather than showing a cold "no recommendations yet" feed on rollout day.
  */
-export function recordAffinity(tagIds: Uuid[] | undefined, weight: number = EventWeight.Open) {
+export async function recordAffinity(tagIds: Uuid[] | undefined, weight: number = EventWeight.Open) {
     if (!tagIds || tagIds.length === 0) return;
-    affinityProfile.value = applyEvent(affinityProfile.value, tagIds, Date.now(), weight);
+    const topicTags = await filterToTopicTags(tagIds);
+    if (!topicTags.length) return;
+    affinityProfile.value = applyEvent(affinityProfile.value, topicTags, Date.now(), weight);
     persist();
+}
+
+/**
+ * Restrict tag ids to `TagType.Topic`. `Category`/`AudioPlaylist` tags sit on most of
+ * the corpus (e.g. a "Devotional" category), so feeding them into affinity would let
+ * the site's most common tags — not the user's actual interests — dominate the profile.
+ */
+async function filterToTopicTags(tagIds: Uuid[]): Promise<Uuid[]> {
+    try {
+        const isTopic = await Promise.all(tagIds.map((id) => db.isTagType(id, TagType.Topic)));
+        return tagIds.filter((_, i) => isTopic[i]);
+    } catch {
+        // db not initialized (e.g. unit tests) — don't block tracking on it.
+        return tagIds;
+    }
 }
