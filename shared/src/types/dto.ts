@@ -60,10 +60,9 @@ export type ContentBaseDto = BaseDocumentDto & {
 
 /**
  * CMS-editable global baseline affinity profile (singleton, fixed `_id` —
- * see `DEFAULT_AFFINITY_ID`). Unlike {@link UserAffinityDto} this IS a normal
- * group-scoped/permissioned doc (edited by CMS admins via the standard
- * change-request path); it is cloned server-side into a first-time user's own
- * UserAffinity scaffold at login (cold start), never delivered to clients directly.
+ * see `DEFAULT_AFFINITY_ID`). This is a normal group-scoped/permissioned doc
+ * edited by CMS admins via the standard change-request path. Its affinity map is
+ * delivered at login only to seed a previously unused client-local profile.
  */
 export type DefaultAffinityDto = ContentBaseDto & {
     type: DocType.DefaultAffinity;
