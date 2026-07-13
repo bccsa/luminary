@@ -41,9 +41,9 @@ const rounding = {
     thumbnailFeatured: "rounded-xl",
     thumbnailCompact: "rounded-lg",
     post: "md:rounded-lg",
+    card: "rounded-lg",
     icon: "rounded-none",
 };
-
 </script>
 
 <template>

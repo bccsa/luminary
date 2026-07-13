@@ -31,6 +31,8 @@ export const sizes = {
     thumbnailFeatured: "w-[165px] max-w-[165px] min-w-[165px] md:w-56 md:max-w-56 md:min-w-56",
     thumbnailCompact: "w-32 max-w-32 min-w-32 md:w-44 md:max-w-44 md:min-w-44",
     post: "w-full max-w-full",
+    // Fills the width of a card in a multi-column grid (e.g. the related-content grid).
+    card: "w-full max-w-full",
     smallSquare: "w-12 max-w-12 min-w-12 md:w-12 md:max-w-12 md:min-w-12",
     icon: "",
 };
@@ -47,6 +49,9 @@ export const sizesMap: Record<ImageSize, string> = {
     thumbnailFeatured: "(min-width: 768px) 224px, 165px",
     thumbnailCompact: "(min-width: 768px) 176px, 128px",
     post: "(min-width: 1024px) 800px, 100vw",
+    // Card in the related grid: ~one third of the 1024px-capped section on desktop, ~half the
+    // viewport on tablet. (Mobile uses the left-thumbnail slot instead, so 100vw never applies.)
+    card: "(min-width: 1024px) 340px, (min-width: 640px) 45vw, 100vw",
     smallSquare: "48px",
     icon: "",
 };
@@ -62,6 +67,7 @@ export const sizesReducedMap: Record<ImageSize, string> = {
     thumbnailFeatured: "165px",
     thumbnailCompact: "128px",
     post: "50vw",
+    card: "45vw",
     smallSquare: "48px",
     icon: "",
 };
