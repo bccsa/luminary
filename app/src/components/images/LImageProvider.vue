@@ -49,9 +49,9 @@ export const sizesMap: Record<ImageSize, string> = {
     thumbnailFeatured: "(min-width: 768px) 224px, 165px",
     thumbnailCompact: "(min-width: 768px) 176px, 128px",
     post: "(min-width: 1024px) 800px, 100vw",
-    // Card in the related grid: ~one third of the 1024px-capped section on desktop, ~half the
-    // viewport on tablet. (Mobile uses the left-thumbnail slot instead, so 100vw never applies.)
-    card: "(min-width: 1024px) 340px, (min-width: 640px) 45vw, 100vw",
+    // Card in the related grid, which is 4 columns on desktop, 3 on tablet, 2 on small tablets.
+    // (Mobile uses the left-thumbnail slot instead, so the last fallback never applies.)
+    card: "(min-width: 1024px) 260px, (min-width: 768px) 33vw, 50vw",
     smallSquare: "48px",
     icon: "",
 };
