@@ -27,8 +27,9 @@ const extraTagCount = (tags: string[]): number => Math.max(0, tags.length - MAX_
 <template>
     <!-- Mobile is a single-column list of image-left rows. From tablet up it becomes a grid of
          image-on-top cards (the layout most content sites use for "related" — vertical cards
-         tile better than wide rows): two columns on tablet, three on desktop. -->
-    <ul class="grid grid-cols-1 sm:grid-cols-2 sm:gap-x-6 sm:gap-y-8 lg:grid-cols-3">
+         tile better than wide rows). More columns as the screen grows keeps each tile compact,
+         matching the Explore page: 2 → 3 → 4. -->
+    <ul class="grid grid-cols-1 sm:grid-cols-2 sm:gap-x-6 sm:gap-y-8 md:grid-cols-3 lg:grid-cols-4">
         <li
             v-for="item in items"
             :key="item.content._id"
