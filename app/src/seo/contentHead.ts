@@ -4,10 +4,11 @@ import { useI18n } from "vue-i18n";
 import { type ContentDto, type LanguageDto } from "luminary-shared";
 import { appLanguageAsRef, appName, cmsLanguages } from "@/globalConfig";
 import { useBucketInfo } from "@/composables/useBucketInfo";
-
-const WEB_ORIGIN = (import.meta.env.VITE_WEB_ORIGIN || "").replace(/\/$/, "");
+import { canonicalUrl, publicSite, publicUrl, publisherJsonLd, websiteJsonLd } from "@/seo/publicSite";
 
 type Alternate = { code: string; slug: string };
+
+export type PublicTaxonomy = { name: string; url: string };
 
 type SocialImage = {
     url: string;
@@ -20,10 +21,6 @@ const staticPageCopy = {
     "/explore": { title: "explore.title", description: "explore.description" },
     "/watch": { title: "watch.title", description: "watch.description" },
 } as const;
-
-function href(path: string): string {
-    return `${WEB_ORIGIN}${path}`;
-}
 
 function staticPath(basePath: string, code: string, defaultCode: string): string {
     if (code === defaultCode) return basePath;
@@ -51,16 +48,90 @@ export function languageCodeForContent(
     );
 }
 
-export function articleJsonLd(c: ContentDto, description: string, inLanguage: string) {
+function fallbackWordCount(text: string | undefined): number | undefined {
+    if (!text) return undefined;
+    let plainText = text;
+    // Rich-text JSON contains structural keys such as `type` and `content`; count
+    // only text leaves, rather than accidentally treating those keys as article words.
+    try {
+        const collectText = (value: unknown): string[] => {
+            if (!value || typeof value !== "object") return [];
+            if (Array.isArray(value)) return value.flatMap(collectText);
+            const node = value as { text?: unknown; content?: unknown };
+            return [typeof node.text === "string" ? node.text : "", ...collectText(node.content)];
+        };
+        const parsed = JSON.parse(text);
+        plainText = collectText(parsed).join(" ");
+    } catch {
+        plainText = text.replace(/<[^>]*>/g, " ");
+    }
+    const words = plainText.match(/[\p{L}\p{N}][\p{L}\p{N}'’-]*/gu);
+    return words?.length || undefined;
+}
+
+export function articleJsonLd(
+    c: ContentDto,
+    description: string,
+    inLanguage: string,
+    options: {
+        canonicalUrl?: string;
+        image?: SocialImage;
+        taxonomy?: PublicTaxonomy[];
+    } = {},
+) {
+    const sections = [...new Set((options.taxonomy ?? []).map((tag) => tag.name).filter(Boolean))];
+    const wordCount = typeof c.wordCount === "number" ? c.wordCount : fallbackWordCount(c.text);
+    const publisher = publisherJsonLd();
     return {
         "@context": "https://schema.org",
         "@type": "Article",
         headline: c.title,
         description,
         author: c.author ? { "@type": "Person", name: c.author } : undefined,
+        ...(publisher ? { publisher } : {}),
+        ...(options.image
+            ? {
+                  image: {
+                      "@type": "ImageObject",
+                      url: options.image.url,
+                      width: options.image.width,
+                      height: options.image.height,
+                  },
+              }
+            : {}),
+        ...(options.canonicalUrl
+            ? { mainEntityOfPage: { "@type": "WebPage", "@id": options.canonicalUrl } }
+            : {}),
+        ...(wordCount !== undefined ? { wordCount } : {}),
+        ...(sections.length ? { articleSection: sections } : {}),
         datePublished: c.publishDate ? new Date(c.publishDate).toISOString() : undefined,
         dateModified: c.updatedTimeUtc ? new Date(c.updatedTimeUtc).toISOString() : undefined,
         inLanguage,
+    };
+}
+
+export function breadcrumbJsonLd(articleTitle: string, articleUrl: string, taxonomy: PublicTaxonomy[]) {
+    const homeUrl = publicUrl("/");
+    if (!homeUrl) return undefined;
+
+    const items = [
+        { name: "Home", item: homeUrl },
+        ...taxonomy.flatMap((tag) => {
+            const item = publicUrl(tag.url);
+            return item ? [{ name: tag.name, item }] : [];
+        }),
+        { name: articleTitle, item: articleUrl },
+    ];
+
+    return {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        itemListElement: items.map((item, index) => ({
+            "@type": "ListItem",
+            position: index + 1,
+            name: item.name,
+            item: item.item,
+        })),
     };
 }
 
@@ -68,7 +139,7 @@ export function articleJsonLd(c: ContentDto, description: string, inLanguage: st
  * Social crawlers do not support responsive image source sets. Pick the largest
  * original file so the single OG/Twitter URL is suitable for every preview.
  */
-function socialImageUrl(
+export function primaryArticleImage(
     content: ContentDto | undefined,
     bucketBaseUrl: string | undefined,
 ): SocialImage | undefined {
@@ -102,9 +173,10 @@ export function useLocalizedStaticHead(basePath: "/" | "/explore" | "/watch"): v
             const defaultLang = langs.find((lang) => lang.default === 1) ?? langs[0];
             const defaultCode = defaultLang?.languageCode ?? "";
             const currentCode = appLanguageAsRef.value?.languageCode || defaultCode || "en";
-            const canonical = href(
+            const canonical = canonicalUrl(
                 defaultCode ? staticPath(basePath, currentCode, defaultCode) : basePath,
             );
+            const website = websiteJsonLd();
 
             return {
                 title: `${t(copy.title)} - ${appName}`,
@@ -126,12 +198,16 @@ export function useLocalizedStaticHead(basePath: "/" | "/explore" | "/watch"): v
                     ...langs.map((lang) => ({
                         rel: "alternate",
                         hreflang: lang.languageCode,
-                        href: href(staticPath(basePath, lang.languageCode, defaultCode)),
+                        href: canonicalUrl(staticPath(basePath, lang.languageCode, defaultCode)),
                     })),
                     ...(defaultCode
-                        ? [{ rel: "alternate", hreflang: "x-default", href: href(basePath) }]
+                        ? [{ rel: "alternate", hreflang: "x-default", href: canonicalUrl(basePath) }]
                         : []),
                 ],
+                script:
+                    basePath === "/" && currentCode === defaultCode && website
+                        ? [{ type: "application/ld+json", textContent: JSON.stringify(website) }]
+                        : [],
             };
         }),
     );
@@ -141,6 +217,7 @@ export function useLocalizedStaticHead(basePath: "/" | "/explore" | "/watch"): v
 export function useContentHead(
     content: Ref<ContentDto | undefined>,
     hreflangAlternates: Ref<Alternate[]>,
+    taxonomy: Ref<PublicTaxonomy[]>,
 ): void {
     if (import.meta.env.VITE_BUILD_TARGET !== "web") return;
 
@@ -153,11 +230,22 @@ export function useContentHead(
             const hasDoc = !!c?.slug;
             const title = hasDoc ? `${c!.seoTitle || c!.title} - ${appName}` : appName;
             const description = (hasDoc && (c!.seoString || c!.summary)) || "";
-            const url = hasDoc ? href(`/${c!.slug}`) : WEB_ORIGIN || "/";
+            const url = hasDoc ? canonicalUrl(`/${c!.slug}`) : publicSite.origin || "/";
             const lang = languageCodeForContent(c?.language, cmsLanguages.value);
             const alts = hreflangAlternates.value;
             const xDefault = alts.find((a) => a.code === "en") ?? alts[0];
-            const image = socialImageUrl(c, bucketBaseUrl.value);
+            const image = primaryArticleImage(c, bucketBaseUrl.value);
+            const jsonLdUrl = hasDoc ? publicUrl(`/${c!.slug}`) : undefined;
+            const article = hasDoc
+                ? articleJsonLd(c!, description, lang, {
+                      canonicalUrl: jsonLdUrl,
+                      image,
+                      taxonomy: taxonomy.value,
+                  })
+                : undefined;
+            const breadcrumbs = jsonLdUrl
+                ? breadcrumbJsonLd(c!.title, jsonLdUrl, taxonomy.value)
+                : undefined;
 
             return {
                 title,
@@ -167,14 +255,14 @@ export function useContentHead(
                     ...alts.map((a) => ({
                         rel: "alternate",
                         hreflang: a.code,
-                        href: href(`/${a.slug}`),
+                        href: canonicalUrl(`/${a.slug}`),
                     })),
                     ...(xDefault
                         ? [
                               {
                                   rel: "alternate",
                                   hreflang: "x-default",
-                                  href: href(`/${xDefault.slug}`),
+                                  href: canonicalUrl(`/${xDefault.slug}`),
                               },
                           ]
                         : []),
@@ -207,12 +295,11 @@ export function useContentHead(
                     { name: "robots", content: hasDoc ? "index,follow" : "noindex,follow" },
                 ],
                 script: hasDoc
-                    ? [
-                          {
+                    ? [...(article ? [article] : []), ...(breadcrumbs ? [breadcrumbs] : [])]
+                          .map((jsonLd) => ({
                               type: "application/ld+json",
-                              textContent: JSON.stringify(articleJsonLd(c!, description, lang)),
-                          },
-                      ]
+                              textContent: JSON.stringify(jsonLd),
+                          }))
                     : [],
             };
         }),

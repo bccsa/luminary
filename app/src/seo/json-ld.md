@@ -18,7 +18,7 @@ the page, so the page and structured data cannot disagree.
 | `image` | Required for Google Article rich-result eligibility and useful for visual citation/preview systems. | The largest image selected from `content.parentImageData.fileCollections`, using the same bucket URL logic as the existing `og:image` tags. Emit an absolute image URL, or an `ImageObject` with `url`, `width`, and `height`. |
 | `mainEntityOfPage` | Explicitly binds the article entity to its canonical web page and prevents ambiguity when the content is syndicated or translated. | The absolute canonical article URL already calculated for the head: `{ "@type": "WebPage", "@id": canonicalUrl }`. |
 | `wordCount` | Helps systems assess article depth and answer relevance. | The content document's existing word-count field. Confirm the exact DTO property and emit it as a number only when present. |
-| `articleSection` | Supplies topical context beyond the headline, improving retrieval and answer grounding. | The content's category tags (`categoryTags`), resolved to their user-facing names. Emit a single section string or an array when the content belongs to multiple categories. |
+| `articleSection` | Supplies topical context beyond the headline, improving retrieval and answer grounding. | The content's `parentTags`, resolved at prerender time to published category content documents and their user-facing names. Emit an array when the content belongs to multiple categories. |
 
 Do not emit empty strings, placeholder URLs, unpublished tags, or image values
 when their underlying public data is unavailable. JSON-LD should describe the
@@ -47,20 +47,21 @@ inventing routes.
 
 Emit a `WebSite` object on the home page with the canonical site URL and name.
 Add a `potentialAction` `SearchAction` that points to the public search URL and
-uses the query parameter accepted by the app, for example:
+uses the anonymous query parameter accepted by the app:
 
 ```json
 {
   "@type": "SearchAction",
-  "target": "https://example.org/explore?query={search_term_string}",
+  "target": "https://example.org/explore?q={search_term_string}",
   "query-input": "required name=search_term_string"
 }
 ```
 
-Use the actual `/explore` FTS query parameter and canonical production origin;
-do not add this until submitting that URL performs a public search without
-authentication. The app already has FTS, so no separate search service is
-required.
+`/explore?q=<term>` is the supported public search URL. The value is a normal
+URL query value and must be encoded with `encodeURIComponent` (or
+`URLSearchParams`); the app trims it, opens the existing anonymous FTS overlay,
+and executes the search. It does not describe authenticated, personalized, or
+server-side search behavior.
 
 ## Implementation checks
 
