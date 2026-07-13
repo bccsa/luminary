@@ -287,7 +287,7 @@ export class Socketio implements OnGatewayInit {
             maxUploadFileSize: this.config.socketIo.maxHttpBufferSize,
             maxMediaUploadFileSize: this.config.socketIo.maxMediaUploadFileSize || 0,
             accessMap: socket.data.userDetails.accessMap,
-            affinity: socket.data.userDetails.affinity,
+            defaultAffinity: socket.data.userDetails.defaultAffinity,
         } as ClientConfig;
         socket.emit("clientConfig", clientConfig);
 
