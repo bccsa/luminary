@@ -8,6 +8,7 @@ import vue from "@vitejs/plugin-vue";
 import { buildTargetVirtuals } from "./vite-plugins/buildTargetVirtuals";
 import type { DocLike } from "./src/ssg/facetKeys";
 import { redirectFile, redirectHtml } from "./src/ssg/redirectHtml";
+import { buildRedirectIndex } from "./src/ssg/redirectIndex";
 import { buildRouteIndex, type SsgRouteIndex } from "./src/ssg/routeIndex";
 
 const env = loadEnv("", process.cwd());
@@ -69,10 +70,39 @@ function hqCacheScript(cache: Record<string, string>): string {
     return `<script>(function(c){try{for(var k in c)localStorage.setItem(k,c[k])}catch(e){}})(${json})</script>`;
 }
 
+// Pre-paint auth gate. The prerendered HTML is always the public/anonymous view, and
+// the browser paints it the instant it's parsed — well before main.web.ts's JS module
+// loads, boots the data layer, and calls mount() (which on the web/SSG entry is itself
+// gated behind `initWebClient()` + `setupAuth()` resolving, so the pre-mount window can
+// be long, especially on Safari). Without this, a returning logged-in user watches the
+// public content sit on screen for that whole window, then sees it swap once Vue mounts
+// and hydrates into the auth-scoped content — the "flash". This hides `#app` via CSS,
+// synchronously, ONLY when a persisted Auth0 session looks present (mirrors
+// `hasPersistedSession()` in src/auth.ts — duplicated here since this must run before
+// any JS module loads, so it can't import that module; keep the two in sync), and is
+// revealed by App.vue's onMounted once Vue's first (correctly auth-scoped) render has
+// landed — so a logged-out reload is completely unaffected (no class ever added), and a
+// logged-in reload never paints the wrong content, only a brief neutral hidden window.
+const AUTH_GATE_CLASS = "ssg-auth-pending";
+function authGateScript(): string {
+    return (
+        `<style>html.${AUTH_GATE_CLASS} #app{visibility:hidden}</style>` +
+        `<script>(function(){try{` +
+        `var h=false;` +
+        `for(var i=0;i<localStorage.length;i++){` +
+        `var k=localStorage.key(i);` +
+        `if(k&&k.indexOf("@@auth0spajs@@::")===0){h=true;break}` +
+        `}` +
+        `if(!h)h=!!localStorage.getItem("activeAuthProvider");` +
+        `if(h)document.documentElement.classList.add("${AUTH_GATE_CLASS}")` +
+        `}catch(e){}})();</script>`
+    );
+}
+
 const OUT_DIR = "dist-web";
 const WEB_ORIGIN = (env.VITE_WEB_ORIGIN || "").replace(/\/$/, "");
 type SsgLanguage = { _id?: string; languageCode?: string; default?: number };
-type SsgRedirect = { slug?: string; toSlug?: string; deleteReq?: number };
+type SsgRedirect = { _id?: string; slug?: string; toSlug?: string; deleteReq?: number };
 type SsgContent = Partial<DocLike> & { slug?: string };
 
 // Scoped (incremental) rebuild mode: regenerate only the routes named in
@@ -87,6 +117,7 @@ const IS_SCOPED = SCOPED_ROUTES.length > 0;
 const indexHtmlPath = () => join(process.cwd(), OUT_DIR, "index.html");
 const manifestPath = () => join(process.cwd(), OUT_DIR, "ssg-deps.json");
 const routeIndexPath = () => join(process.cwd(), OUT_DIR, "ssg-route-index.json");
+const redirectIndexPath = () => join(process.cwd(), OUT_DIR, "ssg-redirect-index.json");
 const docFacetsPath = () => join(process.cwd(), OUT_DIR, "ssg-doc-facets.json");
 
 // Build-in-progress lock, consumed by the ISR watcher (`src/ssg/watch.ts`): it must
@@ -290,6 +321,7 @@ async function fetchRedirects(apiUrl: string): Promise<SsgRedirect[]> {
 
 async function writeRedirectFiles(apiUrl: string): Promise<void> {
     const redirects = await fetchRedirects(apiUrl);
+    writeFileSync(redirectIndexPath(), JSON.stringify(buildRedirectIndex(redirects)));
     let written = 0;
     for (const redirect of redirects) {
         if (!redirect.slug || !redirect.toSlug || redirect.deleteReq) continue;
@@ -410,10 +442,10 @@ const config: UserConfig & { ssgOptions: ViteSSGOptions } = {
             const c = capture();
             c.manifest[route] = [...c.current].sort();
 
-            // Inject the first-paint cache seed (no-op when the page primed nothing).
+            // Auth gate is unconditional (every page); the cache seed is only injected
+            // when the page actually primed one.
             const cache = readHqCache();
-            if (!Object.keys(cache).length) return renderedHTML;
-            const script = hqCacheScript(cache);
+            const script = authGateScript() + (Object.keys(cache).length ? hqCacheScript(cache) : "");
             return renderedHTML.includes("</head>")
                 ? renderedHTML.replace("</head>", `${script}</head>`)
                 : script + renderedHTML;

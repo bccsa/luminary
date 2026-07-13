@@ -1,7 +1,7 @@
 /**
  * Scoped-rebuild isolation check (Phase 2 §3.5): prove a `build:affected` changed
- * ONLY the intended files (the regenerated routes' HTML + the merged manifest) and
- * left every other prerendered file byte-identical.
+ * ONLY the intended files (the regenerated routes' HTML + SSG sidecars) and left
+ * every other prerendered file byte-identical.
  *
  * Usage (the deploy watcher / local verification wraps a scoped rebuild like this):
  *   node src/ssg/verifyIsolation.ts snapshot > /tmp/before.json     # BEFORE build:affected
@@ -34,7 +34,12 @@ function hashDir(dir: string): Record<string, string> {
 
 /** Files a scoped rebuild of `routes` is allowed to change. */
 function allowedFiles(routes: string[]): Set<string> {
-    const allowed = new Set<string>(["ssg-deps.json"]);
+    const allowed = new Set<string>([
+        "ssg-deps.json",
+        "ssg-route-index.json",
+        "ssg-redirect-index.json",
+        "ssg-doc-facets.json",
+    ]);
     for (const r of routes) {
         const file = r === "/" ? "index.html" : `${r.replace(/^\//, "")}.html`;
         allowed.add(file);

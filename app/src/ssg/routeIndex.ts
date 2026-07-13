@@ -11,7 +11,7 @@ type PublicContentRouteDoc = {
 
 export const emptyRouteIndex = (): SsgRouteIndex => ({ content: {}, parent: {} });
 
-const routeForSlug = (slug: string): string => `/${slug.replace(/^\/+/, "")}`;
+export const routeForSlug = (slug: string): string => `/${slug.replace(/^\/+/, "")}`;
 
 export function buildRouteIndex(docs: PublicContentRouteDoc[]): SsgRouteIndex {
     const index = emptyRouteIndex();

@@ -10,6 +10,26 @@ import { buildTargetVirtuals } from "./vite-plugins/buildTargetVirtuals";
 
 const env = loadEnv("", process.cwd());
 
+const blockGeneratedOutput = (): Plugin => ({
+    name: "block-generated-output-in-dev",
+    configureServer(server) {
+        server.middlewares.use((req, res, next) => {
+            const path = req.url?.split("?", 1)[0] ?? "";
+            if (
+                path === "/dist" ||
+                path.startsWith("/dist/") ||
+                path === "/dist-web" ||
+                path.startsWith("/dist-web/")
+            ) {
+                res.statusCode = 404;
+                res.end("Generated output is not served by npm run dev. Use npm run dev:web.");
+                return;
+            }
+            next();
+        });
+    },
+});
+
 // The deployed version manifest and the code that reads it must be created from
 // exactly the same ISO timestamp.
 const buildId = new Date().toISOString();
@@ -30,6 +50,7 @@ function versionManifest(): Plugin {
 // https://vitejs.dev/config/
 export default defineConfig({
     plugins: [
+        blockGeneratedOutput(),
         buildTargetVirtuals(),
         visualizer({ open: false }), // Open visualiser when reviewing build bundle size
         vue(),
@@ -87,6 +108,9 @@ export default defineConfig({
         strictPort: true,
         // Allow Vite to serve the sibling shared/ source (outside this package root).
         fs: { allow: [".."] },
+        watch: {
+            ignored: ["dist/**", "dist-web/**", "**/dist/**", "**/dist-web/**"],
+        },
     },
     build: {
         target: "es2015",

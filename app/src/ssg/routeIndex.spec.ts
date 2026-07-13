@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildRouteIndex, resolveContentDelete } from "./routeIndex";
+import { buildRouteIndex, resolveContentDelete, routeForSlug } from "./routeIndex";
 
 describe("routeIndex", () => {
     const index = buildRouteIndex([
@@ -24,5 +24,10 @@ describe("routeIndex", () => {
 
     it("ignores unknown delete ids", () => {
         expect(resolveContentDelete("missing", index)).toEqual({ routes: [] });
+    });
+
+    it("normalizes slugs to routes", () => {
+        expect(routeForSlug("/hello")).toBe("/hello");
+        expect(routeForSlug("hello")).toBe("/hello");
     });
 });

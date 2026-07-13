@@ -203,6 +203,5 @@ Edited: `app/src/components/BasePage.vue`,
   the build enumerates them, and the static pages emit hreflang alternates.
 - **Feature 4 (static redirects):** complete. Full builds write meta-refresh files and the
   watcher writes/removes them on redirect changes.
-- **Content deletes:** complete in app repo. Full/scoped builds write `ssg-route-index.json`;
-  the watcher prunes deleted route files + manifest/index entries and regenerates surviving
-  co-listed pages.
+- **Local ISR cleanup:** complete in app repo. The watcher prunes stale content/redirect
+  files and manifest/index entries before rewriting redirects or rebuilding affected pages.

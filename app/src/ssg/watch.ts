@@ -33,17 +33,25 @@ import {
     type ContentDto,
     type DeleteCmdDto,
     type RedirectDto,
+    type MangoQuery,
 } from "luminary-shared";
 import { computeAffected, type DepsManifest } from "./computeAffected";
 import { docKey, keysForChangedDoc, keysForRecategorization, type DocLike } from "./facetKeys";
+import type { SsgRedirectIndex } from "./redirectIndex";
 import { redirectFile, redirectHtml } from "./redirectHtml";
-import { emptyRouteIndex, resolveContentDelete, type SsgRouteIndex } from "./routeIndex";
+import {
+    emptyRouteIndex,
+    resolveContentDelete,
+    routeForSlug,
+    type SsgRouteIndex,
+} from "./routeIndex";
 
 const apiUrl = loadEnv("", process.cwd()).VITE_API_URL;
 
 const OUT_DIR = join(process.cwd(), "dist-web");
 const MANIFEST = join(OUT_DIR, "ssg-deps.json");
 const ROUTE_INDEX = join(OUT_DIR, "ssg-route-index.json");
+const REDIRECT_INDEX = join(OUT_DIR, "ssg-redirect-index.json");
 const DOC_FACETS = join(OUT_DIR, "ssg-doc-facets.json");
 const LOCK = join(OUT_DIR, ".ssg-building"); // written by the build, cleared on finish
 const POLL_MS = Number(process.env.WATCH_POLL_MS) || 10000;
@@ -55,11 +63,26 @@ let lastSeen = Number(process.env.WATCH_SINCE) || Date.now();
 // --- pending-change buffer (coalesced across the debounce window) ---
 const pendingKeys = new Set<string>();
 const pendingSlugs = new Set<string>();
+const pendingRouteDeletes = new Set<string>();
 const pendingRedirects = new Map<string, string | undefined>();
 const pendingDeletes = new Set<string>();
 let building = false; // a build:affected WE spawned is in flight
 let flushTimer: ReturnType<typeof setTimeout> | undefined;
 let docFacets: Record<string, DocLike> = {};
+let redirectIndex: SsgRedirectIndex = {};
+
+function changedSinceQuery(
+    type: DocType,
+    extra: Record<string, string | number | boolean>[] = [],
+): MangoQuery {
+    return {
+        selector: {
+            $and: [{ type }, ...extra, { updatedTimeUtc: { $gt: lastSeen } }],
+        },
+        $sort: [{ updatedTimeUtc: "desc" }],
+        $limit: 10,
+    };
+}
 
 function loadManifest(): DepsManifest {
     try {
@@ -83,6 +106,23 @@ function loadRouteIndex(): SsgRouteIndex {
 
 function saveRouteIndex(index: SsgRouteIndex): void {
     writeFileSync(ROUTE_INDEX, JSON.stringify(index));
+}
+
+function loadRedirectIndex(): SsgRedirectIndex {
+    try {
+        return JSON.parse(readFileSync(REDIRECT_INDEX, "utf-8")) as SsgRedirectIndex;
+    } catch {
+        return {};
+    }
+}
+
+function saveRedirectIndex(index: SsgRedirectIndex): void {
+    try {
+        mkdirSync(OUT_DIR, { recursive: true });
+        writeFileSync(REDIRECT_INDEX, JSON.stringify(index));
+    } catch (e) {
+        console.warn("[watch] could not save ssg-redirect-index.json:", (e as Error)?.message ?? e);
+    }
 }
 
 function loadDocFacets(): Record<string, DocLike> {
@@ -118,16 +158,31 @@ function ingest(doc: ContentDto): void {
     const keys = prev ? keysForRecategorization(prev, snapshot) : keysForChangedDoc(snapshot);
     for (const k of keys) pendingKeys.add(k);
     docFacets[doc._id] = snapshot;
-    if (doc.slug) pendingSlugs.add(`/${doc.slug}`);
+    const nextRoute = doc.slug ? routeForSlug(doc.slug) : undefined;
+    const prevRoute = loadRouteIndex().content[doc._id]?.route;
+    if (prevRoute && nextRoute && prevRoute !== nextRoute) pendingRouteDeletes.add(prevRoute);
+    if (prevRoute && !nextRoute) pendingRouteDeletes.add(prevRoute);
+    if (nextRoute) pendingSlugs.add(nextRoute);
 }
 
 function ingestDelete(doc: DeleteCmdDto): void {
+    if (doc.docType === DocType.Redirect) {
+        const slug = redirectIndex[doc.docId];
+        if (slug) pendingRedirects.set(slug, undefined);
+        delete redirectIndex[doc.docId];
+        return;
+    }
     if (doc.docId) pendingDeletes.add(doc.docId);
 }
 
 function ingestRedirect(doc: RedirectDto): void {
     if (!doc.slug) return;
+    const prevSlug = doc._id ? redirectIndex[doc._id] : undefined;
+    if (prevSlug && prevSlug !== doc.slug) pendingRedirects.set(prevSlug, undefined);
     pendingRedirects.set(doc.slug, doc.deleteReq || !doc.toSlug ? undefined : doc.toSlug);
+    if (!doc._id) return;
+    if (doc.deleteReq || !doc.toSlug) delete redirectIndex[doc._id];
+    else redirectIndex[doc._id] = doc.slug;
 }
 
 function writeRedirects(redirects: Map<string, string | undefined>, manifest: DepsManifest): void {
@@ -196,6 +251,20 @@ function applyContentDeletes(docIds: Set<string>, manifest: DepsManifest): Set<s
     return removedRoutes;
 }
 
+function applyRouteDeletes(routes: Set<string>, manifest: DepsManifest): Set<string> {
+    if (!routes.size) return new Set();
+    const index = loadRouteIndex();
+    for (const route of routes) {
+        delete manifest[route];
+        rmSync(contentFile(route), { force: true });
+    }
+    pruneRouteIndex(index, routes);
+    saveManifest(manifest);
+    saveRouteIndex(index);
+    console.log(`[watch] route cleanup: removed ${routes.size} stale route file(s)`);
+    return routes;
+}
+
 function schedule(): void {
     if (flushTimer) clearTimeout(flushTimer);
     flushTimer = setTimeout(flush, DEBOUNCE_MS);
@@ -211,17 +280,30 @@ function flush(): void {
         console.log("[watch] no dist-web/ssg-deps.json — run build:web first; buffering change");
         return schedule(); // no manifest yet → buffer
     }
-    if (!pendingKeys.size && !pendingSlugs.size && !pendingRedirects.size && !pendingDeletes.size)
+    if (
+        !pendingKeys.size &&
+        !pendingSlugs.size &&
+        !pendingRouteDeletes.size &&
+        !pendingRedirects.size &&
+        !pendingDeletes.size
+    )
         return;
 
     const manifest = loadManifest();
+
+    const routeDeletes = new Set(pendingRouteDeletes);
+    pendingRouteDeletes.clear();
+    const deletes = new Set(pendingDeletes);
+    pendingDeletes.clear();
+    const removedRoutes = new Set([
+        ...applyRouteDeletes(routeDeletes, manifest),
+        ...applyContentDeletes(deletes, manifest),
+    ]);
+
     const redirects = new Map(pendingRedirects);
     pendingRedirects.clear();
     writeRedirects(redirects, manifest);
-
-    const deletes = new Set(pendingDeletes);
-    pendingDeletes.clear();
-    const removedRoutes = applyContentDeletes(deletes, manifest);
+    if (redirects.size) saveRedirectIndex(redirectIndex);
 
     const routes = new Set([...computeAffected(pendingKeys, manifest), ...pendingSlugs]);
     for (const route of removedRoutes) routes.delete(route);
@@ -244,7 +326,13 @@ function flush(): void {
     child.on("exit", (code) => {
         building = false;
         console.log(`[watch] build:affected exited (${code})`);
-        if (pendingKeys.size || pendingSlugs.size || pendingRedirects.size || pendingDeletes.size)
+        if (
+            pendingKeys.size ||
+            pendingSlugs.size ||
+            pendingRouteDeletes.size ||
+            pendingRedirects.size ||
+            pendingDeletes.size
+        )
             schedule(); // changes arrived mid-build
     });
 }
@@ -254,21 +342,28 @@ type WatchDoc = ContentDto | RedirectDto | DeleteCmdDto;
 async function poll(): Promise<void> {
     try {
         // Same anonymous POST /query the prerender uses — newest-changed public docs.
-        const docs = await queryRemote<WatchDoc>({
-            selector: {
-                $and: [
-                    { type: { $in: [DocType.Content, DocType.Redirect, DocType.DeleteCmd] } },
-                    { updatedTimeUtc: { $gt: lastSeen } },
-                ],
-            },
-            $sort: [{ updatedTimeUtc: "desc" }],
-            $limit: 500,
-        });
+        // The API requires `type` and DeleteCmd `docType` to be simple equality values,
+        // so keep these as separate queries rather than one `$in` query.
+        const [contentDocs, redirects, ...deleteBatches] = await Promise.all([
+            queryRemote<ContentDto>(changedSinceQuery(DocType.Content)),
+            queryRemote<RedirectDto>(changedSinceQuery(DocType.Redirect)),
+            queryRemote<DeleteCmdDto>(
+                changedSinceQuery(DocType.DeleteCmd, [{ docType: DocType.Content }]),
+            ),
+            queryRemote<DeleteCmdDto>(
+                changedSinceQuery(DocType.DeleteCmd, [{ docType: DocType.Post }]),
+            ),
+            queryRemote<DeleteCmdDto>(
+                changedSinceQuery(DocType.DeleteCmd, [{ docType: DocType.Tag }]),
+            ),
+            queryRemote<DeleteCmdDto>(
+                changedSinceQuery(DocType.DeleteCmd, [{ docType: DocType.Redirect }]),
+            ),
+        ]);
+        const deletes = deleteBatches.flat();
+        const docs: WatchDoc[] = [...contentDocs, ...redirects, ...deletes];
         if (!docs.length) return;
         lastSeen = Math.max(lastSeen, ...docs.map((d) => d.updatedTimeUtc));
-        const contentDocs = docs.filter((d): d is ContentDto => d.type === DocType.Content);
-        const redirects = docs.filter((d): d is RedirectDto => d.type === DocType.Redirect);
-        const deletes = docs.filter((d): d is DeleteCmdDto => d.type === DocType.DeleteCmd);
         console.log(
             `[watch] ${contentDocs.length} content doc(s), ${redirects.length} redirect doc(s), ${deletes.length} delete cmd(s) changed since last poll`,
         );
@@ -286,6 +381,7 @@ async function main(): Promise<void> {
     if (!apiUrl) throw new Error("[watch] VITE_API_URL not set");
     initHybridQuery(new HttpReq(apiUrl));
     docFacets = loadDocFacets();
+    redirectIndex = loadRedirectIndex();
     console.log(
         `[watch] polling ${apiUrl} every ${POLL_MS}ms for content/redirect/delete changes ` +
             `(since ${new Date(lastSeen).toISOString()})…`,
