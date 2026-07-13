@@ -137,6 +137,83 @@ describe("validateChangeRequestAccess", () => {
         });
     });
 
+    describe("linkDates", () => {
+        it("can reject setting 'linkDates' on a post without translate access to all its translations", async () => {
+            // Restrict translate access to the French translation of post-blog2
+            const french = await db.getDoc("lang-fra");
+            await db.upsertDoc({ ...french.docs[0], memberOf: ["group-super-admins"] });
+
+            const testChangeReq_linkDates = plainToClass(ChangeReqDto, {
+                doc: {
+                    _id: "post-blog2",
+                    type: "post",
+                    memberOf: ["group-private-content"],
+                    tags: ["tag-category1", "tag-topicA"],
+                    publishDateVisible: true,
+                    postType: "blog",
+                    linkDates: true,
+                },
+            });
+
+            const res = await validateChangeRequestAccess(
+                testChangeReq_linkDates,
+                ["group-private-editors"],
+                db,
+            );
+
+            // Restore document for further tests
+            await db.upsertDoc(french.docs[0]);
+
+            expect(res.error).toBe(
+                "No 'Translate' access to all translations required to change 'linkDates'",
+            );
+        });
+
+        it("can reject moving the publish/expiry date of a translation belonging to a post with 'linkDates' enabled, without translate access to all its translations", async () => {
+            // Enable linkDates on post-blog2 and restrict translate access to its French translation
+            const post = await db.getDoc("post-blog2");
+            await db.upsertDoc({ ...post.docs[0], linkDates: true });
+            const french = await db.getDoc("lang-fra");
+            await db.upsertDoc({ ...french.docs[0], memberOf: ["group-super-admins"] });
+
+            const testChangeReq_date = plainToClass(ChangeReqDto, {
+                doc: {
+                    _id: "content-blog2-eng",
+                    type: "content",
+                    memberOf: ["group-private-content"],
+                    parentId: "post-blog2",
+                    language: "lang-eng",
+                    status: "published",
+                    slug: "blog2-eng",
+                    title: "Blog 2",
+                    summary: "This is an example blog",
+                    author: "ChatGPT",
+                    text: "",
+                    seo: "",
+                    localisedImage: "",
+                    audio: "",
+                    video: "",
+                    publishDate: 999,
+                    expiryDate: 0,
+                },
+            });
+
+            const res = await validateChangeRequestAccess(
+                testChangeReq_date,
+                ["group-private-editors"],
+                db,
+            );
+
+            // Restore documents for further tests
+            await db.upsertDoc(french.docs[0]);
+            await db.upsertDoc(post.docs[0]);
+
+            expect(res.error).toBe(
+                "No 'Translate' access to all translations required to change linked publish/expiry dates",
+            );
+        });
+    });
+
     describe("Group documents", () => {
         it("higher level group with edit access can pass validation", async () => {
             const res = await validateChangeRequestAccess(
