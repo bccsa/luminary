@@ -35,13 +35,13 @@ const subtitle = (content: ContentDto): string => {
                 :to="{ name: 'content', params: { slug: item.content.slug } }"
                 class="ease-out-expo group flex gap-3 py-3 transition hover:brightness-[1.15]"
             >
-                <div class="w-24 shrink-0 sm:w-28">
+                <div class="shrink-0">
                     <LImage
                         :image="item.content.parentImageData"
                         :content-parent-id="item.content.parentId"
                         :parent-image-bucket-id="item.content.parentImageBucketId"
                         aspectRatio="classic"
-                        size="thumbnail"
+                        size="small"
                     />
                 </div>
 
