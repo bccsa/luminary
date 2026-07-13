@@ -41,7 +41,7 @@ const subtitle = (content: ContentDto): string => {
                         :content-parent-id="item.content.parentId"
                         :parent-image-bucket-id="item.content.parentImageBucketId"
                         aspectRatio="classic"
-                        size="small"
+                        size="thumbnailCompact"
                     />
                 </div>
 
