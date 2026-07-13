@@ -42,12 +42,7 @@ export class _contentParentDto extends _contentBaseDto {
     @IsOptional()
     @IsBoolean()
     @Expose()
-    linkPublishDates?: boolean;
-
-    @IsOptional()
-    @IsBoolean()
-    @Expose()
-    linkExpiryDates?: boolean;
+    linkDates?: boolean;
 
     @IsOptional()
     @IsString()

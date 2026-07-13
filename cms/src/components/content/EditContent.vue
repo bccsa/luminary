@@ -462,6 +462,7 @@ const actionsWrapperProps = computed(() => ({
                             :isParentDirty="isParentDirty"
                             :disabled="!canEditParent"
                             :newDocument="newDocument"
+                            :content="editableContent"
                             v-model:parent="editableParent"
                         >
                             <template #supplementary>

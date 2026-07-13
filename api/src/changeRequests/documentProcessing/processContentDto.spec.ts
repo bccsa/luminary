@@ -311,8 +311,7 @@ describe("processContentDto", () => {
             tags: [],
             publishDateVisible: true,
             postType: "blog",
-            linkPublishDates: true,
-            linkExpiryDates: true,
+            linkDates: true,
         } as PostDto);
 
         // French sibling, created first with its own (soon-to-be-overwritten) dates
@@ -335,6 +334,45 @@ describe("processContentDto", () => {
 
         expect(dbDocFr.docs[0].publishDate).toBe(1800000000000);
         expect(dbDocFr.docs[0].expiryDate).toBe(1900000000000);
+    });
+
+    it("does not propagate dates to a sibling whose language the acting user cannot translate", async () => {
+        await db.upsertDoc({
+            _id: "post-link-dates-permission-test",
+            type: "post",
+            memberOf: ["group-public-content"],
+            tags: [],
+            publishDateVisible: true,
+            postType: "blog",
+            linkDates: true,
+        } as PostDto);
+
+        const changeRequestFr = changeRequest_content();
+        changeRequestFr.doc.parentId = "post-link-dates-permission-test";
+        changeRequestFr.doc._id = "content-fr-link-dates-permission-test";
+        changeRequestFr.doc.language = "lang-fra";
+        await processChangeRequest("test-user", changeRequestFr, ["group-super-admins"], db);
+
+        // Scope lang-fra to a group that group-public-editors has no Translate access to,
+        // simulating a user who can edit the post but not translate one of its languages.
+        const french = await db.getDoc("lang-fra");
+        await db.upsertDoc({ ...french.docs[0], memberOf: ["group-super-admins"] });
+
+        const changeRequestEn = changeRequest_content();
+        changeRequestEn.doc.parentId = "post-link-dates-permission-test";
+        changeRequestEn.doc._id = "content-en-link-dates-permission-test";
+        changeRequestEn.doc.language = "lang-eng";
+        changeRequestEn.doc.publishDate = 1800000000000;
+        changeRequestEn.doc.expiryDate = 1900000000000;
+        await processChangeRequest("test-user", changeRequestEn, ["group-public-editors"], db);
+
+        const dbDocFr = await db.getDoc("content-fr-link-dates-permission-test");
+
+        // Restore for other tests
+        await db.upsertDoc(french.docs[0]);
+
+        expect(dbDocFr.docs[0].publishDate).toBe(1704114000000);
+        expect(dbDocFr.docs[0].expiryDate).toBe(1704114000000);
     });
 
     it("does not propagate dates to sibling translations when date-linking is disabled", async () => {
@@ -375,8 +413,7 @@ describe("processContentDto", () => {
             tags: [],
             publishDateVisible: true,
             postType: "blog",
-            linkPublishDates: true,
-            linkExpiryDates: true,
+            linkDates: true,
         } as PostDto);
 
         const changeRequestFr = changeRequest_content();

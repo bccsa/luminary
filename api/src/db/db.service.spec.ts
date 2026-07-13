@@ -1109,7 +1109,7 @@ describe("DbService", () => {
                     statusChangeDeleteCmdId: "forged-id-the-client-set",
                 };
 
-                await processContentDto(forgedDoc, service);
+                await processContentDto(forgedDoc, service, ["group-super-admins"]);
 
                 expect(forgedDoc.statusChangeDeleteCmdId).toBeUndefined();
             });

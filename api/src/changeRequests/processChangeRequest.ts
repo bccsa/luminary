@@ -79,6 +79,7 @@ export async function processChangeRequest(
             processContentDto(
                 doc as ContentDto,
                 db,
+                groupMembership,
                 slugReversionRedirect?._id,
                 prevDoc as ContentDto | undefined,
             ),
