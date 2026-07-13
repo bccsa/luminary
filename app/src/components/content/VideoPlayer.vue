@@ -5,7 +5,7 @@ import "videojs-mobile-ui";
 import type Player from "video.js/dist/types/player";
 import { type ContentDto } from "luminary-shared";
 import px from "./px.png";
-import * as iso from "iso-639-2";
+import { matchTrackLanguage } from "./audioTrackLanguage";
 import LImage from "../images/LImage.vue";
 import {
     appLanguagesPreferredAsRef,
@@ -97,10 +97,7 @@ function setAudioTrackLanguage(languageCode: string | null) {
     for (let i = 0; i < audioTracks.length; i++) {
         const track = audioTracks[i];
 
-        if (
-            iso.iso6392TTo1[track.language] === languageCode ||
-            iso.iso6392BTo1[track.language] === languageCode
-        ) {
+        if (matchTrackLanguage(track.language, languageCode)) {
             track.enabled = true;
             trackFound = true;
         } else {
@@ -579,8 +576,17 @@ watch(
         </div>
 
         <!-- audio tag to keep player alive -->
-        <audio ref="keepAudioAlive" loop muted preload="auto" style="display: none">
-            <source src="../../assets/silence.wav" type="audio/wav" />
+        <audio
+            ref="keepAudioAlive"
+            loop
+            muted
+            preload="auto"
+            style="display: none"
+        >
+            <source
+                src="../../assets/silence.wav"
+                type="audio/wav"
+            />
         </audio>
 
         <transition
