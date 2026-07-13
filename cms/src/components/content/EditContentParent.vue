@@ -114,6 +114,28 @@ const useVerticalTileLayout = computed({
         }
     },
 });
+
+const linkPublishDates = computed({
+    get() {
+        return parent.value?.linkPublishDates ?? false;
+    },
+    set(value: boolean) {
+        if (parent.value) {
+            parent.value.linkPublishDates = value;
+        }
+    },
+});
+
+const linkExpiryDates = computed({
+    get() {
+        return parent.value?.linkExpiryDates ?? false;
+    },
+    set(value: boolean) {
+        if (parent.value) {
+            parent.value.linkExpiryDates = value;
+        }
+    },
+});
 </script>
 
 <template>
@@ -220,6 +242,17 @@ const useVerticalTileLayout = computed({
             >
                 <span class="text-sm text-zinc-700">Vertical Tile</span>
                 <LToggle v-model="useVerticalTileLayout" :disabled="disabled" />
+            </div>
+
+            <!-- When linked, saving any translation's publish/expiry date propagates it to every other translation sharing this parent. -->
+            <div class="flex items-center justify-between gap-2">
+                <span class="text-sm text-zinc-700">Link publish dates</span>
+                <LToggle v-model="linkPublishDates" :disabled="disabled" />
+            </div>
+
+            <div class="flex items-center justify-between gap-2">
+                <span class="text-sm text-zinc-700">Link expiry dates</span>
+                <LToggle v-model="linkExpiryDates" :disabled="disabled" />
             </div>
         </div>
 
