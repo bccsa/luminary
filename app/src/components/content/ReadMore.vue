@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import { onMounted, onUnmounted, nextTick, ref, watch } from "vue";
 import { RouterLink } from "vue-router";
 import { DateTime } from "luxon";
 import { type ContentDto } from "luminary-shared";
+import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/vue/24/solid";
 import LImage from "../images/LImage.vue";
 
 export type ReadMoreItem = {
@@ -9,7 +11,7 @@ export type ReadMoreItem = {
     tags: string[];
 };
 
-defineProps<{ items: ReadMoreItem[] }>();
+const props = defineProps<{ items: ReadMoreItem[] }>();
 
 const summaryText = (content: ContentDto): string => content.summary?.trim() ?? "";
 
@@ -22,87 +24,143 @@ const dateText = (content: ContentDto): string =>
 const MAX_VISIBLE_TAGS = 2;
 const visibleTags = (tags: string[]): string[] => tags.slice(0, MAX_VISIBLE_TAGS);
 const extraTagCount = (tags: string[]): number => Math.max(0, tags.length - MAX_VISIBLE_TAGS);
+
+// From tablet up the cards sit in a horizontal scroll row. The arrows only show on desktop
+// (where a mouse can't scroll sideways) and only when there's more to reveal in that direction.
+const scrollEl = ref<HTMLElement | null>(null);
+const showLeft = ref(false);
+const showRight = ref(false);
+
+const updateArrows = () => {
+    const el = scrollEl.value;
+    if (!el) return;
+    const maxScroll = el.scrollWidth - el.clientWidth;
+    showLeft.value = el.scrollLeft > 5;
+    showRight.value = maxScroll > 5 && el.scrollLeft < maxScroll - 5;
+};
+
+const scrollByCards = (direction: 1 | -1) => {
+    scrollEl.value?.scrollBy({ left: direction * 320, behavior: "smooth" });
+};
+
+onMounted(() => {
+    updateArrows();
+    window.addEventListener("resize", updateArrows);
+});
+onUnmounted(() => window.removeEventListener("resize", updateArrows));
+watch(
+    () => props.items,
+    () => nextTick(updateArrows),
+);
 </script>
 
 <template>
-    <!-- Mobile is a single-column list of image-left rows. From tablet up it becomes a grid of
-         image-on-top cards (the layout most content sites use for "related" — vertical cards
-         tile better than wide rows). More columns as the screen grows keeps each tile compact,
-         matching the Explore page: 2 → 3 → 4. -->
-    <ul class="grid grid-cols-1 sm:grid-cols-2 sm:gap-x-6 sm:gap-y-8 md:grid-cols-3 lg:grid-cols-4">
-        <li
-            v-for="item in items"
-            :key="item.content._id"
-            class="border-b border-zinc-100 last:border-b-0 dark:border-slate-700 sm:border-0"
+    <div class="relative">
+        <!-- Desktop scroll controls (touch devices scroll the row directly). -->
+        <button
+            v-if="showLeft"
+            type="button"
+            aria-label="Scroll left"
+            class="absolute left-1 top-1/2 z-10 hidden -translate-y-1/2 rounded-full bg-white/90 p-1 text-zinc-700 shadow ring-1 ring-black/5 hover:bg-white dark:bg-slate-800/90 dark:text-slate-100 dark:ring-white/10 sm:flex"
+            @click="scrollByCards(-1)"
         >
-            <RouterLink
-                :to="{ name: 'content', params: { slug: item.content.slug } }"
-                class="ease-out-expo group flex gap-3 py-3 transition hover:brightness-[1.15] sm:flex-col sm:gap-2 sm:py-0"
-            >
-                <!-- Mobile: small thumbnail on the left. -->
-                <div class="shrink-0 sm:hidden">
-                    <LImage
-                        :image="item.content.parentImageData"
-                        :content-parent-id="item.content.parentId"
-                        :parent-image-bucket-id="item.content.parentImageBucketId"
-                        aspectRatio="classic"
-                        size="thumbnailCompact"
-                    />
-                </div>
+            <ChevronLeftIcon class="h-5 w-5" />
+        </button>
+        <button
+            v-if="showRight"
+            type="button"
+            aria-label="Scroll right"
+            class="absolute right-1 top-1/2 z-10 hidden -translate-y-1/2 rounded-full bg-white/90 p-1 text-zinc-700 shadow ring-1 ring-black/5 hover:bg-white dark:bg-slate-800/90 dark:text-slate-100 dark:ring-white/10 sm:flex"
+            @click="scrollByCards(1)"
+        >
+            <ChevronRightIcon class="h-5 w-5" />
+        </button>
 
-                <!-- Tablet and up: full-width image on top of the card. Only the visible image
-                     loads (both are lazy), so this doesn't fetch two files per card. -->
-                <div class="hidden sm:block">
-                    <LImage
-                        :image="item.content.parentImageData"
-                        :content-parent-id="item.content.parentId"
-                        :parent-image-bucket-id="item.content.parentImageBucketId"
-                        aspectRatio="classic"
-                        size="card"
-                    />
-                </div>
-
-                <div class="flex min-w-0 flex-1 flex-col gap-1">
-                    <h3 class="truncate font-semibold text-zinc-800 dark:text-slate-50">
-                        {{ item.content.title }}
-                    </h3>
-
-                    <p
-                        v-if="summaryText(item.content)"
-                        class="line-clamp-2 text-sm text-zinc-500 dark:text-slate-400"
+        <!-- Mobile: a padded single-column list of image-left rows. From tablet up: a full-bleed
+             horizontal scroll row of image-on-top cards (the scroll container spans the full
+             width; the inner list keeps an edge inset), matching the Explore content rows. -->
+        <div
+            ref="scrollEl"
+            class="sm:overflow-x-auto sm:scrollbar-hide"
+            @scroll="updateArrows"
+        >
+            <ul class="flex flex-col px-4 sm:flex-row sm:gap-4">
+                <li
+                    v-for="item in items"
+                    :key="item.content._id"
+                    class="border-b border-zinc-100 last:border-b-0 dark:border-slate-700 sm:w-48 sm:shrink-0 sm:border-0"
+                >
+                    <RouterLink
+                        :to="{ name: 'content', params: { slug: item.content.slug } }"
+                        class="ease-out-expo group flex gap-3 py-3 transition hover:brightness-[1.15] sm:flex-col sm:gap-2 sm:py-0"
                     >
-                        {{ summaryText(item.content) }}
-                    </p>
+                        <!-- Mobile: small thumbnail on the left. -->
+                        <div class="shrink-0 sm:hidden">
+                            <LImage
+                                :image="item.content.parentImageData"
+                                :content-parent-id="item.content.parentId"
+                                :parent-image-bucket-id="item.content.parentImageBucketId"
+                                aspectRatio="classic"
+                                size="thumbnailCompact"
+                            />
+                        </div>
 
-                    <p
-                        v-if="dateText(item.content)"
-                        class="text-xs text-zinc-400 dark:text-slate-500"
-                    >
-                        {{ dateText(item.content) }}
-                    </p>
+                        <!-- Tablet and up: full-width image on top of the card. Only the visible
+                             image loads (both are lazy), so this doesn't fetch two files per card. -->
+                        <div class="hidden sm:block">
+                            <LImage
+                                :image="item.content.parentImageData"
+                                :content-parent-id="item.content.parentId"
+                                :parent-image-bucket-id="item.content.parentImageBucketId"
+                                aspectRatio="classic"
+                                size="card"
+                            />
+                        </div>
 
-                    <!-- One line of category chips (same colour as the category tags under the
-                         bookmark icon, without the tag icon), with a "+N" chip for any extras. -->
-                    <div
-                        v-if="item.tags.length"
-                        class="mt-0.5 flex gap-1.5 overflow-hidden"
-                    >
-                        <span
-                            v-for="tag in visibleTags(item.tags)"
-                            :key="tag"
-                            class="shrink-0 whitespace-nowrap rounded-lg border border-yellow-500/25 bg-yellow-500/10 px-2 py-0.5 text-xs text-zinc-700 dark:bg-slate-700 dark:text-slate-100"
-                        >
-                            {{ tag }}
-                        </span>
-                        <span
-                            v-if="extraTagCount(item.tags)"
-                            class="shrink-0 whitespace-nowrap rounded-lg border border-yellow-500/25 bg-yellow-500/10 px-2 py-0.5 text-xs text-zinc-700 dark:bg-slate-700 dark:text-slate-100"
-                        >
-                            +{{ extraTagCount(item.tags) }}
-                        </span>
-                    </div>
-                </div>
-            </RouterLink>
-        </li>
-    </ul>
+                        <div class="flex min-w-0 flex-1 flex-col gap-1">
+                            <h3 class="truncate font-semibold text-zinc-800 dark:text-slate-50">
+                                {{ item.content.title }}
+                            </h3>
+
+                            <p
+                                v-if="summaryText(item.content)"
+                                class="line-clamp-2 text-sm text-zinc-500 dark:text-slate-400"
+                            >
+                                {{ summaryText(item.content) }}
+                            </p>
+
+                            <p
+                                v-if="dateText(item.content)"
+                                class="text-xs text-zinc-400 dark:text-slate-500"
+                            >
+                                {{ dateText(item.content) }}
+                            </p>
+
+                            <!-- One line of category chips (same colour as the category tags under
+                                 the bookmark icon, without the tag icon), with a "+N" chip for the
+                                 rest. -->
+                            <div
+                                v-if="item.tags.length"
+                                class="mt-0.5 flex gap-1.5 overflow-hidden"
+                            >
+                                <span
+                                    v-for="tag in visibleTags(item.tags)"
+                                    :key="tag"
+                                    class="shrink-0 whitespace-nowrap rounded-lg border border-yellow-500/25 bg-yellow-500/10 px-2 py-0.5 text-xs text-zinc-700 dark:bg-slate-700 dark:text-slate-100"
+                                >
+                                    {{ tag }}
+                                </span>
+                                <span
+                                    v-if="extraTagCount(item.tags)"
+                                    class="shrink-0 whitespace-nowrap rounded-lg border border-yellow-500/25 bg-yellow-500/10 px-2 py-0.5 text-xs text-zinc-700 dark:bg-slate-700 dark:text-slate-100"
+                                >
+                                    +{{ extraTagCount(item.tags) }}
+                                </span>
+                            </div>
+                        </div>
+                    </RouterLink>
+                </li>
+            </ul>
+        </div>
+    </div>
 </template>
