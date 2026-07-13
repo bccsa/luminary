@@ -55,18 +55,20 @@ describe("UserFilterOptions", () => {
         expect(desktop.props("groups")).toEqual(mockGroups);
     });
 
-    it("debounced search updates queryOptions.search", async () => {
+    it("does not update queryOptions.search until the search is submitted", async () => {
         const { wrapper } = mountFilterOptions({ isSmallScreen: false });
 
         const desktop = wrapper.findComponent(UserFilterOptionsDesktop);
         // Update the query model on the child
         await desktop.vm.$emit("update:query", "test search");
+        await wrapper.vm.$nextTick();
 
-        // Before debounce, queryOptions.search should still be empty
+        // Typing alone (trigger-only search) must not commit to queryOptions.search
         expect(wrapper.props("queryOptions").search).toBe("");
 
-        // Advance past the debounce timer
-        vi.advanceTimersByTime(600);
+        // Submitting (Enter/Go) commits the term
+        const searchFn = desktop.props("search") as Function;
+        searchFn();
         await wrapper.vm.$nextTick();
 
         expect(wrapper.props("queryOptions").search).toBe("test search");

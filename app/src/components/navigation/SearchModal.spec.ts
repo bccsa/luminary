@@ -377,38 +377,41 @@ describe("SearchButton", () => {
         async function triggerResults(
             wrapper: ReturnType<typeof mountComponent>,
             resultsRef: ReturnType<typeof ref<FtsSearchResult[]>>,
+            lastSearchedQueryRef: ReturnType<typeof ref<string>>,
             query = "Willowdale",
         ) {
             await wrapper.find("input").setValue(query);
             await nextTick();
+            // Search is trigger-only: simulate an executed search for this query.
+            lastSearchedQueryRef.value = query;
             resultsRef.value = [fakeResult];
             await flushPromises();
         }
 
         it("renders a result row for each FTS hit", async () => {
-            const { resultsRef } = setupFts();
+            const { resultsRef, lastSearchedQueryRef } = setupFts();
             const wrapper = mountComponent();
             await openOverlay();
-            await triggerResults(wrapper, resultsRef);
+            await triggerResults(wrapper, resultsRef, lastSearchedQueryRef);
 
             expect(wrapper.findAll("[role='option']")).toHaveLength(1);
         });
 
         it("renders the title of the matched content doc", async () => {
-            const { resultsRef } = setupFts();
+            const { resultsRef, lastSearchedQueryRef } = setupFts();
             const wrapper = mountComponent();
             await openOverlay();
-            await triggerResults(wrapper, resultsRef);
+            await triggerResults(wrapper, resultsRef, lastSearchedQueryRef);
 
             expect(wrapper.html()).toContain(mockEnglishContentDto.title);
         });
 
         it("highlights the query term inside the title", async () => {
-            const { resultsRef } = setupFts();
+            const { resultsRef, lastSearchedQueryRef } = setupFts();
             const wrapper = mountComponent();
             await openOverlay();
             // "Post" matches mockEnglishContentDto.title ("Post 1")
-            await triggerResults(wrapper, resultsRef, "Post");
+            await triggerResults(wrapper, resultsRef, lastSearchedQueryRef, "Post");
 
             expect(wrapper.html()).toContain("<mark");
         });

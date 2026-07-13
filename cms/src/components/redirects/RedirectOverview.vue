@@ -9,10 +9,9 @@ import {
 } from "luminary-shared";
 import BasePage from "../BasePage.vue";
 import RedirectDisplaycard from "./RedirectDisplaycard.vue";
-import { PlusIcon } from "@heroicons/vue/20/solid";
+import { PlusIcon, XMarkIcon } from "@heroicons/vue/20/solid";
 import { MagnifyingGlassIcon } from "@heroicons/vue/24/outline";
-import { computed, ref } from "vue";
-import { debouncedWatch } from "@vueuse/core";
+import { computed, ref, watch } from "vue";
 import LButton from "../button/LButton.vue";
 import LInput from "@/components/forms/LInput.vue";
 import LoadingBar from "@/components/LoadingBar.vue";
@@ -28,16 +27,36 @@ import {
 const canCreateNew = computed(() => hasAnyPermission(DocType.Redirect, AclPermission.Edit));
 const isCreateOrEditModalVisible = ref(false);
 
-// Debounced search term (mirrors the User overview's 500ms search debounce).
+// Trigger-only search: the input only commits to searchTerm on Enter/Go, matching the
+// Content and User overviews.
 const searchInput = ref("");
 const searchTerm = ref("");
-debouncedWatch(
-    searchInput,
-    () => {
+const submitSearch = () => {
+    if (!searchInput.value) return;
+    if (searchInput.value.length >= 3 || searchInput.value.length === 0) {
         searchTerm.value = searchInput.value;
-    },
-    { debounce: 500 },
-);
+    }
+};
+const showSearchButton = ref(false);
+const showResetButton = ref(false);
+
+const clearSearch = () => {
+    searchInput.value = "";
+    searchTerm.value = "";
+    showSearchButton.value = false;
+    showResetButton.value = false;
+};
+
+watch(searchInput, (newVal) => {
+    if (!newVal || newVal.length === 0) {
+        clearSearch();
+        return;
+    }
+    if (newVal.length >= 3) {
+        showSearchButton.value = true;
+        showResetButton.value = true;
+    } else showSearchButton.value = false;
+});
 
 /** Minimum characters before switching from synced browse to server-side FTS search. */
 const SEARCH_MIN_CHARS = 3;
@@ -62,13 +81,14 @@ const { visible: visibleRedirects, sentinel: browseSentinel } = useInfiniteScrol
     pageSize: 20,
 });
 
-// --- Search (≥3 chars): server-side strict FTS over slug + toSlug. The search term is already
-// debounced above, so the composable's own debounce is disabled. ---
+// --- Search (≥3 chars): server-side strict FTS over slug + toSlug. Trigger-only: searchTerm
+// only changes on Enter/Go (submitSearch above), so re-run explicitly on each change. ---
 const search = useServerFtsSearch(searchTerm, {
     docType: DocType.Redirect,
     pageSize: 20,
-    debounceMs: 0,
+    debounceMs: "manual",
 });
+watch(searchTerm, () => search.runSearch(), { immediate: true });
 const searchIsLoading = search.isLoading;
 const searchIsStale = search.isStale;
 
@@ -123,7 +143,30 @@ const hasAnyContent = computed(() => (redirects.value?.length ?? 0) > 0);
                         data-test="search-input"
                         v-model="searchInput"
                         :full-height="true"
-                    />
+                        @keydown.enter="submitSearch"
+                    >
+                        <template #searchButton>
+                            <div class="flex items-center gap-1">
+                                <button
+                                    v-if="showSearchButton"
+                                    type="button"
+                                    class="rounded-md bg-white px-2 py-1 text-sm font-semibold text-zinc-900 ring-1 ring-inset ring-zinc-300 hover:bg-zinc-50"
+                                    data-test="search-go-button"
+                                    @click="submitSearch"
+                                >
+                                    Go
+                                </button>
+                                <button
+                                    v-if="showResetButton"
+                                    type="button"
+                                    aria-label="Clear search"
+                                    @click="clearSearch"
+                                >
+                                    <XMarkIcon class="h-5 w-5 cursor-pointer text-zinc-500" />
+                                </button>
+                            </div>
+                        </template>
+                    </LInput>
                 </div>
             </div>
         </template>

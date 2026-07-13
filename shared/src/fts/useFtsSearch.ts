@@ -96,6 +96,9 @@ export function useFtsSearch(
     let searchGeneration = 0;
     /** Route chosen at the start of the current search (offset 0); reused by loadMore so pages don't split across sources. */
     let activeUseApi = false;
+    /** Query text of the fresh (offset-0) search currently in flight, if any — lets runSearch()
+     *  dedupe against a same-query search already started by the debounce or a prior runSearch. */
+    let inFlightFreshQuery: string | null = null;
 
     const cutoffSet = () => getContentPublishDateCutoff() !== OPEN_MIN;
 
@@ -154,6 +157,7 @@ export function useFtsSearch(
             lastSearchedQuery.value = query;
             // Decide the route once per fresh search; loadMore reuses it.
             activeUseApi = shouldUseApiFts();
+            inFlightFreshQuery = query;
         }
 
         // Track generation to discard stale results from superseded searches
@@ -189,6 +193,9 @@ export function useFtsSearch(
             if (generation === searchGeneration) {
                 isSearching.value = false;
             }
+            if (!append && inFlightFreshQuery === query) {
+                inFlightFreshQuery = null;
+            }
         }
     }
 
@@ -203,7 +210,16 @@ export function useFtsSearch(
     }
 
     function runSearch() {
+        // Drop any pending debounced run so an explicit runSearch (Enter, recent pick, modal
+        // reopen) cannot double-fire alongside the query watcher.
+        if (debounceTimer) {
+            clearTimeout(debounceTimer);
+            debounceTimer = undefined;
+        }
         const q = queryRef.value.trim();
+        // A same-query fresh search may already be in flight (the debounce fired just before
+        // this explicit trigger, or a double Enter/Go-click) — skip the redundant network call.
+        if (inFlightFreshQuery === q) return;
         currentQuery = q;
         doSearch(q, 0, false);
     }
@@ -215,6 +231,9 @@ export function useFtsSearch(
             clearTimeout(debounceTimer);
             debounceTimer = undefined;
         }
+        // Reset dedup tracking so a subsequent runSearch() for the same query isn't skipped
+        // just because the now-cancelled search hasn't settled yet.
+        inFlightFreshQuery = null;
         isSearching.value = false;
     }
 

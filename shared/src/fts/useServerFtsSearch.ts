@@ -25,8 +25,8 @@ export type UseServerFtsSearchOptions = {
     filters?: MaybeRefOrGetter<ServerFtsFilters | undefined>;
     /** Page size (default 20). */
     pageSize?: number;
-    /** Debounce delay in ms before searching (default 300). */
-    debounceMs?: number;
+    /** Debounce delay in ms before searching, or "manual" to only search via {@link UseServerFtsSearchReturn.runSearch} (default 300). */
+    debounceMs?: number | "manual";
 };
 
 export type UseServerFtsSearchReturn = {
@@ -41,6 +41,8 @@ export type UseServerFtsSearchReturn = {
     refresh: () => Promise<void>;
     /** Flag results stale (e.g. after creating a doc while searching). */
     markStale: () => void;
+    /** Run a search immediately using the current query (for `debounceMs: "manual"`). */
+    runSearch: () => void;
 };
 
 /** Minimum query length before searching (a shorter query yields no usable trigrams). */
@@ -67,6 +69,7 @@ export function useServerFtsSearch(
     options: UseServerFtsSearchOptions,
 ): UseServerFtsSearchReturn {
     const { docType, pageSize = 20, debounceMs = 300 } = options;
+    const isTriggerOnly = debounceMs === "manual";
 
     const docs = ref<Partial<BaseDocumentDto>[]>([]);
     const isLoading = ref(false);
@@ -75,6 +78,10 @@ export function useServerFtsSearch(
 
     let debounceTimer: ReturnType<typeof setTimeout> | undefined;
     let generation = 0;
+    /** Query text of the fresh (offset-0) search currently in flight, if any — lets runSearch()
+     *  dedupe against a same-query search already started by a prior trigger (mirrors
+     *  useFtsSearch's guard). */
+    let inFlightFreshQuery: string | null = null;
 
     async function doSearch(offset: number, append: boolean) {
         const query = queryRef.value.trim();
@@ -89,6 +96,7 @@ export function useServerFtsSearch(
         }
 
         const myGeneration = ++generation;
+        if (!append) inFlightFreshQuery = query;
         isLoading.value = true;
         try {
             const filters = read(options.filters);
@@ -121,6 +129,9 @@ export function useServerFtsSearch(
             }
         } finally {
             if (myGeneration === generation) isLoading.value = false;
+            if (!append && inFlightFreshQuery === query) {
+                inFlightFreshQuery = null;
+            }
         }
     }
 
@@ -134,23 +145,46 @@ export function useServerFtsSearch(
         await doSearch(0, false);
     }
 
-    // Re-run on query / sort / filter changes (debounced). The JSON snapshot keeps the watch
-    // robust against object-identity churn and detects deep changes to sort/filters.
+    function runSearch() {
+        if (debounceTimer) {
+            clearTimeout(debounceTimer);
+            debounceTimer = undefined;
+        }
+        // A same-query fresh search may already be in flight (a double Enter/Go-click, or the
+        // debounce fired just before this explicit trigger) — skip the redundant network call.
+        if (inFlightFreshQuery === queryRef.value.trim()) return;
+        isStale.value = false;
+        generation++;
+        doSearch(0, false);
+    }
+
+    // Re-run on query changes (debounced). "manual" mode skips this watcher entirely — the
+    // caller is expected to invoke runSearch() explicitly (e.g. on Enter/Go), mirroring
+    // useFtsSearch's trigger-only mode.
+    if (!isTriggerOnly) {
+        watch(
+            () => queryRef.value.trim(),
+            () => {
+                isStale.value = false;
+                if (debounceTimer) clearTimeout(debounceTimer);
+                // Invalidate any in-flight search before the debounce window opens.
+                generation++;
+                debounceTimer = setTimeout(() => doSearch(0, false), debounceMs as number);
+            },
+            { immediate: true },
+        );
+    }
+
+    // Sort/filter changes re-run immediately regardless of query debounce mode. The JSON
+    // snapshot keeps the watch robust against object-identity churn and detects deep changes.
     watch(
-        () =>
-            JSON.stringify({
-                q: queryRef.value.trim(),
-                sort: read(options.sort) ?? null,
-                filters: read(options.filters) ?? null,
-            }),
+        () => JSON.stringify({ sort: read(options.sort) ?? null, filters: read(options.filters) ?? null }),
         () => {
             isStale.value = false;
             if (debounceTimer) clearTimeout(debounceTimer);
-            // Invalidate any in-flight search before the debounce window opens.
             generation++;
-            debounceTimer = setTimeout(() => doSearch(0, false), debounceMs);
+            doSearch(0, false);
         },
-        { immediate: true },
     );
 
     // Re-run when connectivity returns (an offline attempt yields nothing — server-only).
@@ -174,5 +208,14 @@ export function useServerFtsSearch(
         });
     }
 
-    return { docs, isLoading, hasMore, loadMore, isStale, refresh, markStale: () => markFtsStale(isStale) };
+    return {
+        docs,
+        isLoading,
+        hasMore,
+        loadMore,
+        isStale,
+        refresh,
+        markStale: () => markFtsStale(isStale),
+        runSearch,
+    };
 }

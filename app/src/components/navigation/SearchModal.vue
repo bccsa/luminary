@@ -24,14 +24,17 @@ const isInputFocused = ref(false);
 
 const languageId = computed(() => appLanguageIdsAsRef.value?.[0]);
 
+// Mobile-only layout differences (focus/select-all on open, blur-after-search to dismiss the
+// on-screen keyboard). Search itself is trigger-only (Enter/Go) on every device — see
+// `debounceMs: "manual"` below.
 // Same breakpoint as MobileMenu (`lg` / isMobileScreen). Keep in sync with viewport width so
-// manual search + Go never stick after resize to desktop; keyboards rarely change innerWidth.
-const isManualSearchMode = computed(() => isMobileScreen.value);
+// this never sticks after resize to desktop; keyboards rarely change innerWidth.
+const isMobileLayout = computed(() => isMobileScreen.value);
 
 const shortcutLabel = computed(() => (isMac.value ? "Cmd+K" : "Ctrl+K"));
 
 /** Wide screens only: hide the header X while the input is focused. Below lg (mobile menu), focus/blur is unreliable, so always show close. */
-const showHeaderCloseButton = computed(() => isMobileScreen.value || !isInputFocused.value);
+const showHeaderCloseButton = computed(() => isMobileLayout.value || !isInputFocused.value);
 
 const RECENT_SEARCHES_KEY = "luminary-search-recent";
 const RECENT_SEARCHES_MAX = 10;
@@ -95,7 +98,8 @@ function pickRecentSearch(term: string) {
 
 const ftsRet = useFtsSearch(searchQuery as any, {
         languageId: languageId as any,
-        debounceMs: computed(() => (isManualSearchMode.value ? "manual" : 250)) as any,
+        // Trigger-only: search runs on Enter/Go/recent-search-pick, never on a keystroke debounce.
+        debounceMs: "manual",
         pageSize: 40,
     });
 const {
@@ -279,9 +283,8 @@ const languageNames = computed(() => {
 const trimmedQuery = computed(() => searchQuery.value.trim());
 
 const highlightQuery = computed(() => {
+    // Search is trigger-only: only highlight the last executed query, not in-progress edits.
     const q = trimmedQuery.value;
-    if (!isManualSearchMode.value) return q;
-    // Manual mode: only highlight the last executed query, not the in-progress edits.
     return lastSearchedQuery.value === q ? q : lastSearchedQuery.value;
 });
 
@@ -319,7 +322,6 @@ const showEmptyStateHint = computed(() => isOpen.value && !trimmedQuery.value);
 /** User has typed 3+ chars but not pressed Go yet */
 const showPressGoHint = computed(
     () =>
-        isManualSearchMode.value &&
         trimmedQuery.value.length >= 3 &&
         lastSearchedQuery.value !== trimmedQuery.value &&
         !isSearching.value &&
@@ -329,7 +331,6 @@ const showPressGoHint = computed(
 /** Hide once the current query has been searched; reappear when query changes */
 const showGoButton = computed(
     () =>
-        isManualSearchMode.value &&
         trimmedQuery.value.length >= 3 &&
         lastSearchedQuery.value !== trimmedQuery.value,
 );
@@ -355,21 +356,17 @@ watch(isSearchOpen, (open) => {
         return;
     }
 
-    // Mobile manual mode: reset so the user explicitly re-runs the search.
-    // Desktop live mode: keep existing results so navigating away/back doesn't blank the UI.
-    if (isManualSearchMode.value) {
-        const q = searchQuery.value.trim();
-        // Only clear results when they don't match the query we're about to show.
-        // This keeps results in memory when reopening the modal for the same term.
-        if (!q || lastSearchedQuery.value !== q) {
-            resetSearch();
-        }
+    // Search is trigger-only: reset so the user explicitly re-runs the search, unless
+    // reopening with the same term already searched (keeps results in memory).
+    const openQ = searchQuery.value.trim();
+    if (!openQ || lastSearchedQuery.value !== openQ) {
+        resetSearch();
     }
     selectedIndex.value = -1;
     nextTick(() => {
         const hasQuery = !!searchQuery.value.trim();
         const shouldSelectAll = focusOnNextOpen.value || hasQuery;
-        const shouldFocus = isManualSearchMode.value
+        const shouldFocus = isMobileLayout.value
             ? focusOnNextOpen.value || !trimmedQuery.value
             : true;
         focusOnNextOpen.value = false;
@@ -472,18 +469,17 @@ const handleInputKeydown = (event: KeyboardEvent) => {
         if (q.length >= 3 && isNewQuery) {
             pushRecentSearch(q);
             runSearch();
-            if (isManualSearchMode.value) inputRef.value?.blur();
+            if (isMobileLayout.value) inputRef.value?.blur();
             return;
         }
 
         if (results.value.length > 0 && selectedIndex.value >= 0) {
             goToResult(results.value[selectedIndex.value]);
         } else {
-            if (!isManualSearchMode.value) return;
             if (q.length < 3) return;
             pushRecentSearch(q);
             runSearch();
-            inputRef.value?.blur();
+            if (isMobileLayout.value) inputRef.value?.blur();
         }
         return;
     }
@@ -512,7 +508,7 @@ function onGoClick() {
     if (q.length < 3) return;
     pushRecentSearch(q);
     runSearch();
-    if (isManualSearchMode.value) inputRef.value?.blur();
+    if (isMobileLayout.value) inputRef.value?.blur();
 }
 
 const goToResult = (result: EnrichedResult) => {
