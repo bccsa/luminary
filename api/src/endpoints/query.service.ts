@@ -309,7 +309,7 @@ export class QueryService {
         const parentIds = [...new Set(rawIds as string[])];
         if (parentIds.length === 0) return { docs: [], blockStart: 0, blockEnd: 0 };
 
-        // ponytail: unbounded fan-out; add a concurrency cap if a parent set ever gets large
+        // Unbounded fan-out; add a concurrency cap if a parent set ever gets large.
         const results = await Promise.all(
             parentIds.map((id) =>
                 this.db.executeFindQuery({
