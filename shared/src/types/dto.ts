@@ -112,6 +112,8 @@ export type ContentDto = ContentBaseDto & {
     parentUseVerticalTileLayout?: boolean;
     /** Drives the jsonLD author @type: "org" = Organization, "person"/undefined = Person. Mirrors parent authorType. */
     parentAuthorType?: "person" | "org";
+    parentLinkPublishDates?: boolean;
+    parentLinkExpiryDates?: boolean;
     parentTaggedDocs?: Uuid[];
     availableTranslations?: Uuid[];
     parentImageBucketId?: Uuid;
@@ -138,6 +140,8 @@ export type ContentParentDto = ContentBaseDto & {
     useVerticalTileLayout?: boolean;
     /** Drives the jsonLD author @type: "org" = Organization, "person"/undefined = Person (default). */
     authorType?: "person" | "org";
+    linkPublishDates?: boolean;
+    linkExpiryDates?: boolean;
 };
 
 export type PostDto = ContentParentDto & {

@@ -303,6 +303,104 @@ describe("processContentDto", () => {
         expect(dbDocFr.docs[0].availableTranslations).not.toContain("lang-fra");
     });
 
+    it("propagates publishDate and expiryDate to sibling translations when the parent has date-linking enabled", async () => {
+        await db.upsertDoc({
+            _id: "post-link-dates-test",
+            type: "post",
+            memberOf: ["group-public-content"],
+            tags: [],
+            publishDateVisible: true,
+            postType: "blog",
+            linkPublishDates: true,
+            linkExpiryDates: true,
+        } as PostDto);
+
+        // French sibling, created first with its own (soon-to-be-overwritten) dates
+        const changeRequestFr = changeRequest_content();
+        changeRequestFr.doc.parentId = "post-link-dates-test";
+        changeRequestFr.doc._id = "content-fr-link-dates-test";
+        changeRequestFr.doc.language = "lang-fra";
+        await processChangeRequest("test-user", changeRequestFr, ["group-super-admins"], db);
+
+        // English translation saved afterwards with new dates
+        const changeRequestEn = changeRequest_content();
+        changeRequestEn.doc.parentId = "post-link-dates-test";
+        changeRequestEn.doc._id = "content-en-link-dates-test";
+        changeRequestEn.doc.language = "lang-eng";
+        changeRequestEn.doc.publishDate = 1800000000000;
+        changeRequestEn.doc.expiryDate = 1900000000000;
+        await processChangeRequest("test-user", changeRequestEn, ["group-super-admins"], db);
+
+        const dbDocFr = await db.getDoc("content-fr-link-dates-test");
+
+        expect(dbDocFr.docs[0].publishDate).toBe(1800000000000);
+        expect(dbDocFr.docs[0].expiryDate).toBe(1900000000000);
+    });
+
+    it("does not propagate dates to sibling translations when date-linking is disabled", async () => {
+        await db.upsertDoc({
+            _id: "post-no-link-dates-test",
+            type: "post",
+            memberOf: ["group-public-content"],
+            tags: [],
+            publishDateVisible: true,
+            postType: "blog",
+        } as PostDto);
+
+        const changeRequestFr = changeRequest_content();
+        changeRequestFr.doc.parentId = "post-no-link-dates-test";
+        changeRequestFr.doc._id = "content-fr-no-link-dates-test";
+        changeRequestFr.doc.language = "lang-fra";
+        await processChangeRequest("test-user", changeRequestFr, ["group-super-admins"], db);
+
+        const changeRequestEn = changeRequest_content();
+        changeRequestEn.doc.parentId = "post-no-link-dates-test";
+        changeRequestEn.doc._id = "content-en-no-link-dates-test";
+        changeRequestEn.doc.language = "lang-eng";
+        changeRequestEn.doc.publishDate = 1800000000000;
+        changeRequestEn.doc.expiryDate = 1900000000000;
+        await processChangeRequest("test-user", changeRequestEn, ["group-super-admins"], db);
+
+        const dbDocFr = await db.getDoc("content-fr-no-link-dates-test");
+
+        expect(dbDocFr.docs[0].publishDate).toBe(1704114000000);
+        expect(dbDocFr.docs[0].expiryDate).toBe(1704114000000);
+    });
+
+    it("does not wipe a sibling's date when the saved translation has no date of its own", async () => {
+        await db.upsertDoc({
+            _id: "post-link-dates-guard-test",
+            type: "post",
+            memberOf: ["group-public-content"],
+            tags: [],
+            publishDateVisible: true,
+            postType: "blog",
+            linkPublishDates: true,
+            linkExpiryDates: true,
+        } as PostDto);
+
+        const changeRequestFr = changeRequest_content();
+        changeRequestFr.doc.parentId = "post-link-dates-guard-test";
+        changeRequestFr.doc._id = "content-fr-link-dates-guard-test";
+        changeRequestFr.doc.language = "lang-fra";
+        await processChangeRequest("test-user", changeRequestFr, ["group-super-admins"], db);
+
+        // Draft English translation with no publishDate/expiryDate of its own
+        const changeRequestEn = changeRequest_content();
+        changeRequestEn.doc.parentId = "post-link-dates-guard-test";
+        changeRequestEn.doc._id = "content-en-link-dates-guard-test";
+        changeRequestEn.doc.language = "lang-eng";
+        changeRequestEn.doc.status = PublishStatus.Draft;
+        changeRequestEn.doc.publishDate = undefined;
+        changeRequestEn.doc.expiryDate = undefined;
+        await processChangeRequest("test-user", changeRequestEn, ["group-super-admins"], db);
+
+        const dbDocFr = await db.getDoc("content-fr-link-dates-guard-test");
+
+        expect(dbDocFr.docs[0].publishDate).toBe(1704114000000);
+        expect(dbDocFr.docs[0].expiryDate).toBe(1704114000000);
+    });
+
     it("forces a published content document to draft (with a warning) when its slug already has a redirect", async () => {
         // The seeded `redirect-post1` owns the slug "post1-eng"; no seeded content uses it,
         // so validateSlug leaves the slug intact and the redirect-collision guard fires.

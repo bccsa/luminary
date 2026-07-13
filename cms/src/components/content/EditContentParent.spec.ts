@@ -111,6 +111,52 @@ describe("EditContentParent.vue", () => {
         expect(wrapper.text()).toContain("Always available offline");
     });
 
+    it("test the link publish dates toggle", async () => {
+        const parent = ref<TagDto>({
+            ...mockData.mockCategoryDto,
+            linkPublishDates: false,
+        });
+        const wrapper = mount(EditContentParent, {
+            props: {
+                docType: DocType.Tag,
+                tagOrPostType: TagType.Category,
+                parent: parent.value,
+                disabled: false,
+                isParentDirty: false,
+            },
+        });
+
+        // Publish date, Coming soon, Always offline, Pinned, Vertical Tile, then Link publish dates
+        const toggles = wrapper.findAllComponents({ name: "LToggle" });
+        expect(toggles.length).toBeGreaterThanOrEqual(7);
+
+        const linkPublishDatesToggle = toggles[5];
+        expect(linkPublishDatesToggle.exists()).toBe(true);
+        expect(linkPublishDatesToggle.props("modelValue")).toBe(false);
+    });
+
+    it("test the link expiry dates toggle", async () => {
+        const parent = ref<TagDto>({
+            ...mockData.mockCategoryDto,
+            linkExpiryDates: true,
+        });
+        const wrapper = mount(EditContentParent, {
+            props: {
+                docType: DocType.Tag,
+                tagOrPostType: TagType.Category,
+                parent: parent.value,
+                disabled: false,
+                isParentDirty: false,
+            },
+        });
+
+        // Link expiry dates is the 7th toggle (index 6)
+        const toggles = wrapper.findAllComponents({ name: "LToggle" });
+        const linkExpiryDatesToggle = toggles[6];
+        expect(linkExpiryDatesToggle.exists()).toBe(true);
+        expect(linkExpiryDatesToggle.props("modelValue")).toBe(true);
+    });
+
     it("test the show publishDate toggle", async () => {
         const parent = ref<PostDto | TagDto>({
             ...mockData.mockPostDto,

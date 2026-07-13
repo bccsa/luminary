@@ -82,6 +82,8 @@ export default async function processContentDto(
 
         doc.parentUseVerticalTileLayout = parentDoc.useVerticalTileLayout;
         doc.parentAuthorType = parentDoc.authorType;
+        doc.parentLinkPublishDates = parentDoc.linkPublishDates;
+        doc.parentLinkExpiryDates = parentDoc.linkExpiryDates;
     }
 
     // Find all available translations, and add them to the content document's availableTranslations property
@@ -103,6 +105,20 @@ export default async function processContentDto(
     // Update all translations with the new list of available translations
     for (const t of translations) {
         t.availableTranslations = availableTranslations;
+
+        // Propagate this translation's date onto its siblings when the parent has linking
+        // enabled. Guarded on "!== undefined" rather than blindly assigning: a Content doc
+        // commonly has no publishDate (Draft, never scheduled) or no expiryDate (never set),
+        // and that's not the same as a deliberate "clear this date" action — propagating
+        // undefined would wipe a sibling's real date every time an unrelated translation is
+        // saved without one.
+        if (parentDoc.linkPublishDates && !doc.deleteReq && doc.publishDate !== undefined) {
+            t.publishDate = doc.publishDate;
+        }
+        if (parentDoc.linkExpiryDates && !doc.deleteReq && doc.expiryDate !== undefined) {
+            t.expiryDate = doc.expiryDate;
+        }
+
         await db.upsertDoc(t);
     }
 
