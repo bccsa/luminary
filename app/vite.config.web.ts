@@ -45,25 +45,27 @@ type SsgStorage = {
 function ssgLocalStorage(): SsgStorage | undefined {
     return (globalThis as { localStorage?: SsgStorage }).localStorage;
 }
+function hqCacheKeys(ls: SsgStorage): string[] {
+    const keys: string[] = [];
+    for (let i = 0; i < ls.length; i++) {
+        const key = ls.key(i);
+        if (key?.startsWith(HQCACHE_PREFIX)) keys.push(key);
+    }
+    return keys;
+}
 function readHqCache(): Record<string, string> {
     const ls = ssgLocalStorage();
     const out: Record<string, string> = {};
     if (!ls) return out;
-    for (let i = 0; i < ls.length; i++) {
-        const k = ls.key(i);
-        if (k && k.startsWith(HQCACHE_PREFIX)) out[k] = ls.getItem(k) ?? "";
+    for (const key of hqCacheKeys(ls)) {
+        out[key] = ls.getItem(key) ?? "";
     }
     return out;
 }
 function clearHqCache(): void {
     const ls = ssgLocalStorage();
     if (!ls) return;
-    const keys: string[] = [];
-    for (let i = 0; i < ls.length; i++) {
-        const k = ls.key(i);
-        if (k && k.startsWith(HQCACHE_PREFIX)) keys.push(k);
-    }
-    for (const k of keys) ls.removeItem(k);
+    for (const key of hqCacheKeys(ls)) ls.removeItem(key);
 }
 function hqCacheScript(cache: Record<string, string>): string {
     // `<` escaping prevents a doc value containing `</script>` from closing the tag.
@@ -146,18 +148,17 @@ const preservedIndexHtml =
         ? readFileSync(indexHtmlPath(), "utf-8")
         : undefined;
 
+function mergeScoped<T>(path: string, fresh: Record<string, T>): Record<string, T> {
+    if (!IS_SCOPED || !existsSync(path)) return fresh;
+    const existing = JSON.parse(readFileSync(path, "utf-8")) as Record<string, T>;
+    return { ...existing, ...fresh };
+}
+
 // Write the route→keys dependency manifest. On a scoped rebuild, MERGE the newly
 // captured routes into the existing manifest (don't drop untouched routes).
 function writeManifest() {
     const fresh = capture().manifest;
-    let merged: Record<string, string[]> = fresh;
-    if (IS_SCOPED && existsSync(manifestPath())) {
-        const existing = JSON.parse(readFileSync(manifestPath(), "utf-8")) as Record<
-            string,
-            string[]
-        >;
-        merged = { ...existing, ...fresh };
-    }
+    const merged = mergeScoped(manifestPath(), fresh);
     writeFileSync(manifestPath(), JSON.stringify(merged));
     console.log(
         `[ssg] wrote ssg-deps.json (${Object.keys(merged).length} routes` +
@@ -221,14 +222,7 @@ function writeRouteIndex() {
 }
 
 function writeDocFacets() {
-    let merged = docFacets;
-    if (IS_SCOPED && existsSync(docFacetsPath())) {
-        const existing = JSON.parse(readFileSync(docFacetsPath(), "utf-8")) as Record<
-            string,
-            DocLike
-        >;
-        merged = { ...existing, ...docFacets };
-    }
+    const merged = mergeScoped(docFacetsPath(), docFacets);
     writeFileSync(docFacetsPath(), JSON.stringify(merged));
     console.log(
         `[ssg] wrote ssg-doc-facets.json (${Object.keys(merged).length} docs` +
