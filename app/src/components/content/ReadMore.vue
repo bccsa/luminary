@@ -11,15 +11,12 @@ export type ReadMoreItem = {
 
 defineProps<{ items: ReadMoreItem[] }>();
 
-// Prefer the summary; fall back to the publish date so a post with no summary isn't
-// left blank. The summary itself is clamped to two lines in the template.
-const subtitle = (content: ContentDto): string => {
-    const summary = content.summary?.trim();
-    if (summary) return summary;
-    return content.publishDate
+const summaryText = (content: ContentDto): string => content.summary?.trim() ?? "";
+
+const dateText = (content: ContentDto): string =>
+    content.publishDate
         ? DateTime.fromMillis(content.publishDate).toLocaleString(DateTime.DATE_MED)
         : "";
-};
 </script>
 
 <template>
@@ -51,10 +48,17 @@ const subtitle = (content: ContentDto): string => {
                     </h3>
 
                     <p
-                        v-if="subtitle(item.content)"
+                        v-if="summaryText(item.content)"
                         class="line-clamp-2 text-sm text-zinc-500 dark:text-slate-400"
                     >
-                        {{ subtitle(item.content) }}
+                        {{ summaryText(item.content) }}
+                    </p>
+
+                    <p
+                        v-if="dateText(item.content)"
+                        class="text-xs text-zinc-400 dark:text-slate-500"
+                    >
+                        {{ dateText(item.content) }}
                     </p>
 
                     <!-- Tags scroll horizontally when they overflow (same chip colour as the
