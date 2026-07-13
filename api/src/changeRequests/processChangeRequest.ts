@@ -35,7 +35,6 @@ export async function processChangeRequest(
         changeRequest,
         groupMembership,
         db,
-        userId,
     );
 
     if (!validationResult.validated) {
