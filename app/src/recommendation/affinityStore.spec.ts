@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { nextTick } from "vue";
-import { defaultAffinity } from "luminary-shared";
+import { defaultAffinity, db, DocType, TagType } from "luminary-shared";
 import { affinityProfile, recordAffinity } from "./affinityStore";
 
 describe("affinityStore", () => {
@@ -8,6 +8,19 @@ describe("affinityStore", () => {
         localStorage.clear();
         affinityProfile.value = { affinity: {}, lastDecayUtc: undefined };
         defaultAffinity.value = undefined;
+        // recordAffinity only tracks TagType.Topic tags — seed "tag-a" as one.
+        await db.docs.bulkPut([
+            {
+                _id: "tag-a",
+                type: DocType.Tag,
+                tagType: TagType.Topic,
+                updatedTimeUtc: 0,
+                memberOf: [],
+                tags: [],
+                publishDateVisible: false,
+                pinned: 0,
+            } as never,
+        ]);
         await nextTick();
     });
 
@@ -15,8 +28,8 @@ describe("affinityStore", () => {
         localStorage.clear();
     });
 
-    it("records an interaction into the local profile and persists it", () => {
-        recordAffinity(["tag-a"]);
+    it("records an interaction into the local profile and persists it", async () => {
+        await recordAffinity(["tag-a"]);
 
         expect(affinityProfile.value.affinity["tag-a"]).toBeGreaterThan(0);
         expect(
@@ -24,9 +37,9 @@ describe("affinityStore", () => {
         ).toBeGreaterThan(0);
     });
 
-    it("does nothing for an empty/undefined tag list", () => {
-        recordAffinity(undefined);
-        recordAffinity([]);
+    it("does nothing for an empty/undefined tag list", async () => {
+        await recordAffinity(undefined);
+        await recordAffinity([]);
 
         expect(affinityProfile.value.affinity).toEqual({});
     });
@@ -42,7 +55,7 @@ describe("affinityStore", () => {
     });
 
     it("does not replace an existing local profile with a later default", async () => {
-        recordAffinity(["tag-a"]);
+        await recordAffinity(["tag-a"]);
         defaultAffinity.value = { "tag-default": 0.8 };
         await nextTick();
 
