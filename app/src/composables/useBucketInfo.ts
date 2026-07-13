@@ -10,6 +10,8 @@ import {
 
 // Storage is fully-synced public reference data. The query shape is constant, so a
 // fixed `cacheId` keeps its response-cache entry distinct from any same-shaped query.
+// ponytail: unlike useContentQuery's cacheId, this is NOT auth-scoped — bucket/CDN
+// metadata has no per-user variation, so one shared cache entry is correct as-is.
 const STORAGE_QUERY = { selector: { type: "storage" } };
 const STORAGE_CACHE_ID = "storage-buckets";
 

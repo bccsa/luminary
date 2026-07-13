@@ -1,5 +1,5 @@
 import { fileURLToPath, URL } from "node:url";
-import { defineConfig, loadEnv } from "vite";
+import { defineConfig, loadEnv, type Plugin } from "vite";
 import vue from "@vitejs/plugin-vue";
 import { viteStaticCopy } from "vite-plugin-static-copy";
 import { visualizer } from "rollup-plugin-visualizer";
@@ -10,9 +10,30 @@ import { buildTargetVirtuals } from "./vite-plugins/buildTargetVirtuals";
 
 const env = loadEnv("", process.cwd());
 
+const blockGeneratedOutput = (): Plugin => ({
+    name: "block-generated-output-in-dev",
+    configureServer(server) {
+        server.middlewares.use((req, res, next) => {
+            const path = req.url?.split("?", 1)[0] ?? "";
+            if (
+                path === "/dist" ||
+                path.startsWith("/dist/") ||
+                path === "/dist-web" ||
+                path.startsWith("/dist-web/")
+            ) {
+                res.statusCode = 404;
+                res.end("Generated output is not served by npm run dev. Use npm run dev:web.");
+                return;
+            }
+            next();
+        });
+    },
+});
+
 // https://vitejs.dev/config/
 export default defineConfig({
     plugins: [
+        blockGeneratedOutput(),
         buildTargetVirtuals(),
         visualizer({ open: false }), // Open visualiser when reviewing build bundle size
         vue(),
@@ -66,6 +87,9 @@ export default defineConfig({
         strictPort: true,
         // Allow Vite to serve the sibling shared/ source (outside this package root).
         fs: { allow: [".."] },
+        watch: {
+            ignored: ["dist/**", "dist-web/**", "**/dist/**", "**/dist-web/**"],
+        },
     },
     build: {
         target: "es2015",
