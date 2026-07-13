@@ -9,7 +9,7 @@ import { DbService } from "../db/db.service";
 import { UserDto } from "../dto/UserDto";
 import { DefaultAffinityDto } from "../dto/DefaultAffinityDto";
 import { DocType, Uuid } from "../enums";
-import { DEFAULT_AFFINITY_ID } from "../util/userAffinity";
+import { DEFAULT_AFFINITY_ID } from "../util/defaultAffinity";
 import { AccessMap, PermissionSystem } from "../permissions/permissions.service";
 
 export type JwtUserDetails = {
