@@ -220,6 +220,33 @@ Recording how long a user spends on an article (idle pause, total read time) is 
 
 ---
 
+## Performance
+
+The tracker runs on every article view and must stay smooth on **low-end Android
+devices** — that is the budget every change here is held to. The rules that keep it
+inside that budget:
+
+- **Layout and text are read once per article, not per event.** `collectSegments()` is
+  the only place that touches `getBoundingClientRect` / `textContent`: it precomputes
+  each segment's word count and words-per-pixel into Maps. The per-frame dwell loop and
+  the skim check are pure Map lookups + arithmetic.
+- **Scroll work is rAF-coalesced and scoped.** Scroll events only accumulate velocity
+  numbers; the layout pass runs at most once per frame and only over the blocks the
+  IntersectionObserver currently reports on-screen (a handful), never the whole article.
+- **The dwell loop parks itself when idle.** When nothing unconfirmed is visible the
+  rAF loop stops (no per-frame work, no battery drain) and is restarted by the next
+  visibility change.
+- **Resize re-collection is debounced** (`READING_RESIZE_DEBOUNCE_MS`) because Android's
+  URL bar collapse fires viewport resizes during ordinary scrolling.
+- **Hot loops iterate raw arrays/Maps, not Vue reactive proxies.** The reactive
+  `segments` ref exists for consumers; internal per-frame code uses non-reactive
+  mirrors.
+
+When changing this code, keep new DOM reads (rects, `textContent`, `querySelectorAll`)
+inside `collectSegments()` — if a gate needs a new measurement, precompute it there.
+
+---
+
 ## Source files
 
 | File | Role |
@@ -227,7 +254,7 @@ Recording how long a user spends on an article (idle pause, total read time) is 
 | `app/src/pages/SingleContent/SingleContent.vue` | Wires the tracker and continue prompt |
 | `app/src/composables/useReadingProgressTracker.ts` | Segments, gates, dwell loop, scroll restore |
 | `app/src/util/readingTime.ts` | WPM, dwell math, words/sec skim cap |
-| `app/src/globalConfig.ts` | `localStorage` read/write (`contentProgress`) |
+| `app/src/contentProgress.ts` | `localStorage` read/write (`contentProgress`) |
 | `app/src/components/HomePage/ContinueProgress.vue` | Homepage row |
 | `app/src/components/content/ContinueReadingPrompt.vue` | In-article resume prompt |
 
@@ -245,6 +272,7 @@ Recording how long a user spends on an article (idle pause, total read time) is 
 | `READING_MAX_DWELL_MS` | `8000` | Maximum dwell per segment |
 | `DEFAULT_READING_SPEED_WPM` | `200` | Fallback when language has no WPM |
 | `READING_BLOCK_END_TOLERANCE_PX` | `4` | Subpixel tolerance for segment-end check |
+| `READING_RESIZE_DEBOUNCE_MS` | `200` | Debounce for resize-driven re-collection |
 
 ---
 
