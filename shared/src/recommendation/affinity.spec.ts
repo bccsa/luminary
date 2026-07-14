@@ -22,17 +22,26 @@ describe("affinity scoring", () => {
         expect(p.affinity["tag-a"]).toBeLessThan(0.75);
     });
 
-    it("damps event weight as the profile tracks more topics", () => {
-        // Same event, same starting score (0), but one profile already has 40
-        // established topics and the other is near-empty. The broad profile should
-        // move noticeably less from a single event.
+    it("does not damp the seeding event for a brand-new tag, but damps repeats", () => {
+        // A tag with no prior evidence isn't part of the "breadth" depth damping guards
+        // against, so its first event moves at full weight regardless of profile size —
+        // otherwise a new interest seeds barely above MIN_SCORE and gets capped away on
+        // the same tick it's born.
         const sparse = applyEvent({ affinity: {}, lastDecayUtc: T0 }, ["new"], T0);
 
         const broadAffinity: AffinityMap = {};
         for (let i = 0; i < 40; i++) broadAffinity[`existing-${i}`] = 0.5;
         const broad = applyEvent({ affinity: broadAffinity, lastDecayUtc: T0 }, ["new"], T0);
 
-        expect(broad.affinity["new"]).toBeLessThan(sparse.affinity["new"]);
+        expect(broad.affinity["new"]).toBeCloseTo(sparse.affinity["new"], 10);
+
+        // Once the tag has prior evidence, a second event on it damps with profile
+        // breadth exactly as before.
+        const sparseAgain = applyEvent(sparse, ["new"], T0);
+        const broadAgain = applyEvent(broad, ["new"], T0);
+        expect(broadAgain.affinity["new"] - broad.affinity["new"]).toBeLessThan(
+            sparseAgain.affinity["new"] - sparse.affinity["new"],
+        );
     });
 
     it("gives high-intent events much stronger evidence than an ordinary open", () => {
@@ -42,6 +51,26 @@ describe("affinity scoring", () => {
 
         expect(bookmark.affinity.bookmark).toBeGreaterThan(open.affinity.open * 6);
         expect(completion.affinity.completion).toBeGreaterThan(bookmark.affinity.bookmark);
+    });
+
+    it("ignores an impression miss for an unknown tag without evicting learned interests", () => {
+        // A mature profile is at the cap. Impression misses commonly include tags from
+        // the serendipity leg, which have no prior affinity evidence and must not create
+        // protected zero-score placeholders that displace real interests.
+        const affinity: AffinityMap = {};
+        for (let i = 0; i < 50; i++) affinity[`learned-${i}`] = 0.5;
+
+        const result = applyEvent(
+            { affinity, lastDecayUtc: T0 },
+            ["unknown-a", "unknown-b"],
+            T0,
+            EventWeight.Impression,
+        );
+
+        expect(Object.keys(result.affinity)).toHaveLength(50);
+        expect(result.affinity["unknown-a"]).toBeUndefined();
+        expect(result.affinity["unknown-b"]).toBeUndefined();
+        expect(result.affinity["learned-0"]).toBe(0.5);
     });
 
     it("halves a score after one gradual half-life (45 days)", () => {

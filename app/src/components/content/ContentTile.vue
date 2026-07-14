@@ -96,6 +96,7 @@ const hasProgress = computed(() => displayProgress.value > 0);
                   }
         "
         :aria-disabled="isComingSoon || undefined"
+        :data-content-id="content._id"
         class="ease-out-expo group transition"
         :class="
             isComingSoon

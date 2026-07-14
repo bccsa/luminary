@@ -8,7 +8,8 @@ import { AuthProviderCondition, AutoGroupMappingsDto } from "../dto/AutoGroupMap
 import { DbService } from "../db/db.service";
 import { UserDto } from "../dto/UserDto";
 import { DefaultAffinityDto } from "../dto/DefaultAffinityDto";
-import { DocType, Uuid } from "../enums";
+import { TagDto } from "../dto/TagDto";
+import { AclPermission, DocType, Uuid } from "../enums";
 import { DEFAULT_AFFINITY_ID } from "../util/defaultAffinity";
 import { AccessMap, PermissionSystem } from "../permissions/permissions.service";
 
@@ -96,21 +97,44 @@ export class AuthIdentityService implements OnModuleInit {
     }
 
     /**
-     * Load (and cache) the CMS-managed default affinity singleton, or `undefined`
-     * if none has been configured yet. A direct `DbService` read — bypasses
-     * permissions entirely (as this whole class does for internal lookups), which
-     * is fine here: the caller only ever reads the doc's `affinity` map to seed a
-     * scaffold, never returns the doc itself to a client.
+     * Return only the baseline entries whose topic tags the caller can view.
+     * The singleton is CMS-admin-scoped so it can be edited safely, but its
+     * contents seed app recommendations and must use each tag's Content/Tag
+     * group access instead of the singleton's own ACL.
      */
-    private async getDefaultAffinity(): Promise<DefaultAffinityDto | undefined> {
-        if (this.defaultAffinityCache !== undefined) return this.defaultAffinityCache ?? undefined;
-        try {
-            const res = await this.dbService.getDoc(DEFAULT_AFFINITY_ID);
-            this.defaultAffinityCache = (res.docs?.[0] as DefaultAffinityDto) ?? null;
-        } catch {
-            this.defaultAffinityCache = null;
+    private async getDefaultAffinity(groups: Uuid[]): Promise<Record<Uuid, number> | undefined> {
+        if (this.defaultAffinityCache === undefined) {
+            try {
+                const res = await this.dbService.getDoc(DEFAULT_AFFINITY_ID);
+                this.defaultAffinityCache = (res.docs?.[0] as DefaultAffinityDto) ?? null;
+            } catch {
+                this.defaultAffinityCache = null;
+            }
         }
-        return this.defaultAffinityCache ?? undefined;
+        const defaultAffinity = this.defaultAffinityCache;
+        if (!defaultAffinity) return undefined;
+
+        const defaultAffinityMap = defaultAffinity.affinity ?? {};
+        const tagIds = Object.keys(defaultAffinityMap) as Uuid[];
+        if (!tagIds.length) return undefined;
+        const tagDocs = (await this.dbService.getDocs(tagIds, [DocType.Tag])).docs as TagDto[];
+        const accessibleTagIds = new Set(
+            tagDocs
+                .filter((tag) =>
+                    PermissionSystem.verifyAccess(
+                        tag.memberOf ?? [],
+                        DocType.Tag,
+                        AclPermission.View,
+                        groups,
+                    ),
+                )
+                .map((tag) => tag._id),
+        );
+        const affinity = Object.fromEntries(
+            Object.entries(defaultAffinityMap).filter(([tagId]) => accessibleTagIds.has(tagId)),
+        ) as Record<Uuid, number>;
+
+        return Object.keys(affinity).length ? affinity : undefined;
     }
 
     async getAutoGroupMappings(providerId: string): Promise<AutoGroupMappingsDto[]> {
@@ -206,11 +230,13 @@ export class AuthIdentityService implements OnModuleInit {
             }
         }
         const defaultGroups = await this.getDefaultGroups();
+        const defaultAffinity = await this.getDefaultAffinity(defaultGroups);
         return {
             status: "anonymous",
             userDetails: {
                 groups: defaultGroups,
                 accessMap: PermissionSystem.getAccessMap(defaultGroups),
+                ...(defaultAffinity ? { defaultAffinity } : {}),
             },
         };
     }
@@ -500,6 +526,7 @@ export class AuthIdentityService implements OnModuleInit {
                 new Set([...defaultGroups, ...dynamicGroups, ...staticGroups]),
             );
             const accessMap = PermissionSystem.getAccessMap(mergedGroups);
+            const defaultAffinity = await this.getDefaultAffinity(mergedGroups);
 
             return {
                 groups: mergedGroups,
@@ -508,7 +535,7 @@ export class AuthIdentityService implements OnModuleInit {
                 name: primaryUser.name,
                 jwtPayload: payload as JWT.JwtPayload,
                 accessMap,
-                defaultAffinity: { ...(await this.getDefaultAffinity())?.affinity },
+                ...(defaultAffinity ? { defaultAffinity } : {}),
             };
         } catch (error) {
             if (error instanceof UnauthorizedException) throw error;
