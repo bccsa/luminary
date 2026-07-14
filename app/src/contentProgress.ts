@@ -34,7 +34,7 @@ type LegacyMediaProgressEntry = ContentProgressWatching & {
     contentId: Uuid;
 };
 
-type LegacyReadingProgressEntry = {
+type ReadingProgressEntry = {
     contentId: Uuid;
     progress: number;
 };
@@ -78,7 +78,7 @@ function migrateLegacyProgressStorage(): ContentProgressEntry[] {
     try {
         const readingList = JSON.parse(localStorage.getItem("readingProgress") || "[]");
         if (Array.isArray(readingList)) {
-            readingList.forEach((item: LegacyReadingProgressEntry, index: number) => {
+            readingList.forEach((item: ReadingProgressEntry, index: number) => {
                 if (!item?.contentId) return;
                 const existing = byContentId.get(item.contentId);
                 const entry: ContentProgressEntry = existing ?? {
