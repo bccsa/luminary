@@ -463,11 +463,16 @@ export class AuthIdentityService implements OnModuleInit {
                 );
                 const mergedGroups = Array.from(new Set([...defaultGroups, ...dynamicGroups]));
                 const accessMap = PermissionSystem.getAccessMap(mergedGroups);
+                // An authenticated first-time visitor has no User document yet, but is
+                // still a new client for the CMS-managed recommendation baseline.
+                // Keep this delivery path consistent with anonymous and matched users.
+                const defaultAffinity = await this.getDefaultAffinity(mergedGroups);
                 return {
                     groups: mergedGroups,
                     email,
                     jwtPayload: payload as JWT.JwtPayload,
                     accessMap,
+                    ...(defaultAffinity ? { defaultAffinity } : {}),
                 };
             }
 
