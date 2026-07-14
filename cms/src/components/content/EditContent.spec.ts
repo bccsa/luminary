@@ -1308,10 +1308,6 @@ describe("EditContent.vue", () => {
         });
 
         it("returns to clean when the always-offline toggle is flipped on and back off", async () => {
-            // Legacy docs predate `alwaysOffline`, so the field is absent. Toggling it on
-            // and back off writes `false` where the shadow has no key — the parent
-            // filterFn must normalize that away (like showComingSoon/useVerticalTileLayout)
-            // or the editor stays stuck reporting unsaved settings changes.
             const wrapper = await loadWithoutUserEdits();
 
             const parentCard = wrapper.findComponent(EditContentParent);
