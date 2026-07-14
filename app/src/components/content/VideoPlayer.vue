@@ -15,6 +15,7 @@ import {
     queryParams,
 } from "@/globalConfig";
 import { recordAffinity } from "@/recommendation/affinityStore";
+import { markSeen } from "@/recommendation/seenStore";
 import { extractAndBuildAudioMaster } from "./extractAndBuildAudioMaster";
 import { isYouTubeUrl, convertToVideoJSYouTubeUrl } from "@/util/youtube";
 
@@ -381,6 +382,9 @@ onMounted(async () => {
             // `ended`/near-end listeners) that fires for every source, so affinity isn't
             // double-counted for YouTube videos wired to more than one of them.
             recordAffinity(props.content.parentTags, EventWeight.Completion);
+            // mediaProgress is a 10-slot ring buffer used only to resume playback,
+            // not a history — record completion in the durable seen store instead.
+            markSeen(props.content._id);
 
             try {
                 player?.exitFullscreen();
