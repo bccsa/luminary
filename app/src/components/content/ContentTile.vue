@@ -97,6 +97,7 @@ const displayProgress = computed(() => Math.max(mediaProgress.value, readingProg
                   }
         "
         :aria-disabled="isComingSoon || undefined"
+        :data-content-id="content._id"
         class="ease-out-expo group transition"
         :class="
             isComingSoon
