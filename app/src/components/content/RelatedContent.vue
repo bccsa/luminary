@@ -24,6 +24,7 @@ const contentIds = computed(() => [
 ]);
 
 const contentDocs = useContentQuery(() => [{ parentId: { $in: contentIds.value } }], {
+    includeScheduled: false,
     sort: [{ publishDate: "desc" }],
     limit: 50,
 });
