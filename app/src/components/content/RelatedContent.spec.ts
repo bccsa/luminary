@@ -161,7 +161,7 @@ describe("RelatedContent", () => {
         });
     });
 
-    it("shows the summary and a tag chip on each related post", async () => {
+    it("shows the summary on each related post, without tag chips", async () => {
         await db.docs.bulkPut([
             {
                 ...mockEnglishContentDto,
@@ -186,8 +186,8 @@ describe("RelatedContent", () => {
 
         await waitForExpect(() => {
             expect(wrapper.html()).toContain("A short related summary");
-            // The post's tag rendered as a chip (topic title resolved from its id).
-            expect(wrapper.html()).toContain(mockTopicContentDto.title);
         });
+        // The redesigned cards carry no category/topic chips.
+        expect(wrapper.html()).not.toContain(mockTopicContentDto.title);
     });
 });
