@@ -9,12 +9,12 @@ import {
     mangoToDexie,
     useDexieLiveQueryWithDeps,
 } from "luminary-shared";
+import { appLanguageIdsAsRef } from "@/globalConfig";
 import {
-    appLanguageIdsAsRef,
     contentProgressAsRef,
     watchContentProgressStorage,
     type ContentProgressEntry,
-} from "@/globalConfig";
+} from "@/contentProgress";
 import { mangoIsPublished } from "@/util/mangoIsPublished";
 import { useI18n } from "vue-i18n";
 import { onMounted, onUnmounted } from "vue";
@@ -80,6 +80,6 @@ const continuedContent = useDexieLiveQueryWithDeps(
         :title="t('home.continue')"
         :showPublishDate="true"
         :showProgress="true"
-        class="pt-4 pb-1"
+        class="pb-1 pt-4"
     />
 </template>

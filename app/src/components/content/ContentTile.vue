@@ -4,7 +4,7 @@ import { DateTime } from "luxon";
 import LImage from "../images/LImage.vue";
 import { type AspectRatio, type ImageSize } from "../images/LImageProvider.vue";
 import { PlayIcon, SpeakerWaveIcon } from "@heroicons/vue/24/solid";
-import { getMediaDuration, getMediaProgress, getReadingProgress } from "@/globalConfig";
+import { getMediaDuration, getMediaProgress, getReadingProgress } from "@/contentProgress";
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 
@@ -181,11 +181,11 @@ const hasProgress = computed(() => displayProgress.value > 0);
                             v-else
                             class="flex h-full max-h-full w-full max-w-full items-center justify-center overflow-clip bg-gradient-to-t from-black/50 to-black/20 text-sm font-semibold"
                         >
-                            <p class="absolute m-2 text-center text-pretty text-black blur-sm">
+                            <p class="absolute m-2 text-pretty text-center text-black blur-sm">
                                 {{ content.title }}
                             </p>
                             <p
-                                class="absolute m-2 text-center text-pretty text-white dark:text-slate-200"
+                                class="absolute m-2 text-pretty text-center text-white dark:text-slate-200"
                             >
                                 {{ content.title }}
                             </p>
@@ -225,11 +225,9 @@ const hasProgress = computed(() => displayProgress.value > 0);
                             class="absolute bottom-2 left-0 right-0 z-20 mx-1 rounded-md bg-black/50 px-1 py-1"
                             :class="titlePosition === 'overlay' ? 'bottom-[4.5rem]' : ''"
                         >
-                            <div
-                                class="relative h-1.5 w-full overflow-hidden rounded bg-zinc-600"
-                            >
+                            <div class="relative h-1.5 w-full overflow-hidden rounded bg-zinc-600">
                                 <div
-                                    class="absolute top-0 left-0 h-full bg-white"
+                                    class="absolute left-0 top-0 h-full bg-white"
                                     :style="{ width: `${displayProgress}%` }"
                                 ></div>
                             </div>

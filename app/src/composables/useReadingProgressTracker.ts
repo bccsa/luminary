@@ -1,6 +1,6 @@
 import { computed, nextTick, onUnmounted, ref, watch, type Ref } from "vue";
 import { useEventListener, useIntersectionObserver, type MaybeElement } from "@vueuse/core";
-import { getReadingProgress, removeReadingProgress, setReadingProgress } from "@/globalConfig";
+import { getReadingProgress, removeReadingProgress, setReadingProgress } from "@/contentProgress";
 import {
     READING_MIN_SCROLL_SAMPLE_MS,
     computeBlockDwellMs,

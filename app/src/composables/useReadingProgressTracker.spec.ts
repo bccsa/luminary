@@ -26,7 +26,7 @@ import {
     countWords,
     estimateWordsPerPixel,
 } from "@/util/readingTime";
-import { getReadingProgress, removeReadingProgress, setReadingProgress } from "@/globalConfig";
+import { getReadingProgress, removeReadingProgress, setReadingProgress } from "@/contentProgress";
 
 const TEST_CONTENT_ID = "test-reading-content-id";
 
@@ -46,10 +46,7 @@ type MockObserver = {
 
 const observerInstances = vi.hoisted(() => [] as MockObserver[]);
 
-function makeRect(
-    top: number,
-    bottom: number,
-): DOMRectReadOnly {
+function makeRect(top: number, bottom: number): DOMRectReadOnly {
     return {
         top,
         bottom,
@@ -140,9 +137,7 @@ function mountTracker(
 ) {
     mockElementHeight(elementHeight);
 
-    const texts =
-        blockTexts ??
-        Array.from({ length: blockCount }, (_, i) => `Block ${i + 1}`);
+    const texts = blockTexts ?? Array.from({ length: blockCount }, (_, i) => `Block ${i + 1}`);
 
     let trackerApi: ReturnType<typeof useReadingProgressTracker> | undefined;
 
@@ -200,9 +195,7 @@ function latestObserver() {
 
 function mockElementHeight(heightOrHeights: number | number[]) {
     const heights = Array.isArray(heightOrHeights) ? heightOrHeights : null;
-    const defaultHeight = Array.isArray(heightOrHeights)
-        ? heightOrHeights[0]
-        : heightOrHeights;
+    const defaultHeight = Array.isArray(heightOrHeights) ? heightOrHeights[0] : heightOrHeights;
     const original = Element.prototype.getBoundingClientRect;
     vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (
         this: Element,
@@ -241,7 +234,11 @@ function flushRafFrame(deltaMs = 16) {
 }
 
 /** Advance fake time and drive the dwell rAF loop. */
-function advanceDwellMs(ms: number, frameMs = 16, { complete = true }: { complete?: boolean } = {}) {
+function advanceDwellMs(
+    ms: number,
+    frameMs = 16,
+    { complete = true }: { complete?: boolean } = {},
+) {
     const dwellFrames = complete ? Math.ceil(ms / frameMs) : Math.floor(ms / frameMs);
     const rafFrames = 1 + dwellFrames;
     for (let i = 0; i < rafFrames; i++) {
@@ -254,7 +251,8 @@ async function readyScrollableTracker(mountResult: ReturnType<typeof mountTracke
     await flushPromises();
     await nextTick();
     await nextTick();
-    const scrollEl = mountResult.wrapper.get('[data-test="scroll-container"]').element as HTMLElement;
+    const scrollEl = mountResult.wrapper.get('[data-test="scroll-container"]')
+        .element as HTMLElement;
     Object.defineProperty(scrollEl, "clientHeight", { value: 200, configurable: true });
     const vm = mountResult.wrapper.vm as { scrollContainer: HTMLElement | Window };
     vm.scrollContainer = scrollEl;
@@ -297,9 +295,7 @@ describe("isSegmentEligible", () => {
         const segments = splitElementIntoSegments(el, 200, 0, 1000);
         const middle = segments[2];
 
-        expect(
-            isSegmentEligible(middle, { top: 100 }, viewport),
-        ).toBe(true);
+        expect(isSegmentEligible(middle, { top: 100 }, viewport)).toBe(true);
     });
 
     it("returns false when the segment bottom is below the viewport", () => {
@@ -313,9 +309,7 @@ describe("isSegmentEligible", () => {
             bottomPx: 1200,
         };
 
-        expect(
-            isSegmentEligible(segment, { top: 100 }, viewport),
-        ).toBe(false);
+        expect(isSegmentEligible(segment, { top: 100 }, viewport)).toBe(false);
     });
 });
 
@@ -392,10 +386,22 @@ describe("applyScrollVelocitySample", () => {
             isSkimming: false,
         };
 
-        state = applyScrollVelocitySample(state, 10, 30, wordsPerPixel, defaultMaxWordsPerSec).state;
+        state = applyScrollVelocitySample(
+            state,
+            10,
+            30,
+            wordsPerPixel,
+            defaultMaxWordsPerSec,
+        ).state;
         expect(state.isSkimming).toBe(false);
 
-        const result = applyScrollVelocitySample(state, 80, 30, wordsPerPixel, defaultMaxWordsPerSec);
+        const result = applyScrollVelocitySample(
+            state,
+            80,
+            30,
+            wordsPerPixel,
+            defaultMaxWordsPerSec,
+        );
         expect(result.isSkimming).toBe(true);
         expect(result.state.isSkimming).toBe(true);
     });
@@ -407,7 +413,13 @@ describe("applyScrollVelocitySample", () => {
             isSkimming: true,
         };
 
-        const result = applyScrollVelocitySample(state, 1, 100, wordsPerPixel, defaultMaxWordsPerSec);
+        const result = applyScrollVelocitySample(
+            state,
+            1,
+            100,
+            wordsPerPixel,
+            defaultMaxWordsPerSec,
+        );
         expect(result.isSkimming).toBe(false);
         expect(result.justStoppedSkimming).toBe(true);
         expect(result.state.isSkimming).toBe(false);
@@ -576,7 +588,10 @@ describe("useReadingProgressTracker", () => {
         const longDwell = computeBlockDwellMs(countWords(longText), DEFAULT_READING_SPEED_WPM);
         expect(longDwell).toBeGreaterThan(BLOCK_ONE_DWELL_MS);
 
-        const { wrapper } = mountTracker(2, false, DEFAULT_READING_SPEED_WPM, [longText, "Block 2"]);
+        const { wrapper } = mountTracker(2, false, DEFAULT_READING_SPEED_WPM, [
+            longText,
+            "Block 2",
+        ]);
         await flushPromises();
         await nextTick();
 

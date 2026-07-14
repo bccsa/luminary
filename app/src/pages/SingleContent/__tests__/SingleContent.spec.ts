@@ -24,14 +24,16 @@ import waitForExpect from "wait-for-expect";
 import {
     appLanguageIdsAsRef,
     appName,
-    getReadingProgress,
     initLanguage,
-    removeReadingProgress,
-    setReadingProgress,
-    syncContentProgressFromStorage,
     userPreferencesAsRef,
     cmsUrl,
 } from "@/globalConfig";
+import {
+    getReadingProgress,
+    removeReadingProgress,
+    setReadingProgress,
+    syncContentProgressFromStorage,
+} from "@/contentProgress";
 import { computeEstimatedReadingMinutes } from "@/util/readingTime";
 import { ref, computed } from "vue";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";

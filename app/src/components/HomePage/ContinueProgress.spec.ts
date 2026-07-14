@@ -12,12 +12,12 @@ import {
 } from "@/tests/mockdata";
 import { db, type ContentDto, DocType, PostType } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
+import { appLanguageIdsAsRef } from "@/globalConfig";
 import {
-    appLanguageIdsAsRef,
     setMediaProgress,
     setReadingProgress,
     syncContentProgressFromStorage,
-} from "@/globalConfig";
+} from "@/contentProgress";
 import ContinueProgress from "./ContinueProgress.vue";
 
 vi.mock("vue-router");

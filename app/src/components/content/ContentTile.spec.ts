@@ -6,7 +6,7 @@ import ContentTile from "./ContentTile.vue";
 import { mockEnglishContentDto, mockLanguageDtoEng } from "@/tests/mockdata";
 import { PlayIcon, PlayIcon as PlayIconOutline } from "@heroicons/vue/24/solid";
 import type { ContentDto } from "luminary-shared";
-import { setMediaProgress, setReadingProgress } from "@/globalConfig";
+import { setMediaProgress, setReadingProgress } from "@/contentProgress";
 import { computed } from "vue";
 
 vi.mock("@/composables/useBucketInfo", () => ({
@@ -157,7 +157,9 @@ describe("ContentTile", () => {
             },
         });
 
-        expect(wrapper.text()).not.toContain(mockLanguageDtoEng.translations["content.coming_soon"]);
+        expect(wrapper.text()).not.toContain(
+            mockLanguageDtoEng.translations["content.coming_soon"],
+        );
         expect(wrapper.find("a").exists()).toBe(true);
     });
 
