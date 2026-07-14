@@ -2,10 +2,10 @@ import { ref } from "vue";
 import type { Uuid } from "luminary-shared";
 
 /**
- * Article content ids the user has actually dwelt on (see the dwell-gated call in
- * `SingleContent.vue`). Audio/video already has its own "seen" signal via
- * `mediaProgress`; articles have none without this, so they could be recommended
- * indefinitely.
+ * Content ids the user has actually engaged with: articles via the dwell-gated call
+ * in `SingleContent.vue`, audio/video via the `ended`/completion handlers in
+ * `AudioPlayer.vue`/`VideoPlayer.vue`. `mediaProgress` (globalConfig.ts) is a
+ * resume-playback ring buffer, not a history, so it is not a "seen" source.
  */
 const STORAGE_KEY = "seenArticleIds";
 /** Bound the stored list so it can't grow unboundedly over a long-lived install. */
@@ -22,6 +22,13 @@ function load(): Uuid[] {
     } catch {
         return [];
     }
+}
+
+/** Invalidate reactive reads of the combined seen-id set (e.g. `mediaProgress` changed
+ *  via `setMediaProgress`/`removeMediaProgress` in globalConfig.ts, which this store
+ *  doesn't own but is derived from). */
+export function bumpSeenVersion() {
+    seenVersion.value++;
 }
 
 export function markSeen(id: Uuid) {

@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { DocType, PublishStatus, type ContentDto, type FtsSearchResult } from "luminary-shared";
 import { rank } from "./useRecommendations";
 
-function makeContent(id: string, parentTags: string[] = []): ContentDto {
+function makeContent(id: string, parentTags: string[] = [], publishDate?: number): ContentDto {
     return {
         _id: id,
         type: DocType.Content,
@@ -14,6 +14,7 @@ function makeContent(id: string, parentTags: string[] = []): ContentDto {
         status: PublishStatus.Published,
         slug: id,
         title: id,
+        publishDate,
     } as ContentDto;
 }
 
@@ -21,7 +22,7 @@ function makeFtsResult(doc: ContentDto, score: number): FtsSearchResult {
     return { docId: doc._id, score, wordMatchScore: 0, doc };
 }
 
-describe("rank (RRF fusion)", () => {
+describe("rank", () => {
     it("ranks a doc found in both legs above one found in only one leg", () => {
         const both = makeContent("both", ["tag-a"]);
         const tagOnly = makeContent("tag-only", ["tag-a"]);
@@ -59,5 +60,54 @@ describe("rank (RRF fusion)", () => {
 
     it("returns an empty list when both legs are empty", () => {
         expect(rank([], [], {})).toEqual([]);
+    });
+
+    it("keeps calibrated tag-affinity gaps instead of flattening them into tag-leg ranks", () => {
+        const strong = makeContent("strong", ["strong-tag"]);
+        const weak = makeContent("weak", ["weak-tag"]);
+
+        expect(
+            rank([weak, strong], [], { "strong-tag": 0.9, "weak-tag": 0.02 }).map((d) => d._id),
+        ).toEqual(["strong", "weak"]);
+    });
+
+    it("uses normalized FTS rank, so the top FTS result is not overwhelmed by recency", () => {
+        const now = 1_800_000_000_000;
+        const newest = makeContent("newest", [], now);
+        const topFts = makeContent("top-fts", [], now - 20 * 365 * 24 * 60 * 60 * 1000);
+        const middle = Array.from({ length: 18 }, (_, i) => makeContent(`middle-${i}`));
+
+        expect(
+            rank(
+                [],
+                [topFts, ...middle, newest].map((doc, i) => makeFtsResult(doc, 20 - i)),
+                {},
+                { now },
+            )[0]._id,
+        ).toBe("top-fts");
+    });
+
+    it("scores only topic tags and does not cap FTS-only documents on an arbitrary zero-score tag", () => {
+        const topicMatch = makeContent("topic-match", ["topic", "category"]);
+        const categoryOnly = makeContent("category-only", ["category"]);
+        const zeroScoreFts = Array.from({ length: 4 }, (_, i) =>
+            makeContent(`fts-${i}`, ["unmatched-topic"]),
+        );
+        const topicTagIds = new Set(["topic", "unmatched-topic"]);
+
+        const result = rank(
+            [topicMatch, categoryOnly],
+            zeroScoreFts.map((doc, i) => makeFtsResult(doc, 10 - i)),
+            { topic: 0.8, category: 1 },
+            { topicTagIds, now: 0 },
+        );
+
+        // The category score must not count: only the actual Topic-tag match leads.
+        expect(result[0]._id).toBe("topic-match");
+        // No affinity exists for `unmatched-topic`, so all four FTS documents remain
+        // uncapped rather than sharing an arbitrary dominant tag.
+        expect(
+            result.filter((doc) => doc._id.startsWith("fts-")).map((doc) => doc._id),
+        ).toHaveLength(4);
     });
 });
