@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { nextTick } from "vue";
 import { defaultAffinity, db, DocType, TagType } from "luminary-shared";
 import { affinityProfile, recordAffinity } from "./affinityStore";
@@ -29,8 +29,11 @@ describe("affinityStore", () => {
     });
 
     it("records an interaction into the local profile and persists it", async () => {
+        const bulkGet = vi.spyOn(db.docs, "bulkGet");
         await recordAffinity(["tag-a"]);
 
+        expect(bulkGet).toHaveBeenCalledWith(["tag-a"]);
+        bulkGet.mockRestore();
         expect(affinityProfile.value.affinity["tag-a"]).toBeGreaterThan(0);
         expect(
             JSON.parse(localStorage.getItem("affinityProfile")!).affinity["tag-a"],

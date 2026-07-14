@@ -3,11 +3,10 @@ import {
     defaultAffinity,
     applyEvent,
     EventWeight,
-    db,
-    TagType,
     type AffinityProfile,
     type Uuid,
 } from "luminary-shared";
+import { filterTopicTagIds } from "@/recommendation/topicTags";
 
 /**
  * App-side persistence + tracking for the recommendation affinity profile.
@@ -20,7 +19,7 @@ import {
  */
 
 const STORAGE_KEY = "affinityProfile";
-const EMPTY: AffinityProfile = { affinity: {}, lastDecayUtc: undefined };
+const empty = (): AffinityProfile => ({ affinity: {}, lastDecayUtc: undefined });
 
 function load(): AffinityProfile {
     try {
@@ -30,7 +29,7 @@ function load(): AffinityProfile {
     } catch {
         // ignore corrupt storage
     }
-    return { ...EMPTY };
+    return empty();
 }
 
 /** Reactive working copy of the local affinity profile (client-authoritative). */
@@ -69,7 +68,7 @@ watch(defaultAffinity, (serverDefault) => {
  */
 export async function recordAffinity(tagIds: Uuid[] | undefined, weight: number = EventWeight.Open) {
     if (!tagIds || tagIds.length === 0) return;
-    const topicTags = await filterToTopicTags(tagIds);
+    const topicTags = await filterTopicTagIds(tagIds);
     if (!topicTags.length) return;
     affinityProfile.value = applyEvent(affinityProfile.value, topicTags, Date.now(), weight);
     persist();
@@ -84,7 +83,7 @@ export async function recordAffinity(tagIds: Uuid[] | undefined, weight: number 
  */
 export async function recordImpressionMiss(tagIds: Uuid[] | undefined) {
     if (!tagIds || tagIds.length === 0) return;
-    const topicTags = await filterToTopicTags(tagIds);
+    const topicTags = await filterTopicTagIds(tagIds);
     if (!topicTags.length) return;
     affinityProfile.value = applyEvent(
         affinityProfile.value,
@@ -93,19 +92,4 @@ export async function recordImpressionMiss(tagIds: Uuid[] | undefined) {
         EventWeight.Impression,
     );
     persist();
-}
-
-/**
- * Restrict tag ids to `TagType.Topic`. `Category`/`AudioPlaylist` tags sit on most of
- * the corpus (e.g. a "Devotional" category), so feeding them into affinity would let
- * the site's most common tags — not the user's actual interests — dominate the profile.
- */
-async function filterToTopicTags(tagIds: Uuid[]): Promise<Uuid[]> {
-    try {
-        const isTopic = await Promise.all(tagIds.map((id) => db.isTagType(id, TagType.Topic)));
-        return tagIds.filter((_, i) => isTopic[i]);
-    } catch {
-        // db not initialized (e.g. unit tests) — don't block tracking on it.
-        return tagIds;
-    }
 }

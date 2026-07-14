@@ -24,13 +24,6 @@ function load(): Uuid[] {
     }
 }
 
-/** Invalidate reactive reads of the combined seen-id set (e.g. `mediaProgress` changed
- *  via `setMediaProgress`/`removeMediaProgress` in globalConfig.ts, which this store
- *  doesn't own but is derived from). */
-export function bumpSeenVersion() {
-    seenVersion.value++;
-}
-
 export function markSeen(id: Uuid) {
     const ids = load();
     if (ids.includes(id)) return;
