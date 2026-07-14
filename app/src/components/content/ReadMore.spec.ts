@@ -2,10 +2,11 @@ import "fake-indexeddb/auto";
 import { describe, it, expect, beforeEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import { nextTick } from "vue";
-import ReadMore, { type ReadMoreItem } from "./ReadMore.vue";
+import { type ContentDto } from "luminary-shared";
+import ReadMore from "./ReadMore.vue";
 
-// Capture the observer callback so tests can simulate the mobile infinite-scroll
-// sentinel entering the viewport (jsdom has no layout, so it never fires on its own).
+// Capture the observer callback so tests can simulate the infinite-scroll sentinel
+// entering the viewport (jsdom has no layout, so it never fires on its own).
 let intersect: (entries: Array<{ isIntersecting: boolean }>) => void;
 beforeEach(() => {
     window.IntersectionObserver = class {
@@ -18,20 +19,23 @@ beforeEach(() => {
     } as unknown as typeof IntersectionObserver;
 });
 
-const makeItem = (overrides: Partial<ReadMoreItem> = {}): ReadMoreItem => ({
-    content: {
+const makeItem = (overrides: Partial<ContentDto> = {}): ContentDto =>
+    ({
         _id: "content-1",
         slug: "post-1",
         title: "A short title",
         summary: "A short summary",
         publishDate: 1_700_000_000_000,
         parentId: "post-1",
-    } as any,
-    tags: [],
-    ...overrides,
-});
+        ...overrides,
+    }) as ContentDto;
 
-const mountList = (items: ReadMoreItem[]) =>
+const makeItems = (count: number): ContentDto[] =>
+    Array.from({ length: count }, (_, i) =>
+        makeItem({ _id: `content-${i}`, slug: `post-${i}`, title: `Post ${i}` }),
+    );
+
+const mountList = (items: ContentDto[]) =>
     mount(ReadMore, {
         props: { items },
         global: {
@@ -44,69 +48,45 @@ const mountList = (items: ReadMoreItem[]) =>
     });
 
 describe("ReadMore", () => {
-    it("shows every tag when there are only a few", () => {
-        const wrapper = mountList([makeItem({ tags: ["Category 1", "Topic A"] })]);
+    it("keeps the mobile title to a single truncated line", () => {
+        const wrapper = mountList([makeItem()]);
 
-        expect(wrapper.text()).toContain("Category 1");
-        expect(wrapper.text()).toContain("Topic A");
-        expect(wrapper.text()).not.toContain("+");
+        const mobileTitle = wrapper.findAll("h3").find((h) => h.classes().includes("sm:hidden"));
+        expect(mobileTitle).toBeDefined();
+        expect(mobileTitle!.classes()).toContain("truncate");
     });
 
-    it("collapses extra tags into a +N chip", () => {
-        const wrapper = mountList([
-            makeItem({ tags: ["Category 1", "Topic A", "Topic B", "Topic C"] }),
-        ]);
+    it("wraps the card title on the image instead of truncating it", () => {
+        const wrapper = mountList([makeItem()]);
 
-        // First two are shown, the remaining two are summarised as "+2".
-        expect(wrapper.text()).toContain("Category 1");
-        expect(wrapper.text()).toContain("Topic A");
-        expect(wrapper.text()).not.toContain("Topic B");
-        expect(wrapper.text()).not.toContain("Topic C");
-        expect(wrapper.text()).toContain("+2");
+        const cardTitle = wrapper.findAll("h3").find((h) => !h.classes().includes("sm:hidden"));
+        expect(cardTitle).toBeDefined();
+        expect(cardTitle!.text()).toBe("A short title");
+        expect(cardTitle!.classes()).not.toContain("truncate");
+        expect(cardTitle!.classes().some((c) => c.startsWith("line-clamp"))).toBe(false);
     });
 
-    it("keeps the title to a single truncated line", () => {
-        const wrapper = mountList([makeItem({ content: { ...makeItem().content, title: "T" } })]);
+    it("clamps the summary to one line on mobile and two lines on the card", () => {
+        const wrapper = mountList([makeItem()]);
 
-        expect(wrapper.get("h3").classes()).toContain("truncate");
+        const summary = wrapper.get("p");
+        expect(summary.text()).toBe("A short summary");
+        expect(summary.classes()).toContain("line-clamp-1");
+        expect(summary.classes()).toContain("sm:line-clamp-2");
     });
 
-    const makeItems = (count: number): ReadMoreItem[] =>
-        Array.from({ length: count }, (_, i) =>
-            makeItem({
-                content: {
-                    ...makeItem().content,
-                    _id: `content-${i}`,
-                    slug: `post-${i}`,
-                    title: `Post ${i}`,
-                } as ReadMoreItem["content"],
-            }),
-        );
-
-    it("renders every card for the desktop row but only one batch on mobile", () => {
+    it("shows one batch initially and reveals the next when the sentinel intersects", async () => {
         const wrapper = mountList(makeItems(20));
 
-        const cards = wrapper.findAll("li");
-        expect(cards).toHaveLength(20);
-        // The first batch is visible everywhere...
-        expect(cards[7].classes()).not.toContain("hidden");
-        // ...the rest are hidden on mobile only (still shown from tablet up).
-        expect(cards[8].classes()).toContain("hidden");
-        expect(cards[8].classes()).toContain("sm:block");
-    });
-
-    it("reveals the next mobile batch when the sentinel intersects", async () => {
-        const wrapper = mountList(makeItems(20));
+        expect(wrapper.findAll("li")).toHaveLength(8);
 
         intersect([{ isIntersecting: true }]);
         await nextTick();
-        expect(wrapper.findAll("li")[15].classes()).not.toContain("hidden");
-        expect(wrapper.findAll("li")[16].classes()).toContain("hidden");
+        expect(wrapper.findAll("li")).toHaveLength(16);
 
         intersect([{ isIntersecting: true }]);
         await nextTick();
-        const cards = wrapper.findAll("li");
-        expect(cards.every((card) => !card.classes().includes("hidden"))).toBe(true);
+        expect(wrapper.findAll("li")).toHaveLength(20);
 
         // Fully revealed — further intersections change nothing.
         intersect([{ isIntersecting: true }]);

@@ -49,9 +49,9 @@ export const sizesMap: Record<ImageSize, string> = {
     thumbnailFeatured: "(min-width: 768px) 224px, 165px",
     thumbnailCompact: "(min-width: 768px) 176px, 128px",
     post: "(min-width: 1024px) 800px, 100vw",
-    // Fixed-width tile in the related horizontal scroll row (~192px). (Mobile uses the
-    // left-thumbnail slot instead.)
-    card: "200px",
+    // Fluid tile in the related-content grid: 2 columns from sm, 3 from md, 4 from lg,
+    // 5 from xl. (Mobile uses the left-thumbnail slot instead.)
+    card: "(min-width: 1280px) 20vw, (min-width: 1024px) 25vw, (min-width: 768px) 33vw, 50vw",
     smallSquare: "48px",
     icon: "",
 };
@@ -67,7 +67,7 @@ export const sizesReducedMap: Record<ImageSize, string> = {
     thumbnailFeatured: "165px",
     thumbnailCompact: "128px",
     post: "50vw",
-    card: "150px",
+    card: "200px",
     smallSquare: "48px",
     icon: "",
 };
