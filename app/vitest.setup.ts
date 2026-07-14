@@ -114,6 +114,13 @@ class MockResizeObserver {
 }
 window.ResizeObserver = MockResizeObserver as unknown as typeof ResizeObserver;
 
+class MockIntersectionObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+}
+window.IntersectionObserver = MockIntersectionObserver as unknown as typeof IntersectionObserver;
+
 window.matchMedia = vi.fn().mockImplementation((query) => {
     return {
         matches: false,

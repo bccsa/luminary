@@ -25,6 +25,17 @@ const MAX_VISIBLE_TAGS = 2;
 const visibleTags = (tags: string[]): string[] => tags.slice(0, MAX_VISIBLE_TAGS);
 const extraTagCount = (tags: string[]): number => Math.max(0, tags.length - MAX_VISIBLE_TAGS);
 
+// Mobile is an infinite list: start with one batch and reveal the next whenever the
+// sentinel below the list scrolls into view. Every card is rendered up front — the
+// tablet/desktop scroll row shows them all (images are lazy, so off-screen cards cost
+// nothing), while mobile hides the ones past `visibleCount`. The sentinel is mobile-only
+// (display:none never intersects), so the observer can't fire on desktop.
+const BATCH_SIZE = 8;
+const visibleCount = ref(BATCH_SIZE);
+
+const sentinel = ref<HTMLElement | null>(null);
+let observer: IntersectionObserver | undefined;
+
 // From tablet up the cards sit in a horizontal scroll row. The arrows only show on desktop
 // (where a mouse can't scroll sideways) and only when there's more to reveal in that direction.
 const scrollEl = ref<HTMLElement | null>(null);
@@ -46,11 +57,24 @@ const scrollByCards = (direction: 1 | -1) => {
 onMounted(() => {
     updateArrows();
     window.addEventListener("resize", updateArrows);
+
+    observer = new IntersectionObserver((entries) => {
+        if (entries.some((e) => e.isIntersecting) && visibleCount.value < props.items.length) {
+            visibleCount.value += BATCH_SIZE;
+        }
+    });
+    if (sentinel.value) observer.observe(sentinel.value);
 });
-onUnmounted(() => window.removeEventListener("resize", updateArrows));
+onUnmounted(() => {
+    window.removeEventListener("resize", updateArrows);
+    observer?.disconnect();
+});
 watch(
     () => props.items,
-    () => nextTick(updateArrows),
+    () => {
+        visibleCount.value = BATCH_SIZE;
+        nextTick(updateArrows);
+    },
 );
 </script>
 
@@ -86,9 +110,10 @@ watch(
         >
             <ul class="flex flex-col px-4 sm:flex-row sm:gap-4">
                 <li
-                    v-for="item in items"
+                    v-for="(item, index) in items"
                     :key="item.content._id"
                     class="border-b border-zinc-100 last:border-b-0 dark:border-slate-700 sm:w-48 sm:shrink-0 sm:border-0"
+                    :class="{ 'hidden sm:block': index >= visibleCount }"
                 >
                     <RouterLink
                         :to="{ name: 'content', params: { slug: item.content.slug } }"
@@ -124,7 +149,7 @@ watch(
 
                             <p
                                 v-if="summaryText(item.content)"
-                                class="line-clamp-2 text-sm text-zinc-500 dark:text-slate-400"
+                                class="line-clamp-1 text-sm text-zinc-500 dark:text-slate-400 sm:line-clamp-2"
                             >
                                 {{ summaryText(item.content) }}
                             </p>
@@ -162,5 +187,13 @@ watch(
                 </li>
             </ul>
         </div>
+
+        <!-- Mobile infinite-scroll sentinel: reveals the next batch when it enters the
+             viewport. Hidden from tablet up, where the row is horizontally scrollable. -->
+        <div
+            ref="sentinel"
+            class="h-px sm:hidden"
+            aria-hidden="true"
+        ></div>
     </div>
 </template>
