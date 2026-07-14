@@ -28,12 +28,13 @@ export type ContentProgressEntry = {
     reading?: ContentProgressReading;
 };
 
-/** @deprecated Legacy shape — used only when migrating from `mediaProgress`. */
-export type mediaProgressEntry = ContentProgressWatching & {
+// Legacy localStorage shapes (the old flat `mediaProgress` / `readingProgress` keys).
+// Only the one-time migration below reads them — not part of the module's public API.
+type LegacyMediaProgressEntry = ContentProgressWatching & {
     contentId: Uuid;
 };
 
-export type ReadingProgress = {
+type LegacyReadingProgressEntry = {
     contentId: Uuid;
     progress: number;
 };
@@ -54,7 +55,7 @@ function migrateLegacyProgressStorage(): ContentProgressEntry[] {
     try {
         const mediaList = JSON.parse(localStorage.getItem("mediaProgress") || "[]");
         if (Array.isArray(mediaList)) {
-            mediaList.forEach((item: mediaProgressEntry, index: number) => {
+            mediaList.forEach((item: LegacyMediaProgressEntry, index: number) => {
                 if (!item?.contentId || item.duration === Infinity) return;
                 const existing = byContentId.get(item.contentId);
                 const entry: ContentProgressEntry = existing ?? {
@@ -77,7 +78,7 @@ function migrateLegacyProgressStorage(): ContentProgressEntry[] {
     try {
         const readingList = JSON.parse(localStorage.getItem("readingProgress") || "[]");
         if (Array.isArray(readingList)) {
-            readingList.forEach((item: ReadingProgress, index: number) => {
+            readingList.forEach((item: LegacyReadingProgressEntry, index: number) => {
                 if (!item?.contentId) return;
                 const existing = byContentId.get(item.contentId);
                 const entry: ContentProgressEntry = existing ?? {
@@ -174,13 +175,6 @@ export function watchContentProgressStorage(): () => void {
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
 }
-
-/** @deprecated Use syncContentProgressFromStorage */
-export const syncReadingProgressFromStorage = syncContentProgressFromStorage;
-
-/** @deprecated Use watchContentProgressStorage */
-export const watchReadingProgressStorage = watchContentProgressStorage;
-
 /**
  * Get the playback progress of a media item.
  * @param mediaId - The media unique identifier
