@@ -76,6 +76,26 @@ export async function recordAffinity(tagIds: Uuid[] | undefined, weight: number 
 }
 
 /**
+ * Record that recommended content was shown and scrolled past without being opened:
+ * fold its topic tags into the affinity profile with the negative `EventWeight.Impression`
+ * signal. This is the only negative signal in the profile — without it, a tag that
+ * picked up one accidental positive interaction stays inflated for a full decay
+ * half-life and keeps polluting retrieval.
+ */
+export async function recordImpressionMiss(tagIds: Uuid[] | undefined) {
+    if (!tagIds || tagIds.length === 0) return;
+    const topicTags = await filterToTopicTags(tagIds);
+    if (!topicTags.length) return;
+    affinityProfile.value = applyEvent(
+        affinityProfile.value,
+        topicTags,
+        Date.now(),
+        EventWeight.Impression,
+    );
+    persist();
+}
+
+/**
  * Restrict tag ids to `TagType.Topic`. `Category`/`AudioPlaylist` tags sit on most of
  * the corpus (e.g. a "Devotional" category), so feeding them into affinity would let
  * the site's most common tags — not the user's actual interests — dominate the profile.

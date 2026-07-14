@@ -67,6 +67,14 @@ export const EventWeight = {
      * `Bookmark`) so the two can be tuned independently later.
      */
     Highlight: 0.3,
+    /**
+     * A recommended tag was shown to the user and scrolled past without a click. The
+     * cheapest, most abundant negative signal available — without it, a tag that got
+     * one accidental bookmark keeps polluting retrieval for a full decay half-life.
+     * Small and negative: many impressions are needed to meaningfully suppress a tag,
+     * so a single scroll-past can't outweigh a real interaction.
+     */
+    Impression: -0.02,
 } as const;
 
 const empty = (): AffinityProfile => ({ affinity: {}, lastDecayUtc: undefined });
@@ -102,16 +110,36 @@ export function applyEvent(
     // Depth damping uses the topic count *before* this event, so a profile's own
     // breadth — not this event's tags — decides how strongly it can still move.
     const depthFactor = DEPTH_SCALE / (DEPTH_SCALE + Object.keys(affinity).length);
+    const newTags = new Set<Uuid>();
     for (const tag of tagIds) {
         if (!tag) continue;
+        const hasPriorEvidence = tag in affinity;
+        // A negative signal on a tag the profile has no evidence for carries no
+        // information — there's nothing to suppress yet. Without this guard it would
+        // create a zero-score entry that `capTags` then treats as a brand-new interest
+        // and protects from eviction, letting a single batch of impression misses evict
+        // real, learned interests from a mature profile.
+        if (!hasPriorEvidence && weight < 0) continue;
         const current = affinity[tag] ?? 0;
-        // Diminishing returns: each event closes a fraction (`weight`, damped by profile
-        // depth) of the remaining gap to 1, so repeat casual opens can't saturate a tag
-        // as fast as one bookmark — score growth naturally slows as confidence in a tag
-        // rises, and further slows as the overall profile matures.
-        affinity[tag] = current + weight * depthFactor * (1 - current);
+        // A tag with no prior evidence isn't part of the "breadth" depth damping is meant
+        // to protect against — it moves at full weight so it can seed a real score instead
+        // of landing just above MIN_SCORE and getting capped away on the same tick it's born.
+        const factor = hasPriorEvidence ? depthFactor : 1;
+        if (!hasPriorEvidence) newTags.add(tag);
+        if (weight >= 0) {
+            // Diminishing returns: each event closes a fraction (`weight`, damped by profile
+            // depth) of the remaining gap to 1, so repeat casual opens can't saturate a tag
+            // as fast as one bookmark — score growth naturally slows as confidence in a tag
+            // rises, and further slows as the overall profile matures.
+            affinity[tag] = current + weight * factor * (1 - current);
+        } else {
+            // Negative signal (e.g. EventWeight.Impression): close a fraction of the
+            // remaining gap to 0 instead, so a tag can never go negative and a strong,
+            // well-earned score isn't wiped out by a handful of scroll-pasts.
+            affinity[tag] = current + weight * factor * current;
+        }
     }
-    return { affinity: capTags(affinity, MAX_TAGS), lastDecayUtc: now };
+    return { affinity: capTags(affinity, MAX_TAGS, newTags), lastDecayUtc: now };
 }
 
 /** Top-`n` tag ids by (decayed) score, descending — the retrieval query seed. */
@@ -122,9 +150,20 @@ export function topTags(profile: AffinityProfile | undefined, n: number, now = D
         .map(([tag]) => tag);
 }
 
-function capTags(affinity: AffinityMap, max: number): AffinityMap {
+/**
+ * Drop the weakest tags beyond `max`. Tags in `protectedTags` (this event's just-created
+ * tags — see {@link applyEvent}) are exempted so a brand-new interest survives at least
+ * one tick instead of being evicted the instant it's born; if there isn't room even after
+ * protecting them, the weakest *unprotected* tags still go first.
+ */
+function capTags(affinity: AffinityMap, max: number, protectedTags?: Set<Uuid>): AffinityMap {
     const entries = Object.entries(affinity);
     if (entries.length <= max) return affinity;
     entries.sort((a, b) => b[1] - a[1]);
-    return Object.fromEntries(entries.slice(0, max));
+    if (!protectedTags?.size) return Object.fromEntries(entries.slice(0, max));
+
+    const protectedEntries = entries.filter(([tag]) => protectedTags.has(tag));
+    const rest = entries.filter(([tag]) => !protectedTags.has(tag));
+    const keep = Math.max(0, max - protectedEntries.length);
+    return Object.fromEntries([...protectedEntries, ...rest.slice(0, keep)]);
 }

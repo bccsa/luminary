@@ -4,6 +4,7 @@ import { useRouter } from "vue-router";
 import { type ContentDto, db, EventWeight } from "luminary-shared";
 import { useContentQuery } from "@/composables/useContentQuery";
 import { recordAffinity } from "@/recommendation/affinityStore";
+import { markSeen } from "@/recommendation/seenStore";
 import {
     PlayIcon,
     PauseIcon,
@@ -763,6 +764,9 @@ onMounted(() => {
                 // Finishing a track is a strong engagement signal — weight it above a
                 // plain open.
                 recordAffinity(currentContent.value.parentTags, EventWeight.Completion);
+                // mediaProgress is a 10-slot ring buffer used only to resume playback,
+                // not a history — record completion in the durable seen store instead.
+                markSeen(currentContent.value._id);
             }
         });
 
