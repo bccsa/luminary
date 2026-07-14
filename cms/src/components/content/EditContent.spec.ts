@@ -1068,7 +1068,6 @@ describe("EditContent.vue", () => {
             },
             { timeout: 10000 },
         );
-
     });
 
     describe("Image bucket validation", () => {
@@ -1276,7 +1275,9 @@ describe("EditContent.vue", () => {
         };
 
         it("is not dirty on load when the post has no bucket IDs and a single media bucket is auto-selected", async () => {
-            const wrapper = await loadWithoutUserEdits({}, [mockData.mockStorageDtoWithEncryptedCredentials]);
+            const wrapper = await loadWithoutUserEdits({}, [
+                mockData.mockStorageDtoWithEncryptedCredentials,
+            ]);
 
             // Revert action is only rendered while isDirty is true — its absence proves
             // the dirty state stayed clean across the bucket auto-select watcher.
@@ -1306,44 +1307,56 @@ describe("EditContent.vue", () => {
             });
         });
 
-        it(
-            "is not dirty on load when the post already has bucket IDs persisted",
-            async () => {
-                const wrapper = await loadWithoutUserEdits(
-                    {
-                        imageBucketId: mockData.mockStorageDto._id,
-                        mediaBucketId: mockData.mockStorageDtoWithEncryptedCredentials._id,
-                    },
-                    [mockData.mockStorageDto, mockData.mockStorageDtoWithEncryptedCredentials],
-                );
+        it("returns to clean when the always-offline toggle is flipped on and back off", async () => {
+            // Legacy docs predate `alwaysOffline`, so the field is absent. Toggling it on
+            // and back off writes `false` where the shadow has no key — the parent
+            // filterFn must normalize that away (like showComingSoon/useVerticalTileLayout)
+            // or the editor stays stuck reporting unsaved settings changes.
+            const wrapper = await loadWithoutUserEdits();
 
+            const parentCard = wrapper.findComponent(EditContentParent);
+            // Publish date (0), Coming soon (1), Always offline (2)
+            const alwaysOfflineToggle = parentCard.findAllComponents({ name: "LToggle" })[2];
+
+            alwaysOfflineToggle.vm.$emit("update:modelValue", true);
+            await waitForExpect(() => {
+                expect(wrapper.find('[data-test="revert-changes-button"]').exists()).toBe(true);
+            });
+
+            alwaysOfflineToggle.vm.$emit("update:modelValue", false);
+            await waitForExpect(() => {
                 expect(wrapper.find('[data-test="revert-changes-button"]').exists()).toBe(false);
-            },
-            15000,
-        );
+            });
+        });
 
-        it(
-            "becomes dirty after a genuine user edit on a legacy post with auto-selected buckets",
-            async () => {
-                const wrapper = await loadWithoutUserEdits({}, [
-                    mockData.mockStorageDto,
-                    mockData.mockStorageDtoWithEncryptedCredentials,
-                ]);
+        it("is not dirty on load when the post already has bucket IDs persisted", async () => {
+            const wrapper = await loadWithoutUserEdits(
+                {
+                    imageBucketId: mockData.mockStorageDto._id,
+                    mediaBucketId: mockData.mockStorageDtoWithEncryptedCredentials._id,
+                },
+                [mockData.mockStorageDto, mockData.mockStorageDtoWithEncryptedCredentials],
+            );
 
-                // Baseline must be clean before the edit — otherwise the next assertion
-                // could pass for the wrong reason.
-                expect(wrapper.find('[data-test="revert-changes-button"]').exists()).toBe(false);
+            expect(wrapper.find('[data-test="revert-changes-button"]').exists()).toBe(false);
+        }, 15000);
 
-                await wrapper.find('input[name="title"]').setValue("Edited title");
+        it("becomes dirty after a genuine user edit on a legacy post with auto-selected buckets", async () => {
+            const wrapper = await loadWithoutUserEdits({}, [
+                mockData.mockStorageDto,
+                mockData.mockStorageDtoWithEncryptedCredentials,
+            ]);
 
-                await waitForExpect(() => {
-                    expect(wrapper.find('[data-test="revert-changes-button"]').exists()).toBe(
-                        true,
-                    );
-                });
-            },
-            15000,
-        );
+            // Baseline must be clean before the edit — otherwise the next assertion
+            // could pass for the wrong reason.
+            expect(wrapper.find('[data-test="revert-changes-button"]').exists()).toBe(false);
+
+            await wrapper.find('input[name="title"]').setValue("Edited title");
+
+            await waitForExpect(() => {
+                expect(wrapper.find('[data-test="revert-changes-button"]').exists()).toBe(true);
+            });
+        }, 15000);
 
         it("optional boolean toggles clear dirty state when toggled back off", async () => {
             const wrapper = await loadWithoutUserEdits({}, [
