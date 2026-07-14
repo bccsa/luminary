@@ -50,9 +50,9 @@ async function deleteImageFilesFromBucket(
                         .removeObject(bucketS3Service.getBucketName(), file.filename);
                 } catch (error) {
                     warnings.push(
-                        `Failed to delete ${file.filename} from bucket ${bucketS3Service.getBucketName()}: ${
-                            error.message
-                        }`,
+                        `Failed to delete ${
+                            file.filename
+                        } from bucket ${bucketS3Service.getBucketName()}: ${error.message}`,
                     );
                 }
             }
@@ -198,27 +198,37 @@ export async function processImage(
 ): Promise<{ migrationFailed: boolean; warnings: string[] }> {
     const warnings: string[] = [];
     let migrationFailed = false;
+    let duplicatedNow = false;
 
     try {
-        if (!prevImage && image.duplicate && image.fileCollections.length > 0) {
-            if (!parentBucketId) {
-                warnings.push("Parent bucket ID is required for duplicated image copy.");
-                return { migrationFailed, warnings };
-            }
-
-            const duplicateResult = await duplicateImageFilesWithoutReencoding(
-                image,
-                db,
-                parentBucketId,
-                parentBucketId,
+        if (image.duplicate && image.fileCollections.length > 0) {
+            const prevHasFiles = !!prevImage?.fileCollections?.some(
+                (collection) => collection.imageFiles?.length > 0,
             );
-            warnings.push(...duplicateResult.warnings);
 
-            if (!duplicateResult.success) {
-                // Avoid persisting stale source filenames when copy fails.
-                image.fileCollections = [];
-                delete image.duplicate;
-                return { migrationFailed, warnings };
+            if (prevHasFiles) {
+                image.fileCollections = prevImage.fileCollections;
+            } else {
+                if (!parentBucketId) {
+                    warnings.push("Parent bucket ID is required for duplicated image copy.");
+                    return { migrationFailed, warnings };
+                }
+
+                const duplicateResult = await duplicateImageFilesWithoutReencoding(
+                    image,
+                    db,
+                    parentBucketId,
+                    parentBucketId,
+                );
+                warnings.push(...duplicateResult.warnings);
+
+                if (!duplicateResult.success) {
+                    // Avoid persisting stale source filenames when copy fails.
+                    image.fileCollections = [];
+                    delete image.duplicate;
+                    return { migrationFailed, warnings };
+                }
+                duplicatedNow = true;
             }
         }
 
@@ -240,7 +250,10 @@ export async function processImage(
             migrationFailed = migrationResult.failed;
         }
 
-        if (prevImage) {
+        // Skipped when the duplicate copy just authored the collections (a retry after a
+        // failed first copy has a prevImage with EMPTY collections — reconciling against
+        // it would wipe the files the copy just created).
+        if (prevImage && !duplicatedNow) {
             // Remove files that were removed from the image
             const removedFiles = prevImage.fileCollections.flatMap((collection) => {
                 return collection.imageFiles.filter(
