@@ -13,8 +13,6 @@ const props = defineProps<Props>();
 
 const { t } = useI18n();
 
-const MAX_ITEMS = 8;
-
 // Topic pages already list their own content, so the "Read more" block is for non-topics.
 const isNotTopic = computed(() => props.selectedContent.parentTagType !== TagType.Topic);
 
@@ -31,9 +29,10 @@ const contentDocs = useContentQuery(() => [{ parentId: { $in: contentIds.value }
 });
 
 // One flat, newest-first list (dedup is inherent — a single query, not one row per tag),
-// with the current article removed and capped.
+// with the current article removed. The query's `limit` is the overall cap; per-breakpoint
+// display (mobile infinite scroll, desktop full scroll row) is ReadMore's job.
 const relatedContent = computed(() =>
-    contentDocs.value.filter((item) => item._id !== props.selectedContent._id).slice(0, MAX_ITEMS),
+    contentDocs.value.filter((item) => item._id !== props.selectedContent._id),
 );
 
 // Resolve each related post's tag ids to titles for the per-card chips: one query over
