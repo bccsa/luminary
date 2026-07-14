@@ -567,6 +567,7 @@ describe("AuthGuard (Integrated)", () => {
 
         mockDbService = {
             getDoc: jest.fn().mockResolvedValue({ docs: [baseProviderDoc] }),
+            getDocs: jest.fn(),
             executeFindQuery: jest.fn(),
             upsertDoc: jest.fn().mockResolvedValue({}),
         };
@@ -653,6 +654,31 @@ describe("AuthGuard (Integrated)", () => {
         expect(capturedUser).toBeDefined();
         expect(capturedUser.groups).toEqual(expect.arrayContaining(["group-public"]));
         expect(mockDbService.upsertDoc).not.toHaveBeenCalled();
+    });
+
+    it("should give an authenticated first-time visitor the accessible default affinity", async () => {
+        mockDbService.getDoc
+            .mockResolvedValueOnce({ docs: [baseProviderDoc] })
+            .mockResolvedValueOnce({
+                docs: [{ _id: "default-affinity", affinity: { "tag-public": 0.8 } }],
+            });
+        mockDbService.getDocs.mockResolvedValue({
+            docs: [{ _id: "tag-public", memberOf: ["group-public"] }],
+        });
+        const verifyAccess = jest.spyOn(PermissionSystem, "verifyAccess").mockReturnValue(true);
+        mockDbService.executeFindQuery
+            .mockResolvedValueOnce({ docs: [{ groupIds: ["group-public"] }] })
+            .mockResolvedValueOnce({ docs: [] })
+            .mockResolvedValueOnce({ docs: [] })
+            .mockResolvedValueOnce({ docs: [] })
+            .mockResolvedValueOnce({ docs: [] });
+
+        const result = await authIdentityService.resolveOrDefault("valid-token", "provider-id");
+
+        expect(result.status).toBe("authenticated");
+        expect(result.userDetails.defaultAffinity).toEqual({ "tag-public": 0.8 });
+        expect(mockDbService.upsertDoc).not.toHaveBeenCalled();
+        verifyAccess.mockRestore();
     });
 
     it("should link identity to existing user found by email (fallback) when email is verified", async () => {

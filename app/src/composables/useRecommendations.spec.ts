@@ -110,4 +110,32 @@ describe("rank", () => {
             result.filter((doc) => doc._id.startsWith("fts-")).map((doc) => doc._id),
         ).toHaveLength(4);
     });
+
+    it("stops diversity selection once the requested output limit is filled", () => {
+        const docs = Array.from({ length: 50 }, (_, i) => makeContent(`doc-${i}`, ["tag-a"]));
+
+        const result = rank(docs, [], { "tag-a": 0.8 }, { now: 0, limit: 2 });
+
+        expect(result).toHaveLength(2);
+        expect(result.map((doc) => doc._id)).toEqual(["doc-0", "doc-1"]);
+    });
+
+    it("truncates overflow docs that were diversity-capped before the limit was reached", () => {
+        // 4 tag-a docs with MAX_PER_DOMINANT_TAG=3 pushes the 4th into `overflow` while
+        // `selected` is still short of `limit` — `selected` only reaches 5 once the
+        // tag-b docs are appended. Without the trailing slice(0, limit), the demoted
+        // 4th tag-a doc would still be appended to the result, returning 6 instead of 5.
+        const tagADocs = Array.from({ length: 4 }, (_, i) => makeContent(`tag-a-${i}`, ["tag-a"]));
+        const tagBDocs = Array.from({ length: 3 }, (_, i) => makeContent(`tag-b-${i}`, ["tag-b"]));
+
+        const result = rank(
+            [...tagADocs, ...tagBDocs],
+            [],
+            { "tag-a": 0.8, "tag-b": 0.5 },
+            { now: 0, limit: 5 },
+        );
+
+        expect(result).toHaveLength(5);
+        expect(result.map((doc) => doc._id)).not.toContain("tag-a-3");
+    });
 });

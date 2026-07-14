@@ -1,22 +1,21 @@
-import { computed, ref, watch } from "vue";
+import { computed, onScopeDispose, ref, watch } from "vue";
 import {
-    topTags,
+    decay,
     ftsSearch,
-    db,
     DocType,
     PublishStatus,
-    TagType,
     type AffinityMap,
     type ContentDto,
-    type TagDto,
     type Uuid,
     type FtsSearchResult,
+    topTagsFrom,
 } from "luminary-shared";
 import { useContentQuery } from "@/composables/useContentQuery";
 import { affinityProfile } from "@/recommendation/affinityStore";
 import { getSeenArticleIds, seenVersion } from "@/recommendation/seenStore";
-import { appDisplayLanguageIdsAsRef } from "@/globalConfig";
+import { appSyncedDisplayLanguageIdsAsRef } from "@/globalConfig";
 import { sessionNow } from "@/util/sessionNow";
+import { filterTopicTagIds } from "@/recommendation/topicTags";
 
 const TOP_N_TAGS = 12;
 /** Output cap on the fused feed. */
@@ -42,6 +41,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  *  in the ranked list before the rest of that tag's matches get pushed down. Without
  *  this the top of the feed is whichever single tag scores highest. */
 const MAX_PER_DOMINANT_TAG = 3;
+const FTS_DEBOUNCE_MS = 300;
 
 /**
  * Personalized "Recommended for you" feed.
@@ -75,7 +75,13 @@ export function useRecommendations({
     limit = DEFAULT_LIMIT,
     retrievalLimit = DEFAULT_RETRIEVAL_LIMIT,
 }: UseRecommendationsOptions = {}) {
-    const tags = computed(() => topTags(affinityProfile.value, TOP_N_TAGS));
+    // Decay once per profile update so the retrieval tags and the leg weighting are
+    // based on precisely the same evidence.
+    const decayedAffinity = computed(() => decay(affinityProfile.value, sessionNow()).affinity);
+    const tags = computed(() => topTagsFrom(decayedAffinity.value, TOP_N_TAGS));
+    // `$in` has set semantics. Keep its identity canonical so score-only reordering
+    // does not rebuild the hybrid query or re-fetch its 1000-document candidate pool.
+    const tagSet = computed(() => [...tags.value].sort());
     // 0 (cold: no real signal yet) .. 1 (TOP_N_TAGS worth of well-earned affinity) — used
     // to shift leg weight toward FTS early and toward tags once the profile has real
     // signal. Summed *score*, not tag count: a dozen barely-above-MIN_SCORE tags (e.g.
@@ -83,7 +89,7 @@ export function useRecommendations({
     // because a slot is filled — richness should track how much evidence backs the
     // profile, not how many keys happen to exist in the map.
     const richness = computed(() => {
-        const total = tags.value.reduce((sum, id) => sum + (affinityProfile.value.affinity[id] ?? 0), 0);
+        const total = tags.value.reduce((sum, id) => sum + (decayedAffinity.value[id] ?? 0), 0);
         return Math.min(1, total / TOP_N_TAGS);
     });
 
@@ -91,8 +97,8 @@ export function useRecommendations({
         // No tags yet → a provably-empty `$in: []` so HybridQuery short-circuits
         // (no scan, no API call) and the feed stays empty until the profile warms up.
         () =>
-            tags.value.length
-                ? [{ parentTags: { $elemMatch: { $in: tags.value } } }]
+            tagSet.value.length
+                ? [{ parentTags: { $elemMatch: { $in: tagSet.value } } }]
                 : [{ _id: { $in: [] } }],
         { cache: true, cacheId: "recommended", limit: retrievalLimit },
     );
@@ -101,8 +107,8 @@ export function useRecommendations({
     // default language-priority filter already collapses this to ~one doc per tag id.
     const tagContent = useContentQuery(
         () =>
-            tags.value.length
-                ? [{ parentType: DocType.Tag }, { parentId: { $in: tags.value } }]
+            tagSet.value.length
+                ? [{ parentType: DocType.Tag }, { parentId: { $in: tagSet.value } }]
                 : [{ _id: { $in: [] } }],
         { cache: true, cacheId: "recommended-tag-titles", limit: TOP_N_TAGS * 2 },
     );
@@ -120,20 +126,14 @@ export function useRecommendations({
             for (const doc of docs) for (const t of doc.parentTags ?? []) candidateTagIds.add(t);
             const ids = [...candidateTagIds];
             try {
-                // A single bulk IDB read instead of one `isTagType` transaction per distinct
-                // tag (up to 1000-doc-pool-worth every `content` change).
-                const tagDocs = await db.docs.bulkGet(ids);
+                const topicIds = await filterTopicTagIds(ids);
                 // `content` can change again before this resolves; only the most recent run
                 // may commit, otherwise an older, slower run can overwrite a newer result.
                 if (runSeq !== topicTagIdsRunSeq) return;
-                const next = new Set<Uuid>();
-                tagDocs.forEach((doc, i) => {
-                    if (doc?.type === DocType.Tag && (doc as TagDto).tagType === TagType.Topic)
-                        next.add(ids[i]);
-                });
-                topicTagIds.value = next;
+                topicTagIds.value = new Set(topicIds);
             } catch {
-                // db not initialized (e.g. unit tests) — leave the previous value.
+                // `filterTopicTagIds` handles database failures; retain this guard for
+                // unexpected errors in the watcher itself.
             }
         },
         { immediate: true },
@@ -158,52 +158,69 @@ export function useRecommendations({
     // page) — run it in a watcher into a plain ref rather than forcing the whole
     // composable's reactivity through an async computed.
     const ftsResults = ref<FtsSearchResult[]>([]);
+    let ftsRunSeq = 0;
+    let ftsDebounceTimer: ReturnType<typeof setTimeout> | undefined;
     watch(
         ftsQuery,
-        async (query) => {
+        (query) => {
+            const runSeq = ++ftsRunSeq;
+            if (ftsDebounceTimer) clearTimeout(ftsDebounceTimer);
             if (!query) {
                 ftsResults.value = [];
                 return;
             }
-            try {
-                const now = sessionNow();
-                // Full display-language priority chain, not just the first language, so a
-                // profile whose top tags have thin content in the primary language still
-                // gets a serendipity leg — mirrors the tag leg's own language fallback.
-                const seen = new Set<Uuid>();
-                const merged: FtsSearchResult[] = [];
-                for (const languageId of appDisplayLanguageIdsAsRef.value) {
-                    if (merged.length >= retrievalLimit) break;
-                    const results = await ftsSearch({
-                        query,
-                        languageId,
-                        status: PublishStatus.Published,
-                        publishedBefore: now,
-                        limit: retrievalLimit,
-                    });
-                    for (const r of results) {
-                        if (seen.has(r.docId)) continue;
-                        // ftsSearch has no expiry filter — drop expired content post-hoc
-                        // (parity with the tag leg's mangoIsPublished check).
-                        if (r.doc.expiryDate && r.doc.expiryDate < now) continue;
-                        seen.add(r.docId);
-                        merged.push(r);
+            ftsDebounceTimer = setTimeout(async () => {
+                try {
+                    const now = sessionNow();
+                    // Search only locally synced languages in the user's preferred priority
+                    // order: primary first, then downloaded fallbacks. The display default
+                    // may be fetched on demand, but it is not a complete local FTS corpus
+                    // and must not trigger a BM25 scan. Results remain parallel; their
+                    // merge order is deterministic.
+                    const perLanguage = await Promise.all(
+                        appSyncedDisplayLanguageIdsAsRef.value.map((languageId) =>
+                            ftsSearch({
+                                query,
+                                languageId,
+                                status: PublishStatus.Published,
+                                publishedBefore: now,
+                                limit: retrievalLimit,
+                            }),
+                        ),
+                    );
+                    if (runSeq !== ftsRunSeq) return;
+                    const seen = new Set<Uuid>();
+                    const merged: FtsSearchResult[] = [];
+                    for (const results of perLanguage) {
+                        for (const r of results) {
+                            if (seen.has(r.docId)) continue;
+                            // ftsSearch has no expiry filter — drop expired content post-hoc
+                            // (parity with the tag leg's mangoIsPublished check).
+                            if (r.doc.expiryDate && r.doc.expiryDate < now) continue;
+                            seen.add(r.docId);
+                            merged.push(r);
+                            if (merged.length >= retrievalLimit) break;
+                        }
                         if (merged.length >= retrievalLimit) break;
                     }
+                    ftsResults.value = merged;
+                } catch {
+                    // Offline FTS is best-effort here — a failure just means this leg
+                    // contributes nothing; the tag-membership leg still works.
+                    if (runSeq === ftsRunSeq) ftsResults.value = [];
                 }
-                ftsResults.value = merged;
-            } catch {
-                // Offline FTS is best-effort here — a failure just means this leg
-                // contributes nothing; the tag-membership leg still works.
-                ftsResults.value = [];
-            }
+            }, FTS_DEBOUNCE_MS);
         },
         { immediate: true },
     );
+    // `watch` above is auto-stopped on scope dispose, but a pending `setTimeout` isn't —
+    // without this, navigating away within FTS_DEBOUNCE_MS of an affinity write still
+    // fires the full multi-language BM25 scan into a ref nobody reads anymore.
+    onScopeDispose(() => clearTimeout(ftsDebounceTimer));
 
     const seenIds = computed(() => {
-        void seenVersion.value; // reactive dependency: getSeenContentIds itself reads localStorage
-        return new Set(getSeenContentIds());
+        void seenVersion.value; // reactive dependency: getSeenArticleIds itself reads localStorage
+        return new Set(getSeenArticleIds());
     });
 
     const recommended = computed(() => {
@@ -212,11 +229,12 @@ export function useRecommendations({
         // content into overflow (and past `slice(0, limit)` entirely).
         const unseenTagCandidates = content.value.filter((c) => !seenIds.value.has(c._id));
         const unseenFtsCandidates = ftsResults.value.filter((r) => !seenIds.value.has(r.docId));
-        return rank(unseenTagCandidates, unseenFtsCandidates, affinityProfile.value.affinity, {
+        return rank(unseenTagCandidates, unseenFtsCandidates, decayedAffinity.value, {
             topicTagIds: topicTagIds.value,
             tagWeight: TAG_LEG_WEIGHT * (0.3 + 0.7 * richness.value),
             ftsWeight: FTS_LEG_WEIGHT * (1 - 0.5 * richness.value),
-        }).slice(0, limit);
+            limit,
+        });
     });
 
     return { recommended, hasTags: computed(() => tags.value.length > 0) };
@@ -230,6 +248,8 @@ export type RankOptions = {
     tagWeight?: number;
     ftsWeight?: number;
     now?: number;
+    /** Stop diversity work once this many selected documents are determined. */
+    limit?: number;
 };
 
 /**
@@ -253,18 +273,14 @@ export function rank(
         tagWeight = TAG_LEG_WEIGHT,
         ftsWeight = FTS_LEG_WEIGHT,
         now = Date.now(),
+        limit,
     } = options;
 
     const docs = new Map<Uuid, ContentDto>();
     const score = new Map<Uuid, number>();
 
-    for (const doc of tagCandidates) {
-        docs.set(doc._id, doc);
-        score.set(
-            doc._id,
-            (score.get(doc._id) ?? 0) + tagWeight * tagScore(doc, affinity, topicTagIds),
-        );
-    }
+    const tagCandidateIds = new Set(tagCandidates.map((doc) => doc._id));
+    for (const doc of tagCandidates) docs.set(doc._id, doc);
 
     ftsCandidates.forEach((result, i) => {
         if (!docs.has(result.docId)) docs.set(result.docId, result.doc);
@@ -278,7 +294,12 @@ export function rank(
         );
     });
 
+    const dominantTags = new Map<Uuid, Uuid | undefined>();
     for (const doc of docs.values()) {
+        const { score: affinityScore, dominantTag } = tagAffinity(doc, affinity, topicTagIds);
+        dominantTags.set(doc._id, dominantTag);
+        if (tagCandidateIds.has(doc._id))
+            score.set(doc._id, (score.get(doc._id) ?? 0) + tagWeight * affinityScore);
         score.set(doc._id, (score.get(doc._id) ?? 0) + RECENCY_WEIGHT * recencyFactor(doc, now));
     }
 
@@ -290,7 +311,7 @@ export function rank(
     const selected: ContentDto[] = [];
     const overflow: ContentDto[] = [];
     for (const doc of ordered) {
-        const dominant = dominantTag(doc, affinity, topicTagIds);
+        const dominant = dominantTags.get(doc._id);
         if (dominant) {
             const count = perTagCount.get(dominant) ?? 0;
             if (count >= MAX_PER_DOMINANT_TAG) {
@@ -300,43 +321,36 @@ export function rank(
             perTagCount.set(dominant, count + 1);
         }
         selected.push(doc);
+        if (limit !== undefined && selected.length >= limit) break;
     }
-    return [...selected, ...overflow];
+    // The early break above only stops filling `selected` once `limit` is reached — it
+    // doesn't discard whatever diversity capping already pushed into `overflow` before
+    // that point, so `overflow` must still be truncated here. `slice(0, undefined)` is a
+    // no-op, so the no-limit call path is unaffected.
+    return [...selected, ...overflow].slice(0, limit);
 }
 
-/** A doc's topic tags eligible for affinity scoring/diversity — every `parentTags`
- *  entry if `topicTagIds` wasn't resolved (unit tests), otherwise only Topic tags. */
-function eligibleTags(doc: ContentDto, topicTagIds?: Set<Uuid>): Uuid[] {
-    const tags = doc.parentTags ?? [];
-    return topicTagIds ? tags.filter((t) => topicTagIds.has(t)) : tags;
-}
-
-/** Blend of max and mean affinity over the doc's topic tags: pure averaging over-punishes
- *  richly-tagged content (one strong topic plus several near-zero ones would otherwise
- *  lose to a single lukewarm tag), while pure max ignores that multiple matches are still
- *  a stronger signal than one. */
-function tagScore(doc: ContentDto, affinity: AffinityMap, topicTagIds?: Set<Uuid>): number {
-    const tags = eligibleTags(doc, topicTagIds);
-    if (!tags.length) return 0;
-    const scores = tags.map((t) => affinity[t] ?? 0);
-    const max = Math.max(...scores);
-    const mean = scores.reduce((a, b) => a + b, 0) / scores.length;
-    return 0.5 * max + 0.5 * mean;
-}
-
-/** The single topic tag driving a doc's tag-affinity score, for diversity capping. */
-function dominantTag(
+/** Compute tag affinity and the diversity key in one allocation-free pass. */
+function tagAffinity(
     doc: ContentDto,
     affinity: AffinityMap,
     topicTagIds?: Set<Uuid>,
-): Uuid | undefined {
-    const tags = eligibleTags(doc, topicTagIds);
-    if (!tags.length) return undefined;
-    const best = tags.reduce((best, t) => ((affinity[t] ?? 0) > (affinity[best] ?? 0) ? t : best));
-    // A doc with no affinity on any of its topic tags (typical of a pure-FTS-leg doc)
-    // has no real "dominant" tag — returning tags[0] would key diversity capping off an
-    // arbitrary tag instead of leaving the doc uncapped.
-    return (affinity[best] ?? 0) > 0 ? best : undefined;
+): { score: number; dominantTag: Uuid | undefined } {
+    let count = 0;
+    let total = 0;
+    let max = 0;
+    let dominantTag: Uuid | undefined;
+    for (const tag of doc.parentTags ?? []) {
+        if (topicTagIds && !topicTagIds.has(tag)) continue;
+        const value = affinity[tag] ?? 0;
+        count++;
+        total += value;
+        if (value > max) {
+            max = value;
+            dominantTag = tag;
+        }
+    }
+    return { score: count ? 0.5 * max + 0.5 * (total / count) : 0, dominantTag };
 }
 
 /** Exponential recency prior, halving every `RECENCY_HALFLIFE_DAYS`. Docs without a
@@ -345,13 +359,4 @@ function recencyFactor(doc: ContentDto, now: number): number {
     if (!doc.publishDate) return 0;
     const ageDays = Math.max(0, (now - doc.publishDate) / DAY_MS);
     return Math.exp((-Math.LN2 / RECENCY_HALFLIFE_DAYS) * ageDays);
-}
-
-/** Content ids the user has already engaged with: articles marked seen via a
- *  dwell-gated open, and audio/video marked seen on completion (see `seenStore`).
- *  `mediaProgress` (globalConfig.ts) is deliberately NOT used here — it's a 10-slot
- *  ring buffer for resuming playback, and entries are removed on completion, so
- *  presence there means "abandoned partway through", not "seen". */
-function getSeenContentIds(): Uuid[] {
-    return getSeenArticleIds();
 }
