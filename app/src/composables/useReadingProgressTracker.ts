@@ -436,7 +436,11 @@ export function useReadingProgressTracker(options: {
             }
         }
 
-        if (startedDwell && !isRestoring.value && !skimScrollState.isSkimming) {
+        // Unconditional on purpose: tickDwell self-suppresses (without accumulating)
+        // while restoring or skimming, and only IT can clear the skim flag once
+        // scrolling stops — gating the restart here would strand a parked loop with
+        // `isSkimming` stuck true (skim burst → stop scrolling → dwell never resumes).
+        if (startedDwell) {
             ensureDwellLoop();
         }
     }
