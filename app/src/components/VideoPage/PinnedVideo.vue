@@ -19,7 +19,9 @@ const pinnedCategories = useContentQuery(
 // the pinned categories change.
 const pinnedCategoryContent = useContentQuery(
     () => [
+        // Only include content that has a video, is not a page, and is either untagged or tagged with a topic.
         { video: { $exists: true, $ne: "" } },
+        { video: { $ne: null } },
         {
             $or: [
                 { parentPostType: { $exists: false } },

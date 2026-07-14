@@ -4,11 +4,7 @@ import { mount } from "@vue/test-utils";
 import { defineComponent } from "vue";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
-import {
-    mockLanguageDtoEng,
-    mockLanguageDtoFra,
-    mockLanguageDtoSwa,
-} from "@/tests/mockdata";
+import { mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa } from "@/tests/mockdata";
 import { db, type ContentDto, DocType, PostType, PublishStatus, TagType } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import { appLanguageIdsAsRef } from "@/globalConfig";
@@ -216,6 +212,26 @@ describe("PinnedVideo", () => {
 
         await waitForExpect(() => {
             expect(wrapper.text()).not.toContain("No Video Content");
+        });
+    });
+
+    // `video: null` is present-but-empty: `$exists: true` matches it, so it needs the
+    // explicit `$ne: null` clause. Seeding docs used to store exactly this shape.
+    it("does not display content whose video is null", async () => {
+        const nullVideoContent = {
+            ...mockVideoContent1,
+            _id: "content-nullvideo-eng",
+            video: null,
+            title: "Null Video Content",
+        } as unknown as ContentDto;
+        await db.docs.bulkPut([mockPinnedCategoryContent, mockVideoContent1, nullVideoContent]);
+
+        const wrapper = mountWithSuspense();
+
+        // The valid video renders; the null-video sibling does not.
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain("Video One");
+            expect(wrapper.text()).not.toContain("Null Video Content");
         });
     });
 

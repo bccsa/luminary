@@ -7,7 +7,9 @@ import { useContentQuery } from "@/composables/useContentQuery";
 
 const newest100Content = useContentQuery(
     () => [
+        // Only include content that has a video, is not page content, and is either untagged or tagged with a topic.
         { video: { $exists: true, $ne: "" } },
+        { video: { $ne: null } },
         {
             $or: [
                 { parentPostType: { $exists: false } },
