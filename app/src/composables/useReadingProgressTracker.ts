@@ -1,10 +1,6 @@
 import { computed, nextTick, onUnmounted, ref, watch, type Ref } from "vue";
 import { useEventListener, useIntersectionObserver, type MaybeElement } from "@vueuse/core";
-import {
-    getReadingProgress,
-    removeReadingProgress,
-    setReadingProgress,
-} from "@/globalConfig";
+import { getReadingProgress, removeReadingProgress, setReadingProgress } from "@/globalConfig";
 import {
     READING_MIN_SCROLL_SAMPLE_MS,
     computeBlockDwellMs,
@@ -43,6 +39,13 @@ export const READING_RESTORE_GUARD_MS = 400;
 /** Subpixel tolerance when comparing block bottom to viewport bottom. */
 export const READING_BLOCK_END_TOLERANCE_PX = 4;
 
+/**
+ * Debounce for the ResizeObserver → re-collect pass. On Android the URL bar
+ * collapsing/expanding resizes the viewport during normal scrolling; without a
+ * debounce every such change re-runs querySelectorAll + a layout read per block.
+ */
+export const READING_RESIZE_DEBOUNCE_MS = 200;
+
 export type ViewportBounds = { top: number; bottom: number };
 
 export type ReadingSegment = {
@@ -78,9 +81,7 @@ export function isBlockEndVisibleInEntry(
     return isBlockEndInViewport(rect.bottom, viewport);
 }
 
-export function isBlockEligibleForDwell(
-    entry: IntersectionObserverEntry,
-): boolean {
+export function isBlockEligibleForDwell(entry: IntersectionObserverEntry): boolean {
     return (
         entry.isIntersecting &&
         entry.intersectionRatio >= READING_INTERSECTION_RATIO &&
@@ -117,10 +118,7 @@ export function splitElementIntoSegments(
 }
 
 /** Word count for a segment — proportional share of the parent element. */
-export function segmentWordCount(
-    segment: ReadingSegment,
-    elementHeightPx?: number,
-): number {
+export function segmentWordCount(segment: ReadingSegment, elementHeightPx?: number): number {
     const totalWords = countWords(segment.sourceEl.textContent ?? "");
     if (totalWords <= 0) return 0;
 
@@ -246,9 +244,7 @@ function getScrollTop(container: HTMLElement | Window): number {
 
 function getMaxSegmentHeight(container: HTMLElement | Window): number {
     const height =
-        container === window
-            ? window.innerHeight
-            : (container as HTMLElement).clientHeight;
+        container === window ? window.innerHeight : (container as HTMLElement).clientHeight;
     return height > 0 ? height : window.innerHeight;
 }
 
@@ -266,6 +262,17 @@ export function useReadingProgressTracker(options: {
     const visibleSegments = new Set<string>();
     const segmentWordsPerPixel = new Map<string, number>();
     const dwellAccumulatedMs = new Map<string, number>();
+    // Raw (non-reactive) mirrors for the per-frame / per-scroll hot paths: iterating a
+    // Vue reactive array goes through Proxy traps per element access, which adds up at
+    // frame rate on low-end devices. `segments` stays the reactive, consumer-facing copy.
+    let segmentList: ReadingSegment[] = [];
+    const segmentsByElement = new Map<Element, ReadingSegment[]>();
+    // Word counts are precomputed at collect time so no hot path ever touches
+    // textContent / getBoundingClientRect again (dwell needs them every frame).
+    const segmentWordsById = new Map<string, number>();
+    // Elements the IntersectionObserver currently reports on-screen — the scroll
+    // handler refreshes only these instead of every block in the article.
+    const intersectingElements = new Set<Element>();
     let lastSavedProgress = -1;
     let lastScrollY = 0;
     let lastScrollTime = 0;
@@ -275,10 +282,12 @@ export function useReadingProgressTracker(options: {
         isSkimming: false,
     };
     let scrollRafPending = false;
+    let visibilityRafPending = false;
     let dwellRafId: number | null = null;
     let lastDwellFrameTime = 0;
     let trackedContentId: Uuid | undefined;
     let resizeObserver: ResizeObserver | null = null;
+    let resizeDebounceId: ReturnType<typeof setTimeout> | null = null;
 
     const isRestoring = ref(false);
 
@@ -330,11 +339,18 @@ export function useReadingProgressTracker(options: {
             isSkimming: false,
         };
         scrollRafPending = false;
+        visibilityRafPending = false;
         isRestoring.value = false;
     }
 
     function collectSegments() {
+        segmentsByElement.clear();
+        segmentWordsById.clear();
+        segmentWordsPerPixel.clear();
+        intersectingElements.clear();
+
         if (!options.articleRoot.value) {
+            segmentList = [];
             segments.value = [];
             sourceElements.value = [];
             return;
@@ -345,11 +361,25 @@ export function useReadingProgressTracker(options: {
             options.articleRoot.value.querySelectorAll(BLOCK_SELECTOR),
         ).filter((el) => el.textContent?.trim()) as Element[];
 
+        // The one place layout (rect) and text (word count) are read: once per block,
+        // per collect. Every hot path below works from these precomputed maps.
         const allSegments: ReadingSegment[] = [];
         elements.forEach((el, index) => {
-            allSegments.push(...splitElementIntoSegments(el, maxSegmentHeight, index));
+            const height = el.getBoundingClientRect().height;
+            const elSegments = splitElementIntoSegments(el, maxSegmentHeight, index, height);
+            if (!elSegments.length) return;
+
+            for (const segment of elSegments) {
+                const words = segmentWordCount(segment, height);
+                const segmentHeight = segment.bottomPx - segment.topPx;
+                segmentWordsById.set(segment.id, words);
+                segmentWordsPerPixel.set(segment.id, estimateWordsPerPixel(words, segmentHeight));
+            }
+            segmentsByElement.set(el, elSegments);
+            allSegments.push(...elSegments);
         });
 
+        segmentList = allSegments;
         segments.value = allSegments;
         sourceElements.value = elements as MaybeElement[];
     }
@@ -370,14 +400,8 @@ export function useReadingProgressTracker(options: {
         return { top: rect.top, bottom: rect.bottom };
     }
 
-    function cacheSegmentWordsPerPixel(segment: ReadingSegment) {
-        const segmentHeight = segment.bottomPx - segment.topPx;
-        const words = segmentWordCount(segment);
-        segmentWordsPerPixel.set(segment.id, estimateWordsPerPixel(words, segmentHeight));
-    }
-
     function activeSegmentWordsPerPixel(): number {
-        const active = resolveActiveSegment(segments.value, visibleSegments, confirmedSegments);
+        const active = resolveActiveSegment(segmentList, visibleSegments, confirmedSegments);
         if (!active) return 0;
         return segmentWordsPerPixel.get(active.id) ?? 0;
     }
@@ -385,25 +409,25 @@ export function useReadingProgressTracker(options: {
     function updateVisibilityForElement(
         el: Element,
         entry?: IntersectionObserverEntry,
+        viewportArg?: ViewportBounds,
     ) {
+        const elSegments = segmentsByElement.get(el);
+        if (!elSegments) return;
+
         if (entry && !entry.isIntersecting) {
-            for (const segment of segments.value) {
-                if (segment.sourceEl !== el) continue;
+            for (const segment of elSegments) {
                 visibleSegments.delete(segment.id);
                 cancelDwell(segment.id);
             }
             return;
         }
 
-        const viewport = getViewportBounds(entry);
+        const viewport = viewportArg ?? getViewportBounds(entry);
         const rect = entry?.boundingClientRect ?? el.getBoundingClientRect();
         let startedDwell = false;
 
-        for (const segment of segments.value) {
-            if (segment.sourceEl !== el) continue;
-
+        for (const segment of elSegments) {
             if (isSegmentEligible(segment, rect, viewport)) {
-                cacheSegmentWordsPerPixel(segment);
                 visibleSegments.add(segment.id);
                 startedDwell = true;
             } else {
@@ -417,12 +441,34 @@ export function useReadingProgressTracker(options: {
         }
     }
 
+    /** Full pass over every block — rare paths only (setup, restore, resize). */
     function refreshAllSegmentVisibility() {
-        for (const el of sourceElements.value) {
-            if (el instanceof Element) {
-                updateVisibilityForElement(el);
-            }
+        const viewport = getViewportBounds();
+        for (const el of segmentsByElement.keys()) {
+            updateVisibilityForElement(el, undefined, viewport);
         }
+    }
+
+    /**
+     * Scroll-path pass: only the blocks the IntersectionObserver reports on-screen
+     * (a handful) get a layout read, instead of every block in the article.
+     */
+    function refreshIntersectingSegmentVisibility() {
+        if (intersectingElements.size === 0) return;
+        const viewport = getViewportBounds();
+        for (const el of intersectingElements) {
+            updateVisibilityForElement(el, undefined, viewport);
+        }
+    }
+
+    /** Coalesce scroll-driven visibility work to at most one layout pass per frame. */
+    function scheduleVisibilityRefresh() {
+        if (visibilityRafPending) return;
+        visibilityRafPending = true;
+        requestAnimationFrame(() => {
+            visibilityRafPending = false;
+            refreshIntersectingSegmentVisibility();
+        });
     }
 
     /** Restore in-memory confirmed set from saved % so progress never drops on re-setup. */
@@ -454,9 +500,7 @@ export function useReadingProgressTracker(options: {
         const id = options.contentId.value;
         if (!id || segments.value.length === 0) return;
 
-        const computedProgress = Math.round(
-            (confirmedSegments.size / segments.value.length) * 100,
-        );
+        const computedProgress = Math.round((confirmedSegments.size / segments.value.length) * 100);
         const existing = getReadingProgress(id);
         const progress = Math.max(existing, computedProgress);
 
@@ -476,8 +520,11 @@ export function useReadingProgressTracker(options: {
         persistProgress();
     }
 
+    // Pure math over the precomputed word count — safe to call every frame. (The words
+    // Map, not a dwell-ms cache, is the baseline so a reading-speed change needs no
+    // recompute pass.)
     function segmentDwellMs(segment: ReadingSegment): number {
-        const words = segmentWordCount(segment);
+        const words = segmentWordsById.get(segment.id) ?? 0;
         return computeBlockDwellMs(words, options.averageReadingSpeed.value);
     }
 
@@ -497,15 +544,28 @@ export function useReadingProgressTracker(options: {
     }
 
     function tickDwell(timestamp: number) {
-        dwellRafId = requestAnimationFrame(tickDwell);
-
         const now = performance.now();
         clearSkimmingIfScrollStopped(now);
 
         if (!options.enabled.value || isRestoring.value || skimScrollState.isSkimming) {
+            // Transient suppression (restore guard / skim burst) — keep ticking so the
+            // skim flag can clear itself once scrolling stops.
+            dwellRafId = requestAnimationFrame(tickDwell);
             lastDwellFrameTime = timestamp;
             return;
         }
+
+        const activeSegment = resolveActiveSegment(segmentList, visibleSegments, confirmedSegments);
+        if (!activeSegment) {
+            // Idle: nothing unconfirmed on screen. Park the loop instead of burning
+            // frames (and battery) — any visibility change restarts it via
+            // ensureDwellLoop.
+            dwellRafId = null;
+            lastDwellFrameTime = 0;
+            return;
+        }
+
+        dwellRafId = requestAnimationFrame(tickDwell);
 
         if (lastDwellFrameTime === 0) {
             lastDwellFrameTime = timestamp;
@@ -515,13 +575,6 @@ export function useReadingProgressTracker(options: {
         const elapsed = timestamp - lastDwellFrameTime;
         lastDwellFrameTime = timestamp;
         if (elapsed <= 0) return;
-
-        const activeSegment = resolveActiveSegment(
-            segments.value,
-            visibleSegments,
-            confirmedSegments,
-        );
-        if (!activeSegment || confirmedSegments.has(activeSegment.id)) return;
 
         const requiredMs = segmentDwellMs(activeSegment);
         const accumulated = (dwellAccumulatedMs.get(activeSegment.id) ?? 0) + elapsed;
@@ -595,12 +648,15 @@ export function useReadingProgressTracker(options: {
 
         lastScrollY = scrollY;
         lastScrollTime = now;
-        refreshAllSegmentVisibility();
+        scheduleVisibilityRefresh();
     }
 
     function handleIntersection(entries: IntersectionObserverEntry[]) {
         for (const entry of entries) {
-            updateVisibilityForElement(entry.target as Element, entry);
+            const el = entry.target as Element;
+            if (entry.isIntersecting) intersectingElements.add(el);
+            else intersectingElements.delete(el);
+            updateVisibilityForElement(el, entry);
         }
     }
 
@@ -611,9 +667,17 @@ export function useReadingProgressTracker(options: {
 
     useEventListener(options.scrollContainer, "scroll", onScroll, { passive: true });
 
-    function setupResizeObserver() {
+    function teardownResizeObserver() {
         resizeObserver?.disconnect();
         resizeObserver = null;
+        if (resizeDebounceId != null) {
+            clearTimeout(resizeDebounceId);
+            resizeDebounceId = null;
+        }
+    }
+
+    function setupResizeObserver() {
+        teardownResizeObserver();
 
         const container = options.scrollContainer.value;
         const target =
@@ -625,17 +689,24 @@ export function useReadingProgressTracker(options: {
 
         if (!target || typeof ResizeObserver === "undefined") return;
 
+        // Debounced: on Android the URL bar collapse/expand resizes the viewport during
+        // ordinary scrolling — re-collecting (querySelectorAll + a layout read per
+        // block) on every such event would jank the scroll it interrupts.
         resizeObserver = new ResizeObserver(() => {
             if (!options.enabled.value) return;
-            const prevLength = segments.value.length;
-            collectSegments();
-            if (segments.value.length !== prevLength) {
-                visibleSegments.clear();
-                segmentWordsPerPixel.clear();
-                clearDwellAccumulation();
-                seedConfirmedFromSavedProgress();
-                refreshAllSegmentVisibility();
-            }
+            if (resizeDebounceId != null) clearTimeout(resizeDebounceId);
+            resizeDebounceId = setTimeout(() => {
+                resizeDebounceId = null;
+                if (!options.enabled.value) return;
+                const prevLength = segmentList.length;
+                collectSegments();
+                if (segmentList.length !== prevLength) {
+                    visibleSegments.clear();
+                    clearDwellAccumulation();
+                    seedConfirmedFromSavedProgress();
+                    refreshAllSegmentVisibility();
+                }
+            }, READING_RESIZE_DEBOUNCE_MS);
         });
         resizeObserver.observe(target);
     }
@@ -712,17 +783,19 @@ export function useReadingProgressTracker(options: {
         ([enabled, id], oldValues) => {
             if (!enabled) {
                 resetTrackingState();
+                segmentList = [];
+                segmentsByElement.clear();
+                segmentWordsById.clear();
+                intersectingElements.clear();
                 segments.value = [];
                 sourceElements.value = [];
-                resizeObserver?.disconnect();
-                resizeObserver = null;
+                teardownResizeObserver();
                 trackedContentId = undefined;
                 return;
             }
 
             const prevId = oldValues?.[1] as Uuid | undefined;
-            const contentChanged =
-                oldValues !== undefined && prevId !== undefined && id !== prevId;
+            const contentChanged = oldValues !== undefined && prevId !== undefined && id !== prevId;
 
             if (contentChanged || trackedContentId !== id) {
                 resetTrackingState();
@@ -739,8 +812,7 @@ export function useReadingProgressTracker(options: {
     onUnmounted(() => {
         resetTrackingState();
         stopObserver();
-        resizeObserver?.disconnect();
-        resizeObserver = null;
+        teardownResizeObserver();
     });
 
     return {
