@@ -84,9 +84,9 @@ export function useEditContentSource(options: UseEditContentSourceOptions): UseE
     const newDocument = initialId === "new";
     const currentId = ref<Uuid>(initialId === "new" ? db.uuid() : initialId);
 
-    // Live sources — both via HybridQuery (Dexie-first + live socket). With the CMS's
-    // full-content sync (OPEN_MIN cutoff), the API supplement does not run; parentId /
-    // [type+_id] indexes keep Dexie reads off a full table scan.
+    // Live sources — both via HybridQuery (Dexie-first + live socket). The CMS's
+    // one-month content sync cutoff lets HybridQuery supplement older content from the API;
+    // parentId / [type+_id] indexes keep Dexie reads off a full table scan.
     // `docHasLocalChange` is a global queryable over the outgoing-change queue (it reflects every
     // queued doc, not just this query's window), so one accessor from the parent bundle covers
     // the parent and all content children.

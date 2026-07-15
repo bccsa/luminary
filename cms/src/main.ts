@@ -19,6 +19,9 @@ import { CMS_DOCS_INDEX } from "./docsIndex";
 
 const app = createApp(App);
 
+/** CMS content sync window: older content is fetched on demand by HybridQuery. */
+const CONTENT_SYNC_WINDOW_MS = 30 * 24 * 60 * 60 * 1000; // ~1 month
+
 // Install Pinia early so any watchers/effects registered during startup that
 // resolve a store (e.g. useNotificationStore) have an active Pinia instance.
 app.use(createPinia());
@@ -36,10 +39,8 @@ async function Startup() {
         cms: true,
         docsIndex: CMS_DOCS_INDEX,
         apiUrl,
-        // CMS editors need the full content set — omit any publishDate cutoff so
-        // sync keeps its OPEN_MIN default (full content sync) and HybridQuery's
-        // older-tail supplement never fires.
-        contentPublishDateCutoff: undefined,
+        // Keep the local content corpus bounded; older content is fetched on demand.
+        contentPublishDateCutoff: Date.now() - CONTENT_SYNC_WINDOW_MS,
     }).catch((err) => {
         console.error(err);
         Sentry.captureException(err);

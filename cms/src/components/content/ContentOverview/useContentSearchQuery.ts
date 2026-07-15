@@ -17,8 +17,8 @@ const REFILL_MAX_PAGES = 5;
 
 /**
  * Search-mode content query for the CMS overview. Wraps {@link useFtsSearch}. The CMS has
- * no sync cutoff, so search runs against the **local** FTS index (online or offline) — the
- * same local-first stance as the overview's browse path. Drafts/expired are searchable
+ * one-month sync cutoff, so search runs against the **local** FTS index for the recent window
+ * (online or offline) — the same local-first stance as the overview's browse path. Drafts/expired are searchable
  * because the local engine has no visibility filter; this composable applies the chosen
  * `status` (and the scheduled/expired date split) itself.
  *
