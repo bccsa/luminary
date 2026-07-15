@@ -13,6 +13,8 @@ interface ImportMeta {
     readonly env: ImportMetaEnv;
 }
 
+declare const __APP_BUILD_ID__: string;
+
 declare module "virtual:demo-banner" {
     import type { App, Component } from "vue";
     import type { InjectionKey } from "vue";

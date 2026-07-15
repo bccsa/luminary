@@ -2,19 +2,34 @@
 import { useAuth0 } from "@auth0/auth0-vue";
 import { RouterView } from "vue-router";
 import LoadingBar from "@/components/LoadingBar.vue";
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { appName } from "@/globalConfig";
 import NotificationManager from "./components/notifications/NotificationManager.vue";
 import router from "./router";
 import SideBar from "@/components/navigation/SideBar.vue";
 import { isAuthBypassed, isAuthPluginInstalled, showProviderSelectionModal } from "@/auth";
 import SelectionModal from "@/components/authProvider/SelectionModal.vue";
+import { usePwaUpdate } from "@/composables/usePwaUpdate";
+import { useNotificationStore } from "@/stores/notification";
 
 // Only call useAuth0() if the plugin was actually installed at boot. Otherwise
 // Vue logs an `inject` warning and auth0's own code throws.
 const auth0 = isAuthBypassed || !isAuthPluginInstalled.value ? null : useAuth0();
 const isAuthenticated = computed(() => isAuthBypassed || auth0?.isAuthenticated.value);
 const sidebarOpen = ref(false);
+const { needRefresh, reload } = usePwaUpdate();
+const notificationStore = useNotificationStore();
+
+watch(needRefresh, (refreshNeeded) => {
+    if (!refreshNeeded) return;
+    notificationStore.addNotification({
+        title: "Update available",
+        description: "A new version is available. Save your work, then reload to update.",
+        state: "info",
+        persist: true,
+        action: { label: "Reload", onClick: reload },
+    });
+});
 
 const routeKey = computed(() => {
     let routeKey = router.currentRoute.value.fullPath;
