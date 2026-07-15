@@ -30,6 +30,8 @@ export default defineConfig({
             manifest: {
                 name: env.VITE_APP_NAME,
                 short_name: env.VITE_APP_NAME,
+                theme_color: "#ffffff",
+                background_color: "#ffffff",
                 icons: [
                     {
                         src: env.VITE_LOGO_FAVICON,
