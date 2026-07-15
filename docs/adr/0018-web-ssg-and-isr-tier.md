@@ -1,4 +1,4 @@
-# 12. Web SSG and ISR tier
+# 18. Web SSG and ISR tier
 
 Date: 2026-07-06
 
