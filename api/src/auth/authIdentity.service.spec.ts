@@ -305,6 +305,12 @@ describe("AuthIdentityService", () => {
             );
             await expect((service as any).getDefaultAffinity(["group-private-users"])).resolves.toBeUndefined();
             expect((service as any).dbService.getDoc).toHaveBeenCalledTimes(1);
+            expect((service as any).dbService.getDocs).toHaveBeenCalledTimes(2);
+
+            await expect((service as any).getDefaultAffinity(["group-public-users"])).resolves.toEqual(
+                defaultAffinityDoc.affinity,
+            );
+            expect((service as any).dbService.getDocs).toHaveBeenCalledTimes(2);
         });
 
         it("includes an accessible baseline in an anonymous identity", async () => {
