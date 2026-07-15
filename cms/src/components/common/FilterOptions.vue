@@ -8,6 +8,7 @@ import {
     ArrowUturnLeftIcon,
     AdjustmentsVerticalIcon,
 } from "@heroicons/vue/24/outline";
+import { XMarkIcon } from "@heroicons/vue/20/solid";
 import LInput from "@/components/forms/LInput.vue";
 import LCombobox from "@/components/forms/LCombobox.vue";
 import LButton from "@/components/button/LButton.vue";
@@ -36,6 +37,14 @@ type FilterOptionsProps = {
     searchPlaceholder?: string;
     /** Debounce (ms) before a search keystroke is committed to the `search` model. 0 = immediate. */
     debounceMs?: number;
+    /**
+     * Trigger-only search: typing never commits to the `search` model; Enter or the Go
+     * button commits (min 3 chars), Esc or the clear button resets, and emptying the input
+     * auto-clears a committed search. Overrides debounceMs. This is the search behavior
+     * the FTS-backed overviews (Users, Redirects) require so keystrokes never fire
+     * server-side searches.
+     */
+    submitSearch?: boolean;
     isSmallScreen?: boolean;
     /** Label shown above the group combobox in the mobile filter modal. */
     groupFilterLabel?: string;
@@ -45,6 +54,7 @@ const props = withDefaults(defineProps<FilterOptionsProps>(), {
     groups: () => [],
     searchPlaceholder: "Search...",
     debounceMs: 0,
+    submitSearch: false,
     isSmallScreen: false,
     groupFilterLabel: "Group Membership",
 });
@@ -64,12 +74,35 @@ const searchInput = ref(search.value ?? "");
 watch(search, (v) => {
     if (v !== searchInput.value) searchInput.value = v ?? "";
 });
-if (props.debounceMs > 0) {
+if (props.submitSearch) {
+    // Trigger-only: nothing commits while typing, but emptying the input clears an
+    // active search so the overview falls back to browsing.
+    watch(searchInput, (v) => {
+        if (!v && search.value) search.value = "";
+    });
+} else if (props.debounceMs > 0) {
     debouncedWatch(searchInput, () => (search.value = searchInput.value), {
         debounce: props.debounceMs,
     });
 } else {
     watch(searchInput, (v) => (search.value = v));
+}
+
+const SEARCH_MIN_CHARS = 3;
+const canSubmitSearch = computed(
+    () => props.submitSearch && searchInput.value.length >= SEARCH_MIN_CHARS,
+);
+const showClearSearch = computed(
+    () => props.submitSearch && (searchInput.value.length >= SEARCH_MIN_CHARS || !!search.value),
+);
+
+function commitSearch() {
+    if (canSubmitSearch.value) search.value = searchInput.value;
+}
+
+function clearSearch() {
+    searchInput.value = "";
+    search.value = "";
 }
 
 const groupOptions = computed(() =>
@@ -102,7 +135,32 @@ function handleReset() {
                     data-test="search-input"
                     v-model="searchInput"
                     :full-height="true"
-                />
+                    @keydown.enter="commitSearch"
+                    @keydown.esc="clearSearch"
+                >
+                    <template v-if="submitSearch" #searchButton>
+                        <div class="flex items-center gap-1">
+                            <button
+                                v-if="canSubmitSearch"
+                                type="button"
+                                class="rounded-md bg-white px-2 py-1 text-sm font-semibold text-zinc-900 ring-1 ring-inset ring-zinc-300 hover:bg-zinc-50"
+                                data-test="search-go-button"
+                                @click="commitSearch"
+                            >
+                                Go
+                            </button>
+                            <button
+                                v-if="showClearSearch"
+                                type="button"
+                                aria-label="Clear search"
+                                data-test="search-clear-button"
+                                @click="clearSearch"
+                            >
+                                <XMarkIcon class="h-5 w-5 cursor-pointer text-zinc-500" />
+                            </button>
+                        </div>
+                    </template>
+                </LInput>
             </slot>
 
             <template v-if="!isSmallScreen">
@@ -156,11 +214,7 @@ function handleReset() {
         <slot name="selected-filters" />
     </div>
 
-    <LModal
-        v-if="isSmallScreen"
-        heading="Filter options"
-        v-model:is-visible="showMobileFilters"
-    >
+    <LModal v-if="isSmallScreen" heading="Filter options" v-model:is-visible="showMobileFilters">
         <div class="flex flex-col gap-2">
             <slot name="extra-filters-mobile">
                 <slot name="extra-filters" />

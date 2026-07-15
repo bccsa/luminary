@@ -118,8 +118,8 @@ const { visible: visibleUsers, sentinel: browseSentinel } = useInfiniteScrollLis
 const browseLoading = computed(() => isFetching.value && !(users.value?.length ?? 0));
 
 // --- Search (≥3 chars): server-side strict FTS. The group filter is forwarded to the server
-// (memberOf ∩ groups). Trigger-only: the search box (UserFilterOptions.vue) only commits
-// queryOptions.search on Enter/Go, so re-run explicitly on each committed change. ---
+// (memberOf ∩ groups). Trigger-only: the shared FilterOptions (submit-search mode) only
+// commits queryOptions.search on Enter/Go, so re-run explicitly on each committed change. ---
 const searchTerm = computed(() => queryOptions.value.search ?? "");
 const search = useServerFtsSearch(searchTerm, {
     docType: DocType.User,
@@ -176,7 +176,7 @@ const hasAnyContent = computed(() => (users.value?.length ?? 0) > 0);
                 v-model:selected-groups="queryOptions.groups"
                 :groups="groups"
                 :is-small-screen="isSmallScreen"
-                :debounce-ms="500"
+                submit-search
             />
         </template>
         <div class="flex flex-col gap-[3px]">

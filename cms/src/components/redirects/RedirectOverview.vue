@@ -10,7 +10,7 @@ import {
 import BasePage from "../BasePage.vue";
 import RedirectDisplaycard from "./RedirectDisplaycard.vue";
 import { PlusIcon } from "@heroicons/vue/20/solid";
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import LButton from "../button/LButton.vue";
 import FilterOptions from "@/components/common/FilterOptions.vue";
 import LoadingBar from "@/components/LoadingBar.vue";
@@ -26,8 +26,8 @@ import {
 const canCreateNew = computed(() => hasAnyPermission(DocType.Redirect, AclPermission.Edit));
 const isCreateOrEditModalVisible = ref(false);
 
-// Debounced search term (mirrors the User overview's 500ms search debounce), owned by
-// FilterOptions' debounceMs prop.
+// Committed search term. Trigger-only: the shared FilterOptions (submit-search mode) only
+// commits on Enter/Go, matching the Content and User overviews.
 const searchTerm = ref("");
 
 /** Minimum characters before switching from synced browse to server-side FTS search. */
@@ -53,13 +53,14 @@ const { visible: visibleRedirects, sentinel: browseSentinel } = useInfiniteScrol
     pageSize: 20,
 });
 
-// --- Search (≥3 chars): server-side strict FTS over slug + toSlug. The search term is already
-// debounced above, so the composable's own debounce is disabled. ---
+// --- Search (≥3 chars): server-side strict FTS over slug + toSlug. Trigger-only: searchTerm
+// only changes on Enter/Go, so re-run explicitly on each committed change. ---
 const search = useServerFtsSearch(searchTerm, {
     docType: DocType.Redirect,
     pageSize: 20,
-    debounceMs: 0,
+    debounceMs: "manual",
 });
+watch(searchTerm, () => search.runSearch(), { immediate: true });
 const searchIsLoading = search.isLoading;
 const searchIsStale = search.isStale;
 
@@ -106,7 +107,7 @@ const hasAnyContent = computed(() => (redirects.value?.length ?? 0) > 0);
             <FilterOptions
                 v-model:search="searchTerm"
                 search-placeholder="Search redirects..."
-                :debounce-ms="500"
+                submit-search
             />
         </template>
 

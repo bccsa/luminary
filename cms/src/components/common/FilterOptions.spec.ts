@@ -14,6 +14,7 @@ function mountFilterOptions(overrides: Record<string, any> = {}) {
             groups: overrides.groups ?? mockGroups,
             isSmallScreen: overrides.isSmallScreen ?? false,
             debounceMs: overrides.debounceMs ?? 0,
+            submitSearch: overrides.submitSearch ?? false,
             search: overrides.search ?? "",
             selectedGroups: overrides.selectedGroups ?? [],
             "onUpdate:search": overrides["onUpdate:search"],
@@ -65,6 +66,57 @@ describe("FilterOptions", () => {
         await wrapper.vm.$nextTick();
 
         expect(onUpdateSearch).toHaveBeenLastCalledWith("hello");
+    });
+
+    it("does not emit update:search while typing when submitSearch is set", async () => {
+        const onUpdateSearch = vi.fn();
+        const wrapper = mountFilterOptions({
+            submitSearch: true,
+            "onUpdate:search": onUpdateSearch,
+        });
+
+        await wrapper.find("[data-test='search-input']").setValue("test search");
+        vi.advanceTimersByTime(600);
+        await wrapper.vm.$nextTick();
+
+        // Typing alone (trigger-only search) must not commit.
+        expect(onUpdateSearch).not.toHaveBeenCalled();
+
+        // Submitting via the Go button commits the term.
+        await wrapper.find("[data-test='search-go-button']").trigger("click");
+        expect(onUpdateSearch).toHaveBeenLastCalledWith("test search");
+    });
+
+    it("commits on Enter and clears on the clear button when submitSearch is set", async () => {
+        const onUpdateSearch = vi.fn();
+        const wrapper = mountFilterOptions({
+            submitSearch: true,
+            "onUpdate:search": onUpdateSearch,
+        });
+
+        const input = wrapper.find("[data-test='search-input']");
+        await input.setValue("abc");
+        await input.trigger("keydown.enter");
+        expect(onUpdateSearch).toHaveBeenLastCalledWith("abc");
+
+        await wrapper.find("[data-test='search-clear-button']").trigger("click");
+        expect(onUpdateSearch).toHaveBeenLastCalledWith("");
+        expect((input.element as HTMLInputElement).value).toBe("");
+    });
+
+    it("does not commit terms shorter than 3 characters in submitSearch mode", async () => {
+        const onUpdateSearch = vi.fn();
+        const wrapper = mountFilterOptions({
+            submitSearch: true,
+            "onUpdate:search": onUpdateSearch,
+        });
+
+        const input = wrapper.find("[data-test='search-input']");
+        await input.setValue("ab");
+        await input.trigger("keydown.enter");
+
+        expect(onUpdateSearch).not.toHaveBeenCalled();
+        expect(wrapper.find("[data-test='search-go-button']").exists()).toBe(false);
     });
 
     it("shows selected group tags and removes one on click", async () => {
