@@ -13,6 +13,7 @@ import {
     Cog6ToothIcon,
     LanguageIcon,
     ArrowRightEndOnRectangleIcon,
+    ArrowDownTrayIcon,
     UserIcon,
 } from "@heroicons/vue/20/solid";
 
@@ -25,6 +26,7 @@ import {
     sidebarSectionExpanded,
 } from "@/globalConfig";
 import { useDesktopSidebar } from "@/composables/useDesktopSidebar";
+import { useInstallPrompt } from "@/composables/useInstallPrompt";
 import { computed, ref } from "vue";
 import {
     AclPermission,
@@ -60,6 +62,7 @@ const open = defineModel<boolean>("open", { default: false });
 // sidebar is a full-width drawer, so we never want to hide the labels there even if `collapsed` is set.
 const { collapsed, toggleCollapsed } = useDesktopSidebar();
 const isCollapsed = computed(() => collapsed.value && !isMobileScreen.value);
+const { isInstallable, manualInstallInstructions, promptInstall } = useInstallPrompt();
 
 const navigation = computed(() => [
     { name: "Dashboard", to: { name: "dashboard" }, icon: HomeIcon, visible: true },
@@ -199,6 +202,7 @@ const currentLanguageName = computed(
 
 const showLanguageModal = ref(false);
 const showLogoutDialog = ref(false);
+const showInstallInstructions = ref(false);
 
 const confirmLogout = () => {
     // Wipe local Auth0 footprint synchronously so that an interrupted logout redirect doesn't
@@ -344,6 +348,28 @@ const navItemClass = computed(() => [
             </div>
         </nav>
 
+        <div
+            v-if="isInstallable || manualInstallInstructions"
+            class="border-t border-zinc-200 py-3"
+            :class="isCollapsed ? 'px-2' : 'px-3'"
+        >
+            <button
+                type="button"
+                :class="[
+                    'flex w-full rounded-md text-sm font-medium text-zinc-600 hover:bg-zinc-200',
+                    isCollapsed
+                        ? 'justify-center p-2.5'
+                        : 'items-center gap-3 px-3 py-2.5 text-left',
+                ]"
+                title="Install"
+                data-test="install-app"
+                @click="isInstallable ? promptInstall() : (showInstallInstructions = true)"
+            >
+                <ArrowDownTrayIcon :class="navIconClass" aria-hidden="true" />
+                <span v-if="!isCollapsed">Install</span>
+            </button>
+        </div>
+
         <!-- Account: sign out + signed-in user, pinned to the bottom (like the app) -->
         <div class="border-t border-zinc-200 py-3" :class="isCollapsed ? 'px-2' : 'px-3'">
             <button
@@ -402,5 +428,14 @@ const navItemClass = computed(() => [
         primaryButtonText="Sign out"
         :secondaryAction="() => (showLogoutDialog = false)"
         secondaryButtonText="Cancel"
+    />
+
+    <LDialog
+        v-model:open="showInstallInstructions"
+        title="Install"
+        :description="manualInstallInstructions ?? undefined"
+        :primaryAction="() => (showInstallInstructions = false)"
+        primaryButtonText="Got it"
+        data-test="manual-install-instructions"
     />
 </template>
