@@ -23,10 +23,12 @@ import { showProviderSelectionModal } from "@/auth";
 import AuthProviderSelectionModal from "@/components/authProvider/AuthProviderSelectionModal.vue";
 import { useI18n } from "vue-i18n";
 import defaultLogo from "@/assets/logo.svg?url";
+import { usePwaUpdate } from "@/composables/usePwaUpdate";
 
 const LOGO = import.meta.env.VITE_LOGO || defaultLogo;
 
 const { t } = useI18n();
+const { needRefresh, reload } = usePwaUpdate();
 
 const router = useRouter();
 const {
@@ -50,6 +52,20 @@ watch(isPrivacyPolicyAccepted, (accepted) => {
 const handleModalClose = () => {
     cancelPendingLogin();
 };
+
+watch(needRefresh, (refreshNeeded) => {
+    if (!refreshNeeded) return;
+    useNotificationStore().addNotification({
+        id: "updateBanner",
+        title: "Update available",
+        description: "A new version is available. Save your work, then select this message to reload.",
+        state: "info",
+        type: "banner",
+        link: reload,
+        closable: false,
+        priority: 0,
+    });
+});
 
 // Wait 5 seconds to allow the socket connection to be established before checking the connection status
 setTimeout(() => {
