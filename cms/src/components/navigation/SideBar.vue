@@ -62,7 +62,7 @@ const open = defineModel<boolean>("open", { default: false });
 // sidebar is a full-width drawer, so we never want to hide the labels there even if `collapsed` is set.
 const { collapsed, toggleCollapsed } = useDesktopSidebar();
 const isCollapsed = computed(() => collapsed.value && !isMobileScreen.value);
-const { isInstallable, promptInstall } = useInstallPrompt();
+const { isInstallable, manualInstallInstructions, promptInstall } = useInstallPrompt();
 
 const navigation = computed(() => [
     { name: "Dashboard", to: { name: "dashboard" }, icon: HomeIcon, visible: true },
@@ -202,6 +202,7 @@ const currentLanguageName = computed(
 
 const showLanguageModal = ref(false);
 const showLogoutDialog = ref(false);
+const showInstallInstructions = ref(false);
 
 const confirmLogout = () => {
     // Wipe local Auth0 footprint synchronously so that an interrupted logout redirect doesn't
@@ -348,7 +349,7 @@ const navItemClass = computed(() => [
         </nav>
 
         <div
-            v-if="isInstallable"
+            v-if="isInstallable || manualInstallInstructions"
             class="border-t border-zinc-200 py-3"
             :class="isCollapsed ? 'px-2' : 'px-3'"
         >
@@ -360,12 +361,12 @@ const navItemClass = computed(() => [
                         ? 'justify-center p-2.5'
                         : 'items-center gap-3 px-3 py-2.5 text-left',
                 ]"
-                title="Install app"
+                title="Install"
                 data-test="install-app"
-                @click="promptInstall"
+                @click="isInstallable ? promptInstall() : (showInstallInstructions = true)"
             >
                 <ArrowDownTrayIcon :class="navIconClass" aria-hidden="true" />
-                <span v-if="!isCollapsed">Install app</span>
+                <span v-if="!isCollapsed">Install</span>
             </button>
         </div>
 
@@ -427,5 +428,14 @@ const navItemClass = computed(() => [
         primaryButtonText="Sign out"
         :secondaryAction="() => (showLogoutDialog = false)"
         secondaryButtonText="Cancel"
+    />
+
+    <LDialog
+        v-model:open="showInstallInstructions"
+        title="Install"
+        :description="manualInstallInstructions ?? undefined"
+        :primaryAction="() => (showInstallInstructions = false)"
+        primaryButtonText="Got it"
+        data-test="manual-install-instructions"
     />
 </template>

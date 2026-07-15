@@ -195,6 +195,8 @@ describe("SideBar", () => {
         const installButton = wrapper.find("[data-test='install-app']");
 
         expect(installButton.exists()).toBe(true);
+        expect(installButton.text()).toContain("Install");
+        expect(installButton.text()).not.toContain("Install app");
 
         await installButton.trigger("click");
         await flushPromises();

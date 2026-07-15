@@ -46,6 +46,9 @@ export default defineConfig({
         // Allow Vite to serve the sibling shared/ source (outside this package root).
         fs: { allow: [".."] },
     },
+    preview: {
+        port: 4175,
+    },
     build: {
         sourcemap: true,
         minify: true,

@@ -1,4 +1,4 @@
-import { ref } from "vue";
+import { computed, ref } from "vue";
 
 interface BeforeInstallPromptEvent extends Event {
     prompt(): Promise<void>;
@@ -14,9 +14,35 @@ const isInstalledStandalone = () => {
     );
 };
 
+const getManualInstallInstructions = () => {
+    if (typeof window === "undefined") return null;
+
+    const { navigator } = window;
+    const userAgent = navigator.userAgent;
+    const isIos =
+        /iPad|iPhone|iPod/.test(userAgent) ||
+        (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    const isSafari = /Safari/.test(userAgent) && !/CriOS|FxiOS|EdgiOS|OPiOS|Chrome/.test(userAgent);
+
+    if (isIos) {
+        return isSafari
+            ? "To install, tap Share, then Add to Home Screen."
+            : "To install, open this app in Safari, then tap Share and choose Add to Home Screen.";
+    }
+
+    if (isSafari) {
+        return "To install, click the Share icon in Safari's toolbar, then choose Add to Dock.";
+    }
+
+    return null;
+};
+
 const deferredPrompt = ref<BeforeInstallPromptEvent | null>(null);
 const isInstallable = ref(false);
 const isInstalled = ref(isInstalledStandalone());
+const manualInstallInstructions = computed(() =>
+    isInstalled.value ? null : getManualInstallInstructions(),
+);
 
 if (typeof window !== "undefined") {
     window.addEventListener("beforeinstallprompt", (e) => {
@@ -45,5 +71,5 @@ async function promptInstall() {
 }
 
 export function useInstallPrompt() {
-    return { isInstallable, isInstalled, promptInstall };
+    return { isInstallable, isInstalled, manualInstallInstructions, promptInstall };
 }
