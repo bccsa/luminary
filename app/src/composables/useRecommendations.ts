@@ -116,7 +116,9 @@ export function useRecommendations({
     // Which of the candidates' `parentTags` are actually TagType.Topic (categories and
     // audio playlists sit on most of the corpus and must not count toward tag-affinity
     // scoring or diversity — same restriction `recordAffinity` already applies on write).
-    const topicTagIds = ref<Set<Uuid>>(new Set());
+    // `undefined` means topic-tag resolution is still in flight, so rank across all
+    // candidate tags rather than briefly treating every candidate as non-topical.
+    const topicTagIds = ref<Set<Uuid> | undefined>(undefined);
     let topicTagIdsRunSeq = 0;
     watch(
         content,
@@ -125,6 +127,7 @@ export function useRecommendations({
             const candidateTagIds = new Set<Uuid>();
             for (const doc of docs) for (const t of doc.parentTags ?? []) candidateTagIds.add(t);
             const ids = [...candidateTagIds];
+            topicTagIds.value = undefined;
             try {
                 const topicIds = await filterTopicTagIds(ids);
                 // `content` can change again before this resolves; only the most recent run
@@ -133,7 +136,9 @@ export function useRecommendations({
                 topicTagIds.value = new Set(topicIds);
             } catch {
                 // `filterTopicTagIds` handles database failures; retain this guard for
-                // unexpected errors in the watcher itself.
+                // unexpected errors in the watcher itself. Fall back to all tags rather
+                // than incorrectly scoring every candidate as having no topic tags.
+                if (runSeq === topicTagIdsRunSeq) topicTagIds.value = undefined;
             }
         },
         { immediate: true },

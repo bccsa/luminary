@@ -51,6 +51,8 @@ export class AuthIdentityService implements OnModuleInit {
     // schema upgrade / CMS admin has created one) — distinct so a real "none configured
     // yet" result isn't refetched on every login.
     private defaultAffinityCache: DefaultAffinityDto | null | undefined = undefined;
+    /** Resolved baseline maps, keyed by a canonical set of the caller's groups. */
+    private defaultAffinityByGroupsCache = new Map<string, Record<Uuid, number> | undefined>();
 
     constructor(
         private jwtService: JwtService,
@@ -80,8 +82,13 @@ export class AuthIdentityService implements OnModuleInit {
                 // A deleted mapping might have been a default — invalidate to be safe
                 this.defaultGroupsCache = null;
                 if (doc.docId === DEFAULT_AFFINITY_ID) this.defaultAffinityCache = undefined;
+                this.defaultAffinityByGroupsCache.clear();
             } else if (doc.type === DocType.DefaultAffinity) {
                 this.defaultAffinityCache = doc as DefaultAffinityDto;
+                this.defaultAffinityByGroupsCache.clear();
+            } else if (doc.type === DocType.Tag) {
+                // Tag membership is the authorization boundary for baseline entries.
+                this.defaultAffinityByGroupsCache.clear();
             }
         });
 
@@ -92,6 +99,7 @@ export class AuthIdentityService implements OnModuleInit {
             this.autoGroupMappingsCache.clear();
             this.defaultGroupsCache = null;
             this.defaultAffinityCache = undefined;
+            this.defaultAffinityByGroupsCache.clear();
             this.jwksClients.clear();
         });
     }
@@ -114,6 +122,11 @@ export class AuthIdentityService implements OnModuleInit {
         const defaultAffinity = this.defaultAffinityCache;
         if (!defaultAffinity) return undefined;
 
+        const groupCacheKey = [...new Set(groups)].sort().join("\u0000");
+        if (this.defaultAffinityByGroupsCache.has(groupCacheKey)) {
+            return this.defaultAffinityByGroupsCache.get(groupCacheKey);
+        }
+
         const defaultAffinityMap = defaultAffinity.affinity ?? {};
         const tagIds = Object.keys(defaultAffinityMap) as Uuid[];
         if (!tagIds.length) return undefined;
@@ -134,7 +147,9 @@ export class AuthIdentityService implements OnModuleInit {
             Object.entries(defaultAffinityMap).filter(([tagId]) => accessibleTagIds.has(tagId)),
         ) as Record<Uuid, number>;
 
-        return Object.keys(affinity).length ? affinity : undefined;
+        const resolved = Object.keys(affinity).length ? affinity : undefined;
+        this.defaultAffinityByGroupsCache.set(groupCacheKey, resolved);
+        return resolved;
     }
 
     async getAutoGroupMappings(providerId: string): Promise<AutoGroupMappingsDto[]> {
