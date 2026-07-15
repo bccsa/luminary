@@ -8,7 +8,7 @@ const MAX_DEFAULT_TAGS = 200;
  * Finalize a DefaultAffinity change request.
  *
  * The doc is a singleton — force the fixed `_id` regardless of what the client
- * sent, so `AuthIdentityService.getAffinity`'s lookup always finds exactly one
+ * sent, so `AuthIdentityService.getDefaultAffinity`'s lookup always finds exactly one
  * doc. Clamp each score into [0, 1] and drop non-finite/negative entries (a
  * cheap guard against a fat-fingered CMS input feeding a bad value into every
  * new user's cloned profile) and cap the tag count.

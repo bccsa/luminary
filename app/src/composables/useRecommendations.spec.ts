@@ -111,6 +111,14 @@ describe("rank", () => {
         ).toHaveLength(4);
     });
 
+    it("scores all candidate tags while topic-tag resolution is pending", () => {
+        const categoryMatch = makeContent("category-match", ["category"]);
+
+        expect(rank([categoryMatch], [], { category: 0.8 }, { now: 0 })[0]._id).toBe(
+            "category-match",
+        );
+    });
+
     it("stops diversity selection once the requested output limit is filled", () => {
         const docs = Array.from({ length: 50 }, (_, i) => makeContent(`doc-${i}`, ["tag-a"]));
 
