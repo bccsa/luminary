@@ -207,6 +207,96 @@ describe("S3ImageHandler", () => {
         resImages.push(duplicatedImage);
     });
 
+    it("keeps the copied files when a processed duplication request is replayed", async () => {
+        const sourceImage = new ImageDto();
+        sourceImage.uploadData = [
+            {
+                fileData: fs.readFileSync(
+                    path.resolve(__dirname + "/../../test/" + "testImage.jpg"),
+                ) as unknown as ArrayBuffer,
+                preset: "default",
+            },
+        ];
+        await processImage(sourceImage, undefined, dbService, testBucketId);
+
+        // First processing of the duplication request — the copy runs.
+        const duplicatedImage = new ImageDto();
+        duplicatedImage.fileCollections = JSON.parse(JSON.stringify(sourceImage.fileCollections));
+        duplicatedImage.duplicate = true;
+        await processImage(duplicatedImage, undefined, dbService, testBucketId);
+
+        const copiedFilenames = duplicatedImage.fileCollections.flatMap((collection) =>
+            collection.imageFiles.map((imageFile) => imageFile.filename),
+        );
+        expect(copiedFilenames.length).toBeGreaterThan(0);
+
+        // Replay: the client retries the SAME payload (stale source filenames + duplicate
+        // flag), while prevImage is the processed doc holding the copied filenames.
+        const replayedImage = new ImageDto();
+        replayedImage.fileCollections = JSON.parse(JSON.stringify(sourceImage.fileCollections));
+        replayedImage.duplicate = true;
+        await processImage(replayedImage, duplicatedImage, dbService, testBucketId);
+
+        // The replay must keep the already-copied files — not diff-delete them.
+        const replayedFilenames = replayedImage.fileCollections.flatMap((collection) =>
+            collection.imageFiles.map((imageFile) => imageFile.filename),
+        );
+        expect(replayedFilenames).toEqual(copiedFilenames);
+        expect(replayedImage.duplicate).toBeUndefined();
+
+        // And the copied files must still exist in the bucket.
+        const copies = await Promise.all(
+            copiedFilenames.map((filename) => service.getObject(filename)),
+        );
+        expect(copies.some((stream) => stream == undefined)).toBeFalsy();
+
+        resImages.push(sourceImage);
+        resImages.push(replayedImage);
+    });
+
+    it("re-attempts the copy when a duplication request is replayed after a failed copy", async () => {
+        const sourceImage = new ImageDto();
+        sourceImage.uploadData = [
+            {
+                fileData: fs.readFileSync(
+                    path.resolve(__dirname + "/../../test/" + "testImage.jpg"),
+                ) as unknown as ArrayBuffer,
+                preset: "default",
+            },
+        ];
+        await processImage(sourceImage, undefined, dbService, testBucketId);
+
+        // A previously-failed duplication persisted the doc with EMPTY fileCollections.
+        const failedImage = new ImageDto();
+        failedImage.fileCollections = [];
+
+        // The retried payload still carries the source filenames + duplicate flag.
+        const retriedImage = new ImageDto();
+        retriedImage.fileCollections = JSON.parse(JSON.stringify(sourceImage.fileCollections));
+        retriedImage.duplicate = true;
+        await processImage(retriedImage, failedImage, dbService, testBucketId);
+
+        const sourceFilenames = sourceImage.fileCollections.flatMap((collection) =>
+            collection.imageFiles.map((imageFile) => imageFile.filename),
+        );
+        const retriedFilenames = retriedImage.fileCollections.flatMap((collection) =>
+            collection.imageFiles.map((imageFile) => imageFile.filename),
+        );
+
+        // The copy ran on the retry: fresh filenames, present in the bucket.
+        expect(retriedFilenames.length).toBeGreaterThan(0);
+        retriedFilenames.forEach((filename) => {
+            expect(sourceFilenames).not.toContain(filename);
+        });
+        const copies = await Promise.all(
+            retriedFilenames.map((filename) => service.getObject(filename)),
+        );
+        expect(copies.some((stream) => stream == undefined)).toBeFalsy();
+
+        resImages.push(sourceImage);
+        resImages.push(retriedImage);
+    });
+
     it("clears copied image references if duplication fails", async () => {
         const sourceImage = new ImageDto();
         sourceImage.uploadData = [
@@ -223,7 +313,12 @@ describe("S3ImageHandler", () => {
         duplicatedImage.fileCollections = JSON.parse(JSON.stringify(sourceImage.fileCollections));
         duplicatedImage.duplicate = true;
 
-        const result = await processImage(duplicatedImage, undefined, dbService, "storage-missing-bucket");
+        const result = await processImage(
+            duplicatedImage,
+            undefined,
+            dbService,
+            "storage-missing-bucket",
+        );
 
         expect(
             result.warnings.some((warning) =>
@@ -698,7 +793,8 @@ describe("S3ImageHandler - File Type Validation", () => {
         // Should fail with file type warning (jpeg not allowed when only webp is allowed)
         // Note: Sharp detects "jpeg" format but the code normalizes it to "jpg" in the warning
         const fileTypeWarning = warnings.warnings.find(
-            (w) => w.includes("not allowed") && (w.includes("image/jpg") || w.includes("image/jpeg")),
+            (w) =>
+                w.includes("not allowed") && (w.includes("image/jpg") || w.includes("image/jpeg")),
         );
         expect(fileTypeWarning).toBeDefined();
         expect(image.fileCollections.length).toBe(0);
