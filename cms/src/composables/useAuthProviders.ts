@@ -33,7 +33,7 @@ export function useAuthProviders() {
         filterFn: (item) => ({ ...item }),
     });
 
-    const { duplicate, remove, save } = providerEditable;
+    const { duplicate, remove } = providerEditable;
     const providers = providerEditable.editable;
     const providerIsModified = providerEditable.isModified;
 
