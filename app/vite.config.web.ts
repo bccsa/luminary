@@ -12,6 +12,7 @@ import { buildRedirectIndex } from "./src/ssg/redirectIndex";
 import { buildRouteIndex, type SsgRouteIndex } from "./src/ssg/routeIndex";
 import {
     drainQuery,
+    enumeratePublicContent,
     type KeysetDocument,
     type KeysetQuery,
     type QueryTransport,
@@ -306,10 +307,10 @@ function queryTransport(apiUrl: string, operation: string): QueryTransport {
 // Enumerate every public content slug through anonymous /query access. Each
 // type-specific stream uses a stable (updatedTimeUtc, _id) keyset cursor.
 async function fetchPublicSlugs(apiUrl: string, now: number): Promise<string[]> {
-    const docs = await drainQuery<SsgContent>(queryTransport(apiUrl, "route enumeration"), {
-        type: "content",
-        conditions: [{ parentType: { $in: ["post", "tag"] } }, { publishDate: { $lte: now } }],
-    });
+    const docs = await enumeratePublicContent<SsgContent>(
+        queryTransport(apiUrl, "route enumeration"),
+        now,
+    );
     // Build the route→language map so each page prerenders in its own language
     // (read by main.web.ts via globalThis). Same Node process as the SSR render.
     const routeLang: Record<string, string> = {};

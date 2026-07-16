@@ -3,6 +3,7 @@ import {
     advanceQueryCursor,
     buildKeysetQuery,
     drainQuery,
+    enumeratePublicContent,
     type KeysetDocument,
     type KeysetQuery,
     type QueryTransport,
@@ -103,14 +104,14 @@ describe("queryDrain", () => {
         });
     });
 
-    it("includes the frozen publishDate upper bound in a content selector", () => {
+    it("enumerates only public, already-published content", async () => {
         const now = 1_750_000_000_000;
-        const query = buildKeysetQuery({
-            type: "content",
-            conditions: [{ parentType: { $in: ["post", "tag"] } }, { publishDate: { $lte: now } }],
-        });
+        const calls: KeysetQuery[] = [];
 
-        expect(query.selector).toEqual({
+        await enumeratePublicContent<TestDoc>(queuedTransport([[]], calls), now);
+
+        expect(calls).toHaveLength(1);
+        expect(calls[0].selector).toEqual({
             $and: [
                 { type: "content" },
                 { parentType: { $in: ["post", "tag"] } },

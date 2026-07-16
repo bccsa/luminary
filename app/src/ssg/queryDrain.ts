@@ -69,3 +69,15 @@ export async function drainQuery<T extends KeysetDocument>(
         cursor = advanceQueryCursor(page);
     }
 }
+
+// /query does not filter scheduled content server-side, unlike the FTS endpoint
+// it replaced. Without this bound, unpublished articles would be prerendered.
+export function enumeratePublicContent<T extends KeysetDocument>(
+    transport: QueryTransport,
+    now: number,
+): Promise<T[]> {
+    return drainQuery<T>(transport, {
+        type: "content",
+        conditions: [{ parentType: { $in: ["post", "tag"] } }, { publishDate: { $lte: now } }],
+    });
+}
