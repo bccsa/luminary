@@ -35,11 +35,19 @@ const contentDocs = useContentQuery(() => [{ parentId: { $in: contentIds.value }
 const relatedContent = computed(() =>
     contentDocs.value.filter((item) => item._id !== props.selectedContent._id),
 );
+
+// Topic pages and their related posts belong in one collection. Keep the related
+// posts first and deduplicate by document id in case the inputs ever overlap.
+const readMoreItems = computed(() =>
+    [...relatedContent.value, ...props.tags].filter(
+        (item, index, items) => items.findIndex(({ _id }) => _id === item._id) === index,
+    ),
+);
 </script>
 
 <template>
     <section
-        v-if="isNotTopic && relatedContent.length"
+        v-if="isNotTopic && readMoreItems.length"
         class="w-full pb-2"
     >
         <!-- Horizontal padding mirrors the list/grid inset in ReadMore so the heading
@@ -47,6 +55,6 @@ const relatedContent = computed(() =>
         <h2 class="px-4 pb-3 text-xl text-zinc-800 dark:text-zinc-200 sm:px-8">
             {{ t("content.read_more") }}
         </h2>
-        <ReadMore :items="relatedContent" />
+        <ReadMore :items="readMoreItems" />
     </section>
 </template>

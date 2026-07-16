@@ -1,18 +1,25 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { RouterLink } from "vue-router";
-import { DateTime } from "luxon";
 import { type ContentDto } from "luminary-shared";
+import { useContentQuery } from "@/composables/useContentQuery";
 import LImage from "../images/LImage.vue";
 
 const props = defineProps<{ items: ContentDto[] }>();
 
 const summaryText = (content: ContentDto): string => content.summary?.trim() ?? "";
 
-const dateText = (content: ContentDto): string =>
-    content.publishDate
-        ? DateTime.fromMillis(content.publishDate).toLocaleString(DateTime.DATE_MED)
-        : "";
+const tagIds = computed(() => [
+    ...new Set(props.items.flatMap((item) => item.parentTags ?? [])),
+]);
+const tagDocs = useContentQuery(
+    () => [{ parentId: { $in: tagIds.value.length ? tagIds.value : [] } }],
+    { includeScheduled: false },
+);
+const tagsFor = (content: ContentDto): ContentDto[] => {
+    const ids = new Set(content.parentTags ?? []);
+    return tagDocs.value.filter((tag) => ids.has(tag.parentId));
+};
 
 // Infinite list on every breakpoint: start with one batch and reveal the next whenever
 // the sentinel below the list scrolls into view (the grid grows vertically too, so the
@@ -47,16 +54,15 @@ watch(
              image-top cards with the title bottom-aligned on the image. Fewer columns than
              the Explore rows so the images stay large. -->
         <ul
-            class="flex flex-col px-4 sm:grid sm:grid-cols-2 sm:gap-x-6 sm:gap-y-6 sm:px-8 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
+            class="flex flex-col gap-3 px-4 sm:grid sm:grid-cols-2 sm:gap-x-6 sm:gap-y-6 sm:px-8 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
         >
             <li
                 v-for="item in visibleItems"
                 :key="item._id"
-                class="border-b border-zinc-100 last:border-b-0 dark:border-slate-700 sm:border-0"
             >
                 <RouterLink
                     :to="{ name: 'content', params: { slug: item.slug } }"
-                    class="ease-out-expo group flex gap-3 py-3 transition hover:brightness-[1.15] sm:h-full sm:flex-col sm:gap-2 sm:overflow-hidden sm:rounded-lg sm:bg-white sm:py-0 sm:shadow sm:ring-1 sm:ring-zinc-950/10 sm:hover:shadow-lg dark:sm:bg-slate-800 dark:sm:ring-white/10"
+                    class="ease-out-expo group flex gap-2 overflow-hidden rounded-lg bg-white shadow ring-1 ring-zinc-950/10 transition hover:brightness-[1.15] hover:shadow-lg dark:bg-slate-800 dark:ring-white/10 sm:h-full sm:flex-col sm:gap-1"
                 >
                     <!-- Mobile: small thumbnail on the left. -->
                     <div class="shrink-0 sm:hidden">
@@ -66,6 +72,7 @@ watch(
                             :parent-image-bucket-id="item.parentImageBucketId"
                             aspectRatio="classic"
                             size="thumbnailCompact"
+                            :rounded="false"
                         />
                     </div>
 
@@ -86,7 +93,7 @@ watch(
                             :rounded="false"
                         />
                         <div
-                            class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/40 to-black/0 px-3 pb-1.5 pt-6"
+                            class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/40 to-black/0 px-2 pb-1.5 pt-6"
                         >
                             <h3 class="font-semibold text-white">
                                 {{ item.title }}
@@ -94,7 +101,9 @@ watch(
                         </div>
                     </div>
 
-                    <div class="flex min-w-0 flex-1 flex-col gap-1 sm:px-3 sm:pb-3">
+                    <div
+                        class="flex min-w-0 flex-1 flex-col gap-1 py-2 pr-2 sm:justify-center sm:px-2 sm:pb-1 sm:pt-0"
+                    >
                         <!-- Mobile only: title beside the thumbnail (on the card it sits on
                              the image instead). -->
                         <h3
@@ -110,12 +119,19 @@ watch(
                             {{ summaryText(item) }}
                         </p>
 
-                        <p
-                            v-if="dateText(item)"
-                            class="text-xs text-zinc-400 dark:text-slate-500"
+                        <div
+                            v-if="tagsFor(item).length"
+                            class="flex max-w-full gap-1 overflow-x-auto pb-1 scrollbar-hide sm:hidden"
+                            data-test="content-tags"
                         >
-                            {{ dateText(item) }}
-                        </p>
+                            <span
+                                v-for="tag in tagsFor(item)"
+                                :key="tag._id"
+                                class="shrink-0 rounded-full bg-yellow-500/10 px-2 py-0.5 text-xs text-yellow-700 dark:bg-yellow-500/15 dark:text-yellow-400"
+                            >
+                                {{ tag.title }}
+                            </span>
+                        </div>
                     </div>
                 </RouterLink>
             </li>
