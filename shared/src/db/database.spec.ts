@@ -683,6 +683,48 @@ describe("Database", async () => {
         await expect(waiter).resolves.toEqual({ ack: AckStatus.Rejected, message: "conflict" });
     });
 
+    it("waitForLocalChangeAck returns an ack applied before the caller starts waiting", async () => {
+        const { localChangeId } = await db.upsert({ doc: mockPostDto });
+        const localChange = await db.localChanges.get(localChangeId);
+
+        await db.applyLocalChangeAck({ ack: AckStatus.Accepted }, localChange!);
+
+        await expect(db.waitForLocalChangeAck(localChangeId)).resolves.toEqual({
+            ack: AckStatus.Accepted,
+        });
+    });
+
+    it("supports multiple waiters for the same local change", async () => {
+        const { localChangeId } = await db.upsert({ doc: mockPostDto });
+        const localChange = await db.localChanges.get(localChangeId);
+        const first = db.waitForLocalChangeAck(localChangeId);
+        const second = db.waitForLocalChangeAck(localChangeId);
+
+        await db.applyLocalChangeAck({ ack: AckStatus.Accepted }, localChange!);
+
+        await expect(Promise.all([first, second])).resolves.toEqual([
+            { ack: AckStatus.Accepted },
+            { ack: AckStatus.Accepted },
+        ]);
+    });
+
+    it("replaces a transient upload failure with a later real server acknowledgement", async () => {
+        const { localChangeId } = await db.upsert({ doc: mockPostDto });
+        const localChange = await db.localChanges.get(localChangeId);
+        const firstAttempt = db.waitForLocalChangeAck(localChangeId);
+
+        db.failLocalChangeAck(localChangeId, "connection lost");
+        await expect(firstAttempt).resolves.toEqual({
+            ack: AckStatus.Rejected,
+            message: "connection lost",
+        });
+
+        await db.applyLocalChangeAck({ ack: AckStatus.Accepted }, localChange!);
+        await expect(db.waitForLocalChangeAck(localChangeId)).resolves.toEqual({
+            ack: AckStatus.Accepted,
+        });
+    });
+
     it("waitForLocalChangeAck resolves a superseded change instead of hanging forever", async () => {
         // First queued change for a doc — nobody ever sends/acks this one directly.
         const { localChangeId: firstId } = await db.upsert({ doc: mockPostDto });
@@ -719,6 +761,18 @@ describe("Database", async () => {
         // Check that the docs table is empty
         const docs = await db.docs.toArray();
         expect(docs.length).toBe(0);
+    });
+
+    it("purge resolves pending local change acknowledgement waiters", async () => {
+        const { localChangeId } = await db.upsert({ doc: mockPostDto });
+        const waiter = db.waitForLocalChangeAck(localChangeId);
+
+        await db.purge();
+
+        await expect(waiter).resolves.toEqual({
+            ack: AckStatus.Rejected,
+            message: "Local database was purged before the change could be uploaded",
+        });
     });
 
     it("purge also clears the retention table and the response cache", async () => {

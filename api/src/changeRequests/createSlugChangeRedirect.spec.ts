@@ -3,10 +3,11 @@ import { ContentDto } from "../dto/ContentDto";
 import { RedirectDto } from "../dto/RedirectDto";
 import { AclPermission, DocType, PublishStatus, RedirectType } from "../enums";
 import { PermissionSystem } from "../permissions/permissions.service";
-import { createSlugChangeRedirect } from "./createSlugChangeRedirect";
+import { createSlugChangeRedirect, findSlugReversionRedirect } from "./createSlugChangeRedirect";
 
 type MockDb = DbService & {
     checkUniqueSlug: jest.Mock;
+    getDocsBySlug: jest.Mock;
     upsertDoc: jest.Mock;
 };
 
@@ -28,6 +29,7 @@ const content = (overrides: Partial<ContentDto> = {}): ContentDto =>
 const db = (): MockDb =>
     ({
         checkUniqueSlug: jest.fn().mockResolvedValue(true),
+        getDocsBySlug: jest.fn().mockResolvedValue([]),
         upsertDoc: jest.fn().mockResolvedValue({ ok: true }),
     }) as unknown as MockDb;
 
@@ -151,5 +153,51 @@ describe("createSlugChangeRedirect", () => {
                 'Could not create redirect from "old-slug" to "new-slug": a redirect already exists.',
         });
         expect(mockDb.upsertDoc).not.toHaveBeenCalled();
+    });
+});
+
+describe("findSlugReversionRedirect", () => {
+    afterEach(() => jest.restoreAllMocks());
+
+    it("returns only the redirect that points from the requested slug to the current slug", async () => {
+        jest.spyOn(PermissionSystem, "verifyAccess").mockReturnValue(true);
+        const mockDb = db();
+        const matching = {
+            _id: "redirect-a-b",
+            type: DocType.Redirect,
+            memberOf: ["group-public-content"],
+            slug: "slug-a",
+            toSlug: "slug-b",
+            redirectType: RedirectType.Permanent,
+        } as RedirectDto;
+        mockDb.getDocsBySlug.mockResolvedValue([
+            { ...matching, _id: "unrelated", toSlug: "somewhere-else" },
+            matching,
+        ]);
+
+        await expect(
+            findSlugReversionRedirect(
+                content({ slug: "slug-a" }),
+                content({ slug: "slug-b" }),
+                ["group-super-admins"],
+                mockDb,
+            ),
+        ).resolves.toBe(matching);
+        expect(mockDb.getDocsBySlug).toHaveBeenCalledWith("slug-a", DocType.Redirect);
+    });
+
+    it("does not consume a matching redirect without redirect edit access", async () => {
+        jest.spyOn(PermissionSystem, "verifyAccess").mockReturnValue(false);
+        const mockDb = db();
+
+        await expect(
+            findSlugReversionRedirect(
+                content({ slug: "slug-a" }),
+                content({ slug: "slug-b" }),
+                ["group-public-editors"],
+                mockDb,
+            ),
+        ).resolves.toBeUndefined();
+        expect(mockDb.getDocsBySlug).not.toHaveBeenCalled();
     });
 });
