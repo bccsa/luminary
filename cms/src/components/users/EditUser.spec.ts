@@ -252,7 +252,7 @@ describe("CreateOrEditUser.vue", () => {
             expect(providerSelect.exists()).toBe(true);
             const options = providerSelect.props("options") as { label: string }[];
             expect(options.some((o) => o.label.includes("Choose a provider"))).toBe(true);
-            expect(options.some((o) => o.label === "Example")).toBe(true);
+            expect(options.some((o) => o.label === "login.bcc.button")).toBe(true);
         });
     });
 
