@@ -10,7 +10,7 @@
 // during hydration. Language + sync are kicked off but NOT awaited, so hydration
 // is not blocked on the network — they layer in after mount.
 
-import { DocType, getSocket, init, warmMangoCaches } from "luminary-shared";
+import { getSocket, init, warmMangoCaches } from "luminary-shared";
 import { apiUrl, appLanguageIdsAsRef, initLanguage } from "@/globalConfig";
 import { APP_DOCS_INDEX } from "@/docsIndex";
 import { initAuthLangSync, initSync } from "@/sync";
@@ -25,19 +25,6 @@ export async function initWebClient(): Promise<void> {
         docsIndex: APP_DOCS_INDEX,
         apiUrl,
         appLanguageIdsAsRef,
-        syncList: [
-            {
-                type: DocType.AuthProvider,
-                contentOnly: false,
-                syncPriority: 1,
-                skipWaitForLanguageSync: true,
-            },
-            { type: DocType.Tag, contentOnly: true, syncPriority: 2 },
-            { type: DocType.Post, contentOnly: true, syncPriority: 2 },
-            { type: DocType.Language, syncPriority: 1, skipWaitForLanguageSync: true },
-            { type: DocType.Redirect, contentOnly: false, syncPriority: 3 },
-            { type: DocType.Storage, contentOnly: false, syncPriority: 3 },
-        ],
     });
 
     // Connect for anonymous/public users and start the content + language sync.
