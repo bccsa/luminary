@@ -206,7 +206,7 @@ export async function processImage(
                 (collection) => collection.imageFiles?.length > 0,
             );
 
-            if (prevHasFiles) {
+            if (prevHasImageFiles) {
                 image.fileCollections = prevImage.fileCollections;
             } else {
                 if (!parentBucketId) {
