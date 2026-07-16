@@ -904,15 +904,17 @@ watch([isLoading, content, is404], async () => {
                 </article>
             </div>
 
-            <RelatedContent
-                v-if="content && tags.length"
-                :selectedContent="content"
-                :tags="
-                    tags.filter(
-                        (t: ContentDto) => t && t.parentTagType && t.parentTagType == TagType.Topic,
-                    )
-                "
-            />
+            <IgnorePagePadding v-if="content && tags.length">
+                <RelatedContent
+                    :selectedContent="content"
+                    :tags="
+                        tags.filter(
+                            (t: ContentDto) =>
+                                t && t.parentTagType && t.parentTagType == TagType.Topic,
+                        )
+                    "
+                />
+            </IgnorePagePadding>
             <IgnorePagePadding ignoreBottom>
                 <CopyrightBanner />
             </IgnorePagePadding>

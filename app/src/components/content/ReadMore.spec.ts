@@ -1,9 +1,12 @@
 import "fake-indexeddb/auto";
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import { nextTick } from "vue";
-import { type ContentDto } from "luminary-shared";
+import { db, DocType, PublishStatus, TagType, type ContentDto } from "luminary-shared";
 import ReadMore from "./ReadMore.vue";
+import waitForExpect from "wait-for-expect";
+import { mockLanguageDtoEng } from "@/tests/mockdata";
+import { appLanguageIdsAsRef } from "@/globalConfig";
 
 // Capture the observer callback so tests can simulate the infinite-scroll sentinel
 // entering the viewport (jsdom has no layout, so it never fires on its own).
@@ -17,6 +20,11 @@ beforeEach(() => {
         unobserve() {}
         disconnect() {}
     } as unknown as typeof IntersectionObserver;
+    appLanguageIdsAsRef.value = ["lang-eng"];
+});
+
+afterEach(async () => {
+    await db.docs.clear();
 });
 
 const makeItem = (overrides: Partial<ContentDto> = {}): ContentDto =>
@@ -48,6 +56,18 @@ const mountList = (items: ContentDto[]) =>
     });
 
 describe("ReadMore", () => {
+    it("uses a card surface while keeping the mobile image-and-text row", () => {
+        const wrapper = mountList([makeItem()]);
+
+        const card = wrapper.get("a");
+        expect(card.classes()).toContain("rounded-lg");
+        expect(card.classes()).toContain("overflow-hidden");
+        expect(card.classes()).toContain("shadow");
+        expect(card.classes()).not.toContain("p-1");
+        expect(card.classes()).toContain("flex");
+        expect(card.classes()).toContain("sm:flex-col");
+    });
+
     it("keeps the mobile title to a single truncated line", () => {
         const wrapper = mountList([makeItem()]);
 
@@ -70,9 +90,57 @@ describe("ReadMore", () => {
         const wrapper = mountList([makeItem()]);
 
         const summary = wrapper.get("p");
+        const summaryArea = summary.element.parentElement!;
         expect(summary.text()).toBe("A short summary");
         expect(summary.classes()).toContain("line-clamp-1");
         expect(summary.classes()).toContain("sm:line-clamp-2");
+        expect(summary.classes()).not.toContain("sm:mx-auto");
+        expect(summaryArea.classList).toContain("sm:justify-center");
+    });
+
+    it("shows the content tags in a horizontally scrollable mobile row", async () => {
+        await db.docs.bulkPut([
+            mockLanguageDtoEng,
+            {
+                ...makeItem(),
+                _id: "content-category-1",
+                type: DocType.Content,
+                parentId: "category-1",
+                parentType: DocType.Tag,
+                parentTagType: TagType.Category,
+                language: "lang-eng",
+                title: "Category 1",
+                slug: "category-1",
+                parentTags: [],
+                status: PublishStatus.Published,
+            },
+            {
+                ...makeItem(),
+                _id: "content-topic-1",
+                type: DocType.Content,
+                parentId: "topic-1",
+                parentType: DocType.Tag,
+                parentTagType: TagType.Topic,
+                language: "lang-eng",
+                title: "Topic 1",
+                slug: "topic-1",
+                parentTags: [],
+                status: PublishStatus.Published,
+            },
+        ] as ContentDto[]);
+
+        const wrapper = mountList([
+            makeItem({ parentTags: ["category-1", "topic-1"] }),
+        ]);
+
+        await waitForExpect(() => {
+            const tags = wrapper.get('[data-test="content-tags"]');
+            expect(tags.text()).toContain("Category 1");
+            expect(tags.text()).toContain("Topic 1");
+            expect(tags.classes()).toContain("overflow-x-auto");
+            expect(tags.classes()).toContain("scrollbar-hide");
+            expect(tags.classes()).toContain("sm:hidden");
+        });
     });
 
     it("shows one batch initially and reveals the next when the sentinel intersects", async () => {
