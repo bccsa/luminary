@@ -202,7 +202,7 @@ export async function processImage(
 
     try {
         if (image.duplicate && image.fileCollections.length > 0) {
-            const prevHasFiles = !!prevImage?.fileCollections?.some(
+            const prevHasImageFiles = !!prevImage?.fileCollections?.some(
                 (collection) => collection.imageFiles?.length > 0,
             );
 
