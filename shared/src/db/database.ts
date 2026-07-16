@@ -115,9 +115,59 @@ class Database extends Dexie {
     luminaryInternals!: Table<LuminaryInternals>;
     retention!: Table<RetentionEntry>;
 
-    // In-memory (not persisted) resolvers for callers awaiting the real server ack of a
-    // queued local change — see `upsert`'s `localChangeId` and `waitForLocalChangeAck`.
-    private localChangeAckWaiters = new Map<number, (ack: ChangeReqAckDto) => void>();
+    // In-memory (not persisted) acknowledgements for callers awaiting the real server ack
+    // of a queued local change — see `upsert` and `waitForLocalChangeAck`.
+    private localChangeAcks = new Map<
+        number,
+        {
+            promise: Promise<ChangeReqAckDto>;
+            resolve: (ack: ChangeReqAckDto) => void;
+            settled: boolean;
+            transient: boolean;
+        }
+    >();
+
+    private getOrCreateLocalChangeAck(localChangeId: number) {
+        const existing = this.localChangeAcks.get(localChangeId);
+        if (existing) return existing;
+
+        let resolve!: (ack: ChangeReqAckDto) => void;
+        const promise = new Promise<ChangeReqAckDto>((resolver) => {
+            resolve = resolver;
+        });
+        const entry = { promise, resolve, settled: false, transient: false };
+        this.localChangeAcks.set(localChangeId, entry);
+        return entry;
+    }
+
+    private settleLocalChangeAck(localChangeId: number, ack: ChangeReqAckDto, transient = false) {
+        // Creating a settled entry here deliberately parks an ack that beats the caller's
+        // waitForLocalChangeAck registration. A later waiter receives the same promise.
+        let entry = this.getOrCreateLocalChangeAck(localChangeId);
+        // A disconnect/retry failure ends the current UI wait but is not the server's final
+        // verdict. If the queued change later receives a real ack, replace the parked transient
+        // result so any late caller observes the authoritative outcome.
+        if (entry.settled && entry.transient && !transient) {
+            this.localChangeAcks.delete(localChangeId);
+            entry = this.getOrCreateLocalChangeAck(localChangeId);
+        }
+        if (!entry.settled) {
+            entry.settled = true;
+            entry.transient = transient;
+            entry.resolve(ack);
+        }
+
+        // Keep late callers working while bounding retained history. Never evict an ack
+        // that is still pending; Map insertion order matches the monotonic local ids.
+        if (this.localChangeAcks.size > 100) {
+            for (const [id, candidate] of Array.from(this.localChangeAcks.entries())) {
+                if (this.localChangeAcks.size <= 100) break;
+                // Keep the ack being parked by this call until upsert/waitForLocalChangeAck
+                // has had a chance to observe it; prune older settled history first.
+                if (id !== localChangeId && candidate.settled) this.localChangeAcks.delete(id);
+            }
+        }
+    }
 
     /**
      * Luminary Shared Database class
@@ -501,14 +551,10 @@ class Database extends Dexie {
             await this.localChanges.where({ docId: raw._id }).delete();
             for (const change of superseded) {
                 if (change.id == null) continue;
-                const resolve = this.localChangeAckWaiters.get(change.id);
-                if (resolve) {
-                    this.localChangeAckWaiters.delete(change.id);
-                    resolve({
-                        ack: AckStatus.Accepted,
-                        message: "Superseded by a newer local change",
-                    });
-                }
+                this.settleLocalChangeAck(change.id, {
+                    ack: AckStatus.Accepted,
+                    message: "Superseded by a newer local change",
+                });
             }
         }
 
@@ -517,6 +563,9 @@ class Database extends Dexie {
             doc: raw,
             docId: raw._id,
         });
+        // Usually this creates the pending entry. If an unusually fast ack was already
+        // parked by settleLocalChangeAck, preserve that settled entry instead of replacing it.
+        this.getOrCreateLocalChangeAck(localChangeId);
         return { localChangeId };
     }
 
@@ -529,9 +578,22 @@ class Database extends Dexie {
      * change is durably queued and will resolve once the app reconnects.
      */
     waitForLocalChangeAck(localChangeId: number): Promise<ChangeReqAckDto> {
-        return new Promise((resolve) => {
-            this.localChangeAckWaiters.set(localChangeId, resolve);
-        });
+        return this.getOrCreateLocalChangeAck(localChangeId).promise;
+    }
+
+    /**
+     * End a UI wait when the current upload attempt cannot produce a server ack. The queued
+     * change is intentionally left in IndexedDB and will be retried after reconnect/mutation.
+     */
+    failLocalChangeAck(localChangeId: number, message: string) {
+        this.settleLocalChangeAck(
+            localChangeId,
+            {
+                ack: AckStatus.Rejected,
+                message,
+            },
+            true,
+        );
     }
 
     /**
@@ -613,11 +675,7 @@ class Database extends Dexie {
 
         await this.localChanges.delete(localChange.id);
 
-        const resolve = this.localChangeAckWaiters.get(localChange.id);
-        if (resolve) {
-            this.localChangeAckWaiters.delete(localChange.id);
-            resolve(ack);
-        }
+        this.settleLocalChangeAck(localChange.id, ack);
     }
 
     /**
@@ -787,6 +845,17 @@ class Database extends Dexie {
      * Purge the local database
      */
     async purge() {
+        for (const entry of Array.from(this.localChangeAcks.values())) {
+            if (!entry.settled) {
+                entry.settled = true;
+                entry.resolve({
+                    ack: AckStatus.Rejected,
+                    message: "Local database was purged before the change could be uploaded",
+                });
+            }
+        }
+        this.localChangeAcks.clear();
+
         const { syncList } = await import("../api/sync/state");
         syncList.value = [];
         // Also drop the HybridQuery response-cache windows (localStorage) so a later mount can't

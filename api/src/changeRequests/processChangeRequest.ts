@@ -1,7 +1,7 @@
 import { validateChangeRequest } from "./validateChangeRequest";
 import { DbService, DbUpsertResult } from "../db/db.service";
 import { ChangeReqDto } from "../dto/ChangeReqDto";
-import { DocType, Uuid } from "../enums";
+import { DocType, PublishStatus, Uuid } from "../enums";
 import { PostDto } from "../dto/PostDto";
 import { TagDto } from "../dto/TagDto";
 import { ContentDto } from "../dto/ContentDto";
@@ -21,7 +21,7 @@ import processUserDto from "./documentProcessing/processUserDto";
 import { UserDto } from "../dto/UserDto";
 import processRedirectDto from "./documentProcessing/processRedirectDto";
 import { RedirectDto } from "../dto/RedirectDto";
-import { createSlugChangeRedirect } from "./createSlugChangeRedirect";
+import { createSlugChangeRedirect, findSlugReversionRedirect } from "./createSlugChangeRedirect";
 
 type ProcessChangeRequestResult = {
     result: DbUpsertResult;
@@ -61,10 +61,21 @@ export async function processChangeRequest(
     // insert user id into the change request document, so that we can keep a record of who made the change
     doc.updatedBy = userId;
 
+    const slugReversionRedirect =
+        doc.type === DocType.Content
+            ? await findSlugReversionRedirect(
+                  doc as ContentDto,
+                  prevDoc as ContentDto | undefined,
+                  groupMembership,
+                  db,
+              )
+            : undefined;
+
     const docProcessMap = {
         [DocType.Post]: () => processPostTagDto(doc as PostDto, prevDoc as PostDto, db),
         [DocType.Tag]: () => processPostTagDto(doc as TagDto, prevDoc as TagDto, db),
-        [DocType.Content]: () => processContentDto(doc as ContentDto, db),
+        [DocType.Content]: () =>
+            processContentDto(doc as ContentDto, db, slugReversionRedirect?._id),
         [DocType.Language]: () => processLanguageDto(doc as LanguageDto, db),
         [DocType.Group]: () => processGroupDto(doc as GroupDto),
         [DocType.Storage]: () => processStorageDto(doc as StorageDto, prevDoc as StorageDto, db),
@@ -90,7 +101,32 @@ export async function processChangeRequest(
         result: upsertResult,
     };
 
-    if (doc.type === DocType.Content && upsertResult.ok) {
+    if (
+        slugReversionRedirect &&
+        upsertResult.ok &&
+        (doc as ContentDto).status === PublishStatus.Published
+    ) {
+        try {
+            const redirectDeleteResult = await db.upsertDoc({
+                ...slugReversionRedirect,
+                updatedBy: userId,
+                deleteReq: 1,
+            });
+            if (!redirectDeleteResult.ok) {
+                throw new Error("Could not remove the superseded slug redirect");
+            }
+            res.info = [
+                `Removed redirect from "${slugReversionRedirect.slug}" to "${slugReversionRedirect.toSlug}"`,
+            ];
+        } catch (error) {
+            // Do not leave the published Content/Redirect slug invariant broken if redirect
+            // cleanup fails after the content write. Restore the previous content revision.
+            if (prevDoc) await db.upsertDoc(prevDoc);
+            throw error;
+        }
+    }
+
+    if (doc.type === DocType.Content && upsertResult.ok && !slugReversionRedirect) {
         const redirectResult = await createSlugChangeRedirect(
             userId,
             doc as ContentDto,

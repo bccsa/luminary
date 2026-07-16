@@ -177,9 +177,7 @@ export function toEditable<T extends BaseDocumentDto>(
                         (e) => e._id === updatedItem._id,
                     );
                     if (editableIndex !== -1) {
-                        editable.value[editableIndex] = _applyModifier(
-                            cloneDeep(updatedItem as T),
-                        );
+                        editable.value[editableIndex] = _applyModifier(cloneDeep(updatedItem as T));
                     }
                 }
             }
@@ -331,15 +329,23 @@ export function toEditable<T extends BaseDocumentDto>(
             // its retention keep-alive so evictStaleBelowCutoff won't reap the doc we just saved.
             // Synced (above-cutoff / other syncable) docs need no stamp — eviction never targets them.
             const pd = (item as BaseDocumentDto as ContentDto).publishDate;
-            if (item.type === DocType.Content && pd !== undefined && pd < getContentPublishDateCutoff()) {
+            if (
+                item.type === DocType.Content &&
+                pd !== undefined &&
+                pd < getContentPublishDateCutoff()
+            ) {
                 touchRetention([id]);
             }
 
-            updateShadow(id);
-
             if (opts?.awaitAck) {
-                return await db.waitForLocalChangeAck(localChangeId);
+                const ack = await db.waitForLocalChangeAck(localChangeId);
+                // Keep rejected/transiently-unsent edits dirty so the user can correct or
+                // explicitly retry them. Only a real accepted ack commits the shadow.
+                if (ack.ack === AckStatus.Accepted) updateShadow(id);
+                return ack;
             }
+
+            updateShadow(id);
 
             return {
                 ack: AckStatus.Accepted,

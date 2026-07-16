@@ -48,17 +48,28 @@ export function syncLocalChanges(localChanges: Ref<LocalChangeDto[]>): SyncLocal
     const unwatch = watch(
         [isConnected, queueSignature],
         async () => {
-            if (!isConnected.value || localChanges.value.length === 0) return;
+            if (!isConnected.value) {
+                for (const change of localChanges.value) {
+                    db.failLocalChangeAck(
+                        change.id,
+                        "Saved locally. The connection was lost before the server confirmed the change.",
+                    );
+                }
+                return;
+            }
+            if (localChanges.value.length === 0) return;
             if (running) return;
             running = true;
 
             const drain = (async () => {
+                let activeChange: LocalChangeDto | undefined;
                 try {
                     while (isConnected.value) {
                         const change = (await db.localChanges.toCollection().first()) as
                             | LocalChangeDto
                             | undefined;
                         if (!change) return;
+                        activeChange = change;
 
                         let sent = false;
                         for (let attempt = 0; attempt < 3; attempt++) {
@@ -73,14 +84,21 @@ export function syncLocalChanges(localChanges: Ref<LocalChangeDto[]>): SyncLocal
                         // The head failed every attempt; stop without touching the rest of
                         // the queue so order is preserved and we don't hammer the API.
                         if (!sent) {
-                            changeReqErrors.value.push(
-                                "Unable to submit saved changes. Please refresh the page to try again.",
-                            );
+                            const message =
+                                "Unable to submit saved changes. Please refresh the page to try again.";
+                            changeReqErrors.value.push(message);
+                            db.failLocalChangeAck(change.id, message);
                             return;
                         }
                     }
                 } catch (err) {
                     console.error("syncLocalChanges error:", err);
+                    if (activeChange) {
+                        const message =
+                            "Unable to submit saved changes. Please refresh the page to try again.";
+                        changeReqErrors.value.push(message);
+                        db.failLocalChangeAck(activeChange.id, message);
+                    }
                 } finally {
                     running = false;
                 }

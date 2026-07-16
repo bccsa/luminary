@@ -279,7 +279,6 @@ describe("toEditable", () => {
             expect(e.editable.value[0].value).toBe(3); // The value should be 3
         });
     });
-
 });
 
 describe("toEditable - save", () => {
@@ -363,7 +362,7 @@ describe("toEditable - save", () => {
         });
 
         const source = ref([makeContent("a", 2000)]);
-        const { editable, save } = toEditable<ContentLike>(source);
+        const { editable, isEdited, save } = toEditable<ContentLike>(source);
         editable.value[0].title = "changed";
         await nextTick();
 
@@ -371,6 +370,7 @@ describe("toEditable - save", () => {
 
         expect(db.waitForLocalChangeAck).toHaveBeenCalledWith(42);
         expect(res).toEqual({ ack: AckStatus.Rejected, message: "conflict" });
+        expect(isEdited.value("a")).toBe(true);
     });
 
     test("awaitAck waits for the real ack instead of returning immediately", async () => {
@@ -859,6 +859,9 @@ describe("toEditable - remove", () => {
         const source = ref([makeContent("a", 2000)]);
         const { remove } = toEditable<ContentLike>(source);
 
-        expect(await remove("nope")).toEqual({ ack: AckStatus.Rejected, message: "Item not found" });
+        expect(await remove("nope")).toEqual({
+            ack: AckStatus.Rejected,
+            message: "Item not found",
+        });
     });
 });
