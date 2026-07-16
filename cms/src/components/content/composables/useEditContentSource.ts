@@ -50,6 +50,13 @@ export type UseEditContentSource = {
      * upload but not yet acknowledged by the server (pending offline change).
      */
     hasLocalChanges: Ref<boolean>;
+    /**
+     * True when someone else changed the parent or a content child on the server while the user
+     * holds unsaved edits (a genuine concurrent-edit conflict). Backed by toEditable's `isModified`.
+     */
+    hasIncomingChanges: Ref<boolean>;
+    /** Per-doc incoming-change check (parent or content), keyed by `_id`. */
+    isIncomingChange: ComputedRef<(id: Uuid) => boolean>;
     /** True while an existing doc has not yet hydrated (drives the loading state). */
     isLoading: Ref<boolean>;
     /** Persist the parent + edited content children and re-baseline the dirty state. */
@@ -276,6 +283,22 @@ export function useEditContentSource(options: UseEditContentSourceOptions): UseE
         return editableContent.value.some((c) => docHasLocalChange.value(c._id));
     });
 
+    // Concurrent-edit conflict: the server value diverged from our baseline while we hold unsaved
+    // edits. toEditable's `isModified` is true only in that case (an unedited doc's incoming change
+    // flows in silently), so this is exactly "someone else pushed a change to what I'm editing".
+    // ponytail: a server round-trip that adds server-owned fields (fts, availableTranslations) right
+    // after our own save can transiently read as incoming if the user resumes editing before it lands
+    // — isEqualBase (shared) doesn't normalize those and we can't tune it. Narrow; not worth solving.
+    const isIncomingChange = computed(
+        () => (id: Uuid) =>
+            parentEditable.isModified.value(id) || contentEditable.isModified.value(id),
+    );
+    const hasIncomingChanges = computed(() => {
+        const p = editableParent.value;
+        if (p && parentEditable.isModified.value(p._id)) return true;
+        return editableContent.value.some((c) => contentEditable.isModified.value(c._id));
+    });
+
     const save = async () => {
         const parent = editableParent.value;
         if (!parent) return;
@@ -330,6 +353,8 @@ export function useEditContentSource(options: UseEditContentSourceOptions): UseE
         isParentDirty,
         isContentItemDirty,
         hasLocalChanges,
+        hasIncomingChanges,
+        isIncomingChange,
         isLoading,
         save,
         deleteParent,
