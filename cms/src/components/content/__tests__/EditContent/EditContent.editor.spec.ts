@@ -53,6 +53,7 @@ import {
     setupTestEnvironment,
     cleanupTestEnvironment,
     mockPostDto,
+    mockEnglishContentDto,
 } from "./EditContent.test-utils";
 
 describe("EditContent - Rich Text Editor and Slug Management", () => {
@@ -101,7 +102,7 @@ describe("EditContent - Rich Text Editor and Slug Management", () => {
         });
     });
 
-    it("should generate a redirect if a slug has been changed", async () => {
+    it("queues the slug change without creating a client-side redirect", async () => {
         const wrapper = mount(EditContent, {
             props: {
                 docType: DocType.Post,
@@ -112,7 +113,7 @@ describe("EditContent - Rich Text Editor and Slug Management", () => {
         });
 
         await waitForExpect(async () => {
-            // Edit the slug to trigger a redirect creation
+            // The API creates the redirect after accepting the content change.
             const editContentBasic = wrapper.findComponent(EditContentBasic);
             const toogle = editContentBasic.findAllComponents(LTextToggle)[0];
             const visible = toogle.find('[data-test="text-toggle-left-value"]');
@@ -130,14 +131,10 @@ describe("EditContent - Rich Text Editor and Slug Management", () => {
 
         await waitForExpect(async () => {
             const res = await db.localChanges.toArray();
-            expect(res.length).toBeGreaterThan(0);
-
-            // Check if a redirect was created with the new slug.
-            expect(res.length).toBe(3);
-            const redirect = res.filter((o) => o.doc?.type === DocType.Redirect);
-            expect(redirect.length).toBe(1);
-            expect((redirect[0].doc as any).slug).toBe("post1-eng");
-            expect((redirect[0].doc as any).toSlug).toBe("new-slug");
+            expect(res.length).toBe(2);
+            const contentChange = res.find((o) => o.doc?._id === mockEnglishContentDto._id);
+            expect((contentChange?.doc as any).slug).toBe("new-slug");
+            expect(res.some((o) => o.doc?.type === DocType.Redirect)).toBe(false);
         });
     });
 });
