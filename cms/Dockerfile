@@ -9,7 +9,7 @@ RUN npm run build
 # Build the CMS
 WORKDIR /cms
 COPY ./cms/package*.json ./
-RUN npm ci --install-links
+RUN npm ci
 COPY ./cms .
 RUN npm run build
 

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository context
 
-This is the `app/` package of the Luminary monorepo (sibling packages: `api/`, `cms/`, `shared/`, `playwright-tests/`, `docs/`). It is an offline-first Vue 3 + TypeScript PWA built with Vite. It depends on the local `luminary-shared` package via `file:../shared` — changes to that package require it to be rebuilt before they are picked up here.
+This is the `app/` package of the Luminary monorepo (sibling packages: `api/`, `cms/`, `shared/`, `playwright-tests/`, `docs/`). It is an offline-first Vue 3 + TypeScript PWA built with Vite. It depends on the local `luminary-shared` package via `file:../shared`. Vite consumes `shared/src` directly (see Commands below), so most changes to that package hot-reload with no rebuild — only a shared **type** change needs `shared/` rebuilt first.
 
 Cross-package E2E tests live in `../playwright-tests/` (separate `playwright.config.ts`), not in `app/`. There is no in-package Playwright config.
 
