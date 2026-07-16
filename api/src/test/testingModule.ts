@@ -11,6 +11,7 @@ import { WinstonModule } from "nest-winston";
 import * as winston from "winston";
 import { S3Service } from "../s3/s3.service";
 import { AuthIdentityService } from "../auth/authIdentity.service";
+import { IdentityCacheService } from "../auth/identityCache.service";
 
 export type testingModuleOptions = {
     dbName?: string;
@@ -64,6 +65,9 @@ export async function createTestingModule(testName: string) {
                     }),
                 },
             },
+            // Real service; config mock returns undefined for "identityCache" so it stays
+            // disabled (pure passthrough to the mocked AuthIdentityService above).
+            IdentityCacheService,
             {
                 provide: ConfigService,
                 useValue: {
