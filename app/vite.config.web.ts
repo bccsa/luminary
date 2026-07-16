@@ -10,6 +10,12 @@ import type { DocLike } from "./src/ssg/facetKeys";
 import { redirectFile, redirectHtml } from "./src/ssg/redirectHtml";
 import { buildRedirectIndex } from "./src/ssg/redirectIndex";
 import { buildRouteIndex, type SsgRouteIndex } from "./src/ssg/routeIndex";
+import {
+    drainQuery,
+    type KeysetDocument,
+    type KeysetQuery,
+    type QueryTransport,
+} from "./src/ssg/queryDrain";
 import { ACTIVE_PROVIDER_KEY, LEGACY_AUTH0_CACHE_PREFIX, OIDC_USER_PREFIX } from "./src/authStorage";
 
 const env = loadEnv("", process.cwd());
@@ -109,9 +115,9 @@ function authGateScript(): string {
 const OUT_DIR = "dist-web";
 const WEB_ORIGIN = (env.VITE_WEB_ORIGIN || "").replace(/\/$/, "");
 const APP_NAME = env.VITE_APP_NAME || "Luminary";
-type SsgLanguage = { _id?: string; languageCode?: string; default?: number };
-type SsgRedirect = { _id?: string; slug?: string; toSlug?: string; deleteReq?: number };
-type SsgContent = Partial<DocLike> & { slug?: string; updatedTimeUtc?: number };
+type SsgLanguage = KeysetDocument & { languageCode?: string; default?: number };
+type SsgRedirect = KeysetDocument & { slug?: string; toSlug?: string; deleteReq?: number };
+type SsgContent = Partial<DocLike> & KeysetDocument & { slug?: string };
 
 // Scoped (incremental) rebuild mode: regenerate only the routes named in
 // SSG_ONLY_ROUTES (comma-separated), preserving every other prerendered file.
@@ -282,30 +288,28 @@ const rewriteWebEntry = (): Plugin => ({
     },
 });
 
-// Enumerate every public content slug from the unauthenticated /search endpoint.
-// No Authorization header → anonymous default ("public") groups.
-//
-// Single request with a high limit (NOT offset pagination): CouchDB Mango offset
-// pagination without a stable sort can miss/duplicate docs between pages, which
-// made enumeration nondeterministic (a slug like "/sin" would intermittently drop
-// out of the build AND the manifest). One request is deterministic for the current
-// corpus size; if it ever truncates we log loudly.
-async function fetchPublicSlugs(apiUrl: string): Promise<string[]> {
-    const LIMIT = 10000;
-    const query = { apiVersion: "0.0.0", types: ["post", "tag"], contentOnly: true, limit: LIMIT };
-    const res = await fetch(`${apiUrl}/search`, {
-        headers: { "X-Query": JSON.stringify(query) },
+function queryTransport(apiUrl: string, operation: string): QueryTransport {
+    return async <T extends KeysetDocument>(query: KeysetQuery): Promise<T[]> => {
+        const res = await fetch(`${apiUrl}/query`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(query),
+        });
+        if (!res.ok) {
+            throw new Error(`[ssg] ${operation} failed: ${res.status} ${res.statusText}`);
+        }
+        const data = (await res.json()) as { docs?: T[] };
+        return data.docs ?? [];
+    };
+}
+
+// Enumerate every public content slug through anonymous /query access. Each
+// type-specific stream uses a stable (updatedTimeUtc, _id) keyset cursor.
+async function fetchPublicSlugs(apiUrl: string, now: number): Promise<string[]> {
+    const docs = await drainQuery<SsgContent>(queryTransport(apiUrl, "route enumeration"), {
+        type: "content",
+        conditions: [{ parentType: { $in: ["post", "tag"] } }, { publishDate: { $lte: now } }],
     });
-    if (!res.ok) {
-        throw new Error(`[ssg] route enumeration failed: ${res.status} ${res.statusText}`);
-    }
-    const data = (await res.json()) as { docs?: SsgContent[] };
-    const docs = data.docs ?? [];
-    if (docs.length >= LIMIT) {
-        console.warn(
-            `[ssg] enumeration returned ${LIMIT} docs (limit) — slugs may be truncated; paginate with a stable sort.`,
-        );
-    }
     // Build the route→language map so each page prerenders in its own language
     // (read by main.web.ts via globalThis). Same Node process as the SSR render.
     const routeLang: Record<string, string> = {};
@@ -328,25 +332,15 @@ async function fetchPublicSlugs(apiUrl: string): Promise<string[]> {
 }
 
 async function fetchLanguages(apiUrl: string): Promise<SsgLanguage[]> {
-    const res = await fetch(`${apiUrl}/search`, {
-        headers: { "X-Query": JSON.stringify({ apiVersion: "0.0.0", types: ["language"] }) },
+    return drainQuery<SsgLanguage>(queryTransport(apiUrl, "language enumeration"), {
+        type: "language",
     });
-    if (!res.ok) return [];
-    const data = (await res.json()) as { docs?: SsgLanguage[] };
-    return data.docs ?? [];
 }
 
 async function fetchRedirects(apiUrl: string): Promise<SsgRedirect[]> {
-    const LIMIT = 10000;
-    const query = { apiVersion: "0.0.0", types: ["redirect"], contentOnly: false, limit: LIMIT };
-    const res = await fetch(`${apiUrl}/search`, {
-        headers: { "X-Query": JSON.stringify(query) },
+    return drainQuery<SsgRedirect>(queryTransport(apiUrl, "redirect enumeration"), {
+        type: "redirect",
     });
-    if (!res.ok) {
-        throw new Error(`[ssg] redirect enumeration failed: ${res.status} ${res.statusText}`);
-    }
-    const data = (await res.json()) as { docs?: SsgRedirect[] };
-    return data.docs ?? [];
 }
 
 async function writeRedirectFiles(apiUrl: string): Promise<void> {
@@ -410,7 +404,8 @@ const config: UserConfig & { ssgOptions: ViteSSGOptions } = {
             // Always populate the route→language map + default language (used per
             // route by main.web.ts to pick the render language) — including on a
             // scoped rebuild, which still needs the language for its routes.
-            const slugs = await fetchPublicSlugs(apiUrl);
+            const routeEnumerationNow = Date.now();
+            const slugs = await fetchPublicSlugs(apiUrl, routeEnumerationNow);
             const languages = await fetchLanguages(apiUrl);
             const defaultLanguage = languages.find((l) => l.default === 1) ?? languages[0];
             const langCodes = languages
@@ -424,12 +419,6 @@ const config: UserConfig & { ssgOptions: ViteSSGOptions } = {
                     .filter((l) => l.languageCode && l._id)
                     .map((l) => [l.languageCode as string, l._id as string]),
             );
-
-            // Scoped rebuild: render only the named routes (map is now populated).
-            if (IS_SCOPED) {
-                console.log(`[ssg] scoped rebuild of ${SCOPED_ROUTES.length} route(s)`);
-                return SCOPED_ROUTES;
-            }
 
             // Private / per-user routes — never prerendered. The public "main" routes
             // (`/`, `/explore`, `/watch`) ARE prerendered via `meta.prerender` (they
@@ -453,11 +442,19 @@ const config: UserConfig & { ssgOptions: ViteSSGOptions } = {
             const all = [...new Set([...staticRoutes, ...localizedRoutes, ...slugRoutes])].filter(
                 (p) => !exclude.has(p),
             );
+            prerenderedRoutes = all;
+
+            // The sitemap always represents the full public route set, while a scoped
+            // rebuild renders only the explicitly requested routes.
+            if (IS_SCOPED) {
+                console.log(`[ssg] scoped rebuild of ${SCOPED_ROUTES.length} route(s); sitemap covers ${all.length}`);
+                return SCOPED_ROUTES;
+            }
+
             console.log(
                 `[ssg] prerendering ${all.length} routes ` +
                     `(${staticRoutes.length + localizedRoutes.length} static + ${slugRoutes.length} content)`,
             );
-            prerenderedRoutes = all;
             return all;
         },
         // --- Render-time dependency capture (spec §3.2) + response-cache seed ---
@@ -491,11 +488,11 @@ const config: UserConfig & { ssgOptions: ViteSSGOptions } = {
                 writeManifest();
                 writeRouteIndex();
                 writeDocFacets();
-                // Sitemap/robots reflect the full route set — only (re)write on a full build.
                 if (!IS_SCOPED) {
                     await writeRedirectFiles(env.VITE_API_URL);
-                    writeSeoArtifacts();
                 }
+                // Sitemap/robots/llms reflect the full route set on both full and scoped builds.
+                writeSeoArtifacts();
             } finally {
                 // Release the build lock so the ISR watcher may regenerate again.
                 if (existsSync(lockPath())) rmSync(lockPath());

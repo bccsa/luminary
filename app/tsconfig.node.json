@@ -2,6 +2,7 @@
     "extends": "@tsconfig/node18/tsconfig.json",
     "include": [
         "vite-plugins/**/*.ts",
+        "src/ssg/queryDrain.ts",
         "vite.config.*",
         "vitest.config.*",
         "src/authStorage.ts",
