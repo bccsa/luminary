@@ -347,6 +347,7 @@ describe("processContentDto", () => {
         original.doc.slug = "reversion-a";
         original.doc.status = PublishStatus.Published;
         original.doc.publishDate = Date.now() - 1000;
+        delete original.doc.expiryDate;
         await processChangeRequest("test-user", original, ["group-super-admins"], db);
 
         await processChangeRequest(
