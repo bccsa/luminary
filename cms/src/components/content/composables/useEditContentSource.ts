@@ -143,6 +143,7 @@ export function useEditContentSource(options: UseEditContentSourceOptions): UseE
             const copy = { ...item };
             if (copy.showComingSoon === false) delete copy.showComingSoon;
             if (copy.useVerticalTileLayout === false) delete copy.useVerticalTileLayout;
+            if (copy.alwaysOffline === false) delete copy.alwaysOffline;
             return copy;
         },
     });
