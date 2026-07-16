@@ -80,7 +80,7 @@ const confirmLogout = async () => {
     // Wipe local Auth0 footprint synchronously so that an interrupted
     // logout redirect doesn't leave stale provider state behind.
     clearAuth0Cache();
-    await logout({ logoutParams: { returnTo: window.location.origin } });
+    await logout();
 };
 
 const handleLogout = () => {

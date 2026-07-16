@@ -104,7 +104,7 @@ const confirmLogout = async () => {
     }
     localStorage.removeItem("usedAuth0Connection");
     clearAuth0Cache();
-    await logout({ logoutParams: { returnTo: window.location.origin } });
+    await logout();
 };
 
 // Publish rendered width as --desktop-sidebar-w so fixed overlays (e.g. ContinueReadingPrompt)
