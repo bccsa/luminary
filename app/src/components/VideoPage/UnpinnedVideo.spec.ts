@@ -4,11 +4,7 @@ import { mount } from "@vue/test-utils";
 import { defineComponent } from "vue";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
-import {
-    mockLanguageDtoEng,
-    mockLanguageDtoFra,
-    mockLanguageDtoSwa,
-} from "@/tests/mockdata";
+import { mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa } from "@/tests/mockdata";
 import { db, type ContentDto, DocType, PostType, PublishStatus, TagType } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import { appLanguageIdsAsRef } from "@/globalConfig";
@@ -214,6 +210,26 @@ describe("UnpinnedVideo", () => {
         });
     });
 
+    // `video: null` is present-but-empty: `$exists: true` matches it, so it needs the
+    // explicit `$ne: null` clause. Seeding docs used to store exactly this shape.
+    it("does not display content whose video is null", async () => {
+        const nullVideoContent = {
+            ...mockVideoContent1,
+            _id: "content-nullvideo-eng",
+            video: null,
+            title: "Null Video Content",
+        } as unknown as ContentDto;
+        await db.docs.bulkPut([mockUnpinnedCategoryContent, mockVideoContent1, nullVideoContent]);
+
+        const wrapper = mountWithSuspense();
+
+        // The valid video renders; the null-video sibling does not.
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain("Video One");
+            expect(wrapper.text()).not.toContain("Null Video Content");
+        });
+    });
+
     it("filters out content with parentPostType Page", async () => {
         const pageContent: ContentDto = {
             ...mockVideoContent1,
@@ -221,11 +237,7 @@ describe("UnpinnedVideo", () => {
             parentPostType: PostType.Page,
             title: "Page Content",
         };
-        await db.docs.bulkPut([
-            mockUnpinnedCategoryContent,
-            mockVideoContent1,
-            pageContent,
-        ]);
+        await db.docs.bulkPut([mockUnpinnedCategoryContent, mockVideoContent1, pageContent]);
 
         const wrapper = mountWithSuspense();
 
@@ -242,11 +254,7 @@ describe("UnpinnedVideo", () => {
             parentTagType: TagType.Category,
             title: "Category Tagged Content",
         };
-        await db.docs.bulkPut([
-            mockUnpinnedCategoryContent,
-            mockVideoContent1,
-            categoryTagContent,
-        ]);
+        await db.docs.bulkPut([mockUnpinnedCategoryContent, mockVideoContent1, categoryTagContent]);
 
         const wrapper = mountWithSuspense();
 
@@ -263,11 +271,7 @@ describe("UnpinnedVideo", () => {
             publishDate: Date.now() + 1_000_000_000,
             title: "Future Video",
         };
-        await db.docs.bulkPut([
-            mockUnpinnedCategoryContent,
-            mockVideoContent1,
-            futureContent,
-        ]);
+        await db.docs.bulkPut([mockUnpinnedCategoryContent, mockVideoContent1, futureContent]);
 
         const wrapper = mountWithSuspense();
 
@@ -284,11 +288,7 @@ describe("UnpinnedVideo", () => {
             expiryDate: 1000,
             title: "Expired Video",
         };
-        await db.docs.bulkPut([
-            mockUnpinnedCategoryContent,
-            mockVideoContent1,
-            expiredContent,
-        ]);
+        await db.docs.bulkPut([mockUnpinnedCategoryContent, mockVideoContent1, expiredContent]);
 
         const wrapper = mountWithSuspense();
 
@@ -318,11 +318,7 @@ describe("UnpinnedVideo", () => {
             title: "Vidéo en français",
             availableTranslations: ["lang-eng", "lang-fra"],
         };
-        await db.docs.bulkPut([
-            mockUnpinnedCategoryContent,
-            englishVideo,
-            frenchVideo,
-        ]);
+        await db.docs.bulkPut([mockUnpinnedCategoryContent, englishVideo, frenchVideo]);
 
         const wrapper = mountWithSuspense();
 
