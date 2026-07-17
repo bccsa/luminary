@@ -106,6 +106,15 @@ describe("ReadMore", () => {
         expect(summaryClampFor(3)).toBe("line-clamp-1");
     });
 
+    it("uses even top/bottom/right spacing around the mobile text content", () => {
+        const wrapper = mountList([makeItem()]);
+
+        const textArea = wrapper.get("p").element.parentElement!;
+        // p-2 gives an equal 8px on every side; pl-0 drops the left (the thumbnail gap sets it).
+        expect(textArea.classList).toContain("p-2");
+        expect(textArea.classList).toContain("pl-0");
+    });
+
     it("shows the content tags in a horizontally scrollable mobile row", async () => {
         await db.docs.bulkPut([
             mockLanguageDtoEng,
@@ -148,6 +157,8 @@ describe("ReadMore", () => {
             expect(tags.classes()).toContain("sm:hidden");
             // Categories are pinned to the bottom of the card.
             expect(tags.classes()).toContain("mt-auto");
+            // No extra bottom padding, so the space below the chips matches the top/right.
+            expect(tags.classes()).not.toContain("pb-1");
         });
     });
 
