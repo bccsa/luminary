@@ -125,6 +125,7 @@ async function Startup() {
     watch(serverError, (error) => {
         if (error) {
             serverError.value = null;
+            console.error(`Server error: ${error.status}${error.message ? ` ${error.message}` : ""}`);
             if (serverErrorTimeout) return;
             Sentry?.captureMessage(
                 `Server error: ${error.status}${error.message ? ` ${error.message}` : ""}`,

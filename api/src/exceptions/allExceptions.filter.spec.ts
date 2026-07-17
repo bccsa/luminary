@@ -38,17 +38,17 @@ describe("AllExceptionsFilter", () => {
         jest.restoreAllMocks();
     });
 
-    it("returns a user-friendly message for unknown exceptions", () => {
+    it("returns a generic message for unknown exceptions, never the raw error", () => {
         filter.catch(new Error("db connection failed"), mockHost);
 
         expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
         expect(mockResponse.send).toHaveBeenCalledWith({
             statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-            message: "Something went wrong on the server. Please try again in a minute.",
+            message: "Internal server error",
         });
     });
 
-    it("returns a user-friendly message for 5xx HttpExceptions", () => {
+    it("returns the real message for 5xx HttpExceptions", () => {
         const exception = new HttpException("Service Unavailable", HttpStatus.SERVICE_UNAVAILABLE);
 
         filter.catch(exception, mockHost);
@@ -56,7 +56,7 @@ describe("AllExceptionsFilter", () => {
         expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.SERVICE_UNAVAILABLE);
         expect(mockResponse.send).toHaveBeenCalledWith({
             statusCode: HttpStatus.SERVICE_UNAVAILABLE,
-            message: "Something went wrong on the server. Please try again in a minute.",
+            message: "Service Unavailable",
         });
     });
 
@@ -106,13 +106,13 @@ describe("AllExceptionsFilter", () => {
         expect(loggerErrorSpy).not.toHaveBeenCalled();
     });
 
-    it("handles non-Error, non-HttpException values as 500", () => {
+    it("handles non-Error, non-HttpException values as 500 with a generic message", () => {
         filter.catch("some string error", mockHost);
 
         expect(mockResponse.status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
         expect(mockResponse.send).toHaveBeenCalledWith({
             statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-            message: "Something went wrong on the server. Please try again in a minute.",
+            message: "Internal server error",
         });
     });
 
