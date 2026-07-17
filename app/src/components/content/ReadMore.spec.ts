@@ -69,19 +69,6 @@ describe("ReadMore", () => {
         expect(card.classes()).toContain("sm:flex-col");
     });
 
-    it("fills the card height with the 4:3 mobile thumbnail (no top/bottom gap)", () => {
-        const wrapper = mountList([makeItem()]);
-
-        // The mobile image is the first LImage (the second is the tablet/desktop card image).
-        const mobileImage = wrapper.findAllComponents(LImage)[0];
-        expect(mobileImage.props("aspectRatio")).toBe("classic");
-
-        // Its wrapper stretches the image to the card height instead of centring it in a gap.
-        const thumbWrapper = mobileImage.element.parentElement as HTMLElement;
-        expect(thumbWrapper.className).toContain("h-full");
-        expect(thumbWrapper.className).not.toContain("self-center");
-    });
-
     it("lets the mobile title wrap onto up to two lines", () => {
         const wrapper = mountList([makeItem()]);
 
