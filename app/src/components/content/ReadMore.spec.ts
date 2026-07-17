@@ -4,7 +4,6 @@ import { mount } from "@vue/test-utils";
 import { nextTick } from "vue";
 import { db, DocType, PublishStatus, TagType, type ContentDto } from "luminary-shared";
 import ReadMore, { summaryClampFor } from "./ReadMore.vue";
-import LImage from "../images/LImage.vue";
 import waitForExpect from "wait-for-expect";
 import { mockLanguageDtoEng } from "@/tests/mockdata";
 import { appLanguageIdsAsRef } from "@/globalConfig";
