@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import { nextTick } from "vue";
 import { db, DocType, PublishStatus, TagType, type ContentDto } from "luminary-shared";
-import ReadMore from "./ReadMore.vue";
+import ReadMore, { summaryClampFor } from "./ReadMore.vue";
 import waitForExpect from "wait-for-expect";
 import { mockLanguageDtoEng } from "@/tests/mockdata";
 import { appLanguageIdsAsRef } from "@/globalConfig";
@@ -68,12 +68,13 @@ describe("ReadMore", () => {
         expect(card.classes()).toContain("sm:flex-col");
     });
 
-    it("keeps the mobile title to a single truncated line", () => {
+    it("lets the mobile title wrap onto up to two lines", () => {
         const wrapper = mountList([makeItem()]);
 
         const mobileTitle = wrapper.findAll("h3").find((h) => h.classes().includes("sm:hidden"));
         expect(mobileTitle).toBeDefined();
-        expect(mobileTitle!.classes()).toContain("truncate");
+        expect(mobileTitle!.classes()).toContain("line-clamp-2");
+        expect(mobileTitle!.classes()).not.toContain("truncate");
     });
 
     it("wraps the card title on the image instead of truncating it", () => {
@@ -86,16 +87,23 @@ describe("ReadMore", () => {
         expect(cardTitle!.classes().some((c) => c.startsWith("line-clamp"))).toBe(false);
     });
 
-    it("clamps the summary to one line on mobile and two lines on the card", () => {
+    it("gives a short-title card a two-line summary, and always two on the card", () => {
         const wrapper = mountList([makeItem()]);
 
         const summary = wrapper.get("p");
         const summaryArea = summary.element.parentElement!;
         expect(summary.text()).toBe("A short summary");
-        expect(summary.classes()).toContain("line-clamp-1");
+        // Default (one-line title) → the summary gets two lines on mobile.
+        expect(summary.classes()).toContain("line-clamp-2");
         expect(summary.classes()).toContain("sm:line-clamp-2");
-        expect(summary.classes()).not.toContain("sm:mx-auto");
         expect(summaryArea.classList).toContain("sm:justify-center");
+    });
+
+    it("maps the measured title line count to the summary clamp", () => {
+        // One-line title leaves room for a two-line summary; a two-line title leaves one.
+        expect(summaryClampFor(1)).toBe("line-clamp-2");
+        expect(summaryClampFor(2)).toBe("line-clamp-1");
+        expect(summaryClampFor(3)).toBe("line-clamp-1");
     });
 
     it("shows the content tags in a horizontally scrollable mobile row", async () => {
