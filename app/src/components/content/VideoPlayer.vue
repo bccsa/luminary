@@ -7,13 +7,8 @@ import { type ContentDto } from "luminary-shared";
 import px from "./px.png";
 import { matchTrackLanguage } from "./audioTrackLanguage";
 import LImage from "../images/LImage.vue";
-import {
-    appLanguagesPreferredAsRef,
-    getMediaProgress,
-    removeMediaProgress,
-    setMediaProgress,
-    queryParams,
-} from "@/globalConfig";
+import { appLanguagesPreferredAsRef, queryParams } from "@/globalConfig";
+import { getMediaProgress, removeMediaProgress, setMediaProgress } from "@/contentProgress";
 import { extractAndBuildAudioMaster } from "./extractAndBuildAudioMaster";
 import { isYouTubeUrl, convertToVideoJSYouTubeUrl } from "@/util/youtube";
 

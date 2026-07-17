@@ -54,6 +54,8 @@ Uses `@auth0/auth0-vue` with multiple providers selected at runtime from `AuthPr
 
 UI strings live in CouchDB Language documents, loaded at runtime (`src/i18n.ts`). English seed is `../api/src/db/seedingDocs/lang-eng.json`. See `../docs/guides/translations.md` for the workflow.
 
+Reading progress (segments, gates, homepage row): `docs/reading-progress-tracker/README.md`.
+
 ### Plugins
 
 Full contract + injection-key + build-time virtual module pattern, diagrams, and a second-plugin walkthrough: `docs/vue-plugin-architecture/README.md`.

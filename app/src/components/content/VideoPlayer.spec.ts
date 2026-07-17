@@ -105,11 +105,18 @@ vi.mock("@/globalConfig", async (importOriginal) => {
     const actual = (await importOriginal()) as Record<string, unknown>;
     return {
         ...actual,
+        queryParams: new URLSearchParams(),
+        appLanguagesPreferredAsRef: { value: [{ languageCode: "en" }] },
+    };
+});
+
+vi.mock("@/contentProgress", async (importOriginal) => {
+    const actual = (await importOriginal()) as Record<string, unknown>;
+    return {
+        ...actual,
         getMediaProgress: vi.fn(() => 0),
         setMediaProgress: vi.fn(),
         removeMediaProgress: vi.fn(),
-        queryParams: new URLSearchParams(),
-        appLanguagesPreferredAsRef: { value: [{ languageCode: "en" }] },
     };
 });
 
@@ -250,7 +257,7 @@ describe("VideoPlayer", () => {
     });
 
     it("registers ended event handler that removes progress", async () => {
-        const { removeMediaProgress } = await import("@/globalConfig");
+        const { removeMediaProgress } = await import("@/contentProgress");
 
         mount(VideoPlayer, {
             props: {
@@ -320,7 +327,7 @@ describe("VideoPlayer", () => {
     });
 
     it("restores progress on ready event when progress > 60", async () => {
-        const { getMediaProgress } = await import("@/globalConfig");
+        const { getMediaProgress } = await import("@/contentProgress");
         vi.mocked(getMediaProgress).mockReturnValue(120);
 
         mount(VideoPlayer, {

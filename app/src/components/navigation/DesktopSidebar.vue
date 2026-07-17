@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, onMounted, onUnmounted } from "vue";
 import { useI18n } from "vue-i18n";
 import { getNavigationItems } from "./navigationItems";
 import { useSearchOverlay } from "@/composables/useSearchOverlay";
@@ -107,6 +107,32 @@ const confirmLogout = async () => {
     await logout({ logoutParams: { returnTo: window.location.origin } });
 };
 
+// Publish rendered width as --desktop-sidebar-w so fixed overlays (e.g. ContinueReadingPrompt)
+// can center in the content column instead of the full viewport.
+const rootRef = ref<HTMLElement | null>(null);
+let resizeObserver: ResizeObserver | null = null;
+
+const publishWidth = (width: number) => {
+    document.documentElement.style.setProperty("--desktop-sidebar-w", `${width}px`);
+};
+
+onMounted(() => {
+    if (!rootRef.value) return;
+    const measure = () => {
+        if (rootRef.value) publishWidth(rootRef.value.getBoundingClientRect().width);
+    };
+    measure();
+    if (typeof ResizeObserver !== "undefined") {
+        resizeObserver = new ResizeObserver(measure);
+        resizeObserver.observe(rootRef.value);
+    }
+});
+
+onUnmounted(() => {
+    resizeObserver?.disconnect();
+    document.documentElement.style.removeProperty("--desktop-sidebar-w");
+});
+
 const handleLogin = () => {
     if (isConnected.value) {
         loginWithRedirect();
@@ -124,6 +150,7 @@ const handleLogin = () => {
 
 <template>
     <nav
+        ref="rootRef"
         class="relative hidden flex-shrink-0 flex-col border-r border-zinc-200 bg-zinc-100 transition-[width] duration-200 ease-out dark:border-slate-700 dark:bg-slate-800 lg:flex"
         :class="collapsed ? 'w-[4.5rem]' : 'w-64'"
     >
