@@ -188,4 +188,18 @@ describe("decideContentApiQuery — older-tail supplement", () => {
         expect(decideContentApiQuery(feed(), [])).toBeUndefined();
         config.contentPublishDateCutoff = 1000;
     });
+
+    it("returns undefined for Tag content because Tag sync covers the full corpus", () => {
+        const tagFeed = feed({
+            selector: {
+                $and: [
+                    { type: "content" },
+                    { parentType: "tag" },
+                    { status: "published" },
+                ],
+            },
+        });
+
+        expect(decideContentApiQuery(tagFeed, [])).toBeUndefined();
+    });
 });

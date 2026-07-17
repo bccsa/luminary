@@ -39,7 +39,7 @@ function roomDocTypesFromSyncList(): DocType[] {
  * `isSyncableDoc` (the sync-`syncList`-derived gate), and the result is written
  * via `db.bulkPut` (which resolves `DeleteCmd`s with its own stale-delete guard).
  *
- * Below-cutoff Content is written through ONLY if we're already keeping it offline
+ * Below-cutoff Post content is written through ONLY if we're already keeping it offline
  * (a `retention` row exists) — so a live edit to an offline-cached older article
  * stays fresh, while a below-cutoff doc we aren't caching is not persisted (it
  * would otherwise be written here and evicted on the next sync). DeleteCmds and
@@ -56,6 +56,7 @@ export async function applyLiveData(data: ApiDataResponseDto): Promise<void> {
     const isBelowCutoffContent = (d: BaseDocumentDto): boolean => {
         if (d.type !== DocType.Content) return false;
         const content = d as ContentDto;
+        if (content.parentType !== DocType.Post) return false;
         if (content.parentAlwaysOffline === true) return false;
         const pd = content.publishDate;
         return pd !== undefined && pd < cutoff;
