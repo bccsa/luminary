@@ -465,6 +465,7 @@ describe("AuthIdentityService", () => {
 // ── AuthGuard integration ────────────────────────────────────────────────────
 
 import { AuthGuard } from "./auth.guard";
+import { IdentityCacheService } from "./identityCache.service";
 
 jest.mock("jwks-rsa", () => {
     return Object.assign(
@@ -500,7 +501,15 @@ describe("AuthGuard (Integrated)", () => {
         };
 
         authIdentityService = new AuthIdentityService(mockJwtService, mockDbService);
-        guard = new AuthGuard(authIdentityService);
+        // The guard resolves through IdentityCacheService; with the cache disabled
+        // (config returns no "identityCache") it's a passthrough to the real service,
+        // so this still exercises the full guard → AuthIdentityService path.
+        const identityCacheService = new IdentityCacheService(
+            authIdentityService,
+            { get: () => undefined } as any,
+            { on: jest.fn() } as any,
+        );
+        guard = new AuthGuard(identityCacheService);
     });
 
     it("should fall back to default groups when no email in token and no user found by identity", async () => {
