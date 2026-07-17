@@ -99,8 +99,8 @@ export async function flushRetention(): Promise<void> {
 }
 
 /**
- * Delete below-cutoff Content whose retention deadline has passed (or was never set).
- * Covers both supplement-persisted docs and content that slid out of the sync window.
+ * Delete below-cutoff Post content whose retention deadline has passed (or was never set).
+ * Covers both supplement-persisted docs and Post content that slid out of the sync window.
  * Inert in CMS / when no cutoff is configured. Call only while online (it runs after a
  * content sync) so evicted-but-still-wanted docs can be re-fetched.
  */
@@ -124,7 +124,10 @@ export async function evictStaleBelowCutoff(): Promise<void> {
         .below(cutoff)
         .and((d) => {
             if (d.type !== DocType.Content) return false;
-            return (d as ContentDto).parentAlwaysOffline !== true;
+            const content = d as ContentDto;
+            return (
+                content.parentType === DocType.Post && content.parentAlwaysOffline !== true
+            );
         })
         .primaryKeys()) as string[];
     if (!ids.length) return;

@@ -268,12 +268,13 @@ export async function sync(options: SyncRunnerOptions): Promise<void> {
     try {
         await _runSync(options);
 
-        // Content callers get an automatic companion run that syncs always-offline
+        // Post-content callers get an automatic companion run that syncs always-offline
         // docs (parentAlwaysOffline === true) regardless of the publishDate cutoff.
         // Centralized here so callers don't need to know about `alwaysOffline` or
         // issue a second sync() call themselves.
         if (
             options.type === DocType.Content &&
+            options.subType === DocType.Post &&
             !options.alwaysOffline &&
             hasContentPublishDateCutoff()
         ) {
@@ -285,14 +286,14 @@ export async function sync(options: SyncRunnerOptions): Promise<void> {
 }
 
 async function _runSync(options: SyncRunnerOptions): Promise<void> {
-    // publishDate is a Content-only sync dimension. For Content callers, an unspecified
-    // floor falls back to the configured cutoff so sync never pulls content older than the
-    // app/HybridQuery treat as "remote-only". Non-Content callers (Language, Redirect,
-    // Storage, AuthProvider, Group, …) leave the bounds undefined — every downstream code
-    // path that does something with publishDate is wrapped in `if (type === Content)` and
-    // every comparison goes through `resolveRange` which treats undefined as OPEN_MIN/MAX.
+    // publishDate is a Content-only sync dimension. Post content uses the configured cutoff
+    // so sync does not pull ordinary posts older than the app/HybridQuery treats as
+    // "remote-only". Tag content must remain open-ended: tags can be long-lived navigation
+    // parents, so applying the rolling Post window can exclude every matching document.
+    // Non-Content callers (Language, Redirect, Storage, AuthProvider, Group, …) leave the
+    // bounds undefined; downstream comparisons resolve those as OPEN_MIN/MAX.
     if (options.type === DocType.Content) {
-        if (options.alwaysOffline) {
+        if (options.subType !== DocType.Post || options.alwaysOffline) {
             options.publishDateMin = OPEN_MIN;
             options.publishDateMax = OPEN_MAX;
         } else {
