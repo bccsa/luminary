@@ -129,9 +129,7 @@ describe("ReadMore", () => {
             },
         ] as ContentDto[]);
 
-        const wrapper = mountList([
-            makeItem({ parentTags: ["category-1", "topic-1"] }),
-        ]);
+        const wrapper = mountList([makeItem({ parentTags: ["category-1", "topic-1"] })]);
 
         await waitForExpect(() => {
             const tags = wrapper.get('[data-test="content-tags"]');
@@ -140,6 +138,8 @@ describe("ReadMore", () => {
             expect(tags.classes()).toContain("overflow-x-auto");
             expect(tags.classes()).toContain("scrollbar-hide");
             expect(tags.classes()).toContain("sm:hidden");
+            // Categories are pinned to the bottom of the card.
+            expect(tags.classes()).toContain("mt-auto");
         });
     });
 

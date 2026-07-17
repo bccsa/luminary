@@ -9,9 +9,7 @@ const props = defineProps<{ items: ContentDto[] }>();
 
 const summaryText = (content: ContentDto): string => content.summary?.trim() ?? "";
 
-const tagIds = computed(() => [
-    ...new Set(props.items.flatMap((item) => item.parentTags ?? [])),
-]);
+const tagIds = computed(() => [...new Set(props.items.flatMap((item) => item.parentTags ?? []))]);
 const tagDocs = useContentQuery(
     () => [{ parentId: { $in: tagIds.value.length ? tagIds.value : [] } }],
     { includeScheduled: false },
@@ -62,7 +60,7 @@ watch(
             >
                 <RouterLink
                     :to="{ name: 'content', params: { slug: item.slug } }"
-                    class="ease-out-expo group flex gap-2 overflow-hidden rounded-lg bg-white shadow ring-1 ring-zinc-950/10 transition hover:brightness-[1.15] hover:shadow-lg dark:bg-slate-800 dark:ring-white/10 sm:h-full sm:flex-col sm:gap-1"
+                    class="ease-out-expo group flex gap-2 overflow-hidden rounded-lg bg-white shadow ring-1 ring-zinc-950/10 transition hover:shadow-lg hover:brightness-[1.15] dark:bg-slate-800 dark:ring-white/10 sm:h-full sm:flex-col sm:gap-1"
                 >
                     <!-- Mobile: small thumbnail on the left. -->
                     <div class="shrink-0 sm:hidden">
@@ -119,9 +117,11 @@ watch(
                             {{ summaryText(item) }}
                         </p>
 
+                        <!-- Categories sit at the bottom of the card: mt-auto pushes them below
+                             the title and summary when the row is taller than the text. -->
                         <div
                             v-if="tagsFor(item).length"
-                            class="flex max-w-full gap-1 overflow-x-auto pb-1 scrollbar-hide sm:hidden"
+                            class="mt-auto flex max-w-full gap-1 overflow-x-auto pb-1 scrollbar-hide sm:hidden"
                             data-test="content-tags"
                         >
                             <span
