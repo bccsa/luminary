@@ -4,6 +4,7 @@ import { mount } from "@vue/test-utils";
 import { nextTick } from "vue";
 import { db, DocType, PublishStatus, TagType, type ContentDto } from "luminary-shared";
 import ReadMore, { summaryClampFor } from "./ReadMore.vue";
+import LImage from "../images/LImage.vue";
 import waitForExpect from "wait-for-expect";
 import { mockLanguageDtoEng } from "@/tests/mockdata";
 import { appLanguageIdsAsRef } from "@/globalConfig";
@@ -66,6 +67,19 @@ describe("ReadMore", () => {
         expect(card.classes()).not.toContain("p-1");
         expect(card.classes()).toContain("flex");
         expect(card.classes()).toContain("sm:flex-col");
+    });
+
+    it("fills the card height with the 4:3 mobile thumbnail (no top/bottom gap)", () => {
+        const wrapper = mountList([makeItem()]);
+
+        // The mobile image is the first LImage (the second is the tablet/desktop card image).
+        const mobileImage = wrapper.findAllComponents(LImage)[0];
+        expect(mobileImage.props("aspectRatio")).toBe("classic");
+
+        // Its wrapper stretches the image to the card height instead of centring it in a gap.
+        const thumbWrapper = mobileImage.element.parentElement as HTMLElement;
+        expect(thumbWrapper.className).toContain("h-full");
+        expect(thumbWrapper.className).not.toContain("self-center");
     });
 
     it("lets the mobile title wrap onto up to two lines", () => {
