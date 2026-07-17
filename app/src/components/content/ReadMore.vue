@@ -62,6 +62,43 @@ const measureTitles = () => {
     });
 };
 
+// A card's category row scrolls horizontally when it has more chips than fit. Fade whichever
+// edge still has hidden chips beyond it, so the row dissolves toward the card edge instead of
+// cutting a chip off — and the fade follows the scroll position.
+const tagFade = reactive<Record<string, { left: boolean; right: boolean }>>({});
+
+const FADE_WIDTH = "1rem";
+const tagFadeStyle = (id: string) => {
+    const fade = tagFade[id];
+    const start = fade?.left ? "transparent" : "#000";
+    const end = fade?.right ? "transparent" : "#000";
+    // A full-black mask leaves the row untouched; a transparent stop fades that edge.
+    const mask = `linear-gradient(to right, ${start} 0, #000 ${FADE_WIDTH}, #000 calc(100% - ${FADE_WIDTH}), ${end} 100%)`;
+    return { maskImage: mask, WebkitMaskImage: mask };
+};
+
+const updateTagFade = (id: string, el: HTMLElement) => {
+    const maxScroll = el.scrollWidth - el.clientWidth;
+    tagFade[id] = {
+        left: el.scrollLeft > 4,
+        right: maxScroll > 4 && el.scrollLeft < maxScroll - 4,
+    };
+};
+
+const measureTagFades = () => {
+    const root = rootEl.value;
+    if (!root) return;
+    root.querySelectorAll<HTMLElement>("[data-tags-row]").forEach((el) => {
+        if (el.dataset.id) updateTagFade(el.dataset.id, el);
+    });
+};
+
+// Titles and category fades both derive from rendered layout, so recompute them together.
+const remeasureAll = () => {
+    measureTitles();
+    measureTagFades();
+};
+
 onMounted(() => {
     observer = new IntersectionObserver((entries) => {
         if (entries.some((e) => e.isIntersecting) && visibleCount.value < props.items.length) {
@@ -70,10 +107,10 @@ onMounted(() => {
     });
     if (sentinel.value) observer.observe(sentinel.value);
 
-    // Re-measure titles when the layout reflows (e.g. rotating the device changes wrapping).
-    resizeObserver = new ResizeObserver(() => measureTitles());
+    // Recompute title line counts and category fades when the layout reflows (e.g. rotating).
+    resizeObserver = new ResizeObserver(() => remeasureAll());
     if (rootEl.value) resizeObserver.observe(rootEl.value);
-    nextTick(measureTitles);
+    nextTick(remeasureAll);
 });
 onUnmounted(() => {
     observer?.disconnect();
@@ -85,8 +122,8 @@ watch(
         visibleCount.value = BATCH_SIZE;
     },
 );
-// Newly revealed cards (infinite scroll, or a new related set) need measuring once rendered.
-watch(visibleItems, () => nextTick(measureTitles));
+// Newly revealed cards (infinite scroll, or a new related set) need re-measuring once rendered.
+watch(visibleItems, () => nextTick(remeasureAll));
 </script>
 
 <template>
@@ -167,12 +204,17 @@ watch(visibleItems, () => nextTick(measureTitles));
                             {{ summaryText(item) }}
                         </p>
 
-                        <!-- Categories sit at the bottom of the card: mt-auto pushes them below
-                             the title and summary when the row is taller than the text. -->
+                        <!-- Categories sit at the bottom of the card (mt-auto) and fade toward
+                             the card edge as the row scrolls (the fade is a mask, so the row
+                             keeps its margins). -->
                         <div
                             v-if="tagsFor(item).length"
+                            :data-id="item._id"
+                            data-tags-row
                             class="mt-auto flex max-w-full gap-1 overflow-x-auto scrollbar-hide sm:hidden"
+                            :style="tagFadeStyle(item._id)"
                             data-test="content-tags"
+                            @scroll="(e) => updateTagFade(item._id, e.target as HTMLElement)"
                         >
                             <span
                                 v-for="tag in tagsFor(item)"
