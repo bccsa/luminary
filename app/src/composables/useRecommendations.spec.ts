@@ -1,6 +1,11 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
+import { effectScope, nextTick } from "vue";
+import waitForExpect from "wait-for-expect";
+import * as shared from "luminary-shared";
 import { DocType, PublishStatus, type ContentDto, type FtsSearchResult } from "luminary-shared";
-import { rank } from "./useRecommendations";
+import { appLanguageIdsAsRef, appSyncedLanguageIdsAsRef } from "@/globalConfig";
+import { affinityProfile } from "@/recommendation/affinityStore";
+import { computeRichness, fuseTagFts, rank, useRecommendations } from "./useRecommendations";
 
 function makeContent(id: string, parentTags: string[] = [], publishDate?: number): ContentDto {
     return {
@@ -21,6 +26,128 @@ function makeContent(id: string, parentTags: string[] = [], publishDate?: number
 function makeFtsResult(doc: ContentDto, score: number): FtsSearchResult {
     return { docId: doc._id, score, wordMatchScore: 0, doc };
 }
+
+describe("computeRichness", () => {
+    it("returns zero for an empty tag list", () => {
+        expect(computeRichness({}, [])).toBe(0);
+    });
+
+    it("preserves a single tag's high affinity without a fixed-12 dilution", () => {
+        expect(computeRichness({ "tag-a": 0.9 }, ["tag-a"])).toBe(0.9);
+    });
+
+    it("scores concentrated high-confidence signal above more diffuse lower-confidence signal", () => {
+        const concentratedTags = ["tag-a", "tag-b", "tag-c"];
+        const concentratedAffinity = Object.fromEntries(concentratedTags.map((tag) => [tag, 0.85]));
+        const diffuseTags = ["tag-a", "tag-b", "tag-c", "tag-d", "tag-e", "tag-f"];
+        const diffuseAffinity = Object.fromEntries(diffuseTags.map((tag) => [tag, 0.5]));
+
+        expect(computeRichness(concentratedAffinity, concentratedTags)).toBeGreaterThan(
+            computeRichness(diffuseAffinity, diffuseTags),
+        );
+    });
+
+    it("retains the historical result for exactly 12 equally scored tags", () => {
+        const tags = Array.from({ length: 12 }, (_, i) => `tag-${i}`);
+        const affinity = Object.fromEntries(tags.map((tag) => [tag, 0.5]));
+
+        expect(computeRichness(affinity, tags)).toBe(0.5);
+    });
+});
+
+describe("fuseTagFts", () => {
+    it("accumulates a document found by multiple tags above a single-tag result", () => {
+        const shared = makeContent("shared");
+        const single = makeContent("single");
+
+        const result = fuseTagFts([
+            { weight: 1, results: [makeFtsResult(shared, 10), makeFtsResult(single, 9)] },
+            { weight: 0.5, results: [makeFtsResult(shared, 8)] },
+        ]);
+
+        expect(result.map((r) => r.docId)).toEqual(["shared", "single"]);
+        expect(result[0].score).toBeGreaterThan(result[1].score);
+    });
+
+    it("ranks a same-position high-weight tag result above a low-weight tag result", () => {
+        const highWeight = makeContent("high-weight");
+        const lowWeight = makeContent("low-weight");
+
+        const result = fuseTagFts([
+            { weight: 1, results: [makeFtsResult(highWeight, 10)] },
+            { weight: 0.25, results: [makeFtsResult(lowWeight, 10)] },
+        ]);
+
+        expect(result.map((r) => r.docId)).toEqual(["high-weight", "low-weight"]);
+    });
+
+    it("returns an empty list for no tag searches", () => {
+        expect(fuseTagFts([])).toEqual([]);
+    });
+
+    it("preserves normalized 1.0 vs 0.5 affinity contributions at the same rank", () => {
+        const topTagResult = makeContent("top-tag");
+        const halfAffinityResult = makeContent("half-affinity-tag");
+
+        const result = fuseTagFts([
+            { weight: 1, results: [makeFtsResult(topTagResult, 10)] },
+            { weight: 0.5, results: [makeFtsResult(halfAffinityResult, 10)] },
+        ]);
+        const scores = Object.fromEntries(result.map((r) => [r.docId, r.score]));
+
+        expect(scores["top-tag"]).toBeCloseTo(1);
+        expect(scores["half-affinity-tag"]).toBeCloseTo(0.5);
+        expect(scores["half-affinity-tag"]).toBeCloseTo(scores["top-tag"] * 0.5);
+    });
+});
+
+describe("useRecommendations FTS retrieval", () => {
+    it("does not re-fetch when an upstream recompute produces equal tag queries", async () => {
+        const languageId = "lang-eng";
+        const tagId = "tag-stable-fts";
+        const tagTitleDoc = {
+            ...makeContent("content-tag-stable-fts"),
+            parentType: DocType.Tag,
+            parentId: tagId,
+            title: "Stable topic title",
+            publishDate: Date.now() - 1_000,
+        } as ContentDto;
+        const previousLanguages = [...appLanguageIdsAsRef.value];
+        const previousSyncedLanguages = [...appSyncedLanguageIdsAsRef.value];
+        const previousProfile = affinityProfile.value;
+        const ftsSearch = vi.spyOn(shared, "ftsSearch").mockResolvedValue([]);
+        const scope = effectScope();
+
+        try {
+            await shared.db.docs.put(tagTitleDoc);
+            appLanguageIdsAsRef.value = [languageId];
+            appSyncedLanguageIdsAsRef.value = [languageId];
+            affinityProfile.value = {
+                affinity: { [tagId]: 0.8 },
+                lastDecayUtc: Date.now(),
+            };
+            scope.run(() => useRecommendations());
+
+            await waitForExpect(() => expect(ftsSearch).toHaveBeenCalledTimes(1));
+            await new Promise((resolve) => setTimeout(resolve, 400));
+            expect(ftsSearch).toHaveBeenCalledTimes(1);
+            ftsSearch.mockClear();
+
+            affinityProfile.value = { ...affinityProfile.value };
+            await nextTick();
+            await new Promise((resolve) => setTimeout(resolve, 400));
+
+            expect(ftsSearch).not.toHaveBeenCalled();
+        } finally {
+            scope.stop();
+            ftsSearch.mockRestore();
+            affinityProfile.value = previousProfile;
+            appLanguageIdsAsRef.value = previousLanguages;
+            appSyncedLanguageIdsAsRef.value = previousSyncedLanguages;
+            await shared.db.docs.delete(tagTitleDoc._id);
+        }
+    });
+});
 
 describe("rank", () => {
     it("ranks a doc found in both legs above one found in only one leg", () => {
