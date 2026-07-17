@@ -159,6 +159,8 @@ describe("ReadMore", () => {
             expect(tags.classes()).toContain("mt-auto");
             // No extra bottom padding, so the space below the chips matches the top/right.
             expect(tags.classes()).not.toContain("pb-1");
+            // The row carries an edge-fade mask so it dissolves toward the card edge.
+            expect(tags.attributes("style") ?? "").toContain("linear-gradient");
         });
     });
 
