@@ -142,10 +142,8 @@ watch(visibleItems, () => nextTick(remeasureAll));
                     :to="{ name: 'content', params: { slug: item.slug } }"
                     class="ease-out-expo group flex gap-2 overflow-hidden rounded-lg bg-white shadow ring-1 ring-zinc-950/10 transition hover:shadow-lg hover:brightness-[1.15] dark:bg-slate-800 dark:ring-white/10 sm:h-full sm:flex-col sm:gap-1"
                 >
-                    <!-- Mobile: thumbnail on the left. It fills the card's height (object-cover)
-                         so there's no gap above or below it, while its width stays fixed so it
-                         still reads as a compact thumbnail. The h-full overrides stretch LImage's
-                         fixed 4:3 box to the card's height. -->
+                    <!-- Mobile: left thumbnail with fixed width; the h-full overrides stretch
+                         LImage's 4:3 box to fill the card's height without gaps. -->
                     <div
                         class="shrink-0 overflow-hidden sm:hidden [&>div>div]:!h-full [&>div]:h-full [&_img]:!h-full"
                     >
