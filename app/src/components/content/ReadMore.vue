@@ -1,5 +1,13 @@
+<script lang="ts">
+// When the mobile title wraps onto two lines there's only room for a one-line summary; a
+// single-line title leaves room for two. (On the card, the summary always uses two lines —
+// see the template's sm: clamp.)
+export const summaryClampFor = (mobileTitleLines: number): string =>
+    mobileTitleLines >= 2 ? "line-clamp-1" : "line-clamp-2";
+</script>
+
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from "vue";
 import { RouterLink } from "vue-router";
 import { type ContentDto } from "luminary-shared";
 import { useContentQuery } from "@/composables/useContentQuery";
@@ -9,9 +17,7 @@ const props = defineProps<{ items: ContentDto[] }>();
 
 const summaryText = (content: ContentDto): string => content.summary?.trim() ?? "";
 
-const tagIds = computed(() => [
-    ...new Set(props.items.flatMap((item) => item.parentTags ?? [])),
-]);
+const tagIds = computed(() => [...new Set(props.items.flatMap((item) => item.parentTags ?? []))]);
 const tagDocs = useContentQuery(
     () => [{ parentId: { $in: tagIds.value.length ? tagIds.value : [] } }],
     { includeScheduled: false },
@@ -31,6 +37,31 @@ const visibleItems = computed(() => props.items.slice(0, visibleCount.value));
 const sentinel = ref<HTMLElement | null>(null);
 let observer: IntersectionObserver | undefined;
 
+// How many lines each card's mobile title wraps onto, so the summary can take the remaining
+// room (see summaryClampFor). Measured from the rendered height because CSS can't make one
+// element's clamp depend on another element's line count.
+const rootEl = ref<HTMLElement | null>(null);
+const mobileTitleLines = reactive<Record<string, number>>({});
+let resizeObserver: ResizeObserver | undefined;
+
+const measureTitles = () => {
+    const root = rootEl.value;
+    if (!root) return;
+    root.querySelectorAll<HTMLElement>("[data-mobile-title]").forEach((el) => {
+        const id = el.dataset.id;
+        if (!id) return;
+        // Hidden (desktop) titles report no height; treat as one line so the summary keeps
+        // its two-line clamp — the sm: breakpoint governs the card there anyway.
+        if (!el.clientHeight) {
+            mobileTitleLines[id] = 1;
+            return;
+        }
+        const styles = getComputedStyle(el);
+        const lineHeight = parseFloat(styles.lineHeight) || parseFloat(styles.fontSize) * 1.5 || 20;
+        mobileTitleLines[id] = Math.max(1, Math.round(el.clientHeight / lineHeight));
+    });
+};
+
 onMounted(() => {
     observer = new IntersectionObserver((entries) => {
         if (entries.some((e) => e.isIntersecting) && visibleCount.value < props.items.length) {
@@ -38,18 +69,28 @@ onMounted(() => {
         }
     });
     if (sentinel.value) observer.observe(sentinel.value);
+
+    // Re-measure titles when the layout reflows (e.g. rotating the device changes wrapping).
+    resizeObserver = new ResizeObserver(() => measureTitles());
+    if (rootEl.value) resizeObserver.observe(rootEl.value);
+    nextTick(measureTitles);
 });
-onUnmounted(() => observer?.disconnect());
+onUnmounted(() => {
+    observer?.disconnect();
+    resizeObserver?.disconnect();
+});
 watch(
     () => props.items,
     () => {
         visibleCount.value = BATCH_SIZE;
     },
 );
+// Newly revealed cards (infinite scroll, or a new related set) need measuring once rendered.
+watch(visibleItems, () => nextTick(measureTitles));
 </script>
 
 <template>
-    <div>
+    <div ref="rootEl">
         <!-- Mobile: a single-column list of image-left rows. From tablet up: a grid of
              image-top cards with the title bottom-aligned on the image. Fewer columns than
              the Explore rows so the images stay large. -->
@@ -62,7 +103,7 @@ watch(
             >
                 <RouterLink
                     :to="{ name: 'content', params: { slug: item.slug } }"
-                    class="ease-out-expo group flex gap-2 overflow-hidden rounded-lg bg-white shadow ring-1 ring-zinc-950/10 transition hover:brightness-[1.15] hover:shadow-lg dark:bg-slate-800 dark:ring-white/10 sm:h-full sm:flex-col sm:gap-1"
+                    class="ease-out-expo group flex gap-2 overflow-hidden rounded-lg bg-white shadow ring-1 ring-zinc-950/10 transition hover:shadow-lg hover:brightness-[1.15] dark:bg-slate-800 dark:ring-white/10 sm:h-full sm:flex-col sm:gap-1"
                 >
                     <!-- Mobile: small thumbnail on the left. -->
                     <div class="shrink-0 sm:hidden">
@@ -105,16 +146,21 @@ watch(
                         class="flex min-w-0 flex-1 flex-col gap-1 py-2 pr-2 sm:justify-center sm:px-2 sm:pb-1 sm:pt-0"
                     >
                         <!-- Mobile only: title beside the thumbnail (on the card it sits on
-                             the image instead). -->
+                             the image instead). Up to two lines; the summary adapts below. -->
                         <h3
-                            class="truncate font-semibold text-zinc-800 dark:text-slate-50 sm:hidden"
+                            :data-id="item._id"
+                            data-mobile-title
+                            class="line-clamp-2 font-semibold text-zinc-800 dark:text-slate-50 sm:hidden"
                         >
                             {{ item.title }}
                         </h3>
 
+                        <!-- Summary takes whatever lines the title leaves: two when the title is
+                             one line, one when the title wrapped to two. -->
                         <p
                             v-if="summaryText(item)"
-                            class="line-clamp-1 text-sm text-zinc-500 dark:text-slate-400 sm:line-clamp-2"
+                            class="text-sm text-zinc-500 dark:text-slate-400 sm:line-clamp-2"
+                            :class="summaryClampFor(mobileTitleLines[item._id] ?? 1)"
                         >
                             {{ summaryText(item) }}
                         </p>
