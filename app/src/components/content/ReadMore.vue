@@ -142,8 +142,10 @@ watch(visibleItems, () => nextTick(measureTitles));
                         </div>
                     </div>
 
+                    <!-- Even spacing on mobile: the same 8px above the title, below the tags,
+                         and to the right of the text (the thumbnail gap sets the left). -->
                     <div
-                        class="flex min-w-0 flex-1 flex-col gap-1 py-2 pr-2 sm:justify-center sm:px-2 sm:pb-1 sm:pt-0"
+                        class="flex min-w-0 flex-1 flex-col gap-1 p-2 pl-0 sm:justify-center sm:px-2 sm:pb-1 sm:pt-0"
                     >
                         <!-- Mobile only: title beside the thumbnail (on the card it sits on
                              the image instead). Up to two lines; the summary adapts below. -->
@@ -169,7 +171,7 @@ watch(visibleItems, () => nextTick(measureTitles));
                              the title and summary when the row is taller than the text. -->
                         <div
                             v-if="tagsFor(item).length"
-                            class="mt-auto flex max-w-full gap-1 overflow-x-auto pb-1 scrollbar-hide sm:hidden"
+                            class="mt-auto flex max-w-full gap-1 overflow-x-auto scrollbar-hide sm:hidden"
                             data-test="content-tags"
                         >
                             <span
