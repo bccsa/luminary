@@ -18,23 +18,26 @@ import { sessionNow } from "@/util/sessionNow";
 import { filterTopicTagIds } from "@/recommendation/topicTags";
 
 const TOP_N_TAGS = 12;
+/** Bounds the per-language search multiplier for the FTS/serendipity leg. */
+const MAX_FTS_TAGS = 4;
 /** Output cap on the fused feed. */
 const DEFAULT_LIMIT = 20;
 /** Candidate pool per leg. Must be >> DEFAULT_LIMIT: `useContentQuery` sorts by publishDate, so a
  *  pool of DEFAULT_LIMIT would mean affinity only reshuffles the 20 newest tagged docs instead of
  *  actually selecting from the tag neighbourhood. */
 const DEFAULT_RETRIEVAL_LIMIT = 1000;
-/** Reciprocal Rank Fusion constant (Cormack et al. 2009's default — de-weights rank
- *  swings far down either list without needing per-source score normalization). Used
- *  only for the FTS/BM25 leg now — the tag leg contributes a calibrated score directly. */
-const RRF_K = 60;
+/** Best-effort RRF tuning pending offline evaluation: 10 preserves meaningful top-rank
+ *  separation after normalization while still de-weighting swings farther down the list. */
+const RRF_K = 10;
 /** Base leg weights, scaled by profile richness (see `richness` below): a cold profile
  *  (few learned topics) leans on the FTS/serendipity leg; a rich one leans on tags. */
 const TAG_LEG_WEIGHT = 1.5;
-const FTS_LEG_WEIGHT = 1;
+/** Best-effort pending offline evaluation: 0.4 aligns top FTS hits with strong real tag contributions (~0.07-0.4). */
+const FTS_LEG_WEIGHT = 0.4;
 /** A mild prior so two equally-tagged docs don't tie and fall back to insertion order —
  *  small relative to the leg weights so it nudges, not dominates. */
-const RECENCY_WEIGHT = 0.15;
+/** Best-effort pending offline evaluation: 0.05 stays below realistic tag contributions and acts as a tie-breaker. */
+const RECENCY_WEIGHT = 0.05;
 const RECENCY_HALFLIFE_DAYS = 180;
 const DAY_MS = 24 * 60 * 60 * 1000;
 /** MMR-lite diversification: caps how many docs sharing the same dominant tag can land
@@ -50,13 +53,12 @@ const FTS_DEBOUNCE_MS = 300;
  *  - **Tag membership**: a Mango `parentTags` query over the SAME hybridQuery path every
  *    feed uses, scored by the doc's own tag-affinity (a calibrated 0-1 value, contributed
  *    directly rather than collapsed to a rank).
- *  - **BM25/FTS**: the top tags' own titles synthesized into a query string (weighted
- *    toward the highest-affinity tags) and run through the existing local full-text
- *    search (`ftsSearch`, offline, same engine as the search page), across the full
- *    display-language priority chain — surfaces content that matches the user's
- *    interests by vocabulary even when it isn't literally tagged with one of the top
- *    tags (the "serendipity" leg). Fused with the tag leg via RRF since BM25 scores
- *    aren't calibrated against the tag leg's affinity scale.
+ *  - **BM25/FTS**: up to four top tags' own titles run independently through the existing
+ *    local full-text search (`ftsSearch`, offline, same engine as the search page), across
+ *    the full display-language priority chain, then affinity-weighted into one ranked
+ *    list — surfaces content that matches the user's interests by vocabulary even when
+ *    it isn't literally tagged with one of the top tags (the "serendipity" leg). Fused
+ *    with the tag leg via RRF since BM25 scores aren't calibrated against its scale.
  *
  * Each leg retrieves `retrievalLimit` candidates; already-seen content is dropped after
  * fusion and the result is capped at `limit`. Cold profile ⇒ empty (the UI hides itself).
@@ -82,16 +84,16 @@ export function useRecommendations({
     // `$in` has set semantics. Keep its identity canonical so score-only reordering
     // does not rebuild the hybrid query or re-fetch its 1000-document candidate pool.
     const tagSet = computed(() => [...tags.value].sort());
-    // 0 (cold: no real signal yet) .. 1 (TOP_N_TAGS worth of well-earned affinity) — used
+    // 0 (cold: no real signal yet) .. 1 (well-earned affinity across the top tags) — used
     // to shift leg weight toward FTS early and toward tags once the profile has real
     // signal. Summed *score*, not tag count: a dozen barely-above-MIN_SCORE tags (e.g.
     // straight out of the impression-miss decay path) shouldn't read as "mature" just
     // because a slot is filled — richness should track how much evidence backs the
-    // profile, not how many keys happen to exist in the map.
-    const richness = computed(() => {
-        const total = tags.value.reduce((sum, id) => sum + (decayedAffinity.value[id] ?? 0), 0);
-        return Math.min(1, total / TOP_N_TAGS);
-    });
+    // profile, not how many keys happen to exist in the map. The denominator is the
+    // actual tag count (already capped at TOP_N_TAGS by topTagsFrom), not a fixed 12;
+    // otherwise genuine high confidence on fewer tags is structurally capped at
+    // (tag count)/12 of its true richness, undercounting the clearest signal we produce.
+    const richness = computed(() => computeRichness(decayedAffinity.value, tags.value));
 
     const content = useContentQuery(
         // No tags yet → a provably-empty `$in: []` so HybridQuery short-circuits
@@ -144,20 +146,18 @@ export function useRecommendations({
         { immediate: true },
     );
 
-    // Weight each tag's title contribution to the FTS query by its rank (tags.value is
-    // already affinity-sorted descending) so the #1 interest doesn't share equal BM25
-    // vocabulary weight with the #12 — repeating the title increases its term frequency.
-    const ftsQuery = computed(() =>
-        tags.value
-            .map((id, i) => {
-                const title = tagContent.value.find((t) => t.parentId === id)?.title;
-                if (!title) return "";
-                const repeats = Math.max(1, Math.round((TOP_N_TAGS - i) / 3));
-                return Array(repeats).fill(title).join(" ");
-            })
-            .filter((t) => !!t)
-            .join(" "),
-    );
+    // Search the strongest tags independently so each vocabulary gets its own trigram
+    // budget, then preserve affinity strength explicitly when their result lists fuse.
+    const ftsTagQueries = computed(() => {
+        const topTagId = tags.value[0];
+        const topAffinity = (topTagId && decayedAffinity.value[topTagId]) || 1;
+        return tags.value.slice(0, MAX_FTS_TAGS).flatMap((tagId) => {
+            const title = tagContent.value.find((t) => t.parentId === tagId)?.title;
+            return title
+                ? [{ query: title, weight: (decayedAffinity.value[tagId] ?? 0) / topAffinity }]
+                : [];
+        });
+    });
 
     // ftsSearch is async and local-only (offline IndexedDB, same engine as the search
     // page) — run it in a watcher into a plain ref rather than forcing the whole
@@ -165,50 +165,64 @@ export function useRecommendations({
     const ftsResults = ref<FtsSearchResult[]>([]);
     let ftsRunSeq = 0;
     let ftsDebounceTimer: ReturnType<typeof setTimeout> | undefined;
+    let lastFtsSignature: string | undefined;
     watch(
-        ftsQuery,
-        (query) => {
+        ftsTagQueries,
+        (tagQueries) => {
+            // The computed rebuilds its array when upstream refs re-evaluate; only restart
+            // retrieval when the query values themselves have meaningfully changed.
+            const signature = JSON.stringify(
+                tagQueries.map(({ query, weight }) => [query, weight.toFixed(4)]),
+            );
+            if (signature === lastFtsSignature) return;
+            lastFtsSignature = signature;
             const runSeq = ++ftsRunSeq;
             if (ftsDebounceTimer) clearTimeout(ftsDebounceTimer);
-            if (!query) {
+            if (!tagQueries.length) {
                 ftsResults.value = [];
                 return;
             }
             ftsDebounceTimer = setTimeout(async () => {
                 try {
                     const now = sessionNow();
-                    // Search only locally synced languages in the user's preferred priority
-                    // order: primary first, then downloaded fallbacks. The display default
-                    // may be fetched on demand, but it is not a complete local FTS corpus
-                    // and must not trigger a BM25 scan. Results remain parallel; their
-                    // merge order is deterministic.
-                    const perLanguage = await Promise.all(
-                        appSyncedDisplayLanguageIdsAsRef.value.map((languageId) =>
-                            ftsSearch({
-                                query,
-                                languageId,
-                                status: PublishStatus.Published,
-                                publishedBefore: now,
-                                limit: retrievalLimit,
-                            }),
-                        ),
+                    const tagSearches = await Promise.all(
+                        tagQueries.map(async ({ query, weight }) => {
+                            // Search only locally synced languages in the user's preferred
+                            // priority order: primary first, then downloaded fallbacks. The
+                            // display default may be fetched on demand, but it is not a
+                            // complete local FTS corpus and must not trigger a BM25 scan.
+                            const perLanguage = await Promise.all(
+                                appSyncedDisplayLanguageIdsAsRef.value.map((languageId) =>
+                                    ftsSearch({
+                                        query,
+                                        languageId,
+                                        status: PublishStatus.Published,
+                                        publishedBefore: now,
+                                        limit: retrievalLimit,
+                                    }),
+                                ),
+                            );
+                            const seen = new Set<Uuid>();
+                            const merged: FtsSearchResult[] = [];
+                            // Results remain parallel, but language-priority merge order is
+                            // deterministic and duplicate translations keep the first hit.
+                            for (const results of perLanguage) {
+                                for (const r of results) {
+                                    if (seen.has(r.docId)) continue;
+                                    // ftsSearch has no expiry filter — drop expired content
+                                    // post-hoc (parity with the tag leg's mangoIsPublished).
+                                    if (r.doc.expiryDate && r.doc.expiryDate < now) continue;
+                                    seen.add(r.docId);
+                                    merged.push(r);
+                                    if (merged.length >= retrievalLimit) break;
+                                }
+                                if (merged.length >= retrievalLimit) break;
+                            }
+                            return { weight, results: merged };
+                        }),
                     );
                     if (runSeq !== ftsRunSeq) return;
-                    const seen = new Set<Uuid>();
-                    const merged: FtsSearchResult[] = [];
-                    for (const results of perLanguage) {
-                        for (const r of results) {
-                            if (seen.has(r.docId)) continue;
-                            // ftsSearch has no expiry filter — drop expired content post-hoc
-                            // (parity with the tag leg's mangoIsPublished check).
-                            if (r.doc.expiryDate && r.doc.expiryDate < now) continue;
-                            seen.add(r.docId);
-                            merged.push(r);
-                            if (merged.length >= retrievalLimit) break;
-                        }
-                        if (merged.length >= retrievalLimit) break;
-                    }
-                    ftsResults.value = merged;
+                    ftsResults.value = fuseTagFts(tagSearches);
                 } catch {
                     // Offline FTS is best-effort here — a failure just means this leg
                     // contributes nothing; the tag-membership leg still works.
@@ -243,6 +257,35 @@ export function useRecommendations({
     });
 
     return { recommended, hasTags: computed(() => tags.value.length > 0) };
+}
+
+/** Profile signal strength across its selected tags. Exported for unit testing. */
+export function computeRichness(decayedAffinity: AffinityMap, tags: Uuid[]): number {
+    if (!tags.length) return 0;
+    const total = tags.reduce((sum, id) => sum + (decayedAffinity[id] ?? 0), 0);
+    return Math.min(1, total / tags.length);
+}
+
+/** Affinity-weight independent FTS result lists into one ordered leg. Exported for unit testing. */
+export function fuseTagFts(
+    tagSearches: { weight: number; results: FtsSearchResult[] }[],
+): FtsSearchResult[] {
+    const fused = new Map<Uuid, { doc: ContentDto; score: number }>();
+
+    for (const { weight, results } of tagSearches) {
+        results.forEach((result, i) => {
+            const existing = fused.get(result.docId);
+            const contribution = weight * ((RRF_K + 1) / (RRF_K + i + 1));
+            fused.set(result.docId, {
+                doc: existing?.doc ?? result.doc,
+                score: (existing?.score ?? 0) + contribution,
+            });
+        });
+    }
+
+    return [...fused.entries()]
+        .sort(([, a], [, b]) => b.score - a.score)
+        .map(([docId, { doc, score }]) => ({ docId, doc, score, wordMatchScore: 0 }));
 }
 
 export type RankOptions = {
@@ -305,7 +348,10 @@ export function rank(
         dominantTags.set(doc._id, dominantTag);
         if (tagCandidateIds.has(doc._id))
             score.set(doc._id, (score.get(doc._id) ?? 0) + tagWeight * affinityScore);
-        score.set(doc._id, (score.get(doc._id) ?? 0) + RECENCY_WEIGHT * recencyFactor(doc, now));
+        score.set(
+            doc._id,
+            (score.get(doc._id) ?? 0) + RECENCY_WEIGHT * (recencyFactor(doc, now) - 0.5),
+        );
     }
 
     const ordered = [...docs.values()].sort(
@@ -358,10 +404,10 @@ function tagAffinity(
     return { score: count ? 0.5 * max + 0.5 * (total / count) : 0, dominantTag };
 }
 
-/** Exponential recency prior, halving every `RECENCY_HALFLIFE_DAYS`. Docs without a
- *  `publishDate` are neutral (0), neither boosted nor penalized. */
+/** Exponential recency factor, halving every `RECENCY_HALFLIFE_DAYS`, then centered by
+ *  the caller around the [0,1] midpoint. Docs without a `publishDate` remain neutral. */
 function recencyFactor(doc: ContentDto, now: number): number {
-    if (!doc.publishDate) return 0;
+    if (!doc.publishDate) return 0.5;
     const ageDays = Math.max(0, (now - doc.publishDate) / DAY_MS);
     return Math.exp((-Math.LN2 / RECENCY_HALFLIFE_DAYS) * ageDays);
 }
