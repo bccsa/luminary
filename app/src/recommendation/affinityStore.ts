@@ -61,10 +61,7 @@ watch(defaultAffinity, (serverDefault) => {
  * just "the page was open," and should move the profile further per event.
  *
  * Deliberately called unconditionally from its (SingleContent/VideoPlayer/AudioPlayer/
- * LHighlightable) call sites, independent of `VITE_ENABLE_RECOMMENDATIONS` — only the
- * "Recommended for you" UI render is feature-flagged (`HomePage.vue`). Tracking keeps
- * running so the profile is already warm (not empty) the moment the flag is flipped on,
- * rather than showing a cold "no recommendations yet" feed on rollout day.
+ * LHighlightable) call sites to keep the affinity profile continuously updated.
  */
 export async function recordAffinity(tagIds: Uuid[] | undefined, weight: number = EventWeight.Open) {
     if (!tagIds || tagIds.length === 0) return;
