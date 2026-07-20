@@ -1,4 +1,5 @@
 import type { RouteRecordRaw } from "vue-router";
+import { isDevMode } from "@/globalConfig";
 
 // All route components are lazy: this keeps the SSG prerender surface small and avoids a circular import (component → "@/router" → "./routes") that would cause a TDZ error during SSR.
 const HomePage = () => import("@/pages/HomePage.vue");
@@ -8,6 +9,7 @@ const SearchPage = () => import("@/pages/SearchPage.vue");
 const VideoPage = () => import("@/pages/VideoPage.vue");
 const SettingsPage = () => import("@/pages/SettingsPage.vue");
 const BookmarksPage = () => import("@/pages/BookmarksPage.vue");
+const AffinityDebugPage = () => import("@/pages/AffinityDebugPage.vue");
 const SingleContent = () => import("@/pages/SingleContent/SingleContent.vue");
 const NotFoundPage = () => import("@/pages/NotFoundPage.vue");
 
@@ -77,6 +79,19 @@ export const routes: RouteRecordRaw[] = [
             title: "title.bookmarks",
         },
     },
+    // Dev-only affinity debug overlay/page — never registered outside `npm run dev`.
+    ...(isDevMode
+        ? [
+              {
+                  path: "/debug/affinity",
+                  component: AffinityDebugPage,
+                  name: "debug-affinity",
+                  meta: {
+                      analyticsIgnore: true,
+                  },
+              },
+          ]
+        : []),
     // Note that this route should always come after all defined routes,
     // to prevent wrongly configured slugs from taking over pages
     {
