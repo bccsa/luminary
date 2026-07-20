@@ -181,6 +181,7 @@ function makeTagTitleContent(cluster: Cluster): ContentDto {
         type: DocType.Content,
         parentType: DocType.Tag,
         parentId: TAGS[cluster],
+        parentTagType: TagType.Topic,
         updatedTimeUtc: Date.now(),
         memberOf: MEMBER_OF,
         parentTags: [],
