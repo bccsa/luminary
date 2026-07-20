@@ -5,7 +5,8 @@ import { flushPromises } from "@vue/test-utils";
 describe("Router", () => {
     describe("Router Configuration", () => {
         it("should have the correct number of routes", () => {
-            expect(router.getRoutes()).toHaveLength(8);
+            // Includes the dev-only /debug/affinity route, since Vitest also enables import.meta.env.DEV.
+            expect(router.getRoutes()).toHaveLength(9);
         });
 
         it("should have home route configured correctly", () => {
