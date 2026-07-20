@@ -1,6 +1,7 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { mount } from "@vue/test-utils";
+import waitForExpect from "wait-for-expect";
 import LHighlightable from "./LHighlightable.vue";
 import { db } from "luminary-shared";
 
@@ -221,7 +222,15 @@ describe("LHighlightable", () => {
     });
 
     it("removes highlight from selected marked text", async () => {
+        vi.useRealTimers();
+        const addEventListenerSpy = vi.spyOn(document, "addEventListener");
         const wrapper = mountHighlightable();
+
+        await waitForExpect(() => {
+            expect(addEventListenerSpy).toHaveBeenCalledWith("selectionchange", expect.any(Function));
+        });
+        vi.useFakeTimers();
+
         const prose = wrapper.find(".prose");
 
         // Set up content with an existing highlight
@@ -249,7 +258,6 @@ describe("LHighlightable", () => {
             anchorNode: textNode,
         };
         vi.spyOn(window, "getSelection").mockReturnValue(mockSelection as any);
-        await vi.advanceTimersByTimeAsync(0);
 
         // Trigger selectionchange
         document.dispatchEvent(new Event("selectionchange"));
@@ -273,7 +281,15 @@ describe("LHighlightable", () => {
     });
 
     it("does not emit highlightRemoved when removal has no selection", async () => {
+        vi.useRealTimers();
+        const addEventListenerSpy = vi.spyOn(document, "addEventListener");
         const wrapper = mountHighlightable();
+
+        await waitForExpect(() => {
+            expect(addEventListenerSpy).toHaveBeenCalledWith("selectionchange", expect.any(Function));
+        });
+        vi.useFakeTimers();
+
         const prose = wrapper.find(".prose");
         prose.element.innerHTML = "<p>Before <mark>highlighted</mark> after</p>";
         const textNode = prose.element.querySelector("mark")!.firstChild!;
@@ -298,7 +314,6 @@ describe("LHighlightable", () => {
             removeAllRanges: vi.fn(),
             anchorNode: textNode,
         } as any);
-        await vi.advanceTimersByTimeAsync(0);
 
         await wrapper.find(".no-native-menu").trigger("touchstart");
         vi.advanceTimersByTime(400);
