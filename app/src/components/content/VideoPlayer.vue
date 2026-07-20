@@ -7,13 +7,8 @@ import { type ContentDto, EventWeight } from "luminary-shared";
 import px from "./px.png";
 import { matchTrackLanguage } from "./audioTrackLanguage";
 import LImage from "../images/LImage.vue";
-import {
-    appLanguagesPreferredAsRef,
-    getMediaProgress,
-    removeMediaProgress,
-    setMediaProgress,
-    queryParams,
-} from "@/globalConfig";
+import { appLanguagesPreferredAsRef, queryParams } from "@/globalConfig";
+import { getMediaProgress, removeMediaProgress, setMediaProgress } from "@/contentProgress";
 import { recordAffinity } from "@/recommendation/affinityStore";
 import { markSeen } from "@/recommendation/seenStore";
 import { extractAndBuildAudioMaster } from "./extractAndBuildAudioMaster";
