@@ -61,6 +61,12 @@ export const EventWeight = {
     /** A video/audio track played to completion. Strong engagement signal. */
     Completion: 0.35,
     /**
+     * An article was read to completion (see the reading-depth weight curve in
+     * `readingDepthWeight`). Symmetric with `Completion` — finishing an article is
+     * as strong a signal as finishing a video/audio track.
+     */
+    ReadCompletion: 0.35,
+    /**
      * The user highlighted a passage of text. Selecting specific text requires
      * closer engagement than a single tap (bookmark) — an equally strong,
      * unambiguous signal. Kept as its own named weight (not reused from
@@ -140,6 +146,24 @@ export function applyEvent(
         }
     }
     return { affinity: capTags(affinity, MAX_TAGS, newTags), lastDecayUtc: now };
+}
+
+/** Reading depth below this is "opened and abandoned" — no affinity evidence either way. */
+const READ_FLOOR_PERCENT = 20;
+
+/**
+ * Map final reading depth (0-100, from the reading-progress tracker) to an affinity
+ * event weight. Below the floor, evidence is too ambiguous to score (interrupted vs.
+ * genuinely uninterested look identical) so the weight is exactly 0 — this must NOT be
+ * treated as a negative signal. From the floor to 100%, weight interpolates linearly
+ * from `EventWeight.Open` up to `EventWeight.ReadCompletion`, so a bare-minimum
+ * qualifying read is barely stronger than an ordinary open, and only a full read earns
+ * completion parity with a finished video/audio track.
+ */
+export function readingDepthWeight(depthPercent: number): number {
+    if (depthPercent < READ_FLOOR_PERCENT) return 0;
+    const t = Math.min(1, (depthPercent - READ_FLOOR_PERCENT) / (100 - READ_FLOOR_PERCENT));
+    return EventWeight.Open + t * (EventWeight.ReadCompletion - EventWeight.Open);
 }
 
 /** Top-`n` tag ids by (decayed) score, descending — the retrieval query seed. */

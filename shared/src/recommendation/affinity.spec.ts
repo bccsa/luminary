@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { applyEvent, decay, EventWeight, topTags } from "./affinity";
+import { applyEvent, decay, EventWeight, readingDepthWeight, topTags } from "./affinity";
 import type { AffinityMap } from "../types";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -107,5 +107,34 @@ describe("affinity scoring", () => {
         const before = { ...p.affinity };
         applyEvent(p, ["tag-b"], T0);
         expect(p.affinity).toEqual(before);
+    });
+});
+
+describe("readingDepthWeight", () => {
+    it("returns no affinity evidence below the reading floor", () => {
+        expect(readingDepthWeight(0)).toBe(0);
+        expect(readingDepthWeight(19)).toBe(0);
+    });
+
+    it("starts at the ordinary open weight at the reading floor", () => {
+        expect(readingDepthWeight(20)).toBe(EventWeight.Open);
+        expect(readingDepthWeight(20)).toBe(0.04);
+    });
+
+    it("interpolates linearly between an open and read completion", () => {
+        const depth = 60;
+        const t = (depth - 20) / (100 - 20);
+        const expected = EventWeight.Open + t * (EventWeight.ReadCompletion - EventWeight.Open);
+        const weight = readingDepthWeight(depth);
+
+        expect(weight).toBeCloseTo(expected);
+        expect(weight).toBeGreaterThan(EventWeight.Open);
+        expect(weight).toBeLessThan(EventWeight.ReadCompletion);
+    });
+
+    it("reaches completion parity at 100 percent and clamps higher depths", () => {
+        expect(readingDepthWeight(100)).toBe(EventWeight.ReadCompletion);
+        expect(readingDepthWeight(101)).toBe(EventWeight.ReadCompletion);
+        expect(readingDepthWeight(101)).toBe(0.35);
     });
 });

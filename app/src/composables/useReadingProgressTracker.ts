@@ -255,6 +255,17 @@ export function useReadingProgressTracker(options: {
     enabled: Ref<boolean>;
     /** Language averageReadingSpeed (words per minute); defaults to 200 when unset. */
     averageReadingSpeed: Ref<number | undefined>;
+    /**
+     * Called once, right before internal tracking state is torn down for a content id
+     * that had an active session — i.e. on a real content change, `enabled` flipping to
+     * false, or unmount. NOT called for a session that never produced any segments (empty
+     * article) or that never had `trackedContentId` set (nothing was actively tracked).
+     * Receives the ending content id and its final depth as
+     * `confirmedSegments.size / segments.value.length * 100` (0-100, rounded) — read from
+     * live in-memory state, not the persisted store (which deletes its entry once progress
+     * reaches 100, so it cannot answer "what was the final depth" after a completed read).
+     */
+    onSessionEnd?: (endedContentId: Uuid, finalDepthPercent: number) => void;
 }) {
     const segments = ref<ReadingSegment[]>([]);
     const sourceElements = ref<MaybeElement[]>([]);
@@ -322,6 +333,14 @@ export function useReadingProgressTracker(options: {
 
     function clearDwellAccumulation() {
         dwellAccumulatedMs.clear();
+    }
+
+    function emitSessionEnd() {
+        if (!trackedContentId || segments.value.length === 0) return;
+        const finalDepthPercent = Math.round(
+            (confirmedSegments.size / segments.value.length) * 100,
+        );
+        options.onSessionEnd?.(trackedContentId, finalDepthPercent);
     }
 
     function resetTrackingState() {
@@ -786,6 +805,7 @@ export function useReadingProgressTracker(options: {
         [options.enabled, options.contentId, options.articleRoot, options.scrollContainer],
         ([enabled, id], oldValues) => {
             if (!enabled) {
+                emitSessionEnd();
                 resetTrackingState();
                 segmentList = [];
                 segmentsByElement.clear();
@@ -802,6 +822,7 @@ export function useReadingProgressTracker(options: {
             const contentChanged = oldValues !== undefined && prevId !== undefined && id !== prevId;
 
             if (contentChanged || trackedContentId !== id) {
+                emitSessionEnd();
                 resetTrackingState();
                 trackedContentId = id;
                 nextTick(() => setup(true));
@@ -814,6 +835,7 @@ export function useReadingProgressTracker(options: {
     );
 
     onUnmounted(() => {
+        emitSessionEnd();
         resetTrackingState();
         stopObserver();
         teardownResizeObserver();
