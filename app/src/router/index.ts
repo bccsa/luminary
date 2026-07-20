@@ -4,12 +4,14 @@ import { createRouter, createWebHistory } from "vue-router";
 import InAppBrowserCheck from "@/pages/InAppBrowserCheck.vue";
 import { isTelegramBrowser } from "@/util/inAppBrowser";
 import { markPageLoading } from "@/util/renderState";
+import { isDevMode } from "@/globalConfig";
 
 // Preload all route components immediately as separate chunks
 const ExplorePage = import("@/pages/ExplorePage.vue");
 const VideoPage = import("@/pages/VideoPage.vue");
 const SettingsPage = import("@/pages/SettingsPage.vue");
 const BookmarksPage = import("@/pages/BookmarksPage.vue");
+const AffinityDebugPage = import("@/pages/AffinityDebugPage.vue");
 const SingleContent = import("@/pages/SingleContent/SingleContent.vue");
 const NotFoundPage = import("@/pages/NotFoundPage.vue");
 
@@ -85,6 +87,19 @@ const router = createRouter({
                 title: "title.bookmarks",
             },
         },
+
+        ...(isDevMode
+            ? [
+                  {
+                      path: "/debug/affinity",
+                      component: () => AffinityDebugPage,
+                      name: "debug-affinity",
+                      meta: {
+                          analyticsIgnore: true,
+                      },
+                  },
+              ]
+            : []),
 
         // Note that this route should always come after all defined routes,
         // to prevent wrongly configured slugs from taking over pages
