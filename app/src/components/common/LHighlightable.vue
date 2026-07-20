@@ -9,11 +9,10 @@ import {
 import { db } from "luminary-shared";
 
 const props = defineProps<{ contentId: string }>();
-// Fired only when a highlight is CREATED (not removed) — see finalizeHighlight(),
-// which is shared by both the add and remove paths. The parent (which knows the
-// content's tags) decides what to do with it; kept decoupled from recommendation
-// concerns here since this is a generic reusable component.
-const emit = defineEmits<{ highlighted: [] }>();
+// Fired when a highlight is created or genuinely removed. The parent (which knows
+// the content's tags) decides what to do with these events; kept decoupled from
+// recommendation concerns here since this is a generic reusable component.
+const emit = defineEmits<{ highlighted: []; highlightRemoved: [] }>();
 
 const content = ref<HTMLElement | undefined>(undefined);
 const actionsMenu = ref<HTMLElement | undefined>(undefined);
@@ -196,6 +195,7 @@ function removeHighlight() {
     // Find all marks intersecting the range
     const marks = document.querySelectorAll("mark");
     const marksToProcess: HTMLElement[] = [];
+    let didRemoveHighlight = false;
 
     marks.forEach((mark) => {
         if (range.intersectsNode(mark) && content.value?.contains(mark)) {
@@ -286,6 +286,7 @@ function removeHighlight() {
             // Remove the original empty mark
             parent.removeChild(mark);
             parent.normalize();
+            didRemoveHighlight = true;
         } else {
             // Full removal - original behavior
             while (mark.firstChild) {
@@ -293,9 +294,11 @@ function removeHighlight() {
             }
             parent.removeChild(mark);
             parent.normalize();
+            didRemoveHighlight = true;
         }
     });
 
+    if (didRemoveHighlight) emit("highlightRemoved");
     finalizeHighlight();
 }
 
