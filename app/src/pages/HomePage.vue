@@ -11,11 +11,6 @@ import { isMdScreen } from "@/globalConfig";
 import { nextTick, onActivated, ref } from "vue";
 import { markPageReady } from "@/util/renderState";
 
-// Feature flag: recommendations stay hidden until enabled via env (unfinished work
-// behind a flag, not a long-lived branch). The component also self-hides on a cold
-// profile, so turning it on is safe.
-const recommendationsEnabled = import.meta.env.VITE_ENABLE_RECOMMENDATIONS === "true";
-
 const pinnedResolved = ref(false);
 const newestResolved = ref(false);
 
@@ -40,7 +35,7 @@ onActivated(checkReady);
                 <HomePageNewest />
             </Suspense>
 
-            <RecommendedForYou v-if="recommendationsEnabled" />
+            <RecommendedForYou />
             <ContinueProgress />
             <ContinueListening />
         </IgnorePagePadding>
