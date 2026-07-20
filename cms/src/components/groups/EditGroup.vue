@@ -23,6 +23,7 @@ import LDialog from "../common/LDialog.vue";
 import { ArrowUturnLeftIcon } from "@heroicons/vue/24/solid";
 import { PlusIcon, UserGroupIcon } from "@heroicons/vue/24/outline";
 import LCombobox from "../forms/LCombobox.vue";
+import GroupPermissionsReport from "./GroupPermissionsReport.vue";
 
 const { addNotification } = useNotificationStore();
 
@@ -341,6 +342,13 @@ const duplicateGroup = async () => {
                     <LBadge v-if="isDirty" variant="warning" withIcon class="h-fit">
                         Unsaved changes
                     </LBadge>
+                </div>
+                <div>
+                    <GroupPermissionsReport
+                        :groupName="group.name"
+                        :groupId="group._id"
+                        :allGroups="groupQuery.editable.value"
+                    />
                 </div>
                 <div v-if="!isComboboxOpen && !disabled" class="ml-3">
                     <LButton
