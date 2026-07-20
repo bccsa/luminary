@@ -58,6 +58,14 @@ export const EventWeight = {
     Open: HIT_WEIGHT,
     /** The user explicitly bookmarked the content. Strong, unambiguous intent. */
     Bookmark: 0.25,
+    /**
+     * Reverses 60% of a bookmark signal, leaving a small net-positive edge through
+     * repeated add/remove churn. Undoing an explicit action is weaker evidence against
+     * a tag than the original action was evidence for it. Uses the same negative-weight
+     * decay-toward-zero mechanism as `Impression`, not a literal inverse of the specific
+     * gain contributed by the original bookmark. Derived as -60% × 0.25 = -0.15.
+     */
+    BookmarkRemoved: -0.15,
     /** A video/audio track played to completion. Strong engagement signal. */
     Completion: 0.35,
     /**
@@ -73,6 +81,14 @@ export const EventWeight = {
      * `Bookmark`) so the two can be tuned independently later.
      */
     Highlight: 0.3,
+    /**
+     * Reverses 60% of a highlight signal, leaving a small net-positive edge through
+     * repeated add/remove churn. Undoing an explicit action is weaker evidence against
+     * a tag than the original action was evidence for it. Uses the same negative-weight
+     * decay-toward-zero mechanism as `Impression`, not a literal inverse of the specific
+     * gain contributed by the original highlight. Derived as -60% × 0.3 = -0.18.
+     */
+    HighlightRemoved: -0.18,
     /**
      * A recommended tag was shown to the user and scrolled past without a click. The
      * cheapest, most abundant negative signal available — without it, a tag that got
