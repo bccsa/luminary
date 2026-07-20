@@ -1,4 +1,4 @@
-import { db, DocType, TagType, type TagDto, type Uuid } from "luminary-shared";
+import { DocType, queryLocal, TagType, type ContentDto, type Uuid } from "luminary-shared";
 
 /**
  * Restrict tag ids to `TagType.Topic`. Categories and audio playlists are attached to
@@ -8,11 +8,24 @@ import { db, DocType, TagType, type TagDto, type Uuid } from "luminary-shared";
  * feature remains usable and both its write and retrieval paths apply the same fallback.
  */
 export async function filterTopicTagIds(tagIds: Uuid[]): Promise<Uuid[]> {
+    if (!tagIds.length) return [];
+
     try {
-        const tags = await db.docs.bulkGet(tagIds);
-        return tagIds.filter(
-            (_, i) => tags[i]?.type === DocType.Tag && (tags[i] as TagDto).tagType === TagType.Topic,
+        const tagContent = await queryLocal<ContentDto>({
+            selector: {
+                $and: [{ type: DocType.Content }, { parentId: { $in: tagIds } }],
+            },
+        });
+        const topicIds = new Set(
+            tagContent
+                .filter(
+                    (content) =>
+                        content.parentType === DocType.Tag &&
+                        content.parentTagType === TagType.Topic,
+                )
+                .map((content) => content.parentId),
         );
+        return tagIds.filter((id) => topicIds.has(id));
     } catch {
         return tagIds;
     }
