@@ -1,6 +1,13 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { nextTick } from "vue";
-import { defaultAffinity, db, DocType, TagType } from "luminary-shared";
+import {
+    defaultAffinity,
+    db,
+    DocType,
+    PublishStatus,
+    TagType,
+    type ContentDto,
+} from "luminary-shared";
 import { affinityProfile, recordAffinity } from "./affinityStore";
 
 describe("affinityStore", () => {
@@ -8,19 +15,22 @@ describe("affinityStore", () => {
         localStorage.clear();
         affinityProfile.value = { affinity: {}, lastDecayUtc: undefined };
         defaultAffinity.value = undefined;
-        // recordAffinity only tracks TagType.Topic tags — seed "tag-a" as one.
-        await db.docs.bulkPut([
-            {
-                _id: "tag-a",
-                type: DocType.Tag,
-                tagType: TagType.Topic,
-                updatedTimeUtc: 0,
-                memberOf: [],
-                tags: [],
-                publishDateVisible: false,
-                pinned: 0,
-            } as never,
-        ]);
+        // App clients sync a tag's ContentDto, not its structural TagDto.
+        const topicTagContent: ContentDto = {
+            _id: "content-tag-a-lang-eng",
+            type: DocType.Content,
+            parentType: DocType.Tag,
+            parentId: "tag-a",
+            parentTagType: TagType.Topic,
+            updatedTimeUtc: 0,
+            memberOf: [],
+            parentTags: [],
+            language: "lang-eng",
+            status: PublishStatus.Published,
+            slug: "tag-a",
+            title: "Tag A",
+        };
+        await db.docs.bulkPut([topicTagContent]);
         await nextTick();
     });
 
@@ -29,11 +39,8 @@ describe("affinityStore", () => {
     });
 
     it("records an interaction into the local profile and persists it", async () => {
-        const bulkGet = vi.spyOn(db.docs, "bulkGet");
         await recordAffinity(["tag-a"]);
 
-        expect(bulkGet).toHaveBeenCalledWith(["tag-a"]);
-        bulkGet.mockRestore();
         expect(affinityProfile.value.affinity["tag-a"]).toBeGreaterThan(0);
         expect(
             JSON.parse(localStorage.getItem("affinityProfile")!).affinity["tag-a"],
