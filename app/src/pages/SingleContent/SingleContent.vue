@@ -17,6 +17,7 @@ import {
     verifyAccess,
     AclPermission,
     EventWeight,
+    readingDepthWeight,
 } from "luminary-shared";
 import { useContentQuery } from "@/composables/useContentQuery";
 import { recordAffinity } from "@/recommendation/affinityStore";
@@ -254,14 +255,26 @@ onUnmounted(clearNotFoundTimer);
 // stayed open for DWELL_MS counts.
 const DWELL_MS = 15000;
 let dwellTimer: ReturnType<typeof setTimeout> | undefined;
+const contentTagsById = new Map<Uuid, Uuid[] | undefined>();
 watch(content, (c) => {
     clearTimeout(dwellTimer);
     if (c && c._id) {
         touchRetention([c._id]);
         const id = c._id;
         const tags = c.parentTags;
+        const hasText = !!c.text;
+        contentTagsById.set(id, tags);
+        // The tracker's content-change watcher flushes after this content watcher, so
+        // keep the ending id available through that callback, then discard any stale
+        // entries left by content that never started a reading session.
+        nextTick(() => {
+            const currentId = content.value?._id;
+            for (const knownId of contentTagsById.keys()) {
+                if (knownId !== currentId) contentTagsById.delete(knownId);
+            }
+        });
         dwellTimer = setTimeout(() => {
-            recordAffinity(tags);
+            if (!hasText) recordAffinity(tags);
             markSeen(id);
         }, DWELL_MS);
     }
@@ -530,6 +543,12 @@ const {
     scrollContainer,
     enabled: readingTrackerEnabled,
     averageReadingSpeed,
+    onSessionEnd: (endedContentId, finalDepthPercent) => {
+        const endedTags = contentTagsById.get(endedContentId);
+        contentTagsById.delete(endedContentId);
+        const weight = readingDepthWeight(finalDepthPercent);
+        if (weight > 0) recordAffinity(endedTags, weight);
+    },
 });
 
 /** Hide the resume prompt for this visit after the user continues or dismisses. */
