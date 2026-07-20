@@ -8,6 +8,7 @@ import {
     userPreferencesAsRef,
     mediaQueue,
     localCacheVersion,
+    isDevMode,
 } from "./globalConfig";
 import LoadingBar from "@/components/LoadingBar.vue";
 import { useNotificationStore } from "./stores/notification";
@@ -18,6 +19,7 @@ import PrivacyPolicyModal from "@/components/navigation/PrivacyPolicyModal.vue";
 import SearchModal from "@/components/navigation/SearchModal.vue";
 import AudioPlayer from "@/components/content/AudioPlayer.vue";
 import MobileMenu from "@/components/navigation/MobileMenu.vue";
+import AffinityDebugOverlay from "@/components/debug/AffinityDebugOverlay.vue";
 import { useAuthWithPrivacyPolicy } from "@/composables/useAuthWithPrivacyPolicy";
 import { showProviderSelectionModal } from "@/auth";
 import AuthProviderSelectionModal from "@/components/authProvider/AuthProviderSelectionModal.vue";
@@ -175,6 +177,8 @@ onErrorCaptured((err) => {
             v-model:show="showPrivacyPolicyModal"
             @close="handleModalClose"
         />
+
+        <AffinityDebugOverlay v-if="isDevMode" />
     </div>
     <!-- Modals depend on i18n, which isn't installed until splash finishes — keep them out of the tree during the loading phase. -->
     <template v-if="!isAppLoading">
