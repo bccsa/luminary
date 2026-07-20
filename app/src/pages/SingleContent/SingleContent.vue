@@ -381,6 +381,9 @@ const toggleBookmark = () => {
         userPreferencesAsRef.value.bookmarks = userPreferencesAsRef.value.bookmarks.filter(
             (b) => b.id != content.value?.parentId,
         );
+        if (content.value) {
+            recordAffinity(content.value.parentTags, EventWeight.BookmarkRemoved);
+        }
     } else {
         // Add to bookmarks
         if (!content.value) return;
@@ -982,6 +985,9 @@ watch([isLoading, content, is404], async () => {
                         v-if="content.text"
                         :content-id="content._id"
                         @highlighted="recordAffinity(content?.parentTags, EventWeight.Highlight)"
+                        @highlight-removed="
+                            recordAffinity(content?.parentTags, EventWeight.HighlightRemoved)
+                        "
                     >
                         <div
                             ref="articleProseRef"

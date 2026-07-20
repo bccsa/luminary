@@ -48,10 +48,14 @@ import * as auth0 from "@auth0/auth0-vue";
 import LImage from "@/components/images/LImage.vue";
 import ImageModal from "@/components/images/ImageModal.vue";
 import { resolveNotificationText, useNotificationStore } from "@/stores/notification";
+import LHighlightable from "@/components/common/LHighlightable.vue";
 
 const routeReplaceMock = vi.hoisted(() => vi.fn());
 const mockIsExternalNavigation = vi.hoisted(() => vi.fn());
 const recordAffinityMock = vi.hoisted(() => vi.fn());
+const affinityProfileMock = vi.hoisted(() => ({
+    value: { affinity: {}, lastDecayUtc: undefined },
+}));
 type ReadingTrackerOptions = Parameters<
     typeof import("@/composables/useReadingProgressTracker")["useReadingProgressTracker"]
 >[0];
@@ -60,6 +64,7 @@ const readingTrackerOptions = vi.hoisted(() => ({
 }));
 
 vi.mock("@/recommendation/affinityStore", () => ({
+    affinityProfile: affinityProfileMock,
     recordAffinity: recordAffinityMock,
 }));
 
@@ -384,6 +389,48 @@ describe("SingleContent", () => {
         });
 
         expect(notificationStore.addNotification).toHaveBeenCalledTimes(1);
+    });
+
+    it("records bookmark-removal affinity when un-bookmarking content", async () => {
+        userPreferencesAsRef.value.bookmarks = [
+            { id: mockEnglishContentDto.parentId, ts: Date.now() },
+        ];
+        const wrapper = mount(SingleContent, {
+            props: { slug: mockEnglishContentDto.slug },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.find("button[data-test='bookmark']").exists()).toBe(true);
+        });
+        recordAffinityMock.mockClear();
+
+        await wrapper.find("button[data-test='bookmark']").trigger("click");
+
+        expect(recordAffinityMock).toHaveBeenCalledWith(
+            mockEnglishContentDto.parentTags,
+            EventWeight.BookmarkRemoved,
+        );
+        wrapper.unmount();
+    });
+
+    it("records highlight-removal affinity from LHighlightable", async () => {
+        const wrapper = mount(SingleContent, {
+            props: { slug: mockEnglishContentDto.slug },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.findComponent(LHighlightable).exists()).toBe(true);
+        });
+        recordAffinityMock.mockClear();
+
+        wrapper.findComponent(LHighlightable).vm.$emit("highlightRemoved");
+        await nextTick();
+
+        expect(recordAffinityMock).toHaveBeenCalledWith(
+            mockEnglishContentDto.parentTags,
+            EventWeight.HighlightRemoved,
+        );
+        wrapper.unmount();
     });
 
     it("displays the author", async () => {
