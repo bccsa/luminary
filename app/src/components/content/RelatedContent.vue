@@ -2,6 +2,7 @@
 import { TagType, type ContentDto } from "luminary-shared";
 import { computed } from "vue";
 import { useContentQuery } from "@/composables/useContentQuery";
+import { useMoreLikeThis } from "@/composables/useMoreLikeThis";
 import { useI18n } from "vue-i18n";
 import ReadMore from "./ReadMore.vue";
 
@@ -43,6 +44,14 @@ const readMoreItems = computed(() =>
         (item, index, items) => items.findIndex(({ _id }) => _id === item._id) === index,
     ),
 );
+
+// Personalized "more like this" for the current article. Retrieval stays topical (seeded
+// from this article's tags + title/summary FTS); rank()'s affinity scoring tilts the order
+// toward the viewer's interests. Shown as its own row, separate from the Read more list.
+const { similar } = useMoreLikeThis(
+    () => props.selectedContent,
+    () => props.tags,
+);
 </script>
 
 <template>
@@ -56,5 +65,15 @@ const readMoreItems = computed(() =>
             {{ t("content.read_more") }}
         </h2>
         <ReadMore :items="readMoreItems" />
+    </section>
+
+    <section
+        v-if="similar.length"
+        class="w-full pb-2"
+    >
+        <h2 class="px-4 pb-3 text-xl text-zinc-800 dark:text-zinc-200 sm:px-8">
+            {{ t("content.similar_title") }}
+        </h2>
+        <ReadMore :items="similar" />
     </section>
 </template>

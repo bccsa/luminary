@@ -6,8 +6,13 @@ import { mount } from "@vue/test-utils";
 import { mockEnglishContentDto, mockLanguageDtoEng, mockTopicContentDto } from "@/tests/mockdata";
 import waitForExpect from "wait-for-expect";
 import { db, type ContentDto } from "luminary-shared";
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import { appLanguageIdsAsRef } from "@/globalConfig";
+import { useMoreLikeThis } from "@/composables/useMoreLikeThis";
+
+vi.mock("@/composables/useMoreLikeThis", () => ({
+    useMoreLikeThis: vi.fn(),
+}));
 
 vi.mock("vue-router", async (importOriginal) => {
     const actual = await importOriginal();
@@ -22,12 +27,16 @@ vi.mock("vue-router", async (importOriginal) => {
 
 vi.mock("vue-i18n", () => ({
     useI18n: () => ({
-        t: (key: string) => mockLanguageDtoEng.translations[key] || key,
+        t: (key: string) =>
+            key === "content.similar_title"
+                ? "Similar articles"
+                : mockLanguageDtoEng.translations[key] || key,
     }),
 }));
 
 describe("RelatedContent", () => {
     beforeEach(async () => {
+        vi.mocked(useMoreLikeThis).mockReturnValue({ similar: computed(() => []) });
         await db.docs.bulkPut([
             mockLanguageDtoEng,
             {
@@ -57,7 +66,7 @@ describe("RelatedContent", () => {
         });
     });
 
-    it("displays the related posts", async () => {
+    it("keeps displaying the existing tag-grouped related posts", async () => {
         await db.docs.bulkPut([
             { ...mockEnglishContentDto, parentTags: [mockTopicContentDto.parentId] },
             {
@@ -94,8 +103,34 @@ describe("RelatedContent", () => {
         });
 
         await waitForExpect(() => {
+            expect(wrapper.html()).toContain(mockTopicContentDto.title);
             expect(wrapper.html()).toContain("Post 1");
             expect(wrapper.html()).toContain("Post 2");
+        });
+    });
+
+    it("displays a Similar articles row when more-like-this returns content", async () => {
+        const similarArticle = {
+            ...mockEnglishContentDto,
+            _id: "content-similar-eng",
+            parentId: "post-similar",
+            slug: "similar-eng",
+            title: "Personalized similar article",
+        } as ContentDto;
+        vi.mocked(useMoreLikeThis).mockReturnValue({
+            similar: computed(() => [similarArticle]),
+        });
+
+        const wrapper = mount(RelatedContent, {
+            props: {
+                tags: [mockTopicContentDto],
+                selectedContent: mockEnglishContentDto,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.html()).toContain("Similar articles");
+            expect(wrapper.html()).toContain(similarArticle.title);
         });
     });
 
