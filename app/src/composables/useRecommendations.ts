@@ -202,17 +202,17 @@ export function useRecommendations({
                                     }),
                                 ),
                             );
-                            const seen = new Set<Uuid>();
+                            const seenParentIds = new Set<Uuid>();
                             const merged: FtsSearchResult[] = [];
                             // Results remain parallel, but language-priority merge order is
                             // deterministic and duplicate translations keep the first hit.
                             for (const results of perLanguage) {
                                 for (const r of results) {
-                                    if (seen.has(r.docId)) continue;
+                                    if (seenParentIds.has(r.doc.parentId)) continue;
                                     // ftsSearch has no expiry filter — drop expired content
                                     // post-hoc (parity with the tag leg's mangoIsPublished).
                                     if (r.doc.expiryDate && r.doc.expiryDate < now) continue;
-                                    seen.add(r.docId);
+                                    seenParentIds.add(r.doc.parentId);
                                     merged.push(r);
                                     if (merged.length >= retrievalLimit) break;
                                 }
@@ -326,19 +326,27 @@ export function rank(
 
     const docs = new Map<Uuid, ContentDto>();
     const score = new Map<Uuid, number>();
+    const parentIdToId = new Map<Uuid, Uuid>();
 
     const tagCandidateIds = new Set(tagCandidates.map((doc) => doc._id));
-    for (const doc of tagCandidates) docs.set(doc._id, doc);
+    for (const doc of tagCandidates) {
+        docs.set(doc._id, doc);
+        parentIdToId.set(doc.parentId, doc._id);
+    }
 
     ftsCandidates.forEach((result, i) => {
-        if (!docs.has(result.docId)) docs.set(result.docId, result.doc);
+        const ownerId = parentIdToId.get(result.doc.parentId) ?? result.docId;
+        if (!docs.has(ownerId)) {
+            docs.set(result.docId, result.doc);
+            parentIdToId.set(result.doc.parentId, result.docId);
+        }
         // Normalized to [0,1] (top rank ≈ 1, decaying with i) so the leg's full weight is
         // reachable at the top of the list — raw `1/(RRF_K+i+1)` tops out around 0.016,
         // roughly 10x smaller than RECENCY_WEIGHT, which made publish date dominate BM25
         // rank instead of merely breaking ties.
         score.set(
-            result.docId,
-            (score.get(result.docId) ?? 0) + ftsWeight * ((RRF_K + 1) / (RRF_K + i + 1)),
+            ownerId,
+            (score.get(ownerId) ?? 0) + ftsWeight * ((RRF_K + 1) / (RRF_K + i + 1)),
         );
     });
 

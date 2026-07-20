@@ -7,13 +7,18 @@ import { appLanguageIdsAsRef, appSyncedLanguageIdsAsRef } from "@/globalConfig";
 import { affinityProfile } from "@/recommendation/affinityStore";
 import { computeRichness, fuseTagFts, rank, useRecommendations } from "./useRecommendations";
 
-function makeContent(id: string, parentTags: string[] = [], publishDate?: number): ContentDto {
+function makeContent(
+    id: string,
+    parentTags: string[] = [],
+    publishDate?: number,
+    parentId = `post-${id}`,
+): ContentDto {
     return {
         _id: id,
         type: DocType.Content,
         updatedTimeUtc: 1,
         memberOf: ["group-public-content"],
-        parentId: `post-${id}`,
+        parentId,
         parentTags,
         language: "lang-eng",
         status: PublishStatus.Published,
@@ -183,6 +188,51 @@ describe("rank", () => {
         const result = rank([both], [makeFtsResult(both, 1)], { "tag-a": 0.5 });
 
         expect(result).toHaveLength(1);
+    });
+
+    it("folds different-language FTS translations by parent and sums their rank signal", () => {
+        const now = 1_800_000_000_000;
+        const oldPublishDate = now - 20 * 365 * 24 * 60 * 60 * 1000;
+        const english = makeContent("post-eng", [], oldPublishDate, "shared-post");
+        const french = {
+            ...makeContent("post-fra", [], oldPublishDate, "shared-post"),
+            language: "lang-fra",
+        } as ContentDto;
+        const freshCompetitor = makeContent("fresh-competitor", [], now);
+
+        const result = rank(
+            [],
+            [
+                makeFtsResult(english, 10),
+                makeFtsResult(french, 9),
+                makeFtsResult(freshCompetitor, 8),
+            ],
+            {},
+            { ftsWeight: 0.1, now },
+        );
+
+        // Either translation's FTS contribution alone loses to the recency-boosted
+        // competitor; their folded contributions together put the first translation first.
+        expect(result.map((doc) => doc._id)).toEqual(["post-eng", "fresh-competitor"]);
+        expect(result.filter((doc) => doc.parentId === "shared-post")).toHaveLength(1);
+    });
+
+    it("keeps the tag-leg translation when FTS returns another translation of the same post", () => {
+        const tagTranslation = makeContent("tag-leg-eng", [], undefined, "shared-post");
+        const ftsTranslation = {
+            ...makeContent("fts-leg-fra", [], undefined, "shared-post"),
+            language: "lang-fra",
+        } as ContentDto;
+
+        const result = rank(
+            [tagTranslation],
+            [makeFtsResult(ftsTranslation, 100)],
+            {},
+            { now: 0 },
+        );
+
+        expect(result).toHaveLength(1);
+        expect(result[0]._id).toBe("tag-leg-eng");
     });
 
     it("returns an empty list when both legs are empty", () => {
