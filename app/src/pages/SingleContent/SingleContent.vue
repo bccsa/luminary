@@ -15,6 +15,7 @@ import {
     verifyAccess,
     AclPermission,
     EventWeight,
+    readingDepthWeight,
 } from "luminary-shared";
 import { publishedNowConditions } from "@/util/mangoIsPublished";
 import { useContentQuery, useContentQueryWithState } from "@/composables/useContentQuery";
@@ -249,6 +250,11 @@ const resolveNotFound = async () => {
     }
 };
 
+// Ending id -> tags for a reading session in progress, read by the reading-progress
+// tracker's onSessionEnd (registered further below, outside the client-only guard) to
+// score affinity by how deep the reader actually got.
+const contentTagsById = new Map<Uuid, Uuid[] | undefined>();
+
 // Client-only (web + the normal SPA): redirect / not-found / loading wiring + retention. The Node prerender skips this — `content` is already populated and rendered via onServerPrefetch. Guarded on `isPrerender` (not a `window` check, since vite-ssg's mock makes `window` exist in Node too).
 if (!isPrerender()) {
     watch(
@@ -303,8 +309,19 @@ if (!isPrerender()) {
             touchRetention([c._id]);
             const id = c._id;
             const tags = c.parentTags;
+            const hasText = !!c.text;
+            contentTagsById.set(id, tags);
+            // The tracker's content-change watcher flushes after this content watcher, so
+            // keep the ending id available through that callback, then discard any stale
+            // entries left by content that never started a reading session.
+            nextTick(() => {
+                const currentId = content.value?._id;
+                for (const knownId of contentTagsById.keys()) {
+                    if (knownId !== currentId) contentTagsById.delete(knownId);
+                }
+            });
             dwellTimer = setTimeout(() => {
-                recordAffinity(tags);
+                if (!hasText) recordAffinity(tags);
                 markSeen(id);
             }, DWELL_MS);
         }
@@ -553,6 +570,12 @@ const { hasResumableProgress, savedProgressPercent, restoreScrollPosition } =
         scrollContainer,
         enabled: readingTrackerEnabled,
         averageReadingSpeed,
+        onSessionEnd: (endedContentId, finalDepthPercent) => {
+            const endedTags = contentTagsById.get(endedContentId);
+            contentTagsById.delete(endedContentId);
+            const weight = readingDepthWeight(finalDepthPercent);
+            if (weight > 0) recordAffinity(endedTags, weight);
+        },
     });
 
 /** Hide the resume prompt for this visit after the user continues or dismisses. */
