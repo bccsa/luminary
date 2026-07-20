@@ -53,6 +53,22 @@ describe("affinity scoring", () => {
         expect(completion.affinity.completion).toBeGreaterThan(bookmark.affinity.bookmark);
     });
 
+    it("defines removal signals as negative 60-percent reversals", () => {
+        expect(EventWeight.BookmarkRemoved).toBeLessThan(0);
+        expect(EventWeight.HighlightRemoved).toBeLessThan(0);
+        expect(Math.abs(EventWeight.BookmarkRemoved)).toBe(EventWeight.Bookmark * 0.6);
+        expect(Math.abs(EventWeight.HighlightRemoved)).toBe(EventWeight.Highlight * 0.6);
+    });
+
+    it("keeps a net-positive bookmark bias after one add/remove cycle", () => {
+        const initial = applyEvent(undefined, ["tag-a"], T0);
+        const before = initial.affinity["tag-a"];
+        const bookmarked = applyEvent(initial, ["tag-a"], T0, EventWeight.Bookmark);
+        const removed = applyEvent(bookmarked, ["tag-a"], T0, EventWeight.BookmarkRemoved);
+
+        expect(removed.affinity["tag-a"]).toBeGreaterThan(before);
+    });
+
     it("ignores an impression miss for an unknown tag without evicting learned interests", () => {
         // A mature profile is at the cap. Impression misses commonly include tags from
         // the serendipity leg, which have no prior affinity evidence and must not create
