@@ -253,7 +253,7 @@ describe("LHighlightable", () => {
 
         // Trigger selectionchange
         document.dispatchEvent(new Event("selectionchange"));
-        vi.advanceTimersByTime(300);
+        await vi.advanceTimersByTimeAsync(300);
         await wrapper.vm.$nextTick();
 
         // The menu should show "Remove" button since selection is inside a mark
