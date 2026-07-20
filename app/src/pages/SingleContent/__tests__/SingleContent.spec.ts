@@ -19,7 +19,14 @@ import {
     mockRedirectDto,
 } from "@/tests/mockdata";
 import LoadingBar from "@/components/LoadingBar.vue";
-import { db, isConnected, type ContentDto, type LanguageDto } from "luminary-shared";
+import {
+    db,
+    EventWeight,
+    isConnected,
+    readingDepthWeight,
+    type ContentDto,
+    type LanguageDto,
+} from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import {
     appLanguageIdsAsRef,
@@ -44,6 +51,28 @@ import { resolveNotificationText, useNotificationStore } from "@/stores/notifica
 
 const routeReplaceMock = vi.hoisted(() => vi.fn());
 const mockIsExternalNavigation = vi.hoisted(() => vi.fn());
+const recordAffinityMock = vi.hoisted(() => vi.fn());
+type ReadingTrackerOptions = Parameters<
+    typeof import("@/composables/useReadingProgressTracker")["useReadingProgressTracker"]
+>[0];
+const readingTrackerOptions = vi.hoisted(() => ({
+    current: undefined as ReadingTrackerOptions | undefined,
+}));
+
+vi.mock("@/recommendation/affinityStore", () => ({
+    recordAffinity: recordAffinityMock,
+}));
+
+vi.mock("@/composables/useReadingProgressTracker", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("@/composables/useReadingProgressTracker")>();
+    return {
+        ...actual,
+        useReadingProgressTracker: (options: ReadingTrackerOptions) => {
+            readingTrackerOptions.current = options;
+            return actual.useReadingProgressTracker(options);
+        },
+    };
+});
 
 vi.mock("vue-router", async (importOriginal) => {
     const actual = await importOriginal();
@@ -156,6 +185,7 @@ describe("SingleContent", () => {
 
         // Reset notification store spy
         vi.clearAllMocks();
+        readingTrackerOptions.current = undefined;
         vi.useRealTimers();
 
         (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
@@ -725,5 +755,114 @@ describe("SingleContent", () => {
         expect(getReadingProgress(mockEnglishContentDto._id)).toBe(60);
 
         wrapper.unmount();
+    });
+
+    it("records affinity exactly once when a reading session ends", async () => {
+        const wrapper = shallowMount(SingleContent, {
+            props: { slug: mockEnglishContentDto.slug },
+        });
+
+        await waitForExpect(() => {
+            expect(readingTrackerOptions.current?.contentId.value).toBe(mockEnglishContentDto._id);
+            expect(readingTrackerOptions.current?.onSessionEnd).toBeTypeOf("function");
+        });
+
+        readingTrackerOptions.current!.onSessionEnd!(mockEnglishContentDto._id, 60);
+
+        expect(recordAffinityMock).toHaveBeenCalledOnce();
+        expect(recordAffinityMock).toHaveBeenCalledWith(
+            mockEnglishContentDto.parentTags,
+            readingDepthWeight(60),
+        );
+        wrapper.unmount();
+    });
+
+    it("does not record affinity for a sub-floor reading depth", async () => {
+        const wrapper = shallowMount(SingleContent, {
+            props: { slug: mockEnglishContentDto.slug },
+        });
+
+        await waitForExpect(() => {
+            expect(readingTrackerOptions.current?.contentId.value).toBe(mockEnglishContentDto._id);
+            expect(readingTrackerOptions.current?.onSessionEnd).toBeTypeOf("function");
+        });
+
+        readingTrackerOptions.current!.onSessionEnd!(mockEnglishContentDto._id, 19);
+
+        expect(recordAffinityMock).not.toHaveBeenCalled();
+        wrapper.unmount();
+    });
+
+    it("records a full read with read-completion weight", async () => {
+        const wrapper = shallowMount(SingleContent, {
+            props: { slug: mockEnglishContentDto.slug },
+        });
+
+        await waitForExpect(() => {
+            expect(readingTrackerOptions.current?.contentId.value).toBe(mockEnglishContentDto._id);
+            expect(readingTrackerOptions.current?.onSessionEnd).toBeTypeOf("function");
+        });
+
+        readingTrackerOptions.current!.onSessionEnd!(mockEnglishContentDto._id, 100);
+
+        expect(recordAffinityMock).toHaveBeenCalledOnce();
+        expect(recordAffinityMock).toHaveBeenCalledWith(
+            mockEnglishContentDto.parentTags,
+            EventWeight.ReadCompletion,
+        );
+        expect(EventWeight.ReadCompletion).toBe(0.35);
+        wrapper.unmount();
+    });
+
+    it("keeps the dwell-based open signal for text-less content", async () => {
+        await db.docs.update(mockEnglishContentDto._id, {
+            text: "",
+            updatedTimeUtc: mockEnglishContentDto.updatedTimeUtc + 1,
+        } as any);
+        const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout");
+        const wrapper = shallowMount(SingleContent, {
+            props: { slug: mockEnglishContentDto.slug },
+        });
+
+        await waitForExpect(() => {
+            expect(readingTrackerOptions.current?.contentId.value).toBe(mockEnglishContentDto._id);
+            expect(readingTrackerOptions.current?.enabled.value).toBe(false);
+            expect(setTimeoutSpy.mock.calls.some(([, delay]) => delay === 15000)).toBe(true);
+        });
+
+        const dwellCallback = setTimeoutSpy.mock.calls.find(([, delay]) => delay === 15000)?.[0];
+        expect(dwellCallback).toBeTypeOf("function");
+        (dwellCallback as () => void)();
+
+        expect(recordAffinityMock).toHaveBeenCalledOnce();
+        expect(recordAffinityMock).toHaveBeenCalledWith(mockEnglishContentDto.parentTags);
+        wrapper.unmount();
+        setTimeoutSpy.mockRestore();
+    });
+
+    it("does not add a dwell-based open signal for text content", async () => {
+        const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout");
+        const wrapper = shallowMount(SingleContent, {
+            props: { slug: mockEnglishContentDto.slug },
+        });
+
+        await waitForExpect(() => {
+            expect(readingTrackerOptions.current?.contentId.value).toBe(mockEnglishContentDto._id);
+            expect(readingTrackerOptions.current?.onSessionEnd).toBeTypeOf("function");
+            expect(setTimeoutSpy.mock.calls.some(([, delay]) => delay === 15000)).toBe(true);
+        });
+
+        readingTrackerOptions.current!.onSessionEnd!(mockEnglishContentDto._id, 100);
+        const dwellCallback = setTimeoutSpy.mock.calls.find(([, delay]) => delay === 15000)?.[0];
+        expect(dwellCallback).toBeTypeOf("function");
+        (dwellCallback as () => void)();
+
+        expect(recordAffinityMock).toHaveBeenCalledOnce();
+        expect(recordAffinityMock).toHaveBeenCalledWith(
+            mockEnglishContentDto.parentTags,
+            EventWeight.ReadCompletion,
+        );
+        wrapper.unmount();
+        setTimeoutSpy.mockRestore();
     });
 });
