@@ -3,7 +3,7 @@ import BasePage from "@/components/BasePage.vue";
 import { PlusIcon } from "@heroicons/vue/20/solid";
 import LButton from "@/components/button/LButton.vue";
 import GroupDisplayCard from "./GroupDisplayCard.vue";
-import GroupFilterOptions from "./GroupFilterOptions.vue";
+import FilterOptions from "@/components/common/FilterOptions.vue";
 import {
     AclPermission,
     db,
@@ -226,11 +226,12 @@ const hasAnyContent = computed(() => editable.value.length > 0);
         </template>
 
         <template v-if="currentTab === 'overview' && hasAnyContent" #internalPageHeader>
-            <GroupFilterOptions
+            <FilterOptions
+                v-model:search="queryOptions.search"
+                v-model:selected-groups="queryOptions.filterGroupIds"
                 :groups="editable"
-                :reset="resetQueryOptions"
-                v-model:query-options="queryOptions"
-                :isSmallScreen="isSmallScreen"
+                :is-small-screen="isSmallScreen"
+                @reset="resetQueryOptions"
             />
         </template>
 

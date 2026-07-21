@@ -9,11 +9,10 @@ import {
 } from "luminary-shared";
 import BasePage from "../BasePage.vue";
 import RedirectDisplaycard from "./RedirectDisplaycard.vue";
-import { PlusIcon, XMarkIcon } from "@heroicons/vue/20/solid";
-import { MagnifyingGlassIcon } from "@heroicons/vue/24/outline";
+import { PlusIcon } from "@heroicons/vue/20/solid";
 import { computed, ref, watch } from "vue";
 import LButton from "../button/LButton.vue";
-import LInput from "@/components/forms/LInput.vue";
+import FilterOptions from "@/components/common/FilterOptions.vue";
 import LoadingBar from "@/components/LoadingBar.vue";
 import FtsStaleResultsBanner from "@/components/common/FtsStaleResultsBanner.vue";
 import CreateOrEditRedirectModal from "./CreateOrEditRedirectModal.vue";
@@ -27,36 +26,9 @@ import {
 const canCreateNew = computed(() => hasAnyPermission(DocType.Redirect, AclPermission.Edit));
 const isCreateOrEditModalVisible = ref(false);
 
-// Trigger-only search: the input only commits to searchTerm on Enter/Go, matching the
-// Content and User overviews.
-const searchInput = ref("");
+// Committed search term. Trigger-only: the shared FilterOptions (submit-search mode) only
+// commits on Enter/Go, matching the Content and User overviews.
 const searchTerm = ref("");
-const submitSearch = () => {
-    if (!searchInput.value) return;
-    if (searchInput.value.length >= 3 || searchInput.value.length === 0) {
-        searchTerm.value = searchInput.value;
-    }
-};
-const showSearchButton = ref(false);
-const showResetButton = ref(false);
-
-const clearSearch = () => {
-    searchInput.value = "";
-    searchTerm.value = "";
-    showSearchButton.value = false;
-    showResetButton.value = false;
-};
-
-watch(searchInput, (newVal) => {
-    if (!newVal || newVal.length === 0) {
-        clearSearch();
-        return;
-    }
-    if (newVal.length >= 3) {
-        showSearchButton.value = true;
-        showResetButton.value = true;
-    } else showSearchButton.value = false;
-});
 
 /** Minimum characters before switching from synced browse to server-side FTS search. */
 const SEARCH_MIN_CHARS = 3;
@@ -82,7 +54,7 @@ const { visible: visibleRedirects, sentinel: browseSentinel } = useInfiniteScrol
 });
 
 // --- Search (≥3 chars): server-side strict FTS over slug + toSlug. Trigger-only: searchTerm
-// only changes on Enter/Go (submitSearch above), so re-run explicitly on each change. ---
+// only changes on Enter/Go, so re-run explicitly on each committed change. ---
 const search = useServerFtsSearch(searchTerm, {
     docType: DocType.Redirect,
     pageSize: 20,
@@ -132,43 +104,11 @@ const hasAnyContent = computed(() => (redirects.value?.length ?? 0) > 0);
         </template>
 
         <template v-if="hasAnyContent" #internalPageHeader>
-            <div class="relative z-20 flex flex-col gap-1 overflow-visible">
-                <div class="flex h-10 w-full items-center gap-1">
-                    <LInput
-                        type="text"
-                        :icon="MagnifyingGlassIcon"
-                        class="h-full min-w-0 flex-grow"
-                        name="search"
-                        placeholder="Search redirects..."
-                        data-test="search-input"
-                        v-model="searchInput"
-                        :full-height="true"
-                        @keydown.enter="submitSearch"
-                    >
-                        <template #searchButton>
-                            <div class="flex items-center gap-1">
-                                <button
-                                    v-if="showSearchButton"
-                                    type="button"
-                                    class="rounded-md bg-white px-2 py-1 text-sm font-semibold text-zinc-900 ring-1 ring-inset ring-zinc-300 hover:bg-zinc-50"
-                                    data-test="search-go-button"
-                                    @click="submitSearch"
-                                >
-                                    Go
-                                </button>
-                                <button
-                                    v-if="showResetButton"
-                                    type="button"
-                                    aria-label="Clear search"
-                                    @click="clearSearch"
-                                >
-                                    <XMarkIcon class="h-5 w-5 cursor-pointer text-zinc-500" />
-                                </button>
-                            </div>
-                        </template>
-                    </LInput>
-                </div>
-            </div>
+            <FilterOptions
+                v-model:search="searchTerm"
+                search-placeholder="Search redirects..."
+                submit-search
+            />
         </template>
 
         <div class="flex flex-col gap-[3px]">
