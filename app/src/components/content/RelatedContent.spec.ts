@@ -1,6 +1,7 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import RelatedContent from "./RelatedContent.vue";
+import ReadMore from "./ReadMore.vue";
 import { mount } from "@vue/test-utils";
 import { mockEnglishContentDto, mockLanguageDtoEng, mockTopicContentDto } from "@/tests/mockdata";
 import waitForExpect from "wait-for-expect";
@@ -50,7 +51,8 @@ describe("RelatedContent", () => {
         });
 
         await waitForExpect(() => {
-            expect(wrapper.html()).not.toContain(mockTopicContentDto.title);
+            // The topic itself is included in Read more, but the current post isn't.
+            expect(wrapper.html()).toContain(mockTopicContentDto.title);
             expect(wrapper.html()).not.toContain(mockEnglishContentDto.title);
         });
     });
@@ -158,6 +160,69 @@ describe("RelatedContent", () => {
         await waitForExpect(() => {
             expect(wrapper.html()).not.toContain("Post 2");
             expect(wrapper.html()).not.toContain("Post 3");
+        });
+    });
+
+    it("shows the summary on each related post, without tag chips", async () => {
+        await db.docs.bulkPut([
+            {
+                ...mockEnglishContentDto,
+                parentId: "post-post2",
+                _id: "content-post2-eng",
+                title: "Post 2",
+                summary: "A short related summary",
+                parentTags: [mockTopicContentDto.parentId],
+            } as ContentDto,
+        ]);
+
+        const wrapper = mount(RelatedContent, {
+            props: {
+                tags: [{ ...mockTopicContentDto, parentTaggedDocs: ["post-post2"] }],
+                selectedContent: {
+                    ...mockEnglishContentDto,
+                    _id: "content-post3-eng",
+                    title: "Post 3",
+                },
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.html()).toContain("A short related summary");
+        });
+        expect(wrapper.findComponent(ReadMore).html()).toContain(mockTopicContentDto.title);
+    });
+
+    it("displays all topics in the same Read more collection as related posts", async () => {
+        const topicB = {
+            ...mockTopicContentDto,
+            _id: "content-tag-topicB",
+            parentId: "tag-topicB",
+            slug: "content-tag-topicB",
+            title: "Topic B",
+        } as ContentDto;
+
+        await db.docs.put({
+            ...mockEnglishContentDto,
+            parentId: "post-post2",
+            _id: "content-post2-eng",
+            title: "Post 2",
+        } as ContentDto);
+
+        const wrapper = mount(RelatedContent, {
+            props: {
+                tags: [
+                    { ...mockTopicContentDto, parentTaggedDocs: ["post-post2"] },
+                    topicB,
+                ],
+                selectedContent: mockEnglishContentDto,
+            },
+        });
+
+        await waitForExpect(() => {
+            const readMore = wrapper.findComponent(ReadMore).html();
+            expect(readMore).toContain("Post 2");
+            expect(readMore).toContain(mockTopicContentDto.title);
+            expect(readMore).toContain("Topic B");
         });
     });
 });

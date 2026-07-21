@@ -28,6 +28,13 @@ import {
     userPreferencesAsRef,
     cmsUrl,
 } from "@/globalConfig";
+import {
+    getReadingProgress,
+    removeReadingProgress,
+    setReadingProgress,
+    syncContentProgressFromStorage,
+} from "@/contentProgress";
+import { computeEstimatedReadingMinutes } from "@/util/readingTime";
 import { ref, computed } from "vue";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
 import * as auth0 from "@auth0/auth0-vue";
@@ -115,6 +122,8 @@ describe("SingleContent", () => {
         // Clearing the database before populating it helps prevent some sequencing issues causing the first to fail.
         await db.docs.clear();
         await db.localChanges.clear();
+        localStorage.clear();
+        syncContentProgressFromStorage();
 
         // IndexedDB-only path; avoid a live query from other specs leaving isConnected true
         isConnected.value = false;
@@ -147,6 +156,7 @@ describe("SingleContent", () => {
 
         // Reset notification store spy
         vi.clearAllMocks();
+        vi.useRealTimers();
 
         (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
             isAuthenticated: ref(false),
@@ -154,6 +164,9 @@ describe("SingleContent", () => {
     });
 
     afterEach(async () => {
+        removeReadingProgress(mockEnglishContentDto._id);
+        localStorage.removeItem("contentProgress");
+        syncContentProgressFromStorage();
         await db.docs.clear();
         cmsUrl.value = "";
         isConnected.value = false;
@@ -258,9 +271,10 @@ describe("SingleContent", () => {
             },
         });
         await waitForExpect(() => {
-            expect(wrapper.text()).toContain(mockTopicContentDto.title);
             expect(wrapper.text()).toContain("content 2");
         });
+        // The related-content cards show their topic/category chips (mobile row).
+        expect(wrapper.text()).toContain(mockTopicContentDto.title);
     });
 
     it("doesn't display tag when content not tagged", async () => {
@@ -663,8 +677,8 @@ describe("SingleContent", () => {
 
     it("can calculate the estimated reading time using a custom language reading speed", async () => {
         const wordCount = 400;
-        const readingSpeed = 100;
-        const expectedReadingTime = Math.ceil(wordCount / readingSpeed);
+        const readingSpeed = 200;
+        const expectedReadingTime = computeEstimatedReadingMinutes(wordCount, readingSpeed);
 
         isConnected.value = false;
 
@@ -694,5 +708,22 @@ describe("SingleContent", () => {
         await waitForExpect(() => {
             expect(wrapper.text()).toContain(`${expectedReadingTime} min`);
         });
+    });
+
+    it("preserves saved reading progress on mount", async () => {
+        setReadingProgress(mockEnglishContentDto._id, 60);
+
+        const wrapper = mount(SingleContent, {
+            props: {
+                slug: mockEnglishContentDto.slug,
+            },
+        });
+
+        await flushPromises();
+        await nextTick();
+
+        expect(getReadingProgress(mockEnglishContentDto._id)).toBe(60);
+
+        wrapper.unmount();
     });
 });

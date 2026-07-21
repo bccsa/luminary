@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository context
 
-This is the `app/` package of the Luminary monorepo (sibling packages: `api/`, `cms/`, `shared/`, `playwright-tests/`, `docs/`). It is an offline-first Vue 3 + TypeScript PWA built with Vite. It depends on the local `luminary-shared` package via `file:../shared` — changes to that package require it to be rebuilt before they are picked up here.
+This is the `app/` package of the Luminary monorepo (sibling packages: `api/`, `cms/`, `shared/`, `playwright-tests/`, `docs/`). It is an offline-first Vue 3 + TypeScript PWA built with Vite. It depends on the local `luminary-shared` package via `file:../shared`. Vite consumes `shared/src` directly (see Commands below), so most changes to that package hot-reload with no rebuild — only a shared **type** change needs `shared/` rebuilt first.
 
 Cross-package E2E tests live in `../playwright-tests/` (separate `playwright.config.ts`), not in `app/`. There is no in-package Playwright config.
 
@@ -53,6 +53,8 @@ Uses `@auth0/auth0-vue` with multiple providers selected at runtime from `AuthPr
 ### i18n
 
 UI strings live in CouchDB Language documents, loaded at runtime (`src/i18n.ts`). English seed is `../api/src/db/seedingDocs/lang-eng.json`. See `../docs/guides/translations.md` for the workflow.
+
+Reading progress (segments, gates, homepage row): `docs/reading-progress-tracker/README.md`.
 
 ### Plugins
 

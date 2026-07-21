@@ -2,9 +2,7 @@
 import BasePage from "@/components/BasePage.vue";
 import UserDisplayCard from "@/components/users/UserDisplayCard.vue";
 import CreateOrEditUser from "@/components/users/CreateOrEditUser.vue";
-import UserFilterOptions, {
-    type UserOverviewQueryOptions,
-} from "@/components/users/UserFilterOptions.vue";
+import FilterOptions from "@/components/common/FilterOptions.vue";
 import { PlusIcon } from "@heroicons/vue/24/outline";
 import {
     AclPermission,
@@ -49,6 +47,11 @@ function openCreateUserModal() {
     newUserId.value = db.uuid();
     isNewUserModalVisible.value = true;
 }
+
+type UserOverviewQueryOptions = {
+    groups: string[];
+    search: string;
+};
 
 const defaultQueryOptions: UserOverviewQueryOptions = {
     groups: [],
@@ -115,8 +118,8 @@ const { visible: visibleUsers, sentinel: browseSentinel } = useInfiniteScrollLis
 const browseLoading = computed(() => isFetching.value && !(users.value?.length ?? 0));
 
 // --- Search (≥3 chars): server-side strict FTS. The group filter is forwarded to the server
-// (memberOf ∩ groups). Trigger-only: the search box (UserFilterOptions.vue) only commits
-// queryOptions.search on Enter/Go, so re-run explicitly on each committed change. ---
+// (memberOf ∩ groups). Trigger-only: the shared FilterOptions (submit-search mode) only
+// commits queryOptions.search on Enter/Go, so re-run explicitly on each committed change. ---
 const searchTerm = computed(() => queryOptions.value.search ?? "");
 const search = useServerFtsSearch(searchTerm, {
     docType: DocType.User,
@@ -168,10 +171,12 @@ const hasAnyContent = computed(() => (users.value?.length ?? 0) > 0);
             />
         </template>
         <template v-if="hasAnyContent" #internalPageHeader>
-            <UserFilterOptions
-                :is-small-screen="isSmallScreen"
+            <FilterOptions
+                v-model:search="queryOptions.search"
+                v-model:selected-groups="queryOptions.groups"
                 :groups="groups"
-                v-model:query-options="queryOptions"
+                :is-small-screen="isSmallScreen"
+                submit-search
             />
         </template>
         <div class="flex flex-col gap-[3px]">
