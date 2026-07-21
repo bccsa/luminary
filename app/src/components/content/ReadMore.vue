@@ -192,7 +192,7 @@ watch(visibleItems, () => nextTick(remeasureAll));
                         <h3
                             :data-id="item._id"
                             data-mobile-title
-                            class="line-clamp-2 font-semibold text-zinc-800 dark:text-slate-50 sm:hidden"
+                            class="-mt-1 line-clamp-2 font-semibold text-zinc-800 dark:text-slate-50 sm:hidden"
                         >
                             {{ item.title }}
                         </h3>
@@ -207,14 +207,11 @@ watch(visibleItems, () => nextTick(remeasureAll));
                             {{ summaryText(item) }}
                         </p>
 
-                        <!-- Categories sit at the bottom of the card (mt-auto) and fade toward
-                             the card edge as the row scrolls (the fade is a mask, so the row
-                             keeps its margins). -->
                         <div
                             v-if="tagsFor(item).length"
                             :data-id="item._id"
                             data-tags-row
-                            class="mt-auto flex max-w-full gap-1 overflow-x-auto scrollbar-hide sm:hidden"
+                            class="-ml-2 mt-auto flex gap-1 overflow-x-auto pl-2 scrollbar-hide sm:hidden"
                             :style="tagFadeStyle(item._id)"
                             data-test="content-tags"
                             @scroll="(e) => updateTagFade(item._id, e.target as HTMLElement)"
