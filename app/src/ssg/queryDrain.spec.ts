@@ -114,7 +114,6 @@ describe("queryDrain", () => {
         expect(calls[0].selector).toEqual({
             $and: [
                 { type: "content" },
-                { parentType: { $in: ["post", "tag"] } },
                 { publishDate: { $lte: now } },
             ],
         });
