@@ -78,6 +78,6 @@ export function enumeratePublicContent<T extends KeysetDocument>(
 ): Promise<T[]> {
     return drainQuery<T>(transport, {
         type: "content",
-        conditions: [{ parentType: { $in: ["post", "tag"] } }, { publishDate: { $lte: now } }],
+        conditions: [{ publishDate: { $lte: now } }],
     });
 }
