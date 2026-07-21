@@ -22,6 +22,7 @@ import { FastifyReply, FastifyRequest } from "fastify";
 import { classifyQueryCost } from "./queryStats";
 import { selectorFingerprint } from "../util/selectorFingerprint";
 import { QueryRateLimiterService } from "../ratelimit/queryRateLimiter.service";
+import { expandMangoSelector } from "../util/expandMangoQuery";
 
 /** Endpoint supporting MongoDB like queries (Mango Query) */
 @Controller("query")
@@ -67,6 +68,22 @@ export class QueryController {
             throw new BadRequestException(
                 "Invalid query: updatedTimeUtc $lte and $gte must not both be 0",
             );
+        }
+
+        // Reject an oversized parentId fan-out, and strike large-but-allowed ones early —
+        // the fan-out size is known before the query runs, so abuse doesn't need to wait
+        // for post-hoc execution_stats.
+        const maxFanoutParents = this.configService.get<number>("query.maxFanoutParents") ?? 200;
+        const fanoutStrikeThreshold =
+            this.configService.get<number>("query.fanoutStrikeThreshold") ?? 25;
+        const fanoutSize = countParentIdFanout(body?.selector);
+        if (fanoutSize > maxFanoutParents) {
+            throw new BadRequestException(
+                `Invalid query: 'parentId.$in' exceeds the maximum fan-out size (${maxFanoutParents})`,
+            );
+        }
+        if (fanoutSize > fanoutStrikeThreshold) {
+            this.rateLimiter.recordStrike(identityKey);
         }
 
         const bypassValidation =
@@ -128,6 +145,22 @@ export class QueryController {
 
         return result;
     }
+}
+
+/**
+ * Size of the selector's `parentId.$in` array, or 0 if absent. Selector is expanded
+ * first since `parentId` may sit at the top level or nested under `$and`.
+ */
+function countParentIdFanout(selector: any): number {
+    if (!selector || typeof selector !== "object") return 0;
+    const conditions = expandMangoSelector(selector).$and ?? [];
+    for (const condition of conditions) {
+        const value = (condition as any)?.parentId;
+        if (value && typeof value === "object" && Array.isArray(value.$in)) {
+            return value.$in.length;
+        }
+    }
+    return 0;
 }
 
 function buildSyncContext(body: any) {
