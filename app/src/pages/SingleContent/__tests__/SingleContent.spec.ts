@@ -271,9 +271,10 @@ describe("SingleContent", () => {
             },
         });
         await waitForExpect(() => {
-            expect(wrapper.text()).toContain(mockTopicContentDto.title);
             expect(wrapper.text()).toContain("content 2");
         });
+        // The related-content cards show their topic/category chips (mobile row).
+        expect(wrapper.text()).toContain(mockTopicContentDto.title);
     });
 
     it("doesn't display tag when content not tagged", async () => {

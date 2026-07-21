@@ -1,11 +1,9 @@
 <script setup lang="ts">
-import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
 import { TagType, type ContentDto } from "luminary-shared";
-import { computed, toRef } from "vue";
-import { contentByTag } from "../contentByTag";
-import HorizontalContentTileCollection from "./HorizontalContentTileCollection.vue";
+import { computed } from "vue";
 import { useContentQuery } from "@/composables/useContentQuery";
 import { useI18n } from "vue-i18n";
+import ReadMore from "./ReadMore.vue";
 
 type Props = {
     tags: ContentDto[];
@@ -15,54 +13,48 @@ const props = defineProps<Props>();
 
 const { t } = useI18n();
 
+// Topic pages already list their own content, so the "Read more" block is for non-topics.
 const isNotTopic = computed(() => props.selectedContent.parentTagType !== TagType.Topic);
-// `parentTaggedDocs` is optional and may itself contain null/undefined ids, and
-// `.flat()` keeps those holes. Drop them before they become `{ parentId: { $in:
-// [null] } }`, which crashes CouchDB's _find (function_clause / 500). `new Set`
-// dedupes the remainder.
+
+// Ids of posts tagged with any of the current article's topic tags. `parentTaggedDocs`
+// is optional and may contain null/undefined holes — drop them before they become
+// `{ parentId: { $in: [null] } }`, which crashes CouchDB's _find. `new Set` dedupes.
 const contentIds = computed(() => [
     ...new Set(props.tags.flatMap((tag) => tag.parentTaggedDocs ?? []).filter((id) => id != null)),
 ]);
 
-// parentId $in can't use a sorted Mango index, so the API supplement scans the older
-// tail. Cap at 50 so the limit-shortfall branch skips the API POST once local Dexie
-// already holds 50 matches (the common warm case); 50 also comfortably covers what the
-// horizontal related-content row displays.
 const contentDocs = useContentQuery(() => [{ parentId: { $in: contentIds.value } }], {
-    sort: [{ publishDate: "asc" }],
+    includeScheduled: false,
+    sort: [{ publishDate: "desc" }],
     limit: 50,
 });
 
-const filtered = computed(() =>
+// One flat, newest-first list (dedup is inherent — a single query, not one row per tag),
+// with the current article removed. The query's `limit` is the overall cap; per-breakpoint
+// display (mobile infinite scroll, desktop full scroll row) is ReadMore's job.
+const relatedContent = computed(() =>
     contentDocs.value.filter((item) => item._id !== props.selectedContent._id),
 );
 
-const contentByTopic = contentByTag(filtered, toRef(props.tags));
+// Topic pages and their related posts belong in one collection. Keep the related
+// posts first and deduplicate by document id in case the inputs ever overlap.
+const readMoreItems = computed(() =>
+    [...relatedContent.value, ...props.tags].filter(
+        (item, index, items) => items.findIndex(({ _id }) => _id === item._id) === index,
+    ),
+);
 </script>
 
 <template>
-    <IgnorePagePadding>
-        <h1
-            v-if="isNotTopic && contentByTopic.tagged.value.length"
-            class="px-4 pb-3 text-xl text-zinc-800 dark:text-zinc-200"
-        >
-            {{ t("content.related_title") }}
-        </h1>
-        <div class="mb-2 flex max-w-full flex-wrap">
-            <div
-                class="max-w-full"
-                ref="scrollElement"
-            >
-                <HorizontalContentTileCollection
-                    v-for="topic in contentByTopic.tagged.value"
-                    :key="topic.tag._id"
-                    :contentDocs="topic.content"
-                    :title="topic.tag.title"
-                    :summary="topic.tag.summary"
-                    :useVerticalTileLayout="topic.tag.parentUseVerticalTileLayout"
-                    :showPublishDate="false"
-                />
-            </div>
-        </div>
-    </IgnorePagePadding>
+    <section
+        v-if="isNotTopic && readMoreItems.length"
+        class="w-full pb-2"
+    >
+        <!-- Horizontal padding mirrors the list/grid inset in ReadMore so the heading
+             lines up with the first card at every breakpoint. -->
+        <h2 class="px-4 pb-3 text-xl text-zinc-800 dark:text-zinc-200 sm:px-8">
+            {{ t("content.read_more") }}
+        </h2>
+        <ReadMore :items="readMoreItems" />
+    </section>
 </template>
