@@ -178,7 +178,7 @@ onErrorCaptured((err) => {
             @close="handleModalClose"
         />
 
-        <AffinityDebugOverlay v-if="isDevMode" />
+        <AffinityDebugOverlay />
     </div>
     <!-- Modals depend on i18n, which isn't installed until splash finishes — keep them out of the tree during the loading phase. -->
     <template v-if="!isAppLoading">
