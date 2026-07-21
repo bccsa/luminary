@@ -1,4 +1,5 @@
 import { Injectable, Inject, HttpException, HttpStatus } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { DbQueryResult, DbService } from "../db/db.service";
 import { AclPermission, DocType, PublishStatus, Uuid } from "../enums";
 import { PermissionSystem } from "../permissions/permissions.service";
@@ -20,6 +21,7 @@ export class QueryService {
         @Inject(WINSTON_MODULE_PROVIDER)
         private readonly logger: Logger,
         private db: DbService,
+        private readonly configService: ConfigService,
     ) {
         // Get list of languages from the database for content doc filtering by user accessible language.
         // This list is kept updated in memory to reduce database load
@@ -309,19 +311,29 @@ export class QueryService {
         const parentIds = [...new Set(rawIds as string[])];
         if (parentIds.length === 0) return { docs: [], blockStart: 0, blockEnd: 0 };
 
-        // Unbounded fan-out; add a concurrency cap if a parent set ever gets large.
-        const results = await Promise.all(
-            parentIds.map((id) =>
-                this.db.executeFindQuery({
-                    ...query,
-                    selector: {
-                        $and: (query.selector.$and || []).map((condition) =>
-                            condition.parentId === parentIdCriteria ? { parentId: id } : condition,
-                        ),
-                    },
-                    use_index: "content-parentId-publishDate-index",
-                }),
-            ),
+        // Reject an oversized parentId fan-out. The client's own fan-out cap is
+        // client-side only, so this is the authoritative backstop.
+        const maxFanoutParents = this.configService.get<number>("query.maxFanoutParents") ?? 200;
+        if (parentIds.length > maxFanoutParents) {
+            throw new HttpException(
+                `'parentId.$in' exceeds the maximum fan-out size (${maxFanoutParents})`,
+                HttpStatus.BAD_REQUEST,
+            );
+        }
+
+        // Cap concurrent CouchDB requests for the fan-out, so one request can't open
+        // one connection per parent at once.
+        const fanoutConcurrency = this.configService.get<number>("query.fanoutConcurrency") ?? 20;
+        const results = await mapWithConcurrency(parentIds, fanoutConcurrency, (id) =>
+            this.db.executeFindQuery({
+                ...query,
+                selector: {
+                    $and: (query.selector.$and || []).map((condition) =>
+                        condition.parentId === parentIdCriteria ? { parentId: id } : condition,
+                    ),
+                },
+                use_index: "content-parentId-publishDate-index",
+            }),
         );
 
         const seen = new Set<string>();
@@ -353,6 +365,30 @@ export class QueryService {
         setBlockRange(result);
         return result;
     }
+}
+
+/**
+ * Run `fn` over `items` with at most `concurrency` calls in flight at once, preserving
+ * result order. Used to bound CouchDB load during a parentId fan-out.
+ */
+async function mapWithConcurrency<T, R>(
+    items: T[],
+    concurrency: number,
+    fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+    const results: R[] = new Array(items.length);
+    let next = 0;
+
+    async function worker(): Promise<void> {
+        while (next < items.length) {
+            const i = next++;
+            results[i] = await fn(items[i]);
+        }
+    }
+
+    const workerCount = Math.max(1, Math.min(concurrency, items.length));
+    await Promise.all(Array.from({ length: workerCount }, worker));
+    return results;
 }
 
 function findParentIdIn(and: MongoSelectorDto[]): MongoComparisonCriteria | undefined {

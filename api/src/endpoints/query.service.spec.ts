@@ -3,6 +3,7 @@ import { Test } from "@nestjs/testing";
 import { HttpException, HttpStatus } from "@nestjs/common";
 import { QueryService } from "./query.service";
 import { DbService } from "../db/db.service";
+import { ConfigService } from "@nestjs/config";
 import { WINSTON_MODULE_PROVIDER } from "nest-winston";
 import type { Logger } from "winston";
 import { AclPermission, DocType, PublishStatus } from "../enums";
@@ -16,6 +17,7 @@ describe("QueryService", () => {
         executeFindQuery: jest.Mock;
         on: jest.Mock;
     };
+    let configService: { get: jest.Mock };
     let logger: Logger;
 
     const mockUser = {
@@ -28,6 +30,7 @@ describe("QueryService", () => {
             on: jest.fn(),
         } as any;
         logger = { info: jest.fn(), error: jest.fn() } as unknown as Logger;
+        configService = { get: jest.fn().mockReturnValue(undefined) };
 
         jest.spyOn(permissions.PermissionSystem, "accessMapToGroups").mockReturnValue({} as any);
 
@@ -36,6 +39,7 @@ describe("QueryService", () => {
                 QueryService,
                 { provide: DbService, useValue: dbService },
                 { provide: WINSTON_MODULE_PROVIDER, useValue: logger },
+                { provide: ConfigService, useValue: configService },
             ],
         }).compile();
 
@@ -890,6 +894,53 @@ describe("QueryService", () => {
             expect(dbService.executeFindQuery).not.toHaveBeenCalled();
         });
 
+        it("rejects a parentId fan-out above the configured maximum", async () => {
+            allowContent();
+            configService.get.mockImplementation((key: string) =>
+                key === "query.maxFanoutParents" ? 2 : undefined,
+            );
+
+            const query = makeQuery((s) => {
+                (s as any).type = DocType.Content;
+                (s as any).parentId = { $in: ["p1", "p2", "p3"] };
+            });
+
+            await expect(service.query(query, mockUser)).rejects.toEqual(
+                new HttpException(
+                    "'parentId.$in' exceeds the maximum fan-out size (2)",
+                    HttpStatus.BAD_REQUEST,
+                ),
+            );
+            expect(dbService.executeFindQuery).not.toHaveBeenCalled();
+        });
+
+        it("bounds concurrent CouchDB requests to the configured fan-out concurrency", async () => {
+            allowContent();
+            configService.get.mockImplementation((key: string) =>
+                key === "query.fanoutConcurrency" ? 2 : undefined,
+            );
+
+            let inFlight = 0;
+            let maxInFlight = 0;
+            dbService.executeFindQuery.mockImplementation(async () => {
+                inFlight++;
+                maxInFlight = Math.max(maxInFlight, inFlight);
+                await new Promise((resolve) => setTimeout(resolve, 5));
+                inFlight--;
+                return { docs: [] };
+            });
+
+            const query = makeQuery((s) => {
+                (s as any).type = DocType.Content;
+                (s as any).parentId = { $in: ["p1", "p2", "p3", "p4", "p5"] };
+            });
+
+            await service.query(query, mockUser);
+
+            expect(dbService.executeFindQuery).toHaveBeenCalledTimes(5);
+            expect(maxInFlight).toBe(2);
+        });
+
         it("passes a content query without parentId $in through unchanged", async () => {
             allowContent();
             const query = makeQuery((s) => {
@@ -936,6 +987,7 @@ describe("QueryService", () => {
                     QueryService,
                     { provide: DbService, useValue: dbMock },
                     { provide: WINSTON_MODULE_PROVIDER, useValue: logger },
+                    { provide: ConfigService, useValue: configService },
                 ],
             }).compile();
 
