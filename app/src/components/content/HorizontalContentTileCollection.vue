@@ -113,27 +113,21 @@ useInfiniteScroll(
 
         <div class="relative">
             <div
-                class="group absolute left-0 top-0 z-30 h-full cursor-pointer px-6"
+                class="group absolute left-0 top-0 z-30 flex h-full cursor-pointer items-center px-6"
                 @click="spinLeft()"
             >
                 <ArrowLeftCircleIcon
                     v-if="showLeftSpin"
-                    :class="[
-                        'mt-7 h-10 w-10 text-zinc-100 opacity-80 transition-opacity duration-200 group-hover:opacity-100 md:h-14 md:w-14',
-                        computedTitlePosition === 'overlay' ? 'md:mt-20' : 'md:mt-10',
-                    ]"
+                    class="h-10 w-10 text-zinc-100 opacity-80 transition-opacity duration-200 group-hover:opacity-100 md:h-14 md:w-14"
                 />
             </div>
             <div
-                class="group absolute right-0 top-0 z-30 h-full cursor-pointer px-6"
+                class="group absolute right-0 top-0 z-30 flex h-full cursor-pointer items-center px-6"
                 @click="spinRight()"
             >
                 <ArrowRightCircleIcon
                     v-if="showRightSpin"
-                    :class="[
-                        'mt-7 h-10 w-10 text-zinc-100 opacity-80 transition-opacity duration-200 group-hover:opacity-100 md:h-14 md:w-14',
-                        computedTitlePosition === 'overlay' ? 'md:mt-20' : 'md:mt-10',
-                    ]"
+                    class="h-10 w-10 text-zinc-100 opacity-80 transition-opacity duration-200 group-hover:opacity-100 md:h-14 md:w-14"
                 />
             </div>
 
