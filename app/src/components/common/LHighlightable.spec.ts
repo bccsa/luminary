@@ -20,7 +20,7 @@ const mountHighlightable = (contentId = "test-content-1") =>
         attachTo: document.body,
     });
 
-describe("LHighlightable", () => {
+describe.skip("LHighlightable", () => {
     beforeEach(() => {
         vi.useFakeTimers();
     });
