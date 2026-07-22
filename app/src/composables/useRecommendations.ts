@@ -8,6 +8,7 @@ import {
     type ContentDto,
     type Uuid,
     type FtsSearchResult,
+    tierWeightForRank,
     topTagsFrom,
 } from "luminary-shared";
 import { useContentQuery } from "@/composables/useContentQuery";
@@ -22,7 +23,8 @@ import { appSyncedDisplayLanguageIdsAsRef } from "@/globalConfig";
 import { sessionNow } from "@/util/sessionNow";
 import { filterTopicTagIds } from "@/recommendation/topicTags";
 
-const TOP_N_TAGS = 12;
+/** Top ten retrieval tags, aligned with the established tier's rank ceiling. */
+const TOP_N_TAGS = 10;
 /** Bounds the per-language search multiplier for the FTS/serendipity leg. */
 const MAX_FTS_TAGS = 4;
 /** Highlight text is a deliberate but supplementary discovery signal: its entire
@@ -60,8 +62,9 @@ const FTS_DEBOUNCE_MS = 300;
  * Reads the local affinity profile plus active local highlights, then retrieves via TWO
  * independent legs:
  *  - **Tag membership**: a Mango `parentTags` query over the SAME hybridQuery path every
- *    feed uses, scored by the doc's own tag-affinity (a calibrated 0-1 value, contributed
- *    directly rather than collapsed to a rank).
+ *    feed uses, seeded by the top ten tags and scored by the doc's own tag-affinity after
+ *    its rank-tier retrieval multiplier is applied (then contributed directly rather than
+ *    collapsed to a rank).
  *  - **BM25/FTS**: up to four top tags' titles and up to four recent saved highlight
  *    excerpts run independently through the existing local full-text search (`ftsSearch`,
  *    offline, same engine as the search page), across the full display-language priority
@@ -100,9 +103,9 @@ export function useRecommendations({
     // straight out of the impression-miss decay path) shouldn't read as "mature" just
     // because a slot is filled — richness should track how much evidence backs the
     // profile, not how many keys happen to exist in the map. The denominator is the
-    // actual tag count (already capped at TOP_N_TAGS by topTagsFrom), not a fixed 12;
+    // actual tag count (already capped at TOP_N_TAGS by topTagsFrom), not a fixed top-tag cap;
     // otherwise genuine high confidence on fewer tags is structurally capped at
-    // (tag count)/12 of its true richness, undercounting the clearest signal we produce.
+    // (tag count)/TOP_N_TAGS of its true richness, undercounting the clearest signal we produce.
     const richness = computed(() => computeRichness(decayedAffinity.value, tags.value));
 
     const content = useContentQuery(
@@ -175,10 +178,18 @@ export function useRecommendations({
     const ftsQueries = computed(() => {
         const topTagId = tags.value[0];
         const topAffinity = (topTagId && decayedAffinity.value[topTagId]) || 1;
-        const tagQueries = tags.value.slice(0, MAX_FTS_TAGS).flatMap((tagId) => {
+        const tagQueries = tags.value.slice(0, MAX_FTS_TAGS).flatMap((tagId, index) => {
+            const rank = index + 1;
             const title = tagContent.value.find((t) => t.parentId === tagId)?.title;
             return title
-                ? [{ query: title, weight: (decayedAffinity.value[tagId] ?? 0) / topAffinity }]
+                ? [
+                      {
+                          query: title,
+                          weight:
+                              ((decayedAffinity.value[tagId] ?? 0) / topAffinity) *
+                              tierWeightForRank(rank),
+                      },
+                  ]
                 : [];
         });
         const highlightWeight = savedHighlightQueries.value.length
@@ -282,8 +293,10 @@ export function useRecommendations({
         // content into overflow (and past `slice(0, limit)` entirely).
         const unseenTagCandidates = content.value.filter((c) => !seenIds.value.has(c._id));
         const unseenFtsCandidates = ftsResults.value.filter((r) => !seenIds.value.has(r.docId));
+        const tagRanks = new Map(tags.value.map((id, index) => [id, index + 1]));
         return rank(unseenTagCandidates, unseenFtsCandidates, decayedAffinity.value, {
             topicTagIds: topicTagIds.value,
+            tagRanks,
             tagWeight: TAG_LEG_WEIGHT * (0.3 + 0.7 * richness.value),
             ftsWeight: FTS_LEG_WEIGHT * (1 - 0.5 * richness.value),
             limit,
@@ -327,6 +340,8 @@ export type RankOptions = {
      *  Omitted (e.g. in unit tests without a live `db`) falls back to every parentTags
      *  entry, matching the previous unfiltered behaviour. */
     topicTagIds?: Set<Uuid>;
+    /** 1-indexed ranks for the currently selected retrieval tags. Omitted keeps raw affinity. */
+    tagRanks?: Map<Uuid, number>;
     tagWeight?: number;
     ftsWeight?: number;
     now?: number;
@@ -352,6 +367,7 @@ export function rank(
 ): ContentDto[] {
     const {
         topicTagIds,
+        tagRanks,
         tagWeight = TAG_LEG_WEIGHT,
         ftsWeight = FTS_LEG_WEIGHT,
         now = Date.now(),
@@ -386,7 +402,12 @@ export function rank(
 
     const dominantTags = new Map<Uuid, Uuid | undefined>();
     for (const doc of docs.values()) {
-        const { score: affinityScore, dominantTag } = tagAffinity(doc, affinity, topicTagIds);
+        const { score: affinityScore, dominantTag } = tagAffinity(
+            doc,
+            affinity,
+            topicTagIds,
+            tagRanks,
+        );
         dominantTags.set(doc._id, dominantTag);
         if (tagCandidateIds.has(doc._id))
             score.set(doc._id, (score.get(doc._id) ?? 0) + tagWeight * affinityScore);
@@ -428,6 +449,7 @@ function tagAffinity(
     doc: ContentDto,
     affinity: AffinityMap,
     topicTagIds?: Set<Uuid>,
+    tagRanks?: Map<Uuid, number>,
 ): { score: number; dominantTag: Uuid | undefined } {
     let count = 0;
     let total = 0;
@@ -435,7 +457,8 @@ function tagAffinity(
     let dominantTag: Uuid | undefined;
     for (const tag of doc.parentTags ?? []) {
         if (topicTagIds && !topicTagIds.has(tag)) continue;
-        const value = affinity[tag] ?? 0;
+        const rank = tagRanks?.get(tag);
+        const value = (affinity[tag] ?? 0) * (rank === undefined ? 1 : tierWeightForRank(rank));
         count++;
         total += value;
         if (value > max) {

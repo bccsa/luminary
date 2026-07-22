@@ -2,7 +2,13 @@ import { describe, it, expect, vi } from "vitest";
 import { effectScope, nextTick } from "vue";
 import waitForExpect from "wait-for-expect";
 import * as shared from "luminary-shared";
-import { DocType, PublishStatus, type ContentDto, type FtsSearchResult } from "luminary-shared";
+import {
+    DocType,
+    PublishStatus,
+    tierWeightForRank,
+    type ContentDto,
+    type FtsSearchResult,
+} from "luminary-shared";
 import { appLanguageIdsAsRef, appSyncedLanguageIdsAsRef } from "@/globalConfig";
 import { affinityProfile } from "@/recommendation/affinityStore";
 import { computeRichness, fuseTagFts, rank, useRecommendations } from "./useRecommendations";
@@ -37,7 +43,7 @@ describe("computeRichness", () => {
         expect(computeRichness({}, [])).toBe(0);
     });
 
-    it("preserves a single tag's high affinity without a fixed-12 dilution", () => {
+    it("preserves a single tag's high affinity without fixed-cap dilution", () => {
         expect(computeRichness({ "tag-a": 0.9 }, ["tag-a"])).toBe(0.9);
     });
 
@@ -52,8 +58,8 @@ describe("computeRichness", () => {
         );
     });
 
-    it("retains the historical result for exactly 12 equally scored tags", () => {
-        const tags = Array.from({ length: 12 }, (_, i) => `tag-${i}`);
+    it("retains the historical result for exactly 10 equally scored tags", () => {
+        const tags = Array.from({ length: 10 }, (_, i) => `tag-${i}`);
         const affinity = Object.fromEntries(tags.map((tag) => [tag, 0.5]));
 
         expect(computeRichness(affinity, tags)).toBe(0.5);
@@ -292,6 +298,47 @@ describe("rank", () => {
         expect(
             rank([weak, strong], [], { "strong-tag": 0.9, "weak-tag": 0.02 }).map((d) => d._id),
         ).toEqual(["strong", "weak"]);
+    });
+
+    it("applies rank-tier multipliers to tag-leg affinity", () => {
+        const rawAffinity = 0.8;
+        const rankOneDoc = makeContent("rank-one", ["tag-a"]);
+        const rankEightDoc = makeContent("rank-eight", ["tag-a"]);
+        const ftsBridge = makeContent("fts-bridge");
+        const options = { tagWeight: 1, ftsWeight: 0.5, now: 0 };
+
+        const rankOne = rank(
+            [rankOneDoc],
+            [makeFtsResult(ftsBridge, 1)],
+            { "tag-a": rawAffinity },
+            { ...options, tagRanks: new Map([["tag-a", 1]]) },
+        );
+        const rankEight = rank(
+            [rankEightDoc],
+            [makeFtsResult(ftsBridge, 1)],
+            { "tag-a": rawAffinity },
+            { ...options, tagRanks: new Map([["tag-a", 8]]) },
+        );
+        const rankOneScore = rawAffinity * tierWeightForRank(1);
+        const rankEightScore = rawAffinity * tierWeightForRank(8);
+
+        expect(rankEightScore).toBeCloseTo(rankOneScore * 0.3);
+        expect(rankOne[0]._id).toBe("rank-one");
+        expect(rankEight[0]._id).toBe("fts-bridge");
+    });
+
+    it("keeps current tag-leg scoring when tagRanks is omitted", () => {
+        const tagMatch = makeContent("tag-match", ["tag-a"]);
+        const ftsBridge = makeContent("fts-bridge");
+
+        const result = rank(
+            [tagMatch],
+            [makeFtsResult(ftsBridge, 1)],
+            { "tag-a": 0.8 },
+            { tagWeight: 1, ftsWeight: 0.5, now: 0 },
+        );
+
+        expect(result.map((doc) => doc._id)).toEqual(["tag-match", "fts-bridge"]);
     });
 
     it("uses normalized FTS rank, so the top FTS result is not overwhelmed by recency", () => {

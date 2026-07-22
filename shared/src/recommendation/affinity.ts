@@ -21,9 +21,53 @@ export type AffinityProfile = {
     lastDecayUtc?: number;
 };
 
-/** Days for a score to halve under exponential decay. */
+/** Days for a score to halve under exponential decay outside the top-ten rank tiers. */
 const HALF_LIFE_DAYS = 45;
 const DAY_MS = 24 * 60 * 60 * 1000;
+/**
+ * Resolve a 1-indexed profile rank into one shared tier boundary. The tiers and their
+ * starting values were simulation-validated, but remain open to future tuning.
+ */
+function tierForRank(rank: number): "core" | "strong" | "established" | "unprotected" {
+    if (rank <= 3) return "core";
+    if (rank <= 5) return "strong";
+    if (rank <= 10) return "established";
+    return "unprotected";
+}
+
+/**
+ * Simulation-validated starting half-lives, in days, by the profile rank tier. These
+ * intentionally remain separate from retrieval weights because their units and tuning
+ * goals differ, while `tierForRank` keeps their boundaries in sync.
+ */
+const TIER_HALF_LIFE_DAYS: Record<ReturnType<typeof tierForRank>, number> = {
+    core: 120,
+    strong: 60,
+    established: 25,
+    unprotected: HALF_LIFE_DAYS,
+};
+
+/**
+ * Simulation-validated starting retrieval multipliers by the profile rank tier. These
+ * are independent from decay half-lives and remain open to future tuning; the
+ * `unprotected` value is a fallback because retrieval normally selects only the top ten.
+ */
+const TIER_WEIGHT: Record<ReturnType<typeof tierForRank>, number> = {
+    core: 1.0,
+    strong: 0.6,
+    established: 0.3,
+    unprotected: 0.3,
+};
+
+/**
+ * Tier-based retrieval weight multiplier for a tag at this rank (1-indexed, rank 1 =
+ * highest-scoring tag in the profile). Shares rank-tier boundaries with decay's half-life
+ * table so the two cannot drift apart on where a tier starts or ends, despite using
+ * independent scales.
+ */
+export function tierWeightForRank(rank: number): number {
+    return TIER_WEIGHT[tierForRank(rank)];
+}
 /**
  * Fraction of the remaining confidence added by a low-confidence interaction.
  * This deliberately makes an ordinary open a weak signal: a profile should be
@@ -101,18 +145,22 @@ export const EventWeight = {
 
 const empty = (): AffinityProfile => ({ affinity: {}, lastDecayUtc: undefined });
 
-/** Apply exponential time decay to every score based on elapsed time since `lastDecayUtc`. */
+/** Apply rank-tiered exponential time decay based on elapsed time since `lastDecayUtc`. */
 export function decay(profile: AffinityProfile | undefined, now: number): AffinityProfile {
     const p = profile ?? empty();
     const last = p.lastDecayUtc ?? now;
     const elapsedDays = Math.max(0, now - last) / DAY_MS;
     if (elapsedDays === 0) return { affinity: { ...p.affinity }, lastDecayUtc: now };
-    const factor = Math.exp((-Math.LN2 / HALF_LIFE_DAYS) * elapsedDays);
+    // Rank by pre-decay score so each tag's half-life reflects its standing going into
+    // this pass, rather than a rank that is still changing as decay is applied.
+    const ranked = Object.entries(p.affinity).sort((a, b) => b[1] - a[1]);
     const next: AffinityMap = {};
-    for (const [tag, score] of Object.entries(p.affinity)) {
+    ranked.forEach(([tag, score], index) => {
+        const halfLife = TIER_HALF_LIFE_DAYS[tierForRank(index + 1)];
+        const factor = Math.exp((-Math.LN2 / halfLife) * elapsedDays);
         const decayed = score * factor;
         if (decayed >= MIN_SCORE) next[tag] = decayed;
-    }
+    });
     return { affinity: next, lastDecayUtc: now };
 }
 

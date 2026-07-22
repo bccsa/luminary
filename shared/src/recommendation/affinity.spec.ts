@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { applyEvent, decay, EventWeight, readingDepthWeight, topTags } from "./affinity";
+import {
+    applyEvent,
+    decay,
+    EventWeight,
+    readingDepthWeight,
+    tierWeightForRank,
+    topTags,
+} from "./affinity";
 import type { AffinityMap } from "../types";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -89,15 +96,27 @@ describe("affinity scoring", () => {
         expect(result.affinity["learned-0"]).toBe(0.5);
     });
 
-    it("halves a score after one gradual half-life (45 days)", () => {
+    it("halves a Core rank-1 score after one gradual half-life (120 days)", () => {
         const p = applyEvent(undefined, ["tag-a"], T0); // 0.04
-        expect(decay(p, T0 + 45 * DAY).affinity["tag-a"]).toBeCloseTo(0.02, 5);
+        expect(decay(p, T0 + 120 * DAY).affinity["tag-a"]).toBeCloseTo(0.02, 5);
     });
 
     it("prunes negligible scores", () => {
         const p = applyEvent(undefined, ["tag-a"], T0); // 0.04
-        // Five half-lives → 0.04 * 2^-5 = 0.00125, below the 0.01 floor.
-        expect(decay(p, T0 + 225 * DAY).affinity["tag-a"]).toBeUndefined();
+        // Five Core half-lives → 0.04 * 2^-5 = 0.00125, below the 0.01 floor.
+        expect(decay(p, T0 + 600 * DAY).affinity["tag-a"]).toBeUndefined();
+    });
+
+    it("decays a rank-1 tag more slowly than a rank-8 tag over the same interval", () => {
+        const affinity: AffinityMap = Object.fromEntries(
+            Array.from({ length: 10 }, (_, index) => [`tag-${index + 1}`, 1 - index * 0.05]),
+        );
+        const decayed = decay({ affinity, lastDecayUtc: T0 }, T0 + 30 * DAY).affinity;
+        const rankOneRetained = decayed["tag-1"] / affinity["tag-1"];
+        const rankEightRetained = decayed["tag-8"] / affinity["tag-8"];
+
+        expect(rankOneRetained).toBeGreaterThan(rankEightRetained);
+        expect(rankOneRetained).toBeGreaterThan(rankEightRetained * 1.5);
     });
 
     it("orders topTags by decayed score, descending", () => {
@@ -112,10 +131,10 @@ describe("affinity scoring", () => {
     it("decays older interest below newer interest", () => {
         let p = applyEvent(undefined, ["old"], T0);
         p = applyEvent(p, ["old"], T0); // old = 0.0784 at T0
-        // 90 days later (2 half-lives) old ≈ 0.0196; a fresh hit on "new" = 0.04.
-        p = applyEvent(p, ["new"], T0 + 90 * DAY);
+        // 120 days later (one Core half-life) old = 0.0392; a fresh hit on "new" = 0.04.
+        p = applyEvent(p, ["new"], T0 + 120 * DAY);
 
-        expect(topTags(p, 2, T0 + 90 * DAY)).toEqual(["new", "old"]);
+        expect(topTags(p, 2, T0 + 120 * DAY)).toEqual(["new", "old"]);
     });
 
     it("does not mutate the input profile", () => {
@@ -123,6 +142,17 @@ describe("affinity scoring", () => {
         const before = { ...p.affinity };
         applyEvent(p, ["tag-b"], T0);
         expect(p.affinity).toEqual(before);
+    });
+});
+
+describe("tierWeightForRank", () => {
+    it("returns the documented retrieval weights at every tier boundary", () => {
+        expect(tierWeightForRank(3)).toBe(1.0);
+        expect(tierWeightForRank(4)).toBe(0.6);
+        expect(tierWeightForRank(5)).toBe(0.6);
+        expect(tierWeightForRank(6)).toBe(0.3);
+        expect(tierWeightForRank(10)).toBe(0.3);
+        expect(tierWeightForRank(11)).toBe(0.3);
     });
 });
 
