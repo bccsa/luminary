@@ -81,6 +81,9 @@ const mediaProgress = computed(() => {
 const readingProgress = computed(() =>
     props.showProgress ? getReadingProgress(props.content._id) : 0,
 );
+
+/** One bar per tile: whichever progress (playback or reading) is further along. */
+const displayProgress = computed(() => Math.max(mediaProgress.value, readingProgress.value));
 </script>
 
 <template>
@@ -218,31 +221,18 @@ const readingProgress = computed(() =>
                             </p>
                         </div>
 
+                        <!-- Progress (playback or reading): same bar design as ContinueReadingPrompt, on the image's bottom edge. -->
                         <div
-                            v-if="showProgress && mediaProgress > 0"
-                            class="absolute bottom-2 left-0 right-0 z-20 mx-1 rounded-md bg-black/50 px-1 py-1"
-                            :class="titlePosition === 'overlay' ? 'bottom-[4.5rem]' : ''"
-                        >
-                            <div class="relative h-1.5 w-full overflow-hidden rounded bg-zinc-600">
-                                <div
-                                    class="absolute left-0 top-0 h-full bg-white"
-                                    :style="{ width: `${mediaProgress}%` }"
-                                ></div>
-                            </div>
-                        </div>
-
-                        <!-- Reading progress: same bar design as ContinueReadingPrompt, on the image's bottom edge. -->
-                        <div
-                            v-if="showProgress && readingProgress > 0"
+                            v-if="showProgress && displayProgress > 0"
                             class="absolute inset-x-0 bottom-0 z-20 h-1 overflow-hidden rounded-b-lg bg-zinc-200 dark:bg-slate-600"
                             role="progressbar"
-                            :aria-valuenow="readingProgress"
+                            :aria-valuenow="displayProgress"
                             aria-valuemin="0"
                             aria-valuemax="100"
                         >
                             <div
                                 class="h-full bg-yellow-500"
-                                :style="{ width: `${readingProgress}%` }"
+                                :style="{ width: `${displayProgress}%` }"
                             ></div>
                         </div>
                     </template>
