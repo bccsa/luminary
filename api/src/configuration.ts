@@ -52,6 +52,24 @@ export type QueryConfig = {
      * QUERY_EXPENSIVE_EXAMINED_RATIO (default 10).
      */
     expensiveExaminedRatio: number;
+    /**
+     * Maximum distinct `parentId` values a `parentId.$in` fan-out query may request.
+     * Guards against a caller forcing one CouchDB request per id with no upper bound.
+     * Environment variable: QUERY_MAX_FANOUT_PARENTS (default 200).
+     */
+    maxFanoutParents: number;
+    /**
+     * Maximum concurrent CouchDB requests for one parentId fan-out. Bounds load even
+     * when the fan-out is large but under the cap above.
+     * Environment variable: QUERY_FANOUT_CONCURRENCY (default 20).
+     */
+    fanoutConcurrency: number;
+    /**
+     * parentId fan-out size above which a rate-limiter strike is recorded immediately,
+     * rather than waiting on post-hoc query-cost stats. Environment variable:
+     * QUERY_FANOUT_STRIKE_THRESHOLD (default 25).
+     */
+    fanoutStrikeThreshold: number;
     /** Per-identity expensive-query rate limiter (default off). */
     rateLimit: QueryRateLimitConfig;
 };
@@ -121,6 +139,9 @@ export default () =>
             maxLanguages: parseInt(process.env.QUERY_MAX_LANGUAGES, 10) || 4,
             expensiveDocsExamined: parseInt(process.env.QUERY_EXPENSIVE_DOCS_EXAMINED, 10) || 1000,
             expensiveExaminedRatio: parseInt(process.env.QUERY_EXPENSIVE_EXAMINED_RATIO, 10) || 10,
+            maxFanoutParents: parseInt(process.env.QUERY_MAX_FANOUT_PARENTS, 10) || 200,
+            fanoutConcurrency: parseInt(process.env.QUERY_FANOUT_CONCURRENCY, 10) || 20,
+            fanoutStrikeThreshold: parseInt(process.env.QUERY_FANOUT_STRIKE_THRESHOLD, 10) || 25,
             rateLimit: {
                 enabled: process.env.QUERY_RATE_LIMIT_ENABLED === "true",
                 freeStrikes: parseInt(process.env.QUERY_RATE_LIMIT_FREE_STRIKES, 10) || 3,

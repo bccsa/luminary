@@ -29,6 +29,23 @@ export function readType(query: MangoQuery): DocType | undefined {
     return undefined;
 }
 
+/** Read an explicit top-level Content `parentType` equality, if present. */
+function readParentType(query: MangoQuery): DocType | undefined {
+    if (!query?.selector || typeof query.selector !== "object") return undefined;
+    const conditions = expandMangoSelector(query.selector).$and ?? [];
+    for (const cond of conditions) {
+        if (cond.$or || cond.$nor || cond.$not || cond.$and) continue;
+        if (!("parentType" in cond)) continue;
+        const criteria = (cond as Record<string, unknown>).parentType;
+        if (typeof criteria === "string") return criteria as DocType;
+        if (criteria && typeof criteria === "object" && !Array.isArray(criteria)) {
+            const eq = (criteria as Record<string, unknown>).$eq;
+            if (typeof eq === "string") return eq as DocType;
+        }
+    }
+    return undefined;
+}
+
 /**
  * True iff at least one syncList entry currently tracks the given doc type
  * (regardless of subType / memberOf / language). Used by the non-content branch:
@@ -137,7 +154,8 @@ export function withPublishDate(selector: MangoSelector, cutoff: number): MangoS
  *    for the older tail).
  *
  * Cutoff comes from `getContentPublishDateCutoff()` (`SharedConfig`), so this
- * function reflects the same global value sync uses to floor content sync depth.
+ * function reflects the same global value sync uses to floor Post-content sync depth.
+ * Tag content is fully synced and therefore never needs an older-tail supplement.
  * When there is no cutoff (`OPEN_MIN` — full-corpus sync) the API has nothing to
  * supply, so this returns `undefined` and the read is Dexie-only.
  */
@@ -145,6 +163,9 @@ export function decideContentApiQuery<T extends BaseDocumentDto>(
     query: MangoQuery,
     localDocs: readonly T[],
 ): MangoQuery | undefined {
+    // Tag content is synced across the open publishDate range, so Dexie is authoritative.
+    if (readParentType(query) === DocType.Tag) return undefined;
+
     const cutoff = getContentPublishDateCutoff();
 
     // No cutoff ⇒ sync has all synced-language content, so the API has nothing to supply — skip.
@@ -189,8 +210,9 @@ export function decideContentApiQuery<T extends BaseDocumentDto>(
 
 /**
  * Cap on parents to fan out. Beyond this, a burst of N concurrent POSTs (e.g. a
- * large bookmark list) costs more than one scan query, so we fall back to a single
- * query rather than flooding the API.
+ * large bookmark list) costs more than one request, so we fall back to a single
+ * request. Above the client fan-out cap the API resolves that request by fanning out
+ * to per-parent index seeks server-side; the cap still prevents the client from creating a burst.
  */
 export const FANOUT_MAX_PARENTS = 25;
 
@@ -246,7 +268,8 @@ function fanOut(
  * {@link fanOut}). The per-parent over-fetch is corrected when `HybridQuery` re-applies
  * sort+limit to the merged result via {@link applySortLimit}. Returns `[api]` unchanged
  * otherwise — non-Content, no `$in`, an empty `$in`, or more than
- * {@link FANOUT_MAX_PARENTS} (the full-scan fallback avoids a request storm).
+ * {@link FANOUT_MAX_PARENTS}; above the client fan-out cap the API resolves the single
+ * request by fanning out to per-parent index seeks server-side.
  *
  * NOTE: there is intentionally no `parentTags` fan-out. A `parentTags $elemMatch:$in`
  * targets a multikey (array) index, and CouchDB cannot serve a `publishDate` sort from a

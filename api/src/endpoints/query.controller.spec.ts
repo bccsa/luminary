@@ -37,6 +37,10 @@ describe("QueryController", () => {
                     return 1000;
                 case "query.expensiveExaminedRatio":
                     return 10;
+                case "query.maxFanoutParents":
+                    return 200;
+                case "query.fanoutStrikeThreshold":
+                    return 25;
                 default:
                     return undefined;
             }
@@ -99,6 +103,89 @@ describe("QueryController", () => {
         expect(queryService.query).not.toHaveBeenCalled();
     });
 
+    it("rejects an updatedTimeUtc range with both bounds at 0 even in bypass mode", async () => {
+        configService.get.mockImplementation(configFor(true));
+
+        const body = {
+            identifier: "sync",
+            selector: {
+                type: "post",
+                updatedTimeUtc: { $lte: 0, $gte: 0 },
+            },
+        };
+
+        await expect(
+            controller.processPostReq(body, mockRequest(), mockReply()),
+        ).rejects.toThrow("updatedTimeUtc $lte and $gte must not both be 0");
+        expect(queryService.query).not.toHaveBeenCalled();
+    });
+
+    it("allows a sync history range whose lower bound alone is 0", async () => {
+        configService.get.mockImplementation(configFor(true));
+        queryService.query.mockResolvedValue({ docs: [] });
+
+        const body = {
+            identifier: "sync",
+            selector: {
+                type: "post",
+                updatedTimeUtc: { $lte: Number.MAX_SAFE_INTEGER, $gte: 0 },
+            },
+        };
+
+        await controller.processPostReq(body, mockRequest(), mockReply());
+
+        expect(queryService.query).toHaveBeenCalledTimes(1);
+    });
+
+    it("rejects a parentId fan-out above the configured max", async () => {
+        configService.get.mockImplementation(configFor(true));
+
+        const body = {
+            selector: {
+                type: "content",
+                parentId: { $in: Array.from({ length: 201 }, (_, i) => `p${i}`) },
+            },
+        };
+
+        await expect(
+            controller.processPostReq(body, mockRequest(), mockReply()),
+        ).rejects.toThrow("'parentId.$in' exceeds the maximum fan-out size (200)");
+        expect(queryService.query).not.toHaveBeenCalled();
+    });
+
+    it("records an immediate strike for an oversized-but-under-cap parentId fan-out", async () => {
+        configService.get.mockImplementation(configFor(true));
+        queryService.query.mockResolvedValue({ docs: [] });
+
+        const body = {
+            selector: {
+                type: "content",
+                parentId: { $in: Array.from({ length: 26 }, (_, i) => `p${i}`) },
+            },
+        };
+
+        await controller.processPostReq(body, mockRequest(), mockReply());
+
+        expect(rateLimiter.recordStrike).toHaveBeenCalledWith("mock-user");
+        expect(queryService.query).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not strike for a parentId fan-out at or below the strike threshold", async () => {
+        configService.get.mockImplementation(configFor(true));
+        queryService.query.mockResolvedValue({ docs: [] });
+
+        const body = {
+            selector: {
+                type: "content",
+                parentId: { $in: Array.from({ length: 25 }, (_, i) => `p${i}`) },
+            },
+        };
+
+        await controller.processPostReq(body, mockRequest(), mockReply());
+
+        expect(rateLimiter.recordStrike).not.toHaveBeenCalled();
+    });
+
     it("removes identifier from the body before passing to the service", async () => {
         configService.get.mockImplementation(configFor(true));
         queryService.query.mockResolvedValue({ docs: [] });
@@ -143,6 +230,63 @@ describe("QueryController", () => {
         expect(logger.warn).toHaveBeenCalledWith("Expensive /query", expect.any(Object));
         expect(rateLimiter.recordStrike).toHaveBeenCalledWith("mock-user");
         expect(result.execution_stats).toBeUndefined();
+    });
+
+    it("logs the pre-injection sync dimensions for an expensive sync query", async () => {
+        configService.get.mockImplementation(configFor(true));
+        queryService.query.mockResolvedValue({
+            docs: [],
+            execution_stats: { total_docs_examined: 2419, execution_time_ms: 600 },
+        });
+
+        const body = {
+            identifier: "sync",
+            selector: {
+                type: "content",
+                updatedTimeUtc: { $lte: Number.MAX_SAFE_INTEGER, $gte: 0 },
+                parentType: "post",
+                memberOf: { $elemMatch: { $in: ["group-a", "group-b"] } },
+                $or: [
+                    { language: { $in: ["lang-eng", "lang-fra"] } },
+                    {
+                        $and: [
+                            {
+                                $not: {
+                                    availableTranslations: { $elemMatch: { $eq: "lang-eng" } },
+                                },
+                            },
+                        ],
+                    },
+                ],
+                publishDate: { $gte: 1234 },
+            },
+            limit: 100,
+            sort: [{ updatedTimeUtc: "desc" }],
+            use_index: "sync-content-index",
+            cms: false,
+            includeExpired: false,
+        };
+
+        await controller.processPostReq(body, mockRequest(), mockReply());
+
+        expect(logger.warn).toHaveBeenCalledWith(
+            "Expensive /query",
+            expect.objectContaining({
+                sync_context: {
+                    parentType: "post",
+                    updatedTimeUtc: { $lte: Number.MAX_SAFE_INTEGER, $gte: 0 },
+                    publishDate: { $gte: 1234 },
+                    requestedMemberOf: ["group-a", "group-b"],
+                    requestedMemberOfCount: 2,
+                    requestedLanguages: ["lang-eng", "lang-fra"],
+                    requestedLanguageCount: 2,
+                    cms: false,
+                    includeExpired: false,
+                    limit: 100,
+                    use_index: "sync-content-index",
+                },
+            }),
+        );
     });
 
     it("keys an anonymous identity by ip when there is no userId", async () => {

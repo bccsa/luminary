@@ -22,6 +22,7 @@ import { FastifyReply, FastifyRequest } from "fastify";
 import { classifyQueryCost } from "./queryStats";
 import { selectorFingerprint } from "../util/selectorFingerprint";
 import { QueryRateLimiterService } from "../ratelimit/queryRateLimiter.service";
+import { expandMangoSelector } from "../util/expandMangoQuery";
 
 /** Endpoint supporting MongoDB like queries (Mango Query) */
 @Controller("query")
@@ -58,6 +59,33 @@ export class QueryController {
             );
         }
 
+        // A sync cursor collapsed to the epoch cannot match a valid updatedTimeUtc value, but
+        // CouchDB may still walk the selected index before returning no documents. Keep this
+        // invariant outside the optional validation bypass so the impossible query never reaches
+        // QueryService/CouchDB.
+        const updatedTimeUtc = body?.selector?.updatedTimeUtc;
+        if (updatedTimeUtc?.$lte === 0 && updatedTimeUtc?.$gte === 0) {
+            throw new BadRequestException(
+                "Invalid query: updatedTimeUtc $lte and $gte must not both be 0",
+            );
+        }
+
+        // Reject an oversized parentId fan-out, and strike large-but-allowed ones early —
+        // the fan-out size is known before the query runs, so abuse doesn't need to wait
+        // for post-hoc execution_stats.
+        const maxFanoutParents = this.configService.get<number>("query.maxFanoutParents") ?? 200;
+        const fanoutStrikeThreshold =
+            this.configService.get<number>("query.fanoutStrikeThreshold") ?? 25;
+        const fanoutSize = countParentIdFanout(body?.selector);
+        if (fanoutSize > maxFanoutParents) {
+            throw new BadRequestException(
+                `Invalid query: 'parentId.$in' exceeds the maximum fan-out size (${maxFanoutParents})`,
+            );
+        }
+        if (fanoutSize > fanoutStrikeThreshold) {
+            this.rateLimiter.recordStrike(identityKey);
+        }
+
         const bypassValidation =
             this.configService.get<boolean>("validation.bypassTemplateValidation") || false;
 
@@ -73,6 +101,10 @@ export class QueryController {
 
         // `identifier` is an observability label only; strip it before the query runs.
         const identifier = typeof body?.identifier === "string" ? body.identifier : "unknown";
+        // Capture the client-created sync dimensions before QueryService expands/mutates the
+        // selector and injects permission/publication filters. Temporary diagnostic context for
+        // identifying which sync column is producing an expensive CouchDB scan.
+        const syncContext = identifier === "sync" ? buildSyncContext(body) : undefined;
         delete body.identifier;
 
         const result = await this.queryService.query(body as MongoQueryDto, request.user);
@@ -99,6 +131,7 @@ export class QueryController {
                 results_returned: result?.docs?.length ?? 0,
                 execution_time_ms: result?.execution_stats?.execution_time_ms,
                 use_index: body?.use_index,
+                ...(syncContext ? { sync_context: syncContext } : {}),
                 // Computed lazily on the post-injection query — reflects what CouchDB
                 // actually executed, which is what you want when deciding on an index.
                 fingerprint: selectorFingerprint(body),
@@ -112,4 +145,73 @@ export class QueryController {
 
         return result;
     }
+}
+
+/**
+ * Size of the selector's `parentId.$in` array, or 0 if absent. Selector is expanded
+ * first since `parentId` may sit at the top level or nested under `$and`.
+ */
+function countParentIdFanout(selector: any): number {
+    if (!selector || typeof selector !== "object") return 0;
+    const conditions = expandMangoSelector(selector).$and ?? [];
+    for (const condition of conditions) {
+        const value = (condition as any)?.parentId;
+        if (value && typeof value === "object" && Array.isArray(value.$in)) {
+            return value.$in.length;
+        }
+    }
+    return 0;
+}
+
+function buildSyncContext(body: any) {
+    const selector = body?.selector ?? {};
+    const requestedMemberOf = Array.isArray(selector?.memberOf?.$elemMatch?.$in)
+        ? selector.memberOf.$elemMatch.$in
+        : [];
+    const requestedLanguages = collectIncludedLanguages(selector);
+
+    return {
+        parentType: selector.parentType,
+        updatedTimeUtc: selector.updatedTimeUtc,
+        publishDate: selector.publishDate,
+        requestedMemberOf,
+        requestedMemberOfCount: requestedMemberOf.length,
+        requestedLanguages,
+        requestedLanguageCount: requestedLanguages.length,
+        cms: body?.cms === true,
+        includeExpired: body?.includeExpired === true,
+        limit: body?.limit,
+        use_index: body?.use_index,
+    };
+}
+
+function collectIncludedLanguages(selector: any): string[] {
+    const languages = new Set<string>();
+
+    function visit(node: any): void {
+        if (!node || typeof node !== "object") return;
+        if (Array.isArray(node)) {
+            node.forEach(visit);
+            return;
+        }
+
+        for (const [key, value] of Object.entries(node)) {
+            if (key === "language") {
+                if (typeof value === "string") languages.add(value);
+                else if (value && typeof value === "object") {
+                    const criterion = value as { $eq?: unknown; $in?: unknown };
+                    if (typeof criterion.$eq === "string") languages.add(criterion.$eq);
+                    if (Array.isArray(criterion.$in)) {
+                        criterion.$in.forEach((language) => {
+                            if (typeof language === "string") languages.add(language);
+                        });
+                    }
+                }
+            }
+            visit(value);
+        }
+    }
+
+    visit(selector);
+    return [...languages];
 }

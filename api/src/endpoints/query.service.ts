@@ -1,4 +1,5 @@
 import { Injectable, Inject, HttpException, HttpStatus } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { DbQueryResult, DbService } from "../db/db.service";
 import { AclPermission, DocType, PublishStatus, Uuid } from "../enums";
 import { PermissionSystem } from "../permissions/permissions.service";
@@ -6,10 +7,12 @@ import { WINSTON_MODULE_PROVIDER } from "nest-winston";
 import { Logger } from "winston";
 import { JwtUserDetails } from "../auth/authIdentity.service";
 import { MongoQueryDto } from "../dto/MongoQueryDto";
-import { MongoComparisonCriteria, MongoSelectorDto } from "../dto/MongoSelectorDto";
+import { MongoSelectorDto } from "../dto/MongoSelectorDto";
 import { LanguageDto } from "../dto/LanguageDto";
 import { expandMangoSelector } from "../util/expandMangoQuery";
 import { isExpiredContent, stripExpiredContent } from "../util/stripExpiredContent";
+import { applySortAndLimit, findParentIdIn, mapWithConcurrency, setBlockRange } from "../util/queryFanout";
+import { extractFieldFromAnd, extractMemberOf, removeMemberOf } from "../util/querySelector";
 
 @Injectable()
 export class QueryService {
@@ -20,6 +23,7 @@ export class QueryService {
         @Inject(WINSTON_MODULE_PROVIDER)
         private readonly logger: Logger,
         private db: DbService,
+        private readonly configService: ConfigService,
     ) {
         // Get list of languages from the database for content doc filtering by user accessible language.
         // This list is kept updated in memory to reduce database load
@@ -271,7 +275,7 @@ export class QueryService {
         // only knowable post-hoc). Set here, not in executeFindQuery, so the auth /
         // languages / search callers of that method are unaffected.
         (query as any).execution_stats = true;
-        const result = await this.db.executeFindQuery(query);
+        const result = await this.executeQuery(query, type as DocType);
 
         // Data minimization (covers both sync and HybridQuery — both POST /query): a non-CMS
         // response can only contain an expired Content doc via the app's includeExpired update-sync,
@@ -285,86 +289,82 @@ export class QueryService {
         }
         return result;
     }
-}
 
-/**
- * Extract memberOf groups from the top-level $and array.
- * (After expansion, memberOf will always be a condition in the $and array.
- */
-function extractMemberOf(selector: MongoSelectorDto): Uuid[] {
-    for (const condition of selector.$and || []) {
-        const memberOf = (condition as MongoSelectorDto).memberOf;
-        if (!memberOf) continue;
+    /**
+     * A publishDate-led index must scan the Content partition before applying parentId,
+     * and no index can serve `parentId: { $in: [...] }` with a global publishDate sort.
+     * Fan out to per-parent index seeks and merge their results instead.
+     */
+    private async executeQuery(query: MongoQueryDto, type: DocType): Promise<DbQueryResult> {
+        if (type !== DocType.Content) return this.db.executeFindQuery(query);
 
-        if (typeof memberOf === "string") {
-            return [memberOf];
+        const parentIdCriteria = findParentIdIn(query.selector.$and || []);
+        if (!parentIdCriteria) return this.db.executeFindQuery(query);
+
+        const rawIds = parentIdCriteria.$in;
+        if (!Array.isArray(rawIds)) return this.db.executeFindQuery(query);
+        if (rawIds.some((id) => typeof id !== "string")) {
+            throw new HttpException(
+                "'parentId.$in' values must be strings",
+                HttpStatus.BAD_REQUEST,
+            );
         }
 
-        if (Array.isArray((memberOf as MongoComparisonCriteria).$in)) {
-            return (memberOf as MongoComparisonCriteria).$in as string[];
+        const parentIds = [...new Set(rawIds as string[])];
+        if (parentIds.length === 0) return { docs: [], blockStart: 0, blockEnd: 0 };
+
+        // Reject an oversized parentId fan-out. The client's own fan-out cap is
+        // client-side only, so this is the authoritative backstop.
+        const maxFanoutParents = this.configService.get<number>("query.maxFanoutParents") ?? 200;
+        if (parentIds.length > maxFanoutParents) {
+            throw new HttpException(
+                `'parentId.$in' exceeds the maximum fan-out size (${maxFanoutParents})`,
+                HttpStatus.BAD_REQUEST,
+            );
         }
 
-        if (Array.isArray((memberOf as MongoComparisonCriteria).$elemMatch?.$in)) {
-            return (memberOf as MongoComparisonCriteria).$elemMatch.$in as string[];
-        }
+        // Cap concurrent CouchDB requests for the fan-out, so one request can't open
+        // one connection per parent at once.
+        const fanoutConcurrency = this.configService.get<number>("query.fanoutConcurrency") ?? 20;
+        const results = await mapWithConcurrency(parentIds, fanoutConcurrency, (id) =>
+            this.db.executeFindQuery({
+                ...query,
+                selector: {
+                    $and: (query.selector.$and || []).map((condition) =>
+                        condition.parentId === parentIdCriteria ? { parentId: id } : condition,
+                    ),
+                },
+                use_index: "content-parentId-publishDate-index",
+            }),
+        );
 
-        throw new HttpException("Invalid memberOf field in selector", HttpStatus.BAD_REQUEST);
+        const seen = new Set<string>();
+        const docs = applySortAndLimit(
+            results
+                .flatMap((result) => result.docs || [])
+                .filter((doc) => !seen.has(doc._id) && (seen.add(doc._id), true)),
+            query.sort,
+            query.limit,
+        );
+        const result: DbQueryResult = {
+            docs,
+            execution_stats: {
+                total_keys_examined: results.reduce(
+                    (total, item) => total + (item.execution_stats?.total_keys_examined ?? 0),
+                    0,
+                ),
+                total_docs_examined: results.reduce(
+                    (total, item) => total + (item.execution_stats?.total_docs_examined ?? 0),
+                    0,
+                ),
+                execution_time_ms: results.reduce(
+                    (total, item) => total + (item.execution_stats?.execution_time_ms ?? 0),
+                    0,
+                ),
+                results_returned: docs.length,
+            },
+        };
+        setBlockRange(result);
+        return result;
     }
-
-    return [];
-}
-
-/**
- * Remove memberOf from conditions in the top-level $and array.
- * (After expansion, memberOf will always be a condition in the $and array.)
- */
-function removeMemberOf(selector: MongoSelectorDto): void {
-    if (!selector.$and) return;
-
-    for (const condition of selector.$and) {
-        if ((condition as any).memberOf !== undefined) {
-            delete (condition as any).memberOf;
-        }
-    }
-
-    // Remove any conditions that are now empty after memberOf deletion
-    selector.$and = selector.$and.filter((condition) => Object.keys(condition).length > 0);
-}
-
-/**
- * Extract a field value from the $and array.
- * Returns the first matching value found, or undefined if not present.
- * Throws if multiple different values are found for the same field.
- */
-function extractFieldFromAnd<T>(andArray: MongoSelectorDto[], fieldName: string): T | undefined {
-    let foundValue: T | undefined;
-
-    for (const condition of andArray) {
-        if (fieldName in condition) {
-            const value = condition[fieldName] as T;
-
-            // Only accept simple equality values (string, number, boolean)
-            if (
-                typeof value !== "string" &&
-                typeof value !== "number" &&
-                typeof value !== "boolean"
-            ) {
-                throw new HttpException(
-                    `'${fieldName}' field must be a simple equality value`,
-                    HttpStatus.BAD_REQUEST,
-                );
-            }
-
-            if (foundValue !== undefined && foundValue !== value) {
-                throw new HttpException(
-                    `Multiple different '${fieldName}' values found in selector`,
-                    HttpStatus.BAD_REQUEST,
-                );
-            }
-
-            foundValue = value;
-        }
-    }
-
-    return foundValue;
 }

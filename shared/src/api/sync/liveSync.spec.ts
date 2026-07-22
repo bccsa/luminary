@@ -177,4 +177,26 @@ describe("liveSync.applyLiveData (sync live persister)", () => {
         const ids = (await db.docs.toArray()).map((d) => d._id);
         expect(ids).toContain("always-offline");
     });
+
+    it("persists below-cutoff Tag content without a retention row", async () => {
+        const CUTOFF = 1_000_000;
+        config.contentPublishDateCutoff = CUTOFF;
+        syncList.value = [
+            entry({ chunkType: `${DocType.Content}:${DocType.Tag}`, languages: ["en"] }),
+        ];
+
+        await applyLiveData({
+            docs: [
+                {
+                    type: DocType.Content,
+                    _id: "old-tag-content",
+                    parentType: DocType.Tag,
+                    language: "en",
+                    publishDate: CUTOFF - 1000,
+                },
+            ] as any,
+        });
+
+        expect(await db.docs.get("old-tag-content")).toBeDefined();
+    });
 });

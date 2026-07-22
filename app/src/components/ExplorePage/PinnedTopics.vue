@@ -25,12 +25,10 @@ const topics = useContentQuery(
     ],
     // Resolve each pinned category to the post ids tagged with it (parentTaggedDocs — the
     // server-mirrored copy of the tag's taggedDocs) and seek child content by parentId.
-    // This indexes the local Dexie read and lets the API older-tail supplement fan out to
-    // per-parent index seeks when the combined parentId set is within the fan-out cap.
-    // Featured content can predate the sync cutoff, so the supplement is REQUIRED to surface
-    // it (it is not in the local window); when the combined set exceeds the cap the
-    // supplement falls back to a content-partition scan. sort+limit bound the window;
-    // contentByTag re-sorts per category for display.
+    // Featured content can predate the sync cutoff, so the API older-tail supplement is
+    // REQUIRED to surface it (it is not in the local window) — see queryIntrospection.ts
+    // for how that supplement is built. sort+limit bound the window; contentByTag re-sorts
+    // per category for display.
     { cache: true, limit: 50, sort: [{ publishDate: "desc" }] },
 );
 

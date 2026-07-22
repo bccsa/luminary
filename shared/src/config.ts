@@ -1,5 +1,5 @@
 import { ref, Ref } from "vue";
-import { Uuid } from "./types";
+import { DocType, Uuid } from "./types";
 import { OPEN_MIN } from "./api/sync/utils";
 
 export const changeReqWarnings = ref<string[]>([]);
@@ -38,14 +38,14 @@ export type SharedConfig = {
      */
     appLanguageIdsAsRef?: Ref<Uuid[]>;
     /**
-     * publishDate floor for content. Content older than this is NOT synced and is
-     * fetched on demand from the API by `HybridQuery`. Omit (or pass `OPEN_MIN`) for
-     * no cutoff (full sync). Apps typically pass a rolling
+     * publishDate floor for Post content. Posts older than this are NOT synced and are
+     * fetched on demand from the API by `HybridQuery`; Tag content remains fully synced.
+     * Omit (or pass `OPEN_MIN`) for no cutoff (full sync). Apps typically pass a rolling
      * `Date.now() - CONTENT_SYNC_WINDOW_MS`; CMS leaves it unset.
      */
     contentPublishDateCutoff?: number;
     /**
-     * How long (ms) a below-cutoff Content document is retained in IndexedDB after it
+     * How long (ms) a below-cutoff Post-content document is retained in IndexedDB after it
      * was last viewed / featured / persisted offline, before `evictStaleBelowCutoff`
      * removes it. Bounds the offline document store as the sync window slides.
      * Defaults to 30 days. Only meaningful when `contentPublishDateCutoff` is set.
@@ -63,10 +63,10 @@ export function initConfig(newConfig: SharedConfig) {
 }
 
 /**
- * Single source of truth for the content publishDate cutoff. Read by sync
- * (which floors content `publishDateMin` to this value) and by `HybridQuery`
- * (which fetches `publishDate <= cutoff` from the API for the older tail).
- * Defaults to `OPEN_MIN` when unset — i.e. no cutoff, full content sync,
+ * Single source of truth for the Post-content publishDate cutoff. Read by sync
+ * (which floors Post-content `publishDateMin` to this value) and by `HybridQuery`
+ * (which fetches older Post content from the API on demand). Tag content is fully synced.
+ * Defaults to `OPEN_MIN` when unset — i.e. no cutoff, full Post-content sync,
  * no older-tail API fetch.
  */
 export function getContentPublishDateCutoff(): number {
@@ -80,6 +80,19 @@ export function getContentPublishDateCutoff(): number {
  */
 export function hasContentPublishDateCutoff(): boolean {
     return getContentPublishDateCutoff() !== OPEN_MIN;
+}
+
+/**
+ * Single canonical definition of which Content `subType` (equivalently, a
+ * `ContentDto.parentType`) is windowed by the publishDate cutoff. Post is the only
+ * windowed subtype: Tag content stays fully synced regardless of the configured
+ * cutoff, since tags can be long-lived navigation parents that a rolling window
+ * would otherwise exclude wholesale. Callers should ask "is this windowed?" via
+ * this function rather than re-deriving the answer with an inline `=== DocType.Post`
+ * comparison, so the policy can't drift between call sites.
+ */
+export function isWindowedContentSubType(subType: DocType | undefined): boolean {
+    return subType === DocType.Post;
 }
 
 /**

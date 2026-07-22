@@ -1890,6 +1890,28 @@ describe("sync module", () => {
             );
         });
 
+        it("tag content sync uses the open publishDate range without a companion run", async () => {
+            await sync({
+                type: DocType.Content,
+                subType: DocType.Tag,
+                memberOf: ["group1"],
+                languages: ["en"],
+                limit: 100,
+                includeDeleteCmds: false,
+            });
+
+            expect(syncBatch).toHaveBeenCalledTimes(1);
+            expect(syncBatch).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: DocType.Content,
+                    subType: DocType.Tag,
+                    publishDateMin: OPEN_MIN,
+                    publishDateMax: OPEN_MAX,
+                }),
+            );
+            expect(vi.mocked(syncBatch).mock.calls[0][0].alwaysOffline).toBeUndefined();
+        });
+
         it("sync() also triggers a companion always-offline run when a cutoff is configured", async () => {
             await sync({
                 type: DocType.Content,
