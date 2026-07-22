@@ -5,7 +5,7 @@ import ReadMore from "./ReadMore.vue";
 import { mount } from "@vue/test-utils";
 import { mockEnglishContentDto, mockLanguageDtoEng, mockTopicContentDto } from "@/tests/mockdata";
 import waitForExpect from "wait-for-expect";
-import { db, type ContentDto } from "luminary-shared";
+import { db, TagType, type ContentDto } from "luminary-shared";
 import { computed, ref } from "vue";
 import { appLanguageIdsAsRef } from "@/globalConfig";
 import { useMoreLikeThis } from "@/composables/useMoreLikeThis";
@@ -131,6 +131,70 @@ describe("RelatedContent", () => {
         await waitForExpect(() => {
             expect(wrapper.html()).toContain("Similar articles");
             expect(wrapper.html()).toContain(similarArticle.title);
+        });
+    });
+
+    it("hides similar articles already shown in the Read more list", async () => {
+        // Both lists draw from the same topical pool, so a candidate the flat Read more list
+        // already shows must be dropped from Similar articles rather than appearing twice.
+        const relatedPost = {
+            ...mockEnglishContentDto,
+            _id: "content-post2-eng",
+            parentId: "post-post2",
+            slug: "post2-eng",
+            title: "Post 2",
+            parentTags: [mockTopicContentDto.parentId],
+        } as ContentDto;
+        await db.docs.put(relatedPost);
+        // more-like-this returns only that same already-shown post → nothing novel to add.
+        vi.mocked(useMoreLikeThis).mockReturnValue({
+            similar: computed(() => [relatedPost]),
+        });
+
+        const wrapper = mount(RelatedContent, {
+            props: {
+                tags: [{ ...mockTopicContentDto, parentTaggedDocs: ["post-post2"] }],
+                selectedContent: {
+                    ...mockEnglishContentDto,
+                    _id: "content-post3-eng",
+                    title: "Post 3",
+                },
+            },
+        });
+
+        await waitForExpect(() => {
+            // Steady state: the related-post query has resolved, so only the Read more list
+            // renders (one ReadMore) and it shows Post 2; the Similar row deduped to empty.
+            const readMores = wrapper.findAllComponents(ReadMore);
+            expect(readMores).toHaveLength(1);
+            expect(readMores[0].html()).toContain("Post 2");
+            expect(wrapper.html()).not.toContain("Similar articles");
+        });
+    });
+
+    it("doesn't display similar articles on a topic page", async () => {
+        vi.mocked(useMoreLikeThis).mockReturnValue({
+            similar: computed(() => [
+                {
+                    ...mockEnglishContentDto,
+                    _id: "content-similar-eng",
+                    parentId: "post-similar",
+                    slug: "similar-eng",
+                    title: "Personalized similar article",
+                } as ContentDto,
+            ]),
+        });
+
+        const wrapper = mount(RelatedContent, {
+            props: {
+                tags: [mockTopicContentDto],
+                selectedContent: { ...mockEnglishContentDto, parentTagType: TagType.Topic },
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.html()).not.toContain("Similar articles");
+            expect(wrapper.html()).not.toContain("Personalized similar article");
         });
     });
 
