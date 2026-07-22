@@ -152,6 +152,52 @@ describe("useRecommendations FTS retrieval", () => {
             await shared.db.docs.delete(tagTitleDoc._id);
         }
     });
+
+    it("uses saved highlighted text to warm recommendations without topic affinity", async () => {
+        const languageId = "lang-eng";
+        const highlightedMatch = makeContent("highlight-fts-match");
+        const previousLanguages = [...appLanguageIdsAsRef.value];
+        const previousSyncedLanguages = [...appSyncedLanguageIdsAsRef.value];
+        const previousProfile = affinityProfile.value;
+        const previousHighlights = await shared.db.getLuminaryInternals("highlights");
+        const ftsSearch = vi
+            .spyOn(shared, "ftsSearch")
+            .mockResolvedValue([makeFtsResult(highlightedMatch, 10)]);
+        const scope = effectScope();
+
+        try {
+            await shared.db.setLuminaryInternals("highlights", {
+                "content-highlight-source": {
+                    html: "<p><mark>Specific highlighted vocabulary</mark></p>",
+                    updatedAt: Date.now(),
+                },
+            });
+            appLanguageIdsAsRef.value = [languageId];
+            appSyncedLanguageIdsAsRef.value = [languageId];
+            affinityProfile.value = { affinity: {}, lastDecayUtc: undefined };
+            const result = scope.run(() => useRecommendations());
+            if (!result) throw new Error("recommendation scope did not initialize");
+
+            await waitForExpect(() => {
+                expect(ftsSearch).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        query: "Specific highlighted vocabulary",
+                        languageId,
+                    }),
+                );
+                expect(result.recommended.value.map((doc) => doc._id)).toContain(
+                    highlightedMatch._id,
+                );
+            });
+        } finally {
+            scope.stop();
+            ftsSearch.mockRestore();
+            affinityProfile.value = previousProfile;
+            appLanguageIdsAsRef.value = previousLanguages;
+            appSyncedLanguageIdsAsRef.value = previousSyncedLanguages;
+            await shared.db.setLuminaryInternals("highlights", previousHighlights);
+        }
+    });
 });
 
 describe("rank", () => {
