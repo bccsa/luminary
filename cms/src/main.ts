@@ -11,7 +11,7 @@ import {
     init,
     serverError,
 } from "luminary-shared";
-import { apiUrl, initLanguage } from "@/globalConfig";
+import { apiUrl, contentSyncWindowMs, initLanguage } from "@/globalConfig";
 import auth, { isAuthBypassed, readPersistedProvider } from "./auth";
 import { useNotificationStore } from "./stores/notification";
 import { initAuthLangSync, initSync } from "./sync";
@@ -36,10 +36,8 @@ async function Startup() {
         cms: true,
         docsIndex: CMS_DOCS_INDEX,
         apiUrl,
-        // CMS editors need the full content set — omit any publishDate cutoff so
-        // sync keeps its OPEN_MIN default (full content sync) and HybridQuery's
-        // older-tail supplement never fires.
-        contentPublishDateCutoff: undefined,
+        // Keep the local content corpus bounded; older content is fetched on demand.
+        contentPublishDateCutoff: Date.now() - contentSyncWindowMs,
     }).catch((err) => {
         console.error(err);
         Sentry.captureException(err);
