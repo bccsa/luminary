@@ -1,7 +1,6 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { mount } from "@vue/test-utils";
-import waitForExpect from "wait-for-expect";
 import LHighlightable from "./LHighlightable.vue";
 import { db } from "luminary-shared";
 
@@ -20,9 +19,26 @@ const mountHighlightable = (contentId = "test-content-1") =>
         attachTo: document.body,
     });
 
-describe.skip("LHighlightable", () => {
+let highlightsData: Record<string, unknown>;
+
+async function mountAndSettle(contentId = "test-content-1") {
+    const wrapper = mountHighlightable(contentId);
+    await vi.advanceTimersByTimeAsync(0);
+    return wrapper;
+}
+
+describe("LHighlightable", () => {
     beforeEach(() => {
         vi.useFakeTimers();
+        highlightsData = {};
+        vi.spyOn(db, "getLuminaryInternals").mockImplementation(async (key: string) =>
+            key === "highlights" ? { ...highlightsData } : undefined,
+        );
+        vi.spyOn(db, "setLuminaryInternals").mockImplementation(async (key: string, value: unknown) => {
+            if (key === "highlights") {
+                highlightsData = value as Record<string, unknown>;
+            }
+        });
     });
 
     afterEach(() => {
@@ -30,22 +46,22 @@ describe.skip("LHighlightable", () => {
         vi.restoreAllMocks();
     });
 
-    it("renders slot content inside .prose div", () => {
-        const wrapper = mountHighlightable();
+    it("renders slot content inside .prose div", async () => {
+        const wrapper = await mountAndSettle();
         const prose = wrapper.find(".prose");
         expect(prose.exists()).toBe(true);
         expect(prose.text()).toContain("Some highlighted text content");
         wrapper.unmount();
     });
 
-    it("does not show actions menu by default", () => {
-        const wrapper = mountHighlightable();
+    it("does not show actions menu by default", async () => {
+        const wrapper = await mountAndSettle();
         expect(wrapper.find(".fixed.z-50").exists()).toBe(false);
         wrapper.unmount();
     });
 
     it("prevents context menu", async () => {
-        const wrapper = mountHighlightable();
+        const wrapper = await mountAndSettle();
         const contentDiv = wrapper.find(".no-native-menu");
 
         const event = new Event("contextmenu", { bubbles: true, cancelable: true });
@@ -73,7 +89,7 @@ describe.skip("LHighlightable", () => {
         };
         vi.spyOn(window, "getSelection").mockReturnValue(mockSelection as any);
 
-        const wrapper = mountHighlightable();
+        const wrapper = await mountAndSettle();
 
         // Access the component's internal copyText by simulating what it does
         // Since copyText reads from window.getSelection, we can test via the clipboard
@@ -90,7 +106,7 @@ describe.skip("LHighlightable", () => {
         const setSpy = vi.spyOn(db, "setLuminaryInternals").mockResolvedValue(undefined as any);
         vi.spyOn(db, "getLuminaryInternals").mockResolvedValue({});
 
-        const wrapper = mountHighlightable("save-test");
+        const wrapper = await mountAndSettle("save-test");
 
         // Simulate having highlighted content
         const prose = wrapper.find(".prose");
@@ -108,10 +124,7 @@ describe.skip("LHighlightable", () => {
             "restore-test": savedHtml,
         });
 
-        const wrapper = mountHighlightable("restore-test");
-
-        // Wait for the async restoreHighlights to complete
-        await vi.advanceTimersByTimeAsync(0);
+        const wrapper = await mountAndSettle("restore-test");
 
         const prose = wrapper.find(".prose");
         expect(prose.html()).toContain("<mark");
@@ -119,15 +132,10 @@ describe.skip("LHighlightable", () => {
     });
 
     it("registers and cleans up event listeners", async () => {
-        vi.useRealTimers(); // Use real timers for this test since onMounted is async
-
         const addSpy = vi.spyOn(document, "addEventListener");
         const removeSpy = vi.spyOn(document, "removeEventListener");
 
-        const wrapper = mountHighlightable();
-
-        // Wait for async onMounted (restoreHighlights) to complete
-        await new Promise((r) => setTimeout(r, 50));
+        const wrapper = await mountAndSettle();
 
         expect(addSpy).toHaveBeenCalledWith("selectionchange", expect.any(Function));
         expect(addSpy).toHaveBeenCalledWith("scroll", expect.any(Function), { passive: true });
@@ -136,12 +144,10 @@ describe.skip("LHighlightable", () => {
 
         expect(removeSpy).toHaveBeenCalledWith("selectionchange", expect.any(Function));
         expect(removeSpy).toHaveBeenCalledWith("scroll", expect.any(Function));
-
-        vi.useFakeTimers(); // Restore fake timers for other tests
     });
 
     it("handles touch start and touch end for long press detection", async () => {
-        const wrapper = mountHighlightable();
+        const wrapper = await mountAndSettle();
         const contentDiv = wrapper.find(".no-native-menu");
 
         await contentDiv.trigger("touchstart");
@@ -154,7 +160,7 @@ describe.skip("LHighlightable", () => {
     });
 
     it("handles touch cancel", async () => {
-        const wrapper = mountHighlightable();
+        const wrapper = await mountAndSettle();
         const contentDiv = wrapper.find(".no-native-menu");
 
         await contentDiv.trigger("touchstart");
@@ -164,7 +170,7 @@ describe.skip("LHighlightable", () => {
     });
 
     it("applies color to selected text via applyColor", async () => {
-        const wrapper = mountHighlightable();
+        const wrapper = await mountAndSettle();
         const prose = wrapper.find(".prose");
 
         // Create a real text node we can select
@@ -200,36 +206,27 @@ describe.skip("LHighlightable", () => {
 
         // Menu should now be visible - find the Highlight button and click to show color picker
         const highlightBtn = document.body.querySelector(".fixed.z-50 button");
-        if (highlightBtn) {
-            await (highlightBtn as HTMLElement).click();
-            await wrapper.vm.$nextTick();
+        expect(highlightBtn).not.toBeNull();
+        await (highlightBtn as HTMLElement).click();
+        await wrapper.vm.$nextTick();
 
-            // Click a color button
-            const colorBtns = document.body.querySelectorAll(".fixed.z-50 button[style]");
-            if (colorBtns.length > 0) {
-                await (colorBtns[0] as HTMLElement).click();
-                await wrapper.vm.$nextTick();
+        // Click a color button
+        const colorBtns = document.body.querySelectorAll(".fixed.z-50 button[style]");
+        expect(colorBtns.length).toBeGreaterThan(0);
+        await (colorBtns[0] as HTMLElement).click();
+        await wrapper.vm.$nextTick();
 
-                // The text should now have a <mark> element
-                expect(prose.element.innerHTML).toContain("<mark");
-                // Creating a highlight emits "highlighted" — the signal the recommendation
-                // engine's affinity tracking hooks into (SingleContent.vue).
-                expect(wrapper.emitted("highlighted")).toHaveLength(1);
-            }
-        }
+        // The text should now have a <mark> element
+        expect(prose.element.innerHTML).toContain("<mark");
+        // Creating a highlight emits "highlighted" — the signal the recommendation
+        // engine's affinity tracking hooks into (SingleContent.vue).
+        expect(wrapper.emitted("highlighted")).toHaveLength(1);
 
         wrapper.unmount();
     });
 
     it("removes highlight from selected marked text", async () => {
-        vi.useRealTimers();
-        const addEventListenerSpy = vi.spyOn(document, "addEventListener");
-        const wrapper = mountHighlightable();
-
-        await waitForExpect(() => {
-            expect(addEventListenerSpy).toHaveBeenCalledWith("selectionchange", expect.any(Function));
-        });
-        vi.useFakeTimers();
+        const wrapper = await mountAndSettle();
 
         const prose = wrapper.find(".prose");
 
@@ -281,14 +278,7 @@ describe.skip("LHighlightable", () => {
     });
 
     it("does not emit highlightRemoved when removal has no selection", async () => {
-        vi.useRealTimers();
-        const addEventListenerSpy = vi.spyOn(document, "addEventListener");
-        const wrapper = mountHighlightable();
-
-        await waitForExpect(() => {
-            expect(addEventListenerSpy).toHaveBeenCalledWith("selectionchange", expect.any(Function));
-        });
-        vi.useFakeTimers();
+        const wrapper = await mountAndSettle();
 
         const prose = wrapper.find(".prose");
         prose.element.innerHTML = "<p>Before <mark>highlighted</mark> after</p>";
@@ -335,10 +325,7 @@ describe.skip("LHighlightable", () => {
         vi.spyOn(db, "getLuminaryInternals").mockRejectedValue(new Error("DB error"));
         vi.spyOn(db, "setLuminaryInternals").mockRejectedValue(new Error("DB error"));
 
-        const wrapper = mountHighlightable("error-test");
-
-        // Wait for restoreHighlights to be called (async in onMounted)
-        await vi.advanceTimersByTimeAsync(100);
+        const wrapper = await mountAndSettle("error-test");
 
         expect(consoleSpy).toHaveBeenCalledWith(
             expect.stringContaining("Failed to restore highlights"),
@@ -353,10 +340,7 @@ describe.skip("LHighlightable", () => {
         const setSpy = vi.spyOn(db, "setLuminaryInternals").mockResolvedValue(undefined as any);
         vi.spyOn(db, "getLuminaryInternals").mockResolvedValue({ "delete-test": "<p>old</p>" });
 
-        const wrapper = mountHighlightable("delete-test");
-
-        // Wait for mount
-        await vi.advanceTimersByTimeAsync(100);
+        const wrapper = await mountAndSettle("delete-test");
 
         // The prose has no <mark> elements, so save should delete the key
         // Trigger a save by simulating what finalizeHighlight does
@@ -371,12 +355,7 @@ describe.skip("LHighlightable", () => {
     });
 
     it("handles document-level contextmenu on content element", async () => {
-        vi.useRealTimers();
-
-        const wrapper = mountHighlightable();
-
-        // Wait for async onMounted to complete (restoreHighlights)
-        await new Promise((r) => setTimeout(r, 50));
+        const wrapper = await mountAndSettle();
 
         const contentDiv = wrapper.find(".no-native-menu");
 
@@ -388,12 +367,10 @@ describe.skip("LHighlightable", () => {
 
         expect(preventDefaultSpy).toHaveBeenCalled();
         wrapper.unmount();
-
-        vi.useFakeTimers();
     });
 
-    it("does not prevent contextmenu for elements outside content", () => {
-        const wrapper = mountHighlightable();
+    it("does not prevent contextmenu for elements outside content", async () => {
+        const wrapper = await mountAndSettle();
 
         const externalDiv = document.createElement("div");
         document.body.appendChild(externalDiv);
@@ -410,7 +387,7 @@ describe.skip("LHighlightable", () => {
     });
 
     it("clears touch timer on unmount", async () => {
-        const wrapper = mountHighlightable();
+        const wrapper = await mountAndSettle();
         const contentDiv = wrapper.find(".no-native-menu");
 
         // Start a touch (sets timer)
@@ -421,7 +398,7 @@ describe.skip("LHighlightable", () => {
     });
 
     it("shows menu after long-press when selection exists", async () => {
-        const wrapper = mountHighlightable();
+        const wrapper = await mountAndSettle();
         const contentDiv = wrapper.find(".no-native-menu");
         const prose = wrapper.find(".prose");
 
