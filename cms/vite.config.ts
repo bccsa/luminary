@@ -1,16 +1,34 @@
 import { fileURLToPath, URL } from "node:url";
-import { defineConfig, loadEnv } from "vite";
+import { defineConfig, loadEnv, type Plugin } from "vite";
 import vue from "@vitejs/plugin-vue";
 import { VitePWA } from "vite-plugin-pwa";
 
 const env = loadEnv("", process.cwd());
 
+// The deployed version manifest and the code that reads it must be created from
+// exactly the same ISO timestamp.
+const buildId = new Date().toISOString();
+
+function versionManifest(): Plugin {
+    return {
+        name: "version-manifest",
+        generateBundle() {
+            this.emitFile({
+                type: "asset",
+                fileName: "version.json",
+                source: JSON.stringify({ buildId }),
+            });
+        },
+    };
+}
+
 // https://vitejs.dev/config/
 export default defineConfig({
     plugins: [
         vue(),
+        versionManifest(),
         VitePWA({
-            registerType: "autoUpdate",
+            registerType: "prompt",
             manifest: {
                 name: env.VITE_APP_NAME,
                 short_name: env.VITE_APP_NAME,
@@ -30,6 +48,9 @@ export default defineConfig({
             },
         }),
     ],
+    define: {
+        __APP_BUILD_ID__: JSON.stringify(buildId),
+    },
     resolve: {
         alias: {
             "@": fileURLToPath(new URL("./src", import.meta.url)),
@@ -45,9 +66,6 @@ export default defineConfig({
         strictPort: true,
         // Allow Vite to serve the sibling shared/ source (outside this package root).
         fs: { allow: [".."] },
-    },
-    preview: {
-        port: 4175,
     },
     build: {
         sourcemap: true,

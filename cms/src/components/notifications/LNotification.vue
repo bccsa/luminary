@@ -38,6 +38,16 @@ const show = ref(true);
                     <p class="mt-1 text-sm text-zinc-500">
                         {{ notification.description }}
                     </p>
+                    <div class="mt-3" v-if="notification.action">
+                        <button
+                            type="button"
+                            data-test="notification-action"
+                            class="rounded-md bg-zinc-900 px-2.5 py-1.5 text-sm font-medium text-white hover:bg-zinc-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                            @click="notification.action.onClick()"
+                        >
+                            {{ notification.action.label }}
+                        </button>
+                    </div>
                 </div>
                 <div class="ml-4 flex flex-shrink-0">
                     <button
