@@ -25,6 +25,14 @@ export const appName = import.meta.env.VITE_APP_NAME;
 export const apiUrl = import.meta.env.VITE_API_URL;
 export const clientAppUrl = ref(import.meta.env.VITE_CLIENT_APP_URL);
 export const logo = import.meta.env.VITE_LOGO;
+
+const DEFAULT_CONTENT_SYNC_WINDOW_MS = 30 * 24 * 60 * 60 * 1000; // 1 month
+const parsedContentSyncWindowMs = Number(import.meta.env.VITE_CONTENT_SYNC_WINDOW_MS);
+/** How far back content is kept synced locally; older content is fetched on demand. */
+export const contentSyncWindowMs =
+    Number.isFinite(parsedContentSyncWindowMs) && parsedContentSyncWindowMs > 0
+        ? parsedContentSyncWindowMs
+        : DEFAULT_CONTENT_SYNC_WINDOW_MS;
 export const isDevMode = import.meta.env.DEV;
 export const isTestEnviroment = import.meta.env.MODE === "test";
 

@@ -11,16 +11,13 @@ import {
     init,
     serverError,
 } from "luminary-shared";
-import { apiUrl, initLanguage } from "@/globalConfig";
+import { apiUrl, contentSyncWindowMs, initLanguage } from "@/globalConfig";
 import auth, { isAuthBypassed, readPersistedProvider } from "./auth";
 import { useNotificationStore } from "./stores/notification";
 import { initAuthLangSync, initSync } from "./sync";
 import { CMS_DOCS_INDEX } from "./docsIndex";
 
 const app = createApp(App);
-
-/** CMS content sync window: older content is fetched on demand by HybridQuery. */
-const CONTENT_SYNC_WINDOW_MS = 30 * 24 * 60 * 60 * 1000; // ~1 month
 
 // Install Pinia early so any watchers/effects registered during startup that
 // resolve a store (e.g. useNotificationStore) have an active Pinia instance.
@@ -40,7 +37,7 @@ async function Startup() {
         docsIndex: CMS_DOCS_INDEX,
         apiUrl,
         // Keep the local content corpus bounded; older content is fetched on demand.
-        contentPublishDateCutoff: Date.now() - CONTENT_SYNC_WINDOW_MS,
+        contentPublishDateCutoff: Date.now() - contentSyncWindowMs,
     }).catch((err) => {
         console.error(err);
         Sentry.captureException(err);
