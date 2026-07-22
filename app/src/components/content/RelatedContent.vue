@@ -52,6 +52,14 @@ const { similar } = useMoreLikeThis(
     () => props.selectedContent,
     () => props.tags,
 );
+
+// Drop anything already in the Read more list — both draw from the same topical pool, so
+// without this the same card would appear twice on the page. What survives is the
+// affinity-ranked / FTS-surfaced content the flat topical list above didn't already cover.
+const similarItems = computed(() => {
+    const shown = new Set(readMoreItems.value.map((item) => item._id));
+    return similar.value.filter((item) => !shown.has(item._id));
+});
 </script>
 
 <template>
@@ -68,12 +76,12 @@ const { similar } = useMoreLikeThis(
     </section>
 
     <section
-        v-if="similar.length"
+        v-if="isNotTopic && similarItems.length"
         class="w-full pb-2"
     >
         <h2 class="px-4 pb-3 text-xl text-zinc-800 dark:text-zinc-200 sm:px-8">
             {{ t("content.similar_title") }}
         </h2>
-        <ReadMore :items="similar" />
+        <ReadMore :items="similarItems" />
     </section>
 </template>
