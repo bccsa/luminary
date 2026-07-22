@@ -185,6 +185,55 @@ describe("useMoreLikeThis", () => {
         });
     });
 
+    it("uses viewer affinity to reorder FTS-only candidates by their own tags", async () => {
+        const selected = makeContent("selected", [TOPIC_A, TOPIC_B]);
+        const neutralCandidate = makeContent("neutral-fts", [TOPIC_A]);
+        const personalizedCandidate = makeContent("personalized-fts", [TOPIC_B]);
+        affinityProfile.value = {
+            affinity: { [TOPIC_B]: 0.9 },
+            lastDecayUtc: sessionNow(),
+        };
+        // Neither candidate is written to db.docs, so both can only enter through the mocked
+        // FTS leg. The affinity nudge must therefore not be gated to tag-membership retrieval.
+        vi.mocked(shared.ftsSearch).mockResolvedValue([
+            makeFtsResult(neutralCandidate),
+            makeFtsResult(personalizedCandidate),
+        ]);
+
+        const result = start(selected, [makeSeedTag(TOPIC_A), makeSeedTag(TOPIC_B)]);
+
+        await waitForExpect(() => {
+            expect(result.similar.value.map((doc) => doc._id)).toEqual([
+                personalizedCandidate._id,
+                neutralCandidate._id,
+            ]);
+        });
+    });
+
+    it("keeps pure topical ordering for a viewer with no affinity", async () => {
+        const selected = makeContent("selected", [TOPIC_A], {
+            title: "A distinctive shared phrase",
+        });
+        const firstFtsCandidate = makeContent("first-fts", [TOPIC_A]);
+        const secondFtsCandidate = makeContent("second-fts", [TOPIC_A]);
+        affinityProfile.value = { affinity: {}, lastDecayUtc: undefined };
+        // Neither candidate is in db.docs, so this preserves the FTS retrieval order unless an
+        // affinity score has a real contribution.
+        vi.mocked(shared.ftsSearch).mockResolvedValue([
+            makeFtsResult(firstFtsCandidate),
+            makeFtsResult(secondFtsCandidate),
+        ]);
+
+        const result = start(selected, [makeSeedTag(TOPIC_A)]);
+
+        await waitForExpect(() => {
+            expect(result.similar.value.map((doc) => doc._id)).toEqual([
+                firstFtsCandidate._id,
+                secondFtsCandidate._id,
+            ]);
+        });
+    });
+
     it("handles an empty seed-tag list without crashing", async () => {
         const selected = makeContent("selected");
 

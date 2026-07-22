@@ -418,6 +418,20 @@ describe("rank", () => {
         expect(result.map((d) => d._id)).toContain("fts-only");
     });
 
+    it("applies alignment weight to an FTS-only candidate regardless of retrieval leg", () => {
+        const neutral = makeContent("neutral");
+        const aligned = makeContent("aligned", ["affinity-tag"]);
+
+        const result = rank(
+            [],
+            [makeFtsResult(neutral, 1), makeFtsResult(aligned, 1)],
+            { "affinity-tag": 0.9 },
+            { tagWeight: 0, ftsWeight: 0, alignmentWeight: 0.15, now: 0 },
+        );
+
+        expect(result.map((doc) => doc._id)).toEqual(["aligned", "neutral"]);
+    });
+
     it("does not duplicate a doc present in both legs", () => {
         const both = makeContent("both", ["tag-a"]);
 

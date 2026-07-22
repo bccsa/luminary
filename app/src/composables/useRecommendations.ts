@@ -443,6 +443,10 @@ export type RankOptions = {
     /** 1-indexed ranks for the currently selected retrieval tags. Omitted keeps raw affinity. */
     tagRanks?: Map<Uuid, number>;
     tagWeight?: number;
+    /** Additive personalization nudge for every candidate, regardless of retrieval leg.
+     * Unlike tagWeight, this is not limited to tag-membership candidates. useMoreLikeThis uses it
+     * for a small related-content taste signal; omitting it adds no score. */
+    alignmentWeight?: number;
     ftsWeight?: number;
     now?: number;
     /** Stop diversity work once this many selected documents are determined. */
@@ -469,6 +473,7 @@ export function rank(
         topicTagIds,
         tagRanks,
         tagWeight = TAG_LEG_WEIGHT,
+        alignmentWeight = 0,
         ftsWeight = FTS_LEG_WEIGHT,
         now = Date.now(),
         limit,
@@ -511,6 +516,8 @@ export function rank(
         dominantTags.set(doc._id, dominantTag);
         if (tagCandidateIds.has(doc._id))
             score.set(doc._id, (score.get(doc._id) ?? 0) + tagWeight * affinityScore);
+        if (alignmentWeight)
+            score.set(doc._id, (score.get(doc._id) ?? 0) + alignmentWeight * affinityScore);
         score.set(
             doc._id,
             (score.get(doc._id) ?? 0) + RECENCY_WEIGHT * (recencyFactor(doc, now) - 0.5),

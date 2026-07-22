@@ -3,6 +3,7 @@ import {
     decay,
     ftsSearch,
     PublishStatus,
+    topTagsFrom,
     type AffinityMap,
     type ContentDto,
     type FtsSearchResult,
@@ -12,6 +13,11 @@ import { affinityProfile } from "@/recommendation/affinityStore";
 import { sessionNow } from "@/util/sessionNow";
 import { rank } from "@/composables/useRecommendations";
 
+/** Deliberately small, unvalidated starting value: like the shipped tier multipliers, this
+ * follows the existing simulation-first ideal without re-running that simulation here. It gently
+ * reorders topical candidates toward taste rather than dominating FTS/tag retrieval ordering. */
+const AFFINITY_ALIGNMENT_WEIGHT = 0.15;
+
 export type UseMoreLikeThisOptions = {
     limit?: number;
     retrievalLimit?: number;
@@ -20,9 +26,8 @@ export type UseMoreLikeThisOptions = {
 /**
  * Personalized "similar articles" for a single piece of content — retrieval stays purely
  * topical (seeded only from the article's own tags/title/summary, same as useRecommendations'
- * tag+FTS legs), while rank()'s existing tag-affinity scoring naturally tilts the ordering
- * toward the viewer's own interests among already-topical candidates — never a separate,
- * off-topic-risking retrieval leg.
+ * tag+FTS legs), while a small dedicated alignment score gently tilts already-topical results
+ * toward the viewer's own interests — never a separate, off-topic-risking retrieval leg.
  */
 export function useMoreLikeThis(
     getSelectedContent: () => ContentDto | undefined,
@@ -75,6 +80,10 @@ export function useMoreLikeThis(
     const decayedAffinity = computed<AffinityMap>(
         () => decay(affinityProfile.value, sessionNow()).affinity,
     );
+    const viewerTagRanks = computed(() => {
+        const topTagIds = topTagsFrom(decayedAffinity.value, 10);
+        return new Map(topTagIds.map((id, index) => [id, index + 1]));
+    });
 
     const similar = computed(() => {
         const tagCandidates = tagContent.value.filter(
@@ -85,6 +94,9 @@ export function useMoreLikeThis(
         );
         return rank(tagCandidates, ftsCandidates, decayedAffinity.value, {
             topicTagIds: topicTagIdSet.value,
+            tagWeight: 0,
+            alignmentWeight: AFFINITY_ALIGNMENT_WEIGHT,
+            tagRanks: viewerTagRanks.value,
             limit,
         });
     });
