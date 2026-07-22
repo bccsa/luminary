@@ -1,5 +1,5 @@
 import { ref, Ref } from "vue";
-import { Uuid } from "./types";
+import { DocType, Uuid } from "./types";
 import { OPEN_MIN } from "./api/sync/utils";
 
 export const changeReqWarnings = ref<string[]>([]);
@@ -80,6 +80,19 @@ export function getContentPublishDateCutoff(): number {
  */
 export function hasContentPublishDateCutoff(): boolean {
     return getContentPublishDateCutoff() !== OPEN_MIN;
+}
+
+/**
+ * Single canonical definition of which Content `subType` (equivalently, a
+ * `ContentDto.parentType`) is windowed by the publishDate cutoff. Post is the only
+ * windowed subtype: Tag content stays fully synced regardless of the configured
+ * cutoff, since tags can be long-lived navigation parents that a rolling window
+ * would otherwise exclude wholesale. Callers should ask "is this windowed?" via
+ * this function rather than re-deriving the answer with an inline `=== DocType.Post`
+ * comparison, so the policy can't drift between call sites.
+ */
+export function isWindowedContentSubType(subType: DocType | undefined): boolean {
+    return subType === DocType.Post;
 }
 
 /**

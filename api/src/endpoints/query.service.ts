@@ -7,10 +7,12 @@ import { WINSTON_MODULE_PROVIDER } from "nest-winston";
 import { Logger } from "winston";
 import { JwtUserDetails } from "../auth/authIdentity.service";
 import { MongoQueryDto } from "../dto/MongoQueryDto";
-import { MongoComparisonCriteria, MongoSelectorDto } from "../dto/MongoSelectorDto";
+import { MongoSelectorDto } from "../dto/MongoSelectorDto";
 import { LanguageDto } from "../dto/LanguageDto";
 import { expandMangoSelector } from "../util/expandMangoQuery";
 import { isExpiredContent, stripExpiredContent } from "../util/stripExpiredContent";
+import { applySortAndLimit, findParentIdIn, mapWithConcurrency, setBlockRange } from "../util/queryFanout";
+import { extractFieldFromAnd, extractMemberOf, removeMemberOf } from "../util/querySelector";
 
 @Injectable()
 export class QueryService {
@@ -365,155 +367,4 @@ export class QueryService {
         setBlockRange(result);
         return result;
     }
-}
-
-/**
- * Run `fn` over `items` with at most `concurrency` calls in flight at once, preserving
- * result order. Used to bound CouchDB load during a parentId fan-out.
- */
-async function mapWithConcurrency<T, R>(
-    items: T[],
-    concurrency: number,
-    fn: (item: T) => Promise<R>,
-): Promise<R[]> {
-    const results: R[] = new Array(items.length);
-    let next = 0;
-
-    async function worker(): Promise<void> {
-        while (next < items.length) {
-            const i = next++;
-            results[i] = await fn(items[i]);
-        }
-    }
-
-    const workerCount = Math.max(1, Math.min(concurrency, items.length));
-    await Promise.all(Array.from({ length: workerCount }, worker));
-    return results;
-}
-
-function findParentIdIn(and: MongoSelectorDto[]): MongoComparisonCriteria | undefined {
-    for (const condition of and) {
-        const value = condition.parentId;
-        if (value && typeof value === "object" && !Array.isArray(value) && "$in" in value) {
-            return value as MongoComparisonCriteria;
-        }
-    }
-    return undefined;
-}
-
-function applySortAndLimit(
-    docs: any[],
-    sort: MongoQueryDto["sort"],
-    limit: number | undefined,
-): any[] {
-    let result = docs;
-    if (sort?.length) {
-        const [field, direction] = Object.entries(sort[0] || {})[0] || [];
-        if (field) {
-            const desc = direction === "desc";
-            result = docs.slice().sort((a, b) => {
-                const av = a?.[field];
-                const bv = b?.[field];
-                let cmp = 0;
-                if (av == null && bv != null) cmp = -1;
-                else if (av != null && bv == null) cmp = 1;
-                else if (av < bv) cmp = -1;
-                else if (av > bv) cmp = 1;
-                if (desc) cmp = -cmp;
-                if (cmp !== 0) return cmp;
-                return String(a?._id ?? "").localeCompare(String(b?._id ?? ""));
-            });
-        }
-    }
-    return typeof limit === "number" ? result.slice(0, Math.max(0, limit)) : result;
-}
-
-function setBlockRange(result: DbQueryResult): void {
-    const times = result.docs
-        .map((doc) => doc?.updatedTimeUtc)
-        .filter((value): value is number => typeof value === "number");
-    result.blockStart = times.length ? Math.max(...times) : 0;
-    result.blockEnd = times.length ? Math.min(...times) : 0;
-}
-
-/**
- * Extract memberOf groups from the top-level $and array.
- * (After expansion, memberOf will always be a condition in the $and array.
- */
-function extractMemberOf(selector: MongoSelectorDto): Uuid[] {
-    for (const condition of selector.$and || []) {
-        const memberOf = (condition as MongoSelectorDto).memberOf;
-        if (!memberOf) continue;
-
-        if (typeof memberOf === "string") {
-            return [memberOf];
-        }
-
-        if (Array.isArray((memberOf as MongoComparisonCriteria).$in)) {
-            return (memberOf as MongoComparisonCriteria).$in as string[];
-        }
-
-        if (Array.isArray((memberOf as MongoComparisonCriteria).$elemMatch?.$in)) {
-            return (memberOf as MongoComparisonCriteria).$elemMatch.$in as string[];
-        }
-
-        throw new HttpException("Invalid memberOf field in selector", HttpStatus.BAD_REQUEST);
-    }
-
-    return [];
-}
-
-/**
- * Remove memberOf from conditions in the top-level $and array.
- * (After expansion, memberOf will always be a condition in the $and array.)
- */
-function removeMemberOf(selector: MongoSelectorDto): void {
-    if (!selector.$and) return;
-
-    for (const condition of selector.$and) {
-        if ((condition as any).memberOf !== undefined) {
-            delete (condition as any).memberOf;
-        }
-    }
-
-    // Remove any conditions that are now empty after memberOf deletion
-    selector.$and = selector.$and.filter((condition) => Object.keys(condition).length > 0);
-}
-
-/**
- * Extract a field value from the $and array.
- * Returns the first matching value found, or undefined if not present.
- * Throws if multiple different values are found for the same field.
- */
-function extractFieldFromAnd<T>(andArray: MongoSelectorDto[], fieldName: string): T | undefined {
-    let foundValue: T | undefined;
-
-    for (const condition of andArray) {
-        if (fieldName in condition) {
-            const value = condition[fieldName] as T;
-
-            // Only accept simple equality values (string, number, boolean)
-            if (
-                typeof value !== "string" &&
-                typeof value !== "number" &&
-                typeof value !== "boolean"
-            ) {
-                throw new HttpException(
-                    `'${fieldName}' field must be a simple equality value`,
-                    HttpStatus.BAD_REQUEST,
-                );
-            }
-
-            if (foundValue !== undefined && foundValue !== value) {
-                throw new HttpException(
-                    `Multiple different '${fieldName}' values found in selector`,
-                    HttpStatus.BAD_REQUEST,
-                );
-            }
-
-            foundValue = value;
-        }
-    }
-
-    return foundValue;
 }
