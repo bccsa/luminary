@@ -8,7 +8,6 @@ import {
     userPreferencesAsRef,
     mediaQueue,
     localCacheVersion,
-    isDevMode,
 } from "./globalConfig";
 import LoadingBar from "@/components/LoadingBar.vue";
 import { useNotificationStore } from "./stores/notification";
