@@ -106,6 +106,7 @@ export type ContentDto = ContentBaseDto & {
     parentAlwaysOffline?: boolean;
     parentPinned?: number;
     parentUseVerticalTileLayout?: boolean;
+    parentLinkDates?: boolean;
     parentTaggedDocs?: Uuid[];
     availableTranslations?: Uuid[];
     parentImageBucketId?: Uuid;
@@ -128,6 +129,7 @@ export type ContentParentDto = ContentBaseDto & {
     media?: MediaDto;
     mediaBucketId?: Uuid;
     useVerticalTileLayout?: boolean;
+    linkDates?: boolean;
 };
 
 export type PostDto = ContentParentDto & {

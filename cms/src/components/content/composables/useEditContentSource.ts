@@ -197,6 +197,7 @@ export function useEditContentSource(options: UseEditContentSourceOptions): UseE
             memberOf: [],
             tags: [],
             publishDateVisible: true,
+            linkDates: true,
         };
         if (docType === DocType.Tag) {
             (template as TagDto).tagType = tagOrPostType as TagType;

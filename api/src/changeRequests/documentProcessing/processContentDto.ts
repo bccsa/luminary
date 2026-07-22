@@ -2,16 +2,23 @@ import { ContentDto } from "../../dto/ContentDto";
 import { validateSlug } from "../validateSlug";
 import { PostDto } from "../../dto/PostDto";
 import { TagDto } from "../../dto/TagDto";
+import { LanguageDto } from "../../dto/LanguageDto";
 import { DbService } from "../../db/db.service";
-import { DocType, PublishStatus, Uuid } from "../../enums";
+import { AclPermission, DocType, PublishStatus, Uuid } from "../../enums";
 import { computeFtsData } from "../../util/ftsIndexing";
+import { PermissionSystem } from "../../permissions/permissions.service";
 
 /**
  * Process Content DTO
  * @param doc
  * @param db
+ * @param groupMembership Group IDs the acting user belongs to — used to gate sibling date propagation
  */
-export default async function processContentDto(doc: ContentDto, db: DbService): Promise<string[]> {
+export default async function processContentDto(
+    doc: ContentDto,
+    db: DbService,
+    groupMembership: Array<Uuid>,
+): Promise<string[]> {
     // Server-controlled field; clients must not set it. Cleared here so any forged value
     // is dropped before persistence — only the unpublish path in DbService is allowed to set it.
     delete doc.statusChangeDeleteCmdId;
@@ -60,6 +67,7 @@ export default async function processContentDto(doc: ContentDto, db: DbService):
         else delete doc.parentAlwaysOffline;
 
         doc.parentUseVerticalTileLayout = parentDoc.useVerticalTileLayout;
+        doc.parentLinkDates = parentDoc.linkDates;
     }
 
     // Find all available translations, and add them to the content document's availableTranslations property
@@ -78,9 +86,42 @@ export default async function processContentDto(doc: ContentDto, db: DbService):
     const availableTranslations = Array.from(uniqueLanguages);
     doc.availableTranslations = availableTranslations;
 
+    // Date propagation only ever touches a sibling the acting user has Translate access to —
+    // enforced here (not just via the CMS toggle UI), since this cascade writes siblings the
+    // user may never have opened. A sibling in a language the user can't translate keeps its
+    // own dates untouched.
+    const propagateDates = parentDoc.linkDates && !doc.deleteReq;
+    const translatableLanguageIds = propagateDates
+        ? new Set(
+              (await db.getDocs(translations.map((t) => t.language), [DocType.Language])).docs
+                  .filter((l) =>
+                      PermissionSystem.verifyAccess(
+                          (l as unknown as LanguageDto).memberOf,
+                          DocType.Language,
+                          AclPermission.Translate,
+                          groupMembership,
+                          "any",
+                      ),
+                  )
+                  .map((l) => l._id),
+          )
+        : new Set<Uuid>();
+
     // Update all translations with the new list of available translations
     for (const t of translations) {
         t.availableTranslations = availableTranslations;
+
+        // Propagate this translation's date onto its siblings when the parent has linking
+        // enabled. Guarded on "!== undefined" rather than blindly assigning: a Content doc
+        // commonly has no publishDate (Draft, never scheduled) or no expiryDate (never set),
+        // and that's not the same as a deliberate "clear this date" action — propagating
+        // undefined would wipe a sibling's real date every time an unrelated translation is
+        // saved without one.
+        if (propagateDates && translatableLanguageIds.has(t.language)) {
+            if (doc.publishDate !== undefined) t.publishDate = doc.publishDate;
+            if (doc.expiryDate !== undefined) t.expiryDate = doc.expiryDate;
+        }
+
         await db.upsertDoc(t);
     }
 

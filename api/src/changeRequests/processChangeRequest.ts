@@ -57,7 +57,7 @@ export async function processChangeRequest(
     const docProcessMap = {
         [DocType.Post]: () => processPostTagDto(doc as PostDto, prevDoc as PostDto, db),
         [DocType.Tag]: () => processPostTagDto(doc as TagDto, prevDoc as TagDto, db),
-        [DocType.Content]: () => processContentDto(doc as ContentDto, db),
+        [DocType.Content]: () => processContentDto(doc as ContentDto, db, groupMembership),
         [DocType.Language]: () => processLanguageDto(doc as LanguageDto, db),
         [DocType.Group]: () => processGroupDto(doc as GroupDto),
         [DocType.Storage]: () => processStorageDto(doc as StorageDto, prevDoc as StorageDto, db),

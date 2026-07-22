@@ -156,6 +156,11 @@ export class ContentDto extends _contentBaseDto {
     parentUseVerticalTileLayout?: boolean;
 
     @IsOptional() // Optional as it is set upon change request processing
+    @IsBoolean()
+    @Expose()
+    parentLinkDates?: boolean;
+
+    @IsOptional() // Optional as it is set upon change request processing
     @IsArray()
     @Expose()
     parentTaggedDocs?: Uuid[];
