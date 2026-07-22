@@ -28,14 +28,13 @@ onMounted(() => {
 const continuedContent = useDexieLiveQueryWithDeps(
     () => [appLanguageIdsAsRef.value, contentProgressAsRef.value],
     async ([appLanguageIds, progressList]) => {
-        const readingProgressList = progressList.filter(
-            (entry: ContentProgressEntry) => entry.reading !== undefined,
+        const inProgressList = progressList.filter(
+            (entry: ContentProgressEntry) =>
+                entry.reading !== undefined || entry.watching !== undefined,
         );
-        if (readingProgressList.length === 0) return [];
+        if (inProgressList.length === 0) return [];
 
-        const contentIds = readingProgressList.map(
-            (entry: ContentProgressEntry) => entry.contentId,
-        );
+        const contentIds = inProgressList.map((entry: ContentProgressEntry) => entry.contentId);
 
         const results = await mangoToDexie<ContentDto>(db.docs, {
             selector: {
