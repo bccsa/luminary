@@ -1,16 +1,19 @@
-import { describe, it, expect, vi } from "vitest";
+import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 import { effectScope, nextTick } from "vue";
 import waitForExpect from "wait-for-expect";
 import * as shared from "luminary-shared";
 import {
     DocType,
+    PostType,
     PublishStatus,
+    TagType,
     tierWeightForRank,
     type ContentDto,
     type FtsSearchResult,
 } from "luminary-shared";
 import { appLanguageIdsAsRef, appSyncedLanguageIdsAsRef } from "@/globalConfig";
 import { affinityProfile } from "@/recommendation/affinityStore";
+import { markSeen } from "@/recommendation/seenStore";
 import { computeRichness, fuseTagFts, rank, useRecommendations } from "./useRecommendations";
 
 function makeContent(
@@ -36,6 +39,30 @@ function makeContent(
 
 function makeFtsResult(doc: ContentDto, score: number): FtsSearchResult {
     return { docId: doc._id, score, wordMatchScore: 0, doc };
+}
+
+function makeTopicTagContent(tagId: string): ContentDto {
+    return {
+        ...makeContent(`content-${tagId}`, [], 1, tagId),
+        parentType: DocType.Tag,
+        parentTagType: TagType.Topic,
+        parentPublishDateVisible: false,
+        title: tagId,
+    } as ContentDto;
+}
+
+function makeRecommendationContent(
+    id: string,
+    parentTags: string[],
+    publishDate: number,
+    parentId = `post-${id}`,
+): ContentDto {
+    return {
+        ...makeContent(id, parentTags, publishDate, parentId),
+        parentType: DocType.Post,
+        parentPostType: PostType.Blog,
+        parentPublishDateVisible: true,
+    } as ContentDto;
 }
 
 describe("computeRichness", () => {
@@ -202,6 +229,163 @@ describe("useRecommendations FTS retrieval", () => {
             appLanguageIdsAsRef.value = previousLanguages;
             appSyncedLanguageIdsAsRef.value = previousSyncedLanguages;
             await shared.db.setLuminaryInternals("highlights", previousHighlights);
+        }
+    });
+});
+
+describe("useRecommendations exploration slot", () => {
+    const topTagId = "tag-top-topic";
+    const explorationTagId = "tag-exploration-topic";
+    let ftsSearchSpy: { mockRestore: () => void };
+
+    const startRecommendations = (limit: number) => {
+        affinityProfile.value = {
+            affinity: { [topTagId]: 0.9 },
+            lastDecayUtc: Date.now(),
+        };
+        const scope = effectScope();
+        const result = scope.run(() => useRecommendations({ limit }));
+        if (!result) throw new Error("recommendation scope did not initialize");
+        return { scope, result };
+    };
+
+    beforeEach(async () => {
+        await shared.db.docs.clear();
+        localStorage.clear();
+        affinityProfile.value = { affinity: {}, lastDecayUtc: undefined };
+        appLanguageIdsAsRef.value = ["lang-eng"];
+        appSyncedLanguageIdsAsRef.value = ["lang-eng"];
+        ftsSearchSpy = vi.spyOn(shared, "ftsSearch").mockResolvedValue([]);
+    });
+
+    afterEach(async () => {
+        ftsSearchSpy.mockRestore();
+        await shared.db.docs.clear();
+        localStorage.clear();
+        affinityProfile.value = { affinity: {}, lastDecayUtc: undefined };
+    });
+
+    it("appends the newest eligible under-represented item and exposes its exploration id", async () => {
+        // sessionNow() is frozen by earlier recommendation tests, so keep all fixtures
+        // safely before that bound rather than accidentally creating scheduled content.
+        const now = Date.now() - 60_000;
+        const personalized = [
+            makeRecommendationContent("personalized-one", [topTagId], now - 3_000),
+            makeRecommendationContent("personalized-two", [topTagId], now - 4_000),
+        ];
+        const exploration = makeRecommendationContent(
+            "exploration-newest",
+            [explorationTagId],
+            now - 1_000,
+        );
+        await shared.db.docs.bulkPut([
+            makeTopicTagContent(topTagId),
+            makeTopicTagContent(explorationTagId),
+            ...personalized,
+            exploration,
+        ]);
+        const { scope, result } = startRecommendations(3);
+
+        try {
+            await waitForExpect(() => {
+                expect(result.recommended.value).toHaveLength(3);
+                expect(result.recommended.value.at(-1)?._id).toBe(exploration._id);
+                expect(result.explorationId.value).toBe(exploration._id);
+            });
+        } finally {
+            scope.stop();
+        }
+    });
+
+    it("keeps the full personalized limit when no eligible exploration candidate exists", async () => {
+        const now = Date.now() - 60_000;
+        const personalized = [
+            makeRecommendationContent("personalized-one", [topTagId], now - 1_000),
+            makeRecommendationContent("personalized-two", [topTagId], now - 2_000),
+            makeRecommendationContent("personalized-three", [topTagId], now - 3_000),
+        ];
+        await shared.db.docs.bulkPut([makeTopicTagContent(topTagId), ...personalized]);
+        const { scope, result } = startRecommendations(3);
+
+        try {
+            await waitForExpect(() => {
+                expect(result.recommended.value).toHaveLength(3);
+                expect(result.explorationId.value).toBeUndefined();
+            });
+        } finally {
+            scope.stop();
+        }
+    });
+
+    it("skips seen and already top-tagged pool items before selecting exploration content", async () => {
+        const now = Date.now() - 60_000;
+        const seenOutsideTopTags = makeRecommendationContent(
+            "seen-outside-top-tags",
+            [explorationTagId],
+            now - 1_000,
+        );
+        const alreadyTopTagged = makeRecommendationContent(
+            "already-top-tagged",
+            [topTagId],
+            now - 2_000,
+        );
+        const eligibleOlder = makeRecommendationContent(
+            "eligible-older",
+            [explorationTagId],
+            now - 3_000,
+        );
+        markSeen(seenOutsideTopTags._id);
+        await shared.db.docs.bulkPut([
+            makeTopicTagContent(topTagId),
+            makeTopicTagContent(explorationTagId),
+            seenOutsideTopTags,
+            alreadyTopTagged,
+            eligibleOlder,
+        ]);
+        const { scope, result } = startRecommendations(2);
+
+        try {
+            await waitForExpect(() => {
+                expect(result.recommended.value.at(-1)?._id).toBe(eligibleOlder._id);
+                expect(result.explorationId.value).toBe(eligibleOlder._id);
+                expect(result.explorationId.value).not.toBe(seenOutsideTopTags._id);
+                expect(result.explorationId.value).not.toBe(alreadyTopTagged._id);
+            });
+        } finally {
+            scope.stop();
+        }
+    });
+
+    it("does not append an exploration candidate that collides with a personalized parent", async () => {
+        const now = Date.now() - 60_000;
+        const sharedParentId = "post-shared-parent";
+        const personalized = makeRecommendationContent(
+            "personalized-translation",
+            [topTagId],
+            now - 2_000,
+            sharedParentId,
+        );
+        const collidingExploration = makeRecommendationContent(
+            "exploration-translation",
+            [explorationTagId],
+            now - 1_000,
+            sharedParentId,
+        );
+        await shared.db.docs.bulkPut([
+            makeTopicTagContent(topTagId),
+            makeTopicTagContent(explorationTagId),
+            personalized,
+            collidingExploration,
+        ]);
+        const { scope, result } = startRecommendations(3);
+
+        try {
+            await waitForExpect(() => {
+                expect(result.recommended.value.map((doc) => doc._id)).toEqual([personalized._id]);
+                expect(result.explorationId.value).toBeUndefined();
+            });
+        } finally {
+            scope.stop();
         }
     });
 });

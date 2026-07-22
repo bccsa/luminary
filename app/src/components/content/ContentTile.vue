@@ -18,6 +18,8 @@ type Props = {
     titlePosition?: "bottom" | "center" | "overlay";
     /** Shown below the title in overlay mode (e.g. uppercase category label). */
     overlayLabel?: string;
+    /** Small, independent corner badge shown over the image. */
+    badge?: string;
     showProgress?: boolean;
 };
 const props = withDefaults(defineProps<Props>(), {
@@ -130,6 +132,12 @@ const hasProgress = computed(() => displayProgress.value > 0);
                         </div>
                     </template>
                     <template #imageOverlay>
+                        <span
+                            v-if="badge"
+                            class="absolute left-2 top-2 z-20 rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white"
+                        >
+                            {{ badge }}
+                        </span>
                         <div
                             v-if="isComingSoon"
                             class="absolute inset-0 z-20 flex items-center justify-center rounded-lg bg-black/50 opacity-100 transition-opacity duration-200"

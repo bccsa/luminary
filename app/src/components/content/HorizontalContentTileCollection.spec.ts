@@ -28,6 +28,31 @@ describe("HorizontalContentTileCollection", () => {
         expect(tile.props().content).toStrictEqual(mockEnglishContentDto);
     });
 
+    it("passes the badge label only to the matching content tile", async () => {
+        const otherContent = {
+            ...mockEnglishContentDto,
+            _id: "content-post2-eng",
+            parentId: "post-post2",
+        };
+        const wrapper = mount(HorizontalContentTileCollection, {
+            props: {
+                contentDocs: [mockEnglishContentDto, otherContent],
+                badgeContentId: otherContent._id,
+                badgeLabel: "New for you",
+            },
+        });
+
+        let tiles = wrapper.findAllComponents(ContentTile);
+        expect(tiles[0].props("badge")).toBeUndefined();
+        expect(tiles[1].props("badge")).toBe("New for you");
+
+        await wrapper.setProps({ badgeContentId: mockEnglishContentDto._id });
+
+        tiles = wrapper.findAllComponents(ContentTile);
+        expect(tiles[0].props("badge")).toBe("New for you");
+        expect(tiles[1].props("badge")).toBeUndefined();
+    });
+
     it("applies vertical tile computed properties when parentUseVerticalTileLayout is true", async () => {
         const contentWithVerticalTile = {
             ...mockEnglishContentDto,

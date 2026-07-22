@@ -3,7 +3,9 @@ import {
     decay,
     ftsSearch,
     DocType,
+    PostType,
     PublishStatus,
+    TagType,
     type AffinityMap,
     type ContentDto,
     type Uuid,
@@ -32,6 +34,10 @@ const MAX_FTS_TAGS = 4;
 const HIGHLIGHT_FTS_TOTAL_WEIGHT = 0.3;
 /** Output cap on the fused feed. */
 const DEFAULT_LIMIT = 20;
+/** One newest under-represented topic item is deliberately reserved for exploration. */
+const EXPLORATION_SLOT_COUNT = 1;
+/** Small recency-ordered pool: one newest eligible exploration item is all we need. */
+const EXPLORATION_POOL_LIMIT = 100;
 /** Candidate pool per leg. Must be >> DEFAULT_LIMIT: `useContentQuery` sorts by publishDate, so a
  *  pool of DEFAULT_LIMIT would mean affinity only reshuffles the 20 newest tagged docs instead of
  *  actually selecting from the tag neighbourhood. */
@@ -75,6 +81,10 @@ const FTS_DEBOUNCE_MS = 300;
  * Each leg retrieves `retrievalLimit` candidates; already-seen content is dropped after
  * fusion and the result is capped at `limit`. The UI stays empty only when neither topic
  * affinity nor active saved highlight text produces candidates.
+ *
+ * When available, one final slot is reserved for the newest unseen item from a topic outside
+ * the user's current top-ten affinity tags. It remains a normal recommendation so existing
+ * impression-miss and click-affinity feedback closes the exploration loop.
  */
 export type UseRecommendationsOptions = {
     /** Maximum number of unseen, fused recommendations to expose. Defaults to 20. */
@@ -118,6 +128,33 @@ export function useRecommendations({
         { cache: true, cacheId: "recommended", limit: retrievalLimit },
     );
 
+    // A deliberately small newest-first pool for the one exploration slot. Keep the homepage
+    // visibility exclusions aligned with HomePageNewest: pages and category tag docs are not
+    // content people should discover here, and hidden publish dates stay hidden.
+    const explorationPool = useContentQuery(
+        () => [
+            {
+                $or: [
+                    { parentPostType: { $exists: false } },
+                    { parentPostType: { $ne: PostType.Page } },
+                ],
+            },
+            {
+                $or: [
+                    { parentTagType: { $exists: false } },
+                    { parentTagType: { $ne: TagType.Category } },
+                ],
+            },
+            { parentPublishDateVisible: true },
+        ],
+        {
+            sort: [{ publishDate: "desc" }],
+            limit: EXPLORATION_POOL_LIMIT,
+            cache: true,
+            cacheId: "recommended-exploration-pool",
+        },
+    );
+
     // Resolve the top tags' own titles (for FTS query synthesis). `useContentQuery`'s
     // default language-priority filter already collapses this to ~one doc per tag id.
     const tagContent = useContentQuery(
@@ -154,6 +191,33 @@ export function useRecommendations({
                 // unexpected errors in the watcher itself. Fall back to all tags rather
                 // than incorrectly scoring every candidate as having no topic tags.
                 if (runSeq === topicTagIdsRunSeq) topicTagIds.value = undefined;
+            }
+        },
+        { immediate: true },
+    );
+
+    // Exploration candidates draw from a separate query, so resolve their topic tags
+    // independently rather than assuming the tag-leg candidate set covers them.
+    const explorationTopicTagIds = ref<Set<Uuid> | undefined>(undefined);
+    let explorationTopicTagIdsRunSeq = 0;
+    watch(
+        explorationPool,
+        async (docs) => {
+            const runSeq = ++explorationTopicTagIdsRunSeq;
+            const candidateTagIds = new Set<Uuid>();
+            for (const doc of docs) for (const t of doc.parentTags ?? []) candidateTagIds.add(t);
+            const ids = [...candidateTagIds];
+            explorationTopicTagIds.value = undefined;
+            try {
+                const topicIds = await filterTopicTagIds(ids);
+                // Like the tag-leg resolution above, only the newest asynchronous run may
+                // commit its result; a stale pool must not classify a newer one.
+                if (runSeq !== explorationTopicTagIdsRunSeq) return;
+                explorationTopicTagIds.value = new Set(topicIds);
+            } catch {
+                // Do not briefly treat every tag as eligible if this specific resolution
+                // fails. Exploration is optional, so wait for a resolved topic set instead.
+                if (runSeq === explorationTopicTagIdsRunSeq) explorationTopicTagIds.value = undefined;
             }
         },
         { immediate: true },
@@ -287,23 +351,59 @@ export function useRecommendations({
         return new Set(getSeenArticleIds());
     });
 
-    const recommended = computed(() => {
+    const explorationCandidate = computed(() => {
+        // Unlike the tag leg, this pool is only useful after its own tags have been resolved.
+        // While that async work is in flight, leave the personalized feed at its full size.
+        const resolvedTopicTagIds = explorationTopicTagIds.value;
+        if (resolvedTopicTagIds === undefined) return undefined;
+
+        const topTagIds = new Set(tagSet.value);
+        const tagLegCandidateIds = new Set(content.value.map((doc) => doc._id));
+        return explorationPool.value.find(
+            (doc) =>
+                !seenIds.value.has(doc._id) &&
+                !tagLegCandidateIds.has(doc._id) &&
+                (doc.parentTags ?? []).some(
+                    (tagId) => resolvedTopicTagIds.has(tagId) && !topTagIds.has(tagId),
+                ),
+        );
+    });
+
+    // Keep the decision to append a candidate and the id used by the UI as one atomic
+    // computation. In particular, a parent-id collision must not leave a stale badge on a
+    // personalized tile when the exploration item was intentionally skipped.
+    const recommendationResult = computed(() => {
+        const candidate = explorationCandidate.value;
         // Filter seen content out *before* ranking/diversity-capping, not after — otherwise
         // already-seen docs still consume slots in the per-tag MMR cap and push unseen
         // content into overflow (and past `slice(0, limit)` entirely).
         const unseenTagCandidates = content.value.filter((c) => !seenIds.value.has(c._id));
         const unseenFtsCandidates = ftsResults.value.filter((r) => !seenIds.value.has(r.docId));
         const tagRanks = new Map(tags.value.map((id, index) => [id, index + 1]));
-        return rank(unseenTagCandidates, unseenFtsCandidates, decayedAffinity.value, {
+        const personalized = rank(unseenTagCandidates, unseenFtsCandidates, decayedAffinity.value, {
             topicTagIds: topicTagIds.value,
             tagRanks,
             tagWeight: TAG_LEG_WEIGHT * (0.3 + 0.7 * richness.value),
             ftsWeight: FTS_LEG_WEIGHT * (1 - 0.5 * richness.value),
-            limit,
+            // No candidate means this remains exactly the prior full-limit ranking path.
+            limit: candidate ? Math.max(0, limit - EXPLORATION_SLOT_COUNT) : limit,
         });
+
+        if (!candidate) return { docs: personalized, explorationId: undefined };
+
+        // Distinct translations can have different tags, so the otherwise-disjoint query legs
+        // may still refer to the same parent. Preserve one representation only.
+        if (personalized.some((doc) => doc.parentId === candidate.parentId)) {
+            return { docs: personalized, explorationId: undefined };
+        }
+
+        return { docs: [...personalized, candidate], explorationId: candidate._id };
     });
 
-    return { recommended, hasTags: computed(() => tags.value.length > 0) };
+    const recommended = computed(() => recommendationResult.value.docs);
+    const explorationId = computed(() => recommendationResult.value.explorationId);
+
+    return { recommended, hasTags: computed(() => tags.value.length > 0), explorationId };
 }
 
 /** Profile signal strength across its selected tags. Exported for unit testing. */

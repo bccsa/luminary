@@ -163,6 +163,46 @@ describe("ContentTile", () => {
         expect(wrapper.find("a").exists()).toBe(true);
     });
 
+    it("renders an optional corner badge for every title position", () => {
+        for (const titlePosition of ["bottom", "center", "overlay"] as const) {
+            const wrapper = mount(ContentTile, {
+                props: {
+                    content: mockEnglishContentDto,
+                    badge: "New for you",
+                    titlePosition,
+                },
+                global: {
+                    stubs: {
+                        LImage: {
+                            template: "<div><slot></slot><slot name='imageOverlay'></slot></div>",
+                        },
+                    },
+                },
+            });
+
+            const badge = wrapper.find(".left-2.top-2");
+            expect(badge.exists()).toBe(true);
+            expect(badge.text()).toBe("New for you");
+        }
+    });
+
+    it("does not render a corner badge when the badge prop is omitted", () => {
+        const wrapper = mount(ContentTile, {
+            props: {
+                content: mockEnglishContentDto,
+            },
+            global: {
+                stubs: {
+                    LImage: {
+                        template: "<div><slot></slot><slot name='imageOverlay'></slot></div>",
+                    },
+                },
+            },
+        });
+
+        expect(wrapper.find(".left-2.top-2").exists()).toBe(false);
+    });
+
     it("renders the play icon if the content has a video", () => {
         const content = {
             title: "Sample Content",

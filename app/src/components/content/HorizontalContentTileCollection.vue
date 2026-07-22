@@ -4,7 +4,7 @@ import { type AspectRatio, type ImageSize } from "../images/LImageProvider.vue";
 import { ArrowLeftCircleIcon, ArrowRightCircleIcon } from "@heroicons/vue/24/solid";
 import { computed, ref } from "vue";
 import { useInfiniteScroll, useResizeObserver } from "@vueuse/core";
-import { type ContentDto } from "luminary-shared";
+import { type ContentDto, type Uuid } from "luminary-shared";
 
 type Props = {
     contentDocs: ContentDto[];
@@ -15,6 +15,8 @@ type Props = {
     imageSize?: ImageSize;
     contentTitlePosition?: "bottom" | "center" | "overlay";
     tileOverlayLabel?: string;
+    badgeContentId?: Uuid;
+    badgeLabel?: string;
     showProgress?: boolean;
     useVerticalTileLayout?: boolean;
 };
@@ -144,13 +146,14 @@ useInfiniteScroll(
                     <ContentTile
                         v-for="content in infiniteScrollData"
                         :key="content._id"
-                        v-memo="[content]"
+                        v-memo="[content, content._id === badgeContentId]"
                         :content="content"
                         :aspectRatio="computedAspectRatio"
                         :imageSize="computedImageSize"
                         :show-publish-date="showPublishDate"
                         :titlePosition="computedTitlePosition"
                         :overlayLabel="tileOverlayLabel"
+                        :badge="content._id === badgeContentId ? badgeLabel : undefined"
                         :showProgress="showProgress"
                     />
                 </div>

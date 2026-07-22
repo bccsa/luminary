@@ -6,7 +6,7 @@ import { recordImpressionMiss } from "@/recommendation/affinityStore";
 import { useI18n } from "vue-i18n";
 
 const { t } = useI18n();
-const { recommended } = useRecommendations();
+const { recommended, explorationId } = useRecommendations();
 
 const { root, onContainerClick } = useImpressionTracking(recommended, {
     onMiss: (tagIds) => void recordImpressionMiss(tagIds),
@@ -20,6 +20,8 @@ const { root, onContainerClick } = useImpressionTracking(recommended, {
             :contentDocs="recommended"
             :title="t('home.recommended')"
             :showPublishDate="false"
+            :badgeContentId="explorationId"
+            :badgeLabel="t('content.new_for_you')"
             class="pb-1 pt-4"
         />
     </div>
