@@ -25,7 +25,12 @@
 
 import { DateTime } from "luxon";
 import { db, type RetentionEntry } from "./database";
-import { config, getContentPublishDateCutoff, getOfflineRetentionTtl } from "../config";
+import {
+    config,
+    getContentPublishDateCutoff,
+    getOfflineRetentionTtl,
+    isWindowedContentSubType,
+} from "../config";
 import { DocType, type ContentDto } from "../types";
 import { OPEN_MIN } from "../api/sync/utils";
 import { scheduleCorpusStatsRecompute } from "../fts/ftsIndexer";
@@ -99,8 +104,9 @@ export async function flushRetention(): Promise<void> {
 }
 
 /**
- * Delete below-cutoff Post content whose retention deadline has passed (or was never set).
- * Covers both supplement-persisted docs and Post content that slid out of the sync window.
+ * Delete below-cutoff windowed content (currently: Post — see isWindowedContentSubType)
+ * whose retention deadline has passed (or was never set). Covers both
+ * supplement-persisted docs and windowed content that slid out of the sync window.
  * Inert in CMS / when no cutoff is configured. Call only while online (it runs after a
  * content sync) so evicted-but-still-wanted docs can be re-fetched.
  */
@@ -126,7 +132,8 @@ export async function evictStaleBelowCutoff(): Promise<void> {
             if (d.type !== DocType.Content) return false;
             const content = d as ContentDto;
             return (
-                content.parentType === DocType.Post && content.parentAlwaysOffline !== true
+                isWindowedContentSubType(content.parentType) &&
+                content.parentAlwaysOffline !== true
             );
         })
         .primaryKeys()) as string[];

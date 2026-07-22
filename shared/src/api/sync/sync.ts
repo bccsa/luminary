@@ -21,7 +21,11 @@ import {
 import { trim } from "./trim";
 import { syncActive, syncList, syncTolerance } from "./state";
 import { merge } from "./merge";
-import { getContentPublishDateCutoff, hasContentPublishDateCutoff } from "../../config";
+import {
+    getContentPublishDateCutoff,
+    hasContentPublishDateCutoff,
+    isWindowedContentSubType,
+} from "../../config";
 import { evictStaleBelowCutoff } from "../../db/retention";
 
 let _httpService: HttpReq<any>;
@@ -268,13 +272,13 @@ export async function sync(options: SyncRunnerOptions): Promise<void> {
     try {
         await _runSync(options);
 
-        // Post-content callers get an automatic companion run that syncs always-offline
-        // docs (parentAlwaysOffline === true) regardless of the publishDate cutoff.
-        // Centralized here so callers don't need to know about `alwaysOffline` or
-        // issue a second sync() call themselves.
+        // Windowed content callers (currently: Post — see isWindowedContentSubType) get an
+        // automatic companion run that syncs always-offline docs (parentAlwaysOffline ===
+        // true) regardless of the publishDate cutoff. Centralized here so callers don't
+        // need to know about `alwaysOffline` or issue a second sync() call themselves.
         if (
             options.type === DocType.Content &&
-            options.subType === DocType.Post &&
+            isWindowedContentSubType(options.subType) &&
             !options.alwaysOffline &&
             hasContentPublishDateCutoff()
         ) {
@@ -286,14 +290,14 @@ export async function sync(options: SyncRunnerOptions): Promise<void> {
 }
 
 async function _runSync(options: SyncRunnerOptions): Promise<void> {
-    // publishDate is a Content-only sync dimension. Post content uses the configured cutoff
-    // so sync does not pull ordinary posts older than the app/HybridQuery treats as
-    // "remote-only". Tag content must remain open-ended: tags can be long-lived navigation
-    // parents, so applying the rolling Post window can exclude every matching document.
-    // Non-Content callers (Language, Redirect, Storage, AuthProvider, Group, …) leave the
-    // bounds undefined; downstream comparisons resolve those as OPEN_MIN/MAX.
+    // publishDate is a Content-only sync dimension. Windowed subtypes (currently: Post —
+    // see isWindowedContentSubType) use the configured cutoff so sync does not pull
+    // ordinary posts older than the app/HybridQuery treats as "remote-only". Non-windowed
+    // subtypes (Tag) remain open-ended. Non-Content callers (Language, Redirect, Storage,
+    // AuthProvider, Group, …) leave the bounds undefined; downstream comparisons resolve
+    // those as OPEN_MIN/MAX.
     if (options.type === DocType.Content) {
-        if (options.subType !== DocType.Post || options.alwaysOffline) {
+        if (!isWindowedContentSubType(options.subType) || options.alwaysOffline) {
             options.publishDateMin = OPEN_MIN;
             options.publishDateMax = OPEN_MAX;
         } else {
