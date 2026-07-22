@@ -328,9 +328,11 @@ describe("ContentTile", () => {
         });
 
         expect(wrapper.html()).toContain('style="width: 45%');
+        // Reading progress uses the ContinueReadingPrompt bar style (yellow fill).
+        expect(wrapper.html()).toContain("bg-yellow-500");
     });
 
-    it("shows reading progress when it is higher than video progress", () => {
+    it("shows media and reading progress as independent bars on mixed content", () => {
         const content = {
             _id: "sample-mixed-id",
             title: "Mixed Content",
@@ -363,10 +365,14 @@ describe("ContentTile", () => {
             },
         });
 
+        // Media keeps the white bar in the black pill; reading gets its own yellow bar.
+        expect(wrapper.html()).toContain('style="width: 40%');
         expect(wrapper.html()).toContain('style="width: 60%');
+        expect(wrapper.html()).toContain("bg-white");
+        expect(wrapper.html()).toContain("bg-yellow-500");
     });
 
-    it("shows video progress when it is higher than reading progress", () => {
+    it("does not show the reading bar when only media progress exists", () => {
         const content = {
             _id: "sample-mixed-id-2",
             title: "Mixed Content 2",
@@ -380,7 +386,6 @@ describe("ContentTile", () => {
         } as unknown as ContentDto;
 
         setMediaProgress("sample-mixed-media-id-2", content._id, 210, 300); // 70%
-        setReadingProgress(content._id, 30);
 
         const wrapper = mount(ContentTile, {
             props: {
@@ -400,6 +405,7 @@ describe("ContentTile", () => {
         });
 
         expect(wrapper.html()).toContain('style="width: 70%');
+        expect(wrapper.html()).not.toContain("bg-yellow-500");
     });
 
     it("renders title on the image in overlay mode without text below", () => {
