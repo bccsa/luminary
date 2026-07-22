@@ -12,6 +12,11 @@ import {
 } from "luminary-shared";
 import { useContentQuery } from "@/composables/useContentQuery";
 import { affinityProfile } from "@/recommendation/affinityStore";
+import {
+    highlightVersion,
+    loadHighlightQueries,
+    type HighlightQuery,
+} from "@/recommendation/highlightStore";
 import { getSeenArticleIds, seenVersion } from "@/recommendation/seenStore";
 import { appSyncedDisplayLanguageIdsAsRef } from "@/globalConfig";
 import { sessionNow } from "@/util/sessionNow";
@@ -20,6 +25,9 @@ import { filterTopicTagIds } from "@/recommendation/topicTags";
 const TOP_N_TAGS = 12;
 /** Bounds the per-language search multiplier for the FTS/serendipity leg. */
 const MAX_FTS_TAGS = 4;
+/** Highlight text is a deliberate but supplementary discovery signal: its entire
+ * contribution stays below a single strongest topic-title query. */
+const HIGHLIGHT_FTS_TOTAL_WEIGHT = 0.3;
 /** Output cap on the fused feed. */
 const DEFAULT_LIMIT = 20;
 /** Candidate pool per leg. Must be >> DEFAULT_LIMIT: `useContentQuery` sorts by publishDate, so a
@@ -49,19 +57,21 @@ const FTS_DEBOUNCE_MS = 300;
 /**
  * Personalized "Recommended for you" feed.
  *
- * Reads the local affinity profile → top tags, then retrieves via TWO independent legs:
+ * Reads the local affinity profile plus active local highlights, then retrieves via TWO
+ * independent legs:
  *  - **Tag membership**: a Mango `parentTags` query over the SAME hybridQuery path every
  *    feed uses, scored by the doc's own tag-affinity (a calibrated 0-1 value, contributed
  *    directly rather than collapsed to a rank).
- *  - **BM25/FTS**: up to four top tags' own titles run independently through the existing
- *    local full-text search (`ftsSearch`, offline, same engine as the search page), across
- *    the full display-language priority chain, then affinity-weighted into one ranked
- *    list — surfaces content that matches the user's interests by vocabulary even when
- *    it isn't literally tagged with one of the top tags (the "serendipity" leg). Fused
- *    with the tag leg via RRF since BM25 scores aren't calibrated against its scale.
+ *  - **BM25/FTS**: up to four top tags' titles and up to four recent saved highlight
+ *    excerpts run independently through the existing local full-text search (`ftsSearch`,
+ *    offline, same engine as the search page), across the full display-language priority
+ *    chain. Highlight excerpts share a deliberately small fixed weight, so they surface
+ *    vocabulary-relevant content without displacing strong topic affinity. All searches
+ *    fuse with the tag leg via RRF since BM25 scores aren't calibrated against its scale.
  *
  * Each leg retrieves `retrievalLimit` candidates; already-seen content is dropped after
- * fusion and the result is capped at `limit`. Cold profile ⇒ empty (the UI hides itself).
+ * fusion and the result is capped at `limit`. The UI stays empty only when neither topic
+ * affinity nor active saved highlight text produces candidates.
  */
 export type UseRecommendationsOptions = {
     /** Maximum number of unseen, fused recommendations to expose. Defaults to 20. */
@@ -97,7 +107,7 @@ export function useRecommendations({
 
     const content = useContentQuery(
         // No tags yet → a provably-empty `$in: []` so HybridQuery short-circuits
-        // (no scan, no API call) and the feed stays empty until the profile warms up.
+        // (no scan, no API call). Saved highlight FTS can still independently warm the feed.
         () =>
             tagSet.value.length
                 ? [{ parentTags: { $elemMatch: { $in: tagSet.value } } }]
@@ -146,17 +156,41 @@ export function useRecommendations({
         { immediate: true },
     );
 
-    // Search the strongest tags independently so each vocabulary gets its own trigram
-    // budget, then preserve affinity strength explicitly when their result lists fuse.
-    const ftsTagQueries = computed(() => {
+    // IndexedDB internals have no Vue reactivity. Reload the bounded saved-highlight
+    // queries on startup and after SingleContent confirms a successful highlight save.
+    const savedHighlightQueries = ref<HighlightQuery[]>([]);
+    let highlightRunSeq = 0;
+    watch(
+        highlightVersion,
+        async () => {
+            const runSeq = ++highlightRunSeq;
+            const queries = await loadHighlightQueries();
+            if (runSeq === highlightRunSeq) savedHighlightQueries.value = queries;
+        },
+        { immediate: true },
+    );
+
+    // Search the strongest topics independently so each vocabulary gets its own trigram
+    // budget, then add a fixed, modest total highlight budget split across saved excerpts.
+    const ftsQueries = computed(() => {
         const topTagId = tags.value[0];
         const topAffinity = (topTagId && decayedAffinity.value[topTagId]) || 1;
-        return tags.value.slice(0, MAX_FTS_TAGS).flatMap((tagId) => {
+        const tagQueries = tags.value.slice(0, MAX_FTS_TAGS).flatMap((tagId) => {
             const title = tagContent.value.find((t) => t.parentId === tagId)?.title;
             return title
                 ? [{ query: title, weight: (decayedAffinity.value[tagId] ?? 0) / topAffinity }]
                 : [];
         });
+        const highlightWeight = savedHighlightQueries.value.length
+            ? HIGHLIGHT_FTS_TOTAL_WEIGHT / savedHighlightQueries.value.length
+            : 0;
+        return [
+            ...tagQueries,
+            ...savedHighlightQueries.value.map(({ query }) => ({
+                query,
+                weight: highlightWeight,
+            })),
+        ];
     });
 
     // ftsSearch is async and local-only (offline IndexedDB, same engine as the search
@@ -167,26 +201,26 @@ export function useRecommendations({
     let ftsDebounceTimer: ReturnType<typeof setTimeout> | undefined;
     let lastFtsSignature: string | undefined;
     watch(
-        ftsTagQueries,
-        (tagQueries) => {
+        ftsQueries,
+        (queries) => {
             // The computed rebuilds its array when upstream refs re-evaluate; only restart
             // retrieval when the query values themselves have meaningfully changed.
             const signature = JSON.stringify(
-                tagQueries.map(({ query, weight }) => [query, weight.toFixed(4)]),
+                queries.map(({ query, weight }) => [query, weight.toFixed(4)]),
             );
             if (signature === lastFtsSignature) return;
             lastFtsSignature = signature;
             const runSeq = ++ftsRunSeq;
             if (ftsDebounceTimer) clearTimeout(ftsDebounceTimer);
-            if (!tagQueries.length) {
+            if (!queries.length) {
                 ftsResults.value = [];
                 return;
             }
             ftsDebounceTimer = setTimeout(async () => {
                 try {
                     const now = sessionNow();
-                    const tagSearches = await Promise.all(
-                        tagQueries.map(async ({ query, weight }) => {
+                    const ftsSearches = await Promise.all(
+                        queries.map(async ({ query, weight }) => {
                             // Search only locally synced languages in the user's preferred
                             // priority order: primary first, then downloaded fallbacks. The
                             // display default may be fetched on demand, but it is not a
@@ -222,10 +256,10 @@ export function useRecommendations({
                         }),
                     );
                     if (runSeq !== ftsRunSeq) return;
-                    ftsResults.value = fuseTagFts(tagSearches);
+                    ftsResults.value = fuseTagFts(ftsSearches);
                 } catch {
-                    // Offline FTS is best-effort here — a failure just means this leg
-                    // contributes nothing; the tag-membership leg still works.
+                    // Offline FTS is best-effort here — a failure just means text signals
+                    // contribute nothing; the tag-membership leg still works.
                     if (runSeq === ftsRunSeq) ftsResults.value = [];
                 }
             }, FTS_DEBOUNCE_MS);
