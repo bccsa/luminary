@@ -51,6 +51,7 @@ import ImageModal from "@/components/images/ImageModal.vue";
 import { resolveNotificationText, useNotificationStore } from "@/stores/notification";
 import { articleJsonLd, languageCodeForContent } from "@/seo/contentHead";
 import LHighlightable from "@/components/common/LHighlightable.vue";
+import { highlightVersion } from "@/recommendation/highlightStore";
 
 const routeReplaceMock = vi.hoisted(() => vi.fn());
 const mockIsExternalNavigation = vi.hoisted(() => vi.fn());
@@ -514,6 +515,23 @@ describe("SingleContent", () => {
             mockEnglishContentDto.parentTags,
             EventWeight.HighlightRemoved,
         );
+        wrapper.unmount();
+    });
+
+    it("refreshes local highlight recommendations after LHighlightable saves", async () => {
+        const wrapper = mount(SingleContent, {
+            props: { slug: mockEnglishContentDto.slug },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.findComponent(LHighlightable).exists()).toBe(true);
+        });
+        const before = highlightVersion.value;
+
+        wrapper.findComponent(LHighlightable).vm.$emit("highlightsChanged");
+        await nextTick();
+
+        expect(highlightVersion.value).toBe(before + 1);
         wrapper.unmount();
     });
 

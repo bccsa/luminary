@@ -20,6 +20,7 @@ import {
 import { publishedNowConditions } from "@/util/mangoIsPublished";
 import { useContentQuery, useContentQueryWithState } from "@/composables/useContentQuery";
 import { recordAffinity } from "@/recommendation/affinityStore";
+import { notifyHighlightsChanged } from "@/recommendation/highlightStore";
 import { markSeen } from "@/recommendation/seenStore";
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { BookmarkIcon as BookmarkIconSolid, TagIcon, SunIcon } from "@heroicons/vue/24/solid";
@@ -935,6 +936,7 @@ watch([isLoading, content, is404], async () => {
                         @highlight-removed="
                             recordAffinity(content?.parentTags, EventWeight.HighlightRemoved)
                         "
+                        @highlights-changed="notifyHighlightsChanged"
                     >
                         <div
                             ref="articleProseRef"
