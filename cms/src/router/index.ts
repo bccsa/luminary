@@ -1,5 +1,4 @@
 import { createRouter, createWebHistory, START_LOCATION, type NavigationGuard } from "vue-router";
-import { authGuard } from "@auth0/auth0-vue";
 import { nextTick, watch } from "vue";
 import { appName } from "@/globalConfig";
 import Dashboard from "@/pages/DashboardPage.vue";
@@ -7,23 +6,42 @@ import NotFoundPage from "@/pages/NotFoundPage.vue";
 import StoragePage from "@/pages/StoragePage.vue";
 import { AclPermission, DocType, hasAnyPermission, isConnected } from "luminary-shared";
 import { useNotificationStore } from "@/stores/notification";
-import { isAuthBypassed, isAuthPluginInstalled, openProviderModal } from "@/auth";
+import {
+    isAuthBypassed,
+    isAuthPluginInstalled,
+    isAuthenticated,
+    loginWithProvider,
+    openProviderModal,
+    readPersistedProvider,
+} from "@/auth";
+import { waitUntilAuthIsLoaded } from "@/util/waitUntilAuthIsLoaded";
 
 /**
- * Wraps Auth0's `authGuard` so the router doesn't crash when no provider was
- * resolved at boot. In that state the Auth0 Vue plugin was never installed, so
- * `authGuard` — which calls `useAuth0()` internally — would throw. We open the
- * provider selection modal and let the navigation proceed so App.vue can
- * mount; App.vue keeps the routed content hidden behind `v-if="isAuthenticated"`
- * until the user picks a provider and logs in.
+ * Replaces Auth0-vue's `authGuard` (no `oidc-client-ts` equivalent exists).
+ * If no OIDC manager was installed at boot, opens the provider selection
+ * modal and lets navigation proceed — App.vue keeps routed content hidden
+ * behind `v-if="isAuthenticated"` until a provider is picked and logged in.
+ * If a manager IS installed but the session isn't currently authenticated
+ * (the CMS has no unauthenticated state — an expired refresh token between
+ * visits lands here), re-trigger a visible login redirect for the known
+ * provider, mirroring what `authGuard` itself did automatically.
  */
-const conditionalAuthGuard: NavigationGuard = async (to) => {
+const conditionalAuthGuard: NavigationGuard = async () => {
     if (isAuthBypassed) return true;
     if (!isAuthPluginInstalled.value) {
         openProviderModal();
         return true;
     }
-    return authGuard(to);
+    await waitUntilAuthIsLoaded();
+    if (isAuthenticated.value) return true;
+
+    const provider = readPersistedProvider();
+    if (provider) {
+        await loginWithProvider(provider, { prompt: "login" });
+    } else {
+        openProviderModal();
+    }
+    return false;
 };
 
 declare module "vue-router" {

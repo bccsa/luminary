@@ -1,17 +1,16 @@
-import { useAuth0 } from "@auth0/auth0-vue";
 import { watchEffectOnceAsync } from "./watchEffectOnce";
-import { isAuthBypassed, isAuthPluginInstalled } from "@/auth";
+import { isAuthBypassed, isAuthPluginInstalled, useAuth } from "@/auth";
 
-export const waitUntilAuth0IsLoaded = async (callback?: Function) => {
+export const waitUntilAuthIsLoaded = async (callback?: Function) => {
     const fn = async () => {
         if (callback) await callback();
     };
 
-    // In auth bypass mode, or when the Auth0 plugin was never installed, there
-    // is nothing to wait for.
+    // In auth bypass mode, or when no OIDC manager was installed, there is
+    // nothing to wait for.
     if (isAuthBypassed || !isAuthPluginInstalled.value) return fn();
 
-    const { isLoading } = useAuth0();
+    const { isLoading } = useAuth();
     if (!isLoading.value) return fn();
 
     await watchEffectOnceAsync(() => !isLoading.value);
