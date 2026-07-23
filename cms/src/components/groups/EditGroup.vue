@@ -318,7 +318,7 @@ const duplicateGroup = async () => {
                         { 'text-zinc-800': !disabled },
                     ]"
                 >
-                    {{ group.name }}
+                    Accessors for {{ group.name }}
                 </h2>
             </div>
             <LInput
@@ -342,13 +342,6 @@ const duplicateGroup = async () => {
                     <LBadge v-if="isDirty" variant="warning" withIcon class="h-fit">
                         Unsaved changes
                     </LBadge>
-                </div>
-                <div>
-                    <GroupPermissionsReport
-                        :groupName="group.name"
-                        :groupId="group._id"
-                        :allGroups="groupQuery.editable.value"
-                    />
                 </div>
                 <div v-if="!isComboboxOpen && !disabled" class="ml-3">
                     <LButton
@@ -407,6 +400,26 @@ const duplicateGroup = async () => {
                         :originalGroup="group"
                         :availableGroups="availableGroups"
                         :disabled="disabled"
+                    />
+                </div>
+                <div v-if="!isNewGroup" class="pb-2 pt-6">
+                    <div class="relative mb-6">
+                        <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                            <div class="w-full border-t border-zinc-200"></div>
+                        </div>
+                        <div class="relative flex justify-start">
+                            <span
+                                class="bg-white pr-3 text-xs font-bold uppercase tracking-widest text-zinc-400"
+                            >
+                                Inherited Permissions
+                            </span>
+                        </div>
+                    </div>
+
+                    <GroupPermissionsReport
+                        :groupName="group.name"
+                        :groupId="group._id"
+                        :allGroups="groupQuery.editable.value"
                     />
                 </div>
             </div>
