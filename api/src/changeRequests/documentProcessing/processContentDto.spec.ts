@@ -6,7 +6,7 @@ import { PermissionSystem } from "../../permissions/permissions.service";
 import { changeRequest_content } from "../../test/changeRequestDocuments";
 import { ChangeReqDto } from "../../dto/ChangeReqDto";
 import { PostDto } from "../../dto/PostDto";
-import { PublishStatus } from "../../enums";
+import { DocType, PublishStatus } from "../../enums";
 import { TagDto } from "../../dto/TagDto";
 
 describe("processContentDto", () => {
@@ -338,5 +338,36 @@ describe("processContentDto", () => {
         expect(res.warnings ?? []).not.toEqual(
             expect.arrayContaining([expect.stringContaining("a redirect already exists")]),
         );
+    });
+
+    it("keeps content published and removes the matching redirect when a slug rename is reverted", async () => {
+        const original = changeRequest_content();
+        original.doc.parentId = "post-blog1";
+        original.doc._id = "content-slug-reversion";
+        original.doc.slug = "reversion-a";
+        original.doc.status = PublishStatus.Published;
+        original.doc.publishDate = Date.now() - 1000;
+        delete original.doc.expiryDate;
+        await processChangeRequest("test-user", original, ["group-super-admins"], db);
+
+        await processChangeRequest(
+            "test-user",
+            { doc: { ...original.doc, slug: "reversion-b" } },
+            ["group-super-admins"],
+            db,
+        );
+        expect(await db.getDocsBySlug("reversion-a", DocType.Redirect)).toHaveLength(1);
+
+        await processChangeRequest(
+            "test-user",
+            { doc: { ...original.doc, slug: "reversion-a" } },
+            ["group-super-admins"],
+            db,
+        );
+
+        const saved = await db.getDoc(original.doc._id);
+        expect(saved.docs[0].slug).toBe("reversion-a");
+        expect(saved.docs[0].status).toBe(PublishStatus.Published);
+        expect(await db.getDocsBySlug("reversion-a", DocType.Redirect)).toHaveLength(0);
     });
 });

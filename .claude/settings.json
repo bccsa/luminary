@@ -1,12 +1,5 @@
 {
   "permissions": {
-    "allow": [
-      "Bash(npx vitest:*)",
-      "Bash(npm view:*)",
-      "Bash(npm run:*)"
-    ]
-  },
-  "enabledPlugins": {
-    "ponytail@ponytail": true
+    "allow": ["Bash(npx vitest:*)", "Bash(npm view:*)", "Bash(npm run:*)"]
   }
 }

@@ -102,9 +102,7 @@ describe("syncLocalChanges", () => {
             expect(changeRequestMock).toHaveBeenCalled();
             const formData = changeRequestMock.mock.calls[0][0] as FormData;
             expect([...formData.entries()]).toEqual(
-                expect.arrayContaining([
-                    ["changeRequest__json", JSON.stringify(localChange)],
-                ]),
+                expect.arrayContaining([["changeRequest__json", JSON.stringify(localChange)]]),
             );
         });
     });
@@ -249,6 +247,28 @@ describe("syncLocalChanges", () => {
         });
     });
 
+    it("ends an ack wait when retries are exhausted without dropping the queued change", async () => {
+        connect();
+        await waitForExpect(() => expect(isConnected.value).toBe(true));
+
+        changeRequestMock
+            .mockResolvedValueOnce(undefined)
+            .mockResolvedValueOnce(undefined)
+            .mockResolvedValueOnce(undefined);
+        const failing: ChangeReqDto = {
+            id: 111,
+            doc: { _id: "wait-failure", type: DocType.Post, updatedTimeUtc: 1 },
+        };
+        const waiter = db.waitForLocalChangeAck(failing.id!);
+        await db.localChanges.put(failing);
+
+        await expect(waiter).resolves.toEqual({
+            ack: AckStatus.Rejected,
+            message: "Unable to submit saved changes. Please refresh the page to try again.",
+        });
+        expect(await db.localChanges.get(failing.id)).toBeDefined();
+    });
+
     it("clears changeReqErrors on a successful ack", async () => {
         connect();
         await waitForExpect(() => expect(isConnected.value).toBe(true));
@@ -317,9 +337,7 @@ describe("syncLocalChanges", () => {
 
         // New mutation -> watcher fires -> drain re-enters with a fresh attempt
         // counter; this time both acked.
-        changeRequestMock
-            .mockResolvedValueOnce(ack(20))
-            .mockResolvedValueOnce(ack(21));
+        changeRequestMock.mockResolvedValueOnce(ack(20)).mockResolvedValueOnce(ack(21));
 
         await db.localChanges.put({
             id: 21,
@@ -463,9 +481,7 @@ describe("syncLocalChanges", () => {
 
         // Next mutation must drive a new drain — that only works if the running
         // flag was reset by the finally block.
-        changeRequestMock
-            .mockResolvedValueOnce(ack(60))
-            .mockResolvedValueOnce(ack(61));
+        changeRequestMock.mockResolvedValueOnce(ack(60)).mockResolvedValueOnce(ack(61));
         await db.localChanges.put({
             id: 61,
             doc: { _id: "after", type: DocType.Post, updatedTimeUtc: 2 },
@@ -474,6 +490,25 @@ describe("syncLocalChanges", () => {
         await waitForExpect(async () => {
             expect(await db.localChanges.count()).toBe(0);
         });
+    });
+
+    it("ends an ack wait when the api call throws without dropping the queued change", async () => {
+        connect();
+        await waitForExpect(() => expect(isConnected.value).toBe(true));
+
+        changeRequestMock.mockRejectedValueOnce(new Error("network failed"));
+        const failing: ChangeReqDto = {
+            id: 62,
+            doc: { _id: "throws-with-waiter", type: DocType.Post, updatedTimeUtc: 1 },
+        };
+        const waiter = db.waitForLocalChangeAck(failing.id!);
+        await db.localChanges.put(failing);
+
+        await expect(waiter).resolves.toEqual({
+            ack: AckStatus.Rejected,
+            message: "Unable to submit saved changes. Please refresh the page to try again.",
+        });
+        expect(await db.localChanges.get(failing.id)).toBeDefined();
     });
 
     it("recovers when applyLocalChangeAck rejects (running flag resets)", async () => {
@@ -500,9 +535,7 @@ describe("syncLocalChanges", () => {
         // After restoring normal behaviour, a new mutation must trigger drain
         // again — proving the running flag was reset by finally.
         applySpy.mockRestore();
-        changeRequestMock
-            .mockResolvedValueOnce(ack(70))
-            .mockResolvedValueOnce(ack(71));
+        changeRequestMock.mockResolvedValueOnce(ack(70)).mockResolvedValueOnce(ack(71));
 
         await db.localChanges.put({
             id: 71,

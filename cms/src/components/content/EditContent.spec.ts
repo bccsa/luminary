@@ -784,7 +784,7 @@ describe("EditContent.vue", () => {
         });
     });
 
-    it("should generate a redirect if a slug has been changed", async () => {
+    it("saves a changed slug without queuing a client-side redirect", async () => {
         const wrapper = mount(EditContent, {
             props: {
                 docType: DocType.Post,
@@ -795,7 +795,7 @@ describe("EditContent.vue", () => {
         });
 
         await waitForExpect(async () => {
-            // Edit the slug to trigger a redirect creation
+            // Edit the slug; the API owns any redirect creation after sync.
             const editContentBasic = wrapper.findComponent(EditContentBasic);
             const toogle = editContentBasic.findAllComponents(LTextToggle)[0];
             const visible = toogle.find('[data-test="text-toggle-left-value"]');
@@ -815,109 +815,14 @@ describe("EditContent.vue", () => {
             const res = await db.localChanges.toArray();
             expect(res.length).toBeGreaterThan(0);
 
-            // Check if a redirect was created with the new slug.
-            expect(res.length).toBe(3);
-            const redirect = res.filter((o) => o.doc?.type === DocType.Redirect);
-            expect(redirect.length).toBe(1);
-            expect((redirect[0].doc as any).slug).toBe("post1-eng");
-            expect((redirect[0].doc as any).toSlug).toBe("new-slug");
-        });
-    });
-
-    it("does not create a duplicate redirect when the save button is triggered twice in rapid succession", async () => {
-        const wrapper = mount(EditContent, {
-            props: {
-                docType: DocType.Post,
-                id: mockData.mockPostDto._id,
-                languageCode: "eng",
-                tagOrPostType: PostType.Blog,
-            },
-        });
-
-        await waitForExpect(async () => {
-            const editContentBasic = wrapper.findComponent(EditContentBasic);
-            const toogle = editContentBasic.findAllComponents(LTextToggle)[0];
-            const visible = toogle.find('[data-test="text-toggle-left-value"]');
-            expect(visible.exists()).toBe(true);
-
-            expect(wrapper.find('[data-test="slugSpan"]').exists()).toBe(true);
-            await wrapper.find('[data-test="slugSpan"]').trigger("click");
-            await wrapper.find('[name="slug"]').setValue("new-slug");
-            await wrapper.find('[name="slug"]').trigger("change");
-        });
-
-        await waitForExpect(async () => {
-            const saveButton = wrapper.find('[data-test="save-button"]');
-            // Two clicks back-to-back, neither awaited before the next fires — reproduces a
-            // rapid double-click racing buildRedirects against the first save's still-stale
-            // existingContent (see EditContent.vue's isSaving guard).
-            saveButton.trigger("click");
-            await saveButton.trigger("click");
-        });
-
-        await waitForExpect(async () => {
-            const res = await db.localChanges.toArray();
-            const redirects = res.filter((o) => o.doc?.type === DocType.Redirect);
-            expect(redirects.length).toBe(1);
-        });
-    });
-
-    it("should generate redirects for all translations when multiple slugs are changed", async () => {
-        const wrapper = mount(EditContent, {
-            props: {
-                docType: DocType.Post,
-                id: mockData.mockPostDto._id,
-                languageCode: "eng",
-                tagOrPostType: PostType.Blog,
-            },
-        });
-
-        // Change the English slug via the normal UI flow
-        await waitForExpect(async () => {
-            const editContentBasic = wrapper.findComponent(EditContentBasic);
-            const toggle = editContentBasic.findAllComponents(LTextToggle)[0];
-            expect(toggle.find('[data-test="text-toggle-left-value"]').exists()).toBe(true);
-
-            expect(wrapper.find('[data-test="slugSpan"]').exists()).toBe(true);
-            await wrapper.find('[data-test="slugSpan"]').trigger("click");
-            await wrapper.find('[name="slug"]').setValue("new-eng-slug");
-            await wrapper.find('[name="slug"]').trigger("change");
-        });
-
-        // Directly modify the French content slug in editableContent to simulate
-        // the user having navigated to the French tab and changed that slug.
-        // We do this via the component's internal state (accessible in dev mode).
-        await waitForExpect(async () => {
-            const editableContent = (wrapper.vm as any).editableContent as ContentDto[];
-            expect(editableContent.length).toBeGreaterThan(0);
-            const fraContent = editableContent.find(
-                (c: ContentDto) => c.language === mockData.mockLanguageDtoFra._id,
+            const contentIndex = res.findIndex(
+                (o) => o.doc?._id === mockData.mockEnglishContentDto._id,
             );
-            expect(fraContent).toBeDefined();
-            fraContent!.slug = "new-fra-slug";
+            expect(contentIndex).toBeGreaterThan(-1);
+            expect((res[contentIndex].doc as any).slug).toBe("new-slug");
+            expect(res.some((o) => o.doc?.type === DocType.Redirect)).toBe(false);
         });
-
-        await waitForExpect(async () => {
-            await wrapper.find('[data-test="save-button"]').trigger("click");
-        });
-
-        await waitForExpect(async () => {
-            const res = await db.localChanges.toArray();
-            expect(res.length).toBeGreaterThan(0);
-
-            // Both the English and French redirects should have been created
-            const redirects = res.filter((o) => o.doc?.type === DocType.Redirect);
-            expect(redirects.length).toBe(2);
-
-            const engRedirect = redirects.find((r) => (r.doc as any).slug === "post1-eng");
-            expect(engRedirect).toBeDefined();
-            expect((engRedirect!.doc as any).toSlug).toBe("new-eng-slug");
-
-            const fraRedirect = redirects.find((r) => (r.doc as any).slug === "post1-fra");
-            expect(fraRedirect).toBeDefined();
-            expect((fraRedirect!.doc as any).toSlug).toBe("new-fra-slug");
-        });
-    }, 15000);
+    });
 
     describe("delete requests", () => {
         it("marks a post/tag document for deletion without marking associated content documents for deletion when the user deletes a post/tag", async () => {

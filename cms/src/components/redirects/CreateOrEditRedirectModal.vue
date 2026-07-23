@@ -13,6 +13,7 @@ import {
     useHybridQuery,
     useSharedHybridQuery,
     toEditable,
+    isConnected,
 } from "luminary-shared";
 import LInput from "@/components/forms/LInput.vue";
 import LButton from "@/components/button/LButton.vue";
@@ -38,6 +39,7 @@ const { addNotification } = useNotificationStore();
 const emit = defineEmits(["close"]);
 const isNew = computed(() => !props.redirect);
 const showDeleteModal = ref(false);
+const isSaving = ref(false);
 
 const currentId = ref<Uuid>(props.redirect?._id ?? db.uuid());
 
@@ -121,27 +123,52 @@ const isDirty = computed(() => {
 });
 
 const save = async () => {
+    if (isSaving.value) return;
     const doc = editable.value;
     if (!doc) return;
 
-    doc.updatedTimeUtc = Date.now();
-    const res = await saveRedirect(doc._id);
+    isSaving.value = true;
+    try {
+        doc.updatedTimeUtc = Date.now();
+        const awaitServerAck = isConnected.value;
+        const res = await saveRedirect(doc._id, { awaitAck: awaitServerAck });
 
-    if (res?.ack !== AckStatus.Accepted) {
+        if (res?.ack !== AckStatus.Accepted) {
+            addNotification({
+                title: !isNew.value ? "Failed to update redirect" : "Failed to create redirect",
+                description:
+                    res?.message ??
+                    "This redirect could not be saved — it may conflict with another redirect.",
+                state: "error",
+            });
+            return;
+        }
+
+        addNotification(
+            awaitServerAck
+                ? {
+                      title: !isNew.value ? `Redirect updated` : `Redirect created`,
+                      description: `Redirecting ${doc.slug} to ${doc.toSlug ?? "HOMEPAGE"}`,
+                      state: "success",
+                  }
+                : {
+                      title: "Redirect saved offline",
+                      description:
+                          "The redirect is queued and will be checked by the server when you reconnect.",
+                      state: "warning",
+                  },
+        );
+        emit("close");
+    } catch (error) {
+        console.error("Error saving redirect:", error);
         addNotification({
             title: !isNew.value ? "Failed to update redirect" : "Failed to create redirect",
-            description: res?.message ?? "The redirect could not be saved",
+            description: error instanceof Error ? error.message : "An unknown error occurred",
             state: "error",
         });
-        return;
+    } finally {
+        isSaving.value = false;
     }
-
-    addNotification({
-        title: !isNew.value ? `Redirect updated` : `Redirect created`,
-        description: `Redirecting ${doc.slug} to ${doc.toSlug ?? "HOMEPAGE"}`,
-        state: "success",
-    });
-    emit("close");
 };
 
 const canSave = computed(() => {
@@ -150,6 +177,7 @@ const canSave = computed(() => {
     return (
         doc.slug?.trim() !== "" &&
         doc.memberOf.length > 0 &&
+        !isSaving.value &&
         isDirty.value &&
         isSlugUnique.value == true
     );
@@ -192,6 +220,7 @@ const canDelete = computed(() => {
 });
 
 const deleteRedirect = async () => {
+    if (isSaving.value) return;
     if (!canDelete.value) {
         addNotification({
             title: "Access denied",
@@ -204,23 +233,35 @@ const deleteRedirect = async () => {
     const doc = editable.value;
     if (!doc) return;
 
+    isSaving.value = true;
     try {
-        const res = await removeRedirect(doc._id);
+        const awaitServerAck = isConnected.value;
+        const res = await removeRedirect(doc._id, { awaitAck: awaitServerAck });
         if (res?.ack !== AckStatus.Accepted) {
             addNotification({
                 title: "Failed to delete redirect",
-                description: res?.message ?? "The redirect could not be deleted",
+                description:
+                    res?.message ?? "The redirect could not be deleted — please try again.",
                 state: "error",
             });
             return;
         }
 
         emit("close");
-        addNotification({
-            title: `Redirect deleted`,
-            description: `The redirect was successfully deleted`,
-            state: "success",
-        });
+        addNotification(
+            awaitServerAck
+                ? {
+                      title: `Redirect deleted`,
+                      description: `The redirect was successfully deleted`,
+                      state: "success",
+                  }
+                : {
+                      title: "Redirect deletion saved offline",
+                      description:
+                          "The deletion is queued and will be checked by the server when you reconnect.",
+                      state: "warning",
+                  },
+        );
     } catch (error) {
         console.error("Error deleting redirect:", error);
         addNotification({
@@ -228,6 +269,8 @@ const deleteRedirect = async () => {
             description: error instanceof Error ? error.message : "An unknown error occurred",
             state: "error",
         });
+    } finally {
+        isSaving.value = false;
     }
 };
 
@@ -243,7 +286,7 @@ const revertChanges = () => {
         :title="!isNew ? 'Edit redirect' : 'Create new redirect'"
         @close="emit('close')"
         :primaryAction="() => save()"
-        :primaryButtonText="!isNew ? 'Save' : 'Create'"
+        :primaryButtonText="isSaving ? 'Saving…' : !isNew ? 'Save' : 'Create'"
         :primaryButtonDisabled="!canSave"
         :secondaryAction="() => emit('close')"
         secondaryButtonText="Cancel"

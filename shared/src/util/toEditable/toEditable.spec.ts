@@ -15,8 +15,11 @@ import { LFormData } from "../LFormData";
 vi.mock("../../api/RestApi", () => ({ getRest: vi.fn() }));
 vi.mock("../../db/database", () => ({
     db: {
-        upsert: vi.fn(),
+        // Defaults to a resolved localChangeId so local-path tests that don't care about
+        // awaitAck don't have to configure it themselves.
+        upsert: vi.fn(() => Promise.resolve({ localChangeId: 1 })),
         uuid: vi.fn(() => "new-id"),
+        waitForLocalChangeAck: vi.fn(),
     },
 }));
 vi.mock("../../db/isSyncable", () => ({ isSyncableDoc: vi.fn() }));
@@ -276,7 +279,6 @@ describe("toEditable", () => {
             expect(e.editable.value[0].value).toBe(3); // The value should be 3
         });
     });
-
 });
 
 describe("toEditable - save", () => {
@@ -316,6 +318,7 @@ describe("toEditable - save", () => {
         vi.mocked(getRest).mockReturnValue({ changeRequest: changeRequestMock } as any);
         vi.mocked(getContentPublishDateCutoff).mockReturnValue(CUTOFF);
         vi.mocked(isSyncableDoc).mockReturnValue(true);
+        vi.mocked(db.upsert).mockResolvedValue({ localChangeId: 1 });
         changeRequestMock.mockResolvedValue({ ack: AckStatus.Accepted });
     });
 
@@ -349,6 +352,56 @@ describe("toEditable - save", () => {
             message: "Saved locally and queued for upload to the server",
         });
         expect(isEdited.value("a")).toBe(false);
+    });
+
+    test("awaitAck returns the real ack once db.waitForLocalChangeAck resolves", async () => {
+        vi.mocked(db.upsert).mockResolvedValue({ localChangeId: 42 });
+        vi.mocked(db.waitForLocalChangeAck).mockResolvedValue({
+            ack: AckStatus.Rejected,
+            message: "conflict",
+        });
+
+        const source = ref([makeContent("a", 2000)]);
+        const { editable, isEdited, save } = toEditable<ContentLike>(source);
+        editable.value[0].title = "changed";
+        await nextTick();
+
+        const res = await save("a", { awaitAck: true });
+
+        expect(db.waitForLocalChangeAck).toHaveBeenCalledWith(42);
+        expect(res).toEqual({ ack: AckStatus.Rejected, message: "conflict" });
+        expect(isEdited.value("a")).toBe(true);
+    });
+
+    test("awaitAck waits for the real ack instead of returning immediately", async () => {
+        let resolveAck!: (ack: { ack: AckStatus; message?: string }) => void;
+        vi.mocked(db.waitForLocalChangeAck).mockReturnValue(
+            new Promise((resolve) => {
+                resolveAck = resolve;
+            }),
+        );
+
+        const source = ref([makeContent("a", 2000)]);
+        const { editable, save } = toEditable<ContentLike>(source);
+        editable.value[0].title = "changed";
+        await nextTick();
+
+        let resolved = false;
+        const promise = save("a", { awaitAck: true }).then((res) => {
+            resolved = true;
+            return res;
+        });
+
+        // Give any pending microtasks a chance to run — save() must still be pending.
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(resolved).toBe(false);
+
+        resolveAck({ ack: AckStatus.Accepted });
+        const res = await promise;
+
+        expect(resolved).toBe(true);
+        expect(res).toEqual({ ack: AckStatus.Accepted });
     });
 
     test("below-cutoff content with persistOffline off saves via the API path", async () => {
@@ -806,6 +859,9 @@ describe("toEditable - remove", () => {
         const source = ref([makeContent("a", 2000)]);
         const { remove } = toEditable<ContentLike>(source);
 
-        expect(await remove("nope")).toEqual({ ack: AckStatus.Rejected, message: "Item not found" });
+        expect(await remove("nope")).toEqual({
+            ack: AckStatus.Rejected,
+            message: "Item not found",
+        });
     });
 });
