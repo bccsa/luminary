@@ -52,14 +52,14 @@ describe("ContinueProgress", () => {
         localStorage.clear();
     });
 
-    it("does not display content with only video progress", async () => {
+    it("displays content with only video progress", async () => {
         await db.docs.bulkPut([mockEnglishContentDto]);
         setMediaProgress(`media-${mockEnglishContentDto._id}`, mockEnglishContentDto._id, 60, 300);
 
         const wrapper = mount(ContinueProgress);
 
         await waitForExpect(() => {
-            expect(wrapper.text()).not.toContain(mockEnglishContentDto.title);
+            expect(wrapper.text()).toContain(mockEnglishContentDto.title);
         });
     });
 
