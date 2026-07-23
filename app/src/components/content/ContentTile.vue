@@ -60,29 +60,30 @@ const isComingSoon = computed(() => {
     );
 });
 
-const displayProgress = computed(() => {
+const mediaProgress = computed(() => {
     if (!props.showProgress) return 0;
 
-    let mediaProgressPercent = 0;
     const mediaIds = props.content.video
         ? [props.content.video]
         : (props.content.parentMedia?.fileCollections ?? []).map((f) => f.fileUrl);
 
     for (const mediaId of mediaIds) {
-        const mediaProgress = getMediaProgress(mediaId, props.content._id);
-        const mediaDuration = getMediaDuration(mediaId, props.content._id);
+        const progress = getMediaProgress(mediaId, props.content._id);
+        const duration = getMediaDuration(mediaId, props.content._id);
 
-        if (mediaProgress > 0 && mediaDuration > 0) {
-            mediaProgressPercent = Math.min(100, (mediaProgress / mediaDuration) * 100);
-            break;
+        if (progress > 0 && duration > 0) {
+            return Math.min(100, (progress / duration) * 100);
         }
     }
-
-    const readingProgressPercent = getReadingProgress(props.content._id);
-    return Math.max(mediaProgressPercent, readingProgressPercent);
+    return 0;
 });
 
-const hasProgress = computed(() => displayProgress.value > 0);
+const readingProgress = computed(() =>
+    props.showProgress ? getReadingProgress(props.content._id) : 0,
+);
+
+/** One bar per tile: whichever progress (playback or reading) is further along. */
+const displayProgress = computed(() => Math.max(mediaProgress.value, readingProgress.value));
 </script>
 
 <template>
@@ -220,17 +221,19 @@ const hasProgress = computed(() => displayProgress.value > 0);
                             </p>
                         </div>
 
+                        <!-- Progress (playback or reading): same bar design as ContinueReadingPrompt, on the image's bottom edge. -->
                         <div
-                            v-if="showProgress && hasProgress"
-                            class="absolute bottom-2 left-0 right-0 z-20 mx-1 rounded-md bg-black/50 px-1 py-1"
-                            :class="titlePosition === 'overlay' ? 'bottom-[4.5rem]' : ''"
+                            v-if="showProgress && displayProgress > 0"
+                            class="absolute inset-x-0 bottom-0 z-20 h-1 overflow-hidden rounded-b-lg bg-zinc-200 dark:bg-slate-600"
+                            role="progressbar"
+                            :aria-valuenow="displayProgress"
+                            aria-valuemin="0"
+                            aria-valuemax="100"
                         >
-                            <div class="relative h-1.5 w-full overflow-hidden rounded bg-zinc-600">
-                                <div
-                                    class="absolute left-0 top-0 h-full bg-white"
-                                    :style="{ width: `${displayProgress}%` }"
-                                ></div>
-                            </div>
+                            <div
+                                class="h-full bg-yellow-500"
+                                :style="{ width: `${displayProgress}%` }"
+                            ></div>
                         </div>
                     </template>
                 </LImage>
