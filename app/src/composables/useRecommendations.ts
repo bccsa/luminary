@@ -12,6 +12,7 @@ import {
     type FtsSearchResult,
     tierWeightForRank,
     topTagsFrom,
+    affinityConfig,
 } from "luminary-shared";
 import { useContentQuery } from "@/composables/useContentQuery";
 import { affinityProfile } from "@/recommendation/affinityStore";
@@ -102,7 +103,9 @@ export function useRecommendations({
 }: UseRecommendationsOptions = {}) {
     // Decay once per profile update so the retrieval tags and the leg weighting are
     // based on precisely the same evidence.
-    const decayedAffinity = computed(() => decay(affinityProfile.value, sessionNow()).affinity);
+    const decayedAffinity = computed(
+        () => decay(affinityProfile.value, sessionNow(), affinityConfig.value).affinity,
+    );
     const tags = computed(() => topTagsFrom(decayedAffinity.value, TOP_N_TAGS));
     // `$in` has set semantics. Keep its identity canonical so score-only reordering
     // does not rebuild the hybrid query or re-fetch its 1000-document candidate pool.
@@ -251,7 +254,7 @@ export function useRecommendations({
                           query: title,
                           weight:
                               ((decayedAffinity.value[tagId] ?? 0) / topAffinity) *
-                              tierWeightForRank(rank),
+                              tierWeightForRank(rank, affinityConfig.value),
                       },
                   ]
                 : [];
@@ -565,7 +568,9 @@ function tagAffinity(
     for (const tag of doc.parentTags ?? []) {
         if (topicTagIds && !topicTagIds.has(tag)) continue;
         const rank = tagRanks?.get(tag);
-        const value = (affinity[tag] ?? 0) * (rank === undefined ? 1 : tierWeightForRank(rank));
+        const value =
+            (affinity[tag] ?? 0) *
+            (rank === undefined ? 1 : tierWeightForRank(rank, affinityConfig.value));
         count++;
         total += value;
         if (value > max) {

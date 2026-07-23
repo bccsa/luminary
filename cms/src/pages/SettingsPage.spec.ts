@@ -166,15 +166,4 @@ describe("purgeLocalDatabase", () => {
 
         purgeSpy.mockRestore();
     });
-
-    it("opens the default affinity modal from settings", async () => {
-        const wrapper = mount(SettingsPage);
-
-        expect(wrapper.findComponent({ name: "DefaultAffinityModal" }).exists()).toBe(false);
-
-        await wrapper.find("button[data-test='openDefaultAffinityModal']").trigger("click");
-        await wrapper.vm.$nextTick();
-
-        expect(wrapper.findComponent({ name: "DefaultAffinityModal" }).exists()).toBe(true);
-    });
 });

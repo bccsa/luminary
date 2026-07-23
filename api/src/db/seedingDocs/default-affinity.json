@@ -2,5 +2,23 @@
     "_id": "default-affinity",
     "type": "defaultAffinity",
     "memberOf": ["group-super-admins"],
-    "affinity": {}
+    "affinity": {},
+    "config": {
+        "tierHalfLifeDays": { "core": 120, "strong": 60, "established": 25, "unprotected": 45 },
+        "tierWeight": { "core": 1.0, "strong": 0.6, "established": 0.3, "unprotected": 0.3 },
+        "hitWeight": 0.04,
+        "minScore": 0.01,
+        "maxTags": 50,
+        "depthScale": 20,
+        "readFloorPercent": 20,
+        "eventWeight": {
+            "bookmark": 0.25,
+            "bookmarkRemoved": -0.15,
+            "completion": 0.35,
+            "readCompletion": 0.35,
+            "highlight": 0.3,
+            "highlightRemoved": -0.18,
+            "impression": -0.02
+        }
+    }
 }

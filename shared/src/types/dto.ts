@@ -11,6 +11,7 @@ import type {
     AclPermission,
     AckStatus,
 } from "../types";
+import type { AffinityConfig } from "../recommendation/affinity";
 
 export type Uuid = string;
 
@@ -63,10 +64,16 @@ export type ContentBaseDto = BaseDocumentDto & {
  * see `DEFAULT_AFFINITY_ID`). This is a normal group-scoped/permissioned doc
  * edited by CMS admins via the standard change-request path. Its affinity map is
  * delivered at login only to seed a previously unused client-local profile.
+ *
+ * `config`, if present, holds the CMS-editable affinity engine tuning knobs (see
+ * `AffinityConfig` in `recommendation/affinity.ts`) — falls back to
+ * `DEFAULT_AFFINITY_CONFIG` when absent. Delivered the same way as `affinity`, via
+ * `clientConfig`.
  */
 export type DefaultAffinityDto = ContentBaseDto & {
     type: DocType.DefaultAffinity;
     affinity: AffinityMap;
+    config?: AffinityConfig;
 };
 
 export type LanguageDto = ContentBaseDto & {

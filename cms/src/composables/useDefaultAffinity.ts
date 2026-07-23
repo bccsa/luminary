@@ -6,8 +6,10 @@ import {
     useHybridQueryWithState,
     toEditable,
     DEFAULT_AFFINITY_ID,
+    DEFAULT_AFFINITY_CONFIG,
     type DefaultAffinityDto,
     type AffinityMap,
+    type AffinityConfig,
     type ChangeReqAckDto,
 } from "luminary-shared";
 
@@ -42,24 +44,27 @@ export function useDefaultAffinity() {
 
     // Exactly one row expected (the singleton) — undefined before it has ever been created.
     const current = computed(() => editable.value[0]);
+    /** The affinity engine tuning config, falling back to defaults before the singleton exists. */
+    const config = computed(() => current.value?.config ?? DEFAULT_AFFINITY_CONFIG);
 
     /**
-     * Create or update the singleton with a new affinity map. Stages the doc into the
-     * editable array (replacing the existing row or appended as new), then persists via
-     * {@link toEditable}'s `save` — which POSTs to `/changerequest` for this non-synced type.
+     * Stage a partial update onto the singleton doc (creating it with fixed `_id` if it
+     * doesn't exist yet) and persist via {@link toEditable}'s `save` — which POSTs to
+     * `/changerequest` for this non-synced type. Shared by `saveAffinity`/`saveConfig`.
      */
-    async function saveAffinity(
-        affinity: AffinityMap,
+    async function saveDoc(
+        patch: Partial<Pick<DefaultAffinityDto, "affinity" | "config">>,
         memberOf: string[],
     ): Promise<ChangeReqAckDto | undefined> {
         const doc: DefaultAffinityDto = current.value
-            ? { ...current.value, affinity }
+            ? { ...current.value, ...patch }
             : {
                   _id: DEFAULT_AFFINITY_ID,
                   type: DocType.DefaultAffinity,
                   updatedTimeUtc: Date.now(),
                   memberOf,
-                  affinity,
+                  affinity: {},
+                  ...patch,
               };
         const idx = editable.value.findIndex((d) => d._id === doc._id);
         if (idx >= 0) editable.value[idx] = doc;
@@ -70,5 +75,21 @@ export function useDefaultAffinity() {
         return save(doc._id);
     }
 
-    return { canView, canEdit, current, isLoading, saveAffinity };
+    /** Create or update the singleton with a new cold-start affinity (tag → score) map. */
+    async function saveAffinity(
+        affinity: AffinityMap,
+        memberOf: string[],
+    ): Promise<ChangeReqAckDto | undefined> {
+        return saveDoc({ affinity }, memberOf);
+    }
+
+    /** Create or update the singleton with a new affinity engine tuning config. */
+    async function saveConfig(
+        config: AffinityConfig,
+        memberOf: string[],
+    ): Promise<ChangeReqAckDto | undefined> {
+        return saveDoc({ config }, memberOf);
+    }
+
+    return { canView, canEdit, current, config, isLoading, saveAffinity, saveConfig };
 }

@@ -1,7 +1,15 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
-import { decay, DocType, queryLocal, TagType, type BaseDocumentDto, type Uuid } from "luminary-shared";
+import {
+    decay,
+    DocType,
+    queryLocal,
+    TagType,
+    affinityConfig,
+    type BaseDocumentDto,
+    type Uuid,
+} from "luminary-shared";
 import { useContentQuery } from "@/composables/useContentQuery";
 import { affinityProfile } from "@/recommendation/affinityStore";
 import { filterTopicTagIds } from "@/recommendation/topicTags";
@@ -20,7 +28,7 @@ onMounted(() => {
 });
 
 const decayedEntries = computed(() => {
-    const decayed = decay(affinityProfile.value, now.value);
+    const decayed = decay(affinityProfile.value, now.value, affinityConfig.value);
     return Object.entries(decayed.affinity).sort((a, b) => b[1] - a[1]);
 });
 
