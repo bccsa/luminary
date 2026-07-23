@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref } from "vue";
-import { decay, DocType, type AffinityProfile } from "luminary-shared";
+import { decay, DocType, affinityConfig, type AffinityProfile } from "luminary-shared";
 import { useContentQuery } from "@/composables/useContentQuery";
 import { markPageReady } from "@/util/renderState";
 
@@ -42,7 +42,7 @@ onMounted(async () => {
 });
 
 const decayedEntries = computed(() => {
-    const decayed = decay(profile.value, now.value);
+    const decayed = decay(profile.value, now.value, affinityConfig.value);
     return Object.entries(decayed.affinity).sort((a, b) => b[1] - a[1]);
 });
 

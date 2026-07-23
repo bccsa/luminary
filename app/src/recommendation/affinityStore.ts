@@ -1,8 +1,8 @@
 import { ref, watch } from "vue";
 import {
     defaultAffinity,
+    affinityConfig,
     applyEvent,
-    EventWeight,
     type AffinityProfile,
     type Uuid,
 } from "luminary-shared";
@@ -55,26 +55,37 @@ watch(defaultAffinity, (serverDefault) => {
  * Record that the user engaged with a piece of content: fold its tag ids into the
  * affinity profile (with time decay) and persist it locally.
  *
- * `weight` defaults to {@link EventWeight.Open} (a plain view — the weakest, most
- * ambiguous signal). Pass a stronger weight for a more confident signal: an explicit
- * bookmark or a video/audio track finishing to completion are both real intent, not
- * just "the page was open," and should move the profile further per event.
+ * `weight` defaults to the CMS-configured `affinityConfig.value.hitWeight` (a plain
+ * view — the weakest, most ambiguous signal). Pass a stronger weight for a more
+ * confident signal: an explicit bookmark or a video/audio track finishing to
+ * completion are both real intent, not just "the page was open," and should move
+ * the profile further per event.
  *
  * Deliberately called unconditionally from its (SingleContent/VideoPlayer/AudioPlayer/
  * LHighlightable) call sites to keep the affinity profile continuously updated.
  */
-export async function recordAffinity(tagIds: Uuid[] | undefined, weight: number = EventWeight.Open) {
+export async function recordAffinity(
+    tagIds: Uuid[] | undefined,
+    weight: number = affinityConfig.value.hitWeight,
+) {
     if (!tagIds || tagIds.length === 0) return;
     const topicTags = await filterTopicTagIds(tagIds);
     if (!topicTags.length) return;
-    affinityProfile.value = applyEvent(affinityProfile.value, topicTags, Date.now(), weight);
+    affinityProfile.value = applyEvent(
+        affinityProfile.value,
+        topicTags,
+        Date.now(),
+        weight,
+        affinityConfig.value,
+    );
     persist();
 }
 
 /**
  * Record that recommended content was shown and scrolled past without being opened:
- * fold its topic tags into the affinity profile with the negative `EventWeight.Impression`
- * signal. This is the only negative signal in the profile — without it, a tag that
+ * fold its topic tags into the affinity profile with the negative
+ * `affinityConfig.value.eventWeight.impression` signal. This is the only negative
+ * signal in the profile — without it, a tag that
  * picked up one accidental positive interaction stays inflated for a full decay
  * half-life and keeps polluting retrieval.
  */
@@ -86,7 +97,8 @@ export async function recordImpressionMiss(tagIds: Uuid[] | undefined) {
         affinityProfile.value,
         topicTags,
         Date.now(),
-        EventWeight.Impression,
+        affinityConfig.value.eventWeight.impression,
+        affinityConfig.value,
     );
     persist();
 }
