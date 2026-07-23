@@ -1,6 +1,6 @@
 import { DbService } from "../db.service";
 import { AclPermission, DocType } from "../../enums";
-import { DEFAULT_AFFINITY_ID } from "../../util/defaultAffinity";
+import { DEFAULT_AFFINITY_CONFIG, DEFAULT_AFFINITY_ID } from "../../util/defaultAffinity";
 
 const SUPER_ADMINS_GROUP_ID = "group-super-admins";
 
@@ -15,11 +15,12 @@ const SUPER_ADMINS_GROUP_ID = "group-super-admins";
  *     pattern. Without this, an existing DB's super admins have no permission
  *     to create/edit the singleton doc via the CMS.
  *  2. Seeds the singleton `DefaultAffinityDto` doc (fixed `_id` =
- *     `DEFAULT_AFFINITY_ID`) with an empty profile if none exists yet — so
- *     `AuthIdentityService.getDefaultAffinity()` has a doc to find (an absent
- *     doc is handled gracefully too; this just gives CMS admins something to
- *     open and edit immediately rather than a doc that appears only after
- *     their first save).
+ *     `DEFAULT_AFFINITY_ID`) with an empty profile and the default affinity
+ *     engine tuning config if none exists yet — so
+ *     `AuthIdentityService.getDefaultAffinity()`/`getAffinityConfig()` have a doc
+ *     to find (an absent doc is handled gracefully too; this just gives CMS
+ *     admins something to open and edit immediately rather than a doc that
+ *     appears only after their first save).
  *
  * Idempotent: the ACL grant is skipped where already present (`insertDoc`
  * preserves the group's existing `updatedTimeUtc`, matching v19); the
@@ -75,6 +76,7 @@ export default async function (db: DbService) {
                 type: DocType.DefaultAffinity,
                 memberOf: [SUPER_ADMINS_GROUP_ID],
                 affinity: {},
+                config: DEFAULT_AFFINITY_CONFIG,
             });
             console.info("Created the default affinity singleton doc");
         } else {

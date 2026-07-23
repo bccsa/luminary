@@ -3,6 +3,7 @@ import {
     decay,
     ftsSearch,
     PublishStatus,
+    affinityConfig,
     type AffinityMap,
     type ContentDto,
     type FtsSearchResult,
@@ -73,7 +74,7 @@ export function useMoreLikeThis(
     );
 
     const decayedAffinity = computed<AffinityMap>(
-        () => decay(affinityProfile.value, sessionNow()).affinity,
+        () => decay(affinityProfile.value, sessionNow(), affinityConfig.value).affinity,
     );
 
     const similar = computed(() => {

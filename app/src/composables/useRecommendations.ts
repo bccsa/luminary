@@ -9,6 +9,7 @@ import {
     type Uuid,
     type FtsSearchResult,
     topTagsFrom,
+    affinityConfig,
 } from "luminary-shared";
 import { useContentQuery } from "@/composables/useContentQuery";
 import { affinityProfile } from "@/recommendation/affinityStore";
@@ -89,7 +90,9 @@ export function useRecommendations({
 }: UseRecommendationsOptions = {}) {
     // Decay once per profile update so the retrieval tags and the leg weighting are
     // based on precisely the same evidence.
-    const decayedAffinity = computed(() => decay(affinityProfile.value, sessionNow()).affinity);
+    const decayedAffinity = computed(
+        () => decay(affinityProfile.value, sessionNow(), affinityConfig.value).affinity,
+    );
     const tags = computed(() => topTagsFrom(decayedAffinity.value, TOP_N_TAGS));
     // `$in` has set semantics. Keep its identity canonical so score-only reordering
     // does not rebuild the hybrid query or re-fetch its 1000-document candidate pool.

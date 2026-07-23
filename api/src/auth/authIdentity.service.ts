@@ -7,10 +7,10 @@ import { AuthProviderDto } from "../dto/AuthProviderDto";
 import { AuthProviderCondition, AutoGroupMappingsDto } from "../dto/AutoGroupMappingsDto";
 import { DbService } from "../db/db.service";
 import { UserDto } from "../dto/UserDto";
-import { DefaultAffinityDto } from "../dto/DefaultAffinityDto";
+import { AffinityConfigDto, DefaultAffinityDto } from "../dto/DefaultAffinityDto";
 import { TagDto } from "../dto/TagDto";
 import { AclPermission, DocType, Uuid } from "../enums";
-import { DEFAULT_AFFINITY_ID } from "../util/defaultAffinity";
+import { DEFAULT_AFFINITY_CONFIG, DEFAULT_AFFINITY_ID } from "../util/defaultAffinity";
 import { AccessMap, PermissionSystem } from "../permissions/permissions.service";
 
 export type JwtUserDetails = {
@@ -22,6 +22,8 @@ export type JwtUserDetails = {
     accessMap?: AccessMap;
     /** CMS-managed affinity map used to seed a new client-local profile. */
     defaultAffinity?: Record<Uuid, number>;
+    /** CMS-managed affinity engine tuning config (always present — defaults when unset). */
+    affinityConfig?: AffinityConfigDto;
 };
 
 export type IdentityResult =
@@ -105,12 +107,11 @@ export class AuthIdentityService implements OnModuleInit {
     }
 
     /**
-     * Return only the baseline entries whose topic tags the caller can view.
-     * The singleton is CMS-admin-scoped so it can be edited safely, but its
-     * contents seed app recommendations and must use each tag's Content/Tag
-     * group access instead of the singleton's own ACL.
+     * Loads `defaultAffinityCache` from the DB if it hasn't been loaded yet (or was
+     * invalidated). Shared by `getDefaultAffinity` (tag-filtered) and `getAffinityConfig`
+     * (unfiltered scalars) since both read off the same singleton doc.
      */
-    private async getDefaultAffinity(groups: Uuid[]): Promise<Record<Uuid, number> | undefined> {
+    private async ensureDefaultAffinityLoaded(): Promise<DefaultAffinityDto | null> {
         if (this.defaultAffinityCache === undefined) {
             try {
                 const res = await this.dbService.getDoc(DEFAULT_AFFINITY_ID);
@@ -119,7 +120,17 @@ export class AuthIdentityService implements OnModuleInit {
                 this.defaultAffinityCache = null;
             }
         }
-        const defaultAffinity = this.defaultAffinityCache;
+        return this.defaultAffinityCache;
+    }
+
+    /**
+     * Return only the baseline entries whose topic tags the caller can view.
+     * The singleton is CMS-admin-scoped so it can be edited safely, but its
+     * contents seed app recommendations and must use each tag's Content/Tag
+     * group access instead of the singleton's own ACL.
+     */
+    private async getDefaultAffinity(groups: Uuid[]): Promise<Record<Uuid, number> | undefined> {
+        const defaultAffinity = await this.ensureDefaultAffinityLoaded();
         if (!defaultAffinity) return undefined;
 
         const groupCacheKey = [...new Set(groups)].sort().join("\u0000");
@@ -150,6 +161,16 @@ export class AuthIdentityService implements OnModuleInit {
         const resolved = Object.keys(affinity).length ? affinity : undefined;
         this.defaultAffinityByGroupsCache.set(groupCacheKey, resolved);
         return resolved;
+    }
+
+    /**
+     * Return the CMS-managed affinity engine tuning config. Unlike `getDefaultAffinity`,
+     * this needs no per-group tag filtering — it's scalar tuning, not tag references —
+     * so it's safe to hand to every caller regardless of group membership.
+     */
+    private async getAffinityConfig(): Promise<AffinityConfigDto> {
+        const defaultAffinity = await this.ensureDefaultAffinityLoaded();
+        return defaultAffinity?.config ?? DEFAULT_AFFINITY_CONFIG;
     }
 
     async getAutoGroupMappings(providerId: string): Promise<AutoGroupMappingsDto[]> {
@@ -246,12 +267,14 @@ export class AuthIdentityService implements OnModuleInit {
         }
         const defaultGroups = await this.getDefaultGroups();
         const defaultAffinity = await this.getDefaultAffinity(defaultGroups);
+        const affinityConfig = await this.getAffinityConfig();
         return {
             status: "anonymous",
             userDetails: {
                 groups: defaultGroups,
                 accessMap: PermissionSystem.getAccessMap(defaultGroups),
                 ...(defaultAffinity ? { defaultAffinity } : {}),
+                affinityConfig,
             },
         };
     }
@@ -482,12 +505,14 @@ export class AuthIdentityService implements OnModuleInit {
                 // still a new client for the CMS-managed recommendation baseline.
                 // Keep this delivery path consistent with anonymous and matched users.
                 const defaultAffinity = await this.getDefaultAffinity(mergedGroups);
+                const affinityConfig = await this.getAffinityConfig();
                 return {
                     groups: mergedGroups,
                     email,
                     jwtPayload: payload as JWT.JwtPayload,
                     accessMap,
                     ...(defaultAffinity ? { defaultAffinity } : {}),
+                    affinityConfig,
                 };
             }
 
@@ -547,6 +572,7 @@ export class AuthIdentityService implements OnModuleInit {
             );
             const accessMap = PermissionSystem.getAccessMap(mergedGroups);
             const defaultAffinity = await this.getDefaultAffinity(mergedGroups);
+            const affinityConfig = await this.getAffinityConfig();
 
             return {
                 groups: mergedGroups,
@@ -556,6 +582,7 @@ export class AuthIdentityService implements OnModuleInit {
                 jwtPayload: payload as JWT.JwtPayload,
                 accessMap,
                 ...(defaultAffinity ? { defaultAffinity } : {}),
+                affinityConfig,
             };
         } catch (error) {
             if (error instanceof UnauthorizedException) throw error;
