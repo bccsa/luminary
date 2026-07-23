@@ -30,7 +30,6 @@ import { appLanguageAsRef } from "@/globalConfig";
 import { showPrivacyPolicyModal, useAuthWithPrivacyPolicy } from "@/composables/useAuthWithPrivacyPolicy";
 import { isConnected } from "luminary-shared";
 import { useNotificationStore, type Notification } from "@/stores/notification";
-import { clearAuth0Cache } from "@/auth";
 
 const { t } = useI18n();
 const { openSearch, isSearchOpen } = useSearchOverlay();
@@ -102,8 +101,12 @@ const confirmLogout = async () => {
         showOfflineNotification();
         return;
     }
+    // Close now, not after logout(): a real IdP redirect unloads the page
+    // anyway, and if the redirect fails the dialog shouldn't stay stuck open.
+    showLogoutDialog.value = false;
     localStorage.removeItem("usedAuth0Connection");
-    clearAuth0Cache();
+    // logout() already clears local state in the right order — don't call
+    // clearAuth0Cache() here first, or it turns logout() into a no-op.
     await logout();
 };
 

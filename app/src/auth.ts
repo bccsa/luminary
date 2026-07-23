@@ -2,7 +2,7 @@ import { UserManager, WebStorageStateStore, type User } from "oidc-client-ts";
 import { computed, ref, type App } from "vue";
 import type { Router } from "vue-router";
 import * as Sentry from "@sentry/vue";
-import { getSocket, removeCustomHeader, setCustomHeader } from "luminary-shared";
+import { db, getSocket, removeCustomHeader, setCustomHeader } from "luminary-shared";
 import type { AuthProviderDto } from "luminary-shared";
 
 const OIDC_USER_PREFIX = "oidc.user:";
@@ -151,12 +151,27 @@ export async function setupAuth(_app: App<Element>, router: Router): Promise<voi
         const url = new URL(location.href);
         const isCallback = url.searchParams.has("code") && url.searchParams.has("state");
         if (isCallback) {
-            oidcUser.value = await manager.signinRedirectCallback();
-            router.replace(url.pathname + (url.hash || "") || "/").catch(() => {});
+            try {
+                oidcUser.value = await manager.signinRedirectCallback();
+            } catch (error) {
+                // A refresh on the callback URL after it already succeeded once
+                // retries the same, by-then-consumed code+state and always
+                // throws here. Fall back to whatever session that first,
+                // successful run already established instead of leaving the
+                // user logged out.
+                Sentry?.captureException(error);
+                oidcUser.value = await manager.getUser();
+            } finally {
+                // Must run whether or not the callback succeeded: leaving
+                // code+state in the URL means every subsequent load retries
+                // and fails the exact same way, forever.
+                router.replace(url.pathname + (url.hash || "") || "/").catch(() => {});
+            }
         } else {
             oidcUser.value = await manager.getUser();
-            await refreshTokenSilently();
         }
+        // Only place that pushes the token onto the header/socket — needed on both branches.
+        await refreshTokenSilently();
     } catch (error) {
         Sentry?.captureException(error);
     } finally {
@@ -164,24 +179,48 @@ export async function setupAuth(_app: App<Element>, router: Router): Promise<voi
     }
 }
 
+let refreshInFlight: Promise<boolean> | null = null;
+
 /**
  * Refresh through the provider's OIDC refresh-token flow. With `ignoreCache`,
  * always call `signinSilent()` so a server-rejected token cannot be replayed.
+ *
+ * Single-flighted: unlike the old Auth0 SDK, oidc-client-ts has no built-in
+ * dedup, so two overlapping callers (e.g. a socket connect_error handler
+ * re-entering while a foreground/visibility-triggered reconnect is also
+ * refreshing) would each POST the same refresh_token. With rotation enabled
+ * server-side, one succeeds and the other gets invalid_grant — an
+ * intermittent, hard-to-reproduce logout. A later caller joins the call
+ * already in flight instead of starting its own.
  */
 export async function refreshTokenSilently(opts?: { ignoreCache?: boolean }): Promise<boolean> {
-    if (!installedOidc) return false;
-    try {
-        let current = opts?.ignoreCache ? null : await installedOidc.getUser();
-        if (!current || current.expired) current = await installedOidc.signinSilent();
-        if (!current?.access_token) return false;
-        oidcUser.value = current;
-        setCustomHeader("Authorization", `Bearer ${current.access_token}`);
-        getSocket().setAuth(current.access_token, activeProviderId.value);
-        getSocket().reconnect();
-        return true;
-    } catch {
-        return false;
-    }
+    const manager = installedOidc;
+    if (!manager) return false;
+    if (refreshInFlight) return refreshInFlight;
+    refreshInFlight = (async () => {
+        try {
+            let current = opts?.ignoreCache ? null : await manager.getUser();
+            if (!current || current.expired) current = await manager.signinSilent();
+            if (!current?.access_token) return false;
+            // A logout may have superseded this call while it was in flight —
+            // don't resurrect a session the user already left. Checked as
+            // "cleared to null", not "reassigned to something else": the latter
+            // also matches ordinary reassignment (e.g. a fresh installManager()
+            // for the same provider), which would wrongly reject a perfectly
+            // healthy refresh.
+            if (!installedOidc) return false;
+            oidcUser.value = current;
+            setCustomHeader("Authorization", `Bearer ${current.access_token}`);
+            getSocket().setAuth(current.access_token, activeProviderId.value);
+            getSocket().reconnect();
+            return true;
+        } catch {
+            return false;
+        } finally {
+            refreshInFlight = null;
+        }
+    })();
+    return refreshInFlight;
 }
 
 /** Start an OIDC authorization-code + PKCE redirect for a selected provider. */
@@ -205,11 +244,35 @@ export function useAuth() {
         user,
         loginWithRedirect: () => installedOidc?.signinRedirect(),
         logout: async () => {
-            if (!installedOidc) return;
+            const manager = installedOidc;
+            if (!manager) return;
+            // Capture before clearAuth0Cache() wipes the persisted user, so the
+            // signout request can still carry id_token_hint.
+            const idTokenHint = oidcUser.value?.id_token;
+            // Clear local state before redirecting, not after: otherwise a stale
+            // ACTIVE_PROVIDER_KEY could let a later boot silently re-auth via
+            // signinSilent() if the redirect gets interrupted.
+            clearAuth0Cache();
+            // Full teardown of the user's group-scoped local data. Don't rely on
+            // the anon socket reconnect + deleteRevoked() reactivity to trim it
+            // down instead — that depends on accessMap/isConnected timing that a
+            // still-alive SPA can't guarantee, whereas purge() is immediate.
+            await db.purge();
             try {
-                await installedOidc.signoutRedirect();
-            } catch {
-                clearAuth0Cache();
+                await manager.signoutRedirect({ id_token_hint: idTokenHint });
+                // A successful redirect navigates away and reboots the app
+                // cleanly on return, same as a normal login redirect.
+            } catch (error) {
+                // Not every provider exposes end_session_endpoint (some Auth0
+                // tenants don't), so this redirect can fail before navigating.
+                console.error("OIDC signout redirect failed:", error);
+                Sentry?.captureException(error);
+                // No navigation is coming, so reboot locally instead: a fresh
+                // load re-runs main.ts's Startup() exactly like a successful
+                // redirect's return would — anon socket connect, fresh
+                // clientConfig/accessMap, no stale in-SPA state to reconcile
+                // by hand (KeepAlive cache, sync watchers, composables, etc).
+                window.location.reload();
             }
         },
     };
@@ -222,6 +285,12 @@ export function clearAuth0Cache(): void {
     oidcUser.value = null;
     isAuthPluginInstalled.value = false;
     removeCustomHeader("Authorization");
+    // Also drop the socket's own auth, or a later reconnect (elsewhere) would
+    // still carry the old user's credentials. Not reconnecting here: this runs
+    // at boot (pre-connect), on provider_not_found (about to re-pick), and on
+    // logout (about to redirect or reload) — none of those want an extra
+    // connect cycle competing with refreshTokenSilently()'s own reconnect().
+    getSocket().setAuth("", null);
     clearStoragePrefix(localStorage, OIDC_USER_PREFIX);
     clearStoragePrefix(sessionStorage, OIDC_STATE_PREFIX);
     clearStoragePrefix(localStorage, LEGACY_AUTH0_CACHE_PREFIX);

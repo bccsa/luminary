@@ -277,6 +277,47 @@ describe("auth", () => {
 
             await expect(refreshTokenSilently({ ignoreCache: true })).resolves.toBe(false);
         });
+
+        it("single-flights concurrent calls so a rotated refresh token isn't replayed", async () => {
+            mockSigninSilent.mockResolvedValue({
+                access_token: "fresh-token",
+                expired: false,
+                profile: { sub: "user-1" },
+            });
+
+            const [first, second] = await Promise.all([
+                refreshTokenSilently({ ignoreCache: true }),
+                refreshTokenSilently({ ignoreCache: true }),
+            ]);
+
+            expect(first).toBe(true);
+            expect(second).toBe(true);
+            expect(mockSigninSilent).toHaveBeenCalledTimes(1);
+        });
+
+        it("does not resurrect a session if logout supersedes an in-flight refresh", async () => {
+            let resolveSigninSilent!: (user: unknown) => void;
+            mockSigninSilent.mockImplementation(
+                () =>
+                    new Promise((resolve) => {
+                        resolveSigninSilent = resolve;
+                    }),
+            );
+
+            const refreshPromise = refreshTokenSilently({ ignoreCache: true });
+
+            // Logout happens while the refresh above is still in flight.
+            clearAuth0Cache();
+
+            resolveSigninSilent({
+                access_token: "late-token",
+                expired: false,
+                profile: { sub: "user-1" },
+            });
+
+            await expect(refreshPromise).resolves.toBe(false);
+            expect(activeProviderId.value).toBeNull();
+        });
     });
 
     describe("setupAuth", () => {
@@ -306,12 +347,16 @@ describe("auth", () => {
             persistActiveProvider(providerA);
             history.replaceState(null, "", "/callback?code=abc&state=xyz#section");
             mockSigninRedirectCallback.mockResolvedValue(user);
+            // The manager's own store now holds the just-completed sign-in.
+            mockGetUser.mockResolvedValue(user);
 
             await setupAuth(appStub, routerStub);
 
             expect(mockSigninRedirectCallback).toHaveBeenCalledTimes(1);
             expect(routerStub.replace).toHaveBeenCalledWith("/callback#section");
-            expect(mockGetUser).not.toHaveBeenCalled();
+            // refreshTokenSilently() must still run on the callback path.
+            expect(mockGetUser).toHaveBeenCalledTimes(1);
+            expect(mockSigninSilent).not.toHaveBeenCalled();
         });
 
         it("reports OIDC boot failures without throwing", async () => {
@@ -321,6 +366,27 @@ describe("auth", () => {
 
             await expect(setupAuth(appStub, routerStub)).resolves.toBeUndefined();
             expect(Sentry.captureException).toHaveBeenCalledWith(error);
+        });
+
+        it("still cleans up the URL and falls back to an existing session when the callback fails", async () => {
+            // A refresh on the callback URL after it already succeeded once
+            // retries the same, by-then-consumed code+state — oidc-client-ts
+            // throws "No matching state found in storage" for this.
+            persistActiveProvider(providerA);
+            history.replaceState(null, "", "/callback?code=abc&state=xyz#section");
+            const error = new Error("No matching state found in storage");
+            mockSigninRedirectCallback.mockRejectedValue(error);
+            mockGetUser.mockResolvedValue(user);
+
+            await setupAuth(appStub, routerStub);
+
+            expect(Sentry.captureException).toHaveBeenCalledWith(error);
+            // Must still clean the URL — otherwise every later load retries and
+            // fails the exact same way, forever.
+            expect(routerStub.replace).toHaveBeenCalledWith("/callback#section");
+            // Falls back to the already-established session instead of leaving
+            // the user logged out.
+            expect(mockGetUser).toHaveBeenCalled();
         });
 
         it("does nothing when no provider has been selected", async () => {
@@ -345,6 +411,29 @@ describe("auth", () => {
 
             expect(mockSigninRedirect).toHaveBeenCalledTimes(1);
             expect(mockSignoutRedirect).toHaveBeenCalledTimes(1);
+        });
+
+        it("reloads locally when the IdP signout redirect fails (e.g. no end_session_endpoint)", async () => {
+            mockClearStaleState.mockResolvedValue(undefined);
+            mockSigninRedirect.mockResolvedValue(undefined);
+            mockSignoutRedirect.mockRejectedValue(new Error("No end session endpoint"));
+            await loginWithProvider(providerA);
+
+            const originalLocation = window.location;
+            const reload = vi.fn();
+            Object.defineProperty(window, "location", {
+                writable: true,
+                value: { reload },
+            });
+
+            await useAuth().logout();
+
+            expect(reload).toHaveBeenCalledTimes(1);
+
+            Object.defineProperty(window, "location", {
+                writable: true,
+                value: originalLocation,
+            });
         });
     });
 
