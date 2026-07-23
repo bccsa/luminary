@@ -59,24 +59,24 @@ async function Startup() {
                 // with the cached provider (it'll loop). Force the user through
                 // provider selection instead.
                 if (reason === "provider_not_found") {
-                    auth.clearAuth0Cache();
+                    auth.clearAuthCache();
                     socket.setAuth("", null);
                     auth.openProviderModal();
                     return;
                 }
 
-                // Normal case: the access token expired. Ask the Auth0 SDK for
+                // Normal case: the access token expired. Ask the OIDC client for
                 // a fresh one via the refresh token — no redirect needed.
-                // Bypass the SDK's token cache: the server already rejected
+                // Bypass the client's token cache: the server already rejected
                 // what we had, so the cached copy is useless and we must hit
-                // /oauth/token.
+                // the token endpoint.
                 if (await auth.refreshTokenSilently({ ignoreCache: true })) return;
 
                 // The refresh token itself is gone or rejected — need a
                 // visible re-login.
                 Sentry.captureMessage("API authentication failed; silent refresh failed");
                 const lastProvider = await auth.resolveActiveProvider();
-                auth.clearAuth0Cache();
+                auth.clearAuthCache();
                 socket.setAuth("", null);
                 if (lastProvider) {
                     await auth.loginWithProvider(lastProvider, { prompt: "login" });
@@ -87,7 +87,7 @@ async function Startup() {
         );
     }
 
-    await auth.setupAuth(app);
+    await auth.setupAuth();
     // Ensure the socket connects for visitors with no session (no-op if auth
     // already called reconnect()). Skip when a persisted provider session
     // exists but auth didn't complete (e.g. transient silent-refresh failure):

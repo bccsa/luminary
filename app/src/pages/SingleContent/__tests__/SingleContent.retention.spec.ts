@@ -20,7 +20,7 @@ import { db } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import { appLanguageIdsAsRef } from "@/globalConfig";
 import { ref } from "vue";
-import * as auth0 from "@auth0/auth0-vue";
+import * as auth from "@/auth";
 
 // Spy on the retention touch so we can assert SingleContent refreshes a viewed
 // article's retention deadline. The global vitest.setup mocks "luminary-shared"
@@ -33,9 +33,15 @@ vi.mock("luminary-shared", async (importOriginal) => {
     const actual = await importOriginal<typeof import("luminary-shared")>();
     const mangoToDexieMock = async <T>(
         table: { filter: (fn: (d: unknown) => boolean) => { toArray(): Promise<T[]> } },
-        query: { selector: unknown; $sort?: Array<Record<string, "asc" | "desc">>; $limit?: number },
+        query: {
+            selector: unknown;
+            $sort?: Array<Record<string, "asc" | "desc">>;
+            $limit?: number;
+        },
     ) => {
-        const pred = actual.mangoCompile(query.selector as Parameters<typeof actual.mangoCompile>[0]);
+        const pred = actual.mangoCompile(
+            query.selector as Parameters<typeof actual.mangoCompile>[0],
+        );
         let result = await table.filter((doc: unknown) => pred(doc)).toArray();
         const sort = Array.isArray(query?.$sort) ? query.$sort[0] : undefined;
         if (sort) {
@@ -92,7 +98,7 @@ vi.mock("@/router", () => ({
     markInternalNavigation: vi.fn(),
 }));
 
-vi.mock("@auth0/auth0-vue");
+vi.mock("@/auth", async () => (await import("@/tests/mockAuth")).createAuthMock());
 
 vi.mock("vue-i18n", () => ({
     useI18n: () => ({
@@ -127,8 +133,12 @@ describe("SingleContent retention touch", () => {
 
         vi.clearAllMocks();
 
-        (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
+        (auth as any).useAuth.mockReturnValue({
+            isLoading: ref(false),
             isAuthenticated: ref(false),
+            user: ref(null),
+            loginWithRedirect: vi.fn(),
+            logout: vi.fn(),
         });
     });
 

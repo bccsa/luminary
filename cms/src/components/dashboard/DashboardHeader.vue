@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { syncActive } from "luminary-shared";
-import { useAuth0 } from "@auth0/auth0-vue";
-import { isAuthBypassed } from "@/auth";
+import { isAuthBypassed, useAuth } from "@/auth";
 import { ArrowPathIcon } from "@heroicons/vue/20/solid";
 
-const auth0 = isAuthBypassed ? null : useAuth0();
+const auth = isAuthBypassed ? null : useAuth();
 const userName = computed(() =>
-    isAuthBypassed ? "E2E Test User" : (auth0?.user.value?.name ?? "User"),
+    isAuthBypassed ? "E2E Test User" : (auth?.user.value?.name ?? "User"),
 );
 
 const greeting = computed(() => {

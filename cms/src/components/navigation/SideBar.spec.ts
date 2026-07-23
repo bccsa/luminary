@@ -6,10 +6,9 @@ import { superAdminAccessMap } from "@/tests/mockdata";
 import { useDesktopSidebar } from "@/composables/useDesktopSidebar";
 import { sidebarSectionExpanded } from "@/globalConfig";
 
-// Hoisted so the auth mocks below can expose them and the tests can assert on them.
-const { logoutMock, clearAuth0CacheMock } = vi.hoisted(() => ({
+// Hoisted so the auth mock below can expose it and the tests can assert on it.
+const { logoutMock } = vi.hoisted(() => ({
     logoutMock: vi.fn(),
-    clearAuth0CacheMock: vi.fn(),
 }));
 
 vi.mock("vue-router", async (importOriginal) => {
@@ -39,12 +38,12 @@ vi.mock("@/globalConfig", async (importOriginal) => {
     };
 });
 
-vi.mock("@auth0/auth0-vue", async (importOriginal) => {
+vi.mock("@/auth", async () => {
     const { ref } = await import("vue");
-    const actual = await importOriginal();
     return {
-        ...(actual as any),
-        useAuth0: () => ({
+        isAuthBypassed: false,
+        isAuthPluginInstalled: { value: true },
+        useAuth: () => ({
             user: ref({ name: "Test User" }),
             logout: logoutMock,
             isAuthenticated: ref(true),
@@ -52,12 +51,6 @@ vi.mock("@auth0/auth0-vue", async (importOriginal) => {
         }),
     };
 });
-
-vi.mock("@/auth", () => ({
-    isAuthBypassed: false,
-    isAuthPluginInstalled: { value: true },
-    clearAuth0Cache: clearAuth0CacheMock,
-}));
 
 // The footer language row + LanguageModal both read the language list via useHybridQuery; stub it so
 // the component renders without hitting Dexie. accessMap / hasAnyPermission stay real (importOriginal).
@@ -74,7 +67,6 @@ describe("SideBar", () => {
     beforeEach(() => {
         accessMap.value = superAdminAccessMap;
         logoutMock.mockClear();
-        clearAuth0CacheMock.mockClear();
         // Reset shared (module-singleton) sidebar state so tests don't leak into each other.
         useDesktopSidebar().collapsed.value = false;
         sidebarSectionExpanded.value = { posts: false, tags: false, access: false };
@@ -239,7 +231,8 @@ describe("SideBar", () => {
         expect(confirmButton.exists()).toBe(true);
 
         await confirmButton.trigger("click");
-        expect(clearAuth0CacheMock).toHaveBeenCalled();
+        // clearAuthCache() is now logout()'s own internal responsibility (see
+        // auth.spec.ts) — SideBar just needs to call logout().
         expect(logoutMock).toHaveBeenCalled();
     });
 });

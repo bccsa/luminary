@@ -4,12 +4,12 @@ import { RouterLinkStub, mount } from "@vue/test-utils";
 import TopBar from "./TopBar.vue";
 import { createTestingPinia } from "@pinia/testing";
 import { setActivePinia } from "pinia";
-import * as auth0 from "@auth0/auth0-vue";
+import * as auth from "@/auth";
 import { ref } from "vue";
 import { mockLanguageDtoEng } from "@/tests/mockdata";
 import { isAuthPluginInstalled } from "@/auth";
 
-vi.mock("@auth0/auth0-vue");
+vi.mock("@/auth", async () => (await import("@/tests/mockAuth")).createAuthMock());
 const routePushMock = vi.fn();
 
 vi.mock("vue-router", async () => {
@@ -57,7 +57,7 @@ describe("TopBar", () => {
     });
 
     it("shows the profile menu trigger when logged out", async () => {
-        (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
+        (auth as any).useAuth.mockReturnValue({
             isAuthenticated: ref(false),
         });
 
@@ -67,7 +67,7 @@ describe("TopBar", () => {
     });
 
     it("shows the profile menu when logged out", async () => {
-        (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
+        (auth as any).useAuth.mockReturnValue({
             isAuthenticated: ref(true),
             user: {
                 name: "Test Person",

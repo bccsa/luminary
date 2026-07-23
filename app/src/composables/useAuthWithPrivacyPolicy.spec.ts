@@ -3,22 +3,11 @@ import {
     showPrivacyPolicyModal,
     hasPendingLogin,
 } from "@/composables/useAuthWithPrivacyPolicy";
-import { useAuth0 } from "@auth0/auth0-vue";
 import { userPreferencesAsRef } from "@/globalConfig";
 import { ref } from "vue";
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import waitForExpect from "wait-for-expect";
-import { isAuthPluginInstalled, openProviderModal } from "@/auth";
-
-// Mock Auth0
-vi.mock("@auth0/auth0-vue", () => ({
-    useAuth0: vi.fn(() => ({
-        isAuthenticated: ref(false),
-        user: ref(null),
-        loginWithRedirect: vi.fn(),
-        logout: vi.fn(),
-    })),
-}));
+import { isAuthPluginInstalled, openProviderModal, useAuth } from "@/auth";
 
 // Mock userPreferencesAsRef
 vi.mock("@/globalConfig", () => ({
@@ -38,45 +27,31 @@ vi.mock("@/auth", async () => {
     return {
         isAuthPluginInstalled: mockRef(false),
         openProviderModal: vi.fn(),
+        useAuth: vi.fn(() => ({
+            isLoading: mockRef(false),
+            isAuthenticated: mockRef(false),
+            user: mockRef(null),
+            loginWithRedirect: vi.fn(),
+            logout: vi.fn(),
+        })),
     };
 });
 
 describe("useAuthWithPrivacyPolicy", () => {
-    let auth0Mock: ReturnType<typeof useAuth0>;
+    let authMock: ReturnType<typeof useAuth>;
     let userPreferencesMock: { value: { privacyPolicy: { status: string } } };
     let loginWithRedirectMock: Mock;
 
     beforeEach(() => {
         loginWithRedirectMock = vi.fn();
-        auth0Mock = {
+        authMock = {
             isAuthenticated: ref(false),
-            user: ref(undefined),
+            user: ref(null),
             loginWithRedirect: loginWithRedirectMock,
             logout: vi.fn(),
             isLoading: ref(false),
-            idTokenClaims: ref(undefined),
-            error: ref(undefined),
-            loginWithPopup: vi.fn(),
-            getAccessTokenSilently: vi.fn(
-                (
-                    options?: any,
-                ): Promise<string | { accessToken: string; claims: {}; headers: Headers }> => {
-                    if (options?.detailedResponse) {
-                        return Promise.resolve({
-                            accessToken: "mocked-access-token",
-                            claims: {},
-                            headers: new Headers(),
-                        });
-                    } else {
-                        return Promise.resolve("mocked-access-token");
-                    }
-                },
-            ) as unknown as any,
-            getAccessTokenWithPopup: vi.fn(),
-            handleRedirectCallback: vi.fn(),
-            checkSession: vi.fn(),
-        };
-        (useAuth0 as Mock).mockReturnValue(auth0Mock);
+        } as unknown as ReturnType<typeof useAuth>;
+        (useAuth as Mock).mockReturnValue(authMock);
 
         userPreferencesMock = {
             value: {
@@ -88,7 +63,7 @@ describe("useAuthWithPrivacyPolicy", () => {
         (userPreferencesAsRef as any).value = userPreferencesMock.value; // Necessary cast
         showPrivacyPolicyModal.value = false;
         hasPendingLogin.value = false;
-        // Tests mock useAuth0; pretend the plugin is installed so the
+        // Tests mock useAuth; pretend the OIDC manager is installed so the
         // composable actually calls it instead of short-circuiting.
         isAuthPluginInstalled.value = true;
     });
@@ -162,7 +137,7 @@ describe("useAuthWithPrivacyPolicy", () => {
         });
     });
 
-    it("returns fallback object when the Auth0 plugin is not installed", () => {
+    it("returns fallback object when the OIDC manager is not installed", () => {
         isAuthPluginInstalled.value = false;
 
         const result = useAuthWithPrivacyPolicy();
@@ -179,7 +154,7 @@ describe("useAuthWithPrivacyPolicy", () => {
         result.cancelPendingLogin();
     });
 
-    describe("fallback path (Auth0 plugin not installed)", () => {
+    describe("fallback path (OIDC manager not installed)", () => {
         beforeEach(() => {
             isAuthPluginInstalled.value = false;
             (openProviderModal as Mock).mockClear();

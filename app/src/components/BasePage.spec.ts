@@ -2,7 +2,6 @@ import "fake-indexeddb/auto";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import BasePage from "./BasePage.vue";
 import { mount, VueWrapper } from "@vue/test-utils";
-import * as auth0 from "@auth0/auth0-vue";
 import { ref, nextTick } from "vue";
 import waitForExpect from "wait-for-expect";
 import { useNotificationStore } from "@/stores/notification";
@@ -31,21 +30,12 @@ vi.mock("vue-router", async (importOriginal) => {
     };
 });
 
-vi.mock("@auth0/auth0-vue", () => ({
-    useAuth0: () => ({
-        isLoading: ref(false),
-        isAuthenticated: ref(false),
-    }),
-}));
-
 describe("BasePage", () => {
     let wrapper: VueWrapper;
 
     beforeEach(() => {
         const pinia = createPinia();
         setActivePinia(pinia);
-
-        vi.mocked(auth0);
 
         wrapper = mount(BasePage, {
             global: {

@@ -2,7 +2,7 @@ import "fake-indexeddb/auto";
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import ProfileMenu from "./ProfileMenu.vue";
-import * as auth0 from "@auth0/auth0-vue";
+import * as auth from "@/auth";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
 import { ref } from "vue";
@@ -20,7 +20,7 @@ vi.mock("vue-router", () => ({
     })),
 }));
 
-vi.mock("@auth0/auth0-vue");
+vi.mock("@/auth", async () => (await import("@/tests/mockAuth")).createAuthMock());
 
 vi.mock("vue-i18n", () => ({
     useI18n: () => ({
@@ -57,7 +57,7 @@ describe("ProfileMenu", () => {
     });
 
     it("shows the user's name", async () => {
-        (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
+        (auth as any).useAuth.mockReturnValue({
             isAuthenticated: ref(true),
             user: {
                 name: "Test Person",
@@ -75,7 +75,7 @@ describe("ProfileMenu", () => {
     it("shows the modal when clicking the language button", async () => {
         const { t } = useI18n();
 
-        (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
+        (auth as any).useAuth.mockReturnValue({
             isAuthenticated: ref(false),
         });
 
@@ -96,7 +96,7 @@ describe("ProfileMenu", () => {
 
     it("logs the user out after clicking logout", async () => {
         const logout = vi.fn();
-        (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
+        (auth as any).useAuth.mockReturnValue({
             isAuthenticated: ref(true),
             logout,
         });
@@ -120,9 +120,9 @@ describe("ProfileMenu", () => {
 
     it("displays correct notification when logging in when offline", async () => {
         const login = vi.fn();
-        (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
+        (auth as any).useAuth.mockReturnValue({
             isAuthenticated: ref(false),
-            login,
+            loginWithRedirect: login,
         });
 
         const wrapper = mount(ProfileMenu);
@@ -143,7 +143,7 @@ describe("ProfileMenu", () => {
 
     it("displays correct notification when logging out when offline", async () => {
         const logout = vi.fn();
-        (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
+        (auth as any).useAuth.mockReturnValue({
             isAuthenticated: ref(true),
             logout,
         });

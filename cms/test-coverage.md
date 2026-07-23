@@ -193,21 +193,20 @@ Many Vue components report 0% function coverage for `<script setup>` blocks beca
 
 ## Testing Patterns
 
-### Mocking Auth0
+### Mocking auth
+Use the shared factory instead of hand-rolling a mock — `createAuthMock()` covers every field `@/auth` currently exports, so a superset is always safe:
 ```typescript
-vi.mock("@auth0/auth0-vue", async (importOriginal) => {
-    const { ref } = await import("vue");
-    const actual = await importOriginal();
-    return {
-        ...(actual as any),
-        useAuth0: vi.fn().mockReturnValue({
-            isLoading: ref(false),
-            isAuthenticated: ref(true),
-            user: ref({ name: "Test User", email: "test@example.com" }),
-            logout: vi.fn(),
-            getAccessTokenSilently: vi.fn().mockResolvedValue("mockToken"),
-        }),
-    };
+vi.mock("@/auth", async () => (await import("@/tests/mockAuth")).createAuthMock());
+```
+Override per test where needed via the mocked `useAuth`:
+```typescript
+import * as auth from "@/auth";
+// ...
+(auth as any).useAuth.mockReturnValue({
+    isLoading: ref(false),
+    isAuthenticated: ref(true),
+    user: ref({ name: "Test User", email: "test@example.com" }),
+    logout: vi.fn(),
 });
 ```
 
