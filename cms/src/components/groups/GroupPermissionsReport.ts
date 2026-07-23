@@ -6,85 +6,103 @@ export interface AccessorReport {
     source: "direct" | "inherited";
     inheritedViaGroupName?: string;
     permissionsByDocType: Record<string, AclPermission[]>;
+    path: string[];
 }
-
-export type EffectivePermissionsReport = Record<string, AccessorReport>;
 
 export const buildEffectivePermissionsReport = (
     targetGroupId: string,
     allGroups: GroupDto[],
-): EffectivePermissionsReport => {
+    maxDepth: number = 10,
+): AccessorReport[] => {
     const targetGroup = allGroups.find((g) => g._id === targetGroupId);
-    if (!targetGroup || !targetGroup.acl) return {};
+    if (!targetGroup || !targetGroup.acl) return [];
 
-    const aggregated: EffectivePermissionsReport = {};
+    const groupsById = new Map(allGroups.map((g) => [g._id, g]));
+    const results = new Map<string, AccessorReport>();
 
-    targetGroup.acl.forEach((initialAcl) => {
-        const queue: {
-            currentGroupId: string;
-            viaGroup: GroupDto | null;
-            isDirect: boolean;
-        }[] = [{ currentGroupId: initialAcl.groupId, viaGroup: null, isDirect: true }];
+    const processed = new Set<string>();
 
-        const visited = new Set<string>();
+    const queue: {
+        groupId: string;
+        viaGroupName?: string;
+        path: string[];
+        docType: string;
+        permissions: AclPermission[];
+    }[] = [];
 
-        while (queue.length > 0) {
-            const { currentGroupId, viaGroup, isDirect } = queue.shift()!;
-            if (visited.has(currentGroupId)) continue;
-            visited.add(currentGroupId);
+    targetGroup.acl.forEach((acl) => {
+        queue.push({
+            groupId: acl.groupId,
+            path: [acl.groupId],
+            docType: acl.type,
+            permissions: acl.permission,
+        });
+    });
 
-            const accessorGroup = allGroups.find((g) => g._id === currentGroupId);
-            if (!accessorGroup) continue;
+    while (queue.length > 0) {
+        const { groupId, viaGroupName, path, docType, permissions } = queue.shift()!;
 
-            if (!aggregated[currentGroupId]) {
-                aggregated[currentGroupId] = {
-                    accessorGroupId: currentGroupId,
-                    accessorGroupName: accessorGroup.name,
-                    source: isDirect ? "direct" : "inherited",
-                    inheritedViaGroupName: viaGroup?.name,
-                    permissionsByDocType: {},
-                };
-            }
+        if (path.length > maxDepth) continue;
 
-            const reportEntry = aggregated[currentGroupId];
-            const docTypeKey = initialAcl.type;
+        const processKey = `${path.join("->")}|${docType}`;
+        if (processed.has(processKey)) continue;
+        processed.add(processKey);
 
-            if (!reportEntry.permissionsByDocType[docTypeKey]) {
-                reportEntry.permissionsByDocType[docTypeKey] = [];
-            }
+        const group = groupsById.get(groupId);
+        if (!group) continue;
 
-            const allPossiblePermissions = Object.values(AclPermission);
-
-            reportEntry.permissionsByDocType[docTypeKey] = allPossiblePermissions.filter(
-                (p) =>
-                    initialAcl.permission.includes(p) ||
-                    reportEntry.permissionsByDocType[docTypeKey].includes(p),
-            );
-
-            initialAcl.permission.forEach((p) => {
-                if (!reportEntry.permissionsByDocType[docTypeKey].includes(p)) {
-                    reportEntry.permissionsByDocType[docTypeKey].push(p);
-                }
+        const pathKey = path.join("->");
+        if (!results.has(pathKey)) {
+            results.set(pathKey, {
+                accessorGroupId: groupId,
+                accessorGroupName: group.name,
+                source: path.length === 1 ? "direct" : "inherited",
+                inheritedViaGroupName: viaGroupName,
+                permissionsByDocType: {},
+                path: [...path],
             });
+        }
 
-            const currentGroup = allGroups.find((g) => g._id === currentGroupId);
-            if (!currentGroup || !currentGroup.acl) continue;
+        const entry = results.get(pathKey)!;
 
-            const groupsInAcl = currentGroup.acl
-                .map((aclEntry) => aclEntry.groupId)
-                .filter((id, index, self) => self.indexOf(id) === index);
+        const merged = [
+            ...new Set([...(entry.permissionsByDocType[docType] || []), ...permissions]),
+        ];
+        entry.permissionsByDocType[docType] = Object.values(AclPermission).filter((p) =>
+            merged.includes(p),
+        );
 
-            groupsInAcl.forEach((groupId) => {
-                if (!visited.has(groupId)) {
+        if (group.acl) {
+            group.acl.forEach((nextAcl) => {
+                if (!path.includes(nextAcl.groupId)) {
                     queue.push({
-                        currentGroupId: groupId,
-                        viaGroup: accessorGroup,
-                        isDirect: false,
+                        groupId: nextAcl.groupId,
+                        viaGroupName: group.name,
+                        path: [...path, nextAcl.groupId],
+                        docType: nextAcl.type,
+                        permissions: nextAcl.permission,
                     });
                 }
             });
         }
+    }
+
+    const deduplicated = new Map<string, AccessorReport>();
+
+    Array.from(results.values()).forEach((report) => {
+        const permissionSignature = JSON.stringify(report.permissionsByDocType);
+        const uniqueSignature = `${report.accessorGroupId}|${permissionSignature}`;
+
+        const existing = deduplicated.get(uniqueSignature);
+
+        if (!existing) {
+            deduplicated.set(uniqueSignature, report);
+        } else {
+            if (report.path.length < existing.path.length) {
+                deduplicated.set(uniqueSignature, report);
+            }
+        }
     });
 
-    return aggregated;
+    return Array.from(deduplicated.values()).filter((report) => report.source === "inherited");
 };
