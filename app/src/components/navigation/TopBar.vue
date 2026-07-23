@@ -134,13 +134,15 @@ const handleLogin = () => {
                 </div>
                 <div class="hidden lg:block"><ProfileMenu /></div>
                 <div class="lg:hidden">
+                    <!-- Same hover/padding treatment as the quick controls (language, theme) so
+                         the whole row reacts consistently. -->
                     <button
                         v-if="!isAuthenticated"
-                        class="flex items-center gap-1 text-sm text-zinc-700 dark:text-slate-200"
+                        class="flex cursor-pointer items-center gap-1 rounded-md px-1.5 py-1 text-sm text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
                         @click="handleLogin"
                     >
-                        <ArrowLeftEndOnRectangleIcon class="h-5 w-5" />
                         {{ t("profile_menu.login") }}
+                        <ArrowLeftEndOnRectangleIcon class="h-5 w-5" />
                     </button>
                 </div>
             </div>
