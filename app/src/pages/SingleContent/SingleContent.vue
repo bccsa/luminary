@@ -16,8 +16,8 @@ import {
     type LanguageDto,
     verifyAccess,
     AclPermission,
-    EventWeight,
     readingDepthWeight,
+    affinityConfig,
 } from "luminary-shared";
 import { useContentQuery } from "@/composables/useContentQuery";
 import { recordAffinity } from "@/recommendation/affinityStore";
@@ -383,14 +383,14 @@ const toggleBookmark = () => {
             (b) => b.id != content.value?.parentId,
         );
         if (content.value) {
-            recordAffinity(content.value.parentTags, EventWeight.BookmarkRemoved);
+            recordAffinity(content.value.parentTags, affinityConfig.value.eventWeight.bookmarkRemoved);
         }
     } else {
         // Add to bookmarks
         if (!content.value) return;
         userPreferencesAsRef.value.bookmarks.push({ id: content.value.parentId, ts: Date.now() });
         // Bookmarking is explicit, unambiguous intent — weight it above a plain open.
-        recordAffinity(content.value.parentTags, EventWeight.Bookmark);
+        recordAffinity(content.value.parentTags, affinityConfig.value.eventWeight.bookmark);
         useNotificationStore().addNotification({
             id: "bookmark-added",
             title: t("bookmarks.notification.title"),
@@ -550,7 +550,7 @@ const {
     onSessionEnd: (endedContentId, finalDepthPercent) => {
         const endedTags = contentTagsById.get(endedContentId);
         contentTagsById.delete(endedContentId);
-        const weight = readingDepthWeight(finalDepthPercent);
+        const weight = readingDepthWeight(finalDepthPercent, affinityConfig.value);
         if (weight > 0) recordAffinity(endedTags, weight);
     },
 });
@@ -985,9 +985,14 @@ watch([isLoading, content, is404], async () => {
                     <LHighlightable
                         v-if="content.text"
                         :content-id="content._id"
-                        @highlighted="recordAffinity(content?.parentTags, EventWeight.Highlight)"
+                        @highlighted="
+                            recordAffinity(content?.parentTags, affinityConfig.eventWeight.highlight)
+                        "
                         @highlight-removed="
-                            recordAffinity(content?.parentTags, EventWeight.HighlightRemoved)
+                            recordAffinity(
+                                content?.parentTags,
+                                affinityConfig.eventWeight.highlightRemoved,
+                            )
                         "
                         @highlights-changed="notifyHighlightsChanged"
                     >
