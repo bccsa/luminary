@@ -3,7 +3,7 @@ import { onMounted, onUnmounted, ref, watch } from "vue";
 import AudioVideoToggle from "../form/AudioVideoToggle.vue";
 import "videojs-mobile-ui";
 import type Player from "video.js/dist/types/player";
-import { type ContentDto, EventWeight } from "luminary-shared";
+import { type ContentDto, affinityConfig } from "luminary-shared";
 import px from "./px.png";
 import { matchTrackLanguage } from "./audioTrackLanguage";
 import LImage from "../images/LImage.vue";
@@ -376,7 +376,7 @@ onMounted(async () => {
             // open. This is the single completion call site (of the player's several
             // `ended`/near-end listeners) that fires for every source, so affinity isn't
             // double-counted for YouTube videos wired to more than one of them.
-            recordAffinity(props.content.parentTags, EventWeight.Completion);
+            recordAffinity(props.content.parentTags, affinityConfig.value.eventWeight.completion);
             // mediaProgress is a 10-slot ring buffer used only to resume playback,
             // not a history — record completion in the durable seen store instead.
             markSeen(props.content._id);

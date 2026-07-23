@@ -15,6 +15,7 @@ import {
     ArrowRightEndOnRectangleIcon,
     ArrowDownTrayIcon,
     UserIcon,
+    SparklesIcon,
 } from "@heroicons/vue/20/solid";
 
 import {
@@ -90,6 +91,12 @@ const navigation = computed(() => [
         to: { name: "redirects" },
         icon: ArrowUturnRightIcon,
         visible: hasAnyPermission(DocType.Redirect, AclPermission.CmsView),
+    },
+    {
+        name: "Recommendations",
+        to: { name: "recommendations" },
+        icon: SparklesIcon,
+        visible: hasAnyPermission(DocType.DefaultAffinity, AclPermission.CmsView),
     },
     {
         name: "Languages",

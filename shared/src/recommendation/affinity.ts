@@ -21,30 +21,90 @@ export type AffinityProfile = {
     lastDecayUtc?: number;
 };
 
-/** Days for a score to halve under exponential decay. */
-const HALF_LIFE_DAYS = 45;
 const DAY_MS = 24 * 60 * 60 * 1000;
+
 /**
- * Fraction of the remaining confidence added by a low-confidence interaction.
- * This deliberately makes an ordinary open a weak signal: a profile should be
- * built from a pattern of behaviour, not a handful of clicks.
- * Callers with a stronger signal (an explicit bookmark, finishing a video/audio
- * track) should pass a higher `weight` to {@link applyEvent} — see
- * `EventWeight` for the shared vocabulary.
+ * CMS-configurable tuning knobs for the affinity engine. Every field here was
+ * previously a module-private constant; a `config` argument (defaulting to
+ * {@link DEFAULT_AFFINITY_CONFIG}) is threaded through the functions below so they
+ * stay pure — no reactive/global reads inside this file. Callers that need the
+ * CMS-edited values read them from the `affinityConfig` ref (`socket/socketio.ts`)
+ * and pass it in explicitly.
  */
-const HIT_WEIGHT = 0.04;
-/** Scores below this are pruned as negligible. */
-const MIN_SCORE = 0.01;
-/** Cap on tags kept in a profile (drop the weakest); bounds the doc size. */
-const MAX_TAGS = 50;
-/**
- * Depth damping: event weight is multiplied by `DEPTH_SCALE / (DEPTH_SCALE + topicCount)`.
- * A near-empty profile (few tracked topics) moves at full weight so it can bootstrap
- * quickly; a broad, established profile (many topics already carry evidence) moves
- * proportionally less per single event — one click shouldn't reshape a profile that
- * already reflects a real pattern of behaviour.
- */
-const DEPTH_SCALE = 20;
+export type AffinityConfig = {
+    /** Days for a score to halve under exponential decay. */
+    halfLifeDays: number;
+    /**
+     * Fraction of the remaining confidence added by a low-confidence interaction
+     * (the "Open" event weight). This deliberately makes an ordinary open a weak
+     * signal: a profile should be built from a pattern of behaviour, not a handful
+     * of clicks.
+     */
+    hitWeight: number;
+    /** Scores below this are pruned as negligible. */
+    minScore: number;
+    /** Cap on tags kept in a profile (drop the weakest); bounds the doc size. */
+    maxTags: number;
+    /**
+     * Depth damping: event weight is multiplied by `depthScale / (depthScale + topicCount)`.
+     * A near-empty profile (few tracked topics) moves at full weight so it can bootstrap
+     * quickly; a broad, established profile (many topics already carry evidence) moves
+     * proportionally less per single event.
+     */
+    depthScale: number;
+    /** Reading depth (0-100) below which a read is "opened and abandoned" — no evidence. */
+    readFloorPercent: number;
+    /** Shared vocabulary for interaction strength — see {@link EventWeight}. */
+    eventWeight: {
+        /** The user explicitly bookmarked the content. Strong, unambiguous intent. */
+        bookmark: number;
+        /**
+         * Reverses 60% of a bookmark signal, leaving a small net-positive edge through
+         * repeated add/remove churn. Undoing an explicit action is weaker evidence against
+         * a tag than the original action was evidence for it.
+         */
+        bookmarkRemoved: number;
+        /** A video/audio track played to completion. Strong engagement signal. */
+        completion: number;
+        /**
+         * An article was read to completion (see `readingDepthWeight`). Symmetric with
+         * `completion` — finishing an article is as strong a signal as finishing a
+         * video/audio track.
+         */
+        readCompletion: number;
+        /**
+         * The user highlighted a passage of text. Kept as its own named weight (not
+         * reused from `bookmark`) so the two can be tuned independently.
+         */
+        highlight: number;
+        /** Reverses 60% of a highlight signal — mirrors `bookmarkRemoved`. */
+        highlightRemoved: number;
+        /**
+         * A recommended tag was shown to the user and scrolled past without a click.
+         * The cheapest, most abundant negative signal available.
+         */
+        impression: number;
+    };
+};
+
+/** Current hard-coded values, preserved as the default so existing behaviour is unchanged. */
+export const DEFAULT_AFFINITY_CONFIG: AffinityConfig = {
+    halfLifeDays: 45,
+    hitWeight: 0.04,
+    minScore: 0.01,
+    maxTags: 50,
+    depthScale: 20,
+    readFloorPercent: 20,
+    eventWeight: {
+        bookmark: 0.25,
+        bookmarkRemoved: -0.15,
+        completion: 0.35,
+        readCompletion: 0.35,
+        highlight: 0.3,
+        highlightRemoved: -0.18,
+        impression: -0.02,
+    },
+};
 
 /**
  * Shared vocabulary for interaction strength, so every call site agrees on relative
@@ -52,12 +112,16 @@ const DEPTH_SCALE = 20;
  * {@link applyEvent}. Explicit intent (bookmarking) and completion (finishing a
  * video/audio track) are stronger, less ambiguous signals than merely opening a
  * page — the user might have opened it and immediately left.
+ *
+ * These mirror {@link DEFAULT_AFFINITY_CONFIG} for callers that only need a static
+ * default (e.g. tests). Call sites that should honour a CMS-edited config read
+ * `affinityConfig.value.eventWeight.*` instead (see `socket/socketio.ts`).
  */
 export const EventWeight = {
     /** Content was opened/viewed. Weak signal — could be an immediate bounce. */
-    Open: HIT_WEIGHT,
+    Open: DEFAULT_AFFINITY_CONFIG.hitWeight,
     /** The user explicitly bookmarked the content. Strong, unambiguous intent. */
-    Bookmark: 0.25,
+    Bookmark: DEFAULT_AFFINITY_CONFIG.eventWeight.bookmark,
     /**
      * Reverses 60% of a bookmark signal, leaving a small net-positive edge through
      * repeated add/remove churn. Undoing an explicit action is weaker evidence against
@@ -65,22 +129,22 @@ export const EventWeight = {
      * decay-toward-zero mechanism as `Impression`, not a literal inverse of the specific
      * gain contributed by the original bookmark. Derived as -60% × 0.25 = -0.15.
      */
-    BookmarkRemoved: -0.15,
+    BookmarkRemoved: DEFAULT_AFFINITY_CONFIG.eventWeight.bookmarkRemoved,
     /** A video/audio track played to completion. Strong engagement signal. */
-    Completion: 0.35,
+    Completion: DEFAULT_AFFINITY_CONFIG.eventWeight.completion,
     /**
      * An article was read to completion (see the reading-depth weight curve in
      * `readingDepthWeight`). Symmetric with `Completion` — finishing an article is
      * as strong a signal as finishing a video/audio track.
      */
-    ReadCompletion: 0.35,
+    ReadCompletion: DEFAULT_AFFINITY_CONFIG.eventWeight.readCompletion,
     /**
      * The user highlighted a passage of text. Selecting specific text requires
      * closer engagement than a single tap (bookmark) — an equally strong,
      * unambiguous signal. Kept as its own named weight (not reused from
      * `Bookmark`) so the two can be tuned independently later.
      */
-    Highlight: 0.3,
+    Highlight: DEFAULT_AFFINITY_CONFIG.eventWeight.highlight,
     /**
      * Reverses 60% of a highlight signal, leaving a small net-positive edge through
      * repeated add/remove churn. Undoing an explicit action is weaker evidence against
@@ -88,7 +152,7 @@ export const EventWeight = {
      * decay-toward-zero mechanism as `Impression`, not a literal inverse of the specific
      * gain contributed by the original highlight. Derived as -60% × 0.3 = -0.18.
      */
-    HighlightRemoved: -0.18,
+    HighlightRemoved: DEFAULT_AFFINITY_CONFIG.eventWeight.highlightRemoved,
     /**
      * A recommended tag was shown to the user and scrolled past without a click. The
      * cheapest, most abundant negative signal available — without it, a tag that got
@@ -96,22 +160,26 @@ export const EventWeight = {
      * Small and negative: many impressions are needed to meaningfully suppress a tag,
      * so a single scroll-past can't outweigh a real interaction.
      */
-    Impression: -0.02,
+    Impression: DEFAULT_AFFINITY_CONFIG.eventWeight.impression,
 } as const;
 
 const empty = (): AffinityProfile => ({ affinity: {}, lastDecayUtc: undefined });
 
 /** Apply exponential time decay to every score based on elapsed time since `lastDecayUtc`. */
-export function decay(profile: AffinityProfile | undefined, now: number): AffinityProfile {
+export function decay(
+    profile: AffinityProfile | undefined,
+    now: number,
+    config: AffinityConfig = DEFAULT_AFFINITY_CONFIG,
+): AffinityProfile {
     const p = profile ?? empty();
     const last = p.lastDecayUtc ?? now;
     const elapsedDays = Math.max(0, now - last) / DAY_MS;
     if (elapsedDays === 0) return { affinity: { ...p.affinity }, lastDecayUtc: now };
-    const factor = Math.exp((-Math.LN2 / HALF_LIFE_DAYS) * elapsedDays);
+    const factor = Math.exp((-Math.LN2 / config.halfLifeDays) * elapsedDays);
     const next: AffinityMap = {};
     for (const [tag, score] of Object.entries(p.affinity)) {
         const decayed = score * factor;
-        if (decayed >= MIN_SCORE) next[tag] = decayed;
+        if (decayed >= config.minScore) next[tag] = decayed;
     }
     return { affinity: next, lastDecayUtc: now };
 }
@@ -126,12 +194,13 @@ export function applyEvent(
     tagIds: Uuid[],
     now: number,
     weight: number = EventWeight.Open,
+    config: AffinityConfig = DEFAULT_AFFINITY_CONFIG,
 ): AffinityProfile {
-    const decayed = decay(profile, now);
+    const decayed = decay(profile, now, config);
     const affinity = decayed.affinity;
     // Depth damping uses the topic count *before* this event, so a profile's own
     // breadth — not this event's tags — decides how strongly it can still move.
-    const depthFactor = DEPTH_SCALE / (DEPTH_SCALE + Object.keys(affinity).length);
+    const depthFactor = config.depthScale / (config.depthScale + Object.keys(affinity).length);
     const newTags = new Set<Uuid>();
     for (const tag of tagIds) {
         if (!tag) continue;
@@ -145,7 +214,7 @@ export function applyEvent(
         const current = affinity[tag] ?? 0;
         // A tag with no prior evidence isn't part of the "breadth" depth damping is meant
         // to protect against — it moves at full weight so it can seed a real score instead
-        // of landing just above MIN_SCORE and getting capped away on the same tick it's born.
+        // of landing just above config.minScore and getting capped away on the same tick it's born.
         const factor = hasPriorEvidence ? depthFactor : 1;
         if (!hasPriorEvidence) newTags.add(tag);
         if (weight >= 0) {
@@ -161,25 +230,25 @@ export function applyEvent(
             affinity[tag] = current + weight * factor * current;
         }
     }
-    return { affinity: capTags(affinity, MAX_TAGS, newTags), lastDecayUtc: now };
+    return { affinity: capTags(affinity, config.maxTags, newTags), lastDecayUtc: now };
 }
-
-/** Reading depth below this is "opened and abandoned" — no affinity evidence either way. */
-const READ_FLOOR_PERCENT = 20;
 
 /**
  * Map final reading depth (0-100, from the reading-progress tracker) to an affinity
- * event weight. Below the floor, evidence is too ambiguous to score (interrupted vs.
- * genuinely uninterested look identical) so the weight is exactly 0 — this must NOT be
- * treated as a negative signal. From the floor to 100%, weight interpolates linearly
- * from `EventWeight.Open` up to `EventWeight.ReadCompletion`, so a bare-minimum
- * qualifying read is barely stronger than an ordinary open, and only a full read earns
- * completion parity with a finished video/audio track.
+ * event weight. Below `config.readFloorPercent`, evidence is too ambiguous to score
+ * (interrupted vs. genuinely uninterested look identical) so the weight is exactly 0 —
+ * this must NOT be treated as a negative signal. From the floor to 100%, weight
+ * interpolates linearly from `config.hitWeight` up to `config.eventWeight.readCompletion`,
+ * so a bare-minimum qualifying read is barely stronger than an ordinary open, and only a
+ * full read earns completion parity with a finished video/audio track.
  */
-export function readingDepthWeight(depthPercent: number): number {
-    if (depthPercent < READ_FLOOR_PERCENT) return 0;
-    const t = Math.min(1, (depthPercent - READ_FLOOR_PERCENT) / (100 - READ_FLOOR_PERCENT));
-    return EventWeight.Open + t * (EventWeight.ReadCompletion - EventWeight.Open);
+export function readingDepthWeight(
+    depthPercent: number,
+    config: AffinityConfig = DEFAULT_AFFINITY_CONFIG,
+): number {
+    if (depthPercent < config.readFloorPercent) return 0;
+    const t = Math.min(1, (depthPercent - config.readFloorPercent) / (100 - config.readFloorPercent));
+    return config.hitWeight + t * (config.eventWeight.readCompletion - config.hitWeight);
 }
 
 /** Top-`n` tag ids by (decayed) score, descending — the retrieval query seed. */

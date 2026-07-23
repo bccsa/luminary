@@ -6,6 +6,24 @@ const sharedMock = vi.hoisted(() => ({
     save: vi.fn(),
 }));
 
+const DEFAULT_AFFINITY_CONFIG = vi.hoisted(() => ({
+    halfLifeDays: 45,
+    hitWeight: 0.04,
+    minScore: 0.01,
+    maxTags: 50,
+    depthScale: 20,
+    readFloorPercent: 20,
+    eventWeight: {
+        bookmark: 0.25,
+        bookmarkRemoved: -0.15,
+        completion: 0.35,
+        readCompletion: 0.35,
+        highlight: 0.3,
+        highlightRemoved: -0.18,
+        impression: -0.02,
+    },
+}));
+
 vi.mock("luminary-shared", async () => {
     const { ref } = await import("vue");
 
@@ -22,6 +40,7 @@ vi.mock("luminary-shared", async () => {
             DefaultAffinity: "defaultAffinity",
         },
         DEFAULT_AFFINITY_ID: "default-affinity",
+        DEFAULT_AFFINITY_CONFIG,
         hasAnyPermission: vi.fn(() => true),
         useHybridQueryWithState: vi.fn(() => ({ output: ref([]), isFetching: ref(false) })),
         toEditable: vi.fn(() => ({
@@ -52,5 +71,19 @@ describe("useDefaultAffinity", () => {
         const res = await saveAffinity({ "tag-a": 0.5 }, ["group-super-admins"]);
 
         expect(res).toEqual({ ack: AckStatus.Rejected, message: "No access" });
+    });
+
+    it("falls back to the default tuning config before the singleton exists", () => {
+        const { config } = useDefaultAffinity();
+        expect(config.value).toEqual(DEFAULT_AFFINITY_CONFIG);
+    });
+
+    it("stages a config update (fixed id) and saves it", async () => {
+        const { saveConfig } = useDefaultAffinity();
+        const customConfig = { ...DEFAULT_AFFINITY_CONFIG, hitWeight: 0.1 };
+        const res = await saveConfig(customConfig, ["group-super-admins"]);
+
+        expect(res).toEqual({ ack: AckStatus.Accepted });
+        expect(sharedMock.save).toHaveBeenCalledWith("default-affinity");
     });
 });
