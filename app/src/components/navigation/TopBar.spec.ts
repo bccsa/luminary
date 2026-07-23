@@ -56,6 +56,18 @@ describe("TopBar", () => {
         isAuthPluginInstalled.value = false;
     });
 
+    // Regression (#1825): the login button is a sibling of the quick-controls wrapper, so
+    // without a gap on the row it sits flush against the theme toggle on mobile.
+    it("spaces the trailing controls so the login button isn't flush against them", () => {
+        (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
+            isAuthenticated: ref(false),
+        });
+
+        const wrapper = mount(TopBar);
+
+        expect(wrapper.get('[data-test="topBarRow"]').classes()).toContain("gap-2");
+    });
+
     it("shows the profile menu trigger when logged out", async () => {
         (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
             isAuthenticated: ref(false),
