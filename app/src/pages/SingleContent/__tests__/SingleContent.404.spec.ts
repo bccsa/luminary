@@ -23,7 +23,7 @@ import waitForExpect from "wait-for-expect";
 import { appLanguageIdsAsRef } from "@/globalConfig";
 import NotFoundPage from "../../NotFoundPage.vue";
 import { ref } from "vue";
-import * as auth0 from "@auth0/auth0-vue";
+import * as auth from "@/auth";
 
 const routeReplaceMock = vi.hoisted(() => vi.fn());
 vi.mock("vue-router", async (importOriginal) => {
@@ -48,7 +48,22 @@ vi.mock("vue-router", async (importOriginal) => {
         })),
     };
 });
-vi.mock("@auth0/auth0-vue");
+vi.mock("@/auth", async () => {
+    const { ref } = await import("vue");
+    return {
+        activeProviderId: ref(null),
+        clearAuth0Cache: vi.fn(),
+        isAuthPluginInstalled: ref(true),
+        openProviderModal: vi.fn(),
+        useAuth: vi.fn(() => ({
+            isLoading: ref(false),
+            isAuthenticated: ref(false),
+            user: ref(null),
+            loginWithRedirect: vi.fn(),
+            logout: vi.fn(),
+        })),
+    };
+});
 
 vi.mock("vue-i18n", () => ({
     useI18n: () => ({
@@ -80,8 +95,12 @@ describe("SingleContent 404 Page", () => {
 
         setActivePinia(createTestingPinia());
 
-        (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
+        (auth as any).useAuth.mockReturnValue({
+            isLoading: ref(false),
             isAuthenticated: ref(false),
+            user: ref(null),
+            loginWithRedirect: vi.fn(),
+            logout: vi.fn(),
         });
     });
 

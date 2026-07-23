@@ -7,7 +7,7 @@ import { createTestingPinia } from "@pinia/testing";
 import { userPreferencesAsRef } from "@/globalConfig";
 import { mockEnglishContentDto, mockLanguageDtoEng } from "@/tests/mockdata";
 import { db, type ContentDto } from "luminary-shared";
-import * as auth0 from "@auth0/auth0-vue";
+import * as auth from "@/auth";
 import { ref } from "vue";
 import { hasPendingLogin } from "@/composables/useAuthWithPrivacyPolicy";
 import waitForExpect from "wait-for-expect";
@@ -20,7 +20,22 @@ vi.mock("vue-i18n", () => ({
     }),
 }));
 
-vi.mock("@auth0/auth0-vue");
+vi.mock("@/auth", async () => {
+    const { ref } = await import("vue");
+    return {
+        activeProviderId: ref(null),
+        clearAuth0Cache: vi.fn(),
+        isAuthPluginInstalled: ref(true),
+        openProviderModal: vi.fn(),
+        useAuth: vi.fn(() => ({
+            isLoading: ref(false),
+            isAuthenticated: ref(false),
+            user: ref(null),
+            loginWithRedirect: vi.fn(),
+            logout: vi.fn(),
+        })),
+    };
+});
 vi.mock("vue-router", () => ({
     useRouter: vi.fn(() => ({
         push: vi.fn(),
@@ -39,7 +54,7 @@ describe("PrivacyPolicyModal.vue", () => {
         // Reset hasPendingLogin before each test
         hasPendingLogin.value = false;
 
-        // Tests mock useAuth0; pretend the plugin is installed so the
+        // Tests mock useAuth; pretend the plugin is installed so the
         // component actually calls it instead of short-circuiting.
         isAuthPluginInstalled.value = true;
     });
@@ -51,7 +66,7 @@ describe("PrivacyPolicyModal.vue", () => {
     });
 
     it("shows the privacy notification", async () => {
-        (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
+        (auth as any).useAuth.mockReturnValue({
             isAuthenticated: ref(false),
         });
 
@@ -69,7 +84,7 @@ describe("PrivacyPolicyModal.vue", () => {
     });
 
     it("can accept the privacy policy", async () => {
-        (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
+        (auth as any).useAuth.mockReturnValue({
             isAuthenticated: ref(false),
         });
 
@@ -84,7 +99,7 @@ describe("PrivacyPolicyModal.vue", () => {
     });
 
     it("handles necessaryOnly logic when authenticated", async () => {
-        (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
+        (auth as any).useAuth.mockReturnValue({
             isAuthenticated: ref(true),
         });
 
@@ -98,7 +113,7 @@ describe("PrivacyPolicyModal.vue", () => {
     });
 
     it("shows another message when the privacy policy has been accepted", async () => {
-        (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
+        (auth as any).useAuth.mockReturnValue({
             isAuthenticated: ref(true),
         });
 
@@ -150,7 +165,7 @@ describe("PrivacyPolicyModal.vue", () => {
     });
 
     it("shows the privacy policy as outdated when the policy is updated", async () => {
-        (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
+        (auth as any).useAuth.mockReturnValue({
             isAuthenticated: ref(true),
             logout: vi.fn(),
         });
@@ -200,7 +215,7 @@ describe("PrivacyPolicyModal.vue", () => {
     });
 
     it("hides 'Necessary Only' button when there is a pending login", async () => {
-        (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
+        (auth as any).useAuth.mockReturnValue({
             isAuthenticated: ref(false),
         });
 
@@ -222,7 +237,7 @@ describe("PrivacyPolicyModal.vue", () => {
     });
 
     it("can click 'Necessary Only' to set status", async () => {
-        (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
+        (auth as any).useAuth.mockReturnValue({
             isAuthenticated: ref(false),
         });
 
@@ -238,7 +253,7 @@ describe("PrivacyPolicyModal.vue", () => {
     });
 
     it("navigates to privacy-policy content on 'More Info' click", async () => {
-        (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
+        (auth as any).useAuth.mockReturnValue({
             isAuthenticated: ref(false),
         });
 
@@ -257,7 +272,7 @@ describe("PrivacyPolicyModal.vue", () => {
     it("adds banner notification after 2 second delay", async () => {
         vi.useFakeTimers();
 
-        (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
+        (auth as any).useAuth.mockReturnValue({
             isAuthenticated: ref(false),
             logout: vi.fn(),
         });
@@ -286,7 +301,7 @@ describe("PrivacyPolicyModal.vue", () => {
     it("removes banner notification when status becomes accepted", async () => {
         vi.useFakeTimers();
 
-        (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
+        (auth as any).useAuth.mockReturnValue({
             isAuthenticated: ref(false),
             logout: vi.fn(),
         });
@@ -313,7 +328,7 @@ describe("PrivacyPolicyModal.vue", () => {
     });
 
     it("shows necessaryOnly status in modal message", async () => {
-        (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
+        (auth as any).useAuth.mockReturnValue({
             isAuthenticated: ref(false),
             logout: vi.fn(),
         });
@@ -329,7 +344,7 @@ describe("PrivacyPolicyModal.vue", () => {
     });
 
     it("shows 'Necessary Only' button when there is no pending login", async () => {
-        (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
+        (auth as any).useAuth.mockReturnValue({
             isAuthenticated: ref(false),
         });
 

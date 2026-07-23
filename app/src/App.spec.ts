@@ -2,7 +2,7 @@ import "fake-indexeddb/auto";
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import App from "./App.vue";
-import * as auth0 from "@auth0/auth0-vue";
+import * as auth from "@/auth";
 import { ref } from "vue";
 import waitForExpect from "wait-for-expect";
 import { setActivePinia } from "pinia";
@@ -21,11 +21,27 @@ const currentRouteMock = ref({ fullPath: `/${mockEnglishContentDto.slug}` });
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+vi.mock("@/auth", async () => {
+    const { ref } = await import("vue");
+    return {
+        activeProviderId: ref(null),
+        clearAuth0Cache: vi.fn(),
+        isAuthPluginInstalled: ref(true),
+        openProviderModal: vi.fn(),
+        showProviderSelectionModal: ref(false),
+        useAuth: vi.fn(() => ({
+            isLoading: ref(false),
+            isAuthenticated: ref(false),
+            user: ref(null),
+            loginWithRedirect: vi.fn(),
+            logout: vi.fn(),
+        })),
+    };
+});
+
 describe("App", () => {
     beforeEach(() => {
         setActivePinia(createTestingPinia());
-
-        vi.mock("@auth0/auth0-vue");
 
         vi.mock("vue-router", async (importOriginal) => {
             const actual = await importOriginal();
@@ -47,7 +63,7 @@ describe("App", () => {
 
     describe("Splash screen", () => {
         beforeEach(() => {
-            (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
+            (auth as any).useAuth.mockReturnValue({
                 isLoading: ref(false),
                 isAuthenticated: ref(false),
             });
@@ -73,7 +89,7 @@ describe("App", () => {
 
     describe("Notifications", () => {
         it("shows the 'offline' banner when offline and hides the banner when going online", async () => {
-            (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
+            (auth as any).useAuth.mockReturnValue({
                 isLoading: ref(true),
                 isAuthenticated: ref(true),
             });
@@ -113,7 +129,7 @@ describe("App", () => {
         it("shows the banner when not authenticated", async () => {
             vi.spyOn(isConnected, "value", "get").mockReturnValue(true);
 
-            (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
+            (auth as any).useAuth.mockReturnValue({
                 isLoading: ref(false),
                 isAuthenticated: ref(false),
             });

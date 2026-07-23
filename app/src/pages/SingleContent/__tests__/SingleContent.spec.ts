@@ -37,7 +37,7 @@ import {
 import { computeEstimatedReadingMinutes } from "@/util/readingTime";
 import { ref, computed } from "vue";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
-import * as auth0 from "@auth0/auth0-vue";
+import * as auth from "@/auth";
 import LImage from "@/components/images/LImage.vue";
 import ImageModal from "@/components/images/ImageModal.vue";
 import { resolveNotificationText, useNotificationStore } from "@/stores/notification";
@@ -74,7 +74,22 @@ vi.mock("@/router", () => ({
     markInternalNavigation: vi.fn(),
 }));
 
-vi.mock("@auth0/auth0-vue");
+vi.mock("@/auth", async () => {
+    const { ref } = await import("vue");
+    return {
+        activeProviderId: ref(null),
+        clearAuth0Cache: vi.fn(),
+        isAuthPluginInstalled: ref(true),
+        openProviderModal: vi.fn(),
+        useAuth: vi.fn(() => ({
+            isLoading: ref(false),
+            isAuthenticated: ref(false),
+            user: ref(null),
+            loginWithRedirect: vi.fn(),
+            logout: vi.fn(),
+        })),
+    };
+});
 
 // Mock video.js to prevent initialization errors
 vi.mock("video.js", () => {
@@ -158,8 +173,12 @@ describe("SingleContent", () => {
         vi.clearAllMocks();
         vi.useRealTimers();
 
-        (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
+        (auth as any).useAuth.mockReturnValue({
+            isLoading: ref(false),
             isAuthenticated: ref(false),
+            user: ref(null),
+            loginWithRedirect: vi.fn(),
+            logout: vi.fn(),
         });
     });
 

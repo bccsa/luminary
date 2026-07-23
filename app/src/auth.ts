@@ -8,6 +8,7 @@ import type { AuthProviderDto } from "luminary-shared";
 const OIDC_USER_PREFIX = "oidc.user:";
 const OIDC_STATE_PREFIX = "oidc.";
 const LEGACY_AUTH0_CACHE_PREFIX = "@@auth0spajs@@::";
+const LEGACY_AUTH0_STATE_PREFIX = "a0.spajs.";
 
 /** The selected provider, retained across the OIDC redirect. */
 export const ACTIVE_PROVIDER_KEY = "activeAuthProvider";
@@ -54,7 +55,13 @@ function setProviderIdHeader(id: string | null): void {
 export function persistActiveProvider(provider: PersistedProvider): void {
     if (typeof localStorage === "undefined") return;
     try {
-        localStorage.setItem(ACTIVE_PROVIDER_KEY, JSON.stringify(provider));
+        const persisted: PersistedProvider = {
+            _id: provider._id,
+            domain: provider.domain,
+            clientId: provider.clientId,
+            audience: provider.audience,
+        };
+        localStorage.setItem(ACTIVE_PROVIDER_KEY, JSON.stringify(persisted));
     } catch {
         // Storage is an optimisation; a redirect must still proceed without it.
     }
@@ -70,8 +77,14 @@ export function readPersistedProvider(): PersistedProvider | null {
             typeof provider.domain === "string" &&
             typeof provider.clientId === "string" &&
             typeof provider.audience === "string"
-        )
-            return provider;
+        ) {
+            return {
+                _id: provider._id,
+                domain: provider.domain,
+                clientId: provider.clientId,
+                audience: provider.audience,
+            };
+        }
     } catch {
         // Treat corrupt persisted state as no selected provider.
     }
@@ -179,7 +192,9 @@ export async function loginWithProvider(
     persistActiveProvider(provider);
     const manager = installManager(provider);
     await manager.clearStaleState();
-    await manager.signinRedirect({ extraQueryParams: opts?.prompt ? { prompt: opts.prompt } : undefined });
+    await manager.signinRedirect({
+        extraQueryParams: opts?.prompt ? { prompt: opts.prompt } : undefined,
+    });
 }
 
 /** The auth surface used by guards and components; it is not SDK-specific. */
@@ -202,6 +217,7 @@ export function useAuth() {
 
 /** Clear generic OIDC browser state, provider identity, and shared token. */
 export function clearAuth0Cache(): void {
+    installedOidc = null;
     setProviderIdHeader(null);
     oidcUser.value = null;
     isAuthPluginInstalled.value = false;
@@ -209,6 +225,7 @@ export function clearAuth0Cache(): void {
     clearStoragePrefix(localStorage, OIDC_USER_PREFIX);
     clearStoragePrefix(sessionStorage, OIDC_STATE_PREFIX);
     clearStoragePrefix(localStorage, LEGACY_AUTH0_CACHE_PREFIX);
+    clearStoragePrefix(sessionStorage, LEGACY_AUTH0_STATE_PREFIX);
     try {
         localStorage.removeItem(ACTIVE_PROVIDER_KEY);
     } catch {
