@@ -54,7 +54,7 @@ export function useAuthWithPrivacyPolicy() {
     // Otherwise treat it as "not logged in" and fall back to the provider
     // selection modal — but *still* gate that fallback behind the privacy
     // policy, because for first-time multi-provider users this is the primary
-    // login path (the Auth0 plugin only mounts after a provider has been picked).
+    // login path (the OIDC manager is only installed after a provider has been picked).
     const auth = isAuthPluginInstalled.value ? useAuth() : undefined;
 
     // Reactive wrapper for template binding.

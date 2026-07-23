@@ -20,22 +20,7 @@ vi.mock("vue-router", () => ({
     })),
 }));
 
-vi.mock("@/auth", async () => {
-    const { ref } = await import("vue");
-    return {
-        activeProviderId: ref(null),
-        clearAuth0Cache: vi.fn(),
-        isAuthPluginInstalled: ref(true),
-        openProviderModal: vi.fn(),
-        useAuth: vi.fn(() => ({
-            isLoading: ref(false),
-            isAuthenticated: ref(false),
-            user: ref(null),
-            loginWithRedirect: vi.fn(),
-            logout: vi.fn(),
-        })),
-    };
-});
+vi.mock("@/auth", async () => (await import("@/tests/mockAuth")).createAuthMock());
 
 vi.mock("vue-i18n", () => ({
     useI18n: () => ({

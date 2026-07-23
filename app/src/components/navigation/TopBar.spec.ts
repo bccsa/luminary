@@ -9,20 +9,7 @@ import { ref } from "vue";
 import { mockLanguageDtoEng } from "@/tests/mockdata";
 import { isAuthPluginInstalled } from "@/auth";
 
-vi.mock("@/auth", async () => {
-    const { ref } = await import("vue");
-    return {
-        isAuthPluginInstalled: ref(true),
-        openProviderModal: vi.fn(),
-        useAuth: vi.fn(() => ({
-            isLoading: ref(false),
-            isAuthenticated: ref(false),
-            user: ref(null),
-            loginWithRedirect: vi.fn(),
-            logout: vi.fn(),
-        })),
-    };
-});
+vi.mock("@/auth", async () => (await import("@/tests/mockAuth")).createAuthMock());
 const routePushMock = vi.fn();
 
 vi.mock("vue-router", async () => {

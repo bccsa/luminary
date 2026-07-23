@@ -104,9 +104,8 @@ const confirmLogout = async () => {
     // Close now, not after logout(): a real IdP redirect unloads the page
     // anyway, and if the redirect fails the dialog shouldn't stay stuck open.
     showLogoutDialog.value = false;
-    localStorage.removeItem("usedAuth0Connection");
     // logout() already clears local state in the right order — don't call
-    // clearAuth0Cache() here first, or it turns logout() into a no-op.
+    // clearAuthCache() here first, or it turns logout() into a no-op.
     await logout();
 };
 

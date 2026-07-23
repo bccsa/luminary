@@ -40,7 +40,7 @@ vi.mock("@sentry/vue", () => ({
 import {
     ACTIVE_PROVIDER_KEY,
     activeProviderId,
-    clearAuth0Cache,
+    clearAuthCache,
     isAuthPluginInstalled,
     loginWithProvider,
     openProviderModal,
@@ -94,7 +94,7 @@ function resetWorld(): void {
     localStorage.clear();
     sessionStorage.clear();
     history.replaceState(null, "", "/");
-    clearAuth0Cache();
+    clearAuthCache();
     showProviderSelectionModal.value = false;
 
     for (const mock of [
@@ -295,6 +295,41 @@ describe("auth", () => {
             expect(mockSigninSilent).toHaveBeenCalledTimes(1);
         });
 
+        it("does not join an in-flight refresh started for a since-superseded manager", async () => {
+            mockClearStaleState.mockResolvedValue(undefined);
+            mockSigninRedirect.mockResolvedValue(undefined);
+
+            let resolveFirst!: (user: unknown) => void;
+            mockSigninSilent.mockImplementationOnce(
+                () =>
+                    new Promise((resolve) => {
+                        resolveFirst = resolve;
+                    }),
+            );
+
+            // Starts against provider A's manager and stays pending.
+            const firstRefresh = refreshTokenSilently({ ignoreCache: true });
+
+            // A provider switch installs a brand new manager before that settles.
+            await loginWithProvider(providerB);
+
+            mockSigninSilent.mockResolvedValueOnce({
+                access_token: "b-token",
+                expired: false,
+                profile: { sub: "user-b" },
+            });
+
+            // A caller after the switch must start its own refresh rather than
+            // join the stale in-flight one from provider A's manager.
+            const secondRefresh = refreshTokenSilently({ ignoreCache: true });
+
+            resolveFirst({ access_token: "a-token", expired: false, profile: { sub: "user-a" } });
+
+            await expect(firstRefresh).resolves.toBe(true);
+            await expect(secondRefresh).resolves.toBe(true);
+            expect(mockSigninSilent).toHaveBeenCalledTimes(2);
+        });
+
         it("does not resurrect a session if logout supersedes an in-flight refresh", async () => {
             let resolveSigninSilent!: (user: unknown) => void;
             mockSigninSilent.mockImplementation(
@@ -307,7 +342,7 @@ describe("auth", () => {
             const refreshPromise = refreshTokenSilently({ ignoreCache: true });
 
             // Logout happens while the refresh above is still in flight.
-            clearAuth0Cache();
+            clearAuthCache();
 
             resolveSigninSilent({
                 access_token: "late-token",
@@ -437,7 +472,7 @@ describe("auth", () => {
         });
     });
 
-    describe("clearAuth0Cache", () => {
+    describe("clearAuthCache", () => {
         it("clears OIDC state, legacy Auth0 state, headers, and provider selection", () => {
             localStorage.setItem("oidc.user:https://issuer:client", "user");
             sessionStorage.setItem("oidc.pending", "state");
@@ -448,7 +483,7 @@ describe("auth", () => {
             persistActiveProvider(providerA);
             activeProviderId.value = providerA._id;
 
-            clearAuth0Cache();
+            clearAuthCache();
 
             expect(activeProviderId.value).toBeNull();
             expect(isAuthPluginInstalled.value).toBe(false);
@@ -465,7 +500,7 @@ describe("auth", () => {
             mockClearStaleState.mockResolvedValue(undefined);
             mockSigninRedirect.mockResolvedValue(undefined);
             await loginWithProvider(providerA);
-            clearAuth0Cache();
+            clearAuthCache();
 
             await expect(refreshTokenSilently()).resolves.toBe(false);
         });

@@ -102,7 +102,7 @@ export function readPersistedProvider(): PersistedProvider | null {
 export async function resolveActiveProvider(): Promise<ProviderConfig | null> {
     const persisted = readPersistedProvider();
     if (persisted) return persisted;
-    if (localStorage.getItem(ACTIVE_PROVIDER_KEY)) clearAuth0Cache();
+    if (localStorage.getItem(ACTIVE_PROVIDER_KEY)) clearAuthCache();
     return null;
 }
 
@@ -116,9 +116,19 @@ function createManager(provider: ProviderConfig): UserManager {
         scope: "openid profile email offline_access",
         // `audience` is the existing AuthProvider contract. It is passed as an
         // optional authorization parameter, which Auth0 uses and standards-
-        // compliant providers may ignore when they do not model resources.
+        // compliant providers ignore when they don't model resources — but a
+        // *strict* provider could reject an unrecognized param outright rather
+        // than ignore it. If a non-Auth0 provider ever needs to be onboarded,
+        // check this first.
         extraQueryParams: provider.audience ? { audience: provider.audience } : undefined,
         userStore: new WebStorageStateStore({ store: window.localStorage }),
+        // No silent_redirect_uri: the only silent-renewal path is the
+        // refresh-token grant inside signinSilent() (see refreshTokenSilently).
+        // If a stored user ever has no refresh_token, signinSilent() throws
+        // instead of falling back to an iframe — intentional, not an oversight:
+        // iframe silent-auth is largely dead under modern ITP/third-party-
+        // cookie policies anyway, so the fallback (a visible re-login) is the
+        // more reliable behavior in practice.
         automaticSilentRenew: false,
         monitorSession: false,
     });
@@ -180,6 +190,7 @@ export async function setupAuth(_app: App<Element>, router: Router): Promise<voi
 }
 
 let refreshInFlight: Promise<boolean> | null = null;
+let refreshInFlightManager: UserManager | null = null;
 
 /**
  * Refresh through the provider's OIDC refresh-token flow. With `ignoreCache`,
@@ -191,12 +202,17 @@ let refreshInFlight: Promise<boolean> | null = null;
  * refreshing) would each POST the same refresh_token. With rotation enabled
  * server-side, one succeeds and the other gets invalid_grant — an
  * intermittent, hard-to-reproduce logout. A later caller joins the call
- * already in flight instead of starting its own.
+ * already in flight instead of starting its own — but only when it's for the
+ * same manager: if the provider changed mid-flight (a rapid provider switch),
+ * `refreshInFlightManager` won't match the newly-installed one, so the new
+ * caller starts its own refresh instead of joining a promise that resolves
+ * against the now-stale provider.
  */
 export async function refreshTokenSilently(opts?: { ignoreCache?: boolean }): Promise<boolean> {
     const manager = installedOidc;
     if (!manager) return false;
-    if (refreshInFlight) return refreshInFlight;
+    if (refreshInFlight && refreshInFlightManager === manager) return refreshInFlight;
+    refreshInFlightManager = manager;
     refreshInFlight = (async () => {
         try {
             let current = opts?.ignoreCache ? null : await manager.getUser();
@@ -217,7 +233,13 @@ export async function refreshTokenSilently(opts?: { ignoreCache?: boolean }): Pr
         } catch {
             return false;
         } finally {
-            refreshInFlight = null;
+            // Only clear if this call is still the current one — a newer call
+            // for a different (just-installed) manager may have already
+            // replaced these while this one was still in flight.
+            if (refreshInFlightManager === manager) {
+                refreshInFlight = null;
+                refreshInFlightManager = null;
+            }
         }
     })();
     return refreshInFlight;
@@ -246,13 +268,13 @@ export function useAuth() {
         logout: async () => {
             const manager = installedOidc;
             if (!manager) return;
-            // Capture before clearAuth0Cache() wipes the persisted user, so the
+            // Capture before clearAuthCache() wipes the persisted user, so the
             // signout request can still carry id_token_hint.
             const idTokenHint = oidcUser.value?.id_token;
             // Clear local state before redirecting, not after: otherwise a stale
             // ACTIVE_PROVIDER_KEY could let a later boot silently re-auth via
             // signinSilent() if the redirect gets interrupted.
-            clearAuth0Cache();
+            clearAuthCache();
             // Full teardown of the user's group-scoped local data. Don't rely on
             // the anon socket reconnect + deleteRevoked() reactivity to trim it
             // down instead — that depends on accessMap/isConnected timing that a
@@ -279,7 +301,7 @@ export function useAuth() {
 }
 
 /** Clear generic OIDC browser state, provider identity, and shared token. */
-export function clearAuth0Cache(): void {
+export function clearAuthCache(): void {
     installedOidc = null;
     setProviderIdHeader(null);
     oidcUser.value = null;
@@ -309,7 +331,7 @@ export function openProviderModal(): void {
 export default {
     setupAuth,
     openProviderModal,
-    clearAuth0Cache,
+    clearAuthCache,
     activeProviderId,
     showProviderSelectionModal,
     loginWithProvider,

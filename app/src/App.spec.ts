@@ -21,23 +21,7 @@ const currentRouteMock = ref({ fullPath: `/${mockEnglishContentDto.slug}` });
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-vi.mock("@/auth", async () => {
-    const { ref } = await import("vue");
-    return {
-        activeProviderId: ref(null),
-        clearAuth0Cache: vi.fn(),
-        isAuthPluginInstalled: ref(true),
-        openProviderModal: vi.fn(),
-        showProviderSelectionModal: ref(false),
-        useAuth: vi.fn(() => ({
-            isLoading: ref(false),
-            isAuthenticated: ref(false),
-            user: ref(null),
-            loginWithRedirect: vi.fn(),
-            logout: vi.fn(),
-        })),
-    };
-});
+vi.mock("@/auth", async () => (await import("./tests/mockAuth")).createAuthMock());
 
 describe("App", () => {
     beforeEach(() => {

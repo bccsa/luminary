@@ -1,9 +1,9 @@
-import { waitUntilAuth0IsLoaded } from "@/util/waitUntilAuth0IsLoaded";
+import { waitUntilAuthIsLoaded } from "@/util/waitUntilAuthIsLoaded";
 import type { NavigationGuard } from "vue-router";
 import { isAuthPluginInstalled, useAuth } from "@/auth";
 
 export const isNotAuthenticatedGuard: NavigationGuard = async (to, from, next) => {
-    // No Auth0 plugin installed — user is definitionally unauthenticated.
+    // No OIDC manager installed — user is definitionally unauthenticated.
     if (!isAuthPluginInstalled.value) return next();
 
     const { isAuthenticated } = useAuth();
@@ -14,5 +14,5 @@ export const isNotAuthenticatedGuard: NavigationGuard = async (to, from, next) =
         return next();
     };
 
-    await waitUntilAuth0IsLoaded(callback);
+    await waitUntilAuthIsLoaded(callback);
 };

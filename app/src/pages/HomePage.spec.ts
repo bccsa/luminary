@@ -19,20 +19,7 @@ import { appLanguageIdsAsRef, initLanguage } from "@/globalConfig";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
 
-vi.mock("@/auth", async () => {
-    const { ref } = await import("vue");
-    return {
-        isAuthPluginInstalled: ref(true),
-        openProviderModal: vi.fn(),
-        useAuth: vi.fn(() => ({
-            isLoading: ref(false),
-            isAuthenticated: ref(true),
-            user: ref(null),
-            loginWithRedirect: vi.fn(),
-            logout: vi.fn(),
-        })),
-    };
-});
+vi.mock("@/auth", async () => (await import("@/tests/mockAuth")).createAuthMock());
 vi.mock("vue-router");
 vi.mock("@/router", () => ({
     default: {},
