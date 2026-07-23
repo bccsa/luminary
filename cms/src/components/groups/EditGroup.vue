@@ -23,6 +23,7 @@ import LDialog from "../common/LDialog.vue";
 import { ArrowUturnLeftIcon } from "@heroicons/vue/24/solid";
 import { PlusIcon, UserGroupIcon } from "@heroicons/vue/24/outline";
 import LCombobox from "../forms/LCombobox.vue";
+import GroupPermissionsReport from "./GroupPermissionsReport.vue";
 
 const { addNotification } = useNotificationStore();
 
@@ -317,7 +318,7 @@ const duplicateGroup = async () => {
                         { 'text-zinc-800': !disabled },
                     ]"
                 >
-                    {{ group.name }}
+                    Accessors for {{ group.name }}
                 </h2>
             </div>
             <LInput
@@ -399,6 +400,26 @@ const duplicateGroup = async () => {
                         :originalGroup="group"
                         :availableGroups="availableGroups"
                         :disabled="disabled"
+                    />
+                </div>
+                <div v-if="!isNewGroup" class="pb-2 pt-6">
+                    <div class="relative mb-6">
+                        <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                            <div class="w-full border-t border-zinc-200"></div>
+                        </div>
+                        <div class="relative flex justify-start">
+                            <span
+                                class="bg-white pr-3 text-xs font-bold uppercase tracking-widest text-zinc-400"
+                            >
+                                Inherited Permissions
+                            </span>
+                        </div>
+                    </div>
+
+                    <GroupPermissionsReport
+                        :groupName="group.name"
+                        :groupId="group._id"
+                        :allGroups="groupQuery.editable.value"
                     />
                 </div>
             </div>
