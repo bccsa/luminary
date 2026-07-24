@@ -13,7 +13,9 @@ const { t } = useI18n();
 
 // One merged, capped "Read more" feed: series neighbours first, then topical/author/
 // cross-topic-affinity content fills the rest (see useRelatedFeed for the priority order).
-const { items } = useRelatedFeed(
+// `ready` gates on the primary topical/FTS leg (see useRelatedFeed) — while it's still
+// loading, ReadMore shows its own ghost placeholder instead of an empty gap.
+const { items, ready } = useRelatedFeed(
     () => props.selectedContent,
     () => props.tags,
 );
@@ -21,7 +23,7 @@ const { items } = useRelatedFeed(
 
 <template>
     <section
-        v-if="items.length"
+        v-if="!ready || items.length"
         class="w-full pb-2"
     >
         <h2
@@ -33,6 +35,9 @@ const { items } = useRelatedFeed(
             ></span>
             <span class="truncate">{{ t("content.read_more") }}</span>
         </h2>
-        <ReadMore :items="items" />
+        <ReadMore
+            :items="items"
+            :ready="ready"
+        />
     </section>
 </template>

@@ -167,6 +167,28 @@ describe("useMoreLikeThis", () => {
         );
     });
 
+    it("reports ready only after its FTS retrieval has completed", async () => {
+        const selected = makeContent("selected", [TOPIC_A]);
+        const ftsOnly = makeContent("fts-only", ["tag-unrelated"]);
+        let resolveFts!: (results: FtsSearchResult[]) => void;
+        vi.mocked(shared.ftsSearch).mockReturnValue(
+            new Promise((resolve) => {
+                resolveFts = resolve;
+            }),
+        );
+
+        const result = start(selected, [makeSeedTag(TOPIC_A)]);
+
+        expect(result.ready.value).toBe(false);
+        await waitForExpect(() => expect(shared.ftsSearch).toHaveBeenCalled());
+        expect(result.ready.value).toBe(false);
+        resolveFts([makeFtsResult(ftsOnly)]);
+        await waitForExpect(() => {
+            expect(result.similar.value.map((doc) => doc._id)).toContain(ftsOnly._id);
+            expect(result.ready.value).toBe(true);
+        });
+    });
+
     it("uses the viewer's affinity to reorder equally topical candidates by their own tags", async () => {
         const selected = makeContent("selected", [TOPIC_A, TOPIC_B]);
         const neutralCandidate = makeContent("neutral", [TOPIC_A]);

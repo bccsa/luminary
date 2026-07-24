@@ -1,6 +1,6 @@
 import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { computed, effectScope } from "vue";
+import { computed, effectScope, ref } from "vue";
 import waitForExpect from "wait-for-expect";
 import { db, DocType, PublishStatus, type ContentDto } from "luminary-shared";
 import { appLanguageIdsAsRef } from "@/globalConfig";
@@ -60,11 +60,15 @@ describe("useRelatedFeed", () => {
     beforeEach(() => {
         previousLanguageIds = [...appLanguageIdsAsRef.value];
         appLanguageIdsAsRef.value = ["lang-eng"];
-        vi.mocked(useMoreLikeThis).mockReturnValue({ similar: computed(() => []) });
+        vi.mocked(useMoreLikeThis).mockReturnValue({
+            similar: computed(() => []),
+            ready: computed(() => true),
+        });
         vi.mocked(useRecommendations).mockReturnValue({
             recommended: computed(() => []),
             hasTags: computed(() => false),
             topTagIds: computed(() => []),
+            ready: computed(() => true),
         });
     });
 
@@ -85,6 +89,21 @@ describe("useRelatedFeed", () => {
         return started.result;
     }
 
+    it("exposes ready only once every leg (series, author, affinity, and the topical/FTS leg) has resolved", async () => {
+        const selected = makeContent("selected");
+        const similarReady = ref(false);
+        vi.mocked(useMoreLikeThis).mockReturnValue({
+            similar: computed(() => []),
+            ready: similarReady,
+        });
+
+        const result = run(selected, []);
+
+        expect(result.ready.value).toBe(false);
+        similarReady.value = true;
+        await waitForExpect(() => expect(result.ready.value).toBe(true));
+    });
+
     it("pins series neighbours first, ahead of similar/author/affinity content", async () => {
         const selected = makeContent("selected-b", {
             parentId: "post-b",
@@ -99,6 +118,7 @@ describe("useRelatedFeed", () => {
         const seriesTag = makeTag("tag-series", ["post-a", "post-b", "post-c"]);
         vi.mocked(useMoreLikeThis).mockReturnValue({
             similar: computed(() => [makeContent("topical", { parentId: "post-topical" })]),
+            ready: computed(() => true),
         });
 
         const result = run(selected, [seriesTag]);
@@ -118,7 +138,10 @@ describe("useRelatedFeed", () => {
         const seriesNeighbour = makeContent("series-a", { parentId: "post-a", publishDate: 1 });
         await db.docs.bulkPut([seriesNeighbour, selected]);
         const seriesTag = makeTag("tag-series", ["post-a", "post-b"]);
-        vi.mocked(useMoreLikeThis).mockReturnValue({ similar: computed(() => [seriesNeighbour]) });
+        vi.mocked(useMoreLikeThis).mockReturnValue({
+            similar: computed(() => [seriesNeighbour]),
+            ready: computed(() => true),
+        });
 
         const result = run(selected, [seriesTag]);
 
@@ -157,6 +180,7 @@ describe("useRelatedFeed", () => {
             recommended: computed(() => [affinityPick]),
             hasTags: computed(() => true),
             topTagIds: computed(() => ["tag-x"]),
+            ready: computed(() => true),
         });
 
         const result = run(selected, []);
@@ -173,6 +197,7 @@ describe("useRelatedFeed", () => {
             recommended: computed(() => [byJane]),
             hasTags: computed(() => true),
             topTagIds: computed(() => []),
+            ready: computed(() => true),
         });
         const selected = makeContent("selected", { author: "Jane Doe" });
 
@@ -199,7 +224,10 @@ describe("useRelatedFeed", () => {
         const similarItems = Array.from({ length: 15 }, (_, i) =>
             makeContent(`similar-${i}`, { parentId: `post-similar-${i}` }),
         );
-        vi.mocked(useMoreLikeThis).mockReturnValue({ similar: computed(() => similarItems) });
+        vi.mocked(useMoreLikeThis).mockReturnValue({
+            similar: computed(() => similarItems),
+            ready: computed(() => true),
+        });
 
         const result = run(selected, [], { limit: 10 });
 

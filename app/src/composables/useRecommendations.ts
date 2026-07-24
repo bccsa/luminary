@@ -12,6 +12,7 @@ import {
     affinityConfig,
 } from "luminary-shared";
 import { useContentQuery } from "@/composables/useContentQuery";
+import { useContentQueryWithState } from "@/composables/useContentQueryWithState";
 import { affinityProfile } from "@/recommendation/affinityStore";
 import {
     highlightVersion,
@@ -118,7 +119,7 @@ export function useRecommendations({
     // (tag count)/12 of its true richness, undercounting the clearest signal we produce.
     const richness = computed(() => computeRichness(decayedAffinity.value, tags.value));
 
-    const content = useContentQuery(
+    const { output: content, isFetching: contentIsFetching } = useContentQueryWithState(
         // No tags yet → a provably-empty `$in: []` so HybridQuery short-circuits
         // (no scan, no API call). Saved highlight FTS can still independently warm the feed.
         () =>
@@ -313,6 +314,11 @@ export function useRecommendations({
         // Strongest-affinity tags first (see `topTagsFrom`) — callers that want to label the
         // feed (e.g. "Because you read X") only need the top one or two.
         topTagIds: computed(() => tags.value.slice(0, 2)),
+        // Reflects only the tag-membership leg's own resolution (the `content` query above),
+        // not the FTS leg — sufficient for the current caller (`useRelatedFeed`, which always
+        // passes `useFts: false`). A caller using `useFts: true` that also needs a fully
+        // inclusive readiness signal would need this extended to track the FTS leg too.
+        ready: computed(() => !contentIsFetching.value),
     };
 }
 

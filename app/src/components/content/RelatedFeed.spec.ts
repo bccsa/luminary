@@ -19,7 +19,10 @@ const makeItem = (id: string): ContentDto =>
 
 describe("RelatedFeed", () => {
     it("renders ReadMore with the merged feed's items under a Read more heading", () => {
-        vi.mocked(useRelatedFeed).mockReturnValue({ items: computed(() => [makeItem("a")]) });
+        vi.mocked(useRelatedFeed).mockReturnValue({
+            items: computed(() => [makeItem("a")]),
+            ready: computed(() => true),
+        });
 
         const wrapper = mount(RelatedFeed, {
             props: { selectedContent: makeItem("selected"), tags: [] },
@@ -31,7 +34,10 @@ describe("RelatedFeed", () => {
     });
 
     it("renders nothing when the merged feed is empty", () => {
-        vi.mocked(useRelatedFeed).mockReturnValue({ items: computed(() => []) });
+        vi.mocked(useRelatedFeed).mockReturnValue({
+            items: computed(() => []),
+            ready: computed(() => true),
+        });
 
         const wrapper = mount(RelatedFeed, {
             props: { selectedContent: makeItem("selected"), tags: [] },
@@ -39,5 +45,19 @@ describe("RelatedFeed", () => {
         });
 
         expect(wrapper.text()).not.toContain("Read more");
+    });
+
+    it("shows the ghost placeholder while the merged feed is still loading", () => {
+        vi.mocked(useRelatedFeed).mockReturnValue({
+            items: computed(() => []),
+            ready: computed(() => false),
+        });
+
+        const wrapper = mount(RelatedFeed, {
+            props: { selectedContent: makeItem("selected"), tags: [] },
+            global: { stubs: { RouterLink: true, LImage: true } },
+        });
+
+        expect(wrapper.find('[data-test="read-more-ghost"]').exists()).toBe(true);
     });
 });
