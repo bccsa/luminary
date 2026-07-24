@@ -32,7 +32,7 @@ const mockAuthProvider: AuthProviderDto = {
     domain: "example.auth0.com",
     audience: "https://example.auth0.com",
     clientId: "client-abc",
-    label: "login.bcc.button",
+    label: "login.test.button",
     displayName: "Example",
     memberOf: ["group-super-admins"],
     updatedTimeUtc: 1704114000000,
@@ -252,7 +252,7 @@ describe("CreateOrEditUser.vue", () => {
             expect(providerSelect.exists()).toBe(true);
             const options = providerSelect.props("options") as { label: string }[];
             expect(options.some((o) => o.label.includes("Choose a provider"))).toBe(true);
-            expect(options.some((o) => o.label === "login.bcc.button")).toBe(true);
+            expect(options.some((o) => o.label === "login.login.button")).toBe(true);
         });
     });
 
