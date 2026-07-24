@@ -1,18 +1,24 @@
 {
-  "extends": "@tsconfig/node18/tsconfig.json",
-  "include": [
-    "vite-plugins/**/*.ts",
-    "vite.config.*",
-    "vitest.config.*",
-    "cypress.config.*",
-    "nightwatch.conf.*",
-    "playwright.config.*"
-  ],
-  "compilerOptions": {
-    "composite": true,
-    "noEmit": true,
-    "module": "ESNext",
-    "moduleResolution": "Bundler",
-    "types": ["node"]
-  }
+    "extends": "@tsconfig/node18/tsconfig.json",
+    "include": [
+        "vite-plugins/**/*.ts",
+        "src/ssg/queryDrain.ts",
+        "vite.config.*",
+        "vitest.config.*",
+        "src/authStorage.ts",
+        "src/ssg/facetKeys.ts",
+        "src/ssg/redirectIndex.ts",
+        "src/ssg/redirectHtml.ts",
+        "src/ssg/routeIndex.ts",
+        "cypress.config.*",
+        "nightwatch.conf.*",
+        "playwright.config.*"
+    ],
+    "compilerOptions": {
+        "composite": true,
+        "noEmit": true,
+        "module": "ESNext",
+        "moduleResolution": "Bundler",
+        "types": ["node"]
+    }
 }

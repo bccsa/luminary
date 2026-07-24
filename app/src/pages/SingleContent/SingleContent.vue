@@ -4,11 +4,9 @@ import {
     PostType,
     PublishStatus,
     TagType,
-    db,
     isConnected,
     queryLocal,
     queryRemote,
-    useHybridQuery,
     touchRetention,
     type ContentDto,
     type RedirectDto,
@@ -34,7 +32,7 @@ import {
     appLanguagePreferredIdAsRef,
     isDarkTheme,
     theme,
-    appLanguageAsRef,
+    cmsLanguages,
     queryParams,
     addToMediaQueue,
     cmsUrl,
@@ -59,7 +57,6 @@ import { SpeakerWaveIcon } from "@heroicons/vue/24/solid";
 import { markLanguageSwitch } from "@/util/isLangSwitch";
 import LoadingBar from "@/components/LoadingBar.vue";
 import { activeImageCollection } from "@/components/images/LImageProvider.vue";
-import { isExternalNavigation } from "@/router";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
 import ContinueReadingPrompt from "@/components/content/ContinueReadingPrompt.vue";
 import LHighlightable from "@/components/common/LHighlightable.vue";
@@ -73,6 +70,8 @@ import {
     resolveArticleScrollContainer,
     useReadingProgressTracker,
 } from "@/composables/useReadingProgressTracker";
+import { useContentHead, type PublicTaxonomy } from "@/seo/contentHead";
+import { useTranslationSwitcher } from "@/composables/useTranslationSwitcher";
 
 const router = useRouter();
 
@@ -84,27 +83,41 @@ const props = defineProps<Props>();
 const { t } = useI18n();
 const showCategoryModal = ref(false);
 const enableZoom = ref(false);
-const selectedLanguageId = ref(appLanguagePreferredIdAsRef.value);
-const availableTranslations = ref<ContentDto[]>([]);
-const languages = ref<LanguageDto[]>([]);
 
 const currentImageIndex = ref(0);
 
-const defaultContent: ContentDto = {
-    _id: "",
-    type: DocType.Content,
-    updatedTimeUtc: 0,
-    memberOf: [],
-    parentId: "",
-    language: appLanguagePreferredIdAsRef.value || "",
-    status: PublishStatus.Published,
-    title: "Loading...",
-    slug: "",
-    publishDate: 0,
-    parentTags: [],
-};
+// Content by slug — the SAME local-first hybrid query on every build (web and
+// native). On the web build the prerender primes this query's response cache
+// (`cacheId = slug` makes the per-document seed safe), so the hydrating client shows
+// the article on first paint with no flash; during the Node prerender the seam's
+// onServerPrefetch fetches it so it is present in the static HTML. `text` (the body,
+// rendered below) and `memberOf` (read by canEdit) are kept off the default strip set.
+const contentArr = useContentQuery(() => [{ slug: props.slug }], {
+    includeScheduled: false,
+    languageFilter: false,
+    cache: true,
+    cacheId: props.slug,
+    // Seek the single slug doc via the slug-led index. The publishDate sort is required
+    // for CouchDB to engage the index (slug eq alone falls back to a full scan).
+    useIndex: "content-slug-publishDate-index",
+    sort: [{ publishDate: "desc" }],
+    stripFields: ["fts", "ftsTokenCount", "_rev"],
+});
 
-const content = ref<ContentDto | undefined>(defaultContent);
+// `content` is a COMPUTED over the query result, plus an override for the in-place
+// language switches below. A computed stays readable at SSR render time, where the
+// watch-based binding the page used to rely on never runs. `contentOverride` is
+// cleared on slug change so a stale override can't shadow the new page.
+const contentOverride = ref<ContentDto | undefined>();
+const content = computed<ContentDto | undefined>(
+    () => contentOverride.value ?? contentArr.value[0],
+);
+watch(
+    () => props.slug,
+    () => {
+        contentOverride.value = undefined;
+    },
+);
 
 const liveUrl = () => {
     if (!content.value || !selectedLanguageCode.value) return "";
@@ -133,26 +146,6 @@ const canEdit = () => {
     return verifyAccess(content.value.memberOf, content.value.parentType!, AclPermission.Edit);
 };
 
-// Content by slug. HybridQuery does the local-first Dexie read + the below-cutoff
-// API supplement (incl. deferring the POST until online). The query filters publish
-// state itself (status / publishDate / expiry), so a draft / scheduled / expired slug
-// resolves to nothing → the not-found path. languageFilter is off so a direct link to
-// any translation isn't excluded by the user's language preference. cache:false avoids
-// a first-paint flash of a previously-viewed article (single-doc structural key).
-const contentArr = useContentQuery(() => [{ slug: props.slug }], {
-    includeScheduled: false,
-    languageFilter: false,
-    cache: false,
-    // Seek the single slug doc via the slug-led index instead of scanning the whole
-    // content collection on the publishDate index. The publishDate sort is required
-    // for CouchDB to engage the index (slug eq alone falls back to a full scan).
-    useIndex: "content-slug-publishDate-index",
-    sort: [{ publishDate: "desc" }],
-    // Keep `text` (the article body, rendered below) and `memberOf` (read by
-    // canEdit) — the default strip set would drop both.
-    stripFields: ["fts", "ftsTokenCount", "_rev"],
-});
-
 // Redirect resolution. A redirect takes precedence over content — but that precedence
 // is enforced on the server (publishing content onto a redirect's slug is forced to
 // draft), not here. The slug invariant therefore guarantees a slug carries *either*
@@ -168,9 +161,11 @@ function routeRedirect(redirect: RedirectDto): boolean {
     return true;
 }
 
-// Loading until the content query produces an answer for the current slug.
-const isLoading = ref(true);
-const is404 = ref(false);
+// Loading until the content query produces an answer for the current slug — cleared
+// by the bind watch on the client, or by the not-found timer. During the prerender
+// the content is fetched in onServerPrefetch and present at render, so the loading
+// branch is never serialized.
+const isLoading = ref(!import.meta.env.SSR);
 
 let notFoundTimer: ReturnType<typeof setTimeout> | undefined;
 const clearNotFoundTimer = () => {
@@ -199,8 +194,9 @@ const scheduleNotFound = () => {
                     /* fall through to 404 */
                 }
             }
+            // `content` is a computed over the (empty) query result → already
+            // undefined; just stop loading so the 404 branch shows.
             if (!contentArr.value.length) {
-                content.value = undefined;
                 isLoading.value = false;
             }
         },
@@ -208,133 +204,184 @@ const scheduleNotFound = () => {
     );
 };
 
-watch(
-    () => props.slug,
-    async (slug) => {
-        isLoading.value = true;
-        scheduleNotFound();
-        // Instant local redirect check (synced redirects route immediately).
-        const redirect = (
-            await queryLocal<RedirectDto>({
-                selector: { $and: [{ type: DocType.Redirect }, { slug }] },
-            })
-        )[0];
-        if (props.slug === slug && redirect) routeRedirect(redirect);
-    },
-    { immediate: true },
-);
+// Client-only (web + native): redirect / not-found / loading wiring + retention. The
+// Node prerender skips this — it has no Dexie, and `content` is already populated via
+// the seam's onServerPrefetch + rendered. Guard on import.meta.env.SSR (with vite-ssg
+// mock:true, `window` exists in Node, so a window check would run this in the build).
+if (!import.meta.env.SSR) {
+    watch(
+        () => props.slug,
+        async (slug) => {
+            isLoading.value = true;
+            scheduleNotFound();
+            // Instant local redirect check (synced redirects route immediately).
+            const redirect = (
+                await queryLocal<RedirectDto>({
+                    selector: { $and: [{ type: DocType.Redirect }, { slug }] },
+                })
+            )[0];
+            if (props.slug === slug && redirect) routeRedirect(redirect);
+        },
+        { immediate: true },
+    );
 
-// Bind the resolved content. A found doc wins immediately and clears loading.
-watch(
-    contentArr,
-    (docs) => {
-        if (docs.length) {
-            content.value = docs[0];
-            isLoading.value = false;
-            clearNotFoundTimer();
-        }
-    },
-    { immediate: true },
-);
+    // `content` follows `contentArr` (a computed); this watch owns only the side
+    // effects — stop loading + clear the not-found timer once a doc resolves.
+    watch(
+        contentArr,
+        (docs) => {
+            if (docs.length) {
+                isLoading.value = false;
+                clearNotFoundTimer();
+            }
+        },
+        { immediate: true },
+    );
 
-// Drop a pending not-found timer on unmount so its remote redirect probe can't fire
-// after the user has navigated away (e.g. via a route-name redirect match).
-onUnmounted(clearNotFoundTimer);
+    // Drop a pending not-found timer on unmount so its remote redirect probe can't fire
+    // after the user has navigated away (e.g. via a route-name redirect match).
+    onUnmounted(clearNotFoundTimer);
 
-// Keep a viewed article alive in the offline document store: refresh its retention
-// deadline whenever a real content doc is displayed, so a below-cutoff article the
-// user reads isn't evicted as stale. No-op for the placeholder / undefined.
-watch(content, (c) => {
-    if (c && c._id) touchRetention([c._id]);
-});
+    // Keep a viewed article alive in the offline document store: refresh its retention
+    // deadline whenever a real content doc is displayed. No-op for undefined.
+    watch(content, (c) => {
+        if (c && c._id) touchRetention([c._id]);
+    });
+}
 
-// Available translations + their languages. HybridQuery merges the local read with
-// the below-cutoff API supplement; the language list is a fully-synced type read
-// straight from IndexedDB.
+// Available translations + their languages, derived via COMPUTEDs (render-safe during
+// the prerender, where watchers don't run) so the language dropdown + hreflang are
+// correct in the static HTML. `translationsArr` runs on every build through the seam;
+// the prerender primes its per-slug cache so the client's first render matches with no
+// flash. The language list comes from the shared `cmsLanguages` (populated on both
+// builds), so no separate Dexie-backed languages query is needed.
 const isLoadingTranslations = ref(false);
 
-// Per-document lookup → response cache stays off (the useContentQuery default). The
-// cache key is the query shape (parentId is stripped to a placeholder), so a seed here
-// would be a previously-viewed post's translations — which feed availableTranslations
-// and drive the auto-navigation below, redirecting this page back to that post.
 const translationsArr = useContentQuery(
-    // Before `content` resolves there is no parent to match siblings against. An
-    // empty `$in` is provably-empty, so HybridQuery short-circuits both the Dexie
-    // read and the API supplement — a `parentId: ""` placeholder instead POSTs a
-    // match-nothing query that full-scans the publishDate index.
+    // Before `content` resolves there is no parent to match siblings against. An empty
+    // `$in` is provably-empty, so HybridQuery short-circuits both the Dexie read and
+    // the API supplement.
     () =>
         content.value?.parentId
             ? [{ parentId: content.value.parentId }]
             : [{ parentId: { $in: [] } }],
     {
         publishedFilter: false,
-        // Seek siblings by parentId rather than scanning the publishDate index. The
-        // provably-empty `$in: []` branch short-circuits before any API call, so the
-        // index/sort only matter on the resolved-parentId (equality) branch.
+        cache: true,
+        // Per-slug discriminator so the per-document cache is SAFE — a shape-only key
+        // would seed this page from a previously-viewed post's translations.
+        cacheId: `translations:${props.slug}`,
+        // Seek siblings by parentId rather than scanning the publishDate index.
         useIndex: "content-parentId-publishDate-index",
         sort: [{ publishDate: "desc" }],
         // A language switch binds the chosen translation straight into `content`, so
-        // these docs must retain the same fields as the main content query: `text`
-        // (the article body) and `memberOf` (read by canEdit). The default strip set
-        // would drop both, blanking the body and crashing the edit check.
+        // the LIVE result keeps `text` (body) + `memberOf` (read by canEdit).
         stripFields: ["fts", "ftsTokenCount", "_rev"],
+        // …but DROP the body from the CACHE seed. Serializing every sibling's full
+        // text into each page (×N languages) is what blew the full build's heap — and
+        // it's only needed on a language switch, where the live query re-loads it.
+        cacheStripFields: ["text"],
     },
 );
-const allLanguages = useHybridQuery<LanguageDto>(() => ({ selector: { type: DocType.Language } }), {
-    live: true,
-    // Only the i18n singleton in globalConfig needs `translations`; this query reads
-    // just id/name/languageCode/averageReadingSpeed, so drop the heavy strings map.
-    stripFields: ["translations", "_rev"],
+
+const availableTranslations = computed<ContentDto[]>(() => {
+    if (!content.value) return [];
+    const published = translationsArr.value.filter((c) => c.status === PublishStatus.Published);
+    return published.length > 1 ? published : [];
 });
 
-watch(
-    [translationsArr, allLanguages, () => content.value?.parentId],
-    () => {
-        if (!content.value) return;
-        const published = (translationsArr.value as ContentDto[]).filter(
-            (c) => c.status === PublishStatus.Published,
-        );
-        if (published.length > 1) {
-            availableTranslations.value = published;
-            languages.value = allLanguages.value.filter((lang) =>
-                published.some((t) => t.language === lang._id),
-            );
-        }
-    },
-    { immediate: true },
+const localLanguages = ref<LanguageDto[]>([]);
+
+if (!import.meta.env.SSR) {
+    watch(
+        availableTranslations,
+        async (translations) => {
+            const ids = [...new Set(translations.map((t) => t.language))];
+            if (!ids.length) {
+                localLanguages.value = [];
+                return;
+            }
+            localLanguages.value = await queryLocal<LanguageDto>({
+                selector: { $and: [{ type: DocType.Language }, { _id: { $in: ids } }] },
+            });
+        },
+        { immediate: true },
+    );
+}
+
+const languages = computed<LanguageDto[]>(() => {
+    const byId = new Map([...cmsLanguages.value, ...localLanguages.value].map((l) => [l._id, l]));
+    return availableTranslations.value.map(
+        (t) =>
+            byId.get(t.language) ??
+            ({
+                _id: t.language,
+                type: DocType.Language,
+                updatedTimeUtc: 0,
+                memberOf: [],
+                languageCode: t.language.replace(/^lang-/, ""),
+                name: t.language,
+                translations: {},
+            } as LanguageDto),
+    );
+});
+
+// Reciprocal hreflang alternates (language code + slug) for the SEO head.
+const hreflangAlternates = computed(() =>
+    availableTranslations.value
+        .map((t) => {
+            const lang = cmsLanguages.value.find((l) => l._id === t.language);
+            return lang && t.slug ? { code: lang.languageCode, slug: t.slug } : null;
+        })
+        .filter((a): a is { code: string; slug: string } => !!a),
 );
 
+// Tags drive the category chips + RelatedContent — query-driven on every build now.
+// In the prerender the seam fetches them (chained AFTER `content` via ssrChain, so the
+// selector reads a resolved parent) and primes a per-slug cache for no-flash hydration.
 const tags = useContentQuery(
     () => {
-        // Before `content` resolves, match nothing via a provably-empty `$in`
-        // rather than POSTing `{ parentId: { $in: [""] } }`, which full-scans.
+        // Before `content` resolves, match nothing via a provably-empty `$in` rather
+        // than POSTing `{ parentId: { $in: [""] } }`, which full-scans.
         if (!content.value?.parentId) return [{ parentId: { $in: [] } }];
         // Include this document's parent ID to show content tagged with this
         // document's parent (if a TagDto).
         const parentIds = (content.value.parentTags || []).concat([content.value.parentId]);
         return [{ parentId: { $in: parentIds } }, { parentType: DocType.Tag }];
     },
-    // Per-document lookup → response cache stays off (the useContentQuery default): a
-    // shape-keyed seed would carry a previously-viewed post's tags, wrongly setting
-    // selectedCategoryId and RelatedContent.
-    { includeScheduled: false },
+    {
+        includeScheduled: false,
+        cache: true,
+        // Per-slug discriminator so the per-document cache is safe.
+        cacheId: `tags:${props.slug}`,
+    },
 );
 
 const categoryTags = computed(() => tags.value.filter((t) => t.parentTagType == TagType.Category));
-const selectedCategoryId = ref<Uuid | undefined>();
+const publicTaxonomy = computed<PublicTaxonomy[]>(() => {
+    const expectedIds = new Set(content.value?.parentTags ?? []);
+    const seen = new Set<string>();
+    return categoryTags.value.flatMap((tag) => {
+        // A tag must be one of the article's inherited public taxonomy IDs and
+        // have a slug before it can become a stable breadcrumb/JSON-LD entry.
+        if (!expectedIds.has(tag.parentId) || !tag.title || !tag.slug || seen.has(tag.parentId)) {
+            return [];
+        }
+        seen.add(tag.parentId);
+        return [{ name: tag.title, url: `/${tag.slug}` }];
+    });
+});
 
-// isLoading / is404 are declared alongside the content sources above.
+// SEO head — driven by resolved public content and taxonomy so the prerendered
+// page, canonical metadata, Open Graph image and JSON-LD always agree.
+useContentHead(content, hreflangAlternates, publicTaxonomy);
+const selectedCategoryId = ref<Uuid | undefined>();
 
 // The content query already filters publish state, so `content` is either a valid
 // published doc or absent — 404 is purely "resolved to nothing".
-const check404 = () => {
+const is404 = computed(() => {
     if (isLoading.value) return false; // Don't show 404 during loading
-    if (content.value === defaultContent) return false; // still the loading placeholder
     return !content.value;
-};
-
-watch(content, () => {
-    is404.value = check404();
 });
 
 // Function to toggle bookmark for the current content
@@ -368,29 +415,41 @@ const isBookmarked = computed(() => {
     return userPreferencesAsRef.value.bookmarks?.some((b) => b.id == content.value?.parentId);
 });
 
-watch([content, is404], () => {
-    if (content.value) isLoading.value = false;
+// Native sets the title/description imperatively (it has no @unhead plugin). The web
+// build's `useHead` above owns the head there (and serializes it into the prerendered
+// HTML), so skip this path on web.
+if (import.meta.env.VITE_BUILD_TARGET !== "web")
+    watch([content, is404], () => {
+        if (content.value) isLoading.value = false;
 
-    // Set document title and meta tags
-    document.title = is404.value
-        ? `Page not found - ${appName}`
-        : `${content.value?.seoTitle || content.value?.title} - ${appName}`;
+        // Set document title and meta tags
+        document.title = is404.value
+            ? `Page not found - ${appName}`
+            : `${content.value?.seoTitle || content.value?.title} - ${appName}`;
 
-    if (is404.value) return;
+        if (is404.value) return;
 
-    // SEO meta tag settings
-    let metaTag = document.querySelector("meta[name='description']");
-    if (!metaTag) {
-        // If the meta tag doesn't exist, create it
-        metaTag = document.createElement("meta");
-        metaTag.setAttribute("name", "description");
-        document.head.appendChild(metaTag);
-    }
-    // Update the content attribute
-    metaTag.setAttribute("content", content.value?.seoString || content.value?.summary || "");
-});
+        // SEO meta tag settings
+        let metaTag = document.querySelector("meta[name='description']");
+        if (!metaTag) {
+            // If the meta tag doesn't exist, create it
+            metaTag = document.createElement("meta");
+            metaTag.setAttribute("name", "description");
+            document.head.appendChild(metaTag);
+        }
+        // Update the content attribute
+        metaTag.setAttribute("content", content.value?.seoString || content.value?.summary || "");
+    });
 
 const text = computed(() => content.value?.text ?? "");
+
+// Format a publish date for display. Kept in setup scope (not inline in the
+// template) so `navigator` resolves to the real global rather than `_ctx.navigator`,
+// and so it never reaches for `db` (absent during the Node prerender).
+const formatPublishDate = (ms: number) =>
+    DateTime.fromMillis(ms)
+        .setLocale(typeof navigator !== "undefined" ? navigator.language || "en-US" : "en-US")
+        .toLocaleString(DateTime.DATETIME_MED);
 
 // Select the first category in the content by category list on load
 watch(tags, () => {
@@ -404,79 +463,6 @@ const selectedCategory = computed(() => {
     return tags.value.find((t) => t.parentId == selectedCategoryId.value);
 });
 
-// Force language from query param
-const langToForce = queryParams.get("langId");
-
-watch(
-    [availableTranslations, languages],
-    () => {
-        if (!langToForce || !availableTranslations.value.length || !languages.value.length) return;
-        const lang = languages.value.find((l) => l.languageCode === langToForce);
-        if (!lang) return;
-        const translation = availableTranslations.value.find((c) => c.language === lang._id);
-        if (!translation) return;
-        selectedLanguageId.value = lang._id;
-        content.value = translation;
-    },
-    { immediate: true },
-);
-
-const hasAutoNavigated = ref(false);
-const previousPreferredId = ref(appLanguagePreferredIdAsRef.value);
-
-/**
- * Watches for changes in the `content` reactive property.
- * When `content` is updated, it sets the `selectedLanguageId`
- * to the `language` property of the new `content` value, if available.
- */
-watch(
-    () => [content.value, appLanguagePreferredIdAsRef.value],
-    ([newContent, preferredId]) => {
-        if (!newContent) return;
-        const currentContent = newContent as ContentDto;
-
-        // Check if user actively changed their preferred language (via LanguageModal)
-        const preferredLanguageChanged = previousPreferredId.value !== preferredId;
-        previousPreferredId.value = preferredId as string;
-
-        // If user changed preferred language and a translation exists, switch to it smoothly
-        if (preferredLanguageChanged && hasAutoNavigated.value) {
-            // On page load: if preferred language exists and has translation → switch to it
-            const preferredTranslation = availableTranslations.value.find(
-                (t) => t.language === preferredId,
-            );
-            if (preferredTranslation && preferredTranslation.slug !== currentContent.slug) {
-                content.value = preferredTranslation;
-                const newUrl = router.resolve({
-                    name: "content",
-                    params: { slug: preferredTranslation.slug },
-                }).href;
-                window.history.replaceState(window.history.state, "", newUrl);
-                selectedLanguageId.value = preferredTranslation.language;
-                return;
-            }
-        }
-
-        // Only auto-navigate once on initial load, not when user changes preferences via LanguageModal
-        if (!hasAutoNavigated.value) {
-            hasAutoNavigated.value = true;
-            const preferredTranslation = availableTranslations.value.find(
-                (t) => t.language === preferredId,
-            );
-            // Navigate to preferred version
-            if (preferredTranslation && preferredTranslation.slug !== currentContent.slug) {
-                router.replace({ name: "content", params: { slug: preferredTranslation.slug } });
-                return;
-            }
-        }
-
-        // Otherwise, sync dropdown to current content's language
-        selectedLanguageId.value = currentContent.language;
-    },
-    { immediate: true },
-);
-
-const openedFromExternalLink = ref(false);
 const articleProseRef = ref<HTMLElement | null>(null);
 const scrollContainer = ref<HTMLElement | Window>(window);
 
@@ -523,7 +509,6 @@ function onContinueReading() {
 }
 
 onMounted(() => {
-    openedFromExternalLink.value = isExternalNavigation();
     setScrollContainer();
 });
 
@@ -533,91 +518,18 @@ watch([isLoading, text], () => {
     }
 });
 
-// Track whether the user explicitly switched language via the quick selector
-const userSwitchedLanguage = ref(false);
-
-// Quick language switch (dropdown)
-watch(selectedLanguageId, (newId) => {
-    if (!newId || !content.value) return;
-
-    const target = availableTranslations.value.find((c) => c.language === newId);
-    if (!target || target.slug === content.value.slug) return;
-
-    userSwitchedLanguage.value = true;
-    content.value = target;
-    const newUrl = router.resolve({ name: "content", params: { slug: target.slug } }).href;
-    window.history.replaceState(window.history.state, "", newUrl);
+const { selectedLanguageId, selectedLanguageCode } = useTranslationSwitcher({
+    content,
+    contentOverride,
+    translations: availableTranslations,
+    languages,
+    preferredLanguageId: appLanguagePreferredIdAsRef,
+    forcedLanguageCode: queryParams.get("langId"),
+    router,
+    translate: t,
 });
-
-// Show banner: only external navigation + preferred lang exists + different slug
-// Do not show banner if the user explicitly switched language via the quick selector
-watch(
-    () => [
-        content.value,
-        appLanguagePreferredIdAsRef.value,
-        openedFromExternalLink.value,
-        availableTranslations.value,
-    ],
-    ([cur, prefId, external, translations]) => {
-        if (!cur || !prefId || !external) return;
-        if (userSwitchedLanguage.value) return;
-        const currentContent = cur as ContentDto;
-        if (currentContent.language === prefId) return;
-
-        const preferred = (translations as ContentDto[]).find(
-            (t) => t.language === prefId && t.slug !== currentContent.slug,
-        );
-
-        if (!preferred) return;
-
-        setTimeout(() => {
-            useNotificationStore().addNotification({
-                id: "content-available",
-                title: () => t("notification.translation_available.title"),
-                description: () =>
-                    t("notification.translation_available.description", {
-                        language: appLanguageAsRef.value?.name,
-                    }),
-                state: "info",
-                type: "banner",
-                closable: true,
-                link: { name: "content", params: { slug: preferred.slug } },
-                openLink: true,
-            });
-        }, 800);
-    },
-    { immediate: true },
-);
-
-// Remove banner when user is on preferred language
-watch(
-    () => content.value?.language,
-    (lang) => {
-        if (lang === appLanguagePreferredIdAsRef.value) {
-            useNotificationStore().removeNotification("content-available");
-        }
-    },
-    { immediate: true },
-);
 
 const showDropdown = ref(false);
-
-const selectedLanguageCode = computed(() => {
-    if (!selectedLanguageId.value || !languages.value.length) return null;
-    const selectedLang = languages.value.find((lang) => lang._id === selectedLanguageId.value);
-    return selectedLang?.languageCode || null;
-});
-
-watch(
-    content,
-    (newContent) => {
-        if (!newContent) return;
-        if (selectedLanguageId.value !== newContent.language) {
-            selectedLanguageId.value = newContent.language;
-        }
-    },
-    { immediate: true },
-);
 
 const quickLanguageSwitch = (languageId: string) => {
     markLanguageSwitch();
@@ -650,7 +562,7 @@ watch([isLoading, content, is404], async () => {
         markPageReady();
         return;
     }
-    if (!isLoading.value && content.value && content.value !== defaultContent) {
+    if (!isLoading.value && content.value) {
         await nextTick();
         markPageReady();
     }
@@ -740,15 +652,15 @@ watch([isLoading, content, is404], async () => {
         >
             <div
                 class="flex flex-grow justify-center"
-                :class="{ 'items-center': isLoading }"
+                :class="{ 'items-center': isLoading && !content }"
             >
                 <LoadingBar
-                    v-if="isLoading"
+                    v-if="isLoading && !content"
                     label="Loading..."
                 />
                 <article
                     class="w-full lg:w-3/4 lg:max-w-3xl"
-                    v-else-if="!isLoading && content"
+                    v-else-if="content"
                 >
                     <!-- Desktop: title row originates at the top of the page, level with the pinned
                          topbar chrome, and scrolls away with the content like normal. -->
@@ -882,13 +794,7 @@ watch([isLoading, content, is404], async () => {
                                 v-if="content.publishDate && content.parentPublishDateVisible"
                                 class="flex items-center text-center after:px-2 after:text-zinc-300 after:content-['•'] last:after:hidden dark:after:text-slate-700 sm:text-left"
                             >
-                                {{
-                                    content.publishDate
-                                        ? db
-                                              .toDateTime(content.publishDate)
-                                              .toLocaleString(DateTime.DATETIME_MED)
-                                        : ""
-                                }}
+                                {{ formatPublishDate(content.publishDate) }}
                             </div>
 
                             <!-- Fallback language: shown when the article isn't available in a

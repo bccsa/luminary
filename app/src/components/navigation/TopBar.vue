@@ -9,6 +9,7 @@ import { isConnected } from "luminary-shared";
 import { useNotificationStore, type Notification } from "@/stores/notification";
 import { useI18n } from "vue-i18n";
 import { ArrowLeftEndOnRectangleIcon } from "@heroicons/vue/24/outline";
+import { useHydrated } from "@/composables/useHydrated";
 
 // Force Vite to return a URL string for these SVG assets (usable in CSS `url(...)` and `<img :src>`),
 // regardless of any SVG/raw/component transforms/plugins.
@@ -25,6 +26,13 @@ withDefaults(defineProps<Props>(), {
 });
 
 const router = useRouter();
+
+// On web/SSG the logo + nav links (DesktopMenu) ARE prerendered (crawlable), but
+// the per-user ProfileMenu (avatar/language/auth → Dexie) is rendered only after
+// mount so it doesn't crash during the Node prerender and the signed-out shell
+// matches the first client render. Native renders it immediately (unchanged).
+const showProfile = useHydrated();
+
 const LOGO = import.meta.env.VITE_LOGO || defaultLogo;
 const LOGO_SMALL = import.meta.env.VITE_LOGO_SMALL || "";
 const LOGO_DARK = import.meta.env.VITE_LOGO_DARK || defaultLogoDark;
@@ -132,7 +140,12 @@ const handleLogin = () => {
                 <div class="flex cursor-pointer items-center gap-2">
                     <slot name="quickControls" />
                 </div>
-                <div class="hidden lg:block"><ProfileMenu /></div>
+                <div
+                    v-if="showProfile"
+                    class="hidden lg:block"
+                >
+                    <ProfileMenu />
+                </div>
                 <div class="lg:hidden">
                     <!-- Same hover/padding treatment as the quick controls (language, theme) so
                          the whole row reacts consistently. -->

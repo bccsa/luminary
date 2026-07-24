@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { RouterView } from "vue-router";
-import { computed, onErrorCaptured, watch } from "vue";
+import { computed, onErrorCaptured, onMounted, watch } from "vue";
 import { isConnected } from "luminary-shared";
 import {
     appName,
@@ -23,6 +23,7 @@ import { showProviderSelectionModal } from "@/auth";
 import AuthProviderSelectionModal from "@/components/authProvider/AuthProviderSelectionModal.vue";
 import { useI18n } from "vue-i18n";
 import defaultLogo from "@/assets/logo.svg?url";
+import { useHydrated } from "@/composables/useHydrated";
 
 const LOGO = import.meta.env.VITE_LOGO || defaultLogo;
 
@@ -115,9 +116,25 @@ const routeKey = computed(() => {
     return router.currentRoute.value.fullPath;
 });
 
+// On the web/SSG tier the prerendered HTML is the signed-out, content-first
+// baseline: the interactive/auth-aware chrome (modals, audio player) is
+// rendered only AFTER mount so the first client render matches the SSR output
+// (clean hydration). On native/SPA there is no prerender, so chrome renders
+// immediately as before — behaviour is unchanged there.
+const showChrome = useHydrated();
+onMounted(() => {
+    // Reveal content hidden by vite.config.web.ts's pre-paint auth gate (see
+    // authGateScript there for why): by now Vue's first render has landed, using the
+    // auth-scoped response cache, so it's never the wrong (public) content. No-op when
+    // the gate never engaged (logged-out reload, or the native/SPA build).
+    document.documentElement.classList.remove("ssg-auth-pending");
+});
+
 onErrorCaptured((err) => {
     console.error(err);
-    Sentry.captureException(err);
+    // Sentry's browser SDK isn't initialised during the SSG prerender (and its
+    // capture fns may be absent), so guard the call.
+    if (typeof Sentry?.captureException === "function") Sentry.captureException(err);
 });
 </script>
 
@@ -160,7 +177,7 @@ onErrorCaptured((err) => {
         <!-- <div class="w-full lg:hidden h-[2px] bg-zinc-100/25 dark:bg-slate-700/50"></div> -->
         <!-- Global Audio Player for All Devices -->
         <!-- AudioPlayer now uses fixed positioning internally, so no wrapper positioning needed -->
-        <div v-if="mediaQueue.length > 0">
+        <div v-if="showChrome && mediaQueue.length > 0">
             <AudioPlayer :content="mediaQueue[0]" />
         </div>
 
@@ -172,12 +189,13 @@ onErrorCaptured((err) => {
 
         <!-- Privacy Policy Modal for authentication flow -->
         <PrivacyPolicyModal
+            v-if="showChrome"
             v-model:show="showPrivacyPolicyModal"
             @close="handleModalClose"
         />
     </div>
-    <!-- Modals depend on i18n, which isn't installed until splash finishes — keep them out of the tree during the loading phase. -->
-    <template v-if="!isAppLoading">
+    <!-- Modals depend on i18n, which isn't installed until splash finishes — keep them out of the tree during the loading phase. On web they are also gated behind mount (signed-out shell). -->
+    <template v-if="!isAppLoading && showChrome">
         <SearchModal />
         <AuthProviderSelectionModal v-model:isVisible="showProviderSelectionModal" />
     </template>
