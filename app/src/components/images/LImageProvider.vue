@@ -135,12 +135,19 @@ const resolvedAlt = computed(() => {
 
 const baseUrl = computed(() => props.bucketPublicUrl);
 
-// "Reduced data" mode lowers image weight on three signals, any one of which is enough: a measured
-// slow connection, the user's Settings toggle, and the OS/browser Data Saver flag. (A fourth,
-// declarative `prefers-reduced-data` path is handled in `sizesAttr`.) Reactive, so the srcset/sizes
-// recompute live when a probe changes the speed or the user flips the toggle.
+// "Reduced data" mode lowers image weight on four signals, any one of which is enough: a measured
+// slow connection, the user's Settings toggle, the OS/browser Data Saver flag, and SSG prerendering.
+// (A fifth, declarative `prefers-reduced-data` path is handled in `sizesAttr`.) Reactive, so the
+// srcset/sizes recompute live when a probe changes the speed or the user flips the toggle.
+// Forced on during SSG (`import.meta.env.SSR`): the prerendered HTML is what search engines and
+// unhydrated first paints see, so it should advertise the smallest slot rather than the full-res
+// `sizes` a real device's DPR would otherwise pull in.
 const reducedData = computed(
-    () => isSlowConnection.value || userDataSaverEnabled.value || isDataSaverEnabled(),
+    () =>
+        import.meta.env.SSR ||
+        isSlowConnection.value ||
+        userDataSaverEnabled.value ||
+        isDataSaverEnabled(),
 );
 
 // All collections for this image, unfiltered. We deliberately hand the browser the FULL srcset ladder
