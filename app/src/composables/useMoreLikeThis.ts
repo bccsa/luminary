@@ -31,6 +31,7 @@ export type UseMoreLikeThisOptions = {
  * tag+FTS legs), while rank()'s existing tag-affinity scoring naturally tilts the ordering
  * toward the viewer's own interests among already-topical candidates — never a separate,
  * off-topic-risking retrieval leg.
+ * Also exposes `ready`, which flips true once this leg's own FTS retrieval has completed at least once for the current selected content.
  */
 export function useMoreLikeThis(
     getSelectedContent: () => ContentDto | undefined,
@@ -53,28 +54,34 @@ export function useMoreLikeThis(
     );
 
     const ftsResults = ref<FtsSearchResult[]>([]);
+    /** Flips false at the start of each retrieval run and true once it finishes (success,
+     *  early return, or error). Lets a caller that merges this into a larger list (e.g.
+     *  useRelatedFeed) wait for this leg's own FTS work rather than showing a snapshot
+     *  that's missing it and then swapping it in once it resolves. */
+    const ready = ref(false);
     watch(
         selectedContent,
         async (doc) => {
-            if (!doc) {
-                ftsResults.value = [];
-                return;
-            }
-            const queryText = [doc.title, doc.summary].filter(Boolean).join(" ").trim();
-            const highlightQueries = await loadHighlightQueriesFor(doc._id);
-            if (!queryText && !highlightQueries.length) {
-                ftsResults.value = [];
-                return;
-            }
-            const search = (query: string) =>
-                ftsSearch({
-                    query,
-                    languageId: doc.language,
-                    status: PublishStatus.Published,
-                    publishedBefore: sessionNow(),
-                    limit: retrievalLimit,
-                });
+            ready.value = false;
             try {
+                if (!doc) {
+                    ftsResults.value = [];
+                    return;
+                }
+                const queryText = [doc.title, doc.summary].filter(Boolean).join(" ").trim();
+                const highlightQueries = await loadHighlightQueriesFor(doc._id);
+                if (!queryText && !highlightQueries.length) {
+                    ftsResults.value = [];
+                    return;
+                }
+                const search = (query: string) =>
+                    ftsSearch({
+                        query,
+                        languageId: doc.language,
+                        status: PublishStatus.Published,
+                        publishedBefore: sessionNow(),
+                        limit: retrievalLimit,
+                    });
                 const searches: { weight: number; results: FtsSearchResult[] }[] = [];
                 if (queryText) searches.push({ weight: 1, results: await search(queryText) });
                 if (highlightQueries.length) {
@@ -90,6 +97,8 @@ export function useMoreLikeThis(
                 ftsResults.value = fuseTagFts(searches);
             } catch {
                 ftsResults.value = [];
+            } finally {
+                ready.value = true;
             }
         },
         { immediate: true },
@@ -113,5 +122,5 @@ export function useMoreLikeThis(
         });
     });
 
-    return { similar };
+    return { similar, ready };
 }

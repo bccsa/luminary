@@ -1,6 +1,6 @@
 import { computed, onScopeDispose, ref, watch } from "vue";
 import type { ContentDto } from "luminary-shared";
-import { useContentQuery } from "@/composables/useContentQuery";
+import { useContentQueryWithState } from "@/composables/useContentQueryWithState";
 import { useMoreLikeThis } from "@/composables/useMoreLikeThis";
 import { useRecommendations } from "@/composables/useRecommendations";
 import { selectSeriesTag, MAX_SERIES_TAG_SIZE } from "@/composables/seriesTag";
@@ -48,7 +48,7 @@ export function useRelatedFeed(
     const seriesTagIds = computed(() =>
         (seriesTag.value?.parentTaggedDocs ?? []).filter((id): id is string => id != null),
     );
-    const seriesDocs = useContentQuery(
+    const { output: seriesDocs, isFetching: seriesFetching } = useContentQueryWithState(
         () =>
             seriesTagIds.value.length
                 ? [{ parentId: { $in: seriesTagIds.value } }]
@@ -63,14 +63,16 @@ export function useRelatedFeed(
     });
 
     // --- 2. Topical "similar" content (primary topic-preference driver) ------
-    const { similar } = useMoreLikeThis(getSelectedContent, getTopicTags, { limit });
+    const { similar, ready: similarReady } = useMoreLikeThis(getSelectedContent, getTopicTags, {
+        limit,
+    });
     const similarItems = computed(() => {
         const seriesIds = new Set(seriesItems.value.map((item) => item._id));
         return similar.value.filter((item) => !seriesIds.has(item._id));
     });
 
     // --- 3. Other content by the same author ----------------------------------
-    const authorContentDocs = useContentQuery(
+    const { output: authorContentDocs, isFetching: authorFetching } = useContentQueryWithState(
         () =>
             selectedContent.value.author
                 ? [{ author: selectedContent.value.author }]
@@ -85,11 +87,23 @@ export function useRelatedFeed(
     });
 
     // --- 4. Global affinity feed (lowest-priority filler) ---------------------
-    const { recommended } = useRecommendations({
+    const { recommended, ready: affinityReady } = useRecommendations({
         limit,
         retrievalLimit: AFFINITY_RETRIEVAL_LIMIT,
         useFts: false,
     });
+    // All four legs must have resolved at least once before any snapshot is shown — gating on
+    // just the FTS leg (as a prior version of this file did) isn't enough: series/author are
+    // separate async Dexie reads that can still be in flight when the FTS leg happens to
+    // settle first, so a "ready" commit could still capture a snapshot missing one of them,
+    // which then visibly updates moments later once it lands.
+    const allReady = computed(
+        () =>
+            !seriesFetching.value &&
+            !authorFetching.value &&
+            affinityReady.value &&
+            similarReady.value,
+    );
     const affinityItems = computed(() => {
         const shown = new Set(
             [...seriesItems.value, ...similarItems.value, ...authorItems.value].map(
@@ -138,23 +152,32 @@ export function useRelatedFeed(
         return deduped.slice(0, limit);
     });
 
-    // Each leg above resolves independently and at a different speed (fast Dexie reads vs.
+    // Every leg above resolves independently and at a different speed (fast Dexie reads vs.
     // useMoreLikeThis's internally-debounced FTS leg), so `rawItems` can reorder several
     // times in quick succession as they land. Expose only a settled snapshot — otherwise
     // the visible list (and ReadMore's infinite-scroll/measurement state, which resets on
-    // every `items` change) visibly reflows after already rendering something. The first
-    // synchronous value is shown immediately (no { immediate: true } below) — only
-    // subsequent changes get coalesced, so the common fast-resolving case pays no extra
-    // latency.
-    const items = ref<ContentDto[]>(rawItems.value);
+    // every `items` change) visibly reflows after already rendering something.
+    // Start empty rather than seeding synchronously from `rawItems.value`: any leg can still
+    // be empty until `allReady` flips, so an immediate snapshot could be missing content and
+    // then visibly swap it in once every retrieval resolves — exactly the bug this gate
+    // exists to prevent.
+    const items = ref<ContentDto[]>([]);
     let settleTimer: ReturnType<typeof setTimeout> | undefined;
-    watch(rawItems, (value) => {
-        if (settleTimer) clearTimeout(settleTimer);
-        settleTimer = setTimeout(() => {
-            items.value = value;
-        }, SETTLE_DEBOUNCE_MS);
-    });
+    watch(
+        [rawItems, allReady],
+        ([value, ready]) => {
+            // Hold back every snapshot until every leg has completed its own retrieval —
+            // committing early would show a list missing one, then swap it in moments later
+            // once it resolves.
+            if (!ready) return;
+            if (settleTimer) clearTimeout(settleTimer);
+            settleTimer = setTimeout(() => {
+                items.value = value;
+            }, SETTLE_DEBOUNCE_MS);
+        },
+        { immediate: true },
+    );
     onScopeDispose(() => clearTimeout(settleTimer));
 
-    return { items };
+    return { items, ready: allReady };
 }
