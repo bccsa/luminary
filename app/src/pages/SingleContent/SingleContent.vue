@@ -16,8 +16,13 @@ import {
     type LanguageDto,
     verifyAccess,
     AclPermission,
+    readingDepthWeight,
+    affinityConfig,
 } from "luminary-shared";
 import { useContentQuery } from "@/composables/useContentQuery";
+import { recordAffinity } from "@/recommendation/affinityStore";
+import { notifyHighlightsChanged } from "@/recommendation/highlightStore";
+import { markSeen } from "@/recommendation/seenStore";
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { BookmarkIcon as BookmarkIconSolid, TagIcon, SunIcon } from "@heroicons/vue/24/solid";
 import {
@@ -244,9 +249,38 @@ onUnmounted(clearNotFoundTimer);
 // Keep a viewed article alive in the offline document store: refresh its retention
 // deadline whenever a real content doc is displayed, so a below-cutoff article the
 // user reads isn't evicted as stale. No-op for the placeholder / undefined.
+//
+// Affinity/seen tracking is gated behind a dwell timer: recording on mount would
+// count a mis-tap or an immediately-closed shared link as real interest. Clearing
+// the timer on every content change (incl. unmount) means only a page actually
+// stayed open for DWELL_MS counts.
+const DWELL_MS = 15000;
+let dwellTimer: ReturnType<typeof setTimeout> | undefined;
+const contentTagsById = new Map<Uuid, Uuid[] | undefined>();
 watch(content, (c) => {
-    if (c && c._id) touchRetention([c._id]);
+    clearTimeout(dwellTimer);
+    if (c && c._id) {
+        touchRetention([c._id]);
+        const id = c._id;
+        const tags = c.parentTags;
+        const hasText = !!c.text;
+        contentTagsById.set(id, tags);
+        // The tracker's content-change watcher flushes after this content watcher, so
+        // keep the ending id available through that callback, then discard any stale
+        // entries left by content that never started a reading session.
+        nextTick(() => {
+            const currentId = content.value?._id;
+            for (const knownId of contentTagsById.keys()) {
+                if (knownId !== currentId) contentTagsById.delete(knownId);
+            }
+        });
+        dwellTimer = setTimeout(() => {
+            if (!hasText) recordAffinity(tags);
+            markSeen(id);
+        }, DWELL_MS);
+    }
 });
+onUnmounted(() => clearTimeout(dwellTimer));
 
 // Available translations + their languages. HybridQuery merges the local read with
 // the below-cutoff API supplement; the language list is a fully-synced type read
@@ -348,10 +382,15 @@ const toggleBookmark = () => {
         userPreferencesAsRef.value.bookmarks = userPreferencesAsRef.value.bookmarks.filter(
             (b) => b.id != content.value?.parentId,
         );
+        if (content.value) {
+            recordAffinity(content.value.parentTags, affinityConfig.value.eventWeight.bookmarkRemoved);
+        }
     } else {
         // Add to bookmarks
         if (!content.value) return;
         userPreferencesAsRef.value.bookmarks.push({ id: content.value.parentId, ts: Date.now() });
+        // Bookmarking is explicit, unambiguous intent — weight it above a plain open.
+        recordAffinity(content.value.parentTags, affinityConfig.value.eventWeight.bookmark);
         useNotificationStore().addNotification({
             id: "bookmark-added",
             title: t("bookmarks.notification.title"),
@@ -508,6 +547,12 @@ const {
     scrollContainer,
     enabled: readingTrackerEnabled,
     averageReadingSpeed,
+    onSessionEnd: (endedContentId, finalDepthPercent) => {
+        const endedTags = contentTagsById.get(endedContentId);
+        contentTagsById.delete(endedContentId);
+        const weight = readingDepthWeight(finalDepthPercent, affinityConfig.value);
+        if (weight > 0) recordAffinity(endedTags, weight);
+    },
 });
 
 /** Hide the resume prompt for this visit after the user continues or dismisses. */
@@ -940,6 +985,16 @@ watch([isLoading, content, is404], async () => {
                     <LHighlightable
                         v-if="content.text"
                         :content-id="content._id"
+                        @highlighted="
+                            recordAffinity(content?.parentTags, affinityConfig.eventWeight.highlight)
+                        "
+                        @highlight-removed="
+                            recordAffinity(
+                                content?.parentTags,
+                                affinityConfig.eventWeight.highlightRemoved,
+                            )
+                        "
+                        @highlights-changed="notifyHighlightsChanged"
                     >
                         <div
                             ref="articleProseRef"

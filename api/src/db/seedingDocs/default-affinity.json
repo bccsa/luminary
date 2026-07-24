@@ -1,0 +1,23 @@
+{
+    "_id": "default-affinity",
+    "type": "defaultAffinity",
+    "memberOf": ["group-super-admins"],
+    "affinity": {},
+    "config": {
+        "halfLifeDays": 45,
+        "hitWeight": 0.04,
+        "minScore": 0.01,
+        "maxTags": 50,
+        "depthScale": 20,
+        "readFloorPercent": 20,
+        "eventWeight": {
+            "bookmark": 0.25,
+            "bookmarkRemoved": -0.15,
+            "completion": 0.35,
+            "readCompletion": 0.35,
+            "highlight": 0.3,
+            "highlightRemoved": -0.18,
+            "impression": -0.02
+        }
+    }
+}

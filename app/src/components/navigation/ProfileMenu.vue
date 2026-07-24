@@ -199,6 +199,7 @@ const sidebarNavigation = computed(() =>
         aria-label="Open user menu"
         class="-m-1.5 flex items-center gap-1 rounded-md px-2 py-1.5 hover:bg-zinc-200 dark:hover:bg-slate-600"
         @click="menuOpen = !menuOpen"
+
     >
         <img
             v-if="isAuthenticated && user?.picture"

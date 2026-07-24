@@ -56,6 +56,39 @@ const mountList = (items: ContentDto[]) =>
     });
 
 describe("ReadMore", () => {
+    it("shows the ghost placeholder instead of the list when not ready", () => {
+        const wrapper = mount(ReadMore, {
+            props: { items: [], ready: false },
+            global: {
+                stubs: {
+                    RouterLink: { template: "<a><slot /></a>" },
+                    LImage: true,
+                },
+            },
+        });
+
+        expect(wrapper.find('[data-test="read-more-ghost"]').exists()).toBe(true);
+        expect(wrapper.find("[data-mobile-title]").exists()).toBe(false);
+    });
+
+    it("shows the real list once ready, even if it started as the ghost", async () => {
+        const wrapper = mount(ReadMore, {
+            props: { items: [], ready: false },
+            global: {
+                stubs: {
+                    RouterLink: { template: "<a><slot /></a>" },
+                    LImage: true,
+                },
+            },
+        });
+        expect(wrapper.find('[data-test="read-more-ghost"]').exists()).toBe(true);
+
+        await wrapper.setProps({ items: [makeItem()], ready: true });
+
+        expect(wrapper.find('[data-test="read-more-ghost"]').exists()).toBe(false);
+        expect(wrapper.find("[data-mobile-title]").exists()).toBe(true);
+    });
+
     it("uses a card surface while keeping the mobile image-and-text row", () => {
         const wrapper = mountList([makeItem()]);
 
@@ -65,38 +98,42 @@ describe("ReadMore", () => {
         expect(card.classes()).toContain("shadow");
         expect(card.classes()).not.toContain("p-1");
         expect(card.classes()).toContain("flex");
-        expect(card.classes()).toContain("sm:flex-col");
+        expect(card.classes()).toContain("sm:hidden");
     });
 
     it("lets the mobile title wrap onto up to two lines", () => {
         const wrapper = mountList([makeItem()]);
 
-        const mobileTitle = wrapper.findAll("h3").find((h) => h.classes().includes("sm:hidden"));
-        expect(mobileTitle).toBeDefined();
-        expect(mobileTitle!.classes()).toContain("line-clamp-2");
-        expect(mobileTitle!.classes()).not.toContain("truncate");
+        const mobileTitle = wrapper.find("[data-mobile-title]");
+        expect(mobileTitle.exists()).toBe(true);
+        expect(mobileTitle.classes()).toContain("line-clamp-2");
+        expect(mobileTitle.classes()).not.toContain("truncate");
     });
 
-    it("wraps the card title on the image instead of truncating it", () => {
+    it("clamps the shared ContentCard's title to two lines on the image", () => {
         const wrapper = mountList([makeItem()]);
 
-        const cardTitle = wrapper.findAll("h3").find((h) => !h.classes().includes("sm:hidden"));
+        const cardTitle = wrapper
+            .findAll("h3")
+            .find((h) => h.attributes("data-mobile-title") === undefined);
         expect(cardTitle).toBeDefined();
         expect(cardTitle!.text()).toBe("A short title");
         expect(cardTitle!.classes()).not.toContain("truncate");
-        expect(cardTitle!.classes().some((c) => c.startsWith("line-clamp"))).toBe(false);
+        expect(cardTitle!.classes()).toContain("line-clamp-2");
     });
 
-    it("gives a short-title card a two-line summary, and always two on the card", () => {
+    it("gives a short-title card a two-line summary on mobile, and always two on the shared ContentCard", () => {
         const wrapper = mountList([makeItem()]);
 
-        const summary = wrapper.get("p");
-        const summaryArea = summary.element.parentElement!;
-        expect(summary.text()).toBe("A short summary");
-        // Default (one-line title) → the summary gets two lines on mobile.
-        expect(summary.classes()).toContain("line-clamp-2");
-        expect(summary.classes()).toContain("sm:line-clamp-2");
-        expect(summaryArea.classList).toContain("sm:justify-center");
+        const summaries = wrapper.findAll("p");
+        expect(summaries.length).toBe(2);
+        const [mobileSummary, cardSummary] = summaries;
+        // Default (one-line title) → the mobile row's summary gets two lines.
+        expect(mobileSummary.text()).toBe("A short summary");
+        expect(mobileSummary.classes()).toContain("line-clamp-2");
+        // ContentCard's own summary is always two lines regardless of title length.
+        expect(cardSummary.text()).toBe("A short summary");
+        expect(cardSummary.classes()).toContain("line-clamp-2");
     });
 
     it("maps the measured title line count to the summary clamp", () => {
@@ -154,7 +191,6 @@ describe("ReadMore", () => {
             expect(tags.text()).toContain("Topic 1");
             expect(tags.classes()).toContain("overflow-x-auto");
             expect(tags.classes()).toContain("scrollbar-hide");
-            expect(tags.classes()).toContain("sm:hidden");
             // Categories are pinned to the bottom of the card.
             expect(tags.classes()).toContain("mt-auto");
             // No extra bottom padding, so the space below the chips matches the top/right.

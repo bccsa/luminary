@@ -2,7 +2,8 @@ import { AuthIdentityService } from "./authIdentity.service";
 import { Test, TestingModule } from "@nestjs/testing";
 import { JwtService } from "@nestjs/jwt";
 import { DbService } from "../db/db.service";
-import { DocType } from "../enums";
+import { AclPermission, DocType } from "../enums";
+import { PermissionSystem } from "../permissions/permissions.service";
 import { EventEmitter } from "node:events";
 
 jest.mock("uuid", () => ({ v4: jest.fn().mockReturnValue("new-user-uuid") }));
@@ -253,6 +254,83 @@ describe("AuthIdentityService", () => {
         });
     });
 
+    describe("getDefaultAffinity", () => {
+        const defaultAffinityDoc = {
+            _id: "default-affinity",
+            type: DocType.DefaultAffinity,
+            memberOf: ["group-super-admins"],
+            affinity: { "tag-public": 0.8, "tag-private": 0.6 },
+        };
+        const tagDocs = [
+            { _id: "tag-public", type: DocType.Tag, memberOf: ["group-public-content"] },
+            { _id: "tag-private", type: DocType.Tag, memberOf: ["group-private-content"] },
+        ];
+
+        afterEach(() => {
+            jest.restoreAllMocks();
+        });
+
+        it("returns only baseline tags a guest can view", async () => {
+            (service as any).dbService = {
+                getDoc: jest.fn().mockResolvedValue({ docs: [defaultAffinityDoc] }),
+                getDocs: jest.fn().mockResolvedValue({ docs: tagDocs }),
+            };
+            const verifyAccess = jest
+                .spyOn(PermissionSystem, "verifyAccess")
+                .mockImplementation((memberOf) => memberOf.includes("group-public-content"));
+
+            await expect((service as any).getDefaultAffinity(["group-public-users"])).resolves.toEqual({
+                "tag-public": 0.8,
+            });
+            expect(verifyAccess).toHaveBeenCalledWith(
+                tagDocs[0].memberOf,
+                DocType.Tag,
+                AclPermission.View,
+                ["group-public-users"],
+            );
+        });
+
+        it("re-evaluates cached baseline tags for each identity", async () => {
+            (service as any).dbService = {
+                getDoc: jest.fn().mockResolvedValue({ docs: [defaultAffinityDoc] }),
+                getDocs: jest.fn().mockResolvedValue({ docs: tagDocs }),
+            };
+            const verifyAccess = jest.spyOn(PermissionSystem, "verifyAccess");
+            verifyAccess.mockImplementation((_memberOf, _type, _permission, groups) =>
+                groups.includes("group-public-users"),
+            );
+
+            await expect((service as any).getDefaultAffinity(["group-public-users"])).resolves.toEqual(
+                defaultAffinityDoc.affinity,
+            );
+            await expect((service as any).getDefaultAffinity(["group-private-users"])).resolves.toBeUndefined();
+            expect((service as any).dbService.getDoc).toHaveBeenCalledTimes(1);
+            expect((service as any).dbService.getDocs).toHaveBeenCalledTimes(2);
+
+            await expect((service as any).getDefaultAffinity(["group-public-users"])).resolves.toEqual(
+                defaultAffinityDoc.affinity,
+            );
+            expect((service as any).dbService.getDocs).toHaveBeenCalledTimes(2);
+        });
+
+        it("includes an accessible baseline in an anonymous identity", async () => {
+            (service as any).dbService = {
+                executeFindQuery: jest.fn().mockResolvedValue({
+                    docs: [{ type: DocType.AutoGroupMappings, groupIds: ["group-public-users"] }],
+                }),
+                getDoc: jest.fn().mockResolvedValue({ docs: [defaultAffinityDoc] }),
+                getDocs: jest.fn().mockResolvedValue({ docs: tagDocs }),
+            };
+            jest.spyOn(PermissionSystem, "verifyAccess").mockReturnValue(true);
+            jest.spyOn(PermissionSystem, "getAccessMap").mockReturnValue({} as any);
+
+            const result = await service.resolveOrDefault();
+
+            expect(result.status).toBe("anonymous");
+            expect(result.userDetails.defaultAffinity).toEqual(defaultAffinityDoc.affinity);
+        });
+    });
+
     // ── evaluateGroupAssignments + getDefaultGroups integration ──────────────────
 
     describe("default + provider-specific group merging", () => {
@@ -495,6 +573,7 @@ describe("AuthGuard (Integrated)", () => {
 
         mockDbService = {
             getDoc: jest.fn().mockResolvedValue({ docs: [baseProviderDoc] }),
+            getDocs: jest.fn(),
             executeFindQuery: jest.fn(),
             upsertDoc: jest.fn().mockResolvedValue({}),
         };
@@ -581,6 +660,31 @@ describe("AuthGuard (Integrated)", () => {
         expect(capturedUser).toBeDefined();
         expect(capturedUser.groups).toEqual(expect.arrayContaining(["group-public"]));
         expect(mockDbService.upsertDoc).not.toHaveBeenCalled();
+    });
+
+    it("should give an authenticated first-time visitor the accessible default affinity", async () => {
+        mockDbService.getDoc
+            .mockResolvedValueOnce({ docs: [baseProviderDoc] })
+            .mockResolvedValueOnce({
+                docs: [{ _id: "default-affinity", affinity: { "tag-public": 0.8 } }],
+            });
+        mockDbService.getDocs.mockResolvedValue({
+            docs: [{ _id: "tag-public", memberOf: ["group-public"] }],
+        });
+        const verifyAccess = jest.spyOn(PermissionSystem, "verifyAccess").mockReturnValue(true);
+        mockDbService.executeFindQuery
+            .mockResolvedValueOnce({ docs: [{ groupIds: ["group-public"] }] })
+            .mockResolvedValueOnce({ docs: [] })
+            .mockResolvedValueOnce({ docs: [] })
+            .mockResolvedValueOnce({ docs: [] })
+            .mockResolvedValueOnce({ docs: [] });
+
+        const result = await authIdentityService.resolveOrDefault("valid-token", "provider-id");
+
+        expect(result.status).toBe("authenticated");
+        expect(result.userDetails.defaultAffinity).toEqual({ "tag-public": 0.8 });
+        expect(mockDbService.upsertDoc).not.toHaveBeenCalled();
+        verifyAccess.mockRestore();
     });
 
     it("should link identity to existing user found by email (fallback) when email is verified", async () => {

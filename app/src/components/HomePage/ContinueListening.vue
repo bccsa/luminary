@@ -4,14 +4,12 @@ import { PostType, TagType } from "luminary-shared";
 import { computed } from "vue";
 import { useContentQuery } from "@/composables/useContentQuery";
 import { useI18n } from "vue-i18n";
+import { useWatchedMediaIds } from "@/composables/useWatchedMediaIds";
 
 const { t } = useI18n();
 
-// TODO: Replace with central watch/listen/read service when implemented (separate ticket).
-// No id source is wired yet, so this resolves to an empty list (behaviour unchanged
-// from the previous implementation). The query + filter below are kept symmetric with
-// ContinueWatching so it works once an id source is provided.
-const contentIds = computed<string[]>(() => []);
+const mediaProgressRef = useWatchedMediaIds();
+const contentIds = computed(() => mediaProgressRef.value.map((entry) => entry.contentId));
 
 const content = useContentQuery(
     () => [

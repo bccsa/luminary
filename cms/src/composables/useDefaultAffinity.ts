@@ -1,0 +1,95 @@
+import { computed, nextTick } from "vue";
+import {
+    DocType,
+    AclPermission,
+    hasAnyPermission,
+    useHybridQueryWithState,
+    toEditable,
+    DEFAULT_AFFINITY_ID,
+    DEFAULT_AFFINITY_CONFIG,
+    type DefaultAffinityDto,
+    type AffinityMap,
+    type AffinityConfig,
+    type ChangeReqAckDto,
+} from "luminary-shared";
+
+/**
+ * Data layer for the CMS "default affinity" settings modal — the CMS-managed singleton
+ * cold-start baseline profile (`DocType.DefaultAffinity`) used to seed new clients'
+ * local recommendations at login (see `AuthIdentityService.getDefaultAffinity`).
+ *
+ * **Why HybridQuery in API-only mode.** Like AutoGroupMappings, DefaultAffinity is a
+ * non-synced type — never mirrored into IndexedDB. Because the type is absent from the sync
+ * engine's `syncList`, HybridQuery fetches it over REST and keeps it live by subscribing to
+ * the type's socket rooms on demand, and `toEditable.save()` POSTs straight to
+ * `/changerequest` (no Dexie write) — the same mechanism `useAutoGroupMappings` uses.
+ *
+ * Must be called synchronously in a component `setup` so the live subscription tears down
+ * on unmount.
+ */
+export function useDefaultAffinity() {
+    const canView = computed(() =>
+        hasAnyPermission(DocType.DefaultAffinity, AclPermission.CmsView),
+    );
+    const canEdit = computed(() => hasAnyPermission(DocType.DefaultAffinity, AclPermission.Edit));
+
+    // Non-synced type, served API-only (see header comment). No persistOffline.
+    const { output: source, isFetching: isLoading } = useHybridQueryWithState<DefaultAffinityDto>(
+        () => ({ selector: { type: DocType.DefaultAffinity } }),
+        { live: true },
+    );
+    const { editable, save } = toEditable<DefaultAffinityDto>(source, {
+        filterFn: (item) => ({ ...item }),
+    });
+
+    // Exactly one row expected (the singleton) — undefined before it has ever been created.
+    const current = computed(() => editable.value[0]);
+    /** The affinity engine tuning config, falling back to defaults before the singleton exists. */
+    const config = computed(() => current.value?.config ?? DEFAULT_AFFINITY_CONFIG);
+
+    /**
+     * Stage a partial update onto the singleton doc (creating it with fixed `_id` if it
+     * doesn't exist yet) and persist via {@link toEditable}'s `save` — which POSTs to
+     * `/changerequest` for this non-synced type. Shared by `saveAffinity`/`saveConfig`.
+     */
+    async function saveDoc(
+        patch: Partial<Pick<DefaultAffinityDto, "affinity" | "config">>,
+        memberOf: string[],
+    ): Promise<ChangeReqAckDto | undefined> {
+        const doc: DefaultAffinityDto = current.value
+            ? { ...current.value, ...patch }
+            : {
+                  _id: DEFAULT_AFFINITY_ID,
+                  type: DocType.DefaultAffinity,
+                  updatedTimeUtc: Date.now(),
+                  memberOf,
+                  affinity: {},
+                  ...patch,
+              };
+        const idx = editable.value.findIndex((d) => d._id === doc._id);
+        if (idx >= 0) editable.value[idx] = doc;
+        else editable.value.push(doc);
+        // Let toEditable's dirty-tracking watchers flush so save()'s internal isEdited check
+        // sees the staged edit (mirrors useAutoGroupMappings).
+        await nextTick();
+        return save(doc._id);
+    }
+
+    /** Create or update the singleton with a new cold-start affinity (tag → score) map. */
+    async function saveAffinity(
+        affinity: AffinityMap,
+        memberOf: string[],
+    ): Promise<ChangeReqAckDto | undefined> {
+        return saveDoc({ affinity }, memberOf);
+    }
+
+    /** Create or update the singleton with a new affinity engine tuning config. */
+    async function saveConfig(
+        config: AffinityConfig,
+        memberOf: string[],
+    ): Promise<ChangeReqAckDto | undefined> {
+        return saveDoc({ config }, memberOf);
+    }
+
+    return { canView, canEdit, current, config, isLoading, saveAffinity, saveConfig };
+}

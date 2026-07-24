@@ -1,228 +1,55 @@
-import "fake-indexeddb/auto";
-import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
-import RelatedContent from "./RelatedContent.vue";
-import ReadMore from "./ReadMore.vue";
+import { describe, it, expect, beforeEach } from "vitest";
 import { mount } from "@vue/test-utils";
-import { mockEnglishContentDto, mockLanguageDtoEng, mockTopicContentDto } from "@/tests/mockdata";
-import waitForExpect from "wait-for-expect";
-import { db, type ContentDto } from "luminary-shared";
-import { ref } from "vue";
-import { appLanguageIdsAsRef } from "@/globalConfig";
+import { nextTick } from "vue";
+import { TagType } from "luminary-shared";
+import RelatedContent from "./RelatedContent.vue";
+import RelatedFeed from "./RelatedFeed.vue";
+import { mockEnglishContentDto, mockTopicContentDto } from "@/tests/mockdata";
 
-vi.mock("vue-router", async (importOriginal) => {
-    const actual = await importOriginal();
-    return {
-        // @ts-expect-error
-        ...actual,
-        useRouter: vi.fn().mockImplementation(() => ({
-            currentRoute: ref({ params: { slug: mockEnglishContentDto.slug } }),
-        })),
-    };
-});
-
-vi.mock("vue-i18n", () => ({
-    useI18n: () => ({
-        t: (key: string) => mockLanguageDtoEng.translations[key] || key,
-    }),
-}));
+let intersectCallbacks: IntersectionObserverCallback[] = [];
+function triggerLazyMounts() {
+    intersectCallbacks.forEach((cb) =>
+        cb([{ isIntersecting: true } as IntersectionObserverEntry], {} as IntersectionObserver),
+    );
+}
 
 describe("RelatedContent", () => {
-    beforeEach(async () => {
-        await db.docs.bulkPut([
-            mockLanguageDtoEng,
-            {
-                ...mockTopicContentDto,
-                parentTaggedDocs: ["post-post1", "post-post2", "post-post3"],
-            } as ContentDto,
-        ]);
-        appLanguageIdsAsRef.value.unshift("lang-eng");
+    beforeEach(() => {
+        intersectCallbacks = [];
+        window.IntersectionObserver = class {
+            constructor(cb: IntersectionObserverCallback) {
+                intersectCallbacks.push(cb);
+            }
+            observe() {}
+            unobserve() {}
+            disconnect() {}
+        } as unknown as typeof IntersectionObserver;
     });
 
-    afterEach(async () => {
-        await db.docs.clear();
+    it("defers mounting the related feed until it scrolls near the viewport", async () => {
+        const wrapper = mount(RelatedContent, {
+            props: { tags: [mockTopicContentDto], selectedContent: mockEnglishContentDto },
+            global: { stubs: { RouterLink: true, LImage: true } },
+        });
+
+        expect(wrapper.findComponent(RelatedFeed).exists()).toBe(false);
+
+        triggerLazyMounts();
+        await nextTick();
+
+        expect(wrapper.findComponent(RelatedFeed).exists()).toBe(true);
     });
 
-    it("doesn't display the current post in the related topic", async () => {
+    it("renders nothing on a topic page", () => {
         const wrapper = mount(RelatedContent, {
             props: {
                 tags: [mockTopicContentDto],
-                selectedContent: mockEnglishContentDto,
+                selectedContent: { ...mockEnglishContentDto, parentTagType: TagType.Topic },
             },
+            global: { stubs: { RouterLink: true, LImage: true } },
         });
+        triggerLazyMounts();
 
-        await waitForExpect(() => {
-            // The topic itself is included in Read more, but the current post isn't.
-            expect(wrapper.html()).toContain(mockTopicContentDto.title);
-            expect(wrapper.html()).not.toContain(mockEnglishContentDto.title);
-        });
-    });
-
-    it("displays the related posts", async () => {
-        await db.docs.bulkPut([
-            { ...mockEnglishContentDto, parentTags: [mockTopicContentDto.parentId] },
-            {
-                ...mockEnglishContentDto,
-                parentId: "post-post2",
-                _id: "content-post2-eng",
-                title: "Post 2",
-                parentTags: [mockTopicContentDto.parentId],
-            },
-            {
-                ...mockEnglishContentDto,
-                parentId: "post-post3",
-                _id: "content-post3-eng",
-                title: "Post 3",
-                parentTags: [mockTopicContentDto.parentId],
-            },
-        ]);
-
-        const wrapper = mount(RelatedContent, {
-            props: {
-                tags: [
-                    {
-                        ...mockTopicContentDto,
-                        parentTaggedDocs: ["post-post1", "post-post2", "post-post3"],
-                    },
-                ],
-                selectedContent: {
-                    ...mockEnglishContentDto,
-                    _id: "content-post3-eng",
-                    title: "Post 3",
-                    parentTags: [mockTopicContentDto.parentId],
-                },
-            },
-        });
-
-        await waitForExpect(() => {
-            expect(wrapper.html()).toContain("Post 1");
-            expect(wrapper.html()).toContain("Post 2");
-        });
-    });
-
-    it("doesn't display the related posts when there are none", async () => {
-        const wrapper = mount(RelatedContent, {
-            props: {
-                tags: [mockTopicContentDto],
-                selectedContent: mockEnglishContentDto,
-            },
-        });
-
-        await waitForExpect(() => {
-            expect(wrapper.html()).not.toContain("Post 2");
-            expect(wrapper.html()).not.toContain("Post 3");
-        });
-    });
-
-    // Guard: a tag's parentTaggedDocs is optional and may carry null/undefined ids.
-    // Those must be filtered out so the query never becomes { parentId: { $in: [null] } },
-    // which crashes CouchDB's _find (function_clause / 500).
-    it("filters null/undefined ids and still shows the valid related post", async () => {
-        await db.docs.bulkPut([
-            {
-                ...mockEnglishContentDto,
-                parentId: "post-post2",
-                _id: "content-post2-eng",
-                title: "Post 2",
-                parentTags: [mockTopicContentDto.parentId],
-            } as ContentDto,
-        ]);
-
-        const wrapper = mount(RelatedContent, {
-            props: {
-                tags: [
-                    {
-                        ...mockTopicContentDto,
-                        parentTaggedDocs: [null, "post-post2", undefined] as any,
-                    },
-                ],
-                selectedContent: {
-                    ...mockEnglishContentDto,
-                    _id: "content-post3-eng",
-                    title: "Post 3",
-                    parentTags: [mockTopicContentDto.parentId],
-                },
-            },
-        });
-
-        await waitForExpect(() => {
-            expect(wrapper.html()).toContain("Post 2");
-        });
-    });
-
-    it("renders without error when a tag has no parentTaggedDocs", async () => {
-        const wrapper = mount(RelatedContent, {
-            props: {
-                tags: [{ ...mockTopicContentDto, parentTaggedDocs: undefined } as any],
-                selectedContent: mockEnglishContentDto,
-            },
-        });
-
-        await waitForExpect(() => {
-            expect(wrapper.html()).not.toContain("Post 2");
-            expect(wrapper.html()).not.toContain("Post 3");
-        });
-    });
-
-    it("shows the summary on each related post, without tag chips", async () => {
-        await db.docs.bulkPut([
-            {
-                ...mockEnglishContentDto,
-                parentId: "post-post2",
-                _id: "content-post2-eng",
-                title: "Post 2",
-                summary: "A short related summary",
-                parentTags: [mockTopicContentDto.parentId],
-            } as ContentDto,
-        ]);
-
-        const wrapper = mount(RelatedContent, {
-            props: {
-                tags: [{ ...mockTopicContentDto, parentTaggedDocs: ["post-post2"] }],
-                selectedContent: {
-                    ...mockEnglishContentDto,
-                    _id: "content-post3-eng",
-                    title: "Post 3",
-                },
-            },
-        });
-
-        await waitForExpect(() => {
-            expect(wrapper.html()).toContain("A short related summary");
-        });
-        expect(wrapper.findComponent(ReadMore).html()).toContain(mockTopicContentDto.title);
-    });
-
-    it("displays all topics in the same Read more collection as related posts", async () => {
-        const topicB = {
-            ...mockTopicContentDto,
-            _id: "content-tag-topicB",
-            parentId: "tag-topicB",
-            slug: "content-tag-topicB",
-            title: "Topic B",
-        } as ContentDto;
-
-        await db.docs.put({
-            ...mockEnglishContentDto,
-            parentId: "post-post2",
-            _id: "content-post2-eng",
-            title: "Post 2",
-        } as ContentDto);
-
-        const wrapper = mount(RelatedContent, {
-            props: {
-                tags: [
-                    { ...mockTopicContentDto, parentTaggedDocs: ["post-post2"] },
-                    topicB,
-                ],
-                selectedContent: mockEnglishContentDto,
-            },
-        });
-
-        await waitForExpect(() => {
-            const readMore = wrapper.findComponent(ReadMore).html();
-            expect(readMore).toContain("Post 2");
-            expect(readMore).toContain(mockTopicContentDto.title);
-            expect(readMore).toContain("Topic B");
-        });
+        expect(wrapper.findComponent(RelatedFeed).exists()).toBe(false);
     });
 });

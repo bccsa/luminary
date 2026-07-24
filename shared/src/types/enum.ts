@@ -11,6 +11,9 @@ export enum DocType {
     Crypto = "crypto",
     AuthProvider = "authProvider",
     AutoGroupMappings = "autoGroupMappings",
+    // CMS-editable global baseline affinity profile (singleton). Delivered at
+    // login to seed a client-local recommendation profile (cold start).
+    DefaultAffinity = "defaultAffinity",
 }
 
 export enum PublishStatus {

@@ -3,6 +3,8 @@ import { ref } from "vue";
 import { useLocalStorage } from "@vueuse/core";
 import { AccessMap, accessMap } from "../permissions/permissions";
 import { config, SharedConfig } from "../config";
+import type { AffinityMap } from "../types";
+import { DEFAULT_AFFINITY_CONFIG, type AffinityConfig } from "../recommendation/affinity";
 
 /**
  * Client configuration type definition
@@ -11,7 +13,25 @@ type ClientConfig = {
     maxUploadFileSize: number;
     maxMediaUploadFileSize?: number;
     accessMap: AccessMap;
+    /** CMS-managed cold-start recommendation profile for new local clients. */
+    defaultAffinity?: AffinityMap;
+    /** CMS-managed affinity engine tuning knobs (falls back to defaults when absent). */
+    affinityConfig?: AffinityConfig;
 };
+
+/**
+ * The CMS-managed cold-start affinity map delivered with `clientConfig`. Consumers
+ * may use it to seed an otherwise-new local profile; it is not user state and is
+ * never written back to the server.
+ */
+export const defaultAffinity = ref<AffinityMap | undefined>(undefined);
+
+/**
+ * The CMS-managed affinity engine tuning config delivered with `clientConfig`. Unlike
+ * `defaultAffinity`, this is always a complete config — it starts at (and falls back to)
+ * {@link DEFAULT_AFFINITY_CONFIG} so callers never need to null-check it.
+ */
+export const affinityConfig = ref<AffinityConfig>(DEFAULT_AFFINITY_CONFIG);
 
 /**
  * Connection status as a Vue ref
@@ -84,6 +104,8 @@ class SocketIO {
             if (c.maxUploadFileSize) maxUploadFileSize.value = c.maxUploadFileSize;
             if (c.maxMediaUploadFileSize) maxMediaUploadFileSize.value = c.maxMediaUploadFileSize;
             if (c.accessMap) accessMap.value = c.accessMap;
+            defaultAffinity.value = c.defaultAffinity;
+            affinityConfig.value = c.affinityConfig ?? DEFAULT_AFFINITY_CONFIG;
             isConnected.value = true; // Only set isConnected after configuration has been received from the API
             this.stopForegroundReconnect();
         });

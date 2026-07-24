@@ -515,9 +515,7 @@ describe("QueryService", () => {
 
         // Expiry date filter must NOT be present
         const hasExpiryFilter = sel.$and.some(
-            (c: any) =>
-                c.$or &&
-                c.$or.some((o: any) => o.expiryDate !== undefined),
+            (c: any) => c.$or && c.$or.some((o: any) => o.expiryDate !== undefined),
         );
         expect(hasExpiryFilter).toBe(false);
 

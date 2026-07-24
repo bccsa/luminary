@@ -10,6 +10,7 @@ import { cmsLanguageIdAsRef } from "@/globalConfig";
 import waitForExpect from "wait-for-expect";
 import { useNotificationStore } from "@/stores/notification";
 import { ref } from "vue";
+import { CMS_DOCS_INDEX } from "@/docsIndex";
 
 vi.mock("vue-router", async (importOriginal) => {
     const actual = await importOriginal();
@@ -27,7 +28,7 @@ describe("purgeLocalDatabase", () => {
     beforeAll(async () => {
         await init({
             cms: true,
-            docsIndex: "",
+            docsIndex: CMS_DOCS_INDEX,
             apiUrl: "localhost:3000",
         });
 

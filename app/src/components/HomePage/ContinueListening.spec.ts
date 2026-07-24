@@ -16,10 +16,22 @@ vi.mock("vue-i18n", () => ({
     }),
 }));
 
+/**
+ * Helper: set localStorage "mediaProgress" to a list of listened content IDs.
+ */
+function setMediaProgress(contentIds: string[]) {
+    const entries = contentIds.map((contentId) => ({
+        mediaId: `media-${contentId}`,
+        contentId,
+    }));
+    localStorage.setItem("mediaProgress", JSON.stringify(entries));
+}
+
 describe("ContinueListening", () => {
     beforeEach(async () => {
         await db.docs.clear();
         await db.localChanges.clear();
+        localStorage.clear();
 
         await db.docs.bulkPut([mockLanguageDtoEng, mockLanguageDtoFra, mockLanguageDtoSwa]);
         appLanguageIdsAsRef.value = [mockLanguageDtoEng._id];
@@ -30,17 +42,7 @@ describe("ContinueListening", () => {
     afterEach(async () => {
         vi.clearAllMocks();
         await db.docs.clear();
-    });
-
-    it("does not render when there is no listened content", async () => {
-        await db.docs.bulkPut([mockEnglishContentDto]);
-
-        const wrapper = mount(ContinueListening);
-
-        await waitForExpect(() => {
-            // Component should not render HorizontalContentTileCollection
-            expect(wrapper.html()).toBe("<!--v-if-->");
-        });
+        localStorage.clear();
     });
 
     it("renders without errors", () => {
@@ -48,12 +50,7 @@ describe("ContinueListening", () => {
         expect(wrapper.exists()).toBe(true);
     });
 
-    // Note: The useDexieLiveQueryWithDeps callback currently has `contentIds` hardcoded as an empty array,
-    // so the query always returns [] and the component never renders content.
-    // The filtering/sorting logic (lines 17-37) is unreachable until a central watch/listen/read
-    // service is implemented (see TODO in source).
-    it("always returns empty due to hardcoded empty contentIds (pending service implementation)", async () => {
-        // Add audio-only content to the database
+    it("does not render when there is no listened content", async () => {
         const audioContent = {
             ...mockEnglishContentDto,
             _id: "content-audio",
@@ -69,9 +66,79 @@ describe("ContinueListening", () => {
         const wrapper = mount(ContinueListening);
 
         await waitForExpect(() => {
-            // Even with audio content in the DB, the component renders nothing
-            // because contentIds is hardcoded as empty
+            // Component should not render HorizontalContentTileCollection
             expect(wrapper.html()).toBe("<!--v-if-->");
         });
+    });
+
+    it("displays listened content that is published", async () => {
+        const audioContent = {
+            ...mockEnglishContentDto,
+            _id: "content-audio",
+            video: undefined,
+            parentMedia: {
+                ...mockEnglishContentDto.parentMedia,
+                hlsUrl: undefined,
+                fileCollections: [{ name: "audio.mp3" }],
+            },
+        };
+        await db.docs.bulkPut([audioContent]);
+        setMediaProgress([audioContent._id]);
+
+        const wrapper = mount(ContinueListening);
+
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain(audioContent.title);
+        });
+    });
+
+    it("does not render when there is no media progress", async () => {
+        const audioContent = {
+            ...mockEnglishContentDto,
+            _id: "content-audio",
+            video: undefined,
+            parentMedia: {
+                ...mockEnglishContentDto.parentMedia,
+                hlsUrl: undefined,
+                fileCollections: [{ name: "audio.mp3" }],
+            },
+        };
+        await db.docs.bulkPut([audioContent]);
+        // No media progress set in localStorage
+
+        const wrapper = mount(ContinueListening);
+
+        await waitForExpect(() => {
+            expect(wrapper.text()).not.toContain(audioContent.title);
+            expect(wrapper.html()).toBe("<!--v-if-->");
+        });
+    });
+
+    it("filters out video content", async () => {
+        // mockEnglishContentDto has video/hlsUrl, so it is video content
+        const videoContent = {
+            ...mockEnglishContentDto,
+            _id: "content-video",
+        };
+        await db.docs.bulkPut([videoContent]);
+        setMediaProgress([videoContent._id]);
+
+        const wrapper = mount(ContinueListening);
+
+        await waitForExpect(() => {
+            expect(wrapper.text()).not.toContain(videoContent.title);
+            expect(wrapper.html()).toBe("<!--v-if-->");
+        });
+    });
+
+    it("cleans up event listeners and intervals on unmount", () => {
+        const removeEventSpy = vi.spyOn(window, "removeEventListener");
+        const clearIntervalSpy = vi.spyOn(window, "clearInterval");
+
+        const wrapper = mount(ContinueListening);
+        wrapper.unmount();
+
+        expect(removeEventSpy).toHaveBeenCalledWith("storage", expect.any(Function));
+        expect(clearIntervalSpy).toHaveBeenCalled();
     });
 });

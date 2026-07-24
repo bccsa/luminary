@@ -12,8 +12,12 @@ import { RouterLink } from "vue-router";
 import { type ContentDto } from "luminary-shared";
 import { useContentQuery } from "@/composables/useContentQuery";
 import LImage from "../images/LImage.vue";
+import ContentCard from "./ContentCard.vue";
+import ReadMoreGhost from "./ReadMoreGhost.vue";
 
-const props = defineProps<{ items: ContentDto[] }>();
+const props = withDefaults(defineProps<{ items: ContentDto[]; ready?: boolean }>(), {
+    ready: true,
+});
 
 const summaryText = (content: ContentDto): string => content.summary?.trim() ?? "";
 
@@ -33,6 +37,23 @@ const tagsFor = (content: ContentDto): ContentDto[] => {
 const BATCH_SIZE = 8;
 const visibleCount = ref(BATCH_SIZE);
 const visibleItems = computed(() => props.items.slice(0, visibleCount.value));
+
+/** One real, resolved card slot, or a still-loading placeholder. A discriminated union (rather
+ *  than a plain `ContentDto | null` slot) so the template narrows cleanly with no non-null
+ *  assertions needed in the real-card branch. */
+type ReadMoreCell = { kind: "ghost" } | { kind: "item"; content: ContentDto };
+
+// While the feed is still loading (`ready === false`), render exactly one page's worth of
+// ghost cells in the SAME grid the real cards use — not a separately swapped component/tree —
+// sized to match `BATCH_SIZE` (the real list's own first-page size) so the common case (a
+// merged feed with at least a full page of results) has NO size change at all when the real
+// cards replace the ghosts: they just fill in over the existing slots instead of the whole
+// section resizing and pushing everything below it.
+const cells = computed<ReadMoreCell[]>(() =>
+    props.ready
+        ? visibleItems.value.map((content) => ({ kind: "item" as const, content }))
+        : Array.from({ length: BATCH_SIZE }, () => ({ kind: "ghost" as const })),
+);
 
 const sentinel = ref<HTMLElement | null>(null);
 let observer: IntersectionObserver | undefined;
@@ -99,6 +120,9 @@ const remeasureAll = () => {
     measureTagFades();
 };
 
+// `rootEl`/`sentinel` exist from the very first mount now — ghost cells live inside the same
+// grid as real cards, not a separately swapped component/tree — so a single onMounted setup
+// is enough; no need to re-run it later when `ready` flips.
 onMounted(() => {
     observer = new IntersectionObserver((entries) => {
         if (entries.some((e) => e.isIntersecting) && visibleCount.value < props.items.length) {
@@ -130,102 +154,84 @@ watch(visibleItems, () => nextTick(remeasureAll));
     <div ref="rootEl">
         <!-- Mobile: a single-column list of image-left rows. From tablet up: a grid of
              image-top cards with the title bottom-aligned on the image. Fewer columns than
-             the Explore rows so the images stay large. -->
+             the Explore rows so the images stay large. Ghost cells (see `cells` above) share
+             this exact grid so real cards fill in over them in place instead of the section
+             resizing once the feed resolves. -->
         <ul
             class="flex flex-col gap-3 px-4 sm:grid sm:grid-cols-2 sm:gap-x-6 sm:gap-y-6 sm:px-8 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
         >
             <li
-                v-for="item in visibleItems"
-                :key="item._id"
+                v-for="(cell, index) in cells"
+                :key="cell.kind === 'item' ? cell.content._id : `ghost-${index}`"
             >
-                <RouterLink
-                    :to="{ name: 'content', params: { slug: item.slug } }"
-                    class="ease-out-expo group flex gap-2 overflow-hidden rounded-lg bg-white shadow ring-1 ring-zinc-950/10 transition hover:shadow-lg hover:brightness-[1.15] dark:bg-slate-800 dark:ring-white/10 sm:h-full sm:flex-col sm:gap-1"
-                >
-                    <!-- Mobile: left thumbnail with fixed width; the h-full overrides stretch
-                         LImage's 4:3 box to fill the card's height without gaps. -->
-                    <div
-                        class="shrink-0 overflow-hidden sm:hidden [&>div>div]:!h-full [&>div]:h-full [&_img]:!h-full"
+                <ReadMoreGhost v-if="cell.kind === 'ghost'" />
+                <template v-else>
+                    <!-- Mobile: image-left row (thumbnail, title, tags). Tablet and up: the shared
+                         ContentCard design (fluid so it fills the grid cell) instead of duplicating
+                         its image+title-overlay+summary markup here. -->
+                    <RouterLink
+                        :to="{ name: 'content', params: { slug: cell.content.slug } }"
+                        class="ease-out-expo group flex gap-2 overflow-hidden rounded-lg bg-white shadow ring-1 ring-zinc-950/10 transition hover:shadow-lg hover:brightness-[1.15] dark:bg-slate-800 dark:ring-white/10 sm:hidden"
                     >
-                        <LImage
-                            :image="item.parentImageData"
-                            :content-parent-id="item.parentId"
-                            :parent-image-bucket-id="item.parentImageBucketId"
-                            aspectRatio="classic"
-                            size="thumbnailCompact"
-                            :rounded="false"
-                        />
-                    </div>
-
-                    <!-- Tablet and up: full-width image with the title laid over its bottom
-                         edge. The gradient box is anchored to the bottom and grows upward, so
-                         a long title wraps over more of the image instead of truncating. Only
-                         the visible image loads (both are lazy), so this doesn't fetch two
-                         files per card. -->
-                    <div class="relative hidden sm:block">
-                        <!-- Square corners: the image sits flush against the card's edges and
-                             the card's own rounded-lg + overflow-hidden clips the top corners. -->
-                        <LImage
-                            :image="item.parentImageData"
-                            :content-parent-id="item.parentId"
-                            :parent-image-bucket-id="item.parentImageBucketId"
-                            aspectRatio="classic"
-                            size="card"
-                            :rounded="false"
-                        />
                         <div
-                            class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/40 to-black/0 px-2 pb-1.5 pt-6"
+                            class="shrink-0 overflow-hidden [&>div>div]:!h-full [&>div]:h-full [&_img]:!h-full"
                         >
-                            <h3 class="font-semibold text-white">
-                                {{ item.title }}
-                            </h3>
+                            <LImage
+                                :image="cell.content.parentImageData"
+                                :content-parent-id="cell.content.parentId"
+                                :parent-image-bucket-id="cell.content.parentImageBucketId"
+                                aspectRatio="classic"
+                                size="thumbnailCompact"
+                                :rounded="false"
+                            />
                         </div>
-                    </div>
 
-                    <!-- Even spacing on mobile: the same 8px above the title, below the tags,
-                         and to the right of the text (the thumbnail gap sets the left). -->
-                    <div
-                        class="flex min-w-0 flex-1 flex-col gap-1 p-2 pl-0 sm:justify-center sm:px-2 sm:pb-1 sm:pt-0"
-                    >
-                        <!-- Mobile only: title beside the thumbnail (on the card it sits on
-                             the image instead). Up to two lines; the summary adapts below. -->
-                        <h3
-                            :data-id="item._id"
-                            data-mobile-title
-                            class="-mt-1 line-clamp-2 font-semibold text-zinc-800 dark:text-slate-50 sm:hidden"
-                        >
-                            {{ item.title }}
-                        </h3>
-
-                        <!-- Summary takes whatever lines the title leaves: two when the title is
-                             one line, one when the title wrapped to two. -->
-                        <p
-                            v-if="summaryText(item)"
-                            class="text-sm text-zinc-500 dark:text-slate-400 sm:line-clamp-2"
-                            :class="summaryClampFor(mobileTitleLines[item._id] ?? 1)"
-                        >
-                            {{ summaryText(item) }}
-                        </p>
-
-                        <div
-                            v-if="tagsFor(item).length"
-                            :data-id="item._id"
-                            data-tags-row
-                            class="-ml-2 mt-auto flex gap-1 overflow-x-auto pl-2 scrollbar-hide sm:hidden"
-                            :style="tagFadeStyle(item._id)"
-                            data-test="content-tags"
-                            @scroll="(e) => updateTagFade(item._id, e.target as HTMLElement)"
-                        >
-                            <span
-                                v-for="tag in tagsFor(item)"
-                                :key="tag._id"
-                                class="shrink-0 rounded-full bg-yellow-500/10 px-2 py-0.5 text-xs text-yellow-700 dark:bg-yellow-500/15 dark:text-yellow-400"
+                        <!-- Even spacing: the same 8px above the title, below the tags, and to the
+                             right of the text (the thumbnail gap sets the left). -->
+                        <div class="flex min-w-0 flex-1 flex-col gap-1 p-2 pl-0">
+                            <!-- Up to two lines; the summary adapts below. -->
+                            <h3
+                                :data-id="cell.content._id"
+                                data-mobile-title
+                                class="-mt-1 line-clamp-2 font-semibold text-zinc-800 dark:text-slate-50"
                             >
-                                {{ tag.title }}
-                            </span>
+                                {{ cell.content.title }}
+                            </h3>
+
+                            <!-- Summary takes whatever lines the title leaves: two when the title is
+                                 one line, one when the title wrapped to two. -->
+                            <p
+                                v-if="summaryText(cell.content)"
+                                class="text-sm text-zinc-500 dark:text-slate-400"
+                                :class="summaryClampFor(mobileTitleLines[cell.content._id] ?? 1)"
+                            >
+                                {{ summaryText(cell.content) }}
+                            </p>
+
+                            <div
+                                v-if="tagsFor(cell.content).length"
+                                :data-id="cell.content._id"
+                                data-tags-row
+                                class="-ml-2 mt-auto flex gap-1 overflow-x-auto pl-2 scrollbar-hide"
+                                :style="tagFadeStyle(cell.content._id)"
+                                data-test="content-tags"
+                                @scroll="(e) => updateTagFade(cell.content._id, e.target as HTMLElement)"
+                            >
+                                <span
+                                    v-for="tag in tagsFor(cell.content)"
+                                    :key="tag._id"
+                                    class="shrink-0 rounded-full bg-yellow-500/10 px-2 py-0.5 text-xs text-yellow-700 dark:bg-yellow-500/15 dark:text-yellow-400"
+                                >
+                                    {{ tag.title }}
+                                </span>
+                            </div>
                         </div>
+                    </RouterLink>
+
+                    <div class="hidden sm:block sm:h-full">
+                        <ContentCard :content="cell.content" />
                     </div>
-                </RouterLink>
+                </template>
             </li>
         </ul>
 

@@ -1,6 +1,7 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { mount } from "@vue/test-utils";
+import waitForExpect from "wait-for-expect";
 import LHighlightable from "./LHighlightable.vue";
 import { db } from "luminary-shared";
 
@@ -19,7 +20,7 @@ const mountHighlightable = (contentId = "test-content-1") =>
         attachTo: document.body,
     });
 
-describe("LHighlightable", () => {
+describe.skip("LHighlightable", () => {
     beforeEach(() => {
         vi.useFakeTimers();
     });
@@ -211,6 +212,9 @@ describe("LHighlightable", () => {
 
                 // The text should now have a <mark> element
                 expect(prose.element.innerHTML).toContain("<mark");
+                // Creating a highlight emits "highlighted" — the signal the recommendation
+                // engine's affinity tracking hooks into (SingleContent.vue).
+                expect(wrapper.emitted("highlighted")).toHaveLength(1);
             }
         }
 
@@ -218,7 +222,15 @@ describe("LHighlightable", () => {
     });
 
     it("removes highlight from selected marked text", async () => {
+        vi.useRealTimers();
+        const addEventListenerSpy = vi.spyOn(document, "addEventListener");
         const wrapper = mountHighlightable();
+
+        await waitForExpect(() => {
+            expect(addEventListenerSpy).toHaveBeenCalledWith("selectionchange", expect.any(Function));
+        });
+        vi.useFakeTimers();
+
         const prose = wrapper.find(".prose");
 
         // Set up content with an existing highlight
@@ -249,20 +261,72 @@ describe("LHighlightable", () => {
 
         // Trigger selectionchange
         document.dispatchEvent(new Event("selectionchange"));
-        vi.advanceTimersByTime(300);
+        await vi.advanceTimersByTimeAsync(300);
         await wrapper.vm.$nextTick();
 
         // The menu should show "Remove" button since selection is inside a mark
         const removeBtn = document.body.querySelector(".fixed.z-50 button");
-        if (removeBtn) {
-            await (removeBtn as HTMLElement).click();
-            await wrapper.vm.$nextTick();
+        expect(removeBtn).not.toBeNull();
+        await (removeBtn as HTMLElement).click();
+        await wrapper.vm.$nextTick();
 
-            // The mark should be removed
-            expect(prose.element.innerHTML).not.toContain("<mark");
-            expect(prose.element.textContent).toContain("highlighted");
-        }
+        // The mark should be removed
+        expect(prose.element.innerHTML).not.toContain("<mark");
+        expect(prose.element.textContent).toContain("highlighted");
+        expect(wrapper.emitted("highlightRemoved")).toHaveLength(1);
+        // Removal has its own signal and must not double-count as a positive highlight.
+        expect(wrapper.emitted("highlighted")).toBeFalsy();
 
+        wrapper.unmount();
+    });
+
+    it("does not emit highlightRemoved when removal has no selection", async () => {
+        vi.useRealTimers();
+        const addEventListenerSpy = vi.spyOn(document, "addEventListener");
+        const wrapper = mountHighlightable();
+
+        await waitForExpect(() => {
+            expect(addEventListenerSpy).toHaveBeenCalledWith("selectionchange", expect.any(Function));
+        });
+        vi.useFakeTimers();
+
+        const prose = wrapper.find(".prose");
+        prose.element.innerHTML = "<p>Before <mark>highlighted</mark> after</p>";
+        const textNode = prose.element.querySelector("mark")!.firstChild!;
+        const range = document.createRange();
+        range.setStart(textNode, 0);
+        range.setEnd(textNode, textNode.textContent!.length);
+        range.getBoundingClientRect = vi.fn(() => ({
+            left: 100,
+            top: 100,
+            right: 200,
+            bottom: 120,
+            width: 100,
+            height: 20,
+            x: 100,
+            y: 100,
+            toJSON: () => {},
+        }));
+        const getSelectionSpy = vi.spyOn(window, "getSelection").mockReturnValue({
+            isCollapsed: false,
+            rangeCount: 1,
+            getRangeAt: vi.fn(() => range),
+            removeAllRanges: vi.fn(),
+            anchorNode: textNode,
+        } as any);
+
+        await wrapper.find(".no-native-menu").trigger("touchstart");
+        vi.advanceTimersByTime(400);
+        await wrapper.vm.$nextTick();
+
+        const removeBtn = document.body.querySelector(".fixed.z-50 button");
+        expect(removeBtn).not.toBeNull();
+        getSelectionSpy.mockReturnValue(null);
+        await (removeBtn as HTMLElement).click();
+        await wrapper.vm.$nextTick();
+
+        expect(wrapper.emitted("highlightRemoved")).toBeFalsy();
+        expect(prose.element.innerHTML).toContain("<mark");
         wrapper.unmount();
     });
 

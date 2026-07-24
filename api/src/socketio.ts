@@ -16,6 +16,7 @@ import { ChangeReqDto } from "./dto/ChangeReqDto";
 import { AccessMap } from "./permissions/permissions.service";
 import configuration, { Configuration } from "./configuration";
 import { JwtUserDetails } from "./auth/authIdentity.service";
+import { AffinityConfigDto } from "./dto/DefaultAffinityDto";
 import { S3Service } from "./s3/s3.service";
 import { WINSTON_MODULE_PROVIDER } from "nest-winston";
 import { Logger } from "winston";
@@ -51,6 +52,11 @@ type ClientRoomReq = {
 type ClientConfig = {
     maxUploadFileSize: number;
     maxMediaUploadFileSize?: number;
+    accessMap?: AccessMap;
+    /** CMS-managed cold-start profile for a new client-local affinity store. */
+    defaultAffinity?: Record<string, number>;
+    /** CMS-managed affinity engine tuning config. */
+    affinityConfig?: AffinityConfigDto;
 };
 
 /**
@@ -278,6 +284,8 @@ export class Socketio implements OnGatewayInit {
             maxUploadFileSize: this.config.socketIo.maxHttpBufferSize,
             maxMediaUploadFileSize: this.config.socketIo.maxMediaUploadFileSize || 0,
             accessMap: socket.data.userDetails.accessMap,
+            defaultAffinity: socket.data.userDetails.defaultAffinity,
+            affinityConfig: socket.data.userDetails.affinityConfig,
         } as ClientConfig;
         socket.emit("clientConfig", clientConfig);
 
