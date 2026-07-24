@@ -10,8 +10,15 @@ import {
 } from "luminary-shared";
 import { useContentQuery } from "@/composables/useContentQuery";
 import { affinityProfile } from "@/recommendation/affinityStore";
+import { loadHighlightQueriesFor } from "@/recommendation/highlightStore";
 import { sessionNow } from "@/util/sessionNow";
-import { rank } from "@/composables/useRecommendations";
+import { fuseTagFts, rank } from "@/composables/useRecommendations";
+
+/** The title/summary query is the primary retrieval signal; the reader's own saved
+ *  highlights on this article are a stronger, more specific signal than the global
+ *  highlight leg `useRecommendations` mixes in (weight 0.3 there), but must still stay
+ *  below the primary query so retrieval doesn't drift off-topic. */
+const OWN_HIGHLIGHT_FTS_TOTAL_WEIGHT = 0.5;
 
 export type UseMoreLikeThisOptions = {
     limit?: number;
@@ -54,18 +61,33 @@ export function useMoreLikeThis(
                 return;
             }
             const queryText = [doc.title, doc.summary].filter(Boolean).join(" ").trim();
-            if (!queryText) {
+            const highlightQueries = await loadHighlightQueriesFor(doc._id);
+            if (!queryText && !highlightQueries.length) {
                 ftsResults.value = [];
                 return;
             }
-            try {
-                ftsResults.value = await ftsSearch({
-                    query: queryText,
+            const search = (query: string) =>
+                ftsSearch({
+                    query,
                     languageId: doc.language,
                     status: PublishStatus.Published,
                     publishedBefore: sessionNow(),
                     limit: retrievalLimit,
                 });
+            try {
+                const searches: { weight: number; results: FtsSearchResult[] }[] = [];
+                if (queryText) searches.push({ weight: 1, results: await search(queryText) });
+                if (highlightQueries.length) {
+                    const perHighlightWeight =
+                        OWN_HIGHLIGHT_FTS_TOTAL_WEIGHT / highlightQueries.length;
+                    const highlightResults = await Promise.all(
+                        highlightQueries.map(({ query }) => search(query)),
+                    );
+                    for (const results of highlightResults) {
+                        searches.push({ weight: perHighlightWeight, results });
+                    }
+                }
+                ftsResults.value = fuseTagFts(searches);
             } catch {
                 ftsResults.value = [];
             }
@@ -82,7 +104,8 @@ export function useMoreLikeThis(
             (doc) => doc._id !== excludeId.value && doc.parentId !== excludeParentId.value,
         );
         const ftsCandidates = ftsResults.value.filter(
-            (result) => result.docId !== excludeId.value && result.doc.parentId !== excludeParentId.value,
+            (result) =>
+                result.docId !== excludeId.value && result.doc.parentId !== excludeParentId.value,
         );
         return rank(tagCandidates, ftsCandidates, decayedAffinity.value, {
             topicTagIds: topicTagIdSet.value,

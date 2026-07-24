@@ -84,6 +84,7 @@ describe("useMoreLikeThis", () => {
         affinityProfile.value = { affinity: {}, lastDecayUtc: undefined };
         localStorage.clear();
         await db.docs.clear();
+        await db.setLuminaryInternals("highlights", undefined);
         vi.spyOn(shared, "ftsSearch").mockResolvedValue([]);
     });
 
@@ -93,6 +94,7 @@ describe("useMoreLikeThis", () => {
         affinityProfile.value = previousAffinity;
         appLanguageIdsAsRef.value = previousLanguageIds;
         await db.docs.clear();
+        await db.setLuminaryInternals("highlights", undefined);
     });
 
     function start(
@@ -182,6 +184,37 @@ describe("useMoreLikeThis", () => {
                 personalizedCandidate._id,
                 neutralCandidate._id,
             ]);
+        });
+    });
+
+    it("also searches the article's own saved highlight text and surfaces a match found only there", async () => {
+        const selected = makeContent("selected", [TOPIC_A], {
+            title: "A distinctive shared phrase",
+            summary: "More seed vocabulary",
+        });
+        const titleMatch = makeContent("title-match");
+        const highlightOnlyMatch = makeContent("highlight-only-match");
+        await db.setLuminaryInternals("highlights", {
+            [selected._id]: {
+                html: "<p><mark>Specific highlighted vocabulary</mark></p>",
+                updatedAt: Date.now(),
+            },
+        });
+        vi.mocked(shared.ftsSearch).mockImplementation(async ({ query }) =>
+            query === "Specific highlighted vocabulary"
+                ? [makeFtsResult(highlightOnlyMatch)]
+                : [makeFtsResult(titleMatch)],
+        );
+
+        const result = start(selected, [makeSeedTag(TOPIC_A)]);
+
+        await waitForExpect(() => {
+            expect(shared.ftsSearch).toHaveBeenCalledWith(
+                expect.objectContaining({ query: "Specific highlighted vocabulary" }),
+            );
+            expect(result.similar.value.map((doc) => doc._id)).toEqual(
+                expect.arrayContaining([titleMatch._id, highlightOnlyMatch._id]),
+            );
         });
     });
 

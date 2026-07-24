@@ -1,6 +1,9 @@
-import { describe, expect, it } from "vitest";
+import "fake-indexeddb/auto";
+import { afterEach, describe, expect, it } from "vitest";
+import { db } from "luminary-shared";
 import {
     extractHighlightQueries,
+    loadHighlightQueriesFor,
     MAX_HIGHLIGHT_QUERIES,
 } from "./highlightStore";
 
@@ -43,5 +46,38 @@ describe("extractHighlightQueries", () => {
             `Highlighted phrase ${MAX_HIGHLIGHT_QUERIES - 2}`,
             `Highlighted phrase ${MAX_HIGHLIGHT_QUERIES - 3}`,
         ]);
+    });
+});
+
+describe("loadHighlightQueriesFor", () => {
+    afterEach(async () => {
+        await db.setLuminaryInternals("highlights", undefined);
+    });
+
+    it("returns only the requested content's own highlight(s), not other saved highlights", async () => {
+        await db.setLuminaryInternals("highlights", {
+            "content-this-article": {
+                html: "<p><mark>This article's own highlight</mark></p>",
+                updatedAt: 5,
+            },
+            "content-other-article": {
+                html: "<p><mark>A different article's highlight</mark></p>",
+                updatedAt: 10,
+            },
+        });
+
+        const queries = await loadHighlightQueriesFor("content-this-article");
+
+        expect(queries).toEqual([{ query: "This article's own highlight", updatedAt: 5 }]);
+    });
+
+    it("returns an empty array when nothing is stored, or the content id has no highlight", async () => {
+        expect(await loadHighlightQueriesFor("content-none")).toEqual([]);
+
+        await db.setLuminaryInternals("highlights", {
+            "content-other-article": { html: "<mark>Something</mark>", updatedAt: 1 },
+        });
+
+        expect(await loadHighlightQueriesFor("content-this-article")).toEqual([]);
     });
 });

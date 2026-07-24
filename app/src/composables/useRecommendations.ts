@@ -82,11 +82,21 @@ export type UseRecommendationsOptions = {
      * than `limit` so affinity and RRF rank a meaningful neighbourhood. Defaults to 1000.
      */
     retrievalLimit?: number;
+    /**
+     * Whether to run the BM25/FTS leg (tag-title + saved-highlight local full-text search)
+     * alongside the tag-membership leg. Defaults to true. Set false for a lighter, tag-only
+     * feed — skips the tag-title lookup query, the saved-highlight reload, and every local
+     * FTS scan entirely (no query objects are even created), trading search-grade precision
+     * for materially less CPU. Useful for a small supplementary feed where a handful of
+     * tag-matched results are enough (e.g. a secondary row on an already-loaded page).
+     */
+    useFts?: boolean;
 };
 
 export function useRecommendations({
     limit = DEFAULT_LIMIT,
     retrievalLimit = DEFAULT_RETRIEVAL_LIMIT,
+    useFts = true,
 }: UseRecommendationsOptions = {}) {
     // Decay once per profile update so the retrieval tags and the leg weighting are
     // based on precisely the same evidence.
@@ -116,16 +126,6 @@ export function useRecommendations({
                 ? [{ parentTags: { $elemMatch: { $in: tagSet.value } } }]
                 : [{ _id: { $in: [] } }],
         { cache: true, cacheId: "recommended", limit: retrievalLimit },
-    );
-
-    // Resolve the top tags' own titles (for FTS query synthesis). `useContentQuery`'s
-    // default language-priority filter already collapses this to ~one doc per tag id.
-    const tagContent = useContentQuery(
-        () =>
-            tagSet.value.length
-                ? [{ parentType: DocType.Tag }, { parentId: { $in: tagSet.value } }]
-                : [{ _id: { $in: [] } }],
-        { cache: true, cacheId: "recommended-tag-titles", limit: TOP_N_TAGS * 2 },
     );
 
     // Which of the candidates' `parentTags` are actually TagType.Topic (categories and
@@ -159,120 +159,134 @@ export function useRecommendations({
         { immediate: true },
     );
 
-    // IndexedDB internals have no Vue reactivity. Reload the bounded saved-highlight
-    // queries on startup and after SingleContent confirms a successful highlight save.
-    const savedHighlightQueries = ref<HighlightQuery[]>([]);
-    let highlightRunSeq = 0;
-    watch(
-        highlightVersion,
-        async () => {
-            const runSeq = ++highlightRunSeq;
-            const queries = await loadHighlightQueries();
-            if (runSeq === highlightRunSeq) savedHighlightQueries.value = queries;
-        },
-        { immediate: true },
-    );
-
-    // Search the strongest topics independently so each vocabulary gets its own trigram
-    // budget, then add a fixed, modest total highlight budget split across saved excerpts.
-    const ftsQueries = computed(() => {
-        const topTagId = tags.value[0];
-        const topAffinity = (topTagId && decayedAffinity.value[topTagId]) || 1;
-        const tagQueries = tags.value.slice(0, MAX_FTS_TAGS).flatMap((tagId) => {
-            const title = tagContent.value.find((t) => t.parentId === tagId)?.title;
-            return title
-                ? [{ query: title, weight: (decayedAffinity.value[tagId] ?? 0) / topAffinity }]
-                : [];
-        });
-        const highlightWeight = savedHighlightQueries.value.length
-            ? HIGHLIGHT_FTS_TOTAL_WEIGHT / savedHighlightQueries.value.length
-            : 0;
-        return [
-            ...tagQueries,
-            ...savedHighlightQueries.value.map(({ query }) => ({
-                query,
-                weight: highlightWeight,
-            })),
-        ];
-    });
-
     // ftsSearch is async and local-only (offline IndexedDB, same engine as the search
     // page) — run it in a watcher into a plain ref rather than forcing the whole
-    // composable's reactivity through an async computed.
+    // composable's reactivity through an async computed. Stays permanently empty when
+    // `useFts` is false — none of the machinery below is even created in that case.
     const ftsResults = ref<FtsSearchResult[]>([]);
-    let ftsRunSeq = 0;
-    let ftsDebounceTimer: ReturnType<typeof setTimeout> | undefined;
-    let lastFtsSignature: string | undefined;
-    watch(
-        ftsQueries,
-        (queries) => {
-            // The computed rebuilds its array when upstream refs re-evaluate; only restart
-            // retrieval when the query values themselves have meaningfully changed.
-            const signature = JSON.stringify(
-                queries.map(({ query, weight }) => [query, weight.toFixed(4)]),
-            );
-            if (signature === lastFtsSignature) return;
-            lastFtsSignature = signature;
-            const runSeq = ++ftsRunSeq;
-            if (ftsDebounceTimer) clearTimeout(ftsDebounceTimer);
-            if (!queries.length) {
-                ftsResults.value = [];
-                return;
-            }
-            ftsDebounceTimer = setTimeout(async () => {
-                try {
-                    const now = sessionNow();
-                    const ftsSearches = await Promise.all(
-                        queries.map(async ({ query, weight }) => {
-                            // Search only locally synced languages in the user's preferred
-                            // priority order: primary first, then downloaded fallbacks. The
-                            // display default may be fetched on demand, but it is not a
-                            // complete local FTS corpus and must not trigger a BM25 scan.
-                            const perLanguage = await Promise.all(
-                                appSyncedDisplayLanguageIdsAsRef.value.map((languageId) =>
-                                    ftsSearch({
-                                        query,
-                                        languageId,
-                                        status: PublishStatus.Published,
-                                        publishedBefore: now,
-                                        limit: retrievalLimit,
-                                    }),
-                                ),
-                            );
-                            const seenParentIds = new Set<Uuid>();
-                            const merged: FtsSearchResult[] = [];
-                            // Results remain parallel, but language-priority merge order is
-                            // deterministic and duplicate translations keep the first hit.
-                            for (const results of perLanguage) {
-                                for (const r of results) {
-                                    if (seenParentIds.has(r.doc.parentId)) continue;
-                                    // ftsSearch has no expiry filter — drop expired content
-                                    // post-hoc (parity with the tag leg's mangoIsPublished).
-                                    if (r.doc.expiryDate && r.doc.expiryDate < now) continue;
-                                    seenParentIds.add(r.doc.parentId);
-                                    merged.push(r);
+
+    if (useFts) {
+        // Resolve the top tags' own titles (for FTS query synthesis). `useContentQuery`'s
+        // default language-priority filter already collapses this to ~one doc per tag id.
+        const tagContent = useContentQuery(
+            () =>
+                tagSet.value.length
+                    ? [{ parentType: DocType.Tag }, { parentId: { $in: tagSet.value } }]
+                    : [{ _id: { $in: [] } }],
+            { cache: true, cacheId: "recommended-tag-titles", limit: TOP_N_TAGS * 2 },
+        );
+
+        // IndexedDB internals have no Vue reactivity. Reload the bounded saved-highlight
+        // queries on startup and after SingleContent confirms a successful highlight save.
+        const savedHighlightQueries = ref<HighlightQuery[]>([]);
+        let highlightRunSeq = 0;
+        watch(
+            highlightVersion,
+            async () => {
+                const runSeq = ++highlightRunSeq;
+                const queries = await loadHighlightQueries();
+                if (runSeq === highlightRunSeq) savedHighlightQueries.value = queries;
+            },
+            { immediate: true },
+        );
+
+        // Search the strongest topics independently so each vocabulary gets its own trigram
+        // budget, then add a fixed, modest total highlight budget split across saved excerpts.
+        const ftsQueries = computed(() => {
+            const topTagId = tags.value[0];
+            const topAffinity = (topTagId && decayedAffinity.value[topTagId]) || 1;
+            const tagQueries = tags.value.slice(0, MAX_FTS_TAGS).flatMap((tagId) => {
+                const title = tagContent.value.find((t) => t.parentId === tagId)?.title;
+                return title
+                    ? [{ query: title, weight: (decayedAffinity.value[tagId] ?? 0) / topAffinity }]
+                    : [];
+            });
+            const highlightWeight = savedHighlightQueries.value.length
+                ? HIGHLIGHT_FTS_TOTAL_WEIGHT / savedHighlightQueries.value.length
+                : 0;
+            return [
+                ...tagQueries,
+                ...savedHighlightQueries.value.map(({ query }) => ({
+                    query,
+                    weight: highlightWeight,
+                })),
+            ];
+        });
+
+        let ftsRunSeq = 0;
+        let ftsDebounceTimer: ReturnType<typeof setTimeout> | undefined;
+        let lastFtsSignature: string | undefined;
+        watch(
+            ftsQueries,
+            (queries) => {
+                // The computed rebuilds its array when upstream refs re-evaluate; only restart
+                // retrieval when the query values themselves have meaningfully changed.
+                const signature = JSON.stringify(
+                    queries.map(({ query, weight }) => [query, weight.toFixed(4)]),
+                );
+                if (signature === lastFtsSignature) return;
+                lastFtsSignature = signature;
+                const runSeq = ++ftsRunSeq;
+                if (ftsDebounceTimer) clearTimeout(ftsDebounceTimer);
+                if (!queries.length) {
+                    ftsResults.value = [];
+                    return;
+                }
+                ftsDebounceTimer = setTimeout(async () => {
+                    try {
+                        const now = sessionNow();
+                        const ftsSearches = await Promise.all(
+                            queries.map(async ({ query, weight }) => {
+                                // Search only locally synced languages in the user's preferred
+                                // priority order: primary first, then downloaded fallbacks. The
+                                // display default may be fetched on demand, but it is not a
+                                // complete local FTS corpus and must not trigger a BM25 scan.
+                                const perLanguage = await Promise.all(
+                                    appSyncedDisplayLanguageIdsAsRef.value.map((languageId) =>
+                                        ftsSearch({
+                                            query,
+                                            languageId,
+                                            status: PublishStatus.Published,
+                                            publishedBefore: now,
+                                            limit: retrievalLimit,
+                                        }),
+                                    ),
+                                );
+                                const seenParentIds = new Set<Uuid>();
+                                const merged: FtsSearchResult[] = [];
+                                // Results remain parallel, but language-priority merge order is
+                                // deterministic and duplicate translations keep the first hit.
+                                for (const results of perLanguage) {
+                                    for (const r of results) {
+                                        if (seenParentIds.has(r.doc.parentId)) continue;
+                                        // ftsSearch has no expiry filter — drop expired content
+                                        // post-hoc (parity with the tag leg's mangoIsPublished).
+                                        if (r.doc.expiryDate && r.doc.expiryDate < now) continue;
+                                        seenParentIds.add(r.doc.parentId);
+                                        merged.push(r);
+                                        if (merged.length >= retrievalLimit) break;
+                                    }
                                     if (merged.length >= retrievalLimit) break;
                                 }
-                                if (merged.length >= retrievalLimit) break;
-                            }
-                            return { weight, results: merged };
-                        }),
-                    );
-                    if (runSeq !== ftsRunSeq) return;
-                    ftsResults.value = fuseTagFts(ftsSearches);
-                } catch {
-                    // Offline FTS is best-effort here — a failure just means text signals
-                    // contribute nothing; the tag-membership leg still works.
-                    if (runSeq === ftsRunSeq) ftsResults.value = [];
-                }
-            }, FTS_DEBOUNCE_MS);
-        },
-        { immediate: true },
-    );
-    // `watch` above is auto-stopped on scope dispose, but a pending `setTimeout` isn't —
-    // without this, navigating away within FTS_DEBOUNCE_MS of an affinity write still
-    // fires the full multi-language BM25 scan into a ref nobody reads anymore.
-    onScopeDispose(() => clearTimeout(ftsDebounceTimer));
+                                return { weight, results: merged };
+                            }),
+                        );
+                        if (runSeq !== ftsRunSeq) return;
+                        ftsResults.value = fuseTagFts(ftsSearches);
+                    } catch {
+                        // Offline FTS is best-effort here — a failure just means text signals
+                        // contribute nothing; the tag-membership leg still works.
+                        if (runSeq === ftsRunSeq) ftsResults.value = [];
+                    }
+                }, FTS_DEBOUNCE_MS);
+            },
+            { immediate: true },
+        );
+        // `watch` above is auto-stopped on scope dispose, but a pending `setTimeout` isn't —
+        // without this, navigating away within FTS_DEBOUNCE_MS of an affinity write still
+        // fires the full multi-language BM25 scan into a ref nobody reads anymore.
+        onScopeDispose(() => clearTimeout(ftsDebounceTimer));
+    }
 
     const seenIds = computed(() => {
         void seenVersion.value; // reactive dependency: getSeenArticleIds itself reads localStorage
@@ -293,7 +307,13 @@ export function useRecommendations({
         });
     });
 
-    return { recommended, hasTags: computed(() => tags.value.length > 0) };
+    return {
+        recommended,
+        hasTags: computed(() => tags.value.length > 0),
+        // Strongest-affinity tags first (see `topTagsFrom`) — callers that want to label the
+        // feed (e.g. "Because you read X") only need the top one or two.
+        topTagIds: computed(() => tags.value.slice(0, 2)),
+    };
 }
 
 /** Profile signal strength across its selected tags. Exported for unit testing. */
@@ -381,10 +401,7 @@ export function rank(
         // reachable at the top of the list — raw `1/(RRF_K+i+1)` tops out around 0.016,
         // roughly 10x smaller than RECENCY_WEIGHT, which made publish date dominate BM25
         // rank instead of merely breaking ties.
-        score.set(
-            ownerId,
-            (score.get(ownerId) ?? 0) + ftsWeight * ((RRF_K + 1) / (RRF_K + i + 1)),
-        );
+        score.set(ownerId, (score.get(ownerId) ?? 0) + ftsWeight * ((RRF_K + 1) / (RRF_K + i + 1)));
     });
 
     const dominantTags = new Map<Uuid, Uuid | undefined>();
