@@ -16,6 +16,9 @@ jest.mock("./permissions/permissions.service", () => ({
 jest.mock("./db/db.upgrade", () => ({
     upgradeDbSchema: jest.fn().mockResolvedValue(undefined),
 }));
+jest.mock("./db/languageTranslationSeedReconciliation", () => ({
+    reconcileLanguageTranslationSeeds: jest.fn().mockResolvedValue(undefined),
+}));
 jest.mock("@fastify/compress", () => ({ __esModule: true, default: jest.fn() }));
 jest.mock("@fastify/multipart", () => ({ __esModule: true, default: jest.fn() }));
 
@@ -23,6 +26,7 @@ import { NestFactory } from "@nestjs/core";
 import { upsertDesignDocs, upsertSeedingDocs } from "./db/db.seedingFunctions";
 import { PermissionSystem } from "./permissions/permissions.service";
 import { upgradeDbSchema } from "./db/db.upgrade";
+import { reconcileLanguageTranslationSeeds } from "./db/languageTranslationSeedReconciliation";
 import { bootstrap } from "./main";
 
 describe("bootstrap", () => {
@@ -67,6 +71,7 @@ describe("bootstrap", () => {
         expect(upsertDesignDocs).toHaveBeenCalled();
         expect(PermissionSystem.init).toHaveBeenCalled();
         expect(upgradeDbSchema).toHaveBeenCalled();
+        expect(reconcileLanguageTranslationSeeds).toHaveBeenCalled();
         expect(mockApp.enableCors).toHaveBeenCalled();
         expect(mockApp.listen).toHaveBeenCalledWith("3000", "0.0.0.0");
     });
@@ -82,6 +87,7 @@ describe("bootstrap", () => {
         // The schema upgrade chain must run over the freshly-seeded data before exiting, so a
         // fresh DB is stamped and its User/Redirect docs get the server-side fts backfill (v18).
         expect(upgradeDbSchema).toHaveBeenCalled();
+        expect(reconcileLanguageTranslationSeeds).toHaveBeenCalled();
         expect(mockExit).toHaveBeenCalledWith(0);
         expect(consoleSpy).toHaveBeenCalledWith("Database seeded with default data.");
 
