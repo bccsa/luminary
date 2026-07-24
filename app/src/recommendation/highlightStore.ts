@@ -101,3 +101,19 @@ export async function loadHighlightQueries(): Promise<HighlightQuery[]> {
         return [];
     }
 }
+
+/**
+ * Same as {@link loadHighlightQueries}, scoped to a single content document's own saved
+ * highlight(s) — used to seed "more like this" for the article the reader is currently on,
+ * rather than every highlight saved across the whole app.
+ */
+export async function loadHighlightQueriesFor(contentId: string): Promise<HighlightQuery[]> {
+    try {
+        const all = await db.getLuminaryInternals(HIGHLIGHTS_STORAGE_KEY);
+        if (!all || typeof all !== "object") return [];
+        if (!(contentId in all)) return [];
+        return extractHighlightQueries({ [contentId]: all[contentId] });
+    } catch {
+        return [];
+    }
+}
