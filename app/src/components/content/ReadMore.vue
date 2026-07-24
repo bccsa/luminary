@@ -12,6 +12,7 @@ import { RouterLink } from "vue-router";
 import { type ContentDto } from "luminary-shared";
 import { useContentQuery } from "@/composables/useContentQuery";
 import LImage from "../images/LImage.vue";
+import ContentCard from "./ContentCard.vue";
 
 const props = defineProps<{ items: ContentDto[] }>();
 
@@ -138,15 +139,14 @@ watch(visibleItems, () => nextTick(remeasureAll));
                 v-for="item in visibleItems"
                 :key="item._id"
             >
+                <!-- Mobile: image-left row (thumbnail, title, tags). Tablet and up: the shared
+                     ContentCard design (fluid so it fills the grid cell) instead of duplicating
+                     its image+title-overlay+summary markup here. -->
                 <RouterLink
                     :to="{ name: 'content', params: { slug: item.slug } }"
-                    class="ease-out-expo group flex gap-2 overflow-hidden rounded-lg bg-white shadow ring-1 ring-zinc-950/10 transition hover:shadow-lg hover:brightness-[1.15] dark:bg-slate-800 dark:ring-white/10 sm:h-full sm:flex-col sm:gap-1"
+                    class="ease-out-expo group flex gap-2 overflow-hidden rounded-lg bg-white shadow ring-1 ring-zinc-950/10 transition hover:shadow-lg hover:brightness-[1.15] dark:bg-slate-800 dark:ring-white/10 sm:hidden"
                 >
-                    <!-- Mobile: left thumbnail with fixed width; the h-full overrides stretch
-                         LImage's 4:3 box to fill the card's height without gaps. -->
-                    <div
-                        class="shrink-0 overflow-hidden sm:hidden [&>div>div]:!h-full [&>div]:h-full [&_img]:!h-full"
-                    >
+                    <div class="shrink-0 overflow-hidden [&>div>div]:!h-full [&>div]:h-full [&_img]:!h-full">
                         <LImage
                             :image="item.parentImageData"
                             :content-parent-id="item.parentId"
@@ -157,42 +157,14 @@ watch(visibleItems, () => nextTick(remeasureAll));
                         />
                     </div>
 
-                    <!-- Tablet and up: full-width image with the title laid over its bottom
-                         edge. The gradient box is anchored to the bottom and grows upward, so
-                         a long title wraps over more of the image instead of truncating. Only
-                         the visible image loads (both are lazy), so this doesn't fetch two
-                         files per card. -->
-                    <div class="relative hidden sm:block">
-                        <!-- Square corners: the image sits flush against the card's edges and
-                             the card's own rounded-lg + overflow-hidden clips the top corners. -->
-                        <LImage
-                            :image="item.parentImageData"
-                            :content-parent-id="item.parentId"
-                            :parent-image-bucket-id="item.parentImageBucketId"
-                            aspectRatio="classic"
-                            size="card"
-                            :rounded="false"
-                        />
-                        <div
-                            class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/40 to-black/0 px-2 pb-1.5 pt-6"
-                        >
-                            <h3 class="font-semibold text-white">
-                                {{ item.title }}
-                            </h3>
-                        </div>
-                    </div>
-
-                    <!-- Even spacing on mobile: the same 8px above the title, below the tags,
-                         and to the right of the text (the thumbnail gap sets the left). -->
-                    <div
-                        class="flex min-w-0 flex-1 flex-col gap-1 p-2 pl-0 sm:justify-center sm:px-2 sm:pb-1 sm:pt-0"
-                    >
-                        <!-- Mobile only: title beside the thumbnail (on the card it sits on
-                             the image instead). Up to two lines; the summary adapts below. -->
+                    <!-- Even spacing: the same 8px above the title, below the tags, and to the
+                         right of the text (the thumbnail gap sets the left). -->
+                    <div class="flex min-w-0 flex-1 flex-col gap-1 p-2 pl-0">
+                        <!-- Up to two lines; the summary adapts below. -->
                         <h3
                             :data-id="item._id"
                             data-mobile-title
-                            class="-mt-1 line-clamp-2 font-semibold text-zinc-800 dark:text-slate-50 sm:hidden"
+                            class="-mt-1 line-clamp-2 font-semibold text-zinc-800 dark:text-slate-50"
                         >
                             {{ item.title }}
                         </h3>
@@ -201,7 +173,7 @@ watch(visibleItems, () => nextTick(remeasureAll));
                              one line, one when the title wrapped to two. -->
                         <p
                             v-if="summaryText(item)"
-                            class="text-sm text-zinc-500 dark:text-slate-400 sm:line-clamp-2"
+                            class="text-sm text-zinc-500 dark:text-slate-400"
                             :class="summaryClampFor(mobileTitleLines[item._id] ?? 1)"
                         >
                             {{ summaryText(item) }}
@@ -211,7 +183,7 @@ watch(visibleItems, () => nextTick(remeasureAll));
                             v-if="tagsFor(item).length"
                             :data-id="item._id"
                             data-tags-row
-                            class="-ml-2 mt-auto flex gap-1 overflow-x-auto pl-2 scrollbar-hide sm:hidden"
+                            class="-ml-2 mt-auto flex gap-1 overflow-x-auto pl-2 scrollbar-hide"
                             :style="tagFadeStyle(item._id)"
                             data-test="content-tags"
                             @scroll="(e) => updateTagFade(item._id, e.target as HTMLElement)"
@@ -226,6 +198,10 @@ watch(visibleItems, () => nextTick(remeasureAll));
                         </div>
                     </div>
                 </RouterLink>
+
+                <div class="hidden sm:block sm:h-full">
+                    <ContentCard :content="item" />
+                </div>
             </li>
         </ul>
 
