@@ -56,6 +56,39 @@ const mountList = (items: ContentDto[]) =>
     });
 
 describe("ReadMore", () => {
+    it("shows the ghost placeholder instead of the list when not ready", () => {
+        const wrapper = mount(ReadMore, {
+            props: { items: [], ready: false },
+            global: {
+                stubs: {
+                    RouterLink: { template: "<a><slot /></a>" },
+                    LImage: true,
+                },
+            },
+        });
+
+        expect(wrapper.find('[data-test="read-more-ghost"]').exists()).toBe(true);
+        expect(wrapper.find("[data-mobile-title]").exists()).toBe(false);
+    });
+
+    it("shows the real list once ready, even if it started as the ghost", async () => {
+        const wrapper = mount(ReadMore, {
+            props: { items: [], ready: false },
+            global: {
+                stubs: {
+                    RouterLink: { template: "<a><slot /></a>" },
+                    LImage: true,
+                },
+            },
+        });
+        expect(wrapper.find('[data-test="read-more-ghost"]').exists()).toBe(true);
+
+        await wrapper.setProps({ items: [makeItem()], ready: true });
+
+        expect(wrapper.find('[data-test="read-more-ghost"]').exists()).toBe(false);
+        expect(wrapper.find("[data-mobile-title]").exists()).toBe(true);
+    });
+
     it("uses a card surface while keeping the mobile image-and-text row", () => {
         const wrapper = mountList([makeItem()]);
 
