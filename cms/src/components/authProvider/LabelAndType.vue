@@ -10,7 +10,7 @@ const provider = defineModel<AuthProviderDto>("provider", { required: true });
 </script>
 
 <template>
-    <div class="min-w-0 w-full max-w-full">
+    <div class="w-full min-w-0 max-w-full">
         <label for="provider-label" class="mb-1 block text-xs font-medium text-zinc-700">
             Label
         </label>
@@ -21,7 +21,7 @@ const provider = defineModel<AuthProviderDto>("provider", { required: true });
             type="text"
             placeholder="e.g. login.provider.button"
             :disabled="disabled"
-            @update:model-value="provider.label = $event"
+            @update:model-value="provider.label = String($event)"
         />
 
         <div class="mt-2">
@@ -29,8 +29,8 @@ const provider = defineModel<AuthProviderDto>("provider", { required: true });
                 Display name
             </label>
             <p class="mb-1 text-[11px] text-zinc-500">
-                You can use embedded translation lookups with [[key.path]] or enter a translation key
-                directly (key.subkey).
+                You can use embedded translation lookups with [[key.path]] or enter a translation
+                key directly (key.subkey).
             </p>
             <LInput
                 id="provider-display-name"
@@ -39,7 +39,7 @@ const provider = defineModel<AuthProviderDto>("provider", { required: true });
                 type="text"
                 placeholder="e.g. Sign in with [[organization.name]] or login.provider.button"
                 :disabled="disabled"
-                @update:model-value="provider.displayName = $event"
+                @update:model-value="provider.displayName = String($event)"
             />
             <p class="mt-1 text-[11px] text-zinc-500">
                 This name is shown in CMS lists and dialogs.
