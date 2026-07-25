@@ -10,7 +10,7 @@ import {
     isConnected,
     toEditable,
 } from "luminary-shared";
-import { TrashIcon } from "@heroicons/vue/24/outline";
+import { TrashIcon, MagnifyingGlassIcon } from "@heroicons/vue/24/outline";
 import ConfirmBeforeLeavingModal from "@/components/modals/ConfirmBeforeLeavingModal.vue";
 import LButton from "@/components/button/LButton.vue";
 import { validDocTypes } from "./permissions";
@@ -24,6 +24,7 @@ import { ArrowUturnLeftIcon } from "@heroicons/vue/24/solid";
 import { PlusIcon, UserGroupIcon } from "@heroicons/vue/24/outline";
 import LCombobox from "../forms/LCombobox.vue";
 import GroupPermissionsReport from "./GroupPermissionsReport.vue";
+import { buildEffectivePermissionsReport } from "@/components/groups/GroupPermissionsReport";
 
 const { addNotification } = useNotificationStore();
 
@@ -37,6 +38,21 @@ const group = defineModel<GroupDto>("group", { required: true });
 const { editable, isEdited, revert, save, duplicate, remove } = props.groupQuery;
 const showDeleteConfirm = ref(false);
 const isDeleting = ref(false);
+
+const activeAclEntries = computed(() => {
+    if (!group.value._id) return [];
+
+    const report = buildEffectivePermissionsReport(
+        group.value._id,
+        props.groupQuery.editable.value,
+    );
+
+    return report.filter((entry) => {
+        return Object.values(entry.permissionsByDocType).some(
+            (permissions) => permissions.length > 0,
+        );
+    });
+});
 
 watch(showDeleteConfirm, (isOpen) => {
     if (isOpen) {
@@ -195,6 +211,31 @@ const handleFocusOut = () => {
     }, 200);
 };
 
+const accessorSearch = ref("");
+
+const filteredDirectPermissions = computed(() => {
+    let result = [...assignedGroups.value];
+
+    if (accessorSearch.value) {
+        const searchLower = accessorSearch.value.toLowerCase();
+        result = result.filter((g) => g.name.toLowerCase().includes(searchLower));
+    }
+    return result;
+});
+
+const filteredInheritedPermissions = computed(() => {
+    let result = [...activeAclEntries.value];
+
+    if (accessorSearch.value) {
+        const searchLower = accessorSearch.value.toLowerCase();
+        result = result.filter((entry) =>
+            entry.accessorGroupName.toLowerCase().includes(searchLower),
+        );
+    }
+
+    return result;
+});
+
 const handleSelect = (option: { value: string }) => {
     const selectedGroup = editable.value.find((g) => g._id === option.value);
     if (selectedGroup) {
@@ -291,7 +332,6 @@ const duplicateGroup = async () => {
         :primaryButtonText="!isNewGroup ? 'Save' : 'Create'"
         :primaryButtonDisabled="!hasEditPermission || !isConnected || !isDirty || isEmpty"
         @close="emit('close')"
-        largeModal
         stickToEdges
     >
         <template #headingExtension>
@@ -311,15 +351,18 @@ const duplicateGroup = async () => {
                 :title="'Edit group name'"
                 data-test="groupName"
             >
-                <h2
-                    :class="[
-                        'font-semibold',
-                        { 'text-zinc-400': disabled },
-                        { 'text-zinc-800': !disabled },
-                    ]"
-                >
-                    Accessors for {{ group.name }}
-                </h2>
+                <span class="flex">
+                    <span class="mr-1">Accessors for</span>
+                    <h2
+                        :class="[
+                            'font-semibold',
+                            { 'text-zinc-400': disabled },
+                            { 'text-zinc-800': !disabled },
+                        ]"
+                    >
+                        {{ group.name }}
+                    </h2>
+                </span>
             </div>
             <LInput
                 v-else
@@ -335,6 +378,20 @@ const duplicateGroup = async () => {
                 class="mr-4 grow"
                 data-test="groupNameInput"
             />
+        </template>
+        <template #middleHeading>
+            <div>
+                <LInput
+                    name="filter"
+                    type="text"
+                    v-model="accessorSearch"
+                    :icon="MagnifyingGlassIcon"
+                    class="h-full min-w-0 flex-grow"
+                    :full-height="true"
+                    placeholder="Search accessors..."
+                    @click.stop
+                />
+            </div>
         </template>
         <template #rightHeading>
             <div class="flex">
@@ -389,38 +446,29 @@ const duplicateGroup = async () => {
                         @select="handleSelect"
                     />
                 </div>
-                <div
-                    v-for="assignedGroup in assignedGroups"
-                    :key="assignedGroup._id"
-                    :id="`group-acl-${assignedGroup._id}`"
-                >
-                    <EditAclByGroup
-                        v-model:group="group"
-                        :assignedGroup="assignedGroup"
-                        :originalGroup="group"
-                        :availableGroups="availableGroups"
-                        :disabled="disabled"
-                    />
-                </div>
-                <div v-if="!isNewGroup" class="pb-2 pt-6">
-                    <div class="relative mb-6">
-                        <div class="absolute inset-0 flex items-center" aria-hidden="true">
-                            <div class="w-full border-t border-zinc-200"></div>
-                        </div>
-                        <div class="relative flex justify-start">
-                            <span
-                                class="bg-white pr-3 text-xs font-bold uppercase tracking-widest text-zinc-400"
-                            >
-                                Inherited Permissions
-                            </span>
+                <div class="space-y-1 overflow-y-auto scrollbar-hide">
+                    <div
+                        v-for="assignedGroup in filteredDirectPermissions"
+                        :key="assignedGroup._id"
+                        :id="`group-acl-${assignedGroup._id}`"
+                    >
+                        <EditAclByGroup
+                            v-model:group="group"
+                            :assignedGroup="assignedGroup"
+                            :originalGroup="group"
+                            :availableGroups="availableGroups"
+                            :disabled="disabled"
+                        />
+                    </div>
+                    <div v-if="!isNewGroup">
+                        <div
+                            v-for="data in filteredInheritedPermissions"
+                            :key="data.path?.join('->') || data.accessorGroupId"
+                            class="mb-1"
+                        >
+                            <GroupPermissionsReport :entry="data" />
                         </div>
                     </div>
-
-                    <GroupPermissionsReport
-                        :groupName="group.name"
-                        :groupId="group._id"
-                        :allGroups="groupQuery.editable.value"
-                    />
                 </div>
             </div>
             <!-- TODO: We need a way to intercept closing the modal and showing a confirmation dialog -->

@@ -93,6 +93,9 @@ const isMobileScreen = breakpoints.smaller("sm");
                             <slot name="headingExtension" />
                         </div>
                     </div>
+                    <div v-if="$slots.middleHeading">
+                        <slot name="middleHeading" />
+                    </div>
                     <div class="flex">
                         <div v-if="$slots.rightHeading">
                             <slot name="rightHeading" />

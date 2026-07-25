@@ -18,6 +18,7 @@ type Props = {
     navigateTo?: RouteLocationRaw | (() => void);
     canNavigate?: boolean;
     showDate?: boolean;
+    disable?: boolean;
 };
 
 const props = withDefaults(defineProps<Props>(), {
@@ -36,7 +37,8 @@ const renderDate = (size: "default" | "small", timestampRelevance: string, times
         : db.toDateTime(timestamp).toLocaleString();
 
 const handleClick = () => {
-    if (!props.canNavigate || !props.navigateTo) return;
+    if (props.disable || !props.canNavigate || !props.navigateTo) return;
+
     if (typeof props.navigateTo === "function") {
         props.navigateTo();
     } else {
@@ -48,15 +50,17 @@ const handleClick = () => {
 <template>
     <div
         data-test="display-card"
-        class="w-full cursor-pointer divide-y divide-zinc-100 border-y border-zinc-300 bg-white px-2 py-1 sm:rounded-md sm:border"
-        :class="{ 'cursor-pointer': canNavigate && navigateTo }"
+        class="w-full divide-y divide-zinc-100 border-y border-zinc-300 bg-white px-2 py-1 transition-colors sm:rounded-md sm:border"
+        :class="[
+            {
+                'cursor-pointer': !disable,
+                'bg-slate-304 select-none divide-zinc-200 border-gray-300 bg-opacity-20': disable,
+            },
+        ]"
         @click="handleClick"
     >
         <!-- Header: Title and top badges -->
-        <div
-            v-if="title || isLocalChange"
-            class="relative flex cursor-pointer items-center justify-between py-1"
-        >
+        <div v-if="title || isLocalChange" class="relative flex items-center justify-between py-1">
             <div
                 data-test="card-title"
                 class="w-full"
@@ -86,7 +90,6 @@ const handleClick = () => {
                 <slot name="topRightContent" />
             </div>
 
-            <!-- Top badges slot (for language badges, etc.) -->
             <div class="flex items-center justify-end">
                 <div v-if="!isSmallScreen && $slots.topBadges" class="flex gap-1">
                     <LBadge v-if="isLocalChange" variant="warning" class="flex whitespace-nowrap">

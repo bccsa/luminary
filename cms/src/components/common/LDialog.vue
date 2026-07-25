@@ -46,6 +46,12 @@ withDefaults(defineProps<Props>(), {
             </div>
         </template>
 
+        <template #middleHeading>
+            <div v-if="$slots.middleHeading">
+                <slot name="middleHeading" />
+            </div>
+        </template>
+
         <template #rightHeading>
             <div v-if="$slots.rightHeading">
                 <slot name="rightHeading" />
