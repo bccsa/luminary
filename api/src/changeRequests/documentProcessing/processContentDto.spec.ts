@@ -336,7 +336,7 @@ describe("processContentDto", () => {
         expect(dbDocFr.docs[0].expiryDate).toBe(1900000000000);
     });
 
-    it("does not propagate dates to a sibling whose language the acting user cannot translate", async () => {
+    it("rejects the whole save when the acting user cannot translate a sibling's language, instead of partially propagating", async () => {
         await db.upsertDoc({
             _id: "post-link-dates-permission-test",
             type: "post",
@@ -364,15 +364,26 @@ describe("processContentDto", () => {
         changeRequestEn.doc.language = "lang-eng";
         changeRequestEn.doc.publishDate = 1800000000000;
         changeRequestEn.doc.expiryDate = 1900000000000;
-        await processChangeRequest("test-user", changeRequestEn, ["group-public-editors"], db);
+
+        // The permission gate lives in validateChangeRequestAccess (runs before any processing),
+        // so the whole request is rejected up front rather than processContentDto silently
+        // skipping the French sibling after already doing the rest of the save.
+        await expect(
+            processChangeRequest("test-user", changeRequestEn, ["group-public-editors"], db),
+        ).rejects.toThrow(
+            "No 'Translate' access to all translations required to save content with linked dates",
+        );
 
         const dbDocFr = await db.getDoc("content-fr-link-dates-permission-test");
+        const dbDocEn = await db.getDoc("content-en-link-dates-permission-test");
 
         // Restore for other tests
         await db.upsertDoc(french.docs[0]);
 
         expect(dbDocFr.docs[0].publishDate).toBe(1704114000000);
         expect(dbDocFr.docs[0].expiryDate).toBe(1704114000000);
+        // The English doc itself must not have been saved either — it's an all-or-nothing gate.
+        expect(dbDocEn.docs.length).toBe(0);
     });
 
     it("does not propagate dates to sibling translations when date-linking is disabled", async () => {
