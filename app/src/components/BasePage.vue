@@ -29,7 +29,7 @@ const showChrome = useHydrated();
 // so the first paint stays still (the account/offline banners render in main flow
 // and would otherwise shove content down right as the page settles — a layout
 // shift that hurts CLS/SEO). Native renders them immediately (behaviour unchanged).
-const WEB_NOTIFICATION_DELAY_MS = 3000; // ponytail: tune if CLS budget changes
+const WEB_NOTIFICATION_DELAY_MS = 3000; // tune if CLS budget changes
 const notificationsReady = ref(!isWeb);
 
 defineProps<{

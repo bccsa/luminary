@@ -1,16 +1,15 @@
 import type { ContentDto, MangoSelector } from "luminary-shared";
 
 /**
- * Phase 2 dependency-key vocabulary — the SINGLE SOURCE OF TRUTH, derived
- * GENERICALLY (no hardcoded per-page keys). Imported by BOTH:
- *  - the build (capture side): `facetsFromSelector` turns a query's selector into
- *    the keys the rendered page depends on, and
- *  - the deploy-repo watcher: `facetsFromDoc` turns a changed doc into the keys it
- *    touches.
- * Because both sides map the SAME whitelisted fields the SAME way, a page goes
- * stale exactly when a changed doc could enter/leave/alter its result set — with
- * no per-page wiring. Rearranging layout or adding a query needs zero key changes;
- * only a new *data facet* touches `FACET_FIELDS` below.
+ * Phase 2 dependency-key vocabulary — derived GENERICALLY (no hardcoded per-page
+ * keys). The build (capture side) uses `facetsFromSelector` to turn a query's
+ * selector into the keys the rendered page depends on; `facetsFromDoc` turns a
+ * changed doc into the keys it touches. The deploy repo carries its OWN copy of
+ * this module for the watcher side — keep the two in sync when you change the
+ * vocabulary. Because both sides map the SAME whitelisted fields the SAME way, a
+ * page goes stale exactly when a changed doc could enter/leave/alter its result
+ * set — with no per-page wiring. Rearranging layout or adding a query needs zero
+ * key changes; only a new *data facet* touches `FACET_FIELDS` below.
  *
  * Keep this module PURE: no Vue/Dexie/DOM/import.meta — safe in Node + browser.
  *
@@ -22,10 +21,13 @@ import type { ContentDto, MangoSelector } from "luminary-shared";
  *    fields a query filters on / a doc carries.
  *
  * Time/published/language-priority fields (publishDate/expiryDate/status/
- * availableTranslations) are deliberately EXCLUDED — scheduled-publish and the
- * translations cascade are handled by a periodic full rebuild, not change events.
- * `parentTagType`/`parentType`/`parentPostType` are excluded to bound fan-out
- * (`parentId`/`parentTags` already pin membership).
+ * availableTranslations) are deliberately EXCLUDED. publishDate/expiryDate
+ * threshold crossings are fed through the watcher by its wall-clock poll (the
+ * deploy repo's copy). status and availableTranslations change only with a
+ * document mutation, whose unconditional `doc:<parentId>` key already invalidates
+ * every page that rendered the document. `parentTagType`/`parentType`/
+ * `parentPostType` are excluded to bound fan-out (`parentId`/`parentTags` already
+ * pin membership).
  */
 
 export type DependencyKey = string;
@@ -44,8 +46,8 @@ export type DocLike = Pick<
 >;
 
 /**
- * Keys a single content doc participates in (watcher side; also `keysForChangedDoc`).
- * `lang` defaults to the doc's own language.
+ * Keys a single content doc participates in (watcher side). `lang` defaults to the
+ * doc's own language.
  */
 export function facetsFromDoc(doc: DocLike, lang: string = doc.language ?? ""): DependencyKey[] {
     const keys = new Set<DependencyKey>();
@@ -96,14 +98,4 @@ function valuesOf(constraint: unknown): unknown[] {
         if (Array.isArray(em.$in)) return em.$in;
     }
     return []; // $ne / $exists / ranges → no facet
-}
-
-// --- Deployment-side ISR helpers ---
-
-/** Keys a changed doc touches (watcher). Alias of {@link facetsFromDoc}. */
-export const keysForChangedDoc = (doc: DocLike): DependencyKey[] => facetsFromDoc(doc);
-
-/** Re-categorization: union of the previous and next doc state (old∪new). */
-export function keysForRecategorization(prev: DocLike, next: DocLike): DependencyKey[] {
-    return [...new Set([...facetsFromDoc(prev), ...facetsFromDoc(next)])];
 }
