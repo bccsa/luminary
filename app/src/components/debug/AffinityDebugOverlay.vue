@@ -1,16 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
-import {
-    decay,
-    DocType,
-    queryLocal,
-    TagType,
-    affinityConfig,
-    type BaseDocumentDto,
-    type Uuid,
-} from "luminary-shared";
+import { queryLocal, TagType, DocType, type BaseDocumentDto, type Uuid } from "luminary-shared";
 import { useContentQuery } from "@/composables/useContentQuery";
+import { useAffinityDebugData, getPreviewTier } from "@/composables/useAffinityDebugData";
 import { affinityProfile } from "@/recommendation/affinityStore";
 import { filterTopicTagIds } from "@/recommendation/topicTags";
 
@@ -27,37 +20,7 @@ onMounted(() => {
     });
 });
 
-const decayedEntries = computed(() => {
-    const decayed = decay(affinityProfile.value, now.value, affinityConfig.value);
-    return Object.entries(decayed.affinity).sort((a, b) => b[1] - a[1]);
-});
-
-const tagIds = computed(() => decayedEntries.value.map(([tagId]) => tagId));
-
-const tagContent = useContentQuery(
-    () =>
-        tagIds.value.length
-            ? [{ parentId: { $in: tagIds.value } }, { parentType: DocType.Tag }]
-            : [{ parentId: { $in: [] } }],
-    { includeScheduled: false },
-);
-
-const tagTitleMap = computed(() => {
-    const map = new Map<string, string>();
-    for (const doc of tagContent.value) {
-        if (doc.parentId && doc.title) {
-            map.set(doc.parentId, doc.title);
-        }
-    }
-    return map;
-});
-
-function getPreviewTier(rank: number): string {
-    if (rank >= 1 && rank <= 3) return "Core";
-    if (rank >= 4 && rank <= 5) return "Strong";
-    if (rank >= 6 && rank <= 10) return "Established";
-    return "—";
-}
+const { decayedEntries, tagTitleMap } = useAffinityDebugData(affinityProfile, now);
 
 const route = useRoute();
 const currentSlug = computed(() => {
@@ -99,7 +62,6 @@ watch(
     async ([tagIds]) => {
         const result = await filterTopicTagIds(tagIds);
         realTopicFilterResult.value = result;
-        console.log("[AffinityDebug] filterTopicTagIds input:", tagIds, "output:", result);
 
         const newMap = new Map<Uuid, BaseDocumentDto[]>();
         for (const id of unresolvedTagIds.value) {

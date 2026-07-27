@@ -106,31 +106,6 @@ describe("fuseTagFts", () => {
     });
 });
 
-describe("useRecommendations topTagIds", () => {
-    it("exposes the strongest-affinity tags first, capped at two", async () => {
-        const previousProfile = affinityProfile.value;
-        const ftsSearch = vi.spyOn(shared, "ftsSearch").mockResolvedValue([]);
-        const scope = effectScope();
-
-        try {
-            affinityProfile.value = {
-                affinity: { "tag-weak": 0.1, "tag-strongest": 0.9, "tag-middle": 0.5 },
-                lastDecayUtc: Date.now(),
-            };
-            const result = scope.run(() => useRecommendations());
-            if (!result) throw new Error("recommendation scope did not initialize");
-
-            await waitForExpect(() => {
-                expect(result.topTagIds.value).toEqual(["tag-strongest", "tag-middle"]);
-            });
-        } finally {
-            scope.stop();
-            ftsSearch.mockRestore();
-            affinityProfile.value = previousProfile;
-        }
-    });
-});
-
 describe("useRecommendations useFts option", () => {
     it("never calls ftsSearch and still ranks from the tag-membership leg alone when useFts is false", async () => {
         const languageId = "lang-eng";

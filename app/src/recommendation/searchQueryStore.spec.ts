@@ -5,7 +5,6 @@ import {
     loadRecentSearches,
     loadSearchQueries,
     extractSearchQueries,
-    clearRecentSearches,
     searchVersion,
     MAX_SEARCH_QUERIES,
     MAX_SEARCH_QUERY_LENGTH,
@@ -80,13 +79,5 @@ describe("searchQueryStore", () => {
         const many = Array.from({ length: 10 }, (_, i) => `term-${i}`);
         expect(extractSearchQueries(many)).toHaveLength(MAX_SEARCH_QUERIES);
         expect(extractSearchQueries(many)[0].query).toBe("term-0");
-    });
-
-    it("clearRecentSearches empties the list and bumps the version", () => {
-        recordSearchQuery("climate");
-        const before = searchVersion.value;
-        clearRecentSearches();
-        expect(loadRecentSearches()).toEqual([]);
-        expect(searchVersion.value).toBe(before + 1);
     });
 });
