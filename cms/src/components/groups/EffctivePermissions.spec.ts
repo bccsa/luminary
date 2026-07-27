@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { AclPermission, DocType, type GroupDto } from "luminary-shared";
-import { buildEffectivePermissionsReport } from "./GroupPermissionsReport";
+import { buildEffectivePermissionsReport } from "./EffectivePermissions";
 
 describe("buildEffectivePermissionsReport", () => {
     it("builds a report with direct and inherited permissions", () => {

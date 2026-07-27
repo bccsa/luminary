@@ -93,9 +93,6 @@ const isMobileScreen = breakpoints.smaller("sm");
                             <slot name="headingExtension" />
                         </div>
                     </div>
-                    <div v-if="$slots.middleHeading">
-                        <slot name="middleHeading" />
-                    </div>
                     <div class="flex">
                         <div v-if="$slots.rightHeading">
                             <slot name="rightHeading" />
@@ -108,7 +105,6 @@ const isMobileScreen = breakpoints.smaller("sm");
                             <LButton
                                 @click="tryClose()"
                                 :icon="XMarkIcon"
-                                ff
                                 variant="secondary"
                                 mainDynamicCss="px-0.5 py-0.5 rounded-xl"
                                 iconClass="h-5 w-5"

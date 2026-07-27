@@ -23,8 +23,10 @@ import LDialog from "../common/LDialog.vue";
 import { ArrowUturnLeftIcon } from "@heroicons/vue/24/solid";
 import { PlusIcon, UserGroupIcon } from "@heroicons/vue/24/outline";
 import LCombobox from "../forms/LCombobox.vue";
-import GroupPermissionsReport from "./GroupPermissionsReport.vue";
-import { buildEffectivePermissionsReport } from "@/components/groups/GroupPermissionsReport";
+import GroupPermissionsReport from "./EffectivePermissions.vue";
+import { buildEffectivePermissionsReport } from "@/components/groups/EffectivePermissions";
+import { breakpointsTailwind, useBreakpoints } from "@vueuse/core";
+import LDropdown from "../common/LDropdown.vue";
 
 const { addNotification } = useNotificationStore();
 
@@ -38,6 +40,8 @@ const group = defineModel<GroupDto>("group", { required: true });
 const { editable, isEdited, revert, save, duplicate, remove } = props.groupQuery;
 const showDeleteConfirm = ref(false);
 const isDeleting = ref(false);
+const breakpoints = useBreakpoints(breakpointsTailwind);
+const isMobileScreen = breakpoints.smaller("sm");
 
 const activeAclEntries = computed(() => {
     if (!group.value._id) return [];
@@ -211,6 +215,17 @@ const handleFocusOut = () => {
     }, 200);
 };
 
+const isSearchVisible = ref(false);
+const searchInputRef = ref<InstanceType<typeof LInput> | null>(null);
+
+const toggleSearch = () => {
+    isSearchVisible.value = true;
+    nextTick(() => {
+        searchInputRef.value?.focus();
+    });
+};
+const open = ref(false);
+
 const accessorSearch = ref("");
 
 const filteredDirectPermissions = computed(() => {
@@ -337,9 +352,9 @@ const duplicateGroup = async () => {
     >
         <template #headingExtension>
             <div
-                v-if="!isEditingGroupName"
+                v-if="(!isSearchVisible || !isMobileScreen) && !isEditingGroupName"
                 :class="[
-                    'mr-1.5 flex items-center gap-2 rounded',
+                    'mr-1.5 flex min-w-0 items-center gap-2 rounded',
                     {
                         'bg-yellow-200 hover:bg-yellow-300 active:bg-yellow-400':
                             hasChangedGroupName,
@@ -349,14 +364,15 @@ const duplicateGroup = async () => {
                     },
                 ]"
                 @click="startEditingGroupName"
-                :title="'Edit group name'"
                 data-test="groupName"
             >
-                <span class="mr-4 flex">
-                    <span class="mr-1 whitespace-nowrap">Accessors for</span>
+                <span class="flex min-w-0">
+                    <span class="mr-1 hidden whitespace-nowrap opacity-60 sm:inline"
+                        >Accessors for</span
+                    >
                     <h2
                         :class="[
-                            'whitespace-nowrap font-semibold',
+                            'text-sm font-semibold sm:text-base',
                             { 'text-zinc-400': disabled },
                             { 'text-zinc-800': !disabled },
                         ]"
@@ -366,44 +382,69 @@ const duplicateGroup = async () => {
                 </span>
             </div>
             <LInput
-                v-else
+                v-else-if="isEditingGroupName"
                 size="sm"
                 ref="groupNameInput"
                 name="groupName"
                 v-model="group.name"
                 @blur="finishEditingGroupName"
                 @keyup.enter="finishEditingGroupName"
-                @keydown.enter.stop
-                @keydown.space.stop
-                @click.stop
-                class="mr-4 grow"
-                data-test="groupNameInput"
+                class="-mt-5 mr-4 h-1 grow"
             />
         </template>
-        <template #middleHeading>
-            <div>
-                <LInput
-                    name="filter"
-                    type="text"
-                    v-model="accessorSearch"
-                    :icon="MagnifyingGlassIcon"
-                    class="h-full min-w-0 flex-grow"
-                    :full-height="true"
-                    placeholder="Search accessors..."
-                    @click.stop
-                />
-            </div>
-        </template>
+
         <template #rightHeading>
-            <div class="flex">
-                <div class="flex items-center">
+            <div class="flex gap-2">
+                <LDropdown
+                    v-if="isMobileScreen"
+                    v-model:show="open"
+                    placement="bottom-center"
+                    width="auto"
+                >
+                    <template #trigger>
+                        <LBadge
+                            v-if="isDirty"
+                            variant="warning"
+                            withIcon
+                            class="!px-1 !py-1 !pl-2.5"
+                        />
+                    </template>
+                    <LBadge v-if="isDirty" variant="warning" class="'h-fit'">
+                        <span>Unsaved changes</span>
+                    </LBadge>
+                </LDropdown>
+                <div v-else>
                     <LBadge v-if="isDirty" variant="warning" withIcon class="h-fit">
-                        Unsaved changes
+                        <span>Unsaved changes</span>
                     </LBadge>
                 </div>
-                <div v-if="!isComboboxOpen && !disabled" class="ml-3">
+
+                <div>
+                    <LInput
+                        v-if="isSearchVisible"
+                        ref="searchInputRef"
+                        name="filter"
+                        type="text"
+                        v-model="accessorSearch"
+                        :icon="MagnifyingGlassIcon"
+                        class="-mt-2 h-1 w-full min-w-[140px] sm:min-w-[200px]"
+                        placeholder="Search..."
+                        @click.stop
+                        @blur="if (!accessorSearch) isSearchVisible = false;"
+                    />
                     <LButton
-                        class="relative"
+                        v-else
+                        variant="secondary"
+                        :icon="MagnifyingGlassIcon"
+                        title="Search accessors"
+                        @click="toggleSearch"
+                        mainDynamicCss="px-0.5 py-0.5 rounded-xl"
+                        iconClass="h-5 w-5"
+                    />
+                </div>
+
+                <div v-if="!isComboboxOpen && !disabled">
+                    <LButton
                         variant="secondary"
                         data-test="addGroupButton"
                         :icon="PlusIcon"

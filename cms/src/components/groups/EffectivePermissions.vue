@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { capitaliseFirstLetter, getTheFirstLetter } from "@/util/string";
 import DisplayCard from "@/components/common/DisplayCard.vue";
-import type { AccessorReport } from "./GroupPermissionsReport";
+import type { AccessorReport } from "./EffectivePermissions";
+import { isMobileScreen } from "@/globalConfig";
 
 defineProps<{
     entry: AccessorReport;
@@ -17,7 +18,12 @@ defineProps<{
     >
         <template #content>
             <div class="flex items-center justify-between">
-                <div class="flex-shrink-0 whitespace-nowrap pl-3 text-sm text-zinc-500">
+                <div
+                    :class="[
+                        'flex-shrink-0 whitespace-nowrap pl-3 text-sm text-zinc-500',
+                        { 'text-xs': isMobileScreen },
+                    ]"
+                >
                     {{ entry.accessorGroupName }}
                 </div>
                 <div v-if="entry.inheritedViaGroupName" class="mr-2 text-xs italic text-zinc-400">
