@@ -15,10 +15,55 @@ const firstBanner = computed(() => {
 
 <template>
     <div aria-live="assertive">
-        <NotificationBanner
-            v-if="firstBanner"
-            :key="firstBanner.id"
-            :notification="firstBanner"
-        />
+        <Transition
+            name="banner"
+            mode="out-in"
+        >
+            <div
+                v-if="firstBanner"
+                :key="firstBanner.id"
+                class="banner-grid"
+            >
+                <div class="banner-grid-content">
+                    <NotificationBanner :notification="firstBanner" />
+                </div>
+            </div>
+        </Transition>
     </div>
 </template>
+
+<style scoped>
+.banner-grid {
+    display: grid;
+    grid-template-rows: 1fr;
+    overflow: hidden;
+}
+
+.banner-grid-content {
+    min-height: 0;
+}
+
+.banner-enter-from,
+.banner-leave-to {
+    grid-template-rows: 0fr;
+    opacity: 0;
+}
+
+.banner-enter-to,
+.banner-leave-from {
+    grid-template-rows: 1fr;
+    opacity: 1;
+}
+
+.banner-enter-active {
+    transition:
+        grid-template-rows 250ms ease-out,
+        opacity 250ms ease-out;
+}
+
+.banner-leave-active {
+    transition:
+        grid-template-rows 250ms ease-in,
+        opacity 250ms ease-in;
+}
+</style>
