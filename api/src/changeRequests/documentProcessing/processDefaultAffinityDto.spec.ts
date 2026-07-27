@@ -102,6 +102,7 @@ describe("processDefaultAffinityDto", () => {
                     readCompletion: 0.3,
                     highlight: 0.25,
                     highlightRemoved: -0.15,
+                    searchClick: 0.0005,
                     impression: -0.01,
                 },
             };

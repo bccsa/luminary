@@ -19,13 +19,54 @@ import { filterTopicTagIds } from "@/recommendation/topicTags";
  */
 
 const STORAGE_KEY = "affinityProfile";
+/**
+ * Schema/migration marker for the stored profile. Bumped when the score scale changes;
+ * `load()` migrates a profile stored under an older scale to the current one.
+ *   - v2: the default event weights were rescaled 100x finer (e.g. `completion` 0.35 →
+ *     0.0035). Scores accumulated under the old weights are divided by 100 so they stay
+ *     consistent with new events; without this, new tiny increments would be negligible
+ *     noise on top of old 0–1 scores and the profile would be frozen.
+ */
+export const PROFILE_VERSION_KEY = "affinityProfile.v";
+export const CURRENT_PROFILE_VERSION = "2";
+/** Scores from pre-v2 profiles are multiplied by this to land on the v2 scale. */
+export const V2_MIGRATION_FACTOR = 0.01;
 const empty = (): AffinityProfile => ({ affinity: {}, lastDecayUtc: undefined });
+
+/**
+ * Migrate a stored profile to the v2 (100x finer) score scale. Pure so it can be tested
+ * without re-importing the module: every score is multiplied by {@link V2_MIGRATION_FACTOR};
+ * non-numeric entries are normalized to 0 and `lastDecayUtc` is preserved.
+ */
+export function migrateProfileToV2(profile: AffinityProfile): AffinityProfile {
+    return {
+        affinity: Object.fromEntries(
+            Object.entries(profile.affinity).map(([tag, score]) => [
+                tag,
+                typeof score === "number" ? score * V2_MIGRATION_FACTOR : 0,
+            ]),
+        ),
+        lastDecayUtc: profile.lastDecayUtc,
+    };
+}
 
 function load(): AffinityProfile {
     try {
         const raw = localStorage.getItem(STORAGE_KEY);
         const parsed = raw ? JSON.parse(raw) : undefined;
-        if (parsed && typeof parsed.affinity === "object") return parsed as AffinityProfile;
+        if (parsed && typeof parsed.affinity === "object") {
+            const profile = parsed as AffinityProfile;
+            // Migrate a pre-v2 profile to the current (100x finer) score scale. Idempotent:
+            // once the version marker is set this is a no-op, and an empty profile migrates
+            // to itself. A corrupt/missing marker on a real profile is treated as v1.
+            if (localStorage.getItem(PROFILE_VERSION_KEY) !== CURRENT_PROFILE_VERSION) {
+                const migrated = migrateProfileToV2(profile);
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
+                localStorage.setItem(PROFILE_VERSION_KEY, CURRENT_PROFILE_VERSION);
+                return migrated;
+            }
+            return profile;
+        }
     } catch {
         // ignore corrupt storage
     }
@@ -37,6 +78,9 @@ export const affinityProfile = ref<AffinityProfile>(load());
 
 function persist() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(affinityProfile.value));
+    // Stamp the migration marker on every write so a profile created under the current
+    // code (e.g. the CMS-baseline seed below) is never re-migrated on the next load.
+    localStorage.setItem(PROFILE_VERSION_KEY, CURRENT_PROFILE_VERSION);
 }
 
 // Apply the CMS baseline once, only if this browser has never stored an affinity
