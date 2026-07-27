@@ -134,7 +134,7 @@ describe("EditGroup", () => {
                     },
                     LInput: {
                         template:
-                            '<input ref="groupNameInput" v-bind="$attrs" @blur="$emit(\'blur\')" @keyup.enter="$emit(\'keyup\', $event)" data-test="groupNameInput" />',
+                            '<input ref="groupNameInput" v-bind="$attrs" @blur="$emit(\'blur\')" @keyup.enter="$emit(\'keyup\', $event)"/>',
                         methods: {
                             focus: vi.fn(),
                         },
