@@ -33,6 +33,7 @@ import {
     isDarkTheme,
     theme,
     cmsLanguages,
+    cmsDefaultLanguage,
     queryParams,
     addToMediaQueue,
     cmsUrl,
@@ -448,7 +449,11 @@ const text = computed(() => content.value?.text ?? "");
 // and so it never reaches for `db` (absent during the Node prerender).
 const formatPublishDate = (ms: number) =>
     DateTime.fromMillis(ms)
-        .setLocale(typeof navigator !== "undefined" ? navigator.language || "en-US" : "en-US")
+        .setLocale(
+            (typeof navigator !== "undefined" && navigator.language) ||
+                cmsDefaultLanguage.value?.languageCode ||
+                "en-US",
+        )
         .toLocaleString(DateTime.DATETIME_MED);
 
 // Select the first category in the content by category list on load

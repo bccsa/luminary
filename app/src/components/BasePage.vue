@@ -10,7 +10,6 @@ import type { ContentDto } from "luminary-shared";
 import { ChevronLeftIcon } from "@heroicons/vue/24/outline";
 import { useRouter } from "vue-router";
 import { getRouteHistory } from "@/router";
-import { useHydrated } from "@/composables/useHydrated";
 
 const showNotifications = !queryParams.has("supress-notifications");
 
@@ -19,11 +18,10 @@ const showNotifications = !queryParams.has("supress-notifications");
 // during the prerender, so it matches the first client render), and its
 // interactive/Dexie-backed overlays mount client-side (see DesktopSidebar). What
 // still cannot exist during the Node prerender is the per-user notification chrome
-// (synced Dexie data) + the toast Teleport — those stay gated to AFTER mount so
-// the prerendered HTML and the first client render match (clean hydration). On
-// native showChrome is always true → behaviour unchanged.
+// (synced Dexie data) + the toast Teleport — those stay gated behind
+// `notificationsReady` so the prerendered HTML and the first client render match
+// (clean hydration). On native, `notificationsReady` starts true → unchanged.
 const isWeb = import.meta.env.VITE_BUILD_TARGET === "web";
-const showChrome = useHydrated();
 
 // On the web/SSG tier, hold the notifications back a few seconds after hydration
 // so the first paint stays still (the account/offline banners render in main flow
