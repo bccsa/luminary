@@ -11,7 +11,7 @@ import multipart from "@fastify/multipart";
 import { AllExceptionsFilter } from "./exceptions/allExceptions.filter";
 import { S3Service } from "./s3/s3.service";
 import { warmIndexNameRegistry } from "./db/indexNameRegistry";
-import { reconcileLanguageTranslationSeeds } from "./db/languageTranslationSeedReconciliation";
+import { reconcileLanguageTranslationSeeds } from "./db/languageSeedReconciliation";
 
 export async function bootstrap() {
     const app = await NestFactory.create<NestFastifyApplication>(
@@ -55,7 +55,6 @@ export async function bootstrap() {
         // fresh-DB baseline and v18 backfills that index. Safe in seed mode: on a fresh DB only
         // v18 runs, which is DB-only (no S3, no PermissionSystem needed).
         await upgradeDbSchema(dbService);
-        await reconcileLanguageTranslationSeeds(dbService);
         console.log("Database seeded with default data.");
         process.exit(0);
     }
