@@ -16,6 +16,9 @@ jest.mock("./permissions/permissions.service", () => ({
 jest.mock("./db/db.upgrade", () => ({
     upgradeDbSchema: jest.fn().mockResolvedValue(undefined),
 }));
+jest.mock("./db/languageSeedReconciliation", () => ({
+    reconcileLanguageTranslationSeeds: jest.fn().mockResolvedValue(undefined),
+}));
 jest.mock("@fastify/compress", () => ({ __esModule: true, default: jest.fn() }));
 jest.mock("@fastify/multipart", () => ({ __esModule: true, default: jest.fn() }));
 
@@ -23,6 +26,7 @@ import { NestFactory } from "@nestjs/core";
 import { upsertDesignDocs, upsertSeedingDocs } from "./db/db.seedingFunctions";
 import { PermissionSystem } from "./permissions/permissions.service";
 import { upgradeDbSchema } from "./db/db.upgrade";
+import { reconcileLanguageTranslationSeeds } from "./db/languageSeedReconciliation";
 import { bootstrap } from "./main";
 
 describe("bootstrap", () => {
@@ -67,21 +71,32 @@ describe("bootstrap", () => {
         expect(upsertDesignDocs).toHaveBeenCalled();
         expect(PermissionSystem.init).toHaveBeenCalled();
         expect(upgradeDbSchema).toHaveBeenCalled();
+        expect(reconcileLanguageTranslationSeeds).toHaveBeenCalled();
         expect(mockApp.enableCors).toHaveBeenCalled();
         expect(mockApp.listen).toHaveBeenCalledWith("3000", "0.0.0.0");
     });
 
     it("should seed and exit when 'seed' argument is provided", async () => {
         process.argv = ["node", "main.js", "seed"];
-        const mockExit = jest.spyOn(process, "exit").mockImplementation((() => {}) as any);
+        // process.exit never returns in reality, so the mock must actually halt bootstrap() here
+        // too — otherwise this test can't distinguish the seed branch from execution falling
+        // through into the rest of bootstrap().
+        const mockExit = jest.spyOn(process, "exit").mockImplementation(() => {
+            throw new Error("process.exit called");
+        });
         const consoleSpy = jest.spyOn(console, "log").mockImplementation();
 
-        await bootstrap();
+        await expect(bootstrap()).rejects.toThrow("process.exit called");
 
         expect(upsertSeedingDocs).toHaveBeenCalled();
         // The schema upgrade chain must run over the freshly-seeded data before exiting, so a
         // fresh DB is stamped and its User/Redirect docs get the server-side fts backfill (v18).
         expect(upgradeDbSchema).toHaveBeenCalled();
+        // Seeding upserts only the seeded language docs (lang-*) with their exact seed-file
+        // translations, so reconciling those here would be a no-op. Reconcile also backfills/prunes
+        // custom (non-seeded) languages, but that runs on the next normal bootstrap() (main.ts:70),
+        // which is good enough — so the seed pass intentionally skips it. See the other test.
+        expect(reconcileLanguageTranslationSeeds).not.toHaveBeenCalled();
         expect(mockExit).toHaveBeenCalledWith(0);
         expect(consoleSpy).toHaveBeenCalledWith("Database seeded with default data.");
 
