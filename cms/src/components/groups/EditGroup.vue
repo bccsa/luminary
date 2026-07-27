@@ -233,7 +233,7 @@ const filteredInheritedPermissions = computed(() => {
         );
     }
 
-    return result;
+    return result.sort((a, b) => a.accessorGroupName.localeCompare(b.accessorGroupName));
 });
 
 const handleSelect = (option: { value: string }) => {
@@ -333,6 +333,7 @@ const duplicateGroup = async () => {
         :primaryButtonDisabled="!hasEditPermission || !isConnected || !isDirty || isEmpty"
         @close="emit('close')"
         stickToEdges
+        largeModal
     >
         <template #headingExtension>
             <div
@@ -351,11 +352,11 @@ const duplicateGroup = async () => {
                 :title="'Edit group name'"
                 data-test="groupName"
             >
-                <span class="flex">
-                    <span class="mr-1">Accessors for</span>
+                <span class="mr-4 flex">
+                    <span class="mr-1 whitespace-nowrap">Accessors for</span>
                     <h2
                         :class="[
-                            'font-semibold',
+                            'whitespace-nowrap font-semibold',
                             { 'text-zinc-400': disabled },
                             { 'text-zinc-800': !disabled },
                         ]"

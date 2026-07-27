@@ -69,12 +69,12 @@ const isMobileScreen = breakpoints.smaller("sm");
                 ref="modalRef"
                 data-test="modal-content"
                 :class="[
-                    'relative z-50 flex max-h-[100dvh] flex-col rounded-lg bg-white/90 p-5 shadow-xl focus:outline-none',
+                    'relative z-50 flex flex-col rounded-lg bg-white/90 p-5 shadow-xl focus:outline-none',
                     isMobileScreen && stickToEdges
-                        ? 'w-[100vw] max-w-none rounded-none'
+                        ? 'h-[100dvh] w-[100vw] max-w-none rounded-none'
                         : largeModal
-                          ? 'w-fit max-w-[100%]'
-                          : 'w-full max-w-md',
+                          ? 'h-[90dvh] w-full max-w-5xl lg:h-[80dvh]'
+                          : 'max-h-[90dvh] w-full max-w-md',
                 ]"
             >
                 <div
@@ -108,6 +108,7 @@ const isMobileScreen = breakpoints.smaller("sm");
                             <LButton
                                 @click="tryClose()"
                                 :icon="XMarkIcon"
+                                ff
                                 variant="secondary"
                                 mainDynamicCss="px-0.5 py-0.5 rounded-xl"
                                 iconClass="h-5 w-5"
