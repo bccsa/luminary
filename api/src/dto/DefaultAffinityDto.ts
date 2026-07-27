@@ -24,6 +24,7 @@ export type AffinityConfigDto = {
         readCompletion: number;
         highlight: number;
         highlightRemoved: number;
+        searchClick: number;
         impression: number;
     };
 };

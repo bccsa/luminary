@@ -12,7 +12,7 @@ import { useContentQuery } from "@/composables/useContentQuery";
 import { affinityProfile } from "@/recommendation/affinityStore";
 import { loadHighlightQueriesFor } from "@/recommendation/highlightStore";
 import { sessionNow } from "@/util/sessionNow";
-import { fuseTagFts, rank } from "@/composables/useRecommendations";
+import { fuseTagFts, rank, affinityScoreScale } from "@/composables/useRecommendations";
 
 /** The title/summary query is the primary retrieval signal; the reader's own saved
  *  highlights on this article are a stronger, more specific signal than the global
@@ -118,6 +118,9 @@ export function useMoreLikeThis(
         );
         return rank(tagCandidates, ftsCandidates, decayedAffinity.value, {
             topicTagIds: topicTagIdSet.value,
+            // Map raw affinity scores back to the nominal scale the ranking was calibrated for,
+            // so the viewer's affinity still tilts ordering under a rescaled config.
+            scoreScale: affinityScoreScale(affinityConfig.value.eventWeight.completion),
             limit,
         });
     });

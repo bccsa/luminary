@@ -19,6 +19,7 @@ import {
     loadHighlightQueries,
     type HighlightQuery,
 } from "@/recommendation/highlightStore";
+import { searchVersion, loadSearchQueries, type SearchQuery } from "@/recommendation/searchQueryStore";
 import { getSeenArticleIds, seenVersion } from "@/recommendation/seenStore";
 import { appSyncedDisplayLanguageIdsAsRef } from "@/globalConfig";
 import { sessionNow } from "@/util/sessionNow";
@@ -30,6 +31,30 @@ const MAX_FTS_TAGS = 4;
 /** Highlight text is a deliberate but supplementary discovery signal: its entire
  * contribution stays below a single strongest topic-title query. */
 const HIGHLIGHT_FTS_TOTAL_WEIGHT = 0.3;
+/** Submitted search queries are a parallel supplementary discovery signal — explicit intent
+ * the user typed into the search modal. Parity with highlights: supplementary, kept below one
+ * strongest topic-title query. */
+const SEARCH_FTS_TOTAL_WEIGHT = 0.3;
+/**
+ * The score scale the leg-weight constants below were calibrated against — i.e. the
+ * `eventWeight.completion` value the ranking was tuned for. Ranking inputs derived from raw
+ * affinity scores (richness, the tag-leg score) are normalized back to this nominal scale, so
+ * rescaling the config weights changes only per-event update granularity, not ranking balance.
+ * With the default config this is a no-op (`completion` already equals this anchor).
+ */
+const NOMINAL_COMPLETION_WEIGHT = 0.35;
+
+/**
+ * Map raw affinity scores back to the nominal scale the ranking constants were calibrated for,
+ * so a config weight rescale (which shrinks raw scores) leaves ranking balance invariant. No-op
+ * under the default config. Exported so `useMoreLikeThis` (which calls `rank` directly) applies
+ * the same normalization.
+ */
+export function affinityScoreScale(completionWeight: number): number {
+    return NOMINAL_COMPLETION_WEIGHT / completionWeight;
+}
+
+export { NOMINAL_COMPLETION_WEIGHT };
 /** Output cap on the fused feed. */
 const DEFAULT_LIMIT = 20;
 /** Candidate pool per leg. Must be >> DEFAULT_LIMIT: `useContentQuery` sorts by publishDate, so a
@@ -108,6 +133,12 @@ export function useRecommendations({
     // `$in` has set semantics. Keep its identity canonical so score-only reordering
     // does not rebuild the hybrid query or re-fetch its 1000-document candidate pool.
     const tagSet = computed(() => [...tags.value].sort());
+    // Score-scale normalization: map raw affinity scores back to the nominal scale the
+    // leg-weight constants were calibrated for, so rescaling the config weights only changes
+    // update granularity, not ranking balance. No-op under the default config.
+    const scoreScale = computed(() =>
+        affinityScoreScale(affinityConfig.value.eventWeight.completion),
+    );
     // 0 (cold: no real signal yet) .. 1 (well-earned affinity across the top tags) — used
     // to shift leg weight toward FTS early and toward tags once the profile has real
     // signal. Summed *score*, not tag count: a dozen barely-above-MIN_SCORE tags (e.g.
@@ -117,7 +148,10 @@ export function useRecommendations({
     // actual tag count (already capped at TOP_N_TAGS by topTagsFrom), not a fixed 12;
     // otherwise genuine high confidence on fewer tags is structurally capped at
     // (tag count)/12 of its true richness, undercounting the clearest signal we produce.
-    const richness = computed(() => computeRichness(decayedAffinity.value, tags.value));
+    // Multiplied by `scoreScale` so richness is measured on the nominal scale (see above).
+    const richness = computed(() =>
+        computeRichness(decayedAffinity.value, tags.value, scoreScale.value),
+    );
 
     const { output: content, isFetching: contentIsFetching } = useContentQueryWithState(
         // No tags yet → a provably-empty `$in: []` so HybridQuery short-circuits
@@ -191,8 +225,24 @@ export function useRecommendations({
             { immediate: true },
         );
 
+        // localStorage has no Vue reactivity either. Reload the bounded recent search queries
+        // on startup and whenever the search modal records a new submit (`searchVersion`), so
+        // what the user searches for feeds the FTS/serendipity leg alongside highlights.
+        const savedSearchQueries = ref<SearchQuery[]>([]);
+        let searchRunSeq = 0;
+        watch(
+            searchVersion,
+            () => {
+                const runSeq = ++searchRunSeq;
+                const queries = loadSearchQueries();
+                if (runSeq === searchRunSeq) savedSearchQueries.value = queries;
+            },
+            { immediate: true },
+        );
+
         // Search the strongest topics independently so each vocabulary gets its own trigram
-        // budget, then add a fixed, modest total highlight budget split across saved excerpts.
+        // budget, then add fixed, modest total highlight and search budgets split across the
+        // saved excerpts / recent queries — both kept below one strongest topic-title query.
         const ftsQueries = computed(() => {
             const topTagId = tags.value[0];
             const topAffinity = (topTagId && decayedAffinity.value[topTagId]) || 1;
@@ -205,11 +255,18 @@ export function useRecommendations({
             const highlightWeight = savedHighlightQueries.value.length
                 ? HIGHLIGHT_FTS_TOTAL_WEIGHT / savedHighlightQueries.value.length
                 : 0;
+            const searchWeight = savedSearchQueries.value.length
+                ? SEARCH_FTS_TOTAL_WEIGHT / savedSearchQueries.value.length
+                : 0;
             return [
                 ...tagQueries,
                 ...savedHighlightQueries.value.map(({ query }) => ({
                     query,
                     weight: highlightWeight,
+                })),
+                ...savedSearchQueries.value.map(({ query }) => ({
+                    query,
+                    weight: searchWeight,
                 })),
             ];
         });
@@ -304,6 +361,7 @@ export function useRecommendations({
             topicTagIds: topicTagIds.value,
             tagWeight: TAG_LEG_WEIGHT * (0.3 + 0.7 * richness.value),
             ftsWeight: FTS_LEG_WEIGHT * (1 - 0.5 * richness.value),
+            scoreScale: scoreScale.value,
             limit,
         });
     });
@@ -322,11 +380,15 @@ export function useRecommendations({
     };
 }
 
-/** Profile signal strength across its selected tags. Exported for unit testing. */
-export function computeRichness(decayedAffinity: AffinityMap, tags: Uuid[]): number {
+/**
+ * Profile signal strength across its selected tags. Exported for unit testing.
+ * `scoreScale` maps raw scores back to the nominal scale the leg weights were calibrated for
+ * (see {@link NOMINAL_COMPLETION_WEIGHT}); defaults to 1 so existing callers/tests are unchanged.
+ */
+export function computeRichness(decayedAffinity: AffinityMap, tags: Uuid[], scoreScale = 1): number {
     if (!tags.length) return 0;
     const total = tags.reduce((sum, id) => sum + (decayedAffinity[id] ?? 0), 0);
-    return Math.min(1, total / tags.length);
+    return Math.min(1, (total / tags.length) * scoreScale);
 }
 
 /** Affinity-weight independent FTS result lists into one ordered leg. Exported for unit testing. */
@@ -359,6 +421,10 @@ export type RankOptions = {
     tagWeight?: number;
     ftsWeight?: number;
     now?: number;
+    /** Multiplier mapping raw affinity scores back to the nominal scale the leg weights were
+     *  calibrated for (see {@link NOMINAL_COMPLETION_WEIGHT}). Defaults to 1 (no rescale) so
+     *  unit tests are unchanged. */
+    scoreScale?: number;
     /** Stop diversity work once this many selected documents are determined. */
     limit?: number;
 };
@@ -370,8 +436,10 @@ export type RankOptions = {
  * (scaled by `tagWeight`) rather than collapsed into a rank position — RRF would compress
  * a 45x true gap in affinity into a ~4x gap in rank weight over a 1000-doc pool. The FTS/
  * BM25 leg isn't on a comparable scale, so it still goes through Reciprocal Rank Fusion.
- * A mild recency prior breaks ties between equally-tagged docs, and an MMR-lite cap keeps
- * a single dominant tag from filling the whole list. Exported for unit testing.
+ * `scoreScale` maps raw affinity scores back to that nominal 0-1 scale before scoring, so a
+ * config weight rescale (which shrinks raw scores) leaves ranking balance invariant. A mild
+ * recency prior breaks ties between equally-tagged docs, and an MMR-lite cap keeps a single
+ * dominant tag from filling the whole list. Exported for unit testing.
  */
 export function rank(
     tagCandidates: ContentDto[],
@@ -384,6 +452,7 @@ export function rank(
         tagWeight = TAG_LEG_WEIGHT,
         ftsWeight = FTS_LEG_WEIGHT,
         now = Date.now(),
+        scoreScale = 1,
         limit,
     } = options;
 
@@ -415,7 +484,13 @@ export function rank(
         const { score: affinityScore, dominantTag } = tagAffinity(doc, affinity, topicTagIds);
         dominantTags.set(doc._id, dominantTag);
         if (tagCandidateIds.has(doc._id))
-            score.set(doc._id, (score.get(doc._id) ?? 0) + tagWeight * affinityScore);
+            // `scoreScale` maps the raw affinity score back to the nominal 0-1 scale the
+            // `tagWeight` constants were calibrated for, so a config weight rescale (which
+            // shrinks raw scores) doesn't deflate the tag leg relative to the FTS leg.
+            score.set(
+                doc._id,
+                (score.get(doc._id) ?? 0) + tagWeight * affinityScore * scoreScale,
+            );
         score.set(
             doc._id,
             (score.get(doc._id) ?? 0) + RECENCY_WEIGHT * (recencyFactor(doc, now) - 0.5),

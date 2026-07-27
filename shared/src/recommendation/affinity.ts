@@ -80,6 +80,14 @@ export type AffinityConfig = {
         /** Reverses 60% of a highlight signal — mirrors `bookmarkRemoved`. */
         highlightRemoved: number;
         /**
+         * The user clicked a result in the search modal. An immediate open-intent signal
+         * recorded on the click (before navigation), so it captures interest the content
+         * page's own dwell/reading-depth gates would otherwise drop on a quick bounce.
+         * Defaults to `hitWeight` — a search click is an open — but kept separately so it
+         * can be tuned independently.
+         */
+        searchClick: number;
+        /**
          * A recommended tag was shown to the user and scrolled past without a click.
          * The cheapest, most abundant negative signal available.
          */
@@ -87,22 +95,31 @@ export type AffinityConfig = {
     };
 };
 
-/** Current hard-coded values, preserved as the default so existing behaviour is unchanged. */
+/**
+ * Current hard-coded values. Weights and {@link minScore} live on a fine-grained scale
+ * (each event closes a tiny fraction of the remaining headroom, so a profile is built from
+ * a pattern of behaviour over many events, not a handful of clicks). Downstream ranking
+ * calibrations in `useRecommendations` are normalized against {@link eventWeight.completion}
+ * via a nominal anchor, so rescaling this whole block keeps ranking balance invariant —
+ * only the per-event update granularity changes. Existing client profiles are migrated to
+ * this scale on load (see `app/src/recommendation/affinityStore.ts`).
+ */
 export const DEFAULT_AFFINITY_CONFIG: AffinityConfig = {
     halfLifeDays: 45,
-    hitWeight: 0.04,
-    minScore: 0.01,
+    hitWeight: 0.0004,
+    minScore: 0.0001,
     maxTags: 50,
     depthScale: 20,
     readFloorPercent: 20,
     eventWeight: {
-        bookmark: 0.25,
-        bookmarkRemoved: -0.15,
-        completion: 0.35,
-        readCompletion: 0.35,
-        highlight: 0.3,
-        highlightRemoved: -0.18,
-        impression: -0.02,
+        bookmark: 0.0025,
+        bookmarkRemoved: -0.0015,
+        completion: 0.0035,
+        readCompletion: 0.0035,
+        highlight: 0.003,
+        highlightRemoved: -0.0018,
+        searchClick: 0.0004,
+        impression: -0.0002,
     },
 };
 
@@ -127,7 +144,7 @@ export const EventWeight = {
      * repeated add/remove churn. Undoing an explicit action is weaker evidence against
      * a tag than the original action was evidence for it. Uses the same negative-weight
      * decay-toward-zero mechanism as `Impression`, not a literal inverse of the specific
-     * gain contributed by the original bookmark. Derived as -60% × 0.25 = -0.15.
+     * gain contributed by the original bookmark. Derived as -60% × 0.0025 = -0.0015.
      */
     BookmarkRemoved: DEFAULT_AFFINITY_CONFIG.eventWeight.bookmarkRemoved,
     /** A video/audio track played to completion. Strong engagement signal. */
@@ -150,9 +167,16 @@ export const EventWeight = {
      * repeated add/remove churn. Undoing an explicit action is weaker evidence against
      * a tag than the original action was evidence for it. Uses the same negative-weight
      * decay-toward-zero mechanism as `Impression`, not a literal inverse of the specific
-     * gain contributed by the original highlight. Derived as -60% × 0.3 = -0.18.
+     * gain contributed by the original highlight. Derived as -60% × 0.003 = -0.0018.
      */
     HighlightRemoved: DEFAULT_AFFINITY_CONFIG.eventWeight.highlightRemoved,
+    /**
+     * The user clicked a result in the search modal. An immediate open-intent signal,
+     * recorded on the click so it survives a quick bounce that the content page's own
+     * dwell/reading-depth gates would drop. Defaults to `Open` (a search click is an
+     * open) but kept as its own named weight so it can be tuned independently.
+     */
+    SearchClick: DEFAULT_AFFINITY_CONFIG.eventWeight.searchClick,
     /**
      * A recommended tag was shown to the user and scrolled past without a click. The
      * cheapest, most abundant negative signal available — without it, a tag that got
