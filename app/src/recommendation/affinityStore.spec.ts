@@ -8,7 +8,7 @@ import {
     TagType,
     type ContentDto,
 } from "luminary-shared";
-import { affinityProfile, recordAffinity } from "./affinityStore";
+import { affinityProfile, recordAffinity, migrateProfileToV2 } from "./affinityStore";
 
 describe("affinityStore", () => {
     beforeEach(async () => {
@@ -71,5 +71,41 @@ describe("affinityStore", () => {
 
         expect(affinityProfile.value.affinity["tag-a"]).toBeGreaterThan(0);
         expect(affinityProfile.value.affinity["tag-default"]).toBeUndefined();
+    });
+
+    describe("v2 score-scale migration", () => {
+        it("migrates pre-v2 scores to the finer (x0.01) scale and preserves lastDecayUtc", () => {
+            const migrated = migrateProfileToV2({
+                affinity: { "tag-old": 0.4, "tag-old2": 0.8 },
+                lastDecayUtc: 12345,
+            });
+            expect(migrated.affinity["tag-old"]).toBeCloseTo(0.004, 10);
+            expect(migrated.affinity["tag-old2"]).toBeCloseTo(0.008, 10);
+            expect(migrated.lastDecayUtc).toBe(12345);
+        });
+
+        it("normalizes non-numeric entries to 0 during migration", () => {
+            const migrated = migrateProfileToV2({
+                affinity: { bad: "oops" as unknown as number, good: 0.2 },
+                lastDecayUtc: undefined,
+            });
+            expect(migrated.affinity.bad).toBe(0);
+            expect(migrated.affinity.good).toBeCloseTo(0.002, 10);
+        });
+
+        it("is a no-op on an empty profile", () => {
+            const migrated = migrateProfileToV2({ affinity: {}, lastDecayUtc: undefined });
+            expect(migrated.affinity).toEqual({});
+        });
+
+        it("stamps the v2 marker on persist so a freshly recorded profile is not re-migrated", async () => {
+            // recordAffinity persists and must stamp the marker, otherwise the next load()
+            // would shrink a new-scale profile by another x0.01.
+            await recordAffinity(["tag-a"]);
+            expect(localStorage.getItem("affinityProfile.v")).toBe("2");
+            const stored = JSON.parse(localStorage.getItem("affinityProfile")!);
+            // A single open on the new scale is hitWeight (0.0004), not the old 0.04.
+            expect(stored.affinity["tag-a"]).toBeCloseTo(0.0004, 5);
+        });
     });
 });

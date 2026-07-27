@@ -8,9 +8,11 @@ import { cmsLanguages, isMac, isMobileScreen } from "@/globalConfig";
 import { useDisplayLanguageIds } from "@/ssg/renderLanguage";
 import { useRoute, useRouter } from "vue-router";
 import LImage from "@/components/images/LImage.vue";
-import { useFtsSearch, stripHtml } from "luminary-shared";
+import { useFtsSearch, stripHtml, affinityConfig } from "luminary-shared";
 import type { ContentDto, FtsSearchResult } from "luminary-shared";
 import { useI18n } from "vue-i18n";
+import { recordAffinity } from "@/recommendation/affinityStore";
+import { recordSearchQuery, loadRecentSearches, searchVersion } from "@/recommendation/searchQueryStore";
 
 /**
  * The shared search surface, embedded two ways:
@@ -52,46 +54,14 @@ const shortcutLabel = computed(() => (isMac.value ? "Cmd+K" : "Ctrl+K"));
 /** Wide screens only: hide the header X while the input is focused. Below lg (mobile menu), focus/blur is unreliable, so always show close. */
 const showHeaderCloseButton = computed(() => isMobileLayout.value || !isInputFocused.value);
 
-const RECENT_SEARCHES_KEY = "luminary-search-recent";
-const RECENT_SEARCHES_MAX = 10;
-
-function getRecentSearchesLocalStorage(): Storage | null {
-    try {
-        return typeof window !== "undefined" ? window.localStorage : null;
-    } catch {
-        return null;
-    }
-}
-
-function loadRecentSearches(): string[] {
-    try {
-        const raw = getRecentSearchesLocalStorage()?.getItem(RECENT_SEARCHES_KEY);
-        if (!raw) return [];
-        const parsed = JSON.parse(raw);
-        return Array.isArray(parsed) ? parsed.slice(0, RECENT_SEARCHES_MAX) : [];
-    } catch {
-        return [];
-    }
-}
-
 const searchQuery = ref("");
-const recentSearches = ref<string[]>(loadRecentSearches());
-
-function pushRecentSearch(q: string) {
-    const trimmed = q.trim();
-    if (trimmed.length < 3) return;
-
-    const next = [trimmed, ...recentSearches.value.filter((t) => t !== trimmed)].slice(
-        0,
-        RECENT_SEARCHES_MAX,
-    );
-    recentSearches.value = next;
-    try {
-        getRecentSearchesLocalStorage()?.setItem(RECENT_SEARCHES_KEY, JSON.stringify(next));
-    } catch {
-        /* ignore */
-    }
-}
+// Backs the recent-search chips. Re-read from the store on any search-query write
+// (recordSearchQuery bumps `searchVersion`), so the chips stay in sync without a local
+// mirror of the list. The store is also what feeds these queries into recommendations.
+const recentSearches = computed<string[]>(() => {
+    void searchVersion.value;
+    return loadRecentSearches();
+});
 
 function pickRecentSearch(term: string) {
     searchQuery.value = term;
@@ -526,7 +496,7 @@ const handleInputKeydown = (event: KeyboardEvent) => {
 
         // Enter should apply the current query if it hasn't been searched yet.
         if (q.length >= 3 && isNewQuery) {
-            pushRecentSearch(q);
+            recordSearchQuery(q);
             runSearch();
             if (isMobileLayout.value) inputRef.value?.blur();
             return;
@@ -536,7 +506,7 @@ const handleInputKeydown = (event: KeyboardEvent) => {
             goToResult(results.value[selectedIndex.value]);
         } else {
             if (q.length < 3) return;
-            pushRecentSearch(q);
+            recordSearchQuery(q);
             runSearch();
             if (isMobileLayout.value) inputRef.value?.blur();
         }
@@ -565,14 +535,18 @@ const clearSearch = () => {
 function onGoClick() {
     const q = searchQuery.value.trim();
     if (q.length < 3) return;
-    pushRecentSearch(q);
+    recordSearchQuery(q);
     runSearch();
     if (isMobileLayout.value) inputRef.value?.blur();
 }
 
 const goToResult = (result: EnrichedResult) => {
     const q = lastSearchedQuery.value || trimmedQuery.value;
-    if (q) pushRecentSearch(q);
+    if (q) recordSearchQuery(q);
+    // Record the click as an immediate open-intent affinity signal — before navigation,
+    // so it captures interest even if the user bounces off the content page before its own
+    // dwell/reading-depth gates fire. `result` spreads ContentDto, so parentTags is inline.
+    void recordAffinity(result.parentTags, affinityConfig.value.eventWeight.searchClick);
     router.push({ name: "content", params: { slug: result.slug } });
     if (!isPage.value) closeSearch();
 };

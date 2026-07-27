@@ -58,6 +58,12 @@ function normalizeConfig(config: Partial<AffinityConfigDto> | undefined): Affini
                 1,
                 DEFAULT_AFFINITY_CONFIG.eventWeight.highlightRemoved,
             ),
+            searchClick: clampNumber(
+                c.eventWeight?.searchClick,
+                -1,
+                1,
+                DEFAULT_AFFINITY_CONFIG.eventWeight.searchClick,
+            ),
             impression: clampNumber(
                 c.eventWeight?.impression,
                 -1,
