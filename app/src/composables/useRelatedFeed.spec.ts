@@ -66,8 +66,6 @@ describe("useRelatedFeed", () => {
         });
         vi.mocked(useRecommendations).mockReturnValue({
             recommended: computed(() => []),
-            hasTags: computed(() => false),
-            topTagIds: computed(() => []),
             ready: computed(() => true),
         });
     });
@@ -178,8 +176,6 @@ describe("useRelatedFeed", () => {
         const affinityPick = makeContent("affinity-pick", { parentId: "post-affinity-pick" });
         vi.mocked(useRecommendations).mockReturnValue({
             recommended: computed(() => [affinityPick]),
-            hasTags: computed(() => true),
-            topTagIds: computed(() => ["tag-x"]),
             ready: computed(() => true),
         });
 
@@ -195,8 +191,6 @@ describe("useRelatedFeed", () => {
         await db.docs.put(byJane);
         vi.mocked(useRecommendations).mockReturnValue({
             recommended: computed(() => [byJane]),
-            hasTags: computed(() => true),
-            topTagIds: computed(() => []),
             ready: computed(() => true),
         });
         const selected = makeContent("selected", { author: "Jane Doe" });

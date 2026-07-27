@@ -74,11 +74,6 @@ export function recordSearchQuery(q: string) {
     writeRecentSearches(next);
 }
 
-/** Clear the recent-search list (the modal's "clear all" affordance). */
-export function clearRecentSearches() {
-    writeRecentSearches([]);
-}
-
 /**
  * Collapse whitespace and bound a single query; returns undefined for anything too short
  * to trigram-search. Kept pure so bounding can be tested without localStorage.

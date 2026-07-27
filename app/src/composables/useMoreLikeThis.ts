@@ -50,7 +50,7 @@ export function useMoreLikeThis(
             seedTagIds.value.length
                 ? [{ parentTags: { $elemMatch: { $in: seedTagIds.value } } }]
                 : [{ _id: { $in: [] } }],
-        { cache: true, cacheId: "more-like-this-tags", limit: retrievalLimit },
+        { limit: retrievalLimit },
     );
 
     const ftsResults = ref<FtsSearchResult[]>([]);
@@ -59,19 +59,25 @@ export function useMoreLikeThis(
      *  useRelatedFeed) wait for this leg's own FTS work rather than showing a snapshot
      *  that's missing it and then swapping it in once it resolves. */
     const ready = ref(false);
+    let selectedContentRunSeq = 0;
     watch(
         selectedContent,
         async (doc) => {
+            const runSeq = ++selectedContentRunSeq;
             ready.value = false;
             try {
                 if (!doc) {
-                    ftsResults.value = [];
+                    if (runSeq === selectedContentRunSeq) ftsResults.value = [];
                     return;
                 }
                 const queryText = [doc.title, doc.summary].filter(Boolean).join(" ").trim();
                 const highlightQueries = await loadHighlightQueriesFor(doc._id);
                 if (!queryText && !highlightQueries.length) {
-                    ftsResults.value = [];
+                    // `selectedContent` can change again before this resolves; only the most
+                    // recent run may commit, otherwise an older, slower run can overwrite a
+                    // newer result (and prematurely flip `ready`, which feeds useRelatedFeed's
+                    // allReady gate).
+                    if (runSeq === selectedContentRunSeq) ftsResults.value = [];
                     return;
                 }
                 const search = (query: string) =>
@@ -94,11 +100,11 @@ export function useMoreLikeThis(
                         searches.push({ weight: perHighlightWeight, results });
                     }
                 }
-                ftsResults.value = fuseTagFts(searches);
+                if (runSeq === selectedContentRunSeq) ftsResults.value = fuseTagFts(searches);
             } catch {
-                ftsResults.value = [];
+                if (runSeq === selectedContentRunSeq) ftsResults.value = [];
             } finally {
-                ready.value = true;
+                if (runSeq === selectedContentRunSeq) ready.value = true;
             }
         },
         { immediate: true },

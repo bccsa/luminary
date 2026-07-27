@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { applyEvent, decay, EventWeight, readingDepthWeight, topTags } from "./affinity";
+import { applyEvent, decay, EventWeight, readingDepthWeight, topTagsFrom } from "./affinity";
 import type { AffinityMap } from "../types";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -118,8 +118,8 @@ describe("affinity scoring", () => {
         p = applyEvent(p, ["high"], T0);
         p = applyEvent(p, ["high"], T0); // two opens on high
 
-        expect(topTags(p, 2, T0)).toEqual(["high", "low"]);
-        expect(topTags(p, 1, T0)).toEqual(["high"]);
+        expect(topTagsFrom(decay(p, T0).affinity, 2)).toEqual(["high", "low"]);
+        expect(topTagsFrom(decay(p, T0).affinity, 1)).toEqual(["high"]);
     });
 
     it("decays older interest below newer interest", () => {
@@ -129,7 +129,7 @@ describe("affinity scoring", () => {
         // on "new" now outranks it.
         p = applyEvent(p, ["new"], T0 + 90 * DAY);
 
-        expect(topTags(p, 2, T0 + 90 * DAY)).toEqual(["new", "old"]);
+        expect(topTagsFrom(decay(p, T0 + 90 * DAY).affinity, 2)).toEqual(["new", "old"]);
     });
 
     it("does not mutate the input profile", () => {
