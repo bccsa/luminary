@@ -43,16 +43,22 @@ function reconcileTranslations(
     allowedKeys: Set<string>,
     ownSeedTranslations: Record<string, string> | undefined,
     fallback: Record<string, string>,
-): { translations: Record<string, string>; changed: boolean } {
+): {
+    translations: Record<string, string>;
+    changed: boolean;
+    prunedCount: number;
+    backfilledCount: number;
+} {
     const currentTranslations = isTranslationsMap(doc.translations) ? doc.translations : {};
     const nextTranslations: Record<string, string> = {};
-    let changed = false;
+    let prunedCount = 0;
+    let backfilledCount = 0;
 
     for (const [key, value] of Object.entries(currentTranslations)) {
         if (allowedKeys.has(key)) {
             nextTranslations[key] = value;
         } else {
-            changed = true;
+            prunedCount++;
         }
     }
 
@@ -63,10 +69,15 @@ function reconcileTranslations(
         } else {
             nextTranslations[key] = fallback[key];
         }
-        changed = true;
+        backfilledCount++;
     }
 
-    return { translations: nextTranslations, changed };
+    return {
+        translations: nextTranslations,
+        changed: prunedCount > 0 || backfilledCount > 0,
+        prunedCount,
+        backfilledCount,
+    };
 }
 
 export async function reconcileLanguageTranslationSeeds(
@@ -74,6 +85,9 @@ export async function reconcileLanguageTranslationSeeds(
     seedTranslations: Record<string, Record<string, string>> = readSeedLanguageTranslations(),
 ) {
     const seededLanguageIds = Object.keys(seedTranslations);
+    logger.log(
+        `Discovered ${seededLanguageIds.length} seed language file(s): ${seededLanguageIds.join(", ")}`,
+    );
 
     // allowedKeys is the union of every key defined by ANY seed file. A key is pruned from a
     // language only if no seed file defines it, so a key added to a single new seed language is
@@ -116,6 +130,9 @@ export async function reconcileLanguageTranslationSeeds(
     // seed values directly and warn — placeholders can't track a default that isn't there.
     let defaultTranslations: Record<string, string>;
     if (defaultDoc) {
+        logger.log(
+            `Using default language '${defaultDoc._id}' (default: 1) as placeholder source`,
+        );
         defaultTranslations = reconcileTranslations(
             defaultDoc,
             allowedKeys,
@@ -142,7 +159,7 @@ export async function reconcileLanguageTranslationSeeds(
         // reconciles against the default language's translations, so its placeholders match what
         // the default language actually shows users.
         const fallback = doc.default === 1 ? mergedSeedFallback : defaultTranslations;
-        const { translations, changed } = reconcileTranslations(
+        const { translations, changed, prunedCount, backfilledCount } = reconcileTranslations(
             doc,
             allowedKeys,
             seedTranslations[doc._id],
@@ -154,6 +171,9 @@ export async function reconcileLanguageTranslationSeeds(
             continue;
         }
 
+        logger.log(
+            `Reconciled '${doc._id}': +${backfilledCount} backfilled, -${prunedCount} pruned`,
+        );
         doc.translations = translations;
         doc.updatedTimeUtc = Date.now();
         await db.insertDoc(doc);
