@@ -89,6 +89,12 @@ function normalizedConfig(): AffinityConfig {
                 savedConfig.value.eventWeight.highlightRemoved,
             ),
             impression: clamp(c.eventWeight.impression, -1, 1, savedConfig.value.eventWeight.impression),
+            searchClick: clamp(
+                c.eventWeight.searchClick,
+                -1,
+                1,
+                savedConfig.value.eventWeight.searchClick,
+            ),
         },
     };
 }
@@ -230,6 +236,14 @@ async function save() {
                         step="0.01"
                         v-model="form.eventWeight.impression"
                         data-test="affinity-config-eventWeight-impression"
+                    />
+                    <LInput
+                        name="eventWeight-searchClick"
+                        label="Clicking a search result"
+                        type="number"
+                        step="0.01"
+                        v-model="form.eventWeight.searchClick"
+                        data-test="affinity-config-eventWeight-searchClick"
                     />
                 </div>
             </fieldset>

@@ -1,28 +1,16 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref } from "vue";
-import { decay, DocType, affinityConfig, type AffinityProfile } from "luminary-shared";
-import { useContentQuery } from "@/composables/useContentQuery";
+import { nextTick, onMounted, onUnmounted, ref } from "vue";
+import { type AffinityProfile } from "luminary-shared";
+import { useAffinityDebugData, getPreviewTier } from "@/composables/useAffinityDebugData";
+import { loadAffinityProfile } from "@/recommendation/affinityStore";
 import { markPageReady } from "@/util/renderState";
 
-function loadProfile(): AffinityProfile | undefined {
-    try {
-        const raw = localStorage.getItem("affinityProfile");
-        const parsed = raw ? JSON.parse(raw) : undefined;
-        if (parsed && typeof parsed.affinity === "object") {
-            return parsed as AffinityProfile;
-        }
-    } catch {
-        // guard against JSON.parse throwing
-    }
-    return undefined;
-}
-
-const profile = ref<AffinityProfile | undefined>(loadProfile());
+const profile = ref<AffinityProfile | undefined>(loadAffinityProfile());
 const now = ref(Date.now());
 const lastUpdated = ref(new Date().toLocaleTimeString());
 
 function update() {
-    profile.value = loadProfile();
+    profile.value = loadAffinityProfile();
     now.value = Date.now();
     lastUpdated.value = new Date().toLocaleTimeString();
 }
@@ -41,37 +29,7 @@ onMounted(async () => {
     markPageReady();
 });
 
-const decayedEntries = computed(() => {
-    const decayed = decay(profile.value, now.value, affinityConfig.value);
-    return Object.entries(decayed.affinity).sort((a, b) => b[1] - a[1]);
-});
-
-const tagIds = computed(() => decayedEntries.value.map(([tagId]) => tagId));
-
-const tagContent = useContentQuery(
-    () =>
-        tagIds.value.length
-            ? [{ parentId: { $in: tagIds.value } }, { parentType: DocType.Tag }]
-            : [{ parentId: { $in: [] } }],
-    { includeScheduled: false },
-);
-
-const tagTitleMap = computed(() => {
-    const map = new Map<string, string>();
-    for (const doc of tagContent.value) {
-        if (doc.parentId && doc.title) {
-            map.set(doc.parentId, doc.title);
-        }
-    }
-    return map;
-});
-
-function getPreviewTier(rank: number): string {
-    if (rank >= 1 && rank <= 3) return "Core";
-    if (rank >= 4 && rank <= 5) return "Strong";
-    if (rank >= 6 && rank <= 10) return "Established";
-    return "—";
-}
+const { decayedEntries, tagTitleMap } = useAffinityDebugData(profile, now);
 </script>
 
 <template>

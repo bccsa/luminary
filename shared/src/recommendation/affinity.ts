@@ -275,11 +275,6 @@ export function readingDepthWeight(
     return config.hitWeight + t * (config.eventWeight.readCompletion - config.hitWeight);
 }
 
-/** Top-`n` tag ids by (decayed) score, descending — the retrieval query seed. */
-export function topTags(profile: AffinityProfile | undefined, n: number, now = Date.now()): Uuid[] {
-    return topTagsFrom(decay(profile, now).affinity, n);
-}
-
 /** Top-`n` tag ids from an affinity map that has already been decayed by the caller. */
 export function topTagsFrom(affinity: AffinityMap, n: number): Uuid[] {
     return Object.entries(affinity)

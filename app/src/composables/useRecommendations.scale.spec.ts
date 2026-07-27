@@ -39,6 +39,14 @@ describe("scale-invariant ranking", () => {
         );
     });
 
+    it("affinityScoreScale falls back to a neutral scale for a non-positive completion weight", () => {
+        // CMS/API clamp eventWeight.completion to [-1, 1], which admits 0 and negative values —
+        // guard against the resulting Infinity/NaN or ranking inversion.
+        expect(affinityScoreScale(0)).toBe(1);
+        expect(affinityScoreScale(-0.35)).toBe(1);
+        expect(affinityScoreScale(NaN)).toBe(1);
+    });
+
     it("computeRichness is invariant to a proportional score+config rescale", () => {
         const tags = [TAG_A, TAG_B];
         const richnessNominal = computeRichness(

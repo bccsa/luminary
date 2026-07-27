@@ -51,6 +51,7 @@ const NOMINAL_COMPLETION_WEIGHT = 0.35;
  * the same normalization.
  */
 export function affinityScoreScale(completionWeight: number): number {
+    if (!Number.isFinite(completionWeight) || completionWeight <= 0) return 1;
     return NOMINAL_COMPLETION_WEIGHT / completionWeight;
 }
 
@@ -368,10 +369,6 @@ export function useRecommendations({
 
     return {
         recommended,
-        hasTags: computed(() => tags.value.length > 0),
-        // Strongest-affinity tags first (see `topTagsFrom`) — callers that want to label the
-        // feed (e.g. "Because you read X") only need the top one or two.
-        topTagIds: computed(() => tags.value.slice(0, 2)),
         // Reflects only the tag-membership leg's own resolution (the `content` query above),
         // not the FTS leg — sufficient for the current caller (`useRelatedFeed`, which always
         // passes `useFts: false`). A caller using `useFts: true` that also needs a fully

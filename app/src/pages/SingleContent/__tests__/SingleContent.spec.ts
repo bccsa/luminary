@@ -154,11 +154,28 @@ vi.mock("@/composables/useBucketInfo", () => ({
     }),
 }));
 
+let intersectCallbacks: IntersectionObserverCallback[] = [];
+function triggerLazyMounts() {
+    intersectCallbacks.forEach((cb) =>
+        cb([{ isIntersecting: true } as IntersectionObserverEntry], {} as IntersectionObserver),
+    );
+}
+
 describe("SingleContent", () => {
     // Tracked so afterEach can unmount it: an un-unmounted SingleContent keeps its watchers live for the rest of the file's run, racing later tests over shared reactive state.
     let wrapper: VueWrapper | undefined;
 
     beforeEach(async () => {
+        intersectCallbacks = [];
+        window.IntersectionObserver = class {
+            constructor(cb: IntersectionObserverCallback) {
+                intersectCallbacks.push(cb);
+            }
+            observe() {}
+            unobserve() {}
+            disconnect() {}
+        } as unknown as typeof IntersectionObserver;
+
         // Clearing the database before populating it helps prevent some sequencing issues causing the first to fail.
         await db.docs.clear();
         await db.localChanges.clear();
@@ -377,6 +394,10 @@ describe("SingleContent", () => {
                 slug: mockEnglishContentDto.slug,
             },
         });
+        await waitForExpect(() => {
+            expect(intersectCallbacks.length).toBeGreaterThan(0);
+        });
+        triggerLazyMounts();
         await waitForExpect(() => {
             expect(wrapper!.text()).toContain("content 2");
             // The related-content cards show their topic/category chips (mobile row).
@@ -957,7 +978,7 @@ describe("SingleContent", () => {
             mockEnglishContentDto.parentTags,
             EventWeight.ReadCompletion,
         );
-        expect(EventWeight.ReadCompletion).toBe(0.35);
+        expect(EventWeight.ReadCompletion).toBe(0.0035);
         wrapper.unmount();
     });
 

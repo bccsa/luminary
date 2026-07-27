@@ -21,7 +21,7 @@ import { filterTopicTagIds } from "@/recommendation/topicTags";
 const STORAGE_KEY = "affinityProfile";
 /**
  * Schema/migration marker for the stored profile. Bumped when the score scale changes;
- * `load()` migrates a profile stored under an older scale to the current one.
+ * `loadAffinityProfile()` migrates a profile stored under an older scale to the current one.
  *   - v2: the default event weights were rescaled 100x finer (e.g. `completion` 0.35 →
  *     0.0035). Scores accumulated under the old weights are divided by 100 so they stay
  *     consistent with new events; without this, new tiny increments would be negligible
@@ -50,7 +50,10 @@ export function migrateProfileToV2(profile: AffinityProfile): AffinityProfile {
     };
 }
 
-function load(): AffinityProfile {
+/** Load + v2-migrate the stored affinity profile. Exported for the debug page, which
+ *  needs a fresh read of the same canonical (migration-aware) source `affinityProfile`
+ *  was initialized from, rather than re-implementing the raw-parse/migrate logic. */
+export function loadAffinityProfile(): AffinityProfile {
     try {
         const raw = localStorage.getItem(STORAGE_KEY);
         const parsed = raw ? JSON.parse(raw) : undefined;
@@ -74,7 +77,7 @@ function load(): AffinityProfile {
 }
 
 /** Reactive working copy of the local affinity profile (client-authoritative). */
-export const affinityProfile = ref<AffinityProfile>(load());
+export const affinityProfile = ref<AffinityProfile>(loadAffinityProfile());
 
 function persist() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(affinityProfile.value));

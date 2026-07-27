@@ -21,6 +21,7 @@ const DEFAULT_AFFINITY_CONFIG = vi.hoisted(() => ({
         highlight: 0.3,
         highlightRemoved: -0.18,
         impression: -0.02,
+        searchClick: 0.0004,
     },
 }));
 
