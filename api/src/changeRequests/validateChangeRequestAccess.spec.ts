@@ -212,6 +212,52 @@ describe("validateChangeRequestAccess", () => {
                 "No 'Translate' access to all translations required to change linked publish/expiry dates",
             );
         });
+
+        it("can reject saving a translation belonging to a post with 'linkDates' enabled without translate access to all its translations, even when no date is changed", async () => {
+            // processContentDto re-propagates dates to every sibling on every save while
+            // linkDates is enabled, regardless of whether this particular request changes a
+            // date — so the gate must reject any save under these conditions, not just ones
+            // that touch publishDate/expiryDate.
+            const post = await db.getDoc("post-blog2");
+            await db.upsertDoc({ ...post.docs[0], linkDates: true });
+            const french = await db.getDoc("lang-fra");
+            await db.upsertDoc({ ...french.docs[0], memberOf: ["group-super-admins"] });
+
+            const testChangeReq_noDateChange = plainToClass(ChangeReqDto, {
+                doc: {
+                    _id: "content-blog2-eng",
+                    type: "content",
+                    memberOf: ["group-private-content"],
+                    parentId: "post-blog2",
+                    language: "lang-eng",
+                    status: "published",
+                    slug: "blog2-eng",
+                    title: "An updated title, dates untouched",
+                    summary: "This is an example blog",
+                    author: "ChatGPT",
+                    text: "",
+                    seo: "",
+                    localisedImage: "",
+                    audio: "",
+                    video: "",
+                    publishDate: 1704114000000,
+                },
+            });
+
+            const res = await validateChangeRequestAccess(
+                testChangeReq_noDateChange,
+                ["group-private-editors"],
+                db,
+            );
+
+            // Restore documents for further tests
+            await db.upsertDoc(french.docs[0]);
+            await db.upsertDoc(post.docs[0]);
+
+            expect(res.error).toBe(
+                "No 'Translate' access to all translations required to save content with linked dates",
+            );
+        });
     });
 
     describe("Group documents", () => {

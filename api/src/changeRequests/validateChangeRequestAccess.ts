@@ -277,17 +277,18 @@ export async function validateChangeRequestAccess(
             };
         }
 
-        // If the parent post/tag has 'linkDates' enabled, changing this document's publish/expiry
-        // date requires 'Translate' access to all sibling translations, since the change cascades to them.
+        // If the parent post/tag has 'linkDates' enabled, saving this content document cascades
+        // its publish/expiry dates onto every sibling translation (see processContentDto), so
+        // the user needs 'Translate' access to all of them — not just the one being edited —
+        // regardless of whether this particular request changes a date.
         if (
             (parentDoc as _contentParentDto).linkDates &&
-            (doc.publishDate !== (originalDoc as ContentDto).publishDate ||
-                doc.expiryDate !== (originalDoc as ContentDto).expiryDate) &&
+            !doc.deleteReq &&
             !(await hasTranslateAccessToAllTranslations(doc.parentId, groupMembership, dbService))
         ) {
             return {
                 validated: false,
-                error: `No 'Translate' access to all translations required to change linked publish/expiry dates`,
+                error: `No 'Translate' access to all translations required to save content with linked dates`,
             };
         }
 

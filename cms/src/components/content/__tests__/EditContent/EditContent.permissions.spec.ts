@@ -28,17 +28,21 @@ vi.mock("vue-router", async (importOriginal) => {
 window.scrollTo = vi.fn();
 
 import { mount } from "@vue/test-utils";
-import { db, DocType, accessMap, PostType } from "luminary-shared";
+import { db, DocType, accessMap, PostType, type ContentDto } from "luminary-shared";
 import EditContent from "../../EditContent.vue";
 import waitForExpect from "wait-for-expect";
 import EditContentBasic from "../../EditContentBasic.vue";
 import EditContentParent from "../../EditContentParent.vue";
 import EditContentVideo from "../../EditContentVideo.vue";
+import { useNotificationStore } from "@/stores/notification";
 import {
     setupTestEnvironment,
     cleanupTestEnvironment,
     wait,
     mockPostDto,
+    mockEnglishContentDto,
+    mockFrenchContentDto,
+    mockSwahiliContentDto,
     translateAccessToAllContentMap,
 } from "./EditContent.test-utils";
 
@@ -234,6 +238,100 @@ describe("EditContent - Permissions & Access Control", () => {
         await waitForExpect(async () => {
             const deletebutton = wrapper.find('[data-test="delete-button"]');
             expect(deletebutton.exists()).toBe(false);
+        });
+    });
+
+    describe("linkDates permission gate", () => {
+        it("blocks saving when 'linkDates' is enabled and a sibling translation isn't synced locally", async () => {
+            // Simulate a French translation that exists on the server (and is named in
+            // availableTranslations, which is computed server-side without regard to the
+            // acting user's access) but was never synced to this CMS instance — e.g. the
+            // user has no access to lang-fra. EditContentParent's own toggle-disabling check
+            // can't see this, since it only reasons about translations it has loaded.
+            await db.docs.bulkPut([{ ...mockPostDto, linkDates: true }]);
+            await db.docs.delete(mockFrenchContentDto._id);
+            await db.docs.delete(mockSwahiliContentDto._id);
+            await db.docs.put({
+                ...mockEnglishContentDto,
+                availableTranslations: ["lang-eng", "lang-fra"],
+            } as ContentDto);
+
+            const notificationStore = useNotificationStore();
+            const wrapper = mount(EditContent, {
+                props: {
+                    docType: DocType.Post,
+                    id: mockPostDto._id,
+                    languageCode: "eng",
+                    tagOrPostType: PostType.Blog,
+                },
+            });
+
+            await waitForExpect(() => {
+                expect(wrapper.find('input[name="title"]').exists()).toBe(true);
+            });
+
+            const titleInput = wrapper.find('input[name="title"]');
+            await titleInput.setValue("New Title");
+
+            const saveButton = wrapper.find('[data-test="save-button"]');
+            await saveButton.trigger("click");
+
+            await waitForExpect(() => {
+                expect(notificationStore.addNotification).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        state: "error",
+                        description:
+                            "You need translate access to every translation of this content to save changes while dates are linked.",
+                    }),
+                );
+            });
+
+            const savedDoc = await db.get<ContentDto>(mockEnglishContentDto._id);
+            expect(savedDoc?.title).toBe(mockEnglishContentDto.title);
+        });
+
+        it("allows saving when 'linkDates' is enabled and every translation is synced locally", async () => {
+            await db.docs.bulkPut([{ ...mockPostDto, linkDates: true }]);
+            await db.docs.bulkPut([
+                {
+                    ...mockEnglishContentDto,
+                    availableTranslations: ["lang-eng", "lang-fra", "lang-swa"],
+                },
+                {
+                    ...mockFrenchContentDto,
+                    availableTranslations: ["lang-eng", "lang-fra", "lang-swa"],
+                },
+                {
+                    ...mockSwahiliContentDto,
+                    availableTranslations: ["lang-eng", "lang-fra", "lang-swa"],
+                },
+            ] as ContentDto[]);
+
+            const notificationStore = useNotificationStore();
+            const wrapper = mount(EditContent, {
+                props: {
+                    docType: DocType.Post,
+                    id: mockPostDto._id,
+                    languageCode: "eng",
+                    tagOrPostType: PostType.Blog,
+                },
+            });
+
+            await waitForExpect(() => {
+                expect(wrapper.find('input[name="title"]').exists()).toBe(true);
+            });
+
+            const titleInput = wrapper.find('input[name="title"]');
+            await titleInput.setValue("New Title");
+
+            const saveButton = wrapper.find('[data-test="save-button"]');
+            await saveButton.trigger("click");
+
+            await waitForExpect(() => {
+                expect(notificationStore.addNotification).toHaveBeenCalledWith(
+                    expect.objectContaining({ state: "success" }),
+                );
+            });
         });
     });
 });

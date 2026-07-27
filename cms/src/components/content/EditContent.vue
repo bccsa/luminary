@@ -119,6 +119,23 @@ const { canTranslate, canPublish, canEditParent, canDelete } = useContentPermiss
     selectedContent,
 });
 
+// A content doc's `availableTranslations` field lists every language this post/tag has a
+// translation in, computed server-side without regard to the acting user's access. The CMS
+// only syncs (and therefore only shows here in `editableContent`) translations the user has
+// access to — so if `availableTranslations` names a language we have no local content doc
+// for, there's a sibling translation this user can't see. That's the CMS-side reflection of
+// the all-or-nothing "Translate access to every translation" gate the API enforces on the
+// linkDates date cascade (see api/src/changeRequests/validateChangeRequestAccess.ts) —
+// EditContentParent's own toggle-disabling check can't catch this case because it only ever
+// reasons about the translations it can see.
+const hasAccessToAllTranslations = computed(() => {
+    const visibleLanguageIds = new Set(editableContent.value.map((c) => c.language));
+    const availableTranslationIds = editableContent.value.flatMap(
+        (c) => c.availableTranslations ?? [],
+    );
+    return availableTranslationIds.every((id) => visibleLanguageIds.has(id));
+});
+
 const createTranslation = (language: LanguageDto) => {
     const newContent: ContentDto = {
         _id: db.uuid(),
@@ -180,6 +197,14 @@ const saveChanges = async () => {
             "error",
             "Insufficient Permissions",
             "You need translate access to save this content.",
+        );
+        return;
+    }
+    if (editableParent.value?.linkDates && !hasAccessToAllTranslations.value) {
+        notify(
+            "error",
+            "Insufficient Permissions",
+            "You need translate access to every translation of this content to save changes while dates are linked.",
         );
         return;
     }
