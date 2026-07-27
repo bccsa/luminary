@@ -383,12 +383,16 @@ const duplicateGroup = async () => {
             </div>
             <LInput
                 v-else-if="isEditingGroupName"
+                data-test="groupNameInput"
                 size="sm"
                 ref="groupNameInput"
                 name="groupName"
                 v-model="group.name"
                 @blur="finishEditingGroupName"
                 @keyup.enter="finishEditingGroupName"
+                @keydown.enter.stop
+                @keydown.space.stop
+                @click.stop
                 class="-mt-5 mr-4 h-1 grow"
             />
         </template>
