@@ -152,25 +152,8 @@ vi.mock("@/composables/useBucketInfo", () => ({
     }),
 }));
 
-let intersectCallbacks: IntersectionObserverCallback[] = [];
-function triggerLazyMounts() {
-    intersectCallbacks.forEach((cb) =>
-        cb([{ isIntersecting: true } as IntersectionObserverEntry], {} as IntersectionObserver),
-    );
-}
-
 describe("SingleContent", () => {
     beforeEach(async () => {
-        intersectCallbacks = [];
-        window.IntersectionObserver = class {
-            constructor(cb: IntersectionObserverCallback) {
-                intersectCallbacks.push(cb);
-            }
-            observe() {}
-            unobserve() {}
-            disconnect() {}
-        } as unknown as typeof IntersectionObserver;
-
         // Clearing the database before populating it helps prevent some sequencing issues causing the first to fail.
         await db.docs.clear();
         await db.localChanges.clear();
@@ -327,10 +310,6 @@ describe("SingleContent", () => {
                 slug: mockEnglishContentDto.slug,
             },
         });
-        await waitForExpect(() => {
-            expect(intersectCallbacks.length).toBeGreaterThan(0);
-        });
-        triggerLazyMounts();
         await waitForExpect(() => {
             expect(wrapper.text()).toContain("content 2");
         });
