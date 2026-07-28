@@ -24,6 +24,28 @@ import { getSeenArticleIds, seenVersion } from "@/recommendation/seenStore";
 import { appSyncedDisplayLanguageIdsAsRef } from "@/globalConfig";
 import { sessionNow } from "@/util/sessionNow";
 import { filterTopicTagIds } from "@/recommendation/topicTags";
+import {
+    rank,
+    affinityScoreScale,
+    RRF_K,
+    TAG_LEG_WEIGHT,
+    FTS_LEG_WEIGHT,
+} from "@/recommendation/ranking";
+// Re-export the pure ranking API (now in `ranking.ts`) so existing imports from
+// `useRecommendations` — specs and `RecommendedForYou.vue` — keep working unchanged.
+export {
+    rank,
+    affinityScoreScale,
+    type RankOptions,
+    NOMINAL_COMPLETION_WEIGHT,
+    RRF_K,
+    TAG_LEG_WEIGHT,
+    FTS_LEG_WEIGHT,
+    RECENCY_WEIGHT,
+    RECENCY_HALFLIFE_DAYS,
+    DAY_MS,
+    MAX_PER_DOMINANT_TAG,
+} from "@/recommendation/ranking";
 
 const TOP_N_TAGS = 12;
 /** Bounds the per-language search multiplier for the FTS/serendipity leg. */
@@ -35,51 +57,12 @@ const HIGHLIGHT_FTS_TOTAL_WEIGHT = 0.3;
  * the user typed into the search modal. Parity with highlights: supplementary, kept below one
  * strongest topic-title query. */
 const SEARCH_FTS_TOTAL_WEIGHT = 0.3;
-/**
- * The score scale the leg-weight constants below were calibrated against — i.e. the
- * `eventWeight.completion` value the ranking was tuned for. Ranking inputs derived from raw
- * affinity scores (richness, the tag-leg score) are normalized back to this nominal scale, so
- * rescaling the config weights changes only per-event update granularity, not ranking balance.
- * With the default config this is a no-op (`completion` already equals this anchor).
- */
-const NOMINAL_COMPLETION_WEIGHT = 0.35;
-
-/**
- * Map raw affinity scores back to the nominal scale the ranking constants were calibrated for,
- * so a config weight rescale (which shrinks raw scores) leaves ranking balance invariant. No-op
- * under the default config. Exported so `useMoreLikeThis` (which calls `rank` directly) applies
- * the same normalization.
- */
-export function affinityScoreScale(completionWeight: number): number {
-    if (!Number.isFinite(completionWeight) || completionWeight <= 0) return 1;
-    return NOMINAL_COMPLETION_WEIGHT / completionWeight;
-}
-
-export { NOMINAL_COMPLETION_WEIGHT };
 /** Output cap on the fused feed. */
 const DEFAULT_LIMIT = 20;
 /** Candidate pool per leg. Must be >> DEFAULT_LIMIT: `useContentQuery` sorts by publishDate, so a
  *  pool of DEFAULT_LIMIT would mean affinity only reshuffles the 20 newest tagged docs instead of
  *  actually selecting from the tag neighbourhood. */
 const DEFAULT_RETRIEVAL_LIMIT = 1000;
-/** Best-effort RRF tuning pending offline evaluation: 10 preserves meaningful top-rank
- *  separation after normalization while still de-weighting swings farther down the list. */
-const RRF_K = 10;
-/** Base leg weights, scaled by profile richness (see `richness` below): a cold profile
- *  (few learned topics) leans on the FTS/serendipity leg; a rich one leans on tags. */
-const TAG_LEG_WEIGHT = 1.5;
-/** Best-effort pending offline evaluation: 0.4 aligns top FTS hits with strong real tag contributions (~0.07-0.4). */
-const FTS_LEG_WEIGHT = 0.4;
-/** A mild prior so two equally-tagged docs don't tie and fall back to insertion order —
- *  small relative to the leg weights so it nudges, not dominates. */
-/** Best-effort pending offline evaluation: 0.05 stays below realistic tag contributions and acts as a tie-breaker. */
-const RECENCY_WEIGHT = 0.05;
-const RECENCY_HALFLIFE_DAYS = 180;
-const DAY_MS = 24 * 60 * 60 * 1000;
-/** MMR-lite diversification: caps how many docs sharing the same dominant tag can land
- *  in the ranked list before the rest of that tag's matches get pushed down. Without
- *  this the top of the feed is whichever single tag scores highest. */
-const MAX_PER_DOMINANT_TAG = 3;
 const FTS_DEBOUNCE_MS = 300;
 
 /**
@@ -370,9 +353,9 @@ export function useRecommendations({
     return {
         recommended,
         // Reflects only the tag-membership leg's own resolution (the `content` query above),
-        // not the FTS leg — sufficient for the current caller (`useRelatedFeed`, which always
-        // passes `useFts: false`). A caller using `useFts: true` that also needs a fully
-        // inclusive readiness signal would need this extended to track the FTS leg too.
+        // not the FTS leg. The HomePage caller uses the default `useFts: true`, so it does not
+        // gate on a fully inclusive readiness signal today; a caller that did would need this
+        // extended to track the FTS leg too.
         ready: computed(() => !contentIsFetching.value),
     };
 }
@@ -408,146 +391,4 @@ export function fuseTagFts(
     return [...fused.entries()]
         .sort(([, a], [, b]) => b.score - a.score)
         .map(([docId, { doc, score }]) => ({ docId, doc, score, wordMatchScore: 0 }));
-}
-
-export type RankOptions = {
-    /** Restrict tag-affinity scoring/diversity to these tag ids (TagType.Topic only).
-     *  Omitted (e.g. in unit tests without a live `db`) falls back to every parentTags
-     *  entry, matching the previous unfiltered behaviour. */
-    topicTagIds?: Set<Uuid>;
-    tagWeight?: number;
-    ftsWeight?: number;
-    now?: number;
-    /** Multiplier mapping raw affinity scores back to the nominal scale the leg weights were
-     *  calibrated for (see {@link NOMINAL_COMPLETION_WEIGHT}). Defaults to 1 (no rescale) so
-     *  unit tests are unchanged. */
-    scoreScale?: number;
-    /** Stop diversity work once this many selected documents are determined. */
-    limit?: number;
-};
-
-/**
- * Fuse the tag-membership leg and the FTS leg into one ranked list.
- *
- * The tag leg already produces a calibrated 0-1 affinity score, so it's added directly
- * (scaled by `tagWeight`) rather than collapsed into a rank position — RRF would compress
- * a 45x true gap in affinity into a ~4x gap in rank weight over a 1000-doc pool. The FTS/
- * BM25 leg isn't on a comparable scale, so it still goes through Reciprocal Rank Fusion.
- * `scoreScale` maps raw affinity scores back to that nominal 0-1 scale before scoring, so a
- * config weight rescale (which shrinks raw scores) leaves ranking balance invariant. A mild
- * recency prior breaks ties between equally-tagged docs, and an MMR-lite cap keeps a single
- * dominant tag from filling the whole list. Exported for unit testing.
- */
-export function rank(
-    tagCandidates: ContentDto[],
-    ftsCandidates: FtsSearchResult[],
-    affinity: AffinityMap,
-    options: RankOptions = {},
-): ContentDto[] {
-    const {
-        topicTagIds,
-        tagWeight = TAG_LEG_WEIGHT,
-        ftsWeight = FTS_LEG_WEIGHT,
-        now = Date.now(),
-        scoreScale = 1,
-        limit,
-    } = options;
-
-    const docs = new Map<Uuid, ContentDto>();
-    const score = new Map<Uuid, number>();
-    const parentIdToId = new Map<Uuid, Uuid>();
-
-    const tagCandidateIds = new Set(tagCandidates.map((doc) => doc._id));
-    for (const doc of tagCandidates) {
-        docs.set(doc._id, doc);
-        parentIdToId.set(doc.parentId, doc._id);
-    }
-
-    ftsCandidates.forEach((result, i) => {
-        const ownerId = parentIdToId.get(result.doc.parentId) ?? result.docId;
-        if (!docs.has(ownerId)) {
-            docs.set(result.docId, result.doc);
-            parentIdToId.set(result.doc.parentId, result.docId);
-        }
-        // Normalized to [0,1] (top rank ≈ 1, decaying with i) so the leg's full weight is
-        // reachable at the top of the list — raw `1/(RRF_K+i+1)` tops out around 0.016,
-        // roughly 10x smaller than RECENCY_WEIGHT, which made publish date dominate BM25
-        // rank instead of merely breaking ties.
-        score.set(ownerId, (score.get(ownerId) ?? 0) + ftsWeight * ((RRF_K + 1) / (RRF_K + i + 1)));
-    });
-
-    const dominantTags = new Map<Uuid, Uuid | undefined>();
-    for (const doc of docs.values()) {
-        const { score: affinityScore, dominantTag } = tagAffinity(doc, affinity, topicTagIds);
-        dominantTags.set(doc._id, dominantTag);
-        if (tagCandidateIds.has(doc._id))
-            // `scoreScale` maps the raw affinity score back to the nominal 0-1 scale the
-            // `tagWeight` constants were calibrated for, so a config weight rescale (which
-            // shrinks raw scores) doesn't deflate the tag leg relative to the FTS leg.
-            score.set(
-                doc._id,
-                (score.get(doc._id) ?? 0) + tagWeight * affinityScore * scoreScale,
-            );
-        score.set(
-            doc._id,
-            (score.get(doc._id) ?? 0) + RECENCY_WEIGHT * (recencyFactor(doc, now) - 0.5),
-        );
-    }
-
-    const ordered = [...docs.values()].sort(
-        (a, b) => (score.get(b._id) ?? 0) - (score.get(a._id) ?? 0),
-    );
-
-    const perTagCount = new Map<Uuid, number>();
-    const selected: ContentDto[] = [];
-    const overflow: ContentDto[] = [];
-    for (const doc of ordered) {
-        const dominant = dominantTags.get(doc._id);
-        if (dominant) {
-            const count = perTagCount.get(dominant) ?? 0;
-            if (count >= MAX_PER_DOMINANT_TAG) {
-                overflow.push(doc);
-                continue;
-            }
-            perTagCount.set(dominant, count + 1);
-        }
-        selected.push(doc);
-        if (limit !== undefined && selected.length >= limit) break;
-    }
-    // The early break above only stops filling `selected` once `limit` is reached — it
-    // doesn't discard whatever diversity capping already pushed into `overflow` before
-    // that point, so `overflow` must still be truncated here. `slice(0, undefined)` is a
-    // no-op, so the no-limit call path is unaffected.
-    return [...selected, ...overflow].slice(0, limit);
-}
-
-/** Compute tag affinity and the diversity key in one allocation-free pass. */
-function tagAffinity(
-    doc: ContentDto,
-    affinity: AffinityMap,
-    topicTagIds?: Set<Uuid>,
-): { score: number; dominantTag: Uuid | undefined } {
-    let count = 0;
-    let total = 0;
-    let max = 0;
-    let dominantTag: Uuid | undefined;
-    for (const tag of doc.parentTags ?? []) {
-        if (topicTagIds && !topicTagIds.has(tag)) continue;
-        const value = affinity[tag] ?? 0;
-        count++;
-        total += value;
-        if (value > max) {
-            max = value;
-            dominantTag = tag;
-        }
-    }
-    return { score: count ? 0.5 * max + 0.5 * (total / count) : 0, dominantTag };
-}
-
-/** Exponential recency factor, halving every `RECENCY_HALFLIFE_DAYS`, then centered by
- *  the caller around the [0,1] midpoint. Docs without a `publishDate` remain neutral. */
-function recencyFactor(doc: ContentDto, now: number): number {
-    if (!doc.publishDate) return 0.5;
-    const ageDays = Math.max(0, (now - doc.publishDate) / DAY_MS);
-    return Math.exp((-Math.LN2 / RECENCY_HALFLIFE_DAYS) * ageDays);
 }

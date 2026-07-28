@@ -396,4 +396,55 @@ describe("rank", () => {
         expect(result).toHaveLength(5);
         expect(result.map((doc) => doc._id)).not.toContain("tag-a-3");
     });
+
+    it("leaves ordering unchanged when referenceTagIds/referenceWeight are omitted", () => {
+        const now = 1_800_000_000_000;
+        const day = 24 * 60 * 60 * 1000;
+        const sharesTwo = makeContent("shares-two", ["topic", "extra"], now - 30 * day);
+        const sharesOne = makeContent("shares-one", ["topic"], now);
+
+        // No reference leg and cold affinity → recency decides; the newer single-tag doc leads.
+        expect(rank([sharesTwo, sharesOne], [], {}, { now }).map((d) => d._id)).toEqual([
+            "shares-one",
+            "shares-two",
+        ]);
+    });
+
+    it("referenceTagIds promotes docs sharing more of the reference article's tags above newer ones", () => {
+        const now = 1_800_000_000_000;
+        const day = 24 * 60 * 60 * 1000;
+        const sharesTwo = makeContent("shares-two", ["topic", "extra"], now - 30 * day); // older, 2 shared
+        const sharesOne = makeContent("shares-one", ["topic"], now); // newer, 1 shared
+
+        const result = rank(
+            [sharesTwo, sharesOne],
+            [],
+            {}, // cold affinity — only relevance + recency
+            { now, referenceTagIds: new Set(["topic", "extra"]), referenceWeight: 1.0, maxPerDominantTag: 100 },
+        );
+
+        // overlap 2 (~2.0) beats overlap 1 + recency (~1.025) despite being older.
+        expect(result.map((d) => d._id)).toEqual(["shares-two", "shares-one"]);
+    });
+
+    it("maxPerDominantTag relaxes the per-dominant-tag diversity cap", () => {
+        const tagADocs = Array.from({ length: 5 }, (_, i) => makeContent(`a-${i}`, ["tag-a"]));
+        const tagBDoc = makeContent("b", ["tag-b"]);
+        const docs = [...tagADocs, tagBDoc];
+        const affinity = { "tag-a": 0.8, "tag-b": 0.5 };
+
+        // Default cap (3): the 4th/5th tag-a docs are demoted to overflow, pulling b up to
+        // position 3. Relaxed cap: all five tag-a docs stay ahead of b in score order.
+        expect(rank(docs, [], affinity, { now: 0 }).map((d) => d._id)).toEqual([
+            "a-0",
+            "a-1",
+            "a-2",
+            "b",
+            "a-3",
+            "a-4",
+        ]);
+        expect(
+            rank(docs, [], affinity, { now: 0, maxPerDominantTag: 100 }).map((d) => d._id),
+        ).toEqual(["a-0", "a-1", "a-2", "a-3", "a-4", "b"]);
+    });
 });
