@@ -33,12 +33,13 @@ export type AffinityConfigDto = {
  * CMS-editable global baseline affinity profile (singleton, fixed `_id` — see
  * `DEFAULT_AFFINITY_ID` in `util/defaultAffinity.ts`). This is a normal
  * group-scoped/permissioned doc, edited by CMS admins via the standard
- * change-request path (`_contentBaseDto` requires `memberOf`). Its map is
- * delivered at login to seed a previously unused client-local profile — see
- * `AuthIdentityService.getDefaultAffinity`.
+ * change-request path (`_contentBaseDto` requires `memberOf`) and synced to
+ * clients like any other doc type (gated by the doc's own `memberOf`/ACL, not a
+ * bespoke delivery path). Its map seeds a previously unused client-local profile
+ * (`app/src/recommendation/defaultAffinityStore.ts`).
  *
- * `config`, if present, holds the CMS-editable affinity engine tuning knobs —
- * delivered at login the same way, via `AuthIdentityService.getAffinityConfig`.
+ * `config`, if present, holds the CMS-editable affinity engine tuning knobs,
+ * consumed the same way.
  */
 export class DefaultAffinityDto extends _contentBaseDto {
     @IsObject()

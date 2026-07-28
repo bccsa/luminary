@@ -1,13 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { nextTick } from "vue";
-import {
-    defaultAffinity,
-    db,
-    DocType,
-    PublishStatus,
-    TagType,
-    type ContentDto,
-} from "luminary-shared";
+import { db, DocType, PublishStatus, TagType, type ContentDto } from "luminary-shared";
+import { defaultAffinity } from "./defaultAffinityStore";
 import { affinityProfile, recordAffinity, migrateProfileToV2 } from "./affinityStore";
 
 describe("affinityStore", () => {

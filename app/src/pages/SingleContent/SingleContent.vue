@@ -15,11 +15,11 @@ import {
     verifyAccess,
     AclPermission,
     readingDepthWeight,
-    affinityConfig,
 } from "luminary-shared";
 import { publishedNowConditions } from "@/util/mangoIsPublished";
 import { useContentQuery, useContentQueryWithState } from "@/composables/useContentQuery";
 import { recordAffinity } from "@/recommendation/affinityStore";
+import { affinityConfig } from "@/recommendation/defaultAffinityStore";
 import { notifyHighlightsChanged } from "@/recommendation/highlightStore";
 import { markSeen } from "@/recommendation/seenStore";
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";

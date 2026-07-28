@@ -15,8 +15,9 @@ import {
 
 /**
  * Data layer for the CMS "default affinity" settings modal — the CMS-managed singleton
- * cold-start baseline profile (`DocType.DefaultAffinity`) used to seed new clients'
- * local recommendations at login (see `AuthIdentityService.getDefaultAffinity`).
+ * cold-start baseline profile (`DocType.DefaultAffinity`) used to seed new app clients'
+ * local recommendations (synced like any other doc type — see
+ * `app/src/recommendation/defaultAffinityStore.ts`).
  *
  * **Why HybridQuery in API-only mode.** Like AutoGroupMappings, DefaultAffinity is a
  * non-synced type — never mirrored into IndexedDB. Because the type is absent from the sync

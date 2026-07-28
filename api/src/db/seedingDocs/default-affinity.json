@@ -1,7 +1,7 @@
 {
     "_id": "default-affinity",
     "type": "defaultAffinity",
-    "memberOf": ["group-super-admins"],
+    "memberOf": ["group-super-admins", "group-public-content"],
     "affinity": {},
     "config": {
         "halfLifeDays": 45,

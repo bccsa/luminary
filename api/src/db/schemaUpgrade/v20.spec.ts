@@ -62,6 +62,36 @@ describe("v20 — default affinity ACL + singleton backfill", () => {
         expect(g.acl.some((e: any) => e.type === DocType.DefaultAffinity)).toBe(false);
     });
 
+    it("grants a DefaultAffinity View-only ACL entry on group-public-content for public/private users", async () => {
+        const g = group("group-public-content", [entry(DocType.Post, [AclPermission.View])]);
+        const { db, inserted } = mockDb(19, [g], [{ _id: DEFAULT_AFFINITY_ID }]);
+
+        await v20(db);
+
+        expect(inserted).toHaveLength(1);
+        const daEntries = inserted[0].acl.filter((e: any) => e.type === DocType.DefaultAffinity);
+        expect(daEntries).toEqual(
+            expect.arrayContaining([
+                { type: DocType.DefaultAffinity, groupId: "group-public-users", permission: ["view"] },
+                { type: DocType.DefaultAffinity, groupId: "group-private-users", permission: ["view"] },
+            ]),
+        );
+    });
+
+    it("is idempotent — does not re-grant an already-present group-public-content ACL entry", async () => {
+        const g = group("group-public-content", [
+            entry(DocType.Post, [AclPermission.View]),
+            { type: DocType.DefaultAffinity, groupId: "group-public-users", permission: ["view"] },
+            { type: DocType.DefaultAffinity, groupId: "group-private-users", permission: ["view"] },
+        ]);
+        const { db, inserted } = mockDb(19, [g], [{ _id: DEFAULT_AFFINITY_ID }]);
+
+        await v20(db);
+
+        expect(inserted).toHaveLength(0);
+        expect(g.acl.filter((e: any) => e.type === DocType.DefaultAffinity)).toHaveLength(2);
+    });
+
     it("is idempotent — does not re-grant an already-present ACL entry", async () => {
         const g = group("group-super-admins", [
             entry(DocType.Post, [AclPermission.View]),
@@ -85,18 +115,37 @@ describe("v20 — default affinity ACL + singleton backfill", () => {
         expect(upserted[0]).toMatchObject({
             _id: DEFAULT_AFFINITY_ID,
             type: DocType.DefaultAffinity,
-            memberOf: ["group-super-admins"],
+            memberOf: ["group-super-admins", "group-public-content"],
             affinity: {},
         });
     });
 
-    it("does NOT recreate the singleton doc when already present", async () => {
+    it("does NOT recreate the singleton doc when already present with group-public-content", async () => {
         const g = group("group-super-admins", [entry(DocType.Post, [AclPermission.View])]);
-        const { db, upserted } = mockDb(19, [g], [{ _id: DEFAULT_AFFINITY_ID, affinity: { a: 1 } }]);
+        const { db, upserted } = mockDb(19, [g], [
+            {
+                _id: DEFAULT_AFFINITY_ID,
+                affinity: { a: 1 },
+                memberOf: ["group-super-admins", "group-public-content"],
+            },
+        ]);
 
         await v20(db);
 
         expect(upserted).toHaveLength(0);
+    });
+
+    it("backfills group-public-content onto an existing singleton doc that predates the grant", async () => {
+        const g = group("group-super-admins", [entry(DocType.Post, [AclPermission.View])]);
+        const { db, upserted } = mockDb(19, [g], [
+            { _id: DEFAULT_AFFINITY_ID, affinity: { a: 1 }, memberOf: ["group-super-admins"] },
+        ]);
+
+        await v20(db);
+
+        expect(upserted).toHaveLength(1);
+        expect(upserted[0].memberOf).toEqual(["group-super-admins", "group-public-content"]);
+        expect(upserted[0].affinity).toEqual({ a: 1 });
     });
 
     it("is a no-op when the schema version is not 19", async () => {
