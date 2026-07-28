@@ -147,6 +147,7 @@ const FTS_STALE_READ = { stable: true, update: "lazy" as const };
  *
  * @fires DbService#update - Emitted when any valid document with a type field is updated in the database
  * @fires DbService#groupUpdate - Emitted when a group document is updated, used by the permission system to update access maps. Also emitted with a `DeleteCmd` payload (docType === Group) when a group is deleted via the soft-delete flow, so the permission system can evict the entry.
+ * @fires DbService#permissionChange - Emitted (write-side, `{ docType, docId }`) right after a non-Group document's `memberOf` changes — additions and removals alike. Lets in-memory per-identity caches invalidate on membership ADDITIONS too: removals already surface via a `PermissionChange` DeleteCmd on the change feed, but a pure addition produces no DeleteCmd, so the feed alone can't distinguish it from a `lastLogin`-style update. Safe for cache eviction (single-instance); not a substitute for the feed-based handlers on multi-instance.
  * @fires DbService#disconnect - Emitted when a previously-established DB connection is lost. Consumers should drop cached DTO state that may have diverged while disconnected.
  * @fires DbService#reconnect - Emitted after a disconnect has been followed by a successful reconnect. Consumers that need a populated cache to function should rehydrate here.
  *
@@ -458,6 +459,10 @@ export class DbService extends EventEmitter {
 
         let rev: string;
 
+        // Tracks whether this write changes `memberOf` (add or remove) so we can emit a
+        // `permissionChange` event after the write succeeds — see the `@fires` note above.
+        let memberOfChanged = false;
+
         // Generate delete command if the document is set to be deleted, and delete the document
         if (doc.deleteReq) {
             await this.insertDeleteCmd({
@@ -479,6 +484,7 @@ export class DbService extends EventEmitter {
                     doc.memberOf.sort(),
                 )
             ) {
+                memberOfChanged = true;
                 await this.insertDeleteCmd({
                     reason: DeleteReason.PermissionChange,
                     doc: doc as _contentBaseDto,
@@ -557,6 +563,12 @@ export class DbService extends EventEmitter {
         const insertResult = await this.insertDoc(docPlain);
         insertResult.updatedTimeUtc = docPlain.updatedTimeUtc;
         insertResult.changes = changes;
+
+        // Notify in-memory per-identity caches of a membership change once the write is committed.
+        if (memberOfChanged) {
+            this.emit("permissionChange", { docType: doc.type, docId: doc._id });
+        }
+
         return insertResult;
     }
 
