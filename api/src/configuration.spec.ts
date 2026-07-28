@@ -121,4 +121,50 @@ describe("configuration", () => {
         expect(config.query.rateLimit.freeStrikes).toBe(5);
         expect(config.query.expensiveDocsExamined).toBe(2000);
     });
+
+    it("should default the identity cache config", () => {
+        delete process.env.IDENTITY_CACHE_ENABLED;
+        delete process.env.IDENTITY_CACHE_TTL_MS;
+        delete process.env.IDENTITY_CACHE_MAX_ENTRIES;
+
+        const config = configuration();
+        expect(config.identityCache).toEqual({
+            enabled: false,
+            ttlMs: 300000,
+            maxEntries: 50000,
+        });
+    });
+
+    it("should read identity cache config from env vars", () => {
+        process.env.IDENTITY_CACHE_ENABLED = "true";
+        process.env.IDENTITY_CACHE_TTL_MS = "60000";
+        process.env.IDENTITY_CACHE_MAX_ENTRIES = "10";
+
+        const config = configuration();
+        expect(config.identityCache).toEqual({
+            enabled: true,
+            ttlMs: 60000,
+            maxEntries: 10,
+        });
+    });
+
+    it("should only treat the literal string 'true' as enabling the identity cache", () => {
+        process.env.IDENTITY_CACHE_ENABLED = "false";
+        expect(configuration().identityCache.enabled).toBe(false);
+
+        process.env.IDENTITY_CACHE_ENABLED = "1";
+        expect(configuration().identityCache.enabled).toBe(false);
+
+        delete process.env.IDENTITY_CACHE_ENABLED;
+        expect(configuration().identityCache.enabled).toBe(false);
+    });
+
+    it("should fall back to defaults for non-numeric or zero identity cache values", () => {
+        process.env.IDENTITY_CACHE_TTL_MS = "not-a-number";
+        process.env.IDENTITY_CACHE_MAX_ENTRIES = "0";
+
+        const config = configuration();
+        expect(config.identityCache.ttlMs).toBe(300000);
+        expect(config.identityCache.maxEntries).toBe(50000);
+    });
 });
