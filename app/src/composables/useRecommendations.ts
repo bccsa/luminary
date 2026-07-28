@@ -9,11 +9,11 @@ import {
     type Uuid,
     type FtsSearchResult,
     topTagsFrom,
-    affinityConfig,
 } from "luminary-shared";
 import { useContentQuery } from "@/composables/useContentQuery";
 import { useContentQueryWithState } from "@/composables/useContentQueryWithState";
 import { affinityProfile } from "@/recommendation/affinityStore";
+import { affinityConfig } from "@/recommendation/defaultAffinityStore";
 import {
     highlightVersion,
     loadHighlightQueries,

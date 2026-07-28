@@ -30,6 +30,11 @@
             "permission": ["view"]
         },
         {
+            "type": "defaultAffinity",
+            "groupId": "group-public-users",
+            "permission": ["view"]
+        },
+        {
             "type": "post",
             "groupId": "group-public-editors",
             "permission": ["view", "edit", "translate", "publish", "cmsView"]
@@ -76,6 +81,11 @@
         },
         {
             "type": "storage",
+            "groupId": "group-private-users",
+            "permission": ["view"]
+        },
+        {
+            "type": "defaultAffinity",
             "groupId": "group-private-users",
             "permission": ["view"]
         }

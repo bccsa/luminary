@@ -8,10 +8,11 @@ import { cmsLanguages, isMac, isMobileScreen } from "@/globalConfig";
 import { useDisplayLanguageIds } from "@/ssg/renderLanguage";
 import { useRoute, useRouter } from "vue-router";
 import LImage from "@/components/images/LImage.vue";
-import { useFtsSearch, stripHtml, affinityConfig } from "luminary-shared";
+import { useFtsSearch, stripHtml } from "luminary-shared";
 import type { ContentDto, FtsSearchResult } from "luminary-shared";
 import { useI18n } from "vue-i18n";
 import { recordAffinity } from "@/recommendation/affinityStore";
+import { affinityConfig } from "@/recommendation/defaultAffinityStore";
 import { recordSearchQuery, loadRecentSearches, searchVersion } from "@/recommendation/searchQueryStore";
 
 /**
