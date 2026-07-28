@@ -24,6 +24,7 @@ import { apiUrl } from "./globalConfig";
 import { initAppTitle, initI18n } from "./i18n";
 import { initAnalytics } from "./analytics";
 import { initSync, initAuthLangSync } from "./sync";
+import { initDefaultAffinitySync } from "@/recommendation/defaultAffinityStore";
 import { APP_DOCS_INDEX } from "./docsIndex";
 import { initSentry, Sentry } from "@/util/initSentry";
 import { markAppReady, markAppError } from "@/util/renderState";
@@ -70,6 +71,10 @@ async function Startup() {
         console.error(err);
         Sentry?.captureException(err);
     });
+
+    // Keep the CMS-managed default-affinity baseline/config in sync with the local
+    // copy of the singleton doc, now that it's synced like any other doc type.
+    initDefaultAffinitySync();
 
     const socket = getSocket();
 

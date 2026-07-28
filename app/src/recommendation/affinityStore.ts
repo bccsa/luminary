@@ -1,11 +1,6 @@
 import { ref, watch } from "vue";
-import {
-    defaultAffinity,
-    affinityConfig,
-    applyEvent,
-    type AffinityProfile,
-    type Uuid,
-} from "luminary-shared";
+import { applyEvent, type AffinityProfile, type Uuid } from "luminary-shared";
+import { defaultAffinity, affinityConfig } from "@/recommendation/defaultAffinityStore";
 import { filterTopicTagIds } from "@/recommendation/topicTags";
 
 /**
@@ -14,8 +9,9 @@ import { filterTopicTagIds } from "@/recommendation/topicTags";
  * The working copy lives in localStorage (like `mediaProgress`) — deliberately NOT
  * in the Dexie `docs` table, so client retention (`deleteRevoked`) can never purge
  * it. It is deliberately client-local: no affinity document is queued or synced.
- * The CMS-managed default delivered in `clientConfig` only seeds a new local
- * profile, so administrators can tune recommendations for first-time clients.
+ * The CMS-managed baseline (the synced `DefaultAffinity` singleton, see
+ * `defaultAffinityStore.ts`) only seeds a new local profile, so administrators can
+ * tune recommendations for first-time clients.
  */
 
 const STORAGE_KEY = "affinityProfile";

@@ -78,8 +78,8 @@ function normalizeConfig(config: Partial<AffinityConfigDto> | undefined): Affini
  * Finalize a DefaultAffinity change request.
  *
  * The doc is a singleton — force the fixed `_id` regardless of what the client
- * sent, so `AuthIdentityService.getDefaultAffinity`'s lookup always finds exactly one
- * doc. Clamp each score into [0, 1] and drop non-finite/negative entries (a
+ * sent, so lookups by `DEFAULT_AFFINITY_ID` always find exactly one doc. Clamp
+ * each score into [0, 1] and drop non-finite/negative entries (a
  * cheap guard against a fat-fingered CMS input feeding a bad value into every
  * new user's cloned profile) and cap the tag count. `config` (the affinity engine
  * tuning knobs) is clamped/defaulted the same way — see `normalizeConfig`.
