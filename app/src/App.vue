@@ -18,7 +18,6 @@ import PrivacyPolicyModal from "@/components/navigation/PrivacyPolicyModal.vue";
 import SearchModal from "@/components/navigation/SearchModal.vue";
 import AudioPlayer from "@/components/content/AudioPlayer.vue";
 import MobileMenu from "@/components/navigation/MobileMenu.vue";
-import AffinityDebugOverlay from "@/components/debug/AffinityDebugOverlay.vue";
 import { useAuthWithPrivacyPolicy } from "@/composables/useAuthWithPrivacyPolicy";
 import { showProviderSelectionModal } from "@/auth";
 import AuthProviderSelectionModal from "@/components/authProvider/AuthProviderSelectionModal.vue";
@@ -218,8 +217,6 @@ onErrorCaptured((err) => {
             v-model:show="showPrivacyPolicyModal"
             @close="handleModalClose"
         />
-
-        <AffinityDebugOverlay />
     </div>
     <!-- Modals depend on i18n, which isn't installed until splash finishes — keep them out of the tree during the loading phase. On web they are also gated behind mount (signed-out shell). -->
     <template v-if="!isAppLoading && isMounted">
