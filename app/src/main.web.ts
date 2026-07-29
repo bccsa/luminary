@@ -73,6 +73,9 @@ export const createApp = ViteSSG(
             const defaultId = defaultLang?._id;
             const keep = new Set([lang, defaultId].filter(Boolean) as string[]);
             initialState.renderLang = lang;
+            // Human-readable companion to renderLang: the `_id` is often a UUID, so
+            // surface the language name too for anyone reading the inlined state.
+            initialState.renderLangName = langs.find((l) => l._id === lang)?.name ?? "";
             initialState.defaultLanguageCode = defaultLang?.languageCode;
             initialState.langCodeToId = langCodeToId(langs);
             initialState.languages = langs.map((l) =>

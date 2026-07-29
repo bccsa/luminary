@@ -123,7 +123,9 @@ UI strings live in CouchDB Language docs. The prerender fetches languages via
 `queryRemote`, sets `cmsLanguages` + `appLanguageIdsAsRef` **before** `app.use(initI18n())`
 (so the first render emits real strings, not `menu.*` keys), and serializes all language
 docs via vite-ssg's `initialState` — with `translations` stripped from all but the render
-and default language to bound page weight. The render language also rides `initialState`.
+and default language to bound page weight. The render language also rides `initialState`
+as `renderLang` (the language `_id`, often a UUID) plus a human-readable `renderLangName`
+companion for anyone inspecting the inlined state.
 
 ### Incremental regeneration — facet keys + manifest + scoped rebuild
 
