@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { ChevronLeftIcon } from "@heroicons/vue/24/solid";
-import { useRouter } from "vue-router";
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
-import { getRouteHistory } from "@/router";
+import { useBackNavigation } from "@/composables/useBackNavigation";
 import { useAuthWithPrivacyPolicy } from "@/composables/useAuthWithPrivacyPolicy";
 import { isConnected } from "luminary-shared";
 import { useNotificationStore, type Notification } from "@/stores/notification";
@@ -22,8 +21,6 @@ type Props = {
 withDefaults(defineProps<Props>(), {
     showBackButton: false,
 });
-
-const router = useRouter();
 
 const LOGO = import.meta.env.VITE_LOGO || defaultLogo;
 const LOGO_SMALL = import.meta.env.VITE_LOGO_SMALL || "";
@@ -72,9 +69,7 @@ onBeforeUnmount(() => {
     resizeObserver?.disconnect();
 });
 
-const isPostAndNoHistory = computed(() => {
-    return getRouteHistory().value.length <= 1 && router.currentRoute.value.name === "content";
-});
+const { onBackClick } = useBackNavigation();
 
 const { isAuthenticated, loginWithRedirect } = useAuthWithPrivacyPolicy();
 const { t } = useI18n();
@@ -104,12 +99,21 @@ const handleLogin = () => {
                         v-if="showBackButton"
                         data-test="backButton"
                     >
-                        <ChevronLeftIcon
-                            class="-ml-2 h-6 w-6 cursor-pointer text-zinc-600 dark:text-slate-50"
-                            @click="
-                                isPostAndNoHistory ? router.push({ name: 'home' }) : router.back()
-                            "
-                        />
+                        <RouterLink
+                            :to="{ name: 'home' }"
+                            v-slot="{ href, navigate }"
+                            custom
+                        >
+                            <a
+                                :href="href"
+                                aria-label="Go back"
+                                @click="onBackClick(navigate, $event)"
+                            >
+                                <ChevronLeftIcon
+                                    class="-ml-2 h-6 w-6 cursor-pointer text-zinc-600 dark:text-slate-50"
+                                />
+                            </a>
+                        </RouterLink>
                     </div>
 
                     <div

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, provide, ref } from "vue";
+import { onMounted, onUnmounted, provide, ref } from "vue";
 import TopBar from "./navigation/TopBar.vue";
 import DesktopSidebar from "./navigation/DesktopSidebar.vue";
 import NotificationBannerManager from "./notifications/NotificationBannerManager.vue";
@@ -8,8 +8,7 @@ import NotificationBottomManager from "./notifications/NotificationBottomManager
 import { queryParams } from "@/globalConfig";
 import type { ContentDto } from "luminary-shared";
 import { ChevronLeftIcon } from "@heroicons/vue/24/outline";
-import { useRouter } from "vue-router";
-import { getRouteHistory } from "@/router";
+import { useBackNavigation } from "@/composables/useBackNavigation";
 
 const showNotifications = !queryParams.has("supress-notifications");
 
@@ -36,11 +35,7 @@ defineProps<{
     desktopTopBar?: boolean;
 }>();
 
-const router = useRouter();
-
-const isPostAndNoHistory = computed(
-    () => getRouteHistory().value.length <= 1 && router.currentRoute.value.name === "content",
-);
+const { onBackClick } = useBackNavigation();
 
 const main = ref<HTMLElement | undefined>(undefined);
 
@@ -99,14 +94,21 @@ onUnmounted(() => {
                     v-if="desktopTopBar"
                     class="pointer-events-none sticky top-0 z-20 -mb-9 hidden h-9 items-center lg:flex"
                 >
-                    <button
+                    <RouterLink
                         v-if="showBackButton"
-                        class="pointer-events-auto flex-shrink-0 rounded-md p-1 text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
-                        @click="isPostAndNoHistory ? router.push({ name: 'home' }) : router.back()"
-                        aria-label="Go back"
+                        :to="{ name: 'home' }"
+                        v-slot="{ href, navigate }"
+                        custom
                     >
-                        <ChevronLeftIcon class="h-5 w-5" />
-                    </button>
+                        <a
+                            :href="href"
+                            class="pointer-events-auto flex-shrink-0 rounded-md p-1 text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
+                            @click="onBackClick(navigate, $event)"
+                            aria-label="Go back"
+                        >
+                            <ChevronLeftIcon class="h-5 w-5" />
+                        </a>
+                    </RouterLink>
                     <div class="pointer-events-auto ml-auto flex items-center gap-2 pr-2">
                         <slot name="quickControls" />
                     </div>
