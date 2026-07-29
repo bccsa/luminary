@@ -10,7 +10,12 @@ import type { DocLike } from "./src/ssg/facetKeys";
 import { docFacetShard, docFacetShardFile, docFacetsIndex } from "./src/ssg/docFacetShards";
 import { redirectFile, redirectHtml } from "./src/ssg/redirectHtml";
 import { buildRedirectIndex } from "./src/ssg/redirectIndex";
-import { buildRouteIndex, type SsgRouteIndex } from "./src/ssg/routeIndex";
+import { buildRouteIndex, emptyRouteIndex, type SsgRouteIndex } from "./src/ssg/routeIndex";
+import {
+    routeIndexShard,
+    routeIndexShardFile,
+    routeIndexShardsIndex,
+} from "./src/ssg/routeIndexShards";
 import {
     drainQuery,
     enumeratePublicContent,
@@ -138,13 +143,16 @@ const IS_SCOPED = SCOPED_ROUTES.length > 0;
 
 const indexHtmlPath = () => join(process.cwd(), OUT_DIR, "index.html");
 const manifestPath = () => join(process.cwd(), OUT_DIR, "ssg-deps.json");
-const routeIndexPath = () => join(process.cwd(), OUT_DIR, "ssg-route-index.json");
 const redirectIndexPath = () => join(process.cwd(), OUT_DIR, "ssg-redirect-index.json");
-// Sharded (not one growing file) — see docFacetShards.ts for why and writeDocFacets()
-// below for how a scoped rebuild only touches the shards its docs land in.
+// Sharded (not one growing file) — see docFacetShards.ts / routeIndexShards.ts for why
+// and writeDocFacets() / writeRouteIndex() below for how a scoped rebuild only touches
+// the shards its docs land in.
 const docFacetsDir = () => join(process.cwd(), OUT_DIR, "ssg-doc-facets");
 const docFacetsIndexPath = () => join(docFacetsDir(), "index.json");
 const docFacetShardPath = (shard: string) => join(docFacetsDir(), docFacetShardFile(shard));
+const routeIndexDir = () => join(process.cwd(), OUT_DIR, "ssg-route-index");
+const routeIndexIndexPath = () => join(routeIndexDir(), "index.json");
+const routeIndexShardPath = (shard: string) => join(routeIndexDir(), routeIndexShardFile(shard));
 
 // Build-in-progress lock, consumed by the deployment repo's ISR watcher: it must
 // not spawn a scoped rebuild while a build (the initial full `build:web`, or its own
@@ -240,10 +248,45 @@ function writeSeoArtifacts() {
     );
 }
 
+// Sharded like writeDocFacets() below: only content ids / parent ids whose route was
+// actually rendered THIS build get their shard touched, so a scoped rebuild reads/writes
+// a handful of small shard files, not one ssg-route-index.json that grows without bound
+// as the site grows (see routeIndex.ts / routeIndexShards.ts).
 function writeRouteIndex() {
-    writeFileSync(routeIndexPath(), JSON.stringify(routeIndex));
+    mkdirSync(routeIndexDir(), { recursive: true });
+    writeFileSync(routeIndexIndexPath(), JSON.stringify(routeIndexShardsIndex()));
+
+    const byShard = new Map<string, SsgRouteIndex>();
+    const shardFor = (shard: string) =>
+        byShard.get(shard) ?? byShard.set(shard, emptyRouteIndex()).get(shard)!;
+
+    for (const [id, entry] of Object.entries(routeIndex.content)) {
+        if (!renderedRouteSet.has(entry.route)) continue;
+        shardFor(routeIndexShard(id)).content[id] = entry;
+    }
+    for (const [parentId, routes] of Object.entries(routeIndex.parent)) {
+        if (!routes.some((route) => renderedRouteSet.has(route))) continue;
+        shardFor(routeIndexShard(parentId)).parent[parentId] = routes;
+    }
+
+    let written = 0;
+    for (const [shard, fresh] of byShard) {
+        const path = routeIndexShardPath(shard);
+        const existing = existsSync(path)
+            ? (JSON.parse(readFileSync(path, "utf-8")) as SsgRouteIndex)
+            : emptyRouteIndex();
+        writeFileSync(
+            path,
+            JSON.stringify({
+                content: { ...existing.content, ...fresh.content },
+                parent: { ...existing.parent, ...fresh.parent },
+            } as SsgRouteIndex),
+        );
+        written += Object.keys(fresh.content).length;
+    }
     console.log(
-        `[ssg] wrote ssg-route-index.json (${Object.keys(routeIndex.content).length} docs)`,
+        `[ssg] wrote ssg-route-index/ (${written} doc(s) across ${byShard.size} shard(s), ` +
+            `${routeIndexShardsIndex().shardCount} total)`,
     );
 }
 

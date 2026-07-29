@@ -11,6 +11,7 @@
         "src/ssg/redirectIndex.ts",
         "src/ssg/redirectHtml.ts",
         "src/ssg/routeIndex.ts",
+        "src/ssg/routeIndexShards.ts",
         "cypress.config.*",
         "nightwatch.conf.*",
         "playwright.config.*"

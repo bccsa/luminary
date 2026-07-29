@@ -1,7 +1,22 @@
 /**
- * Content-id / parent-id → prerendered route sidecar (`dist-web/ssg-route-index.json`).
- * A CouchDB DeleteCmd only carries a doc/parent id, not the route it was rendered
- * to, so this lets `resolveContentDelete` map that id back to the static file(s) to remove.
+ * Content-id / parent-id → prerendered route sidecar (`dist-web/ssg-route-index/`).
+ *
+ * Why this exists: prerendering writes static HTML files keyed by **route** (slug),
+ * but ISR deletion is driven by a CouchDB DeleteCmd, which carries only the deleted
+ * doc's **id** — never the slug it was rendered to (the slug lives on the deleted doc
+ * itself, so it's gone by the time the deploy repo's watcher sees the DeleteCmd). This
+ * sidecar is the persisted id → route mapping that survives the doc's deletion, so
+ * `resolveContentDelete` can still answer "which static file(s) does this id
+ * correspond to?" and the deploy repo can remove them. A `docId` may be either a single
+ * translation's content id (removes one route) or a parent id (removes every
+ * translation's route — e.g. a whole post/tag being deleted).
+ *
+ * This module only builds the in-memory index; `vite.config.web.ts` shards it to disk
+ * (`routeIndexShards.ts`, same fnv1a32-mod-shardCount scheme as `docFacetShards.ts`) so
+ * a scoped rebuild only touches the shards its changed docs land in, and a consumer
+ * resolving one DeleteCmd loads one small shard file instead of the whole site's index.
+ * `resolveContentDelete` itself is shard-agnostic — it works the same against a full
+ * index or a single shard's partial `{content, parent}` object.
  */
 
 export type SsgRouteIndex = {

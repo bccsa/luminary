@@ -69,13 +69,14 @@ native is `app/vite.config.ts`.
 | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
 | `../main.web.ts`               | Web entry (`ViteSSG`). Prerender: `initHybridQuery(HttpReq)` so `queryRemote` works in Node, set render language + fill `cmsLanguages` before i18n, add locale-prefixed static routes, serialize render/default langs via `initialState`. Client: restore those + boot the data layer (`clientRuntime`), minus the service worker. Branches only on `import.meta.env.SSR`. | Node + browser   |
 | `../router/localizedRoutes.ts` | Pure route helper for locale-prefixed public static routes (`/<code>`, `/<code>/explore`, `/<code>/watch`). Imported by the web entry only; native routes stay unchanged.                                                                                                                                                                                                  | Node + browser   |
-| `../../vite.config.web.ts`     | Web build config: route enumeration, `concurrency:1`, dependency-capture hooks, **per-page `hqcache:*` → inline-script serialization**, writes `ssg-deps.json` / `ssg-route-index.json` / `ssg-redirect-index.json` / `ssg-doc-facets/` / sitemap / robots / static redirect HTML, scoped-rebuild mode.                                                                | Node (build)     |
+| `../../vite.config.web.ts`     | Web build config: route enumeration, `concurrency:1`, dependency-capture hooks, **per-page `hqcache:*` → inline-script serialization**, writes `ssg-deps.json` / `ssg-route-index/` / `ssg-redirect-index.json` / `ssg-doc-facets/` / sitemap / robots / static redirect HTML, scoped-rebuild mode.                                                                | Node (build)     |
 | `polyfills.ts`                 | Node shims jsdom lacks (localStorage/sessionStorage/matchMedia). Imported first in `main.web.ts`. The `localStorage` shim also backs `writeResponseCache` during the prerender.                                                                                                                                                                                            | Node (prerender) |
 | `clientRuntime.ts`             | `initSsgClient()` boots the data layer on the **browser client** after hydration (`init()` + sync + language). Dynamically imported (never in the prerender).                                                                                                                                                                                                              | browser          |
 | `facetKeys.ts`                 | **Pure** key vocabulary. `docKey` + `facetsFromSelector` / `facetsFromDoc` (`facet:<field>:<value>:<lang>`). No Vue/DOM/Vite deps. The deploy repo carries its own copy for the watcher side — keep them in sync when the vocabulary changes.                                                                                                                      | anywhere         |
 | `docFacetShards.ts`            | **Pure** shard-id function (`docFacetShard`, fnv1a32 mod `DOC_FACETS_SHARD_COUNT`) for `ssg-doc-facets/`. No Vue/DOM/Vite/fs deps. The deploy repo carries its own copy — keep the count/algorithm in sync.                                                                                                                                                        | anywhere         |
 | `dependencyCapture.ts`         | **Pure** render-time reporter (`reportKeys`) writing to `globalThis.__SSG_DEPS__`. No-op unless a capture is active (safe on client/native). The collector itself is initialised/reset by `vite.config.web.ts`.                                                                                                                                                            | Node (build)     |
 | `routeIndex.ts`                | Pure content-id/parent-id → route sidecar helper for DeleteCmd handling and slug-change cleanup.                                                                                                                                                                                                                                                                           | Node             |
+| `routeIndexShards.ts`          | **Pure** shard-id function (`routeIndexShard`, fnv1a32 mod `ROUTE_INDEX_SHARD_COUNT`) for `ssg-route-index/`. No Vue/DOM/Vite/fs deps. The deploy repo carries its own copy — keep the count/algorithm in sync.                                                                                                                                                    | anywhere         |
 | `redirectIndex.ts`             | Pure redirect id → `{ slug, status }` sidecar helper, so redirect DeleteCmds can remove static redirect files and the deploy repo can apply the right HTTP status.                                                                                                                                                                                                        | Node             |
 | `redirectHtml.ts`              | Pure static redirect renderer (`redirectHtml` + `redirectFile` + `redirectStatus`) shared by full builds and the watcher. Maps `redirectType` to a 301/302.                                                                                                                                                                                                               | Node             |
 | `queryDrain.ts`                | Pure keyset-pagination helper (`drainQuery`, `enumeratePublicContent`) over anonymous `/query`, used by route/language/redirect enumeration in `vite.config.web.ts`.                                                                                                                                                                                                       | Node (build)     |
@@ -157,8 +158,14 @@ companion for anyone inspecting the inlined state.
 - **Capture** (`dependencyCapture.ts`): a render-time reporter on
   `globalThis.__SSG_DEPS__`; `reportKeys` is a no-op unless a capture is active.
 - **Manifest**: `dist-web/ssg-deps.json` = `route → keys[]`.
-- **Route index**: `dist-web/ssg-route-index.json` = content id / parent id → slug routes,
-  used so DeleteCmds and slug changes can remove stale static content files.
+- **Route index**: `dist-web/ssg-route-index/` = content id / parent id → slug routes,
+  used so DeleteCmds and slug changes can remove stale static content files. **Sharded**,
+  not one file — same scheme as the doc facet snapshot below (`routeIndexShards.ts`'s
+  `routeIndexShard()`, fnv1a32-mod-shardCount, `index.json` holds `{ shardCount,
+  algorithm }`). A `docId` may hash to a different shard depending on whether it's a
+  content id or a parent id, but `resolveContentDelete` only needs the one shard file for
+  whichever id it was given — it checks that shard's `content` and `parent` maps and only
+  falls through empty if neither has it.
 - **Redirect index**: `dist-web/ssg-redirect-index.json` = redirect id →
   `{ slug, status }`, used so redirect DeleteCmds and slug changes can remove stale
   static redirect files. `status` (301/302, from `redirectType` via
@@ -224,7 +231,7 @@ right language. Full builds also emit static meta-refresh redirect files.
 
 **ISR verified end-to-end:** the polling watcher detected a real changed doc on staging,
 computed the affected route, ran `SSG_ONLY_ROUTES=... npm run build:web`, and the page regenerated. Content
-delete support is implemented via `ssg-route-index.json`; recategorization old-facet
+delete support is implemented via `ssg-route-index/`; recategorization old-facet
 coverage is backed by `ssg-doc-facets/`. Live API verification is still user-run.
 
 **404 error page:** `NotFoundPage` is prerendered to `dist-web/404.html` (via a static
