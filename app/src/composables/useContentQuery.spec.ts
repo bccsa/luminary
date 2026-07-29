@@ -56,6 +56,28 @@ describe("useContentQuery", () => {
         expect(o.persistOffline).toBe(true);
     });
 
+    // ssrCacheStripFields only affects the SSR-authored response-cache write
+    // (onServerPrefetch, not exercised outside a real SSR build) — here we only need
+    // to prove it never leaks into the client-side HybridQuery options, which would
+    // otherwise strip it from the client's own ongoing re-cache writes too.
+    it("does not forward ssrCacheStripFields to the client HybridQuery options", () => {
+        useContentQuery(() => [], { cache: true, ssrCacheStripFields: ["text"] });
+        const o = lastOptions();
+        expect(o.ssrCacheStripFields).toBeUndefined();
+        expect(o.cacheStripFields).toBeUndefined();
+    });
+
+    it("keeps cacheStripFields separate from ssrCacheStripFields on the client options", () => {
+        useContentQuery(() => [], {
+            cache: true,
+            cacheStripFields: ["fts"],
+            ssrCacheStripFields: ["text"],
+        });
+        const o = lastOptions();
+        expect(o.cacheStripFields).toEqual(["fts"]);
+        expect(o.ssrCacheStripFields).toBeUndefined();
+    });
+
     // Response-cache auth scoping — fix for "flash of public content" on reload
     // while logged in (the SSG build always seeds the `:anon` entry; a returning
     // authenticated client must read/write a distinct `:auth` entry instead).

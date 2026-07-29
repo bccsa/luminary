@@ -73,6 +73,7 @@ import {
 } from "@/composables/useReadingProgressTracker";
 import { useContentHead, type PublicTaxonomy } from "@/seo/contentHead";
 import { useTranslationSwitcher } from "@/composables/useTranslationSwitcher";
+import { recoverSsrArticleText } from "@/util/ssrTextRecovery";
 
 const router = useRouter();
 
@@ -103,6 +104,10 @@ const contentArr = useContentQuery(() => [{ slug: props.slug }], {
     useIndex: "content-slug-publishDate-index",
     sort: [{ publishDate: "desc" }],
     stripFields: ["fts", "ftsTokenCount", "_rev"],
+    // `text` is the heaviest field on the page and already sits in the prerendered
+    // `[data-ssr-article-text]` node — omit it from the SSR-authored cache write so it
+    // isn't shipped twice; the hydration patch below recovers it from that node.
+    ssrCacheStripFields: ["text"],
 });
 
 // `content` is a COMPUTED over the query result, plus an override for the in-place
@@ -119,6 +124,19 @@ watch(
         contentOverride.value = undefined;
     },
 );
+
+// One-time hydration patch (client only): the response-cache seed above may have
+// omitted `text` (`ssrCacheStripFields`) — recover it from the DOM before first
+// render so the `v-html` binding below matches the prerendered HTML exactly. Runs
+// synchronously in setup (not a watcher) so it lands before the template's first
+// evaluation. A no-op when the seed already carries `text` (warm client cache) or
+// there's nothing to recover.
+if (!import.meta.env.SSR) {
+    const recovered = recoverSsrArticleText(contentArr.value[0], (selector) =>
+        document.querySelector(selector),
+    );
+    if (recovered) contentOverride.value = recovered;
+}
 
 const liveUrl = () => {
     if (!content.value || !selectedLanguageCode.value) return "";
@@ -854,6 +872,7 @@ watch([isLoading, content, is404], async () => {
                     >
                         <div
                             ref="articleProseRef"
+                            data-ssr-article-text
                             v-html="text"
                             class="prose prose-zinc mt-8 max-w-full dark:prose-invert lg:prose-lg prose-headings:font-bold prose-a:text-yellow-600 dark:prose-a:text-yellow-400"
                             :class="{

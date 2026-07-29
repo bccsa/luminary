@@ -62,6 +62,21 @@ export type UseContentQueryOptions = HybridQueryOptions & {
      * for a query that has its own dedicated design-doc index.
      */
     useIndex?: string;
+    /**
+     * Fields to strip ONLY from the SSR-authored response-cache write (the inline
+     * script `vite.config.web.ts` serializes into the prerendered page) — distinct
+     * from {@link HybridQueryOptions.cacheStripFields}, which also strips from the
+     * client's own ongoing re-cache writes every time the live query settles.
+     *
+     * Use this for a field the hydrating client can recover some other way (e.g.
+     * reading it back off the already-rendered DOM — see SingleContent's `text`):
+     * the SSR write omits it (no on-page duplication), while a plain client-side
+     * navigation — which has no pre-rendered DOM to recover from — keeps writing it
+     * to its own cache normally. Passing the same field to `cacheStripFields`
+     * instead would also strip it from THAT write, reintroducing a flash on a warm
+     * revisit. No effect when `cache` is off or during a normal (non-SSR) build.
+     */
+    ssrCacheStripFields?: string[];
 };
 
 /**
@@ -120,6 +135,7 @@ export function useContentQuery(
         // that DOES render one of these — e.g. the article body (`text`) or the
         // edit-permission check (`memberOf`).
         stripFields = ["fts", "ftsTokenCount", "text", "memberOf", "_rev"],
+        ssrCacheStripFields,
         ...rest
     } = options;
 
@@ -174,7 +190,9 @@ export function useContentQuery(
                     structuralCacheKey(q, `${rest.cacheId ?? ""}:anon`),
                     { local: docs, remote: [] },
                     limit,
-                    rest.cacheStripFields,
+                    // ssrCacheStripFields (SSR-only) falls back to cacheStripFields so a
+                    // caller that doesn't need the asymmetry can keep using one option.
+                    ssrCacheStripFields ?? rest.cacheStripFields,
                 );
                 reportKeys([
                     ...facetsFromSelector(q.selector, renderLang()),
