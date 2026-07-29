@@ -15,8 +15,8 @@ import {
     verifyAccess,
     AclPermission,
 } from "luminary-shared";
-import { useContentQuery } from "@/composables/useContentQuery";
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
+import { useContentQuery, useContentQueryWithState } from "@/composables/useContentQuery";
+import { computed, nextTick, onMounted, ref, watch } from "vue";
 import { BookmarkIcon as BookmarkIconSolid, TagIcon, SunIcon } from "@heroicons/vue/24/solid";
 import {
     BookmarkIcon as BookmarkIconOutline,
@@ -94,21 +94,24 @@ const currentImageIndex = ref(0);
 // the article on first paint with no flash; during the Node prerender the seam's
 // onServerPrefetch fetches it so it is present in the static HTML. `text` (the body,
 // rendered below) and `memberOf` (read by canEdit) are kept off the default strip set.
-const contentArr = useContentQuery(() => [{ slug: props.slug }], {
-    includeScheduled: false,
-    languageFilter: false,
-    cache: true,
-    cacheId: props.slug,
-    // Seek the single slug doc via the slug-led index. The publishDate sort is required
-    // for CouchDB to engage the index (slug eq alone falls back to a full scan).
-    useIndex: "content-slug-publishDate-index",
-    sort: [{ publishDate: "desc" }],
-    stripFields: ["fts", "ftsTokenCount", "_rev"],
-    // `text` is the heaviest field on the page and already sits in the prerendered
-    // `[data-ssr-article-text]` node — omit it from the SSR-authored cache write so it
-    // isn't shipped twice; the hydration patch below recovers it from that node.
-    ssrCacheStripFields: ["text"],
-});
+const { output: contentArr, isFetching: isContentFetching } = useContentQueryWithState(
+    () => [{ slug: props.slug }],
+    {
+        includeScheduled: false,
+        languageFilter: false,
+        cache: true,
+        cacheId: props.slug,
+        // Seek the single slug doc via the slug-led index. The publishDate sort is required
+        // for CouchDB to engage the index (slug eq alone falls back to a full scan).
+        useIndex: "content-slug-publishDate-index",
+        sort: [{ publishDate: "desc" }],
+        stripFields: ["fts", "ftsTokenCount", "_rev"],
+        // `text` is the heaviest field on the page and already sits in the prerendered
+        // `[data-ssr-article-text]` node — omit it from the SSR-authored cache write so it
+        // isn't shipped twice; the hydration patch below recovers it from that node.
+        ssrCacheStripFields: ["text"],
+    },
+);
 
 // `content` is a COMPUTED over the query result, plus an override for the in-place
 // language switches below. A computed stays readable at SSR render time, where the
@@ -181,46 +184,47 @@ function routeRedirect(redirect: RedirectDto): boolean {
 }
 
 // Loading until the content query produces an answer for the current slug — cleared
-// by the bind watch on the client, or by the not-found timer. During the prerender
-// the content is fetched in onServerPrefetch and present at render, so the loading
-// branch is never serialized.
+// by the bind watch on the client, or by the not-found resolver below. During the
+// prerender the content is fetched in onServerPrefetch and present at render, so the
+// loading branch is never serialized.
 const isLoading = ref(!import.meta.env.SSR);
 
-let notFoundTimer: ReturnType<typeof setTimeout> | undefined;
-const clearNotFoundTimer = () => {
-    if (notFoundTimer) clearTimeout(notFoundTimer);
-    notFoundTimer = undefined;
-};
+// Slug this generation's not-found resolution belongs to — guards against a stale
+// redirect probe (the awaited queryRemote below) resolving after the slug moved on,
+// and against re-running the probe on every unrelated isFetching/contentArr tick
+// once this slug has already been resolved to "not found".
+let notFoundSlug: string | undefined;
 
 // When nothing matches the slug, HybridQuery's (change-gated) output stays empty and
-// never emits — so after the local read + (online) API supplement have had time to
-// land, treat an empty result as "not found". Last chance before 404: a redirect that
-// exists only on the server (only reached when the slug resolves to no content).
-const scheduleNotFound = () => {
-    clearNotFoundTimer();
-    notFoundTimer = setTimeout(
-        async () => {
-            if (contentArr.value.length) return;
-            const slug = props.slug;
-            if (isConnected.value) {
-                try {
-                    const remote = await queryRemote<RedirectDto>({
-                        selector: { $and: [{ type: DocType.Redirect }, { slug }] },
-                    });
-                    if (props.slug !== slug) return; // slug changed mid-await
-                    if (remote[0] && routeRedirect(remote[0])) return;
-                } catch {
-                    /* fall through to 404 */
-                }
-            }
-            // `content` is a computed over the (empty) query result → already
-            // undefined; just stop loading so the 404 branch shows.
-            if (!contentArr.value.length) {
-                isLoading.value = false;
-            }
-        },
-        isConnected.value ? 5000 : 1500,
-    );
+// never emits. Rather than guessing off a wall-clock timeout (which races any query
+// slower than the guess — slow device, cold sync, congested network: see the SSR
+// hydration case, where an authenticated client's response-cache seed deliberately
+// misses and must wait for a fresh Dexie read), wait for the query to genuinely settle
+// (`isContentFetching` false — the local read AND, where applicable, the remote
+// supplement). Only THEN treat an empty result as "not found". Last chance before 404:
+// a redirect that exists only on the server (only reached when the slug resolves to no
+// content).
+const resolveNotFound = async () => {
+    if (contentArr.value.length || isContentFetching.value) return;
+    const slug = props.slug;
+    if (notFoundSlug === slug) return; // already resolved (or resolving) for this slug
+    notFoundSlug = slug;
+    if (isConnected.value) {
+        try {
+            const remote = await queryRemote<RedirectDto>({
+                selector: { $and: [{ type: DocType.Redirect }, { slug }] },
+            });
+            if (props.slug !== slug) return; // slug changed mid-await
+            if (remote[0] && routeRedirect(remote[0])) return;
+        } catch {
+            /* fall through to 404 */
+        }
+    }
+    // `content` is a computed over the (empty) query result → already
+    // undefined; just stop loading so the 404 branch shows.
+    if (props.slug === slug && !contentArr.value.length) {
+        isLoading.value = false;
+    }
 };
 
 // Client-only (web + native): redirect / not-found / loading wiring + retention. The
@@ -232,7 +236,9 @@ if (!import.meta.env.SSR) {
         () => props.slug,
         async (slug) => {
             isLoading.value = true;
-            scheduleNotFound();
+            // A fresh navigation attempt — even a revisit of a slug that previously
+            // resolved to not-found — gets its own not-found resolution.
+            notFoundSlug = undefined;
             // Instant local redirect check (synced redirects route immediately).
             const redirect = (
                 await queryLocal<RedirectDto>({
@@ -245,21 +251,18 @@ if (!import.meta.env.SSR) {
     );
 
     // `content` follows `contentArr` (a computed); this watch owns only the side
-    // effects — stop loading + clear the not-found timer once a doc resolves.
+    // effect of stopping the loading state once a doc resolves.
     watch(
         contentArr,
         (docs) => {
-            if (docs.length) {
-                isLoading.value = false;
-                clearNotFoundTimer();
-            }
+            if (docs.length) isLoading.value = false;
         },
         { immediate: true },
     );
 
-    // Drop a pending not-found timer on unmount so its remote redirect probe can't fire
-    // after the user has navigated away (e.g. via a route-name redirect match).
-    onUnmounted(clearNotFoundTimer);
+    // Resolve "not found" once the content query has genuinely settled and is still
+    // empty — see `resolveNotFound` for why this replaced a fixed-timeout guess.
+    watch([contentArr, isContentFetching], () => void resolveNotFound(), { immediate: true });
 
     // Keep a viewed article alive in the offline document store: refresh its retention
     // deadline whenever a real content doc is displayed. No-op for undefined.

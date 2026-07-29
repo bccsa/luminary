@@ -1,6 +1,6 @@
-import { onServerPrefetch, shallowRef, type ShallowRef } from "vue";
+import { computed, onServerPrefetch, shallowRef, type ComputedRef, type ShallowRef } from "vue";
 import {
-    useHybridQuery,
+    useHybridQueryWithState,
     type ContentDto,
     DocType,
     type MangoSelector,
@@ -79,6 +79,23 @@ export type UseContentQueryOptions = HybridQueryOptions & {
     ssrCacheStripFields?: string[];
 };
 
+/** Reactive bundle returned by {@link useContentQueryWithState}. */
+export type ContentQueryState = {
+    output: ShallowRef<ContentDto[]>;
+    /**
+     * `true` until this generation's query has genuinely settled (the local read
+     * AND, where applicable, the remote supplement — mirrors shared's
+     * `HybridQuery.isFetching`). During the Node prerender it flips `false` once
+     * the seam's `onServerPrefetch` fetch resolves (content is always fully
+     * resolved by render time, so a caller that never reads it there sees no
+     * difference). Use this instead of a fixed timeout to tell "still fetching"
+     * from "fetched, genuinely empty" — a wall-clock guess races any query slower
+     * than the guess (slow device, cold sync, congested network), where a fixed
+     * timeout wrongly declares not-found.
+     */
+    isFetching: ComputedRef<boolean>;
+};
+
 /**
  * Thin wrapper around {@link useHybridQuery} for Content documents. Injects the
  * boilerplate every content feed repeats — a top-level `{ type: Content }` (which
@@ -116,6 +133,26 @@ export function useContentQuery(
     selector: () => MangoSelector[],
     options: UseContentQueryOptions = {},
 ): ShallowRef<ContentDto[]> {
+    return useContentQueryState(selector, options).output;
+}
+
+/**
+ * Like {@link useContentQuery}, but also exposes {@link ContentQueryState.isFetching} —
+ * for a caller that must tell "still fetching" from "fetched, genuinely empty" (e.g. a
+ * not-found resolver) instead of guessing off a wall-clock timeout. Same query/options
+ * contract, same SSR/client routing.
+ */
+export function useContentQueryWithState(
+    selector: () => MangoSelector[],
+    options: UseContentQueryOptions = {},
+): ContentQueryState {
+    return useContentQueryState(selector, options);
+}
+
+function useContentQueryState(
+    selector: () => MangoSelector[],
+    options: UseContentQueryOptions = {},
+): ContentQueryState {
     const {
         sort,
         limit,
@@ -174,6 +211,10 @@ export function useContentQuery(
     // render synchronously from the response cache this branch primed at build time. ---
     if (import.meta.env.SSR) {
         const out = shallowRef<ContentDto[]>([]);
+        // Flips false once the prefetch below resolves — content is always fully
+        // resolved by render time (vite-ssg awaits onServerPrefetch), so this only
+        // matters to a caller that reads it mid-prefetch (none currently do).
+        const fetching = shallowRef(true);
         const renderLang = () => appDisplayLanguageIdsAsRef.value[0] || "";
         onServerPrefetch(async () => {
             await (ssrChain = ssrChain.then(async () => {
@@ -199,9 +240,11 @@ export function useContentQuery(
                     ...docs.map((d) => docKey(d.parentId || d._id)),
                 ]);
             }));
+            fetching.value = false;
         });
-        return out;
+        return { output: out, isFetching: computed(() => fetching.value) };
     }
 
-    return useHybridQuery<ContentDto>(buildQuery, hybridOptions);
+    const { output, isFetching } = useHybridQueryWithState<ContentDto>(buildQuery, hybridOptions);
+    return { output, isFetching };
 }
