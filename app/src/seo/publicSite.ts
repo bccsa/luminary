@@ -41,8 +41,8 @@ export function websiteJsonLd() {
     const url = publicUrl("/");
     if (!url) return undefined;
 
-    // `q` is intentionally limited to the anonymous, public FTS overlay on
-    // /explore. Values are encoded with URLSearchParams / encodeURIComponent.
+    // `q` runs the anonymous, public FTS search on the dedicated /search page (no more
+    // /explore search trickery). Values are encoded with URLSearchParams / encodeURIComponent.
     return {
         "@context": "https://schema.org",
         "@type": "WebSite",
@@ -50,7 +50,7 @@ export function websiteJsonLd() {
         url,
         potentialAction: {
             "@type": "SearchAction",
-            target: `${canonicalUrl("/explore")}?q={search_term_string}`,
+            target: `${canonicalUrl("/search")}?q={search_term_string}`,
             "query-input": "required name=search_term_string",
         },
     };

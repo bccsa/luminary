@@ -181,19 +181,6 @@ describe("SearchButton", () => {
             expect(wrapper.find("input").isVisible()).toBe(true);
         });
 
-        it("opens and executes the documented public /explore?q search", async () => {
-            routeMock.path = "/explore";
-            routeMock.query = { q: "public search" };
-            const wrapper = mountComponent();
-
-            await flushPromises();
-            await nextTick();
-
-            expect((wrapper.find("input").element as HTMLInputElement).value).toBe("public search");
-            expect(wrapper.find("input").isVisible()).toBe(true);
-            expect(runSearchMock).toHaveBeenCalled();
-        });
-
         it("closes when ESC is pressed on the input", async () => {
             const wrapper = mountComponent();
             await openOverlay();

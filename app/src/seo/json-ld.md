@@ -52,16 +52,20 @@ uses the anonymous query parameter accepted by the app:
 ```json
 {
   "@type": "SearchAction",
-  "target": "https://example.org/explore?q={search_term_string}",
+  "target": "https://example.org/search?q={search_term_string}",
   "query-input": "required name=search_term_string"
 }
 ```
 
-`/explore?q=<term>` is the supported public search URL. The value is a normal
-URL query value and must be encoded with `encodeURIComponent` (or
-`URLSearchParams`); the app trims it, opens the existing anonymous FTS overlay,
-and executes the search. It does not describe authenticated, personalized, or
-server-side search behavior.
+`/search?q=<term>` is the supported public search URL and lands on the dedicated,
+prerendered `/search` page (the same search component the desktop modal embeds).
+The value is a normal URL query value and must be encoded with `encodeURIComponent`
+(or `URLSearchParams`); the app trims it and executes the anonymous FTS search. It
+does not describe authenticated, personalized, or server-side search behavior.
+
+Note: `/search` replaces the earlier `/explore?q=` "search trickery", which reused
+the topics-browsing page URL as the search endpoint. `/explore` is no longer
+involved in search in any form.
 
 ## Implementation checks
 

@@ -8,17 +8,21 @@ describe("localizedStaticRoutes", () => {
         expect(routes.map((r) => r.path)).toEqual([
             "/es",
             "/es/explore",
+            "/es/search",
             "/es/watch",
             "/fr",
             "/fr/explore",
+            "/fr/search",
             "/fr/watch",
         ]);
         expect(routes.map((r) => r.name)).toEqual([
             "home-es",
             "explore-es",
+            "search-es",
             "watch-es",
             "home-fr",
             "explore-fr",
+            "search-fr",
             "watch-fr",
         ]);
         expect(routes.every((r) => r.meta?.prerender)).toBe(true);

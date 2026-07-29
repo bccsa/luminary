@@ -4,7 +4,13 @@ import { useI18n } from "vue-i18n";
 import { type ContentDto, type LanguageDto } from "luminary-shared";
 import { appLanguageAsRef, appName, cmsLanguages } from "@/globalConfig";
 import { useBucketInfo } from "@/composables/useBucketInfo";
-import { canonicalUrl, publicSite, publicUrl, publisherJsonLd, websiteJsonLd } from "@/seo/publicSite";
+import {
+    canonicalUrl,
+    publicSite,
+    publicUrl,
+    publisherJsonLd,
+    websiteJsonLd,
+} from "@/seo/publicSite";
 
 type Alternate = { code: string; slug: string };
 
@@ -19,6 +25,7 @@ type SocialImage = {
 const staticPageCopy = {
     "/": { title: "home.title", description: "home.description" },
     "/explore": { title: "explore.title", description: "explore.description" },
+    "/search": { title: "search.title", description: "search.description" },
     "/watch": { title: "watch.title", description: "watch.description" },
 } as const;
 
@@ -110,7 +117,11 @@ export function articleJsonLd(
     };
 }
 
-export function breadcrumbJsonLd(articleTitle: string, articleUrl: string, taxonomy: PublicTaxonomy[]) {
+export function breadcrumbJsonLd(
+    articleTitle: string,
+    articleUrl: string,
+    taxonomy: PublicTaxonomy[],
+) {
     const homeUrl = publicUrl("/");
     if (!homeUrl) return undefined;
 
@@ -161,7 +172,7 @@ export function primaryArticleImage(
 }
 
 /** Registers the complete web/SSG head for public static pages. */
-export function useLocalizedStaticHead(basePath: "/" | "/explore" | "/watch"): void {
+export function useLocalizedStaticHead(basePath: "/" | "/explore" | "/search" | "/watch"): void {
     if (import.meta.env.VITE_BUILD_TARGET !== "web") return;
 
     const { t } = useI18n();
@@ -201,7 +212,13 @@ export function useLocalizedStaticHead(basePath: "/" | "/explore" | "/watch"): v
                         href: canonicalUrl(staticPath(basePath, lang.languageCode, defaultCode)),
                     })),
                     ...(defaultCode
-                        ? [{ rel: "alternate", hreflang: "x-default", href: canonicalUrl(basePath) }]
+                        ? [
+                              {
+                                  rel: "alternate",
+                                  hreflang: "x-default",
+                                  href: canonicalUrl(basePath),
+                              },
+                          ]
                         : []),
                 ],
                 script:
@@ -295,11 +312,12 @@ export function useContentHead(
                     { name: "robots", content: hasDoc ? "index,follow" : "noindex,follow" },
                 ],
                 script: hasDoc
-                    ? [...(article ? [article] : []), ...(breadcrumbs ? [breadcrumbs] : [])]
-                          .map((jsonLd) => ({
+                    ? [...(article ? [article] : []), ...(breadcrumbs ? [breadcrumbs] : [])].map(
+                          (jsonLd) => ({
                               type: "application/ld+json",
                               textContent: JSON.stringify(jsonLd),
-                          }))
+                          }),
+                      )
                     : [],
             };
         }),

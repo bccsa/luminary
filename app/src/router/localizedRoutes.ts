@@ -2,6 +2,7 @@ import type { RouteRecordRaw } from "vue-router";
 
 const HomePage = () => import("@/pages/HomePage.vue");
 const ExplorePage = () => import("@/pages/ExplorePage.vue");
+const SearchPage = () => import("@/pages/SearchPage.vue");
 const VideoPage = () => import("@/pages/VideoPage.vue");
 
 export function localizedStaticRoutes(langCodes: string[], defaultCode: string): RouteRecordRaw[] {
@@ -18,6 +19,12 @@ export function localizedStaticRoutes(langCodes: string[], defaultCode: string):
             component: ExplorePage,
             name: `explore-${code}`,
             meta: { title: "title.explore", prerender: true, lang: code },
+        },
+        {
+            path: `/${code}/search`,
+            component: SearchPage,
+            name: `search-${code}`,
+            meta: { title: "title.search", prerender: true, lang: code },
         },
         {
             path: `/${code}/watch`,

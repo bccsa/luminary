@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, provide, ref } from "vue";
 import TopBar from "./navigation/TopBar.vue";
 import DesktopSidebar from "./navigation/DesktopSidebar.vue";
 import NotificationBannerManager from "./notifications/NotificationBannerManager.vue";
@@ -43,6 +43,10 @@ const isPostAndNoHistory = computed(
 );
 
 const main = ref<HTMLElement | undefined>(undefined);
+
+// Expose the scrolling <main> to descendants (e.g. SearchPanel in page mode) so they can drive
+// infinite scroll off the page's real scroll container instead of an internal one.
+provide("appMainScrollEl", main);
 
 const handleArrowKeyFocus = (e: KeyboardEvent) => {
     if (e.key === "ArrowUp" || e.key === "ArrowDown") {

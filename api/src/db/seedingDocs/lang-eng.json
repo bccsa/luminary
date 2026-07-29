@@ -59,6 +59,8 @@
         "explore.title": "Explore",
         "explore.description": "Explore topics and discover content.",
         "explore.other": "Other",
+        "search.title": "Search",
+        "search.description": "Search articles, videos, and more across the library.",
         "watch.title": "Watch",
         "watch.description": "Watch the latest videos.",
         "home.newest": "Newest",

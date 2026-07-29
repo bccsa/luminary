@@ -8,6 +8,7 @@ import type { RouteRecordRaw } from "vue-router";
 const HomePage = () => import("@/pages/HomePage.vue");
 const InAppBrowserCheck = () => import("@/pages/InAppBrowserCheck.vue");
 const ExplorePage = () => import("@/pages/ExplorePage.vue");
+const SearchPage = () => import("@/pages/SearchPage.vue");
 const VideoPage = () => import("@/pages/VideoPage.vue");
 const SettingsPage = () => import("@/pages/SettingsPage.vue");
 const BookmarksPage = () => import("@/pages/BookmarksPage.vue");
@@ -50,6 +51,15 @@ export const routes: RouteRecordRaw[] = [
         name: "explore",
         meta: {
             title: "title.explore",
+            prerender: true,
+        },
+    },
+    {
+        path: "/search",
+        component: SearchPage,
+        name: "search",
+        meta: {
+            title: "title.search",
             prerender: true,
         },
     },
