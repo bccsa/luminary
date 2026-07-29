@@ -76,8 +76,8 @@ native is `app/vite.config.ts`.
 | `docFacetShards.ts`            | **Pure** shard-id function (`docFacetShard`, fnv1a32 mod `DOC_FACETS_SHARD_COUNT`) for `ssg-doc-facets/`. No Vue/DOM/Vite/fs deps. The deploy repo carries its own copy — keep the count/algorithm in sync.                                                                                                                                                        | anywhere         |
 | `dependencyCapture.ts`         | **Pure** render-time reporter (`reportKeys`) writing to `globalThis.__SSG_DEPS__`. No-op unless a capture is active (safe on client/native). The collector itself is initialised/reset by `vite.config.web.ts`.                                                                                                                                                            | Node (build)     |
 | `routeIndex.ts`                | Pure content-id/parent-id → route sidecar helper for DeleteCmd handling and slug-change cleanup.                                                                                                                                                                                                                                                                           | Node             |
-| `redirectIndex.ts`             | Pure redirect id → slug sidecar helper, so redirect DeleteCmds can remove static redirect files.                                                                                                                                                                                                                                                                           | Node             |
-| `redirectHtml.ts`              | Pure static redirect renderer (`redirectHtml` + `redirectFile`) shared by full builds and the watcher.                                                                                                                                                                                                                                                                     | Node             |
+| `redirectIndex.ts`             | Pure redirect id → `{ slug, status }` sidecar helper, so redirect DeleteCmds can remove static redirect files and the deploy repo can apply the right HTTP status.                                                                                                                                                                                                        | Node             |
+| `redirectHtml.ts`              | Pure static redirect renderer (`redirectHtml` + `redirectFile` + `redirectStatus`) shared by full builds and the watcher. Maps `redirectType` to a 301/302.                                                                                                                                                                                                               | Node             |
 | `queryDrain.ts`                | Pure keyset-pagination helper (`drainQuery`, `enumeratePublicContent`) over anonymous `/query`, used by route/language/redirect enumeration in `vite.config.web.ts`.                                                                                                                                                                                                       | Node (build)     |
 
 **Naming convention:** identifiers that discriminate "which side of the prerender is
@@ -159,8 +159,14 @@ companion for anyone inspecting the inlined state.
 - **Manifest**: `dist-web/ssg-deps.json` = `route → keys[]`.
 - **Route index**: `dist-web/ssg-route-index.json` = content id / parent id → slug routes,
   used so DeleteCmds and slug changes can remove stale static content files.
-- **Redirect index**: `dist-web/ssg-redirect-index.json` = redirect id → slug, used so
-  redirect DeleteCmds and slug changes can remove stale static redirect files.
+- **Redirect index**: `dist-web/ssg-redirect-index.json` = redirect id →
+  `{ slug, status }`, used so redirect DeleteCmds and slug changes can remove stale
+  static redirect files. `status` (301/302, from `redirectType` via
+  `redirectHtml.ts`'s `redirectStatus()`) lets the deploy repo's serving layer apply
+  the real HTTP status when it fronts a static redirect file — a `<meta refresh>`
+  page can't set its own status code, so this sidecar (and a matching
+  `x-redirect-status` meta tag baked into each redirect HTML file itself) are the
+  two places that status is available without re-fetching the doc.
 - **Doc facet snapshot**: `dist-web/ssg-doc-facets/` = content id → last-known
   `parentId` / `parentTags` / `parentPinned` / `language`, so recategorization invalidates
   both old and new facet pages. **Sharded**, not one file: `index.json` is `{ shardCount,

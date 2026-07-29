@@ -19,6 +19,7 @@ import {
     type QueryTransport,
 } from "./src/ssg/queryDrain";
 import { ACTIVE_PROVIDER_KEY, LEGACY_AUTH0_CACHE_PREFIX, OIDC_USER_PREFIX } from "./src/authStorage";
+import { RedirectType } from "luminary-shared";
 
 const env = loadEnv("", process.cwd());
 
@@ -118,7 +119,12 @@ const OUT_DIR = "dist-web";
 const WEB_ORIGIN = (env.VITE_WEB_ORIGIN || "").replace(/\/$/, "");
 const APP_NAME = env.VITE_APP_NAME || "Luminary";
 type SsgLanguage = KeysetDocument & { languageCode?: string; default?: number };
-type SsgRedirect = KeysetDocument & { slug?: string; toSlug?: string; deleteReq?: number };
+type SsgRedirect = KeysetDocument & {
+    slug?: string;
+    toSlug?: string;
+    deleteReq?: number;
+    redirectType?: RedirectType;
+};
 type SsgContent = Partial<DocLike> & KeysetDocument & { slug?: string };
 
 // Scoped (incremental) rebuild mode: regenerate only the routes named in
@@ -392,7 +398,7 @@ async function writeRedirectFiles(apiUrl: string): Promise<void> {
         const file = join(process.cwd(), OUT_DIR, redirectFile(redirect.slug));
         if (existsSync(file)) continue; // prerendered content/static route wins
         mkdirSync(dirname(file), { recursive: true });
-        writeFileSync(file, redirectHtml(redirect.toSlug));
+        writeFileSync(file, redirectHtml(redirect.toSlug, redirect.redirectType ?? RedirectType.Temporary));
         written++;
     }
     console.log(`[ssg] wrote ${written} static redirect file(s)`);
