@@ -137,7 +137,7 @@ const routeKey = computed(() => {
 // rendered only AFTER mount so the first client render matches the SSR output
 // (clean hydration). On native/SPA there is no prerender, so chrome renders
 // immediately as before — behaviour is unchanged there.
-const showChrome = useHydrated();
+const isMounted = useHydrated();
 onMounted(() => {
     // Reveal content hidden by vite.config.web.ts's pre-paint auth gate (see
     // authGateScript there for why): by now Vue's first render has landed, using the
@@ -193,7 +193,7 @@ onErrorCaptured((err) => {
         <!-- <div class="w-full lg:hidden h-[2px] bg-zinc-100/25 dark:bg-slate-700/50"></div> -->
         <!-- Global Audio Player for All Devices -->
         <!-- AudioPlayer now uses fixed positioning internally, so no wrapper positioning needed -->
-        <div v-if="showChrome && mediaQueue.length > 0">
+        <div v-if="isMounted && mediaQueue.length > 0">
             <AudioPlayer :content="mediaQueue[0]" />
         </div>
 
@@ -205,13 +205,13 @@ onErrorCaptured((err) => {
 
         <!-- Privacy Policy Modal for authentication flow -->
         <PrivacyPolicyModal
-            v-if="showChrome"
+            v-if="isMounted"
             v-model:show="showPrivacyPolicyModal"
             @close="handleModalClose"
         />
     </div>
     <!-- Modals depend on i18n, which isn't installed until splash finishes — keep them out of the tree during the loading phase. On web they are also gated behind mount (signed-out shell). -->
-    <template v-if="!isAppLoading && showChrome">
+    <template v-if="!isAppLoading && isMounted">
         <SearchModal />
         <AuthProviderSelectionModal v-model:isVisible="showProviderSelectionModal" />
     </template>
