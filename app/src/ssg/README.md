@@ -71,12 +71,21 @@ native is `app/vite.config.ts`.
 | `../router/localizedRoutes.ts` | Pure route helper for locale-prefixed public static routes (`/<code>`, `/<code>/explore`, `/<code>/watch`). Imported by the web entry only; native routes stay unchanged.                                                                                                                                                                                                  | Node + browser   |
 | `../../vite.config.web.ts`     | Web build config: route enumeration, `concurrency:1`, dependency-capture hooks, **per-page `hqcache:*` → inline-script serialization**, writes `ssg-deps.json` / `ssg-route-index.json` / `ssg-redirect-index.json` / `ssg-doc-facets.json` / sitemap / robots / static redirect HTML, scoped-rebuild mode.                                                                | Node (build)     |
 | `polyfills.ts`                 | Node shims jsdom lacks (localStorage/sessionStorage/matchMedia). Imported first in `main.web.ts`. The `localStorage` shim also backs `writeResponseCache` during the prerender.                                                                                                                                                                                            | Node (prerender) |
-| `clientRuntime.ts`             | Boots the data layer on the **browser client** after hydration (`init()` + sync + language). Dynamically imported (never in the prerender).                                                                                                                                                                                                                                | browser          |
+| `clientRuntime.ts`             | `initSsgClient()` boots the data layer on the **browser client** after hydration (`init()` + sync + language). Dynamically imported (never in the prerender).                                                                                                                                                                                                              | browser          |
 | `facetKeys.ts`                 | **Pure** key vocabulary. `docKey` + `facetsFromSelector` / `facetsFromDoc` (`facet:<field>:<value>:<lang>`). No Vue/DOM/Vite deps. The deploy repo carries its own copy for the watcher side — keep them in sync when the vocabulary changes.                                                                                                                      | anywhere         |
 | `dependencyCapture.ts`         | **Pure** render-time reporter (`reportKeys`) writing to `globalThis.__SSG_DEPS__`. No-op unless a capture is active (safe on client/native). The collector itself is initialised/reset by `vite.config.web.ts`.                                                                                                                                                            | Node (build)     |
 | `routeIndex.ts`                | Pure content-id/parent-id → route sidecar helper for DeleteCmd handling and slug-change cleanup.                                                                                                                                                                                                                                                                           | Node             |
 | `redirectIndex.ts`             | Pure redirect id → slug sidecar helper, so redirect DeleteCmds can remove static redirect files.                                                                                                                                                                                                                                                                           | Node             |
 | `redirectHtml.ts`              | Pure static redirect renderer (`redirectHtml` + `redirectFile`) shared by full builds and the watcher.                                                                                                                                                                                                                                                                     | Node             |
+| `queryDrain.ts`                | Pure keyset-pagination helper (`drainQuery`, `enumeratePublicContent`) over anonymous `/query`, used by route/language/redirect enumeration in `vite.config.web.ts`.                                                                                                                                                                                                       | Node (build)     |
+
+**Naming convention:** identifiers that discriminate "which side of the prerender is
+this" use `Ssg`/`SSG` (`initSsgClient`, `ssgRouteLang`, `__SSG_DEPS__`), never
+`isWeb`/`isSSR` — `vite-ssg` is the actual mechanism, so that's the name that stays
+consistent everywhere in this folder. `import.meta.env.SSR` is the one exception
+(a Vite built-in, not ours to rename); `VITE_BUILD_TARGET === "web"` elsewhere in
+`app/src/` is a separate, deliberate product/build-target name (staying "web" is
+correct there — see [The goal](#the-goal)).
 
 Public-content reads go through shared directly: `queryRemote` (anonymous `POST /query`),
 `structuralCacheKey` + `writeResponseCache` (the first-paint seed). There is no app-side
@@ -255,4 +264,8 @@ switch, 404, and nav links. Note `VITE_API_URL` must point at a running API.
 - Seam: `app/src/composables/useContentQuery.ts`. Web entry: `app/src/main.web.ts`.
   Web build config: `app/vite.config.web.ts`.
 - Pure infra: `facetKeys.ts` / `dependencyCapture.ts` /
-  `redirectHtml.ts` / `routeIndex.ts`.
+  `redirectHtml.ts` / `routeIndex.ts` / `redirectIndex.ts` / `queryDrain.ts`.
+- Every file in this folder has a matching `*.spec.ts` (run with
+  `npm run test -- src/ssg`); `clientRuntime.spec.ts` and `polyfills.spec.ts` mock
+  or reset the browser globals they touch since the real thing only exists at
+  prerender/hydration time, not under plain Vitest.

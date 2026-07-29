@@ -1,33 +1,13 @@
 import type { ContentDto, MangoSelector } from "luminary-shared";
 
 /**
- * Phase 2 dependency-key vocabulary — derived GENERICALLY (no hardcoded per-page
- * keys). The build (capture side) uses `facetsFromSelector` to turn a query's
- * selector into the keys the rendered page depends on; `facetsFromDoc` turns a
- * changed doc into the keys it touches. The deploy repo carries its OWN copy of
- * this module for the watcher side — keep the two in sync when you change the
- * vocabulary. Because both sides map the SAME whitelisted fields the SAME way, a
- * page goes stale exactly when a changed doc could enter/leave/alter its result
- * set — with no per-page wiring. Rearranging layout or adding a query needs zero
- * key changes; only a new *data facet* touches `FACET_FIELDS` below.
+ * Dependency-key vocabulary for incremental (ISR) rebuilds — derived GENERICALLY
+ * from a query's selector / a doc's fields, so adding a page or a facet needs no
+ * per-page key wiring. The deploy repo carries its own copy for the watcher side;
+ * keep the two in sync when this vocabulary changes. See README.md
+ * ("Incremental regeneration") for the full key-kind and field-exclusion rationale.
  *
  * Keep this module PURE: no Vue/Dexie/DOM/import.meta — safe in Node + browser.
- *
- * Two key kinds:
- *  - `doc:<parentId>` — identity. Every rendered tile reports it (card-display
- *    edits — title/image/summary — invalidate the listing). All translations of a
- *    post/tag share `parentId`, so this also covers hreflang reciprocity.
- *  - `facet:<field>:<value>:<lang>` — membership. Derived from the localizing
- *    fields a query filters on / a doc carries.
- *
- * Time/published/language-priority fields (publishDate/expiryDate/status/
- * availableTranslations) are deliberately EXCLUDED. publishDate/expiryDate
- * threshold crossings are fed through the watcher by its wall-clock poll (the
- * deploy repo's copy). status and availableTranslations change only with a
- * document mutation, whose unconditional `doc:<parentId>` key already invalidates
- * every page that rendered the document. `parentTagType`/`parentType`/
- * `parentPostType` are excluded to bound fan-out (`parentId`/`parentTags` already
- * pin membership).
  */
 
 export type DependencyKey = string;
@@ -36,7 +16,9 @@ export type DependencyKey = string;
 const FACET_FIELDS = ["parentId", "parentTags", "parentPinned"] as const;
 type FacetField = (typeof FACET_FIELDS)[number];
 
+/** Identity key: every rendered tile reports it; shared across a post/tag's translations. */
 export const docKey = (parentId: string): DependencyKey => `doc:${parentId}`;
+/** Membership key: a query/doc's value for one of `FACET_FIELDS`, scoped by language. */
 const facetKey = (field: string, value: unknown, lang: string): DependencyKey =>
     `facet:${field}:${value}:${lang}`;
 

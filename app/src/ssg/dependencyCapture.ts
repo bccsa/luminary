@@ -1,13 +1,11 @@
 import type { DependencyKey } from "./facetKeys";
 
 /**
- * Render-time dependency CAPTURE (spec §3.2). The collector lives on
- * `globalThis.__SSG_DEPS__` (initialised + reset per route by `vite.config.web.ts`,
- * which inlines its own copy so the Node tsconfig project doesn't pull in app source).
- *
- * This module exposes only the app-side reporter. It's import-safe everywhere — no
- * `import.meta`, Vue, or DOM — and `reportKeys` is a no-op unless a capture is active,
- * so the same call is harmless on the client and native build.
+ * Render-time dependency capture. The collector lives on `globalThis.__SSG_DEPS__`
+ * (initialised + reset per route by `vite.config.web.ts`, which inlines its own
+ * copy so the Node tsconfig project doesn't pull in app source). This module is
+ * only the reporter side — import-safe everywhere, since `reportKeys` no-ops
+ * unless a capture is active, so the same call site is harmless on client/native.
  */
 
 type CaptureState = {

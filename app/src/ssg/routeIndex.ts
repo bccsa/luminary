@@ -1,5 +1,13 @@
+/**
+ * Content-id / parent-id → prerendered route sidecar (`dist-web/ssg-route-index.json`).
+ * A CouchDB DeleteCmd only carries a doc/parent id, not the route it was rendered
+ * to, so this lets `resolveContentDelete` map that id back to the static file(s) to remove.
+ */
+
 export type SsgRouteIndex = {
+    /** Single translation: content doc id → its own route + parent id. */
     content: Record<string, { route: string; parentId: string }>;
+    /** All translations sharing a parent: parent id → every translation's route. */
     parent: Record<string, string[]>;
 };
 
@@ -11,8 +19,10 @@ type PublicContentRouteDoc = {
 
 export const emptyRouteIndex = (): SsgRouteIndex => ({ content: {}, parent: {} });
 
+/** Normalizes a stored slug (which may or may not carry a leading slash) to a route. */
 export const routeForSlug = (slug: string): string => `/${slug.replace(/^\/+/, "")}`;
 
+/** Builds the index from the same public content docs used for route enumeration. */
 export function buildRouteIndex(docs: PublicContentRouteDoc[]): SsgRouteIndex {
     const index = emptyRouteIndex();
     for (const doc of docs) {
@@ -28,6 +38,11 @@ export function buildRouteIndex(docs: PublicContentRouteDoc[]): SsgRouteIndex {
     return index;
 }
 
+/**
+ * Resolves a DeleteCmd's doc id to the static route(s) it must remove. `docId` may
+ * be either a single translation's content id (one route) or a parent id (every
+ * translation's route — e.g. a whole post/tag being deleted).
+ */
 export function resolveContentDelete(
     docId: string,
     index: SsgRouteIndex,

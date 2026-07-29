@@ -25,7 +25,7 @@ let ssgLanguages: LanguageDto[] | undefined;
 // the route enumeration in vite.config.web.ts and shared via globalThis (same Node
 // process). Drives the published-content filter + the dependency-key scoping, so a
 // page's feeds (and its chrome's UI strings) render in its own language.
-function ssrRouteLang(routePath?: string): string {
+function ssgRouteLang(routePath?: string): string {
     const g = globalThis as Record<string, unknown>;
     const codeToId = g.__SSG_LANG_CODE_TO_ID__ as Record<string, string> | undefined;
     const map = g.__SSG_ROUTE_LANG__ as Record<string, string> | undefined;
@@ -53,7 +53,7 @@ export const createApp = ViteSSG(
         // public reference data; the render + default language docs ride vite-ssg's
         // `initialState` so the client has them synchronously before mount.
         if (import.meta.env.SSR) {
-            const lang = ssrRouteLang(routePath);
+            const lang = ssgRouteLang(routePath);
             appLanguageIdsAsRef.value = lang ? [lang] : [];
 
             // Enable the shared `queryRemote` (anonymous POST /query → public tier) for
@@ -125,12 +125,12 @@ export const createApp = ViteSSG(
             // imported so none of it loads during the Node prerender. Failure must not
             // block mount — the prerendered content is still shown.
             try {
-                const { initWebClient } = await import("./ssg/clientRuntime");
-                await initWebClient();
+                const { initSsgClient } = await import("./ssg/clientRuntime");
+                await initSsgClient();
                 const { setupAuth } = await import("./auth");
                 await setupAuth(app, router);
             } catch (err) {
-                console.error("[web] client runtime/auth init failed", err);
+                console.error("[ssg] client runtime/auth init failed", err);
             }
         }
     },

@@ -1,21 +1,20 @@
-// Web/SSG CLIENT runtime. This module is dynamically imported ONLY on the client
-// (from main.web.ts behind an isClient guard), so neither it nor its heavy,
-// side-effectful imports (shared init/sync, app sync watchers) ever load during
-// the Node prerender.
-//
-// It boots the same data layer the native app uses (minus the service worker and,
-// for now, auth/analytics) so the prerendered pages hydrate cleanly into a live,
-// interactive SPA. `init()` is awaited by the caller BEFORE mount so the shared
-// config/Dexie exist when components (e.g. ApiLiveQuery in SingleContent) set up
-// during hydration. Language + sync are kicked off but NOT awaited, so hydration
-// is not blocked on the network — they layer in after mount.
+// SSG CLIENT runtime — dynamically imported ONLY on the client (main.web.ts's
+// `else` branch of `import.meta.env.SSR`), so its heavy, side-effectful imports
+// (shared init/sync, app sync watchers) never load during the Node prerender.
+// Boots the same data layer the native app uses (minus the service worker/auth),
+// so prerendered pages hydrate into a live, interactive SPA.
 
 import { getSocket, init, warmMangoCaches } from "luminary-shared";
 import { apiUrl, appLanguageIdsAsRef, initLanguage } from "@/globalConfig";
 import { APP_DOCS_INDEX } from "@/docsIndex";
 import { initAuthLangSync, initSync } from "@/sync";
 
-export async function initWebClient(): Promise<void> {
+/**
+ * Boots the shared data layer on the SSG client after hydration. Named to match
+ * this folder's `Ssg*` convention (not `initWebClient` / `initSSRClient`) so
+ * "which side of the prerender am I on" is always spelled the same way.
+ */
+export async function initSsgClient(): Promise<void> {
     warmMangoCaches();
 
     // Awaited: sets shared config, opens Dexie, creates the socket, starts sync2.

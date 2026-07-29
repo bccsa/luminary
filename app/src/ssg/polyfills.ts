@@ -10,6 +10,10 @@
  * Only the web build imports this; the native/SPA build never loads it.
  */
 
+// No runtime effect — forces TS to treat this file as a module (it has no other
+// import/export), which `polyfills.spec.ts`'s dynamic `import()` requires.
+export {};
+
 // Run only in the SSG/Node render (a real browser already has all of these).
 if (typeof window !== "undefined") {
     // --- Storage (localStorage / sessionStorage) ---
@@ -40,7 +44,8 @@ if (typeof window !== "undefined") {
 
     // --- matchMedia (not implemented by jsdom) ---
     if (typeof window.matchMedia !== "function") {
-        // Minimal MediaQueryList stub — SSR renders the light/default theme.
+        // Minimal MediaQueryList stub — the SSG prerender always renders the
+        // light/default theme (no real display to match).
         window.matchMedia = ((query: string) => ({
             matches: false,
             media: query,

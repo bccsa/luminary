@@ -1,3 +1,9 @@
+/**
+ * Static meta-refresh redirect renderer, shared by the full build and the deploy
+ * repo's ISR watcher so both emit identical files. `<meta refresh>` keeps it
+ * working with JS off; `location.replace` (not `.href`) keeps the hop out of history.
+ */
+
 function cleanSlug(slug: string): string {
     return slug.replace(/^\/+/, "");
 }
@@ -10,6 +16,7 @@ function escapeAttr(value: string): string {
         .replace(/>/g, "&gt;");
 }
 
+/** `toSlug` is untrusted CMS input — the attribute and inline-script target are escaped independently. */
 export function redirectHtml(toSlug: string): string {
     const target = `/${cleanSlug(toSlug)}`;
     const escaped = escapeAttr(target);
@@ -28,4 +35,5 @@ export function redirectHtml(toSlug: string): string {
     );
 }
 
+/** Maps a redirect's own slug to the static file it's written to under `dist-web`. */
 export const redirectFile = (slug: string): string => `${cleanSlug(slug)}.html`;
