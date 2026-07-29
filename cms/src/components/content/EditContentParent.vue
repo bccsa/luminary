@@ -14,6 +14,7 @@ import TagSelector from "./TagSelector.vue";
 import GroupSelector from "../groups/GroupSelector.vue";
 import { capitaliseFirstLetter } from "@/util/string";
 import LToggle from "@/components/forms/LToggle.vue";
+import LTextToggle from "@/components/forms/LTextToggle.vue";
 import { ExclamationCircleIcon, XCircleIcon } from "@heroicons/vue/20/solid";
 import { validate, type Validation } from "./ContentValidator";
 
@@ -114,6 +115,20 @@ const useVerticalTileLayout = computed({
         }
     },
 });
+
+// Author type drives the jsonLD author @type. Stored as a number to mirror the
+// deleteReq 1/0 convention: 1 = Organization, 0/undefined = Person (the default).
+// LTextToggle models strings, so bridge via the computed.
+const authorType = computed({
+    get() {
+        return parent.value?.authorType ? "1" : "0";
+    },
+    set(value: string) {
+        if (parent.value) {
+            parent.value.authorType = value === "1" ? 1 : 0;
+        }
+    },
+});
 </script>
 
 <template>
@@ -186,6 +201,22 @@ const useVerticalTileLayout = computed({
              regular-weight labels so they read as quick on/off settings rather than
              competing with the bold Group/Categories/Topics section headers above. -->
         <div class="mt-4 flex flex-col gap-2.5 border-t border-zinc-200 pt-3">
+            <!-- Author @type for jsonLD: Person (default) or Organization. Posts only. -->
+            <div
+                v-if="docType == DocType.Post"
+                class="flex items-center justify-between gap-2"
+            >
+                <span class="text-sm text-zinc-700">Author type</span>
+                <LTextToggle
+                    v-model="authorType"
+                    leftLabel="Person"
+                    leftValue="0"
+                    rightLabel="Organization"
+                    rightValue="1"
+                    :disabled="disabled"
+                />
+            </div>
+
             <div class="flex items-center justify-between gap-2">
                 <span class="text-sm text-zinc-700">Show publish date</span>
                 <LToggle v-model="parent.publishDateVisible" :disabled="disabled" />

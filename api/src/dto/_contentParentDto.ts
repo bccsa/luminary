@@ -1,5 +1,5 @@
 import { Uuid } from "../enums";
-import { IsArray, IsOptional, IsBoolean, IsString, ValidateNested } from "class-validator";
+import { IsArray, IsOptional, IsBoolean, IsString, IsNumber, ValidateNested } from "class-validator";
 import { _contentBaseDto } from "./_contentBaseDto";
 import { Expose, Type } from "class-transformer";
 import { ImageDto } from "./ImageDto";
@@ -54,4 +54,9 @@ export class _contentParentDto extends _contentBaseDto {
     @IsString()
     @Expose()
     mediaBucketId?: string; // S3 bucket ID for media storage
+
+    @IsOptional()
+    @IsNumber()
+    @Expose()
+    authorType?: number; // Drives jsonLD author @type: 1 = Organization, 0/undefined = Person
 }

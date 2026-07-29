@@ -68,6 +68,7 @@ export default async function processContentDto(
         else delete doc.parentAlwaysOffline;
 
         doc.parentUseVerticalTileLayout = parentDoc.useVerticalTileLayout;
+        doc.parentAuthorType = parentDoc.authorType;
     }
 
     // Find all available translations, and add them to the content document's availableTranslations property

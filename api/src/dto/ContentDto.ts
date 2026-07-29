@@ -156,6 +156,11 @@ export class ContentDto extends _contentBaseDto {
     parentUseVerticalTileLayout?: boolean;
 
     @IsOptional() // Optional as it is set upon change request processing
+    @IsNumber()
+    @Expose()
+    parentAuthorType?: number; // Mirrors parent authorType: 1 = Organization, 0/undefined = Person
+
+    @IsOptional() // Optional as it is set upon change request processing
     @IsArray()
     @Expose()
     parentTaggedDocs?: Uuid[];
