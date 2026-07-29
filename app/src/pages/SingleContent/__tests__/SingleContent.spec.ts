@@ -236,6 +236,8 @@ describe("SingleContent", () => {
             expect(wrapper.html()).not.toContain("Jan 1, 2024");
             expect(wrapper.html()).toContain("janv.");
         });
+
+        wrapper.unmount();
     });
 
     it("hides the publishDate if publishDateVisible is false", async () => {
