@@ -33,7 +33,6 @@ import {
     isDarkTheme,
     theme,
     cmsLanguages,
-    cmsDefaultLanguage,
     queryParams,
     addToMediaQueue,
     cmsUrl,
@@ -293,6 +292,13 @@ const translationsArr = useContentQuery(
         // Per-slug discriminator so the per-document cache is SAFE — a shape-only key
         // would seed this page from a previously-viewed post's translations.
         cacheId: `translations:${props.slug}`,
+        // These are sibling metadata for the language dropdown / hreflang, not the
+        // article the reader is on — don't grow the offline IndexedDB store with every
+        // translation of every article ever visited. `cache: true` (localStorage,
+        // bounded, per-slug-keyed) stays: it's what makes the SSR-rendered translations
+        // list match the client's first paint (no hydration mismatch/flash) — unrelated
+        // to offline persistence.
+        persistOffline: false,
         // Seek siblings by parentId rather than scanning the publishDate index.
         useIndex: "content-parentId-publishDate-index",
         sort: [{ publishDate: "desc" }],
@@ -465,16 +471,15 @@ if (import.meta.env.VITE_BUILD_TARGET !== "web")
 
 const text = computed(() => content.value?.text ?? "");
 
-// Format a publish date for display. Kept in setup scope (not inline in the
-// template) so `navigator` resolves to the real global rather than `_ctx.navigator`,
-// and so it never reaches for `db` (absent during the Node prerender).
+// Format a publish date for display, in the locale of the translation actually being
+// read (`selectedLanguageCode`, declared below via useTranslationSwitcher — safe to
+// reference here since this is a function body, not evaluated until render) — NOT the
+// visitor's browser locale, which has no relationship to which language they're
+// reading. Falls back to en-US before the language resolves (or during the Node
+// prerender, which never reads `navigator`).
 const formatPublishDate = (ms: number) =>
     DateTime.fromMillis(ms)
-        .setLocale(
-            (typeof navigator !== "undefined" && navigator.language) ||
-                cmsDefaultLanguage.value?.languageCode ||
-                "en-US",
-        )
+        .setLocale(selectedLanguageCode.value || "en-US")
         .toLocaleString(DateTime.DATETIME_MED);
 
 // Select the first category in the content by category list on load
@@ -682,7 +687,7 @@ watch([isLoading, content, is404], async () => {
             >
                 <LoadingBar
                     v-if="isLoading && !content"
-                    label="Loading..."
+                    :label="t('singlecontent.loading')"
                 />
                 <article
                     class="w-full lg:w-3/4 lg:max-w-3xl"

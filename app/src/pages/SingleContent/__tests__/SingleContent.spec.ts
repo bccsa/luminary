@@ -222,6 +222,22 @@ describe("SingleContent", () => {
         });
     });
 
+    it("formats the publish date in the displayed translation's locale, not the browser's", async () => {
+        // Same publishDate as the English mock (Jan 1, 2024) — French formatting
+        // ("1 janv. 2024") proves the locale comes from the content's own language,
+        // not navigator.language (jsdom's default is en-US either way).
+        const wrapper = mount(SingleContent, {
+            props: {
+                slug: mockFrenchContentDto.slug,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.html()).not.toContain("Jan 1, 2024");
+            expect(wrapper.html()).toContain("janv.");
+        });
+    });
+
     it("hides the publishDate if publishDateVisible is false", async () => {
         const mockContent = { ...mockEnglishContentDto, parentPublishDateVisible: false };
         const wrapper = mount(SingleContent, {

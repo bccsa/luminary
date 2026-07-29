@@ -156,6 +156,7 @@
         "openapp_warning.button_cancel": "Cancel",
         "auth.sign_in": "Sign in",
         "auth.no_methods_available": "No authentication methods available. Please try again in a moment.",
-        "singlecontent.listen": "Listen"
+        "singlecontent.listen": "Listen",
+        "singlecontent.loading": "Loading..."
     }
 }

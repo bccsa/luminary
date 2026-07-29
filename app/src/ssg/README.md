@@ -19,9 +19,11 @@ it); that repo owns deployment and incremental-regeneration orchestration.
 
 ## The goal
 
-Luminary is an offline-first PWA; the native shells (Capacitor) cover logged-in, offline
-use. But the app was **invisible to search engines and link previews** — everything
-rendered client-side after a JS boot + data sync, so a crawler saw an empty shell.
+Luminary is an offline-first PWA; the existing app (both a browser-installed PWA and the
+native Capacitor shells) already covers logged-in, offline use via its service worker +
+local-first sync. But the app was **invisible to search engines and link previews** —
+everything rendered client-side after a JS boot + data sync, so a crawler saw an empty
+shell.
 
 This branch adds a **web tier**: the app's **public** content prerendered to **crawlable
 static HTML** (SSG). Incremental regeneration (ISR) is orchestrated by the deployment

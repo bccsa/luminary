@@ -8,10 +8,12 @@ import {
     writeResponseCache,
 } from "luminary-shared";
 
-// Storage is fully-synced public reference data. The query shape is constant, so a
-// fixed `cacheId` keeps its response-cache entry distinct from any same-shaped query.
-// Unlike useContentQuery's cacheId, this is NOT auth-scoped — bucket/CDN
-// metadata has no per-user variation, so one shared cache entry is correct as-is.
+// Storage docs go through the same group/ACL permission system as any other doc type —
+// they are NOT exempt from auth scoping — but in practice every storage bucket is
+// assigned public access, so the query result is the same regardless of viewer. The
+// query shape is constant, so a fixed `cacheId` (unlike useContentQuery's, which varies
+// per auth state) keeps its response-cache entry distinct from any same-shaped query;
+// this is correct as long as that public-access assumption holds.
 const STORAGE_QUERY = { selector: { type: "storage" } };
 const STORAGE_CACHE_ID = "storage-buckets";
 

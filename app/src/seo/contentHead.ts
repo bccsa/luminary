@@ -153,8 +153,19 @@ export function breadcrumbJsonLd(
 }
 
 /**
- * Social crawlers do not support responsive image source sets. Pick the largest
- * original file so the single OG/Twitter URL is suitable for every preview.
+ * OG/Twitter's recommended preview width (Facebook: min 600, ideal ~1200; Twitter
+ * Summary Card with Large Image: min 300, ideal 1200). The processed presets are
+ * `[180, 360, 640, 1280, 2560]` (see `api/processImageDto.ts`) — 1280 is the closest
+ * without jumping to the full-size 2560 original, which is unnecessarily heavy for a
+ * link-preview thumbnail crawlers fetch on every share.
+ */
+const SOCIAL_IMAGE_TARGET_WIDTH = 1200;
+
+/**
+ * Social crawlers do not support responsive image source sets, so a single URL has to
+ * suit every preview surface. Pick the processed size closest to the OG/Twitter target
+ * width — NOT the largest available — so the thumbnail crawlers fetch is appropriately
+ * sized rather than the full-resolution original.
  */
 export function primaryArticleImage(
     content: ContentDto | undefined,
@@ -167,8 +178,11 @@ export function primaryArticleImage(
     );
     if (!files.length) return undefined;
 
-    const image = files.reduce((largest, file) =>
-        file.width * file.height > largest.width * largest.height ? file : largest,
+    const image = files.reduce((best, file) =>
+        Math.abs(file.width - SOCIAL_IMAGE_TARGET_WIDTH) <
+        Math.abs(best.width - SOCIAL_IMAGE_TARGET_WIDTH)
+            ? file
+            : best,
     );
     return {
         url: `${bucketBaseUrl.replace(/\/$/, "")}/${image.filename}`,
