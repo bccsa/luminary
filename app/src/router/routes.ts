@@ -102,6 +102,18 @@ export const routes: RouteRecordRaw[] = [
             prerender: true,
         },
     },
+    // Static 404 page. Prerendered to `dist-web/404.html` so the deploy repo can
+    // serve it as a worker custom error page on unmatched paths. vue-router ranks
+    // this static path above `/:slug`, so `/404` resolves here (not SingleContent).
+    {
+        path: "/404",
+        component: NotFoundPage,
+        name: "not-found",
+        meta: {
+            analyticsIgnore: true,
+            prerender: true,
+        },
+    },
     {
         path: "/:pathMatch(.*)*",
         name: "404",

@@ -181,6 +181,7 @@ let routeLastmod: Record<string, string> = {};
 
 function writeSeoArtifacts() {
     const urls = prerenderedRoutes
+        .filter((r) => r !== "/404") // error page is not a crawlable URL
         .map(
             (r) =>
                 `  <url><loc>${WEB_ORIGIN}${r}</loc>` +
@@ -432,8 +433,13 @@ const config: UserConfig & { ssgOptions: ViteSSGOptions } = {
                     (r) => r.meta?.prerender && typeof r.path === "string" && !r.path.includes(":"),
                 )
                 .map((r) => r.path as string);
+            // The 404 error page is prerendered only in the default language (a
+            // worker-served custom error page has no per-request locale), so keep
+            // it out of the locale-prefixed variants while still prerendering /404
+            // itself (it stays in `staticRoutes` → `all`).
+            const localizableStatic = staticRoutes.filter((r) => r !== "/404");
             const localizedRoutes = localizedStaticPaths(
-                staticRoutes,
+                localizableStatic,
                 langCodes,
                 defaultLanguage?.languageCode ?? "",
             );

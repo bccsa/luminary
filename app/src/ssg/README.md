@@ -200,6 +200,13 @@ computed the affected route, ran `SSG_ONLY_ROUTES=... npm run build:web`, and th
 delete support is implemented via `ssg-route-index.json`; recategorization old-facet
 coverage is backed by `ssg-doc-facets.json`. Live API verification is still user-run.
 
+**404 error page:** `NotFoundPage` is prerendered to `dist-web/404.html` (via a static
+`/404` route in `routes.ts` with `meta.prerender`; vite-ssg's flat `dirStyle` writes
+`/404` → `404.html`) so the deploy repo can serve it as a worker custom error page on
+unmatched paths. It is deliberately excluded from `sitemap.xml` and from the
+locale-prefixed variants — only the default-language `404.html` is emitted (per-language
+`/<code>/404` deferred; see `tobediscussed.md`).
+
 **OOM:** root-caused and fixed (seed 105KB → 39KB). The remaining confirmation is a clean
 full `build:web` to completion across all ~1934 routes against a production-sized dataset.
 
