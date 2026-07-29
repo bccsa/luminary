@@ -77,8 +77,6 @@ const handleNotificationClick = (notification: Notification) => {
         <div
             v-if="show"
             class="banner-grid"
-            data-test="notification-banner"
-            :data-notification-id="notification.id"
         >
             <div class="banner-grid-content">
                 <div
@@ -130,7 +128,7 @@ const handleNotificationClick = (notification: Notification) => {
                             type="button"
                             @click.stop="
                                 notification.id
-                                    ? dismissNotification(notification.id)
+                                    ? removeNotification(notification.id)
                                     : (show = false)
                             "
                             class="h-6 min-h-6 w-6 min-w-6 cursor-pointer underline md:h-5 md:min-h-5 md:w-5 md:min-w-5"
@@ -149,6 +147,42 @@ const handleNotificationClick = (notification: Notification) => {
         </div>
     </Transition>
 </template>
+
+<style scoped>
+.banner-grid {
+    display: grid;
+    grid-template-rows: 1fr;
+    overflow: hidden;
+}
+
+.banner-grid-content {
+    min-height: 0;
+}
+
+.banner-enter-from,
+.banner-leave-to {
+    grid-template-rows: 0fr;
+    opacity: 0;
+}
+
+.banner-enter-to,
+.banner-leave-from {
+    grid-template-rows: 1fr;
+    opacity: 1;
+}
+
+.banner-enter-active {
+    transition:
+        grid-template-rows 250ms ease-out,
+        opacity 250ms ease-out;
+}
+
+.banner-leave-active {
+    transition:
+        grid-template-rows 250ms ease-in,
+        opacity 250ms ease-in;
+}
+</style>
 
 <style scoped>
 .banner-grid {

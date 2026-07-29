@@ -18,17 +18,19 @@ const firstBanner = computed(() => {
         aria-live="assertive"
         class="sticky inset-x-0 flex items-end sm:items-start"
     >
+    <div
+        aria-live="assertive"
+        class="sticky inset-x-0 flex items-end sm:items-start"
+    >
         <div class="w-full">
             <Transition
                 name="bottom-banner"
                 mode="out-in"
             >
-                <!-- pb: stays above the overlaying mobile menu; only occupies that
-                     space while a banner is actually showing. -->
                 <div
                     v-if="firstBanner"
                     :key="firstBanner.id"
-                    class="bottom-banner-grid pb-[var(--mobile-menu-h,0px)] lg:pb-0"
+                    class="bottom-banner-grid"
                 >
                     <div class="bottom-banner-grid-content">
                         <NotificationBottom :notification="firstBanner" />
@@ -38,6 +40,42 @@ const firstBanner = computed(() => {
         </div>
     </div>
 </template>
+
+<style scoped>
+.bottom-banner-grid {
+    display: grid;
+    grid-template-rows: 1fr;
+    overflow: hidden;
+}
+
+.bottom-banner-grid-content {
+    min-height: 0;
+}
+
+.bottom-banner-enter-from,
+.bottom-banner-leave-to {
+    grid-template-rows: 0fr;
+    opacity: 0;
+}
+
+.bottom-banner-enter-to,
+.bottom-banner-leave-from {
+    grid-template-rows: 1fr;
+    opacity: 1;
+}
+
+.bottom-banner-enter-active {
+    transition:
+        grid-template-rows 250ms ease-out,
+        opacity 250ms ease-out;
+}
+
+.bottom-banner-leave-active {
+    transition:
+        grid-template-rows 250ms ease-in,
+        opacity 250ms ease-in;
+}
+</style>
 
 <style scoped>
 .bottom-banner-grid {
