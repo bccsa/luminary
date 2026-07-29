@@ -34,10 +34,14 @@ function staticPath(basePath: string, code: string, defaultCode: string): string
     return basePath === "/" ? `/${code}` : `/${code}${basePath}`;
 }
 
-/** Open Graph uses an underscore-delimited locale, unlike HTML's BCP 47 tag. */
+/**
+ * Open Graph uses an underscore-delimited locale, unlike HTML's BCP 47 tag. Only
+ * includes a region if the language code itself specifies one (e.g. `en-UK` ->
+ * `en_UK`) — do not fabricate one via likely-subtag maximization (`en` -> `en_US`).
+ */
 function ogLocale(languageCode: string): string {
     try {
-        const locale = new Intl.Locale(languageCode).maximize();
+        const locale = new Intl.Locale(languageCode);
         return locale.region ? `${locale.language}_${locale.region}` : locale.language;
     } catch {
         return languageCode.replace(/-/g, "_");
