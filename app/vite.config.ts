@@ -10,6 +10,9 @@ import { buildTargetVirtuals } from "./vite-plugins/buildTargetVirtuals";
 
 const env = loadEnv("", process.cwd());
 
+// 404s any dev-server request for /dist or /dist-web. Both are build output, not
+// source; serving them from a stale on-disk build would silently mask changes that
+// aren't actually live in the dev server.
 const blockGeneratedOutput = (): Plugin => ({
     name: "block-generated-output-in-dev",
     configureServer(server) {

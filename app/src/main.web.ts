@@ -1,5 +1,8 @@
-// Web / SSG entry point. Used ONLY by the web build (vite.config.web.ts →
-// `npm run build:web`). The native/SPA build keeps using `main.ts` unchanged.
+// Entry point for the web build (vite.config.web.ts → `npm run build:web`). This one
+// file runs twice: once in Node during the SSG prerender pass (SSR, produces the static
+// HTML crawlers see) and once in the browser as that HTML hydrates into a live app (the
+// experience a normal web visitor actually gets). `import.meta.env.SSR` below branches
+// between the two. The native/SPA build keeps using `main.ts` unchanged.
 //
 // Must import polyfills first so jsdom-missing globals (e.g. window.matchMedia)
 // exist before globalConfig.ts and friends touch them at module load.
@@ -83,7 +86,7 @@ export const createApp = ViteSSG(
             );
         } else {
             // Client: take the render language from the serialized state so the first
-            // render's UI strings + content match the prerendered HTML. (The web tier
+            // render's UI strings + content match the prerendered HTML. (The web build
             // is per-URL-language; the user can still switch via the language modal.)
             const lang = (initialState.renderLang as string) || "";
             appLanguageIdsAsRef.value = lang ? [lang] : [];
@@ -104,9 +107,9 @@ export const createApp = ViteSSG(
 
         app.use(initI18n());
 
-        // The web tier is prerendered — there is no splash screen. Setting this on
-        // BOTH server and client keeps the first client render identical to the SSR
-        // output (clean hydration).
+        // SSG output is already-rendered HTML — there is no splash screen. Setting this
+        // on BOTH the SSR (Node prerender) and client (hydration) branches keeps the
+        // first client render identical to the SSR output (clean hydration).
         isAppLoading.value = false;
 
         if (import.meta.env.SSR) {
