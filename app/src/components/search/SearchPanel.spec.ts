@@ -38,10 +38,6 @@ vi.mock("luminary-shared", async (importOriginal) => {
     const actual = await importOriginal<typeof import("luminary-shared")>();
     return {
         ...actual,
-        stripHtml:
-            (actual as any).stripHtml ??
-            ((html: unknown) =>
-                typeof html === "string" ? html.replace(/<[^>]*>/g, "").trim() : ""),
         useFtsSearch: vi.fn(),
         db: {
             docs: {
