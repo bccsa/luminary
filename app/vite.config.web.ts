@@ -7,6 +7,7 @@ import type { RouteRecordRaw } from "vue-router";
 import vue from "@vitejs/plugin-vue";
 import { buildTargetVirtuals } from "./vite-plugins/buildTargetVirtuals";
 import type { DocLike } from "./src/ssg/facetKeys";
+import { docFacetShard, docFacetShardFile, docFacetsIndex } from "./src/ssg/docFacetShards";
 import { redirectFile, redirectHtml } from "./src/ssg/redirectHtml";
 import { buildRedirectIndex } from "./src/ssg/redirectIndex";
 import { buildRouteIndex, type SsgRouteIndex } from "./src/ssg/routeIndex";
@@ -133,7 +134,11 @@ const indexHtmlPath = () => join(process.cwd(), OUT_DIR, "index.html");
 const manifestPath = () => join(process.cwd(), OUT_DIR, "ssg-deps.json");
 const routeIndexPath = () => join(process.cwd(), OUT_DIR, "ssg-route-index.json");
 const redirectIndexPath = () => join(process.cwd(), OUT_DIR, "ssg-redirect-index.json");
-const docFacetsPath = () => join(process.cwd(), OUT_DIR, "ssg-doc-facets.json");
+// Sharded (not one growing file) — see docFacetShards.ts for why and writeDocFacets()
+// below for how a scoped rebuild only touches the shards its docs land in.
+const docFacetsDir = () => join(process.cwd(), OUT_DIR, "ssg-doc-facets");
+const docFacetsIndexPath = () => join(docFacetsDir(), "index.json");
+const docFacetShardPath = (shard: string) => join(docFacetsDir(), docFacetShardFile(shard));
 
 // Build-in-progress lock, consumed by the deployment repo's ISR watcher: it must
 // not spawn a scoped rebuild while a build (the initial full `build:web`, or its own
@@ -177,6 +182,13 @@ function writeManifest() {
 let prerenderedRoutes: string[] = [];
 let routeIndex: SsgRouteIndex = { content: {}, parent: {} };
 let docFacets: Record<string, DocLike> = {};
+// Doc id -> its route, captured alongside docFacets so writeDocFacets can tell which
+// entries belong to THIS build's rendered route set (see includedRoutes/renderedRouteSet).
+let docFacetRoutes: Record<string, string> = {};
+// The routes actually rendered THIS invocation (SCOPED_ROUTES on a scoped rebuild,
+// otherwise the full site) — narrower than `prerenderedRoutes`, which always reflects
+// the full site (sitemap needs that regardless of scope).
+let renderedRouteSet: Set<string> = new Set();
 let routeLastmod: Record<string, string> = {};
 
 function writeSeoArtifacts() {
@@ -229,12 +241,34 @@ function writeRouteIndex() {
     );
 }
 
+// Only the docs whose route was actually rendered THIS build get their shard
+// touched — a scoped rebuild of a handful of routes reads/writes a handful of small
+// shard files, not the whole site's facet snapshot (the thing that used to grow
+// without bound as the site grew — see docFacetShards.ts).
 function writeDocFacets() {
-    const merged = mergeScoped(docFacetsPath(), docFacets);
-    writeFileSync(docFacetsPath(), JSON.stringify(merged));
+    mkdirSync(docFacetsDir(), { recursive: true });
+    writeFileSync(docFacetsIndexPath(), JSON.stringify(docFacetsIndex()));
+
+    const byShard = new Map<string, Record<string, DocLike>>();
+    for (const [id, snapshot] of Object.entries(docFacets)) {
+        const route = docFacetRoutes[id];
+        if (!route || !renderedRouteSet.has(route)) continue;
+        const shard = docFacetShard(id);
+        (byShard.get(shard) ?? byShard.set(shard, {}).get(shard)!)[id] = snapshot;
+    }
+
+    let written = 0;
+    for (const [shard, fresh] of byShard) {
+        const path = docFacetShardPath(shard);
+        const existing = existsSync(path)
+            ? (JSON.parse(readFileSync(path, "utf-8")) as Record<string, DocLike>)
+            : {};
+        writeFileSync(path, JSON.stringify({ ...existing, ...fresh }));
+        written += Object.keys(fresh).length;
+    }
     console.log(
-        `[ssg] wrote ssg-doc-facets.json (${Object.keys(merged).length} docs` +
-            `${IS_SCOPED ? `, merged ${Object.keys(docFacets).length} enumerated` : ""})`,
+        `[ssg] wrote ssg-doc-facets/ (${written} doc(s) across ${byShard.size} shard(s), ` +
+            `${docFacetsIndex().shardCount} total)`,
     );
 }
 
@@ -318,10 +352,14 @@ async function fetchPublicSlugs(apiUrl: string, now: number): Promise<string[]> 
     const slugs = new Set<string>();
     routeIndex = buildRouteIndex(docs);
     docFacets = {};
+    docFacetRoutes = {};
     routeLastmod = {};
     for (const d of docs) {
         const snapshot = docFacetSnapshot(d);
-        if (snapshot) docFacets[snapshot._id] = snapshot;
+        if (snapshot && d.slug) {
+            docFacets[snapshot._id] = snapshot;
+            docFacetRoutes[snapshot._id] = `/${d.slug}`;
+        }
         if (!d.slug) continue;
         slugs.add(d.slug);
         if (typeof d.updatedTimeUtc === "number") {
@@ -454,10 +492,12 @@ const config: UserConfig & { ssgOptions: ViteSSGOptions } = {
             // The sitemap always represents the full public route set, while a scoped
             // rebuild renders only the explicitly requested routes.
             if (IS_SCOPED) {
+                renderedRouteSet = new Set(SCOPED_ROUTES);
                 console.log(`[ssg] scoped rebuild of ${SCOPED_ROUTES.length} route(s); sitemap covers ${all.length}`);
                 return SCOPED_ROUTES;
             }
 
+            renderedRouteSet = new Set(all);
             console.log(
                 `[ssg] prerendering ${all.length} routes ` +
                     `(${staticRoutes.length + localizedRoutes.length} static + ${slugRoutes.length} content)`,

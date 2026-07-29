@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Luminary Web/SSG Tier — Standup</title>
+<style>
+  :root {
+    --bg: #0e1116;
+    --bg-soft: #161b22;
+    --panel: #1b2129;
+    --ink: #e6edf3;
+    --ink-dim: #9aa7b4;
+    --ink-faint: #6b7682;
+    --accent: #4cc4d6;
+    --accent-2: #8b9bff;
+    --warn: #e0a860;
+    --good: #7fd1a6;
+    --line: #2a323c;
+    --shadow: 0 12px 40px rgba(0,0,0,.45);
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: radial-gradient(1200px 800px at 80% -10%, #182029 0%, var(--bg) 60%) fixed;
+    color: var(--ink);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Inter, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+  code, kbd { font-family: ui-monospace, "SF Mono", "JetBrains Mono", "Fira Code", Menlo, Consolas, monospace; }
+
+  #stage {
+    position: fixed; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    padding: 4vh 7vw;
+  }
+  .slide {
+    width: min(980px, 100%);
+    max-height: 92vh;
+    overflow: auto;
+    display: none;
+    animation: rise .32s cubic-bezier(.2,.7,.2,1) both;
+  }
+  .slide.active { display: block; }
+  @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+
+  .eyebrow {
+    text-transform: uppercase; letter-spacing: .18em; font-size: .72rem;
+    color: var(--accent); font-weight: 600; margin-bottom: .6rem;
+  }
+  h1 { font-size: clamp(2.4rem, 6vw, 3.6rem); line-height: 1.05; margin: 0 0 1rem; letter-spacing: -.02em; }
+  h2 { font-size: clamp(1.6rem, 3.6vw, 2.3rem); line-height: 1.15; margin: 0 0 1.1rem; letter-spacing: -.01em; }
+  h2 .sub { color: var(--ink-dim); font-weight: 400; font-size: .62em; display: block; margin-top: .35rem; }
+  p, li { font-size: clamp(1.02rem, 1.5vw, 1.2rem); line-height: 1.6; color: var(--ink); }
+  ul { margin: 0; padding-left: 1.15rem; }
+  li { margin: .5rem 0; }
+  li::marker { color: var(--accent); }
+  .muted { color: var(--ink-dim); }
+  .faint { color: var(--ink-faint); }
+  .accent { color: var(--accent); }
+  code {
+    background: var(--bg-soft); border: 1px solid var(--line);
+    padding: .12em .42em; border-radius: 6px; font-size: .86em; color: var(--accent);
+  }
+  .lead { font-size: clamp(1.12rem, 1.9vw, 1.45rem); color: var(--ink-dim); max-width: 62ch; line-height: 1.55; }
+
+  .grid { display: grid; gap: 1rem; }
+  .grid.two { grid-template-columns: 1fr 1fr; }
+  .card {
+    background: linear-gradient(180deg, var(--panel), var(--bg-soft));
+    border: 1px solid var(--line); border-radius: 14px; padding: 1.1rem 1.25rem;
+    box-shadow: var(--shadow);
+  }
+  .card h3 { margin: 0 0 .5rem; font-size: 1.08rem; color: var(--ink); }
+  .card .tag { font-size: .72rem; text-transform: uppercase; letter-spacing: .12em; color: var(--accent-2); font-weight: 600; }
+  .card .why { margin-top: .6rem; font-size: .92rem; color: var(--ink-dim); border-top: 1px dashed var(--line); padding-top: .55rem; }
+  .card .why b { color: var(--accent); font-weight: 600; }
+  .pill { display: inline-block; background: var(--bg-soft); border: 1px solid var(--line); color: var(--ink-dim);
+           padding: .15rem .6rem; border-radius: 999px; font-size: .78rem; margin: .1rem .25rem .1rem 0; }
+  .pill.good { color: var(--good); border-color: #2c4a3a; }
+  .pill.warn { color: var(--warn); border-color: #4a3f2a; }
+
+  .flow { display: flex; align-items: stretch; gap: .6rem; flex-wrap: wrap; }
+  .node {
+    background: var(--bg-soft); border: 1px solid var(--line); border-radius: 12px;
+    padding: .8rem 1rem; min-width: 150px; text-align: center; box-shadow: var(--shadow);
+  }
+  .node .n { font-weight: 600; font-size: .95rem; }
+  .node .d { font-size: .8rem; color: var(--ink-dim); margin-top: .25rem; }
+  .node.accent { border-color: var(--accent); }
+  .arrow { display: flex; align-items: center; color: var(--ink-faint); font-size: 1.4rem; }
+
+  #bar { position: fixed; left: 0; right: 0; bottom: 0; height: 3px; background: var(--bg-soft); }
+  #bar > i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width .25s; }
+  #hud { position: fixed; bottom: 14px; right: 18px; font-size: .8rem; color: var(--ink-faint);
+         font-family: ui-monospace, monospace; user-select: none; }
+  #hud kbd { background: var(--bg-soft); border: 1px solid var(--line); border-bottom-width: 2px;
+             border-radius: 5px; padding: .05rem .4rem; color: var(--ink-dim); font-size: .78rem; }
+  #hint { position: fixed; bottom: 14px; left: 18px; font-size: .78rem; color: var(--ink-faint); }
+
+  .title-slide h1 { font-size: clamp(2.8rem, 7vw, 4.4rem); }
+  .title-slide .meta { margin-top: 2rem; color: var(--ink-faint); font-size: .95rem; }
+  .dot { color: var(--accent); }
+
+  @media (max-width: 720px) {
+    .grid.two { grid-template-columns: 1fr; }
+    .flow { flex-direction: column; }
+    .arrow { transform: rotate(90deg); justify-content: center; }
+  }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<div id="bar"><i></i></div>
+<div id="hint">Luminary · Web/SSG tier</div>
+<div id="hud"><kbd>←</kbd> <kbd>→</kbd> &nbsp; <span id="count">1 / 1</span></div>
+
+<script>
+const SLIDES = [
+// 1 — Title
+`<section class="slide title-slide active">
+  <div class="eyebrow">Standup · Engineering</div>
+  <h1>Making Luminary <span class="dot">findable</span></h1>
+  <p class="lead">A short tour of the new web tier — what problem it solves, and the reasoning behind the key choices.</p>
+  <div class="meta">
+    <span class="pill">search</span><span class="pill">link previews</span><span class="pill">AI citation</span><span class="pill">static HTML</span><span class="pill">incremental rebuilds</span><span class="pill">R2 + CDN purge</span><span class="pill">restart-safe</span>
+  </div>
+</section>`,
+
+// 2 — The problem (why)
+`<section class="slide">
+  <div class="eyebrow">The problem</div>
+  <h2>Great content nobody could find</h2>
+  <p class="lead">Luminary is an offline-first app — it loads its content after JavaScript boots up and syncs. That's wonderful for users, but terrible for anyone who isn't running our code.</p>
+  <div class="grid two" style="margin-top:1.2rem">
+    <div class="card">
+      <span class="tag">What crawlers saw</span>
+      <p>An empty page. No text, no titles, no images — because search engines and link-preview bots don't run our app. They just see a blank shell.</p>
+    </div>
+    <div class="card">
+      <span class="tag">The real cost</span>
+      <p>No Google indexing. No rich previews when someone shares a link in Slack, iMessage, or social. The content might as well not exist outside the app.</p>
+    </div>
+  </div>
+  <p class="muted" style="margin-top:1.1rem"><b>Why now:</b> we want Luminary's public content to be discoverable on the open web — without changing how the native app works.</p>
+</section>`,
+
+// 2b — the AI citation angle
+`<section class="slide">
+  <div class="eyebrow">The problem, part two</div>
+  <h2>Crawlable isn't the same as citable</h2>
+  <p class="lead">Being indexable gets us into Google. But a growing share of how people find content now goes through AI answer engines — ChatGPT, Perplexity, Google's AI Overviews, Claude — that read a page once and decide whether to summarize it with a citation, or skip it entirely.</p>
+  <div class="grid two" style="margin-top:1.2rem">
+    <div class="card">
+      <span class="tag">What these systems actually read</span>
+      <p>Most AI crawlers fetch raw HTML once, with no JS execution — much like a classic search bot. A blank client-side shell is exactly as invisible to them as it is to Googlebot, so the same prerendered mirror that fixes search is the prerequisite here too.</p>
+    </div>
+    <div class="card">
+      <span class="tag">What makes them cite you, specifically</span>
+      <p>Being fetchable isn't being <i>citable</i>. Machine-readable authorship, organization identity, publish dates, and topical context all factor into whether an answer engine treats a page as an attributable source — or just a page it read and quietly summarized.</p>
+    </div>
+  </div>
+</section>`,
+
+// 3 — The approach (why this shape)
+`<section class="slide">
+  <div class="eyebrow">The approach</div>
+  <h2>Bake the public pages ahead of time</h2>
+  <p class="lead">Instead of making crawlers run our app, we pre-render the public pages to plain HTML at build time. Then we keep them fresh with small, targeted rebuilds.</p>
+  <div class="grid">
+    <div class="card">
+      <h3>Only the public stuff</h3>
+      <p>Private and group-scoped content is never baked into HTML — it still syncs live to logged-in users. Prerendering it would mean either leaking it or bloating every page.</p>
+      <div class="why"><b>Why:</b> a clean line between "everyone can see this" and "only you can" — the build only ever touches what's public.</div>
+    </div>
+    <div class="card">
+      <h3>One app, not two</h3>
+      <p>After the page loads, the web build runs the exact same data layer as the native app. There's no second, web-only codebase to keep in sync.</p>
+      <div class="why"><b>Why:</b> two runtimes that drift apart is a maintenance trap. One code path means a fix in one place is a fix everywhere.</div>
+    </div>
+  </div>
+</section>`,
+
+// 4 — One seam (why)
+`<section class="slide">
+  <div class="eyebrow">Design choice · one content seam</div>
+  <h2>One place that reads content</h2>
+  <p class="lead">Every page reads its data through a single composable. At build time it fetches from the server; in the browser it uses the same local-first path as native.</p>
+  <div class="card" style="margin-top:1.2rem">
+    <span class="tag">Why one seam, with no "if web / else native" branches</span>
+    <p>It's tempting to branch the code per target — "if this is the web build, do X". We deliberately didn't. The moment you branch, you have two behaviors to test, two truths to remember, and a slow drift toward "works on web, broken on native" (or vice versa).</p>
+    <div class="why"><b>The payoff:</b> adding a page or changing a query only happens once. The build and the live app can't disagree, because they're the same code.</div>
+  </div>
+</section>`,
+
+// 5 — No-flash hydration (why)
+`<section class="slide">
+  <div class="eyebrow">Design choice · no flash on load</div>
+  <h2>The page shouldn't blink empty</h2>
+  <p class="lead">A prerendered page that flashes "loading…" before showing content feels broken. So the very first paint already has the real content — no spinner, no empty state, no jump.</p>
+  <div class="flow" style="margin: 1.2rem 0">
+    <div class="node accent"><div class="n">At build time</div><div class="d">we stash a tiny cache of the page's data</div></div>
+    <div class="arrow">→</div>
+    <div class="node"><div class="n">Into the HTML</div><div class="d">that cache rides along inline</div></div>
+    <div class="arrow">→</div>
+    <div class="node"><div class="n">Before the app boots</div><div class="d">the browser reads it, instantly</div></div>
+    <div class="arrow">→</div>
+    <div class="node accent"><div class="n">First paint</div><div class="d">already shows real content</div></div>
+  </div>
+  <div class="card">
+    <span class="tag">Why reuse the existing cache instead of a new snapshot system</span>
+    <p>We had an earlier bespoke snapshot layer just for this. We deleted it. A second source of truth inevitably drifts from the first — two caches that disagree is a worse bug than one cache.</p>
+    <div class="why"><b>Why:</b> one well-understood cache, shared between build and runtime. Less code, fewer places for the web and native paths to diverge.</div>
+  </div>
+</section>`,
+
+// 6 — Route enumeration (why)
+`<section class="slide">
+  <div class="eyebrow">Design choice · finding every page</div>
+  <h2>Don't quietly miss pages</h2>
+  <p class="lead">To prerender the site, we first have to know every public page that exists. Our earlier approach paged through results — and silently stopped around page 100, leaving ~1800 pages simply unbuilt. Nobody noticed for a while.</p>
+  <div class="grid two" style="margin-top:1.2rem">
+    <div class="card">
+      <span class="tag">The old way</span>
+      <p>Offset pagination against a search endpoint. Fast, but nondeterministic — and it capped the site at ~101 of ~1934 pages with no error.</p>
+    </div>
+    <div class="card">
+      <span class="tag">The new way</span>
+      <p>Keyset pagination: page through by a stable cursor until there's nothing left. Slower per request, but it <b>drains the whole set</b> and we know when it's done.</p>
+    </div>
+  </div>
+  <p class="muted" style="margin-top:1.1rem"><b>Why:</b> correctness beats speed here. A build that silently omits most of the site is far worse than a build that takes a little longer but actually finishes.</p>
+</section>`,
+
+// 7 — Facet keys (why generic)
+`<section class="slide">
+  <div class="eyebrow">Design choice · the dependency vocabulary</div>
+  <h2>Pages should know what would make them stale</h2>
+  <p class="lead">Each prerendered page records a few coarse "I depend on this" tags. When something changes, we check which pages care — and rebuild only those. The trick is making those tags <b>automatic</b>.</p>
+  <div class="grid two" style="margin-top:1.2rem">
+    <div class="card">
+      <h3>Derived, not hand-wired</h3>
+      <p>Tags come straight from the data the page actually reads — which parent, which tags, which language. We never type a per-page list of keys.</p>
+      <div class="why"><b>Why:</b> the moment keys are hand-maintained, adding a page or moving a component means remembering to update keys — and people forget. A forgotten key = a stale page that ships. Automation removes that failure mode.</div>
+    </div>
+    <div class="card">
+      <h3>What we deliberately leave out</h3>
+      <p>Scheduled publish/unpublish times aren't treated as edits — they're a clock event, handled by a separate poll. Status and translation changes ride along on the doc's own identity key.</p>
+      <div class="why"><b>Why:</b> time-based fields would explode the number of keys and still miss the moment a post goes live. A wall-clock poll catches "now published" cleanly, without keying every page on a timestamp.</div>
+    </div>
+  </div>
+</section>`,
+
+// 8 — ISR flow (why scoped)
+`<section class="slide">
+  <div class="eyebrow">Design choice · incremental rebuilds</div>
+  <h2>Edit one post, rebuild one page — not 2000</h2>
+  <p class="lead">A full rebuild of ~2000 pages is slow. So when something changes, we rebuild only the pages that actually depend on it. The watcher polls every <code>10s</code> by default, waits <code>4s</code> for a burst of edits to settle, then does one scoped build.</p>
+  <div class="flow" style="margin: 1.1rem 0">
+    <div class="node"><div class="n">Poll every 10s</div><div class="d">same anonymous <code>POST /query</code> the prerender itself uses</div></div>
+    <div class="arrow">→</div>
+    <div class="node"><div class="n">Debounce 4s</div><div class="d">coalesce a burst of edits into one cycle</div></div>
+    <div class="arrow">→</div>
+    <div class="node"><div class="n">Who cares?</div><div class="d">match changed keys against the page manifest</div></div>
+    <div class="arrow">→</div>
+    <div class="node accent"><div class="n">Scoped build + ship</div><div class="d">only the affected routes, upload + purge</div></div>
+  </div>
+  <div class="grid two" style="margin-top:1rem">
+    <div class="card">
+      <span class="tag">Why merge, not overwrite</span>
+      <p>A scoped rebuild only touches some pages — so it <i>merges</i> its results into the existing manifest rather than replacing it. Throwing away the full manifest on a partial rebuild would silently orphan every page we didn't just touch.</p>
+      <div class="why"><b>Why:</b> the manifest is the source of truth for "what's stale". A partial rebuild must add to that truth, not reset it.</div>
+    </div>
+    <div class="card">
+      <span class="tag">Why a lock file, not just "don't overlap"</span>
+      <p>The build writes a <code>.ssg-building</code> marker the moment it starts and clears it on finish. The watcher was started <i>before</i> the initial full build, precisely so edits made during that long build aren't missed — they queue up and flush right after, instead of racing a build already in flight.</p>
+      <div class="why"><b>Why:</b> a scoped rebuild that starts mid full-rebuild would read a half-written <code>dist-web/</code> and corrupt the manifest.</div>
+    </div>
+  </div>
+</section>`,
+
+// 8b — the write-blind gap (time crossing)
+`<section class="slide">
+  <div class="eyebrow">Design choice · the gap a watcher can't see</div>
+  <h2>Nothing gets "written" when a scheduled post goes live</h2>
+  <p class="lead">The watcher reacts to writes. But a post scheduled for 9am doesn't get edited at 9am — it just becomes "live" the moment the clock crosses its <code>publishDate</code>. Same for <code>expiryDate</code> going the other way. A write-triggered watcher structurally cannot see either event.</p>
+  <div class="card" style="margin-top:1.2rem">
+    <span class="tag">A separate wall-clock poll</span>
+    <p>Alongside the ordinary change poll, two more queries run every cycle: content whose <code>publishDate</code> or <code>expiryDate</code> fell between the last check and now (each capped at 500 docs, each against its own index — the expiry query also asks for already-expired docs, since a page that just expired needs to disappear, not just "not appear").</p>
+    <div class="why"><b>Why it's a separate mechanism, not a workaround bolted onto the cursor:</b> it's closing a different kind of gap — a clock crossing, not a document mutation — so it gets its own honest poll instead of contorting the write-cursor logic to fake one.</div>
+  </div>
+  <p class="muted" style="margin-top:1.1rem"><b>Side effect:</b> this is also why there's no periodic full-rebuild safety-net cron. This poll already closes the one real blind spot a write-triggered watcher has — a blanket rebuild on a timer would only add cost, not catch anything new.</p>
+</section>`,
+
+// 8c — restart optimization
+`<section class="slide">
+  <div class="eyebrow">Design choice · don't redo the expensive part</div>
+  <h2>A restart shouldn't rebuild 2000 pages it just built</h2>
+  <p class="lead">Every container restart used to run a full <code>build:web</code> and a full R2 sync before the watcher could even start — even though the persisted cursor already lets the watcher catch up on any drift from downtime on its very first poll.</p>
+  <div class="flow" style="margin: 1.1rem 0">
+    <div class="node"><div class="n">CI stamps the image</div><div class="d"><code>APP_VERSION</code> = last commit touching this service + the submodule pin sha</div></div>
+    <div class="arrow">→</div>
+    <div class="node"><div class="n">On boot</div><div class="d">compare to the version last persisted in R2</div></div>
+    <div class="arrow">→</div>
+    <div class="node"><div class="n">Match + cursor + sidecars restore</div><div class="d">skip straight to the watcher</div></div>
+    <div class="arrow">→</div>
+    <div class="node accent"><div class="n">Any mismatch</div><div class="d">falls back safely to the full build + sync</div></div>
+  </div>
+  <div class="card">
+    <span class="tag">Why the version is scoped to this service's own path</span>
+    <p>Not the whole monorepo's <code>HEAD</code> — an unrelated commit to Capacitor, docs, or another package shouldn't force a redundant rebuild of a site that didn't change. The four internal manifests (<code>ssg-deps.json</code> and friends) are deliberately excluded from public deployment, so they're snapshotted to a private R2 path and restored on match — otherwise a fresh container would have none of them.</p>
+    <div class="why"><b>Why:</b> those manifests keep mutating on every scoped cycle too, not just full builds, so they're re-snapshotted after every cycle — a snapshot taken once at boot would silently go stale.</div>
+  </div>
+</section>`,
+
+// 8d — sync safety rails
+`<section class="slide">
+  <div class="eyebrow">Design choice · shipping without a foot-gun</div>
+  <h2>Uploading is easy to get wrong at scale</h2>
+  <div class="grid two" style="margin-top:1.2rem">
+    <div class="card">
+      <h3>Bounded concurrency</h3>
+      <p>Uploads run through a small worker pool — 8 in flight by default — instead of firing thousands of requests at once or crawling the whole site one file at a time.</p>
+      <div class="why"><b>Why:</b> fast enough for a full sync of ~2000 pages, gentle enough not to trip R2 rate limits.</div>
+    </div>
+    <div class="card">
+      <h3>A delete-fraction guard</h3>
+      <p>If a full sync's orphan-prune pass would delete more than half of what's already in the bucket, it aborts instead of executing.</p>
+      <div class="why"><b>Why:</b> a bug in local file listing, or a build that silently produced almost nothing, should never be able to empty the live bucket. The watcher's own cursor + build-version markers are explicitly protected from every prune pass too.</div>
+    </div>
+  </div>
+  <p class="muted" style="margin-top:1.1rem"><b>Precision on the scoped path:</b> an incremental sync only ever touches the routes that were just regenerated or removed, plus the two always-refreshed SEO artifacts (<code>sitemap.xml</code>, <code>robots.txt</code>) — everything else on R2 is left untouched, and only the URLs that actually changed get purged from the CDN.</p>
+</section>`,
+
+// 8e — crawler lockdown
+`<section class="slide">
+  <div class="eyebrow">Design choice · a deliberate kill switch for test runs</div>
+  <h2>Testing against real infrastructure without telling Google</h2>
+  <p class="lead">The app always regenerates a permissive <code>robots.txt</code> (<code>Allow: /</code> for every crawler, including Googlebot) on every single build — full or scoped. There's no app-side way to skip that for a one-off test.</p>
+  <div class="card" style="margin-top:1.2rem">
+    <span class="tag"><code>BLOCK_CRAWLERS=true</code> — off by default</span>
+    <p>The deployer overwrites <code>dist-web/robots.txt</code> to <code>Disallow: /</code> immediately before <i>every</i> upload — both the full sync and every scoped sync — so it can't be silently flipped back to permissive by the very next incremental rebuild.</p>
+    <div class="why"><b>Why it's this blunt:</b> only ever meant for a non-production run against an isolated test bucket and domain. A <code>Disallow: /</code> on the real production domain does the opposite of protecting it. And crawl-block isn't index-block — a URL Google already knows about can still surface without a snippet — so an isolated, never-linked test domain is the real protection, not the robots line.</div>
+  </div>
+</section>`,
+
+// 8f — built to be cited, not just crawled
+`<section class="slide">
+  <div class="eyebrow">Design choice · answer-ready pages</div>
+  <h2>The same JSON-LD a page renders is what an AI engine reads</h2>
+  <p class="lead">Every article emits structured data at prerender time, derived from the exact same content document the visible page is built from — so the machine-readable version and what a reader sees can't drift apart the way a hand-maintained sitemap, or a second bespoke system, eventually would.</p>
+  <div class="grid two" style="margin-top:1.2rem">
+    <div class="card">
+      <h3>Article, not just meta tags</h3>
+      <p><code>publisher</code> (Organization + logo), a real <code>image</code>, <code>mainEntityOfPage</code> binding the article to its canonical URL, <code>wordCount</code>, and <code>articleSection</code> resolved from that piece's own published tags. A <code>BreadcrumbList</code> adds topical context beyond the headline; the home page carries <code>WebSite</code> + a <code>SearchAction</code> pointed at the public search overlay.</p>
+    </div>
+    <div class="card">
+      <h3>A front door sized for LLM clients</h3>
+      <p><code>llms.txt</code> is written alongside <code>sitemap.xml</code>/<code>robots.txt</code> on every build, full or scoped — compact enough to sit comfortably in a model's context window, pointing at the key entry pages and the sitemap rather than trying to enumerate ~2000 routes itself.</p>
+    </div>
+  </div>
+  <div class="card" style="margin-top:1rem">
+    <span class="tag">Why the AI crawlers are named, not just implied by <code>User-agent: *</code></span>
+    <p><code>robots.txt</code> carries explicit <code>Allow</code> blocks for <code>GPTBot</code>, <code>ClaudeBot</code>, <code>PerplexityBot</code>, and <code>Google-Extended</code> by name.</p>
+    <div class="why"><b>Why:</b> a blanket wildcard rule doesn't reliably read as an unambiguous "yes" to every one of these crawlers in practice — naming them removes any doubt about whether they're welcome. It's also why <code>BLOCK_CRAWLERS</code>'s blanket <code>Disallow: /</code> from the last slide takes these bots down too, along with everything else — it's a kill switch, not a scalpel.</div>
+  </div>
+</section>`,
+
+// 9 — Two repos (why)
+`<section class="slide">
+  <div class="eyebrow">Design choice · where things live</div>
+  <h2>Two repos, on purpose</h2>
+  <p class="lead">The app and the deployment live in separate repositories. Each owns the concerns that naturally belong to it.</p>
+  <div class="grid two" style="margin-top:1.2rem">
+    <div class="card">
+      <span class="tag">The app repo</span>
+      <p>Owns rendering: turning content into HTML and the sidecar files that describe what changed. It stays focused on "produce the right pages".</p>
+    </div>
+    <div class="card">
+      <span class="tag">The deploy repo</span>
+      <p>Owns shipping: watching for changes, uploading to the CDN, and purging cached URLs. It holds the cloud credentials and CDN plumbing.</p>
+    </div>
+  </div>
+  <p class="muted" style="margin-top:1.1rem"><b>Why split:</b> cloud secrets, CDN config, and infrastructure tooling don't belong in the app's source tree. Keeping them out means the app repo stays about <i>rendering</i>, and the deploy repo stays about <i>shipping</i> — each reviewable on its own terms.</p>
+</section>`,
+
+// 10 — Decisions (the why behind each)
+`<section class="slide">
+  <div class="eyebrow">A few choices worth calling out</div>
+  <h2>Why these trade-offs</h2>
+  <ul style="font-size:1.08rem">
+    <li><b>Poll for changes, don't use the live socket.</b> The socket saw edits arrive, but the page never actually updated — room-scoping and the live-sync layer fought each other. Polling reuses the same anonymous read path the build already trusts. <span class="muted">Cost: a little latency; benefit: one well-understood path instead of two that interfere.</span></li>
+    <li><b>Render one page at a time.</b> Parallel rendering would mix up which page read which data — the dependency tracker is a single shared object. <span class="muted">Slower build; but the keys are trustworthy.</span></li>
+    <li><b>Don't bake full article text into the first paint.</b> It blew up memory — every page was carrying every translation's full body. We ship just enough for the first paint; the full text loads live. <span class="muted">~105KB → ~39KB per page; the build stopped crashing.</span></li>
+    <li><b>Real links in the navigation.</b> Web routing and crawlability need genuine anchors, not JS click handlers. <span class="muted">Only Search stays a button — it opens a modal, not a page.</span></li>
+    <li><b>No periodic full-rebuild safety-net cron.</b> Looks like a missing guardrail at a glance — it isn't. The wall-clock poll for publish/expiry crossings already closes the one gap a write-triggered watcher structurally can't see. <span class="muted">A blanket rebuild on a timer would only add cost, not catch anything that poll doesn't already.</span></li>
+  </ul>
+</section>`,
+
+// 11a — Operational visibility
+`<section class="slide">
+  <div class="eyebrow">How we'd know if it broke</div>
+  <h2>Three endpoints, not a black box</h2>
+  <div class="grid two" style="margin-top:1.2rem">
+    <div class="card">
+      <h3><code>GET /health</code></h3>
+      <p>Liveness — <code>200</code> the moment the process is up. Answers one question only: is it alive at all.</p>
+    </div>
+    <div class="card">
+      <h3><code>GET /ready</code></h3>
+      <p><code>200</code> only once the watcher is connected and the initial build (or a restart-skip) has finished; <code>503</code> otherwise. This is the one a load balancer or deploy check should actually gate on.</p>
+    </div>
+  </div>
+  <div class="card" style="margin-top:1rem">
+    <h3><code>GET /metrics</code></h3>
+    <p>A JSON snapshot: build/sync/watcher timestamps, live queue depths, and per-category error counts split into <code>build</code> / <code>sync</code> / <code>purge</code>.</p>
+    <div class="why"><b>Why this matters operationally:</b> a stuck queue depth with no matching timestamp movement is exactly what a frozen watcher looks like — visible without reading logs.</div>
+  </div>
+</section>`,
+
+// 11 — Status
+`<section class="slide">
+  <div class="eyebrow">Where it stands</div>
+  <h2>What's proven, what's left</h2>
+  <div class="grid two">
+    <div class="card">
+      <span class="tag">Working & verified</span>
+      <ul>
+        <li><span class="pill good">green</span> Type-checks, scoped rebuilds, and the native build all pass</li>
+        <li><span class="pill good">e2e</span> A real edit on staging was detected, the right page rebuilt, and the change showed up — end to end</li>
+        <li><span class="pill good">fixed</span> The memory blow-up is root-caused and resolved</li>
+        <li><span class="pill good">shipped</span> Scoped sync now uploads + purges automatically off the watcher's own completion hook — the old gap here is closed</li>
+        <li><span class="pill good">shipped</span> Restart-skip, the delete-fraction guard, and crawler lockdown are all in and covered by tests</li>
+        <li><span class="pill good">shipped</span> Full JSON-LD (publisher, image, breadcrumbs, word count), <code>llms.txt</code>, and named AI-crawler allow rules all landed on the app side</li>
+        <li><span class="pill good">ci</span> Deployer now runs on the same self-hosted runner as the rest of AC, with its own <code>VITE_API_URL</code> wired and the previous image removed on redeploy</li>
+        <li><span class="pill good">shipped</span> A real prerendered <code>404.html</code> now exists in the build (<code>/404</code> renders <code>NotFoundPage</code>, excluded from the sitemap, marked <code>noindex</code>)</li>
+      </ul>
+    </div>
+    <div class="card">
+      <span class="tag">Still open</span>
+      <ul>
+        <li><span class="pill warn">gap</span> Cloudflare still shows R2's own generic "object not found" page for dead links — the custom domain is bound straight to the bucket, which has no fallback-document setting. Needs a small Worker (or Enterprise custom error pages) in front to actually serve our <code>404.html</code></li>
+        <li><span class="pill warn">unverified</span> MIME-type / gzip handling hasn't been confirmed end-to-end against how R2/the CDN actually serve each file type in prod</li>
+        <li><span class="pill warn">untested</span> Poll-overlap guard and sequential delete behavior under sustained, high-volume change traffic</li>
+        <li><span class="pill warn">narrow</span> Error classification is a small fixed set (build/sync/purge) — may not cleanly cover every real failure mode</li>
+        <li><span class="pill warn">confirm</span> One clean full build across all ~2000 routes against a production-sized dataset</li>
+        <li><span class="pill warn">user-run</span> Final browser checks: no flash, language switch, 404, navigation</li>
+      </ul>
+    </div>
+  </div>
+  <p class="faint" style="margin-top:1.1rem">That's the tour — questions?</p>
+</section>`,
+];
+
+const stage = document.getElementById('stage');
+const bar = document.getElementById('bar').firstElementChild;
+const count = document.getElementById('count');
+let i = 0;
+
+function render() {
+  stage.innerHTML = SLIDES.map((s) => s).join('');
+  stage.querySelectorAll('.slide').forEach((el, idx) => el.classList.toggle('active', idx === i));
+  bar.style.width = ((i) / (SLIDES.length - 1) * 100) + '%';
+  count.textContent = (i + 1) + ' / ' + SLIDES.length;
+}
+function go(n) { i = Math.max(0, Math.min(SLIDES.length - 1, n)); render(); }
+
+document.addEventListener('keydown', (e) => {
+  if (['ArrowRight', ' ', 'PageDown', 'ArrowDown'].includes(e.key)) { e.preventDefault(); go(i + 1); }
+  else if (['ArrowLeft', 'PageUp', 'ArrowUp'].includes(e.key)) { e.preventDefault(); go(i - 1); }
+  else if (e.key === 'Home') { go(0); }
+  else if (e.key === 'End') { go(SLIDES.length - 1); }
+  else if (e.key === 'f' || e.key === 'F') {
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
+    else document.exitFullscreen?.();
+  }
+});
+
+stage.addEventListener('click', (e) => {
+  if (e.target.closest('code, a, kbd')) return;
+  go(i + 1);
+});
+document.addEventListener('contextmenu', (e) => { e.preventDefault(); go(i - 1); });
+
+render();
+</script>
+</body>
+</html>
