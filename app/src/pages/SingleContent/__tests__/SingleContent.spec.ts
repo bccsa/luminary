@@ -1,6 +1,6 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
-import { mount, shallowMount, flushPromises } from "@vue/test-utils";
+import { mount, shallowMount, flushPromises, type VueWrapper } from "@vue/test-utils";
 import { nextTick } from "vue";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
@@ -120,6 +120,12 @@ vi.mock("@/composables/useBucketInfo", () => ({
 }));
 
 describe("SingleContent", () => {
+    // Tracked so afterEach can unmount it: an un-unmounted SingleContent instance keeps
+    // its watchers (retention, not-found resolution, translations, …) live for the rest
+    // of the file's run, racing later tests over shared reactive state (userPreferencesAsRef,
+    // the notification store, etc.) — the root cause of this file's historical flakiness.
+    let wrapper: VueWrapper | undefined;
+
     beforeEach(async () => {
         // Clearing the database before populating it helps prevent some sequencing issues causing the first to fail.
         await db.docs.clear();
@@ -170,6 +176,8 @@ describe("SingleContent", () => {
     });
 
     afterEach(async () => {
+        wrapper?.unmount();
+        wrapper = undefined;
         removeReadingProgress(mockEnglishContentDto._id);
         localStorage.removeItem("contentProgress");
         syncContentProgressFromStorage();
@@ -185,13 +193,13 @@ describe("SingleContent", () => {
             video: "test-video.mp4",
         } as any);
 
-        const wrapper = shallowMount(SingleContent, {
+        wrapper = shallowMount(SingleContent, {
             props: {
                 slug: mockEnglishContentDto.slug,
             },
         });
 
-        const videoPlayer = wrapper.findComponent(VideoPlayer);
+        const videoPlayer = wrapper!.findComponent(VideoPlayer);
 
         await waitForExpect(() => {
             expect(videoPlayer).toBeDefined();
@@ -199,26 +207,26 @@ describe("SingleContent", () => {
     });
 
     it("displays the content image", async () => {
-        const wrapper = mount(SingleContent, {
+        wrapper = mount(SingleContent, {
             props: {
                 slug: mockEnglishContentDto.slug,
             },
         });
 
         await waitForExpect(() => {
-            expect(wrapper.html()).toContain("test-image.webp");
+            expect(wrapper!.html()).toContain("test-image.webp");
         });
     });
 
     it("displays the publish date", async () => {
-        const wrapper = mount(SingleContent, {
+        wrapper = mount(SingleContent, {
             props: {
                 slug: mockEnglishContentDto.slug,
             },
         });
 
         await waitForExpect(() => {
-            expect(wrapper.html()).toContain("Jan 1, 2024");
+            expect(wrapper!.html()).toContain("Jan 1, 2024");
         });
     });
 
@@ -226,51 +234,49 @@ describe("SingleContent", () => {
         // Same publishDate as the English mock (Jan 1, 2024) — French formatting
         // ("1 janv. 2024") proves the locale comes from the content's own language,
         // not navigator.language (jsdom's default is en-US either way).
-        const wrapper = mount(SingleContent, {
+        wrapper = mount(SingleContent, {
             props: {
                 slug: mockFrenchContentDto.slug,
             },
         });
 
         await waitForExpect(() => {
-            expect(wrapper.html()).not.toContain("Jan 1, 2024");
-            expect(wrapper.html()).toContain("janv.");
+            expect(wrapper!.html()).not.toContain("Jan 1, 2024");
+            expect(wrapper!.html()).toContain("janv.");
         });
-
-        wrapper.unmount();
     });
 
     it("hides the publishDate if publishDateVisible is false", async () => {
         const mockContent = { ...mockEnglishContentDto, parentPublishDateVisible: false };
-        const wrapper = mount(SingleContent, {
+        wrapper = mount(SingleContent, {
             props: {
                 slug: mockContent.slug,
             },
         });
-        expect(wrapper.text()).not.toContain("Jan 1, 2024");
+        expect(wrapper!.text()).not.toContain("Jan 1, 2024");
     });
 
     it("displays the summary content", async () => {
-        const wrapper = mount(SingleContent, {
+        wrapper = mount(SingleContent, {
             props: {
                 slug: mockEnglishContentDto.slug,
             },
         });
 
         await waitForExpect(() => {
-            expect(wrapper.html()).toContain("This is an example post");
+            expect(wrapper!.html()).toContain("This is an example post");
         });
     });
 
     it("displays the content text", async () => {
-        const wrapper = mount(SingleContent, {
+        wrapper = mount(SingleContent, {
             props: {
                 slug: mockEnglishContentDto.slug,
             },
         });
 
         await waitForExpect(() => {
-            expect(wrapper.find("p").exists()).toBe(true);
+            expect(wrapper!.find("p").exists()).toBe(true);
         });
     });
 
@@ -290,34 +296,34 @@ describe("SingleContent", () => {
             } as ContentDto,
         ]);
 
-        const wrapper = mount(SingleContent, {
+        wrapper = mount(SingleContent, {
             props: {
                 slug: mockEnglishContentDto.slug,
             },
         });
         await waitForExpect(() => {
-            expect(wrapper.text()).toContain("content 2");
+            expect(wrapper!.text()).toContain("content 2");
         });
         // The related-content cards show their topic/category chips (mobile row).
-        expect(wrapper.text()).toContain(mockTopicContentDto.title);
+        expect(wrapper!.text()).toContain(mockTopicContentDto.title);
     });
 
     it("doesn't display tag when content not tagged", async () => {
         const mockContent = { ...mockEnglishContentDto, tags: [] };
-        const wrapper = mount(SingleContent, {
+        wrapper = mount(SingleContent, {
             props: {
                 slug: mockContent.slug,
             },
         });
 
         await waitForExpect(() => {
-            expect(wrapper.html()).not.toContain("Tags");
+            expect(wrapper!.html()).not.toContain("Tags");
         });
     });
 
     it("sets the meta data correctly", async () => {
         cmsLanguages.value = [mockLanguageDtoEng, mockLanguageDtoFra];
-        mount(SingleContent, {
+        wrapper = mount(SingleContent, {
             props: {
                 slug: mockEnglishContentDto.slug,
             },
@@ -347,17 +353,17 @@ describe("SingleContent", () => {
         userPreferencesAsRef.value.bookmarks = [];
         const notificationStore = useNotificationStore();
 
-        const wrapper = mount(SingleContent, {
+        wrapper = mount(SingleContent, {
             props: {
                 slug: mockEnglishContentDto.slug,
             },
         });
 
         await waitForExpect(() => {
-            expect(wrapper.text()).not.toContain("Loading...");
+            expect(wrapper!.text()).not.toContain("Loading...");
         });
 
-        const bookmarkButton = wrapper.find("button[data-test='bookmark']");
+        const bookmarkButton = wrapper!.find("button[data-test='bookmark']");
         expect(bookmarkButton.exists()).toBe(true);
         await bookmarkButton.trigger("click");
 
@@ -395,14 +401,14 @@ describe("SingleContent", () => {
     });
 
     it("displays the author", async () => {
-        const wrapper = mount(SingleContent, {
+        wrapper = mount(SingleContent, {
             props: {
                 slug: mockEnglishContentDto.slug,
             },
         });
 
         await waitForExpect(() => {
-            expect(wrapper.text()).toContain(mockEnglishContentDto.author);
+            expect(wrapper!.text()).toContain(mockEnglishContentDto.author);
         });
 
         // Bump updatedTimeUtc: HybridQuery's window dedup (sameWindow) keys on
@@ -415,7 +421,7 @@ describe("SingleContent", () => {
         await db.docs.update(mockContent._id, mockContent);
 
         await waitForExpect(() => {
-            expect(wrapper.text()).not.toContain(mockEnglishContentDto.author);
+            expect(wrapper!.text()).not.toContain(mockEnglishContentDto.author);
         });
     });
 
@@ -433,7 +439,7 @@ describe("SingleContent", () => {
         // Update the database with modified content
         await db.docs.update(mockContentWithoutVideo._id, mockContentWithoutVideo);
 
-        const wrapper = mount(SingleContent, {
+        wrapper = mount(SingleContent, {
             props: {
                 slug: mockContentWithoutVideo.slug,
             },
@@ -441,7 +447,7 @@ describe("SingleContent", () => {
 
         // First, wait for content to load and image to appear
         await waitForExpect(async () => {
-            const image = wrapper.findComponent(LImage);
+            const image = wrapper!.findComponent(LImage);
             expect(image.exists()).toBe(true);
 
             // click on the LImage
@@ -449,18 +455,18 @@ describe("SingleContent", () => {
 
             // Wait for the modal to appear
             await waitForExpect(() => {
-                expect(wrapper.findComponent(ImageModal).exists()).toBe(true);
-                expect(wrapper.findComponent(ImageModal).props("imageCollections")).toEqual(
+                expect(wrapper!.findComponent(ImageModal).exists()).toBe(true);
+                expect(wrapper!.findComponent(ImageModal).props("imageCollections")).toEqual(
                     mockContentWithoutVideo.parentImageData?.fileCollections,
                 );
-                expect(wrapper.findComponent(ImageModal).props("aspectRatio")).toBe("original");
-                expect(wrapper.findComponent(ImageModal).props("size")).toBe("post");
+                expect(wrapper!.findComponent(ImageModal).props("aspectRatio")).toBe("original");
+                expect(wrapper!.findComponent(ImageModal).props("size")).toBe("post");
             });
         });
     });
 
     it("shows the theme button", async () => {
-        const wrapper = mount(SingleContent, {
+        wrapper = mount(SingleContent, {
             props: {
                 slug: mockEnglishContentDto.slug,
             },
@@ -468,16 +474,16 @@ describe("SingleContent", () => {
 
         // Wait until content is loaded (article is rendered)
         await waitForExpect(() => {
-            expect(wrapper.find("article").exists()).toBe(true);
+            expect(wrapper!.find("article").exists()).toBe(true);
         });
 
         // Now the quick controls slot should be rendered
-        const quickControls = wrapper.find('[data-test="themeButton"]');
+        const quickControls = wrapper!.find('[data-test="themeButton"]');
         expect(quickControls.exists()).toBe(true);
     });
 
     it("switches the language of content when clicking on the language button", async () => {
-        const wrapper = mount(SingleContent, {
+        wrapper = mount(SingleContent, {
             props: {
                 slug: mockEnglishContentDto.slug,
             },
@@ -485,24 +491,24 @@ describe("SingleContent", () => {
 
         // Wait until initial content is rendered
         await waitForExpect(() => {
-            expect(wrapper.text()).toContain(mockEnglishContentDto.title);
+            expect(wrapper!.text()).toContain(mockEnglishContentDto.title);
         });
         await flushPromises();
 
         // Wait for language dropdown to be available (translations loaded from IDB)
         await waitForExpect(() => {
-            const translationSelector = wrapper.find("[data-test='translationSelector']");
+            const translationSelector = wrapper!.find("[data-test='translationSelector']");
             expect(translationSelector.exists()).toBe(true);
         });
         await flushPromises();
 
         // Open the language dropdown (click the DropdownMenu trigger that has the toggle handler)
-        const dropdownMenu = wrapper.findComponent(DropdownMenu);
+        const dropdownMenu = wrapper!.findComponent(DropdownMenu);
         await dropdownMenu.find("[role='button']").trigger("click");
         await nextTick();
 
         // Options are in the dropdown panel (role=menu)
-        const options = wrapper.findAll("[role='menu'] button");
+        const options = wrapper!.findAll("[role='menu'] button");
         expect(options.length, "translation options should be at least 2").toBeGreaterThan(1);
 
         // Choose the French option explicitly if present, otherwise pick the second option
@@ -512,7 +518,7 @@ describe("SingleContent", () => {
 
         // Expect French content to be shown
         await waitForExpect(() => {
-            expect(wrapper.text()).toContain(mockFrenchContentDto.title);
+            expect(wrapper!.text()).toContain(mockFrenchContentDto.title);
         });
     });
 
@@ -533,14 +539,14 @@ describe("SingleContent", () => {
         mockIsExternalNavigation.mockReturnValue(true);
 
         // Navigate to French content (not the preferred language)
-        const wrapper = mount(SingleContent, {
+        wrapper = mount(SingleContent, {
             props: {
                 slug: mockFrenchContentDto.slug,
             },
         });
 
         await waitForExpect(() => {
-            expect(wrapper.text()).toContain(mockFrenchContentDto.title);
+            expect(wrapper!.text()).toContain(mockFrenchContentDto.title);
         });
 
         await waitForExpect(() => {
@@ -578,14 +584,14 @@ describe("SingleContent", () => {
         // Mock external navigation (e.g., from Google)
         mockIsExternalNavigation.mockReturnValue(true);
 
-        const wrapper = mount(SingleContent, {
+        wrapper = mount(SingleContent, {
             props: {
                 slug: mockFrenchContentDto.slug,
             },
         });
 
         await waitForExpect(() => {
-            expect(wrapper.text()).toContain(mockFrenchContentDto.title);
+            expect(wrapper!.text()).toContain(mockFrenchContentDto.title);
         });
 
         await waitForExpect(() => {
@@ -623,14 +629,14 @@ describe("SingleContent", () => {
         // Mock external navigation (direct link/bookmark/URL paste)
         mockIsExternalNavigation.mockReturnValue(true);
 
-        const wrapper = mount(SingleContent, {
+        wrapper = mount(SingleContent, {
             props: {
                 slug: mockFrenchContentDto.slug,
             },
         });
 
         await waitForExpect(() => {
-            expect(wrapper.text()).toContain(mockFrenchContentDto.title);
+            expect(wrapper!.text()).toContain(mockFrenchContentDto.title);
         });
 
         // Direct links are treated as external, so notification SHOULD show
@@ -644,22 +650,22 @@ describe("SingleContent", () => {
     });
 
     it("displays LoadingBar when content is loading", async () => {
-        const wrapper = mount(SingleContent, {
+        wrapper = mount(SingleContent, {
             props: {
                 slug: mockEnglishContentDto.slug,
             },
         });
 
         await waitForExpect(() => {
-            const hasLoadingBar = wrapper.findComponent(LoadingBar).exists();
-            const hasContent = wrapper.find("article").exists();
+            const hasLoadingBar = wrapper!.findComponent(LoadingBar).exists();
+            const hasContent = wrapper!.find("article").exists();
 
             expect(hasLoadingBar || hasContent).toBe(true);
         });
 
         await waitForExpect(() => {
-            expect(wrapper.findComponent(LoadingBar).exists()).toBe(false);
-            expect(wrapper.find("article").exists()).toBe(true);
+            expect(wrapper!.findComponent(LoadingBar).exists()).toBe(false);
+            expect(wrapper!.find("article").exists()).toBe(true);
         });
     });
 
@@ -669,19 +675,19 @@ describe("SingleContent", () => {
 
         cmsUrl.value = "https://cms.example.com";
 
-        const wrapper = mount(SingleContent, {
+        wrapper = mount(SingleContent, {
             props: {
                 slug: mockEnglishContentDto.slug,
             },
         });
         await waitForExpect(() => {
-            expect(wrapper.text()).toContain(mockEnglishContentDto.title);
+            expect(wrapper!.text()).toContain(mockEnglishContentDto.title);
         });
         await waitForExpect(() => {
-            const translationSelector = wrapper.find("[data-test='translationSelector']");
+            const translationSelector = wrapper!.find("[data-test='translationSelector']");
             expect(translationSelector.exists()).toBe(true);
         });
-        const editButton = wrapper.find("button[data-test='editButton']");
+        const editButton = wrapper!.find("button[data-test='editButton']");
         if (editButton.exists()) {
             await editButton.trigger("click");
 
@@ -697,19 +703,19 @@ describe("SingleContent", () => {
     it.skip("does not show edit button when cmsUrl is not defined", async () => {
         cmsUrl.value = "";
 
-        const wrapper = mount(SingleContent, {
+        wrapper = mount(SingleContent, {
             props: {
                 slug: mockEnglishContentDto.slug,
             },
         });
         await waitForExpect(() => {
-            expect(wrapper.text()).toContain(mockEnglishContentDto.title);
+            expect(wrapper!.text()).toContain(mockEnglishContentDto.title);
         });
         await waitForExpect(() => {
-            const translationSelector = wrapper.find("[data-test='translationSelector']");
+            const translationSelector = wrapper!.find("[data-test='translationSelector']");
             expect(translationSelector.exists()).toBe(true);
         });
-        const editButton = wrapper.find("button[data-test='editButton']");
+        const editButton = wrapper!.find("button[data-test='editButton']");
         expect(editButton.exists()).toBe(false);
     });
 
@@ -731,7 +737,7 @@ describe("SingleContent", () => {
 
         await flushPromises();
 
-        const wrapper = mount(SingleContent, {
+        wrapper = mount(SingleContent, {
             props: {
                 slug: mockEnglishContentDto.slug,
             },
@@ -740,18 +746,18 @@ describe("SingleContent", () => {
         await flushPromises();
 
         await waitForExpect(() => {
-            expect(wrapper.text()).toContain(mockEnglishContentDto.title);
+            expect(wrapper!.text()).toContain(mockEnglishContentDto.title);
         });
 
         await waitForExpect(() => {
-            expect(wrapper.text()).toContain(`${expectedReadingTime} min`);
+            expect(wrapper!.text()).toContain(`${expectedReadingTime} min`);
         });
     });
 
     it("preserves saved reading progress on mount", async () => {
         setReadingProgress(mockEnglishContentDto._id, 60);
 
-        const wrapper = mount(SingleContent, {
+        wrapper = mount(SingleContent, {
             props: {
                 slug: mockEnglishContentDto.slug,
             },
@@ -761,7 +767,5 @@ describe("SingleContent", () => {
         await nextTick();
 
         expect(getReadingProgress(mockEnglishContentDto._id)).toBe(60);
-
-        wrapper.unmount();
     });
 });

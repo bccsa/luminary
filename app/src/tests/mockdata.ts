@@ -417,6 +417,7 @@ export const mockLanguageDtoEng: LanguageDto = {
             "This content has been added to your bookmarks.",
         "language.modal.title": "Select Language",
         "language.modal.close": "Close",
+        "singlecontent.loading": "Loading...",
     },
 };
 export const mockLanguageDtoFra: LanguageDto = {
