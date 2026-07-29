@@ -12,7 +12,7 @@ import { useBackNavigation } from "@/composables/useBackNavigation";
 
 const showNotifications = !queryParams.has("supress-notifications");
 
-// On the web/SSG build the desktop sidebar IS prerendered — its nav / logo /
+// On the SSG build the desktop sidebar IS prerendered — its nav / logo /
 // theme+language controls are public, the profile block self-gates on auth (false
 // during the prerender, so it matches the first client render), and its
 // interactive/Dexie-backed overlays mount client-side (see DesktopSidebar). What
@@ -20,14 +20,14 @@ const showNotifications = !queryParams.has("supress-notifications");
 // (synced Dexie data) + the toast Teleport — those stay gated behind
 // `notificationsReady` so the prerendered HTML and the first client render match
 // (clean hydration). On native, `notificationsReady` starts true → unchanged.
-const isWeb = import.meta.env.VITE_BUILD_TARGET === "web";
+const isSSG = import.meta.env.VITE_BUILD_TARGET === "web";
 
-// On the web/SSG tier, hold the notifications back a few seconds after hydration
+// On the SSG tier, hold the notifications back a few seconds after hydration
 // so the first paint stays still (the account/offline banners render in main flow
 // and would otherwise shove content down right as the page settles — a layout
 // shift that hurts CLS/SEO). Native renders them immediately (behaviour unchanged).
-const WEB_NOTIFICATION_DELAY_MS = 3000; // tune if CLS budget changes
-const notificationsReady = ref(!isWeb);
+const SSG_NOTIFICATION_DELAY_MS = 3000; // tune if CLS budget changes
+const notificationsReady = ref(!isSSG);
 
 defineProps<{
     content?: ContentDto;
@@ -50,7 +50,7 @@ const handleArrowKeyFocus = (e: KeyboardEvent) => {
 };
 
 onMounted(() => {
-    if (isWeb) setTimeout(() => (notificationsReady.value = true), WEB_NOTIFICATION_DELAY_MS);
+    if (isSSG) setTimeout(() => (notificationsReady.value = true), SSG_NOTIFICATION_DELAY_MS);
     document.addEventListener("keydown", handleArrowKeyFocus);
 });
 
@@ -61,7 +61,7 @@ onUnmounted(() => {
 
 <template>
     <div class="flex h-full w-full scrollbar-hide">
-        <!-- Desktop left sidebar — prerendered on the web build too (public nav /
+        <!-- Desktop left sidebar — prerendered on the SSG build too (public nav /
              logo; the auth/Dexie bits self-defer inside the component). -->
         <DesktopSidebar />
 
