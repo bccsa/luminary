@@ -55,11 +55,11 @@ const isMobileScreen = breakpoints.smaller("sm");
 
 const sizeClasses = computed(() => {
     if (props.fullscreen || (isMobileScreen.value && props.stickToEdges)) {
-        return "h-[100dvh] w-[100vw] max-w-none rounded-none";
+        return "h-[100dvh] w-[100vw] max-w-none rounded-none dark:bg-slate-900";
     } else if (props.largeModal) {
-        return "rounded-lg h-[90dvh] w-full max-w-5xl lg:h-[80dvh]";
+        return "rounded-lg h-[90dvh] w-full max-w-5xl lg:h-[80dvh] dark:bg-slate-900";
     } else {
-        return "rounded-lg max-h-[90dvh] w-full max-w-md";
+        return "rounded-lg max-h-[90dvh] w-full max-w-md dark:bg-slate-900";
     }
 });
 </script>

@@ -18,6 +18,7 @@ import {
     SparklesIcon,
 } from "@heroicons/vue/20/solid";
 
+import { SunIcon } from "@heroicons/vue/24/outline";
 import {
     appName,
     cmsLanguageIdAsRef,
@@ -44,6 +45,7 @@ import OnlineIndicator from "../OnlineIndicator.vue";
 import LanguageModal from "../modals/LanguageModal.vue";
 import LDialog from "../common/LDialog.vue";
 import LToggle from "../forms/LToggle.vue";
+import ThemeSelectorModal from "../modals/ThemeSelectorModal.vue";
 
 type NavigationEntry = {
     name: string;
@@ -206,6 +208,7 @@ const currentLanguageName = computed(
 );
 
 const showLanguageModal = ref(false);
+const showThemeModal = ref(false);
 const showLogoutDialog = ref(false);
 const showInstallInstructions = ref(false);
 const forceReauthOnNextLogin = ref(false);
@@ -346,6 +349,18 @@ const navItemClass = computed(() => [
                     </span>
                 </button>
 
+                <button
+                    type="button"
+                    :class="[navItemClass, 'w-full text-left']"
+                    title="theme"
+                    @click="showThemeModal = true"
+                >
+                    <SunIcon :class="navIconClass" aria-hidden="true" />
+                    <span v-if="!isCollapsed" class="flex min-w-0 flex-col leading-none">
+                        <span>Theme</span>
+                    </span>
+                </button>
+
                 <RouterLink
                     :to="{ name: 'settings' }"
                     active-class="bg-zinc-200 text-zinc-900"
@@ -429,6 +444,7 @@ const navItemClass = computed(() => [
     </aside>
 
     <LanguageModal v-model:is-visible="showLanguageModal" />
+    <ThemeSelectorModal :is-visible="showThemeModal" />
 
     <LDialog
         v-model:open="showLogoutDialog"
