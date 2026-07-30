@@ -107,13 +107,9 @@ describe("RecommendationsPage", () => {
         expect(wrapper.findComponent({ name: "AddStartingInterestModal" }).exists()).toBe(true);
     });
 
-    it("opens the recommendation-settings modal from the top bar", async () => {
+    it("renders the recommendation-settings panel inline, with no toggle needed", () => {
         const wrapper = mount(RecommendationsPage);
 
-        expect(wrapper.findComponent({ name: "AffinityConfigModal" }).exists()).toBe(false);
-
-        await wrapper.find("button[data-test='openAffinityConfigModal']").trigger("click");
-
-        expect(wrapper.findComponent({ name: "AffinityConfigModal" }).exists()).toBe(true);
+        expect(wrapper.find("input[name='hitWeight']").exists()).toBe(true);
     });
 });

@@ -71,6 +71,12 @@ export type RankOptions = {
     /** Per-dominant-tag cap override. Defaults to {@link MAX_PER_DOMINANT_TAG}. Read more passes
      *  a large value so relevance ordering isn't demoted by MMR overflow. */
     maxPerDominantTag?: number;
+    /** Doc ids to add a flat score boost to (e.g. topic cards a caller wants to surface higher).
+     *  Generic on purpose — this module has no concept of "topic"; the caller decides which ids
+     *  qualify. Default undefined/0 → leg inactive (HomePage/tests unchanged). */
+    boostDocIds?: Set<Uuid>;
+    /** Weight added to a boosted doc's score. Default 0 → leg inactive. */
+    boostWeight?: number;
 };
 
 /**
@@ -102,6 +108,8 @@ export function rank(
         referenceTagIds,
         referenceWeight = 0,
         maxPerDominantTag = MAX_PER_DOMINANT_TAG,
+        boostDocIds,
+        boostWeight = 0,
     } = options;
 
     const docs = new Map<Uuid, ContentDto>();
@@ -152,16 +160,30 @@ export function rank(
             for (const tag of doc.parentTags ?? []) if (referenceTagIds.has(tag)) overlap++;
             if (overlap > 0) score.set(doc._id, (score.get(doc._id) ?? 0) + referenceWeight * overlap);
         }
+        if (boostDocIds?.has(doc._id) && boostWeight)
+            score.set(doc._id, (score.get(doc._id) ?? 0) + boostWeight);
     }
 
     const ordered = [...docs.values()].sort(
         (a, b) => (score.get(b._id) ?? 0) - (score.get(a._id) ?? 0),
     );
 
+    // One card per article. The language-priority selector's fallback branch matches every
+    // non-preferred translation of a parent that has no preferred-language translation, so a
+    // leg can return two translations of the same post (different `_id`, same `parentId`).
+    // `docs` keys by `_id`, so without this fold both would render as duplicate cards. The sort
+    // above already put the highest-ranked translation first, so this keeps that one.
+    const seenParents = new Set<Uuid>();
+    const deduped = ordered.filter((doc) => {
+        if (seenParents.has(doc.parentId)) return false;
+        seenParents.add(doc.parentId);
+        return true;
+    });
+
     const perTagCount = new Map<Uuid, number>();
     const selected: ContentDto[] = [];
     const overflow: ContentDto[] = [];
-    for (const doc of ordered) {
+    for (const doc of deduped) {
         const dominant = dominantTags.get(doc._id);
         if (dominant) {
             const count = perTagCount.get(dominant) ?? 0;
