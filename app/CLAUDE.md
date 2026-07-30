@@ -78,7 +78,7 @@ Full contract + injection-key + build-time virtual module pattern, diagrams, and
 
 ### Query string parameters
 
-Supported flags (see `README.md` for full list): `autoplay=true`, `autofullscreen=true`, `nonotifications` (suppresses all in-app notifications — current branch work).
+Supported flags (see `README.md` for full list): `autoplay=true`, `autofullscreen=true`, `nonotifications` (suppresses all in-app notifications — current branch work), `affinityDebug=true` (shows the floating recommendation-affinity debug overlay).
 
 ## Conventions
 

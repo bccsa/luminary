@@ -92,6 +92,7 @@ The following query string parameters are supported:
 
 - autoplay=true — Auto plays video when opening a post / tag with video content
 - autofullscreen=true — Automatically switches to full screen video player mode on play
+- affinityDebug=true — Shows a floating debug overlay with the local recommendation affinity profile (dev/QA tool, works on any environment)
 
 _Note: When navigating directly to a video post / tag URL, autoplay and autofullscreen will only work if playing without user interaction is enabled in the browser settings._
 
