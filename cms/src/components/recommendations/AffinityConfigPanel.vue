@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { computed, ref, watch, watchEffect } from "vue";
 import {
     AckStatus,
     AclPermission,
@@ -9,16 +9,24 @@ import {
 } from "luminary-shared";
 import { useNotificationStore } from "@/stores/notification";
 import { useDefaultAffinity } from "@/composables/useDefaultAffinity";
+import { isMobileScreen } from "@/globalConfig";
 import LButton from "@/components/button/LButton.vue";
-import LModal from "@/components/modals/LModal.vue";
+import LCard from "@/components/common/LCard.vue";
 import LInput from "@/components/forms/LInput.vue";
 import LoadingSpinner from "@/components/LoadingSpinner.vue";
 
-const isVisible = defineModel<boolean>("isVisible");
 const isSaving = ref(false);
 const { addNotification } = useNotificationStore();
 
 const { current, config: savedConfig, saveConfig } = useDefaultAffinity();
+
+// Only collapsible below the same breakpoint (1024px) that collapses the page's own grid to
+// a single column — on desktop the panel sits beside the interest list with room to spare,
+// so it stays permanently open instead of hiding behind a toggle.
+const collapsed = ref(isMobileScreen.value);
+watchEffect(() => {
+    if (!isMobileScreen.value) collapsed.value = false;
+});
 
 /**
  * Plain-object clone of a (possibly Vue-reactive) config — `structuredClone` can throw on a
@@ -42,13 +50,63 @@ function resetForm() {
     form.value = cloneConfig(savedConfig.value);
 }
 
-watch(isVisible, (visible) => {
-    if (visible) resetForm();
+// The panel is always mounted (no modal open/close lifecycle to gate this on), so only
+// resync from a remote config change while the form has no unsaved edits — otherwise a
+// second admin's save would silently wipe whatever's being typed here.
+const isDirty = computed(() => JSON.stringify(form.value) !== JSON.stringify(savedConfig.value));
+watch(savedConfig, () => {
+    if (!isDirty.value) resetForm();
 });
 
-watch(savedConfig, () => {
-    if (isVisible.value) resetForm();
-});
+/** Two-way percent view of a fraction field: displays/edits `fraction * 100`, rounded only to
+ *  kill float noise (not to lose precision — these fractions can be as small as 0.0002). */
+function percentField(get: () => number, set: (value: number) => void) {
+    return computed<number>({
+        get: () => Math.round(get() * 100 * 10000) / 10000,
+        set: (value) => set((Number(value) || 0) / 100),
+    });
+}
+
+const hitWeightPercent = percentField(
+    () => form.value.hitWeight,
+    (value) => (form.value.hitWeight = value),
+);
+const minScorePercent = percentField(
+    () => form.value.minScore,
+    (value) => (form.value.minScore = value),
+);
+const bookmarkPercent = percentField(
+    () => form.value.eventWeight.bookmark,
+    (value) => (form.value.eventWeight.bookmark = value),
+);
+const bookmarkRemovedPercent = percentField(
+    () => form.value.eventWeight.bookmarkRemoved,
+    (value) => (form.value.eventWeight.bookmarkRemoved = value),
+);
+const completionPercent = percentField(
+    () => form.value.eventWeight.completion,
+    (value) => (form.value.eventWeight.completion = value),
+);
+const readCompletionPercent = percentField(
+    () => form.value.eventWeight.readCompletion,
+    (value) => (form.value.eventWeight.readCompletion = value),
+);
+const highlightPercent = percentField(
+    () => form.value.eventWeight.highlight,
+    (value) => (form.value.eventWeight.highlight = value),
+);
+const highlightRemovedPercent = percentField(
+    () => form.value.eventWeight.highlightRemoved,
+    (value) => (form.value.eventWeight.highlightRemoved = value),
+);
+const impressionPercent = percentField(
+    () => form.value.eventWeight.impression,
+    (value) => (form.value.eventWeight.impression = value),
+);
+const searchClickPercent = percentField(
+    () => form.value.eventWeight.searchClick,
+    (value) => (form.value.eventWeight.searchClick = value),
+);
 
 function clamp(value: number, min: number, max: number, fallback: number) {
     if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
@@ -74,21 +132,36 @@ function normalizedConfig(): AffinityConfig {
                 1,
                 savedConfig.value.eventWeight.bookmarkRemoved,
             ),
-            completion: clamp(c.eventWeight.completion, -1, 1, savedConfig.value.eventWeight.completion),
+            completion: clamp(
+                c.eventWeight.completion,
+                -1,
+                1,
+                savedConfig.value.eventWeight.completion,
+            ),
             readCompletion: clamp(
                 c.eventWeight.readCompletion,
                 -1,
                 1,
                 savedConfig.value.eventWeight.readCompletion,
             ),
-            highlight: clamp(c.eventWeight.highlight, -1, 1, savedConfig.value.eventWeight.highlight),
+            highlight: clamp(
+                c.eventWeight.highlight,
+                -1,
+                1,
+                savedConfig.value.eventWeight.highlight,
+            ),
             highlightRemoved: clamp(
                 c.eventWeight.highlightRemoved,
                 -1,
                 1,
                 savedConfig.value.eventWeight.highlightRemoved,
             ),
-            impression: clamp(c.eventWeight.impression, -1, 1, savedConfig.value.eventWeight.impression),
+            impression: clamp(
+                c.eventWeight.impression,
+                -1,
+                1,
+                savedConfig.value.eventWeight.impression,
+            ),
             searchClick: clamp(
                 c.eventWeight.searchClick,
                 -1,
@@ -131,7 +204,6 @@ async function save() {
             description: "These changes will apply the next time people open the app.",
             state: "success",
         });
-        isVisible.value = false;
     } catch (error) {
         addNotification({
             title: "Can't save these settings",
@@ -145,40 +217,31 @@ async function save() {
 </script>
 
 <template>
-    <LModal v-model:is-visible="isVisible" heading="How recommendations adapt" largeModal>
-        <div class="w-[min(42rem,calc(100vw-2rem))] space-y-6">
+    <LCard
+        title="Recommendation settings"
+        :collapsible="isMobileScreen"
+        v-model:collapsed="collapsed"
+        fill-height
+    >
+        <div class="space-y-3">
             <div class="text-sm text-zinc-600">
                 Control how much attention different interests get, and how strongly each action
                 shapes what people are shown next.
             </div>
 
-            <fieldset class="space-y-3">
-                <legend class="text-sm font-semibold text-zinc-900">
-                    How long an interest lasts
-                </legend>
-                <div class="grid grid-cols-2 items-end gap-3 sm:grid-cols-4">
-                    <LInput
-                        name="halfLifeDays"
-                        label="Days until it halves"
-                        type="number"
-                        step="1"
-                        v-model="form.halfLifeDays"
-                        data-test="affinity-config-halfLifeDays"
-                    />
-                </div>
-            </fieldset>
-
-            <fieldset class="space-y-3">
+            <fieldset class="space-y-1.5">
                 <legend class="text-sm font-semibold text-zinc-900">
                     How much each action counts
                 </legend>
-                <div class="grid grid-cols-2 items-end gap-3 sm:grid-cols-4">
+                <div class="grid grid-cols-2 items-end gap-x-3 gap-y-1.5 sm:grid-cols-3">
                     <LInput
                         name="hitWeight"
                         label="Viewing something"
                         type="number"
                         step="0.01"
-                        v-model="form.hitWeight"
+                        size="sm"
+                        rightAddOn="%"
+                        v-model="hitWeightPercent"
                         data-test="affinity-config-hitWeight"
                     />
                     <LInput
@@ -186,7 +249,9 @@ async function save() {
                         label="Saving/bookmarking"
                         type="number"
                         step="0.01"
-                        v-model="form.eventWeight.bookmark"
+                        size="sm"
+                        rightAddOn="%"
+                        v-model="bookmarkPercent"
                         data-test="affinity-config-eventWeight-bookmark"
                     />
                     <LInput
@@ -194,7 +259,9 @@ async function save() {
                         label="Un-saving"
                         type="number"
                         step="0.01"
-                        v-model="form.eventWeight.bookmarkRemoved"
+                        size="sm"
+                        rightAddOn="%"
+                        v-model="bookmarkRemovedPercent"
                         data-test="affinity-config-eventWeight-bookmarkRemoved"
                     />
                     <LInput
@@ -202,7 +269,9 @@ async function save() {
                         label="Finishing a video/audio"
                         type="number"
                         step="0.01"
-                        v-model="form.eventWeight.completion"
+                        size="sm"
+                        rightAddOn="%"
+                        v-model="completionPercent"
                         data-test="affinity-config-eventWeight-completion"
                     />
                     <LInput
@@ -210,7 +279,9 @@ async function save() {
                         label="Finishing an article"
                         type="number"
                         step="0.01"
-                        v-model="form.eventWeight.readCompletion"
+                        size="sm"
+                        rightAddOn="%"
+                        v-model="readCompletionPercent"
                         data-test="affinity-config-eventWeight-readCompletion"
                     />
                     <LInput
@@ -218,7 +289,9 @@ async function save() {
                         label="Highlighting text"
                         type="number"
                         step="0.01"
-                        v-model="form.eventWeight.highlight"
+                        size="sm"
+                        rightAddOn="%"
+                        v-model="highlightPercent"
                         data-test="affinity-config-eventWeight-highlight"
                     />
                     <LInput
@@ -226,7 +299,9 @@ async function save() {
                         label="Removing a highlight"
                         type="number"
                         step="0.01"
-                        v-model="form.eventWeight.highlightRemoved"
+                        size="sm"
+                        rightAddOn="%"
+                        v-model="highlightRemovedPercent"
                         data-test="affinity-config-eventWeight-highlightRemoved"
                     />
                     <LInput
@@ -234,7 +309,9 @@ async function save() {
                         label="Scrolling past, unopened"
                         type="number"
                         step="0.01"
-                        v-model="form.eventWeight.impression"
+                        size="sm"
+                        rightAddOn="%"
+                        v-model="impressionPercent"
                         data-test="affinity-config-eventWeight-impression"
                     />
                     <LInput
@@ -242,21 +319,34 @@ async function save() {
                         label="Clicking a search result"
                         type="number"
                         step="0.01"
-                        v-model="form.eventWeight.searchClick"
+                        size="sm"
+                        rightAddOn="%"
+                        v-model="searchClickPercent"
                         data-test="affinity-config-eventWeight-searchClick"
                     />
                 </div>
             </fieldset>
 
-            <fieldset class="space-y-3">
+            <fieldset class="space-y-1.5">
                 <legend class="text-sm font-semibold text-zinc-900">Other settings</legend>
-                <div class="grid grid-cols-2 items-end gap-3 sm:grid-cols-4">
+                <div class="grid grid-cols-2 items-end gap-x-3 gap-y-1.5 sm:grid-cols-3">
+                    <LInput
+                        name="halfLifeDays"
+                        label="Days until it halves"
+                        type="number"
+                        step="1"
+                        size="sm"
+                        v-model="form.halfLifeDays"
+                        data-test="affinity-config-halfLifeDays"
+                    />
                     <LInput
                         name="minScore"
                         label="Smallest interest kept"
                         type="number"
-                        step="0.001"
-                        v-model="form.minScore"
+                        step="0.01"
+                        size="sm"
+                        rightAddOn="%"
+                        v-model="minScorePercent"
                         data-test="affinity-config-minScore"
                     />
                     <LInput
@@ -264,6 +354,7 @@ async function save() {
                         label="Most interests remembered"
                         type="number"
                         step="1"
+                        size="sm"
                         v-model="form.maxTags"
                         data-test="affinity-config-maxTags"
                     />
@@ -272,14 +363,17 @@ async function save() {
                         label="How fast new activity changes things"
                         type="number"
                         step="1"
+                        size="sm"
                         v-model="form.depthScale"
                         data-test="affinity-config-depthScale"
                     />
                     <LInput
                         name="readFloorPercent"
-                        label="Reading needed for it to count (%)"
+                        label="Reading needed for it to count"
                         type="number"
                         step="1"
+                        size="sm"
+                        rightAddOn="%"
                         v-model="form.readFloorPercent"
                         data-test="affinity-config-readFloorPercent"
                     />
@@ -289,12 +383,8 @@ async function save() {
 
         <template #footer>
             <div class="flex justify-end gap-2">
-                <LButton
-                    variant="secondary"
-                    @click="isVisible = false"
-                    data-test="affinity-config-cancel"
-                >
-                    Cancel
+                <LButton variant="secondary" @click="resetForm" data-test="affinity-config-cancel">
+                    Reset
                 </LButton>
                 <LButton
                     variant="primary"
@@ -307,5 +397,5 @@ async function save() {
                 </LButton>
             </div>
         </template>
-    </LModal>
+    </LCard>
 </template>
