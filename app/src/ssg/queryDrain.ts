@@ -2,7 +2,7 @@
  * Route enumeration for the SSG build: drains a doc type's full set from `/query`
  * via keyset (not offset) pagination. Offset pagination over a live, mutating
  * collection is non-deterministic — a doc changing mid-drain shifts later pages
- * and silently drops rows (this once capped a build at ~101 of ~1934 routes).
+ * and silently drops rows, capping a build well short of the full route set.
  */
 
 export const QUERY_PAGE_SIZE = 500;

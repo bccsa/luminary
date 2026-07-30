@@ -130,6 +130,16 @@ store**:
 `writeResponseCache` / `readResponseCache` / `structuralCacheKey` / `queryRemote` /
 `initHybridQuery` / `HttpReq` are all **public `luminary-shared` exports**.
 
+**Article-text dedup:** a long article's `text` would otherwise ship twice — once as
+rendered HTML, once JSON-escaped inside the inline cache script. `SingleContent.vue`
+passes `ssrCacheStripFields: ["text"]` (a `useContentQuery` option, SSR-write-only) so the
+prerender omits `text` from the cache seed; on the client, `recoverSsrArticleText`
+(`src/util/ssrTextRecovery.ts`) reads it back from a `[data-ssr-article-text]` marker on
+the rendered article `<div>` before first render, so hydration still matches the server
+output. A plain client-side navigation has no such DOM to recover from, so
+`cacheStripFields` (which affects both writers) is left untouched — only the SSR write is
+stripped.
+
 ### i18n SSR (`main.web.ts`)
 
 UI strings live in CouchDB Language docs. The prerender fetches languages via

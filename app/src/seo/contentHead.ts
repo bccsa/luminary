@@ -54,7 +54,6 @@ export function languageCodeForContent(
 ): string {
     return (
         (languageId && languages.find((language) => language._id === languageId)?.languageCode) ||
-        (languageId || "").replace(/^lang-/, "") ||
         "en"
     );
 }
