@@ -82,17 +82,26 @@ watch(
 const computedState = computed(() => props.state);
 
 const states = {
-    default:
-        "text-zinc-900 ring-zinc-300 placeholder:text-zinc-400 hover:ring-zinc-400 focus:ring-zinc-950",
-    error: "text-red-900 bg-red-50 ring-red-300 placeholder:text-red-300 hover:ring-red-400 focus:ring-red-500",
-    warning:
-        "text-yellow-900 bg-yellow-50 ring-yellow-300 placeholder:text-yellow-500 hover:ring-yellow-400 focus:ring-yellow-500",
+    default: `
+        text-zinc-900 ring-zinc-300 placeholder:text-zinc-400 hover:ring-zinc-400 focus:ring-zinc-950
+        dark:bg-slate-900 dark:text-zinc-100 dark:ring-slate-700 dark:placeholder:text-zinc-500 dark:hover:ring-slate-600 dark:focus:ring-indigo-500
+    `,
+    error: `
+        text-red-900 bg-red-50 ring-red-300 placeholder:text-red-300 hover:ring-red-400 focus:ring-red-500
+        dark:bg-red-950/20 dark:text-red-400 dark:ring-red-900 dark:placeholder:text-red-800
+    `,
+    warning: `
+        text-yellow-900 bg-yellow-50 ring-yellow-300 placeholder:text-yellow-500 hover:ring-yellow-400 focus:ring-yellow-500
+        dark:bg-yellow-950/20 dark:text-yellow-400 dark:ring-yellow-900 dark:placeholder:text-yellow-800
+    `,
 };
 
 const addOnStates = {
-    default: "border-zinc-300 px-3 text-zinc-500",
-    error: "border-red-300 bg-red-50 px-3 text-red-600",
-    warning: "border-yellow-300 bg-yellow-50 px-3 text-yellow-600",
+    default:
+        "border-zinc-300 px-3 text-zinc-500 dark:border-slate-700 dark:bg-slate-800 dark:text-zinc-400",
+    error: "border-red-300 bg-red-50 px-3 text-red-600 dark:border-red-900 dark:bg-red-950/30 dark:text-red-400",
+    warning:
+        "border-yellow-300 bg-yellow-50 px-3 text-yellow-600 dark:border-yellow-900 dark:bg-yellow-950/30 dark:text-yellow-400",
 };
 
 const sizes = {
@@ -120,8 +129,8 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                     :is="icon"
                     class="h-5 w-5"
                     :class="{
-                        'text-zinc-400': state == 'default' && !disabled,
-                        'text-zinc-300': state == 'default' && disabled,
+                        'text-zinc-400 dark:text-zinc-500': state == 'default' && !disabled,
+                        'text-zinc-300 dark:text-zinc-700': state == 'default' && disabled,
                         'text-red-400': state == 'error',
                     }"
                 />
@@ -152,7 +161,9 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                         [trailingPaddingClass ?? '']: trailingPaddingClass,
                         'resize-none': inputType === 'textarea',
                     },
-                    'block w-full border-0 py-2 ring-1 ring-inset focus:ring-2 focus:ring-inset disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500 disabled:ring-zinc-200 sm:text-sm sm:leading-6',
+                    'block w-full border-0 py-2 ring-1 ring-inset transition-all duration-200 focus:ring-2 focus:ring-inset sm:text-sm sm:leading-6',
+                    'disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500 disabled:ring-zinc-200',
+                    'dark:disabled:bg-slate-900 dark:disabled:text-zinc-600 dark:disabled:ring-slate-800', // AJOUT DARK MODE DISABLED
                 ]"
                 :id="id"
                 :name="name"
@@ -171,15 +182,14 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                 :class="[
                     addOnStates[computedState],
                     {
-                        'cursor-pointer bg-zinc-100 text-zinc-600 hover:bg-zinc-300 hover:text-zinc-900':
+                        'cursor-pointer bg-zinc-100 text-zinc-600 hover:bg-zinc-300 hover:text-zinc-900 dark:bg-slate-800 dark:text-zinc-400 dark:hover:bg-slate-700 dark:hover:text-zinc-100':
                             !rightAddOnDisabled,
-                        'cursor-not-allowed bg-zinc-200 text-zinc-400 opacity-50':
+                        'cursor-not-allowed bg-zinc-200 text-zinc-400 opacity-50 dark:bg-slate-950 dark:text-zinc-700':
                             rightAddOnDisabled,
                     },
                 ]"
-                :rightAddOnDisabled="rightAddOnDisabled"
-                @click="rightAddOnClick"
             >
+                :rightAddOnDisabled="rightAddOnDisabled" @click="rightAddOnClick" >
                 {{ rightAddOn }}
             </span>
 
