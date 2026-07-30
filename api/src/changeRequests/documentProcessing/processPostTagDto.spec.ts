@@ -233,6 +233,11 @@ describe("processPostTagDto", () => {
         changeRequest2.doc.parentId = "post-blog3";
         changeRequest2.doc._id = "content-en";
         changeRequest2.doc.language = "lang-eng";
+        // A slug unique to this test — other tests in this file reuse changeRequest_content()'s
+        // default slug and leave their content docs in place, so reusing it here risks a
+        // collision that validateSlug resolves with a random `-N` suffix, breaking the exact
+        // slug comparison below.
+        changeRequest2.doc.slug = "test-blog3-eng";
         await processChangeRequest("test-user", changeRequest2, ["group-super-admins"], db);
 
         // Mark the post document for deletion
