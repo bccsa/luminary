@@ -18,6 +18,7 @@ import PrivacyPolicyModal from "@/components/navigation/PrivacyPolicyModal.vue";
 import SearchModal from "@/components/navigation/SearchModal.vue";
 import AudioPlayer from "@/components/content/AudioPlayer.vue";
 import MobileMenu from "@/components/navigation/MobileMenu.vue";
+import AffinityDebugOverlay from "@/components/debug/AffinityDebugOverlay.vue";
 import { useAuthWithPrivacyPolicy } from "@/composables/useAuthWithPrivacyPolicy";
 import { showProviderSelectionModal } from "@/auth";
 import AuthProviderSelectionModal from "@/components/authProvider/AuthProviderSelectionModal.vue";
@@ -29,6 +30,12 @@ const LOGO = import.meta.env.VITE_LOGO || defaultLogo;
 const { t } = useI18n();
 
 const router = useRouter();
+
+// Affinity debug overlay — hidden by default, shown only via ?affinityDebug=true (no other
+// gate, so it works on any deployed environment, not just local dev).
+const showAffinityDebugOverlay = computed(
+    () => router.currentRoute.value.query.affinityDebug === "true",
+);
 const {
     isAuthenticated,
     user,
@@ -175,6 +182,8 @@ onErrorCaptured((err) => {
             v-model:show="showPrivacyPolicyModal"
             @close="handleModalClose"
         />
+
+        <AffinityDebugOverlay v-if="showAffinityDebugOverlay" />
     </div>
     <!-- Modals depend on i18n, which isn't installed until splash finishes — keep them out of the tree during the loading phase. -->
     <template v-if="!isAppLoading">
