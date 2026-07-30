@@ -35,7 +35,7 @@ const maxContentCount = computed(() => {
                     <span
                         class="font-medium"
                         :class="
-                            lang._id === cmsLanguageIdAsRef ? 'text-yellow-600' : 'text-zinc-700'
+                            lang._id === cmsLanguageIdAsRef ? 'text-yellow-400' : 'text-yellow-400'
                         "
                     >
                         {{ lang.name }}

@@ -56,7 +56,7 @@ function collapse() {
         :class="[
             bare
                 ? ''
-                : 'border-y border-zinc-300 px-2 shadow-zinc-300/60 sm:mx-0 sm:rounded-md sm:border sm:border-zinc-200',
+                : 'border-y border-zinc-500 px-2 shadow-zinc-500/60 sm:mx-0 sm:rounded-md sm:border sm:border-zinc-500',
             {
                 'shadow-none': !bare && props.shadow === 'none',
                 'shadow-sm': !bare && props.shadow === 'small',
@@ -80,7 +80,7 @@ function collapse() {
         >
             <div class="flex items-center gap-1">
                 <component v-if="icon" :is="icon" class="h-5 w-5 text-zinc-400" />
-                <h3 class="text-sm font-medium leading-6 text-zinc-900">{{ title }}</h3>
+                <h3 class="text-sm font-medium leading-6 text-yellow-400">{{ title }}</h3>
             </div>
 
             <!-- Stop clicks on actions/chevron from bubbling to the header toggle: action buttons
@@ -122,7 +122,7 @@ function collapse() {
             >
                 <slot />
             </div>
-            <div v-if="$slots.footer" class="bg-zinc-50 px-2 py-3">
+            <div v-if="$slots.footer" class="bg-zinc-300 px-2 py-3">
                 <slot name="footer" />
             </div>
         </div>
