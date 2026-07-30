@@ -17,7 +17,7 @@ import HomePage from "@/pages/HomePage.vue";
 import ExplorePage from "@/pages/ExplorePage.vue";
 
 const routeReplaceMock = vi.fn();
-const currentRouteMock = ref({ fullPath: `/${mockEnglishContentDto.slug}` });
+const currentRouteMock = ref({ fullPath: `/${mockEnglishContentDto.slug}`, query: {} });
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
