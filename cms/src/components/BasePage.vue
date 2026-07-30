@@ -117,7 +117,9 @@ const handleMobileSidebarToggle = () => {
 
                     <TopBar>
                         <template #quickActions>
-                            <div class="flex w-full min-w-0 items-center justify-between gap-2">
+                            <div
+                                class="flex w-full min-w-0 items-center justify-between gap-2 dark:text-zinc-100"
+                            >
                                 <h1
                                     v-if="title"
                                     class="text-md flex min-w-0 items-center gap-2 truncate font-semibold leading-7"
@@ -191,7 +193,7 @@ const handleMobileSidebarToggle = () => {
 
                 <div
                     data-test="base-page-content"
-                    class="flex min-h-0 flex-1 flex-col dark:bg-slate-900"
+                    class="flex min-h-0 flex-1 flex-col dark:bg-slate-800"
                     :class="contentInsetClasses"
                 >
                     <div
