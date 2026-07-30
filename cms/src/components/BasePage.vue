@@ -78,7 +78,7 @@ const handleMobileSidebarToggle = () => {
             <div class="relative z-30 flex-shrink-0">
                 <div
                     data-topbar
-                    class="flex h-12 shrink-0 items-center gap-x-1 bg-white shadow-sm sm:gap-x-3"
+                    class="flex h-12 shrink-0 items-center gap-x-1 bg-white shadow-sm dark:bg-slate-800 sm:gap-x-3"
                     :class="[
                         { 'border-b border-zinc-200': !$slots.internalPageHeader },
                         topBarInsetClasses,
@@ -191,7 +191,7 @@ const handleMobileSidebarToggle = () => {
 
                 <div
                     data-test="base-page-content"
-                    class="flex min-h-0 flex-1 flex-col"
+                    class="flex min-h-0 flex-1 flex-col dark:bg-slate-900"
                     :class="contentInsetClasses"
                 >
                     <div

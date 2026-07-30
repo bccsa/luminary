@@ -3,20 +3,26 @@ import { RouterLink } from "vue-router";
 import {
     DocumentDuplicateIcon,
     TagIcon,
-    HomeIcon,
+    HomeIcon as FilledHomeIcon,
     ChevronRightIcon,
     ChevronLeftIcon,
-    GlobeEuropeAfricaIcon,
+    GlobeEuropeAfricaIcon as FilledGlobeEuropeAfricaIcon,
     ArrowUturnRightIcon,
-    CloudIcon,
+    CloudIcon as FilledCloudIcon,
     ShieldCheckIcon,
-    Cog6ToothIcon,
+    Cog6ToothIcon as FilledCog6ToothIcon,
     LanguageIcon,
     ArrowRightEndOnRectangleIcon,
     ArrowDownTrayIcon,
     UserIcon,
 } from "@heroicons/vue/20/solid";
 
+import {
+    HomeIcon,
+    GlobeEuropeAfricaIcon,
+    CloudIcon,
+    Cog6ToothIcon,
+} from "@heroicons/vue/24/outline";
 import { SunIcon } from "@heroicons/vue/24/outline";
 import {
     appName,
@@ -66,7 +72,13 @@ const isCollapsed = computed(() => collapsed.value && !isMobileScreen.value);
 const { isInstallable, manualInstallInstructions, promptInstall } = useInstallPrompt();
 
 const navigation = computed(() => [
-    { name: "Dashboard", to: { name: "dashboard" }, icon: HomeIcon, visible: true },
+    {
+        name: "Dashboard",
+        to: { name: "dashboard" },
+        icon: HomeIcon,
+        activeIcon: FilledHomeIcon,
+        visible: true,
+    },
     {
         name: "Posts",
         icon: DocumentDuplicateIcon,
@@ -97,12 +109,14 @@ const navigation = computed(() => [
         name: "Languages",
         to: { name: "languages" },
         icon: GlobeEuropeAfricaIcon,
+        activeIcon: FilledGlobeEuropeAfricaIcon,
         visible: hasAnyPermission(DocType.Language, AclPermission.CmsView),
     },
     {
         name: "Storage",
         to: { name: "storage" },
         icon: CloudIcon,
+        activeIcon: FilledCloudIcon,
         visible: hasAnyPermission(DocType.Storage, AclPermission.CmsView),
     },
     {
@@ -222,7 +236,7 @@ const confirmLogout = () => {
 const navIconClass = "h-5 w-5 shrink-0";
 // When collapsed (desktop only) nav rows center their icon and drop the label gap/padding.
 const navItemClass = computed(() => [
-    "mb-1 flex rounded-md text-sm font-medium text-zinc-600 hover:bg-zinc-200",
+    "mb-1 flex rounded-md text-sm font-medium text-zinc-600 hover:bg-zinc-200 dark:hover:bg-slate-700 dark:text-slate-100",
     isCollapsed.value ? "justify-center p-2.5" : "items-center gap-3 px-3 py-2.5",
 ]);
 </script>
@@ -240,7 +254,7 @@ const navItemClass = computed(() => [
     <aside
         data-test="sidebar"
         @scroll.stop
-        class="fixed inset-y-0 left-0 z-50 flex h-screen w-72 flex-col border-r border-zinc-200 bg-zinc-100 transition-[transform,width] duration-200 ease-out lg:relative lg:z-30 lg:translate-x-0"
+        class="fixed inset-y-0 left-0 z-50 flex h-screen w-72 flex-col border-r border-zinc-200 bg-zinc-100 transition-[transform,width] duration-200 ease-out dark:border-slate-700 dark:bg-slate-800 lg:relative lg:z-30 lg:translate-x-0"
         :class="[
             open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
             collapsed ? 'lg:w-[4.5rem]' : 'lg:w-72',
@@ -284,12 +298,17 @@ const navItemClass = computed(() => [
                     <RouterLink
                         v-if="item.visible && !item.children && item.to"
                         :to="item.to"
-                        active-class="bg-zinc-200 text-zinc-900"
+                        active-class="text-yellow-700 dark:text-yellow-400"
                         :class="navItemClass"
                         :title="item.name"
                         @click="closeDrawer"
+                        v-slot="{ isActive }"
                     >
-                        <component :is="item.icon" :class="navIconClass" aria-hidden="true" />
+                        <component
+                            :is="isActive ? item.activeIcon || item.icon : item.icon"
+                            :class="navIconClass"
+                            aria-hidden="true"
+                        />
                         <span v-if="!isCollapsed">{{ item.name }}</span>
                     </RouterLink>
 
@@ -317,8 +336,8 @@ const navItemClass = computed(() => [
                             <li v-for="subItem in item.children" :key="subItem.name">
                                 <RouterLink
                                     :to="subItem.to"
-                                    active-class="bg-zinc-200 text-zinc-900"
-                                    class="block rounded-md py-2 pl-9 pr-2 text-sm font-medium text-zinc-600 hover:bg-zinc-200"
+                                    active-class="text-yellow-700 dark:text-yellow-400"
+                                    class="block rounded-md py-2 pl-9 pr-2 text-sm font-medium text-zinc-100 hover:bg-slate-700"
                                     @click="closeDrawer"
                                 >
                                     {{ subItem.name }}
@@ -357,12 +376,14 @@ const navItemClass = computed(() => [
 
                 <RouterLink
                     :to="{ name: 'settings' }"
-                    active-class="bg-zinc-200 text-zinc-900"
+                    active-class="text-yellow-700 dark:text-yellow-400 "
                     :class="navItemClass"
                     title="Settings"
                     @click="closeDrawer"
+                    v-slot="{ isActive }"
                 >
-                    <Cog6ToothIcon :class="navIconClass" aria-hidden="true" />
+                    <FilledCog6ToothIcon v-if="isActive" :class="navIconClass" aria-hidden="true" />
+                    <Cog6ToothIcon v-else :class="navIconClass" aria-hidden="true" />
                     <span v-if="!isCollapsed">Settings</span>
                 </RouterLink>
             </div>
@@ -395,7 +416,7 @@ const navItemClass = computed(() => [
             <button
                 type="button"
                 :class="[
-                    'mb-2 flex w-full rounded-md text-sm font-medium text-zinc-600 hover:bg-zinc-200',
+                    'mb-2 flex w-full rounded-md text-sm font-medium text-white hover:bg-zinc-500',
                     isCollapsed
                         ? 'justify-center p-2.5'
                         : 'items-center gap-3 px-3 py-2.5 text-left',
@@ -429,7 +450,7 @@ const navItemClass = computed(() => [
                 </div>
                 <span
                     v-if="!isCollapsed"
-                    class="min-w-0 flex-1 truncate text-sm font-medium text-zinc-700"
+                    class="min-w-0 flex-1 truncate text-sm font-medium text-zinc-100"
                 >
                     {{ user?.name || user?.email }}
                 </span>

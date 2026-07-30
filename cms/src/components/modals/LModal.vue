@@ -69,7 +69,7 @@ const isMobileScreen = breakpoints.smaller("sm");
                 ref="modalRef"
                 data-test="modal-content"
                 :class="[
-                    'relative z-50 flex max-h-[100dvh] flex-col rounded-lg bg-white/90 p-5 shadow-xl focus:outline-none dark:bg-slate-900',
+                    'relative z-50 flex max-h-[100dvh] flex-col rounded-lg bg-white/90 p-5 shadow-xl focus:outline-none dark:bg-slate-800',
                     isMobileScreen && stickToEdges
                         ? 'h-[100dvh] w-[100vw] max-w-none rounded-none'
                         : largeModal
