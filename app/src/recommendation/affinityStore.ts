@@ -46,9 +46,9 @@ export function migrateProfileToV2(profile: AffinityProfile): AffinityProfile {
     };
 }
 
-/** Load + v2-migrate the stored affinity profile. Exported for the debug page, which
- *  needs a fresh read of the same canonical (migration-aware) source `affinityProfile`
- *  was initialized from, rather than re-implementing the raw-parse/migrate logic. */
+/** Load + v2-migrate the stored affinity profile. Exported so debug tooling can re-read the
+ *  same canonical (migration-aware) source `affinityProfile` was initialized from, rather
+ *  than re-implementing the raw-parse/migrate logic. */
 export function loadAffinityProfile(): AffinityProfile {
     try {
         const raw = localStorage.getItem(STORAGE_KEY);
