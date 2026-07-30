@@ -7,11 +7,13 @@ const VideoPage = () => import("@/pages/VideoPage.vue");
 
 /**
  * Builds the web-only locale-prefixed public static routes (`/<code>`, `/<code>/explore`,
- * `/<code>/search`, `/<code>/watch`) for every non-default language, so each is directly
- * crawlable/linkable without relying on client-side language switching.
+ * `/<code>/search`, `/<code>/watch`) for every language, INCLUDING the default one, so
+ * each is directly crawlable/linkable without relying on client-side language switching.
+ * The default language is also served unprefixed (see `routes.ts`) — keeping its prefixed
+ * route around too means URLs stay stable if the default language is ever changed.
  */
-export function localizedStaticRoutes(langCodes: string[], defaultCode: string): RouteRecordRaw[] {
-    const codes = [...new Set(langCodes)].filter((code) => code && code !== defaultCode);
+export function localizedStaticRoutes(langCodes: string[]): RouteRecordRaw[] {
+    const codes = [...new Set(langCodes)].filter((code) => code);
     return codes.flatMap((code) => [
         {
             path: `/${code}`,

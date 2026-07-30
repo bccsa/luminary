@@ -2,7 +2,7 @@
  * Content-id / parent-id → prerendered route sidecar (`dist-web/ssg-route-index/`).
  *
  * Why this exists: prerendering writes static HTML files keyed by **route** (slug),
- * but ISR deletion is driven by a CouchDB DeleteCmd, which historically carried only
+21 * but ISR deletion is driven by a CouchDB DeleteCmd, which historically carried only
  * the deleted doc's **id** — never the slug it was rendered to (the slug lives on the
  * deleted doc itself, so it's gone by the time the deploy repo's watcher sees the
  * DeleteCmd). This sidecar is the persisted id → route mapping that survives the doc's

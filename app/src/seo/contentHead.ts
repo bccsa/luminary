@@ -98,7 +98,7 @@ export function articleJsonLd(
         headline: c.title,
         description,
         author: c.author
-            ? { "@type": c.parentAuthorType ? "Organization" : "Person", name: c.author }
+            ? { "@type": c.parentAuthorType === "org" ? "Organization" : "Person", name: c.author }
             : undefined,
         ...(publisher ? { publisher } : {}),
         ...(options.image

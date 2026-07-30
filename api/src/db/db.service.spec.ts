@@ -794,6 +794,27 @@ describe("DbService", () => {
             expect(res.docs[0].slug).toBeUndefined();
         });
 
+        it("sets slug and language on a delete instruction for a content document", async () => {
+            const doc = {
+                _id: "content-delete-slug-test",
+                type: DocType.Content,
+                slug: "content-delete-slug-test-slug",
+                language: "lang-eng",
+                memberOf: ["group-public-content"],
+            };
+
+            const insertResult = await service.insertDeleteCmd({
+                reason: DeleteReason.Deleted,
+                doc: doc as any,
+                prevDoc: doc as any,
+            });
+
+            expect(insertResult.ok).toBe(true);
+            const res = await service.getDoc(insertResult.id);
+            expect(res.docs[0].slug).toBe(doc.slug);
+            expect(res.docs[0].language).toBe(doc.language);
+        });
+
         it("can generate a delete instruction for a 'statusChange' reason", async () => {
             const doc = {
                 _id: "delete-test",

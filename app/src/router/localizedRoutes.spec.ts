@@ -2,10 +2,14 @@ import { describe, expect, it } from "vitest";
 import { localizedStaticRoutes } from "./localizedRoutes";
 
 describe("localizedStaticRoutes", () => {
-    it("creates non-default localized public static routes", () => {
-        const routes = localizedStaticRoutes(["en", "es", "fr", "es"], "en");
+    it("creates localized public static routes, including a prefixed route for the default language", () => {
+        const routes = localizedStaticRoutes(["en", "es", "fr", "es"]);
 
         expect(routes.map((r) => r.path)).toEqual([
+            "/en",
+            "/en/explore",
+            "/en/search",
+            "/en/watch",
             "/es",
             "/es/explore",
             "/es/search",
@@ -16,6 +20,10 @@ describe("localizedStaticRoutes", () => {
             "/fr/watch",
         ]);
         expect(routes.map((r) => r.name)).toEqual([
+            "home-en",
+            "explore-en",
+            "search-en",
+            "watch-en",
             "home-es",
             "explore-es",
             "search-es",

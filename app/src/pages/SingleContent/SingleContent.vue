@@ -81,6 +81,13 @@ type Props = {
 };
 const props = defineProps<Props>();
 
+// True during the Node prerender AND on the resulting hydrated web-build client
+// (false only for the native SPA build). Gates the per-slug response-cache ids
+// below: the web build needs them to match the prerender's seed on first paint;
+// native gets no such benefit and would only accumulate one localStorage entry
+// per article ever visited.
+const isSSG = import.meta.env.VITE_BUILD_TARGET === "web";
+
 const { t } = useI18n();
 const showCategoryModal = ref(false);
 const enableZoom = ref(false);
@@ -88,27 +95,31 @@ const enableZoom = ref(false);
 const currentImageIndex = ref(0);
 
 // Content by slug — the SAME local-first hybrid query on every build (web and
-// native). On the web build the prerender primes this query's response cache
+// native). On the web build (isSSG) the prerender primes this query's response cache
 // (`cacheId = slug` makes the per-document seed safe), so the hydrating client shows
 // the article on first paint with no flash; during the Node prerender the seam's
-// onServerPrefetch fetches it so it is present in the static HTML. `text` (the body,
-// rendered below) and `memberOf` (read by canEdit) are kept off the default strip set.
+// onServerPrefetch fetches it so it is present in the static HTML. Native gets no
+// such benefit, so `cacheId` (and thus a dedicated cache entry per slug) is scoped
+// to isSSG only.
 const { output: contentArr, isFetching: isContentFetching } = useContentQueryWithState(
     () => [{ slug: props.slug }],
     {
         includeScheduled: false,
         languageFilter: false,
         cache: true,
-        cacheId: props.slug,
+        cacheId: isSSG ? props.slug : undefined,
         // Seek the single slug doc via the slug-led index. The publishDate sort is required
         // for CouchDB to engage the index (slug eq alone falls back to a full scan).
         useIndex: "content-slug-publishDate-index",
         sort: [{ publishDate: "desc" }],
-        stripFields: ["fts", "ftsTokenCount", "_rev"],
+        // No stripFields here (unlike overview feeds): this is the document actually
+        // opened in SingleContent, and it should persist offline with `fts`/
+        // `ftsTokenCount` intact so it surfaces in offline FTS search.
         // `text` is the heaviest field on the page and already sits in the prerendered
-        // `[data-ssr-article-text]` node — omit it from the SSR-authored cache write so it
-        // isn't shipped twice; the hydration patch below recovers it from that node.
-        ssrCacheStripFields: ["text"],
+        // `[data-ssr-article-text]` node — omit it (and the FTS/rev fields, which the
+        // live/persisted copy above now keeps) from the SSR-authored cache write so it
+        // isn't shipped twice; the hydration patch below recovers `text` from that node.
+        ssrCacheStripFields: ["text", "fts", "ftsTokenCount", "_rev"],
     },
 );
 
@@ -290,8 +301,11 @@ const translationsArr = useContentQuery(
         publishedFilter: false,
         cache: true,
         // Per-slug discriminator so the per-document cache is SAFE — a shape-only key
-        // would seed this page from a previously-viewed post's translations.
-        cacheId: `translations:${props.slug}`,
+        // would seed this page from a previously-viewed post's translations. Only SSG
+        // depends on this cache entry (matching the prerender's seed on first paint);
+        // scoped to isSSG so normal (native) use doesn't accumulate one entry per slug
+        // ever visited for no benefit.
+        cacheId: isSSG ? `translations:${props.slug}` : undefined,
         // These are sibling metadata for the language dropdown / hreflang, not the
         // article the reader is on — don't grow the offline IndexedDB store with every
         // translation of every article ever visited. `cache: true` (localStorage,

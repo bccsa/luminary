@@ -79,7 +79,6 @@ export const createApp = ViteSSG(
             // Human-readable companion to renderLang: the `_id` is often a UUID, so
             // surface the language name too for anyone reading the inlined state.
             initialState.renderLangName = langs.find((l) => l._id === lang)?.name ?? "";
-            initialState.defaultLanguageCode = defaultLang?.languageCode;
             initialState.langCodeToId = langCodeToId(langs);
             initialState.languages = langs.map((l) =>
                 keep.has(l._id) ? l : { ...l, translations: {} },
@@ -94,14 +93,7 @@ export const createApp = ViteSSG(
             if (langs.length) cmsLanguages.value = langs;
         }
 
-        const defaultCode =
-            (initialState.defaultLanguageCode as string | undefined) ||
-            langs.find((l) => l.default === 1)?.languageCode ||
-            "";
-        for (const route of localizedStaticRoutes(
-            langs.map((l) => l.languageCode),
-            defaultCode,
-        )) {
+        for (const route of localizedStaticRoutes(langs.map((l) => l.languageCode))) {
             router.addRoute(route);
         }
 

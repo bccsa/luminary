@@ -2,6 +2,7 @@ import {
     IsArray,
     IsBoolean,
     IsEnum,
+    IsIn,
     IsNotEmpty,
     IsNumber,
     IsOptional,
@@ -156,9 +157,10 @@ export class ContentDto extends _contentBaseDto {
     parentUseVerticalTileLayout?: boolean;
 
     @IsOptional() // Optional as it is set upon change request processing
-    @IsNumber()
+    @IsString()
+    @IsIn(["person", "org"])
     @Expose()
-    parentAuthorType?: number; // Mirrors parent authorType: 1 = Organization, 0/undefined = Person
+    parentAuthorType?: "person" | "org"; // Mirrors parent authorType: "org" = Organization, "person"/undefined = Person
 
     @IsOptional() // Optional as it is set upon change request processing
     @IsArray()

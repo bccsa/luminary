@@ -116,16 +116,15 @@ const useVerticalTileLayout = computed({
     },
 });
 
-// Author type drives the jsonLD author @type. Stored as a number to mirror the
-// deleteReq 1/0 convention: 1 = Organization, 0/undefined = Person (the default).
-// LTextToggle models strings, so bridge via the computed.
+// Author type drives the jsonLD author @type: "org" = Organization,
+// "person"/undefined = Person (the default).
 const authorType = computed({
     get() {
-        return parent.value?.authorType ? "1" : "0";
+        return parent.value?.authorType ?? "person";
     },
     set(value: string) {
         if (parent.value) {
-            parent.value.authorType = value === "1" ? 1 : 0;
+            parent.value.authorType = value as "person" | "org";
         }
     },
 });
@@ -210,9 +209,9 @@ const authorType = computed({
                 <LTextToggle
                     v-model="authorType"
                     leftLabel="Person"
-                    leftValue="0"
+                    leftValue="person"
                     rightLabel="Organization"
-                    rightValue="1"
+                    rightValue="org"
                     :disabled="disabled"
                 />
             </div>
