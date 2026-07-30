@@ -109,6 +109,7 @@ describe("RelatedContent", () => {
                 ],
                 selectedContent: {
                     ...mockEnglishContentDto,
+                    parentId: "post-post3",
                     _id: "content-post3-eng",
                     title: "Post 3",
                     parentTags: [mockTopicContentDto.parentId],
@@ -292,6 +293,73 @@ describe("RelatedContent", () => {
         });
     });
 
+    it("excludes another translation of the current article from Read more", async () => {
+        // English is the preferred display language, but the user is reading the French
+        // translation of "Shared Article". The Read-more query returns the English translation
+        // (preferred), which shares `parentId` with the article being read but has a different
+        // `_id`. Excluding by `_id` would let that English card through as a duplicate of the
+        // article the user is already reading; excluding by `parentId` drops it.
+        await db.docs.bulkPut([
+            {
+                ...mockEnglishContentDto,
+                parentId: "post-shared",
+                _id: "content-shared-eng",
+                slug: "shared-eng",
+                title: "Shared Article",
+                language: "lang-eng",
+                availableTranslations: ["lang-eng", "lang-fra"],
+                parentTags: [mockTopicContentDto.parentId],
+            } as ContentDto,
+            {
+                ...mockEnglishContentDto,
+                parentId: "post-shared",
+                _id: "content-shared-fra",
+                slug: "shared-fra",
+                title: "Shared Article",
+                language: "lang-fra",
+                availableTranslations: ["lang-eng", "lang-fra"],
+                parentTags: [mockTopicContentDto.parentId],
+            } as ContentDto,
+            {
+                ...mockEnglishContentDto,
+                parentId: "post-other",
+                _id: "content-other-eng",
+                slug: "other-eng",
+                title: "Other Article",
+                parentTags: [mockTopicContentDto.parentId],
+            } as ContentDto,
+        ]);
+
+        const wrapper = mount(RelatedContent, {
+            props: {
+                tags: [
+                    {
+                        ...mockTopicContentDto,
+                        parentTaggedDocs: ["post-shared", "post-other"],
+                    },
+                ],
+                selectedContent: {
+                    ...mockEnglishContentDto,
+                    parentId: "post-shared",
+                    _id: "content-shared-fra",
+                    slug: "shared-fra",
+                    title: "Shared Article",
+                    language: "lang-fra",
+                } as ContentDto,
+            },
+        });
+
+        await waitForExpect(() => {
+            // The unrelated post still appears...
+            expect(wrapper.findComponent(ReadMore).html()).toContain("Other Article");
+            // ...but neither translation of the article being read shows in Read more.
+            const sharedCards = wrapper
+                .findAll("[data-mobile-title]")
+                .filter((el) => el.text().includes("Shared Article"));
+            expect(sharedCards).toHaveLength(0);
+        });
+    });
+
     it("ranks content sharing more of the current article's tags above a newer, less-related item", async () => {
         // Relevance (tag overlap with the current article) is the primary signal: an item
         // sharing two of the current article's tags ranks above a newer item sharing only one,
@@ -342,6 +410,77 @@ describe("RelatedContent", () => {
             expect(twoIdx).toBeGreaterThanOrEqual(0);
             expect(oneIdx).toBeGreaterThanOrEqual(0);
             expect(twoIdx).toBeLessThan(oneIdx);
+        });
+    });
+
+    it("ranks a topic card above an ordinary related post", async () => {
+        // The topic boost (TOPIC_BOOST_WEIGHT) should comfortably outweigh a typical post's
+        // referenceWeight contribution (+1 for sharing one tag with the current article).
+        await db.docs.bulkPut([
+            {
+                ...mockEnglishContentDto,
+                parentId: "post-post2",
+                _id: "content-post2-eng",
+                title: "Post 2",
+                parentTags: [mockTopicContentDto.parentId],
+            } as ContentDto,
+        ]);
+
+        const wrapper = mount(RelatedContent, {
+            props: {
+                tags: [{ ...mockTopicContentDto, parentTaggedDocs: ["post-post2"] }],
+                selectedContent: {
+                    ...mockEnglishContentDto,
+                    _id: "content-other-eng",
+                    title: "Other",
+                    parentTags: [mockTopicContentDto.parentId],
+                } as ContentDto,
+            },
+        });
+
+        await waitForExpect(() => {
+            const titles = wrapper.findAll("[data-mobile-title]").map((el) => el.text());
+            const topicIdx = titles.findIndex((t) => t.includes(mockTopicContentDto.title));
+            const postIdx = titles.findIndex((t) => t.includes("Post 2"));
+            expect(topicIdx).toBeGreaterThanOrEqual(0);
+            expect(postIdx).toBeGreaterThanOrEqual(0);
+            expect(topicIdx).toBeLessThan(postIdx);
+        });
+    });
+
+    it("lets a post sharing many tags with the current article outrank a boosted topic", async () => {
+        // The boost is a soft nudge, not a hard pin: a post overlapping enough of the current
+        // article's tags can still out-score TOPIC_BOOST_WEIGHT via the referenceWeight leg.
+        const manyTags = ["tag-x1", "tag-x2", "tag-x3", "tag-x4", "tag-x5", "tag-x6"];
+        await db.docs.bulkPut([
+            {
+                ...mockEnglishContentDto,
+                parentId: "post-heavy",
+                _id: "content-heavy-eng",
+                title: "Heavily Related Post",
+                parentTags: [mockTopicContentDto.parentId, ...manyTags],
+            } as ContentDto,
+        ]);
+
+        const wrapper = mount(RelatedContent, {
+            props: {
+                tags: [{ ...mockTopicContentDto, parentTaggedDocs: ["post-heavy"] }],
+                selectedContent: {
+                    ...mockEnglishContentDto,
+                    _id: "content-other-eng",
+                    title: "Other",
+                    parentTags: [mockTopicContentDto.parentId, ...manyTags],
+                } as ContentDto,
+            },
+        });
+
+        await waitForExpect(() => {
+            const titles = wrapper.findAll("[data-mobile-title]").map((el) => el.text());
+            const topicIdx = titles.findIndex((t) => t.includes(mockTopicContentDto.title));
+            const postIdx = titles.findIndex((t) => t.includes("Heavily Related Post"));
+            expect(topicIdx).toBeGreaterThanOrEqual(0);
+            expect(postIdx).toBeGreaterThanOrEqual(0);
+            expect(postIdx).toBeLessThan(topicIdx);
         });
     });
 

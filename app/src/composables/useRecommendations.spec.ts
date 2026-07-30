@@ -308,6 +308,21 @@ describe("rank", () => {
         expect(result[0]._id).toBe("tag-leg-eng");
     });
 
+    it("folds same-parent translations that both arrive via the tag leg to one card", () => {
+        // The language-priority fallback can return two non-preferred translations of the same
+        // post (different `_id`, same `parentId`); the feed must show one card, not a duplicate.
+        const english = makeContent("post-eng", ["tag-a"], undefined, "shared-post");
+        const french = {
+            ...makeContent("post-fra", ["tag-a"], undefined, "shared-post"),
+            language: "lang-fra",
+        } as ContentDto;
+
+        const result = rank([english, french], [], { "tag-a": 0.5 }, { now: 0 });
+
+        expect(result).toHaveLength(1);
+        expect(result.filter((d) => d.parentId === "shared-post")).toHaveLength(1);
+    });
+
     it("returns an empty list when both legs are empty", () => {
         expect(rank([], [], {})).toEqual([]);
     });

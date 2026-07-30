@@ -4,7 +4,7 @@ import { createTestingPinia } from "@pinia/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ref } from "vue";
 import { AckStatus } from "luminary-shared";
-import AffinityConfigModal from "./AffinityConfigModal.vue";
+import AffinityConfigPanel from "./AffinityConfigPanel.vue";
 import { useNotificationStore } from "@/stores/notification";
 
 const DEFAULT_AFFINITY_CONFIG = {
@@ -40,7 +40,16 @@ vi.mock("@/composables/useDefaultAffinity", () => ({
     }),
 }));
 
-describe("AffinityConfigModal", () => {
+vi.mock("@/globalConfig", async (importOriginal) => {
+    const actual = await importOriginal();
+    return {
+        ...(actual as any),
+        isSmallScreen: ref(false),
+        isMobileScreen: ref(false),
+    };
+});
+
+describe("AffinityConfigPanel", () => {
     beforeEach(() => {
         setActivePinia(createTestingPinia());
         mockSaveConfig.mockReset();
@@ -51,23 +60,22 @@ describe("AffinityConfigModal", () => {
         vi.clearAllMocks();
     });
 
-    it("saves an edited value clamped into range", async () => {
-        const wrapper = mount(AffinityConfigModal, { props: { isVisible: true } });
+    it("clamps a percent input down to the fraction ceiling", async () => {
+        const wrapper = mount(AffinityConfigPanel);
 
         const input = wrapper.find("input[name='hitWeight']");
-        await input.setValue("5");
+        await input.setValue("500");
         await wrapper.find("button[data-test='affinity-config-save']").trigger("click");
         await flushPromises();
 
-        expect(mockSaveConfig).toHaveBeenCalledWith(
-            expect.objectContaining({ hitWeight: 1 }),
-            ["group-super-admins"],
-        );
+        expect(mockSaveConfig).toHaveBeenCalledWith(expect.objectContaining({ hitWeight: 1 }), [
+            "group-super-admins",
+        ]);
     });
 
-    it("shows a success notification and closes on save", async () => {
+    it("shows a success notification on save", async () => {
         const notificationStore = useNotificationStore();
-        const wrapper = mount(AffinityConfigModal, { props: { isVisible: true } });
+        const wrapper = mount(AffinityConfigPanel);
 
         await wrapper.find("button[data-test='affinity-config-save']").trigger("click");
         await flushPromises();
@@ -80,7 +88,7 @@ describe("AffinityConfigModal", () => {
     it("surfaces a rejected save as an error notification", async () => {
         mockSaveConfig.mockResolvedValue({ ack: AckStatus.Rejected, message: "Nope" });
         const notificationStore = useNotificationStore();
-        const wrapper = mount(AffinityConfigModal, { props: { isVisible: true } });
+        const wrapper = mount(AffinityConfigPanel);
 
         await wrapper.find("button[data-test='affinity-config-save']").trigger("click");
         await flushPromises();
@@ -92,5 +100,12 @@ describe("AffinityConfigModal", () => {
                 state: "error",
             }),
         );
+    });
+
+    it("shows the reading-floor field with a % suffix and no redundant parenthetical", () => {
+        const wrapper = mount(AffinityConfigPanel);
+
+        expect(wrapper.text()).toContain("Reading needed for it to count");
+        expect(wrapper.text()).not.toContain("Reading needed for it to count (%)");
     });
 });
