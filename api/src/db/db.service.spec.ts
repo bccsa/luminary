@@ -776,6 +776,24 @@ describe("DbService", () => {
             expect(res.docs[0].docId).toBe(doc._id);
         });
 
+        it("does not set slug on a delete instruction for a document type without a slug", async () => {
+            const doc = {
+                _id: "group-no-slug",
+                testData: "test123",
+                type: DocType.Group,
+            };
+
+            const insertResult = await service.insertDeleteCmd({
+                reason: DeleteReason.Deleted,
+                doc: doc as any,
+                prevDoc: doc as any,
+            });
+
+            expect(insertResult.ok).toBe(true);
+            const res = await service.getDoc(insertResult.id);
+            expect(res.docs[0].slug).toBeUndefined();
+        });
+
         it("can generate a delete instruction for a 'statusChange' reason", async () => {
             const doc = {
                 _id: "delete-test",

@@ -253,9 +253,13 @@ describe("processPostTagDto", () => {
         const deleteCommands = await db.getDocsByType(DocType.DeleteCmd);
         expect(deleteCommands.docs.find((d) => d.docId == "post-blog3")).toBeDefined();
         expect(deleteCommands.docs.find((d) => d.docId == "post-blog3").docType).toBe(DocType.Post);
+        expect(deleteCommands.docs.find((d) => d.docId == "post-blog3").slug).toBeUndefined();
         expect(deleteCommands.docs.find((d) => d.docId == "content-en")).toBeDefined();
         expect(deleteCommands.docs.find((d) => d.docId == "content-en").docType).toBe(
             DocType.Post, // This is needed as the permission system does not include Content documents, but bases permissions on the parent type (Post / Tag).
+        );
+        expect(deleteCommands.docs.find((d) => d.docId == "content-en").slug).toBe(
+            changeRequest2.doc.slug, // Each content translation's own DeleteCmd carries its own slug, so the parent DeleteCmd needs none.
         );
     });
 

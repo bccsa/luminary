@@ -52,6 +52,10 @@ export type DeleteCmdDto = BaseDocumentDto & {
     deleteReason: DeleteReason;
     memberOf?: Uuid[];
     newMemberOf?: Uuid[];
+    /** Language ID of the deleted content document (only set for Content DeleteCmds). */
+    language?: Uuid;
+    /** Slug of the deleted document (only set for Content/Redirect DeleteCmds). */
+    slug?: string;
 };
 
 export type ContentBaseDto = BaseDocumentDto & {
