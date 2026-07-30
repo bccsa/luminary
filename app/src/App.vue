@@ -57,8 +57,8 @@ watch(needRefresh, (refreshNeeded) => {
     if (!refreshNeeded) return;
     useNotificationStore().addNotification({
         id: "updateBanner",
-        title: "Update available",
-        description: "A new version is available. Save your work, then select this message to reload.",
+        title: () => t("notification.update_available.title"),
+        description: () => t("notification.update_available.description"),
         state: "info",
         type: "banner",
         link: reload,

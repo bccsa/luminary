@@ -76,6 +76,12 @@ docker run -e ENABLE_GZIP=false --rm -it -p 8080:80 luminary-cms
 
 This will run the CMS on port 8080 on the host machine.
 
+### Update-detection cache TTL (CDN tuneable)
+
+The in-app update banner ([`usePwaUpdate.ts`](src/composables/usePwaUpdate.ts)) polls `/version.json` every 5 seconds and compares it to the build ID baked into the running bundle. `nginx.conf` sends `Cache-Control: no-cache, s-maxage=60` for this file: browsers must always revalidate (TTL 0), while a shared/CDN cache may serve it from cache for up to 60 seconds (TTL 60) to absorb that polling load without meaningfully delaying update detection.
+
+**If you deploy behind a CDN, verify it honours `s-maxage`** — some CDNs ignore it or need an explicit cache/rewrite rule to apply a short TTL to this path instead. Keep the TTL small (order of a minute) so deployed clients still pick up new builds promptly.
+
 ## Testing
 
 ### Unit Tests

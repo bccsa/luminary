@@ -81,6 +81,8 @@
         "notification.translation_available.description": "The content is also available in {language}. Click here to view it.",
         "notification.server_error.title": "Server error",
         "notification.server_error.description": "Something went wrong on the server. Please try again in a minute.",
+        "notification.update_available.title": "Update available",
+        "notification.update_available.description": "A new version of the app is available. Click here to update.",
         "privacy_policy.modal.title": "Privacy Policy",
         "privacy_policy.modal.message": "By using this app, you agree to our privacy policy.",
         "privacy_policy.modal.button_accept": "Accept",
