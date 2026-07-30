@@ -75,63 +75,113 @@ const handleNotificationClick = (notification: Notification) => {
 </script>
 
 <template>
-    <div
-        v-if="show"
-        class="mb-4 rounded-lg text-zinc-900"
-        :class="color"
-    >
+    <Transition name="banner">
         <div
-            class="flex items-center justify-between px-3 py-3"
-            @click="() => handleNotificationClick(notification)"
-            :class="{ 'cursor-pointer': notification.link }"
+            v-if="show"
+            class="banner-grid"
         >
-            <!-- Conditional rendering for RouterLink or div -->
-            <component
-                :is="
-                    notification.link && typeof notification.link === 'object' ? RouterLink : 'div'
-                "
-                :to="
-                    notification.link && typeof notification.link === 'object'
-                        ? notification.link
-                        : undefined
-                "
-                @click.stop="() => handleNotificationClick(notification)"
-                class="flex w-full items-center gap-2"
-                :class="{ 'cursor-pointer': notification.link }"
-            >
-                <component
-                    :is="icon"
-                    class="h-5 w-5 min-w-5"
-                />
-                <div class="flex flex-col md:inline-block md:align-middle">
-                    <span
-                        v-if="title"
-                        class="text-md font-medium md:text-sm"
-                        >{{ title }}</span
+            <div class="banner-grid-content">
+                <div
+                    class="mb-4 rounded-lg text-zinc-900"
+                    :class="color"
+                >
+                    <div
+                        class="flex items-center justify-between px-3 py-3"
+                        @click="() => handleNotificationClick(notification)"
+                        :class="{ 'cursor-pointer': notification.link }"
                     >
-                    <span
-                        v-if="description"
-                        class="text-xs md:ml-3"
-                    >
-                        {{ description }}
-                    </span>
-                </div>
-            </component>
+                        <!-- Conditional rendering for RouterLink or div -->
+                        <component
+                            :is="
+                                notification.link && typeof notification.link === 'object'
+                                    ? RouterLink
+                                    : 'div'
+                            "
+                            :to="
+                                notification.link && typeof notification.link === 'object'
+                                    ? notification.link
+                                    : undefined
+                            "
+                            @click.stop="() => handleNotificationClick(notification)"
+                            class="flex w-full items-center gap-2"
+                            :class="{ 'cursor-pointer': notification.link }"
+                        >
+                            <component
+                                :is="icon"
+                                class="h-5 w-5 min-w-5"
+                            />
+                            <div class="flex flex-col md:inline-block md:align-middle">
+                                <span
+                                    v-if="title"
+                                    class="text-md font-medium md:text-sm"
+                                    >{{ title }}</span
+                                >
+                                <span
+                                    v-if="description"
+                                    class="text-xs md:ml-3"
+                                >
+                                    {{ description }}
+                                </span>
+                            </div>
+                        </component>
 
-            <!-- Close Button -->
-            <button
-                type="button"
-                @click.stop="notification.id ? removeNotification(notification.id) : (show = false)"
-                class="h-6 min-h-6 w-6 min-w-6 cursor-pointer underline md:h-5 md:min-h-5 md:w-5 md:min-w-5"
-                data-test="banner-close-button"
-                v-if="notification.closable"
-            >
-                <span class="sr-only">Close</span>
-                <XMarkIcon
-                    class="h-5 w-5"
-                    aria-hidden="true"
-                />
-            </button>
+                        <!-- Close Button -->
+                        <button
+                            type="button"
+                            @click.stop="
+                                notification.id
+                                    ? removeNotification(notification.id)
+                                    : (show = false)
+                            "
+                            class="h-6 min-h-6 w-6 min-w-6 cursor-pointer underline md:h-5 md:min-h-5 md:w-5 md:min-w-5"
+                            data-test="banner-close-button"
+                            v-if="notification.closable"
+                        >
+                            <span class="sr-only">Close</span>
+                            <XMarkIcon
+                                class="h-5 w-5"
+                                aria-hidden="true"
+                            />
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
-    </div>
+    </Transition>
 </template>
+
+<style scoped>
+.banner-grid {
+    display: grid;
+    grid-template-rows: 1fr;
+    overflow: hidden;
+}
+
+.banner-grid-content {
+    min-height: 0;
+}
+
+.banner-enter-from,
+.banner-leave-to {
+    grid-template-rows: 0fr;
+    opacity: 0;
+}
+
+.banner-enter-to,
+.banner-leave-from {
+    grid-template-rows: 1fr;
+    opacity: 1;
+}
+
+.banner-enter-active {
+    transition:
+        grid-template-rows 250ms ease-out,
+        opacity 250ms ease-out;
+}
+
+.banner-leave-active {
+    transition:
+        grid-template-rows 250ms ease-in,
+        opacity 250ms ease-in;
+}
+</style>
