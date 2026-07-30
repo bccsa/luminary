@@ -9,22 +9,24 @@ import { buildTargetVirtuals } from "./vite-plugins/buildTargetVirtuals";
 import type { DocLike } from "./src/ssg/facetKeys";
 import { docFacetShard, docFacetShardFile, docFacetsIndex } from "./src/ssg/docFacetShards";
 import { redirectFile, redirectHtml } from "./src/ssg/redirectHtml";
-import { buildRedirectIndex } from "./src/ssg/redirectIndex";
+import { buildRedirectIndex, type SsgRedirectIndex } from "./src/ssg/redirectIndex";
 import { buildRouteIndex, emptyRouteIndex, type SsgRouteIndex } from "./src/ssg/routeIndex";
 import {
     routeIndexShard,
     routeIndexShardFile,
     routeIndexShardsIndex,
 } from "./src/ssg/routeIndexShards";
+import { buildDeleteQueue } from "./src/ssg/deleteQueue";
 import {
     drainQuery,
+    enumerateDeleteCmds,
     enumeratePublicContent,
     type KeysetDocument,
     type KeysetQuery,
     type QueryTransport,
 } from "./src/ssg/queryDrain";
 import { ACTIVE_PROVIDER_KEY, LEGACY_AUTH0_CACHE_PREFIX, OIDC_USER_PREFIX } from "./src/authStorage";
-import { RedirectType } from "luminary-shared";
+import { DocType, RedirectType, type DeleteReason } from "luminary-shared";
 
 const env = loadEnv("", process.cwd());
 
@@ -131,6 +133,14 @@ type SsgRedirect = KeysetDocument & {
     redirectType?: RedirectType;
 };
 type SsgContent = Partial<DocLike> & KeysetDocument & { slug?: string };
+type SsgDeleteCmdDoc = KeysetDocument & {
+    docId?: string;
+    slug?: string;
+    deleteReason?: DeleteReason;
+    language?: string;
+    memberOf?: string[];
+    newMemberOf?: string[];
+};
 
 // Scoped (incremental) rebuild mode: regenerate only the routes named in
 // SSG_ONLY_ROUTES (comma-separated), preserving every other prerendered file.
@@ -140,6 +150,17 @@ const SCOPED_ROUTES: string[] = (process.env.SSG_ONLY_ROUTES || "")
     .map((r) => r.trim())
     .filter(Boolean);
 const IS_SCOPED = SCOPED_ROUTES.length > 0;
+
+// DeleteCmd ids relevant to THIS scoped rebuild (comma-separated). A deleted route was
+// never rendered this build, so there's no "was this route rendered" signal to gate a
+// delete-queue merge on the way writeRouteIndex()/writeDocFacets() do — the deploy repo
+// already knows which DeleteCmd ids triggered the rebuild, so it passes them explicitly
+// via `SSG_DELETE_CMD_IDS=... npm run build:web`. Empty on a purely content-driven
+// scoped rebuild (nothing to add to the delete queue that run).
+const SCOPED_DELETE_CMD_IDS: string[] = (process.env.SSG_DELETE_CMD_IDS || "")
+    .split(",")
+    .map((id) => id.trim())
+    .filter(Boolean);
 
 const indexHtmlPath = () => join(process.cwd(), OUT_DIR, "index.html");
 const manifestPath = () => join(process.cwd(), OUT_DIR, "ssg-deps.json");
@@ -153,6 +174,11 @@ const docFacetShardPath = (shard: string) => join(docFacetsDir(), docFacetShardF
 const routeIndexDir = () => join(process.cwd(), OUT_DIR, "ssg-route-index");
 const routeIndexIndexPath = () => join(routeIndexDir(), "index.json");
 const routeIndexShardPath = (shard: string) => join(routeIndexDir(), routeIndexShardFile(shard));
+// Flat, not sharded (unlike ssg-route-index/ssg-doc-facets): this sidecar never
+// leaves the server (see deleteQueue.ts's own doc comment), so one file per DeleteCmd
+// id is simpler than bucketing — "processed" is a plain rm of that one file.
+const deleteQueueDir = () => join(process.cwd(), OUT_DIR, "ssg-delete-queue");
+const deleteQueueEntryPath = (id: string) => join(deleteQueueDir(), `${id}.json`);
 
 // Build-in-progress lock, consumed by the deployment repo's ISR watcher: it must
 // not spawn a scoped rebuild while a build (the initial full `build:web`, or its own
@@ -432,6 +458,73 @@ async function fetchRedirects(apiUrl: string): Promise<SsgRedirect[]> {
     });
 }
 
+// Drains this build's relevant DeleteCmd docs. A Content-translation delete's DeleteCmd
+// carries the PARENT's docType (Post/Tag), never "content" (see deleteQueue.ts's own
+// doc comment) — and /query requires docType as a scalar equality value, so it's three
+// drains, not one. On a scoped rebuild with no delete-cmd ids given, skip the network
+// calls entirely: there's nothing this run should add to the queue.
+async function fetchDeleteCmds(
+    apiUrl: string,
+): Promise<{ contentCmds: SsgDeleteCmdDoc[]; redirectCmds: SsgDeleteCmdDoc[] }> {
+    if (IS_SCOPED && SCOPED_DELETE_CMD_IDS.length === 0) {
+        return { contentCmds: [], redirectCmds: [] };
+    }
+    const ids = IS_SCOPED ? SCOPED_DELETE_CMD_IDS : undefined;
+    const transport = queryTransport(apiUrl, "delete-cmd enumeration");
+    const [posts, tags, redirects] = await Promise.all([
+        enumerateDeleteCmds<SsgDeleteCmdDoc>(transport, DocType.Post, ids),
+        enumerateDeleteCmds<SsgDeleteCmdDoc>(transport, DocType.Tag, ids),
+        enumerateDeleteCmds<SsgDeleteCmdDoc>(transport, DocType.Redirect, ids),
+    ]);
+    return { contentCmds: [...posts, ...tags], redirectCmds: redirects };
+}
+
+// Resolves this build's drained DeleteCmds into the durable pending-delete queue and
+// writes one file per entry into `ssg-delete-queue/` (see deleteQueue.ts for why this
+// is flat, not sharded like writeRouteIndex()/writeDocFacets()). Legacy (slug-less)
+// fallback data is loaded lazily — only the specific route-index shards a legacy
+// Content cmd's docId hashes to, and only ssg-redirect-index.json if a legacy Redirect
+// cmd needs it.
+function writeDeleteQueue(cmds: { contentCmds: SsgDeleteCmdDoc[]; redirectCmds: SsgDeleteCmdDoc[] }) {
+    const { contentCmds, redirectCmds } = cmds;
+    if (!contentCmds.length && !redirectCmds.length) {
+        console.log("[ssg] no delete-cmd entries to add to ssg-delete-queue/ this run");
+        return;
+    }
+
+    let legacyRouteIndex: SsgRouteIndex | undefined;
+    const legacyContentCmds = contentCmds.filter((c) => !c.slug && c.docId);
+    if (legacyContentCmds.length) {
+        legacyRouteIndex = emptyRouteIndex();
+        const shards = new Set(legacyContentCmds.map((c) => routeIndexShard(c.docId!)));
+        for (const shard of shards) {
+            const path = routeIndexShardPath(shard);
+            if (!existsSync(path)) continue;
+            const shardIndex = JSON.parse(readFileSync(path, "utf-8")) as SsgRouteIndex;
+            Object.assign(legacyRouteIndex.content, shardIndex.content);
+            Object.assign(legacyRouteIndex.parent, shardIndex.parent);
+        }
+    }
+
+    let legacyRedirectSlugs: Record<string, string> | undefined;
+    if (redirectCmds.some((c) => !c.slug) && existsSync(redirectIndexPath())) {
+        const index = JSON.parse(readFileSync(redirectIndexPath(), "utf-8")) as SsgRedirectIndex;
+        legacyRedirectSlugs = Object.fromEntries(
+            Object.entries(index).map(([id, entry]) => [id, entry.slug]),
+        );
+    }
+
+    const fresh = buildDeleteQueue(contentCmds, redirectCmds, legacyRouteIndex, legacyRedirectSlugs);
+
+    mkdirSync(deleteQueueDir(), { recursive: true });
+    for (const [id, entry] of Object.entries(fresh)) {
+        writeFileSync(deleteQueueEntryPath(id), JSON.stringify(entry));
+    }
+    console.log(
+        `[ssg] wrote ${Object.keys(fresh).length} entr${Object.keys(fresh).length === 1 ? "y" : "ies"} to ssg-delete-queue/`,
+    );
+}
+
 async function writeRedirectFiles(apiUrl: string): Promise<void> {
     const redirects = await fetchRedirects(apiUrl);
     writeFileSync(redirectIndexPath(), JSON.stringify(buildRedirectIndex(redirects)));
@@ -584,6 +677,7 @@ const config: UserConfig & { ssgOptions: ViteSSGOptions } = {
                 writeManifest();
                 writeRouteIndex();
                 writeDocFacets();
+                writeDeleteQueue(await fetchDeleteCmds(env.VITE_API_URL));
                 if (!IS_SCOPED) {
                     await writeRedirectFiles(env.VITE_API_URL);
                 }

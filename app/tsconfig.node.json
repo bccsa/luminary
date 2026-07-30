@@ -12,6 +12,7 @@
         "src/ssg/redirectHtml.ts",
         "src/ssg/routeIndex.ts",
         "src/ssg/routeIndexShards.ts",
+        "src/ssg/deleteQueue.ts",
         "cypress.config.*",
         "nightwatch.conf.*",
         "playwright.config.*"

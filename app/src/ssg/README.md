@@ -71,7 +71,7 @@ native is `app/vite.config.ts`.
 | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
 | `../main.web.ts`               | Web entry (`ViteSSG`). Prerender: `initHybridQuery(HttpReq)` so `queryRemote` works in Node, set render language + fill `cmsLanguages` before i18n, add locale-prefixed static routes, serialize render/default langs via `initialState`. Client: restore those + boot the data layer (`clientRuntime`), minus the service worker. Branches only on `import.meta.env.SSR`. | Node + browser   |
 | `../router/localizedRoutes.ts` | Pure route helper for locale-prefixed public static routes (`/<code>`, `/<code>/explore`, `/<code>/watch`). Imported by the web entry only; native routes stay unchanged.                                                                                                                                                                                                  | Node + browser   |
-| `../../vite.config.web.ts`     | Web build config: route enumeration, `concurrency:1`, dependency-capture hooks, **per-page `hqcache:*` → inline-script serialization**, writes `ssg-deps.json` / `ssg-route-index/` / `ssg-redirect-index.json` / `ssg-doc-facets/` / sitemap / robots / static redirect HTML, scoped-rebuild mode.                                                                | Node (build)     |
+| `../../vite.config.web.ts`     | Web build config: route enumeration, `concurrency:1`, dependency-capture hooks, **per-page `hqcache:*` → inline-script serialization**, writes `ssg-deps.json` / `ssg-route-index/` / `ssg-redirect-index.json` / `ssg-doc-facets/` / `ssg-delete-queue/` / sitemap / robots / static redirect HTML, scoped-rebuild mode.                                                                | Node (build)     |
 | `polyfills.ts`                 | Node shims jsdom lacks (localStorage/sessionStorage/matchMedia). Imported first in `main.web.ts`. The `localStorage` shim also backs `writeResponseCache` during the prerender.                                                                                                                                                                                            | Node (prerender) |
 | `clientRuntime.ts`             | `initSsgClient()` boots the data layer on the **browser client** after hydration (`init()` + sync + language). Dynamically imported (never in the prerender).                                                                                                                                                                                                              | browser          |
 | `facetKeys.ts`                 | **Pure** key vocabulary. `docKey` + `facetsFromSelector` / `facetsFromDoc` (`facet:<field>:<value>:<lang>`). No Vue/DOM/Vite deps. The deploy repo carries its own copy for the watcher side — keep them in sync when the vocabulary changes.                                                                                                                      | anywhere         |
@@ -81,7 +81,8 @@ native is `app/vite.config.ts`.
 | `routeIndexShards.ts`          | **Pure** shard-id function (`routeIndexShard`, fnv1a32 mod `ROUTE_INDEX_SHARD_COUNT`) for `ssg-route-index/`. No Vue/DOM/Vite/fs deps. The deploy repo carries its own copy — keep the count/algorithm in sync.                                                                                                                                                    | anywhere         |
 | `redirectIndex.ts`             | Pure redirect id → `{ slug, status }` sidecar helper, so redirect DeleteCmds can remove static redirect files and the deploy repo can apply the right HTTP status.                                                                                                                                                                                                        | Node             |
 | `redirectHtml.ts`              | Pure static redirect renderer (`redirectHtml` + `redirectFile` + `redirectStatus`) shared by full builds and the watcher. Maps `redirectType` to a 301/302.                                                                                                                                                                                                               | Node             |
-| `queryDrain.ts`                | Pure keyset-pagination helper (`drainQuery`, `enumeratePublicContent`) over anonymous `/query`, used by route/language/redirect enumeration in `vite.config.web.ts`.                                                                                                                                                                                                       | Node (build)     |
+| `queryDrain.ts`                | Pure keyset-pagination helper (`drainQuery`, `enumeratePublicContent`, `enumerateDeleteCmds`) over anonymous `/query`, used by route/language/redirect/delete-cmd enumeration in `vite.config.web.ts`.                                                                                                                                                                     | Node (build)     |
+| `deleteQueue.ts`               | Pure DeleteCmd → durable pending-delete queue-entry resolver (`resolveContentDeleteQueueEntry` / `resolveRedirectDeleteQueueEntry` / `buildDeleteQueue`) for `ssg-delete-queue/`. Slug-first (new DeleteCmds self-describe their route); falls back to `routeIndex.ts`/`redirectIndex.ts`'s legacy sidecars only for slug-less DeleteCmds. Entries also carry the DeleteCmd's own `deleteReason`/`language`/`memberOf`/`newMemberOf` — this sidecar never leaves the server, so there's no size pressure to strip them.                              | Node             |
 
 **Naming convention:** identifiers that discriminate "which side of the prerender is
 this" use `Ssg`/`SSG` (`initSsgClient`, `ssgRouteLang`, `__SSG_DEPS__`), never
@@ -198,6 +199,54 @@ companion for anyone inspecting the inlined state.
   A consumer that wants a doc's old facet snapshot computes its shard directly (no
   directory listing) and can process shards independently instead of loading the whole
   dataset at once.
+- **Delete queue**: `dist-web/ssg-delete-queue/<deleteCmdId>.json`, one file per
+  DeleteCmd id, holding the resolved `{ docType, docId, parentId?, routes, files }`
+  plus the DeleteCmd's own `deleteReason`/`language`/`memberOf`/`newMemberOf` — a
+  *durable* record of pending deletes, not just a lookup table. Before this sidecar
+  existed, "a doc was deleted" was known only as a transient fact the deploy repo's
+  watcher observed while polling DeleteCmd docs; if it crashed between seeing the
+  DeleteCmd and finishing the storage-delete + CDN-purge, that pending action could be
+  lost. DeleteCmd docs are never pruned from CouchDB, so the fact of the delete is
+  never lost — but nothing recorded whether it had been *acted on*. The deploy repo now
+  reads this queue, performs the actual delete + purge, then deletes that one file
+  itself once done; a crash at any point just leaves the file for the next pass.
+    - Resolution is **slug-first**: `DeleteCmdDto.slug` (added alongside `.language`)
+      lets a Content/Redirect DeleteCmd self-describe its own route with no sidecar
+      lookup. Falls back to `routeIndex.ts`/`redirectIndex.ts`'s legacy sidecars only
+      for DeleteCmds created before `.slug` existed (`deleteQueue.ts`'s
+      `resolveContentDeleteQueueEntry` / `resolveRedirectDeleteQueueEntry`).
+    - **A Content-translation DeleteCmd's `docType` is the *parent's* type** (`Post` or
+      `Tag`), never `"content"` — the permission system has no ACLs on Content itself
+      (`api/src/db/db.service.ts`'s `insertDeleteCmd`). `/query` requires `docType` as
+      a scalar equality value (no `$in`), so enumerating every Content-related delete
+      takes **three** drains (`Post`, `Tag`, `Redirect`), not one
+      (`enumerateDeleteCmds` in `queryDrain.ts`).
+    - **Flat, not sharded** — unlike `ssg-route-index/`/`ssg-doc-facets/`, this sidecar
+      is never uploaded anywhere (it's consumed entirely locally by the deploy repo,
+      per the Deploy topology section below), so sharding's rationale (bound what a
+      consumer must load/rewrite) doesn't need a bucketing scheme when each entry
+      already is its own file: "processed" is a plain `rm <id>.json`, with no
+      read-merge-write race against other entries sharing a file.
+    - **Full build**: re-derives the queue from every currently-existing DeleteCmd doc.
+      Safe because full builds are already rare (restart-skip avoids them on ordinary
+      restarts) and a storage-delete/CDN-purge is an idempotent no-op against an
+      already-resolved entry — no watermark/cursor needed.
+    - **Scoped rebuild**: merges in only the entries for `SSG_DELETE_CMD_IDS=...`
+      (comma-separated DeleteCmd ids, same one-shot-parameter shape as
+      `SSG_ONLY_ROUTES`) — a deleted route was never rendered this build, so there's
+      no "was this route rendered" signal to gate a merge on the way
+      `writeRouteIndex()`/`writeDocFacets()` do; the deploy repo already knows which
+      DeleteCmd ids triggered the rebuild, so it passes them explicitly. Empty (or
+      unset) on a purely content-driven scoped rebuild skips the drain entirely — this
+      is a **new env-var contract the deploy repo must start setting** on
+      delete-triggered scoped rebuilds.
+    - Known asymmetry, not fixed here: `ssg-route-index/` is cumulative (entries
+      persist across full builds), so its legacy fallback works indefinitely.
+      `ssg-redirect-index.json` is fully overwritten every full build with only
+      currently-active redirects, so a legacy (pre-`.slug`) Redirect DeleteCmd is only
+      resolvable via that fallback until the next full build after its deletion —
+      small and bounded, and consistent with `routeIndex.ts`'s own doc comment already
+      tolerating this class of gap.
 - **Scoped rebuild** (`SSG_ONLY_ROUTES=... npm run build:web`): renders only those routes,
   `emptyOutDir:false` (keep other files), **merges** the manifest (not overwrites),
   restores the SPA `index.html` if `/` wasn't in scope. Deployment-side ISR tooling
@@ -230,6 +279,7 @@ prerender authenticates as
 | 11  | **Enumerate routes via keyset pagination over `POST /query`** (`queryDrain.ts`, `QUERY_PAGE_SIZE = 500`), not a single high-limit `/search` request                                   | The old `/search` reader was deleted (see status note above). Offset pagination was nondeterministic and silently capped the site at ~101 of ~1934 pages; keyset pagination over `/query` drains the full set deterministically.                                                                                                                                                                         |
 | 12  | **No service worker on the web tier**                                                                              | Capacitor owns native/offline. The client-entry rewrite must drop the SW + Matomo SW registration.                                                                                                                                                           |
 | 13  | **Run the watcher + upload/purge from a separate deploy repo**                                                     | Keeps cloud-specific (R2/Cloudflare) concerns out of the app repo.                                                                                                                                                                                           |
+| 14  | **A durable, file-based delete queue** (`ssg-delete-queue/`), not a DB-poll-only cursor | A crash between "watcher saw the DeleteCmd" and "storage delete + CDN purge finished" must not lose the pending action. DeleteCmd docs are a permanent CouchDB ledger, so the *fact* was never lost — but nothing recorded whether it had been acted on. Rejected: re-deriving pending deletes purely from an in-memory poll cursor each restart. |
 
 ---
 
@@ -245,6 +295,12 @@ right language. Full builds also emit static meta-refresh redirect files.
 computed the affected route, ran `SSG_ONLY_ROUTES=... npm run build:web`, and the page regenerated. Content
 delete support is implemented via `ssg-route-index/`; recategorization old-facet
 coverage is backed by `ssg-doc-facets/`. Live API verification is still user-run.
+
+**Delete queue (`ssg-delete-queue/`):** implemented and unit-tested (`deleteQueue.spec.ts`,
+`queryDrain.spec.ts`); verified at build level only (full +
+scoped `build:web`). The deploy repo's consumer — reading the queue, performing the
+actual storage delete + CDN purge, then removing each entry — is not implemented here;
+it's the other half of the "Deploy cleanup hook" gap below.
 
 **404 error page:** `NotFoundPage` is prerendered to `dist-web/404.html` (via a static
 `/404` route in `routes.ts` with `meta.prerender`; vite-ssg's flat `dirStyle` writes
@@ -264,8 +320,12 @@ switch, 404, and nav links. Note `VITE_API_URL` must point at a running API.
 
 ## Open gaps / TODO
 
-- **Deploy cleanup hook** for Cloudflare/R2 — after ISR, the deploy repo should upload
-  changed `dist-web` files, delete objects missing locally, and purge changed/deleted URLs.
+- **Deploy cleanup hook** for Cloudflare/R2 — the durable-record half of this is done:
+  `ssg-delete-queue/` gives the deploy repo a crash-safe, file-based list of pending
+  deletes (see "Delete queue" above). What's still open is the deploy repo's own
+  consumer: upload changed `dist-web` files, read the queue, actually delete the
+  corresponding storage objects and purge their CDN paths, then remove each entry —
+  none of that execution lives in this repo.
 
 ---
 
@@ -299,7 +359,8 @@ switch, 404, and nav links. Note `VITE_API_URL` must point at a running API.
 - Seam: `app/src/composables/useContentQuery.ts`. Web entry: `app/src/main.web.ts`.
   Web build config: `app/vite.config.web.ts`.
 - Pure infra: `facetKeys.ts` / `dependencyCapture.ts` /
-  `redirectHtml.ts` / `routeIndex.ts` / `redirectIndex.ts` / `queryDrain.ts`.
+  `redirectHtml.ts` / `routeIndex.ts` / `redirectIndex.ts` / `queryDrain.ts` /
+  `deleteQueue.ts`.
 - Every file in this folder has a matching `*.spec.ts` (run with
   `npm run test -- src/ssg`); `clientRuntime.spec.ts` and `polyfills.spec.ts` mock
   or reset the browser globals they touch since the real thing only exists at

@@ -11,7 +11,7 @@ export const QUERY_USE_INDEX = "updatedTimeUtc-type-id-index";
 export type QueryCursor = { updatedTimeUtc: number; _id: string };
 export type KeysetDocument = QueryCursor;
 export type QuerySelector = Record<string, unknown>;
-export type QueryType = "content" | "language" | "redirect";
+export type QueryType = "content" | "language" | "redirect" | "deleteCmd";
 
 export type KeysetQuery = {
     selector: QuerySelector;
@@ -98,4 +98,25 @@ export function enumeratePublicContent<T extends KeysetDocument>(
         type: "content",
         conditions: [{ publishDate: { $lte: now } }],
     });
+}
+
+/**
+ * Drains `DeleteCmd` docs for one `docType` value. `/query` requires `docType` as a
+ * scalar equality value (no `$in`) for DeleteCmd queries, so a Content-translation
+ * delete (whose DeleteCmd carries the parent's `Post`/`Tag` type, never `"content"` —
+ * the permission system has no ACLs on Content itself) needs one call per parent type,
+ * plus one more for `Redirect` — three calls, not one (see `deleteQueue.ts`).
+ *
+ * An optional `ids` filter narrows the drain to exactly those DeleteCmd doc ids — a
+ * scoped rebuild only wants the entries relevant to the DeleteCmds that triggered it,
+ * not the entire historical ledger (see `SSG_DELETE_CMD_IDS` in `vite.config.web.ts`).
+ */
+export function enumerateDeleteCmds<T extends KeysetDocument>(
+    transport: QueryTransport,
+    docType: string,
+    ids?: string[],
+): Promise<T[]> {
+    const conditions: QuerySelector[] = [{ docType }];
+    if (ids?.length) conditions.push({ _id: { $in: ids } });
+    return drainQuery<T>(transport, { type: "deleteCmd", conditions });
 }

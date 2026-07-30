@@ -3,7 +3,9 @@ import {
     advanceQueryCursor,
     buildKeysetQuery,
     drainQuery,
+    enumerateDeleteCmds,
     enumeratePublicContent,
+    QUERY_PAGE_SIZE,
     type KeysetDocument,
     type KeysetQuery,
     type QueryTransport,
@@ -116,6 +118,67 @@ describe("queryDrain", () => {
                 { type: "content" },
                 { publishDate: { $lte: now } },
             ],
+        });
+    });
+
+    describe("enumerateDeleteCmds", () => {
+        it("queries a scalar docType with no ids filter", async () => {
+            const calls: KeysetQuery[] = [];
+
+            await enumerateDeleteCmds<TestDoc>(queuedTransport([[]], calls), "post");
+
+            expect(calls).toHaveLength(1);
+            expect(calls[0].selector).toEqual({
+                $and: [{ type: "deleteCmd" }, { docType: "post" }],
+            });
+        });
+
+        it("adds an _id $in filter when ids are given", async () => {
+            const calls: KeysetQuery[] = [];
+
+            await enumerateDeleteCmds<TestDoc>(queuedTransport([[]], calls), "redirect", [
+                "cmd-1",
+                "cmd-2",
+            ]);
+
+            expect(calls[0].selector).toEqual({
+                $and: [
+                    { type: "deleteCmd" },
+                    { docType: "redirect" },
+                    { _id: { $in: ["cmd-1", "cmd-2"] } },
+                ],
+            });
+        });
+
+        it("omits the _id filter when ids is empty", async () => {
+            const calls: KeysetQuery[] = [];
+
+            await enumerateDeleteCmds<TestDoc>(queuedTransport([[]], calls), "tag", []);
+
+            expect(calls[0].selector).toEqual({
+                $and: [{ type: "deleteCmd" }, { docType: "tag" }],
+            });
+        });
+
+        it("drains multiple pages (a full first page triggers a second call)", async () => {
+            const calls: KeysetQuery[] = [];
+            const firstPage: TestDoc[] = Array.from({ length: QUERY_PAGE_SIZE }, (_, i) => ({
+                updatedTimeUtc: i,
+                _id: `id-${i}`,
+                value: `v${i}`,
+            }));
+            const secondPage: TestDoc[] = [
+                { updatedTimeUtc: QUERY_PAGE_SIZE, _id: "last", value: "last" },
+            ];
+
+            const docs = await enumerateDeleteCmds<TestDoc>(
+                queuedTransport([firstPage, secondPage], calls),
+                "post",
+            );
+
+            expect(calls).toHaveLength(2);
+            expect(docs).toHaveLength(QUERY_PAGE_SIZE + 1);
+            expect(docs[docs.length - 1]._id).toBe("last");
         });
     });
 });
