@@ -43,12 +43,13 @@ const relatedContent = computed(() =>
     contentDocs.value.filter((item) => item.parentId !== props.selectedContent.parentId),
 );
 
-// Re-order the topic candidates to stay relevant to the article being read, and drop
+// Re-order the related articles to stay relevant to the one being read, and drop
 // already-seen articles. Retrieval stays purely topical (the query above); `rank` only tilts
 // order, primarily by tag overlap with the current article (`referenceTagIds`), with recency
 // as a secondary order and affinity a mild tie-break (see `READ_MORE_AFFINITY_WEIGHT`). A cold
 // profile or single-topic article falls back to recency order (newest first), matching the
-// previous publishDate-desc behaviour. No `limit` and a relaxed MMR cap ⇒ nothing is dropped.
+// previous publishDate-desc behaviour. No `limit` and a relaxed MMR cap ⇒ rank itself drops
+// nothing; the 12-item cap is applied after, so the top-ranked cards survive.
 const topicTagIds = computed(() => new Set(props.tags.map((tag) => tag.parentId)));
 const referenceTagIds = computed(() => new Set(props.selectedContent.parentTags ?? []));
 // Tempered from the default TAG_LEG_WEIGHT (1.5): the affinity term is
@@ -57,13 +58,9 @@ const referenceTagIds = computed(() => new Set(props.selectedContent.parentTags 
 // recency prior's 0.05 span. Affinity thus only breaks near-ties within a recency band instead
 // of dominating the order. Tunable.
 const READ_MORE_AFFINITY_WEIGHT = 0.01;
-// Boosts topic cards (props.tags) above ordinary posts in the common case, without pinning
-// them first outright. Comfortably above the referenceWeight leg's typical range (ordinary
-// posts sharing 1-3 tags with the article score +1 to +3 via referenceWeight: 1.0 below), so
-// an exceptionally on-topic, heavily-tagged post can still outrank a topic. A first-guess
-// starting point pending real ranking data, not a tuned final value.
-const TOPIC_BOOST_WEIGHT = 5;
-const topicDocIds = computed(() => new Set(props.tags.map((tag) => tag._id)));
+// Read more is a focused topical sidebar, not an endless feed — cap the section so it never
+// grows past a handful of cards.
+const READ_MORE_MAX_ITEMS = 12;
 const decayedAffinity = computed(
     () => decay(affinityProfile.value, sessionNow(), affinityConfig.value).affinity,
 );
@@ -75,20 +72,19 @@ const seenIds = computed(() => {
 });
 
 const readMoreItems = computed(() => {
-    // Topic cards (props.tags) join the ranked pool directly instead of being appended after —
-    // they compete on score via boostDocIds/boostWeight so they can land wherever that score
-    // puts them, not always last. Not filtered by seenIds: that exclusion is for read articles.
+    // The grid shows related articles only — the dedicated topic cards (props.tags) are no
+    // longer mixed in, since the section is already topical. Already-seen articles are still
+    // excluded (that filter is for read articles, not topic cards).
     const candidates = relatedContent.value.filter((item) => !seenIds.value.has(item._id));
-    return rank([...candidates, ...props.tags], [], decayedAffinity.value, {
+    const ranked = rank(candidates, [], decayedAffinity.value, {
         topicTagIds: topicTagIds.value,
         scoreScale,
         tagWeight: READ_MORE_AFFINITY_WEIGHT,
         referenceTagIds: referenceTagIds.value,
         referenceWeight: 1.0,
         maxPerDominantTag: 100,
-        boostDocIds: topicDocIds.value,
-        boostWeight: TOPIC_BOOST_WEIGHT,
     });
+    return ranked.slice(0, READ_MORE_MAX_ITEMS);
 });
 </script>
 

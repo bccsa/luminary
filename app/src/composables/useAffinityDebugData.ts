@@ -4,10 +4,9 @@ import { useContentQuery } from "@/composables/useContentQuery";
 import { affinityConfig } from "@/recommendation/defaultAffinityStore";
 
 /**
- * Shared debug-view data for the two affinity-debug UIs (the persistent page and the
- * floating overlay): decayed per-tag scores sorted descending, plus a tag-id → title
- * lookup for display. Both callers pass their own `profile`/`now` refs so decay ticks
- * on their own timer and against their own profile source.
+ * Data for the floating affinity debug overlay (`AffinityDebugOverlay.vue`): decayed
+ * per-tag scores sorted descending, plus a tag-id → title lookup for display. Takes
+ * `profile`/`now` as refs so decay ticks on the caller's own timer.
  */
 export function useAffinityDebugData(profile: Ref<AffinityProfile | undefined>, now: Ref<number>) {
     const decayedEntries = computed(() => {

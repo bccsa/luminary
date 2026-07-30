@@ -66,16 +66,26 @@ describe("RelatedContent", () => {
     });
 
     it("doesn't display the current post in the related topic", async () => {
+        await db.docs.bulkPut([
+            {
+                ...mockEnglishContentDto,
+                parentId: "post-post2",
+                _id: "content-post2-eng",
+                title: "Post 2",
+                parentTags: [mockTopicContentDto.parentId],
+            } as ContentDto,
+        ]);
+
         const wrapper = mount(RelatedContent, {
             props: {
-                tags: [mockTopicContentDto],
+                tags: [{ ...mockTopicContentDto, parentTaggedDocs: ["post-post2"] }],
                 selectedContent: mockEnglishContentDto,
             },
         });
 
         await waitForExpect(() => {
-            // The topic itself is included in Read more, but the current post isn't.
-            expect(wrapper.html()).toContain(mockTopicContentDto.title);
+            // The related post appears, but the current article doesn't.
+            expect(wrapper.html()).toContain("Post 2");
             expect(wrapper.html()).not.toContain(mockEnglishContentDto.title);
         });
     });
@@ -212,41 +222,6 @@ describe("RelatedContent", () => {
 
         await waitForExpect(() => {
             expect(wrapper.html()).toContain("A short related summary");
-        });
-        expect(wrapper.findComponent(ReadMore).html()).toContain(mockTopicContentDto.title);
-    });
-
-    it("displays all topics in the same Read more collection as related posts", async () => {
-        const topicB = {
-            ...mockTopicContentDto,
-            _id: "content-tag-topicB",
-            parentId: "tag-topicB",
-            slug: "content-tag-topicB",
-            title: "Topic B",
-        } as ContentDto;
-
-        await db.docs.put({
-            ...mockEnglishContentDto,
-            parentId: "post-post2",
-            _id: "content-post2-eng",
-            title: "Post 2",
-        } as ContentDto);
-
-        const wrapper = mount(RelatedContent, {
-            props: {
-                tags: [
-                    { ...mockTopicContentDto, parentTaggedDocs: ["post-post2"] },
-                    topicB,
-                ],
-                selectedContent: mockEnglishContentDto,
-            },
-        });
-
-        await waitForExpect(() => {
-            const readMore = wrapper.findComponent(ReadMore).html();
-            expect(readMore).toContain("Post 2");
-            expect(readMore).toContain(mockTopicContentDto.title);
-            expect(readMore).toContain("Topic B");
         });
     });
 
@@ -413,77 +388,6 @@ describe("RelatedContent", () => {
         });
     });
 
-    it("ranks a topic card above an ordinary related post", async () => {
-        // The topic boost (TOPIC_BOOST_WEIGHT) should comfortably outweigh a typical post's
-        // referenceWeight contribution (+1 for sharing one tag with the current article).
-        await db.docs.bulkPut([
-            {
-                ...mockEnglishContentDto,
-                parentId: "post-post2",
-                _id: "content-post2-eng",
-                title: "Post 2",
-                parentTags: [mockTopicContentDto.parentId],
-            } as ContentDto,
-        ]);
-
-        const wrapper = mount(RelatedContent, {
-            props: {
-                tags: [{ ...mockTopicContentDto, parentTaggedDocs: ["post-post2"] }],
-                selectedContent: {
-                    ...mockEnglishContentDto,
-                    _id: "content-other-eng",
-                    title: "Other",
-                    parentTags: [mockTopicContentDto.parentId],
-                } as ContentDto,
-            },
-        });
-
-        await waitForExpect(() => {
-            const titles = wrapper.findAll("[data-mobile-title]").map((el) => el.text());
-            const topicIdx = titles.findIndex((t) => t.includes(mockTopicContentDto.title));
-            const postIdx = titles.findIndex((t) => t.includes("Post 2"));
-            expect(topicIdx).toBeGreaterThanOrEqual(0);
-            expect(postIdx).toBeGreaterThanOrEqual(0);
-            expect(topicIdx).toBeLessThan(postIdx);
-        });
-    });
-
-    it("lets a post sharing many tags with the current article outrank a boosted topic", async () => {
-        // The boost is a soft nudge, not a hard pin: a post overlapping enough of the current
-        // article's tags can still out-score TOPIC_BOOST_WEIGHT via the referenceWeight leg.
-        const manyTags = ["tag-x1", "tag-x2", "tag-x3", "tag-x4", "tag-x5", "tag-x6"];
-        await db.docs.bulkPut([
-            {
-                ...mockEnglishContentDto,
-                parentId: "post-heavy",
-                _id: "content-heavy-eng",
-                title: "Heavily Related Post",
-                parentTags: [mockTopicContentDto.parentId, ...manyTags],
-            } as ContentDto,
-        ]);
-
-        const wrapper = mount(RelatedContent, {
-            props: {
-                tags: [{ ...mockTopicContentDto, parentTaggedDocs: ["post-heavy"] }],
-                selectedContent: {
-                    ...mockEnglishContentDto,
-                    _id: "content-other-eng",
-                    title: "Other",
-                    parentTags: [mockTopicContentDto.parentId, ...manyTags],
-                } as ContentDto,
-            },
-        });
-
-        await waitForExpect(() => {
-            const titles = wrapper.findAll("[data-mobile-title]").map((el) => el.text());
-            const topicIdx = titles.findIndex((t) => t.includes(mockTopicContentDto.title));
-            const postIdx = titles.findIndex((t) => t.includes("Heavily Related Post"));
-            expect(topicIdx).toBeGreaterThanOrEqual(0);
-            expect(postIdx).toBeGreaterThanOrEqual(0);
-            expect(postIdx).toBeLessThan(topicIdx);
-        });
-    });
-
     it("keeps affinity as a mild nudge: a much newer non-affinity item beats an older affinity one", async () => {
         // At equal relevance (both share one tag) recency orders; affinity is tempered below
         // the recency span so it cannot leapfrog a much newer item. Under the old un-tempered
@@ -538,6 +442,40 @@ describe("RelatedContent", () => {
             expect(recIdx).toBeGreaterThanOrEqual(0);
             expect(affIdx).toBeGreaterThanOrEqual(0);
             expect(recIdx).toBeLessThan(affIdx);
+        });
+    });
+
+    it("caps the Read more collection at 12 items", async () => {
+        // Seed more related posts than the cap; only the top 12 (by recency, the cold-profile
+        // fallback) should reach ReadMore regardless of how many the query returns.
+        const posts = Array.from({ length: 15 }, (_, i) => ({
+            ...mockEnglishContentDto,
+            parentId: `post-cap${i}`,
+            _id: `content-cap${i}-eng`,
+            title: `Cap Post ${i}`,
+            parentTags: [mockTopicContentDto.parentId],
+        })) as ContentDto[];
+        await db.docs.bulkPut(posts);
+
+        const wrapper = mount(RelatedContent, {
+            props: {
+                tags: [
+                    {
+                        ...mockTopicContentDto,
+                        parentTaggedDocs: posts.map((p) => p.parentId),
+                    },
+                ],
+                selectedContent: {
+                    ...mockEnglishContentDto,
+                    _id: "content-other-eng",
+                    title: "Other",
+                } as ContentDto,
+            },
+        });
+
+        await waitForExpect(() => {
+            const items = wrapper.findComponent(ReadMore).props("items") as ContentDto[];
+            expect(items).toHaveLength(12);
         });
     });
 });
