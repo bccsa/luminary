@@ -203,10 +203,10 @@ const onEscape = (e: KeyboardEvent) => {
             <div class="flex items-center gap-1">
                 <component
                     :is="props.labelIcon"
-                    class="h-5 w-5 text-zinc-400"
+                    class="h-5 w-5 text-zinc-400 dark:text-zinc-500"
                     v-if="props.labelIcon && props.showIcon"
                 />
-                <FormLabel v-if="label">{{ label }}</FormLabel>
+                <FormLabel v-if="label" class="dark:text-zinc-200">{{ label }}</FormLabel>
             </div>
             <slot name="actions" v-if="$slots.actions" />
         </div>
@@ -246,8 +246,8 @@ const onEscape = (e: KeyboardEvent) => {
                     <!-- Inline tags trigger -->
                     <div
                         v-if="inlineTags"
-                        class="relative flex min-h-[42px] flex-wrap items-center gap-1 rounded-md bg-white pl-2 pr-1 focus-within:outline focus-within:outline-offset-[-2px] focus-within:outline-zinc-950"
-                        :class="{ 'border-[1px] border-zinc-300': !noBorder }"
+                        class="relative flex min-h-[42px] flex-wrap items-center gap-1 rounded-md bg-white pl-2 pr-1 transition-all focus-within:outline focus-within:outline-offset-[-2px] focus-within:outline-zinc-950 dark:bg-slate-900 dark:focus-within:outline-indigo-500"
+                        :class="{ 'border-[1px] border-zinc-300 dark:border-slate-700': !noBorder }"
                         v-bind="attrsWithoutStyles"
                     >
                         <LTag
@@ -270,7 +270,7 @@ const onEscape = (e: KeyboardEvent) => {
                         <input
                             v-model="query"
                             ref="inputElement"
-                            class="z-0 h-7 min-w-[40px] flex-1 border-0 bg-transparent p-0 text-zinc-900 placeholder:text-sm placeholder:text-zinc-400 focus:ring-0 sm:min-w-[80px]"
+                            class="z-0 h-7 min-w-[40px] flex-1 border-0 bg-transparent p-0 text-zinc-900 placeholder:text-zinc-400 focus:ring-0 dark:text-zinc-100 dark:placeholder:text-zinc-600"
                             :placeholder="
                                 selectedOptions.length > 0 && !query
                                     ? ''
@@ -312,7 +312,7 @@ const onEscape = (e: KeyboardEvent) => {
                             tabindex="-1"
                         >
                             <ChevronUpDownIcon
-                                class="h-5 w-5 text-zinc-400 hover:cursor-pointer"
+                                class="h-5 w-5 text-zinc-400 hover:cursor-pointer dark:text-zinc-500"
                             />
                         </button>
                     </div>
@@ -320,9 +320,9 @@ const onEscape = (e: KeyboardEvent) => {
                     <!-- Standard trigger -->
                     <div
                         v-else
-                        class="relative flex w-full justify-between gap-2 rounded-md bg-white focus-within:outline focus-within:outline-offset-[-2px] focus-within:outline-zinc-950"
+                        class="relative flex w-full justify-between gap-2 rounded-md bg-white transition-all focus-within:outline focus-within:outline-offset-[-2px] focus-within:outline-zinc-950 dark:bg-slate-900 dark:focus-within:outline-indigo-500"
                         :class="{
-                            'border-[1px] border-zinc-300': !noBorder,
+                            'border-[1px] border-zinc-300 dark:border-slate-700': !noBorder,
                             'pl-1 pr-3': smallInput && isMobileScreen,
                             'pl-3 pr-3': !smallInput || !isMobileScreen,
                         }"
@@ -334,8 +334,8 @@ const onEscape = (e: KeyboardEvent) => {
                                 <component
                                     :is="icon"
                                     :class="{
-                                        'text-zinc-400': !disabled,
-                                        'text-zinc-300': disabled,
+                                        'text-zinc-400 dark:text-zinc-500': !disabled,
+                                        'text-zinc-300 dark:text-zinc-800': disabled,
                                     }"
                                     class="h-5 w-5"
                                 />
@@ -343,11 +343,9 @@ const onEscape = (e: KeyboardEvent) => {
                             <input
                                 v-model="query"
                                 ref="inputElement"
-                                class="z-0 w-full flex-1 border-0 bg-transparent p-0 text-zinc-900 ring-zinc-300 placeholder:text-sm placeholder:text-zinc-400 focus:ring-0"
+                                class="z-0 w-full flex-1 border-0 bg-transparent p-0 text-zinc-900 placeholder:text-zinc-400 focus:ring-0 dark:text-zinc-100 dark:placeholder:text-zinc-600"
                                 :class="[
-                                    smallInput && isMobileScreen
-                                        ? 'h-[30px] text-sm'
-                                        : 'h-[38px]',
+                                    smallInput && isMobileScreen ? 'h-[30px] text-sm' : 'h-[38px]',
                                     { 'w-96': $slots.actions && !isSmallScreen },
                                 ]"
                                 :placeholder="placeholder ?? 'Type to select...'"
@@ -385,7 +383,7 @@ const onEscape = (e: KeyboardEvent) => {
                                 name="options-open-btn"
                             >
                                 <ChevronUpDownIcon
-                                    class="h-5 w-5 text-zinc-400 hover:cursor-pointer"
+                                    class="h-5 w-5 text-zinc-400 hover:cursor-pointer dark:text-zinc-500"
                                 />
                             </button>
                         </div>
@@ -393,7 +391,7 @@ const onEscape = (e: KeyboardEvent) => {
                 </template>
 
                 <div
-                    class="max-h-48 w-full"
+                    class="max-h-48 w-full dark:bg-slate-800"
                     :class="{ 'w-96': $slots.actions && !isSmallScreen }"
                     data-test="options"
                     @wheel.stop
@@ -409,9 +407,12 @@ const onEscape = (e: KeyboardEvent) => {
                         :class="[
                             'relative cursor-default select-none py-2 pl-3 pr-9',
                             {
-                                'bg-white text-black hover:bg-zinc-100': !option.selected,
-                                'text-zinc-300 hover:bg-white': option.selected,
-                                'bg-zinc-100': highlightedIndex === filtered.indexOf(option),
+                                'bg-white text-black hover:bg-zinc-100 dark:bg-slate-800 dark:text-zinc-300 dark:hover:bg-slate-700 dark:hover:text-white':
+                                    !option.selected,
+                                'cursor-not-allowed text-zinc-300 dark:text-zinc-600':
+                                    option.selected,
+                                'bg-zinc-100 dark:bg-slate-700 dark:text-zinc-100':
+                                    highlightedIndex === filtered.indexOf(option),
                             },
                         ]"
                         @click="selectOption(option)"
@@ -449,7 +450,7 @@ const onEscape = (e: KeyboardEvent) => {
             </div>
             <div
                 v-if="showSelectedLabels && selectedLabels.length === 0"
-                class="pt-4 text-center text-xs italic text-zinc-500"
+                class="pt-4 text-center text-xs italic text-zinc-500 dark:text-zinc-600"
             >
                 No options selected yet.
             </div>
