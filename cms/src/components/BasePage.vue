@@ -70,7 +70,7 @@ const handleMobileSidebarToggle = () => {
 </script>
 
 <template>
-    <div class="flex h-full flex-col overflow-hidden">
+    <div class="flex h-full flex-col overflow-hidden dark:bg-slate-900">
         <div
             :class="isFullWidth ? 'mx-auto w-full' : 'min-w-full max-w-7xl'"
             class="flex min-h-0 flex-1 flex-col overflow-hidden"
@@ -78,9 +78,12 @@ const handleMobileSidebarToggle = () => {
             <div class="relative z-30 flex-shrink-0">
                 <div
                     data-topbar
-                    class="flex h-12 shrink-0 items-center gap-x-1 bg-white shadow-sm dark:bg-slate-800 sm:gap-x-3"
+                    class="flex h-12 shrink-0 items-center gap-x-1 bg-white shadow-sm dark:bg-slate-800 dark:shadow-none sm:gap-x-3"
                     :class="[
-                        { 'border-b border-zinc-200': !$slots.internalPageHeader },
+                        {
+                            'border-b border-zinc-200 dark:border-slate-700':
+                                !$slots.internalPageHeader,
+                        },
                         topBarInsetClasses,
                     ]"
                 >
@@ -88,7 +91,7 @@ const handleMobileSidebarToggle = () => {
                         v-if="isEditContentPage || isMobileScreen || isEditLanguagePage"
                         type="button"
                         data-test="chevron-icon"
-                        class="text-zinc-500"
+                        class="text-zinc-500 transition-colors dark:text-zinc-400 hover:dark:text-zinc-200"
                         :class="{
                             'ml-1.5 max-lg:-ml-1 max-lg:ml-0':
                                 isEditContentPage || isEditLanguagePage,
@@ -110,7 +113,7 @@ const handleMobileSidebarToggle = () => {
 
                     <!-- Separator -->
                     <div
-                        class="h-6 w-px bg-zinc-900/10"
+                        class="h-6 w-px bg-zinc-900/10 dark:bg-zinc-100/10"
                         :class="{ hidden: !isEditContentPage && !isEditLanguagePage }"
                         aria-hidden="true"
                     />
@@ -122,7 +125,7 @@ const handleMobileSidebarToggle = () => {
                             >
                                 <h1
                                     v-if="title"
-                                    class="text-md flex min-w-0 items-center gap-2 truncate font-semibold leading-7"
+                                    class="text-md flex min-w-0 items-center gap-2 truncate font-semibold leading-7 dark:text-zinc-100"
                                 >
                                     {{ title }}
                                 </h1>
@@ -146,7 +149,10 @@ const handleMobileSidebarToggle = () => {
                     </TopBar>
                 </div>
             </div>
-            <div v-if="loading" class="flex min-h-0 flex-1 items-center justify-center">
+            <div
+                v-if="loading"
+                class="flex min-h-0 flex-1 items-center justify-center dark:bg-slate-900"
+            >
                 <LoadingBar />
             </div>
             <template v-else>
@@ -154,7 +160,7 @@ const handleMobileSidebarToggle = () => {
                     v-if="backLinkLocation"
                     :to="backLinkLocation"
                     :params="backLinkParams"
-                    class="-mx-2 mb-1 inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 active:bg-zinc-200 sm:pl-6"
+                    class="-mx-2 mb-1 inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-slate-800 dark:hover:text-zinc-200 sm:pl-6"
                 >
                     <ArrowLeftIcon class="h-4 w-4" /> {{ backLinkText }}
                 </RouterLink>
@@ -184,7 +190,7 @@ const handleMobileSidebarToggle = () => {
 
                 <div
                     v-if="$slots.internalPageHeader"
-                    class="w-full flex-shrink-0 border-b border-t border-zinc-300 border-t-zinc-100 bg-white shadow"
+                    class="w-full flex-shrink-0 border-b border-t border-zinc-300 border-t-zinc-100 bg-white shadow dark:border-slate-700 dark:border-t-slate-800 dark:bg-slate-800/50 dark:shadow-none"
                 >
                     <div class="py-2" :class="chromeInsetClasses">
                         <slot name="internalPageHeader" />
@@ -193,7 +199,7 @@ const handleMobileSidebarToggle = () => {
 
                 <div
                     data-test="base-page-content"
-                    class="flex min-h-0 flex-1 flex-col dark:bg-slate-800"
+                    class="flex min-h-0 flex-1 flex-col dark:bg-slate-900"
                     :class="contentInsetClasses"
                 >
                     <div
@@ -215,7 +221,7 @@ const handleMobileSidebarToggle = () => {
                     <div
                         v-if="$slots.footer"
                         data-test="base-page-footer"
-                        class="flex-shrink-0 border-t border-zinc-200 bg-white pb-2 pt-2 lg:pb-4"
+                        class="flex-shrink-0 border-t border-zinc-200 bg-white pb-2 pt-2 dark:border-slate-700 dark:bg-slate-800 lg:pb-4"
                         :class="contentInset && contentInsetClasses"
                     >
                         <slot name="footer" />
