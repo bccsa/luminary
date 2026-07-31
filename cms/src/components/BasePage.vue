@@ -199,7 +199,7 @@ const handleMobileSidebarToggle = () => {
 
                 <div
                     data-test="base-page-content"
-                    class="flex min-h-0 flex-1 flex-col dark:bg-slate-800"
+                    class="flex min-h-0 flex-1 flex-col dark:bg-slate-900"
                     :class="contentInsetClasses"
                 >
                     <div

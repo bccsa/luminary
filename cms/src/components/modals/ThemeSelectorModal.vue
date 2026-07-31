@@ -54,7 +54,7 @@ const isVisible = defineModel<boolean>("isVisible", { required: true });
         </div>
         <template #footer>
             <LButton
-                variant="primary"
+                variant="secondary"
                 size="lg"
                 rounding="less"
                 class="w-full"
