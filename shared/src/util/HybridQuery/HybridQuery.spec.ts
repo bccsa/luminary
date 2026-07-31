@@ -972,6 +972,26 @@ describe("HybridQuery", () => {
         });
     });
 
+    describe("includeExpired forwarding (queryRemote)", () => {
+        it("forwards includeExpired so an expiry-crossing caller can see expired docs", async () => {
+            postHttpMock.mockResolvedValueOnce({ docs: [] });
+
+            await queryRemote({ selector: { type: "content" }, includeExpired: true });
+
+            const payload = postHttpMock.mock.calls[0]![1] as Record<string, unknown>;
+            expect(payload.includeExpired).toBe(true);
+        });
+
+        it("omits it when unset, leaving the API's unexpired filter in place", async () => {
+            postHttpMock.mockResolvedValueOnce({ docs: [] });
+
+            await queryRemote({ selector: { type: "content" } });
+
+            const payload = postHttpMock.mock.calls[0]![1] as Record<string, unknown>;
+            expect("includeExpired" in payload).toBe(false);
+        });
+    });
+
     describe("cutoff threading", () => {
         // Parameterize across the three content sub-branches so a regression that
         // hard-codes the cutoff (or reads it at module-load) would fail at least

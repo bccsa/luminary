@@ -8,6 +8,11 @@ vi.mock("vue", async (importOriginal) => {
     return { ...actual, onServerPrefetch: (cb: () => unknown) => cb() };
 });
 
+// The real prerender reads the route off the router vite-ssg has already pushed to the page
+// being rendered; this harness calls the composable directly, so stand in a settable route.
+const routeMock = vi.hoisted(() => ({ path: "/test-route" }));
+vi.mock("vue-router", () => ({ useRoute: () => routeMock }));
+
 const queryRemoteMock = vi.fn();
 const writeResponseCacheMock = vi.fn();
 
@@ -194,9 +199,13 @@ describe("useContentQuery — SSR prerender path", () => {
         vi.resetModules();
     });
 
-    it("reports dependency keys (doc + facet) when a capture is active", async () => {
-        const capture = { current: new Set<string>(), manifest: {} as Record<string, string[]> };
+    it("reports dependency keys (doc + facet) under the route being rendered", async () => {
+        const capture = {
+            manifest: {} as Record<string, Set<string>>,
+            cache: {} as Record<string, Record<string, string>>,
+        };
         (globalThis as Record<string, unknown>).__SSG_DEPS__ = capture;
+        routeMock.path = "/some-slug";
 
         useContentQuery(() => [{ parentId: "parent-1" }], {
             publishedFilter: false,
@@ -204,14 +213,46 @@ describe("useContentQuery — SSR prerender path", () => {
         });
         await flushPromises();
 
-        expect([...capture.current]).toEqual(
+        expect([...capture.manifest["/some-slug"]]).toEqual(
             expect.arrayContaining(["doc:parent-1", "facet:parentId:parent-1:"]),
         );
 
+        routeMock.path = "/test-route";
         delete (globalThis as Record<string, unknown>).__SSG_DEPS__;
     });
 
-    it("serializes concurrent SSR fetches in registration order (ssrChain)", async () => {
+    it("keeps keys and cache seeds of concurrently-rendered routes apart", async () => {
+        const capture = {
+            manifest: {} as Record<string, Set<string>>,
+            cache: {} as Record<string, Record<string, string>>,
+        };
+        (globalThis as Record<string, unknown>).__SSG_DEPS__ = capture;
+
+        // Two pages rendering at once: each composable captures its own route at setup, so the
+        // interleaved prefetches below must not cross-attribute.
+        routeMock.path = "/page-a";
+        useContentQuery(() => [{ parentId: "parent-a" }], {
+            publishedFilter: false,
+            languageFilter: false,
+        });
+        routeMock.path = "/page-b";
+        useContentQuery(() => [{ parentId: "parent-b" }], {
+            publishedFilter: false,
+            languageFilter: false,
+        });
+        await flushPromises();
+
+        expect([...capture.manifest["/page-a"]]).toContain("doc:parent-1");
+        expect([...capture.manifest["/page-a"]]).toContain("facet:parentId:parent-a:");
+        expect([...capture.manifest["/page-a"]]).not.toContain("facet:parentId:parent-b:");
+        expect([...capture.manifest["/page-b"]]).toContain("facet:parentId:parent-b:");
+        expect([...capture.manifest["/page-b"]]).not.toContain("facet:parentId:parent-a:");
+
+        routeMock.path = "/test-route";
+        delete (globalThis as Record<string, unknown>).__SSG_DEPS__;
+    });
+
+    it("serializes SSR fetches within one route in registration order (per-route chain)", async () => {
         const order: string[] = [];
         queryRemoteMock.mockReset().mockImplementation(async (q: { use_index?: string }) => {
             // First call resolves slower than the second, on purpose.

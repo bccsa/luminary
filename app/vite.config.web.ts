@@ -34,50 +34,23 @@ const env = loadEnv("", process.cwd());
 // object the app bundle's `src/ssg/dependencyCapture.ts` reports into (vite-ssg runs
 // the config and the SSR bundle in one process). Kept inline (not imported from
 // src/) so the Node tsconfig project doesn't pull in app-project source files.
-type SsgCapture = { current: Set<string>; manifest: Record<string, string[]> };
+// Everything is keyed by route so pages can render concurrently: vite-ssg interleaves
+// renders, and a shared accumulator would attribute one page's keys (or cache entries) to
+// whichever page finished next. That failure is silent — the manifest just gains wrong
+// route→key mappings, and those pages then never regenerate when their data changes.
+type SsgCapture = {
+    manifest: Record<string, Set<string>>;
+    cache: Record<string, Record<string, string>>;
+};
 function capture(): SsgCapture {
     const g = globalThis as Record<string, unknown>;
     if (!g.__SSG_DEPS__) {
-        g.__SSG_DEPS__ = { current: new Set<string>(), manifest: {} } as SsgCapture;
+        g.__SSG_DEPS__ = { manifest: {}, cache: {} } as SsgCapture;
     }
     return g.__SSG_DEPS__ as SsgCapture;
 }
 
-// Response-cache serialization. We inline a page's `hqcache:*` entries as a classic <script> that runs during parse, before the ES-module entry boots, so `useHybridQuery({cache:true})` seeds synchronously with the prerendered docs (no hydration flash).
-const HQCACHE_PREFIX = "hqcache:";
-// Minimal structural type — this Node-project config file has no DOM lib, so the
-// global `Storage` type isn't available; the polyfill provides these members.
-type SsgStorage = {
-    length: number;
-    key(i: number): string | null;
-    getItem(k: string): string | null;
-    removeItem(k: string): void;
-};
-function ssgLocalStorage(): SsgStorage | undefined {
-    return (globalThis as { localStorage?: SsgStorage }).localStorage;
-}
-function hqCacheKeys(ls: SsgStorage): string[] {
-    const keys: string[] = [];
-    for (let i = 0; i < ls.length; i++) {
-        const key = ls.key(i);
-        if (key?.startsWith(HQCACHE_PREFIX)) keys.push(key);
-    }
-    return keys;
-}
-function readHqCache(): Record<string, string> {
-    const ls = ssgLocalStorage();
-    const out: Record<string, string> = {};
-    if (!ls) return out;
-    for (const key of hqCacheKeys(ls)) {
-        out[key] = ls.getItem(key) ?? "";
-    }
-    return out;
-}
-function clearHqCache(): void {
-    const ls = ssgLocalStorage();
-    if (!ls) return;
-    for (const key of hqCacheKeys(ls)) ls.removeItem(key);
-}
+// Response-cache serialization. We inline a page's `hqcache:*` entries as a classic <script> that runs during parse, before the ES-module entry boots, so `useHybridQuery({cache:true})` seeds synchronously with the prerendered docs (no hydration flash). The entries are recorded per route as they're written (see `src/ssg/dependencyCapture.ts`) rather than scraped back out of the shared store, which concurrent renders share.
 function hqCacheScript(cache: Record<string, string>): string {
     // `<` escaping prevents a doc value containing `</script>` from closing the tag.
     const json = JSON.stringify(cache).replace(/</g, "\\u003c");
@@ -181,9 +154,12 @@ function mergeScoped<T>(path: string, fresh: Record<string, T>): Record<string, 
 }
 
 // Write the route→keys dependency manifest. On a scoped rebuild, MERGE the newly
-// captured routes into the existing manifest (don't drop untouched routes).
+// captured routes into the existing manifest (don't drop untouched routes). Keys are sorted
+// so the file is byte-stable regardless of the order concurrent renders reported them in.
 function writeManifest() {
-    const fresh = capture().manifest;
+    const fresh = Object.fromEntries(
+        Object.entries(capture().manifest).map(([route, keys]) => [route, [...keys].sort()]),
+    );
     const merged = mergeScoped(manifestPath(), fresh);
     writeFileSync(manifestPath(), JSON.stringify(merged));
     console.log(
@@ -496,7 +472,13 @@ const config: UserConfig & { ssgOptions: ViteSSGOptions } = {
     resolve: {
         alias: {
             "@": fileURLToPath(new URL("./src", import.meta.url)),
+            // Consume luminary-shared straight from source, same as the native config, so a
+            // shared edit doesn't need a rebuild for this target to see it.
+            "luminary-shared": fileURLToPath(new URL("../shared/src/index.ts", import.meta.url)),
         },
+        // shared/src imports these; a second copy of vue or dexie breaks reactivity, and on
+        // this target it surfaces as a hydration mismatch rather than an outright error.
+        dedupe: ["vue", "dexie", "@vueuse/core"],
     },
     define: {
         // Make hydration mismatches visible even in the production build so "no warnings" is a real signal.
@@ -521,8 +503,15 @@ const config: UserConfig & { ssgOptions: ViteSSGOptions } = {
         mock: true, // jsdom globals in Node so DOM-at-import code doesn't crash
         formatting: "minify",
         script: "async",
-        // Load-bearing: the dependency collector is a single shared object, so pages must render one at a time or keys get mis-attributed. Do not raise concurrency without redesigning the collector.
-        concurrency: 1,
+        // Every piece of per-render state is now keyed by route — the dependency keys and the
+        // `hqcache:*` seed (`src/ssg/dependencyCapture.ts`) and the prefetch ordering chain
+        // (`useContentQuery.ts`) — so raising this is safe. Adding another cross-render global
+        // means route-keying it too; the failure mode is silent mis-attribution, not a crash.
+        //
+        // Still defaulted to 1: raise it with `SSG_CONCURRENCY=N` once a build at N has been
+        // shown to produce a byte-identical `ssg-deps.json` to one at 1 over the same dataset.
+        // Until that has been run against a real API, the parallel path is unproven.
+        concurrency: Number(process.env.SSG_CONCURRENCY || 1),
         includedRoutes: async (_paths: string[], routes: readonly RouteRecordRaw[]) => {
             const apiUrl = env.VITE_API_URL;
             if (!apiUrl) {
@@ -594,20 +583,11 @@ const config: UserConfig & { ssgOptions: ViteSSGOptions } = {
             return all;
         },
         // --- Render-time dependency capture + response-cache seed ---
-        onBeforePageRender: () => {
-            capture().current = new Set();
-            // Per-page isolation: drop the previous page's cache so it can't leak into
-            // this page's HTML (concurrency:1 makes this safe).
-            clearHqCache();
-            return undefined;
-        },
         onPageRendered: (route, renderedHTML) => {
-            const c = capture();
-            c.manifest[route] = [...c.current].sort();
-
             // Auth gate is unconditional (every page); the cache seed is only injected
-            // when the page actually primed one.
-            const cache = readHqCache();
+            // when the page actually primed one. Both the keys and the seed were filed
+            // under this route as the render produced them, so no per-page reset is needed.
+            const cache = capture().cache[route] ?? {};
             const script =
                 authGateScript() + (Object.keys(cache).length ? hqCacheScript(cache) : "");
             return renderedHTML.includes("</head>")

@@ -106,7 +106,9 @@ export async function queryRemote<T = unknown>(query: MangoQuery): Promise<T[]> 
 
     const payload: Record<string, unknown> = {
         selector: query.selector,
-        identifier: "hybridQuery",
+        // Callers outside the app's live queries override this so their load is separable in
+        // the API's expensive-query logs.
+        identifier: query.identifier ?? "hybridQuery",
         limit: typeof query.$limit === "number" ? query.$limit : DEFAULT_REMOTE_QUERY_LIMIT,
     };
     // Match the consumer's scope: CMS reads (config.cms) are CmsView-gated server-side and include
@@ -119,6 +121,9 @@ export async function queryRemote<T = unknown>(query: MangoQuery): Promise<T[]> 
     // allowlist there). Same pattern as sync/syncBatch.ts — index selection
     // is a client concern.
     if (typeof query.use_index === "string") payload.use_index = query.use_index;
+    // Opt-in only: without it the API filters expired Content out of the response, hiding
+    // exactly the docs a caller watching for expiry crossings needs to see.
+    if (query.includeExpired === true) payload.includeExpired = true;
 
     const res = await _httpService.post("query", payload as any);
     return (res?.docs ?? []) as T[];

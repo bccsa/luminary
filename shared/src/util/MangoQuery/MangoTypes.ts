@@ -31,6 +31,20 @@ export type MangoQuery = {
      * The API validator allowlists a hard-coded set of permitted names.
      */
     use_index?: string;
+    /**
+     * Suppresses the API's unexpired filter on Content queries so docs whose `expiryDate` has
+     * already passed come back. Needed by callers that must react to the expiry itself — an
+     * expired doc is otherwise simply absent, which is indistinguishable from one that never
+     * existed. The API still minimizes such docs before sending them (see stripExpiredContent),
+     * so the response carries identity and scheduling fields only, not the body.
+     */
+    includeExpired?: boolean;
+    /**
+     * Observability label forwarded to the API's expensive-query logging. Defaults to
+     * `"hybridQuery"`; set it to tell one caller's traffic apart from another's in API logs.
+     * Not validated server-side against any known set.
+     */
+    identifier?: string;
 };
 
 /** Comparison object { $op: value } */

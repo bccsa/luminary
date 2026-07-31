@@ -12,14 +12,32 @@ import {
 import { appDisplayLanguageIdsAsRef } from "@/globalConfig";
 import { hasPersistedSession } from "@/auth";
 import { mangoIsPublished } from "@/util/mangoIsPublished";
+import { useRoute } from "vue-router";
 import { docKey, facetsFromSelector } from "@/ssg/facetKeys";
-import { reportKeys } from "@/ssg/dependencyCapture";
+import { reportCacheEntry, reportKeys } from "@/ssg/dependencyCapture";
 
 // Serializes the SSG prefetch fetches in registration order so chained queries
 // (e.g. HomePagePinned: pinnedCategories → pinnedCategoryContent reads its result)
 // resolve correctly — vite-ssg awaits a page's onServerPrefetch hooks concurrently,
 // so without this the child would build its selector from the still-empty parent ref.
-let ssrChain: Promise<unknown> = Promise.resolve();
+//
+// Per route, not global: only queries within one page can depend on each other, while a
+// single shared chain would also serialize every page against every other, holding the
+// whole prerender to one in-flight request no matter what `concurrency` is set to.
+const ssrChains = new Map<string, Promise<unknown>>();
+
+function chainFor(route: string): Promise<unknown> {
+    return ssrChains.get(route) ?? Promise.resolve();
+}
+
+/** Reads back one just-written response-cache entry so it can be attributed to its route. */
+function readCacheEntry(key: string): string | null {
+    try {
+        return globalThis.localStorage?.getItem(key) ?? null;
+    } catch {
+        return null;
+    }
+}
 
 function stripDocs(docs: ContentDto[], stripFields: string[]): ContentDto[] {
     if (!stripFields.length) return docs;
@@ -197,27 +215,39 @@ function useContentQueryState(
         // matters to a caller that reads it mid-prefetch (none currently do).
         const fetching = shallowRef(true);
         const renderLang = () => appDisplayLanguageIdsAsRef.value[0] || "";
+        // Read during setup (not inside the async hook below, which runs after it): vite-ssg
+        // pushes the router to the route being prerendered before rendering, so this is the
+        // page whose keys and cache seed the work below belongs to.
+        const route = useRoute().path;
         onServerPrefetch(async () => {
-            await (ssrChain = ssrChain.then(async () => {
+            const queued = chainFor(route).then(async () => {
                 const q = buildQuery();
                 const docs = stripDocs(await queryRemote<ContentDto>(q), stripFields);
                 out.value = docs;
                 // Prime shared's response cache (same key the client computes) so the hydrating client shows these docs on first paint with no flash. vite-ssg serializes these `hqcache:*` entries into the page HTML.
+                const cacheKey = structuralCacheKey(q, `${rest.cacheId ?? ""}:anon`);
                 writeResponseCache(
                     // Prerendering is always anonymous — see the client branch's
                     // `hybridOptions.cacheId` above for the `:auth` counterpart.
-                    structuralCacheKey(q, `${rest.cacheId ?? ""}:anon`),
+                    cacheKey,
                     { local: docs, remote: [] },
                     limit,
                     // ssrCacheStripFields (SSR-only) falls back to cacheStripFields so a
                     // caller that doesn't need the asymmetry can keep using one option.
                     ssrCacheStripFields ?? rest.cacheStripFields,
                 );
-                reportKeys([
+                // Attribute the entry to this route as it is written. `writeResponseCache`
+                // targets one shared store, so scraping it after the render would also pick up
+                // whatever pages rendering alongside this one put there.
+                const cached = readCacheEntry(cacheKey);
+                if (cached !== null) reportCacheEntry(route, cacheKey, cached);
+                reportKeys(route, [
                     ...facetsFromSelector(q.selector, renderLang()),
                     ...docs.map((d) => docKey(d.parentId || d._id)),
                 ]);
-            }));
+            });
+            ssrChains.set(route, queued);
+            await queued;
             fetching.value = false;
         });
         return { output: out, isFetching: computed(() => fetching.value) };

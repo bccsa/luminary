@@ -297,10 +297,10 @@ delete support is implemented via `ssg-route-index/`; recategorization old-facet
 coverage is backed by `ssg-doc-facets/`. Live API verification is still user-run.
 
 **Delete queue (`ssg-delete-queue/`):** implemented and unit-tested (`deleteQueue.spec.ts`,
-`queryDrain.spec.ts`); verified at build level only (full +
-scoped `build:web`). The deploy repo's consumer — reading the queue, performing the
-actual storage delete + CDN purge, then removing each entry — is not implemented here;
-it's the other half of the "Deploy cleanup hook" gap below.
+`queryDrain.spec.ts`); verified at build level only (full + scoped `build:web`). The
+consuming half — performing the storage delete + CDN purge and then removing each entry —
+is implemented and unit-tested on the deploy side. End-to-end verification against real
+storage is still user-run.
 
 **404 error page:** `NotFoundPage` is prerendered to `dist-web/404.html` (via a static
 `/404` route in `routes.ts` with `meta.prerender`; vite-ssg's flat `dirStyle` writes
@@ -320,12 +320,10 @@ switch, 404, and nav links. Note `VITE_API_URL` must point at a running API.
 
 ## Open gaps / TODO
 
-- **Deploy cleanup hook** for Cloudflare/R2 — the durable-record half of this is done:
-  `ssg-delete-queue/` gives the deploy repo a crash-safe, file-based list of pending
-  deletes (see "Delete queue" above). What's still open is the deploy repo's own
-  consumer: upload changed `dist-web` files, read the queue, actually delete the
-  corresponding storage objects and purge their CDN paths, then remove each entry —
-  none of that execution lives in this repo.
+- **Serving layer** — the static redirect files are meta-refresh HTML served as HTTP 200.
+  Turning them into real 301/302s, mapping the extension-less object names storage is keyed
+  by, and serving `404.html` on a miss all need the edge worker, which is not written yet.
+  `ssg-redirect-index.json` already carries the status each redirect should be given.
 
 ---
 
