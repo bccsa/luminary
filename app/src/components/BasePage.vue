@@ -62,7 +62,7 @@ onUnmounted(() => {
             </Teleport>
 
             <main
-                class="flex-1 overflow-y-scroll px-2 py-2 scrollbar-hide focus:outline-none dark:bg-slate-900"
+                class="flex-1 overflow-y-scroll px-2 py-2 scrollbar-hide focus:outline-none dark:bg-slate-900 md:max-lg:px-4"
                 ref="main"
             >
                 <!-- Desktop pinned chrome: back (left) + quick controls (right) stay fixed while scrolling.
