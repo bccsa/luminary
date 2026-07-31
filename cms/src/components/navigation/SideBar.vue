@@ -416,7 +416,7 @@ const navItemClass = computed(() => [
             <button
                 type="button"
                 :class="[
-                    'mb-2 flex w-full rounded-md text-sm font-medium text-white hover:bg-red-700',
+                    'mb-2 flex w-full rounded-md text-sm font-medium hover:bg-red-600 dark:text-white',
                     isCollapsed
                         ? 'justify-center p-2.5'
                         : 'items-center gap-3 px-3 py-2.5 text-left',
@@ -440,17 +440,17 @@ const navItemClass = computed(() => [
                     v-if="user?.picture"
                     :src="user.picture"
                     alt=""
-                    class="h-5 w-5 shrink-0 rounded-full bg-zinc-50 object-cover"
+                    class="h-5 w-5 shrink-0 rounded-full object-cover dark:bg-zinc-50"
                 />
                 <div
                     v-else
-                    class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-zinc-300"
+                    class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full dark:bg-zinc-300"
                 >
                     <UserIcon class="h-3.5 w-3.5 text-zinc-600" />
                 </div>
                 <span
                     v-if="!isCollapsed"
-                    class="min-w-0 flex-1 truncate text-sm font-medium text-zinc-100"
+                    class="min-w-0 flex-1 truncate text-sm font-medium dark:text-zinc-100"
                 >
                     {{ user?.name || user?.email }}
                 </span>
