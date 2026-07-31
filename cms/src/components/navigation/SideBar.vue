@@ -263,7 +263,7 @@ const navItemClass = computed(() => [
         <!-- Collapse toggle — sits on the right edge, vertically centred. Desktop only. -->
         <button
             type="button"
-            class="absolute right-0 top-1/2 z-20 hidden h-8 w-8 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full border border-zinc-400 text-zinc-100 shadow-md transition-colors hover:bg-zinc-50 hover:text-yellow-400 dark:bg-slate-700 lg:flex"
+            class="absolute right-0 top-1/2 z-20 hidden h-8 w-8 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full border border-zinc-400 text-zinc-800 shadow-md transition-colors hover:bg-zinc-500 dark:bg-slate-700 dark:hover:text-zinc-100 lg:flex"
             :aria-label="collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
             data-test="sidebar-collapse-toggle"
             @click="onToggleCollapsed"
@@ -337,7 +337,7 @@ const navItemClass = computed(() => [
                                 <RouterLink
                                     :to="subItem.to"
                                     active-class="text-yellow-700 dark:text-yellow-400"
-                                    class="block rounded-md py-2 pl-9 pr-2 text-sm font-medium text-zinc-800 hover:bg-slate-700"
+                                    class="block rounded-md py-2 pl-9 pr-2 text-sm font-medium hover:bg-zinc-200 dark:text-zinc-100 dark:hover:bg-slate-700"
                                     @click="closeDrawer"
                                 >
                                     {{ subItem.name }}
