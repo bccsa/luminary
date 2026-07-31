@@ -6,16 +6,11 @@ import { SunIcon, MoonIcon } from "@heroicons/vue/24/outline";
 import { ComputerDesktopIcon } from "@heroicons/vue/24/solid";
 import { theme } from "@/globalConfig";
 
-type Props = {
-    isVisible: boolean;
-};
-defineProps<Props>();
-
-const emit = defineEmits(["close"]);
+const isVisible = defineModel<boolean>("isVisible", { required: true });
 </script>
 
 <template>
-    <LModal heading="Select Theme" :is-visible="isVisible" @close="emit('close')">
+    <LModal heading="Select Theme" v-model:is-visible="isVisible">
         <div class="divide-y divide-zinc-200 dark:divide-slate-600 dark:text-zinc-100">
             <button
                 class="flex h-10 w-full cursor-pointer items-center p-3 hover:bg-zinc-100 dark:hover:bg-slate-600"
@@ -63,7 +58,7 @@ const emit = defineEmits(["close"]);
                 size="lg"
                 rounding="less"
                 class="w-full"
-                @click="emit('close')"
+                @click="isVisible = false"
             >
                 Close
             </LButton>
