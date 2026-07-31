@@ -45,7 +45,7 @@ function formatRelativeTime(timestamp: number): string {
                 >
                     <component
                         :is="doc.parentType === DocType.Post ? DocumentTextIcon : TagIcon"
-                        class="h-4 w-4 shrink-0 text-zinc-800"
+                        class="h-4 w-4 shrink-0 dark:text-zinc-100"
                     />
                     <span
                         v-if="parentRoute(doc)"
