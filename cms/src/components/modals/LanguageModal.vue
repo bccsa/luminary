@@ -27,14 +27,14 @@ const setLanguage = (id: string) => {
             <button
                 v-for="language in languages"
                 :key="language._id"
-                class="flex w-full cursor-pointer items-center p-3 hover:bg-slate-700"
+                class="flex w-full cursor-pointer items-center p-3 hover:bg-zinc-300 dark:hover:bg-slate-700"
                 @click="setLanguage(language._id)"
                 data-test="switch-language-button"
             >
-                <span class="text-sm text-zinc-100">{{ language.name }}</span>
+                <span class="text-sm dark:text-zinc-100">{{ language.name }}</span>
                 <CheckCircleIcon
                     v-if="cmsLanguageIdAsRef === language._id"
-                    class="ml-auto h-6 w-6 text-zinc-100"
+                    class="ml-auto h-6 w-6 text-yellow-600"
                     aria-hidden="true"
                 />
             </button>
