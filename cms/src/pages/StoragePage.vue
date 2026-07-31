@@ -31,7 +31,7 @@ const createNew = () => {
         <template #topBarActionsMobile>
             <PlusIcon
                 v-if="isSmallScreen && canEdit"
-                class="h-6 w-6 dark:text-zinc-100"
+                class="h-6 w-6 dark:bg-zinc-400 dark:text-zinc-100"
                 @click="createNew"
             />
         </template>
