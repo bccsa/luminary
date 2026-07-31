@@ -50,6 +50,13 @@ function capture(): SsgCapture {
     return g.__SSG_DEPS__ as SsgCapture;
 }
 
+// Created eagerly, before any page renders. `reportKeys` no-ops when this object is absent —
+// that is what keeps the call site harmless on the client — so if the first render is also
+// what creates it, that page silently records no dependency keys and is never invalidated by
+// ISR. There is no per-page hook to do it in: the collector is keyed by route precisely so
+// that pages can render concurrently without one.
+capture();
+
 // Response-cache serialization. We inline a page's `hqcache:*` entries as a classic <script> that runs during parse, before the ES-module entry boots, so `useHybridQuery({cache:true})` seeds synchronously with the prerendered docs (no hydration flash). The entries are recorded per route as they're written (see `src/ssg/dependencyCapture.ts`) rather than scraped back out of the shared store, which concurrent renders share.
 function hqCacheScript(cache: Record<string, string>): string {
     // `<` escaping prevents a doc value containing `</script>` from closing the tag.
@@ -560,15 +567,13 @@ const config: UserConfig & { ssgOptions: ViteSSGOptions } = {
         // the prefetch ordering chain, and `onPageRendered` asserts each page's keys carry the
         // language it actually rendered in.
         //
-        // Still defaulted to 1 because of one unexplained residual: over a 20-route sample,
-        // every shared route has byte-identical keys at 1 and at 4, but `/explore` and
-        // `/search` swap — exactly one of the two records no keys, and which one depends on
-        // concurrency. A route absent from the manifest is never ISR-invalidated, so until
-        // that is understood, parallel builds are opt-in.
+        // Verified over a 20-route multi-language sample: `ssg-deps.json` is byte-identical at
+        // 1 and at 4, and two runs at 1 are byte-identical to each other. Re-run that diff on
+        // your own route set before raising it in anger — the file is sorted for exactly this
+        // purpose, so any difference is concurrency's doing.
         //
-        // Before raising it for real: run the same route set at 1 and at N and diff
-        // `ssg-deps.json` byte-for-byte (it is sorted for exactly this reason). Two runs at 1
-        // are already known to be identical, so any difference is concurrency's doing.
+        // Left at 1 by default so parallelism is a deliberate choice rather than a surprise;
+        // the build is CPU-bound (a JSDOM per page), so N cores gives roughly N× here.
         concurrency: Number(process.env.SSG_CONCURRENCY || 1),
         includedRoutes: async (_paths: string[], routes: readonly RouteRecordRaw[]) => {
             const apiUrl = env.VITE_API_URL;
