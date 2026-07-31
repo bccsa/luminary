@@ -30,6 +30,8 @@ const autoPlay = queryParams.get("autoplay") === "true";
 const autoFullscreen = queryParams.get("autofullscreen") === "true";
 const keepAudioAlive = ref<HTMLAudioElement | null>(null);
 const isRestoringTrack = ref<boolean>(false);
+// Safari (macOS + iOS) renders the video 1px too low; corrected via CSS (issue #813).
+const isSafariRendering = ref<boolean>(false);
 
 // YouTube detection
 const isYouTube = ref<boolean>(false);
@@ -135,6 +137,9 @@ onMounted(async () => {
     await new Promise((resolve) => requestAnimationFrame(resolve));
 
     const videojs = (await import("video.js")).default;
+
+    // Detect Safari for the 1px shift correction; same source used for nativeAudioTracks.
+    isSafariRendering.value = videojs.browser.IS_SAFARI || videojs.browser.IS_IOS;
 
     // Lazy load videojs-youtube only if we're playing a YouTube video
     if (isYouTube.value) {
@@ -558,7 +563,10 @@ watch(
             :parent-image-bucket-id="content.parentImageBucketId"
         />
 
-        <div class="video-player absolute bottom-0 left-0 right-0 top-0">
+        <div
+            class="video-player absolute bottom-0 left-0 right-0 top-0"
+            :class="{ 'safari-shift-fix': isSafariRendering }"
+        >
             <video
                 playsinline
                 ref="playerElement"
