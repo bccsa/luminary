@@ -116,7 +116,7 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
 
 <template>
     <div :class="$attrs['class']" :style="$attrs['style'] as StyleValue">
-        <FormLabel v-if="label" :for="id" :required="required" class="mb-2">
+        <FormLabel v-if="label" :for="id" :required="required" class="mb-2 dark:text-zinc-100">
             {{ label }}
         </FormLabel>
 

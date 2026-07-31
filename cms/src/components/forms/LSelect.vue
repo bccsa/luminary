@@ -94,7 +94,7 @@ function listOptionClass(option: Option): string {
 
 <template>
     <div class="relative" :class="$attrs['class']" :style="$attrs['style'] as StyleValue">
-        <div v-if="label" class="mb-2 flex justify-between">
+        <div v-if="label" class="mb-2 flex justify-between dark:text-zinc-100">
             <div class="flex items-center gap-1">
                 <FormLabel :for="id" :required="required">{{ label }}</FormLabel>
             </div>
