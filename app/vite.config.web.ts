@@ -555,16 +555,20 @@ const config: UserConfig & { ssgOptions: ViteSSGOptions } = {
         // (`useContentQuery.ts`) — so raising this is safe. Adding another cross-render global
         // means route-keying it too; the failure mode is silent mis-attribution, not a crash.
         //
-        // DO NOT raise this yet. `appLanguageIdsAsRef` (globalConfig.ts) is a module-level ref
-        // that `main.web.ts` overwrites per render with that page's language, and
-        // `useContentQuery` reads it for BOTH the query's language filter and the `:lang`
-        // suffix on its dependency keys. Concurrent renders overwrite each other, so a page
-        // can be prerendered in another page's language and have its keys recorded under the
-        // wrong one — which then mis-targets ISR invalidation for good. Per-render language
-        // has to land before `SSG_CONCURRENCY` means anything.
+        // Raise with `SSG_CONCURRENCY=N`. The render language is now per-render
+        // (`src/ssg/renderLanguage.ts`), as are the dependency keys, the `hqcache:*` seed and
+        // the prefetch ordering chain, and `onPageRendered` asserts each page's keys carry the
+        // language it actually rendered in.
         //
-        // Once it has: raise with `SSG_CONCURRENCY=N` only after a build at N is shown to
-        // produce a byte-identical `ssg-deps.json` to one at 1 over the same dataset.
+        // Still defaulted to 1 because of one unexplained residual: over a 20-route sample,
+        // every shared route has byte-identical keys at 1 and at 4, but `/explore` and
+        // `/search` swap — exactly one of the two records no keys, and which one depends on
+        // concurrency. A route absent from the manifest is never ISR-invalidated, so until
+        // that is understood, parallel builds are opt-in.
+        //
+        // Before raising it for real: run the same route set at 1 and at N and diff
+        // `ssg-deps.json` byte-for-byte (it is sorted for exactly this reason). Two runs at 1
+        // are already known to be identical, so any difference is concurrency's doing.
         concurrency: Number(process.env.SSG_CONCURRENCY || 1),
         includedRoutes: async (_paths: string[], routes: readonly RouteRecordRaw[]) => {
             const apiUrl = env.VITE_API_URL;
