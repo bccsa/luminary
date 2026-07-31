@@ -508,9 +508,16 @@ const config: UserConfig & { ssgOptions: ViteSSGOptions } = {
         // (`useContentQuery.ts`) — so raising this is safe. Adding another cross-render global
         // means route-keying it too; the failure mode is silent mis-attribution, not a crash.
         //
-        // Still defaulted to 1: raise it with `SSG_CONCURRENCY=N` once a build at N has been
-        // shown to produce a byte-identical `ssg-deps.json` to one at 1 over the same dataset.
-        // Until that has been run against a real API, the parallel path is unproven.
+        // DO NOT raise this yet. `appLanguageIdsAsRef` (globalConfig.ts) is a module-level ref
+        // that `main.web.ts` overwrites per render with that page's language, and
+        // `useContentQuery` reads it for BOTH the query's language filter and the `:lang`
+        // suffix on its dependency keys. Concurrent renders overwrite each other, so a page
+        // can be prerendered in another page's language and have its keys recorded under the
+        // wrong one — which then mis-targets ISR invalidation for good. Per-render language
+        // has to land before `SSG_CONCURRENCY` means anything.
+        //
+        // Once it has: raise with `SSG_CONCURRENCY=N` only after a build at N is shown to
+        // produce a byte-identical `ssg-deps.json` to one at 1 over the same dataset.
         concurrency: Number(process.env.SSG_CONCURRENCY || 1),
         includedRoutes: async (_paths: string[], routes: readonly RouteRecordRaw[]) => {
             const apiUrl = env.VITE_API_URL;
@@ -587,9 +594,20 @@ const config: UserConfig & { ssgOptions: ViteSSGOptions } = {
             // Auth gate is unconditional (every page); the cache seed is only injected
             // when the page actually primed one. Both the keys and the seed were filed
             // under this route as the render produced them, so no per-page reset is needed.
-            const cache = capture().cache[route] ?? {};
+            const state = capture();
+            const cache = state.cache[route] ?? {};
             const script =
                 authGateScript() + (Object.keys(cache).length ? hqCacheScript(cache) : "");
+
+            // The page's HTML is written, so nothing reads these again. Drop them now: the
+            // prerender's `localStorage` is an unbounded in-memory Map and `writeResponseCache`
+            // only evicts on a quota error it can never raise, so leaving them would retain
+            // every page's seed for the whole build (~2k pages) on top of a build that already
+            // needs an enlarged heap. Keyed by route so this is safe under concurrency.
+            delete state.cache[route];
+            const ls = (globalThis as { localStorage?: { removeItem(k: string): void } })
+                .localStorage;
+            if (ls) for (const key of Object.keys(cache)) ls.removeItem(key);
             return renderedHTML.includes("</head>")
                 ? renderedHTML.replace("</head>", `${script}</head>`)
                 : script + renderedHTML;

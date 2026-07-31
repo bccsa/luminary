@@ -71,6 +71,20 @@ describe("dependencyCapture", () => {
         expect([...globalCapture()!.manifest["/already-rendered"]]).toEqual(["doc:old"]);
     });
 
+    it("lets a finished route's seed be released without touching the others", () => {
+        // The prerender's localStorage shim is an unbounded Map and writeResponseCache only
+        // evicts on a quota error it can never raise, so the config drops each route's entries
+        // once its HTML is written. Retaining ~2k pages' seeds is what previously blew the heap.
+        activateCapture();
+        reportCacheEntry("/done", "hqcache:a", "{}");
+        reportCacheEntry("/still-rendering", "hqcache:b", "{}");
+
+        delete globalCapture()!.cache["/done"];
+
+        expect(globalCapture()!.cache["/done"]).toBeUndefined();
+        expect(globalCapture()!.cache["/still-rendering"]).toEqual({ "hqcache:b": "{}" });
+    });
+
     it("keeps concurrently-rendered routes' cache seeds apart", () => {
         activateCapture();
 
