@@ -16,6 +16,7 @@ import { localizedStaticRoutes } from "./router/localizedRoutes";
 import { initI18n } from "./i18n";
 import { DocType, HttpReq, initHybridQuery, queryRemote, type LanguageDto } from "luminary-shared";
 import { apiUrl, appLanguageIdsAsRef, cmsLanguages, isAppLoading } from "./globalConfig";
+import { SSG_DISPLAY_LANGUAGES, ssgDisplayLanguages } from "./ssg/renderLanguage";
 
 const LANGUAGES_QUERY = { selector: { type: DocType.Language } };
 
@@ -66,6 +67,12 @@ export const createApp = ViteSSG(
             // default language — i18n only needs those two — to keep page weight down.
             const defaultLang = langs.find((l) => l.default === 1);
             const defaultId = defaultLang?._id;
+
+            // Per-render language, provided on this app instance rather than read from the
+            // module-level ref — see ssg/renderLanguage.ts for why the ref is unsafe here.
+            const displayLanguages = ssgDisplayLanguages(lang, defaultId);
+            app.provide(SSG_DISPLAY_LANGUAGES, displayLanguages);
+
             const keep = new Set([lang, defaultId].filter(Boolean) as string[]);
             initialState.renderLang = lang;
             // Human-readable companion to renderLang: the `_id` is often a UUID, so
@@ -89,7 +96,8 @@ export const createApp = ViteSSG(
             router.addRoute(route);
         }
 
-        app.use(initI18n());
+        // Explicit language: on the prerender this must not come from the shared ref.
+        app.use(initI18n(import.meta.env.SSR ? ssgRouteLang(routePath) : undefined));
 
         // SSG output is already-rendered HTML — there is no splash screen. Setting this
         // on BOTH the SSR (Node prerender) and client (hydration) branches keeps the

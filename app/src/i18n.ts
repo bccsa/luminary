@@ -1,6 +1,6 @@
 import { nextTick, watch, type WatchHandle } from "vue";
 import { createI18n, type I18n } from "vue-i18n";
-import { appLanguageAsRef, appName, cmsDefaultLanguage } from "./globalConfig";
+import { appLanguageAsRef, appName, cmsDefaultLanguage, cmsLanguages } from "./globalConfig";
 import router from "./router";
 
 type LanguageLike = { _id: string; languageCode: string; updatedTimeUtc?: number; translations?: Record<string, string> };
@@ -41,7 +41,7 @@ function messagesFor(language: LanguageLike, defaultLang: LanguageLike): Record<
  * plugin can be installed before `app.mount()` — components that call `useI18n()` during setup
  * (e.g. SearchModal) would otherwise throw.
  */
-export const initI18n = (): I18n<{}, {}, {}, string, false> => {
+export const initI18n = (renderLanguageId?: string): I18n<{}, {}, {}, string, false> => {
     const i18n = createI18n({ legacy: false });
 
     const applyLanguage = (language: LanguageLike | undefined, defaultLang: LanguageLike | undefined) => {
@@ -54,8 +54,14 @@ export const initI18n = (): I18n<{}, {}, {}, string, false> => {
     // time it does. A watcher here would never be disposed (this runs outside any component
     // scope), so every page's watcher would stay live and re-fire on every later page's language
     // — quadratic work plus a retained i18n instance per route.
+    //
+    // The caller passes the language explicitly rather than letting this read the shared
+    // `appLanguageAsRef`, which concurrent renders overwrite (see ssg/renderLanguage.ts).
     if (import.meta.env.SSR) {
-        applyLanguage(appLanguageAsRef.value, cmsDefaultLanguage.value);
+        const language = renderLanguageId
+            ? cmsLanguages.value.find((l) => l._id === renderLanguageId)
+            : appLanguageAsRef.value;
+        applyLanguage(language, cmsDefaultLanguage.value);
         return i18n;
     }
 

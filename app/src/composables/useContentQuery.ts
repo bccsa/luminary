@@ -9,7 +9,7 @@ import {
     structuralCacheKey,
     writeResponseCache,
 } from "luminary-shared";
-import { appDisplayLanguageIdsAsRef } from "@/globalConfig";
+import { useDisplayLanguageIds } from "@/ssg/renderLanguage";
 import { hasPersistedSession } from "@/auth";
 import { mangoIsPublished } from "@/util/mangoIsPublished";
 import { useRoute } from "vue-router";
@@ -175,13 +175,18 @@ function useContentQueryState(
         ...rest
     } = options;
 
+    // Resolved during setup because injection is only available there. During the prerender
+    // this is the language of the page being rendered; on the client it reads the shared ref
+    // as before.
+    const displayLanguageIds = useDisplayLanguageIds();
+
     const buildQuery = () => ({
         selector: {
             $and: [
                 { type: DocType.Content },
                 ...selector(),
                 ...(publishedFilter
-                    ? mangoIsPublished(languageFilter ? appDisplayLanguageIdsAsRef.value : [], {
+                    ? mangoIsPublished(languageFilter ? displayLanguageIds() : [], {
                           includeScheduled,
                       })
                     : []),
@@ -214,7 +219,7 @@ function useContentQueryState(
         // resolved by render time (vite-ssg awaits onServerPrefetch), so this only
         // matters to a caller that reads it mid-prefetch (none currently do).
         const fetching = shallowRef(true);
-        const renderLang = () => appDisplayLanguageIdsAsRef.value[0] || "";
+        const renderLang = () => displayLanguageIds()[0] || "";
         // Read during setup (not inside the async hook below, which runs after it): vite-ssg
         // pushes the router to the route being prerendered before rendering, so this is the
         // page whose keys and cache seed the work below belongs to.

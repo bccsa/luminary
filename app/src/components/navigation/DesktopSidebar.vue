@@ -26,7 +26,8 @@ import defaultLogoSmall from "@/assets/logo-small.svg?url";
 import ThemeSelectorModal from "./ThemeSelectorModal.vue";
 import LanguageModal from "./LanguageModal.vue";
 import LDialog from "../common/LDialog.vue";
-import { appLanguageAsRef } from "@/globalConfig";
+import { cmsLanguages } from "@/globalConfig";
+import { useDisplayLanguageIds } from "@/ssg/renderLanguage";
 import { showPrivacyPolicyModal, useAuthWithPrivacyPolicy } from "@/composables/useAuthWithPrivacyPolicy";
 import { isConnected } from "luminary-shared";
 import { useNotificationStore, type Notification } from "@/stores/notification";
@@ -72,8 +73,15 @@ function actionButtonClasses() {
     ];
 }
 
+// Resolved from the per-render language rather than the shared ref: this renders on every
+// prerendered page, and concurrent renders overwrite the ref (see ssg/renderLanguage.ts).
+const displayLanguageIds = useDisplayLanguageIds();
+const renderLanguage = computed(() =>
+    cmsLanguages.value.find((l) => l._id === displayLanguageIds()[0]),
+);
+
 const languageTooltip = computed(() => {
-    const name = appLanguageAsRef.value?.name;
+    const name = renderLanguage.value?.name;
     return name ? `${t("profile_menu.language")} — ${name}` : t("profile_menu.language");
 });
 
@@ -320,9 +328,9 @@ const handleLogin = () => {
                     >
                         <span :class="navLabelClass">{{ t("profile_menu.language") }}</span>
                         <span
-                            v-if="appLanguageAsRef?.name"
+                            v-if="renderLanguage?.name"
                             :class="navMetaClass"
-                        >{{ appLanguageAsRef.name }}</span>
+                        >{{ renderLanguage.name }}</span>
                     </div>
                 </span>
 

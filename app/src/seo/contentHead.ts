@@ -2,7 +2,8 @@ import { useHead } from "@unhead/vue";
 import { computed, type Ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { type ContentDto, type LanguageDto } from "luminary-shared";
-import { appLanguageAsRef, appName, cmsLanguages } from "@/globalConfig";
+import { appName, cmsLanguages } from "@/globalConfig";
+import { useDisplayLanguageIds } from "@/ssg/renderLanguage";
 import { useBucketInfo } from "@/composables/useBucketInfo";
 import {
     canonicalUrl,
@@ -192,6 +193,9 @@ export function primaryArticleImage(
 
 /** Registers the complete web/SSG head for public static pages. */
 export function useLocalizedStaticHead(basePath: "/" | "/explore" | "/search" | "/watch"): void {
+    // Per-render language: this drives the canonical URL and hreflang of the prerendered head,
+    // so reading the shared ref would emit another page's locale (see ssg/renderLanguage.ts).
+    const displayLanguageIds = useDisplayLanguageIds();
     if (import.meta.env.VITE_BUILD_TARGET !== "web") return;
 
     const { t } = useI18n();
@@ -202,7 +206,10 @@ export function useLocalizedStaticHead(basePath: "/" | "/explore" | "/search" | 
             const langs = cmsLanguages.value.filter((lang) => lang.languageCode);
             const defaultLang = langs.find((lang) => lang.default === 1) ?? langs[0];
             const defaultCode = defaultLang?.languageCode ?? "";
-            const currentCode = appLanguageAsRef.value?.languageCode || defaultCode || "en";
+            const currentCode =
+                langs.find((lang) => lang._id === displayLanguageIds()[0])?.languageCode ||
+                defaultCode ||
+                "en";
             const canonical = canonicalUrl(
                 defaultCode ? staticPath(basePath, currentCode, defaultCode) : basePath,
             );

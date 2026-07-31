@@ -78,6 +78,47 @@ function authGateScript(): string {
     );
 }
 
+// Mirrors main.web.ts's `ssgRouteLang`: a locale-prefixed route takes its language from the
+// prefix, a slug route from the route→language map built during enumeration, anything else
+// the default.
+function expectedLangForRoute(route: string): string {
+    const g = globalThis as Record<string, unknown>;
+    const codeToId = g.__SSG_LANG_CODE_TO_ID__ as Record<string, string> | undefined;
+    const routeLang = g.__SSG_ROUTE_LANG__ as Record<string, string> | undefined;
+    const firstSegment = route.split("/").filter(Boolean)[0];
+    if (firstSegment && codeToId?.[firstSegment]) return codeToId[firstSegment];
+    return routeLang?.[route] || ((g.__SSG_DEFAULT_LANG__ as string) || "");
+}
+
+/**
+ * Fails the build when a page's dependency keys are tagged with a language it did not render
+ * in. Every `facet:` key a page records is suffixed with that page's render language, so a
+ * mismatch means per-render state leaked across concurrent renders — which would also mean the
+ * page fetched another language's content. Both failures are otherwise silent: the HTML looks
+ * structurally fine, and the damage only surfaces later as pages that never regenerate.
+ *
+ * Same-language bleed is not detectable this way (the suffixes match), so this is a canary for
+ * raising `SSG_CONCURRENCY`, not a proof of isolation — pair it with the byte-identical
+ * `ssg-deps.json` comparison.
+ */
+function assertRouteLanguage(route: string, keys: Set<string> | undefined): void {
+    const expected = expectedLangForRoute(route);
+    if (!expected || !keys?.size) return;
+    // endsWith rather than splitting: a facet *value* may itself contain a colon.
+    const wrong = [...keys].filter(
+        (key) => key.startsWith("facet:") && !key.endsWith(`:${expected}`),
+    );
+    if (!wrong.length) return;
+    const shown = wrong.slice(0, 5).join(", ");
+    throw new Error(
+        `[ssg] ${route} recorded dependency keys for a language it did not render in ` +
+            `(expected suffix ":${expected}"). Per-render state leaked between concurrent ` +
+            `renders, so this page's content is likely wrong too. Offending keys: ${shown}` +
+            (wrong.length > 5 ? ` (+${wrong.length - 5} more)` : "") +
+            `\nRe-run with SSG_CONCURRENCY=1; if that passes, the parallel path has a shared global.`,
+    );
+}
+
 const OUT_DIR = "dist-web";
 const WEB_ORIGIN = (env.VITE_WEB_ORIGIN || "").replace(/\/$/, "");
 const APP_NAME = env.VITE_APP_NAME || "Luminary";
@@ -160,7 +201,13 @@ function writeManifest() {
     const fresh = Object.fromEntries(
         Object.entries(capture().manifest).map(([route, keys]) => [route, [...keys].sort()]),
     );
-    const merged = mergeScoped(manifestPath(), fresh);
+    // Sort routes as well as keys: above concurrency 1 pages finish in a nondeterministic
+    // order, so insertion order alone would make the file differ byte-for-byte between
+    // identical builds. Sorting is what lets a concurrency>1 build be diffed against a
+    // concurrency:1 one to prove no per-render state leaked.
+    const merged = Object.fromEntries(
+        Object.entries(mergeScoped(manifestPath(), fresh)).sort(([a], [b]) => a.localeCompare(b)),
+    );
     writeFileSync(manifestPath(), JSON.stringify(merged));
     console.log(
         `[ssg] wrote ssg-deps.json (${Object.keys(merged).length} routes` +
@@ -595,6 +642,7 @@ const config: UserConfig & { ssgOptions: ViteSSGOptions } = {
             // when the page actually primed one. Both the keys and the seed were filed
             // under this route as the render produced them, so no per-page reset is needed.
             const state = capture();
+            assertRouteLanguage(route, state.manifest[route]);
             const cache = state.cache[route] ?? {};
             const script =
                 authGateScript() + (Object.keys(cache).length ? hqCacheScript(cache) : "");

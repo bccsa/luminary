@@ -4,7 +4,8 @@ import { MagnifyingGlassIcon, XMarkIcon, ArrowRightIcon } from "@heroicons/vue/2
 import { ArrowUturnLeftIcon } from "@heroicons/vue/20/solid";
 import { useInfiniteScroll } from "@vueuse/core";
 import { useSearchOverlay } from "@/composables/useSearchOverlay";
-import { appLanguageIdsAsRef, cmsLanguages, isMac, isMobileScreen } from "@/globalConfig";
+import { cmsLanguages, isMac, isMobileScreen } from "@/globalConfig";
+import { useDisplayLanguageIds } from "@/ssg/renderLanguage";
 import { useRoute, useRouter } from "vue-router";
 import LImage from "@/components/images/LImage.vue";
 import { useFtsSearch, stripHtml } from "luminary-shared";
@@ -35,7 +36,9 @@ const inputRef = ref<HTMLInputElement | null>(null);
 const focusOnNextOpen = ref(false);
 const isInputFocused = ref(false);
 
-const languageId = computed(() => appLanguageIdsAsRef.value?.[0]);
+// Per-render on the prerender, shared ref on the client (see ssg/renderLanguage.ts).
+const displayLanguageIds = useDisplayLanguageIds();
+const languageId = computed(() => displayLanguageIds()[0]);
 
 // Mobile-only layout differences (focus/select-all on open, blur-after-search to dismiss the
 // on-screen keyboard). Search itself is trigger-only (Enter/Go) on every device — see
