@@ -61,7 +61,7 @@ const canViewGroups = hasAnyPermission(DocType.Group, AclPermission.CmsView);
                 name: 'overview',
                 params: { docType: DocType.Post, tagOrPostType: PostType.Blog },
             }"
-            class="group rounded-lg border border-zinc-500 px-3 py-2 transition-colors hover:border-zinc-300 dark:bg-slate-600 lg:flex-1"
+            class="group rounded-lg border border-zinc-500 px-3 py-2 transition-colors hover:border-zinc-300 dark:bg-slate-700 lg:flex-1"
         >
             <div class="flex items-center gap-2 dark:text-zinc-100">
                 <DocumentDuplicateIcon class="h-4 w-4" />
@@ -85,7 +85,7 @@ const canViewGroups = hasAnyPermission(DocType.Group, AclPermission.CmsView);
                 name: 'overview',
                 params: { docType: DocType.Tag, tagOrPostType: TagType.Category },
             }"
-            class="group rounded-lg border border-zinc-500 px-3 py-2 transition-colors dark:bg-slate-600 dark:hover:border-zinc-300 lg:flex-1"
+            class="group rounded-lg border border-zinc-500 px-3 py-2 transition-colors hover:border-zinc-300 dark:bg-slate-700 lg:flex-1"
         >
             <div class="flex items-center gap-2 dark:text-zinc-100">
                 <TagIcon class="h-4 w-4" />
@@ -103,7 +103,7 @@ const canViewGroups = hasAnyPermission(DocType.Group, AclPermission.CmsView);
             </p>
         </RouterLink>
 
-        <div class="rounded-lg border border-zinc-500 px-3 py-2 dark:bg-slate-600 lg:flex-1">
+        <div class="rounded-lg border border-zinc-500 px-3 py-2 dark:bg-slate-700 lg:flex-1">
             <div class="flex items-center gap-2 dark:text-zinc-100">
                 <CheckCircleIcon class="h-4 w-4" />
                 <span class="text-xs font-medium uppercase tracking-wide">Published</span>
@@ -118,7 +118,7 @@ const canViewGroups = hasAnyPermission(DocType.Group, AclPermission.CmsView);
             </p>
         </div>
 
-        <div class="rounded-lg border border-zinc-500 px-3 py-2 dark:bg-slate-600 lg:flex-1">
+        <div class="rounded-lg border border-zinc-500 px-3 py-2 dark:bg-slate-700 lg:flex-1">
             <div class="flex items-center gap-2 dark:text-zinc-100">
                 <CalendarDaysIcon class="h-4 w-4" />
                 <span class="text-xs font-medium uppercase tracking-wide">Scheduled</span>
@@ -136,7 +136,7 @@ const canViewGroups = hasAnyPermission(DocType.Group, AclPermission.CmsView);
         <RouterLink
             v-if="canViewGroups"
             :to="{ name: 'groups' }"
-            class="group rounded-lg border border-zinc-500 px-3 py-2 transition-colors hover:border-zinc-300 dark:bg-slate-600 lg:flex-1"
+            class="group rounded-lg border border-zinc-500 px-3 py-2 transition-colors hover:border-zinc-300 dark:bg-slate-700 lg:flex-1"
         >
             <div class="flex items-center gap-2 dark:text-zinc-100">
                 <RectangleStackIcon class="h-4 w-4" />
