@@ -459,7 +459,7 @@ const navItemClass = computed(() => [
     </aside>
 
     <LanguageModal v-model:is-visible="showLanguageModal" />
-    <ThemeSelectorModal :is-visible="showThemeModal" />
+    <ThemeSelectorModal v-model:is-visible="showThemeModal" />
 
     <LDialog
         v-model:open="showLogoutDialog"
