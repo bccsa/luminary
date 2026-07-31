@@ -476,7 +476,7 @@ const contentActions = computed(() => {
         </template>
 
         <div class="space-y-2">
-            <LCard class="rounded-lg bg-slate-900 shadow-lg">
+            <LCard class="rounded-lg shadow-lg dark:bg-slate-900">
                 <LInput
                     label="Name"
                     name="languageName"
@@ -532,7 +532,7 @@ const contentActions = computed(() => {
                 <!--Strings translation -->
                 <LCard>
                     <table class="mt-5 min-w-full divide-y divide-zinc-200">
-                        <thead class="bg-zinc-50">
+                        <thead class="dark:bg-slate-800">
                             <tr>
                                 <!-- key -->
                                 <th
