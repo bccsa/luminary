@@ -1,10 +1,6 @@
 import type { RouteRecordRaw } from "vue-router";
 
-// All route components are lazy. This keeps the SSG prerender surface small
-// (rendering "/" only loads HomePage, "/:slug" only loads SingleContent), and —
-// importantly — keeps THIS module free of an eager component import graph, which
-// would otherwise create a circular import (component → "@/router" → "./routes")
-// and a "Cannot access 'routes' before initialization" TDZ error during SSR.
+// All route components are lazy: this keeps the SSG prerender surface small and avoids a circular import (component → "@/router" → "./routes") that would cause a TDZ error during SSR.
 const HomePage = () => import("@/pages/HomePage.vue");
 const InAppBrowserCheck = () => import("@/pages/InAppBrowserCheck.vue");
 const ExplorePage = () => import("@/pages/ExplorePage.vue");
@@ -16,15 +12,7 @@ const SingleContent = () => import("@/pages/SingleContent/SingleContent.vue");
 const NotFoundPage = () => import("@/pages/NotFoundPage.vue");
 
 /**
- * The route table, shared by both the native/SPA entry (`main.ts`, via
- * `router/index.ts`) and the web/SSG entry (`main.web.ts`, which hands these
- * to `ViteSSG`).
- *
- * `meta.prerender: true` marks a route as part of the public, crawlable tier
- * that the web build should emit as static HTML. Routes without it are
- * client-only (private, per-user, or feed-only) and are excluded from the
- * prerender enumeration in `vite.config.web.ts`. Dynamic content slugs are
- * enumerated from the API at build time (also gated on `prerender`).
+ * The shared route table for both the normal SPA entry and the web/SSG entry. `meta.prerender: true` marks public, crawlable routes the web build emits as static HTML; dynamic content slugs are enumerated from the API at build time.
  */
 export const routes: RouteRecordRaw[] = [
     {

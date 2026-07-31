@@ -2,7 +2,7 @@
 // file runs twice: once in Node during the SSG prerender pass (SSR, produces the static
 // HTML crawlers see) and once in the browser as that HTML hydrates into a live app (the
 // experience a normal web visitor actually gets). `import.meta.env.SSR` below branches
-// between the two. The native/SPA build keeps using `main.ts` unchanged.
+// between the two. The normal SPA build keeps using `main.ts` unchanged.
 //
 // Must import polyfills first so jsdom-missing globals (e.g. window.matchMedia)
 // exist before globalConfig.ts and friends touch them at module load.
@@ -23,11 +23,7 @@ const LANGUAGES_QUERY = { selector: { type: DocType.Language } };
 // build (the full ~2k-route build otherwise re-fetches + re-allocates it per page).
 let ssgLanguages: LanguageDto[] | undefined;
 
-// The language a given route is prerendered in: the content's own language for a
-// content/tag slug, else the CMS default. The slug→lang map + default are built by
-// the route enumeration in vite.config.web.ts and shared via globalThis (same Node
-// process). Drives the published-content filter + the dependency-key scoping, so a
-// page's feeds (and its chrome's UI strings) render in its own language.
+// The language a route is prerendered in: the content's own language for a slug, else the CMS default. The slug→lang map is built by route enumeration and shared via globalThis; it drives the published-content filter and UI-string locale.
 function ssgRouteLang(routePath?: string): string {
     const g = globalThis as Record<string, unknown>;
     const codeToId = g.__SSG_LANG_CODE_TO_ID__ as Record<string, string> | undefined;
@@ -50,11 +46,7 @@ export const createApp = ViteSSG(
         app.use(pinia);
         let langs: LanguageDto[] = [];
 
-        // Make the render language + its translations available BEFORE i18n installs,
-        // so i18n's immediate watch emits real UI strings (not raw `menu.home` keys)
-        // into the static HTML, and the first client render matches. Languages are
-        // public reference data; the render + default language docs ride vite-ssg's
-        // `initialState` so the client has them synchronously before mount.
+        // Make the render language and its translations available before i18n installs so the static HTML carries real UI strings, not raw keys. The render and default language docs ride vite-ssg's `initialState` so the client has them synchronously before mount.
         if (import.meta.env.SSR) {
             const lang = ssgRouteLang(routePath);
             appLanguageIdsAsRef.value = lang ? [lang] : [];
@@ -115,10 +107,7 @@ export const createApp = ViteSSG(
                 pinia.state.value = initialState.pinia;
             }
 
-            // Boot the data layer BEFORE mount (vite-ssg awaits this fn before
-            // mounting) so the app hydrates into a live, interactive SPA. Dynamically
-            // imported so none of it loads during the Node prerender. Failure must not
-            // block mount — the prerendered content is still shown.
+            // Boot the data layer before mount so the app hydrates into a live SPA. Dynamically imported so none of it loads during the Node prerender; a failure must not block mount since the prerendered content is still shown.
             try {
                 const { initSsgClient } = await import("./ssg/clientRuntime");
                 await initSsgClient();

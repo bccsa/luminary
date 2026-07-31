@@ -7,24 +7,16 @@ function readPersisted(): boolean {
     return typeof localStorage !== "undefined" && localStorage.getItem(STORAGE_KEY) === "true";
 }
 
-// On the SSG build the sidebar is prerendered, so `collapsed` MUST start
-// `false` on both the Node render and the first client (hydration) render —
-// otherwise a previously-persisted `true` would change the width/labels on the
-// client and trip a hydration mismatch. The persisted value is applied AFTER the
-// first mount instead (see below). On native there is no hydration, so we read
-// the persisted value immediately to avoid an expand→collapse startup flash.
+// On the SSG build `collapsed` starts `false` so the prerendered/hydration render matches; the persisted value is applied after mount. The normal SPA has no hydration, so it reads the persisted value immediately to avoid a startup flash.
 const collapsed = ref(IS_SSG ? false : readPersisted());
-let restored = !IS_SSG; // native has nothing to restore post-mount
+let restored = !IS_SSG; // the normal SPA has nothing to restore post-mount
 
 watch(collapsed, (value) => {
     if (typeof localStorage !== "undefined") localStorage.setItem(STORAGE_KEY, String(value));
 });
 
 export function useDesktopSidebar() {
-    // SSG only: apply the persisted collapsed state once, after the first mount,
-    // so the prerendered/hydration render (always expanded) matches before
-    // localStorage is consulted. Guarded by getCurrentInstance so a non-setup
-    // caller never triggers the onMounted warning.
+    // SSG only: apply the persisted collapsed state after the first mount so the hydration render matches before localStorage is consulted. Guarded by getCurrentInstance so a non-setup caller doesn't trigger an onMounted warning.
     if (!restored && getCurrentInstance()) {
         onMounted(() => {
             if (restored) return;

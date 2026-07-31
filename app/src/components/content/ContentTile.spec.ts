@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import { h, type Slots } from "vue";
 import ContentTile from "./ContentTile.vue";
-import { mockEnglishContentDto, mockLanguageDtoEng } from "@/tests/mockdata";
+import { mockEnglishContentDto, mockFrenchContentDto, mockLanguageDtoEng } from "@/tests/mockdata";
 import { PlayIcon, PlayIcon as PlayIconOutline } from "@heroicons/vue/24/solid";
 import type { ContentDto } from "luminary-shared";
 import { setMediaProgress, setReadingProgress } from "@/contentProgress";
@@ -82,6 +82,19 @@ describe("ContentTile", () => {
         });
 
         expect(wrapper.text()).toContain("Jan 1, 2024");
+    });
+
+    it("formats the publish date in the content's own language, not the browser's", async () => {
+        // French content (same Jan 1, 2024 publishDate as the English mock) renders in
+        // French ("janv.") — matching the article page, not navigator.language.
+        const wrapper = mount(ContentTile, {
+            props: {
+                content: mockFrenchContentDto,
+            },
+        });
+
+        expect(wrapper.text()).not.toContain("Jan 1, 2024");
+        expect(wrapper.text()).toContain("janv.");
     });
 
     it("can hide the publish date", async () => {

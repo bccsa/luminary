@@ -810,7 +810,9 @@ class Database extends Dexie {
     }
 
     /**
-     * Validates a delete command and returns true if the document referred to in the delete command should be deleted
+     * Validates a delete command and returns true if the document referred to in the delete command should be deleted.
+     * `SlugChange` deliberately falls through to `false`: the content is still live under
+     * a new slug, so clients must not evict it — only the SSG build acts on the cmd's slug.
      */
     validateDeleteCommand(cmd: DeleteCmdDto) {
         if (cmd.deleteReason == DeleteReason.Deleted) {

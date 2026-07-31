@@ -5,7 +5,7 @@ This folder holds the **web/SSG tier**: the machinery that prerenders the app's
 read.
 
 > **Status:** Built and working. The content seam is **`useContentQuery`** itself, and
-> the **web client uses the identical local-first hybrid query as native** — there are
+> the **web client uses the identical local-first hybrid query as the normal SPA** — there are
 > no `VITE_BUILD_TARGET` branches in the seam. No-flash hydration is achieved by reusing
 > **shared's own response cache** (see [§No-flash hydration](#no-flash-hydration--shareds-response-cache)).
 > The bespoke snapshot layer that used to live here (`queryPublic`, `sliceKey`,
@@ -30,7 +30,7 @@ static HTML** (SSG). Incremental regeneration (ISR) is orchestrated by the deplo
 repository.
 
 Non-goals: the web tier is **online-only, no service worker, no private/group-scoped
-content**. Offline and authed use stay the native shells' job.
+content**. Offline and authed use stay the normal SPA's job.
 
 ---
 
@@ -43,8 +43,8 @@ content**. Offline and authed use stay the native shells' job.
 - **A prerendered page is a cache keyed by the data it read.** At build time each route
   records a set of coarse **dependency keys**. When a doc changes, intersect the change's
   keys with the manifest → the exact set of stale pages → regenerate only those.
-- **Web client == native client.** After hydration the web build runs the _identical_
-  local-first data layer as native (minus the service worker). SSG is a build-time
+- **Web client == normal SPA client.** After hydration the web build runs the _identical_
+  local-first data layer as the normal SPA (minus the service worker). SSG is a build-time
   concern, not a parallel runtime.
 
 ---
@@ -53,36 +53,36 @@ content**. Offline and authed use stay the native shells' job.
 
 Run from `app/`:
 
-| Command                                     | What it does                                                                                                       |
-| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| Command                                     | What it does                                                                                                         |
+| ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | `npm run build:web`                         | **Full** prerender → `dist-web/` (every public route) + `ssg-deps.json` + `sitemap.xml` + `robots.txt` + `llms.txt`. |
-| `SSG_ONLY_ROUTES="/a,/b" npm run build:web` | **Scoped** rebuild of only those routes; preserves all other files; **merges** their entries into `ssg-deps.json`. |
-| `npm run preview:web`                       | Serve `dist-web/` locally (test in Incognito / unregister old service workers first).                              |
+| `SSG_ONLY_ROUTES="/a,/b" npm run build:web` | **Scoped** rebuild of only those routes; preserves all other files; **merges** their entries into `ssg-deps.json`.   |
+| `npm run preview:web`                       | Serve `dist-web/` locally (test in Incognito / unregister old service workers first).                                |
 
-The native/SPA build (`npm run build` → `dist/`, with its service worker) is
+The normal SPA build (`npm run build` → `dist/`, with its service worker) is
 **unchanged** and unaffected by anything here. Web config is `app/vite.config.web.ts`;
-native is `app/vite.config.ts`.
+the normal SPA is `app/vite.config.ts`.
 
 ---
 
 ## File map
 
-| File                           | Role                                                                                                                                                                                                                                                                                                                                                                       | Runs in          |
-| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
-| `../main.web.ts`               | Web entry (`ViteSSG`). Prerender: `initHybridQuery(HttpReq)` so `queryRemote` works in Node, set render language + fill `cmsLanguages` before i18n, add locale-prefixed static routes, serialize render/default langs via `initialState`. Client: restore those + boot the data layer (`clientRuntime`), minus the service worker. Branches only on `import.meta.env.SSR`. | Node + browser   |
-| `../router/localizedRoutes.ts` | Pure route helper for locale-prefixed public static routes (`/<code>`, `/<code>/explore`, `/<code>/watch`). Imported by the web entry only; native routes stay unchanged.                                                                                                                                                                                                  | Node + browser   |
-| `../../vite.config.web.ts`     | Web build config: route enumeration, `concurrency:1`, dependency-capture hooks, **per-page `hqcache:*` → inline-script serialization**, writes `ssg-deps.json` / `ssg-route-index/` / `ssg-redirect-index.json` / `ssg-doc-facets/` / `ssg-delete-queue/` / sitemap / robots / static redirect HTML, scoped-rebuild mode.                                                                | Node (build)     |
-| `polyfills.ts`                 | Node shims jsdom lacks (localStorage/sessionStorage/matchMedia). Imported first in `main.web.ts`. The `localStorage` shim also backs `writeResponseCache` during the prerender.                                                                                                                                                                                            | Node (prerender) |
-| `clientRuntime.ts`             | `initSsgClient()` boots the data layer on the **browser client** after hydration (`init()` + sync + language). Dynamically imported (never in the prerender).                                                                                                                                                                                                              | browser          |
-| `facetKeys.ts`                 | **Pure** key vocabulary. `docKey` + `facetsFromSelector` / `facetsFromDoc` (`facet:<field>:<value>:<lang>`). No Vue/DOM/Vite deps. The deploy repo carries its own copy for the watcher side — keep them in sync when the vocabulary changes.                                                                                                                      | anywhere         |
-| `docFacetShards.ts`            | **Pure** shard-id function (`docFacetShard`, fnv1a32 mod `DOC_FACETS_SHARD_COUNT`) for `ssg-doc-facets/`. No Vue/DOM/Vite/fs deps. The deploy repo carries its own copy — keep the count/algorithm in sync.                                                                                                                                                        | anywhere         |
-| `dependencyCapture.ts`         | **Pure** render-time reporter (`reportKeys`) writing to `globalThis.__SSG_DEPS__`. No-op unless a capture is active (safe on client/native). The collector itself is initialised/reset by `vite.config.web.ts`.                                                                                                                                                            | Node (build)     |
-| `routeIndex.ts`                | Pure content-id/parent-id → route sidecar helper for DeleteCmd handling and slug-change cleanup.                                                                                                                                                                                                                                                                           | Node             |
-| `routeIndexShards.ts`          | **Pure** shard-id function (`routeIndexShard`, fnv1a32 mod `ROUTE_INDEX_SHARD_COUNT`) for `ssg-route-index/`. No Vue/DOM/Vite/fs deps. The deploy repo carries its own copy — keep the count/algorithm in sync.                                                                                                                                                    | anywhere         |
-| `redirectIndex.ts`             | Pure redirect id → `{ slug, status }` sidecar helper, so redirect DeleteCmds can remove static redirect files and the deploy repo can apply the right HTTP status.                                                                                                                                                                                                        | Node             |
-| `redirectHtml.ts`              | Pure static redirect renderer (`redirectHtml` + `redirectFile` + `redirectStatus`) shared by full builds and the watcher. Maps `redirectType` to a 301/302.                                                                                                                                                                                                               | Node             |
-| `queryDrain.ts`                | Pure keyset-pagination helper (`drainQuery`, `enumeratePublicContent`, `enumerateDeleteCmds`) over anonymous `/query`, used by route/language/redirect/delete-cmd enumeration in `vite.config.web.ts`.                                                                                                                                                                     | Node (build)     |
-| `deleteQueue.ts`               | Pure DeleteCmd → durable pending-delete queue-entry resolver (`resolveContentDeleteQueueEntry` / `resolveRedirectDeleteQueueEntry` / `buildDeleteQueue`) for `ssg-delete-queue/`. Slug-first (new DeleteCmds self-describe their route); falls back to `routeIndex.ts`/`redirectIndex.ts`'s legacy sidecars only for slug-less DeleteCmds. Entries also carry the DeleteCmd's own `deleteReason`/`language`/`memberOf`/`newMemberOf` — this sidecar never leaves the server, so there's no size pressure to strip them.                              | Node             |
+| File                           | Role                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | Runs in          |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
+| `../main.web.ts`               | Web entry (`ViteSSG`). Prerender: `initHybridQuery(HttpReq)` so `queryRemote` works in Node, set render language + fill `cmsLanguages` before i18n, add locale-prefixed static routes, serialize render/default langs via `initialState`. Client: restore those + boot the data layer (`clientRuntime`), minus the service worker. Branches only on `import.meta.env.SSR`.                                                                                                                                              | Node + browser   |
+| `../router/localizedRoutes.ts` | Pure route helper for locale-prefixed public static routes (`/<code>`, `/<code>/explore`, `/<code>/watch`). Imported by the web entry only; normal SPA routes stay unchanged.                                                                                                                                                                                                                                                                                                                                           | Node + browser   |
+| `../../vite.config.web.ts`     | Web build config: route enumeration, `concurrency:1`, dependency-capture hooks, **per-page `hqcache:*` → inline-script serialization**, writes `ssg-deps.json` / `ssg-route-index/` / `ssg-redirect-index.json` / `ssg-doc-facets/` / `ssg-delete-queue/` / sitemap / robots / static redirect HTML, scoped-rebuild mode.                                                                                                                                                                                               | Node (build)     |
+| `polyfills.ts`                 | Node shims jsdom lacks (localStorage/sessionStorage/matchMedia). Imported first in `main.web.ts`. The `localStorage` shim also backs `writeResponseCache` during the prerender.                                                                                                                                                                                                                                                                                                                                         | Node (prerender) |
+| `clientRuntime.ts`             | `initSsgClient()` boots the data layer on the **browser client** after hydration (`init()` + sync + language). Dynamically imported (never in the prerender).                                                                                                                                                                                                                                                                                                                                                           | browser          |
+| `facetKeys.ts`                 | **Pure** key vocabulary. `docKey` + `facetsFromSelector` / `facetsFromDoc` (`facet:<field>:<value>:<lang>`). No Vue/DOM/Vite deps. The deploy repo carries its own copy for the watcher side — keep them in sync when the vocabulary changes.                                                                                                                                                                                                                                                                           | anywhere         |
+| `docFacetShards.ts`            | **Pure** shard-id function (`docFacetShard`, fnv1a32 mod `DOC_FACETS_SHARD_COUNT`) for `ssg-doc-facets/`. No Vue/DOM/Vite/fs deps. The deploy repo carries its own copy — keep the count/algorithm in sync.                                                                                                                                                                                                                                                                                                             | anywhere         |
+| `dependencyCapture.ts`         | **Pure** render-time reporter (`reportKeys`) writing to `globalThis.__SSG_DEPS__`. No-op unless a capture is active (safe on client/the normal SPA). The collector itself is initialised/reset by `vite.config.web.ts`.                                                                                                                                                                                                                                                                                                 | Node (build)     |
+| `routeIndex.ts`                | Pure content-id/parent-id → route sidecar helper for DeleteCmd handling and slug-change cleanup.                                                                                                                                                                                                                                                                                                                                                                                                                        | Node             |
+| `routeIndexShards.ts`          | **Pure** shard-id function (`routeIndexShard`, fnv1a32 mod `ROUTE_INDEX_SHARD_COUNT`) for `ssg-route-index/`. No Vue/DOM/Vite/fs deps. The deploy repo carries its own copy — keep the count/algorithm in sync.                                                                                                                                                                                                                                                                                                         | anywhere         |
+| `redirectIndex.ts`             | Pure redirect id → `{ slug, status }` sidecar helper, so redirect DeleteCmds can remove static redirect files and the deploy repo can apply the right HTTP status.                                                                                                                                                                                                                                                                                                                                                      | Node             |
+| `redirectHtml.ts`              | Pure static redirect renderer (`redirectHtml` + `redirectFile` + `redirectStatus`) shared by full builds and the watcher. Maps `redirectType` to a 301/302.                                                                                                                                                                                                                                                                                                                                                             | Node             |
+| `queryDrain.ts`                | Pure keyset-pagination helper (`drainQuery`, `enumeratePublicContent`, `enumerateDeleteCmds`) over anonymous `/query`, used by route/language/redirect/delete-cmd enumeration in `vite.config.web.ts`.                                                                                                                                                                                                                                                                                                                  | Node (build)     |
+| `deleteQueue.ts`               | Pure DeleteCmd → durable pending-delete queue-entry resolver (`resolveContentDeleteQueueEntry` / `resolveRedirectDeleteQueueEntry` / `buildDeleteQueue`) for `ssg-delete-queue/`. Slug-first (new DeleteCmds self-describe their route); falls back to `routeIndex.ts`/`redirectIndex.ts`'s legacy sidecars only for slug-less DeleteCmds. Entries also carry the DeleteCmd's own `deleteReason`/`language`/`memberOf`/`newMemberOf` — this sidecar never leaves the server, so there's no size pressure to strip them. | Node             |
 
 **Naming convention:** identifiers that discriminate "which side of the prerender is
 this" use `Ssg`/`SSG` (`initSsgClient`, `ssgRouteLang`, `__SSG_DEPS__`), never
@@ -110,7 +110,7 @@ paths**:
   page renders with data, prime the response cache (below), and `reportKeys([...])` for
   the manifest. A module-level `ssrChain` serializes prefetches so chained queries (e.g.
   HomePagePinned: pinned categories → their content) resolve in order.
-- **Browser + native (else):** plain `useHybridQuery(buildQuery, options)` — the _same_
+- **Browser + the normal SPA (else):** plain `useHybridQuery(buildQuery, options)` — the _same_
   local-first query for both. No `VITE_BUILD_TARGET` branch.
 
 ### No-flash hydration — shared's response cache
@@ -175,7 +175,7 @@ companion for anyone inspecting the inlined state.
   used so DeleteCmds and slug changes can remove stale static content files. **Sharded**,
   not one file — same scheme as the doc facet snapshot below (`routeIndexShards.ts`'s
   `routeIndexShard()`, fnv1a32-mod-shardCount, `index.json` holds `{ shardCount,
-  algorithm }`). A `docId` may hash to a different shard depending on whether it's a
+algorithm }`). A `docId` may hash to a different shard depending on whether it's a
   content id or a parent id, but `resolveContentDelete` only needs the one shard file for
   whichever id it was given — it checks that shard's `content` and `parent` maps and only
   falls through empty if neither has it.
@@ -190,7 +190,7 @@ companion for anyone inspecting the inlined state.
 - **Doc facet snapshot**: `dist-web/ssg-doc-facets/` = content id → last-known
   `parentId` / `parentTags` / `parentPinned` / `language`, so recategorization invalidates
   both old and new facet pages. **Sharded**, not one file: `index.json` is `{ shardCount,
-  algorithm }` (`docFacetShards.ts`'s `docFacetsIndex()`); each doc's entry lives in
+algorithm }` (`docFacetShards.ts`'s `docFacetsIndex()`); each doc's entry lives in
   `<shard>.json`, `shard = docFacetShard(docId)` — a 2-hex-digit fnv1a32-mod-shardCount
   bucket (`00`..`3f` at the default 64 shards), constant regardless of site size. A build
   only reads/writes the shards containing docs whose route was actually rendered THIS
@@ -202,12 +202,12 @@ companion for anyone inspecting the inlined state.
 - **Delete queue**: `dist-web/ssg-delete-queue/<deleteCmdId>.json`, one file per
   DeleteCmd id, holding the resolved `{ docType, docId, parentId?, routes, files }`
   plus the DeleteCmd's own `deleteReason`/`language`/`memberOf`/`newMemberOf` — a
-  *durable* record of pending deletes, not just a lookup table. Before this sidecar
+  _durable_ record of pending deletes, not just a lookup table. Before this sidecar
   existed, "a doc was deleted" was known only as a transient fact the deploy repo's
   watcher observed while polling DeleteCmd docs; if it crashed between seeing the
   DeleteCmd and finishing the storage-delete + CDN-purge, that pending action could be
   lost. DeleteCmd docs are never pruned from CouchDB, so the fact of the delete is
-  never lost — but nothing recorded whether it had been *acted on*. The deploy repo now
+  never lost — but nothing recorded whether it had been _acted on_. The deploy repo now
   reads this queue, performs the actual delete + purge, then deletes that one file
   itself once done; a crash at any point just leaves the file for the next pass.
     - Resolution is **slug-first**: `DeleteCmdDto.slug` (added alongside `.language`)
@@ -215,7 +215,7 @@ companion for anyone inspecting the inlined state.
       lookup. Falls back to `routeIndex.ts`/`redirectIndex.ts`'s legacy sidecars only
       for DeleteCmds created before `.slug` existed (`deleteQueue.ts`'s
       `resolveContentDeleteQueueEntry` / `resolveRedirectDeleteQueueEntry`).
-    - **A Content-translation DeleteCmd's `docType` is the *parent's* type** (`Post` or
+    - **A Content-translation DeleteCmd's `docType` is the _parent's_ type** (`Post` or
       `Tag`), never `"content"` — the permission system has no ACLs on Content itself
       (`api/src/db/db.service.ts`'s `insertDeleteCmd`). `/query` requires `docType` as
       a scalar equality value (no `$in`), so enumerating every Content-related delete
@@ -264,29 +264,29 @@ prerender authenticates as
 
 ## Decisions (and what we rejected)
 
-| #   | Decision                                                                                                           | Why / rejected alternative                                                                                                                                                                                                                                   |
-| --- | ------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 1   | **Incremental regeneration** (facet-key manifest), not always-full-rebuild                                         | A full ~1934-route build is slow; ISR keeps edits near-instant.                                                                                                                                                                                              |
-| 2   | **No-flash hydration via shared's response cache**                                                                 | Clean hydration _without_ a bespoke snapshot. `useHybridQuery({cache:true})` already reads `hqcache:*` synchronously — so the prerender just primes it.                                                                                                      |
-| 3   | **Web client == native path** (no `VITE_BUILD_TARGET` branches in the seam)                                        | One code path to reason about. The earlier web-specific branch was deleted.                                                                                                                                                                                  |
-| 4   | **Delete the bespoke snapshot layer** (`queryPublic`, `sliceKey`, `publicContent` Pinia store, `publicContentApi`) | Superseded by shared's `queryRemote` / `structuralCacheKey` / `writeResponseCache`. Less code, one system.                                                                                                                                                   |
-| 5   | **Derive dependency keys generically from the query selector**                                                     | Rearranging layout / adding a page needs **zero** key edits — only a new _data facet_ touches `facetKeys.ts`. Rejected: hardcoding keys per page.                                                                                                            |
-| 6   | **ISR via polling `queryRemote`, NOT the socket**                                                                  | A socket watcher connected and received `data`, but the change never rendered (socket scopes by rooms/accessMap + Dexie live-sync — extra coupling). Polling reuses the prerender's public, anonymous path. Cost: up to `WATCH_POLL_MS` latency.             |
-| 7   | **Strip `text` from the cache seed where unneeded at first paint** (`cacheStripFields:["text"]`)                   | Full-build OOM: SingleContent's translations query serialized every sibling language's full body into each page's seed (~105KB/page) → heap blew up ~820/1934 pages. Fix dropped the seed to ~39KB; the live query still keeps `text` for language switches. |
-| 8   | **Prerender the main public routes** (`/explore`, `/watch`)                                                        | The shell/feeds must be crawlable, not just slug pages.                                                                                                                                                                                                      |
-| 9   | **Real `<a href>` links in the sidebar/bottom nav** (RouterLink `custom` → `<a>`)                                  | Web routing + crawlability need real anchors; only Search (a modal trigger) stays a button.                                                                                                                                                                  |
-| 10  | **`concurrency: 1`** in vite-ssg                                                                                   | Load-bearing: the dependency collector is one shared object; parallel rendering mis-attributes keys.                                                                                                                                                         |
-| 11  | **Enumerate routes via keyset pagination over `POST /query`** (`queryDrain.ts`, `QUERY_PAGE_SIZE = 500`), not a single high-limit `/search` request                                   | The old `/search` reader was deleted (see status note above). Offset pagination was nondeterministic and silently capped the site at ~101 of ~1934 pages; keyset pagination over `/query` drains the full set deterministically.                                                                                                                                                                         |
-| 12  | **No service worker on the web tier**                                                                              | Capacitor owns native/offline. The client-entry rewrite must drop the SW + Matomo SW registration.                                                                                                                                                           |
-| 13  | **Run the watcher + upload/purge from a separate deploy repo**                                                     | Keeps cloud-specific (R2/Cloudflare) concerns out of the app repo.                                                                                                                                                                                           |
-| 14  | **A durable, file-based delete queue** (`ssg-delete-queue/`), not a DB-poll-only cursor | A crash between "watcher saw the DeleteCmd" and "storage delete + CDN purge finished" must not lose the pending action. DeleteCmd docs are a permanent CouchDB ledger, so the *fact* was never lost — but nothing recorded whether it had been acted on. Rejected: re-deriving pending deletes purely from an in-memory poll cursor each restart. |
+| #   | Decision                                                                                                                                            | Why / rejected alternative                                                                                                                                                                                                                                                                                                                        |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | **Incremental regeneration** (facet-key manifest), not always-full-rebuild                                                                          | A full ~1934-route build is slow; ISR keeps edits near-instant.                                                                                                                                                                                                                                                                                   |
+| 2   | **No-flash hydration via shared's response cache**                                                                                                  | Clean hydration _without_ a bespoke snapshot. `useHybridQuery({cache:true})` already reads `hqcache:*` synchronously — so the prerender just primes it.                                                                                                                                                                                           |
+| 3   | **Web client == normal SPA path** (no `VITE_BUILD_TARGET` branches in the seam)                                                                     | One code path to reason about. The earlier web-specific branch was deleted.                                                                                                                                                                                                                                                                       |
+| 4   | **Delete the bespoke snapshot layer** (`queryPublic`, `sliceKey`, `publicContent` Pinia store, `publicContentApi`)                                  | Superseded by shared's `queryRemote` / `structuralCacheKey` / `writeResponseCache`. Less code, one system.                                                                                                                                                                                                                                        |
+| 5   | **Derive dependency keys generically from the query selector**                                                                                      | Rearranging layout / adding a page needs **zero** key edits — only a new _data facet_ touches `facetKeys.ts`. Rejected: hardcoding keys per page.                                                                                                                                                                                                 |
+| 6   | **ISR via polling `queryRemote`, NOT the socket**                                                                                                   | A socket watcher connected and received `data`, but the change never rendered (socket scopes by rooms/accessMap + Dexie live-sync — extra coupling). Polling reuses the prerender's public, anonymous path. Cost: up to `WATCH_POLL_MS` latency.                                                                                                  |
+| 7   | **Strip `text` from the cache seed where unneeded at first paint** (`cacheStripFields:["text"]`)                                                    | Full-build OOM: SingleContent's translations query serialized every sibling language's full body into each page's seed (~105KB/page) → heap blew up ~820/1934 pages. Fix dropped the seed to ~39KB; the live query still keeps `text` for language switches.                                                                                      |
+| 8   | **Prerender the main public routes** (`/explore`, `/watch`)                                                                                         | The shell/feeds must be crawlable, not just slug pages.                                                                                                                                                                                                                                                                                           |
+| 9   | **Real `<a href>` links in the sidebar/bottom nav** (RouterLink `custom` → `<a>`)                                                                   | Web routing + crawlability need real anchors; only Search (a modal trigger) stays a button.                                                                                                                                                                                                                                                       |
+| 10  | **`concurrency: 1`** in vite-ssg                                                                                                                    | Load-bearing: the dependency collector is one shared object; parallel rendering mis-attributes keys.                                                                                                                                                                                                                                              |
+| 11  | **Enumerate routes via keyset pagination over `POST /query`** (`queryDrain.ts`, `QUERY_PAGE_SIZE = 500`), not a single high-limit `/search` request | The old `/search` reader was deleted (see status note above). Offset pagination was nondeterministic and silently capped the site at ~101 of ~1934 pages; keyset pagination over `/query` drains the full set deterministically.                                                                                                                  |
+| 12  | **No service worker on the web tier**                                                                                                               | Capacitor owns native/offline. The client-entry rewrite must drop the SW + Matomo SW registration.                                                                                                                                                                                                                                                |
+| 13  | **Run the watcher + upload/purge from a separate deploy repo**                                                                                      | Keeps cloud-specific (R2/Cloudflare) concerns out of the app repo.                                                                                                                                                                                                                                                                                |
+| 14  | **A durable, file-based delete queue** (`ssg-delete-queue/`), not a DB-poll-only cursor                                                             | A crash between "watcher saw the DeleteCmd" and "storage delete + CDN purge finished" must not lose the pending action. DeleteCmd docs are a permanent CouchDB ledger, so the _fact_ was never lost — but nothing recorded whether it had been acted on. Rejected: re-deriving pending deletes purely from an in-memory poll cursor each restart. |
 
 ---
 
 ## Status
 
 **Working & verified at build level:** type-check, scoped `SSG_ONLY_ROUTES=... npm run build:web`, and the
-native build are green. Article/tag pages prerender content + SEO + hreflang + related
+normal SPA build are green. Article/tag pages prerender content + SEO + hreflang + related
 lists with the `hqcache` first-paint seed. `/explore`, `/watch`, and locale-prefixed
 static variants prerender. Sidebar uses real anchors. i18n SSR renders strings in the
 right language. Full builds also emit static meta-refresh redirect files.
@@ -312,7 +312,7 @@ locale-prefixed variants — only the default-language `404.html` is emitted (pe
 **OOM:** root-caused and fixed (seed 105KB → 39KB). The remaining confirmation is a clean
 full `build:web` to completion across all ~1934 routes against a production-sized dataset.
 
-**Still the user's to run (browser-level):** `preview:web` in Incognito (a stale native SW
+**Still the user's to run (browser-level):** `preview:web` in Incognito (a stale normal SPA SW
 will otherwise hijack localhost) — confirm no flash, no hydration warnings, language
 switch, 404, and nav links. Note `VITE_API_URL` must point at a running API.
 
@@ -344,7 +344,7 @@ switch, 404, and nav links. Note `VITE_API_URL` must point at a running API.
   `generateBundle`, after the entry is locked in AND the `src` is rewritten to the hashed
   chunk — so a post-phase `html.replace("/src/main.ts", …)` matches nothing (silent
   no-op). Symptom when wrong: the _prerender_ uses `main.web.ts` (HTML looks right, JS-off
-  works) but the _client_ boots `main.ts` — the full native app, with its service worker,
+  works) but the _client_ boots `main.ts` — the full normal SPA, with its service worker,
   the Matomo analytics SW registration, and no vite-ssg snapshot hydration. Verify: a
   `clientRuntime-*.js` chunk exists in `dist-web/assets/`, and
   `grep -rl "Matomo SW registration" dist-web/assets/*.js` is empty.

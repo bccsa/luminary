@@ -257,13 +257,7 @@ export async function loginWithProvider(
 }
 
 /**
- * Fast synchronous check for "was there a session on this device" — no async
- * token validation/refresh, no Dexie lookup. Safe to call at module/component
- * setup time, before setupAuth() has resolved. Used only to auth-scope the
- * response cache key so the SSG build's anonymous seed is never shown to a
- * returning logged-in user. Checks both the current OIDC user cache and the
- * legacy Auth0 cache, so a device mid-migration (pre-OIDC session, not yet
- * re-authenticated under the generic client) still counts as logged in.
+ * Synchronous check for whether a session exists on this device, safe to call before setupAuth() resolves. Used to auth-scope the response-cache key so the SSG anonymous seed isn't shown to a returning logged-in user.
  */
 export function hasPersistedSession(): boolean {
     if (typeof localStorage !== "undefined") {

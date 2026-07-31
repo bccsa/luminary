@@ -176,13 +176,19 @@ function extractPlainText(content: unknown): string {
     return extractPlainTextFromObject(content);
 }
 
+const ESCAPE_MAP: Record<string, string> = {
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+};
+
+// Single-pass replacement so every special character is escaped in one sweep —
+// behaviorally identical to the chained-replace version, but unambiguous to static
+// analysis (no "replace-after-escape" re-matching that sanitizers flag as incomplete).
 function escapeHtml(s: string): string {
-    return s
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#39;");
+    return s.replace(/[&<>"']/g, (c) => ESCAPE_MAP[c]);
 }
 
 function applyTermHighlights(text: string, query: string): string {
@@ -568,10 +574,7 @@ const goToResult = (result: EnrichedResult) => {
     if (!isPage.value) closeSearch();
 };
 
-// Contain navigation keys within the modal even when focus isn't on the input (e.g. on the
-// close button), so arrow presses don't scroll the page behind the overlay. Capture phase so
-// we intercept before the page sees them. Page mode is a normal page and must NOT capture —
-// arrows should scroll the results.
+// Contain arrow keys within the modal so they don't scroll the page behind the overlay. Page mode is a normal page and must not capture, so arrows scroll the results there.
 function handleModalKeydownCapture(event: KeyboardEvent) {
     if (isPage.value || !isSearchOpen.value) return;
     if (event.key === "ArrowUp" || event.key === "ArrowDown") {

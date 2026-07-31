@@ -24,9 +24,7 @@ async function checkReady() {
 onActivated(checkReady);
 useLocalizedStaticHead("/");
 
-// The home feed sections now prerender on the web build (their useContentQuery is
-// SSG-aware — fetches via the public API at build, seeds + hydrates cleanly). No
-// build-time gating needed; native is unchanged.
+// Home feed sections prerender on the web build via the SSG-aware `useContentQuery` (fetches via the public API at build, seeds and hydrates cleanly). No build-time gating needed.
 </script>
 
 <template>

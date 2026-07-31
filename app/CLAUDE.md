@@ -27,7 +27,7 @@ Install with a plain `npm install` (the shared lib is linked via `file:../shared
 
 ## Architecture
 
-### Native/SPA startup (`src/main.ts`)
+### Normal SPA startup (`src/main.ts`)
 
 The boot sequence is order-sensitive — read `main.ts` before reordering anything:
 
@@ -40,7 +40,7 @@ The boot sequence is order-sensitive — read `main.ts` before reordering anythi
 
 ### Web/SSG startup (`src/main.web.ts`)
 
-`main.web.ts` is the web-only ViteSSG entry. Native keeps using `main.ts`; do not move web boot code into the native path. The web build uses `vite.config.web.ts`, writes `dist-web/`, has no service worker, and hydrates prerendered public pages by seeding `luminary-shared`'s `hqcache:*` response cache before the ES module boots.
+`main.web.ts` is the web-only ViteSSG entry. The normal SPA keeps using `main.ts`; do not move web boot code into its boot path. The web build uses `vite.config.web.ts`, writes `dist-web/`, has no service worker, and hydrates prerendered public pages by seeding `luminary-shared`'s `hqcache:*` response cache before the ES module boots.
 
 During prerender, `main.web.ts` installs Pinia, initializes i18n from public `Language` docs fetched through anonymous `queryRemote`, adds localized public static routes, and sets the render language from the URL/route map. On the client it restores the serialized language/Pinia state, then dynamically imports `src/ssg/clientRuntime.ts` and `src/auth.ts` before mount so hydration uses the live shared data layer.
 
@@ -54,7 +54,7 @@ Uses `@auth0/auth0-vue` with multiple providers selected at runtime from `AuthPr
 
 ### Routing & pages
 
-`src/router/routes.ts` is the shared route table used by both native (`router/index.ts`) and web (`main.web.ts`). `src/router/localizedRoutes.ts` adds web-only locale-prefixed public static routes (`/<code>`, `/<code>/explore`, `/<code>/watch`); keep native routes unchanged unless the native app actually needs the same URL shape.
+`src/router/routes.ts` is the shared route table used by both the normal SPA (`router/index.ts`) and web (`main.web.ts`). `src/router/localizedRoutes.ts` adds web-only locale-prefixed public static routes (`/<code>`, `/<code>/explore`, `/<code>/watch`); keep the normal SPA's routes unchanged unless it actually needs the same URL shape.
 
 Page-level components are in `src/pages/` and feature components in `src/components/`. The repo is mid-migration to colocate `__tests__/` next to feature folders (see `pages/SingleContent/`, `components/HomePage/`, etc.). New tests should follow that pattern.
 

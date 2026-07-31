@@ -41,8 +41,7 @@ export function websiteJsonLd() {
     const url = publicUrl("/");
     if (!url) return undefined;
 
-    // `q` runs the anonymous, public FTS search on the dedicated /search page (no more
-    // /explore search trickery). Values are encoded with URLSearchParams / encodeURIComponent.
+    // `q` runs the anonymous, public FTS search on the dedicated /search page. Values are URL-encoded.
     return {
         "@context": "https://schema.org",
         "@type": "WebSite",

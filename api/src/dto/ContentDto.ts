@@ -210,4 +210,10 @@ export class ContentDto extends _contentBaseDto {
     @IsString()
     @Expose()
     statusChangeDeleteCmdId?: Uuid;
+
+    @IsOptional() // Server-controlled: tracks past slugs this doc was published under. Sanitized from incoming change requests.
+    @IsArray()
+    @IsString({ each: true })
+    @Expose()
+    previousSlugs?: string[];
 }

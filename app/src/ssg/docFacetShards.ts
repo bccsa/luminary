@@ -1,14 +1,9 @@
 /**
- * Fixed hash-bucket sharding for `dist-web/ssg-doc-facets/`. Splits the doc-facet
- * snapshot (see `facetKeys.ts`'s "Doc facet snapshot") across a constant number of
- * small files instead of one file that grows with the site, so a scoped rebuild only
- * reads/writes the few shards its changed docs land in, and a consumer can process
- * shards one at a time instead of holding the whole dataset in memory. The deploy
- * repo carries its own copy of this module (like `facetKeys.ts`) — keep them in sync
- * if the shard count or algorithm ever changes.
- *
- * Keep this module PURE: no Vue/DOM/Vite/Node-fs deps — file I/O lives in
- * `vite.config.web.ts`, not here.
+ * Fixed hash-bucket sharding for `dist-web/ssg-doc-facets/` so a scoped rebuild only
+ * touches the few shards its changed docs land in, and consumers process one shard at
+ * a time instead of holding the whole dataset. Keep this module PURE (no
+ * Vue/DOM/Vite/Node-fs) — file I/O lives in `vite.config.web.ts`. The deploy repo
+ * carries its own copy; keep them in sync if the shard count or algorithm changes.
  */
 
 /** Constant regardless of site size — each shard shrinks as docs spread across it. */

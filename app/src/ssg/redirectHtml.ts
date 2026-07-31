@@ -1,19 +1,11 @@
 import { RedirectType } from "luminary-shared";
 
 /**
- * Static meta-refresh redirect renderer, shared by the full build and the deploy
- * repo's ISR watcher so both emit identical files. `<meta refresh>` keeps it
- * working with JS off; `location.replace` (not `.href`) keeps the hop out of history.
- *
- * A static file can't set its own HTTP status, and serving `dist-web/` is the deploy
- * repo's job (see `app/CLAUDE.md`) — so the *real* 301/302 has to be applied by
- * whatever fronts R2 there. This module hands that layer the status two ways: an
- * `x-redirect-status` meta tag on the artifact itself (readable straight off the file,
- * no sidecar lookup needed), and the numeric status from {@link redirectStatus} for a
- * caller building the `ssg-redirect-index.json` sidecar (see `redirectIndex.ts`).
- * Meanwhile the redirect type also drives the SEO signals static HTML CAN control
- * directly: `rel=canonical` (permanent — transfer ranking to the new URL) vs
- * `noindex` (temporary — the old URL should stay canonical/indexed).
+ * Static meta-refresh redirect renderer, shared by the full build and the ISR
+ * watcher so both emit identical files. `<meta refresh>` works with JS off;
+ * `location.replace` keeps the hop out of history. The serving layer applies the
+ * real 301/302 from the `x-redirect-status` meta tag or the `ssg-redirect-index.json`
+ * sidecar.
  */
 
 /** Maps a redirect's `redirectType` to the HTTP status the serving layer should use. */

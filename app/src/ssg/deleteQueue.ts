@@ -2,38 +2,10 @@ import type { DeleteReason } from "luminary-shared";
 import { resolveContentDelete, routeForSlug, type SsgRouteIndex } from "./routeIndex";
 
 /**
- * Durable, file-based pending-delete queue (`dist-web/ssg-delete-queue/`).
- *
- * Why this exists: today, "a doc was deleted" is known only as a transient fact the
- * deploy repo's ISR watcher observes while polling `DeleteCmd` docs from CouchDB — if
- * the watcher crashes between seeing the DeleteCmd and finishing the storage-delete +
- * CDN-purge for it, that pending action can be lost. `DeleteCmd` docs are a permanent,
- * never-pruned ledger, so the *fact* of the delete is never lost — but there was no
- * persisted record of *whether it's been acted on yet*. This sidecar is that record: a
- * build resolves each `DeleteCmd` to the concrete artifact(s) it must remove and writes
- * one file per `DeleteCmd`, named by the `DeleteCmd`'s own `_id` (`<id>.json`). The
- * deploy repo reads it, performs the actual delete + purge, then deletes that one file
- * itself once done — a crash at any point just means the file is still there on the
- * next pass, no shared/merged state to lose sync with.
- *
- * One file per entry rather than sharded, unlike `ssg-route-index`/`ssg-doc-facets`:
- * this sidecar is consumed entirely locally by the deploy repo (never uploaded to
- * R2/Cloudflare, per ADR 0018 — sharding's rationale of bounding what a consumer must
- * load/rewrite doesn't need a bucketing scheme when each entry already IS its own
- * file), and "processed" becomes a plain `rm <id>.json` with no read-merge-write race
- * against other entries sharing a file.
- *
- * `DeleteCmdDto.slug` (`shared/src/types/dto.ts`) now carries the deleted doc's own
- * slug directly, so a Content/Redirect DeleteCmd resolves to its route without needing
- * `ssg-route-index`/`ssg-redirect-index`'s lookup. Those sidecars are kept as a
- * fallback here only for legacy (pre-`slug`-field) DeleteCmds still sitting in the
- * permanent ledger — see `resolveContentDeleteQueueEntry` / `resolveRedirectDeleteQueueEntry`.
- * The rest of the DeleteCmd's own fields (`deleteReason`/`language`/`memberOf`/
- * `newMemberOf`) ride along unchanged on the entry too — nothing here ever leaves the
- * server, so there's no size pressure to strip them, and keeping them makes an entry
- * self-describing without cross-referencing CouchDB.
- *
- * This module only builds the in-memory queue; `vite.config.web.ts` writes it to disk.
+ * Durable, file-based pending-delete queue (`dist-web/ssg-delete-queue/`). Persists
+ * each resolved delete as its own file so a crash between seeing a delete and acting
+ * on it can't lose the pending action. This module builds the in-memory queue;
+ * `vite.config.web.ts` writes it to disk.
  */
 
 export type SsgDeleteQueueEntry = {
@@ -43,7 +15,7 @@ export type SsgDeleteQueueEntry = {
     language?: string;
     memberOf?: string[];
     newMemberOf?: string[];
-    /** Content only, legacy-fallback whole-parent cascade (multiple routes removed). */
+    /** Content only: set when a whole-parent delete removes multiple translation routes. */
     parentId?: string;
     routes: string[];
     files: string[];
@@ -79,12 +51,8 @@ function passthrough(cmd: DeleteCmdLike) {
 }
 
 /**
- * Resolves a Content DeleteCmd to the queue entry it needs. Slug-first (new-style
- * DeleteCmds self-describe their own route — always exactly one, since each
- * translation's own DeleteCmd now carries its own slug). Falls back to the legacy
- * `ssg-route-index` lookup (`resolveContentDelete`, reused as-is: it already handles
- * both a single-translation id and a whole-parent-id cascade) only when `slug` is
- * missing — a DeleteCmd created before that field existed.
+ * Resolves a Content DeleteCmd to its queue entry. Tries the cmd's own `slug` first;
+ * falls back to the `ssg-route-index` lookup only when `slug` is absent.
  */
 export function resolveContentDeleteQueueEntry(
     cmd: DeleteCmdLike,

@@ -43,12 +43,7 @@ function capture(): SsgCapture {
     return g.__SSG_DEPS__ as SsgCapture;
 }
 
-// Response-cache serialization. The web client seeds its first paint synchronously
-// from shared's response cache (localStorage `hqcache:*`, written by the content seam
-// during the prerender via `writeResponseCache`). We serialize the entries a page
-// produced into an inline classic <script> in its HTML; that script runs during parse
-// — before the deferred ES-module entry boots the app — so `useHybridQuery({cache:true})`
-// seeds synchronously with the prerendered docs (no snapshot store, no hydration flash).
+// Response-cache serialization. We inline a page's `hqcache:*` entries as a classic <script> that runs during parse, before the ES-module entry boots, so `useHybridQuery({cache:true})` seeds synchronously with the prerendered docs (no hydration flash).
 const HQCACHE_PREFIX = "hqcache:";
 // Minimal structural type — this Node-project config file has no DOM lib, so the
 // global `Storage` type isn't available; the polyfill provides these members.
@@ -89,19 +84,7 @@ function hqCacheScript(cache: Record<string, string>): string {
     return `<script>(function(c){try{for(var k in c)localStorage.setItem(k,c[k])}catch(e){}})(${json})</script>`;
 }
 
-// Pre-paint auth gate. The prerendered HTML is always the public/anonymous view, and
-// the browser paints it the instant it's parsed — well before main.web.ts's JS module
-// loads, boots the data layer, and calls mount() (which on the web/SSG entry is itself
-// gated behind `initWebClient()` + `setupAuth()` resolving, so the pre-mount window can
-// be long, especially on Safari). Without this, a returning logged-in user watches the
-// public content sit on screen for that whole window, then sees it swap once Vue mounts
-// and hydrates into the auth-scoped content — the "flash". This hides `#app` via CSS,
-// synchronously, ONLY when a persisted OIDC or legacy-Auth0 session looks present
-// (mirrors `hasPersistedSession()` in src/auth.ts). This config can share only the
-// storage constants because the gate must run before any app JS module loads, and is
-// revealed by App.vue's onMounted once Vue's first (correctly auth-scoped) render has
-// landed — so a logged-out reload is completely unaffected (no class ever added), and a
-// logged-in reload never paints the wrong content, only a brief neutral hidden window.
+// Pre-paint auth gate. The prerendered HTML is the public/anonymous view, which a returning logged-in user would briefly see before the JS boots; this hides `#app` via CSS until Vue's auth-scoped first render lands. Only engages when a persisted session looks present (mirrors `hasPersistedSession()`); revealed by App.vue's onMounted.
 const AUTH_GATE_CLASS = "ssg-auth-pending";
 function authGateScript(): string {
     const oidcUserPrefix = JSON.stringify(OIDC_USER_PREFIX);
@@ -142,21 +125,14 @@ type SsgDeleteCmdDoc = KeysetDocument & {
     newMemberOf?: string[];
 };
 
-// Scoped (incremental) rebuild mode: regenerate only the routes named in
-// SSG_ONLY_ROUTES (comma-separated), preserving every other prerendered file.
-// Driven by `SSG_ONLY_ROUTES=... npm run build:web` (Phase 2 §3.5).
+// Scoped (incremental) rebuild mode: regenerate only the routes in `SSG_ONLY_ROUTES` (comma-separated), preserving every other prerendered file. Driven by `SSG_ONLY_ROUTES=... npm run build:web`.
 const SCOPED_ROUTES: string[] = (process.env.SSG_ONLY_ROUTES || "")
     .split(",")
     .map((r) => r.trim())
     .filter(Boolean);
 const IS_SCOPED = SCOPED_ROUTES.length > 0;
 
-// DeleteCmd ids relevant to THIS scoped rebuild (comma-separated). A deleted route was
-// never rendered this build, so there's no "was this route rendered" signal to gate a
-// delete-queue merge on the way writeRouteIndex()/writeDocFacets() do — the deploy repo
-// already knows which DeleteCmd ids triggered the rebuild, so it passes them explicitly
-// via `SSG_DELETE_CMD_IDS=... npm run build:web`. Empty on a purely content-driven
-// scoped rebuild (nothing to add to the delete queue that run).
+// DeleteCmd ids relevant to this scoped rebuild (comma-separated), passed via `SSG_DELETE_CMD_IDS`. A deleted route was never rendered this build, so the deploy repo passes the triggering ids explicitly for the delete-queue merge.
 const SCOPED_DELETE_CMD_IDS: string[] = (process.env.SSG_DELETE_CMD_IDS || "")
     .split(",")
     .map((id) => id.trim())
@@ -192,9 +168,7 @@ const ssgBuildLock = (): Plugin => ({
     },
 });
 
-// vite-ssg's client build always re-emits index.html (the SPA shell). On a scoped
-// rebuild that does NOT include "/", that would clobber the prerendered home — so
-// back it up now and restore it in onFinished (POC-proven gotcha, spec §3.5).
+// vite-ssg's client build always re-emits index.html. On a scoped rebuild that excludes "/", that would clobber the prerendered home, so back it up and restore it in onFinished.
 const preservedIndexHtml =
     IS_SCOPED && !SCOPED_ROUTES.includes("/") && existsSync(indexHtmlPath())
         ? readFileSync(indexHtmlPath(), "utf-8")
@@ -316,10 +290,7 @@ function writeRouteIndex() {
     );
 }
 
-// Only the docs whose route was actually rendered THIS build get their shard
-// touched — a scoped rebuild of a handful of routes reads/writes a handful of small
-// shard files, not the whole site's facet snapshot (the thing that used to grow
-// without bound as the site grew — see docFacetShards.ts).
+// Only docs whose route was rendered this build get their shard touched, so a scoped rebuild reads/writes a handful of small shard files instead of the whole site's facet snapshot (see docFacetShards.ts).
 function writeDocFacets() {
     mkdirSync(docFacetsDir(), { recursive: true });
     writeFileSync(docFacetsIndexPath(), JSON.stringify(docFacetsIndex()));
@@ -379,18 +350,7 @@ function localizedStaticPaths(staticRoutes: string[], langCodes: string[], defau
  * Run with: `npm run build:web` (sets VITE_BUILD_TARGET=web).
  */
 
-// Rewrites the client entry in index.html from the native entry to the web/SSG
-// entry, without touching index.html on disk (keeps the native build untouched).
-//
-// MUST run in the `pre` phase. Vite's build-html plugin applies `pre`
-// transformIndexHtml hooks BEFORE it scans the HTML for its `<script
-// type="module">` entry; the default (post) phase runs in `generateBundle`,
-// by which point Vite has already (a) chosen `main.ts` as the Rollup entry and
-// (b) replaced the script `src` with the hashed chunk path — so a post-phase
-// `html.replace("/src/main.ts", …)` matches nothing and is a silent no-op. The
-// result of getting this wrong: the prerender uses `main.web.ts` (correct) but
-// the CLIENT boots `main.ts` — the full native app, with its service worker,
-// Matomo analytics SW registration, and no vite-ssg snapshot hydration.
+// Rewrite the client entry in index.html from `main.ts` to `main.web.ts` without touching index.html on disk. MUST run in the `pre` phase so it applies before Vite scans for the module entry and rewrites the script src.
 const rewriteWebEntry = (): Plugin => ({
     name: "ssg-web-entry",
     transformIndexHtml: {
@@ -458,11 +418,7 @@ async function fetchRedirects(apiUrl: string): Promise<SsgRedirect[]> {
     });
 }
 
-// Drains this build's relevant DeleteCmd docs. A Content-translation delete's DeleteCmd
-// carries the PARENT's docType (Post/Tag), never "content" (see deleteQueue.ts's own
-// doc comment) — and /query requires docType as a scalar equality value, so it's three
-// drains, not one. On a scoped rebuild with no delete-cmd ids given, skip the network
-// calls entirely: there's nothing this run should add to the queue.
+// Drain this build's relevant DeleteCmd docs. A Content-translation delete's DeleteCmd carries the parent's docType (Post/Tag), and /query requires docType as a scalar, so it's three drains. On a scoped rebuild with no delete-cmd ids given, skip the network calls.
 async function fetchDeleteCmds(
     apiUrl: string,
 ): Promise<{ contentCmds: SsgDeleteCmdDoc[]; redirectCmds: SsgDeleteCmdDoc[] }> {
@@ -479,12 +435,7 @@ async function fetchDeleteCmds(
     return { contentCmds: [...posts, ...tags], redirectCmds: redirects };
 }
 
-// Resolves this build's drained DeleteCmds into the durable pending-delete queue and
-// writes one file per entry into `ssg-delete-queue/` (see deleteQueue.ts for why this
-// is flat, not sharded like writeRouteIndex()/writeDocFacets()). Legacy (slug-less)
-// fallback data is loaded lazily — only the specific route-index shards a legacy
-// Content cmd's docId hashes to, and only ssg-redirect-index.json if a legacy Redirect
-// cmd needs it.
+// Resolve this build's drained DeleteCmds into the pending-delete queue, writing one file per entry into `ssg-delete-queue/` (flat, not sharded). Legacy (slug-less) fallback data is loaded lazily — only the shards a legacy cmd's docId hashes to, and the redirect index if a legacy Redirect cmd needs it.
 function writeDeleteQueue(cmds: { contentCmds: SsgDeleteCmdDoc[]; redirectCmds: SsgDeleteCmdDoc[] }) {
     const { contentCmds, redirectCmds } = cmds;
     if (!contentCmds.length && !redirectCmds.length) {
@@ -548,8 +499,7 @@ const config: UserConfig & { ssgOptions: ViteSSGOptions } = {
         },
     },
     define: {
-        // Make hydration mismatches visible even in the production build, so
-        // "no warnings" during validation is a real proof (Phase 1 §7).
+        // Make hydration mismatches visible even in the production build so "no warnings" is a real signal.
         __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: "true",
     },
     build: {
@@ -571,15 +521,12 @@ const config: UserConfig & { ssgOptions: ViteSSGOptions } = {
         mock: true, // jsdom globals in Node so DOM-at-import code doesn't crash
         formatting: "minify",
         script: "async",
-        // LOAD-BEARING: the dependency collector is a single shared object, so
-        // pages MUST render one at a time or keys get mis-attributed (spec §3.2,
-        // §7). Do not raise this without redesigning the collector.
+        // Load-bearing: the dependency collector is a single shared object, so pages must render one at a time or keys get mis-attributed. Do not raise concurrency without redesigning the collector.
         concurrency: 1,
         includedRoutes: async (_paths: string[], routes: readonly RouteRecordRaw[]) => {
             const apiUrl = env.VITE_API_URL;
             if (!apiUrl) {
-                // Fail fast: a partial build that silently drops pages is worse
-                // than no build (Phase 1 spec §3.1).
+                // Fail fast: a partial build that silently drops pages is worse than no build.
                 throw new Error("[ssg] VITE_API_URL is required for route enumeration");
             }
 
@@ -646,7 +593,7 @@ const config: UserConfig & { ssgOptions: ViteSSGOptions } = {
             );
             return all;
         },
-        // --- Render-time dependency capture (spec §3.2) + response-cache seed ---
+        // --- Render-time dependency capture + response-cache seed ---
         onBeforePageRender: () => {
             capture().current = new Set();
             // Per-page isolation: drop the previous page's cache so it can't leak into

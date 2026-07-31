@@ -122,6 +122,8 @@ export type ContentDto = ContentBaseDto & {
     copyright?: string;
     wordCount?: number;
     statusChangeDeleteCmdId?: Uuid;
+    /** Server-set history of past slugs this doc was published under. Reserved for future ISR/SSG use. */
+    previousSlugs?: string[];
 };
 
 export type ContentParentDto = ContentBaseDto & {

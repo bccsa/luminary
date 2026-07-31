@@ -132,17 +132,13 @@ const routeKey = computed(() => {
     return router.currentRoute.value.fullPath;
 });
 
-// On the web/SSG tier the prerendered HTML is the signed-out, content-first
-// baseline: the interactive/auth-aware chrome (modals, audio player) is
-// rendered only AFTER mount so the first client render matches the SSR output
-// (clean hydration). On native/SPA there is no prerender, so chrome renders
-// immediately as before — behaviour is unchanged there.
+// Gate auth-aware chrome behind mount so the web/SSG first client render matches the prerendered HTML (clean hydration). The normal SPA has no prerender, so this is a no-op there.
 const isMounted = useHydrated();
 onMounted(() => {
     // Reveal content hidden by vite.config.web.ts's pre-paint auth gate (see
     // authGateScript there for why): by now Vue's first render has landed, using the
     // auth-scoped response cache, so it's never the wrong (public) content. No-op when
-    // the gate never engaged (logged-out reload, or the native/SPA build).
+    // the gate never engaged (logged-out reload, or the normal SPA build).
     document.documentElement.classList.remove("ssg-auth-pending");
 });
 

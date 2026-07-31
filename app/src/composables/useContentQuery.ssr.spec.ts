@@ -2,13 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { flushPromises } from "@vue/test-utils";
 import { DocType, structuralCacheKey, type ContentDto } from "luminary-shared";
 
-// `onServerPrefetch` is a no-op outside an active component instance (it warns and
-// never invokes the callback) — see Vue's lifecycle-hook guard. `useContentQuery`'s
-// SSR branch is only ever run inside a real `<script setup>`, but exercising that
-// here without a full component/SSR-render harness would test vite-ssg's plumbing,
-// not this file's. Invoking the callback immediately reproduces exactly what the
-// real render does (the callback is awaited before the page is serialized) without
-// that harness.
+// Mock `onServerPrefetch` to invoke its callback immediately, reproducing what a real SSR render does (the callback is awaited before the page is serialized) without a full component harness.
 vi.mock("vue", async (importOriginal) => {
     const actual = await importOriginal<typeof import("vue")>();
     return { ...actual, onServerPrefetch: (cb: () => unknown) => cb() };

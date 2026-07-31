@@ -5,7 +5,7 @@ import type { DependencyKey } from "./facetKeys";
  * (initialised + reset per route by `vite.config.web.ts`, which inlines its own
  * copy so the Node tsconfig project doesn't pull in app source). This module is
  * only the reporter side — import-safe everywhere, since `reportKeys` no-ops
- * unless a capture is active, so the same call site is harmless on client/native.
+ * unless a capture is active, so the same call site is harmless on client/the normal SPA.
  */
 
 type CaptureState = {
@@ -18,7 +18,7 @@ const GLOBAL_KEY = "__SSG_DEPS__";
 /**
  * Report dependency keys read while rendering the current route. No-op unless a
  * capture is active (i.e. only during the SSG prerender) — safe to call from
- * fetchers that also run on the client / native build.
+ * fetchers that also run on the client / normal SPA build.
  */
 export function reportKeys(keys: Iterable<DependencyKey>): void {
     const s = (globalThis as Record<string, unknown>)[GLOBAL_KEY] as CaptureState | undefined;

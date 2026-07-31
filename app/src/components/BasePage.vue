@@ -12,21 +12,11 @@ import { useBackNavigation } from "@/composables/useBackNavigation";
 
 const showNotifications = !queryParams.has("supress-notifications");
 
-// On the SSG build the desktop sidebar IS prerendered — its nav / logo /
-// theme+language controls are public, the profile block self-gates on auth (false
-// during the prerender, so it matches the first client render), and its
-// interactive/Dexie-backed overlays mount client-side (see DesktopSidebar). What
-// still cannot exist during the Node prerender is the per-user notification chrome
-// (synced Dexie data) + the toast Teleport — those stay gated behind
-// `notificationsReady` so the prerendered HTML and the first client render match
-// (clean hydration). On native, `notificationsReady` starts true → unchanged.
+// The desktop sidebar is prerendered; per-user notification chrome and the toast Teleport are gated behind `notificationsReady` so the prerendered HTML and first client render match (clean hydration). The normal SPA starts ready.
 const isSSG = import.meta.env.VITE_BUILD_TARGET === "web";
 
-// On the SSG tier, hold the notifications back a few seconds after hydration
-// so the first paint stays still (the account/offline banners render in main flow
-// and would otherwise shove content down right as the page settles — a layout
-// shift that hurts CLS/SEO). Native renders them immediately (behaviour unchanged).
-const SSG_NOTIFICATION_DELAY_MS = 3000; // tune if CLS budget changes
+// On the web/SSG tier, delay notifications briefly after hydration so account/offline banners don't shift content as the page settles (protects CLS/SEO). The normal SPA renders immediately.
+const SSG_NOTIFICATION_DELAY_MS = 3000;
 const notificationsReady = ref(!isSSG);
 
 defineProps<{

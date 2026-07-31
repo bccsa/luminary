@@ -50,11 +50,7 @@ const showThemeSelector = ref(false);
 const showLanguageModal = ref(false);
 const showLogoutDialog = ref(false);
 
-// The sidebar itself prerenders on the web/SSG build, but the interactive
-// overlays below do not — LanguageModal runs a Dexie-backed `useHybridQuery` at
-// setup, which cannot execute during the Node prerender. They're never needed in
-// the static HTML, so only mount them on the client (after mount). On native this
-// flips true immediately.
+// The sidebar prerenders on the web/SSG build, but its interactive overlays (e.g. LanguageModal's Dexie-backed query) can't run during the Node prerender, so they mount client-side only.
 const isMounted = useHydrated();
 
 const navIconClass = "h-5 w-5 flex-shrink-0";

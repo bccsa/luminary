@@ -120,10 +120,7 @@ vi.mock("@/composables/useBucketInfo", () => ({
 }));
 
 describe("SingleContent", () => {
-    // Tracked so afterEach can unmount it: an un-unmounted SingleContent instance keeps
-    // its watchers (retention, not-found resolution, translations, …) live for the rest
-    // of the file's run, racing later tests over shared reactive state (userPreferencesAsRef,
-    // the notification store, etc.) — the root cause of this file's historical flakiness.
+    // Tracked so afterEach can unmount it: an un-unmounted SingleContent keeps its watchers live for the rest of the file's run, racing later tests over shared reactive state.
     let wrapper: VueWrapper | undefined;
 
     beforeEach(async () => {
@@ -218,6 +215,22 @@ describe("SingleContent", () => {
         });
     });
 
+    it("does not render the SSR article-text marker on the hydrated client", async () => {
+        // The marker is prerender-only (import.meta.env.SSR): the hydrated client must
+        // omit it so the recovered text doesn't carry a stale attribute into the vdom.
+        wrapper = mount(SingleContent, {
+            props: {
+                slug: mockEnglishContentDto.slug,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper!.find("article").exists()).toBe(true);
+        });
+
+        expect(wrapper!.find("[data-ssr-article-text]").exists()).toBe(false);
+    });
+
     it("displays the publish date", async () => {
         wrapper = mount(SingleContent, {
             props: {
@@ -243,6 +256,33 @@ describe("SingleContent", () => {
         await waitForExpect(() => {
             expect(wrapper!.html()).not.toContain("Jan 1, 2024");
             expect(wrapper!.html()).toContain("janv.");
+        });
+    });
+
+    it("excludes a future-dated 'coming soon' translation from the translations list", async () => {
+        // A future publishDate with parentShowComingSoon would match under the default
+        // includeScheduled:true, but the translations list must only show siblings that
+        // are already readable — so the language dropdown stays hidden here.
+        await db.docs.update(mockFrenchContentDto._id, {
+            publishDate: Date.now() + 10_000_000,
+            parentShowComingSoon: true,
+        } as any);
+
+        wrapper = mount(SingleContent, {
+            props: {
+                slug: mockEnglishContentDto.slug,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper!.text()).toContain(mockEnglishContentDto.title);
+        });
+        await flushPromises();
+
+        // Only English is published-right-now; the French "coming soon" sibling is
+        // excluded, so the dropdown (shown only when >1 readable translation) is absent.
+        await waitForExpect(() => {
+            expect(wrapper!.find("[data-test='translationSelector']").exists()).toBe(false);
         });
     });
 
@@ -321,7 +361,10 @@ describe("SingleContent", () => {
         });
     });
 
-    it("sets the meta data correctly", async () => {
+    it("sets the document title correctly", async () => {
+        // Native's imperative title-setting watch — the meta description tag is no
+        // longer set here (that's the web/SSG build's `useContentHead` job, since no
+        // crawler ever inspects a running native app's live DOM).
         cmsLanguages.value = [mockLanguageDtoEng, mockLanguageDtoFra];
         wrapper = mount(SingleContent, {
             props: {
@@ -330,10 +373,7 @@ describe("SingleContent", () => {
         });
 
         await waitForExpect(() => {
-            const metaDescription = document.head.querySelector("meta[name='description']");
-
             expect(document.title).toBe(`${mockEnglishContentDto.seoTitle} - ${appName}`);
-            expect(metaDescription?.getAttribute("content")).toBe(mockEnglishContentDto.seoString);
         });
     });
 

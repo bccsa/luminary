@@ -87,8 +87,8 @@ export async function drainQuery<T extends KeysetDocument>(
 
 /**
  * Drains all content docs eligible for prerendering. `/query` doesn't filter
- * scheduled content server-side (unlike the FTS endpoint it replaced), so the
- * `publishDate <= now` bound here keeps unpublished/future articles out of the build.
+ * scheduled content server-side, so the `publishDate <= now` bound keeps future
+ * articles out of the build.
  */
 export function enumeratePublicContent<T extends KeysetDocument>(
     transport: QueryTransport,
@@ -101,15 +101,9 @@ export function enumeratePublicContent<T extends KeysetDocument>(
 }
 
 /**
- * Drains `DeleteCmd` docs for one `docType` value. `/query` requires `docType` as a
- * scalar equality value (no `$in`) for DeleteCmd queries, so a Content-translation
- * delete (whose DeleteCmd carries the parent's `Post`/`Tag` type, never `"content"` —
- * the permission system has no ACLs on Content itself) needs one call per parent type,
- * plus one more for `Redirect` — three calls, not one (see `deleteQueue.ts`).
- *
- * An optional `ids` filter narrows the drain to exactly those DeleteCmd doc ids — a
- * scoped rebuild only wants the entries relevant to the DeleteCmds that triggered it,
- * not the entire historical ledger (see `SSG_DELETE_CMD_IDS` in `vite.config.web.ts`).
+ * Drains `DeleteCmd` docs for one scalar `docType` (the API doesn't accept `$in`
+ * here, so callers issue one drain per type). Pass `ids` to narrow a scoped rebuild
+ * to just the DeleteCmds that triggered it.
  */
 export function enumerateDeleteCmds<T extends KeysetDocument>(
     transport: QueryTransport,

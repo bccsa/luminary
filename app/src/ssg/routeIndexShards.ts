@@ -1,16 +1,10 @@
 /**
- * Fixed hash-bucket sharding for `dist-web/ssg-route-index/`. Splits the content-id /
- * parent-id → route sidecar (see `routeIndex.ts`) across a constant number of small
- * files instead of one file that grows with the site, so a scoped rebuild only
- * reads/writes the few shards its changed docs land in, and a consumer resolving a
- * single DeleteCmd loads one small shard file instead of the whole site's route index.
- * Same algorithm as `docFacetShards.ts` (kept as a separate module since the two
- * sidecars shard independently and a consumer may only need one of them) — the deploy
- * repo carries its own copy of this module too; keep them in sync if the shard count
- * or algorithm ever changes.
- *
- * Keep this module PURE: no Vue/DOM/Vite/Node-fs deps — file I/O lives in
- * `vite.config.web.ts`, not here.
+ * Fixed hash-bucket sharding for `dist-web/ssg-route-index/` so a scoped rebuild and a
+ * single-DeleteCmd lookup each touch one small file instead of the whole route index.
+ * Same algorithm as `docFacetShards.ts` (kept separate since the sidecars shard
+ * independently). Keep this module PURE (no Vue/DOM/Vite/Node-fs) — file I/O lives in
+ * `vite.config.web.ts`. The deploy repo carries its own copy; keep them in sync if the
+ * shard count or algorithm changes.
  */
 
 /** Constant regardless of site size — each shard shrinks as docs spread across it. */

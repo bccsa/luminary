@@ -1,9 +1,5 @@
 /**
- * Storage key prefixes/keys shared between `auth.ts` and the web/SSG pre-paint
- * gate (`vite.config.web.ts`'s injected inline script). Kept import-safe for
- * Node (no Vue/oidc-client-ts/Sentry) so the gate script — which must run
- * before any app JS module loads — can mirror `hasPersistedSession()`'s check
- * without pulling in the rest of `auth.ts`.
+ * Storage keys shared between `auth.ts` and the web/SSG pre-paint gate. Kept import-safe for Node so the gate script (which runs before any app JS loads) can mirror `hasPersistedSession()` without pulling in the rest of `auth.ts`.
  */
 
 /** Prefix of oidc-client-ts's own localStorage user cache keys. */

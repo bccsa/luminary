@@ -81,9 +81,7 @@ describe("useContentQuery", () => {
         expect(o.ssrCacheStripFields).toBeUndefined();
     });
 
-    // Response-cache auth scoping — fix for "flash of public content" on reload
-    // while logged in (the SSG build always seeds the `:anon` entry; a returning
-    // authenticated client must read/write a distinct `:auth` entry instead).
+    // Response-cache auth scoping: the SSG build always seeds the `:anon` entry, so a returning authenticated client must read/write a distinct `:auth` entry instead.
     describe("cacheId auth scoping", () => {
         it("suffixes an anonymous client's cacheId with :anon", () => {
             hasPersistedSessionMock.mockReturnValue(false);

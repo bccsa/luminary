@@ -1,7 +1,7 @@
 // SSG CLIENT runtime — dynamically imported ONLY on the client (main.web.ts's
 // `else` branch of `import.meta.env.SSR`), so its heavy, side-effectful imports
 // (shared init/sync, app sync watchers) never load during the Node prerender.
-// Boots the same data layer the native app uses (minus the service worker/auth),
+// Boots the same data layer the normal SPA uses (minus the service worker/auth),
 // so prerendered pages hydrate into a live, interactive SPA.
 
 import { getSocket, init, warmMangoCaches } from "luminary-shared";

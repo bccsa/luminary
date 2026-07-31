@@ -1,29 +1,9 @@
 /**
  * Content-id / parent-id → prerendered route sidecar (`dist-web/ssg-route-index/`).
- *
- * Why this exists: prerendering writes static HTML files keyed by **route** (slug),
-21 * but ISR deletion is driven by a CouchDB DeleteCmd, which historically carried only
- * the deleted doc's **id** — never the slug it was rendered to (the slug lives on the
- * deleted doc itself, so it's gone by the time the deploy repo's watcher sees the
- * DeleteCmd). This sidecar is the persisted id → route mapping that survives the doc's
- * deletion, so `resolveContentDelete` can still answer "which static file(s) does this
- * id correspond to?" and the deploy repo can remove them. A `docId` may be either a
- * single translation's content id (removes one route) or a parent id (removes every
- * translation's route — e.g. a whole post/tag being deleted).
- *
- * Note: `DeleteCmdDto.slug` (`shared/src/types/dto.ts`) now carries the deleted doc's
- * own slug directly on every Content/Redirect DeleteCmd, and a parent Post/Tag delete
- * always cascades into one slug-bearing DeleteCmd per child translation — so a deployer
- * reading `slug` off the DeleteCmd no longer needs this sidecar's `content` map, nor
- * (since each translation's own DeleteCmd already covers its own route) the `parent`
- * fallback. This module is kept for deployer versions that haven't migrated yet.
- *
- * This module only builds the in-memory index; `vite.config.web.ts` shards it to disk
- * (`routeIndexShards.ts`, same fnv1a32-mod-shardCount scheme as `docFacetShards.ts`) so
- * a scoped rebuild only touches the shards its changed docs land in, and a consumer
- * resolving one DeleteCmd loads one small shard file instead of the whole site's index.
- * `resolveContentDelete` itself is shard-agnostic — it works the same against a full
- * index or a single shard's partial `{content, parent}` object.
+ * Deletion is driven by doc id while static files are keyed by slug, so this mapping
+ * survives the doc's deletion to let stale files be removed. Sharded so a scoped
+ * rebuild and a single-DeleteCmd lookup each touch one small file. This module builds
+ * the in-memory index; `vite.config.web.ts` shards it to disk.
  */
 
 export type SsgRouteIndex = {

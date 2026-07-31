@@ -2,9 +2,9 @@
 import {
     DocType,
     PostType,
-    PublishStatus,
     TagType,
     isConnected,
+    mangoCompile,
     queryLocal,
     queryRemote,
     touchRetention,
@@ -15,6 +15,7 @@ import {
     verifyAccess,
     AclPermission,
 } from "luminary-shared";
+import { publishedNowConditions } from "@/util/mangoIsPublished";
 import { useContentQuery, useContentQueryWithState } from "@/composables/useContentQuery";
 import { computed, nextTick, onMounted, ref, watch } from "vue";
 import { BookmarkIcon as BookmarkIconSolid, TagIcon, SunIcon } from "@heroicons/vue/24/solid";
@@ -62,10 +63,7 @@ import ContinueReadingPrompt from "@/components/content/ContinueReadingPrompt.vu
 import LHighlightable from "@/components/common/LHighlightable.vue";
 import DropdownMenu from "@/components/common/DropdownMenu.vue";
 import { markPageReady } from "@/util/renderState";
-import {
-    computeEstimatedReadingMinutes,
-    resolveReadingSpeedWpm,
-} from "@/util/readingTime";
+import { computeEstimatedReadingMinutes, resolveReadingSpeedWpm } from "@/util/readingTime";
 import {
     resolveArticleScrollContainer,
     useReadingProgressTracker,
@@ -81,12 +79,13 @@ type Props = {
 };
 const props = defineProps<Props>();
 
-// True during the Node prerender AND on the resulting hydrated web-build client
-// (false only for the native SPA build). Gates the per-slug response-cache ids
-// below: the web build needs them to match the prerender's seed on first paint;
-// native gets no such benefit and would only accumulate one localStorage entry
-// per article ever visited.
+// True for the web/SSG build (prerender and hydrated client), false for the normal SPA. Gates the per-slug response-cache ids so the web build matches the prerender's seed on first paint; the normal SPA would only accumulate one localStorage entry per article.
 const isSSG = import.meta.env.VITE_BUILD_TARGET === "web";
+
+// True only during the vite-ssg prerender pass (statically false in the hydrated client
+// and the normal SPA). Exposed to the template so the SSR article-text marker is written into the
+// prerendered HTML but not the hydrated client's vdom.
+const isPrerender = import.meta.env.SSR;
 
 const { t } = useI18n();
 const showCategoryModal = ref(false);
@@ -94,13 +93,7 @@ const enableZoom = ref(false);
 
 const currentImageIndex = ref(0);
 
-// Content by slug — the SAME local-first hybrid query on every build (web and
-// native). On the web build (isSSG) the prerender primes this query's response cache
-// (`cacheId = slug` makes the per-document seed safe), so the hydrating client shows
-// the article on first paint with no flash; during the Node prerender the seam's
-// onServerPrefetch fetches it so it is present in the static HTML. Native gets no
-// such benefit, so `cacheId` (and thus a dedicated cache entry per slug) is scoped
-// to isSSG only.
+// Content by slug via the same local-first hybrid query on every build. On the web build the prerender primes this query's response cache (`cacheId = slug` makes the per-document seed safe) so the client shows the article on first paint with no flash; `cacheId` is scoped to isSSG since the normal SPA gets no benefit.
 const { output: contentArr, isFetching: isContentFetching } = useContentQueryWithState(
     () => [{ slug: props.slug }],
     {
@@ -112,9 +105,13 @@ const { output: contentArr, isFetching: isContentFetching } = useContentQueryWit
         // for CouchDB to engage the index (slug eq alone falls back to a full scan).
         useIndex: "content-slug-publishDate-index",
         sort: [{ publishDate: "desc" }],
-        // No stripFields here (unlike overview feeds): this is the document actually
-        // opened in SingleContent, and it should persist offline with `fts`/
-        // `ftsTokenCount` intact so it surfaces in offline FTS search.
+        // Strip nothing from the live/persisted copy (unlike overview feeds, which default
+        // to stripping fts/ftsTokenCount/text/memberOf/_rev): this is the document actually
+        // opened in SingleContent — `text` (rendered below) and `memberOf` (read by canEdit)
+        // are needed live, and `fts`/`ftsTokenCount` must persist offline so this doc
+        // surfaces in offline FTS search.
+        stripFields: [],
+        persistOffline: true,
         // `text` is the heaviest field on the page and already sits in the prerendered
         // `[data-ssr-article-text]` node — omit it (and the FTS/rev fields, which the
         // live/persisted copy above now keeps) from the SSR-authored cache write so it
@@ -123,10 +120,7 @@ const { output: contentArr, isFetching: isContentFetching } = useContentQueryWit
     },
 );
 
-// `content` is a COMPUTED over the query result, plus an override for the in-place
-// language switches below. A computed stays readable at SSR render time, where the
-// watch-based binding the page used to rely on never runs. `contentOverride` is
-// cleared on slug change so a stale override can't shadow the new page.
+// `content` is a computed over the query result plus an override for in-place language switches. A computed stays readable at SSR render time (a watch-based binding would not run there). `contentOverride` is cleared on slug change so a stale override can't shadow the new page.
 const contentOverride = ref<ContentDto | undefined>();
 const content = computed<ContentDto | undefined>(
     () => contentOverride.value ?? contentArr.value[0],
@@ -138,13 +132,8 @@ watch(
     },
 );
 
-// One-time hydration patch (client only): the response-cache seed above may have
-// omitted `text` (`ssrCacheStripFields`) — recover it from the DOM before first
-// render so the `v-html` binding below matches the prerendered HTML exactly. Runs
-// synchronously in setup (not a watcher) so it lands before the template's first
-// evaluation. A no-op when the seed already carries `text` (warm client cache) or
-// there's nothing to recover.
-if (!import.meta.env.SSR) {
+// One-time hydration patch (client only): recover `text` (omitted from the cache seed via `ssrCacheStripFields`) from the DOM before first render so `v-html` matches the prerendered HTML. Runs in setup (not a watcher) so it lands before the template's first evaluation. Guarded on `!isPrerender` so it runs in the browser after the web build hydrates but skips the Node prerender pass; the normal SPA always passes. No-op when the seed already carries `text` or there's nothing to recover.
+if (!isPrerender) {
     const recovered = recoverSsrArticleText(contentArr.value[0], (selector) =>
         document.querySelector(selector),
     );
@@ -178,13 +167,7 @@ const canEdit = () => {
     return verifyAccess(content.value.memberOf, content.value.parentType!, AclPermission.Edit);
 };
 
-// Redirect resolution. A redirect takes precedence over content — but that precedence
-// is enforced on the server (publishing content onto a redirect's slug is forced to
-// draft), not here. The slug invariant therefore guarantees a slug carries *either*
-// published content or a redirect, never both, so the eager local check and the content
-// bind below never contend: at most one of them resolves. Synced redirects route
-// instantly via queryLocal on slug change; a redirect that exists only on the server is
-// caught by queryRemote in the not-found resolver, so normal pages pay no redirect API call.
+// Redirect resolution: a redirect takes precedence over content, and the server guarantees a slug carries one or the other, so the local check and the content bind never contend. Server-only redirects are caught by queryRemote in the not-found resolver, so normal pages pay no redirect API call.
 function routeRedirect(redirect: RedirectDto): boolean {
     if (!redirect?.toSlug) return false;
     const targetRoute = router.getRoutes().find((r) => r.name === redirect.toSlug);
@@ -193,27 +176,13 @@ function routeRedirect(redirect: RedirectDto): boolean {
     return true;
 }
 
-// Loading until the content query produces an answer for the current slug — cleared
-// by the bind watch on the client, or by the not-found resolver below. During the
-// prerender the content is fetched in onServerPrefetch and present at render, so the
-// loading branch is never serialized.
-const isLoading = ref(!import.meta.env.SSR);
+// Loading until the content query answers for the current slug. The prerender fetches content in onServerPrefetch, so the loading branch is never serialized; initialized from `isSSG` (not `import.meta.env.SSR`) so the hydrated web client starts with the same `false` the prerender used, avoiding a loading-state flash.
+const isLoading = ref(!isSSG);
 
-// Slug this generation's not-found resolution belongs to — guards against a stale
-// redirect probe (the awaited queryRemote below) resolving after the slug moved on,
-// and against re-running the probe on every unrelated isFetching/contentArr tick
-// once this slug has already been resolved to "not found".
+// Slug this generation's not-found resolution belongs to — guards against a stale redirect probe resolving after the slug moves on, and against re-running the probe once this slug is already resolved.
 let notFoundSlug: string | undefined;
 
-// When nothing matches the slug, HybridQuery's (change-gated) output stays empty and
-// never emits. Rather than guessing off a wall-clock timeout (which races any query
-// slower than the guess — slow device, cold sync, congested network: see the SSR
-// hydration case, where an authenticated client's response-cache seed deliberately
-// misses and must wait for a fresh Dexie read), wait for the query to genuinely settle
-// (`isContentFetching` false — the local read AND, where applicable, the remote
-// supplement). Only THEN treat an empty result as "not found". Last chance before 404:
-// a redirect that exists only on the server (only reached when the slug resolves to no
-// content).
+// Wait for the query to genuinely settle (`isContentFetching` false) before treating an empty result as "not found", so a slow query isn't wrongly declared missing. Last chance before 404: a server-only redirect.
 const resolveNotFound = async () => {
     if (contentArr.value.length || isContentFetching.value) return;
     const slug = props.slug;
@@ -237,11 +206,8 @@ const resolveNotFound = async () => {
     }
 };
 
-// Client-only (web + native): redirect / not-found / loading wiring + retention. The
-// Node prerender skips this — it has no Dexie, and `content` is already populated via
-// the seam's onServerPrefetch + rendered. Guard on import.meta.env.SSR (with vite-ssg
-// mock:true, `window` exists in Node, so a window check would run this in the build).
-if (!import.meta.env.SSR) {
+// Client-only (web + the normal SPA): redirect / not-found / loading wiring + retention. The Node prerender skips this — `content` is already populated and rendered via onServerPrefetch. Guarded on `isPrerender` (not a `window` check, since vite-ssg's mock makes `window` exist in Node too).
+if (!isPrerender) {
     watch(
         () => props.slug,
         async (slug) => {
@@ -270,8 +236,7 @@ if (!import.meta.env.SSR) {
         { immediate: true },
     );
 
-    // Resolve "not found" once the content query has genuinely settled and is still
-    // empty — see `resolveNotFound` for why this replaced a fixed-timeout guess.
+    // Resolve "not found" once the content query has genuinely settled and is still empty (see `resolveNotFound`).
     watch([contentArr, isContentFetching], () => void resolveNotFound(), { immediate: true });
 
     // Keep a viewed article alive in the offline document store: refresh its retention
@@ -281,12 +246,7 @@ if (!import.meta.env.SSR) {
     });
 }
 
-// Available translations + their languages, derived via COMPUTEDs (render-safe during
-// the prerender, where watchers don't run) so the language dropdown + hreflang are
-// correct in the static HTML. `translationsArr` runs on every build through the seam;
-// the prerender primes its per-slug cache so the client's first render matches with no
-// flash. The language list comes from the shared `cmsLanguages` (populated on both
-// builds), so no separate Dexie-backed languages query is needed.
+// Available translations and their languages, derived via computeds (render-safe during the prerender, where watchers don't run) so the dropdown and hreflang are correct in the static HTML. Languages come from shared `cmsLanguages`, so no separate Dexie-backed query is needed.
 const isLoadingTranslations = ref(false);
 
 const translationsArr = useContentQuery(
@@ -303,15 +263,10 @@ const translationsArr = useContentQuery(
         // Per-slug discriminator so the per-document cache is SAFE — a shape-only key
         // would seed this page from a previously-viewed post's translations. Only SSG
         // depends on this cache entry (matching the prerender's seed on first paint);
-        // scoped to isSSG so normal (native) use doesn't accumulate one entry per slug
+        // scoped to isSSG so normal SPA use doesn't accumulate one entry per slug
         // ever visited for no benefit.
         cacheId: isSSG ? `translations:${props.slug}` : undefined,
-        // These are sibling metadata for the language dropdown / hreflang, not the
-        // article the reader is on — don't grow the offline IndexedDB store with every
-        // translation of every article ever visited. `cache: true` (localStorage,
-        // bounded, per-slug-keyed) stays: it's what makes the SSR-rendered translations
-        // list match the client's first paint (no hydration mismatch/flash) — unrelated
-        // to offline persistence.
+        // These are sibling metadata for the dropdown/hreflang, not the article itself, so don't persist them offline. `cache: true` stays so the SSR-rendered translations list matches the client's first paint.
         persistOffline: false,
         // Seek siblings by parentId rather than scanning the publishDate index.
         useIndex: "content-parentId-publishDate-index",
@@ -319,22 +274,27 @@ const translationsArr = useContentQuery(
         // A language switch binds the chosen translation straight into `content`, so
         // the LIVE result keeps `text` (body) + `memberOf` (read by canEdit).
         stripFields: ["fts", "ftsTokenCount", "_rev"],
-        // …but DROP the body from the CACHE seed. Serializing every sibling's full
-        // text into each page (×N languages) is what blew the full build's heap — and
-        // it's only needed on a language switch, where the live query re-loads it.
+        // Drop `text` from the CACHE seed; it's only needed on a language switch, where the live query re-loads it. Serializing every sibling's full text per page would balloon page weight.
         cacheStripFields: ["text"],
     },
 );
 
+// Published-right-now check compiled to a plain predicate rather than reusing `mangoIsPublished`, which also bakes in single-language-priority selection — wrong here, where the dropdown/hreflang need every published sibling translation. `includeScheduled: false` excludes future-dated "coming soon" translations that aren't readable yet.
+const isPublishedNow = mangoCompile({ $and: publishedNowConditions({ includeScheduled: false }) });
+
 const availableTranslations = computed<ContentDto[]>(() => {
     if (!content.value) return [];
-    const published = translationsArr.value.filter((c) => c.status === PublishStatus.Published);
+    const published = translationsArr.value.filter((c) => isPublishedNow(c));
     return published.length > 1 ? published : [];
 });
 
 const localLanguages = ref<LanguageDto[]>([]);
 
-if (!import.meta.env.SSR) {
+// cmsLanguages (public Language docs, loaded globally on the web build) already
+// covers every language a published translation can reference there, so this Dexie
+// supplement is redundant on isSSG — it only matters for a logged-in normal SPA user
+// whose translation is in a language doc not present in the public set.
+if (!isSSG) {
     watch(
         availableTranslations,
         async (translations) => {
@@ -368,19 +328,7 @@ const languages = computed<LanguageDto[]>(() => {
     );
 });
 
-// Reciprocal hreflang alternates (language code + slug) for the SEO head.
-const hreflangAlternates = computed(() =>
-    availableTranslations.value
-        .map((t) => {
-            const lang = cmsLanguages.value.find((l) => l._id === t.language);
-            return lang && t.slug ? { code: lang.languageCode, slug: t.slug } : null;
-        })
-        .filter((a): a is { code: string; slug: string } => !!a),
-);
-
-// Tags drive the category chips + RelatedContent — query-driven on every build now.
-// In the prerender the seam fetches them (chained AFTER `content` via ssrChain, so the
-// selector reads a resolved parent) and primes a per-slug cache for no-flash hydration.
+// Tags drive the category chips and RelatedContent. In the prerender the seam fetches them chained after `content` (via `ssrChain`, so the selector reads a resolved parent) and primes a per-slug cache for no-flash hydration.
 const tags = useContentQuery(
     () => {
         // Before `content` resolves, match nothing via a provably-empty `$in` rather
@@ -400,23 +348,40 @@ const tags = useContentQuery(
 );
 
 const categoryTags = computed(() => tags.value.filter((t) => t.parentTagType == TagType.Category));
-const publicTaxonomy = computed<PublicTaxonomy[]>(() => {
-    const expectedIds = new Set(content.value?.parentTags ?? []);
-    const seen = new Set<string>();
-    return categoryTags.value.flatMap((tag) => {
-        // A tag must be one of the article's inherited public taxonomy IDs and
-        // have a slug before it can become a stable breadcrumb/JSON-LD entry.
-        if (!expectedIds.has(tag.parentId) || !tag.title || !tag.slug || seen.has(tag.parentId)) {
-            return [];
-        }
-        seen.add(tag.parentId);
-        return [{ name: tag.title, url: `/${tag.slug}` }];
-    });
-});
 
-// SEO head — driven by resolved public content and taxonomy so the prerendered
-// page, canonical metadata, Open Graph image and JSON-LD always agree.
-useContentHead(content, hreflangAlternates, publicTaxonomy);
+// SEO head — driven by resolved public content and taxonomy so the prerendered page, canonical metadata, Open Graph image and JSON-LD always agree. Gated behind isSSG since crawlers only see the prerendered static HTML, so the normal SPA has no reason to compute it or invoke `useHead`.
+if (isSSG) {
+    const hreflangAlternates = computed(() =>
+        availableTranslations.value
+            .map((t) => {
+                const lang = cmsLanguages.value.find((l) => l._id === t.language);
+                return lang && t.slug ? { code: lang.languageCode, slug: t.slug } : null;
+            })
+            .filter((a): a is { code: string; slug: string } => !!a),
+    );
+
+    const publicTaxonomy = computed<PublicTaxonomy[]>(() => {
+        const expectedIds = new Set(content.value?.parentTags ?? []);
+        const seen = new Set<string>();
+        return categoryTags.value.flatMap((tag) => {
+            // A tag must be one of the article's inherited public taxonomy IDs and
+            // have a slug before it can become a stable breadcrumb/JSON-LD entry.
+            if (
+                !expectedIds.has(tag.parentId) ||
+                !tag.title ||
+                !tag.slug ||
+                seen.has(tag.parentId)
+            ) {
+                return [];
+            }
+            seen.add(tag.parentId);
+            return [{ name: tag.title, url: `/${tag.slug}` }];
+        });
+    });
+
+    useContentHead(content, hreflangAlternates, publicTaxonomy);
+}
+
 const selectedCategoryId = ref<Uuid | undefined>();
 
 // The content query already filters publish state, so `content` is either a valid
@@ -457,40 +422,24 @@ const isBookmarked = computed(() => {
     return userPreferencesAsRef.value.bookmarks?.some((b) => b.id == content.value?.parentId);
 });
 
-// Native sets the title/description imperatively (it has no @unhead plugin). The web
-// build's `useHead` above owns the head there (and serializes it into the prerendered
-// HTML), so skip this path on web.
-if (import.meta.env.VITE_BUILD_TARGET !== "web")
+// The normal SPA sets the tab/window title imperatively (it has no @unhead plugin). The web
+// build's `useContentHead` above owns the whole head there, including the meta
+// description — serialized into the prerendered HTML that crawlers actually read.
+// The normal SPA has no such crawler ever inspecting its live DOM, so it has no equivalent
+// meta-description responsibility; only the title (visible in an installed PWA's tab)
+// is the normal SPA's job.
+if (!isSSG)
     watch([content, is404], () => {
         if (content.value) isLoading.value = false;
 
-        // Set document title and meta tags
         document.title = is404.value
             ? `Page not found - ${appName}`
             : `${content.value?.seoTitle || content.value?.title} - ${appName}`;
-
-        if (is404.value) return;
-
-        // SEO meta tag settings
-        let metaTag = document.querySelector("meta[name='description']");
-        if (!metaTag) {
-            // If the meta tag doesn't exist, create it
-            metaTag = document.createElement("meta");
-            metaTag.setAttribute("name", "description");
-            document.head.appendChild(metaTag);
-        }
-        // Update the content attribute
-        metaTag.setAttribute("content", content.value?.seoString || content.value?.summary || "");
     });
 
 const text = computed(() => content.value?.text ?? "");
 
-// Format a publish date for display, in the locale of the translation actually being
-// read (`selectedLanguageCode`, declared below via useTranslationSwitcher — safe to
-// reference here since this is a function body, not evaluated until render) — NOT the
-// visitor's browser locale, which has no relationship to which language they're
-// reading. Falls back to en-US before the language resolves (or during the Node
-// prerender, which never reads `navigator`).
+// Format a publish date in the locale of the translation being read (`selectedLanguageCode`), not the visitor's browser locale. Falls back to en-US before the language resolves or during the Node prerender.
 const formatPublishDate = (ms: number) =>
     DateTime.fromMillis(ms)
         .setLocale(selectedLanguageCode.value || "en-US")
@@ -511,9 +460,7 @@ const selectedCategory = computed(() => {
 const articleProseRef = ref<HTMLElement | null>(null);
 const scrollContainer = ref<HTMLElement | Window>(window);
 
-const readingTrackerEnabled = computed(
-    () => !!content.value?._id && !!content.value?.text,
-);
+const readingTrackerEnabled = computed(() => !!content.value?._id && !!content.value?.text);
 
 const contentId = computed(() => content.value?._id);
 
@@ -529,17 +476,14 @@ function setScrollContainer() {
     scrollContainer.value = resolveArticleScrollContainer();
 }
 
-const {
-    hasResumableProgress,
-    savedProgressPercent,
-    restoreScrollPosition,
-} = useReadingProgressTracker({
-    contentId,
-    articleRoot: articleProseRef,
-    scrollContainer,
-    enabled: readingTrackerEnabled,
-    averageReadingSpeed,
-});
+const { hasResumableProgress, savedProgressPercent, restoreScrollPosition } =
+    useReadingProgressTracker({
+        contentId,
+        articleRoot: articleProseRef,
+        scrollContainer,
+        enabled: readingTrackerEnabled,
+        averageReadingSpeed,
+    });
 
 /** Hide the resume prompt for this visit after the user continues or dismisses. */
 const continuePromptHandled = ref(false);
@@ -894,7 +838,7 @@ watch([isLoading, content, is404], async () => {
                     >
                         <div
                             ref="articleProseRef"
-                            data-ssr-article-text
+                            :data-ssr-article-text="isPrerender ? true : undefined"
                             v-html="text"
                             class="prose prose-zinc mt-8 max-w-full dark:prose-invert lg:prose-lg prose-headings:font-bold prose-a:text-yellow-600 dark:prose-a:text-yellow-400"
                             :class="{

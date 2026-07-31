@@ -7,7 +7,7 @@
  * time — e.g. `globalConfig.ts` reads `localStorage` and calls `window.matchMedia`
  * at module load.
  *
- * Only the web build imports this; the native/SPA build never loads it.
+ * Only the web build imports this; the normal SPA build never loads it.
  */
 
 // No runtime effect — forces TS to treat this file as a module (it has no other

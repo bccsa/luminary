@@ -8,18 +8,7 @@ export type ContentByTag = {
 };
 
 /**
- * Group content by tag/category.
- *
- * Derived via `computed` (NOT a watcher) on purpose: Vue SSR does not run
- * watchers, only computeds/template render. The web/SSG build fills the source
- * refs in `onServerPrefetch` and then renders to string — a `computed` is
- * evaluated lazily at that render, so the grouped rows appear in the prerendered
- * HTML. A `watch(..., { immediate: true })` would compute once against the
- * still-empty refs and never re-run server-side, leaving the groups empty in the
- * static output (this was the bug). The sources (`useContentQuery` /
- * `useHybridQuery` results) update by ref reassignment, so the computed re-runs on
- * every live update too.
- *
+ * Group content by tag/category. Derived via `computed` (not a watcher) because Vue SSR only runs computeds/template render, so the grouped rows appear in the prerendered HTML.
  * @returns `{ tagged, untagged }` as read-only computed refs.
  */
 export const contentByTag = (

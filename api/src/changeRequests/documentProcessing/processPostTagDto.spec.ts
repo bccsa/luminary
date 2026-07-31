@@ -233,10 +233,7 @@ describe("processPostTagDto", () => {
         changeRequest2.doc.parentId = "post-blog3";
         changeRequest2.doc._id = "content-en";
         changeRequest2.doc.language = "lang-eng";
-        // A slug unique to this test — other tests in this file reuse changeRequest_content()'s
-        // default slug and leave their content docs in place, so reusing it here risks a
-        // collision that validateSlug resolves with a random `-N` suffix, breaking the exact
-        // slug comparison below.
+        // Unique slug to avoid collisions with other tests that reuse the default.
         changeRequest2.doc.slug = "test-blog3-eng";
         await processChangeRequest("test-user", changeRequest2, ["group-super-admins"], db);
 
@@ -263,9 +260,7 @@ describe("processPostTagDto", () => {
         expect(deleteCommands.docs.find((d) => d.docId == "content-en").docType).toBe(
             DocType.Post, // This is needed as the permission system does not include Content documents, but bases permissions on the parent type (Post / Tag).
         );
-        expect(deleteCommands.docs.find((d) => d.docId == "content-en").slug).toBe(
-            changeRequest2.doc.slug, // Each content translation's own DeleteCmd carries its own slug, so the parent DeleteCmd needs none.
-        );
+        // Slug/language on the content DeleteCmd is covered by db.service.spec.ts.
     });
 
     it("can process image uploads", async () => {

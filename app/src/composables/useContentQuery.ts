@@ -63,18 +63,7 @@ export type UseContentQueryOptions = HybridQueryOptions & {
      */
     useIndex?: string;
     /**
-     * Fields to strip ONLY from the SSR-authored response-cache write (the inline
-     * script `vite.config.web.ts` serializes into the prerendered page) — distinct
-     * from {@link HybridQueryOptions.cacheStripFields}, which also strips from the
-     * client's own ongoing re-cache writes every time the live query settles.
-     *
-     * Use this for a field the hydrating client can recover some other way (e.g.
-     * reading it back off the already-rendered DOM — see SingleContent's `text`):
-     * the SSR write omits it (no on-page duplication), while a plain client-side
-     * navigation — which has no pre-rendered DOM to recover from — keeps writing it
-     * to its own cache normally. Passing the same field to `cacheStripFields`
-     * instead would also strip it from THAT write, reintroducing a flash on a warm
-     * revisit. No effect when `cache` is off or during a normal (non-SSR) build.
+     * Fields stripped only from the SSR-authored response-cache write, distinct from `cacheStripFields` (which also strips from the client's ongoing re-cache writes). Use this for a field the hydrating client can recover another way (e.g. from the rendered DOM) to avoid shipping it twice.
      */
     ssrCacheStripFields?: string[];
 };
@@ -83,15 +72,7 @@ export type UseContentQueryOptions = HybridQueryOptions & {
 export type ContentQueryState = {
     output: ShallowRef<ContentDto[]>;
     /**
-     * `true` until this generation's query has genuinely settled (the local read
-     * AND, where applicable, the remote supplement — mirrors shared's
-     * `HybridQuery.isFetching`). During the Node prerender it flips `false` once
-     * the seam's `onServerPrefetch` fetch resolves (content is always fully
-     * resolved by render time, so a caller that never reads it there sees no
-     * difference). Use this instead of a fixed timeout to tell "still fetching"
-     * from "fetched, genuinely empty" — a wall-clock guess races any query slower
-     * than the guess (slow device, cold sync, congested network), where a fixed
-     * timeout wrongly declares not-found.
+     * `true` until the query has genuinely settled (local read and remote supplement). Use this instead of a fixed timeout to tell "still fetching" from "fetched, genuinely empty" — a timeout races any query slower than the guess.
      */
     isFetching: ComputedRef<boolean>;
 };
@@ -104,7 +85,7 @@ export type ContentQueryState = {
  * `live` + `persistOffline`.
  *
  * The web/SSG build needs nothing special at call sites: on the browser this is the
- * SAME local-first hybrid query as native, and its `cache: true` first-paint seed is
+ * SAME local-first hybrid query as the normal SPA, and its `cache: true` first-paint seed is
  * primed by the build (the prerender writes the same response cache via
  * {@link writeResponseCache}, so the first client render shows the prerendered docs
  * with no flash). During the Node prerender the query is fetched once via the shared
@@ -206,7 +187,7 @@ function useContentQueryState(
         cacheId: `${rest.cacheId ?? ""}:${hasPersistedSession() ? "auth" : "anon"}`,
     };
 
-    // --- Web/SSG PRERENDER (Node) only. The browser client + native both fall through
+    // --- Web/SSG PRERENDER (Node) only. The browser client + the normal SPA both fall through
     // to the identical hybrid query below; on the client `cache: true` seeds the first
     // render synchronously from the response cache this branch primed at build time. ---
     if (import.meta.env.SSR) {
@@ -221,10 +202,7 @@ function useContentQueryState(
                 const q = buildQuery();
                 const docs = stripDocs(await queryRemote<ContentDto>(q), stripFields);
                 out.value = docs;
-                // Prime shared's response cache (same key the client computes) so the
-                // hydrating client shows these docs on first paint — no flash, no
-                // bespoke snapshot store. vite-ssg serializes these `hqcache:*` entries
-                // into the page HTML (see vite.config.web.ts).
+                // Prime shared's response cache (same key the client computes) so the hydrating client shows these docs on first paint with no flash. vite-ssg serializes these `hqcache:*` entries into the page HTML.
                 writeResponseCache(
                     // Prerendering is always anonymous — see the client branch's
                     // `hybridOptions.cacheId` above for the `:auth` counterpart.
