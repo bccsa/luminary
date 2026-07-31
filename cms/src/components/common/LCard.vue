@@ -79,7 +79,7 @@ function collapse() {
             @click="collapse"
         >
             <div class="flex items-center gap-1">
-                <component v-if="icon" :is="icon" class="h-5 w-5 text-zinc-400" />
+                <component v-if="icon" :is="icon" class="h-5 w-5 text-zinc-700" />
                 <h3 class="text-sm font-medium leading-6 dark:text-yellow-400">{{ title }}</h3>
             </div>
 
@@ -122,7 +122,7 @@ function collapse() {
             >
                 <slot />
             </div>
-            <div v-if="$slots.footer" class="bg-zinc-300 px-2 py-3">
+            <div v-if="$slots.footer" class="bg-slate-900 px-2 py-3">
                 <slot name="footer" />
             </div>
         </div>
