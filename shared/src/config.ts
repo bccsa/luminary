@@ -4,6 +4,7 @@ import { OPEN_MIN } from "./api/sync/utils";
 
 export const changeReqWarnings = ref<string[]>([]);
 export const changeReqErrors = ref<string[]>([]);
+export const changeReqInfo = ref<string[]>([]);
 
 /**
  * Signal emitted when an HTTP request fails with a 5xx status. Consumers

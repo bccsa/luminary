@@ -15,7 +15,6 @@
         "format": "prettier --write src/"
     },
     "dependencies": {
-        "@auth0/auth0-vue": "^2.3.3",
         "@headlessui/vue": "^1.7.19",
         "@sentry/vue": "^7.110.1",
         "@vueuse/core": "^10.9.0",
@@ -26,6 +25,7 @@
         "luminary-shared": "file:../shared",
         "luxon": "^3.4.4",
         "m3u8-parser": "^7.2.0",
+        "oidc-client-ts": "^3.5.0",
         "pinia": "^2.1.7",
         "rand-seed": "^2.1.7",
         "tailwind-scrollbar-hide": "^4.0.0",

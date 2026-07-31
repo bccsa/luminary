@@ -14,6 +14,8 @@ import {
     changeRequest_language,
     changeRequest_group,
 } from "../test/changeRequestDocuments";
+import { ContentDto } from "../dto/ContentDto";
+import { DocType, PublishStatus } from "../enums";
 
 jest.mock("./documentProcessing/processContentDto", () => ({
     __esModule: true,
@@ -149,5 +151,39 @@ describe("processChangeRequest", () => {
         const changeRequest = changeRequest_group();
         await processChangeRequest("", changeRequest, ["group-super-admins"], db);
         expect(processGroupDto).toHaveBeenCalled();
+    });
+
+    it("creates a redirect when a published content slug changes", async () => {
+        const prevDoc = {
+            _id: "content-auto-redirect",
+            type: DocType.Content,
+            memberOf: ["group-public-content"],
+            parentId: "post-blog1",
+            parentType: DocType.Post,
+            language: "lang-eng",
+            status: PublishStatus.Published,
+            slug: "old-auto-slug",
+            title: "Auto redirect",
+            publishDate: Date.now() - 1000,
+            parentTags: [],
+        } as ContentDto;
+        await db.upsertDoc(prevDoc);
+
+        const res = await processChangeRequest(
+            "user-1",
+            { doc: { ...prevDoc, slug: "new-auto-slug" } },
+            ["group-super-admins"],
+            db,
+        );
+
+        const redirects = await db.getDocsBySlug("old-auto-slug", DocType.Redirect);
+        expect(res.info).toEqual(['Created a redirect from "old-auto-slug" to "new-auto-slug"']);
+        expect(redirects).toHaveLength(1);
+        expect(redirects[0]).toMatchObject({
+            type: DocType.Redirect,
+            slug: "old-auto-slug",
+            toSlug: "new-auto-slug",
+            updatedBy: "user-1",
+        });
     });
 });

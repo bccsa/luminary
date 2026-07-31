@@ -21,7 +21,6 @@ import { useEditContentSource } from "./composables/useEditContentSource";
 import { useContentLanguage } from "./composables/useContentLanguage";
 import { useContentPermissions } from "./composables/useContentPermissions";
 import { buildContentDuplicate } from "./util/buildContentDuplicate";
-import { buildRedirects } from "./util/buildRedirects";
 import { DocumentIcon, TagIcon } from "@heroicons/vue/24/solid";
 import { computed, ref, watch } from "vue";
 import EditContentText from "@/components/content/EditContentText.vue";
@@ -152,24 +151,7 @@ const createTranslation = (language: LanguageDto) => {
 
 const isValid = ref(true);
 
-// Create redirects (old slug → new slug) for any published translation whose slug
-// changed and the user has redirect-edit access to.
-const createRedirect = async () => {
-    if (!existingContent.value) return;
-    const redirects = buildRedirects(editableContent.value, existingContent.value);
-    await Promise.all(redirects.map((redirect) => db.upsert({ doc: redirect })));
-    redirects.forEach((redirect) =>
-        notify(
-            "info",
-            "Redirect created",
-            `A redirect was created from ${redirect.slug} to ${redirect.toSlug}`,
-        ),
-    );
-};
-
-// Guards against a rapid second save re-entering while the first is still in flight — e.g.
-// buildRedirects reading stale existingContent (not yet refreshed by the first save's write)
-// and creating a duplicate redirect for the same slug change.
+// Guards against a rapid second save re-entering while the first is still queuing changes.
 const isSaving = ref(false);
 
 const saveChanges = async () => {
@@ -204,7 +186,6 @@ const saveChanges = async () => {
 
     isSaving.value = true;
     try {
-        await createRedirect();
         await source.save();
         notify(
             "success",

@@ -11,6 +11,7 @@ import multipart from "@fastify/multipart";
 import { AllExceptionsFilter } from "./exceptions/allExceptions.filter";
 import { S3Service } from "./s3/s3.service";
 import { warmIndexNameRegistry } from "./db/indexNameRegistry";
+import { reconcileLanguageTranslationSeeds } from "./db/languageSeedReconciliation";
 
 export async function bootstrap() {
     const app = await NestFactory.create<NestFastifyApplication>(
@@ -66,6 +67,7 @@ export async function bootstrap() {
 
     // Upgrade database schema if needed
     await upgradeDbSchema(dbService);
+    await reconcileLanguageTranslationSeeds(dbService);
 
     app.enableCors({
         origin: JSON.parse(process.env.CORS_ORIGIN),

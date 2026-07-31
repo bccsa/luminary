@@ -12,8 +12,6 @@ global.ResizeObserver = class FakeResizeObserver {
     disconnect() {}
 };
 
-vi.mock("@auth0/auth0-vue");
-
 vi.mock("vue-router", async (importOriginal) => {
     const actual = importOriginal();
     return {

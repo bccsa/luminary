@@ -19,7 +19,7 @@ Run from `cms/`:
 - `npm run lint` / `npm run lint:fix`
 - `npm run format` — Prettier on `src/`
 
-Auth bypass for local dev / e2e: set `VITE_AUTH_BYPASS=true` (mocks an `E2E Test User`, skips Auth0). Never enable in production.
+Auth bypass for local dev / e2e: set `VITE_AUTH_BYPASS=true` (mocks an `E2E Test User`, skips the OIDC provider). Never enable in production.
 
 ## Architecture
 
@@ -49,7 +49,7 @@ No Pinia-managed document cache. Documents come from `luminary-shared`'s Indexed
 
 ### Auth (`src/auth.ts`)
 
-`@auth0/auth0-vue` with multiple providers selected at runtime from `AuthProvider` docs. `setupAuth`, `refreshTokenSilently`, `loginWithProvider`, `openProviderModal`, `clearAuth0Cache`, `resolveActiveProvider` are all entry points used by `main.ts`'s error handler — keep them exported. Auth-bypass mode short-circuits all of this.
+Generic OIDC via `oidc-client-ts` (`UserManager`), not a Vue plugin — `useAuth()` is a plain function reading module-level refs, safe to call regardless of whether a provider was installed. Multiple providers are selected at runtime from `AuthProvider` docs; the full provider config (`_id`/`domain`/`clientId`/`audience`) is persisted to localStorage so resolution never depends on Dexie or IdP-specific cache-key formats. `setupAuth`, `refreshTokenSilently`, `loginWithProvider`, `useAuth`, `openProviderModal`, `clearAuthCache`, `resolveActiveProvider` are all entry points used by `main.ts`'s error handler and `router/index.ts`'s `conditionalAuthGuard` (a hand-rolled replacement for Auth0-vue's `authGuard`, which has no `oidc-client-ts` equivalent) — keep them exported. `refreshTokenSilently` single-flights concurrent calls, scoped to the manager they started against, so a provider switch mid-refresh can't have a stale call resurrect the wrong session. The CMS has no unauthenticated state: a known provider that isn't currently authenticated (expired refresh token between visits) re-triggers a visible login redirect rather than leaving the user stuck. Auth-bypass mode (`VITE_AUTH_BYPASS`) short-circuits all of this.
 
 ### i18n
 

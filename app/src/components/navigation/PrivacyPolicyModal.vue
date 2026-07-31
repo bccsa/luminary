@@ -7,17 +7,16 @@ import { computed, watch, h, type ComputedRef } from "vue";
 import LModal from "@/components/form/LModal.vue";
 import LButton from "@/components/button/LButton.vue";
 import { useI18n } from "vue-i18n";
-import { useAuth0 } from "@auth0/auth0-vue";
 import { useRouter, useRoute } from "vue-router";
 import { hasPendingLogin } from "@/composables/useAuthWithPrivacyPolicy";
-import { isAuthPluginInstalled } from "@/auth";
+import { isAuthPluginInstalled, useAuth } from "@/auth";
 
 const { t } = useI18n();
-// Only call useAuth0() if the plugin was actually installed at boot; otherwise
+// Only use the configured OIDC manager if a provider was restored at boot; otherwise
 // fall back to unauthenticated + no-op logout.
-const auth0 = isAuthPluginInstalled.value ? useAuth0() : undefined;
-const isAuthenticated = auth0?.isAuthenticated ?? computed(() => false);
-const logout = auth0?.logout ?? (() => {});
+const auth = isAuthPluginInstalled.value ? useAuth() : undefined;
+const isAuthenticated = auth?.isAuthenticated ?? computed(() => false);
+const logout = auth?.logout ?? (() => {});
 const router = useRouter();
 const route = useRoute();
 
@@ -181,11 +180,7 @@ setTimeout(() => {
                                               onClick: () => {
                                                   userPreferencesAsRef.value.privacyPolicy =
                                                       undefined;
-                                                  logout({
-                                                      logoutParams: {
-                                                          returnTo: window.location.origin,
-                                                      },
-                                                  });
+                                                  logout();
                                                   useNotificationStore().removeNotification(
                                                       "privacy-policy-banner",
                                                   );

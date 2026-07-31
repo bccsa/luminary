@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { useAuth0 } from "@auth0/auth0-vue";
 import { RouterView } from "vue-router";
 import LoadingBar from "@/components/LoadingBar.vue";
 import { computed, ref } from "vue";
@@ -7,13 +6,13 @@ import { appName } from "@/globalConfig";
 import NotificationManager from "./components/notifications/NotificationManager.vue";
 import router from "./router";
 import SideBar from "@/components/navigation/SideBar.vue";
-import { isAuthBypassed, isAuthPluginInstalled, showProviderSelectionModal } from "@/auth";
+import { isAuthBypassed, isAuthPluginInstalled, showProviderSelectionModal, useAuth } from "@/auth";
 import SelectionModal from "@/components/authProvider/SelectionModal.vue";
 
-// Only call useAuth0() if the plugin was actually installed at boot. Otherwise
-// Vue logs an `inject` warning and auth0's own code throws.
-const auth0 = isAuthBypassed || !isAuthPluginInstalled.value ? null : useAuth0();
-const isAuthenticated = computed(() => isAuthBypassed || auth0?.isAuthenticated.value);
+// Only use the configured OIDC manager if a provider was actually installed
+// at boot. Otherwise treat the app as unauthenticated.
+const auth = isAuthBypassed || !isAuthPluginInstalled.value ? null : useAuth();
+const isAuthenticated = computed(() => isAuthBypassed || auth?.isAuthenticated.value);
 const sidebarOpen = ref(false);
 
 const routeKey = computed(() => {

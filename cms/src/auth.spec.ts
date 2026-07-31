@@ -1,28 +1,45 @@
-import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { db, DocType, setCustomHeader, type AuthProviderDto } from "luminary-shared";
-import type { App } from "vue";
+import { DocType, type AuthProviderDto } from "luminary-shared";
+import * as Sentry from "@sentry/vue";
 
-const { mockGetAccessTokenSilently, mockHandleRedirectCallback, mockCreateAuth0 } = vi.hoisted(
-    () => ({
-        mockGetAccessTokenSilently: vi.fn(),
-        mockHandleRedirectCallback: vi.fn(),
-        mockCreateAuth0: vi.fn(),
-    }),
-);
-
-vi.mock("@auth0/auth0-vue", () => ({
-    createAuth0: mockCreateAuth0,
+const {
+    mockUserManager,
+    mockWebStorageStateStore,
+    mockGetUser,
+    mockSigninSilent,
+    mockSigninRedirect,
+    mockSigninRedirectCallback,
+    mockSignoutRedirect,
+    mockClearStaleState,
+    mockAddUserLoaded,
+    mockAddUserUnloaded,
+} = vi.hoisted(() => ({
+    mockUserManager: vi.fn(),
+    mockWebStorageStateStore: vi.fn(),
+    mockGetUser: vi.fn(),
+    mockSigninSilent: vi.fn(),
+    mockSigninRedirect: vi.fn(),
+    mockSigninRedirectCallback: vi.fn(),
+    mockSignoutRedirect: vi.fn(),
+    mockClearStaleState: vi.fn(),
+    mockAddUserLoaded: vi.fn(),
+    mockAddUserUnloaded: vi.fn(),
 }));
 
-vi.mock("@auth0/auth0-spa-js", () => ({
-    createAuth0Client: vi.fn(async () => ({ loginWithRedirect: vi.fn() })),
+vi.mock("oidc-client-ts", () => ({
+    UserManager: mockUserManager,
+    WebStorageStateStore: mockWebStorageStateStore,
+}));
+
+vi.mock("@sentry/vue", () => ({
+    captureException: vi.fn(),
 }));
 
 import {
     ACTIVE_PROVIDER_KEY,
     activeProviderId,
-    clearAuth0Cache,
+    clearAuthCache,
+    isAuthPluginInstalled,
     loginWithProvider,
     openProviderModal,
     persistActiveProvider,
@@ -31,6 +48,7 @@ import {
     resolveActiveProvider,
     setupAuth,
     showProviderSelectionModal,
+    useAuth,
 } from "./auth";
 
 const providerA: AuthProviderDto = {
@@ -50,18 +68,47 @@ const providerB: AuthProviderDto = {
     updatedTimeUtc: 1704114000000,
     memberOf: [],
     label: "Beta",
-    domain: "beta.auth0.com",
+    domain: "https://beta.example.com/",
     clientId: "client-b",
     audience: "https://api.beta.com",
 };
 
-async function resetWorld() {
+function installManagerMock(): void {
+    mockUserManager.mockImplementation(() => ({
+        events: {
+            addUserLoaded: mockAddUserLoaded,
+            addUserUnloaded: mockAddUserUnloaded,
+        },
+        getUser: mockGetUser,
+        signinSilent: mockSigninSilent,
+        signinRedirect: mockSigninRedirect,
+        signinRedirectCallback: mockSigninRedirectCallback,
+        signoutRedirect: mockSignoutRedirect,
+        clearStaleState: mockClearStaleState,
+    }));
+}
+
+function resetWorld(): void {
     localStorage.clear();
     sessionStorage.clear();
     history.replaceState(null, "", "/");
-    activeProviderId.value = null;
+    clearAuthCache();
     showProviderSelectionModal.value = false;
-    await db.docs.clear();
+
+    for (const mock of [
+        mockUserManager,
+        mockWebStorageStateStore,
+        mockGetUser,
+        mockSigninSilent,
+        mockSigninRedirect,
+        mockSigninRedirectCallback,
+        mockSignoutRedirect,
+        mockClearStaleState,
+        mockAddUserLoaded,
+        mockAddUserUnloaded,
+    ])
+        mock.mockReset();
+    installManagerMock();
 }
 
 describe("auth", () => {
@@ -69,125 +116,14 @@ describe("auth", () => {
     afterEach(resetWorld);
 
     describe("resolveActiveProvider", () => {
-        it("returns null when storage is empty", async () => {
-            await db.docs.bulkPut([providerA]);
+        it("returns null when no OIDC provider configuration is persisted", async () => {
             expect(await resolveActiveProvider()).toBeNull();
         });
 
-        it("resolves via the localStorage session cache (returning user)", async () => {
-            await db.docs.bulkPut([providerA, providerB]);
-            localStorage.setItem(
-                `@@auth0spajs@@::${providerA.clientId}::${providerA.audience}::openid profile email offline_access`,
-                JSON.stringify({ body: { access_token: "fake" } }),
-            );
-
-            const resolved = await resolveActiveProvider();
-            expect(resolved?._id).toBe(providerA._id);
-        });
-
-        it("returns null when a localStorage clientId has no matching provider in Dexie", async () => {
-            await db.docs.bulkPut([providerA]);
-            localStorage.setItem(
-                `@@auth0spajs@@::unknown-client::aud::scope`,
-                JSON.stringify({ body: {} }),
-            );
-
-            expect(await resolveActiveProvider()).toBeNull();
-        });
-
-        it("does NOT trust a stale PKCE txs key when URL has no code/state (bug fix)", async () => {
-            await db.docs.bulkPut([providerA]);
-            sessionStorage.setItem(
-                `a0.spajs.txs.${providerA.clientId}`,
-                JSON.stringify({ state: "s", code_verifier: "v" }),
-            );
-
-            expect(await resolveActiveProvider()).toBeNull();
-        });
-
-        it("trusts the PKCE txs key when we ARE on the OAuth callback URL", async () => {
-            await db.docs.bulkPut([providerA]);
-            sessionStorage.setItem(
-                `a0.spajs.txs.${providerA.clientId}`,
-                JSON.stringify({ state: "s", code_verifier: "v" }),
-            );
-            history.replaceState(null, "", "/?code=abc&state=xyz");
-
-            const resolved = await resolveActiveProvider();
-            expect(resolved?._id).toBe(providerA._id);
-        });
-
-        it("prefers the localStorage session cache over the sessionStorage txs key", async () => {
-            await db.docs.bulkPut([providerA, providerB]);
-            localStorage.setItem(
-                `@@auth0spajs@@::${providerA.clientId}::aud::scope`,
-                JSON.stringify({ body: {} }),
-            );
-            sessionStorage.setItem(
-                `a0.spajs.txs.${providerB.clientId}`,
-                JSON.stringify({ state: "s" }),
-            );
-            history.replaceState(null, "", "/?code=abc&state=xyz");
-
-            const resolved = await resolveActiveProvider();
-            expect(resolved?._id).toBe(providerA._id);
-        });
-
-        it("prefers the persisted provider over key-scan order when two providers' session caches coexist", async () => {
-            await db.docs.bulkPut([providerA, providerB]);
-            localStorage.setItem(
-                `@@auth0spajs@@::${providerA.clientId}::${providerA.audience}::openid profile email offline_access`,
-                JSON.stringify({ body: {} }),
-            );
-            localStorage.setItem(
-                `@@auth0spajs@@::${providerB.clientId}::${providerB.audience}::openid profile email offline_access`,
-                JSON.stringify({ body: {} }),
-            );
-            persistActiveProvider(providerB);
-
-            const resolved = await resolveActiveProvider();
-            expect(resolved?._id).toBe(providerB._id);
-        });
-
-        it("falls back to the key scan when the persisted provider has no Auth0 session cache", async () => {
-            await db.docs.bulkPut([providerA, providerB]);
-            localStorage.setItem(
-                `@@auth0spajs@@::${providerA.clientId}::${providerA.audience}::openid profile email offline_access`,
-                JSON.stringify({ body: {} }),
-            );
-            // Stale persisted pointer — Auth0 holds no session for provider B.
-            persistActiveProvider(providerB);
-
-            const resolved = await resolveActiveProvider();
-            expect(resolved?._id).toBe(providerA._id);
-        });
-
-        it("ignores malformed cache keys without a clientId segment", async () => {
-            await db.docs.bulkPut([providerA]);
-            localStorage.setItem("@@auth0spajs@@::", JSON.stringify({}));
-            localStorage.setItem(
-                `@@auth0spajs@@::${providerA.clientId}::aud::scope`,
-                JSON.stringify({ body: {} }),
-            );
-
-            const resolved = await resolveActiveProvider();
-            expect(resolved?._id).toBe(providerA._id);
-        });
-
-        it("resolves from the persisted provider when Dexie has been evicted (issue #1671)", async () => {
-            // The Auth0 refresh-token cache survives in localStorage but the
-            // AuthProvider doc has been evicted from IndexedDB. _id + domain come
-            // from the persisted blob; clientId + audience from the cache key —
-            // no Dexie dependency.
-            localStorage.setItem(
-                `@@auth0spajs@@::${providerA.clientId}::${providerA.audience}::openid profile email offline_access`,
-                JSON.stringify({ body: { access_token: "fake" } }),
-            );
+        it("restores the complete persisted provider without depending on an IdP cache key", async () => {
             persistActiveProvider(providerA);
-            // Dexie intentionally left empty.
 
-            const resolved = await resolveActiveProvider();
-            expect(resolved).toEqual({
+            expect(await resolveActiveProvider()).toEqual({
                 _id: providerA._id,
                 domain: providerA.domain,
                 clientId: providerA.clientId,
@@ -195,377 +131,387 @@ describe("auth", () => {
             });
         });
 
-        it("write-through: caches the resolved Dexie doc so it survives later eviction", async () => {
-            await db.docs.bulkPut([providerA]);
+        it("does not infer a provider from legacy Auth0 cache keys", async () => {
             localStorage.setItem(
-                `@@auth0spajs@@::${providerA.clientId}::${providerA.audience}::openid profile email offline_access`,
-                JSON.stringify({ body: {} }),
+                `@@auth0spajs@@::${providerA.clientId}::${providerA.audience}::openid profile`,
+                "{}",
             );
+            sessionStorage.setItem(`a0.spajs.txs.${providerA.clientId}`, "{}");
+
+            expect(await resolveActiveProvider()).toBeNull();
+        });
+
+        it("clears an incomplete pre-OIDC provider record", async () => {
+            localStorage.setItem(
+                ACTIVE_PROVIDER_KEY,
+                JSON.stringify({ _id: providerA._id, domain: providerA.domain }),
+            );
+            localStorage.setItem("oidc.user:https://issuer:client-a", "old-user");
+            sessionStorage.setItem("oidc.pending", "old-state");
+
+            expect(await resolveActiveProvider()).toBeNull();
             expect(localStorage.getItem(ACTIVE_PROVIDER_KEY)).toBeNull();
-
-            const first = await resolveActiveProvider();
-            expect(first?._id).toBe(providerA._id);
-            // The Dexie resolve wrote the config through to localStorage.
-            expect(readPersistedProvider()?._id).toBe(providerA._id);
-
-            // Now evict Dexie; resolution still works from the persisted copy.
-            await db.docs.clear();
-            const second = await resolveActiveProvider();
-            expect(second?._id).toBe(providerA._id);
+            expect(localStorage.getItem("oidc.user:https://issuer:client-a")).toBeNull();
+            expect(sessionStorage.getItem("oidc.pending")).toBeNull();
         });
 
-        it("prefers the live Dexie doc over a stale persisted domain (Dexie-first)", async () => {
-            // Persisted copy has a stale domain (e.g. the provider was migrated
-            // to an Auth0 custom domain). The live Dexie doc is authoritative and
-            // refreshes the persisted copy.
-            await db.docs.bulkPut([providerA]);
-            localStorage.setItem(
-                `@@auth0spajs@@::${providerA.clientId}::${providerA.audience}::openid profile email offline_access`,
-                JSON.stringify({ body: {} }),
-            );
-            persistActiveProvider({ _id: providerA._id, domain: "stale.auth0.com" });
+        it("returns null for corrupt persisted JSON", async () => {
+            localStorage.setItem(ACTIVE_PROVIDER_KEY, "{not valid json");
 
-            const resolved = await resolveActiveProvider();
-            expect(resolved?.domain).toBe(providerA.domain);
-            expect(resolved?.audience).toBe(providerA.audience);
-            expect(readPersistedProvider()?.domain).toBe(providerA.domain);
+            expect(await resolveActiveProvider()).toBeNull();
+            expect(localStorage.getItem(ACTIVE_PROVIDER_KEY)).toBeNull();
         });
+    });
 
-        // Regression — the #1671 recovery must be purely additive: the
-        // pre-existing Dexie path is unchanged, the realistic two-key Auth0
-        // cache parses correctly, and the eviction fallback only fires with a
-        // genuine persisted blob (no accidental recovery).
-        it("Dexie-backed resolve is unchanged with the realistic two-key cache", async () => {
-            // The real Auth0 SDK writes BOTH a standard token key and a sibling
-            // id-token (::@@user@@) key. With the provider doc in Dexie this must
-            // resolve the full config from Dexie, exactly as before.
-            await db.docs.bulkPut([providerA, providerB]);
-            localStorage.setItem(
-                `@@auth0spajs@@::${providerA.clientId}::@@user@@`,
-                JSON.stringify({ id_token: "fake", decodedToken: { claims: {} } }),
-            );
-            localStorage.setItem(
-                `@@auth0spajs@@::${providerA.clientId}::${providerA.audience}::openid profile email offline_access`,
-                JSON.stringify({ body: {} }),
-            );
+    describe("persistActiveProvider / readPersistedProvider", () => {
+        it("round-trips complete non-secret OIDC client configuration", () => {
+            persistActiveProvider(providerA);
 
-            expect(await resolveActiveProvider()).toEqual({
+            expect(readPersistedProvider()).toEqual({
                 _id: providerA._id,
                 domain: providerA.domain,
                 clientId: providerA.clientId,
                 audience: providerA.audience,
             });
+            expect(localStorage.getItem(ACTIVE_PROVIDER_KEY)).not.toContain("access_token");
         });
 
-        it("on eviction, reads audience from the standard key and skips the id-token (::@@user@@) key", async () => {
-            // Both keys present, Dexie evicted → clientId + audience come off the
-            // standard key (never "@@user@@"), _id + domain from the blob.
+        it("returns null when a required client setting is missing", () => {
             localStorage.setItem(
-                `@@auth0spajs@@::${providerA.clientId}::@@user@@`,
-                JSON.stringify({ id_token: "fake", decodedToken: { claims: {} } }),
-            );
-            localStorage.setItem(
-                `@@auth0spajs@@::${providerA.clientId}::${providerA.audience}::openid profile email offline_access`,
-                JSON.stringify({ body: {} }),
-            );
-            persistActiveProvider(providerA);
-
-            expect(await resolveActiveProvider()).toEqual({
-                _id: providerA._id,
-                domain: providerA.domain,
-                clientId: providerA.clientId,
-                audience: providerA.audience,
-            });
-        });
-
-        it("does not recover when only the id-token (::@@user@@) key is present (no audience)", async () => {
-            localStorage.setItem(
-                `@@auth0spajs@@::${providerA.clientId}::@@user@@`,
-                JSON.stringify({ id_token: "fake", decodedToken: { claims: {} } }),
-            );
-            persistActiveProvider(providerA);
-
-            expect(await resolveActiveProvider()).toBeNull();
-        });
-
-        it("does not recover from the cache key alone without a persisted blob (opt-in)", async () => {
-            // Pre-feature behaviour: a session cache with no Dexie doc and no
-            // persisted blob still resolves to null — no accidental recovery.
-            localStorage.setItem(
-                `@@auth0spajs@@::${providerA.clientId}::${providerA.audience}::openid profile email offline_access`,
-                JSON.stringify({ body: {} }),
+                ACTIVE_PROVIDER_KEY,
+                JSON.stringify({ _id: "x", domain: "issuer", clientId: "c" }),
             );
 
-            expect(await resolveActiveProvider()).toBeNull();
+            expect(readPersistedProvider()).toBeNull();
         });
     });
 
     describe("loginWithProvider", () => {
-        it("evicts other providers' Auth0 localStorage caches so resolution stays deterministic", async () => {
-            localStorage.setItem(`@@auth0spajs@@::${providerA.clientId}::aud::scope`, "{}");
-            localStorage.setItem(`@@auth0spajs@@::${providerA.clientId}::@@user@@`, "{}");
-            localStorage.setItem(`@@auth0spajs@@::${providerB.clientId}::aud::scope`, "{}");
+        it("persists the provider and starts a PKCE redirect with a generic OIDC manager", async () => {
+            mockClearStaleState.mockResolvedValue(undefined);
+            mockSigninRedirect.mockResolvedValue(undefined);
 
-            await loginWithProvider(providerB);
+            await loginWithProvider(providerB, { prompt: "login" });
 
-            expect(
-                localStorage.getItem(`@@auth0spajs@@::${providerA.clientId}::aud::scope`),
-            ).toBeNull();
-            expect(
-                localStorage.getItem(`@@auth0spajs@@::${providerA.clientId}::@@user@@`),
-            ).toBeNull();
-            expect(
-                localStorage.getItem(`@@auth0spajs@@::${providerB.clientId}::aud::scope`),
-            ).not.toBeNull();
-        });
-    });
-
-    describe("clearAuth0Cache", () => {
-        it("removes @@auth0spajs@@ keys from localStorage and a0.spajs. keys from sessionStorage", () => {
-            localStorage.setItem("@@auth0spajs@@::c1::aud::scope", "x");
-            localStorage.setItem("@@auth0spajs@@::c2::aud::scope", "y");
-            sessionStorage.setItem("a0.spajs.txs.c1", "z");
-            sessionStorage.setItem("a0.spajs.other", "w");
-
-            clearAuth0Cache();
-
-            expect(localStorage.getItem("@@auth0spajs@@::c1::aud::scope")).toBeNull();
-            expect(localStorage.getItem("@@auth0spajs@@::c2::aud::scope")).toBeNull();
-            expect(sessionStorage.getItem("a0.spajs.txs.c1")).toBeNull();
-            expect(sessionStorage.getItem("a0.spajs.other")).toBeNull();
-        });
-
-        it("leaves unrelated storage keys untouched", () => {
-            localStorage.setItem("unrelated-app-key", "keep");
-            sessionStorage.setItem("some-other-session-key", "keep");
-            localStorage.setItem("@@auth0spajs@@::c::a::s", "drop");
-
-            clearAuth0Cache();
-
-            expect(localStorage.getItem("unrelated-app-key")).toBe("keep");
-            expect(sessionStorage.getItem("some-other-session-key")).toBe("keep");
-            expect(localStorage.getItem("@@auth0spajs@@::c::a::s")).toBeNull();
-        });
-
-        it("resets activeProviderId to null", () => {
-            activeProviderId.value = "provider-a";
-            clearAuth0Cache();
-            expect(activeProviderId.value).toBeNull();
-        });
-
-        it("removes the persisted active provider (issue #1671)", () => {
-            persistActiveProvider(providerA);
-            expect(localStorage.getItem(ACTIVE_PROVIDER_KEY)).not.toBeNull();
-
-            clearAuth0Cache();
-
-            expect(localStorage.getItem(ACTIVE_PROVIDER_KEY)).toBeNull();
-        });
-    });
-
-    describe("persistActiveProvider / readPersistedProvider (issue #1671)", () => {
-        it("round-trips _id and domain (and stores nothing else)", () => {
-            persistActiveProvider(providerA);
-            expect(readPersistedProvider()).toEqual({
-                _id: providerA._id,
-                domain: providerA.domain,
-            });
-            // clientId / audience are read from the cache key, never persisted.
-            expect(localStorage.getItem(ACTIVE_PROVIDER_KEY)).not.toContain(providerA.clientId);
-        });
-
-        it("returns null when nothing is persisted", () => {
-            expect(readPersistedProvider()).toBeNull();
-        });
-
-        it("returns null for corrupt JSON", () => {
-            localStorage.setItem(ACTIVE_PROVIDER_KEY, "{not valid json");
-            expect(readPersistedProvider()).toBeNull();
-        });
-
-        it("returns null when a required field is missing", () => {
-            // Missing `domain` — buildAuth0Options would break without it.
-            localStorage.setItem(
-                ACTIVE_PROVIDER_KEY,
-                JSON.stringify({ _id: "x", clientId: "c", audience: "a" }),
+            expect(readPersistedProvider()?._id).toBe(providerB._id);
+            expect(activeProviderId.value).toBe(providerB._id);
+            expect(isAuthPluginInstalled.value).toBe(true);
+            expect(mockUserManager).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    authority: "https://beta.example.com",
+                    client_id: providerB.clientId,
+                    response_type: "code",
+                    scope: "openid profile email offline_access",
+                    extraQueryParams: { audience: providerB.audience },
+                }),
             );
-            expect(readPersistedProvider()).toBeNull();
+            expect(mockWebStorageStateStore).toHaveBeenCalledWith({ store: window.localStorage });
+            expect(mockClearStaleState).toHaveBeenCalledTimes(1);
+            expect(mockSigninRedirect).toHaveBeenCalledWith({
+                extraQueryParams: { prompt: "login" },
+            });
+            expect(mockAddUserLoaded).toHaveBeenCalledTimes(1);
+            expect(mockAddUserUnloaded).toHaveBeenCalledTimes(1);
         });
-    });
 
-    describe("openProviderModal", () => {
-        it("flips showProviderSelectionModal to true", () => {
-            expect(showProviderSelectionModal.value).toBe(false);
-            openProviderModal();
-            expect(showProviderSelectionModal.value).toBe(true);
+        it("does not add an empty prompt parameter", async () => {
+            mockClearStaleState.mockResolvedValue(undefined);
+            mockSigninRedirect.mockResolvedValue(undefined);
+
+            await loginWithProvider(providerA);
+
+            expect(mockSigninRedirect).toHaveBeenCalledWith({ extraQueryParams: undefined });
         });
     });
 
     describe("refreshTokenSilently", () => {
-        it("returns false when no Auth0 plugin has been installed yet", async () => {
-            // setupAuth hasn't run in this test context, so the module has no
-            // oauth handle. The socket connect_error handler relies on this
-            // being a safe `false` rather than a throw.
-            expect(await refreshTokenSilently()).toBe(false);
-        });
-    });
-
-    // Regression coverage for issue #1581 — "App: token not being refreshed
-    // after expiration". The bug: refreshTokenSilently called
-    // getAccessTokenSilently() with the SDK default `cacheMode: "on"`, so when
-    // the server fires connect_error: auth_failed the SDK happily returned the
-    // SAME server-rejected access token (any token still inside the SDK's 60s
-    // leeway looks valid to the cache check). The connect_error handler would
-    // loop with an unrejectable token and fall through to a visible re-login.
-    // Fix: connect_error handlers now pass `{ ignoreCache: true }`, which
-    // forwards `cacheMode: "off"` to the SDK so it must hit /oauth/token via
-    // the refresh token. These tests pin that contract in place.
-    describe("refreshTokenSilently — cache control (issue #1581 regression)", () => {
-        const appStub = { use: () => {} } as unknown as App<Element>;
+        const user = { access_token: "cached-token", expired: false, profile: { sub: "user-1" } };
 
         beforeEach(async () => {
-            mockGetAccessTokenSilently.mockReset();
-            mockHandleRedirectCallback.mockReset();
-            mockCreateAuth0.mockReset();
-            mockCreateAuth0.mockImplementation(() => ({
-                getAccessTokenSilently: mockGetAccessTokenSilently,
-                handleRedirectCallback: mockHandleRedirectCallback,
-                install: () => {},
-            }));
-
-            // resolveActiveProvider needs both the Dexie doc AND a localStorage
-            // cache key whose clientId segment matches.
-            await db.docs.bulkPut([providerA]);
-            localStorage.setItem(
-                `@@auth0spajs@@::${providerA.clientId}::${providerA.audience}::openid profile email offline_access`,
-                JSON.stringify({ body: {} }),
-            );
-
-            // setupAuth's trailing refreshTokenSilently() consumes one resolution
-            // before the actual test runs. Resolve it, then reset call history
-            // and the side-effects (CMS opens the provider modal on failure).
-            mockGetAccessTokenSilently.mockResolvedValueOnce("boot-token");
-            await setupAuth(appStub);
-            mockGetAccessTokenSilently.mockClear();
-            showProviderSelectionModal.value = false;
+            mockClearStaleState.mockResolvedValue(undefined);
+            mockSigninRedirect.mockResolvedValue(undefined);
+            await loginWithProvider(providerA);
+            mockGetUser.mockReset();
+            mockSigninSilent.mockReset();
         });
 
-        afterEach(() => {
-            // The real Authorization header is set by refreshTokenSilently on
-            // success — don't leak it into other tests.
-            setCustomHeader("Authorization", "");
+        it("uses the existing unexpired user on the normal boot path", async () => {
+            mockGetUser.mockResolvedValue(user);
+
+            await expect(refreshTokenSilently()).resolves.toBe(true);
+            expect(mockGetUser).toHaveBeenCalledTimes(1);
+            expect(mockSigninSilent).not.toHaveBeenCalled();
         });
 
-        it("forwards cacheMode 'off' to getAccessTokenSilently when ignoreCache is true (regression: post-rejection refresh must skip the SDK cache)", async () => {
-            mockGetAccessTokenSilently.mockResolvedValueOnce("fresh-token");
+        it("uses signinSilent after a server rejection so an old token cannot be replayed", async () => {
+            const freshUser = {
+                access_token: "fresh-token",
+                expired: false,
+                profile: { sub: "user-1" },
+            };
+            mockSigninSilent.mockResolvedValue(freshUser);
 
-            const ok = await refreshTokenSilently({ ignoreCache: true });
-
-            expect(ok).toBe(true);
-            expect(mockGetAccessTokenSilently).toHaveBeenCalledTimes(1);
-            expect(mockGetAccessTokenSilently).toHaveBeenCalledWith({ cacheMode: "off" });
+            await expect(refreshTokenSilently({ ignoreCache: true })).resolves.toBe(true);
+            expect(mockGetUser).not.toHaveBeenCalled();
+            expect(mockSigninSilent).toHaveBeenCalledTimes(1);
         });
 
-        it("calls getAccessTokenSilently without options when ignoreCache is omitted (boot path keeps SDK cache enabled)", async () => {
-            mockGetAccessTokenSilently.mockResolvedValueOnce("cached-token");
+        it("refreshes when the stored user is expired", async () => {
+            mockGetUser.mockResolvedValue({ access_token: "expired-token", expired: true });
+            mockSigninSilent.mockResolvedValue(user);
 
-            const ok = await refreshTokenSilently();
-
-            expect(ok).toBe(true);
-            expect(mockGetAccessTokenSilently).toHaveBeenCalledTimes(1);
-            expect(mockGetAccessTokenSilently).toHaveBeenCalledWith(undefined);
+            await expect(refreshTokenSilently()).resolves.toBe(true);
+            expect(mockSigninSilent).toHaveBeenCalledTimes(1);
         });
 
-        it("calls getAccessTokenSilently without options when ignoreCache is explicitly false", async () => {
-            mockGetAccessTokenSilently.mockResolvedValueOnce("cached-token");
-
-            const ok = await refreshTokenSilently({ ignoreCache: false });
-
-            expect(ok).toBe(true);
-            expect(mockGetAccessTokenSilently).toHaveBeenCalledWith(undefined);
-        });
-
-        it("regression: returns the FRESH token when Auth0 cache would replay the rejected one", async () => {
-            // Simulates the production bug shape: the cache holds a token the
-            // server has already rejected. A cacheMode='off' call must bypass
-            // it; otherwise we'd loop on connect_error forever.
-            const REJECTED = "expired-token-server-rejected";
-            const FRESH = "fresh-token-from-refresh";
-            mockGetAccessTokenSilently.mockImplementation(async (opts?: { cacheMode?: string }) =>
-                opts?.cacheMode === "off" ? FRESH : REJECTED,
-            );
-
-            await refreshTokenSilently({ ignoreCache: true });
-
-            expect(mockGetAccessTokenSilently).toHaveBeenCalledWith({ cacheMode: "off" });
-            const returnedTokens = await Promise.all(
-                mockGetAccessTokenSilently.mock.results.map((r) => r.value),
-            );
-            expect(returnedTokens).toEqual([FRESH]);
-        });
-
-        it("returns false when getAccessTokenSilently rejects (e.g. invalid_grant) and does not throw", async () => {
-            mockGetAccessTokenSilently.mockRejectedValueOnce(new Error("invalid refresh token"));
+        it("returns false when silent refresh rejects", async () => {
+            mockSigninSilent.mockRejectedValue(new Error("invalid_grant"));
 
             await expect(refreshTokenSilently({ ignoreCache: true })).resolves.toBe(false);
         });
 
-        it("returns false when getAccessTokenSilently resolves to an empty token", async () => {
-            mockGetAccessTokenSilently.mockResolvedValueOnce("");
+        it("returns false when no access token is returned", async () => {
+            mockSigninSilent.mockResolvedValue({ expired: false });
 
-            const ok = await refreshTokenSilently({ ignoreCache: true });
-
-            expect(ok).toBe(false);
+            await expect(refreshTokenSilently({ ignoreCache: true })).resolves.toBe(false);
         });
 
-        it("each call asks the SDK independently — back-to-back retries from connect_error must each hit /oauth/token", async () => {
-            mockGetAccessTokenSilently
-                .mockResolvedValueOnce("first-fresh")
-                .mockResolvedValueOnce("second-fresh");
+        it("single-flights concurrent calls so a rotated refresh token isn't replayed", async () => {
+            mockSigninSilent.mockResolvedValue({
+                access_token: "fresh-token",
+                expired: false,
+                profile: { sub: "user-1" },
+            });
 
-            await refreshTokenSilently({ ignoreCache: true });
-            await refreshTokenSilently({ ignoreCache: true });
+            const [first, second] = await Promise.all([
+                refreshTokenSilently({ ignoreCache: true }),
+                refreshTokenSilently({ ignoreCache: true }),
+            ]);
 
-            expect(mockGetAccessTokenSilently).toHaveBeenCalledTimes(2);
-            expect(mockGetAccessTokenSilently.mock.calls[0]).toEqual([{ cacheMode: "off" }]);
-            expect(mockGetAccessTokenSilently.mock.calls[1]).toEqual([{ cacheMode: "off" }]);
+            expect(first).toBe(true);
+            expect(second).toBe(true);
+            expect(mockSigninSilent).toHaveBeenCalledTimes(1);
+        });
+
+        it("does not join an in-flight refresh started for a since-superseded manager", async () => {
+            mockClearStaleState.mockResolvedValue(undefined);
+            mockSigninRedirect.mockResolvedValue(undefined);
+
+            let resolveFirst!: (user: unknown) => void;
+            mockSigninSilent.mockImplementationOnce(
+                () =>
+                    new Promise((resolve) => {
+                        resolveFirst = resolve;
+                    }),
+            );
+
+            // Starts against provider A's manager and stays pending.
+            const firstRefresh = refreshTokenSilently({ ignoreCache: true });
+
+            // A provider switch installs a brand new manager before that settles.
+            await loginWithProvider(providerB);
+
+            mockSigninSilent.mockResolvedValueOnce({
+                access_token: "b-token",
+                expired: false,
+                profile: { sub: "user-b" },
+            });
+
+            // A caller after the switch must start its own refresh rather than
+            // join the stale in-flight one from provider A's manager.
+            const secondRefresh = refreshTokenSilently({ ignoreCache: true });
+
+            resolveFirst({ access_token: "a-token", expired: false, profile: { sub: "user-a" } });
+
+            await expect(firstRefresh).resolves.toBe(true);
+            await expect(secondRefresh).resolves.toBe(true);
+            expect(mockSigninSilent).toHaveBeenCalledTimes(2);
+        });
+
+        it("does not resurrect a session if logout supersedes an in-flight refresh", async () => {
+            let resolveSigninSilent!: (user: unknown) => void;
+            mockSigninSilent.mockImplementation(
+                () =>
+                    new Promise((resolve) => {
+                        resolveSigninSilent = resolve;
+                    }),
+            );
+
+            const refreshPromise = refreshTokenSilently({ ignoreCache: true });
+
+            // Logout happens while the refresh above is still in flight.
+            clearAuthCache();
+
+            resolveSigninSilent({
+                access_token: "late-token",
+                expired: false,
+                profile: { sub: "user-1" },
+            });
+
+            await expect(refreshPromise).resolves.toBe(false);
+            expect(activeProviderId.value).toBeNull();
         });
     });
 
-    // Issue #1671 — the CMS no-provider branch used to clearAuth0Cache(),
-    // destroying a still-valid refresh token whenever Dexie had no matching
-    // AuthProvider doc (e.g. IndexedDB evicted while localStorage survived).
-    // It must now leave the cache intact; the router guard surfaces the
-    // provider modal, and the server's provider_not_found path cleans up a
-    // truly-deleted provider.
-    describe("setupAuth — no-provider branch is non-destructive (issue #1671)", () => {
-        const appStub = { use: () => {} } as unknown as App<Element>;
+    describe("setupAuth", () => {
+        const user = { access_token: "boot-token", expired: false, profile: { sub: "user-1" } };
 
-        beforeEach(() => {
-            mockCreateAuth0.mockReset();
-            mockCreateAuth0.mockImplementation(() => ({
-                getAccessTokenSilently: mockGetAccessTokenSilently,
-                handleRedirectCallback: mockHandleRedirectCallback,
-                install: () => {},
-            }));
+        it("installs the persisted provider and restores an existing user", async () => {
+            persistActiveProvider(providerA);
+            mockGetUser.mockResolvedValue(user);
+
+            await setupAuth();
+
+            expect(mockUserManager).toHaveBeenCalledTimes(1);
+            expect(activeProviderId.value).toBe(providerA._id);
+            expect(mockGetUser).toHaveBeenCalledTimes(2);
+            expect(mockSigninSilent).not.toHaveBeenCalled();
         });
 
-        it("leaves the Auth0 cache key in place and does not open the modal when no provider resolves", async () => {
-            // Auth0 session cached in localStorage, but no AuthProvider doc in
-            // Dexie and nothing persisted — the eviction shape.
-            const cacheKey = `@@auth0spajs@@::${providerA.clientId}::${providerA.audience}::openid profile email offline_access`;
-            const cacheValue = JSON.stringify({ body: { access_token: "fake" } });
-            localStorage.setItem(cacheKey, cacheValue);
+        it("finishes an authorization-code callback and removes its query parameters", async () => {
+            persistActiveProvider(providerA);
+            history.replaceState(null, "", "/callback?code=abc&state=xyz#section");
+            mockSigninRedirectCallback.mockResolvedValue(user);
+            // The manager's own store now holds the just-completed sign-in.
+            mockGetUser.mockResolvedValue(user);
 
-            await setupAuth(appStub);
+            await setupAuth();
 
-            // Cache untouched — the whole point of the change.
-            expect(localStorage.getItem(cacheKey)).toBe(cacheValue);
-            // No Auth0 plugin installed (we don't know domain/_id), no header.
-            expect(mockCreateAuth0).not.toHaveBeenCalled();
+            expect(mockSigninRedirectCallback).toHaveBeenCalledTimes(1);
+            expect(location.pathname + location.hash).toBe("/callback#section");
+            expect(location.search).toBe("");
+            // refreshTokenSilently() must still run on the callback path.
+            expect(mockGetUser).toHaveBeenCalledTimes(1);
+            expect(mockSigninSilent).not.toHaveBeenCalled();
+        });
+
+        it("reports OIDC boot failures without throwing", async () => {
+            persistActiveProvider(providerA);
+            const error = new Error("invalid callback");
+            mockGetUser.mockRejectedValue(error);
+
+            await expect(setupAuth()).resolves.toBeUndefined();
+            expect(Sentry.captureException).toHaveBeenCalledWith(error);
+        });
+
+        it("still cleans up the URL and falls back to an existing session when the callback fails", async () => {
+            // A refresh on the callback URL after it already succeeded once
+            // retries the same, by-then-consumed code+state — oidc-client-ts
+            // throws "No matching state found in storage" for this.
+            persistActiveProvider(providerA);
+            history.replaceState(null, "", "/callback?code=abc&state=xyz#section");
+            const error = new Error("No matching state found in storage");
+            mockSigninRedirectCallback.mockRejectedValue(error);
+            mockGetUser.mockResolvedValue(user);
+
+            await setupAuth();
+
+            expect(Sentry.captureException).toHaveBeenCalledWith(error);
+            // Must still clean the URL — otherwise every later load retries and
+            // fails the exact same way, forever.
+            expect(location.pathname + location.hash).toBe("/callback#section");
+            expect(location.search).toBe("");
+            // Falls back to the already-established session instead of leaving
+            // the user logged out.
+            expect(mockGetUser).toHaveBeenCalled();
+        });
+
+        it("does nothing when no provider has been selected", async () => {
+            await setupAuth();
+
+            expect(mockUserManager).not.toHaveBeenCalled();
             expect(activeProviderId.value).toBeNull();
-            // The modal is the router guard's job, not setupAuth's.
-            expect(showProviderSelectionModal.value).toBe(false);
         });
+
+        it("opens the provider modal when the token can't be refreshed and no callback was handled — the CMS has no unauthenticated state", async () => {
+            persistActiveProvider(providerA);
+            mockGetUser.mockResolvedValue(null);
+            mockSigninSilent.mockRejectedValue(new Error("invalid_grant"));
+
+            await setupAuth();
+
+            expect(activeProviderId.value).toBeNull();
+            expect(showProviderSelectionModal.value).toBe(true);
+        });
+    });
+
+    describe("useAuth", () => {
+        it("delegates explicit login and logout to the installed OIDC manager", async () => {
+            mockClearStaleState.mockResolvedValue(undefined);
+            mockSigninRedirect.mockResolvedValue(undefined);
+            mockSignoutRedirect.mockResolvedValue(undefined);
+            await loginWithProvider(providerA);
+            mockSigninRedirect.mockClear();
+
+            const auth = useAuth();
+            await auth.loginWithRedirect();
+            await auth.logout();
+
+            expect(mockSigninRedirect).toHaveBeenCalledTimes(1);
+            expect(mockSignoutRedirect).toHaveBeenCalledTimes(1);
+        });
+
+        it("reloads locally when the IdP signout redirect fails (e.g. no end_session_endpoint)", async () => {
+            mockClearStaleState.mockResolvedValue(undefined);
+            mockSigninRedirect.mockResolvedValue(undefined);
+            mockSignoutRedirect.mockRejectedValue(new Error("No end session endpoint"));
+            await loginWithProvider(providerA);
+
+            const originalLocation = window.location;
+            const reload = vi.fn();
+            Object.defineProperty(window, "location", {
+                writable: true,
+                value: { reload },
+            });
+
+            await useAuth().logout();
+
+            expect(reload).toHaveBeenCalledTimes(1);
+
+            Object.defineProperty(window, "location", {
+                writable: true,
+                value: originalLocation,
+            });
+        });
+    });
+
+    describe("clearAuthCache", () => {
+        it("clears OIDC state, legacy Auth0 state, headers, and provider selection", () => {
+            localStorage.setItem("oidc.user:https://issuer:client", "user");
+            sessionStorage.setItem("oidc.pending", "state");
+            localStorage.setItem("@@auth0spajs@@::client::aud::scope", "legacy-user");
+            sessionStorage.setItem("a0.spajs.txs.client", "legacy-state");
+            localStorage.setItem("unrelated", "keep");
+            sessionStorage.setItem("unrelated", "keep");
+            persistActiveProvider(providerA);
+            activeProviderId.value = providerA._id;
+
+            clearAuthCache();
+
+            expect(activeProviderId.value).toBeNull();
+            expect(isAuthPluginInstalled.value).toBe(false);
+            expect(localStorage.getItem(ACTIVE_PROVIDER_KEY)).toBeNull();
+            expect(localStorage.getItem("oidc.user:https://issuer:client")).toBeNull();
+            expect(sessionStorage.getItem("oidc.pending")).toBeNull();
+            expect(localStorage.getItem("@@auth0spajs@@::client::aud::scope")).toBeNull();
+            expect(sessionStorage.getItem("a0.spajs.txs.client")).toBeNull();
+            expect(localStorage.getItem("unrelated")).toBe("keep");
+            expect(sessionStorage.getItem("unrelated")).toBe("keep");
+        });
+
+        it("removes the installed manager so a later refresh is safe", async () => {
+            mockClearStaleState.mockResolvedValue(undefined);
+            mockSigninRedirect.mockResolvedValue(undefined);
+            await loginWithProvider(providerA);
+            clearAuthCache();
+
+            await expect(refreshTokenSilently()).resolves.toBe(false);
+        });
+    });
+
+    it("opens the provider selection modal", () => {
+        openProviderModal();
+
+        expect(showProviderSelectionModal.value).toBe(true);
     });
 });

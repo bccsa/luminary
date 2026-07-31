@@ -6,7 +6,7 @@ import router from "./router";
 import {
     setupAuth,
     openProviderModal,
-    clearAuth0Cache,
+    clearAuthCache,
     resolveActiveProvider,
     loginWithProvider,
     refreshTokenSilently,
@@ -86,23 +86,23 @@ async function Startup() {
             // the cached provider (it'll loop). Force the user through provider
             // selection instead.
             if (reason === "provider_not_found") {
-                clearAuth0Cache();
+                clearAuthCache();
                 socket.setAuth("", null);
                 openProviderModal();
                 return;
             }
 
-            // Normal case: the access token expired. Ask the Auth0 SDK for a
+            // Normal case: the access token expired. Ask the OIDC client for a
             // fresh one via the refresh token — no redirect needed. Bypass
-            // the SDK's token cache: the server already rejected what we had,
-            // so the cached copy is useless and we must hit /oauth/token.
+            // the client's token cache: the server already rejected what we had,
+            // so the cached copy is useless and we must hit the token endpoint.
             if (await refreshTokenSilently({ ignoreCache: true })) return;
 
             // The refresh token itself is gone or rejected — need a visible
             // re-login.
             Sentry?.captureMessage("API authentication failed; silent refresh failed");
             const lastProvider = await resolveActiveProvider();
-            clearAuth0Cache();
+            clearAuthCache();
             socket.setAuth("", null);
             if (lastProvider) {
                 await loginWithProvider(lastProvider, { prompt: "login" });

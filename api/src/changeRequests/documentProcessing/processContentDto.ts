@@ -11,7 +11,11 @@ import { computeFtsData } from "../../util/ftsIndexing";
  * @param doc
  * @param db
  */
-export default async function processContentDto(doc: ContentDto, db: DbService): Promise<string[]> {
+export default async function processContentDto(
+    doc: ContentDto,
+    db: DbService,
+    ignoredRedirectId?: Uuid,
+): Promise<string[]> {
     // Server-controlled field; clients must not set it. Cleared here so any forged value
     // is dropped before persistence — only the unpublish path in DbService is allowed to set it.
     delete doc.statusChangeDeleteCmdId;
@@ -23,7 +27,11 @@ export default async function processContentDto(doc: ContentDto, db: DbService):
     // availableTranslations computation below so the forced status is reflected there.
     const warnings: string[] = [];
     if (doc.status === PublishStatus.Published && !doc.deleteReq) {
-        const redirectSlugFree = await db.checkUniqueSlug(doc.slug, doc._id, DocType.Redirect);
+        const redirectSlugFree = await db.checkUniqueSlug(
+            doc.slug,
+            ignoredRedirectId ?? doc._id,
+            DocType.Redirect,
+        );
         if (!redirectSlugFree) {
             doc.status = PublishStatus.Draft;
             warnings.push(

@@ -32,7 +32,6 @@ import { useNotificationStore, type Notification } from "@/stores/notification";
 import LDialog from "../common/LDialog.vue";
 import MobileSidebar from "../common/MobileSidebar.vue";
 import DropdownMenu from "../common/DropdownMenu.vue";
-import { clearAuth0Cache } from "@/auth";
 import { getNavigationItems } from "./navigationItems";
 import { useSearchOverlay } from "@/composables/useSearchOverlay";
 
@@ -76,11 +75,12 @@ const confirmLogout = async () => {
         showOfflineNotification();
         return;
     }
-    localStorage.removeItem("usedAuth0Connection");
-    // Wipe local Auth0 footprint synchronously so that an interrupted
-    // logout redirect doesn't leave stale provider state behind.
-    clearAuth0Cache();
-    await logout({ logoutParams: { returnTo: window.location.origin } });
+    // Close now, not after logout(): a real IdP redirect unloads the page
+    // anyway, and if the redirect fails the dialog shouldn't stay stuck open.
+    showLogoutDialog.value = false;
+    // logout() already clears local state in the right order — don't call
+    // clearAuthCache() here first, or it turns logout() into a no-op.
+    await logout();
 };
 
 const handleLogout = () => {

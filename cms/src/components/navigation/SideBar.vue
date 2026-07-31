@@ -38,8 +38,7 @@ import {
     useSharedHybridQuery,
     type LanguageDto,
 } from "luminary-shared";
-import { useAuth0 } from "@auth0/auth0-vue";
-import { clearAuth0Cache, isAuthBypassed, isAuthPluginInstalled } from "@/auth";
+import { isAuthBypassed, isAuthPluginInstalled, useAuth } from "@/auth";
 import OnlineIndicator from "../OnlineIndicator.vue";
 import LanguageModal from "../modals/LanguageModal.vue";
 import LDialog from "../common/LDialog.vue";
@@ -182,14 +181,16 @@ const closeDrawer = () => {
 };
 
 // --- Footer: user, language, logout ---
-// Only call useAuth0() if the plugin was actually installed at boot. Otherwise fall back to mock
-// user data and a no-op logout.
-const auth0 = isAuthBypassed || !isAuthPluginInstalled.value ? null : useAuth0();
+// Only use the configured OIDC manager if it was actually installed at boot.
+// Otherwise fall back to mock user data and a no-op logout.
+const auth = isAuthBypassed || !isAuthPluginInstalled.value ? null : useAuth();
 const user = computed(() =>
-    isAuthBypassed ? { name: "E2E Test User", email: "e2e@test.local" } : auth0?.user.value,
+    isAuthBypassed
+        ? { name: "E2E Test User", email: "e2e@test.local", picture: undefined }
+        : auth?.user.value,
 );
-const logout = auth0
-    ? auth0.logout
+const logout = auth
+    ? auth.logout
     : () => console.warn("Logout called without an active auth session");
 
 const languages = useSharedHybridQuery<LanguageDto>(
@@ -205,10 +206,14 @@ const showLogoutDialog = ref(false);
 const showInstallInstructions = ref(false);
 
 const confirmLogout = () => {
-    // Wipe local Auth0 footprint synchronously so that an interrupted logout redirect doesn't
-    // leave stale provider state behind.
-    clearAuth0Cache();
-    logout({ logoutParams: { returnTo: window.location.origin } });
+    // Close now, not after logout(): a real IdP redirect unloads the page
+    // anyway, and if the redirect fails (no end_session_endpoint) the dialog
+    // shouldn't stay stuck open — LDialog doesn't close itself on primaryAction.
+    showLogoutDialog.value = false;
+    // logout() already clears local state in the right order — don't call
+    // clearAuthCache() here first, or it turns logout() into a no-op (it
+    // reads the installed OIDC manager, which clearAuthCache() would null).
+    logout();
 };
 
 const navIconClass = "h-5 w-5 shrink-0";

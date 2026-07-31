@@ -10,19 +10,15 @@ import { appLanguageIdsAsRef, userPreferencesAsRef } from "@/globalConfig";
 import BookmarksPage from "./BookmarksPage.vue";
 
 vi.mock("vue-router");
-vi.mock("@/router", () => ({ default: {}, getRouteHistory: () => ({ value: [] }), markInternalNavigation: vi.fn(), isExternalNavigation: vi.fn() }));
+vi.mock("@/router", () => ({
+    default: {},
+    getRouteHistory: () => ({ value: [] }),
+    markInternalNavigation: vi.fn(),
+    isExternalNavigation: vi.fn(),
+}));
 vi.mock("vue-i18n", () => ({
     useI18n: () => ({
         t: (key: string) => mockLanguageDtoEng.translations[key] || key,
-    }),
-}));
-
-// Mock auth0 to return a mock implementation of useAuth0
-vi.mock("@auth0/auth0-vue", () => ({
-    useAuth0: () => ({
-        isAuthenticated: vi.fn().mockReturnValue(true),
-        user: { name: "Test User", picture: "test-picture-url" },
-        logout: vi.fn(),
     }),
 }));
 

@@ -64,21 +64,7 @@ vi.mock("@vueuse/core", async (importOriginal) => {
 const scrollSentinelsIntoView = () =>
     observerCallbacks.forEach((cb) => cb([{ isIntersecting: true }]));
 
-vi.mock("@auth0/auth0-vue", async (importOriginal) => {
-    const actual = await importOriginal();
-    return {
-        ...(actual as any),
-        useAuth0: () => ({
-            user: { name: "Test User", email: "test@example.com" },
-            logout: vi.fn(),
-            loginWithRedirect: vi.fn(),
-            isAuthenticated: true,
-            isLoading: false,
-        }),
-        authGuard: vi.fn(),
-    };
-});
-
+vi.mock("@/auth", async () => (await import("@/tests/mockAuth")).createAuthMock());
 // ============================
 // Mock api
 // ============================

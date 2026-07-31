@@ -1,10 +1,10 @@
 import "fake-indexeddb/auto";
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import CreateOrEditRedirectModal from "./CreateOrEditRedirectModal.vue";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
-import { accessMap, db } from "luminary-shared";
+import { accessMap, AckStatus, db, isConnected } from "luminary-shared";
 import { mockRedirectDto, superAdminAccessMap } from "@/tests/mockdata";
 import waitForExpect from "wait-for-expect";
 import LDialog from "../common/LDialog.vue";
@@ -19,9 +19,39 @@ describe("CreateOrEditRedirectModal.vue", () => {
     });
 
     afterEach(async () => {
+        isConnected.value = false;
+        vi.restoreAllMocks();
         // Clear the database after each test
         await db.docs.clear();
         await db.localChanges.clear();
+    });
+
+    it("ignores a second save while the first awaits the server acknowledgement", async () => {
+        isConnected.value = true;
+        let resolveAck!: (ack: { ack: AckStatus }) => void;
+        const upsert = vi.spyOn(db, "upsert").mockResolvedValue({ localChangeId: 42 });
+        vi.spyOn(db, "waitForLocalChangeAck").mockReturnValue(
+            new Promise((resolve) => {
+                resolveAck = resolve;
+            }),
+        );
+        const wrapper = mount(CreateOrEditRedirectModal, {
+            props: { isVisible: true, redirect: { ...mockRedirectDto } },
+        });
+        await wrapper.find("[name='RedirectToSlug']").setValue("new-target");
+
+        const dialog = wrapper.findComponent(LDialog);
+        const first = dialog.props("primaryAction")();
+        const second = dialog.props("primaryAction")();
+        await Promise.resolve();
+
+        expect(upsert).toHaveBeenCalledTimes(1);
+        expect(dialog.props("primaryButtonDisabled")).toBe(true);
+        expect(wrapper.emitted().close).toBeUndefined();
+
+        resolveAck({ ack: AckStatus.Accepted });
+        await Promise.all([first, second]);
+        expect(wrapper.emitted().close).toHaveLength(1);
     });
 
     describe("create mode", () => {
@@ -53,7 +83,9 @@ describe("CreateOrEditRedirectModal.vue", () => {
             await wrapper.find("[name='RedirectFromSlug']").setValue("Afrikaans");
             await wrapper.find("[name='RedirectToSlug']").setValue("afr");
 
-            const saveButton = wrapper.findComponent(LDialog).find("[data-test='modal-primary-button']");
+            const saveButton = wrapper
+                .findComponent(LDialog)
+                .find("[data-test='modal-primary-button']");
             expect(saveButton.exists()).toBe(true);
             expect((saveButton.element as HTMLButtonElement).disabled).toBe(false);
 
@@ -94,7 +126,9 @@ describe("CreateOrEditRedirectModal.vue", () => {
         await wrapper.find("[name='RedirectToSlug']").setValue("");
 
         // Assert that the save button is disabled
-        const saveButton = wrapper.findComponent(LDialog).find("[data-test='modal-primary-button']");
+        const saveButton = wrapper
+            .findComponent(LDialog)
+            .find("[data-test='modal-primary-button']");
         expect(saveButton.exists()).toBe(true);
         expect((saveButton.element as HTMLButtonElement).disabled).toBe(true);
     });
@@ -108,7 +142,9 @@ describe("CreateOrEditRedirectModal.vue", () => {
 
         // The default redirect modal has no groups set if no RedirectDto is passed to the modal
         // Assert that the save button is disabled
-        const saveButton = wrapper.findComponent(LDialog).find("[data-test='modal-primary-button']");
+        const saveButton = wrapper
+            .findComponent(LDialog)
+            .find("[data-test='modal-primary-button']");
         expect(saveButton.exists()).toBe(true);
         expect((saveButton.element as HTMLButtonElement).disabled).toBe(true);
     });
@@ -120,7 +156,9 @@ describe("CreateOrEditRedirectModal.vue", () => {
             },
         });
 
-        const cancelButton = wrapper.findComponent(LDialog).find("[data-test='modal-secondary-button']");
+        const cancelButton = wrapper
+            .findComponent(LDialog)
+            .find("[data-test='modal-secondary-button']");
         expect(cancelButton.exists()).toBe(true);
 
         await cancelButton.trigger("click");

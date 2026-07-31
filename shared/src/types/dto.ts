@@ -230,6 +230,7 @@ export type ChangeReqAckDto = {
     ack: AckStatus;
     message?: string;
     warnings?: string[];
+    info?: string[];
     docs?: any[];
 };
 

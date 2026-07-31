@@ -2,7 +2,7 @@ import "fake-indexeddb/auto";
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import App from "./App.vue";
-import * as auth0 from "@auth0/auth0-vue";
+import * as auth from "@/auth";
 import { ref } from "vue";
 import { createTestingPinia } from "@pinia/testing";
 import LoadingBar from "@/components/LoadingBar.vue";
@@ -11,13 +11,7 @@ import { getSocket } from "luminary-shared";
 import { useNotificationStore } from "./stores/notification";
 import { router } from "./router";
 
-vi.mock("@auth0/auth0-vue", async (importOriginal) => {
-    const actual = await importOriginal();
-    return {
-        ...(actual as Object),
-        useAuth0: vi.fn(),
-    };
-});
+vi.mock("@/auth", async () => (await import("@/tests/mockAuth")).createAuthMock());
 
 const addNotification = vi.fn();
 vi.mock("./stores/notification", () => ({
@@ -36,10 +30,9 @@ describe("App", () => {
     });
 
     it("renders a loading bar when not authenticated", () => {
-        (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
+        (auth as any).useAuth.mockReturnValue({
             isLoading: ref(false),
             isAuthenticated: ref(false),
-            getAccessTokenSilently: vi.fn(),
         });
 
         const wrapper = mount(App);
@@ -48,12 +41,11 @@ describe("App", () => {
     });
 
     it("displays notification when change request fails", async () => {
-        (auth0 as any).useAuth0 = vi.fn().mockReturnValue({
+        (auth as any).useAuth.mockReturnValue({
             isLoading: ref(false),
             isAuthenticated: ref(true),
             user: ref({ name: "Test User" }),
             logout: vi.fn(),
-            getAccessTokenSilently: vi.fn().mockResolvedValue("mockToken"),
         });
 
         mount(App, {
