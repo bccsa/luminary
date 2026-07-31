@@ -249,11 +249,7 @@ const navItemClass = computed(() => [
         <!-- Collapse toggle — sits on the right edge, vertically centred. Desktop only. -->
         <button
             type="button"
-<<<<<<< HEAD
-            class="absolute right-0 top-1/2 z-20 hidden h-8 w-8 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full border border-zinc-300 bg-white text-zinc-600 shadow-md transition-colors hover:bg-zinc-50 hover:text-zinc-800 dark:border-zinc-400 dark:bg-slate-800 dark:text-zinc-100 dark:hover:bg-slate-600 dark:hover:text-yellow-400 lg:flex"
-=======
             class="absolute right-0 top-1/2 z-20 hidden h-8 w-8 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full border border-zinc-400 shadow-md transition-colors hover:bg-zinc-500 dark:bg-slate-700 dark:text-zinc-300 dark:hover:text-zinc-100 lg:flex"
->>>>>>> bruce-cms-dark-mode
             :aria-label="collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
             data-test="sidebar-collapse-toggle"
             @click="onToggleCollapsed"
