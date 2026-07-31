@@ -68,7 +68,7 @@ const sizeClasses = computed(() => {
     <LTeleport v-if="isVisible">
         <div
             :class="[
-                'fixed inset-x-0 top-0 z-50 flex h-[100dvh] items-center justify-center bg-zinc-800 bg-opacity-50 backdrop-blur-sm',
+                'fixed inset-x-0 top-0 z-50 flex h-[100dvh] items-center justify-center bg-zinc-800 bg-opacity-50 backdrop-blur-sm dark:text-zinc-100',
                 noPadding || (stickToEdges && isMobileScreen) ? '' : 'p-2',
             ]"
             @mousedown.self="tryDismiss()"
@@ -82,7 +82,13 @@ const sizeClasses = computed(() => {
                 ref="modalRef"
                 data-test="modal-content"
                 :class="[
-                    'relative z-50 flex max-h-[100dvh] flex-col rounded-lg bg-white/90 p-5 shadow-xl focus:outline-none dark:bg-slate-900',
+                    'relative z-50 flex max-h-[100dvh] flex-col rounded-lg bg-white/90 p-5 shadow-xl focus:outline-none dark:bg-slate-800 dark:text-zinc-100',
+                    isMobileScreen && stickToEdges
+                        ? 'h-[100dvh] w-[100vw] max-w-none rounded-none'
+                        : largeModal
+                          ? 'h-[90dvh] w-full max-w-5xl lg:h-[80dvh]'
+                          : 'max-h-[90dvh] w-full max-w-md',
+                    'relative z-50 flex max-h-[100dvh] flex-col rounded-lg bg-white/90 p-5 shadow-xl focus:outline-none dark:bg-slate-900 dark:text-zinc-100',
                     sizeClasses,
                 ]"
             >
@@ -90,12 +96,12 @@ const sizeClasses = computed(() => {
                     :class="[
                         'flex w-full items-center justify-between',
                         transparentHeader
-                            ? 'pointer-events-none absolute left-0 right-0 top-0 z-10 p-2'
+                            ? 'pointer-events-none absolute left-0 right-0 top-0 z-10 p-2 dark:text-zinc-100'
                             : 'mb-2',
                     ]"
                 >
                     <div class="flex items-center">
-                        <h2 v-if="heading" class="text-lg font-semibold">
+                        <h2 v-if="heading" class="text-lg font-semibold dark:text-zinc-100">
                             {{ heading }}
                         </h2>
                         <div v-if="$slots.headingExtension">
@@ -124,7 +130,7 @@ const sizeClasses = computed(() => {
                 </div>
                 <div
                     :class="[
-                        noDivider ? '' : 'divide-y divide-zinc-200',
+                        noDivider ? 'dark:text-zinc-100' : 'divide-y divide-zinc-200',
                         'flex min-h-0 flex-1 flex-col overflow-y-auto',
                         noPadding ? (transparentHeader ? '-m-5' : '-m-5 mt-0') : '',
                     ]"
