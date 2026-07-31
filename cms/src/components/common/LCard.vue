@@ -80,7 +80,7 @@ function collapse() {
         >
             <div class="flex items-center gap-1">
                 <component v-if="icon" :is="icon" class="h-5 w-5 text-zinc-400" />
-                <h3 class="text-sm font-medium leading-6 text-yellow-400">{{ title }}</h3>
+                <h3 class="text-sm font-medium leading-6 dark:text-yellow-400">{{ title }}</h3>
             </div>
 
             <!-- Stop clicks on actions/chevron from bubbling to the header toggle: action buttons
