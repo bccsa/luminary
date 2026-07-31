@@ -28,13 +28,13 @@ const isLocalChanges = computed(() => props.hasLocalChanges(props.languagesDoc._
                 <div class="flex justify-between py-2 min-[1500px]:pt-2">
                     <div>
                         <span>
-                            <span class="font-medium text-zinc-700">
+                            <span class="font-medium text-zinc-100">
                                 <LBadge>{{ languagesDoc.languageCode.toLocaleUpperCase() }}</LBadge>
                             </span>
-                            <span class="pl-1 text-sm font-medium text-zinc-900">{{
+                            <span class="pl-1 text-sm font-medium text-zinc-100">{{
                                 languagesDoc.name
                             }}</span>
-                            <span class="ml-4 font-medium text-zinc-900">
+                            <span class="ml-4 font-medium text-zinc-100">
                                 <LBadge v-if="languagesDoc.default" variant="success">
                                     Default
                                 </LBadge>
@@ -47,9 +47,9 @@ const isLocalChanges = computed(() => props.hasLocalChanges(props.languagesDoc._
                                 Offline changes
                             </LBadge></span
                         >
-                        <div class="flex items-center justify-end text-sm text-zinc-500">
+                        <div class="flex items-center justify-end text-sm text-zinc-100">
                             <ClockIcon
-                                class="mr-[3px] h-4 w-4 text-zinc-400 max-lg:h-4 max-lg:w-4"
+                                class="mr-[3px] h-4 w-4 text-zinc-100 max-lg:h-4 max-lg:w-4"
                             />
                             <span title="Last Updated">{{
                                 db
