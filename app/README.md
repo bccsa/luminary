@@ -173,3 +173,18 @@ docker run -e ENABLE_GZIP=false --rm -it -p 8080:80 luminary-app
 ```
 
 This will run the app on port 8080 on the host machine.
+
+### Update-detection cache TTL (CDN tuneable)
+
+The in-app update banner ([`usePwaUpdate.ts`](src/composables/usePwaUpdate.ts)) polls `/version.json` every 5 seconds and compares it to the build ID baked into the running bundle. `nginx.conf` sends `Cache-Control: no-cache, s-maxage=60` for this file: browsers must always revalidate (TTL 0), while a shared/CDN cache may serve it from cache for up to 60 seconds (TTL 60) to absorb that polling load without meaningfully delaying update detection.
+
+**If you deploy behind a CDN, verify it honours `s-maxage`** — some CDNs ignore it, or only cache recognised static extensions and skip a bare `/version.json` by default, or need an explicit cache/rewrite rule to apply a short TTL to this path instead. Keep the TTL small (order of a minute) so deployed clients still pick up new builds promptly.
+
+To check whether the CDN is actually honouring the TTL, request `/version.json` through the CDN (not the origin) a few times in a row and inspect the response headers:
+
+```sh
+curl -sD - -o /dev/null https://<your-cdn-domain>/version.json
+```
+
+- Look for a cache-status header (`Age`, `X-Cache`, `CF-Cache-Status`, `X-Amz-Cf-Id`, etc. depending on vendor). `Age` should climb from `0` toward `60` and then reset; `X-Cache`/`CF-Cache-Status` should show `HIT` between origin fetches.
+- If every request comes back `MISS`/`Age: 0`, or the `Cache-Control` header is missing/rewritten, the CDN isn't respecting `s-maxage` and needs an explicit path rule for `/version.json` (e.g. Cloudflare Cache Rules, a CloudFront cache behavior, or a Fastly VCL snippet) forcing an edge TTL of ~60s.

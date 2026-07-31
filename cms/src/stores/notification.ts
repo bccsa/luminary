@@ -7,6 +7,13 @@ export type Notification = {
     description?: string;
     state?: "success" | "error" | "info" | "warning";
     timer?: number;
+    // Stays until explicitly removed (no auto-dismiss timer) and survives other
+    // notifications being added — for things the user must act on, like a pending reload.
+    persist?: boolean;
+    action?: {
+        label: string;
+        onClick: () => void;
+    };
 };
 
 export const useNotificationStore = defineStore("notification", () => {
@@ -14,10 +21,21 @@ export const useNotificationStore = defineStore("notification", () => {
 
     const notifications = ref<Notification[]>([]);
 
-    const addNotification = (notification: Notification) => {
+    const removeNotification = (notificationId: number) => {
+        notifications.value = notifications.value.filter((n) => n.id != notificationId);
+    };
+
+    const addNotification = (notification: Notification): void => {
         const notificationId = id.value++;
 
-        notifications.value = [];
+        // Only one transient notification at a time, but persistent ones (e.g. the
+        // update-available prompt) must not be wiped out by unrelated toasts.
+        notifications.value = notifications.value.filter((n) => n.persist);
+
+        if (notification.persist) {
+            notifications.value.push({ ...notification, id: notificationId });
+            return;
+        }
 
         setTimeout(() => {
             notifications.value.push({
@@ -27,12 +45,10 @@ export const useNotificationStore = defineStore("notification", () => {
         }, 100);
 
         setTimeout(
-            () => {
-                notifications.value = notifications.value.filter((n) => n.id != notificationId);
-            },
+            () => removeNotification(notificationId),
             notification.timer ? notification.timer : 5000,
         );
     };
 
-    return { notifications, addNotification };
+    return { notifications, addNotification, removeNotification };
 });
