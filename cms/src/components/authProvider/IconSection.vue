@@ -80,9 +80,9 @@ watch(
 </script>
 
 <template>
-    <div class="rounded-md border border-zinc-200 bg-white p-2">
+    <div class="rounded-md border border-zinc-200 p-2 dark:bg-slate-800">
         <div class="mb-1 flex items-center justify-between">
-            <label class="block text-xs font-medium text-zinc-700">Icon</label>
+            <label class="block text-xs font-medium dark:text-zinc-100">Icon</label>
             <LButton
                 v-if="isBucketSelected"
                 :icon="ArrowUpOnSquareIcon"
@@ -101,7 +101,7 @@ watch(
                 @change="handleFileChange"
             />
         </div>
-        <div class="rounded-md border border-zinc-200 bg-white p-2">
+        <div class="rounded-md border border-zinc-200 p-2 dark:bg-slate-800">
             <ImageEditor
                 ref="imageEditorRef"
                 v-model:parent="provider as unknown as ContentParentDto"
@@ -111,7 +111,7 @@ watch(
             />
         </div>
         <div class="mt-2">
-            <label for="icon-opacity" class="mb-1 block text-xs font-medium text-zinc-700">
+            <label for="icon-opacity" class="mb-1 block text-xs font-medium dark:text-zinc-100">
                 Icon Opacity
             </label>
             <div class="flex items-center gap-2">
