@@ -337,7 +337,7 @@ const navItemClass = computed(() => [
                                 <RouterLink
                                     :to="subItem.to"
                                     active-class="text-yellow-700 dark:text-yellow-400"
-                                    class="block rounded-md py-2 pl-9 pr-2 text-sm font-medium text-zinc-100 hover:bg-slate-700"
+                                    class="block rounded-md py-2 pl-9 pr-2 text-sm font-medium text-zinc-800 hover:bg-slate-700"
                                     @click="closeDrawer"
                                 >
                                     {{ subItem.name }}

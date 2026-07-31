@@ -85,7 +85,7 @@ const canViewGroups = hasAnyPermission(DocType.Group, AclPermission.CmsView);
                 name: 'overview',
                 params: { docType: DocType.Tag, tagOrPostType: TagType.Category },
             }"
-            class="group rounded-lg border border-zinc-500 px-3 py-2 transition-colors hover:border-zinc-300 dark:bg-slate-600 lg:flex-1"
+            class="group rounded-lg border border-zinc-500 px-3 py-2 transition-colors dark:bg-slate-600 dark:hover:border-zinc-300 lg:flex-1"
         >
             <div class="flex items-center gap-2 dark:text-zinc-100">
                 <TagIcon class="h-4 w-4" />
