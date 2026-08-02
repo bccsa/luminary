@@ -24,7 +24,11 @@ const toggled = computed({
 </script>
 
 <template>
-    <div class="flex rounded-lg bg-zinc-500/70 hover:cursor-pointer" @click="toggled = !toggled">
+    <div
+        class="flex rounded-lg bg-zinc-500/70 hover:cursor-pointer"
+        data-test="audio-video-toggle"
+        @click="toggled = !toggled"
+    >
         <div class="rounded-lg p-1" :class="[!toggled ? 'bg-zinc-900/60' : 'bg-transparent']">
             <FilmIcon
                 class="h-6 w-6"
