@@ -181,8 +181,15 @@ function routeRedirect(redirect: RedirectDto): boolean {
     return true;
 }
 
-// Loading until the content query answers for the current slug. The prerender fetches content in onServerPrefetch, so the loading branch is never serialized; initialized from `isSSG` (not `import.meta.env.SSR`) so the hydrated web client starts with the same `false` the prerender used, avoiding a loading-state flash.
-const isLoading = ref(!isSSG);
+// Loading until the content query answers for the current slug. The prerender fetches
+// content in onServerPrefetch, so the loading branch is never serialized. The hydrated
+// web client only starts non-loading when `contentArr` is already populated — i.e. the
+// `:anon` cache seed actually hit — matching what the prerender rendered, so there's no
+// loading-state flash. When it hasn't (a logged-in `:auth` client, or cleared/quota-hit
+// localStorage), the prerender seeded nothing for this session, so start loading instead:
+// otherwise `is404` (below) would read the still-empty `content` as "not found" and flash
+// NotFoundPage before the cold-start backstop resolves it.
+const isLoading = ref(isSSG && !isPrerender() ? contentArr.value.length === 0 : !isSSG);
 
 // Slug this generation's not-found resolution belongs to — guards against a stale redirect probe resolving after the slug moves on, and against re-running the probe once this slug is already resolved.
 let notFoundSlug: string | undefined;
