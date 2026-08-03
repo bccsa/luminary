@@ -134,7 +134,7 @@ Schema upgrades can be safely removed when:
 ### Current Baseline
 
 
-**Current Schema Version**: 18 (as of 2026-06-22)
+**Current Schema Version**: 20 (as of 2026-07-09)
 
 All production databases are expected to be at version 10 or higher. Historical upgrades v1-v9 have been removed as they are no longer needed.
 
@@ -182,3 +182,7 @@ Backfills the server-authoritative `fts` trigram index on existing User (name + 
 ### v19 — CmsView ACL backfill (2026-06-25)
 
 Backfills the new `CmsView` ACL permission (GitHub #160). CmsView gates CMS-scoped (`cms:true`) reads/sync — what a user may see in the CMS, including drafts and expired Content. At deploy no group holds it. To avoid broadly auto-granting it (CmsView must stay a real, narrowable permission), the upgrade grants it only to the standard system groups: `group-super-admins` gets `CmsView` on **every** ACL entry (full CMS visibility on all doc types), and `group-public-users` gets it on **AuthProvider** entries only (so the CMS login screen can read the providers for any user opening it). Everyone else — editors, etc. — is granted `CmsView` explicitly via ACL administration; the seeded Group fixtures grant `group-public-editors`/`group-private-editors` `CmsView` on Post/Tag/Redirect/Storage **and Language** (the CMS language sync is CmsView-gated, so without it an editor would sync no languages and the content sync — which needs at least one selected language — never runs). Idempotent (only pushes `CmsView` where missing), a safe no-op when re-run — including on fresh DBs and when `npm run seed` runs the upgrade chain. Uses `insertDoc` to preserve `updatedTimeUtc`: the granted access takes effect via the server-recomputed AccessMap delivered on connect. On the client, `deleteRevoked()` (`shared/src/db/database.ts`) reconciles the local `syncList` with each access change — trimming columns for revoked groups so a later re-grant re-walks — so a client momentarily narrowed during the rollout self-heals on its next access-loss/regain (logout→login) cycle without a cache clear.
+
+### v20 — Default affinity ACL + singleton backfill (2026-07-09)
+
+Backfills the CMS-managed "default affinity" recommendation feature (new `DocType.DefaultAffinity`) for existing databases. Adding the doc type itself needs no migration (existing data is unaffected), but two things need establishing on a pre-existing database: (1) `group-super-admins` gets a `DefaultAffinity` ACL entry (View/Edit/Delete/Assign/CmsView) — mirrors the v19 pattern, since without it existing super admins have no permission to create/edit the singleton via the CMS; (2) the singleton doc itself (fixed `_id` = `DEFAULT_AFFINITY_ID`, `api/src/util/defaultAffinity.ts`) is seeded with an empty profile if absent, so the CMS settings page has something to open immediately rather than only after the first save. Idempotent: the ACL grant is skipped where already present (`insertDoc`, preserving `updatedTimeUtc` like v19); the singleton is only created if missing (`upsertDoc`, which stamps `updatedTimeUtc` itself — the v9 new-doc pattern).

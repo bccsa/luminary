@@ -133,7 +133,8 @@ useInfiniteScroll(
 
             <div
                 ref="scrollElement"
-                class="scrollbar-hide flex overflow-x-scroll py-2"
+                data-content-tile-scroll
+                class="flex overflow-x-scroll py-2 scrollbar-hide"
                 @scroll="setSpinBtnVisibility"
             >
                 <div

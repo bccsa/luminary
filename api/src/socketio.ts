@@ -51,6 +51,7 @@ type ClientRoomReq = {
 type ClientConfig = {
     maxUploadFileSize: number;
     maxMediaUploadFileSize?: number;
+    accessMap?: AccessMap;
 };
 
 /**

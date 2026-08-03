@@ -13,3 +13,4 @@ export * from "./s3/s3Utils";
 export * from "./config";
 export * from "./fts";
 export * from "./api/http";
+export * from "./recommendation/affinity";

@@ -7,8 +7,14 @@ import {
     ChevronLeftIcon,
 } from "@heroicons/vue/24/outline";
 import { db } from "luminary-shared";
+import { getHighlightHtml, type SavedHighlight } from "@/recommendation/highlightStore";
 
 const props = defineProps<{ contentId: string }>();
+// Fired when a highlight is created or genuinely removed. The parent (which knows
+// the content's tags) decides what to do with these events. `highlightsChanged` is
+// emitted only after IndexedDB reflects the active markup, so other local consumers
+// can safely re-read it without coupling this generic component to recommendations.
+const emit = defineEmits<{ highlighted: []; highlightRemoved: []; highlightsChanged: [] }>();
 
 const content = ref<HTMLElement | undefined>(undefined);
 const actionsMenu = ref<HTMLElement | undefined>(undefined);
@@ -158,14 +164,18 @@ function wrapTextNodes(range: Range, color: string) {
         }
     });
 
+    emit("highlighted");
     finalizeHighlight();
 }
 
 function finalizeHighlight() {
     const sel = window.getSelection();
     sel?.removeAllRanges();
-    // Save highlights asynchronously (fire-and-forget)
-    void saveHighlights();
+    // Persist first: the change notification lets recommendation consumers safely
+    // re-read the active highlight text without racing the IndexedDB write.
+    void saveHighlights().then((saved) => {
+        if (saved) emit("highlightsChanged");
+    });
     showActions.value = false;
     showColorPicker.value = false;
 }
@@ -190,6 +200,7 @@ function removeHighlight() {
     // Find all marks intersecting the range
     const marks = document.querySelectorAll("mark");
     const marksToProcess: HTMLElement[] = [];
+    let didRemoveHighlight = false;
 
     marks.forEach((mark) => {
         if (range.intersectsNode(mark) && content.value?.contains(mark)) {
@@ -280,6 +291,7 @@ function removeHighlight() {
             // Remove the original empty mark
             parent.removeChild(mark);
             parent.normalize();
+            didRemoveHighlight = true;
         } else {
             // Full removal - original behavior
             while (mark.firstChild) {
@@ -287,9 +299,11 @@ function removeHighlight() {
             }
             parent.removeChild(mark);
             parent.normalize();
+            didRemoveHighlight = true;
         }
     });
 
+    if (didRemoveHighlight) emit("highlightRemoved");
     finalizeHighlight();
 }
 
@@ -306,29 +320,38 @@ function copyText() {
 
 /**
  * Saves highlights to IndexedDB using the luminaryInternals table.
- * Stores the HTML content with highlights for the current content ID.
+ * Stores the HTML content with highlights for the current content ID, together with
+ * an update timestamp used to bound newest-first local recommendation retrieval.
  */
-async function saveHighlights() {
+async function saveHighlights(): Promise<boolean> {
     const prose = content.value?.querySelector(".prose");
-    if (!prose) return;
+    if (!prose) return false;
 
     const html = prose.innerHTML;
 
     try {
         // Get existing highlights data from IndexedDB
         const existingData = (await db.getLuminaryInternals("highlights")) || {};
-        const data = typeof existingData === "object" && existingData !== null ? existingData : {};
+        const data: Record<string, unknown> =
+            typeof existingData === "object" && existingData !== null && !Array.isArray(existingData)
+                ? { ...existingData }
+                : {};
 
         if (html.includes("<mark")) {
-            data[props.contentId] = html;
+            data[props.contentId] = {
+                html,
+                updatedAt: Date.now(),
+            } satisfies SavedHighlight;
         } else {
             delete data[props.contentId];
         }
 
         // Save to IndexedDB
         await db.setLuminaryInternals("highlights", data);
+        return true;
     } catch (error) {
         console.error("Failed to save highlights to IndexedDB:", error);
+        return false;
     }
 }
 
@@ -339,7 +362,10 @@ async function saveHighlights() {
 async function restoreHighlights() {
     try {
         const data = (await db.getLuminaryInternals("highlights")) || {};
-        const saved = typeof data === "object" && data !== null ? data[props.contentId] : undefined;
+        const saved =
+            typeof data === "object" && data !== null && !Array.isArray(data)
+                ? getHighlightHtml(data[props.contentId])
+                : undefined;
 
         if (saved && content.value) {
             const prose = content.value.querySelector(".prose");

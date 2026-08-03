@@ -1,12 +1,5 @@
-import {
-    useHybridQuery,
-    type ContentDto,
-    DocType,
-    type MangoSelector,
-    type HybridQueryOptions,
-} from "luminary-shared";
-import { appDisplayLanguageIdsAsRef } from "@/globalConfig";
-import { mangoIsPublished } from "@/util/mangoIsPublished";
+import { type MangoSelector, type HybridQueryOptions } from "luminary-shared";
+import { useContentQueryWithState } from "@/composables/useContentQueryWithState";
 
 /**
  * Options for {@link useContentQuery}. Extends {@link HybridQueryOptions}
@@ -43,11 +36,11 @@ export type UseContentQueryOptions = HybridQueryOptions & {
 };
 
 /**
- * Thin wrapper around {@link useHybridQuery} for Content documents. Injects the
- * boilerplate every content feed repeats — a top-level `{ type: Content }` (which
- * HybridQuery routing requires to take the local-first + API-supplement path),
- * the `mangoIsPublished` filter, and the `use_index` hint — and defaults to
- * `live` + `persistOffline`.
+ * Thin wrapper around {@link useContentQueryWithState} for Content documents, returning
+ * only its `output` ref. Injects the boilerplate every content feed repeats — a top-level
+ * `{ type: Content }` (which HybridQuery routing requires to take the local-first +
+ * API-supplement path), the `mangoIsPublished` filter, and the `use_index` hint — and
+ * defaults to `live` + `persistOffline`.
  *
  * `cache` (the response-cache first-paint seed) defaults to **`false`**. The cache
  * key is the query *shape* (runtime values like `parentId`/`slug` are stripped), so a
@@ -71,45 +64,5 @@ export function useContentQuery(
     selector: () => MangoSelector[],
     options: UseContentQueryOptions = {},
 ) {
-    const {
-        sort,
-        limit,
-        includeScheduled,
-        publishedFilter = true,
-        languageFilter = true,
-        useIndex = "content-publishDate-index",
-        live = true,
-        cache = false,
-        persistOffline = true,
-        // Strip heavy / never-rendered fields from the live result (heap) — and, as a
-        // consequence, from the response cache too. Tiles read none of these off the
-        // feed doc: the search engine reads `fts`/`ftsTokenCount` from Dexie,
-        // `memberOf`/`_rev` are never read off a content result, and `text` is the full
-        // body only the article view needs. Offline persistence keeps the full docs
-        // (the strip runs after the IndexedDB write). Override per call site for a feed
-        // that DOES render one of these — e.g. the article body (`text`) or the
-        // edit-permission check (`memberOf`).
-        stripFields = ["fts", "ftsTokenCount", "text", "memberOf", "_rev"],
-        ...rest
-    } = options;
-
-    return useHybridQuery<ContentDto>(
-        () => ({
-            selector: {
-                $and: [
-                    { type: DocType.Content },
-                    ...selector(),
-                    ...(publishedFilter
-                        ? mangoIsPublished(languageFilter ? appDisplayLanguageIdsAsRef.value : [], {
-                              includeScheduled,
-                          })
-                        : []),
-                ],
-            },
-            ...(sort ? { $sort: sort } : {}),
-            ...(limit !== undefined ? { $limit: limit } : {}),
-            use_index: useIndex,
-        }),
-        { live, cache, persistOffline, stripFields, ...rest },
-    );
+    return useContentQueryWithState(selector, options).output;
 }

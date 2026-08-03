@@ -86,6 +86,18 @@ export const router = createRouter({
                         title: "Settings",
                     },
                 },
+                {
+                    path: "recommendations",
+                    name: "recommendations",
+                    component: () => import("../pages/RecommendationsPage.vue"),
+                    meta: {
+                        title: "Recommendations",
+                        canAccess: {
+                            docType: DocType.DefaultAffinity,
+                            permission: AclPermission.CmsView,
+                        },
+                    },
+                },
                 // Generic content document edit route
                 {
                     path: ":docType/edit/:tagOrPostType/:id/:languageCode?",

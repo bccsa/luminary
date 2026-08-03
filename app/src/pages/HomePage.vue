@@ -5,6 +5,7 @@ import HomePageNewest from "@/components/HomePage/HomePageNewest.vue";
 import BasePage from "@/components/BasePage.vue";
 import ContinueProgress from "@/components/HomePage/ContinueProgress.vue";
 import ContinueListening from "@/components/HomePage/ContinueListening.vue";
+import RecommendedForYou from "@/components/HomePage/RecommendedForYou.vue";
 import HomePageSearch from "@/components/HomePage/HomePageSearch.vue";
 import { isMdScreen } from "@/globalConfig";
 import { nextTick, onActivated, ref } from "vue";
@@ -34,6 +35,7 @@ onActivated(checkReady);
                 <HomePageNewest />
             </Suspense>
 
+            <RecommendedForYou />
             <ContinueProgress />
             <ContinueListening />
         </IgnorePagePadding>
