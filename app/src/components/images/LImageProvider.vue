@@ -100,6 +100,7 @@ import { type ImageDto, type ImageFileDto, type Uuid } from "luminary-shared";
 import Rand from "rand-seed";
 import { thumbHashToDataURL } from "thumbhash";
 import { ref } from "vue";
+import { isPrerender } from "@/ssg/isPrerender";
 
 type Props = {
     image?: ImageDto;
@@ -138,7 +139,7 @@ const baseUrl = computed(() => props.bucketPublicUrl);
 // "Reduced data" mode lowers image weight on any of four signals (slow connection, user toggle, OS Data Saver, SSG prerendering). Forced on during SSG so the prerendered HTML advertises the smallest slot, not the full-res `sizes` a real device's DPR would pull in.
 const reducedData = computed(
     () =>
-        import.meta.env.SSR ||
+        isPrerender() ||
         isSlowConnection.value ||
         userDataSaverEnabled.value ||
         isDataSaverEnabled(),

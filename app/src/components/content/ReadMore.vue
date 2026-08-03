@@ -20,7 +20,12 @@ const summaryText = (content: ContentDto): string => content.summary?.trim() ?? 
 const tagIds = computed(() => [...new Set(props.items.flatMap((item) => item.parentTags ?? []))]);
 const tagDocs = useContentQuery(
     () => [{ parentId: { $in: tagIds.value.length ? tagIds.value : [] } }],
-    { includeScheduled: false },
+    {
+        includeScheduled: false,
+        // Seek by parentId; the publishDate sort is required to engage the index.
+        useIndex: "content-parentId-publishDate-index",
+        sort: [{ publishDate: "desc" }],
+    },
 );
 const tagsFor = (content: ContentDto): ContentDto[] => {
     const ids = new Set(content.parentTags ?? []);

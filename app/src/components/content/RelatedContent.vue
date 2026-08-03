@@ -25,6 +25,8 @@ const contentIds = computed(() => [
 
 const contentDocs = useContentQuery(() => [{ parentId: { $in: contentIds.value } }], {
     includeScheduled: false,
+    // Seek by parentId; the publishDate sort is required to engage the index.
+    useIndex: "content-parentId-publishDate-index",
     sort: [{ publishDate: "desc" }],
     limit: 50,
 });

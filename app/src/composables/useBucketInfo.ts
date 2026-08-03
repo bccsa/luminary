@@ -1,32 +1,38 @@
 import { computed, onServerPrefetch, shallowRef, type Ref } from "vue";
-import {
-    type StorageDto,
-    useHybridQuery,
-    type Uuid,
-    queryRemote,
-    structuralCacheKey,
-    writeResponseCache,
-} from "luminary-shared";
+import { type StorageDto, useHybridQuery, type Uuid, queryRemote } from "luminary-shared";
+import { isPrerender } from "@/ssg/isPrerender";
 
 // Storage buckets use a fixed `cacheId` so this query's response-cache entry stays distinct from same-shaped queries. The result is the same for every viewer since buckets are public.
 const STORAGE_QUERY = { selector: { type: "storage" } };
 const STORAGE_CACHE_ID = "storage-buckets";
 
+// Storage buckets are public and identical for every prerendered page, so the whole SSG
+// build fetches them once. A PROMISE cache (not a resolved-value cache guarded by
+// `if (!x)`) is required: every `useBucketInfo()` call on one page's render runs
+// synchronously up to its first `await`, so without caching the in-flight promise itself
+// they'd all race and each fire their own fetch, even at the default concurrency of 1.
+let bucketsPromise: Promise<StorageDto[]> | undefined;
+function fetchBucketsOnce(): Promise<StorageDto[]> {
+    if (!bucketsPromise) {
+        bucketsPromise = queryRemote<StorageDto>(STORAGE_QUERY).catch((err) => {
+            // Don't let one transient failure poison the rest of the build — let the next page's render retry.
+            bucketsPromise = undefined;
+            throw err;
+        });
+    }
+    return bucketsPromise;
+}
+
 /**
- * Resolve a storage bucket from the fully-synced `storage` docs for building image URLs. On the browser the hybrid query's `cache: true` seed makes the bucket available on first render; the SSG prerender fetches once via `queryRemote` and primes the same cache so the client builds real CDN URLs on first paint with no flash.
+ * Resolve a storage bucket from the fully-synced `storage` docs for building image URLs. On the browser the hybrid query's `cache: true` seed makes the bucket available on first render; the SSG prerender fetches once for the whole build via `queryRemote` so the client builds real CDN URLs on first paint with no flash.
  */
 export function useBucketInfo(bucketId: Ref<Uuid | undefined>) {
     let allBuckets: Ref<StorageDto[]>;
 
-    if (import.meta.env.SSR) {
+    if (isPrerender()) {
         const out = shallowRef<StorageDto[]>([]);
         onServerPrefetch(async () => {
-            const docs = await queryRemote<StorageDto>(STORAGE_QUERY);
-            out.value = docs;
-            writeResponseCache(structuralCacheKey(STORAGE_QUERY, STORAGE_CACHE_ID), {
-                local: docs,
-                remote: [],
-            });
+            out.value = await fetchBucketsOnce();
         });
         allBuckets = out;
     } else {

@@ -1,5 +1,6 @@
 import { computed, ref, watch } from "vue";
 import { isDataSaverEnabled, userDataSaverEnabled } from "@/globalConfig";
+import { isPrerender } from "@/ssg/isPrerender";
 
 /**
  * Probe-based connection-speed estimate.
@@ -78,7 +79,9 @@ export async function runProbe(force = false): Promise<void> {
 }
 
 // Refresh "when relevant". Mirrors the module-scope listener pattern in globalConfig (`windowWidth`).
-if (typeof window !== "undefined") {
+// `!isPrerender()` matters here: vite.config.web.ts's ssgOptions.mock supplies a jsdom
+// `window` during the Node prerender too, so `typeof window` alone wouldn't exclude it.
+if (typeof window !== "undefined" && !isPrerender()) {
     runProbe(true);
     window.addEventListener("online", () => runProbe(true));
     document.addEventListener("visibilitychange", () => {

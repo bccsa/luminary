@@ -91,6 +91,7 @@ describe("useContentQuery — SSR prerender path", () => {
         useContentQuery(() => [], {
             publishedFilter: false,
             languageFilter: false,
+            cache: true,
             cacheId: "single-slug",
         });
         await flushPromises();
@@ -122,6 +123,7 @@ describe("useContentQuery — SSR prerender path", () => {
         const out = useContentQuery(() => [], {
             publishedFilter: false,
             languageFilter: false,
+            cache: true,
             stripFields: ["fts", "ftsTokenCount", "_rev"], // SingleContent's own live-output override
             ssrCacheStripFields: ["text"],
         });
@@ -137,6 +139,7 @@ describe("useContentQuery — SSR prerender path", () => {
         useContentQuery(() => [], {
             publishedFilter: false,
             languageFilter: false,
+            cache: true,
             cacheStripFields: ["fts"],
         });
         await flushPromises();
@@ -149,6 +152,7 @@ describe("useContentQuery — SSR prerender path", () => {
         useContentQuery(() => [], {
             publishedFilter: false,
             languageFilter: false,
+            cache: true,
             cacheStripFields: ["fts"],
             ssrCacheStripFields: ["text"],
         });
@@ -181,6 +185,7 @@ describe("useContentQuery — SSR prerender path", () => {
         useContentQueryReal(() => [], {
             publishedFilter: false,
             languageFilter: false,
+            cache: true,
             stripFields: ["fts", "ftsTokenCount", "_rev"],
             ssrCacheStripFields: ["text"],
             cacheId: "e2e-slug",
@@ -196,6 +201,58 @@ describe("useContentQuery — SSR prerender path", () => {
         expect(seed?.local[0]).not.toHaveProperty("text");
         expect(seed?.local[0]).toMatchObject({ _id: "content-1", memberOf: ["group-1"] });
 
+        vi.resetModules();
+    });
+
+    // Regression: the SSR branch must attribute the seed to its route under the FULL
+    // `hqcache:`-prefixed storage key (the one shared writes and the client reads), not
+    // the bare structural cacheKey. A bare-key attribution read back null, so the seed
+    // was never inlined into the page HTML — the logged-out 404-flash root cause.
+    it("attributes the response-cache seed to its route under the hqcache: prefixed key", async () => {
+        vi.doUnmock("luminary-shared");
+        vi.resetModules();
+        vi.doMock("luminary-shared", async (importOriginal) => {
+            const actual = await importOriginal<typeof import("luminary-shared")>();
+            return { ...actual, queryRemote: (...args: unknown[]) => queryRemoteMock(...args) };
+        });
+        vi.doMock("vue", async (importOriginal) => {
+            const actual = await importOriginal<typeof import("vue")>();
+            return { ...actual, onServerPrefetch: (cb: () => unknown) => cb() };
+        });
+        const { useContentQuery: useContentQueryReal } = await import("./useContentQuery");
+        const { structuralCacheKey: structuralCacheKeyReal } = await import("luminary-shared");
+
+        const capture = {
+            manifest: {} as Record<string, Set<string>>,
+            cache: {} as Record<string, Record<string, string>>,
+        };
+        (globalThis as Record<string, unknown>).__SSG_DEPS__ = capture;
+        routeMock.path = "/prefixed-seed-route";
+
+        useContentQueryReal(() => [], {
+            publishedFilter: false,
+            languageFilter: false,
+            cache: true,
+            cacheId: "prefixed-slug",
+        });
+        await flushPromises();
+
+        const expectedQuery = {
+            selector: { $and: [{ type: DocType.Content }] },
+            use_index: "content-publishDate-index",
+        };
+        const cacheKey = structuralCacheKeyReal(expectedQuery, "prefixed-slug:anon");
+        const storageKey = "hqcache:" + cacheKey;
+        const forRoute = capture.cache["/prefixed-seed-route"] ?? {};
+        expect(Object.keys(forRoute)).toContain(storageKey);
+        // The attributed value is the JSON the inline seed replays into localStorage, so
+        // the client's readResponseCache(cacheKey) (= getItem("hqcache:" + cacheKey)) hits.
+        const seeded = JSON.parse(forRoute[storageKey]) as { local: unknown[]; remote: unknown[] };
+        expect(seeded.local).toHaveLength(1);
+        expect(seeded.remote).toEqual([]);
+
+        routeMock.path = "/test-route";
+        delete (globalThis as Record<string, unknown>).__SSG_DEPS__;
         vi.resetModules();
     });
 
@@ -277,5 +334,112 @@ describe("useContentQuery — SSR prerender path", () => {
         await flushPromises();
 
         expect(order).toEqual(["first-index", "second-index"]);
+    });
+
+    it("short-circuits a provably-empty selector without calling queryRemote", async () => {
+        queryRemoteMock.mockReset().mockResolvedValue([{ ...fakeDoc }]);
+        const out = useContentQuery(() => [{ parentId: { $in: [] } }], {
+            publishedFilter: false,
+            languageFilter: false,
+        });
+        await flushPromises();
+
+        expect(queryRemoteMock).not.toHaveBeenCalled();
+        expect(writeResponseCacheMock).not.toHaveBeenCalled();
+        expect(out.value).toEqual([]);
+    });
+
+    describe("buildOnce", () => {
+        it("fetches the query once for the whole build, across different routes", async () => {
+            queryRemoteMock.mockReset().mockResolvedValue([{ ...fakeDoc }]);
+
+            routeMock.path = "/build-once-a";
+            const first = useContentQuery(() => [], {
+                publishedFilter: false,
+                languageFilter: false,
+                cacheId: "shared-build-once-1",
+                buildOnce: true,
+            });
+            routeMock.path = "/build-once-b";
+            const second = useContentQuery(() => [], {
+                publishedFilter: false,
+                languageFilter: false,
+                cacheId: "shared-build-once-1",
+                buildOnce: true,
+            });
+            await flushPromises();
+
+            expect(queryRemoteMock).toHaveBeenCalledTimes(1);
+            expect(first.value).toEqual(second.value);
+
+            routeMock.path = "/test-route";
+        });
+
+        it("still reports dependency keys per route even though the fetch is shared", async () => {
+            queryRemoteMock.mockReset().mockResolvedValue([{ ...fakeDoc }]);
+            const capture = {
+                manifest: {} as Record<string, Set<string>>,
+                cache: {} as Record<string, Record<string, string>>,
+            };
+            (globalThis as Record<string, unknown>).__SSG_DEPS__ = capture;
+
+            routeMock.path = "/build-once-c";
+            useContentQuery(() => [], {
+                publishedFilter: false,
+                languageFilter: false,
+                cacheId: "shared-build-once-2",
+                buildOnce: true,
+            });
+            routeMock.path = "/build-once-d";
+            useContentQuery(() => [], {
+                publishedFilter: false,
+                languageFilter: false,
+                cacheId: "shared-build-once-2",
+                buildOnce: true,
+            });
+            await flushPromises();
+
+            expect(queryRemoteMock).toHaveBeenCalledTimes(1);
+            expect([...(capture.manifest["/build-once-c"] ?? [])]).toContain("doc:parent-1");
+            expect([...(capture.manifest["/build-once-d"] ?? [])]).toContain("doc:parent-1");
+
+            routeMock.path = "/test-route";
+            delete (globalThis as Record<string, unknown>).__SSG_DEPS__;
+        });
+
+        it("resolves without waiting on a slow sibling chained query on the same route", async () => {
+            const order: string[] = [];
+            queryRemoteMock.mockReset().mockImplementation(async (q: { use_index?: string }) => {
+                if (q.use_index === "slow-chained-index") {
+                    await new Promise((r) => setTimeout(r, 30));
+                    order.push("chained");
+                } else {
+                    order.push("build-once");
+                }
+                return [{ ...fakeDoc }];
+            });
+
+            routeMock.path = "/build-once-e";
+            // Registered first but slow — if buildOnce queries were still stuck behind
+            // the per-route chain, "build-once" would only appear after "chained".
+            useContentQuery(() => [], {
+                publishedFilter: false,
+                languageFilter: false,
+                useIndex: "slow-chained-index",
+            });
+            useContentQuery(() => [], {
+                publishedFilter: false,
+                languageFilter: false,
+                cacheId: "shared-build-once-3",
+                buildOnce: true,
+            });
+
+            await new Promise((r) => setTimeout(r, 50));
+            await flushPromises();
+
+            expect(order).toEqual(["build-once", "chained"]);
+
+            routeMock.path = "/test-route";
+        });
     });
 });

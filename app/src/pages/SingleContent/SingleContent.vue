@@ -71,6 +71,7 @@ import {
 import { useContentHead, type PublicTaxonomy } from "@/seo/contentHead";
 import { useTranslationSwitcher } from "@/composables/useTranslationSwitcher";
 import { recoverSsrArticleText } from "@/util/ssrTextRecovery";
+import { isPrerender } from "@/ssg/isPrerender";
 
 const router = useRouter();
 
@@ -81,11 +82,6 @@ const props = defineProps<Props>();
 
 // True for the web/SSG build (prerender and hydrated client), false for the normal SPA. Gates the per-slug response-cache ids so the web build matches the prerender's seed on first paint; the normal SPA would only accumulate one localStorage entry per article.
 const isSSG = import.meta.env.VITE_BUILD_TARGET === "web";
-
-// True only during the vite-ssg prerender pass (statically false in the hydrated client
-// and the normal SPA). Exposed to the template so the SSR article-text marker is written into the
-// prerendered HTML but not the hydrated client's vdom.
-const isPrerender = import.meta.env.SSR;
 
 const { t } = useI18n();
 const showCategoryModal = ref(false);
@@ -105,6 +101,8 @@ const { output: contentArr, isFetching: isContentFetching } = useContentQueryWit
         // for CouchDB to engage the index (slug eq alone falls back to a full scan).
         useIndex: "content-slug-publishDate-index",
         sort: [{ publishDate: "desc" }],
+        // slug is unique — at most one doc can ever match.
+        limit: 1,
         // Strip nothing from the live/persisted copy (unlike overview feeds, which default
         // to stripping fts/ftsTokenCount/text/memberOf/_rev): this is the document actually
         // opened in SingleContent — `text` (rendered below) and `memberOf` (read by canEdit)
@@ -122,18 +120,25 @@ const { output: contentArr, isFetching: isContentFetching } = useContentQueryWit
 
 // `content` is a computed over the query result plus an override for in-place language switches. A computed stays readable at SSR render time (a watch-based binding would not run there). `contentOverride` is cleared on slug change so a stale override can't shadow the new page.
 const contentOverride = ref<ContentDto | undefined>();
+// Cold-start backstop: a doc fetched by `resolveNotFound` when the response-cache
+// seed is absent (logged-in `:auth` user, quota-hit/cleared localStorage) and Dexie
+// is still empty before sync runs — prevents a false 404 flash. Cleared on slug
+// change and once the live query emits (local docs carry full `text` via
+// `stripFields: []`, so the live doc takes over cleanly).
+const coldStartBackstop = ref<ContentDto | undefined>();
 const content = computed<ContentDto | undefined>(
-    () => contentOverride.value ?? contentArr.value[0],
+    () => contentOverride.value ?? coldStartBackstop.value ?? contentArr.value[0],
 );
 watch(
     () => props.slug,
     () => {
         contentOverride.value = undefined;
+        coldStartBackstop.value = undefined;
     },
 );
 
 // One-time hydration patch (client only): recover `text` (omitted from the cache seed via `ssrCacheStripFields`) from the DOM before first render so `v-html` matches the prerendered HTML. Runs in setup (not a watcher) so it lands before the template's first evaluation. Guarded on `!isPrerender` so it runs in the browser after the web build hydrates but skips the Node prerender pass; the normal SPA always passes. No-op when the seed already carries `text` or there's nothing to recover.
-if (!isPrerender) {
+if (!isPrerender()) {
     const recovered = recoverSsrArticleText(contentArr.value[0], (selector) =>
         document.querySelector(selector),
     );
@@ -199,6 +204,35 @@ const resolveNotFound = async () => {
             /* fall through to 404 */
         }
     }
+    // Cold-start backstop: the prerender seeds `:anon` only, so a logged-in
+    // client (reads `:auth`) or cleared/quota-hit localStorage has no seed, and
+    // Dexie is empty until sync runs. Before declaring not-found, confirm the
+    // slug exists via the same REST path the SSR prerender used — mirrors the
+    // composable's query shape for the `languageFilter: false` case (the
+    // publishDate sort is required for the slug-led index to engage). If the
+    // API confirms absence or is unreachable, fall through to the real 404.
+    try {
+        const remote = await queryRemote<ContentDto>({
+            selector: {
+                $and: [
+                    { type: DocType.Content },
+                    { slug },
+                    ...publishedNowConditions({ includeScheduled: false }),
+                ],
+            },
+            use_index: "content-slug-publishDate-index",
+            $sort: [{ publishDate: "desc" }],
+            $limit: 1,
+        });
+        if (props.slug !== slug) return; // slug changed mid-await
+        if (remote[0]) {
+            coldStartBackstop.value = remote[0];
+            isLoading.value = false; // found — show the article, not 404
+            return;
+        }
+    } catch {
+        /* API unreachable — fall through to 404 (offline + no seed + no local ⇒ nothing to show) */
+    }
     // `content` is a computed over the (empty) query result → already
     // undefined; just stop loading so the 404 branch shows.
     if (props.slug === slug && !contentArr.value.length) {
@@ -207,7 +241,7 @@ const resolveNotFound = async () => {
 };
 
 // Client-only (web + the normal SPA): redirect / not-found / loading wiring + retention. The Node prerender skips this — `content` is already populated and rendered via onServerPrefetch. Guarded on `isPrerender` (not a `window` check, since vite-ssg's mock makes `window` exist in Node too).
-if (!isPrerender) {
+if (!isPrerender()) {
     watch(
         () => props.slug,
         async (slug) => {
@@ -227,11 +261,16 @@ if (!isPrerender) {
     );
 
     // `content` follows `contentArr` (a computed); this watch owns only the side
-    // effect of stopping the loading state once a doc resolves.
+    // effect of stopping the loading state once a doc resolves. The live doc
+    // carries full `text` (`stripFields: []`), so once it emits the backstop
+    // snapshot is dropped and the live, socket-updated doc takes over.
     watch(
         contentArr,
         (docs) => {
-            if (docs.length) isLoading.value = false;
+            if (docs.length) {
+                coldStartBackstop.value = undefined;
+                isLoading.value = false;
+            }
         },
         { immediate: true },
     );
@@ -344,6 +383,9 @@ const tags = useContentQuery(
         cache: true,
         // Per-slug discriminator so the per-document cache is safe.
         cacheId: `tags:${props.slug}`,
+        // Seek by parentId; the publishDate sort is required to engage the index.
+        useIndex: "content-parentId-publishDate-index",
+        sort: [{ publishDate: "desc" }],
     },
 );
 
@@ -838,7 +880,7 @@ watch([isLoading, content, is404], async () => {
                     >
                         <div
                             ref="articleProseRef"
-                            :data-ssr-article-text="isPrerender ? true : undefined"
+                            :data-ssr-article-text="isPrerender() ? true : undefined"
                             v-html="text"
                             class="prose prose-zinc mt-8 max-w-full dark:prose-invert lg:prose-lg prose-headings:font-bold prose-a:text-yellow-600 dark:prose-a:text-yellow-400"
                             :class="{

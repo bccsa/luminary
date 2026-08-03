@@ -68,29 +68,43 @@ watch(needRefresh, (refreshNeeded) => {
     });
 });
 
-// Wait 5 seconds to allow the socket connection to be established before checking the connection status
-setTimeout(() => {
-    watch(
-        isConnected,
-        () => {
-            if (!isConnected.value) {
-                useNotificationStore().addNotification({
-                    id: "offlineBanner",
-                    title: () => t("notification.offline.title"),
-                    description: () => t("notification.offline.message"),
-                    state: "warning",
-                    type: "banner",
-                    icon: SignalSlashIcon,
-                    priority: 1,
-                });
-            }
-            if (isConnected.value) {
-                useNotificationStore().removeNotification("offlineBanner");
-            }
-        },
-        { immediate: true },
-    );
-}, 5000);
+// Gate client-only chrome (this offline-banner watch, and the auth-gate reveal further
+// down) behind mount so the web/SSG first client render matches the prerendered HTML
+// (clean hydration) — isConnected never changes during the Node prerender (no socket),
+// so an ungated watch here would leak an idle timer/watch for the life of the whole SSG
+// build. The normal SPA has no prerender, so this is a no-op there.
+const isMounted = useHydrated();
+
+watch(
+    isMounted,
+    (mounted) => {
+        if (!mounted) return;
+        // Wait 5 seconds to allow the socket connection to be established before checking the connection status
+        setTimeout(() => {
+            watch(
+                isConnected,
+                () => {
+                    if (!isConnected.value) {
+                        useNotificationStore().addNotification({
+                            id: "offlineBanner",
+                            title: () => t("notification.offline.title"),
+                            description: () => t("notification.offline.message"),
+                            state: "warning",
+                            type: "banner",
+                            icon: SignalSlashIcon,
+                            priority: 1,
+                        });
+                    }
+                    if (isConnected.value) {
+                        useNotificationStore().removeNotification("offlineBanner");
+                    }
+                },
+                { immediate: true },
+            );
+        }, 5000);
+    },
+    { immediate: true },
+);
 
 watch(
     [isConnected, isAuthenticated],
@@ -132,8 +146,6 @@ const routeKey = computed(() => {
     return router.currentRoute.value.fullPath;
 });
 
-// Gate auth-aware chrome behind mount so the web/SSG first client render matches the prerendered HTML (clean hydration). The normal SPA has no prerender, so this is a no-op there.
-const isMounted = useHydrated();
 onMounted(() => {
     // Reveal content hidden by vite.config.web.ts's pre-paint auth gate (see
     // authGateScript there for why): by now Vue's first render has landed, using the

@@ -26,6 +26,7 @@ import {
     type QueryTransport,
 } from "./src/ssg/queryDrain";
 import { ACTIVE_PROVIDER_KEY, LEGACY_AUTH0_CACHE_PREFIX, OIDC_USER_PREFIX } from "./src/authStorage";
+import { releaseSsrChain } from "./src/ssg/ssrChains";
 import { DocType, RedirectType, type DeleteReason } from "luminary-shared";
 
 const env = loadEnv("", process.cwd());
@@ -61,7 +62,11 @@ capture();
 function hqCacheScript(cache: Record<string, string>): string {
     // `<` escaping prevents a doc value containing `</script>` from closing the tag.
     const json = JSON.stringify(cache).replace(/</g, "\\u003c");
-    return `<script>(function(c){try{for(var k in c)localStorage.setItem(k,c[k])}catch(e){}})(${json})</script>`;
+    // The catch surfaces a failed seed write (e.g. QuotaExceededError / a sandboxed
+    // SecurityError) so a missing-seed hydration flash is diagnosable instead of
+    // silent — the client's cold-start backstop covers it, but the warning points
+    // at the storage-level root cause.
+    return `<script>(function(c){try{for(var k in c)localStorage.setItem(k,c[k])}catch(e){console.warn('[hqcache] seed write failed:',e&&e.name,e&&e.message)}})(${json})</script>`;
 }
 
 // Pre-paint auth gate. The prerendered HTML is the public/anonymous view, which a returning logged-in user would briefly see before the JS boots; this hides `#app` via CSS until Vue's auth-scoped first render lands. Only engages when a persisted session looks present (mirrors `hasPersistedSession()`); revealed by App.vue's onMounted.
@@ -662,6 +667,7 @@ const config: UserConfig & { ssgOptions: ViteSSGOptions } = {
             // every page's seed for the whole build (~2k pages) on top of a build that already
             // needs an enlarged heap. Keyed by route so this is safe under concurrency.
             delete state.cache[route];
+            releaseSsrChain(route);
             const ls = (globalThis as { localStorage?: { removeItem(k: string): void } })
                 .localStorage;
             if (ls) for (const key of Object.keys(cache)) ls.removeItem(key);

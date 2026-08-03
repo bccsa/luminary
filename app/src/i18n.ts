@@ -2,6 +2,7 @@ import { nextTick, watch, type WatchHandle } from "vue";
 import { createI18n, type I18n } from "vue-i18n";
 import { appLanguageAsRef, appName, cmsDefaultLanguage, cmsLanguages } from "./globalConfig";
 import router from "./router";
+import { isPrerender } from "@/ssg/isPrerender";
 
 type LanguageLike = { _id: string; languageCode: string; updatedTimeUtc?: number; translations?: Record<string, string> };
 
@@ -57,7 +58,7 @@ export const initI18n = (renderLanguageId?: string): I18n<{}, {}, {}, string, fa
     //
     // The caller passes the language explicitly rather than letting this read the shared
     // `appLanguageAsRef`, which concurrent renders overwrite (see ssg/renderLanguage.ts).
-    if (import.meta.env.SSR) {
+    if (isPrerender()) {
         const language = renderLanguageId
             ? cmsLanguages.value.find((l) => l._id === renderLanguageId)
             : appLanguageAsRef.value;

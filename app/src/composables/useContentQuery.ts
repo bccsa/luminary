@@ -4,36 +4,26 @@ import {
     type ContentDto,
     DocType,
     type MangoSelector,
+    type MangoQuery,
     type HybridQueryOptions,
     queryRemote,
     structuralCacheKey,
     writeResponseCache,
+    isProvablyEmpty,
 } from "luminary-shared";
 import { useDisplayLanguageIds } from "@/ssg/renderLanguage";
 import { hasPersistedSession } from "@/auth";
-import { mangoIsPublished } from "@/util/mangoIsPublished";
+import { mangoIsPublished, publishedNowConditions } from "@/util/mangoIsPublished";
 import { useRoute } from "vue-router";
 import { docKey, facetsFromSelector } from "@/ssg/facetKeys";
 import { reportCacheEntry, reportKeys } from "@/ssg/dependencyCapture";
+import { chainFor, queueOnChain } from "@/ssg/ssrChains";
+import { isPrerender } from "@/ssg/isPrerender";
 
-// Serializes the SSG prefetch fetches in registration order so chained queries
-// (e.g. HomePagePinned: pinnedCategories → pinnedCategoryContent reads its result)
-// resolve correctly — vite-ssg awaits a page's onServerPrefetch hooks concurrently,
-// so without this the child would build its selector from the still-empty parent ref.
-//
-// Per route, not global: only queries within one page can depend on each other, while a
-// single shared chain would also serialize every page against every other, holding the
-// whole prerender to one in-flight request no matter what `concurrency` is set to.
-const ssrChains = new Map<string, Promise<unknown>>();
-
-function chainFor(route: string): Promise<unknown> {
-    return ssrChains.get(route) ?? Promise.resolve();
-}
-
-/** Reads back one just-written response-cache entry so it can be attributed to its route. */
-function readCacheEntry(key: string): string | null {
+/** Reads back one just-written response-cache entry so it can be attributed to its route. Takes the full `hqcache:`-prefixed storage key (matching shared's `STORAGE_PREFIX`). */
+function readCacheEntry(storageKey: string): string | null {
     try {
-        return globalThis.localStorage?.getItem(key) ?? null;
+        return globalThis.localStorage?.getItem(storageKey) ?? null;
     } catch {
         return null;
     }
@@ -46,6 +36,24 @@ function stripDocs(docs: ContentDto[], stripFields: string[]): ContentDto[] {
         for (const f of stripFields) delete copy[f];
         return copy as ContentDto;
     });
+}
+
+// Backs `buildOnce`: a query that is genuinely identical on every route (see the option's
+// own doc comment for the safety caveat) shares ONE fetch for the whole build instead of
+// firing again per page.
+const buildOnceFetches = new Map<string, Promise<ContentDto[]>>();
+
+function fetchBuildOnce(key: string, q: MangoQuery): Promise<ContentDto[]> {
+    let p = buildOnceFetches.get(key);
+    if (!p) {
+        p = queryRemote<ContentDto>(q).catch((err) => {
+            // Don't let one transient failure poison the rest of the build — let the next page's render retry.
+            buildOnceFetches.delete(key);
+            throw err;
+        });
+        buildOnceFetches.set(key, p);
+    }
+    return p;
 }
 
 /**
@@ -84,6 +92,19 @@ export type UseContentQueryOptions = HybridQueryOptions & {
      * Fields stripped only from the SSR-authored response-cache write, distinct from `cacheStripFields` (which also strips from the client's ongoing re-cache writes). Use this for a field the hydrating client can recover another way (e.g. from the rendered DOM) to avoid shipping it twice.
      */
     ssrCacheStripFields?: string[];
+    /**
+     * Marks this query as identical across the ENTIRE SSG build (e.g. a fixed-id
+     * copyright lookup), so the SSR branch fetches it once for the whole build instead
+     * of once per route, and runs it outside the per-route serial chain (a
+     * build-constant query has no parent/child ordering to respect).
+     *
+     * The fetch is memoized by the query's {@link structuralCacheKey}, which collapses
+     * runtime VALUES (a `parentId`/`slug` literal) to a shape-only key. Only opt in
+     * where the query is genuinely build-constant — applying this to a per-document
+     * query would silently serve one document's result to every other route sharing
+     * that query's shape. Default `false`.
+     */
+    buildOnce?: boolean;
 };
 
 /** Reactive bundle returned by {@link useContentQueryWithState}. */
@@ -172,6 +193,7 @@ function useContentQueryState(
         // edit-permission check (`memberOf`).
         stripFields = ["fts", "ftsTokenCount", "text", "memberOf", "_rev"],
         ssrCacheStripFields,
+        buildOnce = false,
         ...rest
     } = options;
 
@@ -186,9 +208,18 @@ function useContentQueryState(
                 { type: DocType.Content },
                 ...selector(),
                 ...(publishedFilter
-                    ? mangoIsPublished(languageFilter ? displayLanguageIds() : [], {
-                          includeScheduled,
-                      })
+                    ? languageFilter && displayLanguageIds().length === 0
+                        ? // No display language resolved: an empty `$in` makes the query
+                        // provably empty so the feed stays blank until a language resolves,
+                        // instead of the priority clause collapsing to match-any and surfacing
+                        // every sibling translation of each parent as separate tiles.
+                        [
+                            ...publishedNowConditions({ includeScheduled }),
+                            { language: { $in: [] } },
+                        ]
+                        : mangoIsPublished(languageFilter ? displayLanguageIds() : [], {
+                              includeScheduled,
+                          })
                     : []),
             ] as MangoSelector[],
         },
@@ -213,7 +244,7 @@ function useContentQueryState(
     // --- Web/SSG PRERENDER (Node) only. The browser client + the normal SPA both fall through
     // to the identical hybrid query below; on the client `cache: true` seeds the first
     // render synchronously from the response cache this branch primed at build time. ---
-    if (import.meta.env.SSR) {
+    if (isPrerender()) {
         const out = shallowRef<ContentDto[]>([]);
         // Flips false once the prefetch below resolves — content is always fully
         // resolved by render time (vite-ssg awaits onServerPrefetch), so this only
@@ -225,34 +256,69 @@ function useContentQueryState(
         // page whose keys and cache seed the work below belongs to.
         const route = useRoute().path;
         onServerPrefetch(async () => {
-            const queued = chainFor(route).then(async () => {
+            const run = async () => {
                 const q = buildQuery();
-                const docs = stripDocs(await queryRemote<ContentDto>(q), stripFields);
-                out.value = docs;
-                // Prime shared's response cache (same key the client computes) so the hydrating client shows these docs on first paint with no flash. vite-ssg serializes these `hqcache:*` entries into the page HTML.
-                const cacheKey = structuralCacheKey(q, `${rest.cacheId ?? ""}:anon`);
-                writeResponseCache(
-                    // Prerendering is always anonymous — see the client branch's
-                    // `hybridOptions.cacheId` above for the `:auth` counterpart.
-                    cacheKey,
-                    { local: docs, remote: [] },
-                    limit,
-                    // ssrCacheStripFields (SSR-only) falls back to cacheStripFields so a
-                    // caller that doesn't need the asymmetry can keep using one option.
-                    ssrCacheStripFields ?? rest.cacheStripFields,
+                // Unsatisfiable selector (e.g. an empty `$in`, before a parent query has
+                // resolved) — skip the POST entirely and settle to empty, mirroring the
+                // client's `HybridQuery._run` short-circuit (isProvablyEmpty).
+                if (isProvablyEmpty(q.selector)) {
+                    out.value = [];
+                    return;
+                }
+                const docs = stripDocs(
+                    buildOnce
+                        ? await fetchBuildOnce(structuralCacheKey(q, rest.cacheId), q)
+                        : await queryRemote<ContentDto>(q),
+                    stripFields,
                 );
-                // Attribute the entry to this route as it is written. `writeResponseCache`
-                // targets one shared store, so scraping it after the render would also pick up
-                // whatever pages rendering alongside this one put there.
-                const cached = readCacheEntry(cacheKey);
-                if (cached !== null) reportCacheEntry(route, cacheKey, cached);
+                out.value = docs;
+                // Prime shared's response cache (same key the client computes) so the hydrating
+                // client shows these docs on first paint with no flash. vite-ssg serializes
+                // these `hqcache:*` entries into the page HTML. Gated on `cache` to match the
+                // client branch, which never reads a seed it didn't ask for — an uncached
+                // query's SSR write is dead data that only inflates the prerender's peak
+                // localStorage footprint (the jsdom quota is bounded, and a page fires several
+                // of these mid-render).
+                if (cache) {
+                    const cacheKey = structuralCacheKey(q, `${rest.cacheId ?? ""}:anon`);
+                    writeResponseCache(
+                        // Prerendering is always anonymous — see the client branch's
+                        // `hybridOptions.cacheId` above for the `:auth` counterpart.
+                        cacheKey,
+                        { local: docs, remote: [] },
+                        limit,
+                        // ssrCacheStripFields (SSR-only) falls back to cacheStripFields so a
+                        // caller that doesn't need the asymmetry can keep using one option.
+                        ssrCacheStripFields ?? rest.cacheStripFields,
+                    );
+                    // Attribute the entry to this route as it is written. `writeResponseCache`
+                    // targets one shared store, so scraping it after the render would also
+                    // pick up whatever pages rendering alongside this one put there. Read back
+                    // under the same `hqcache:`-prefixed storage key shared writes (and the
+                    // client reads) — the prefix is the one shared's `STORAGE_PREFIX` uses, so
+                    // the inlined seed lands under the exact key the hydrating client reads.
+                    const storageKey = "hqcache:" + cacheKey;
+                    const cached = readCacheEntry(storageKey);
+                    if (cached !== null) reportCacheEntry(route, storageKey, cached);
+                }
+                // Dependency-capture attribution is per-ROUTE regardless of whether the
+                // fetch itself was shared via `buildOnce` — this route still needs its own
+                // rebuild-dependency entry.
                 reportKeys(route, [
                     ...facetsFromSelector(q.selector, renderLang()),
                     ...docs.map((d) => docKey(d.parentId || d._id)),
                 ]);
-            });
-            ssrChains.set(route, queued);
-            await queued;
+            };
+            if (buildOnce) {
+                // A build-constant query has no parent/child ordering to respect, so it
+                // runs outside the per-route chain — this also shortens the chain by one
+                // hop for every route that uses one.
+                await run();
+            } else {
+                const queued = chainFor(route).then(run);
+                queueOnChain(route, queued);
+                await queued;
+            }
             fetching.value = false;
         });
         return { output: out, isFetching: computed(() => fetching.value) };

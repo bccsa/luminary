@@ -1,5 +1,6 @@
 import { inject, type InjectionKey } from "vue";
 import { appDisplayLanguageIdsAsRef } from "@/globalConfig";
+import { isPrerender } from "./isPrerender";
 
 /**
  * The language priority for the page currently being prerendered.
@@ -32,6 +33,6 @@ export function ssgDisplayLanguages(renderLang: string, defaultLang?: string): s
  * Falls back to the shared ref on the client and in any non-prerender context.
  */
 export function useDisplayLanguageIds(): () => string[] {
-    const provided = import.meta.env.SSR ? inject(SSG_DISPLAY_LANGUAGES, null) : null;
+    const provided = isPrerender() ? inject(SSG_DISPLAY_LANGUAGES, null) : null;
     return () => provided ?? appDisplayLanguageIdsAsRef.value;
 }

@@ -1,8 +1,8 @@
 // Entry point for the web build (vite.config.web.ts → `npm run build:web`). This one
 // file runs twice: once in Node during the SSG prerender pass (SSR, produces the static
 // HTML crawlers see) and once in the browser as that HTML hydrates into a live app (the
-// experience a normal web visitor actually gets). `import.meta.env.SSR` below branches
-// between the two. The normal SPA build keeps using `main.ts` unchanged.
+// experience a normal web visitor actually gets). `isPrerender` (`import.meta.env.SSR`)
+// below branches between the two. The normal SPA build keeps using `main.ts` unchanged.
 //
 // Must import polyfills first so jsdom-missing globals (e.g. window.matchMedia)
 // exist before globalConfig.ts and friends touch them at module load.
@@ -17,6 +17,7 @@ import { initI18n } from "./i18n";
 import { DocType, HttpReq, initHybridQuery, queryRemote, type LanguageDto } from "luminary-shared";
 import { apiUrl, appLanguageIdsAsRef, cmsLanguages, isAppLoading } from "./globalConfig";
 import { SSG_DISPLAY_LANGUAGES, ssgDisplayLanguages } from "./ssg/renderLanguage";
+import { isPrerender } from "./ssg/isPrerender";
 
 const LANGUAGES_QUERY = { selector: { type: DocType.Language } };
 
@@ -48,7 +49,7 @@ export const createApp = ViteSSG(
         let langs: LanguageDto[] = [];
 
         // Make the render language and its translations available before i18n installs so the static HTML carries real UI strings, not raw keys. The render and default language docs ride vite-ssg's `initialState` so the client has them synchronously before mount.
-        if (import.meta.env.SSR) {
+        if (isPrerender()) {
             const lang = ssgRouteLang(routePath);
             appLanguageIdsAsRef.value = lang ? [lang] : [];
 
@@ -97,14 +98,14 @@ export const createApp = ViteSSG(
         }
 
         // Explicit language: on the prerender this must not come from the shared ref.
-        app.use(initI18n(import.meta.env.SSR ? ssgRouteLang(routePath) : undefined));
+        app.use(initI18n(isPrerender() ? ssgRouteLang(routePath) : undefined));
 
         // SSG output is already-rendered HTML — there is no splash screen. Setting this
         // on BOTH the SSR (Node prerender) and client (hydration) branches keeps the
         // first client render identical to the SSR output (clean hydration).
         isAppLoading.value = false;
 
-        if (import.meta.env.SSR) {
+        if (isPrerender()) {
             // Expose any per-page store state (e.g. SingleContent hreflang alternates)
             // for vite-ssg to serialize after the page's onServerPrefetch hooks run.
             initialState.pinia = pinia.state.value;

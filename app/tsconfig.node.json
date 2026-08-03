@@ -7,6 +7,7 @@
         "vitest.config.*",
         "src/authStorage.ts",
         "src/ssg/facetKeys.ts",
+        "src/ssg/ssrChains.ts",
         "src/ssg/docFacetShards.ts",
         "src/ssg/redirectIndex.ts",
         "src/ssg/redirectHtml.ts",
