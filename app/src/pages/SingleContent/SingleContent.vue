@@ -390,9 +390,10 @@ const tags = useContentQuery(
         cache: true,
         // Per-slug discriminator so the per-document cache is safe.
         cacheId: `tags:${props.slug}`,
-        // Seek by parentId; the publishDate sort is required to engage the index.
+        // Seek by parentId. Don't sort: a `$in` on this index's leading field plus a
+        // publishDate sort is unsatisfiable (CouchDB rejects "No index exists for this
+        // sort"), and the chips / related-content lookups read these tags unordered.
         useIndex: "content-parentId-publishDate-index",
-        sort: [{ publishDate: "desc" }],
     },
 );
 

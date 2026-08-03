@@ -25,8 +25,9 @@ const contentIds = computed(() => [
 
 const contentDocs = useContentQuery(() => [{ parentId: { $in: contentIds.value } }], {
     includeScheduled: false,
-    // Seek by parentId; the publishDate sort is required to engage the index.
-    useIndex: "content-parentId-publishDate-index",
+    // Newest-first via the default publishDate index, filtering the `parentId` `$in`
+    // in memory. A `$in` on the parentId index can't pair with a publishDate sort
+    // (CouchDB rejects "No index exists for this sort"), so this stays publishDate-led.
     sort: [{ publishDate: "desc" }],
     limit: 50,
 });
