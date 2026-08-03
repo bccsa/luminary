@@ -12,6 +12,15 @@ const LEGACY_AUTH0_STATE_PREFIX = "a0.spajs.";
 /** The selected provider, retained across the OIDC redirect. */
 export const ACTIVE_PROVIDER_KEY = "cms_activeAuthProvider";
 
+/**
+ * One-shot flag: set when the user marks a sign-out as happening on a shared
+ * device. Deliberately outside every prefix clearAuthCache() sweeps and never
+ * matches ACTIVE_PROVIDER_KEY, so it survives clearAuthCache()/db.purge() and
+ * is still there for whoever logs in next (see loginWithProvider). Consumed
+ * (removed) the first time it's read.
+ */
+const FORCE_REAUTH_KEY = "cms_forceReauthOnNextLogin";
+
 /** Development / E2E testing bypass. */
 export const isAuthBypassed = import.meta.env.VITE_AUTH_BYPASS === "true";
 
@@ -25,6 +34,7 @@ export const isAuthPluginInstalled = ref(false);
 type OidcPrompt = "none" | "login" | "consent" | "select_account";
 export type ProviderConfig = Pick<AuthProviderDto, "_id" | "domain" | "clientId" | "audience">;
 type PersistedProvider = ProviderConfig;
+export type LogoutOptions = { forceReauthOnNextLogin?: boolean };
 
 const oidcUser = ref<User | null>(null);
 const isLoading = ref(false);
@@ -36,6 +46,30 @@ function clearStoragePrefix(storage: Storage, prefix: string): void {
         const key = storage.key(i);
         if (key?.startsWith(prefix)) storage.removeItem(key);
     }
+}
+
+function markForceReauthOnNextLogin(): void {
+    try {
+        localStorage.setItem(FORCE_REAUTH_KEY, "true");
+    } catch {
+        // Storage is a hardening measure; logout must still proceed without it.
+    }
+}
+
+/**
+ * Auth0's `federated` logout param has no equivalent across arbitrary OIDC
+ * providers, so instead of relying on provider-specific logout behaviour, the
+ * next unprompted login is forced through `prompt=login` (standard OIDC
+ * Core) — this makes the identity provider require fresh authentication even
+ * if it (or an upstream provider it brokers to) still has a live session for
+ * this browser, closing the "next person is silently logged in as the
+ * previous user" gap regardless of which OIDC server is behind it.
+ */
+function consumeForceReauthOnNextLogin(): boolean {
+    if (typeof localStorage === "undefined") return false;
+    const wasSet = localStorage.getItem(FORCE_REAUTH_KEY) === "true";
+    if (wasSet) localStorage.removeItem(FORCE_REAUTH_KEY);
+    return wasSet;
 }
 
 function authority(domain: string): string {
@@ -280,8 +314,13 @@ export async function loginWithProvider(
     persistActiveProvider(provider);
     const manager = installManager(provider);
     await manager.clearStaleState();
+    // Only fall back to the shared-device flag when the caller didn't already
+    // request a specific prompt (session-recovery call sites already pass
+    // prompt: "login" themselves) — otherwise the flag stays pending for the
+    // actual next unprompted login instead of being consumed here for nothing.
+    const prompt = opts?.prompt ?? (consumeForceReauthOnNextLogin() ? "login" : undefined);
     await manager.signinRedirect({
-        extraQueryParams: opts?.prompt ? { prompt: opts.prompt } : undefined,
+        extraQueryParams: prompt ? { prompt } : undefined,
     });
 }
 
@@ -292,12 +331,13 @@ export function useAuth() {
         isAuthenticated,
         user,
         loginWithRedirect: () => installedOidc?.signinRedirect(),
-        logout: async () => {
+        logout: async (opts?: LogoutOptions) => {
             const manager = installedOidc;
             if (!manager) return;
             // Capture before clearAuthCache() wipes the persisted user, so the
             // signout request can still carry id_token_hint.
             const idTokenHint = oidcUser.value?.id_token;
+            if (opts?.forceReauthOnNextLogin) markForceReauthOnNextLogin();
             // Clear local state before redirecting, not after: otherwise a stale
             // ACTIVE_PROVIDER_KEY could let a later boot silently re-auth via
             // signinSilent() if the redirect gets interrupted.

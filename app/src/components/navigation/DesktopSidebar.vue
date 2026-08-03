@@ -26,6 +26,7 @@ import defaultLogoSmall from "@/assets/logo-small.svg?url";
 import ThemeSelectorModal from "./ThemeSelectorModal.vue";
 import LanguageModal from "./LanguageModal.vue";
 import LDialog from "../common/LDialog.vue";
+import LToggle from "../form/LToggle.vue";
 import { appLanguageAsRef } from "@/globalConfig";
 import { showPrivacyPolicyModal, useAuthWithPrivacyPolicy } from "@/composables/useAuthWithPrivacyPolicy";
 import { isConnected } from "luminary-shared";
@@ -48,6 +49,7 @@ const isItemActive = (routeActive: boolean) => routeActive && !isSearchOpen.valu
 const showThemeSelector = ref(false);
 const showLanguageModal = ref(false);
 const showLogoutDialog = ref(false);
+const forceReauthOnNextLogin = ref(false);
 
 const navIconClass = "h-5 w-5 flex-shrink-0";
 const navLabelClass = "truncate text-sm font-medium";
@@ -106,7 +108,8 @@ const confirmLogout = async () => {
     showLogoutDialog.value = false;
     // logout() already clears local state in the right order — don't call
     // clearAuthCache() here first, or it turns logout() into a no-op.
-    await logout();
+    await logout({ forceReauthOnNextLogin: forceReauthOnNextLogin.value });
+    forceReauthOnNextLogin.value = false;
 };
 
 // Publish rendered width as --desktop-sidebar-w so fixed overlays (e.g. ContinueReadingPrompt)
@@ -430,5 +433,21 @@ const handleLogin = () => {
         :primaryButtonText="t('logout.modal.button_logout')"
         :secondaryAction="() => (showLogoutDialog = false)"
         :secondaryButtonText="t('logout.modal.button_cancel')"
-    />
+    >
+        <label class="mt-4 flex cursor-pointer items-start gap-3">
+            <LToggle
+                :modelValue="forceReauthOnNextLogin"
+                @update:modelValue="(value: boolean) => (forceReauthOnNextLogin = value)"
+                data-test="shared-device-toggle"
+            />
+            <span class="text-sm">
+                <span class="block font-medium text-zinc-900 dark:text-white">
+                    {{ t("logout.modal.shared_device_label") }}
+                </span>
+                <span class="mt-0.5 block text-zinc-500 dark:text-slate-300">
+                    {{ t("logout.modal.shared_device_description") }}
+                </span>
+            </span>
+        </label>
+    </LDialog>
 </template>

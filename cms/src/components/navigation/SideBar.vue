@@ -38,10 +38,11 @@ import {
     useSharedHybridQuery,
     type LanguageDto,
 } from "luminary-shared";
-import { isAuthBypassed, isAuthPluginInstalled, useAuth } from "@/auth";
+import { isAuthBypassed, isAuthPluginInstalled, useAuth, type LogoutOptions } from "@/auth";
 import OnlineIndicator from "../OnlineIndicator.vue";
 import LanguageModal from "../modals/LanguageModal.vue";
 import LDialog from "../common/LDialog.vue";
+import LToggle from "../forms/LToggle.vue";
 
 type NavigationEntry = {
     name: string;
@@ -191,7 +192,7 @@ const user = computed(() =>
 );
 const logout = auth
     ? auth.logout
-    : () => console.warn("Logout called without an active auth session");
+    : (_opts?: LogoutOptions) => console.warn("Logout called without an active auth session");
 
 const languages = useSharedHybridQuery<LanguageDto>(
     () => ({ selector: { type: DocType.Language } }),
@@ -204,6 +205,7 @@ const currentLanguageName = computed(
 const showLanguageModal = ref(false);
 const showLogoutDialog = ref(false);
 const showInstallInstructions = ref(false);
+const forceReauthOnNextLogin = ref(false);
 
 const confirmLogout = () => {
     // Close now, not after logout(): a real IdP redirect unloads the page
@@ -213,7 +215,8 @@ const confirmLogout = () => {
     // logout() already clears local state in the right order — don't call
     // clearAuthCache() here first, or it turns logout() into a no-op (it
     // reads the installed OIDC manager, which clearAuthCache() would null).
-    logout();
+    logout({ forceReauthOnNextLogin: forceReauthOnNextLogin.value });
+    forceReauthOnNextLogin.value = false;
 };
 
 const navIconClass = "h-5 w-5 shrink-0";
@@ -433,7 +436,24 @@ const navItemClass = computed(() => [
         primaryButtonText="Sign out"
         :secondaryAction="() => (showLogoutDialog = false)"
         secondaryButtonText="Cancel"
-    />
+    >
+        <label class="mt-4 flex cursor-pointer items-start gap-3">
+            <LToggle
+                :modelValue="forceReauthOnNextLogin"
+                @update:modelValue="(value: boolean) => (forceReauthOnNextLogin = value)"
+                data-test="shared-device-toggle"
+            />
+            <span class="text-sm">
+                <span class="block font-medium text-zinc-900">
+                    This is a shared or public device
+                </span>
+                <span class="mt-0.5 block text-zinc-500">
+                    Require signing in again next time, so no one else can continue using your
+                    account here.
+                </span>
+            </span>
+        </label>
+    </LDialog>
 
     <LDialog
         v-model:open="showInstallInstructions"
