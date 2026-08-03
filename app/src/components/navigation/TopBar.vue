@@ -23,23 +23,28 @@ withDefaults(defineProps<Props>(), {
 });
 
 const LOGO = import.meta.env.VITE_LOGO || defaultLogo;
-const LOGO_SMALL = import.meta.env.VITE_LOGO_SMALL || "";
+const LOGO_SMALL = import.meta.env.VITE_LOGO_SMALL || defaultLogoSmall;
 const LOGO_DARK = import.meta.env.VITE_LOGO_DARK || defaultLogoDark;
-const LOGO_SMALL_DARK = import.meta.env.VITE_LOGO_SMALL_DARK || "";
+const LOGO_SMALL_DARK = import.meta.env.VITE_LOGO_SMALL_DARK || defaultLogoSmall;
+
+// Pass the logo URL's to tailwind's classes (see https://stackoverflow.com/questions/70805041/background-image-in-tailwindcss-using-dynamic-url-react-js).
+const logoCssSmall = `--image-url: url(${LOGO_SMALL}); --image-url-dark: url(${LOGO_SMALL_DARK});`;
+const logoCssLarge = `--image-url: url(${LOGO}); --image-url-dark: url(${LOGO_DARK});`;
 
 const logoWidth = ref();
 const logoContainer = ref<HTMLElement | undefined>(undefined);
-const isSmallScreen = ref(false);
+// null until JS measures a real fit. Sibling content (e.g. SingleContent's translation
+// selector/back button) can eat the available width at any viewport size, not just below `sm`,
+// which is why a measured result must override the breakpoint outright rather than layer on it.
+const isSmallScreen = ref<boolean | null>(null);
 
-const logo = computed(() => (isSmallScreen.value ? LOGO_SMALL || defaultLogoSmall : LOGO));
-const logoDark = computed(() =>
-    isSmallScreen.value ? LOGO_SMALL_DARK || defaultLogoSmall : LOGO_DARK,
-);
-
-// Pass the logo URL's to tailwind's classes (see https://stackoverflow.com/questions/70805041/background-image-in-tailwindcss-using-dynamic-url-react-js)
-const logoCss = computed(
-    () => "--image-url: url(" + logo.value + "); --image-url-dark: url(" + logoDark.value + ");",
-);
+// Single decision point for both logos' visibility, so there's one precedence rule instead of
+// two classes reasoned about separately: unmeasured falls back to the `sm:` breakpoint (SSG/no-JS
+// and pre-hydration), a measured result wins unconditionally once available.
+const logoVisibility = computed(() => {
+    if (isSmallScreen.value === null) return { small: "sm:hidden", large: "hidden sm:block" };
+    return isSmallScreen.value ? { small: "", large: "hidden" } : { small: "hidden", large: "" };
+});
 
 const updateScreenSize = () => {
     if (!logoWidth.value) return;
@@ -120,14 +125,26 @@ const handleLogin = () => {
                         class="flex flex-1 items-center"
                         ref="logoContainer"
                     >
+                        <!-- Visibility of both logos is driven by the single logoVisibility computed. -->
                         <div
-                            :style="logoCss"
+                            :style="logoCssSmall"
+                            :class="logoVisibility.small"
                             class="h-8 bg-[image:var(--image-url)] bg-cover bg-center dark:bg-[image:var(--image-url-dark)]"
                         >
                             <!-- Show the image with 0 opacity to set the outer div's size. We assume that the dark mode logo will have the same size as the light mode logo. -->
                             <img
                                 class="h-full opacity-0"
-                                :src="logo"
+                                :src="LOGO_SMALL"
+                            />
+                        </div>
+                        <div
+                            :style="logoCssLarge"
+                            :class="logoVisibility.large"
+                            class="h-8 bg-[image:var(--image-url)] bg-cover bg-center dark:bg-[image:var(--image-url-dark)]"
+                        >
+                            <img
+                                class="h-full opacity-0"
+                                :src="LOGO"
                             />
                         </div>
                     </div>
