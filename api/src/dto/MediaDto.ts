@@ -1,28 +1,31 @@
 import "reflect-metadata"; // https://stackoverflow.com/questions/72009995/typeerror-reflect-getmetadata-is-not-a-function
-import { IsArray, IsOptional, IsString, ValidateNested } from "class-validator";
-import { Expose, Type } from "class-transformer";
-import { MediaFileDto } from "./MediaFileDto";
-import { MediaUploadDataDto } from "./MediaUploadDataDto";
+import { IsOptional, IsString } from "class-validator";
+import { Expose } from "class-transformer";
+import { Uuid } from "src/enums";
 
 /**
  * Database structured Media object
  */
 export class MediaDto {
+    @IsString()
+    @Expose()
+    hlsUrl: string;
+
+    /**
+     * ID to the CryptoObject where the (optional) encryption key is stored
+     */
     @IsOptional()
     @IsString()
     @Expose()
-    hlsUrl?: string;
+    hlsKey_id?: Uuid;
 
-    @IsArray()
-    @ValidateNested({ each: true })
-    @Type(() => MediaFileDto) // This throws an exception on validation failure, so we need to catch the error on validation. The message is less user-friendly but at least the validator fails and will protect our data.
-    @Expose()
-    fileCollections: MediaFileDto[] = [];
-
+    /**
+     * Optional field for submitting an HLS encryption key for a newly added HLS URL.
+     * When set, this key is stored as a crypto object, and the crypto object ID is
+     * exposed as the hlsKey_id.
+     */
     @IsOptional()
-    @IsArray()
-    @ValidateNested({ each: true })
-    @Type(() => MediaUploadDataDto) // This throws an exception on validation failure, so we need to catch the error on validation. The message is less user-friendly but at least the validator fails and will protect our data.
-    @Expose()
-    uploadData?: MediaUploadDataDto[];
+    @IsString()
+    @Expose({ toClassOnly: true })
+    hlsKey?: string;
 }
