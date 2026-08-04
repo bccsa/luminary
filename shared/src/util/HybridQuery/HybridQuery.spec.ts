@@ -2172,6 +2172,57 @@ describe("HybridQuery", () => {
                 expect(q.output.value.map((d) => d._id)).toEqual(["g2"]); // gen 2 seed
             });
         });
+
+        describe("seed key and store invariants", () => {
+            // A consumer that writes a seed out-of-band computes the key from the
+            // query it holds, so the key must stay derived from the caller's raw
+            // query and the store must not be cleared as a side effect of
+            // constructing a query.
+
+            it("seeds from a key derived from the caller's raw, unsanitized query", () => {
+                // sanitizeArrayOperators strips null/undefined from $in internally; if
+                // the cache key were computed from the sanitized selector it would
+                // diverge from the caller's key and the seed would never be found.
+                const rawQuery = {
+                    selector: {
+                        $and: [{ type: "group" }, { someField: { $in: [null, "real-value"] } }],
+                    },
+                };
+                const cacheId = "test-cache-id";
+                const g1 = { _id: "g1", updatedTimeUtc: 5, type: "group" };
+                writeResponseCache(structuralCacheKey(rawQuery, cacheId), {
+                    local: [g1],
+                    remote: [],
+                });
+                // Local read stays pending so only the synchronous seed can have run.
+                mocks.mangoToDexieMock.mockReturnValueOnce(new Promise(() => {}));
+
+                const q = new HybridQuery(rawQuery, { cache: true, cacheId });
+
+                expect(q.output.value).toEqual([g1]); // seeded synchronously from the raw-query key
+            });
+
+            it("constructing a cached query leaves other persisted windows intact", () => {
+                // A consumer may prime several windows before any query is
+                // constructed, so constructing one must not purge the store.
+                const firstQuery = { selector: { type: "group" } };
+                const secondQuery = { selector: { type: "redirect" } };
+                const g1 = { _id: "g1", updatedTimeUtc: 1, type: "group" };
+                const r1 = { _id: "r1", updatedTimeUtc: 2, type: "redirect" };
+                writeResponseCache(structuralCacheKey(firstQuery), { local: [g1], remote: [] });
+                writeResponseCache(structuralCacheKey(secondQuery), { local: [], remote: [r1] });
+                // Keep the local read pending so the query does not overwrite anything.
+                mocks.mangoToDexieMock.mockReturnValueOnce(new Promise(() => {}));
+
+                new HybridQuery(firstQuery, { cache: true });
+
+                // The second, untouched entry is still readable.
+                expect(readResponseCache(structuralCacheKey(secondQuery))).toEqual({
+                    local: [],
+                    remote: [r1],
+                });
+            });
+        });
     });
 
     describe("offline persistence (persistOffline)", () => {

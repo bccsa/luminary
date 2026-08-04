@@ -29,6 +29,7 @@ import { mangoToDexie } from "../MangoQuery/mangoToDexie";
 import type { MangoQuery } from "../MangoQuery/MangoTypes";
 import { useDexieLiveQuery } from "../useDexieLiveQuery/useDexieLiveQuery";
 import { applySortLimit, mergeById, sameWindow } from "./mergeDocs";
+import { SeedRetention } from "./seedRetention";
 import {
     decideContentApiQuery,
     planRemoteContentQueries,
@@ -399,27 +400,10 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
     // reach the live `output` (heap). See {@link HybridQueryOptions.stripFields}.
     private readonly _stripFields: string[];
     private _cacheKey = "";
-    // Response-cache seed bookkeeping. When the cache seeds `_remote` with the last
-    // session's older-tail docs, `_remoteFromSeed` is true and `_seededRemoteIds`
-    // holds those ids until the first authoritative remote result supersedes them —
-    // or the local read decides no API supplement is needed (`_dropSeededRemote`).
-    private _seededRemoteIds: Set<string> = new Set();
-    private _remoteFromSeed = false;
-    // Marks a generation whose first paint came from a response-cache seed with a populated
-    // local contribution while the remote leg is still in flight. While set, an empty
-    // authoritative local read is retained so the seeded window does not collapse before
-    // the supplement lands; cleared once the remote leg settles or a non-empty read
-    // replaces the seed (deletions then propagate).
-    private _seededLocal = false;
-    // Set once the remote leg returns an authoritative answer, so a seeded window is
-    // retired only by a real server result — an offline park or a failed POST keeps it
-    // and heals on reconnect or remount.
-    private _remoteAnswered = false;
-    // Set on the FIRST local result when no API supplement is owed, flushed to
-    // `_dropSeededRemote` after `_setLocal` so the seed-retention guard sees
-    // `_remotePending=false` first. First-emission only — a later live emission
-    // after a failed POST must not drop a retained seeded remote (heals on remount).
-    private _dropSeededRemotePending = false;
+    // Owns the response-cache seed bookkeeping: how long a seeded first-paint window
+    // survives before authoritative reads replace it. The seed-to-live transition
+    // table lives in the `SeedRetention` module.
+    private readonly _seed: SeedRetention = new SeedRetention();
     // The two contributions to `output`, kept separate so live mode can replace
     // the local set wholesale (reflecting deletions) while the one-shot remote
     // supplement persists. `output = applySortLimit(mergeById(_local, _remote))`.
@@ -511,11 +495,7 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
         this._generation++;
         this._local = [];
         this._remote = [];
-        this._remoteFromSeed = false;
-        this._seededRemoteIds.clear();
-        this._seededLocal = false;
-        this._remoteAnswered = false;
-        this._dropSeededRemotePending = false;
+        this._seed.reset();
         this._apiDecided = false;
         this._tombstones.clear();
         // Re-enter loading for the new generation. _generation++ above has already
@@ -568,8 +548,8 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
         // The remote leg has settled. If the local read was empty and the seeded local
         // window is still bridging first paint, drop it now so the result reflects the
         // real (empty) local contribution — a genuinely empty result publishes empty.
-        if (this._seededLocal && this._remoteAnswered) {
-            this._seededLocal = false;
+        if (this._seed.shouldRetireLocal()) {
+            this._seed.releaseLocal();
             this._local = [];
             this._recompute();
         }
@@ -658,9 +638,10 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
                     // could still carry a now-stripped field — keep `output` uniform.
                     this._local = this._strip(seed.local);
                     this._remote = this._strip(seed.remote);
-                    this._seededRemoteIds = new Set(this._remote.map((d) => d._id));
-                    this._remoteFromSeed = this._remote.length > 0;
-                    this._seededLocal = this._local.length > 0;
+                    this._seed.recordSeed(
+                        this._local.length,
+                        this._remote.map((d) => d._id),
+                    );
                     this._recompute();
                 }
             }
@@ -699,7 +680,7 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
                                 // No supplement owed — no POST will arrive to supersede a seeded
                                 // remote. Drop it after _setLocal (below) so the guard sees
                                 // _remotePending=false and a genuinely empty result publishes empty.
-                                this._dropSeededRemotePending = true;
+                                this._seed.deferRemoteDrop();
                             }
                         }
                         this._setLocal(local);
@@ -707,8 +688,7 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
                         // on later live re-emissions.
                         this._localPending.value = false;
                         // Flush a first-emission drop deferred from the no-supplement branch.
-                        if (this._dropSeededRemotePending) {
-                            this._dropSeededRemotePending = false;
+                        if (this._seed.takeDeferredRemoteDrop()) {
                             this._dropSeededRemote();
                         }
                     } catch (err) {
@@ -1034,11 +1014,11 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
         // empty local read must not collapse the seeded first paint before the supplement
         // lands. A non-empty read still replaces wholesale (deletions propagate); once the
         // remote settles the flag is cleared and a genuine empty publishes as usual.
-        if (local.length === 0 && this._seededLocal && this._remotePending.value) {
+        if (this._seed.shouldRetainLocal(local.length, this._remotePending.value)) {
             this._recompute();
             return;
         }
-        this._seededLocal = false;
+        this._seed.releaseLocal();
         this._local = local;
         this._recompute();
     }
@@ -1055,14 +1035,12 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
      * then unions in its own result.
      */
     private _setRemote(remote: T[]): void {
-        this._remoteAnswered = true;
         // Strip here (not at the call site) so the caller's pre-strip array can
         // still be written to IndexedDB by `persistOffline` with all fields intact.
         remote = this._strip(remote);
-        if (this._remoteFromSeed) {
-            this._remoteFromSeed = false;
-            const keep = this._remote.filter((d) => !this._seededRemoteIds.has(d._id));
-            this._seededRemoteIds.clear();
+        const seeded = this._seed.recordRemoteAnswer();
+        if (seeded) {
+            const keep = this._remote.filter((d) => !seeded.has(d._id));
             this._remote = mergeById(keep, remote);
         } else {
             this._remote = mergeById(this._remote, remote);
@@ -1076,12 +1054,9 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
      * socket upserts added since the seed. No-op when nothing was seeded.
      */
     private _dropSeededRemote(): void {
-        if (!this._remoteFromSeed) return;
-        this._remoteFromSeed = false;
-        this._remote = this._remote.filter((d) => !this._seededRemoteIds.has(d._id));
-        this._seededRemoteIds.clear();
-        // No supplement is owed, so the seed no longer protects the local window.
-        this._seededLocal = false;
+        const seeded = this._seed.takeRemoteDrop();
+        if (seeded === undefined) return;
+        this._remote = this._remote.filter((d) => !seeded.has(d._id));
         this._recompute();
     }
 
