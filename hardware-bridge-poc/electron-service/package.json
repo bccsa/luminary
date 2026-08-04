@@ -1,0 +1,41 @@
+{
+  "name": "hardware-bridge",
+  "version": "1.0.0",
+  "description": "PoC: loopback HTTP bridge an HTTPS site can call to reach local hardware.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder",
+    "dist:linux": "electron-builder --linux tar.gz"
+  },
+  "author": "Luminary PoC",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  },
+  "build": {
+    "appId": "com.luminary.hardwarebridge",
+    "productName": "HardwareBridge",
+    "files": [
+      "main.js",
+      "server.js",
+      "status.html",
+      "package.json"
+    ],
+    "linux": {
+      "target": ["tar.gz"],
+      "category": "Utility"
+    },
+    "mac": {
+      "target": ["dmg"],
+      "category": "public.app-category.utilities"
+    },
+    "win": {
+      "target": ["portable"]
+    }
+  }
+}

@@ -1,0 +1,43 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; style-src 'unsafe-inline'"
+    />
+    <title>Hardware Bridge</title>
+    <style>
+      body { font: 14px/1.5 -apple-system, system-ui, sans-serif; margin: 24px; color: #1a1a1a; }
+      h1 { font-size: 16px; margin: 0 0 12px; }
+      h2 { font-size: 14px; margin: 18px 0 4px; }
+      code { background: #f0f0f0; padding: 1px 4px; border-radius: 3px; }
+      .row { margin: 6px 0; }
+      .muted { color: #666; }
+      .ok { color: #0a7d27; }
+    </style>
+  </head>
+  <body>
+    <h1>Hardware Bridge — running</h1>
+    <div class="row ok">● Local API listening on <code id="url">http://127.0.0.1:…</code></div>
+    <div class="row muted">CORS allow-list: see <code>ALLOWED_ORIGINS</code> env (default <code>*</code> = dev only).</div>
+
+    <h2>Endpoints</h2>
+    <div class="row"><code>GET /api/ping</code> — health check</div>
+    <div class="row"><code>GET /api/system</code> — real local machine info (CPU, mem, uptime)</div>
+    <div class="row"><code>GET /api/device</code> — current virtual device state</div>
+    <div class="row"><code>POST /api/device</code> — set device state <code>{ on, label, brightness }</code></div>
+
+    <p class="muted" style="margin-top:18px;">
+      From an HTTPS page, call <code id="url2">http://localhost:…/api/*</code>. Chrome 142+
+      will show a Local Network Access permission prompt on first call.
+    </p>
+    <p class="muted">Closing this window keeps the service running in the background.</p>
+
+    <script>
+      const p = window.__PORT__ || 4781;
+      document.getElementById('url').textContent = `http://127.0.0.1:${p}`;
+      document.getElementById('url2').textContent = `http://localhost:${p}/api/*`;
+    </script>
+  </body>
+</html>

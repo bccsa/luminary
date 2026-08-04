@@ -12,6 +12,7 @@ const SettingsPage = import("@/pages/SettingsPage.vue");
 const BookmarksPage = import("@/pages/BookmarksPage.vue");
 const SingleContent = import("@/pages/SingleContent/SingleContent.vue");
 const NotFoundPage = import("@/pages/NotFoundPage.vue");
+const HardwareBridgePage = import("@/pages/HardwareBridgePage.vue");
 
 // Track if navigation is from within the app
 let isInternalNavigation = false;
@@ -83,6 +84,17 @@ const router = createRouter({
             name: "bookmarks",
             meta: {
                 title: "title.bookmarks",
+            },
+        },
+
+        // PoC: HTTPS Luminary page that calls the visitor's local Hardware Bridge.
+        // Keep before /:slug so a misconfigured slug can't shadow it.
+        {
+            path: "/hardware-bridge",
+            component: () => HardwareBridgePage,
+            name: "hardware-bridge",
+            meta: {
+                analyticsIgnore: true,
             },
         },
 
