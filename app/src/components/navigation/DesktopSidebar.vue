@@ -26,10 +26,12 @@ import defaultLogoSmall from "@/assets/logo-small.svg?url";
 import ThemeSelectorModal from "./ThemeSelectorModal.vue";
 import LanguageModal from "./LanguageModal.vue";
 import LDialog from "../common/LDialog.vue";
-import { appLanguageAsRef } from "@/globalConfig";
+import { cmsLanguages } from "@/globalConfig";
+import { useDisplayLanguageIds } from "@/ssg/renderLanguage";
 import { showPrivacyPolicyModal, useAuthWithPrivacyPolicy } from "@/composables/useAuthWithPrivacyPolicy";
 import { isConnected } from "luminary-shared";
 import { useNotificationStore, type Notification } from "@/stores/notification";
+import { useHydrated } from "@/composables/useHydrated";
 
 const { t } = useI18n();
 const { openSearch, isSearchOpen } = useSearchOverlay();
@@ -48,6 +50,9 @@ const isItemActive = (routeActive: boolean) => routeActive && !isSearchOpen.valu
 const showThemeSelector = ref(false);
 const showLanguageModal = ref(false);
 const showLogoutDialog = ref(false);
+
+// The sidebar prerenders on the web/SSG build, but its interactive overlays (e.g. LanguageModal's Dexie-backed query) can't run during the Node prerender, so they mount client-side only.
+const isMounted = useHydrated();
 
 const navIconClass = "h-5 w-5 flex-shrink-0";
 const navLabelClass = "truncate text-sm font-medium";
@@ -68,8 +73,15 @@ function actionButtonClasses() {
     ];
 }
 
+// Resolved from the per-render language rather than the shared ref: this renders on every
+// prerendered page, and concurrent renders overwrite the ref (see ssg/renderLanguage.ts).
+const displayLanguageIds = useDisplayLanguageIds();
+const renderLanguage = computed(() =>
+    cmsLanguages.value.find((l) => l._id === displayLanguageIds()[0]),
+);
+
 const languageTooltip = computed(() => {
-    const name = appLanguageAsRef.value?.name;
+    const name = renderLanguage.value?.name;
     return name ? `${t("profile_menu.language")} — ${name}` : t("profile_menu.language");
 });
 
@@ -218,10 +230,11 @@ const handleLogin = () => {
                 v-for="item in navigationItems.slice(0, -1)"
                 :key="item.name"
                 :to="item.to"
-                v-slot="{ isActive, navigate }"
+                v-slot="{ isActive, href, navigate }"
                 custom
             >
-                <span
+                <a
+                    :href="href"
                     :class="navItemClasses(isItemActive(isActive))"
                     :title="item.name"
                     @click="navigate"
@@ -235,7 +248,7 @@ const handleLogin = () => {
                         v-if="!collapsed"
                         :class="navLabelClass"
                     >{{ item.name }}</span>
-                </span>
+                </a>
             </RouterLink>
 
             <span
@@ -260,10 +273,11 @@ const handleLogin = () => {
 
             <RouterLink
                 :to="{ name: 'bookmarks' }"
-                v-slot="{ isActive, navigate }"
+                v-slot="{ isActive, href, navigate }"
                 custom
             >
-                <span
+                <a
+                    :href="href"
                     :class="navItemClasses(isActive)"
                     :title="t('profile_menu.bookmarks')"
                     @click="navigate"
@@ -277,7 +291,7 @@ const handleLogin = () => {
                         v-if="!collapsed"
                         :class="navLabelClass"
                     >{{ t("profile_menu.bookmarks") }}</span>
-                </span>
+                </a>
             </RouterLink>
 
             <div
@@ -314,18 +328,19 @@ const handleLogin = () => {
                     >
                         <span :class="navLabelClass">{{ t("profile_menu.language") }}</span>
                         <span
-                            v-if="appLanguageAsRef?.name"
+                            v-if="renderLanguage?.name"
                             :class="navMetaClass"
-                        >{{ appLanguageAsRef.name }}</span>
+                        >{{ renderLanguage.name }}</span>
                     </div>
                 </span>
 
                 <RouterLink
                     :to="{ name: 'settings' }"
-                    v-slot="{ isActive, navigate }"
+                    v-slot="{ isActive, href, navigate }"
                     custom
                 >
-                    <span
+                    <a
+                        :href="href"
                         :class="navItemClasses(isActive)"
                         :title="t('profile_menu.settings')"
                         @click="navigate"
@@ -339,7 +354,7 @@ const handleLogin = () => {
                             v-if="!collapsed"
                             :class="navLabelClass"
                         >{{ t("profile_menu.settings") }}</span>
-                    </span>
+                    </a>
                 </RouterLink>
             </div>
         </div>
@@ -414,21 +429,25 @@ const handleLogin = () => {
         </div>
     </nav>
 
-    <ThemeSelectorModal
-        :isVisible="showThemeSelector"
-        @close="showThemeSelector = false"
-    />
-    <LanguageModal
-        :isVisible="showLanguageModal"
-        @close="showLanguageModal = false"
-    />
-    <LDialog
-        v-model:open="showLogoutDialog"
-        :title="t('logout.modal.title')"
-        :description="t('logout.modal.description')"
-        :primaryAction="confirmLogout"
-        :primaryButtonText="t('logout.modal.button_logout')"
-        :secondaryAction="() => (showLogoutDialog = false)"
-        :secondaryButtonText="t('logout.modal.button_cancel')"
-    />
+    <!-- Client-only: these overlays are interactive (and LanguageModal is
+         Dexie-backed), so they must not render during the Node prerender. -->
+    <template v-if="isMounted">
+        <ThemeSelectorModal
+            :isVisible="showThemeSelector"
+            @close="showThemeSelector = false"
+        />
+        <LanguageModal
+            :isVisible="showLanguageModal"
+            @close="showLanguageModal = false"
+        />
+        <LDialog
+            v-model:open="showLogoutDialog"
+            :title="t('logout.modal.title')"
+            :description="t('logout.modal.description')"
+            :primaryAction="confirmLogout"
+            :primaryButtonText="t('logout.modal.button_logout')"
+            :secondaryAction="() => (showLogoutDialog = false)"
+            :secondaryButtonText="t('logout.modal.button_cancel')"
+        />
+    </template>
 </template>

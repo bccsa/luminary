@@ -810,7 +810,9 @@ class Database extends Dexie {
     }
 
     /**
-     * Validates a delete command and returns true if the document referred to in the delete command should be deleted
+     * Validates a delete command and returns true if the document referred to in the delete command should be deleted.
+     * `SlugChange` deliberately falls through to `false`: the content is still live under
+     * a new slug, so clients must not evict it — only the SSG build acts on the cmd's slug.
      */
     validateDeleteCommand(cmd: DeleteCmdDto) {
         if (cmd.deleteReason == DeleteReason.Deleted) {
@@ -1034,8 +1036,15 @@ const bumpDBVersion = (dbVersion: number, oldIndex: string, newIndex: dbIndex) =
 
 // suppress DatabaseClosedError - this is not an error, but just a message that says the database has been closed
 // but the message comes through as a error, that is why it needs to be suppressed
-window.addEventListener("unhandledrejection", (ev) => {
-    if (ev.reason.name === "DatabaseClosedError") {
-        ev.preventDefault();
-    }
-});
+//
+// Guarded because this runs at import time and importing this library does not imply a
+// browser. Vite loads a config file in bare Node, so the SSG config's `luminary-shared`
+// import reached this line and threw before any config could be read. Without a DOM there
+// is no rejection event to suppress anyway.
+if (typeof window !== "undefined") {
+    window.addEventListener("unhandledrejection", (ev) => {
+        if (ev.reason.name === "DatabaseClosedError") {
+            ev.preventDefault();
+        }
+    });
+}

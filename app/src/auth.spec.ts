@@ -41,6 +41,7 @@ import {
     ACTIVE_PROVIDER_KEY,
     activeProviderId,
     clearAuthCache,
+    hasPersistedSession,
     isAuthPluginInstalled,
     loginWithProvider,
     openProviderModal,
@@ -52,6 +53,10 @@ import {
     showProviderSelectionModal,
     useAuth,
 } from "./auth";
+import {
+    LEGACY_AUTH0_CACHE_PREFIX,
+    ACTIVE_PROVIDER_KEY as STORAGE_ACTIVE_PROVIDER_KEY,
+} from "./authStorage";
 
 const providerA: AuthProviderDto = {
     _id: "provider-a",
@@ -223,6 +228,61 @@ describe("auth", () => {
             await loginWithProvider(providerA);
 
             expect(mockSigninRedirect).toHaveBeenCalledWith({ extraQueryParams: undefined });
+        });
+    });
+
+    // hasPersistedSession backs useContentQuery's response-cache auth scoping
+    // (fix for "flash of public content" on reload while logged in) — it must
+    // stay a pure, synchronous localStorage peek, no Dexie/async work.
+    describe("hasPersistedSession", () => {
+        it("returns false on empty storage", () => {
+            expect(hasPersistedSession()).toBe(false);
+        });
+
+        it("returns true from a persisted OIDC user cache key alone", () => {
+            localStorage.setItem("oidc.user:https://issuer:client-a", "old-user");
+            expect(hasPersistedSession()).toBe(true);
+        });
+
+        it("returns true from a legacy Auth0 session cache key alone", () => {
+            localStorage.setItem(
+                `@@auth0spajs@@::${providerA.clientId}::${providerA.audience}::openid profile email offline_access`,
+                JSON.stringify({ body: {} }),
+            );
+            expect(hasPersistedSession()).toBe(true);
+        });
+
+        it("uses the shared storage constants", () => {
+            expect(STORAGE_ACTIVE_PROVIDER_KEY).toBe(ACTIVE_PROVIDER_KEY);
+            localStorage.setItem(
+                `${LEGACY_AUTH0_CACHE_PREFIX}${providerA.clientId}::${providerA.audience}::openid profile email offline_access`,
+                JSON.stringify({ body: {} }),
+            );
+            expect(hasPersistedSession()).toBe(true);
+        });
+
+        it("returns true from the persisted-provider fallback alone (issue #1671 eviction case)", () => {
+            persistActiveProvider(providerA);
+            expect(hasPersistedSession()).toBe(true);
+        });
+
+        it("returns false after clearAuthCache wipes all signals", () => {
+            localStorage.setItem("oidc.user:https://issuer:client-a", "old-user");
+            localStorage.setItem(
+                `@@auth0spajs@@::${providerA.clientId}::${providerA.audience}::openid profile email offline_access`,
+                JSON.stringify({ body: {} }),
+            );
+            persistActiveProvider(providerA);
+            clearAuthCache();
+            expect(hasPersistedSession()).toBe(false);
+        });
+    });
+
+    describe("openProviderModal", () => {
+        it("flips showProviderSelectionModal to true", () => {
+            expect(showProviderSelectionModal.value).toBe(false);
+            openProviderModal();
+            expect(showProviderSelectionModal.value).toBe(true);
         });
     });
 

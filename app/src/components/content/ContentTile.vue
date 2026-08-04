@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { db, type ContentDto } from "luminary-shared";
+import { type ContentDto } from "luminary-shared";
 import { DateTime } from "luxon";
 import LImage from "../images/LImage.vue";
 import { type AspectRatio, type ImageSize } from "../images/LImageProvider.vue";
@@ -7,8 +7,18 @@ import { PlayIcon, SpeakerWaveIcon } from "@heroicons/vue/24/solid";
 import { getMediaDuration, getMediaProgress, getReadingProgress } from "@/contentProgress";
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
+import { cmsLanguages } from "@/globalConfig";
 
 const { t } = useI18n();
+
+// The locale of the content's own language, not the visitor's browser locale — matches
+// the article page's `formatPublishDate` so a tile and the article it opens agree. Falls
+// back to the language id with its `lang-` prefix stripped (the same fallback the article
+// page's `languages` computed synthesizes), then to en-US.
+const contentLanguageCode = computed(() => {
+    const lang = cmsLanguages.value.find((l) => l._id === props.content.language);
+    return lang?.languageCode ?? props.content.language?.replace(/^lang-/, "");
+});
 
 type Props = {
     content: ContentDto;
@@ -36,7 +46,9 @@ const publishDateText = computed(() => {
     ) {
         return "";
     }
-    return db.toDateTime(props.content.publishDate).toLocaleString(DateTime.DATETIME_MED);
+    return DateTime.fromMillis(props.content.publishDate)
+        .setLocale(contentLanguageCode.value || "en-US")
+        .toLocaleString(DateTime.DATETIME_MED);
 });
 
 const hasVideo = computed(() => Boolean(props.content.video));

@@ -29,6 +29,7 @@ import { mangoToDexie } from "../MangoQuery/mangoToDexie";
 import type { MangoQuery } from "../MangoQuery/MangoTypes";
 import { useDexieLiveQuery } from "../useDexieLiveQuery/useDexieLiveQuery";
 import { applySortLimit, mergeById, sameWindow } from "./mergeDocs";
+import { SeedRetention } from "./seedRetention";
 import {
     decideContentApiQuery,
     planRemoteContentQueries,
@@ -106,19 +107,24 @@ export async function queryRemote<T = unknown>(query: MangoQuery): Promise<T[]> 
 
     const payload: Record<string, unknown> = {
         selector: query.selector,
-        identifier: "hybridQuery",
+        // Callers outside the app's live queries override this so their load is separable in
+        // the API's expensive-query logs.
+        identifier: query.identifier ?? "hybridQuery",
         limit: typeof query.$limit === "number" ? query.$limit : DEFAULT_REMOTE_QUERY_LIMIT,
     };
     // Match the consumer's scope: CMS reads (config.cms) are CmsView-gated server-side and include
     // drafts/expired; app reads stay View-gated + published-only. The remote supplement otherwise
     // defaulted to View while CMS sync used CmsView — an inconsistent window. No cms flag ⇒ cms:false,
     // so omit it when false (wire payload unchanged for non-CMS consumers).
-    if (config.cms === true) payload.cms = true;
+    if (config?.cms === true) payload.cms = true;
     if (Array.isArray(query.$sort)) payload.sort = query.$sort;
     // Forward the client-chosen index hint to the API (validated against an
     // allowlist there). Same pattern as sync/syncBatch.ts — index selection
     // is a client concern.
     if (typeof query.use_index === "string") payload.use_index = query.use_index;
+    // Opt-in only: without it the API filters expired Content out of the response, hiding
+    // exactly the docs a caller watching for expiry crossings needs to see.
+    if (query.includeExpired === true) payload.includeExpired = true;
 
     const res = await _httpService.post("query", payload as any);
     return (res?.docs ?? []) as T[];
@@ -394,12 +400,10 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
     // reach the live `output` (heap). See {@link HybridQueryOptions.stripFields}.
     private readonly _stripFields: string[];
     private _cacheKey = "";
-    // Response-cache seed bookkeeping. When the cache seeds `_remote` with the last
-    // session's older-tail docs, `_remoteFromSeed` is true and `_seededRemoteIds`
-    // holds those ids until the first authoritative remote result supersedes them —
-    // or the local read decides no API supplement is needed (`_dropSeededRemote`).
-    private _seededRemoteIds: Set<string> = new Set();
-    private _remoteFromSeed = false;
+    // Owns the response-cache seed bookkeeping: how long a seeded first-paint window
+    // survives before authoritative reads replace it. The seed-to-live transition
+    // table lives in the `SeedRetention` module.
+    private readonly _seed: SeedRetention = new SeedRetention();
     // The two contributions to `output`, kept separate so live mode can replace
     // the local set wholesale (reflecting deletions) while the one-shot remote
     // supplement persists. `output = applySortLimit(mergeById(_local, _remote))`.
@@ -491,8 +495,7 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
         this._generation++;
         this._local = [];
         this._remote = [];
-        this._remoteFromSeed = false;
-        this._seededRemoteIds.clear();
+        this._seed.reset();
         this._apiDecided = false;
         this._tombstones.clear();
         // Re-enter loading for the new generation. _generation++ above has already
@@ -542,6 +545,14 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
     private _settleRemote(gen: number): void {
         if (gen !== this._generation || this._disposed) return;
         this._remotePending.value = false;
+        // The remote leg has settled. If the local read was empty and the seeded local
+        // window is still bridging first paint, drop it now so the result reflects the
+        // real (empty) local contribution — a genuinely empty result publishes empty.
+        if (this._seed.shouldRetireLocal()) {
+            this._seed.releaseLocal();
+            this._local = [];
+            this._recompute();
+        }
     }
 
     // Non-content branches only. Re-route this generation when `type`'s syncList
@@ -627,8 +638,10 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
                     // could still carry a now-stripped field — keep `output` uniform.
                     this._local = this._strip(seed.local);
                     this._remote = this._strip(seed.remote);
-                    this._seededRemoteIds = new Set(this._remote.map((d) => d._id));
-                    this._remoteFromSeed = this._remote.length > 0;
+                    this._seed.recordSeed(
+                        this._local.length,
+                        this._remote.map((d) => d._id),
+                    );
                     this._recompute();
                 }
             }
@@ -643,29 +656,39 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
                 this._startLocal(gen, (local) => {
                     if (gen !== this._generation || this._disposed) return;
                     try {
+                        // Decide the supplement off the FIRST local result BEFORE _setLocal so
+                        // _setLocal's seed-retention guard can observe whether a remote leg is
+                        // owed: a cold-start empty read must not collapse a seeded window while
+                        // the supplement is in flight, but a genuinely empty result (no supplement
+                        // owed) must publish empty. The gate keeps the supplement one-shot.
+                        if (!this._apiDecided) {
+                            this._apiDecided = true;
+                            // ONE supplement decided off the FIRST local result: the below-cutoff
+                            // older tail. Skipped entirely under a full-corpus sync (no cutoff),
+                            // where the local read is complete (see decideContentApiQuery).
+                            const api = decideContentApiQuery(this._query, local);
+                            if (api) {
+                                // A supplement is owed — keep loading true until the POST settles
+                                // (or offline-defers). _postAndMerge / _runApiWhenOnline own
+                                // clearing _remotePending.
+                                this._remotePending.value = true;
+                                void this._runApiWhenOnline([api], gen);
+                                // Live mode: keep the supplement live off the socket changefeed,
+                                // filtered by the supplement query.
+                                if (this._live) this._startRemoteLive(api, DocType.Content, gen);
+                            } else {
+                                // No supplement owed — no POST will arrive to supersede a seeded
+                                // remote. Drop it after _setLocal (below) so the guard sees
+                                // _remotePending=false and a genuinely empty result publishes empty.
+                                this._seed.deferRemoteDrop();
+                            }
+                        }
                         this._setLocal(local);
                         // Local has produced a result — settle the local leg. Idempotent
                         // on later live re-emissions.
                         this._localPending.value = false;
-                        if (this._apiDecided) return;
-                        this._apiDecided = true;
-                        // ONE supplement decided off the FIRST local result: the below-cutoff
-                        // older tail. Skipped entirely under a full-corpus sync (no cutoff), where
-                        // the local read is complete (see decideContentApiQuery).
-                        const api = decideContentApiQuery(this._query, local);
-                        if (api) {
-                            // A supplement is owed — keep loading true until the POST settles
-                            // (or offline-defers). _postAndMerge / _runApiWhenOnline own clearing
-                            // _remotePending.
-                            this._remotePending.value = true;
-                            void this._runApiWhenOnline([api], gen);
-                            // Live mode: keep the supplement live off the socket changefeed,
-                            // filtered by the supplement query.
-                            if (this._live) this._startRemoteLive(api, DocType.Content, gen);
-                        } else {
-                            // Local fully satisfies the query (no older-tail owed) — no POST will
-                            // arrive to supersede a seeded remote. Drop it now so a stale older-tail
-                            // doc can't linger in the merged window.
+                        // Flush a first-emission drop deferred from the no-supplement branch.
+                        if (this._seed.takeDeferredRemoteDrop()) {
                             this._dropSeededRemote();
                         }
                     } catch (err) {
@@ -987,6 +1010,15 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
             });
             release.forEach((id) => this._tombstones.delete(id));
         }
+        // Retain a cache-seeded window while the remote leg is still in flight: a cold-start
+        // empty local read must not collapse the seeded first paint before the supplement
+        // lands. A non-empty read still replaces wholesale (deletions propagate); once the
+        // remote settles the flag is cleared and a genuine empty publishes as usual.
+        if (this._seed.shouldRetainLocal(local.length, this._remotePending.value)) {
+            this._recompute();
+            return;
+        }
+        this._seed.releaseLocal();
         this._local = local;
         this._recompute();
     }
@@ -1006,10 +1038,9 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
         // Strip here (not at the call site) so the caller's pre-strip array can
         // still be written to IndexedDB by `persistOffline` with all fields intact.
         remote = this._strip(remote);
-        if (this._remoteFromSeed) {
-            this._remoteFromSeed = false;
-            const keep = this._remote.filter((d) => !this._seededRemoteIds.has(d._id));
-            this._seededRemoteIds.clear();
+        const seeded = this._seed.recordRemoteAnswer();
+        if (seeded) {
+            const keep = this._remote.filter((d) => !seeded.has(d._id));
             this._remote = mergeById(keep, remote);
         } else {
             this._remote = mergeById(this._remote, remote);
@@ -1023,10 +1054,9 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
      * socket upserts added since the seed. No-op when nothing was seeded.
      */
     private _dropSeededRemote(): void {
-        if (!this._remoteFromSeed) return;
-        this._remoteFromSeed = false;
-        this._remote = this._remote.filter((d) => !this._seededRemoteIds.has(d._id));
-        this._seededRemoteIds.clear();
+        const seeded = this._seed.takeRemoteDrop();
+        if (seeded === undefined) return;
+        this._remote = this._remote.filter((d) => !seeded.has(d._id));
         this._recompute();
     }
 
@@ -1091,16 +1121,23 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
             // Bounded to real visible changes, and never reached from the
             // provably-empty branch (it returns before `_recompute`).
             if (this._cache) {
-                const localIds = new Set(this._local.map((d) => d._id));
-                writeResponseCache(
-                    this._cacheKey,
-                    {
-                        local: windowed.filter((d) => localIds.has(d._id)),
-                        remote: windowed.filter((d) => !localIds.has(d._id)),
-                    },
-                    this._limit,
-                    this._cacheStripFields,
-                );
+                // Never persist a window that would destroy a still-unsettled seed: an empty
+                // mid-flight window is transient (the local read landed before the supplement),
+                // and persisting it would seed-miss the next mount. A non-empty window, or any
+                // window once the query has settled, still writes as usual.
+                const unsettled = this._localPending.value || this._remotePending.value;
+                if (!unsettled || windowed.length > 0) {
+                    const localIds = new Set(this._local.map((d) => d._id));
+                    writeResponseCache(
+                        this._cacheKey,
+                        {
+                            local: windowed.filter((d) => localIds.has(d._id)),
+                            remote: windowed.filter((d) => !localIds.has(d._id)),
+                        },
+                        this._limit,
+                        this._cacheStripFields,
+                    );
+                }
             }
         }
     }

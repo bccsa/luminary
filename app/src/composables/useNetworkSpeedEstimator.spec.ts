@@ -81,4 +81,25 @@ describe("useNetworkSpeedEstimator", () => {
         expect(fetchMock).not.toHaveBeenCalled();
         expect(connectionSpeed.value).toBe(10);
     });
+
+    // vite.config.web.ts's ssgOptions.mock supplies a jsdom `window` during the Node
+    // prerender too, so a bare `typeof window` guard wouldn't exclude SSR — this proves
+    // the `!import.meta.env.SSR` addition actually suppresses the module-level probe.
+    it("does not run the module-level probe or register listeners during SSR", async () => {
+        vi.resetModules();
+        const userDataSaverEnabled = ref(false);
+        const isDataSaverEnabled = vi.fn(() => false);
+        vi.doMock("@/globalConfig", () => ({ isDataSaverEnabled, userDataSaverEnabled }));
+        Object.defineProperty(navigator, "onLine", { value: true, configurable: true });
+        const fetchMock = vi.fn();
+        vi.stubGlobal("fetch", fetchMock);
+        const addEventListenerSpy = vi.spyOn(window, "addEventListener");
+
+        (import.meta.env as { SSR: boolean }).SSR = true;
+        await import("./useNetworkSpeedEstimator");
+        (import.meta.env as { SSR: boolean }).SSR = false;
+
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(addEventListenerSpy.mock.calls.some(([type]) => type === "online")).toBe(false);
+    });
 });

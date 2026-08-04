@@ -144,6 +144,7 @@ export function useEditContentSource(options: UseEditContentSourceOptions): UseE
             if (copy.showComingSoon === false) delete copy.showComingSoon;
             if (copy.useVerticalTileLayout === false) delete copy.useVerticalTileLayout;
             if (copy.alwaysOffline === false) delete copy.alwaysOffline;
+            if (copy.authorType === "person") delete copy.authorType; // "person" = default — DB often omits the field
             return copy;
         },
     });

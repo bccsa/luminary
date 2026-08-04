@@ -77,8 +77,9 @@ const ELEM_MATCH_ALLOWED_FIELDS = new Set([
 
 /**
  * Top-level keys a `/query` body may carry. `identifier` is an observability label
- * only (expensive-query logging / rate-limit context) — its value is NOT validated
- * against a known set, but the key MUST be accepted: every deployed client sends it.
+ * only (expensive-query logging / rate-limit context) — the key MUST be accepted
+ * because every deployed client sends it, and its value is checked against
+ * ALLOWED_IDENTIFIERS by the caller.
  */
 const ALLOWED_TOP_LEVEL_KEYS = new Set([
     "identifier",
@@ -89,6 +90,14 @@ const ALLOWED_TOP_LEVEL_KEYS = new Set([
     "cms",
     "includeExpired",
 ]);
+
+/**
+ * The `identifier` label is client-supplied and lands in structured logs, so it is
+ * constrained to a known set to bound log cardinality and keep arbitrary client text
+ * out of the logs. It is an observability label only — it never affects query
+ * execution or rate limiting, which key on the request identity instead.
+ */
+export const ALLOWED_IDENTIFIERS = new Set(["sync", "hybridQuery", "ssgDrain", "ssgPrerender"]);
 
 /**
  * Validate a `/query` request body against a single universal ruleset (the previous

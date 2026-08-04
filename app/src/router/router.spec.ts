@@ -5,7 +5,7 @@ import { flushPromises } from "@vue/test-utils";
 describe("Router", () => {
     describe("Router Configuration", () => {
         it("should have the correct number of routes", () => {
-            expect(router.getRoutes()).toHaveLength(8);
+            expect(router.getRoutes()).toHaveLength(10);
         });
 
         it("should have home route configured correctly", () => {
@@ -21,6 +21,14 @@ describe("Router", () => {
             expect(exploreRoute).toBeDefined();
             expect(exploreRoute?.path).toBe("/explore");
             expect(exploreRoute?.meta.title).toBe("title.explore");
+        });
+
+        it("should have search route configured correctly", () => {
+            const searchRoute = router.getRoutes().find((route) => route.name === "search");
+            expect(searchRoute).toBeDefined();
+            expect(searchRoute?.path).toBe("/search");
+            expect(searchRoute?.meta.title).toBe("title.search");
+            expect(searchRoute?.meta.prerender).toBe(true);
         });
 
         it("should have 404 route as catch-all", () => {

@@ -357,6 +357,11 @@ describe("processContentDto", () => {
             db,
         );
         expect(await db.getDocsBySlug("reversion-a", DocType.Redirect)).toHaveLength(1);
+        // previousSlugs is a purely additive, denormalized copy of the same history —
+        // it does not replace or affect the Redirect doc above.
+        expect((await db.getDoc(original.doc._id)).docs[0].previousSlugs).toEqual([
+            "reversion-a",
+        ]);
 
         await processChangeRequest(
             "test-user",
@@ -369,5 +374,71 @@ describe("processContentDto", () => {
         expect(saved.docs[0].slug).toBe("reversion-a");
         expect(saved.docs[0].status).toBe(PublishStatus.Published);
         expect(await db.getDocsBySlug("reversion-a", DocType.Redirect)).toHaveLength(0);
+        // "reversion-a" is live again, so it drops out of the history; "reversion-b" (the
+        // slug just vacated) takes its place.
+        expect(saved.docs[0].previousSlugs).toEqual(["reversion-b"]);
+    });
+
+    it("populates previousSlugs alongside the Redirect doc on a published slug rename", async () => {
+        const original = changeRequest_content();
+        original.doc.parentId = "post-blog1";
+        original.doc._id = "content-previousslugs-rename";
+        original.doc.slug = "prevslugs-rename-a";
+        original.doc.status = PublishStatus.Published;
+        original.doc.publishDate = Date.now() - 1000;
+        delete original.doc.expiryDate;
+        await processChangeRequest("test-user", original, ["group-super-admins"], db);
+
+        await processChangeRequest(
+            "test-user",
+            { doc: { ...original.doc, slug: "prevslugs-rename-b" } },
+            ["group-super-admins"],
+            db,
+        );
+
+        const saved = await db.getDoc(original.doc._id);
+        expect(saved.docs[0].slug).toBe("prevslugs-rename-b");
+        expect(saved.docs[0].previousSlugs).toEqual(["prevslugs-rename-a"]);
+
+        const redirects = await db.getDocsBySlug("prevslugs-rename-a", DocType.Redirect);
+        expect(redirects).toHaveLength(1);
+        expect(redirects[0]).toMatchObject({
+            type: DocType.Redirect,
+            slug: "prevslugs-rename-a",
+            toSlug: "prevslugs-rename-b",
+        });
+    });
+
+    it("does not populate previousSlugs while the document is a draft", async () => {
+        const changeRequest1 = changeRequest_content();
+        changeRequest1.doc.parentId = "post-blog1";
+        changeRequest1.doc._id = "content-previousslugs-draft-rename";
+        changeRequest1.doc.slug = "prevslugs-draft-rename-a";
+        changeRequest1.doc.status = PublishStatus.Draft;
+        await processChangeRequest("test-user", changeRequest1, ["group-super-admins"], db);
+
+        await processChangeRequest(
+            "test-user",
+            { doc: { ...changeRequest1.doc, slug: "prevslugs-draft-rename-b" } },
+            ["group-super-admins"],
+            db,
+        );
+
+        const saved = await db.getDoc(changeRequest1.doc._id);
+        expect(saved.docs[0].slug).toBe("prevslugs-draft-rename-b");
+        expect(saved.docs[0].previousSlugs).toBeUndefined();
+    });
+
+    it("strips a client-forged previousSlugs value", async () => {
+        const changeRequest = changeRequest_content();
+        changeRequest.doc.parentId = "post-blog1";
+        changeRequest.doc._id = "content-previousslugs-forged";
+        changeRequest.doc.slug = "prevslugs-forged-slug";
+        (changeRequest.doc as any).previousSlugs = ["not-a-real-history-entry"];
+
+        await processChangeRequest("test-user", changeRequest, ["group-super-admins"], db);
+
+        const saved = await db.getDoc(changeRequest.doc._id);
+        expect(saved.docs[0].previousSlugs).toBeUndefined();
     });
 });

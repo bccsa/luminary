@@ -1,38 +1,76 @@
 import { nextTick, watch, type WatchHandle } from "vue";
 import { createI18n, type I18n } from "vue-i18n";
-import { appLanguageAsRef, appName, cmsDefaultLanguage } from "./globalConfig";
+import { appLanguageAsRef, appName, cmsDefaultLanguage, cmsLanguages } from "./globalConfig";
 import router from "./router";
+import { isPrerender } from "@/ssg/isPrerender";
+
+type LanguageLike = { _id: string; languageCode: string; updatedTimeUtc?: number; translations?: Record<string, string> };
 
 /**
- * Create the i18n instance and wire up a watcher that keeps messages and the
- * active locale in sync with the app/CMS language refs. Returns synchronously
- * so the plugin can be installed before `app.mount()` — components that call
- * `useI18n()` during setup (e.g. SearchModal) would otherwise throw.
+ * A language's messages, with any key it doesn't define filled in from the default language.
+ * Pure — same inputs, same output.
  */
-export const initI18n = (): I18n<{}, {}, {}, string, false> => {
+function buildMessages(language: LanguageLike, defaultLang: LanguageLike): Record<string, string> {
+    const messages: Record<string, string> = { ...(language.translations ?? {}) };
+
+    if (defaultLang.translations && language._id !== defaultLang._id) {
+        for (const [key, value] of Object.entries(defaultLang.translations)) {
+            if (!messages[key]) messages[key] = value;
+        }
+    }
+
+    return messages;
+}
+
+// Keyed by both docs' revisions, so a translation edit arriving over sync produces a new key
+// and rebuilds rather than serving a stale merge. During a prerender the language docs never
+// change, so this collapses ~2k per-route merges to one per language.
+const messageCache = new Map<string, Record<string, string>>();
+
+function messagesFor(language: LanguageLike, defaultLang: LanguageLike): Record<string, string> {
+    const key = `${language._id}@${language.updatedTimeUtc ?? 0}|${defaultLang._id}@${defaultLang.updatedTimeUtc ?? 0}`;
+    let messages = messageCache.get(key);
+    if (!messages) {
+        messages = buildMessages(language, defaultLang);
+        messageCache.set(key, messages);
+    }
+    return messages;
+}
+
+/**
+ * Create the i18n instance and point it at the active language. Returns synchronously so the
+ * plugin can be installed before `app.mount()` — components that call `useI18n()` during setup
+ * (e.g. SearchModal) would otherwise throw.
+ */
+export const initI18n = (renderLanguageId?: string): I18n<{}, {}, {}, string, false> => {
     const i18n = createI18n({ legacy: false });
 
+    const applyLanguage = (language: LanguageLike | undefined, defaultLang: LanguageLike | undefined) => {
+        if (!language || !defaultLang) return;
+        i18n.global.setLocaleMessage(language.languageCode, messagesFor(language, defaultLang));
+        i18n.global.locale.value = language.languageCode;
+    };
+
+    // The prerender calls this once per route, and the render language is already fixed by the
+    // time it does. A watcher here would never be disposed (this runs outside any component
+    // scope), so every page's watcher would stay live and re-fire on every later page's language
+    // — quadratic work plus a retained i18n instance per route.
+    //
+    // The caller passes the language explicitly rather than letting this read the shared
+    // `appLanguageAsRef`, which concurrent renders overwrite (see ssg/renderLanguage.ts).
+    if (isPrerender()) {
+        const language = renderLanguageId
+            ? cmsLanguages.value.find((l) => l._id === renderLanguageId)
+            : appLanguageAsRef.value;
+        applyLanguage(language, cmsDefaultLanguage.value);
+        return i18n;
+    }
+
+    // Client: the language genuinely changes at runtime (LanguageModal), and this instance
+    // lives as long as the app, so the subscription is correct here.
     watch(
         [appLanguageAsRef, cmsDefaultLanguage],
-        ([newLanguage, defaultLang]) => {
-            if (!newLanguage || !defaultLang) return;
-
-            const messages: Record<string, string> = {};
-            Object.keys(newLanguage.translations || {}).forEach((k: string) => {
-                messages[k] = newLanguage.translations[k];
-            });
-
-            if (defaultLang && defaultLang.translations && newLanguage._id != defaultLang._id) {
-                Object.keys(defaultLang.translations).forEach((k: string) => {
-                    if (!messages[k]) {
-                        messages[k] = defaultLang.translations[k];
-                    }
-                });
-            }
-
-            i18n.global.setLocaleMessage(newLanguage.languageCode, messages);
-            i18n.global.locale.value = newLanguage.languageCode;
-        },
+        ([newLanguage, defaultLang]) => applyLanguage(newLanguage, defaultLang),
         { immediate: true, deep: true },
     );
 

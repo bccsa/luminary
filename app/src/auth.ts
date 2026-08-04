@@ -4,14 +4,12 @@ import type { Router } from "vue-router";
 import * as Sentry from "@sentry/vue";
 import { db, getSocket, removeCustomHeader, setCustomHeader } from "luminary-shared";
 import type { AuthProviderDto } from "luminary-shared";
+import { ACTIVE_PROVIDER_KEY, LEGACY_AUTH0_CACHE_PREFIX, OIDC_USER_PREFIX } from "./authStorage";
 
-const OIDC_USER_PREFIX = "oidc.user:";
+export { ACTIVE_PROVIDER_KEY } from "./authStorage";
+
 const OIDC_STATE_PREFIX = "oidc.";
-const LEGACY_AUTH0_CACHE_PREFIX = "@@auth0spajs@@::";
 const LEGACY_AUTH0_STATE_PREFIX = "a0.spajs.";
-
-/** The selected provider, retained across the OIDC redirect. */
-export const ACTIVE_PROVIDER_KEY = "activeAuthProvider";
 
 /** Currently active OAuth provider document id (or null when unauthenticated). */
 export const activeProviderId = ref<string | null>(null);
@@ -258,6 +256,21 @@ export async function loginWithProvider(
     });
 }
 
+/**
+ * Synchronous check for whether a session exists on this device, safe to call before setupAuth() resolves. Used to auth-scope the response-cache key so the SSG anonymous seed isn't shown to a returning logged-in user.
+ */
+export function hasPersistedSession(): boolean {
+    if (typeof localStorage !== "undefined") {
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key?.startsWith(OIDC_USER_PREFIX) || key?.startsWith(LEGACY_AUTH0_CACHE_PREFIX)) {
+                return true;
+            }
+        }
+    }
+    return readPersistedProvider() !== null;
+}
+
 /** The auth surface used by guards and components; it is not SDK-specific. */
 export function useAuth() {
     return {
@@ -337,4 +350,5 @@ export default {
     loginWithProvider,
     resolveActiveProvider,
     refreshTokenSilently,
+    hasPersistedSession,
 };

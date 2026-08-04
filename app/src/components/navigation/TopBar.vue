@@ -1,9 +1,7 @@
 <script setup lang="ts">
 import { ChevronLeftIcon } from "@heroicons/vue/24/solid";
-import ProfileMenu from "./ProfileMenu.vue";
-import { useRouter } from "vue-router";
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
-import { getRouteHistory } from "@/router";
+import { useBackNavigation } from "@/composables/useBackNavigation";
 import { useAuthWithPrivacyPolicy } from "@/composables/useAuthWithPrivacyPolicy";
 import { isConnected } from "luminary-shared";
 import { useNotificationStore, type Notification } from "@/stores/notification";
@@ -24,25 +22,29 @@ withDefaults(defineProps<Props>(), {
     showBackButton: false,
 });
 
-const router = useRouter();
 const LOGO = import.meta.env.VITE_LOGO || defaultLogo;
-const LOGO_SMALL = import.meta.env.VITE_LOGO_SMALL || "";
+const LOGO_SMALL = import.meta.env.VITE_LOGO_SMALL || defaultLogoSmall;
 const LOGO_DARK = import.meta.env.VITE_LOGO_DARK || defaultLogoDark;
-const LOGO_SMALL_DARK = import.meta.env.VITE_LOGO_SMALL_DARK || "";
+const LOGO_SMALL_DARK = import.meta.env.VITE_LOGO_SMALL_DARK || defaultLogoSmall;
+
+// Pass the logo URL's to tailwind's classes (see https://stackoverflow.com/questions/70805041/background-image-in-tailwindcss-using-dynamic-url-react-js).
+const logoCssSmall = `--image-url: url(${LOGO_SMALL}); --image-url-dark: url(${LOGO_SMALL_DARK});`;
+const logoCssLarge = `--image-url: url(${LOGO}); --image-url-dark: url(${LOGO_DARK});`;
 
 const logoWidth = ref();
 const logoContainer = ref<HTMLElement | undefined>(undefined);
-const isSmallScreen = ref(false);
+// null until JS measures a real fit. Sibling content (e.g. SingleContent's translation
+// selector/back button) can eat the available width at any viewport size, not just below `sm`,
+// which is why a measured result must override the breakpoint outright rather than layer on it.
+const isSmallScreen = ref<boolean | null>(null);
 
-const logo = computed(() => (isSmallScreen.value ? LOGO_SMALL || defaultLogoSmall : LOGO));
-const logoDark = computed(() =>
-    isSmallScreen.value ? LOGO_SMALL_DARK || defaultLogoSmall : LOGO_DARK,
-);
-
-// Pass the logo URL's to tailwind's classes (see https://stackoverflow.com/questions/70805041/background-image-in-tailwindcss-using-dynamic-url-react-js)
-const logoCss = computed(
-    () => "--image-url: url(" + logo.value + "); --image-url-dark: url(" + logoDark.value + ");",
-);
+// Single decision point for both logos' visibility, so there's one precedence rule instead of
+// two classes reasoned about separately: unmeasured falls back to the `sm:` breakpoint (SSG/no-JS
+// and pre-hydration), a measured result wins unconditionally once available.
+const logoVisibility = computed(() => {
+    if (isSmallScreen.value === null) return { small: "sm:hidden", large: "hidden sm:block" };
+    return isSmallScreen.value ? { small: "", large: "hidden" } : { small: "hidden", large: "" };
+});
 
 const updateScreenSize = () => {
     if (!logoWidth.value) return;
@@ -72,9 +74,7 @@ onBeforeUnmount(() => {
     resizeObserver?.disconnect();
 });
 
-const isPostAndNoHistory = computed(() => {
-    return getRouteHistory().value.length <= 1 && router.currentRoute.value.name === "content";
-});
+const { onBackClick } = useBackNavigation();
 
 const { isAuthenticated, loginWithRedirect } = useAuthWithPrivacyPolicy();
 const { t } = useI18n();
@@ -104,26 +104,47 @@ const handleLogin = () => {
                         v-if="showBackButton"
                         data-test="backButton"
                     >
-                        <ChevronLeftIcon
-                            class="-ml-2 h-6 w-6 cursor-pointer text-zinc-600 dark:text-slate-50"
-                            @click="
-                                isPostAndNoHistory ? router.push({ name: 'home' }) : router.back()
-                            "
-                        />
+                        <RouterLink
+                            :to="{ name: 'home' }"
+                            v-slot="{ href, navigate }"
+                            custom
+                        >
+                            <a
+                                :href="href"
+                                aria-label="Go back"
+                                @click="onBackClick(navigate, $event)"
+                            >
+                                <ChevronLeftIcon
+                                    class="-ml-2 h-6 w-6 cursor-pointer text-zinc-600 dark:text-slate-50"
+                                />
+                            </a>
+                        </RouterLink>
                     </div>
 
                     <div
                         class="flex flex-1 items-center"
                         ref="logoContainer"
                     >
+                        <!-- Visibility of both logos is driven by the single logoVisibility computed. -->
                         <div
-                            :style="logoCss"
+                            :style="logoCssSmall"
+                            :class="logoVisibility.small"
                             class="h-8 bg-[image:var(--image-url)] bg-cover bg-center dark:bg-[image:var(--image-url-dark)]"
                         >
                             <!-- Show the image with 0 opacity to set the outer div's size. We assume that the dark mode logo will have the same size as the light mode logo. -->
                             <img
                                 class="h-full opacity-0"
-                                :src="logo"
+                                :src="LOGO_SMALL"
+                            />
+                        </div>
+                        <div
+                            :style="logoCssLarge"
+                            :class="logoVisibility.large"
+                            class="h-8 bg-[image:var(--image-url)] bg-cover bg-center dark:bg-[image:var(--image-url-dark)]"
+                        >
+                            <img
+                                class="h-full opacity-0"
+                                :src="LOGO"
                             />
                         </div>
                     </div>
@@ -132,12 +153,12 @@ const handleLogin = () => {
                 <div class="flex cursor-pointer items-center gap-2">
                     <slot name="quickControls" />
                 </div>
-                <div class="hidden lg:block"><ProfileMenu /></div>
                 <div class="lg:hidden">
                     <!-- Same hover/padding treatment as the quick controls (language, theme) so
                          the whole row reacts consistently. -->
                     <button
                         v-if="!isAuthenticated"
+                        data-test="mobileLoginButton"
                         class="flex cursor-pointer items-center gap-1 rounded-md px-1.5 py-1 text-sm text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
                         @click="handleLogin"
                     >
