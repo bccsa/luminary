@@ -1953,6 +1953,105 @@ describe("HybridQuery", () => {
                 expect(postHttpMock).not.toHaveBeenCalled();
                 expect(q.output.value.map((d) => d._id)).toEqual(["L1"]); // stale R1 gone
             });
+
+            it("seeded window survives an empty local read while the remote leg is pending", async () => {
+                // A server-prerendered seed places the whole window in `local` with an empty
+                // `remote`. A cold-start empty Dexie read must not collapse that seeded first
+                // paint before the supplement POST lands.
+                writeResponseCache(structuralCacheKey(contentQuery), { local: [L], remote: [] });
+                mocks.mangoToDexieMock.mockResolvedValueOnce([]); // cold start: Dexie empty
+                postHttpMock.mockReturnValueOnce(new Promise(() => {})); // POST never resolves
+
+                const q = track(new HybridQuery(contentQuery, { cache: true }));
+                expect(q.output.value.map((d) => d._id)).toEqual(["L1"]); // synchronous seed
+
+                await flush(); // empty local read lands; POST still in flight
+                expect(q.output.value.map((d) => d._id)).toEqual(["L1"]); // seeded window retained
+                expect(q.isFetching.value).toBe(true); // still unsettled
+            });
+
+            it("a non-empty local read still replaces the seeded local wholesale (deletions propagate)", async () => {
+                // Seed holds two local docs; the real read drops one (a deletion). The
+                // non-empty read must replace the seeded local wholesale so the deletion
+                // propagates — the seed-retention guard only holds for an EMPTY read.
+                const L2 = { _id: "L2", updatedTimeUtc: 4, publishDate: 1900, type: "content" };
+                writeResponseCache(structuralCacheKey(contentQuery), {
+                    local: [L, L2],
+                    remote: [],
+                });
+                mocks.mangoToDexieMock.mockResolvedValueOnce([L]); // L2 deleted
+                postHttpMock.mockReturnValueOnce(new Promise(() => {})); // POST never resolves
+
+                const q = track(new HybridQuery(contentQuery, { cache: true }));
+                expect(q.output.value.map((d) => d._id).sort()).toEqual(["L1", "L2"]); // seeded
+
+                await flush(); // non-empty local read replaces wholesale
+                expect(q.output.value.map((d) => d._id)).toEqual(["L1"]); // L2 gone (deletion)
+                expect(q.isFetching.value).toBe(true); // still unsettled
+            });
+
+            it("an empty local read publishes empty once the query has settled", async () => {
+                // The seed bridges first paint while the supplement is in flight; once the
+                // POST resolves with nothing the seeded local is dropped and a genuine
+                // empty result publishes as usual.
+                writeResponseCache(structuralCacheKey(contentQuery), { local: [L], remote: [] });
+                mocks.mangoToDexieMock.mockResolvedValueOnce([]); // cold start
+                postHttpMock.mockResolvedValueOnce({ docs: [] }); // supplement returns nothing
+
+                const q = track(new HybridQuery(contentQuery, { cache: true }));
+                expect(q.output.value.map((d) => d._id)).toEqual(["L1"]); // seeded
+
+                await flush(); // local read + POST both settle
+                expect(q.output.value).toEqual([]); // genuinely empty
+                expect(q.isFetching.value).toBe(false);
+            });
+
+            it("a seeded window survives when every remote query rejects (total POST failure)", async () => {
+                // The seed bridges first paint; a cold-start empty local read keeps it while
+                // the supplement is in flight. When EVERY POST rejects the server has NOT
+                // answered authoritatively, so the seeded window stays to heal on remount —
+                // only a real server result retires it.
+                const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+                writeResponseCache(structuralCacheKey(contentQuery), { local: [L], remote: [R] });
+                mocks.mangoToDexieMock.mockResolvedValueOnce([]); // cold start: Dexie empty
+                postHttpMock.mockRejectedValueOnce(new Error("boom")); // total failure
+
+                const q = track(new HybridQuery(contentQuery, { cache: true }));
+                expect(q.output.value.map((d) => d._id)).toEqual(["L1", "R1"]); // synchronous seed
+
+                await flush(); // empty local read lands; POST rejects
+                expect(postHttpMock).toHaveBeenCalledTimes(1);
+                expect(q.output.value.map((d) => d._id)).toEqual(["L1", "R1"]); // seeded window retained
+                expect(q.isFetching.value).toBe(false); // settled (failed), not fetching
+                errSpy.mockRestore();
+            });
+
+            it("the response cache is not overwritten by an empty unsettled window", async () => {
+                // Live mode: a deletion emits an empty window while the supplement is still
+                // in flight. That transient empty must not persist over the good seed — the
+                // next mount would otherwise seed-miss.
+                writeResponseCache(structuralCacheKey(contentQuery), { local: [L], remote: [] });
+                postHttpMock.mockReturnValueOnce(new Promise(() => {})); // POST never resolves
+
+                const q = track(new HybridQuery(contentQuery, { live: true, cache: true }));
+                expect(q.output.value.map((d) => d._id)).toEqual(["L1"]); // seed
+                await flush();
+
+                // First emission matches the seed (no reassign, no write).
+                mocks.liveRefs[0]!.ref.value = [L];
+                await flush();
+                // Second emission drops the doc (a deletion) while the POST is still pending.
+                mocks.liveRefs[0]!.ref.value = [];
+                await flush();
+
+                expect(q.output.value).toEqual([]); // window went empty mid-flight
+                expect(q.isFetching.value).toBe(true); // still unsettled
+                // The seed is intact — the empty unsettled window was not persisted.
+                expect(readResponseCache(structuralCacheKey(contentQuery))).toEqual({
+                    local: [L],
+                    remote: [],
+                });
+            });
         });
 
         describe("live mode", () => {
@@ -2021,6 +2120,24 @@ describe("HybridQuery", () => {
 
                 await flush();
                 expect(q.output.value.map((d) => d._id)).toEqual(["r2"]); // POST superseded r1
+            });
+
+            it("a seeded window survives when the remote leg settles because the client is offline (POST parked, not answered)", async () => {
+                // The seed bridges first paint. Going offline parks the POST on the reconnect
+                // watcher and settles the remote leg — but the server has NOT answered, so the
+                // seeded window stays to heal on reconnect/remount, not collapse.
+                const r1 = { _id: "r1", updatedTimeUtc: 1, type: "redirect" };
+                const r2 = { _id: "r2", updatedTimeUtc: 2, type: "redirect" };
+                writeResponseCache(structuralCacheKey(apiQuery), { local: [r1], remote: [r2] });
+                mocks.isConnected.value = false; // offline ⇒ POST parked, not sent
+
+                const q = track(new HybridQuery(apiQuery, { cache: true }));
+                expect(q.output.value.map((d) => d._id)).toEqual(["r1", "r2"]); // synchronous seed
+
+                await flush(); // offline ⇒ remote leg settles via the park
+                expect(postHttpMock).not.toHaveBeenCalled(); // parked, not answered
+                expect(q.output.value.map((d) => d._id)).toEqual(["r1", "r2"]); // seeded window retained
+                expect(q.isFetching.value).toBe(false); // parked on the reconnect watcher, not fetching
             });
         });
 

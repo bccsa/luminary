@@ -437,7 +437,10 @@ const selectedCategoryId = ref<Uuid | undefined>();
 // The content query already filters publish state, so `content` is either a valid
 // published doc or absent — 404 is purely "resolved to nothing".
 const is404 = computed(() => {
-    if (isLoading.value) return false; // Don't show 404 during loading
+    // A query that has not settled is never "not found": the content query may be
+    // mid-flight with an empty window (e.g. the local read landed before the API
+    // supplement), so suppress 404 while it is still fetching as well as loading.
+    if (isLoading.value || isContentFetching.value) return false;
     return !content.value;
 });
 
