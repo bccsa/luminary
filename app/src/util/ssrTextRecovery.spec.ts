@@ -1,41 +1,61 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, afterEach } from "vitest";
 import type { ContentDto } from "luminary-shared";
-import { recoverSsrArticleText } from "./ssrTextRecovery";
+import {
+    captureSsrArticleTextSnapshot,
+    recoverSsrArticleText,
+    takeSsrArticleTextSnapshot,
+} from "./ssrTextRecovery";
 
 const baseDoc = { _id: "content-1", title: "Title" } as ContentDto;
 
+afterEach(() => {
+    // The snapshot lives on globalThis; clear it between tests so order doesn't matter.
+    takeSsrArticleTextSnapshot();
+    document.body.innerHTML = "";
+});
+
+describe("captureSsrArticleTextSnapshot / takeSsrArticleTextSnapshot", () => {
+    it("captures the prerendered marker's innerHTML and yields it once", () => {
+        document.body.innerHTML = '<div data-ssr-article-text="true"><p>Hello</p></div>';
+        captureSsrArticleTextSnapshot();
+        expect(takeSsrArticleTextSnapshot()).toBe("<p>Hello</p>");
+        // One-shot: a second take (e.g. a later remount) gets nothing.
+        expect(takeSsrArticleTextSnapshot()).toBeUndefined();
+    });
+
+    it("yields undefined when the prerendered page has no article marker", () => {
+        document.body.innerHTML = "<div>not an article page</div>";
+        captureSsrArticleTextSnapshot();
+        expect(takeSsrArticleTextSnapshot()).toBeUndefined();
+    });
+
+    it("yields undefined when capture was never called", () => {
+        expect(takeSsrArticleTextSnapshot()).toBeUndefined();
+    });
+});
+
 describe("recoverSsrArticleText", () => {
     it("returns undefined when there is no doc", () => {
-        const querySelector = vi.fn();
-        expect(recoverSsrArticleText(undefined, querySelector)).toBeUndefined();
-        expect(querySelector).not.toHaveBeenCalled();
+        expect(recoverSsrArticleText(undefined, "<p>Hello</p>")).toBeUndefined();
     });
 
     it("returns undefined when the doc already carries text (warm client cache)", () => {
         const doc = { ...baseDoc, text: "<p>already here</p>" };
-        const querySelector = vi.fn();
-        expect(recoverSsrArticleText(doc, querySelector)).toBeUndefined();
-        expect(querySelector).not.toHaveBeenCalled();
+        expect(recoverSsrArticleText(doc, "<p>Hello</p>")).toBeUndefined();
     });
 
     it("returns undefined when text is genuinely empty, not stripped", () => {
         const doc = { ...baseDoc, text: "" };
-        const querySelector = vi.fn();
-        expect(recoverSsrArticleText(doc, querySelector)).toBeUndefined();
-        expect(querySelector).not.toHaveBeenCalled();
+        expect(recoverSsrArticleText(doc, "<p>Hello</p>")).toBeUndefined();
     });
 
-    it("returns undefined when text is stripped but no matching DOM node exists", () => {
+    it("returns undefined when text is stripped but no snapshot was captured", () => {
         const doc = { ...baseDoc, text: undefined };
-        const querySelector = vi.fn().mockReturnValue(null);
-        expect(recoverSsrArticleText(doc, querySelector)).toBeUndefined();
-        expect(querySelector).toHaveBeenCalledWith("[data-ssr-article-text]");
+        expect(recoverSsrArticleText(doc, undefined)).toBeUndefined();
     });
 
-    it("merges the DOM node's innerHTML into the doc when text is stripped", () => {
+    it("merges the snapshot into the doc when text is stripped", () => {
         const doc = { ...baseDoc, text: undefined };
-        const querySelector = vi.fn().mockReturnValue({ innerHTML: "<p>Hello</p>" });
-        const recovered = recoverSsrArticleText(doc, querySelector);
-        expect(recovered).toEqual({ ...baseDoc, text: "<p>Hello</p>" });
+        expect(recoverSsrArticleText(doc, "<p>Hello</p>")).toEqual({ ...baseDoc, text: "<p>Hello</p>" });
     });
 });

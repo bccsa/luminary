@@ -18,6 +18,7 @@ import { DocType, HttpReq, initHybridQuery, queryRemote, type LanguageDto } from
 import { apiUrl, appLanguageIdsAsRef, cmsLanguages, isAppLoading } from "./globalConfig";
 import { SSG_DISPLAY_LANGUAGES, ssgDisplayLanguages } from "./ssg/renderLanguage";
 import { isPrerender } from "./ssg/isPrerender";
+import { captureSsrArticleTextSnapshot } from "./util/ssrTextRecovery";
 
 const LANGUAGES_QUERY = { selector: { type: DocType.Language } };
 
@@ -84,6 +85,11 @@ export const createApp = ViteSSG(
                 keep.has(l._id) ? l : { ...l, translations: {} },
             );
         } else {
+            // Snapshot the prerendered article body before `app.mount` clears #app; the
+            // hydration patch in SingleContent recovers `text` (stripped from the cache
+            // seed) from this snapshot so the body survives the JS boot.
+            captureSsrArticleTextSnapshot();
+
             // Client: take the render language from the serialized state so the first
             // render's UI strings + content match the prerendered HTML. (The web build
             // is per-URL-language; the user can still switch via the language modal.)

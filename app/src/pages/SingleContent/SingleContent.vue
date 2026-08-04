@@ -70,7 +70,7 @@ import {
 } from "@/composables/useReadingProgressTracker";
 import { useContentHead, type PublicTaxonomy } from "@/seo/contentHead";
 import { useTranslationSwitcher } from "@/composables/useTranslationSwitcher";
-import { recoverSsrArticleText } from "@/util/ssrTextRecovery";
+import { recoverSsrArticleText, takeSsrArticleTextSnapshot } from "@/util/ssrTextRecovery";
 import { isPrerender } from "@/ssg/isPrerender";
 
 const router = useRouter();
@@ -137,11 +137,9 @@ watch(
     },
 );
 
-// One-time hydration patch (client only): recover `text` (omitted from the cache seed via `ssrCacheStripFields`) from the DOM before first render so `v-html` matches the prerendered HTML. Runs in setup (not a watcher) so it lands before the template's first evaluation. Guarded on `!isPrerender` so it runs in the browser after the web build hydrates but skips the Node prerender pass; the normal SPA always passes. No-op when the seed already carries `text` or there's nothing to recover.
+// One-time hydration patch (client only): recover `text` (omitted from the cache seed via `ssrCacheStripFields`) from the snapshot `main.web.ts` captured before `app.mount` cleared the prerendered DOM, so `v-html` matches the prerendered HTML. Runs in setup (not a watcher) so it lands before the template's first evaluation. Guarded on `!isPrerender` so it runs in the browser after the web build hydrates but skips the Node prerender pass; the normal SPA always passes. No-op when the seed already carries `text` or there's nothing to recover.
 if (!isPrerender()) {
-    const recovered = recoverSsrArticleText(contentArr.value[0], (selector) =>
-        document.querySelector(selector),
-    );
+    const recovered = recoverSsrArticleText(contentArr.value[0], takeSsrArticleTextSnapshot());
     if (recovered) contentOverride.value = recovered;
 }
 
