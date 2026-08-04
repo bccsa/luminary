@@ -52,12 +52,13 @@ describe("queryDrain", () => {
     it("stops when a page is shorter than the limit", async () => {
         const calls: KeysetQuery[] = [];
         const docs = await drainQuery(
-            queuedTransport([[{ updatedTimeUtc: 10, _id: "a", value: "a" }]], calls),
+            queuedTransport([[{ updatedTimeUtc: 10, _id: "a", value: "a" }], []], calls),
             { type: "redirect", limit: 2 },
         );
 
         expect(docs.map((doc) => doc._id)).toEqual(["a"]);
-        expect(calls).toHaveLength(1);
+        // The short non-empty page triggers one probe; the probe's empty result confirms the end.
+        expect(calls).toHaveLength(2);
     });
 
     it("drains multiple pages in order without duplicates or gaps", async () => {
@@ -74,6 +75,7 @@ describe("queryDrain", () => {
                         { updatedTimeUtc: 40, _id: "d", value: "d" },
                     ],
                     [{ updatedTimeUtc: 50, _id: "e", value: "e" }],
+                    [],
                 ],
                 calls,
             ),
@@ -81,7 +83,44 @@ describe("queryDrain", () => {
         );
 
         expect(docs.map((doc) => doc._id)).toEqual(["a", "b", "c", "d", "e"]);
-        expect(calls).toHaveLength(3);
+        // Two full pages, then a short page, then an empty probe confirming the end.
+        expect(calls).toHaveLength(4);
+    });
+
+    it("rejects when a short non-empty page is followed by more docs (truncation)", async () => {
+        const calls: KeysetQuery[] = [];
+        await expect(
+            drainQuery(
+                queuedTransport(
+                    [
+                        [{ updatedTimeUtc: 10, _id: "a", value: "a" }],
+                        [{ updatedTimeUtc: 20, _id: "b", value: "b" }],
+                    ],
+                    calls,
+                ),
+                { type: "content", limit: 2 },
+            ),
+        ).rejects.toThrow(/truncat/i);
+
+        // The short page plus the probe that discovered the truncation.
+        expect(calls).toHaveLength(2);
+    });
+
+    it("resolves when a short non-empty page is followed by an empty probe", async () => {
+        const calls: KeysetQuery[] = [];
+        const docs = await drainQuery(
+            queuedTransport(
+                [
+                    [{ updatedTimeUtc: 10, _id: "a", value: "a" }],
+                    [],
+                ],
+                calls,
+            ),
+            { type: "content", limit: 2 },
+        );
+
+        expect(docs.map((doc) => doc._id)).toEqual(["a"]);
+        expect(calls).toHaveLength(2);
     });
 
     it("uses _id as the tiebreak when updatedTimeUtc is unchanged", () => {
@@ -172,11 +211,12 @@ describe("queryDrain", () => {
             ];
 
             const docs = await enumerateDeleteCmds<TestDoc>(
-                queuedTransport([firstPage, secondPage], calls),
+                queuedTransport([firstPage, secondPage, []], calls),
                 "post",
             );
 
-            expect(calls).toHaveLength(2);
+            // Full first page, short second page, then an empty probe confirming the end.
+            expect(calls).toHaveLength(3);
             expect(docs).toHaveLength(QUERY_PAGE_SIZE + 1);
             expect(docs[docs.length - 1]._id).toBe("last");
         });

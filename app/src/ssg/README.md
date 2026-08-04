@@ -108,8 +108,9 @@ paths**:
 - **Prerender (Node), `if (import.meta.env.SSR)`:** in `onServerPrefetch`, fetch via
   shared `queryRemote` (anonymous `POST /query` → public tier), set the out ref so the
   page renders with data, prime the response cache (below), and `reportKeys([...])` for
-  the manifest. A module-level `ssrChain` serializes prefetches so chained queries (e.g.
-  HomePagePinned: pinned categories → their content) resolve in order.
+  the manifest. A per-route chain (`ssrChains.ts`, keyed by route path) serializes
+  prefetches so chained queries (e.g. SingleContent: content → translations → tags →
+  related content) resolve in order.
 - **Browser + the normal SPA (else):** plain `useHybridQuery(buildQuery, options)` — the _same_
   local-first query for both. No `VITE_BUILD_TARGET` branch.
 
@@ -140,6 +141,19 @@ the rendered article `<div>` before first render, so hydration still matches the
 output. A plain client-side navigation has no such DOM to recover from, so
 `cacheStripFields` (which affects both writers) is left untouched — only the SSR write is
 stripped.
+
+### Fail-loud prerender — render diagnostics
+
+A prerender query that **rejects** is collected during the build via
+`renderDiagnostics.ts` (`globalThis.__SSG_RENDER_ISSUES__`) and fails the build at the
+end, unless `SSG_STRICT=0` downgrades that to a warning. This turns silent query failures
+— which would otherwise emit HTML with missing sections — into loud build errors.
+
+A **provably-empty** selector (e.g. an empty `$in`) is reported as a **deduplicated
+warning** instead, and never fails the build: an empty selector is often a legitimate
+empty state during a prerender — a personalised feed with no user state, a tag with no
+tagged documents, a related-content lookup with nothing to relate. So a build with zero
+rejected queries succeeds regardless of how many provably-empty warnings it logged.
 
 ### i18n SSR (`main.web.ts`)
 

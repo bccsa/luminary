@@ -20,6 +20,7 @@ import { reportCacheEntry, reportKeys } from "@/ssg/dependencyCapture";
 import { chainFor, queueOnChain } from "@/ssg/ssrChains";
 import { isPrerender } from "@/ssg/isPrerender";
 import { queryContentLocal } from "@/ssg/contentStore";
+import { reportRenderIssue } from "@/ssg/renderDiagnostics";
 
 /** Reads back one just-written response-cache entry so it can be attributed to its route. Takes the full `hqcache:`-prefixed storage key (matching shared's `STORAGE_PREFIX`). */
 function readCacheEntry(storageKey: string): string | null {
@@ -46,9 +47,16 @@ function stripDocs(docs: ContentDto[], stripFields: string[]): ContentDto[] {
 // `mangoIsPublished`, so only an explicit `false` rules out coming-soon docs). The corpus
 // is the anonymous published-now set, so a query that can match future-dated docs must
 // still go to `queryRemote`.
+//
+// An empty local result (corpus present but nothing matched) must still fall back to the
+// network — [] is truthy, so a bare truthiness check would make it final and silently
+// suppress the remote supplement. The caller short-circuits provably-empty selectors before
+// reaching here, so this fallback never re-POSTs for one.
 function resolveQuery(q: MangoQuery, local: boolean): Promise<ContentDto[]> {
     const localResult = local ? queryContentLocal(q) : null;
-    return localResult ? Promise.resolve(localResult) : queryRemote<ContentDto>(q);
+    return localResult && localResult.length > 0
+        ? Promise.resolve(localResult)
+        : queryRemote<ContentDto>(q);
 }
 
 // Backs `buildOnce`: a query that is genuinely identical on every route (see the option's
@@ -273,8 +281,15 @@ function useContentQueryState(
                 const q = buildQuery();
                 // Unsatisfiable selector (e.g. an empty `$in`, before a parent query has
                 // resolved) — skip the POST entirely and settle to empty, mirroring the
-                // client's `HybridQuery._run` short-circuit (isProvablyEmpty).
+                // client's `HybridQuery._run` short-circuit (isProvablyEmpty). At build time
+                // this always means a parent query didn't resolve or no display language
+                // reached the component, so report it rather than failing silently.
                 if (isProvablyEmpty(q.selector)) {
+                    reportRenderIssue({
+                        route,
+                        kind: "provably-empty",
+                        detail: JSON.stringify(q.selector),
+                    });
                     out.value = [];
                     return;
                 }
@@ -326,13 +341,27 @@ function useContentQueryState(
                     ...docs.map((d) => docKey(d.parentId || d._id)),
                 ]);
             };
+            // Wraps run so a rejection is reported as a render issue and then rethrown,
+            // covering both the buildOnce await and the chain-then path.
+            const runReporting = async () => {
+                try {
+                    await run();
+                } catch (err) {
+                    reportRenderIssue({
+                        route,
+                        kind: "query-failed",
+                        detail: `${JSON.stringify(buildQuery().selector)} :: ${err instanceof Error ? err.message : String(err)}`,
+                    });
+                    throw err;
+                }
+            };
             if (buildOnce) {
                 // A build-constant query has no parent/child ordering to respect, so it
                 // runs outside the per-route chain — this also shortens the chain by one
                 // hop for every route that uses one.
-                await run();
+                await runReporting();
             } else {
-                const queued = chainFor(route).then(run);
+                const queued = chainFor(route).then(runReporting);
                 queueOnChain(route, queued);
                 await queued;
             }

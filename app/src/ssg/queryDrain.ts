@@ -80,7 +80,24 @@ export async function drainQuery<T extends KeysetDocument>(
     for (;;) {
         const page = await transport<T>(buildKeysetQuery({ ...options, limit }, cursor));
         docs.push(...page);
-        if (page.length < limit) return docs;
+        // An empty page is the unambiguous end of the corpus.
+        if (page.length === 0) return docs;
+        if (page.length < limit) {
+            // A short non-empty page *should* be the final page, but a server-side cap,
+            // timeout or partial page can truncate the corpus mid-drain — which would
+            // silently drop every remaining row and empty all downstream per-page queries.
+            // Probe one more page: real end returns nothing, a truncation returns more.
+            cursor = advanceQueryCursor(page);
+            const probe = await transport<T>(buildKeysetQuery({ ...options, limit }, cursor));
+            if (probe.length > 0) {
+                throw new Error(
+                    `[ssg] ${options.type} drain truncated: short page returned ` +
+                        `${page.length} doc(s) (limit ${limit}) but a probe found ` +
+                        `${probe.length} more — the corpus was cut short mid-drain`,
+                );
+            }
+            return docs;
+        }
         cursor = advanceQueryCursor(page);
     }
 }

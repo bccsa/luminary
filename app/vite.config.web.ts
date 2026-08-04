@@ -27,6 +27,7 @@ import {
 } from "./src/ssg/queryDrain";
 import { ACTIVE_PROVIDER_KEY, LEGACY_AUTH0_CACHE_PREFIX, OIDC_USER_PREFIX } from "./src/authStorage";
 import { releaseSsrChain } from "./src/ssg/ssrChains";
+import { takeRenderIssues, type RenderIssue } from "./src/ssg/renderDiagnostics";
 import { DocType, RedirectType, type DeleteReason, type ContentDto } from "luminary-shared";
 
 const env = loadEnv("", process.cwd());
@@ -58,13 +59,27 @@ function capture(): SsgCapture {
 // that pages can render concurrently without one.
 capture();
 
+// Render-diagnostics collector — Node side. Shares the SAME `globalThis.__SSG_RENDER_ISSUES__`
+// array the app bundle's `src/ssg/renderDiagnostics.ts` reports into (vite-ssg runs the config
+// and the SSR bundle in one process). Created eagerly, before any page renders, so
+// `reportRenderIssue` has a buffer to push into from the very first render — without it the
+// reporter no-ops and query failures stay silent.
+function renderIssuesBuffer(): RenderIssue[] {
+    const g = globalThis as Record<string, unknown>;
+    if (!g.__SSG_RENDER_ISSUES__) {
+        g.__SSG_RENDER_ISSUES__ = [] as RenderIssue[];
+    }
+    return g.__SSG_RENDER_ISSUES__ as RenderIssue[];
+}
+renderIssuesBuffer();
+
 // Response-cache serialization. We inline a page's `hqcache:*` entries as a classic <script> that runs during parse, before the ES-module entry boots, so `useHybridQuery({cache:true})` seeds synchronously with the prerendered docs (no hydration flash). The entries are recorded per route as they're written (see `src/ssg/dependencyCapture.ts`) rather than scraped back out of the shared store, which concurrent renders share.
 function hqCacheScript(cache: Record<string, string>): string {
     // `<` escaping prevents a doc value containing `</script>` from closing the tag.
     const json = JSON.stringify(cache).replace(/</g, "\\u003c");
     // The catch surfaces a failed seed write (e.g. QuotaExceededError / a sandboxed
     // SecurityError) so a missing-seed hydration flash is diagnosable instead of
-    // silent — the client's cold-start backstop covers it, but the warning points
+    // silent — the client's cold-start backfill covers it, but the warning points
     // at the storage-level root cause.
     return `<script>(function(c){try{for(var k in c)localStorage.setItem(k,c[k])}catch(e){console.warn('[hqcache] seed write failed:',e&&e.name,e&&e.message)}})(${json})</script>`;
 }
@@ -697,6 +712,55 @@ const config: UserConfig & { ssgOptions: ViteSSGOptions } = {
                 }
                 // Sitemap/robots/llms reflect the full route set on both full and scoped builds.
                 writeSeoArtifacts();
+                // Drain render issues collected during the prerender. A `query-failed` issue
+                // means a page's content query rejected, so its section is missing from the
+                // emitted HTML — fail the build rather than shipping a silently truncated page
+                // (unless SSG_STRICT=0 opts into a warning-only continuation). A `provably-empty`
+                // issue is a selector that matched nothing (e.g. an empty `$in`), which is
+                // usually a legitimate empty state during a prerender — a personalised feed with
+                // no user state, a tag with no tagged documents — so it is reported as a
+                // deduplicated warning and never fails the build.
+                const issues = takeRenderIssues();
+                const failures = issues.filter((i) => i.kind === "query-failed");
+                const empties = issues.filter((i) => i.kind === "provably-empty");
+
+                if (empties.length) {
+                    // Deduplicate by selector so one empty state hit across many routes is a
+                    // single line, not one per route.
+                    const groups = new Map<string, { detail: string; routes: string[] }>();
+                    for (const issue of empties) {
+                        const key = `${issue.kind}::${issue.detail}`;
+                        const group = groups.get(key);
+                        if (group) group.routes.push(issue.route);
+                        else groups.set(key, { detail: issue.detail, routes: [issue.route] });
+                    }
+                    for (const { detail, routes } of groups.values()) {
+                        const examples = routes.slice(0, 3).join(", ");
+                        const more = routes.length > 3 ? ` (+${routes.length - 3} more)` : "";
+                        console.warn(
+                            `[ssg] provably-empty selector (${routes.length} route(s)): ` +
+                                `${detail} — ${examples}${more}`,
+                        );
+                    }
+                }
+
+                if (failures.length) {
+                    for (const issue of failures) {
+                        console.error(
+                            `[ssg] render issue: ${issue.route} (${issue.kind}) — ${issue.detail}`,
+                        );
+                    }
+                    if (process.env.SSG_STRICT === "0") {
+                        console.warn(
+                            `[ssg] SSG_STRICT=0: continuing despite ${failures.length} query-failed render issue(s)`,
+                        );
+                    } else {
+                        throw new Error(
+                            `[ssg] prerender recorded ${failures.length} query-failed render issue(s); ` +
+                                `set SSG_STRICT=0 to continue`,
+                        );
+                    }
+                }
             } finally {
                 // Release the build lock so the ISR watcher may regenerate again.
                 if (existsSync(lockPath())) rmSync(lockPath());

@@ -20,7 +20,11 @@ export function chainFor(route: string): Promise<unknown> {
 }
 
 export function queueOnChain(route: string, next: Promise<unknown>): void {
-    ssrChains.set(route, next);
+    // Store a swallowed-rejection tail so a failed query doesn't poison the chain
+    // for every later query on the same route. The caller still awaits its own
+    // original promise, so its own error surfaces; later queries sequence after
+    // this tail and run regardless.
+    ssrChains.set(route, next.catch(() => {}));
 }
 
 /** Frees a route's chain entry once its page has fully rendered. */
