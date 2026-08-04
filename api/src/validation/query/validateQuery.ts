@@ -23,11 +23,13 @@ export const DEFAULT_MAX_LIMIT = 500;
 
 /**
  * Fallback language cap when the caller doesn't supply one. The app lets a user pick at most 3
- * preferred languages, with the default (English) auto-appended for display — so a legitimate
- * non-CMS content query references at most 4 distinct languages (sync keep ≤3; display ≤4). Keep
- * this in step with the client's preferred-language cap (cap + 1 for the auto-appended default).
+ * preferred languages (`MAX_PREFERRED_LANGUAGES` in app/), with the default (English) auto-appended
+ * for display — so a legitimate non-CMS content query references at most 3 + 1 = 4 distinct
+ * languages. We keep one language of HEADROOM (→ 5) so the boundary isn't exact: a transient
+ * over-cap set, or raising the client's preferred cap by one, no longer instantly gets queries
+ * rejected. (Raising the client cap by more than one still needs this bumped to match.)
  */
-export const DEFAULT_MAX_LANGUAGES = 4;
+export const DEFAULT_MAX_LANGUAGES = 5;
 
 /**
  * DoS guards on the selector shape. A pathological selector (deeply nested logical

@@ -130,7 +130,9 @@ watch(
  * Product cap on how many languages a user may prefer / sync. Enforced authoritatively by the API
  * (`QUERY_MAX_LANGUAGES`); these client-side caps keep the UI within it and give good UX. The
  * display default (English) is auto-appended in `appDisplayLanguageIdsAsRef` and is NOT counted
- * against the preferred cap, so a content query references at most cap + 1 languages.
+ * against the preferred cap, so a content query references at most cap + 1 languages. The API cap
+ * keeps one language of headroom above that, so bumping this by one won't need a lock-step API
+ * change (bumping by more than one does).
  */
 export const MAX_PREFERRED_LANGUAGES = 3;
 export const MAX_SYNCED_LANGUAGES = 3;
