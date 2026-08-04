@@ -7,6 +7,9 @@
 
 export const QUERY_PAGE_SIZE = 500;
 export const QUERY_USE_INDEX = "updatedTimeUtc-type-id-index";
+// Labels the build's enumeration traffic in the API's expensive-query logs so it
+// is separable from app and sync load.
+export const QUERY_IDENTIFIER = "ssgDrain";
 
 export type QueryCursor = { updatedTimeUtc: number; _id: string };
 export type KeysetDocument = QueryCursor;
@@ -18,6 +21,7 @@ export type KeysetQuery = {
     limit: number;
     sort: Array<Record<string, "asc">>;
     use_index: string;
+    identifier: string;
 };
 
 /** Injected by the caller (`vite.config.web.ts`) as a thin `fetch` wrapper around `/query`. */
@@ -58,6 +62,7 @@ export function buildKeysetQuery(options: DrainQueryOptions, cursor?: QueryCurso
         limit: options.limit ?? QUERY_PAGE_SIZE,
         sort: [{ updatedTimeUtc: "asc" }, { type: "asc" }, { _id: "asc" }],
         use_index: QUERY_USE_INDEX,
+        identifier: QUERY_IDENTIFIER,
     };
 }
 

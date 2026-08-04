@@ -20,7 +20,9 @@ import { SSG_DISPLAY_LANGUAGES, ssgDisplayLanguages } from "./ssg/renderLanguage
 import { isPrerender } from "./ssg/isPrerender";
 import { captureSsrArticleTextSnapshot } from "./util/ssrTextRecovery";
 
-const LANGUAGES_QUERY = { selector: { type: DocType.Language } };
+// Tag this query so the API's expensive-query logs can separate prerender build load
+// from normal app load.
+const LANGUAGES_QUERY = { selector: { type: DocType.Language }, identifier: "ssgPrerender" };
 
 // The language list is identical for every prerendered page, so fetch it ONCE per
 // build (the full ~2k-route build otherwise re-fetches + re-allocates it per page).

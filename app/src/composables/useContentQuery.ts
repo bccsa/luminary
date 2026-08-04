@@ -56,7 +56,7 @@ function resolveQuery(q: MangoQuery, local: boolean): Promise<ContentDto[]> {
     const localResult = local ? queryContentLocal(q) : null;
     return localResult && localResult.length > 0
         ? Promise.resolve(localResult)
-        : queryRemote<ContentDto>(q);
+        : queryRemote<ContentDto>({ ...q, identifier: "ssgPrerender" });
 }
 
 // Backs `buildOnce`: a query that is genuinely identical on every route (see the option's

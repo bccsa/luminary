@@ -3,7 +3,7 @@ import { type StorageDto, useHybridQuery, type Uuid, queryRemote } from "luminar
 import { isPrerender } from "@/ssg/isPrerender";
 
 // Storage buckets use a fixed `cacheId` so this query's response-cache entry stays distinct from same-shaped queries. The result is the same for every viewer since buckets are public.
-const STORAGE_QUERY = { selector: { type: "storage" } };
+const STORAGE_QUERY = { selector: { type: "storage" }, identifier: "ssgPrerender" };
 const STORAGE_CACHE_ID = "storage-buckets";
 
 // Storage buckets are public and identical for every prerendered page, so the whole SSG

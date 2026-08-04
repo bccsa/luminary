@@ -13,7 +13,7 @@ import {
 } from "@nestjs/common";
 import { QueryService } from "./query.service";
 import { MongoQueryDto } from "../dto/MongoQueryDto";
-import { validateQuery } from "../validation/query/validateQuery";
+import { validateQuery, ALLOWED_IDENTIFIERS } from "../validation/query/validateQuery";
 import { ConfigService } from "@nestjs/config";
 import { WINSTON_MODULE_PROVIDER } from "nest-winston";
 import { Logger } from "winston";
@@ -71,8 +71,13 @@ export class QueryController {
             throw new BadRequestException(`Invalid query: ${validationResult.error}`);
         }
 
-        // `identifier` is an observability label only; strip it before the query runs.
-        const identifier = typeof body?.identifier === "string" ? body.identifier : "unknown";
+        // The label is client-supplied, so it is constrained to a known set before
+        // reaching the logs; an unrecognised label must not fail the query because it
+        // carries no execution meaning.
+        const identifier =
+            typeof body?.identifier === "string" && ALLOWED_IDENTIFIERS.has(body.identifier)
+                ? body.identifier
+                : "unknown";
         delete body.identifier;
 
         const result = await this.queryService.query(body as MongoQueryDto, request.user);

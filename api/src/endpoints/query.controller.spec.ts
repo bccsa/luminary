@@ -109,6 +109,86 @@ describe("QueryController", () => {
         expect(body.identifier).toBeUndefined();
     });
 
+    // The identifier label is client-supplied and lands in structured logs, so it is
+    // constrained to a known set; it carries no execution meaning, so an unrecognised
+    // value is coerced to "unknown" rather than rejecting the query.
+    describe("identifier coercion", () => {
+        it("logs an allowlisted identifier verbatim", async () => {
+            configService.get.mockImplementation(configFor(false));
+            queryService.query.mockResolvedValue({
+                docs: [],
+                execution_stats: { total_docs_examined: 5000, execution_time_ms: 12 },
+            });
+
+            await controller.processPostReq(
+                { identifier: "ssgDrain", selector: { type: "post" } },
+                mockRequest(),
+                mockReply(),
+            );
+
+            expect(logger.warn).toHaveBeenCalledWith(
+                "Expensive /query",
+                expect.objectContaining({ identifier: "ssgDrain" }),
+            );
+        });
+
+        it("coerces an unrecognised identifier to unknown", async () => {
+            configService.get.mockImplementation(configFor(false));
+            queryService.query.mockResolvedValue({
+                docs: [],
+                execution_stats: { total_docs_examined: 5000, execution_time_ms: 12 },
+            });
+
+            await controller.processPostReq(
+                { identifier: "attacker-supplied-label", selector: { type: "post" } },
+                mockRequest(),
+                mockReply(),
+            );
+
+            expect(logger.warn).toHaveBeenCalledWith(
+                "Expensive /query",
+                expect.objectContaining({ identifier: "unknown" }),
+            );
+        });
+
+        it("coerces an oversized identifier to unknown", async () => {
+            configService.get.mockImplementation(configFor(false));
+            queryService.query.mockResolvedValue({
+                docs: [],
+                execution_stats: { total_docs_examined: 5000, execution_time_ms: 12 },
+            });
+
+            await controller.processPostReq(
+                { identifier: "x".repeat(10000), selector: { type: "post" } },
+                mockRequest(),
+                mockReply(),
+            );
+
+            expect(logger.warn).toHaveBeenCalledWith(
+                "Expensive /query",
+                expect.objectContaining({ identifier: "unknown" }),
+            );
+        });
+
+        it("still executes the query when the identifier is unrecognised", async () => {
+            configService.get.mockImplementation(configFor(false));
+            queryService.query.mockResolvedValue({
+                docs: [],
+                execution_stats: { total_docs_examined: 5000, execution_time_ms: 12 },
+            });
+
+            await expect(
+                controller.processPostReq(
+                    { identifier: "not-a-real-label", selector: { type: "post" } },
+                    mockRequest(),
+                    mockReply(),
+                ),
+            ).resolves.not.toThrow();
+
+            expect(queryService.query).toHaveBeenCalled();
+        });
+    });
+
     it("returns 429 with Retry-After when the rate limiter denies the request", async () => {
         configService.get.mockImplementation(configFor(true));
         rateLimiter.check.mockReturnValue({ allowed: false, retryAfterMs: 4200 });
