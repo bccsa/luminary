@@ -1,0 +1,12 @@
+{
+  "name": "hardware-bridge-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "HTTPS demo page that calls the local Hardware Bridge API.",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "selfsigned": "^2.1.1"
+  }
+}

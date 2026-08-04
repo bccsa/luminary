@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hardware Bridge — HTTPS → localhost PoC</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body { font: 14px/1.55 -apple-system, system-ui, sans-serif; max-width: 760px; margin: 28px auto; padding: 0 16px; }
+      h1 { font-size: 19px; } h2 { font-size: 15px; margin-top: 26px; }
+      code, pre { font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; }
+      pre { background: #f5f5f5; padding: 10px; border-radius: 6px; overflow:auto; white-space: pre-wrap; }
+      @media (prefers-color-scheme: dark) { pre { background: #1e1e1e; } }
+      .row { margin: 8px 0; }
+      .muted { color: #777; }
+      .pill { display:inline-block; padding:1px 8px; border-radius:99px; font-size:12px; font-weight:600; }
+      .granted { background:#dcfce7; color:#166534; }
+      .prompt  { background:#fef9c3; color:#854d0e; }
+      .denied  { background:#fee2e2; color:#991b1b; }
+      .unsupported { background:#e5e7eb; color:#374151; }
+      button { padding:6px 12px; border:1px solid #ccc; border-radius:6px; background:#fff; cursor:pointer; }
+      @media (prefers-color-scheme: dark) { button { background:#2a2a2a; border-color:#444; color:#eee; } }
+      input[type=text] { padding:5px 8px; border:1px solid #ccc; border-radius:6px; width:300px; box-sizing:border-box; }
+      .grid { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    </style>
+  </head>
+  <body>
+    <h1>Hardware Bridge — HTTPS → localhost PoC</h1>
+    <div class="muted" id="origin"></div>
+
+    <h2>Browser &amp; Local Network Access permission</h2>
+    <div class="row" id="browser"></div>
+    <div class="row">LNA permission state: <span id="lna" class="pill unsupported">checking…</span>
+      <span class="muted" id="lnaNote"></span></div>
+
+    <h2>Local service</h2>
+    <div class="row grid">
+      <input id="target" type="text" value="http://localhost:4781" />
+      <button id="ping">Ping</button>
+      <button id="sys">Get system</button>
+      <button id="getDev">Get device</button>
+    </div>
+    <div class="row grid">
+      <button id="toggle">Toggle device on/off</button>
+      <span class="muted">writes via POST → proves bidirectional hardware interaction</span>
+    </div>
+
+    <h2>Result</h2>
+    <pre id="out">—</pre>
+
+    <h2>What each failure mode looks like</h2>
+    <ul class="muted">
+      <li><b>Mixed content block</b>: only if you target a non-loopback HTTP URL (e.g. <code>http://192.168.x.x</code>) from this HTTPS page. Loopback (<code>localhost</code>/<code>127.0.0.1</code>) is a secure origin, so it is allowed.</li>
+      <li><b>CORS failure</b>: the server didn't return <code>Access-Control-Allow-Origin</code> for this origin. Network error with a CORS message in DevTools.</li>
+      <li><b>LNA denied/prompt</b> (Chrome 142+): a <code>TypeError: Failed to fetch</code> while the LNA pill reads <code>prompt</code>/<code>denied</code>. Firefox/Safari show no prompt — just CORS + mixed content.</li>
+    </ul>
+
+    <script>
+      const out = document.getElementById('out');
+      const target = document.getElementById('target');
+
+      // ---- Identify the page origin so we can predict LNA behaviour ------------
+      const pageOrigin = location.origin;
+      const isLoopbackOrigin = /localhost|127\.0\.0\.1|\.localhost/.test(location.hostname);
+      document.getElementById('origin').textContent =
+        `This page is served from ${pageOrigin} (${isLoopbackOrigin ? 'loopback origin → no LNA prompt expected' : 'non-loopback origin → LNA prompt expected on Chrome 142+'}).`;
+
+      // ---- Browser sniff (the PoC doubles as a diagnostic) --------------------
+      const ua = navigator.userAgent;
+      const browser = /Edg\//.test(ua) ? 'Edge (Chromium)'
+        : /Chrome\//.test(ua) && !/Edg|OPR|Brave/.test(ua) ? 'Chrome'
+        : /Firefox\//.test(ua) ? 'Firefox'
+        : /Safari\//.test(ua) ? 'Safari' : 'Other (Chromium)';
+      document.getElementById('browser').textContent = `Browser: ${browser}`;
+
+      // ---- Local Network Access permission (feature-detected) -----------------
+      async function refreshLna() {
+        const el = document.getElementById('lna');
+        const note = document.getElementById('lnaNote');
+        if (!navigator.permissions || !navigator.permissions.query) {
+          el.textContent = 'unsupported'; el.className = 'pill unsupported';
+          note.textContent = 'navigator.permissions.query unavailable';
+          return 'unsupported';
+        }
+        try {
+          const s = await navigator.permissions.query({ name: 'local-network-access' });
+          el.textContent = s.state; el.className = 'pill ' + s.state;
+          note.textContent = s.state === 'prompt' ? 'first call will trigger a browser prompt' : '';
+          s.onchange = () => { el.textContent = s.state; el.className = 'pill ' + s.state; };
+          return s.state;
+        } catch {
+          el.textContent = 'unsupported'; el.className = 'pill unsupported';
+          note.textContent = "browser doesn't know the 'local-network-access' permission (Firefox/Safari)";
+          return 'unsupported';
+        }
+      }
+      refreshLna();
+
+      // ---- Call helper that categorises failures -------------------------------
+      async function call(url, opts = {}) {
+        const lna = document.getElementById('lna').textContent;
+        try {
+          const r = await fetch(url, opts);
+          let data; try { data = await r.json(); } catch { data = null; }
+          return { ok: r.ok, status: r.status, data, origin: pageOrigin };
+        } catch (e) {
+          // A TypeError "Failed to fetch" is ambiguous; use context to explain it.
+          const u = new URL(url);
+          const loopbackTarget = /localhost|127\.0\.0\.1|\.localhost/.test(u.hostname);
+          let why = 'Network error.';
+          if (!loopbackTarget && u.protocol === 'http:') {
+            why = 'Likely a MIXED CONTENT block: non-loopback HTTP from an HTTPS page is not allowed.';
+          } else if (lna === 'denied') {
+            why = 'LNA permission DENIED — the browser blocked the public→loopback request.';
+          } else if (lna === 'prompt') {
+            why = 'LNA permission still on "prompt" — approve the browser prompt, then retry.';
+          } else if (lna === 'granted') {
+            why = 'LNA granted but fetch failed — likely CORS (server not allowing this origin) or the service is not running.';
+          } else {
+            why = 'Likely CORS (origin not allowed) or the local service is not running on ' + u.host + '.';
+          }
+          return { ok: false, error: e.name + ': ' + e.message, why };
+        }
+      }
+
+      function render(res) {
+        out.textContent = JSON.stringify(res, null, 2);
+      }
+
+      const json = { headers: { 'Content-Type': 'application/json' } };
+
+      document.getElementById('ping').onclick = async () => render(await call(target.value + '/api/ping'));
+      document.getElementById('sys').onclick  = async () => render(await call(target.value + '/api/system'));
+      document.getElementById('getDev').onclick = async () => render(await call(target.value + '/api/device'));
+      document.getElementById('toggle').onclick = async () => {
+        const cur = await call(target.value + '/api/device');
+        const next = { on: !(cur.data && cur.data.on) };
+        render(await call(target.value + '/api/device', { method: 'POST', ...json, body: JSON.stringify(next) }));
+        refreshLna();
+      };
+    </script>
+  </body>
+</html>
