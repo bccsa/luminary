@@ -19,6 +19,7 @@ import { docKey, facetsFromSelector } from "@/ssg/facetKeys";
 import { reportCacheEntry, reportKeys } from "@/ssg/dependencyCapture";
 import { chainFor, queueOnChain } from "@/ssg/ssrChains";
 import { isPrerender } from "@/ssg/isPrerender";
+import { queryContentLocal } from "@/ssg/contentStore";
 
 /** Reads back one just-written response-cache entry so it can be attributed to its route. Takes the full `hqcache:`-prefixed storage key (matching shared's `STORAGE_PREFIX`). */
 function readCacheEntry(storageKey: string): string | null {
@@ -38,15 +39,27 @@ function stripDocs(docs: ContentDto[], stripFields: string[]): ContentDto[] {
     });
 }
 
+// Resolve a query from the build-time content corpus when `local` is set and a corpus
+// was published; otherwise POST as before. The `local` flag is the caller's promise that
+// the query's selector bounds results to `publishDate <= now` (i.e. `publishedFilter` and
+// `includeScheduled === false` — the default `includeScheduled` is treated as true by
+// `mangoIsPublished`, so only an explicit `false` rules out coming-soon docs). The corpus
+// is the anonymous published-now set, so a query that can match future-dated docs must
+// still go to `queryRemote`.
+function resolveQuery(q: MangoQuery, local: boolean): Promise<ContentDto[]> {
+    const localResult = local ? queryContentLocal(q) : null;
+    return localResult ? Promise.resolve(localResult) : queryRemote<ContentDto>(q);
+}
+
 // Backs `buildOnce`: a query that is genuinely identical on every route (see the option's
 // own doc comment for the safety caveat) shares ONE fetch for the whole build instead of
 // firing again per page.
 const buildOnceFetches = new Map<string, Promise<ContentDto[]>>();
 
-function fetchBuildOnce(key: string, q: MangoQuery): Promise<ContentDto[]> {
+function fetchBuildOnce(key: string, q: MangoQuery, local: boolean): Promise<ContentDto[]> {
     let p = buildOnceFetches.get(key);
     if (!p) {
-        p = queryRemote<ContentDto>(q).catch((err) => {
+        p = resolveQuery(q, local).catch((err) => {
             // Don't let one transient failure poison the rest of the build — let the next page's render retry.
             buildOnceFetches.delete(key);
             throw err;
@@ -265,10 +278,14 @@ function useContentQueryState(
                     out.value = [];
                     return;
                 }
+                // `publishedFilter && includeScheduled === false` is the set of queries
+                // whose selector bounds results to `publishDate <= now`, so the build-time
+                // corpus (the anonymous published-now set) can answer them locally.
+                const local = publishedFilter && includeScheduled === false;
                 const docs = stripDocs(
                     buildOnce
-                        ? await fetchBuildOnce(structuralCacheKey(q, rest.cacheId), q)
-                        : await queryRemote<ContentDto>(q),
+                        ? await fetchBuildOnce(structuralCacheKey(q, rest.cacheId), q, local)
+                        : await resolveQuery(q, local),
                     stripFields,
                 );
                 out.value = docs;

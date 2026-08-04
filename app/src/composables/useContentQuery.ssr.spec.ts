@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { flushPromises } from "@vue/test-utils";
-import { DocType, structuralCacheKey, type ContentDto } from "luminary-shared";
+import { DocType, PublishStatus, structuralCacheKey, type ContentDto } from "luminary-shared";
 
 // Mock `onServerPrefetch` to invoke its callback immediately, reproducing what a real SSR render does (the callback is awaited before the page is serialized) without a full component harness.
 vi.mock("vue", async (importOriginal) => {
@@ -33,6 +33,23 @@ import { useContentQuery } from "./useContentQuery";
 const fakeDoc = {
     _id: "content-1",
     type: DocType.Content,
+    updatedTimeUtc: 1000,
+    parentId: "parent-1",
+    title: "Title",
+    text: "<p>Full body</p>",
+    fts: ["abc:1"],
+    ftsTokenCount: 5,
+    memberOf: ["group-1"],
+    _rev: "1-abc",
+} as unknown as ContentDto;
+
+// A doc that satisfies the `mangoIsPublished([], { includeScheduled: false })` clause
+// (status Published, past publishDate, no expiry) so the local corpus resolver returns it.
+const publishedCorpusDoc = {
+    _id: "content-pub-1",
+    type: DocType.Content,
+    status: PublishStatus.Published,
+    publishDate: 1_000_000, // comfortably in the past relative to sessionNow()
     updatedTimeUtc: 1000,
     parentId: "parent-1",
     title: "Title",
@@ -440,6 +457,55 @@ describe("useContentQuery — SSR prerender path", () => {
             expect(order).toEqual(["build-once", "chained"]);
 
             routeMock.path = "/test-route";
+        });
+    });
+
+    describe("build-time content store (local corpus) fallback", () => {
+        const CORPUS_KEY = "__SSG_CONTENT_CORPUS__";
+
+        afterEach(() => {
+            delete (globalThis as Record<string, unknown>)[CORPUS_KEY];
+        });
+
+        // `publishedFilter && includeScheduled === false` is the gate: the selector
+        // bounds results to `publishDate <= now`, so the drained corpus can answer it.
+        it("serves a corpus-satisfiable query locally without calling queryRemote", async () => {
+            (globalThis as Record<string, unknown>)[CORPUS_KEY] = [{ ...publishedCorpusDoc }];
+            const out = useContentQuery(() => [{ parentId: "parent-1" }], {
+                publishedFilter: true,
+                languageFilter: false,
+                includeScheduled: false,
+            });
+            await flushPromises();
+
+            expect(queryRemoteMock).not.toHaveBeenCalled();
+            expect(out.value).toHaveLength(1);
+            expect(out.value[0]._id).toBe("content-pub-1");
+            // The default stripFields still apply on the locally-served path.
+            expect(out.value[0]).not.toHaveProperty("text");
+        });
+
+        it("falls back to queryRemote when the query is not corpus-satisfiable (publishedFilter:false)", async () => {
+            (globalThis as Record<string, unknown>)[CORPUS_KEY] = [{ ...publishedCorpusDoc }];
+            useContentQuery(() => [{ parentId: "parent-1" }], {
+                publishedFilter: false,
+                languageFilter: false,
+            });
+            await flushPromises();
+
+            expect(queryRemoteMock).toHaveBeenCalledTimes(1);
+        });
+
+        it("falls back to queryRemote when no corpus has been published", async () => {
+            delete (globalThis as Record<string, unknown>)[CORPUS_KEY];
+            useContentQuery(() => [{ parentId: "parent-1" }], {
+                publishedFilter: true,
+                languageFilter: false,
+                includeScheduled: false,
+            });
+            await flushPromises();
+
+            expect(queryRemoteMock).toHaveBeenCalledTimes(1);
         });
     });
 });

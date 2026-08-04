@@ -27,7 +27,7 @@ import {
 } from "./src/ssg/queryDrain";
 import { ACTIVE_PROVIDER_KEY, LEGACY_AUTH0_CACHE_PREFIX, OIDC_USER_PREFIX } from "./src/authStorage";
 import { releaseSsrChain } from "./src/ssg/ssrChains";
-import { DocType, RedirectType, type DeleteReason } from "luminary-shared";
+import { DocType, RedirectType, type DeleteReason, type ContentDto } from "luminary-shared";
 
 const env = loadEnv("", process.cwd());
 
@@ -438,6 +438,12 @@ async function fetchPublicSlugs(apiUrl: string, now: number): Promise<string[]> 
         if (d.language) routeLang[`/${d.slug}`] = d.language;
     }
     (globalThis as Record<string, unknown>).__SSG_ROUTE_LANG__ = routeLang;
+    // Publish the full drained corpus for the SSR branch's local query resolver
+    // (src/ssg/contentStore.ts). The drain returns whole content docs; everything above
+    // only kept slug/language/lastmod/facets, so without this the per-page queries would
+    // re-POST for slices of the same set. Read on `globalThis` because the config and the
+    // Vite-SSG app bundle are separate module realms.
+    (globalThis as Record<string, unknown>).__SSG_CONTENT_CORPUS__ = docs as unknown as ContentDto[];
     return [...slugs];
 }
 
