@@ -305,7 +305,7 @@ defineExpose({
             />
             <p
                 v-if="fileTypeDescription && parent?.imageBucketId"
-                class="mt-1 text-xs text-zinc-500"
+                class="mt-1 text-xs text-zinc-500 dark:text-zinc-400"
             >
                 {{ fileTypeDescription }}
             </p>
@@ -320,12 +320,12 @@ defineExpose({
                     @click="showFailureMessage = !showFailureMessage"
                     :title="failureMessage"
                 >
-                    <ExclamationCircleIcon class="h-5 w-5 text-red-600" />
+                    <ExclamationCircleIcon class="h-5 w-5 text-red-600 dark:text-red-400" />
                 </button>
 
                 <!-- Error Message -->
                 <div v-if="showFailureMessage" class="">
-                    <p class="my-2 text-xs text-red-600">
+                    <p class="my-2 text-xs text-red-600 dark:text-red-400">
                         {{ failureMessage }}
                     </p>
                 </div>
@@ -340,7 +340,7 @@ defineExpose({
             @dragleave="handleDragLeave"
             @drop="handleDrop"
             :class="{
-                'border-blue-500 bg-blue-50': isDragging,
+                'border-blue-500 bg-blue-50 dark:bg-blue-900/20': isDragging,
             }"
         >
             <!-- Drop instructions -->
@@ -381,7 +381,7 @@ defineExpose({
                     <div
                         v-for="c in parent.imageData.fileCollections"
                         :key="c.aspectRatio"
-                        class="flex shrink-0 items-center justify-center gap-0 rounded border-2 border-zinc-200 text-xs shadow scrollbar-hide"
+                        class="flex shrink-0 items-center justify-center gap-0 rounded border-2 border-zinc-200 text-xs shadow scrollbar-hide dark:border-slate-700 dark:shadow-none"
                     >
                         <ImageEditorThumbnail
                             :imageFileCollection="c"
@@ -395,7 +395,7 @@ defineExpose({
                     <div
                         v-for="u in parent.imageData.uploadData"
                         :key="u.filename"
-                        class="flex shrink-0 items-center justify-center rounded text-xs shadow"
+                        class="flex shrink-0 items-center justify-center rounded text-xs shadow dark:shadow-none"
                     >
                         <ImageEditorThumbnail
                             :imageUploadData="u"
@@ -409,7 +409,7 @@ defineExpose({
 
             <!-- No images fallback -->
             <div v-else class="my-4 text-center italic">
-                <p class="text-sm text-zinc-500">No images uploaded yet.</p>
+                <p class="text-sm text-zinc-500 dark:text-zinc-400">No images uploaded yet.</p>
             </div>
         </div>
     </div>
