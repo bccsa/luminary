@@ -56,7 +56,7 @@ function collapse() {
         :class="[
             bare
                 ? ''
-                : 'border-y border-zinc-300 px-2 shadow-zinc-300/60 sm:mx-0 sm:rounded-md sm:border sm:border-zinc-200',
+                : 'border-y border-zinc-300 px-2 shadow-sm dark:border-slate-700 dark:shadow-none sm:mx-0 sm:rounded-md sm:border sm:border-zinc-300',
             {
                 'shadow-none': !bare && props.shadow === 'none',
                 'shadow-sm': !bare && props.shadow === 'small',
@@ -79,8 +79,14 @@ function collapse() {
             @click="collapse"
         >
             <div class="flex items-center gap-1">
-                <component v-if="icon" :is="icon" class="h-5 w-5 text-zinc-400" />
-                <h3 class="text-sm font-medium leading-6 text-zinc-900">{{ title }}</h3>
+                <component
+                    v-if="icon"
+                    :is="icon"
+                    class="h-5 w-5 text-zinc-700 dark:text-zinc-400"
+                />
+                <h3 class="text-sm font-medium leading-6 text-zinc-900 dark:text-yellow-400">
+                    {{ title }}
+                </h3>
             </div>
 
             <!-- Stop clicks on actions/chevron from bubbling to the header toggle: action buttons
@@ -90,12 +96,12 @@ function collapse() {
                 <button @click="collapse" v-if="collapsible" data-test="collapse-button">
                     <ChevronDownIcon
                         v-if="collapsed"
-                        class="h-5 w-5 text-zinc-600"
+                        class="h-5 w-5 text-zinc-600 dark:text-zinc-400"
                         title="Open card content"
                     />
                     <ChevronUpIcon
                         v-if="!collapsed"
-                        class="h-5 w-5 text-zinc-600"
+                        class="h-5 w-5 text-zinc-600 dark:text-zinc-400"
                         title="Collapse card content"
                     />
                 </button>
@@ -122,7 +128,8 @@ function collapse() {
             >
                 <slot />
             </div>
-            <div v-if="$slots.footer" class="bg-zinc-50 px-2 py-3">
+            <!-- Footer ajusté pour le mode sombre -->
+            <div v-if="$slots.footer" class="bg-zinc-50 px-2 py-3 dark:bg-slate-900/50">
                 <slot name="footer" />
             </div>
         </div>

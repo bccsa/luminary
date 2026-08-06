@@ -135,23 +135,29 @@ const isLoading = computed(() =>
 );
 const hasMore = computed(() => (searchActive.value ? search.hasMore.value : browse.hasMore.value));
 
-const { output: anyContentOfType, isFetching: isCheckingForContent } = useHybridQueryWithState<ContentDto>(
-    () => ({
-        selector: {
-            $and: [
-                { type: DocType.Content },
-                { parentType: props.docType },
-                props.docType === DocType.Tag
-                    ? { parentTagType: props.tagOrPostType }
-                    : { parentPostType: props.tagOrPostType },
-            ],
+const { output: anyContentOfType, isFetching: isCheckingForContent } =
+    useHybridQueryWithState<ContentDto>(
+        () => ({
+            selector: {
+                $and: [
+                    { type: DocType.Content },
+                    { parentType: props.docType },
+                    props.docType === DocType.Tag
+                        ? { parentTagType: props.tagOrPostType }
+                        : { parentPostType: props.tagOrPostType },
+                ],
+            },
+            $sort: [{ updatedTimeUtc: "desc" }],
+            $limit: 1,
+            use_index: "updatedTimeUtc-type-id-index",
+        }),
+        {
+            live: true,
+            persistOffline: false,
+            cache: false,
+            stripFields: ["fts", "ftsTokenCount", "text", "_rev"],
         },
-        $sort: [{ updatedTimeUtc: "desc" }],
-        $limit: 1,
-        use_index: "updatedTimeUtc-type-id-index",
-    }),
-    { live: true, persistOffline: false, cache: false, stripFields: ["fts", "ftsTokenCount", "text", "_rev"] },
-);
+    );
 const hasAnyContent = computed(() => (anyContentOfType.value?.length ?? 0) > 0);
 
 const onLoadMore = () => {
@@ -219,7 +225,7 @@ const createNew = () => {
         <template #topBarActionsDesktop>
             <LButton
                 v-if="canCreateNew && hasAnyContent && !isSmallScreen"
-                variant="primary"
+                variant="secondary"
                 :icon="PlusIcon"
                 :is="RouterLink"
                 :to="{
@@ -238,7 +244,7 @@ const createNew = () => {
         <template #topBarActionsMobile>
             <PlusIcon
                 v-if="canCreateNew && hasAnyContent && isSmallScreen"
-                class="h-8 w-8 cursor-pointer rounded bg-zinc-100 p-1 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-700"
+                class="h-8 w-8 cursor-pointer rounded bg-zinc-100 p-1 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-700 active:bg-zinc-100/70 dark:bg-slate-700 dark:text-zinc-100 dark:ring-slate-600 dark:hover:bg-slate-600 dark:active:bg-slate-500"
                 @click="createNew"
             />
         </template>

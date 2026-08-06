@@ -37,9 +37,14 @@ const props = withDefaults(defineProps<Props>(), {
 const model = defineModel<string | number | undefined>();
 
 const states = {
-    default:
-        "border-zinc-300 bg-white focus-within:outline-none focus-within:outline focus-within:outline-offset-[-3px] focus-within:outline-zinc-500 focus-within:ring-0",
-    error: "border-red-300 bg-red-50 text-red-900 focus-within:outline-none focus-within:outline focus-within:outline-offset-[-3px] focus-within:outline-red-500 focus-within:ring-0",
+    default: `
+        border-zinc-300 bg-white focus-within:outline-none focus-within:outline focus-within:outline-offset-[-3px] focus-within:outline-zinc-500 focus-within:ring-0
+        dark:border-slate-700 dark:bg-slate-900 dark:focus-within:outline-indigo-500
+    `,
+    error: `
+        border-red-300 bg-red-50 text-red-900 focus-within:outline-none focus-within:outline focus-within:outline-offset-[-3px] focus-within:outline-red-500 focus-within:ring-0
+        dark:border-red-900 dark:bg-red-950/20 dark:text-red-400 dark:focus-within:outline-red-500
+    `,
 };
 
 // Heights are border-box (Tailwind default), so include the trigger's 1px borders.
@@ -71,19 +76,25 @@ function selectOption(option: Option) {
 
 function listOptionClass(option: Option): string {
     if (option.disabled) {
-        return "cursor-not-allowed text-zinc-400";
+        return "cursor-not-allowed text-zinc-400 dark:text-zinc-600";
     }
     const selected = model.value === option.value;
     if (selected) {
-        return "bg-zinc-50 font-medium text-zinc-900 hover:bg-zinc-100 focus:bg-zinc-100";
+        return `
+            bg-zinc-50 font-medium text-zinc-900 hover:bg-zinc-100 focus:bg-zinc-100
+            dark:bg-slate-700 dark:text-white dark:hover:bg-slate-600 dark:focus:bg-slate-600
+        `;
     }
-    return "bg-white text-black hover:bg-zinc-100 focus:bg-zinc-100";
+    return `
+        bg-white text-black hover:bg-zinc-100 focus:bg-zinc-100
+        dark:bg-slate-800 dark:text-zinc-300 dark:hover:bg-slate-700 dark:focus:bg-slate-700
+    `;
 }
 </script>
 
 <template>
     <div class="relative" :class="$attrs['class']" :style="$attrs['style'] as StyleValue">
-        <div v-if="label" class="mb-2 flex justify-between">
+        <div v-if="label" class="mb-2 flex justify-between dark:text-zinc-100">
             <div class="flex items-center gap-1">
                 <FormLabel :for="id" :required="required">{{ label }}</FormLabel>
             </div>
@@ -103,15 +114,16 @@ function listOptionClass(option: Option): string {
                     :aria-expanded="showDropdown"
                     :aria-haspopup="true"
                     :aria-required="required"
-                    class="relative flex w-full cursor-pointer justify-between gap-2 rounded-md border-[1px] hover:bg-zinc-50 focus:outline-none"
+                    class="relative flex w-full cursor-pointer justify-between gap-2 rounded-md border-[1px] transition-colors focus:outline-none"
                     :class="[
                         states[state],
                         sizeHeights[size],
-                        'pl-3 pr-8',
+                        'pl-3 pr-8 hover:bg-zinc-50 dark:hover:bg-slate-800',
                         {
-                            'cursor-not-allowed bg-zinc-100 text-zinc-500': disabled,
-                            'text-zinc-900': !isPlaceholderShown && !disabled,
-                            'text-zinc-400': isPlaceholderShown && !disabled,
+                            'cursor-not-allowed bg-zinc-100 text-zinc-500 dark:bg-slate-950 dark:text-zinc-700':
+                                disabled,
+                            'text-zinc-900 dark:text-zinc-100': !isPlaceholderShown && !disabled,
+                            'text-zinc-400 dark:text-zinc-500': isPlaceholderShown && !disabled,
                         },
                     ]"
                     v-bind="attrsWithoutStyles"
@@ -121,8 +133,10 @@ function listOptionClass(option: Option): string {
                             <component
                                 :is="icon"
                                 :class="{
-                                    'text-zinc-400': state === 'default' && !disabled,
-                                    'text-zinc-300': state === 'default' && disabled,
+                                    'text-zinc-400 dark:text-zinc-500':
+                                        state === 'default' && !disabled,
+                                    'text-zinc-300 dark:text-zinc-700':
+                                        state === 'default' && disabled,
                                     'text-red-400': state === 'error',
                                 }"
                                 class="h-5 w-5"
@@ -156,12 +170,12 @@ function listOptionClass(option: Option): string {
                             class="absolute inset-y-0 right-0 z-10 flex items-center px-2"
                             aria-hidden="true"
                         >
-                            <ChevronUpDownIcon class="h-5 w-5 text-zinc-400" />
+                            <ChevronUpDownIcon class="h-5 w-5 text-zinc-400 dark:text-zinc-500" />
                         </span>
                     </div>
                 </div>
             </template>
-            <ul class="w-full" data-test="l-select-listbox">
+            <ul class="w-full dark:bg-slate-800" data-test="l-select-listbox">
                 <li
                     v-for="(option, index) in options"
                     :key="index"
@@ -171,7 +185,7 @@ function listOptionClass(option: Option): string {
                     :aria-disabled="option.disabled === true"
                     name="list-item"
                     :class="[
-                        'relative w-full cursor-pointer select-none list-none py-2 pl-3 pr-9 text-start text-sm outline-none',
+                        'relative w-full cursor-pointer select-none list-none py-2 pl-3 pr-9 text-start text-sm outline-none transition-colors',
                         listOptionClass(option),
                     ]"
                     @click="selectOption(option)"

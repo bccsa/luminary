@@ -33,8 +33,8 @@ const goBackOrHome = useGoBackOrHome();
             class="mx-auto h-10 w-10 text-zinc-400"
             aria-hidden="true"
         />
-        <h3 class="mt-2 text-sm font-semibold text-zinc-900">{{ title }}</h3>
-        <p class="mt-1 text-sm text-zinc-500">{{ description }}</p>
+        <h3 class="mt-2 text-sm font-semibold dark:text-zinc-100">{{ title }}</h3>
+        <p class="mt-1 text-sm dark:text-zinc-100">{{ description }}</p>
         <div class="mt-6 flex flex-wrap items-center justify-center gap-3">
             <LButton
                 v-if="showBackButton"

@@ -35,20 +35,24 @@ const maxContentCount = computed(() => {
                     <span
                         class="font-medium"
                         :class="
-                            lang._id === cmsLanguageIdAsRef ? 'text-yellow-600' : 'text-zinc-700'
+                            lang._id === cmsLanguageIdAsRef
+                                ? 'dark:text-yellow-400'
+                                : 'dark:text-yellow-400'
                         "
                     >
                         {{ lang.name }}
                         <span class="text-xs text-zinc-400"> ({{ lang.languageCode }}) </span>
                     </span>
-                    <span class="text-xs tabular-nums text-zinc-500">
+                    <span class="text-xs tabular-nums text-zinc-800">
                         {{ contentCountPerLanguage[lang._id] ?? 0 }}
                     </span>
                 </div>
                 <div class="mt-0.5 h-1 w-full overflow-hidden rounded-full bg-zinc-100">
                     <div
                         class="h-full rounded-full transition-all"
-                        :class="lang._id === cmsLanguageIdAsRef ? 'bg-yellow-500' : 'bg-zinc-300'"
+                        :class="
+                            lang._id === cmsLanguageIdAsRef ? 'dark:bg-yellow-500' : 'bg-zinc-300'
+                        "
                         :style="{
                             width:
                                 maxContentCount > 0

@@ -92,21 +92,21 @@ const toolbarGrouping: ToolbarItem[][] = [
 // applied per-button in the toolbar slot so that a button nested inside a wrapper
 // (e.g. the download dropdown trigger) stays square instead of rounding both edges.
 const toolbarButtonClass =
-    "!rounded-none !border-0 !shadow-none !bg-zinc-100 px-2 py-1.5 text-sm text-zinc-700 hover:!bg-zinc-200 active:!bg-zinc-300";
+    "!rounded-none !border-0 !shadow-none !bg-zinc-100 dark:!bg-slate-800 px-2 py-1.5 text-sm text-zinc-700 dark:text-zinc-300 hover:!bg-zinc-200 dark:hover:!bg-slate-700 active:!bg-zinc-300 dark:active:!bg-slate-600";
 
 const toolbarClasses = {
     root: "flex min-h-0 flex-1 flex-col",
     header: "flex items-center gap-2",
-    icon: "h-6 w-6 text-zinc-600",
-    title: "text-sm font-medium text-zinc-700",
+    icon: "h-6 w-6 text-zinc-600 dark:text-zinc-400",
+    title: "text-sm font-medium text-zinc-700 dark:text-zinc-300",
     toolbar: "flex flex-nowrap items-center gap-4 overflow-x-auto scrollbar-hide",
     toolbarGroup: "flex shrink-0 !gap-0 !overflow-hidden !rounded-md !shadow-none pb-0",
     button: `${toolbarButtonClass} first:!rounded-l-md last:!rounded-r-md`,
-    buttonActive: "!bg-zinc-300",
+    buttonActive: "!bg-zinc-300 dark:!bg-slate-600",
     editor: "flex min-h-0 flex-1 flex-col overflow-hidden",
     editorContent:
-        "prose prose-zinc lg:prose-sm max-w-none min-h-0 flex-1 border-0 bg-white px-0 py-0 ring-0 focus:outline-none focus:ring-0 rounded-none lg:h-full",
-    placeholder: "text-zinc-400",
+        "prose prose-zinc dark:prose-invert lg:prose-sm max-w-none min-h-0 flex-1 border-0 bg-white dark:bg-slate-800 px-0 py-0 ring-0 focus:outline-none focus:ring-0 rounded-none lg:h-full",
+    placeholder: "text-zinc-400 dark:text-zinc-500",
 } as const;
 
 function openLinkModal() {
@@ -193,75 +193,88 @@ defineExpose({
             />
             <div
                 ref="toolbarEl"
-                class="w-full shrink-0 border-b border-zinc-200 bg-white px-4 py-2 lg:static"
+                class="w-full shrink-0 border-b border-zinc-200 bg-white px-4 py-2 dark:border-slate-800 dark:bg-slate-900 lg:static"
                 :class="toolbarClass"
                 :style="pinnedStyle"
             >
                 <div :class="[toolbarClasses.toolbar, 'toolbar-scroll']">
-                <div v-for="(group, gi) in groups" :key="gi" :class="toolbarClasses.toolbarGroup">
-                    <template v-for="item in group" :key="item">
-                        <!-- Download: opens a menu to pick the document type -->
-                        <LDropdown
-                            v-if="item === 'download' && !isDisabled(item)"
-                            v-model:show="showDownloadMenu"
-                            placement="bottom-start"
-                            padding="small"
-                            width="auto"
-                        >
-                            <template #trigger>
+                    <div
+                        v-for="(group, gi) in groups"
+                        :key="gi"
+                        :class="toolbarClasses.toolbarGroup"
+                    >
+                        <template v-for="item in group" :key="item">
+                            <!-- Download: opens a menu to pick the document type -->
+                            <LDropdown
+                                v-if="item === 'download' && !isDisabled(item)"
+                                v-model:show="showDownloadMenu"
+                                placement="bottom-start"
+                                padding="small"
+                                width="auto"
+                            >
+                                <template #trigger>
+                                    <button
+                                        type="button"
+                                        :title="getLabel(item)"
+                                        :class="toolbarButtonClass"
+                                    >
+                                        <ArrowDownTrayIcon class="h-5 w-5" />
+                                    </button>
+                                </template>
                                 <button
+                                    v-for="format in downloadFormats"
+                                    :key="format.id"
                                     type="button"
-                                    :title="getLabel(item)"
-                                    :class="toolbarButtonClass"
+                                    role="menuitem"
+                                    class="flex w-full items-center whitespace-nowrap rounded px-3 py-1.5 text-left text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-slate-800"
+                                    @click="
+                                        selectDownloadFormat(
+                                            format,
+                                            runCommand as (item: ToolbarItem) => void,
+                                        )
+                                    "
                                 >
-                                    <ArrowDownTrayIcon class="h-5 w-5" />
+                                    {{ format.label }}
                                 </button>
-                            </template>
+                            </LDropdown>
+                            <!-- Every other button (incl. download while the editor is empty) -->
                             <button
-                                v-for="format in downloadFormats"
-                                :key="format.id"
+                                v-else
                                 type="button"
-                                role="menuitem"
-                                class="flex w-full items-center whitespace-nowrap rounded px-3 py-1.5 text-left text-sm text-zinc-700 hover:bg-zinc-100"
+                                :disabled="isDisabled(item)"
+                                :title="getLabel(item)"
+                                :class="[
+                                    toolbarClasses.button,
+                                    isActive(item) ? toolbarClasses.buttonActive : '',
+                                    isDisabled(item) ? 'cursor-not-allowed opacity-50' : '',
+                                ]"
                                 @click="
-                                    selectDownloadFormat(
-                                        format,
+                                    handleToolbarClick(
+                                        item as ToolbarItem,
                                         runCommand as (item: ToolbarItem) => void,
                                     )
                                 "
                             >
-                                {{ format.label }}
+                                <BulletlistIcon v-if="item === 'bulletList'" class="h-5 w-5" />
+                                <NumberedListIcon
+                                    v-else-if="item === 'orderedList'"
+                                    class="h-5 w-5"
+                                />
+                                <LinkIcon v-else-if="item === 'link'" class="h-5 w-5" />
+                                <LinkSlashIcon v-else-if="item === 'unlink'" class="h-5 w-5" />
+                                <ArrowUpTrayIcon v-else-if="item === 'upload'" class="h-5 w-5" />
+                                <ArrowDownTrayIcon
+                                    v-else-if="item === 'download'"
+                                    class="h-5 w-5"
+                                />
+                                <ClipboardDocumentIcon
+                                    v-else-if="item === 'copy'"
+                                    class="h-5 w-5"
+                                />
+                                <span v-else>{{ getLabel(item) }}</span>
                             </button>
-                        </LDropdown>
-                        <!-- Every other button (incl. download while the editor is empty) -->
-                        <button
-                            v-else
-                            type="button"
-                            :disabled="isDisabled(item)"
-                            :title="getLabel(item)"
-                            :class="[
-                                toolbarClasses.button,
-                                isActive(item) ? toolbarClasses.buttonActive : '',
-                                isDisabled(item) ? 'cursor-not-allowed opacity-50' : '',
-                            ]"
-                            @click="
-                                handleToolbarClick(
-                                    item as ToolbarItem,
-                                    runCommand as (item: ToolbarItem) => void,
-                                )
-                            "
-                        >
-                            <BulletlistIcon v-if="item === 'bulletList'" class="h-5 w-5" />
-                            <NumberedListIcon v-else-if="item === 'orderedList'" class="h-5 w-5" />
-                            <LinkIcon v-else-if="item === 'link'" class="h-5 w-5" />
-                            <LinkSlashIcon v-else-if="item === 'unlink'" class="h-5 w-5" />
-                            <ArrowUpTrayIcon v-else-if="item === 'upload'" class="h-5 w-5" />
-                            <ArrowDownTrayIcon v-else-if="item === 'download'" class="h-5 w-5" />
-                            <ClipboardDocumentIcon v-else-if="item === 'copy'" class="h-5 w-5" />
-                            <span v-else>{{ getLabel(item) }}</span>
-                        </button>
-                    </template>
-                </div>
+                        </template>
+                    </div>
                 </div>
             </div>
         </template>
@@ -334,7 +347,7 @@ defineExpose({
     margin-bottom: 0 !important;
     border-radius: 0 !important;
     padding: 0 !important;
-    background-color: #fff;
+    background-color: transparent;
     box-shadow: none !important;
 }
 
@@ -405,6 +418,10 @@ defineExpose({
         scrollbar-color: #d4d4d8 transparent;
     }
 
+    :root.dark :deep(.rte-editor-content .ProseMirror) {
+        scrollbar-color: #3f3f46 transparent;
+    }
+
     /* WebKit/Blink: 8px thumb, pill-shaped, inset 2px so it reads as ~4px. */
     :deep(.rte-editor-content .ProseMirror::-webkit-scrollbar) {
         width: 8px;
@@ -421,8 +438,16 @@ defineExpose({
         background-color: #d4d4d8;
     }
 
+    :root.dark :deep(.rte-editor-content .ProseMirror::-webkit-scrollbar-thumb) {
+        background-color: #3f3f46;
+    }
+
     :deep(.rte-editor-content .ProseMirror:hover::-webkit-scrollbar-thumb) {
         background-color: #a1a1aa;
+    }
+
+    :root.dark :deep(.rte-editor-content .ProseMirror:hover::-webkit-scrollbar-thumb) {
+        background-color: #52525b;
     }
 }
 </style>
