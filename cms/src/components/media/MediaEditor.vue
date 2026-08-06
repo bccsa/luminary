@@ -415,7 +415,7 @@ defineExpose({
             />
             <p
                 v-if="fileTypeDescription && parent?.mediaBucketId"
-                class="mt-1 text-xs text-zinc-500"
+                class="mt-1 text-xs text-zinc-500 dark:text-zinc-400"
             >
                 {{ fileTypeDescription }}
             </p>
@@ -430,12 +430,12 @@ defineExpose({
                     @click="showFailureMessage = !showFailureMessage"
                     :title="failureMessage"
                 >
-                    <ExclamationCircleIcon class="h-5 w-5 text-red-600" />
+                    <ExclamationCircleIcon class="h-5 w-5 text-red-600 dark:text-red-400" />
                 </button>
 
                 <!-- Error Message -->
                 <div v-if="showFailureMessage" class="">
-                    <p class="my-2 text-xs text-red-600">
+                    <p class="my-2 text-xs text-red-600 dark:text-red-400">
                         {{ failureMessage }}
                     </p>
                 </div>
@@ -444,13 +444,13 @@ defineExpose({
 
         <!-- Full-width Drag and Drop Area -->
         <div
-            class="-mx-4 flex w-screen flex-col justify-center bg-white transition duration-150 ease-in-out scrollbar-hide sm:mx-0 sm:w-full"
+            class="-mx-4 flex w-screen flex-col justify-center bg-white transition duration-150 ease-in-out scrollbar-hide dark:bg-slate-900 sm:mx-0 sm:w-full"
             @dragenter="handleDragEnter"
             @dragover="handleDragOver"
             @dragleave="handleDragLeave"
             @drop="handleDrop"
             :class="{
-                'border-blue-500 bg-blue-50': isDragging,
+                'border-blue-500 bg-blue-50 dark:bg-blue-900/20': isDragging,
             }"
         >
             <!-- Drop instructions -->
@@ -492,7 +492,7 @@ defineExpose({
                                     (f) => f.languageId === language._id,
                                 )"
                                 :key="c.fileUrl"
-                                class="flex shrink-0 items-center justify-center gap-0 rounded border-2 border-zinc-200 text-xs shadow scrollbar-hide"
+                                class="flex shrink-0 items-center justify-center gap-0 rounded border-2 border-zinc-200 text-xs shadow scrollbar-hide dark:border-slate-700 dark:shadow-none"
                             >
                                 <MediaEditorThumbnail
                                     :mediaFile="c"
@@ -508,7 +508,7 @@ defineExpose({
                                     (u) => u.languageId === language._id,
                                 )"
                                 :key="i"
-                                class="flex shrink-0 items-center justify-center gap-0 rounded border-2 border-zinc-200 text-xs shadow scrollbar-hide"
+                                class="flex shrink-0 items-center justify-center gap-0 rounded border-2 border-zinc-200 text-xs shadow scrollbar-hide dark:border-slate-700 dark:shadow-none"
                             >
                                 <MediaEditorThumbnail
                                     :mediaUploadData="a"
@@ -524,7 +524,7 @@ defineExpose({
 
             <!-- No media fallback -->
             <div v-else class="my-4 text-center italic">
-                <p class="text-sm text-zinc-500">No audio files uploaded yet.</p>
+                <p class="text-sm text-zinc-500 dark:text-zinc-400">No audio files uploaded yet.</p>
             </div>
         </div>
 
@@ -541,21 +541,21 @@ defineExpose({
             <div class="mt-4">
                 <label
                     for="language-select"
-                    class="mb-2 mt-1 block text-sm font-medium text-zinc-700"
+                    class="mb-2 mt-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300"
                 >
                     Choose which language this audio file belongs to:
                 </label>
                 <select
                     id="language-select"
                     v-model="selectedLanguageForUpload"
-                    class="block w-full rounded-md border border-zinc-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                    class="block w-full rounded-md border border-zinc-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-700 dark:text-zinc-100 sm:text-sm"
                 >
                     <option v-for="lang in availableLanguages" :key="lang._id" :value="lang._id">
                         {{ lang.name }}
                         <span v-if="languageHasAudio(lang._id)"> (has audio)</span>
                     </option>
                 </select>
-                <p class="mt-2 text-xs text-zinc-500">
+                <p class="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
                     Select a language for this audio file. If a language already has audio, it will
                     be replaced.
                 </p>
@@ -573,11 +573,11 @@ defineExpose({
             context="danger"
         >
             <div class="mt-4">
-                <p class="text-sm text-zinc-700">
+                <p class="text-sm text-zinc-700 dark:text-zinc-300">
                     The selected language already has an audio file. Uploading this new file will
                     replace the existing audio.
                 </p>
-                <p class="mt-3 text-sm font-medium text-zinc-900">
+                <p class="mt-3 text-sm font-medium text-zinc-900 dark:text-yellow-400">
                     Do you want to continue and replace the existing audio?
                 </p>
             </div>
