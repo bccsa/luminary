@@ -40,10 +40,8 @@ const tags = computed<ContentDto[]>(() => {
     return tagContent.value
         .filter(
             (doc) =>
-                getPreferredContentLanguage(
-                    doc.availableTranslations || [],
-                    props.language?._id,
-                ) == doc.language,
+                getPreferredContentLanguage(doc.availableTranslations || [], props.language?._id) ==
+                doc.language,
         )
         .sort((a, b) => (b.publishDate ?? 0) - (a.publishDate ?? 0));
 });
@@ -113,10 +111,10 @@ const showEditModal = ref(false);
                     type="button"
                     :disabled="disabled"
                     data-test="edit-group"
-                    class="flex items-center rounded-lg text-sm hover:bg-zinc-300/50"
+                    class="flex items-center rounded-lg text-sm hover:bg-zinc-300/50 dark:text-zinc-400 dark:hover:bg-slate-700/50"
                 >
                     edit
-                    <ChevronRightIcon class="-ml-1 h-4 w-4 text-zinc-600" />
+                    <ChevronRightIcon class="-ml-1 h-4 w-4 text-zinc-600 dark:text-zinc-400" />
                 </button>
             </template>
         </LCombobox>
@@ -130,7 +128,10 @@ const showEditModal = ref(false);
             leave-from-class="transform scale-100 opacity-100 absolute"
             leave-to-class="transform scale-90 opacity-0"
         >
-            <div v-if="selectedOptions.length == 0" class="text-xs text-zinc-500">
+            <div
+                v-if="selectedOptions.length == 0"
+                class="text-xs text-zinc-500 dark:text-zinc-400"
+            >
                 No {{ label.toLowerCase() }} selected
             </div>
         </Transition>
