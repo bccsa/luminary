@@ -97,10 +97,12 @@ function collapse() {
                     <ChevronDownIcon
                         v-if="collapsed"
                         class="h-5 w-5 text-zinc-600 dark:text-zinc-400"
+                        class="h-5 w-5 text-zinc-600 dark:text-zinc-400"
                         title="Open card content"
                     />
                     <ChevronUpIcon
                         v-if="!collapsed"
+                        class="h-5 w-5 text-zinc-600 dark:text-zinc-400"
                         class="h-5 w-5 text-zinc-600 dark:text-zinc-400"
                         title="Collapse card content"
                     />
@@ -128,7 +130,7 @@ function collapse() {
             >
                 <slot />
             </div>
-
+            <!-- Footer ajusté pour le mode sombre -->
             <div v-if="$slots.footer" class="bg-zinc-50 px-2 py-3 dark:bg-slate-900/50">
                 <slot name="footer" />
             </div>
