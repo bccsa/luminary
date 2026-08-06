@@ -57,6 +57,7 @@ function collapse() {
             bare
                 ? ''
                 : 'border-y border-zinc-300 px-2 shadow-sm dark:border-slate-700 dark:shadow-none sm:mx-0 sm:rounded-md sm:border sm:border-zinc-300',
+                : 'border-y border-zinc-300 px-2 shadow-sm dark:border-slate-700 dark:shadow-none sm:mx-0 sm:rounded-md sm:border sm:border-zinc-300',
             {
                 'shadow-none': !bare && props.shadow === 'none',
                 'shadow-sm': !bare && props.shadow === 'small',
@@ -97,10 +98,12 @@ function collapse() {
                     <ChevronDownIcon
                         v-if="collapsed"
                         class="h-5 w-5 text-zinc-600 dark:text-zinc-400"
+                        class="h-5 w-5 text-zinc-600 dark:text-zinc-400"
                         title="Open card content"
                     />
                     <ChevronUpIcon
                         v-if="!collapsed"
+                        class="h-5 w-5 text-zinc-600 dark:text-zinc-400"
                         class="h-5 w-5 text-zinc-600 dark:text-zinc-400"
                         title="Collapse card content"
                     />
