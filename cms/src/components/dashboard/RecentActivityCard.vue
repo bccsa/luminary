@@ -30,7 +30,7 @@ function formatRelativeTime(timestamp: number): string {
 
 <template>
     <LCard title="Recent activity" :icon="ClockIcon" fillHeight>
-        <div v-if="recentContent.length === 0" class="py-6 text-center text-sm text-zinc-800">
+        <div v-if="recentContent.length === 0" class="py-6 text-center text-sm dark:text-zinc-800">
             No content found for the selected language.
         </div>
         <ul v-else ref="listEl" class="divide-y divide-zinc-100">
