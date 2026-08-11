@@ -110,6 +110,44 @@ describe("SeedRetention", () => {
         });
     });
 
+    describe("holdsSeed", () => {
+        it("is false on a fresh instance", () => {
+            const r = new SeedRetention();
+            expect(r.holdsSeed()).toBe(false);
+        });
+
+        it("is true while the local contribution is seeded", () => {
+            const r = new SeedRetention();
+            r.recordSeed(3, []);
+            expect(r.holdsSeed()).toBe(true);
+            r.releaseLocal();
+            expect(r.holdsSeed()).toBe(false);
+        });
+
+        it("is true while the remote contribution is seeded", () => {
+            const r = new SeedRetention();
+            r.recordSeed(0, ["a"]);
+            expect(r.holdsSeed()).toBe(true);
+            r.recordRemoteAnswer();
+            expect(r.holdsSeed()).toBe(false);
+        });
+
+        it("stays true for the untouched side after only one side retires", () => {
+            const r = new SeedRetention();
+            r.recordSeed(2, ["a"]);
+            r.releaseLocal();
+            // Local retired, remote still seeded.
+            expect(r.holdsSeed()).toBe(true);
+        });
+
+        it("is false again after reset", () => {
+            const r = new SeedRetention();
+            r.recordSeed(2, ["a"]);
+            r.reset();
+            expect(r.holdsSeed()).toBe(false);
+        });
+    });
+
     describe("reset", () => {
         it("returns every accessor to its initial answer", () => {
             const r = new SeedRetention();

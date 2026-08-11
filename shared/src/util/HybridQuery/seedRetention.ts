@@ -49,6 +49,16 @@ export class SeedRetention {
         this.seededLocal = false;
     }
 
+    /**
+     * Whether either contribution still holds cache-seeded docs. A seeded doc is a
+     * field-stripped projection carrying the real doc's `_id` and `updatedTimeUtc`,
+     * so it is indistinguishable from the authoritative copy by those two keys —
+     * the caller uses this to force a publish rather than trusting that comparison.
+     */
+    holdsSeed(): boolean {
+        return this.seededLocal || this.remoteFromSeed;
+    }
+
     /** Record that a seeded-remote drop is owed after the next local set. */
     deferRemoteDrop(): void {
         this.deferredRemoteDrop = true;

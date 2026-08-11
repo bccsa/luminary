@@ -551,7 +551,7 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
         if (this._seed.shouldRetireLocal()) {
             this._seed.releaseLocal();
             this._local = [];
-            this._recompute();
+            this._recompute(true);
         }
     }
 
@@ -1018,9 +1018,11 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
             this._recompute();
             return;
         }
+        // This read replaces a seeded local contribution, so force the publish.
+        const retiringSeed = this._seed.holdsSeed();
         this._seed.releaseLocal();
         this._local = local;
-        this._recompute();
+        this._recompute(retiringSeed);
     }
 
     /**
@@ -1045,7 +1047,8 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
         } else {
             this._remote = mergeById(this._remote, remote);
         }
-        this._recompute();
+        // A seeded remote contribution has been superseded, so force the publish.
+        this._recompute(seeded !== undefined);
     }
 
     /**
@@ -1057,10 +1060,14 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
         const seeded = this._seed.takeRemoteDrop();
         if (seeded === undefined) return;
         this._remote = this._remote.filter((d) => !seeded.has(d._id));
-        this._recompute();
+        this._recompute(true);
     }
 
-    private _recompute(): void {
+    /**
+     * @param force Publish even when the window looks unchanged — see the `sameWindow`
+     *   call below. Set by the paths that retire a cache seed.
+     */
+    private _recompute(force = false): void {
         // After dispose(), a late POST or a late live emission must NOT mutate
         // output — the consumer has unmounted and treats the ref as dead.
         if (this._disposed) return;
@@ -1112,7 +1119,13 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
         // Mutate the output ref only when the visible window actually changed —
         // saves a Vue re-render for socket batches (and local emissions) that
         // don't affect the sorted/limited view.
-        if (!sameWindow(windowed, this.output.value)) {
+        //
+        // `sameWindow` compares `_id` + `updatedTimeUtc`, which a cache seed shares with
+        // the doc it stands in for: a seed written with `cacheStripFields` is a
+        // field-stripped projection, so the authoritative copy carrying those fields back
+        // compares equal and would never publish. `force` covers the recompute that
+        // retires a seed, so the restored fields reach consumers.
+        if (force || !sameWindow(windowed, this.output.value)) {
             this.output.value = windowed;
             // Persist the window for the next mount's first-paint seed, SPLIT by
             // source: docs backed by `_local` go to `local` (the next real read
