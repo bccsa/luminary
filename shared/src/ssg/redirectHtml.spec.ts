@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { RedirectType } from "luminary-shared";
+import { RedirectType } from "../types";
 import { redirectFile, redirectHtml, redirectStatus } from "./redirectHtml";
 
 describe("redirectHtml", () => {

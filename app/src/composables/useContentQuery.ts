@@ -10,12 +10,13 @@ import {
     structuralCacheKey,
     writeResponseCache,
     isProvablyEmpty,
+    docKey,
+    facetsFromSelector,
 } from "luminary-shared";
 import { useDisplayLanguageIds } from "@/ssg/renderLanguage";
 import { hasPersistedSession } from "@/auth";
 import { mangoIsPublished, publishedNowConditions } from "@/util/mangoIsPublished";
 import { useRoute } from "vue-router";
-import { docKey, facetsFromSelector } from "@/ssg/facetKeys";
 import { reportCacheEntry, reportKeys } from "@/ssg/dependencyCapture";
 import { chainFor, queueOnChain } from "@/ssg/ssrChains";
 import { isPrerender } from "@/ssg/isPrerender";

@@ -35,7 +35,7 @@ export function buildRouteIndex(docs: PublicContentRouteDoc[]): SsgRouteIndex {
         (index.parent[parentId] ||= []).push(route);
     }
     for (const parentId of Object.keys(index.parent)) {
-        index.parent[parentId] = [...new Set(index.parent[parentId])].sort();
+        index.parent[parentId] = Array.from(new Set(index.parent[parentId])).sort();
     }
     return index;
 }

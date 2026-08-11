@@ -1,4 +1,4 @@
-import { RedirectType } from "luminary-shared";
+import { RedirectType } from "../types";
 import { redirectStatus } from "./redirectHtml";
 
 /**

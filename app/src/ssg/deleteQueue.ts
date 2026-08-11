@@ -1,5 +1,9 @@
-import type { DeleteReason } from "luminary-shared";
-import { resolveContentDelete, routeForSlug, type SsgRouteIndex } from "./routeIndex";
+import {
+    type DeleteReason,
+    resolveContentDelete,
+    routeForSlug,
+    type SsgRouteIndex,
+} from "luminary-shared";
 
 /**
  * Durable, file-based pending-delete queue (`dist-web/ssg-delete-queue/`). Persists

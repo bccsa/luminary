@@ -1,4 +1,4 @@
-import type { DependencyKey } from "./facetKeys";
+import type { DependencyKey } from "luminary-shared";
 
 /**
  * Render-time dependency capture. The collector lives on `globalThis.__SSG_DEPS__`

@@ -6,16 +6,6 @@ import type { ViteSSGOptions } from "vite-ssg";
 import type { RouteRecordRaw } from "vue-router";
 import vue from "@vitejs/plugin-vue";
 import { buildTargetVirtuals } from "./vite-plugins/buildTargetVirtuals";
-import type { DocLike } from "./src/ssg/facetKeys";
-import { docFacetShard, docFacetShardFile, docFacetsIndex } from "./src/ssg/docFacetShards";
-import { redirectFile, redirectHtml } from "./src/ssg/redirectHtml";
-import { buildRedirectIndex, type SsgRedirectIndex } from "./src/ssg/redirectIndex";
-import { buildRouteIndex, emptyRouteIndex, type SsgRouteIndex } from "./src/ssg/routeIndex";
-import {
-    routeIndexShard,
-    routeIndexShardFile,
-    routeIndexShardsIndex,
-} from "./src/ssg/routeIndexShards";
 import { buildDeleteQueue } from "./src/ssg/deleteQueue";
 import {
     drainQuery,
@@ -28,7 +18,26 @@ import {
 import { ACTIVE_PROVIDER_KEY, LEGACY_AUTH0_CACHE_PREFIX, OIDC_USER_PREFIX } from "./src/authStorage";
 import { releaseSsrChain } from "./src/ssg/ssrChains";
 import { takeRenderIssues, type RenderIssue } from "./src/ssg/renderDiagnostics";
-import { DocType, RedirectType, type DeleteReason, type ContentDto } from "luminary-shared";
+import {
+    DocType,
+    RedirectType,
+    type DeleteReason,
+    type ContentDto,
+    type DocLike,
+    docFacetShard,
+    docFacetShardFile,
+    docFacetsIndex,
+    redirectFile,
+    redirectHtml,
+    buildRedirectIndex,
+    type SsgRedirectIndex,
+    buildRouteIndex,
+    emptyRouteIndex,
+    type SsgRouteIndex,
+    routeIndexShard,
+    routeIndexShardFile,
+    routeIndexShardsIndex,
+} from "luminary-shared";
 
 const env = loadEnv("", process.cwd());
 

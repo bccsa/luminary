@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import type { ContentDto } from "luminary-shared";
+import type { ContentDto } from "../types";
 import { facetsFromDoc, facetsFromSelector, docKey } from "./facetKeys";
 
 /**

@@ -1,4 +1,5 @@
-import type { ContentDto, MangoSelector } from "luminary-shared";
+import type { ContentDto } from "../types";
+import type { MangoSelector } from "../util/MangoQuery/MangoTypes";
 
 /**
  * Dependency-key vocabulary for incremental (ISR) rebuilds — derived GENERICALLY
@@ -37,7 +38,7 @@ export function facetsFromDoc(doc: DocLike, lang: string = doc.language ?? ""): 
     if (doc.parentId) keys.add(facetKey("parentId", doc.parentId, lang));
     for (const t of doc.parentTags ?? []) if (t) keys.add(facetKey("parentTags", t, lang));
     if (doc.parentPinned && doc.parentPinned > 0) keys.add(facetKey("parentPinned", 1, lang));
-    return [...keys];
+    return Array.from(keys);
 }
 
 /**
@@ -50,7 +51,7 @@ export function facetsFromDoc(doc: DocLike, lang: string = doc.language ?? ""): 
 export function facetsFromSelector(selector: MangoSelector, lang: string): DependencyKey[] {
     const keys = new Set<DependencyKey>();
     walk(selector, keys, lang);
-    return [...keys];
+    return Array.from(keys);
 }
 
 function walk(node: unknown, keys: Set<DependencyKey>, lang: string): void {

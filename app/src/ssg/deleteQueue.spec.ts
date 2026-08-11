@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DeleteReason } from "luminary-shared";
-import { redirectFile } from "./redirectHtml";
-import { routeForSlug, type SsgRouteIndex } from "./routeIndex";
+import { DeleteReason, redirectFile, routeForSlug, type SsgRouteIndex } from "luminary-shared";
 import {
     buildDeleteQueue,
     resolveContentDeleteQueueEntry,

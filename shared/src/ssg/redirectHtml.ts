@@ -1,4 +1,4 @@
-import { RedirectType } from "luminary-shared";
+import { RedirectType } from "../types";
 
 /**
  * Static meta-refresh redirect renderer, shared by the full build and the ISR
