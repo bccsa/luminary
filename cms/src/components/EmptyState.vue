@@ -30,7 +30,7 @@ const goBackOrHome = useGoBackOrHome();
     <div class="mx-3 rounded-md border-2 border-dashed border-zinc-200 py-12 text-center lg:mx-0">
         <component
             :is="icon ?? DocumentPlusIcon"
-            class="mx-auto h-10 w-10 text-zinc-400"
+            class="mx-auto h-10 w-10 text-zinc-100"
             aria-hidden="true"
         />
         <h3 class="mt-2 text-sm font-semibold dark:text-zinc-100">{{ title }}</h3>
