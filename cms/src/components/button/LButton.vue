@@ -17,7 +17,7 @@ const buttonClasses = cva({
             muted: "bg-transparent text-zinc-600 hover:text-zinc-700 active:text-zinc-800 hover:bg-zinc-100 active:bg-zinc-200 dark:text-zinc-500 dark:hover:text-zinc-300 dark:hover:bg-slate-800/50 disabled:text-zinc-400",
         },
         size: {
-            sm: "px-2 py-1.5",
+            //sm: "px-2 py-1.5",
             base: "px-3 py-2",
             lg: "px-3.5 py-2.5",
         },
@@ -42,7 +42,7 @@ const buttonClasses = cva({
             context: "danger",
             class: "hover:text-red-600 active:text-red-700",
         },
-        { variant: "muted", size: "sm", class: "-mx-2 -my-1.5" },
+        { variant: "muted", size: "lg", class: "-mx-2 -my-1.5" },
         { variant: "muted", size: "base", class: "-mx-3 -my-2" },
         { variant: "muted", size: "lg", class: "-mx-3.5 -my-2.5" },
     ],
