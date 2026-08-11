@@ -7,17 +7,17 @@ import { PlayIcon, SpeakerWaveIcon } from "@heroicons/vue/24/solid";
 import { getMediaDuration, getMediaProgress, getReadingProgress } from "@/contentProgress";
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
-import { cmsLanguages } from "@/globalConfig";
+import { cmsLanguages, cmsDefaultLanguage } from "@/globalConfig";
 
 const { t } = useI18n();
 
 // The locale of the content's own language, not the visitor's browser locale — matches
-// the article page's `formatPublishDate` so a tile and the article it opens agree. Falls
-// back to the language id with its `lang-` prefix stripped (the same fallback the article
-// page's `languages` computed synthesizes), then to en-US.
+// the article page's `formatPublishDate` so a tile and the article it opens agree. The
+// code always comes from a CMS Language doc — the content's own, else the CMS default —
+// never synthesized from the language id or a hardcoded constant.
 const contentLanguageCode = computed(() => {
     const lang = cmsLanguages.value.find((l) => l._id === props.content.language);
-    return lang?.languageCode ?? props.content.language?.replace(/^lang-/, "");
+    return lang?.languageCode ?? cmsDefaultLanguage.value?.languageCode;
 });
 
 type Props = {
@@ -46,9 +46,10 @@ const publishDateText = computed(() => {
     ) {
         return "";
     }
-    return DateTime.fromMillis(props.content.publishDate)
-        .setLocale(contentLanguageCode.value || "en-US")
-        .toLocaleString(DateTime.DATETIME_MED);
+    const dt = DateTime.fromMillis(props.content.publishDate);
+    return (
+        contentLanguageCode.value ? dt.setLocale(contentLanguageCode.value) : dt
+    ).toLocaleString(DateTime.DATETIME_MED);
 });
 
 const hasVideo = computed(() => Boolean(props.content.video));

@@ -2,7 +2,7 @@ import { useHead } from "@unhead/vue";
 import { computed, type Ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { type ContentDto, type LanguageDto } from "luminary-shared";
-import { appName, cmsLanguages } from "@/globalConfig";
+import { appName, cmsLanguages, cmsDefaultLanguage } from "@/globalConfig";
 import { useDisplayLanguageIds } from "@/ssg/renderLanguage";
 import { useBucketInfo } from "@/composables/useBucketInfo";
 import {
@@ -51,12 +51,14 @@ function ogLocale(languageCode: string): string {
 
 export function languageCodeForContent(
     languageId: string | undefined,
-    languages: Pick<LanguageDto, "_id" | "languageCode">[],
+    languages: Pick<LanguageDto, "_id" | "languageCode" | "default">[],
 ): string {
-    return (
-        (languageId && languages.find((language) => language._id === languageId)?.languageCode) ||
-        "en"
-    );
+    const fromId =
+        languageId && languages.find((language) => language._id === languageId)?.languageCode;
+    if (fromId) return fromId;
+    // Code comes from a CMS Language doc — the content's own, else the CMS default — never a
+    // hardcoded constant. Empty when no languages are configured yet.
+    return languages.find((language) => language.default === 1)?.languageCode ?? "";
 }
 
 function fallbackWordCount(text: string | undefined): number | undefined {
@@ -276,7 +278,10 @@ export function useContentHead(
             const url = hasDoc ? canonicalUrl(`/${c!.slug}`) : publicSite.origin || "/";
             const lang = languageCodeForContent(c?.language, cmsLanguages.value);
             const alts = hreflangAlternates.value;
-            const xDefault = alts.find((a) => a.code === "en") ?? alts[0];
+            // x-default points at the default-language translation (correct hreflang
+            // semantics), not a hardcoded "en" or the first alternate by publish order.
+            const xDefault =
+                alts.find((a) => a.code === cmsDefaultLanguage.value?.languageCode) ?? alts[0];
             const image = primaryArticleImage(c, bucketBaseUrl.value);
             const jsonLdUrl = hasDoc ? publicUrl(`/${c!.slug}`) : undefined;
             const article = hasDoc

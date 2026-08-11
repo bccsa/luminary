@@ -3,11 +3,17 @@ import { describe, it, expect, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import { h, type Slots } from "vue";
 import ContentTile from "./ContentTile.vue";
-import { mockEnglishContentDto, mockFrenchContentDto, mockLanguageDtoEng } from "@/tests/mockdata";
+import {
+    mockEnglishContentDto,
+    mockFrenchContentDto,
+    mockLanguageDtoEng,
+    mockLanguageDtoFra,
+} from "@/tests/mockdata";
 import { PlayIcon, PlayIcon as PlayIconOutline } from "@heroicons/vue/24/solid";
 import type { ContentDto } from "luminary-shared";
 import { setMediaProgress, setReadingProgress } from "@/contentProgress";
 import { computed } from "vue";
+import { cmsLanguages } from "@/globalConfig";
 
 vi.mock("@/composables/useBucketInfo", () => ({
     useBucketInfo: () => ({
@@ -51,6 +57,11 @@ const RouterLinkStub = {
             );
     },
 };
+
+// ContentTile reads the locale from the content's own CMS Language doc, so populate
+// the configured languages the way a real sync would — exercising the code-from-CMS path
+// rather than the not-in-CMS fallback.
+cmsLanguages.value = [mockLanguageDtoEng, mockLanguageDtoFra];
 
 describe("ContentTile", () => {
     it("renders the image of content", async () => {

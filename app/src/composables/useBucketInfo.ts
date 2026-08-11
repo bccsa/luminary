@@ -2,7 +2,7 @@ import { computed, onServerPrefetch, shallowRef, type Ref } from "vue";
 import { type StorageDto, useHybridQuery, type Uuid, queryRemote } from "luminary-shared";
 import { isPrerender } from "@/ssg/isPrerender";
 
-// Storage buckets use a fixed `cacheId` so this query's response-cache entry stays distinct from same-shaped queries. The result is the same for every viewer since buckets are public.
+// Storage buckets use a fixed `cacheId` so this query's response-cache entry stays distinct from same-shaped queries. Storage docs aren't exempt from the ACL/auth-scoping every doc goes through — they're just always assigned public access in practice, which is what makes one shared cache entry safe for every viewer.
 const STORAGE_QUERY = { selector: { type: "storage" }, identifier: "ssgPrerender" };
 const STORAGE_CACHE_ID = "storage-buckets";
 

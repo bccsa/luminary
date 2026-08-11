@@ -34,6 +34,7 @@ import {
     isDarkTheme,
     theme,
     cmsLanguages,
+    cmsDefaultLanguage,
     queryParams,
     addToMediaQueue,
     cmsUrl,
@@ -355,21 +356,15 @@ if (!isSSG) {
     );
 }
 
+// Only translations whose Language doc is actually loaded get a dropdown entry — never
+// fabricate a languageCode from the language id. `cmsLanguages` (prerender) and the
+// `localLanguages` fetch (client) cover every referenced language, so an unloaded one is a
+// brief pre-load gap, not a permanent drop.
 const languages = computed<LanguageDto[]>(() => {
     const byId = new Map([...cmsLanguages.value, ...localLanguages.value].map((l) => [l._id, l]));
-    return availableTranslations.value.map(
-        (t) =>
-            byId.get(t.language) ??
-            ({
-                _id: t.language,
-                type: DocType.Language,
-                updatedTimeUtc: 0,
-                memberOf: [],
-                languageCode: t.language.replace(/^lang-/, ""),
-                name: t.language,
-                translations: {},
-            } as LanguageDto),
-    );
+    return availableTranslations.value
+        .map((t) => byId.get(t.language))
+        .filter((l): l is LanguageDto => !!l);
 });
 
 // Tags drive the category chips and RelatedContent. In the prerender the seam fetches them chained after `content` (via `ssrChain`, so the selector reads a resolved parent) and primes a per-slug cache for no-flash hydration.
@@ -490,11 +485,12 @@ if (!isSSG)
 
 const text = computed(() => content.value?.text ?? "");
 
-// Format a publish date in the locale of the translation being read (`selectedLanguageCode`), not the visitor's browser locale. Falls back to en-US before the language resolves or during the Node prerender.
-const formatPublishDate = (ms: number) =>
-    DateTime.fromMillis(ms)
-        .setLocale(selectedLanguageCode.value || "en-US")
-        .toLocaleString(DateTime.DATETIME_MED);
+// Format a publish date in the locale of the translation being read (`selectedLanguageCode`), not the visitor's browser locale. Before the language resolves (or in the Node prerender) it falls back to the CMS default language's code — never a hardcoded constant — else luxon's system default.
+const formatPublishDate = (ms: number) => {
+    const code = selectedLanguageCode.value ?? cmsDefaultLanguage.value?.languageCode;
+    const dt = DateTime.fromMillis(ms);
+    return (code ? dt.setLocale(code) : dt).toLocaleString(DateTime.DATETIME_MED);
+};
 
 // Select the first category in the content by category list on load
 watch(tags, () => {
