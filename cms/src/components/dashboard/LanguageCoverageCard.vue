@@ -43,7 +43,7 @@ const maxContentCount = computed(() => {
                         {{ lang.name }}
                         <span class="text-xs text-zinc-400"> ({{ lang.languageCode }}) </span>
                     </span>
-                    <span class="text-xs tabular-nums text-zinc-800">
+                    <span class="text-xs tabular-nums dark:text-zinc-100">
                         {{ contentCountPerLanguage[lang._id] ?? 0 }}
                     </span>
                 </div>

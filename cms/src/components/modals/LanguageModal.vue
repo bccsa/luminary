@@ -34,7 +34,7 @@ const setLanguage = (id: string) => {
                 <span class="text-sm dark:text-zinc-100">{{ language.name }}</span>
                 <CheckCircleIcon
                     v-if="cmsLanguageIdAsRef === language._id"
-                    class="ml-auto h-6 w-6 text-yellow-600"
+                    class="ml-auto h-6 w-6 text-yellow-500"
                     aria-hidden="true"
                 />
             </button>
