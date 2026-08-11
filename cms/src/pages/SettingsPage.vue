@@ -41,7 +41,7 @@ const deleteLocalData = async () => {
 <template>
     <BasePage title="Settings" :icon="Cog6ToothIcon">
         <LCard title="Local cache">
-            <div class="mb-4 text-sm text-zinc-600">
+            <div class="mb-4 text-sm dark:text-zinc-200">
                 All CMS data is saved locally on your device. If you experience problems, try
                 deleting all local data. Depending on the amount of available data, it can take some
                 time before all data is available again.
