@@ -20,7 +20,7 @@ const mountHighlightable = (contentId = "test-content-1") =>
         attachTo: document.body,
     });
 
-describe.skip("LHighlightable", () => {
+describe("LHighlightable", () => {
     beforeEach(() => {
         vi.useFakeTimers();
     });
@@ -94,7 +94,8 @@ describe.skip("LHighlightable", () => {
 
         // Simulate having highlighted content
         const prose = wrapper.find(".prose");
-        prose.element.innerHTML = '<p>Some <mark style="background-color: yellow">highlighted</mark> text</p>';
+        prose.element.innerHTML =
+            '<p>Some <mark style="background-color: yellow">highlighted</mark> text</p>';
 
         // Trigger save by calling the internal method via the component
         // We test that the persistence mechanism works
@@ -103,7 +104,8 @@ describe.skip("LHighlightable", () => {
     });
 
     it("restores highlights from IndexedDB on mount", async () => {
-        const savedHtml = '<p>Restored <mark style="background-color: yellow">highlight</mark> text</p>';
+        const savedHtml =
+            '<p>Restored <mark style="background-color: yellow">highlight</mark> text</p>';
         vi.spyOn(db, "getLuminaryInternals").mockResolvedValue({
             "restore-test": savedHtml,
         });
@@ -178,8 +180,15 @@ describe.skip("LHighlightable", () => {
 
         // Mock getBoundingClientRect on the range (jsdom doesn't implement it)
         range.getBoundingClientRect = vi.fn(() => ({
-            left: 100, top: 100, right: 200, bottom: 120, width: 100, height: 20,
-            x: 100, y: 100, toJSON: () => {},
+            left: 100,
+            top: 100,
+            right: 200,
+            bottom: 120,
+            width: 100,
+            height: 20,
+            x: 100,
+            y: 100,
+            toJSON: () => {},
         }));
 
         // Mock getSelection to return our range
@@ -227,14 +236,18 @@ describe.skip("LHighlightable", () => {
         const wrapper = mountHighlightable();
 
         await waitForExpect(() => {
-            expect(addEventListenerSpy).toHaveBeenCalledWith("selectionchange", expect.any(Function));
+            expect(addEventListenerSpy).toHaveBeenCalledWith(
+                "selectionchange",
+                expect.any(Function),
+            );
         });
         vi.useFakeTimers();
 
         const prose = wrapper.find(".prose");
 
         // Set up content with an existing highlight
-        prose.element.innerHTML = '<p>Before <mark style="background-color: rgba(253, 224, 71, 0.5)" class="rounded-sm px-0.5 box-decoration-clone">highlighted</mark> after</p>';
+        prose.element.innerHTML =
+            '<p>Before <mark style="background-color: rgba(253, 224, 71, 0.5)" class="rounded-sm px-0.5 box-decoration-clone">highlighted</mark> after</p>';
         const markEl = prose.element.querySelector("mark")!;
         const textNode = markEl.firstChild!;
 
@@ -245,8 +258,15 @@ describe.skip("LHighlightable", () => {
 
         // Mock getBoundingClientRect on the range (jsdom doesn't implement it)
         range.getBoundingClientRect = vi.fn(() => ({
-            left: 100, top: 100, right: 200, bottom: 120, width: 100, height: 20,
-            x: 100, y: 100, toJSON: () => {},
+            left: 100,
+            top: 100,
+            right: 200,
+            bottom: 120,
+            width: 100,
+            height: 20,
+            x: 100,
+            y: 100,
+            toJSON: () => {},
         }));
 
         const mockSelection = {
@@ -286,7 +306,10 @@ describe.skip("LHighlightable", () => {
         const wrapper = mountHighlightable();
 
         await waitForExpect(() => {
-            expect(addEventListenerSpy).toHaveBeenCalledWith("selectionchange", expect.any(Function));
+            expect(addEventListenerSpy).toHaveBeenCalledWith(
+                "selectionchange",
+                expect.any(Function),
+            );
         });
         vi.useFakeTimers();
 
@@ -433,8 +456,15 @@ describe.skip("LHighlightable", () => {
 
         // Mock getBoundingClientRect on the range (jsdom doesn't implement it)
         range.getBoundingClientRect = vi.fn(() => ({
-            left: 100, top: 100, right: 200, bottom: 120, width: 100, height: 20,
-            x: 100, y: 100, toJSON: () => {},
+            left: 100,
+            top: 100,
+            right: 200,
+            bottom: 120,
+            width: 100,
+            height: 20,
+            x: 100,
+            y: 100,
+            toJSON: () => {},
         }));
 
         const mockSelection = {
