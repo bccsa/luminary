@@ -142,6 +142,8 @@
         "logout.modal.description": "Êtes-vous sûr de vouloir vous déconnecter ?",
         "logout.modal.button_cancel": "Annuler",
         "logout.modal.button_logout": "Déconnexion",
+        "logout.modal.force_global_logout_label": "Ceci est un appareil partagé ou public",
+        "logout.modal.force_global_logout_description": "Exiger une nouvelle connexion la prochaine fois, afin que personne d'autre ne puisse continuer à utiliser votre compte ici.",
         "notfoundpage.navigation.home": "Retour à la maison",
         "notfoundpage.unauthenticated.title": "Oups ! Vous n'êtes pas connecté.",
         "notfoundpage.unauthenticated.loginPrompt.before": "Veuillez cliquer",

@@ -51,7 +51,7 @@ const router = useRouter();
 const showThemeSelector = ref(false);
 const showLanguageModal = ref(false);
 const showLogoutDialog = ref(false);
-const forceReauthOnNextLogin = ref(false);
+const forceReauthOnNextLogin = ref(true);
 const menuOpen = ref(false);
 const isMounted = ref(false);
 
@@ -556,10 +556,10 @@ const sidebarNavigation = computed(() =>
                 />
                 <span class="text-sm">
                     <span class="block font-medium text-zinc-900 dark:text-white">
-                        {{ t("logout.modal.shared_device_label") }}
+                        {{ t("logout.modal.force_global_logout_label") }}
                     </span>
                     <span class="mt-0.5 block text-zinc-500 dark:text-slate-300">
-                        {{ t("logout.modal.shared_device_description") }}
+                        {{ t("logout.modal.force_global_logout_description") }}
                     </span>
                 </span>
             </label>
