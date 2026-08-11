@@ -4,9 +4,10 @@ import type { MangoSelector } from "../util/MangoQuery/MangoTypes";
 /**
  * Dependency-key vocabulary for incremental (ISR) rebuilds — derived GENERICALLY
  * from a query's selector / a doc's fields, so adding a page or a facet needs no
- * per-page key wiring. The deploy repo carries its own copy for the watcher side;
- * keep the two in sync when this vocabulary changes. See README.md
- * ("Incremental regeneration") for the full key-kind and field-exclusion rationale.
+ * per-page key wiring. The SINGLE SOURCE OF TRUTH for both the build (capture side,
+ * `facetsFromSelector`) and the luminary-deployment repo's watcher (`facetsFromDoc` /
+ * `keysForChangedDoc`) — see README.md ("Incremental regeneration") for the full
+ * key-kind and field-exclusion rationale.
  *
  * Keep this module PURE: no Vue/Dexie/DOM/import.meta — safe in Node + browser.
  */
@@ -29,8 +30,8 @@ export type DocLike = Pick<
 >;
 
 /**
- * Keys a single content doc participates in (watcher side). `lang` defaults to the
- * doc's own language.
+ * Keys a single content doc participates in (watcher side; also `keysForChangedDoc`).
+ * `lang` defaults to the doc's own language.
  */
 export function facetsFromDoc(doc: DocLike, lang: string = doc.language ?? ""): DependencyKey[] {
     const keys = new Set<DependencyKey>();
@@ -39,6 +40,16 @@ export function facetsFromDoc(doc: DocLike, lang: string = doc.language ?? ""): 
     for (const t of doc.parentTags ?? []) if (t) keys.add(facetKey("parentTags", t, lang));
     if (doc.parentPinned && doc.parentPinned > 0) keys.add(facetKey("parentPinned", 1, lang));
     return Array.from(keys);
+}
+
+// --- Aliases kept for the luminary-deployment watcher's naming ---
+
+/** Keys a changed doc touches (watcher). Alias of {@link facetsFromDoc}. */
+export const keysForChangedDoc = (doc: DocLike): DependencyKey[] => facetsFromDoc(doc);
+
+/** Re-categorization: union of the previous and next doc state (old∪new). */
+export function keysForRecategorization(prev: DocLike, next: DocLike): DependencyKey[] {
+    return Array.from(new Set([...facetsFromDoc(prev), ...facetsFromDoc(next)]));
 }
 
 /**
