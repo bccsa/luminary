@@ -432,7 +432,7 @@ const navItemClass = computed(() => [
                 </div>
                 <span
                     v-if="!isCollapsed"
-                    class="min-w-0 flex-1 truncate text-sm font-medium text-zinc-700 dark:text-zinc-400"
+                    class="min-w-0 flex-1 truncate text-sm font-medium text-zinc-700 dark:text-zinc-200"
                 >
                     {{ user?.name || user?.email }}
                 </span>
