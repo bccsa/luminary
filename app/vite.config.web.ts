@@ -546,11 +546,25 @@ function writeDeleteQueue(cmds: {
         );
     }
 
+    // A full build drains EVERY DeleteCmd ever written, so without these guards it replays the
+    // site's whole deletion history against the output it just rendered. `hasStaticFile` reads
+    // dist-web rather than this run's rendered set: a scoped rebuild renders a handful of routes
+    // but must still not delete the ~2k pages already on disk. Mirrors writeRedirectFiles'
+    // `existsSync` guard below — a live page wins over both a redirect and a delete.
+    const corpus = (globalThis as Record<string, unknown>).__SSG_CONTENT_CORPUS__ as
+        | Array<{ _id: string; updatedTimeUtc: number }>
+        | undefined;
     const fresh = buildDeleteQueue(
         contentCmds,
         redirectCmds,
         legacyRouteIndex,
         legacyRedirectSlugs,
+        {
+            liveDocs: new Map(
+                (corpus ?? []).map((doc) => [doc._id, { updatedTimeUtc: doc.updatedTimeUtc }]),
+            ),
+            hasStaticFile: (file) => existsSync(join(process.cwd(), OUT_DIR, file)),
+        },
     );
 
     mkdirSync(deleteQueueDir(), { recursive: true });

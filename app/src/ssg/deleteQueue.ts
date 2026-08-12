@@ -1,5 +1,6 @@
 import {
     type DeleteReason,
+    isDeleteCmdSuperseded,
     resolveContentDelete,
     routeForSlug,
     type SsgRouteIndex,
@@ -32,11 +33,58 @@ export type DeleteCmdLike = {
     _id?: string;
     docId?: string;
     slug?: string;
+    updatedTimeUtc?: number;
     deleteReason?: DeleteReason;
     language?: string;
     memberOf?: string[];
     newMemberOf?: string[];
 };
+
+/**
+ * Guards that stop a historical DeleteCmd from removing a page that is live now. A full
+ * build drains EVERY DeleteCmd ever written, so without these it replays the site's whole
+ * deletion history against freshly rendered output.
+ */
+export type DeleteQueueGuards = {
+    /** Live docs by `docId`; a target at-or-newer than the cmd supersedes it (unpublish→republish). */
+    liveDocs?: ReadonlyMap<string, { updatedTimeUtc: number }>;
+    /**
+     * Whether a static file already exists at this key. Content routes and redirect slugs
+     * share one key convention (see `routeToStaticFile`), so a dead redirect's cmd can name
+     * the exact file a live content page occupies — which no docId comparison can detect.
+     */
+    hasStaticFile?: (file: string) => boolean;
+};
+
+/** A cmd whose own target has since been rewritten is obsolete; skip it entirely. */
+function supersededByLiveDoc(cmd: DeleteCmdLike, guards?: DeleteQueueGuards): boolean {
+    if (!guards?.liveDocs || !cmd.docId || cmd.updatedTimeUtc === undefined) return false;
+    return isDeleteCmdSuperseded(
+        { updatedTimeUtc: cmd.updatedTimeUtc },
+        guards.liveDocs.get(cmd.docId),
+    );
+}
+
+/**
+ * Drops the routes whose file is occupied by a live page, keeping the rest (a whole-parent
+ * cascade can be partly stale). An entry left with nothing to delete is dropped.
+ */
+function withoutLivePages(
+    entry: SsgDeleteQueueEntry,
+    guards?: DeleteQueueGuards,
+): SsgDeleteQueueEntry | undefined {
+    const occupied = guards?.hasStaticFile;
+    if (!occupied) return entry;
+    const routes: string[] = [];
+    const files: string[] = [];
+    entry.files.forEach((file, index) => {
+        if (occupied(file)) return;
+        files.push(file);
+        routes.push(entry.routes[index]);
+    });
+    if (!files.length) return undefined;
+    return { ...entry, routes, files };
+}
 
 /** Maps a route to the static file `vite-ssg`'s flat `dirStyle` writes it to under
  * `dist-web` — deliberately the same formula as `redirectHtml.ts`'s `redirectFile`, so
@@ -115,25 +163,33 @@ export function resolveRedirectDeleteQueueEntry(
  * `_id` (the queue's file-naming key) or that can't be resolved to any route are
  * silently dropped — an unresolvable legacy DeleteCmd (no slug, no matching legacy
  * sidecar entry) has nothing this build can act on; it isn't an error.
+ *
+ * `guards` filters out deletes a live page has overtaken; omit it and every resolved cmd
+ * is queued (the pre-guard behaviour).
  */
 export function buildDeleteQueue(
     contentCmds: DeleteCmdLike[],
     redirectCmds: DeleteCmdLike[],
     legacyRouteIndex?: SsgRouteIndex,
     legacyRedirectSlugs?: Record<string, string>,
+    guards?: DeleteQueueGuards,
 ): SsgDeleteQueue {
     const queue: SsgDeleteQueue = {};
 
     for (const cmd of contentCmds) {
         if (!cmd._id) continue;
-        const entry = resolveContentDeleteQueueEntry(cmd, legacyRouteIndex);
+        if (supersededByLiveDoc(cmd, guards)) continue;
+        const resolved = resolveContentDeleteQueueEntry(cmd, legacyRouteIndex);
+        const entry = resolved && withoutLivePages(resolved, guards);
         if (entry) queue[cmd._id] = entry;
     }
 
     for (const cmd of redirectCmds) {
         if (!cmd._id) continue;
+        if (supersededByLiveDoc(cmd, guards)) continue;
         const legacySlug = cmd.docId ? legacyRedirectSlugs?.[cmd.docId] : undefined;
-        const entry = resolveRedirectDeleteQueueEntry(cmd, legacySlug);
+        const resolved = resolveRedirectDeleteQueueEntry(cmd, legacySlug);
+        const entry = resolved && withoutLivePages(resolved, guards);
         if (entry) queue[cmd._id] = entry;
     }
 

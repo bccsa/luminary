@@ -179,4 +179,94 @@ describe("deleteQueue", () => {
             });
         });
     });
+
+    // A full build drains every DeleteCmd ever written, so these guards are what stop it
+    // replaying the site's deletion history over the pages it just rendered.
+    describe("buildDeleteQueue guards", () => {
+        const cmd = { _id: "cmd-1", docId: "content-en", slug: "hello", updatedTimeUtc: 100 };
+
+        it("skips a cmd whose target was rewritten after it (unpublish → republish)", () => {
+            expect(
+                buildDeleteQueue([cmd], [], undefined, undefined, {
+                    liveDocs: new Map([["content-en", { updatedTimeUtc: 101 }]]),
+                }),
+            ).toEqual({});
+        });
+
+        it("still queues a cmd whose target genuinely predates it", () => {
+            expect(
+                buildDeleteQueue([cmd], [], undefined, undefined, {
+                    liveDocs: new Map([["content-en", { updatedTimeUtc: 99 }]]),
+                }),
+            ).toEqual({
+                "cmd-1": {
+                    docType: "content",
+                    docId: "content-en",
+                    routes: ["/hello"],
+                    files: ["hello.html"],
+                },
+            });
+        });
+
+        it("still queues a cmd whose target is absent — the doc really is gone", () => {
+            expect(
+                buildDeleteQueue([cmd], [], undefined, undefined, { liveDocs: new Map() }),
+            ).toEqual({
+                "cmd-1": {
+                    docType: "content",
+                    docId: "content-en",
+                    routes: ["/hello"],
+                    files: ["hello.html"],
+                },
+            });
+        });
+
+        // The bug this shipped for: a deleted redirect and a live content page resolve to the
+        // same storage key, so the redirect's cmd removed a published page. No docId comparison
+        // can catch it — the cmd's own target (the redirect doc) really was deleted.
+        it("drops a dead redirect's route when a live page occupies that file", () => {
+            expect(
+                buildDeleteQueue(
+                    [],
+                    [{ _id: "cmd-2", docId: "r1", slug: "hello" }],
+                    undefined,
+                    undefined,
+                    {
+                        hasStaticFile: (file) => file === "hello.html",
+                    },
+                ),
+            ).toEqual({});
+        });
+
+        it("keeps the routes of a parent cascade that no live page occupies", () => {
+            expect(
+                buildDeleteQueue(
+                    [{ _id: "cmd-1", docId: "post-1" }],
+                    [],
+                    legacyRouteIndex,
+                    undefined,
+                    { hasStaticFile: (file) => file === "hello.html" },
+                ),
+            ).toEqual({
+                "cmd-1": {
+                    docType: "content",
+                    docId: "post-1",
+                    parentId: "post-1",
+                    routes: ["/hola"],
+                    files: ["hola.html"],
+                },
+            });
+        });
+
+        it("queues every resolved cmd when no guards are supplied", () => {
+            expect(buildDeleteQueue([cmd], [], undefined, undefined)).toEqual({
+                "cmd-1": {
+                    docType: "content",
+                    docId: "content-en",
+                    routes: ["/hello"],
+                    files: ["hello.html"],
+                },
+            });
+        });
+    });
 });

@@ -19,6 +19,7 @@ import { toRaw, watch } from "vue";
 import { DateTime } from "luxon";
 import { v4 as uuidv4 } from "uuid";
 import { filterAsync, someAsync } from "../util/asyncArray";
+import { isDeleteCmdSuperseded } from "./deleteCmdStaleness";
 import { watchValue } from "../util/watchValue";
 import { accessMap, getAccessibleGroups, verifyAccess } from "../permissions/permissions";
 import { config } from "../config";
@@ -277,11 +278,7 @@ class Database extends Dexie {
         }
 
         const toDeleteIds = candidateDeleteCmds
-            .filter((cmd) => {
-                const local = existingById.get(cmd.docId);
-                if (!local) return true;
-                return local.updatedTimeUtc < cmd.updatedTimeUtc;
-            })
+            .filter((cmd) => !isDeleteCmdSuperseded(cmd, existingById.get(cmd.docId)))
             .map((cmd) => cmd.docId);
 
         if (toDeleteIds.length > 0) {
