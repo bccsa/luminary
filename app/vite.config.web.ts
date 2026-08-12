@@ -240,8 +240,17 @@ function mergeScoped<T>(path: string, fresh: Record<string, T>): Record<string, 
 // captured routes into the existing manifest (don't drop untouched routes). Keys are sorted
 // so the file is byte-stable regardless of the order concurrent renders reported them in.
 function writeManifest() {
+    // Every rendered route gets an entry, even one that reported no keys — /404 and /search
+    // issue no build-time content query. Omitting them left them absent from the manifest,
+    // and the watcher's `manifest[route]` check is the only thing stopping a redirect being
+    // written over a prerendered page, so those routes were the ones it could not protect.
+    // An empty key list is also the honest record: nothing about them can go stale.
+    const captured = capture().manifest;
     const fresh = Object.fromEntries(
-        Object.entries(capture().manifest).map(([route, keys]) => [route, [...keys].sort()]),
+        [...new Set([...renderedRouteSet, ...Object.keys(captured)])].map((route) => [
+            route,
+            [...(captured[route] ?? [])].sort(),
+        ]),
     );
     // Sort routes as well as keys: above concurrency 1 pages finish in a nondeterministic
     // order, so insertion order alone would make the file differ byte-for-byte between
@@ -271,8 +280,8 @@ let renderedRouteSet: Set<string> = new Set();
 let routeLastmod: Record<string, string> = {};
 
 function writeSeoArtifacts() {
-    const urls = prerenderedRoutes
-        .filter((r) => r !== "/404") // error page is not a crawlable URL
+    const crawlableRoutes = prerenderedRoutes.filter((r) => r !== "/404"); // not a crawlable URL
+    const urls = crawlableRoutes
         .map(
             (r) =>
                 `  <url><loc>${WEB_ORIGIN}${r}</loc>` +
@@ -308,9 +317,8 @@ function writeSeoArtifacts() {
         `- [Sitemap](${WEB_ORIGIN}/sitemap.xml): Canonical URLs for all public content.\n`;
     writeFileSync(join(process.cwd(), OUT_DIR, "llms.txt"), llms);
 
-    console.log(
-        `[ssg] wrote sitemap.xml (${prerenderedRoutes.length} urls) + robots.txt + llms.txt`,
-    );
+    // Count what the file actually contains — `prerenderedRoutes` still holds /404.
+    console.log(`[ssg] wrote sitemap.xml (${crawlableRoutes.length} urls) + robots.txt + llms.txt`);
 }
 
 // Sharded like writeDocFacets() below: only content ids / parent ids whose route was
