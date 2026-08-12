@@ -86,14 +86,17 @@ describe("livePublishClock", () => {
         expect(sessionNow()).toBe(T0);
     });
 
-    it("bumps only to Date.now() for future-scheduled content, never to the future publishDate", () => {
+    it("does not bump for future-scheduled content (publishDate ahead of the real clock)", () => {
         vi.setSystemTime(2_000_000);
         const futurePublishDate = 5_000_000; // scheduled, well ahead of the real clock
 
         onData!({ docs: [makeContent({ publishDate: futurePublishDate })] });
 
-        // Bumped to the real clock (2_000_000), NOT to the future publishDate — so
-        // the scheduled doc (publishDate 5_000_000 > 2_000_000) stays hidden.
-        expect(sessionNow()).toBe(2_000_000);
+        // No bump — the doc is future-dated, so widening the bound changes nothing
+        // visible: includeScheduled feeds show coming-soon docs via
+        // parentShowComingSoon (bound-independent), and a bump to Date.now()
+        // wouldn't let a future publishDate through anyway. Avoids a no-op re-key
+        // cascade across every content feed.
+        expect(sessionNow()).toBe(T0);
     });
 });

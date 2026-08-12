@@ -29,12 +29,17 @@ export function initLivePublishClock(): void {
             if (doc.type !== DocType.Content) continue;
             const content = doc as ContentDto;
             if (content.status !== PublishStatus.Published) continue;
-            // Only advance when a published doc's publishDate is newer than the
-            // frozen bound (the newly-published case). Edits to already-published
-            // docs (publishDate < bound) don't need a re-key. Bump to the real
-            // clock — never to a future publishDate — so genuinely scheduled
-            // content stays hidden.
-            if (content.publishDate !== undefined && content.publishDate > sessionNow()) {
+            // Only advance for the newly-published case: publishDate newer than
+            // the bound but not in the future. Edits to already-published docs
+            // (publishDate <= bound) need no re-key. Future-scheduled docs are
+            // excluded too — a bump wouldn't let a future publishDate through, and
+            // includeScheduled feeds already show coming-soon via
+            // parentShowComingSoon (bound-independent), so it'd be a no-op cascade.
+            if (
+                content.publishDate !== undefined &&
+                content.publishDate > sessionNow() &&
+                content.publishDate <= now
+            ) {
                 bumpSessionNow(now);
                 return;
             }
