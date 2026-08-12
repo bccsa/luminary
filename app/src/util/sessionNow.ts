@@ -1,29 +1,50 @@
-/**
- * The session's reference "now" — captured **once** on first read (≈ page load)
- * and held constant for the lifetime of the page.
- *
- * Why this exists: publish/expiry bounds derived from `Date.now()` are embedded
- * directly in Mango query selectors, and `HybridQuery` uses the serialized
- * selector as its reactive dedup key. A live `Date.now()` therefore makes every
- * reactive re-evaluation of a query thunk produce a *different* key — defeating
- * the dedup and firing a redundant API-supplement POST whenever any tracked ref
- * changes during load. Freezing the reference time to a single value makes those
- * selectors byte-stable, so a thunk only rebuilds when something *semantic*
- * changes. This mirrors `contentPublishDateCutoff` in `main.ts`, which is likewise
- * captured once at startup.
- *
- * Trade-off: in a long-lived session the bound does not advance, so content that
- * crosses its publish or expiry boundary after load only reflects on the next page
- * load. That is acceptable for authored content; if a long session ever needs to
- * pick up scheduled transitions live, promote this to a ref ticked on a coarse
- * interval (every query referencing it then rebuilds together, once per tick).
- */
-let _sessionNow: number | undefined;
+import { ref } from "vue";
 
-/** The frozen session reference timestamp (ms). Captured on first call. */
+/**
+ * The session's reference "now" — captured once at page load (module import) and
+ * held as a reactive ref.
+ *
+ * Why this is a ref (and not a plain frozen value, nor a live `Date.now()`):
+ * publish/expiry bounds derived from it are embedded directly in Mango query
+ * selectors, and `HybridQuery` serializes the selector as its reactive dedup key
+ * (`HybridQuery.ts`). A live `Date.now()` re-keys the query on every tracked-ref
+ * change and re-fires the API-supplement POST; a plain frozen value never re-keys,
+ * so content published after the page-load instant is filtered out by the
+ * `publishDate <= now` clause until a page refresh. The ref is the compromise: it
+ * stays byte-stable (no re-key) until explicitly advanced by {@link bumpSessionNow},
+ * which live-sync calls when newly published content arrives. So the bound moves
+ * exactly when new content does — truly live for publishes, with zero idle churn.
+ *
+ * This mirrors `contentPublishDateCutoff` in `main.ts`, likewise captured once at
+ * startup; the difference is this bound can advance at runtime.
+ *
+ * Trade-off: the bound only advances when a live-sync `"data"` push delivers new
+ * content. A long-lived session where scheduled content crosses its publish
+ * boundary with NO concurrent live push won't reveal it until the next live event
+ * or a page refresh. Acceptable for authored content.
+ */
+const _sessionNow = ref<number | undefined>(Date.now());
+
+/** The session reference timestamp (ms). Captured at page load; advances only via {@link bumpSessionNow}. */
 export function sessionNow(): number {
-    if (_sessionNow === undefined) _sessionNow = Date.now();
-    return _sessionNow;
+    // Re-capture after a test reset (production never hits this — eager-init above).
+    if (_sessionNow.value === undefined) _sessionNow.value = Date.now();
+    return _sessionNow.value;
+}
+
+/**
+ * Advance the session reference time forward to `to` (no-op if `to` is not newer).
+ * Live-sync calls this when newly published content arrives so the
+ * `publishDate <= now` bound lets the new doc through — every content query that
+ * reads {@link sessionNow} rebuilds once, exactly when new content lands.
+ *
+ * Forward-only by design: moving the bound backward would re-hide already-shown
+ * content and could loop queries. Callers must pass the real clock (`Date.now()`),
+ * never a doc's future `publishDate` — otherwise genuinely scheduled content
+ * (future `publishDate`, no coming-soon) would be revealed prematurely.
+ */
+export function bumpSessionNow(to: number): void {
+    if (_sessionNow.value === undefined || to > _sessionNow.value) _sessionNow.value = to;
 }
 
 /**
@@ -35,7 +56,7 @@ export function sessionNow(): number {
  * first `sessionNow()` read; a later call is a no-op so the prerender's pin wins.
  */
 export function setSessionNow(n: number): void {
-    if (_sessionNow === undefined) _sessionNow = n;
+    if (_sessionNow.value === undefined) _sessionNow.value = n;
 }
 
 /**
@@ -43,5 +64,5 @@ export function setSessionNow(n: number): void {
  * call re-captures (models a fresh page load). Not for production use.
  */
 export function __resetSessionNow(): void {
-    _sessionNow = undefined;
+    _sessionNow.value = undefined;
 }
