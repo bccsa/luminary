@@ -108,18 +108,31 @@ export async function drainQuery<T extends KeysetDocument>(
 }
 
 /**
- * Drains all content docs eligible for prerendering. `/query` doesn't filter
- * scheduled content server-side, so the `publishDate <= now` bound keeps future
- * articles out of the build.
+ * Drains every published content doc the anonymous API returns — including
+ * scheduled "coming soon" docs (status Published, future publishDate). The corpus
+ * feeds the per-page local query resolver, which serves feed queries that
+ * intentionally match coming-soon tiles, so those docs must be present. The
+ * `publishDate <= now` cutoff is applied by the caller (`fetchPublicSlugs`) when
+ * it builds slug routes: a coming-soon doc gets a feed tile but no page, since it
+ * isn't readable yet. `/query` already filters status / language / expiry /
+ * memberOf server-side, so no publishDate bound is needed here.
  */
 export function enumeratePublicContent<T extends KeysetDocument>(
     transport: QueryTransport,
-    now: number,
 ): Promise<T[]> {
-    return drainQuery<T>(transport, {
-        type: "content",
-        conditions: [{ publishDate: { $lte: now } }],
-    });
+    return drainQuery<T>(transport, { type: "content" });
+}
+
+/**
+ * Whether a drained content doc gets a prerendered slug route. The corpus carries
+ * every published doc (incl. coming-soon), but only `publishDate <= now` docs are
+ * readable yet, so only those get a page — a coming-soon doc gets a feed tile (served
+ * from the corpus) but no route. A missing publishDate is treated as eligible rather
+ * than silently dropping the doc; published content always carries one, so this only
+ * covers malformed/legacy rows.
+ */
+export function isRouteEligible<T extends { publishDate?: number }>(doc: T, now: number): boolean {
+    return typeof doc.publishDate !== "number" || doc.publishDate <= now;
 }
 
 /**

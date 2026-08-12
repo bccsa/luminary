@@ -8,6 +8,7 @@ import { getMediaDuration, getMediaProgress, getReadingProgress } from "@/conten
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import { cmsLanguages, cmsDefaultLanguage } from "@/globalConfig";
+import { sessionNow } from "@/util/sessionNow";
 
 const { t } = useI18n();
 
@@ -66,9 +67,13 @@ const mediaIconClass = computed(() =>
 const isComingSoon = computed(() => {
     const publishDate = props.content.publishDate;
     // "Coming soon" = published doc with a future publishDate AND the opt-in flag set.
+    // Uses the frozen session reference time (not a live Date.now()) so a coming-soon
+    // tile's cutoff matches the SSG enumeration cutoff — a doc whose publishDate lands
+    // between enumeration and render still renders as a non-link badge, never as a link
+    // to a slug page that was never prerendered.
     return (
         typeof publishDate === "number" &&
-        publishDate > Date.now() &&
+        publishDate > sessionNow() &&
         props.content.parentShowComingSoon === true
     );
 });

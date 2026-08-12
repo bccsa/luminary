@@ -43,21 +43,20 @@ function stripDocs(docs: ContentDto[], stripFields: string[]): ContentDto[] {
 
 // Resolve a query from the build-time content corpus when `local` is set and a corpus
 // was published; otherwise POST as before. The `local` flag is the caller's promise that
-// the query's selector bounds results to `publishDate <= now` (i.e. `publishedFilter` and
-// `includeScheduled === false` — the default `includeScheduled` is treated as true by
-// `mangoIsPublished`, so only an explicit `false` rules out coming-soon docs). The corpus
-// is the anonymous published-now set, so a query that can match future-dated docs must
-// still go to `queryRemote`.
-//
-// An empty local result (corpus present but nothing matched) must still fall back to the
-// network — [] is truthy, so a bare truthiness check would make it final and silently
-// suppress the remote supplement. The caller short-circuits provably-empty selectors before
-// reaching here, so this fallback never re-POSTs for one.
+// the query is corpus-satisfiable — i.e. `publishedFilter` is set, so the selector bounds
+// results to the published set (status Published, publishDate <= now OR coming-soon) the
+// corpus holds. `queryContentLocal` returns `null` only when no corpus was published, so
+// a definite `[]` (corpus present, nothing matched) is AUTHORITATIVE and must NOT fall back
+// to the network: a feed tile surfaced from the live API for a doc not in the drained
+// corpus would link to a slug page that was never prerendered. Only a `publishedFilter:
+// false` lookup (which gates publish state itself and may match docs outside the corpus)
+// still POSTs.
 function resolveQuery(q: MangoQuery, local: boolean): Promise<ContentDto[]> {
-    const localResult = local ? queryContentLocal(q) : null;
-    return localResult && localResult.length > 0
-        ? Promise.resolve(localResult)
-        : queryRemote<ContentDto>({ ...q, identifier: "ssgPrerender" });
+    if (!local) return queryRemote<ContentDto>({ ...q, identifier: "ssgPrerender" });
+    const localResult = queryContentLocal(q);
+    return localResult === null
+        ? queryRemote<ContentDto>({ ...q, identifier: "ssgPrerender" })
+        : Promise.resolve(localResult);
 }
 
 // Backs `buildOnce`: a query that is genuinely identical on every route (see the option's
@@ -232,13 +231,13 @@ function useContentQueryState(
                 ...(publishedFilter
                     ? languageFilter && displayLanguageIds().length === 0
                         ? // No display language resolved: an empty `$in` makes the query
-                        // provably empty so the feed stays blank until a language resolves,
-                        // instead of the priority clause collapsing to match-any and surfacing
-                        // every sibling translation of each parent as separate tiles.
-                        [
-                            ...publishedNowConditions({ includeScheduled }),
-                            { language: { $in: [] } },
-                        ]
+                          // provably empty so the feed stays blank until a language resolves,
+                          // instead of the priority clause collapsing to match-any and surfacing
+                          // every sibling translation of each parent as separate tiles.
+                          [
+                              ...publishedNowConditions({ includeScheduled }),
+                              { language: { $in: [] } },
+                          ]
                         : mangoIsPublished(languageFilter ? displayLanguageIds() : [], {
                               includeScheduled,
                           })
@@ -294,10 +293,14 @@ function useContentQueryState(
                     out.value = [];
                     return;
                 }
-                // `publishedFilter && includeScheduled === false` is the set of queries
-                // whose selector bounds results to `publishDate <= now`, so the build-time
-                // corpus (the anonymous published-now set) can answer them locally.
-                const local = publishedFilter && includeScheduled === false;
+                // `publishedFilter` queries are corpus-satisfiable: the selector bounds
+                // results to the published set (publishDate <= now OR coming-soon) the
+                // drained corpus holds, so it can answer them locally. A `publishedFilter:
+                // false` lookup gates publish state itself and may match docs the corpus
+                // doesn't have, so it still POSTs. `includeScheduled` no longer gates this
+                // — the corpus now carries coming-soon docs too, so a feed query that
+                // matches them is still served locally (as non-link "coming soon" tiles).
+                const local = publishedFilter;
                 const docs = stripDocs(
                     buildOnce
                         ? await fetchBuildOnce(structuralCacheKey(q, rest.cacheId), q, local)

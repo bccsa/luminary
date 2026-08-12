@@ -467,8 +467,10 @@ describe("useContentQuery — SSR prerender path", () => {
             delete (globalThis as Record<string, unknown>)[CORPUS_KEY];
         });
 
-        // `publishedFilter && includeScheduled === false` is the gate: the selector
-        // bounds results to `publishDate <= now`, so the drained corpus can answer it.
+        // `publishedFilter` is the gate: the selector bounds results to the published set
+        // (publishDate <= now OR coming-soon) the drained corpus holds, so it can answer
+        // locally. A present corpus with no match is authoritative — never re-POSTs — so a
+        // feed can't surface a tile for a slug page that was never prerendered.
         it("serves a corpus-satisfiable query locally without calling queryRemote", async () => {
             (globalThis as Record<string, unknown>)[CORPUS_KEY] = [{ ...publishedCorpusDoc }];
             const out = useContentQuery(() => [{ parentId: "parent-1" }], {
@@ -483,6 +485,60 @@ describe("useContentQuery — SSR prerender path", () => {
             expect(out.value[0]._id).toBe("content-pub-1");
             // The default stripFields still apply on the locally-served path.
             expect(out.value[0]).not.toHaveProperty("text");
+        });
+
+        // A feed query (publishedFilter: true, default truthy includeScheduled) must read
+        // from the corpus — the prior gate forced these onto the live API, so a doc
+        // published mid-build appeared as a feed tile with no prerendered slug page.
+        it("serves a feed query (default includeScheduled) locally without calling queryRemote", async () => {
+            (globalThis as Record<string, unknown>)[CORPUS_KEY] = [{ ...publishedCorpusDoc }];
+            const out = useContentQuery(() => [{ parentId: "parent-1" }], {
+                publishedFilter: true,
+                languageFilter: false,
+                // includeScheduled intentionally omitted — the feed default (truthy).
+            });
+            await flushPromises();
+
+            expect(queryRemoteMock).not.toHaveBeenCalled();
+            expect(out.value).toHaveLength(1);
+            expect(out.value[0]._id).toBe("content-pub-1");
+        });
+
+        // The dead-link guard: a present corpus with no match is AUTHORITATIVE. Re-POSTing
+        // would let a doc the live API surfaces (but the drain didn't) render a feed tile
+        // to a slug page that was never prerendered.
+        it("does not fall back to queryRemote when the corpus is present but matches nothing", async () => {
+            (globalThis as Record<string, unknown>)[CORPUS_KEY] = [{ ...publishedCorpusDoc }];
+            const out = useContentQuery(() => [{ parentId: "not-in-corpus" }], {
+                publishedFilter: true,
+                languageFilter: false,
+            });
+            await flushPromises();
+
+            expect(queryRemoteMock).not.toHaveBeenCalled();
+            expect(out.value).toEqual([]);
+        });
+
+        // The corpus carries coming-soon docs too; a feed query matches one via the
+        // parentShowComingSoon branch and serves it locally (as a non-link tile).
+        it("serves a coming-soon doc from the corpus for a feed query", async () => {
+            const comingSoonDoc = {
+                ...publishedCorpusDoc,
+                _id: "content-soon",
+                publishDate: Date.now() + 60_000, // future relative to the frozen sessionNow()
+                parentShowComingSoon: true,
+            };
+            (globalThis as Record<string, unknown>)[CORPUS_KEY] = [comingSoonDoc];
+            const out = useContentQuery(() => [{ parentId: "parent-1" }], {
+                publishedFilter: true,
+                languageFilter: false,
+                // includeScheduled omitted — the feed default matches coming-soon.
+            });
+            await flushPromises();
+
+            expect(queryRemoteMock).not.toHaveBeenCalled();
+            expect(out.value).toHaveLength(1);
+            expect(out.value[0]._id).toBe("content-soon");
         });
 
         it("falls back to queryRemote when the query is not corpus-satisfiable (publishedFilter:false)", async () => {

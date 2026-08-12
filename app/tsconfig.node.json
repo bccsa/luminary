@@ -6,6 +6,7 @@
         "vite.config.*",
         "vitest.config.*",
         "src/authStorage.ts",
+        "src/util/sessionNow.ts",
         "src/ssg/facetKeys.ts",
         "src/ssg/ssrChains.ts",
         "src/ssg/renderDiagnostics.ts",

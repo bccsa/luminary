@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { sessionNow, __resetSessionNow } from "./sessionNow";
+import { sessionNow, setSessionNow, __resetSessionNow } from "./sessionNow";
 
 describe("sessionNow", () => {
     afterEach(() => {
@@ -36,5 +36,19 @@ describe("sessionNow", () => {
         __resetSessionNow();
         vi.setSystemTime(1_700_000_123_000);
         expect(sessionNow()).toBe(1_700_000_123_000);
+    });
+
+    it("pins the reference time without reading the clock, and wins over a later capture", () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(1_700_000_000_000);
+        __resetSessionNow();
+
+        setSessionNow(1_750_000_000_000);
+        // The pinned value is returned, not the wall clock.
+        expect(sessionNow()).toBe(1_750_000_000_000);
+
+        // Advancing the clock does not re-capture over the pin.
+        vi.setSystemTime(1_700_000_500_000);
+        expect(sessionNow()).toBe(1_750_000_000_000);
     });
 });

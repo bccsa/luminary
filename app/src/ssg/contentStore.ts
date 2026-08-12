@@ -28,18 +28,21 @@ function compareValues(a: unknown, b: unknown): number {
 // CouchDB Mango indexes always append the doc `_id` ascending as a final tiebreaker,
 // so replicating that keeps a `publishDate desc` ordering identical at a `limit`
 // boundary where multiple docs share a publishDate.
-function sortDocs(
-    docs: ContentDto[],
-    sort: Array<Record<string, "asc" | "desc">>,
-): ContentDto[] {
+function sortDocs(docs: ContentDto[], sort: Array<Record<string, "asc" | "desc">>): ContentDto[] {
     return [...docs].sort((a, b) => {
         for (const spec of sort) {
             for (const [field, dir] of Object.entries(spec)) {
-                const cmp = compareValues((a as Record<string, unknown>)[field], (b as Record<string, unknown>)[field]);
+                const cmp = compareValues(
+                    (a as Record<string, unknown>)[field],
+                    (b as Record<string, unknown>)[field],
+                );
                 if (cmp !== 0) return dir === "desc" ? -cmp : cmp;
             }
         }
-        return compareValues((a as Record<string, unknown>)._id, (b as Record<string, unknown>)._id);
+        return compareValues(
+            (a as Record<string, unknown>)._id,
+            (b as Record<string, unknown>)._id,
+        );
     });
 }
 
@@ -48,10 +51,12 @@ function sortDocs(
  * the same docs the anonymous `/query` POST would. Returns `null` when no corpus is
  * published (or the feature is disabled) so the caller falls back to `queryRemote`.
  *
- * The caller owns the gate: only queries whose selector bounds results to
- * `publishDate <= now` (`publishedFilter && !includeScheduled`) are safe to serve
- * here — the corpus is the anonymous published-now set, so a query that wants
- * future-dated/coming-soon docs must still POST.
+ * The caller owns the gate: a `publishedFilter` query is safe to serve here because
+ * its selector bounds results to the published set (publishDate <= now OR coming-soon)
+ * the drained corpus holds. A `publishedFilter: false` lookup may match docs outside
+ * the corpus, so it still POSTs. An empty match over a present corpus is authoritative
+ * (see `resolveQuery`) — never silently re-POSTs to surface a tile for an unprerendered
+ * slug.
  */
 export function queryContentLocal(q: MangoQuery): ContentDto[] | null {
     if (typeof process !== "undefined" && process.env?.SSG_DISABLE_LOCAL_CONTENT_STORE) {

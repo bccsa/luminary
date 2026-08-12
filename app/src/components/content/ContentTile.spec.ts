@@ -1,5 +1,5 @@
 import "fake-indexeddb/auto";
-import { describe, it, expect, vi } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import { h, type Slots } from "vue";
 import ContentTile from "./ContentTile.vue";
@@ -14,6 +14,7 @@ import type { ContentDto } from "luminary-shared";
 import { setMediaProgress, setReadingProgress } from "@/contentProgress";
 import { computed } from "vue";
 import { cmsLanguages } from "@/globalConfig";
+import { setSessionNow, __resetSessionNow } from "@/util/sessionNow";
 
 vi.mock("@/composables/useBucketInfo", () => ({
     useBucketInfo: () => ({
@@ -64,6 +65,12 @@ const RouterLinkStub = {
 cmsLanguages.value = [mockLanguageDtoEng, mockLanguageDtoFra];
 
 describe("ContentTile", () => {
+    // Each test that mounts a coming-soon tile freezes sessionNow on first read;
+    // reset between tests so a pin from one test can't leak into the next.
+    afterEach(() => {
+        __resetSessionNow();
+    });
+
     it("renders the image of content", async () => {
         const wrapper = mount(ContentTile, {
             props: {
@@ -185,6 +192,32 @@ describe("ContentTile", () => {
             mockLanguageDtoEng.translations["content.coming_soon"],
         );
         expect(wrapper.find("a").exists()).toBe(true);
+    });
+
+    it("judges coming-soon by the frozen sessionNow, not the live clock", () => {
+        // Pin the reference time into the past, then place publishDate between the
+        // pin and the live clock. If isComingSoon read the live Date.now() the tile
+        // would already be published (a link); because it reads the frozen
+        // sessionNow() the tile stays a non-link "coming soon" badge. This is the
+        // cutoff that keeps a doc published mid-build from linking to a slug page
+        // that was never prerendered.
+        __resetSessionNow();
+        const pinned = Date.now() - 1000;
+        setSessionNow(pinned);
+        const scheduledContent = {
+            ...mockEnglishContentDto,
+            publishDate: Date.now() - 500,
+            parentShowComingSoon: true,
+        };
+
+        const wrapper = mount(ContentTile, {
+            props: {
+                content: scheduledContent,
+            },
+        });
+
+        expect(wrapper.text()).toContain("Coming soon");
+        expect(wrapper.find("a").exists()).toBe(false);
     });
 
     it("renders the play icon if the content has a video", () => {

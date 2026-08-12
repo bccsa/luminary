@@ -5,6 +5,7 @@ import {
     drainQuery,
     enumerateDeleteCmds,
     enumeratePublicContent,
+    isRouteEligible,
     QUERY_PAGE_SIZE,
     type KeysetDocument,
     type KeysetQuery,
@@ -109,13 +110,7 @@ describe("queryDrain", () => {
     it("resolves when a short non-empty page is followed by an empty probe", async () => {
         const calls: KeysetQuery[] = [];
         const docs = await drainQuery(
-            queuedTransport(
-                [
-                    [{ updatedTimeUtc: 10, _id: "a", value: "a" }],
-                    [],
-                ],
-                calls,
-            ),
+            queuedTransport([[{ updatedTimeUtc: 10, _id: "a", value: "a" }], []], calls),
             { type: "content", limit: 2 },
         );
 
@@ -145,18 +140,37 @@ describe("queryDrain", () => {
         });
     });
 
-    it("enumerates only public, already-published content", async () => {
-        const now = 1_750_000_000_000;
+    it("drains the full published content set without a publishDate bound", async () => {
         const calls: KeysetQuery[] = [];
 
-        await enumeratePublicContent<TestDoc>(queuedTransport([[]], calls), now);
+        await enumeratePublicContent<TestDoc>(queuedTransport([[]], calls));
 
         expect(calls).toHaveLength(1);
-        expect(calls[0].selector).toEqual({
-            $and: [
-                { type: "content" },
-                { publishDate: { $lte: now } },
-            ],
+        // No `publishDate <= now` condition: the drain returns published docs the API
+        // allows (status / language / expiry / memberOf are filtered server-side),
+        // including scheduled "coming soon" docs. The publishDate cutoff is applied by
+        // the caller when building slug routes, not here.
+        expect(calls[0].selector).toEqual({ $and: [{ type: "content" }] });
+    });
+
+    describe("isRouteEligible", () => {
+        // The corpus carries every published doc, but only `publishDate <= now` docs get
+        // a prerendered slug route. This is the "coming-soon gets a feed tile but no page"
+        // gate, so the cutoff and boundary are guarded directly.
+        const now = 1_750_000_000_000;
+
+        it("is eligible when publishDate is at or before now", () => {
+            expect(isRouteEligible({ publishDate: now }, now)).toBe(true);
+            expect(isRouteEligible({ publishDate: now - 1 }, now)).toBe(true);
+        });
+
+        it("is NOT eligible when publishDate is in the future (coming-soon)", () => {
+            expect(isRouteEligible({ publishDate: now + 1 }, now)).toBe(false);
+        });
+
+        it("treats a missing publishDate as eligible rather than dropping the doc", () => {
+            expect(isRouteEligible({}, now)).toBe(true);
+            expect(isRouteEligible({ publishDate: undefined }, now)).toBe(true);
         });
     });
 

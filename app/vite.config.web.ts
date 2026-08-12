@@ -11,13 +11,19 @@ import {
     drainQuery,
     enumerateDeleteCmds,
     enumeratePublicContent,
+    isRouteEligible,
     type KeysetDocument,
     type KeysetQuery,
     type QueryTransport,
 } from "./src/ssg/queryDrain";
-import { ACTIVE_PROVIDER_KEY, LEGACY_AUTH0_CACHE_PREFIX, OIDC_USER_PREFIX } from "./src/authStorage";
+import {
+    ACTIVE_PROVIDER_KEY,
+    LEGACY_AUTH0_CACHE_PREFIX,
+    OIDC_USER_PREFIX,
+} from "./src/authStorage";
 import { releaseSsrChain } from "./src/ssg/ssrChains";
 import { takeRenderIssues, type RenderIssue } from "./src/ssg/renderDiagnostics";
+import { setSessionNow } from "./src/util/sessionNow";
 import {
     DocType,
     RedirectType,
@@ -123,7 +129,7 @@ function expectedLangForRoute(route: string): string {
     const routeLang = g.__SSG_ROUTE_LANG__ as Record<string, string> | undefined;
     const firstSegment = route.split("/").filter(Boolean)[0];
     if (firstSegment && codeToId?.[firstSegment]) return codeToId[firstSegment];
-    return routeLang?.[route] || ((g.__SSG_DEFAULT_LANG__ as string) || "");
+    return routeLang?.[route] || (g.__SSG_DEFAULT_LANG__ as string) || "";
 }
 
 /**
@@ -165,7 +171,7 @@ type SsgRedirect = KeysetDocument & {
     deleteReq?: number;
     redirectType?: RedirectType;
 };
-type SsgContent = Partial<DocLike> & KeysetDocument & { slug?: string };
+type SsgContent = Partial<DocLike> & KeysetDocument & { slug?: string; publishDate?: number };
 type SsgDeleteCmdDoc = KeysetDocument & {
     docId?: string;
     slug?: string;
@@ -436,19 +442,25 @@ function queryTransport(apiUrl: string, operation: string): QueryTransport {
 // Enumerate every public content slug through anonymous /query access. Each
 // type-specific stream uses a stable (updatedTimeUtc, _id) keyset cursor.
 async function fetchPublicSlugs(apiUrl: string, now: number): Promise<string[]> {
+    // Drain the full published set, including scheduled "coming soon" docs. The corpus
+    // (published below) feeds the per-page local query resolver, which serves feed
+    // queries that intentionally match coming-soon tiles, so those docs must be present.
     const docs = await enumeratePublicContent<SsgContent>(
         queryTransport(apiUrl, "route enumeration"),
-        now,
     );
+    // Slug routes are gated to `publishDate <= now` via `isRouteEligible`: a coming-soon
+    // doc gets a feed tile (it's in the corpus) but no page, since it isn't readable yet.
+    const routeEligible = (d: SsgContent) => isRouteEligible(d, now);
     // Build the route→language map so each page prerenders in its own language
     // (read by main.web.ts via globalThis). Same Node process as the SSR render.
     const routeLang: Record<string, string> = {};
     const slugs = new Set<string>();
-    routeIndex = buildRouteIndex(docs);
+    routeIndex = buildRouteIndex(docs.filter(routeEligible));
     docFacets = {};
     docFacetRoutes = {};
     routeLastmod = {};
     for (const d of docs) {
+        if (!routeEligible(d)) continue;
         const snapshot = docFacetSnapshot(d);
         if (snapshot && d.slug) {
             docFacets[snapshot._id] = snapshot;
@@ -462,12 +474,13 @@ async function fetchPublicSlugs(apiUrl: string, now: number): Promise<string[]> 
         if (d.language) routeLang[`/${d.slug}`] = d.language;
     }
     (globalThis as Record<string, unknown>).__SSG_ROUTE_LANG__ = routeLang;
-    // Publish the full drained corpus for the SSR branch's local query resolver
-    // (src/ssg/contentStore.ts). The drain returns whole content docs; everything above
-    // only kept slug/language/lastmod/facets, so without this the per-page queries would
-    // re-POST for slices of the same set. Read on `globalThis` because the config and the
-    // Vite-SSG app bundle are separate module realms.
-    (globalThis as Record<string, unknown>).__SSG_CONTENT_CORPUS__ = docs as unknown as ContentDto[];
+    // Publish the full drained corpus (incl. coming-soon) for the SSR branch's local
+    // query resolver (src/ssg/contentStore.ts). Read on `globalThis` because the config
+    // and the Vite-SSG app bundle are separate module realms. Feed queries read this
+    // locally, so a tile can only ever reference a doc that was published at drain time —
+    // never one the live API would surface mid-build without a prerendered slug page.
+    (globalThis as Record<string, unknown>).__SSG_CONTENT_CORPUS__ =
+        docs as unknown as ContentDto[];
     return [...slugs];
 }
 
@@ -501,7 +514,10 @@ async function fetchDeleteCmds(
 }
 
 // Resolve this build's drained DeleteCmds into the pending-delete queue, writing one file per entry into `ssg-delete-queue/` (flat, not sharded). Legacy (slug-less) fallback data is loaded lazily — only the shards a legacy cmd's docId hashes to, and the redirect index if a legacy Redirect cmd needs it.
-function writeDeleteQueue(cmds: { contentCmds: SsgDeleteCmdDoc[]; redirectCmds: SsgDeleteCmdDoc[] }) {
+function writeDeleteQueue(cmds: {
+    contentCmds: SsgDeleteCmdDoc[];
+    redirectCmds: SsgDeleteCmdDoc[];
+}) {
     const { contentCmds, redirectCmds } = cmds;
     if (!contentCmds.length && !redirectCmds.length) {
         console.log("[ssg] no delete-cmd entries to add to ssg-delete-queue/ this run");
@@ -530,7 +546,12 @@ function writeDeleteQueue(cmds: { contentCmds: SsgDeleteCmdDoc[]; redirectCmds: 
         );
     }
 
-    const fresh = buildDeleteQueue(contentCmds, redirectCmds, legacyRouteIndex, legacyRedirectSlugs);
+    const fresh = buildDeleteQueue(
+        contentCmds,
+        redirectCmds,
+        legacyRouteIndex,
+        legacyRedirectSlugs,
+    );
 
     mkdirSync(deleteQueueDir(), { recursive: true });
     for (const [id, entry] of Object.entries(fresh)) {
@@ -550,7 +571,10 @@ async function writeRedirectFiles(apiUrl: string): Promise<void> {
         const file = join(process.cwd(), OUT_DIR, redirectFile(redirect.slug));
         if (existsSync(file)) continue; // prerendered content/static route wins
         mkdirSync(dirname(file), { recursive: true });
-        writeFileSync(file, redirectHtml(redirect.toSlug, redirect.redirectType ?? RedirectType.Temporary));
+        writeFileSync(
+            file,
+            redirectHtml(redirect.toSlug, redirect.redirectType ?? RedirectType.Temporary),
+        );
         written++;
     }
     console.log(`[ssg] wrote ${written} static redirect file(s)`);
@@ -621,6 +645,11 @@ const config: UserConfig & { ssgOptions: ViteSSGOptions } = {
             // route by main.web.ts to pick the render language) — including on a
             // scoped rebuild, which still needs the language for its routes.
             const routeEnumerationNow = Date.now();
+            // Pin the per-page queries' reference "now" to the enumeration timestamp so a
+            // doc published mid-build can't appear on a feed (served from the corpus) as a
+            // tile to a slug page that was never prerendered. Must run before the first
+            // render, where `mangoIsPublished` captures `sessionNow()` on first read.
+            setSessionNow(routeEnumerationNow);
             const slugs = await fetchPublicSlugs(apiUrl, routeEnumerationNow);
             const languages = await fetchLanguages(apiUrl);
             const defaultLanguage = languages.find((l) => l.default === 1) ?? languages[0];
@@ -669,7 +698,9 @@ const config: UserConfig & { ssgOptions: ViteSSGOptions } = {
             // rebuild renders only the explicitly requested routes.
             if (IS_SCOPED) {
                 renderedRouteSet = new Set(SCOPED_ROUTES);
-                console.log(`[ssg] scoped rebuild of ${SCOPED_ROUTES.length} route(s); sitemap covers ${all.length}`);
+                console.log(
+                    `[ssg] scoped rebuild of ${SCOPED_ROUTES.length} route(s); sitemap covers ${all.length}`,
+                );
                 return SCOPED_ROUTES;
             }
 

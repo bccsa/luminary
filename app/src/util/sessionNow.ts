@@ -27,6 +27,18 @@ export function sessionNow(): number {
 }
 
 /**
+ * Pin the reference time to a specific value instead of capturing `Date.now()` on
+ * first read. The SSG prerender pins this to the route-enumeration timestamp so every
+ * per-page query's `publishDate <= now` bound matches the slug routes actually
+ * prerendered — a doc published mid-build then can't surface on a feed tile (served
+ * from the drained corpus) without a matching slug page. Safe to call before the
+ * first `sessionNow()` read; a later call is a no-op so the prerender's pin wins.
+ */
+export function setSessionNow(n: number): void {
+    if (_sessionNow === undefined) _sessionNow = n;
+}
+
+/**
  * @internal Test-only — clear the captured value so the next {@link sessionNow}
  * call re-captures (models a fresh page load). Not for production use.
  */
