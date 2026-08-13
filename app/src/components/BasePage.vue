@@ -87,13 +87,13 @@ onUnmounted(() => {
                     <RouterLink
                         v-if="showBackButton"
                         :to="{ name: 'home' }"
-                        v-slot="{ href, navigate }"
+                        v-slot="{ href }"
                         custom
                     >
                         <a
                             :href="href"
                             class="pointer-events-auto flex-shrink-0 rounded-md p-1 text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
-                            @click="onBackClick(navigate, $event)"
+                            @click="onBackClick($event)"
                             aria-label="Go back"
                         >
                             <ChevronLeftIcon class="h-5 w-5" />

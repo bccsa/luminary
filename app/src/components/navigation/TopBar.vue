@@ -106,13 +106,13 @@ const handleLogin = () => {
                     >
                         <RouterLink
                             :to="{ name: 'home' }"
-                            v-slot="{ href, navigate }"
+                            v-slot="{ href }"
                             custom
                         >
                             <a
                                 :href="href"
                                 aria-label="Go back"
-                                @click="onBackClick(navigate, $event)"
+                                @click="onBackClick($event)"
                             >
                                 <ChevronLeftIcon
                                     class="-ml-2 h-6 w-6 cursor-pointer text-zinc-600 dark:text-slate-50"
