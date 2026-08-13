@@ -20,7 +20,6 @@ const LEGACY_AUTH0_STATE_PREFIX = "a0.spajs.";
  */
 const FORCE_REAUTH_KEY = "forceReauthOnNextLogin";
 
-
 /** Currently active OAuth provider document id (or null when unauthenticated). */
 export const activeProviderId = ref<string | null>(null);
 /** When true, the provider selection modal should be shown. */
