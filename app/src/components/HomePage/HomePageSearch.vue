@@ -4,11 +4,20 @@ import { useSearchOverlay } from "@/composables/useSearchOverlay";
 import { isMac, isMobileScreen } from "@/globalConfig";
 import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
+import { useRouter } from "vue-router";
 
 const { openSearch } = useSearchOverlay();
 const { t } = useI18n();
+const router = useRouter();
 
 const shortcutLabel = computed(() => (isMac.value ? "⌘K" : "Ctrl+K"));
+
+// Desktop opens the search modal overlay; mobile navigates to the dedicated /search page
+// (the bottom-menu search button does the same — the modal is desktop-only).
+const onSearchClick = () => {
+    if (isMobileScreen.value) router.push({ name: "search" });
+    else openSearch();
+};
 
 // First-time onboarding hint: shimmer the search button to draw attention,
 // but only on the user's very first mount. localStorage marker survives
@@ -32,7 +41,7 @@ onMounted(() => {
         <div class="mx-auto max-w-xl">
             <button
                 type="button"
-                @click="openSearch"
+                @click="onSearchClick"
                 :aria-label="t('search.ariaLabel')"
                 :class="{ 'shimmer-once': shouldShimmer }"
                 class="search-button group relative flex w-full items-center gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3 text-left shadow-sm transition hover:border-yellow-500 hover:shadow-md dark:border-slate-700 dark:bg-slate-800 dark:hover:border-yellow-500"

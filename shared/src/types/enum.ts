@@ -38,6 +38,11 @@ export enum DeleteReason {
     Deleted = "deleted",
     PermissionChange = "permissionChange",
     StatusChange = "statusChange",
+    /**
+     * A content slug was renamed with no redirect replacing the old slug. The SSG
+     * deletes the old slug's static file; clients ignore it (the content is live).
+     */
+    SlugChange = "slugChange",
 }
 
 export enum StorageType {

@@ -18,6 +18,8 @@ const copyright = useContentQuery(
         sort: [{ publishDate: "desc" }],
         // Keep `text` — the copyright body is rendered below; the default strips it.
         stripFields: ["fts", "ftsTokenCount", "memberOf", "_rev"],
+        // Same selector on every page for the whole build — fetch it once, not per route.
+        buildOnce: true,
     },
 );
 

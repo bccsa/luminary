@@ -54,10 +54,15 @@
         "settings.data_saver.slow_connection_note": "Your connection seems slow, so reduced data use will be applied automatically.",
         "home.title": "Home",
         "home.continue": "Continue",
+        "home.description": "Discover the latest articles, videos, and audio.",
         "home.continueListening": "Continue Listening",
         "explore.title": "Explore",
+        "explore.description": "Explore topics and discover content.",
         "explore.other": "Other",
+        "search.title": "Search",
+        "search.description": "Search articles, videos, and more across the library.",
         "watch.title": "Watch",
+        "watch.description": "Watch the latest videos.",
         "home.newest": "Newest",
         "content.related_title": "Related",
         "content.read_more": "Read more",
@@ -151,6 +156,7 @@
         "openapp_warning.button_cancel": "Cancel",
         "auth.sign_in": "Sign in",
         "auth.no_methods_available": "No authentication methods available. Please try again in a moment.",
-        "singlecontent.listen": "Listen"
+        "singlecontent.listen": "Listen",
+        "singlecontent.loading": "Loading..."
     }
 }

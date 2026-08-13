@@ -52,6 +52,10 @@ export type DeleteCmdDto = BaseDocumentDto & {
     deleteReason: DeleteReason;
     memberOf?: Uuid[];
     newMemberOf?: Uuid[];
+        /** Language ID of the deleted content document (only set for Content DeleteCmds). */
+    language?: Uuid;
+    /** Slug of the deleted document (only set for Content/Redirect DeleteCmds). */
+    slug?: string;
 };
 
 export type ContentBaseDto = BaseDocumentDto & {
@@ -106,6 +110,8 @@ export type ContentDto = ContentBaseDto & {
     parentAlwaysOffline?: boolean;
     parentPinned?: number;
     parentUseVerticalTileLayout?: boolean;
+    /** Drives the jsonLD author @type: "org" = Organization, "person"/undefined = Person. Mirrors parent authorType. */
+    parentAuthorType?: "person" | "org";
     parentTaggedDocs?: Uuid[];
     availableTranslations?: Uuid[];
     parentImageBucketId?: Uuid;
@@ -116,6 +122,8 @@ export type ContentDto = ContentBaseDto & {
     copyright?: string;
     wordCount?: number;
     statusChangeDeleteCmdId?: Uuid;
+    /** Server-set history of past slugs this doc was published under. Reserved for future ISR/SSG use. */
+    previousSlugs?: string[];
 };
 
 export type ContentParentDto = ContentBaseDto & {
@@ -128,6 +136,8 @@ export type ContentParentDto = ContentBaseDto & {
     media?: MediaDto;
     mediaBucketId?: Uuid;
     useVerticalTileLayout?: boolean;
+    /** Drives the jsonLD author @type: "org" = Organization, "person"/undefined = Person (default). */
+    authorType?: "person" | "org";
 };
 
 export type PostDto = ContentParentDto & {

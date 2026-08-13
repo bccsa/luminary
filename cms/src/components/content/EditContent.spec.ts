@@ -722,7 +722,8 @@ describe("EditContent.vue", () => {
         });
 
         // Check that the publish button is disabled
-        const publishButton = wrapper.findAllComponents(LTextToggle)[1];
+        // Index 2: [0] Author type (Post only), [1] Visible/SEO, [2] Status/publish.
+        const publishButton = wrapper.findAllComponents(LTextToggle)[2];
         expect(publishButton.exists()).toBe(true);
         expect(publishButton.props().disabled).toBe(true);
 

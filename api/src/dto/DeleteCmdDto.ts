@@ -50,8 +50,10 @@ export class DeleteCmdDto extends _baseDto {
     @Expose()
     language?: Uuid;
 
+    /**
+     * Slug of the deleted document (only set for Content/Redirect DeleteCmds)
+     */
     @IsOptional()
-    @Expose()
     @IsString()
     @Expose()
     slug?: string;

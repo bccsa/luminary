@@ -1,6 +1,6 @@
 # Build-time plugins
 
-This folder holds **implementations** of app services that depend on the build target (for example web vs native). Each subfolder is one plugin (e.g. `demo-banner`).
+This folder holds **implementations** of app services that depend on the build target (for example web vs the normal SPA). Each subfolder is one plugin (e.g. `demo-banner`).
 
 ## How it fits together
 
@@ -11,7 +11,7 @@ This folder holds **implementations** of app services that depend on the build t
 ## Conventions
 
 - One directory per plugin; export `install*` helpers and re-export contract types/keys as needed from `index.ts`.
-- Keep **platform-specific logic** inside the plugin. App and shared components should use **`inject(DemoBannerKey)`** (and other keys from contracts), not import web or native adapters directly unless unavoidable.
+- Keep **platform-specific logic** inside the plugin. App and shared components should use **`inject(DemoBannerKey)`** (and other keys from contracts), not import web or normal-SPA adapters directly unless unavoidable.
 
 ## Adding a plugin
 

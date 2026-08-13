@@ -11,31 +11,18 @@ export type MangoIsPublishedOptions = {
 };
 
 /**
- * Builds Mango selector conditions for the "isPublished" check.
- * This can be used to inject the publication status, date, and language priority logic into a Mango query.
+ * Builds the Mango selector conditions for "is this doc published right now" —
+ * status, publish date, and expiry — WITHOUT any language selection. This is the
+ * single source of truth for that check: reused by `mangoIsPublished` below (which
+ * adds language-priority selection on top, for feed queries that want one doc per
+ * parent) and by callers that need every published doc regardless of language (e.g.
+ * a sibling-translations list), who can compile it to a plain predicate via
+ * `mangoCompile` from `luminary-shared`.
  *
- * The conditions check:
- * 1. status === "published"
- * 2. publishDate: by default <= now; with `includeScheduled`, also future dates when `parentShowComingSoon`
- *    (published content always has a publishDate, so missing/null is not matched)
- * 3. expiryDate is either missing, null, or >= now (not expired)
- * 4. language matches the first available language from the user's preferences
- *
- * @param languageIds - Array of language IDs in priority order (most preferred first)
  * @param options - Optional `includeScheduled` for upcoming/coming-soon display in feeds
  * @returns Array of Mango selector conditions to be used in an $and clause
- *
- * @example
- * ```ts
- * const selector = {
- *     $and: [
- *         { type: DocType.Content },
- *         ...mangoIsPublished(appLanguageIds),
- *     ],
- * };
- * ```
  */
-export function mangoIsPublished(languageIds: Uuid[], options?: MangoIsPublishedOptions): MangoSelector[] {
+export function publishedNowConditions(options?: MangoIsPublishedOptions): MangoSelector[] {
     // Frozen session reference time (captured once on page load) — NOT a live
     // `Date.now()`. The bound is embedded in the selector, which HybridQuery uses
     // as its reactive dedup key; a live clock would re-key the query on every
@@ -67,7 +54,37 @@ export function mangoIsPublished(languageIds: Uuid[], options?: MangoIsPublished
                 { expiryDate: { $gte: now } },
             ],
         },
+    ];
+}
 
+/**
+ * Builds Mango selector conditions for the "isPublished" check.
+ * This can be used to inject the publication status, date, and language priority logic into a Mango query.
+ *
+ * The conditions check:
+ * 1. status === "published"
+ * 2. publishDate: by default <= now; with `includeScheduled`, also future dates when `parentShowComingSoon`
+ *    (published content always has a publishDate, so missing/null is not matched)
+ * 3. expiryDate is either missing, null, or >= now (not expired)
+ * 4. language matches the first available language from the user's preferences
+ *
+ * @param languageIds - Array of language IDs in priority order (most preferred first)
+ * @param options - Optional `includeScheduled` for upcoming/coming-soon display in feeds
+ * @returns Array of Mango selector conditions to be used in an $and clause
+ *
+ * @example
+ * ```ts
+ * const selector = {
+ *     $and: [
+ *         { type: DocType.Content },
+ *         ...mangoIsPublished(appLanguageIds),
+ *     ],
+ * };
+ * ```
+ */
+export function mangoIsPublished(languageIds: Uuid[], options?: MangoIsPublishedOptions): MangoSelector[] {
+    return [
+        ...publishedNowConditions(options),
         // Language priority: select the best available translation
         buildLanguagePrioritySelector(languageIds),
     ];

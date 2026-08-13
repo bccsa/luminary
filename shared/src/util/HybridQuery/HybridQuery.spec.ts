@@ -972,6 +972,26 @@ describe("HybridQuery", () => {
         });
     });
 
+    describe("includeExpired forwarding (queryRemote)", () => {
+        it("forwards includeExpired so an expiry-crossing caller can see expired docs", async () => {
+            postHttpMock.mockResolvedValueOnce({ docs: [] });
+
+            await queryRemote({ selector: { type: "content" }, includeExpired: true });
+
+            const payload = postHttpMock.mock.calls[0]![1] as Record<string, unknown>;
+            expect(payload.includeExpired).toBe(true);
+        });
+
+        it("omits it when unset, leaving the API's unexpired filter in place", async () => {
+            postHttpMock.mockResolvedValueOnce({ docs: [] });
+
+            await queryRemote({ selector: { type: "content" } });
+
+            const payload = postHttpMock.mock.calls[0]![1] as Record<string, unknown>;
+            expect("includeExpired" in payload).toBe(false);
+        });
+    });
+
     describe("cutoff threading", () => {
         // Parameterize across the three content sub-branches so a regression that
         // hard-codes the cutoff (or reads it at module-load) would fail at least
@@ -1708,10 +1728,9 @@ describe("HybridQuery", () => {
             expect(q.output.value).toEqual([g1]); // painted before any flush
         });
 
-        it("does NOT reassign output when the live result matches the seed (no re-render)", async () => {
+        it("publishes the authoritative read once, then stops re-rendering on matching recomputes", async () => {
             const g1 = { _id: "g1", updatedTimeUtc: 5, type: "group" };
             writeResponseCache(structuralCacheKey(syncedQuery), { local: [g1], remote: [] });
-            // Same _id + updatedTimeUtc ⇒ sameWindow ⇒ output kept.
             mocks.mangoToDexieMock.mockResolvedValueOnce([
                 { _id: "g1", updatedTimeUtc: 5, type: "group" },
             ]);
@@ -1720,7 +1739,15 @@ describe("HybridQuery", () => {
             const seededRef = q.output.value;
             await flush();
 
-            expect(q.output.value).toBe(seededRef); // identical array reference
+            // The seed is a projection of unknown shape (the writer's strip config is
+            // not knowable here), so retiring it must publish the authoritative docs.
+            const settledRef = q.output.value;
+            expect(settledRef).not.toBe(seededRef);
+            expect(settledRef).toEqual([{ _id: "g1", updatedTimeUtc: 5, type: "group" }]);
+
+            // Seed retired — the re-render optimization now applies as usual.
+            await flush();
+            expect(q.output.value).toBe(settledRef);
         });
 
         it("reassigns output when the live result differs from the seed", async () => {
@@ -1814,7 +1841,7 @@ describe("HybridQuery", () => {
                 expect(q.output.value.map((d) => d._id)).toEqual(["L1", "R1"]);
             });
 
-            it("keeps the output reference when local+remote both match the seed", async () => {
+            it("settles on the authoritative docs when local+remote both match the seed", async () => {
                 writeResponseCache(structuralCacheKey(contentQuery), { local: [L], remote: [R] });
                 mocks.mangoToDexieMock.mockResolvedValueOnce([L]);
                 postHttpMock.mockResolvedValueOnce({ docs: [R] });
@@ -1823,7 +1850,10 @@ describe("HybridQuery", () => {
                 const seededRef = q.output.value;
                 await flush();
 
-                expect(q.output.value).toBe(seededRef); // unchanged through both stages
+                // Same window by id + updatedTimeUtc, but retiring the seed still
+                // republishes so any field the seed omitted reaches consumers.
+                expect(q.output.value).not.toBe(seededRef);
+                expect(q.output.value.map((d) => d._id)).toEqual(["L1", "R1"]);
             });
 
             it("supersedes a seeded older-tail doc the POST no longer returns", async () => {
@@ -1880,7 +1910,7 @@ describe("HybridQuery", () => {
                 expect(persisted.remote[0]).toMatchObject({ _id: "R1", publishDate: 500 });
             });
 
-            it("a stripped seed stays in output when the live read matches (sameWindow holds)", async () => {
+            it("replaces a stripped seed with the full docs once the live read lands", async () => {
                 // Seed persisted WITH stripping, as a prior session would have written it.
                 writeResponseCache(
                     structuralCacheKey(contentQuery),
@@ -1899,8 +1929,11 @@ describe("HybridQuery", () => {
                 expect(seededRef.find((d) => d._id === "L1")).not.toHaveProperty("text");
                 await flush();
 
-                // id + updatedTimeUtc match ⇒ sameWindow keeps the (stripped) seed array.
-                expect(q.output.value).toBe(seededRef);
+                // The stripped field is exactly what `sameWindow` cannot see, so the
+                // authoritative docs must still be published.
+                expect(q.output.value).not.toBe(seededRef);
+                expect(q.output.value.find((d) => d._id === "L1")).toHaveProperty("text", "body");
+                expect(q.output.value.find((d) => d._id === "R1")).toHaveProperty("text", "body");
             });
 
             it("drops the seeded remote when the local read needs no API (id-list fully local)", async () => {
@@ -1933,6 +1966,105 @@ describe("HybridQuery", () => {
                 expect(postHttpMock).not.toHaveBeenCalled();
                 expect(q.output.value.map((d) => d._id)).toEqual(["L1"]); // stale R1 gone
             });
+
+            it("seeded window survives an empty local read while the remote leg is pending", async () => {
+                // A server-prerendered seed places the whole window in `local` with an empty
+                // `remote`. A cold-start empty Dexie read must not collapse that seeded first
+                // paint before the supplement POST lands.
+                writeResponseCache(structuralCacheKey(contentQuery), { local: [L], remote: [] });
+                mocks.mangoToDexieMock.mockResolvedValueOnce([]); // cold start: Dexie empty
+                postHttpMock.mockReturnValueOnce(new Promise(() => {})); // POST never resolves
+
+                const q = track(new HybridQuery(contentQuery, { cache: true }));
+                expect(q.output.value.map((d) => d._id)).toEqual(["L1"]); // synchronous seed
+
+                await flush(); // empty local read lands; POST still in flight
+                expect(q.output.value.map((d) => d._id)).toEqual(["L1"]); // seeded window retained
+                expect(q.isFetching.value).toBe(true); // still unsettled
+            });
+
+            it("a non-empty local read still replaces the seeded local wholesale (deletions propagate)", async () => {
+                // Seed holds two local docs; the real read drops one (a deletion). The
+                // non-empty read must replace the seeded local wholesale so the deletion
+                // propagates — the seed-retention guard only holds for an EMPTY read.
+                const L2 = { _id: "L2", updatedTimeUtc: 4, publishDate: 1900, type: "content" };
+                writeResponseCache(structuralCacheKey(contentQuery), {
+                    local: [L, L2],
+                    remote: [],
+                });
+                mocks.mangoToDexieMock.mockResolvedValueOnce([L]); // L2 deleted
+                postHttpMock.mockReturnValueOnce(new Promise(() => {})); // POST never resolves
+
+                const q = track(new HybridQuery(contentQuery, { cache: true }));
+                expect(q.output.value.map((d) => d._id).sort()).toEqual(["L1", "L2"]); // seeded
+
+                await flush(); // non-empty local read replaces wholesale
+                expect(q.output.value.map((d) => d._id)).toEqual(["L1"]); // L2 gone (deletion)
+                expect(q.isFetching.value).toBe(true); // still unsettled
+            });
+
+            it("an empty local read publishes empty once the query has settled", async () => {
+                // The seed bridges first paint while the supplement is in flight; once the
+                // POST resolves with nothing the seeded local is dropped and a genuine
+                // empty result publishes as usual.
+                writeResponseCache(structuralCacheKey(contentQuery), { local: [L], remote: [] });
+                mocks.mangoToDexieMock.mockResolvedValueOnce([]); // cold start
+                postHttpMock.mockResolvedValueOnce({ docs: [] }); // supplement returns nothing
+
+                const q = track(new HybridQuery(contentQuery, { cache: true }));
+                expect(q.output.value.map((d) => d._id)).toEqual(["L1"]); // seeded
+
+                await flush(); // local read + POST both settle
+                expect(q.output.value).toEqual([]); // genuinely empty
+                expect(q.isFetching.value).toBe(false);
+            });
+
+            it("a seeded window survives when every remote query rejects (total POST failure)", async () => {
+                // The seed bridges first paint; a cold-start empty local read keeps it while
+                // the supplement is in flight. When EVERY POST rejects the server has NOT
+                // answered authoritatively, so the seeded window stays to heal on remount —
+                // only a real server result retires it.
+                const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+                writeResponseCache(structuralCacheKey(contentQuery), { local: [L], remote: [R] });
+                mocks.mangoToDexieMock.mockResolvedValueOnce([]); // cold start: Dexie empty
+                postHttpMock.mockRejectedValueOnce(new Error("boom")); // total failure
+
+                const q = track(new HybridQuery(contentQuery, { cache: true }));
+                expect(q.output.value.map((d) => d._id)).toEqual(["L1", "R1"]); // synchronous seed
+
+                await flush(); // empty local read lands; POST rejects
+                expect(postHttpMock).toHaveBeenCalledTimes(1);
+                expect(q.output.value.map((d) => d._id)).toEqual(["L1", "R1"]); // seeded window retained
+                expect(q.isFetching.value).toBe(false); // settled (failed), not fetching
+                errSpy.mockRestore();
+            });
+
+            it("the response cache is not overwritten by an empty unsettled window", async () => {
+                // Live mode: a deletion emits an empty window while the supplement is still
+                // in flight. That transient empty must not persist over the good seed — the
+                // next mount would otherwise seed-miss.
+                writeResponseCache(structuralCacheKey(contentQuery), { local: [L], remote: [] });
+                postHttpMock.mockReturnValueOnce(new Promise(() => {})); // POST never resolves
+
+                const q = track(new HybridQuery(contentQuery, { live: true, cache: true }));
+                expect(q.output.value.map((d) => d._id)).toEqual(["L1"]); // seed
+                await flush();
+
+                // First emission matches the seed (no reassign, no write).
+                mocks.liveRefs[0]!.ref.value = [L];
+                await flush();
+                // Second emission drops the doc (a deletion) while the POST is still pending.
+                mocks.liveRefs[0]!.ref.value = [];
+                await flush();
+
+                expect(q.output.value).toEqual([]); // window went empty mid-flight
+                expect(q.isFetching.value).toBe(true); // still unsettled
+                // The seed is intact — the empty unsettled window was not persisted.
+                expect(readResponseCache(structuralCacheKey(contentQuery))).toEqual({
+                    local: [L],
+                    remote: [],
+                });
+            });
         });
 
         describe("live mode", () => {
@@ -1956,6 +2088,28 @@ describe("HybridQuery", () => {
 
                 await emit([L]); // first live emission lands; POST still pending
                 expect(q.output.value.map((d) => d._id)).toEqual(["L1", "R1"]); // no collapse
+            });
+
+            it("replaces a stripped seeded local doc with the full doc on the first live emission", async () => {
+                // Live mode (SingleContent's actual query mode): seed the local side with a
+                // stripped doc — same id/updatedTimeUtc as the doc the live Dexie read
+                // returns, differing only by the field the SSR cache write omitted.
+                const Lstripped = { _id: "L1", updatedTimeUtc: 5, publishDate: 2000, type: "content" };
+                writeResponseCache(
+                    structuralCacheKey(contentQuery),
+                    { local: [Lstripped], remote: [] },
+                    undefined,
+                    ["text"],
+                );
+                mocks.cutoff = OPEN_MIN; // full sync ⇒ no API supplement, isolates the local leg
+                postHttpMock.mockReturnValueOnce(new Promise(() => {}));
+
+                const q = track(new HybridQuery(contentQuery, { live: true, cache: true }));
+                expect(q.output.value[0]).not.toHaveProperty("text"); // stripped seed
+
+                await emit([{ ...L, text: "body" }]); // authoritative live read carries the full doc
+
+                expect(q.output.value[0]).toHaveProperty("text", "body");
             });
 
             it("keeps a socket upsert when the POST supersedes the seeded remote", async () => {
@@ -2002,6 +2156,48 @@ describe("HybridQuery", () => {
                 await flush();
                 expect(q.output.value.map((d) => d._id)).toEqual(["r2"]); // POST superseded r1
             });
+
+            it("replaces a stripped seeded doc with the full doc once the POST answers", async () => {
+                // Remote-only branch (no Dexie leg), stripped seed as an SSR cache write
+                // would leave it: `body` omitted, same `_id`/`updatedTimeUtc` as the real doc.
+                const r1 = { _id: "r1", updatedTimeUtc: 1, type: "redirect" };
+                writeResponseCache(
+                    structuralCacheKey(apiQuery),
+                    { local: [], remote: [r1] },
+                    undefined,
+                    ["body"],
+                );
+                postHttpMock.mockResolvedValueOnce({
+                    docs: [{ _id: "r1", updatedTimeUtc: 1, type: "redirect", body: "full" }],
+                });
+
+                const q = track(new HybridQuery(apiQuery, { cache: true }));
+                expect(q.output.value[0]).not.toHaveProperty("body"); // stripped seed
+
+                await flush();
+
+                // Same id + updatedTimeUtc as the seed, but the field it omitted must
+                // still reach output.
+                expect(q.output.value[0]).toHaveProperty("body", "full");
+            });
+
+            it("a seeded window survives when the remote leg settles because the client is offline (POST parked, not answered)", async () => {
+                // The seed bridges first paint. Going offline parks the POST on the reconnect
+                // watcher and settles the remote leg — but the server has NOT answered, so the
+                // seeded window stays to heal on reconnect/remount, not collapse.
+                const r1 = { _id: "r1", updatedTimeUtc: 1, type: "redirect" };
+                const r2 = { _id: "r2", updatedTimeUtc: 2, type: "redirect" };
+                writeResponseCache(structuralCacheKey(apiQuery), { local: [r1], remote: [r2] });
+                mocks.isConnected.value = false; // offline ⇒ POST parked, not sent
+
+                const q = track(new HybridQuery(apiQuery, { cache: true }));
+                expect(q.output.value.map((d) => d._id)).toEqual(["r1", "r2"]); // synchronous seed
+
+                await flush(); // offline ⇒ remote leg settles via the park
+                expect(postHttpMock).not.toHaveBeenCalled(); // parked, not answered
+                expect(q.output.value.map((d) => d._id)).toEqual(["r1", "r2"]); // seeded window retained
+                expect(q.isFetching.value).toBe(false); // parked on the reconnect watcher, not fetching
+            });
         });
 
         describe("reactive thunk", () => {
@@ -2033,6 +2229,57 @@ describe("HybridQuery", () => {
                 pinned.value = true;
                 await flush(); // dep change ⇒ rebuild ⇒ gen 2
                 expect(q.output.value.map((d) => d._id)).toEqual(["g2"]); // gen 2 seed
+            });
+        });
+
+        describe("seed key and store invariants", () => {
+            // A consumer that writes a seed out-of-band computes the key from the
+            // query it holds, so the key must stay derived from the caller's raw
+            // query and the store must not be cleared as a side effect of
+            // constructing a query.
+
+            it("seeds from a key derived from the caller's raw, unsanitized query", () => {
+                // sanitizeArrayOperators strips null/undefined from $in internally; if
+                // the cache key were computed from the sanitized selector it would
+                // diverge from the caller's key and the seed would never be found.
+                const rawQuery = {
+                    selector: {
+                        $and: [{ type: "group" }, { someField: { $in: [null, "real-value"] } }],
+                    },
+                };
+                const cacheId = "test-cache-id";
+                const g1 = { _id: "g1", updatedTimeUtc: 5, type: "group" };
+                writeResponseCache(structuralCacheKey(rawQuery, cacheId), {
+                    local: [g1],
+                    remote: [],
+                });
+                // Local read stays pending so only the synchronous seed can have run.
+                mocks.mangoToDexieMock.mockReturnValueOnce(new Promise(() => {}));
+
+                const q = new HybridQuery(rawQuery, { cache: true, cacheId });
+
+                expect(q.output.value).toEqual([g1]); // seeded synchronously from the raw-query key
+            });
+
+            it("constructing a cached query leaves other persisted windows intact", () => {
+                // A consumer may prime several windows before any query is
+                // constructed, so constructing one must not purge the store.
+                const firstQuery = { selector: { type: "group" } };
+                const secondQuery = { selector: { type: "redirect" } };
+                const g1 = { _id: "g1", updatedTimeUtc: 1, type: "group" };
+                const r1 = { _id: "r1", updatedTimeUtc: 2, type: "redirect" };
+                writeResponseCache(structuralCacheKey(firstQuery), { local: [g1], remote: [] });
+                writeResponseCache(structuralCacheKey(secondQuery), { local: [], remote: [r1] });
+                // Keep the local read pending so the query does not overwrite anything.
+                mocks.mangoToDexieMock.mockReturnValueOnce(new Promise(() => {}));
+
+                new HybridQuery(firstQuery, { cache: true });
+
+                // The second, untouched entry is still readable.
+                expect(readResponseCache(structuralCacheKey(secondQuery))).toEqual({
+                    local: [],
+                    remote: [r1],
+                });
             });
         });
     });

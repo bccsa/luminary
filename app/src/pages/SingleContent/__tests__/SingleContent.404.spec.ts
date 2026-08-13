@@ -20,7 +20,7 @@ import {
 } from "@/tests/mockdata";
 import { db, type ContentDto } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
-import { appLanguageIdsAsRef } from "@/globalConfig";
+import { appLanguageIdsAsRef, cmsLanguages } from "@/globalConfig";
 import NotFoundPage from "../../NotFoundPage.vue";
 import { ref } from "vue";
 import * as auth from "@/auth";
@@ -64,6 +64,7 @@ describe("SingleContent 404 Page", () => {
         routeReplaceMock.mockClear();
 
         appLanguageIdsAsRef.value = [...appLanguageIdsAsRef.value, "lang-eng"];
+        cmsLanguages.value = [];
 
         await db.docs.bulkPut([
             mockPostDto,
@@ -243,6 +244,10 @@ describe("SingleContent 404 Page", () => {
     });
 
     it("does not show 404 flash when switching between translations of the same content", async () => {
+        // The language dropdown only lists CMS-loaded languages (no fabricated fallback),
+        // so populate both translations' Language docs as a real sync would.
+        cmsLanguages.value = [mockLanguageDtoEng, mockLanguageDtoFra];
+
         const wrapper = mount(SingleContent, {
             props: {
                 slug: mockEnglishContentDto.slug,

@@ -233,6 +233,8 @@ describe("processPostTagDto", () => {
         changeRequest2.doc.parentId = "post-blog3";
         changeRequest2.doc._id = "content-en";
         changeRequest2.doc.language = "lang-eng";
+        // Unique slug to avoid collisions with other tests that reuse the default.
+        changeRequest2.doc.slug = "test-blog3-eng";
         await processChangeRequest("test-user", changeRequest2, ["group-super-admins"], db);
 
         // Mark the post document for deletion
@@ -253,10 +255,12 @@ describe("processPostTagDto", () => {
         const deleteCommands = await db.getDocsByType(DocType.DeleteCmd);
         expect(deleteCommands.docs.find((d) => d.docId == "post-blog3")).toBeDefined();
         expect(deleteCommands.docs.find((d) => d.docId == "post-blog3").docType).toBe(DocType.Post);
+        expect(deleteCommands.docs.find((d) => d.docId == "post-blog3").slug).toBeUndefined();
         expect(deleteCommands.docs.find((d) => d.docId == "content-en")).toBeDefined();
         expect(deleteCommands.docs.find((d) => d.docId == "content-en").docType).toBe(
             DocType.Post, // This is needed as the permission system does not include Content documents, but bases permissions on the parent type (Post / Tag).
         );
+        // Slug/language on the content DeleteCmd is covered by db.service.spec.ts.
     });
 
     it("can process image uploads", async () => {
