@@ -23,10 +23,12 @@ export type MangoIsPublishedOptions = {
  * @returns Array of Mango selector conditions to be used in an $and clause
  */
 export function publishedNowConditions(options?: MangoIsPublishedOptions): MangoSelector[] {
-    // Frozen session reference time (captured once on page load) — NOT a live
-    // `Date.now()`. The bound is embedded in the selector, which HybridQuery uses
-    // as its reactive dedup key; a live clock would re-key the query on every
-    // tracked-ref change and re-fire the API supplement POST. See sessionNow.ts.
+    // Session reference time — a ref captured at page load and advanced only when
+    // live-sync delivers newly published content (see sessionNow.ts). NOT a live
+    // `Date.now()`: the bound is embedded in the selector, which HybridQuery uses
+    // as its reactive dedup key, so a live clock would re-key the query on every
+    // tracked-ref change and re-fire the API supplement POST. The ref stays
+    // byte-stable between bumps, so the dedup key is unaffected in the idle case.
     const now = sessionNow();
     const includeScheduled = options?.includeScheduled !== false;
 
