@@ -28,7 +28,7 @@ vi.mock("vue-router", async (importOriginal) => {
 window.scrollTo = vi.fn();
 
 import { mount } from "@vue/test-utils";
-import { db, DocType, accessMap, PostType, type ContentDto } from "luminary-shared";
+import { db, DocType, accessMap, PostType, type ContentDto, type PostDto } from "luminary-shared";
 import EditContent from "../../EditContent.vue";
 import waitForExpect from "wait-for-expect";
 import EditContentBasic from "../../EditContentBasic.vue";
@@ -248,7 +248,7 @@ describe("EditContent - Permissions & Access Control", () => {
             // acting user's access) but was never synced to this CMS instance — e.g. the
             // user has no access to lang-fra. EditContentParent's own toggle-disabling check
             // can't see this, since it only reasons about translations it has loaded.
-            await db.docs.bulkPut([{ ...mockPostDto, linkDates: true }]);
+            await db.docs.bulkPut([{ ...mockPostDto, linkDates: true } as PostDto]);
             await db.docs.delete(mockFrenchContentDto._id);
             await db.docs.delete(mockSwahiliContentDto._id);
             await db.docs.put({
@@ -291,7 +291,7 @@ describe("EditContent - Permissions & Access Control", () => {
         });
 
         it("allows saving when 'linkDates' is enabled and every translation is synced locally", async () => {
-            await db.docs.bulkPut([{ ...mockPostDto, linkDates: true }]);
+            await db.docs.bulkPut([{ ...mockPostDto, linkDates: true } as PostDto]);
             await db.docs.bulkPut([
                 {
                     ...mockEnglishContentDto,
