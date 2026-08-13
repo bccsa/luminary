@@ -11,30 +11,7 @@ import { _baseDto } from "../dto/_baseDto";
 import { _contentBaseDto } from "../dto/_contentBaseDto";
 import { _contentParentDto } from "../dto/_contentParentDto";
 import { GroupDto } from "../dto/GroupDto";
-
-/**
- * Check if the user has 'Translate' access to the languages of all content documents belonging to a post / tag.
- */
-async function hasTranslateAccessToAllTranslations(
-    parentId: Uuid,
-    groupMembership: Array<Uuid>,
-    dbService: DbService,
-): Promise<boolean> {
-    const contentDocs = await dbService.getContentByParentId(parentId);
-    const contentLanguageIds = contentDocs.docs.map((d) => (d as ContentDto).language);
-    const contentLanguages = await dbService.getDocs(contentLanguageIds, [DocType.Language]);
-
-    return contentLanguages.docs.every((language) => {
-        const l = language as unknown as LanguageDto;
-        return PermissionSystem.verifyAccess(
-            l.memberOf,
-            DocType.Language,
-            AclPermission.Translate,
-            groupMembership,
-            "any",
-        );
-    });
-}
+import { hasTranslateAccessToAllTranslations } from "./hasTranslateAccessToAllTranslations";
 
 /**
  * Validate a change request against a user's access map

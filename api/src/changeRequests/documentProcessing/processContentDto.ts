@@ -82,7 +82,9 @@ export default async function processContentDto(
 
         doc.parentUseVerticalTileLayout = parentDoc.useVerticalTileLayout;
         doc.parentAuthorType = parentDoc.authorType;
-        doc.parentLinkDates = parentDoc.linkDates;
+
+        if (parentDoc.linkDates) doc.parentLinkDates = true;
+        else delete doc.parentLinkDates;
     }
 
     // Find all available translations, and add them to the content document's availableTranslations property
