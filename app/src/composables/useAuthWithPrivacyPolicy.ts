@@ -1,6 +1,6 @@
 import { computed, ref } from "vue";
 import { userPreferencesAsRef } from "@/globalConfig";
-import { isAuthPluginInstalled, openProviderModal, useAuth } from "@/auth";
+import { isAuthPluginInstalled, openProviderModal, useAuth, type LogoutOptions } from "@/auth";
 
 // Global state for privacy policy modal
 export const showPrivacyPolicyModal = ref(false);
@@ -64,7 +64,7 @@ export function useAuthWithPrivacyPolicy() {
         return {
             isAuthenticated: computed(() => false),
             user: computed(() => null),
-            logout: () => {},
+            logout: (_opts?: LogoutOptions) => {},
             loginWithRedirect: () => gateBehindPrivacyPolicy(() => openProviderModal()),
             isPrivacyPolicyAccepted,
             showPrivacyPolicyModal,

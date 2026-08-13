@@ -142,6 +142,8 @@
         "logout.modal.description": "Are you sure you want to log out?",
         "logout.modal.button_cancel": "Cancel",
         "logout.modal.button_logout": "Logout",
+        "logout.modal.force_global_logout_label": "This is a shared or public device",
+        "logout.modal.force_global_logout_description": "Require signing in again next time, so no one else can continue using your account here.",
         "notfoundpage.navigation.home": "Back to home",
         "notfoundpage.unauthenticated.title": "Oops! You are not logged in.",
         "notfoundpage.unauthenticated.loginPrompt.before": "Please click",

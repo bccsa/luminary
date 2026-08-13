@@ -532,6 +532,63 @@ describe("auth", () => {
         });
     });
 
+    describe("shared-device sign-out (forceReauthOnNextLogin)", () => {
+        beforeEach(async () => {
+            mockClearStaleState.mockResolvedValue(undefined);
+            mockSigninRedirect.mockResolvedValue(undefined);
+            mockSignoutRedirect.mockResolvedValue(undefined);
+            await loginWithProvider(providerA);
+        });
+
+        it("forces prompt=login on the next unprompted login after a flagged logout", async () => {
+            await useAuth().logout({ forceReauthOnNextLogin: true });
+
+            mockSigninRedirect.mockClear();
+            await loginWithProvider(providerB);
+
+            expect(mockSigninRedirect).toHaveBeenCalledWith({
+                extraQueryParams: { prompt: "login" },
+            });
+        });
+
+        it("does not force a prompt after a plain logout", async () => {
+            await useAuth().logout();
+
+            mockSigninRedirect.mockClear();
+            await loginWithProvider(providerB);
+
+            expect(mockSigninRedirect).toHaveBeenCalledWith({ extraQueryParams: undefined });
+        });
+
+        it("consumes the flag after one use", async () => {
+            await useAuth().logout({ forceReauthOnNextLogin: true });
+            await loginWithProvider(providerB);
+
+            mockSigninRedirect.mockClear();
+            await loginWithProvider(providerA);
+
+            expect(mockSigninRedirect).toHaveBeenCalledWith({ extraQueryParams: undefined });
+        });
+
+        it("leaves the flag pending when the caller already requests an explicit prompt", async () => {
+            await useAuth().logout({ forceReauthOnNextLogin: true });
+
+            // Simulates a session-recovery call site (main.ts) that already
+            // passes its own prompt — not the "next person logs in" path.
+            await loginWithProvider(providerB, { prompt: "select_account" });
+            expect(mockSigninRedirect).toHaveBeenLastCalledWith({
+                extraQueryParams: { prompt: "select_account" },
+            });
+
+            mockSigninRedirect.mockClear();
+            await loginWithProvider(providerA);
+
+            expect(mockSigninRedirect).toHaveBeenCalledWith({
+                extraQueryParams: { prompt: "login" },
+            });
+        });
+    });
+
     describe("clearAuthCache", () => {
         it("clears OIDC state, legacy Auth0 state, headers, and provider selection", () => {
             localStorage.setItem("oidc.user:https://issuer:client", "user");
