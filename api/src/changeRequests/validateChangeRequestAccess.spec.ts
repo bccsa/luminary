@@ -209,7 +209,7 @@ describe("validateChangeRequestAccess", () => {
             await db.upsertDoc(post.docs[0]);
 
             expect(res.error).toBe(
-                "No 'Translate' access to all translations required to change linked publish/expiry dates",
+                "No 'Translate' access to all translations required to save content with linked dates",
             );
         });
 
