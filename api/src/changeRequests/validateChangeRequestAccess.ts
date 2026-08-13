@@ -9,7 +9,9 @@ import { GroupAclEntryDto } from "../dto/GroupAclEntryDto";
 import { ContentDto } from "../dto/ContentDto";
 import { _baseDto } from "../dto/_baseDto";
 import { _contentBaseDto } from "../dto/_contentBaseDto";
+import { _contentParentDto } from "../dto/_contentParentDto";
 import { GroupDto } from "../dto/GroupDto";
+import { hasTranslateAccessToAllTranslations } from "./hasTranslateAccessToAllTranslations";
 
 /**
  * Validate a change request against a user's access map
@@ -89,28 +91,27 @@ export async function validateChangeRequestAccess(
     }
 
     // Check if the user has translate access to all the associated content documents before deleting a post or tag. This is needed to delete the content documents.
-    if (doc.deleteReq && (doc.type === DocType.Post || doc.type === DocType.Tag)) {
-        const contentDocs = await dbService.getContentByParentId(doc._id);
-        const contentLanguageIds = contentDocs.docs.map((d) => (d as ContentDto).language);
-        const contentLanguages = await dbService.getDocs(contentLanguageIds, [DocType.Language]);
+    if (
+        doc.deleteReq &&
+        (doc.type === DocType.Post || doc.type === DocType.Tag) &&
+        !(await hasTranslateAccessToAllTranslations(doc._id, groupMembership, dbService))
+    ) {
+        return {
+            validated: false,
+            error: `Unable to delete ${doc.type}: No 'Translate' access to one or more associated content documents`,
+        };
+    }
 
-        for (const language of contentLanguages.docs) {
-            const l = language as unknown as LanguageDto;
-            if (
-                !PermissionSystem.verifyAccess(
-                    l.memberOf,
-                    DocType.Language,
-                    AclPermission.Translate,
-                    groupMembership,
-                    "any",
-                )
-            ) {
-                return {
-                    validated: false,
-                    error: `Unable to delete ${doc.type}: No 'Translate' access to one or more associated content documents`,
-                };
-            }
-        }
+    // Check if the user has translate access to all translations before changing 'linkDates' on a post or tag
+    if (
+        (doc.type === DocType.Post || doc.type === DocType.Tag) &&
+        (doc as _contentParentDto).linkDates !== (originalDoc as _contentParentDto).linkDates &&
+        !(await hasTranslateAccessToAllTranslations(doc._id, groupMembership, dbService))
+    ) {
+        return {
+            validated: false,
+            error: `No 'Translate' access to all translations required to change 'linkDates'`,
+        };
     }
 
     // Validate edit, translate and group ACL assign access
@@ -250,6 +251,21 @@ export async function validateChangeRequestAccess(
             return {
                 validated: false,
                 error: "No 'Translate' access to the language of the Content object",
+            };
+        }
+
+        // If the parent post/tag has 'linkDates' enabled, saving this content document cascades
+        // its publish/expiry dates onto every sibling translation (see processContentDto), so
+        // the user needs 'Translate' access to all of them — not just the one being edited —
+        // regardless of whether this particular request changes a date.
+        if (
+            (parentDoc as _contentParentDto).linkDates &&
+            !doc.deleteReq &&
+            !(await hasTranslateAccessToAllTranslations(doc.parentId, groupMembership, dbService))
+        ) {
+            return {
+                validated: false,
+                error: `No 'Translate' access to all translations required to save content with linked dates`,
             };
         }
 

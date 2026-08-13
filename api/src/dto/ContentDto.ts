@@ -163,6 +163,11 @@ export class ContentDto extends _contentBaseDto {
     parentAuthorType?: "person" | "org"; // Mirrors parent authorType: "org" = Organization, "person"/undefined = Person
 
     @IsOptional() // Optional as it is set upon change request processing
+    @IsBoolean()
+    @Expose()
+    parentLinkDates?: boolean;
+
+    @IsOptional() // Optional as it is set upon change request processing
     @IsArray()
     @Expose()
     parentTaggedDocs?: Uuid[];
