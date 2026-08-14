@@ -7,6 +7,7 @@ import { PlayIcon, SpeakerWaveIcon } from "@heroicons/vue/24/solid";
 import { getMediaDuration, getMediaProgress, getReadingProgress } from "@/contentProgress";
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
+import { hasVideoSource, videoSourceFor } from "@/util/videoSource";
 
 const { t } = useI18n();
 
@@ -39,9 +40,9 @@ const publishDateText = computed(() => {
     return db.toDateTime(props.content.publishDate).toLocaleString(DateTime.DATETIME_MED);
 });
 
-const hasVideo = computed(() => Boolean(props.content.video));
+const hasVideo = computed(() => hasVideoSource(props.content));
 const hasAudio = computed(
-    () => !props.content.video && Boolean(props.content.parentMedia?.fileCollections?.length),
+    () => !hasVideo.value && Boolean(props.content.parentMedia?.fileCollections?.length),
 );
 
 const mediaIconClass = computed(() =>
@@ -63,8 +64,9 @@ const isComingSoon = computed(() => {
 const mediaProgress = computed(() => {
     if (!props.showProgress) return 0;
 
-    const mediaIds = props.content.video
-        ? [props.content.video]
+    const videoSource = videoSourceFor(props.content);
+    const mediaIds = videoSource
+        ? [videoSource]
         : (props.content.parentMedia?.fileCollections ?? []).map((f) => f.fileUrl);
 
     for (const mediaId of mediaIds) {

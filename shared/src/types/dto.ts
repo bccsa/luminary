@@ -203,6 +203,8 @@ export type CryptoDto = BaseDocumentDto & {
 
 export type MediaDto = {
     hlsUrl?: string;
+    hlsKey_id?: Uuid;
+    hlsKey?: string;
     fileCollections: MediaFileDto[];
     uploadData?: MediaUploadDataDto[];
 };

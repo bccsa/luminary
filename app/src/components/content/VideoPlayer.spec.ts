@@ -150,8 +150,8 @@ describe("VideoPlayer", () => {
     it("renders the poster image for regular video", async () => {
         const content = {
             ...mockEnglishContentDto,
-            // VideoPlayer reads `content.video`; mock data only defines parentMedia.hlsUrl
-            video: mockEnglishContentDto.parentMedia!.hlsUrl!,
+            // The encoded collection is the source; no typed URL is involved.
+            video: undefined,
         };
 
         const wrapper = mount(VideoPlayer, {
@@ -162,7 +162,9 @@ describe("VideoPlayer", () => {
         });
 
         await waitForExpect(() => {
-            expect(srcMock).toHaveBeenCalledWith(expect.objectContaining({ src: content.video }));
+            expect(srcMock).toHaveBeenCalledWith(
+                expect.objectContaining({ src: content.parentMedia!.hlsUrl }),
+            );
         });
 
         await waitForExpect(() => {
@@ -186,6 +188,8 @@ describe("VideoPlayer", () => {
     it("handles YouTube videos correctly", async () => {
         const youtubeContent = {
             ...mockEnglishContentDto,
+            // No encoded collection: this post's video is the link somebody typed.
+            parentMedia: undefined,
             video: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
         };
 
@@ -236,6 +240,7 @@ describe("VideoPlayer", () => {
     it("sets HLS source for regular video", async () => {
         const contentWithVideo = {
             ...mockEnglishContentDto,
+            parentMedia: undefined,
             video: "https://example.com/stream.m3u8",
         };
 
@@ -349,6 +354,7 @@ describe("VideoPlayer", () => {
     it("disposes player on unmount", async () => {
         const contentWithVideo = {
             ...mockEnglishContentDto,
+            parentMedia: undefined,
             video: "https://example.com/stream.m3u8",
         };
 
@@ -372,6 +378,8 @@ describe("VideoPlayer", () => {
     it("hides audio toggle for YouTube videos", async () => {
         const youtubeContent = {
             ...mockEnglishContentDto,
+            // No encoded collection: this post's video is the link somebody typed.
+            parentMedia: undefined,
             video: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
         };
 

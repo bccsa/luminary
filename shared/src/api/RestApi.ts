@@ -70,6 +70,22 @@ export type StorageStatusResponse = {
     message?: string;
 };
 
+/**
+ * The bucket's S3 credentials and public base URL, shaped for the local media
+ * encoder's session request so it can be forwarded without reshaping.
+ */
+export type EncoderConfigResponse = {
+    s3: {
+        endPoint: string;
+        port: number;
+        useSSL: boolean;
+        bucket: string;
+        accessKey: string;
+        secretKey: string;
+    };
+    publicBaseUrl: string;
+};
+
 class RestApi {
     private http: HttpReq<any>;
     /**
@@ -112,6 +128,17 @@ class RestApi {
 
     async getStorageStatus(bucketId: string): Promise<StorageStatusResponse | undefined> {
         return await this.http.getWithQueryParams("storage/storagestatus", {
+            bucketId,
+            apiVersion: "0.0.0",
+        });
+    }
+
+    /**
+     * Fetch the encode destination for a media bucket. Requires Assign permission on
+     * the bucket, since the response carries credentials that can write to it.
+     */
+    async getEncoderConfig(bucketId: string): Promise<EncoderConfigResponse | undefined> {
+        return await this.http.getWithQueryParams("storage/encoderconfig", {
             bucketId,
             apiVersion: "0.0.0",
         });

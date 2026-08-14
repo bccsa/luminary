@@ -491,6 +491,7 @@ const actionsWrapperProps = computed(() => ({
                                             :tagOrPostType="props.tagOrPostType"
                                             :disabled="!canEditParent"
                                             :newDocument="newDocument"
+                                            :title="editableContent?.[0]?.title"
                                             v-model:parent="editableParent"
                                         />
 
@@ -503,9 +504,10 @@ const actionsWrapperProps = computed(() => ({
                                                 aria-hidden="true"
                                             />
                                             <EditContentVideo
+                                                v-if="editableParent"
                                                 bare
-                                                v-model:content="selectedContent"
-                                                :disabled="!canTranslate"
+                                                v-model:parent="editableParent"
+                                                :disabled="!canEditParent"
                                             />
                                         </template>
                                     </div>

@@ -35,18 +35,10 @@ export default async function processPostTagDto(
             warnings.push(...imageWarnings);
         }
 
-        // Remove medias from S3
-        if (doc.media) {
-            const mediaResult = await processMedia(
-                { fileCollections: [] },
-                prevDoc?.media,
-                db,
-                prevDoc?.mediaBucketId, // Delete from the bucket where files currently exist
-            );
-            if (mediaResult && mediaResult.warnings && mediaResult.warnings.length > 0) {
-                warnings.push(...mediaResult.warnings);
-            }
-        }
+        // Media is an HLS collection written to the bucket by the encoder, not by
+        // this API, and nothing here tracks which objects belong to it. Deleting the
+        // document therefore leaves the collection in place, to be reclaimed by
+        // stale-collection cleanup rather than guessed at from a URL.
 
         return warnings; // no need to process further
     }
@@ -104,43 +96,18 @@ export default async function processPostTagDto(
         delete (doc as any).image; // Remove the legacy image field
     }
 
-    // Process media uploads
+    // Process media
     if (doc.media) {
-        let mediaWarnings: string[] = [];
-
-        // Check if bucket is specified for this upload
+        // The bucket is where the encoder was told to write, and is what a later
+        // edit of the collection has to be pointed back at.
         if (!doc.mediaBucketId) {
             throw new Error("Bucket is not specified for media processing.");
         }
 
-        // Use the new bucket processing with db service for bucket lookup
         try {
-            const result = await processMedia(
-                doc.media,
-                prevDoc?.media,
-                db,
-                doc.mediaBucketId,
-                prevDoc?.mediaBucketId, // Pass previous bucket ID for migration
-            );
-            mediaWarnings = result.warnings;
-
-            // If migration failed, revert to the old bucket ID to keep files accessible
-            if (result.migrationFailed && prevDoc?.mediaBucketId) {
-                doc.mediaBucketId = prevDoc.mediaBucketId;
-                warnings.push(
-                    "Media migration failed. Reverted to previous bucket configuration to ensure files remain accessible.",
-                );
-            }
+            warnings.push(...(await processMedia(doc.media, db)));
         } catch (error) {
-            // If processing throws an error, also revert bucket ID
-            if (prevDoc?.mediaBucketId && doc.mediaBucketId !== prevDoc.mediaBucketId) {
-                doc.mediaBucketId = prevDoc.mediaBucketId;
-            }
-            mediaWarnings.push(`Bucket media processing failed: ${error.message}`);
-        }
-
-        if (mediaWarnings && mediaWarnings.length > 0) {
-            warnings.push(...mediaWarnings);
+            warnings.push(`Media processing failed: ${error.message}`);
         }
     }
 

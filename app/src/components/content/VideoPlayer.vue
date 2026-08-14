@@ -11,6 +11,7 @@ import { appLanguagesPreferredAsRef, queryParams } from "@/globalConfig";
 import { getMediaProgress, removeMediaProgress, setMediaProgress } from "@/contentProgress";
 import { extractAndBuildAudioMaster } from "./extractAndBuildAudioMaster";
 import { isYouTubeUrl, convertToVideoJSYouTubeUrl } from "@/util/youtube";
+import { videoSourceFor } from "@/util/videoSource";
 
 type Props = {
     content: ContentDto;
@@ -35,8 +36,8 @@ const isRestoringTrack = ref<boolean>(false);
 const isYouTube = ref<boolean>(false);
 
 // Check if the current video is a YouTube video
-if (props.content.video) {
-    isYouTube.value = isYouTubeUrl(props.content.video);
+if (videoSourceFor(props.content)) {
+    isYouTube.value = isYouTubeUrl(videoSourceFor(props.content)!);
     if (isYouTube.value) {
         // hides audio mode toggle for YouTube videos as it's not supported
         showAudioModeToggle.value = false;
@@ -193,7 +194,7 @@ onMounted(async () => {
         player.poster(px); // Set the player poster to a 1px transparent image to prevent the default poster from showing
 
         // Set player source based on video type (YouTube vs regular)
-        const videoSource = props.content.video || props.content.video;
+        const videoSource = videoSourceFor(props.content);
         if (isYouTube.value && props.content.video) {
             // For YouTube videos, disable audio-only mode toggle since it's not supported for YouTube videos
             showAudioModeToggle.value = false;
@@ -327,7 +328,7 @@ onMounted(async () => {
             const currentTime = player?.currentTime() || 0;
             const durationTime = player?.duration() || 0;
 
-            const videoSource = props.content.video || props.content.parentMedia?.hlsUrl;
+            const videoSource = videoSourceFor(props.content);
             if (durationTime == Infinity || !videoSource || currentTime < 60) return;
 
             // For YouTube videos, aggressively check if we're at the end and remove progress
@@ -351,7 +352,7 @@ onMounted(async () => {
 
         // Get and apply the player saved progress (rewind 30 seconds)
         player.on("ready", () => {
-            const videoSource = props.content.video || props.content.parentMedia?.hlsUrl;
+            const videoSource = videoSourceFor(props.content);
             if (!videoSource) return;
 
             // For YouTube videos, wait for loadedmetadata to restore progress (iframe needs to be ready)
@@ -362,7 +363,7 @@ onMounted(async () => {
         });
 
         player.on("ended", () => {
-            const videoSource = props.content.video || props.content.parentMedia?.hlsUrl;
+            const videoSource = videoSourceFor(props.content);
             if (!videoSource) return;
             stopKeepAudioAlive();
 
@@ -379,7 +380,7 @@ onMounted(async () => {
         });
 
         player.on("pause", () => {
-            const videoSource = props.content.video || props.content.parentMedia?.hlsUrl;
+            const videoSource = videoSourceFor(props.content);
             if (!videoSource) return;
 
             if (audioMode.value) syncKeepAudioStateAlive();
@@ -454,7 +455,7 @@ watch(audioMode, async (mode) => {
 
     // Generate the audio playlist with the currently selected track as default
     // This ensures the player loads the correct track immediately without needing to switch
-    const videoSource = props.content.video || props.content.parentMedia?.hlsUrl;
+    const videoSource = videoSourceFor(props.content);
     let audioPlaylistUrl: string | null = null;
     if (mode && videoSource) {
         const audioMaster = await extractAndBuildAudioMaster(videoSource, selectedTrackInfo);

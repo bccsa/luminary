@@ -2,17 +2,28 @@ import "fake-indexeddb/auto";
 import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
-import { type ContentDto, accessMap } from "luminary-shared";
+import { type ContentParentDto, accessMap } from "luminary-shared";
 import * as mockData from "@/tests/mockdata";
 import { setActivePinia } from "pinia";
 import { ref } from "vue";
 import EditContentVideo from "./EditContentVideo.vue";
-import LInput from "../forms/LInput.vue";
+
+const HLS_URL = "https://example.com/media/post/master.m3u8";
+
+const parentWith = (media?: Partial<NonNullable<ContentParentDto["media"]>>) =>
+    ref<ContentParentDto>({
+        ...mockData.mockPostDto,
+        media: media ? ({ fileCollections: [], ...media } as any) : undefined,
+    } as ContentParentDto);
+
+const mountVideo = (parent: ReturnType<typeof parentWith>) =>
+    mount(EditContentVideo, {
+        props: { disabled: false, parent: parent.value },
+    });
 
 describe("EditContentVideo.vue", () => {
     beforeAll(async () => {
         setActivePinia(createTestingPinia());
-
         accessMap.value = mockData.fullAccessToAllContentMap;
     });
 
@@ -20,60 +31,77 @@ describe("EditContentVideo.vue", () => {
         vi.clearAllMocks();
     });
 
-    it("displays the video field, when it is defined", async () => {
-        const content = ref<ContentDto>({
-            ...mockData.mockEnglishContentDto,
-            video: "https://example.com/video.mp4",
-        });
-        const wrapper = mount(EditContentVideo, {
-            props: {
-                disabled: false,
-                content: content.value,
-            },
-        });
+    it("displays the video card", async () => {
+        const wrapper = mountVideo(parentWith({ hlsUrl: HLS_URL }));
 
-        const videoContent = wrapper.find('div[data-test="videoContent"]');
-        expect(videoContent.exists()).toBe(true);
+        expect(wrapper.find('div[data-test="videoContent"]').exists()).toBe(true);
     });
 
-    it("displays video URL in the text input", async () => {
-        const content = ref<ContentDto>({
-            ...mockData.mockEnglishContentDto,
-            video: "https://example.com/video.mp4",
-        });
+    it("shows the playlist URL from media", async () => {
+        const wrapper = mountVideo(parentWith({ hlsUrl: HLS_URL }));
 
-        const wrapper = mount(EditContentVideo, {
-            props: {
-                disabled: false,
-                content: content.value,
-            },
-        });
-
-        // Find the input field within LInput
-        const videoInputWrapper = wrapper.find("input[name='video']");
-        const videoInput = videoInputWrapper.element as HTMLInputElement;
-
-        // Check if the input value is correctly set
-        expect(videoInput.value).toBe("https://example.com/video.mp4");
+        const input = wrapper.find("input[name='video']").element as HTMLInputElement;
+        expect(input.value).toBe(HLS_URL);
     });
 
-    it("can update the video input field", async () => {
-        const content = ref<ContentDto>({
-            ...mockData.mockEnglishContentDto,
-            video: "https://example.com/video.mp4",
-        });
+    it("writes an edited URL back to media", async () => {
+        const parent = parentWith({ hlsUrl: HLS_URL });
+        const wrapper = mountVideo(parent);
+
+        await wrapper.find("input[name='video']").setValue("https://example.com/new.m3u8");
+
+        expect(parent.value.media?.hlsUrl).toBe("https://example.com/new.m3u8");
+    });
+
+    it("creates media on a document that has none, rather than dropping the edit", async () => {
+        const parent = parentWith();
+        const wrapper = mountVideo(parent);
+
+        await wrapper.find("input[name='video']").setValue(HLS_URL);
+
+        expect(parent.value.media?.hlsUrl).toBe(HLS_URL);
+    });
+
+    it("writes an entered encryption key to media", async () => {
+        const parent = parentWith({ hlsUrl: HLS_URL });
+        const wrapper = mountVideo(parent);
+
+        await wrapper.find("input[name='hlsKey']").setValue("0123456789abcdef");
+
+        expect(parent.value.media?.hlsKey).toBe("0123456789abcdef");
+    });
+
+    it("clears the key rather than storing an empty string", async () => {
+        const parent = parentWith({ hlsUrl: HLS_URL, hlsKey: "0123456789abcdef" });
+        const wrapper = mountVideo(parent);
+
+        await wrapper.find("input[name='hlsKey']").setValue("");
+
+        expect(parent.value.media?.hlsKey).toBeUndefined();
+    });
+
+    it("says a key is saved when the document holds only its reference", async () => {
+        // After a save the key itself is gone — the API keeps a crypto object and
+        // returns its id — so an empty field must not read as "no key".
+        const wrapper = mountVideo(parentWith({ hlsUrl: HLS_URL, hlsKey_id: "crypto-1" }));
+
+        expect(wrapper.find('[data-test="video-key-note"]').text()).toContain(
+            "encryption key is saved",
+        );
+    });
+
+    it("explains when no key is needed", async () => {
+        const wrapper = mountVideo(parentWith({ hlsUrl: HLS_URL }));
+
+        expect(wrapper.find('[data-test="video-key-note"]').text()).toContain("encrypted");
+    });
+
+    it("disables both fields when the user cannot edit", async () => {
         const wrapper = mount(EditContentVideo, {
-            props: {
-                disabled: false,
-                content: content.value,
-            },
+            props: { disabled: true, parent: parentWith({ hlsUrl: HLS_URL }).value },
         });
 
-        const videoInputWrapper = wrapper.findComponent(LInput).find("input[name='video']");
-        const videoInput = videoInputWrapper.element as HTMLInputElement;
-
-        await videoInputWrapper.setValue("https://example.com/new-video.mp4");
-
-        expect(videoInput.value).toBe("https://example.com/new-video.mp4");
+        expect(wrapper.find("input[name='video']").attributes("disabled")).toBeDefined();
+        expect(wrapper.find("input[name='hlsKey']").attributes("disabled")).toBeDefined();
     });
 });

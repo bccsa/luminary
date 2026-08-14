@@ -65,6 +65,7 @@ import ContinueReadingPrompt from "@/components/content/ContinueReadingPrompt.vu
 import LHighlightable from "@/components/common/LHighlightable.vue";
 import DropdownMenu from "@/components/common/DropdownMenu.vue";
 import { markPageReady } from "@/util/renderState";
+import { hasVideoSource } from "@/util/videoSource";
 import {
     computeEstimatedReadingMinutes,
     resolveReadingSpeedWpm,
@@ -794,7 +795,7 @@ watch([isLoading, content, is404], async () => {
                             :ignoreTop="true"
                         >
                             <VideoPlayer
-                                v-if="content && content.video"
+                                v-if="content && hasVideoSource(content)"
                                 :content="content"
                                 :language="selectedLanguageCode"
                             />
