@@ -222,7 +222,7 @@ const confirmLogout = () => {
 const navIconClass = "h-5 w-5 shrink-0";
 // When collapsed (desktop only) nav rows center their icon and drop the label gap/padding.
 const navItemClass = computed(() => [
-    "mb-1 flex rounded-md text-sm font-medium text-zinc-600 hover:bg-zinc-200 dark:hover:bg-slate-800 dark:text-slate-100",
+    "mb-1 flex rounded-md text-sm font-medium text-zinc-600 hover:bg-zinc-200 dark:hover:bg-slate-700 dark:text-slate-100",
     isCollapsed.value ? "justify-center p-2.5" : "items-center gap-3 px-3 py-2.5",
 ]);
 </script>
@@ -398,7 +398,7 @@ const navItemClass = computed(() => [
             <button
                 type="button"
                 :class="[
-                    'mb-2 flex w-full rounded-md text-sm font-medium text-zinc-600 hover:bg-zinc-200 dark:text-zinc-100 dark:hover:bg-slate-800',
+                    'mb-2 flex w-full rounded-md text-sm font-medium text-zinc-600 hover:bg-zinc-200 dark:text-zinc-100 dark:hover:bg-slate-600',
                     isCollapsed
                         ? 'justify-center p-2.5'
                         : 'items-center gap-3 px-3 py-2.5 text-left',

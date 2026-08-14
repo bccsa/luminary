@@ -37,7 +37,7 @@ function formatRelativeTime(timestamp: number): string {
             <li
                 v-for="doc in recentContent"
                 :key="doc._id"
-                class="rounded-lg p-1.5 hover:bg-zinc-200 dark:hover:bg-slate-700"
+                class="rounded-lg p-1.5 hover:bg-zinc-300 dark:hover:bg-slate-800"
             >
                 <RouterLink
                     class="grid w-full grid-cols-[auto_1fr_auto_auto] items-center gap-x-2 sm:grid-cols-[20px_1fr_150px_100px_80px] sm:gap-x-0"
