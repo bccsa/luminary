@@ -5,7 +5,7 @@ import { PermissionSystem } from "../../permissions/permissions.service";
 import { processChangeRequest } from "../processChangeRequest";
 import { changeRequest_content, changeRequest_post } from "../../test/changeRequestDocuments";
 import { ChangeReqDto } from "../../dto/ChangeReqDto";
-import { DocType, MediaType } from "../../enums";
+import { DocType } from "../../enums";
 import { deleteImage, processImage } from "./processImageDto";
 import { processMedia } from "./processMediaDto";
 

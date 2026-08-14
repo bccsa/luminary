@@ -182,7 +182,16 @@ onMounted(async () => {
 
     // If statement is to protect from SSR issues
     if (typeof window !== "undefined" && window.document) {
-        player = videojs(playerElement.value!, options);
+        // videojs() throws on an element it does not recognise, and the throw
+        // escapes the mounted hook as an unhandled rejection rather than anything
+        // catchable by the caller. The ref is empty whenever the <video> has not
+        // been rendered — a v-if above it, or a teardown that raced the mount.
+        if (!playerElement.value) {
+            console.warn("VideoPlayer mounted without a <video> element; skipping setup.");
+            return;
+        }
+
+        player = videojs(playerElement.value, options);
 
         // emit event with player on mount
         const playerEvent = new CustomEvent("vjsPlayer", { detail: player });

@@ -282,9 +282,7 @@ describe("validateChangeRequest", () => {
         expect(result.validatedData.acl).toHaveLength(2);
     });
 
-    it("validates a post with valid audio upload data for multiple languages", async () => {
-        const audioFile = fs.readFileSync(path.resolve(__dirname + "/../test/" + "silence.wav"));
-
+    it("validates a post with an HLS media collection", async () => {
         const changeRequest = {
             id: 42,
             doc: {
@@ -295,27 +293,8 @@ describe("validateChangeRequest", () => {
                 tags: [],
                 publishDateVisible: true,
                 media: {
-                    fileCollections: [],
-                    uploadData: [
-                        {
-                            fileData: audioFile,
-                            preset: "default",
-                            mediaType: "audio",
-                            languageId: "lang-eng",
-                        },
-                        {
-                            fileData: audioFile,
-                            preset: "default",
-                            mediaType: "audio",
-                            languageId: "lang-spa",
-                        },
-                        {
-                            fileData: audioFile,
-                            preset: "default",
-                            mediaType: "audio",
-                            languageId: "lang-fra",
-                        },
-                    ],
+                    hlsUrl: "https://cdn.example.com/media/post-test/master.m3u8",
+                    hlsKey: "0123456789abcdef0123456789abcdef",
                 },
             },
         };
@@ -326,7 +305,7 @@ describe("validateChangeRequest", () => {
         expect(result.error).toBe(undefined);
     });
 
-    it("fails validation for post with invalid audio upload data", async () => {
+    it("fails validation for media with no playlist URL", async () => {
         const changeRequest = {
             id: 42,
             doc: {
@@ -336,24 +315,15 @@ describe("validateChangeRequest", () => {
                 postType: "blog",
                 tags: [],
                 publishDateVisible: true,
-                media: {
-                    fileCollections: [],
-                    uploadData: [
-                        {
-                            fileData: Buffer.from("not an audio file"),
-                            preset: "default",
-                            mediaType: "audio",
-                            languageId: "lang-eng",
-                        },
-                    ],
-                },
+                // A key with nothing to decrypt is not a media object.
+                media: { hlsKey: "0123456789abcdef0123456789abcdef" },
             },
         };
 
         const result = await validateChangeRequest(changeRequest, ["group-super-admins"], db);
 
         expect(result.validated).toBe(false);
-        expect(result.error).toContain("isAudio");
+        expect(result.error).toContain("hlsUrl");
     });
 
     it("rejects a redirect whose slug has published content", async () => {
