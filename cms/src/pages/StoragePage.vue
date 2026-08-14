@@ -4,7 +4,6 @@ import S3BucketOverview from "@/components/s3/StorageOverview.vue";
 import LButton from "@/components/button/LButton.vue";
 import { PlusIcon } from "@heroicons/vue/24/outline";
 import { ref } from "vue";
-import { isSmallScreen } from "@/globalConfig";
 import { AclPermission, DocType, hasAnyPermission } from "luminary-shared";
 
 const bucketOverviewRef = ref<InstanceType<typeof S3BucketOverview> | null>(null);
@@ -18,22 +17,9 @@ const createNew = () => {
 <template>
     <BasePage title="S3 Storage Overview" :should-show-page-title="true">
         <template #topBarActionsDesktop>
-            <LButton
-                v-if="!isSmallScreen && canEdit"
-                variant="primary"
-                :icon="PlusIcon"
-                @click="createNew"
-                name="createBucketBtn"
-            >
+            <LButton variant="primary" :icon="PlusIcon" @click="createNew" name="createBucketBtn">
                 Add Bucket
             </LButton>
-        </template>
-        <template #topBarActionsMobile>
-            <PlusIcon
-                v-if="isSmallScreen && canEdit"
-                class="h-6 w-6 text-zinc-500"
-                @click="createNew"
-            />
         </template>
 
         <div class="space-y-1">
