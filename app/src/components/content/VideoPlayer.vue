@@ -5,7 +5,7 @@ import "videojs-mobile-ui";
 import type Player from "video.js/dist/types/player";
 import { type ContentDto } from "luminary-shared";
 import px from "./px.png";
-import { matchTrackLanguage } from "./audioTrackLanguage";
+import { pickAudioTrack } from "./audioTrackLanguage";
 import LImage from "../images/LImage.vue";
 import { appLanguagesPreferredAsRef, queryParams } from "@/globalConfig";
 import { getMediaProgress, removeMediaProgress, setMediaProgress } from "@/contentProgress";
@@ -89,21 +89,18 @@ function setAudioTrackLanguage(languageCode: string | null) {
         return;
     }
 
-    let trackFound = false;
-    for (let i = 0; i < audioTracks.length; i++) {
-        const track = audioTracks[i];
+    // Decide before changing anything: disabling as we go leaves every track
+    // disabled when none matches, which silently starves the stream of audio.
+    const tracks: any[] = [];
+    for (let i = 0; i < audioTracks.length; i++) tracks.push(audioTracks[i]);
 
-        if (matchTrackLanguage(track.language, languageCode)) {
-            track.enabled = true;
-            trackFound = true;
-        } else {
-            track.enabled = false;
-        }
-    }
-
-    if (!trackFound) {
+    const match = pickAudioTrack(tracks, languageCode);
+    if (!match) {
         console.warn(`No matching audio track found for language: ${languageCode}`);
+        return;
     }
+
+    for (const track of tracks) track.enabled = track === match;
 }
 
 function syncKeepAudioStateAlive() {
@@ -190,6 +187,40 @@ onMounted(async () => {
         // emit event with player on mount
         const playerEvent = new CustomEvent("vjsPlayer", { detail: player });
         window.dispatchEvent(playerEvent);
+
+        // Playback diagnostics. A stream that stops part-way looks identical from
+        // outside the browser whether the player errored, ran dry waiting for a
+        // segment, or decided the media had ended — and those need different fixes.
+        // Enable with ?playerdebug=true.
+        if (queryParams.get("playerdebug") === "true") {
+            const at = () => `t=${player?.currentTime()?.toFixed(2)}s`;
+            const log = (event: string, extra?: unknown) =>
+                console.log(`[player] ${event} ${at()}`, extra ?? "");
+
+            for (const event of ["waiting", "stalled", "ended", "pause", "suspend", "abort"]) {
+                player.on(event, () => log(event));
+            }
+            player.on("error", () => log("error", player?.error()));
+            player.on("loadedmetadata", () =>
+                log("loadedmetadata", { duration: player?.duration() }),
+            );
+            player.on("progress", () => {
+                const b = player?.buffered();
+                if (!b || b.length === 0) return log("progress", "nothing buffered");
+                log("progress", `buffered to ${b.end(b.length - 1).toFixed(2)}s`);
+            });
+            // VHS reports segment and playlist trouble the <video> element never sees.
+            player.on("loadeddata", () => {
+                const vhs = (player?.tech(true) as any)?.vhs;
+                if (!vhs) return log("loadeddata", "no VHS tech (not an HLS source?)");
+                for (const event of ["error", "retryplaylist", "usage"]) {
+                    vhs.on?.(event, (e: unknown) => log(`vhs:${event}`, e));
+                }
+                vhs.playlists?.on?.("error", () =>
+                    log("vhs:playlist-error", vhs.playlists?.error),
+                );
+            });
+        }
 
         player.poster(px); // Set the player poster to a 1px transparent image to prevent the default poster from showing
 

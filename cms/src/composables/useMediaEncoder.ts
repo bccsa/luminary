@@ -84,7 +84,14 @@ export function useMediaEncoder() {
                 title: options.title,
                 s3: config.s3,
                 publicBaseUrl: config.publicBaseUrl,
-                encryption: { required: true },
+                // TEMPORARY: no encryption requested. An encrypted collection has
+                // LMCENC-encrypted playlists and an `#EXT-X-KEY` naming
+                // `luminary://key`, neither of which the app's current video.js /
+                // hls.js player can read — it fails parsing the master before the
+                // key is even relevant. Set this back to `{ required: true }` as
+                // part of adopting player-web.
+                // See docs/guides/media-encoder-integration.md
+                encryption: { required: false },
             });
 
             sessionId.value = session.sessionId;

@@ -1,162 +1,149 @@
 import { Parser } from "m3u8-parser";
 
+/** Audio codec to claim when the master names none. */
+const DEFAULT_AUDIO_CODEC = "mp4a.40.2";
+/** Bandwidth to claim when no variant states one. */
+const DEFAULT_AUDIO_BANDWIDTH = 96000;
 /**
- * Extracts and builds an audio master playlist from a given HLS manifest URL.
+ * Version to declare when the master omits one. 7, not 4: these playlists use
+ * `#EXT-X-MAP` (fMP4), which requires 6 or higher, and a version that understates
+ * what the playlist contains is grounds for a strict player to reject it.
+ */
+const DEFAULT_VERSION = 7;
+
+type AudioTrack = {
+    name: string;
+    uri: string;
+    language?: string;
+    channels?: string;
+    default?: boolean;
+    autoselect?: boolean;
+};
+
+/** The audio half of a CODECS list — "avc1.64001f,mp4a.40.2" → "mp4a.40.2". */
+function audioCodec(codecs?: string): string | undefined {
+    return codecs
+        ?.split(",")
+        .map((c) => c.trim())
+        .find((c) => c.startsWith("mp4a") || c.startsWith("ac-3") || c.startsWith("ec-3"));
+}
+
+/**
+ * Extracts and builds an audio-only master playlist from an HLS manifest.
  *
- * @param {string} originalUrl - The URL of the original HLS manifest file.
- * @param {Object} selectedTrack - Optional object with label and/or language of the track to mark as default
- * @returns {Promise<string>} - A Promise that resolves to the generated audio master playlist as a string.
+ * One `#EXT-X-STREAM-INF` per audio *group*, not per track. Emitting one per track
+ * makes every track a variant while they all still declare the same `AUDIO` group,
+ * so a player picks one playlist as its variant and separately plays the group's
+ * default rendition — two audio streams for one ear, which stalls playback rather
+ * than merely sounding wrong. The renditions belong in `#EXT-X-MEDIA` only; the
+ * variant exists to name the group.
+ *
+ * @param originalUrl - URL of the original HLS master.
+ * @param selectedTrack - Track to mark DEFAULT, by label and/or language.
+ * @returns The generated audio-only master playlist.
  */
 export const extractAndBuildAudioMaster = async (
     originalUrl: string,
     selectedTrack?: { label?: string; language?: string } | null,
 ): Promise<string> => {
-    // Fetch the original HLS manifest
     const response = await fetch(originalUrl);
-
-    // Read the manifest file content as text.
     const manifestText = await response.text();
 
-    // Parse the manifest using m3u8-parser
     const parser = new Parser();
-
-    // Push the manifest text into the parser for processing.
     parser.push(manifestText);
-
-    // Finalize the parsing process.
     parser.end();
-
-    // Retrieve the parsed manifest object from the parser.
     const parsedManifest = parser.manifest;
 
-    // Get the directory of the manifest for resolving relative URIs
+    // Resolve every URI against the master, so the result stands alone as a data: URL.
     const manifestDir = originalUrl.substring(0, originalUrl.lastIndexOf("/") + 1);
 
-    // Extract audio media groups and playlists from the manifest
     const audioMedia = parsedManifest.mediaGroups?.AUDIO || {};
-
-    // Ensure audio media groups are in the expected format
     const playlists = parsedManifest.playlists || [];
 
-    // Initialize an array to store the lines of the new audio master playlist.
-    const lines: string[] = ["#EXTM3U", "#EXT-X-VERSION:4", "#EXT-X-INDEPENDENT-SEGMENTS"];
-
-    // Map to store the mapping of audio group/name to CHANNELS value (e.g., "2" for stereo, "1" for mono)
+    // CHANNELS is not modeled by the parser, so it is read from the raw text.
     const channelMap = new Map<string, string>();
-
-    // Extract CHANNELS values from raw text
-    // Extract all #EXT-X-MEDIA lines and parse out GROUP-ID, NAME, and CHANNELS attributes
-    const mediaLines = manifestText.split("\n").filter((line) => line.startsWith("#EXT-X-MEDIA"));
-    for (const line of mediaLines) {
-        const groupIdMatch = /GROUP-ID="([^"]+)"/.exec(line);
-        const nameMatch = /NAME="([^"]+)"/.exec(line);
-        const channelsMatch = /CHANNELS="([^"]+)"/.exec(line);
-
-        // If all attributes are found, store the CHANNELS value in the channelMap using "group|name" as the key
-        if (groupIdMatch && nameMatch && channelsMatch) {
-            const key = `${groupIdMatch[1]}|${nameMatch[1]}`;
-            channelMap.set(key, channelsMatch[1]);
+    for (const line of manifestText.split("\n").filter((l) => l.startsWith("#EXT-X-MEDIA"))) {
+        const group = /GROUP-ID="([^"]+)"/.exec(line);
+        const name = /NAME="([^"]+)"/.exec(line);
+        const channels = /CHANNELS="([^"]+)"/.exec(line);
+        if (group && name && channels) {
+            channelMap.set(
+                `${group[1].trim().toLowerCase()}|${name[1].trim().toLowerCase()}`,
+                channels[1],
+            );
         }
     }
 
-    // Iterate through each audio group in the media groups.
+    const version = Number(/#EXT-X-VERSION:(\d+)/.exec(manifestText)?.[1]) || DEFAULT_VERSION;
+
+    const lines: string[] = ["#EXTM3U", `#EXT-X-VERSION:${version}`, "#EXT-X-INDEPENDENT-SEGMENTS"];
+    const variantLines: string[] = [];
+
     for (const group in audioMedia) {
         const variants = audioMedia[group];
 
-        // Iterate through each audio variant in the group.
+        const tracks: AudioTrack[] = [];
         for (const name in variants) {
-            const track: any = (variants as Record<string, typeof track>)[name];
-
-            // Check if the audio track has a URI defined.
-            if (track.uri) {
-                // Resolve the absolute URI of the audio track.
-                const absoluteTrackUri = new URL(track.uri, manifestDir).toString();
-
-                // Normalize name and group for consistent keying (e.g., remove extra spaces)
-                const normalize = (val: string) => val.trim().toLowerCase();
-                const channelKey = `${normalize(group)}|${normalize(name)}`;
-
-                // Find the matching entry in the channelMap for this group/name
-                const matchedChannel = Array.from(channelMap.entries()).find(([key]) => {
-                    return key.trim().toLowerCase() === channelKey;
-                });
-
-                // If a matching CHANNELS value is found, assign it to the track
-                if (matchedChannel) {
-                    track.channels = matchedChannel[1];
-                }
-
-                // Determine if this track should be the default based on selectedTrack parameter
-                let isDefault = track.default;
-                let isAutoSelect = track.autoselect;
-
-                if (selectedTrack) {
-                    const langMatch = track.language === selectedTrack.language;
-                    const labelMatch =
-                        track.label === selectedTrack.label || name === selectedTrack.label;
-
-                    if (langMatch || labelMatch) {
-                        // This is the selected track - mark it as default
-                        isDefault = true;
-                        isAutoSelect = true;
-                    } else {
-                        // Not the selected track - ensure it's not default
-                        isDefault = false;
-                        isAutoSelect = false;
-                    }
-                }
-
-                // Add an EXT-X-MEDIA tag for the audio track to the playlist.
-                const mediaAttributes = [
-                    `TYPE=AUDIO`,
-                    `GROUP-ID="${group}"`,
-                    track.channels !== undefined && track.channels !== null
-                        ? `CHANNELS="${String(track.channels)}"`
-                        : null,
-                    `NAME="${name}"`,
-                    `LANGUAGE="${track.language}"`,
-                    `DEFAULT=${isDefault ? "YES" : "NO"}`,
-                    `AUTOSELECT=${isAutoSelect ? "YES" : "NO"}`,
-                    `URI="${absoluteTrackUri}"`,
-                ].filter(Boolean); // Remove nulls
-
-                // Join the attributes into a single string
-                lines.push(`#EXT-X-MEDIA:${mediaAttributes.join(",")}`);
-
-                // Get the original relative URI (without query params)
-                const relativeTrackUri = track.uri.split("?")[0];
-
-                // Find the matching playlist for this audio group
-                const matched = playlists.find(
-                    (p) =>
-                        p.attributes?.AUDIO === group && (p as any).uri?.includes(relativeTrackUri),
-                );
-
-                // Infer bandwidth based on group name
-                // Use the channels attribute if available, otherwise assume stereo
-                const channels = track.channels ? String(track.channels) : "2";
-                const isStereo = channels === "2";
-                const isMono = channels === "1";
-
-                const bandwidth =
-                    matched?.attributes?.BANDWIDTH ??
-                    (isStereo ? 96000 : isMono ? 48000 : 96000 + Math.floor(Math.random() * 64000));
-
-                // Use the matched playlist's codecs or a default value
-                const codecs =
-                    typeof matched?.attributes?.CODECS === "string"
-                        ? matched.attributes.CODECS
-                        : "mp4a.40.2";
-
-                // Add the EXT-X-STREAM-INF line for this audio track
-                const streamInfLine = `#EXT-X-STREAM-INF:AUDIO="${group}",BANDWIDTH=${bandwidth},CODECS="${codecs}"`;
-
-                lines.push(streamInfLine);
-                lines.push(absoluteTrackUri);
-            }
+            const track: any = (variants as Record<string, any>)[name];
+            if (!track.uri) continue;
+            tracks.push({
+                name,
+                uri: new URL(track.uri, manifestDir).toString(),
+                language: track.language,
+                channels: channelMap.get(`${group.trim().toLowerCase()}|${name.trim().toLowerCase()}`),
+                default: track.default,
+                autoselect: track.autoselect,
+            });
         }
+        if (tracks.length === 0) continue;
+
+        // Which track the player should start on.
+        const chosen = selectedTrack
+            ? tracks.find(
+                  (t) =>
+                      (selectedTrack.language && t.language === selectedTrack.language) ||
+                      (selectedTrack.label && t.name === selectedTrack.label),
+              )
+            : undefined;
+        const startTrack = chosen ?? tracks.find((t) => t.default) ?? tracks[0];
+
+        for (const track of tracks) {
+            const isDefault = track === startTrack;
+            lines.push(
+                `#EXT-X-MEDIA:${[
+                    "TYPE=AUDIO",
+                    `GROUP-ID="${group}"`,
+                    track.channels ? `CHANNELS="${track.channels}"` : null,
+                    `NAME="${track.name}"`,
+                    track.language ? `LANGUAGE="${track.language}"` : null,
+                    `DEFAULT=${isDefault ? "YES" : "NO"}`,
+                    `AUTOSELECT=${isDefault ? "YES" : "NO"}`,
+                    `URI="${track.uri}"`,
+                ]
+                    .filter(Boolean)
+                    .join(",")}`,
+            );
+        }
+
+        // One variant for the group, pointing at the track playback should start on.
+        const matched = playlists.filter((p) => p.attributes?.AUDIO === group);
+        const bandwidth =
+            Math.max(0, ...matched.map((p) => Number(p.attributes?.BANDWIDTH) || 0)) ||
+            DEFAULT_AUDIO_BANDWIDTH;
+        const codecs =
+            matched
+                .map((p) =>
+                    typeof p.attributes?.CODECS === "string"
+                        ? audioCodec(p.attributes.CODECS)
+                        : undefined,
+                )
+                .find(Boolean) ?? DEFAULT_AUDIO_CODEC;
+
+        variantLines.push(
+            `#EXT-X-STREAM-INF:AUDIO="${group}",BANDWIDTH=${bandwidth},CODECS="${codecs}"`,
+            startTrack.uri,
+        );
     }
 
-    // Join all lines to form the final playlist string
-    return lines.join("\n");
+    return [...lines, ...variantLines].join("\n");
 };

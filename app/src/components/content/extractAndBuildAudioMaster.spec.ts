@@ -182,7 +182,7 @@ describe("extractAndBuildAudioMaster", () => {
         expect(frenchMedia).toContain("DEFAULT=YES");
     });
 
-    it("infers bandwidth based on channel count", async () => {
+    it("emits one variant per audio group, not per track", async () => {
         const manifest = createManifest({
             audioGroups: [
                 {
@@ -212,15 +212,21 @@ describe("extractAndBuildAudioMaster", () => {
         const result = await extractAndBuildAudioMaster(MANIFEST_URL);
 
         const lines = result.split("\n");
-        const stereoStreamInf = lines.find(
-            (l, i) => l.includes("STREAM-INF") && lines[i + 1]?.includes("stereo"),
-        );
-        const monoStreamInf = lines.find(
-            (l, i) => l.includes("STREAM-INF") && lines[i + 1]?.includes("mono"),
-        );
+        const streamInfs = lines.filter((l) => l.includes("STREAM-INF"));
 
-        expect(stereoStreamInf).toContain("BANDWIDTH=96000");
-        expect(monoStreamInf).toContain("BANDWIDTH=48000");
+        // Both tracks are renditions of one group, so the group gets one variant.
+        // One per track would make each rendition a variant while all of them still
+        // name the same AUDIO group, and the player would then play a variant *and*
+        // the group's default rendition at once.
+        expect(streamInfs).toHaveLength(1);
+        expect(streamInfs[0]).toContain('AUDIO="audio"');
+        expect(streamInfs[0]).toContain("BANDWIDTH=96000");
+
+        // The renditions are still listed, with their channel counts.
+        expect(result).toContain('NAME="Stereo"');
+        expect(result).toContain('NAME="Mono"');
+        expect(result).toContain('CHANNELS="2"');
+        expect(result).toContain('CHANNELS="1"');
     });
 
     it("uses matched playlist codecs when available", async () => {

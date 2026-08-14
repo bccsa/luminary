@@ -26,7 +26,7 @@
  * where it defaults to 3000 instead.
  */
 export const ENCODER_BASE_URL =
-    import.meta.env.VITE_ENCODER_URL || "http://127.0.0.1:31711";
+    import.meta.env?.VITE_ENCODER_URL || "http://127.0.0.1:31711";
 
 /** Launch link for an encoder that is installed but not running. */
 export const ENCODER_PROTOCOL_URL = "luminary-convert://";

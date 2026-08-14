@@ -20,3 +20,23 @@ export function matchTrackLanguage(
     // convert to the 2-letter app code. A language can have two 3-letter codes.
     return iso.iso6392TTo1[track] === target || iso.iso6392BTo1[track] === target;
 }
+
+/**
+ * The audio track to enable for a language, or null when none matches.
+ *
+ * Null means "leave the current selection alone", never "disable everything".
+ * Audio groups are not always languages — an encode can carry quality tiers (HD,
+ * Standard, Bandwidth Saving) with no LANGUAGE attribute at all — and a stream
+ * with every track disabled has no audio rendition to fetch, so playback stalls a
+ * few seconds in when the buffer runs dry. Whatever the playlist marked DEFAULT is
+ * a better answer than silence.
+ */
+export function pickAudioTrack<T extends { language?: string | null }>(
+    tracks: readonly T[],
+    languageCode: string | null | undefined,
+): T | null {
+    for (const track of tracks) {
+        if (matchTrackLanguage(track.language, languageCode)) return track;
+    }
+    return null;
+}
