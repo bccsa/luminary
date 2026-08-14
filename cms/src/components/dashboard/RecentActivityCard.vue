@@ -30,7 +30,7 @@ function formatRelativeTime(timestamp: number): string {
 
 <template>
     <LCard title="Recent activity" :icon="ClockIcon" fillHeight>
-        <div v-if="recentContent.length === 0" class="py-6 text-center text-sm dark:text-zinc-800">
+        <div v-if="recentContent.length === 0" class="py-6 text-center text-sm dark:text-zinc-500">
             No content found for the selected language.
         </div>
         <ul v-else ref="listEl" class="divide-y divide-zinc-100">
@@ -45,7 +45,7 @@ function formatRelativeTime(timestamp: number): string {
                 >
                     <component
                         :is="doc.parentType === DocType.Post ? DocumentTextIcon : TagIcon"
-                        class="h-4 w-4 shrink-0 dark:text-zinc-100"
+                        class="h-4 w-4 shrink-0 text-zinc-600 dark:text-zinc-100"
                     />
                     <span
                         v-if="parentRoute(doc)"
