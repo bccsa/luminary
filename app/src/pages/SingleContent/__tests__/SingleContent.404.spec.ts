@@ -18,12 +18,57 @@ import {
     mockTopicDto,
     mockRedirectDto,
 } from "@/tests/mockdata";
-import { db, type ContentDto } from "luminary-shared";
+import { db, isConnected, config, DocType, type ContentDto } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import { appLanguageIdsAsRef, cmsLanguages } from "@/globalConfig";
 import NotFoundPage from "../../NotFoundPage.vue";
 import { ref } from "vue";
 import * as auth from "@/auth";
+
+// The not-found redirect probe (queryRemote) would otherwise hit the real (unreachable
+// in tests) API and its failure timing is not deterministic — mock it to resolve
+// immediately with no match so tests that flip `isConnected` mid-test aren't at the
+// mercy of real network timing. Replicates the global vitest.setup.ts mangoToDexie
+// mock verbatim (a per-file vi.mock of "luminary-shared" replaces it, not merges).
+const queryRemoteMock = vi.hoisted(() => vi.fn().mockResolvedValue([]));
+
+vi.mock("luminary-shared", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("luminary-shared")>();
+    const mangoToDexieMock = async <T>(
+        table: { filter: (fn: (d: unknown) => boolean) => { toArray(): Promise<T[]> } },
+        query: {
+            selector: unknown;
+            $sort?: Array<Record<string, "asc" | "desc">>;
+            $limit?: number;
+        },
+    ) => {
+        const pred = actual.mangoCompile(
+            query.selector as Parameters<typeof actual.mangoCompile>[0],
+        );
+        let result = await table.filter((doc: unknown) => pred(doc)).toArray();
+        const sort = Array.isArray(query?.$sort) ? query.$sort[0] : undefined;
+        if (sort) {
+            const [field, dir] = Object.entries(sort)[0] ?? [];
+            if (field != null) {
+                const mult = dir === "desc" ? -1 : 1;
+                result = [...result].sort((a, b) => {
+                    const va = (a as Record<string, unknown>)[field] as number;
+                    const vb = (b as Record<string, unknown>)[field] as number;
+                    return mult * (va - vb);
+                });
+            }
+        }
+        const limit = typeof query?.$limit === "number" ? query.$limit : undefined;
+        return (limit != null ? result.slice(0, limit) : result) as T[];
+    };
+    return new Proxy(actual, {
+        get(target, prop) {
+            if (prop === "mangoToDexie") return mangoToDexieMock;
+            if (prop === "queryRemote") return queryRemoteMock;
+            return Reflect.get(target, prop);
+        },
+    });
+});
 
 const routeReplaceMock = vi.hoisted(() => vi.fn());
 vi.mock("vue-router", async (importOriginal) => {
@@ -57,11 +102,14 @@ vi.mock("vue-i18n", () => ({
 }));
 
 describe("SingleContent 404 Page", () => {
+    let consoleErrorSpy: { mockRestore: () => void } | undefined;
+
     beforeEach(async () => {
         await db.docs.clear();
         await db.localChanges.clear();
 
         routeReplaceMock.mockClear();
+        queryRemoteMock.mockClear();
 
         appLanguageIdsAsRef.value = [...appLanguageIdsAsRef.value, "lang-eng"];
         cmsLanguages.value = [];
@@ -92,6 +140,11 @@ describe("SingleContent 404 Page", () => {
 
     afterEach(async () => {
         await db.docs.clear();
+        isConnected.value = false;
+        config.contentPublishDateCutoff = undefined;
+        queryRemoteMock.mockReset().mockResolvedValue([]);
+        consoleErrorSpy?.mockRestore();
+        consoleErrorSpy = undefined;
     });
 
     it("displays the 404 error when the content is scheduled", async () => {
@@ -298,5 +351,49 @@ describe("SingleContent 404 Page", () => {
 
         // Verify 404 page never appeared during the language switch
         expect(notFoundPageAppeared).toBe(false);
+    });
+
+    it("resolves content via a direct check on a cold mount with no local data yet, even if the socket never connects", async () => {
+        // Setting a cutoff also makes HybridQuery's OWN internal below-cutoff
+        // supplement (on this query and SingleContent's other content queries)
+        // attempt background fetches — this test never calls initHybridQuery
+        // with a mock HTTP service, so those attempts fail and log a caught
+        // (harmless) error, on their own unrelated timing. Silence it for this
+        // test only (restored in afterEach); SingleContent's own direct check
+        // below is what this test actually exercises.
+        consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+        // Simulate a cold/incognito client: nothing cached locally, and a
+        // below-cutoff-style sync window configured (matches a real
+        // browser-tab session — app/src/main.ts sets a rolling cutoff there).
+        // The socket deliberately never connects for the rest of this test —
+        // resolveNotFound's own queryRemote check is a bare REST call, wired
+        // independently of the socket handshake, so it must resolve content
+        // correctly without ever needing `isConnected` to become true.
+        config.contentPublishDateCutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+        isConnected.value = false;
+        await db.docs.delete(mockEnglishContentDto._id);
+
+        // The content genuinely exists — just not synced to this cold client yet.
+        queryRemoteMock.mockImplementation(async (query: { selector?: { $and?: unknown[] } }) => {
+            const clauses = query.selector?.$and ?? [];
+            const isContentQuery = clauses.some(
+                (c) => (c as Record<string, unknown>)?.type === DocType.Content,
+            );
+            return isContentQuery ? [mockEnglishContentDto] : [];
+        });
+
+        const wrapper = mount(SingleContent, {
+            props: {
+                slug: mockEnglishContentDto.slug,
+            },
+        });
+
+        // Resolves to the real content — never a false 404 — even though the
+        // socket never connects during this test.
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain(mockEnglishContentDto.title);
+            expect(wrapper.findComponent(NotFoundPage).exists()).toBe(false);
+        });
     });
 });
