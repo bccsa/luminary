@@ -19,10 +19,10 @@ const greeting = computed(() => {
     <div class="flex flex-wrap items-center justify-between gap-3 px-4 lg:px-0">
         <div class="flex flex-col lg:flex-row lg:items-baseline lg:gap-2">
             <h1 class="pl-0 text-lg font-semibold dark:text-zinc-100">{{ greeting }},</h1>
-            <h2 class="pl-0 text-lg font-semibold text-zinc-800 dark:text-yellow-400">
+            <h2 class="pl-0 text-lg font-semibold text-zinc-600 dark:text-yellow-400">
                 {{ userName }}
             </h2>
-            <p class="pl-0 text-xs text-zinc-800 dark:text-zinc-300">
+            <p class="pl-0 text-xs text-zinc-600 dark:text-zinc-300">
                 Here's what's happening today
             </p>
         </div>
