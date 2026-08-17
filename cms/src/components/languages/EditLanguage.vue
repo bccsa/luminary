@@ -27,6 +27,7 @@ import { TrashIcon as TrashIconOutline } from "@heroicons/vue/24/outline";
 import LDialog from "../common/LDialog.vue";
 import router from "@/router";
 import { capitaliseFirstLetter } from "@/util/string";
+import { isBcp47LanguageTag } from "@/util/isBcp47LanguageTag";
 import EditContentActionsWrapper from "../content/EditContentActionsWrapper.vue";
 
 type translationKeyValuePair = {
@@ -246,6 +247,11 @@ const save = async () => {
             field: "languageCode",
             isInvalid: !editable.value.languageCode || editable.value.languageCode.trim() === "",
             message: "Language code should not be empty.",
+        },
+        {
+            field: "languageCode",
+            isInvalid: !isBcp47LanguageTag(editable.value.languageCode),
+            message: 'Language code must be a valid BCP 47 language tag, e.g. "en" or "en-US".',
         },
         {
             field: "name",
