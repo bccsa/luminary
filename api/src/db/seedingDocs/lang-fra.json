@@ -160,6 +160,8 @@
         "auth.sign_in": "Se connecter",
         "auth.no_methods_available": "Aucun méthode d'authentification disponible. Veuillez réessayer dans un moment.",
         "singlecontent.listen": "Écoutez",
-        "singlecontent.loading": "Chargement..."
+        "singlecontent.loading": "Chargement...",
+        "singlecontent.shareTelegram": "Partager sur Telegram",
+        "singlecontent.shareWhatsApp": "Partager sur WhatsApp"
     }
 }
