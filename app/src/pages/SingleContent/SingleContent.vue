@@ -974,6 +974,7 @@ watch([isLoading, content, is404], async () => {
                     <LHighlightable
                         v-if="content.text"
                         :content-id="content._id"
+                        :title="content.title"
                         @highlighted="
                             recordAffinity(
                                 content?.parentTags,
