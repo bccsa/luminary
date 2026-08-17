@@ -557,7 +557,6 @@ const isBookmarked = computed(() => {
     return userPreferencesAsRef.value.bookmarks?.some((b) => b.id == content.value?.parentId);
 });
 
-
 // The normal SPA sets the tab/window title imperatively (it has no @unhead plugin). The web
 // build's `useContentHead` above owns the whole head there, including the meta
 // description — serialized into the prerendered HTML that crawlers actually read.
