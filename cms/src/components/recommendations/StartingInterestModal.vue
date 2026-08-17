@@ -1,29 +1,48 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import { AckStatus, AclPermission, DocType, getAccessibleGroups, type Uuid } from "luminary-shared";
 import { useNotificationStore } from "@/stores/notification";
 import { useDefaultAffinity } from "@/composables/useDefaultAffinity";
+import { useTopicTagOptions } from "@/composables/useTopicTagOptions";
 import LButton from "@/components/button/LButton.vue";
 import LModal from "@/components/modals/LModal.vue";
+import LSelect from "@/components/forms/LSelect.vue";
+import LSlider from "@/components/forms/LSlider.vue";
 import LoadingSpinner from "@/components/LoadingSpinner.vue";
 
 type Props = {
-    tagId: Uuid;
-    label: string;
-    score: number;
+    /** Present in edit mode (editing an existing entry); absent in add mode. */
+    tagId?: Uuid;
+    label?: string;
+    score?: number;
 };
 
 const props = defineProps<Props>();
+const isEdit = computed(() => props.tagId !== undefined);
+
 const isVisible = defineModel<boolean>("isVisible");
 const isSaving = ref(false);
 const { addNotification } = useNotificationStore();
 
 const { current, saveAffinity } = useDefaultAffinity();
+const { tagOptions } = useTopicTagOptions();
 
-const scoreForm = ref(props.score);
+const selectedTagId = ref<Uuid>();
+const scoreForm = ref(props.score ?? 0.3);
+
+const availableTagOptions = computed(() => {
+    const existingIds = new Set(Object.keys(current.value?.affinity ?? {}));
+    return tagOptions.value.filter((option) => !existingIds.has(option.id));
+});
+
+const tagSelectOptions = computed(() =>
+    availableTagOptions.value.map((option) => ({ label: option.label, value: option.id })),
+);
+
+const heading = computed(() => (isEdit.value ? props.label! : "Add a starting interest"));
 
 function formatScore(score: number) {
-    return Math.round(score * 100);
+    return `${Math.round(score * 100)}%`;
 }
 
 function editableMemberOf(): Uuid[] {
@@ -67,44 +86,51 @@ async function persist(affinity: Record<Uuid, number>, successMessage: string) {
 }
 
 function save() {
+    const tagId = isEdit.value ? props.tagId : selectedTagId.value;
+    if (!tagId) return;
+
     const clamped = Math.min(1, Math.max(0, Number(scoreForm.value) || 0));
-    const affinity = { ...(current.value?.affinity ?? {}), [props.tagId]: clamped };
-    persist(affinity, "Starting interest saved");
+    const affinity = { ...(current.value?.affinity ?? {}), [tagId]: clamped };
+    persist(affinity, isEdit.value ? "Starting interest saved" : "Starting interest added");
 }
 
 function remove() {
     const affinity = { ...(current.value?.affinity ?? {}) };
-    delete affinity[props.tagId];
+    delete affinity[props.tagId!];
     persist(affinity, "Starting interest removed");
 }
 </script>
 
 <template>
-    <LModal v-model:is-visible="isVisible" :heading="label">
+    <LModal v-model:is-visible="isVisible" :heading="heading">
         <div class="space-y-4">
             <div class="text-sm text-zinc-600">
-                How interested should a new visitor seem in this topic?
+                {{
+                    isEdit
+                        ? "How interested should a new visitor seem in this topic?"
+                        : "Pick a topic and how interested a new visitor should seem in it."
+                }}
             </div>
-            <div class="flex items-center gap-3">
-                <input
-                    v-model.number="scoreForm"
-                    name="starting-interest-score"
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.05"
-                    class="h-4 min-w-0 flex-1 cursor-pointer appearance-none bg-transparent [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-zinc-800 [&::-moz-range-track]:h-2 [&::-moz-range-track]:rounded-full [&::-moz-range-track]:bg-zinc-200 [&::-webkit-slider-runnable-track]:h-2 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-zinc-200 [&::-webkit-slider-thumb]:-mt-1 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-zinc-800"
-                    data-test="starting-interest-score"
-                />
-                <div class="w-12 text-right text-sm tabular-nums text-zinc-700">
-                    {{ formatScore(scoreForm) }}%
-                </div>
-            </div>
+
+            <LSelect
+                v-if="!isEdit"
+                v-model="selectedTagId"
+                label="Topic"
+                placeholder="No topics available"
+                :options="tagSelectOptions"
+            />
+
+            <LSlider
+                v-model="scoreForm"
+                name="starting-interest-score"
+                :format-value="formatScore"
+            />
         </div>
 
         <template #footer>
-            <div class="flex justify-between gap-2">
+            <div class="flex gap-2" :class="isEdit ? 'justify-between' : 'justify-end'">
                 <LButton
+                    v-if="isEdit"
                     variant="muted"
                     :disabled="isSaving"
                     @click="remove"
@@ -122,12 +148,12 @@ function remove() {
                     </LButton>
                     <LButton
                         variant="primary"
+                        :disabled="(!isEdit && !selectedTagId) || isSaving"
                         :icon="isSaving ? LoadingSpinner : undefined"
-                        :disabled="isSaving"
                         @click="save"
                         data-test="starting-interest-save"
                     >
-                        {{ isSaving ? "Saving..." : "Save" }}
+                        {{ isSaving ? (isEdit ? "Saving..." : "Adding...") : isEdit ? "Save" : "Add" }}
                     </LButton>
                 </div>
             </div>

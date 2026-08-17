@@ -45,6 +45,8 @@ import {
 import { computeEstimatedReadingMinutes } from "@/util/readingTime";
 import { ref, computed } from "vue";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
+import RelatedContent from "@/components/content/RelatedContent.vue";
+import ReadMore from "@/components/content/ReadMore.vue";
 import * as auth from "@/auth";
 import LImage from "@/components/images/LImage.vue";
 import ImageModal from "@/components/images/ImageModal.vue";
@@ -364,6 +366,7 @@ describe("SingleContent", () => {
                 _id: "content2",
                 parentId: "post2",
                 title: "content 2",
+                slug: "content-2",
                 parentTags: [mockTopicContentDto.parentId],
             } as ContentDto,
             {
@@ -380,6 +383,40 @@ describe("SingleContent", () => {
         await waitForExpect(() => {
             expect(wrapper!.text()).toContain("content 2");
         });
+
+        // The RelatedContent/ReadMore components are actually mounted and render the
+        // related article as a card — not just a coincidental text match elsewhere on the page.
+        const relatedContent = wrapper!.findComponent(RelatedContent);
+        expect(relatedContent.exists()).toBe(true);
+        const readMore = relatedContent.findComponent(ReadMore);
+        expect(readMore.exists()).toBe(true);
+        expect(readMore.props("items").map((item: ContentDto) => item._id)).toContain("content2");
+        expect(readMore.find("li").exists()).toBe(true);
+    });
+
+    it("hides the related content section on a topic page", async () => {
+        // RelatedContent is a "read more" for articles read via a topic — a topic page
+        // itself already lists its own tagged content, so the section stays hidden there.
+        await db.docs.bulkPut([
+            {
+                ...mockTopicContentDto,
+                parentTaggedDocs: [mockEnglishContentDto.parentId],
+            } as ContentDto,
+        ]);
+
+        wrapper = mount(SingleContent, {
+            props: {
+                slug: mockTopicContentDto.slug,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper!.text()).toContain(mockTopicContentDto.title);
+        });
+
+        // RelatedContent's own root has a v-if, so nothing renders below it for a topic page.
+        expect(wrapper!.text()).not.toContain("Read more");
+        expect(wrapper!.findComponent(ReadMore).exists()).toBe(false);
     });
 
     it("doesn't display tag when content not tagged", async () => {
