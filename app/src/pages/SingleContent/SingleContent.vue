@@ -41,6 +41,7 @@ import {
     cmsLanguages,
     cmsDefaultLanguage,
     queryParams,
+    addToMediaQueue,
     cmsUrl,
 } from "@/globalConfig";
 import { useNotificationStore } from "@/stores/notification";
@@ -49,6 +50,8 @@ import RelatedContent from "@/components/content/RelatedContent.vue";
 import VerticalTagViewer from "@/components/tags/VerticalTagViewer.vue";
 
 import LImage from "@/components/images/LImage.vue";
+import TelegramIcon from "@/components/icons/TelegramIcon.vue";
+import WhatsAppIcon from "@/components/icons/WhatsAppIcon.vue";
 
 import { userPreferencesAsRef } from "@/globalConfig";
 import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
@@ -59,6 +62,7 @@ import { useI18n } from "vue-i18n";
 import ImageModal from "@/components/images/ImageModal.vue";
 import BasePage from "@/components/BasePage.vue";
 import { CheckCircleIcon, DocumentDuplicateIcon } from "@heroicons/vue/20/solid";
+import { SpeakerWaveIcon } from "@heroicons/vue/24/solid";
 import { markLanguageSwitch } from "@/util/isLangSwitch";
 import LoadingBar from "@/components/LoadingBar.vue";
 import { activeImageCollection } from "@/components/images/LImageProvider.vue";
@@ -68,6 +72,7 @@ import DropdownMenu from "@/components/common/DropdownMenu.vue";
 import ArticleOutline from "./ArticleOutline.vue";
 import { markPageReady } from "@/util/renderState";
 import { hasVideoSource } from "@/util/videoSource";
+import { audioFilesOf } from "@/util/audioFiles";
 import { computeEstimatedReadingMinutes, resolveReadingSpeedWpm } from "@/util/readingTime";
 import {
     resolveArticleScrollContainer,
@@ -553,6 +558,26 @@ const isBookmarked = computed(() => {
     return userPreferencesAsRef.value.bookmarks?.some((b) => b.id == content.value?.parentId);
 });
 
+// `window.location.href` (not the build-time `canonicalUrl`) so the shared link is
+// always the URL actually open in the browser, regardless of whether VITE_WEB_ORIGIN
+// is configured — these buttons only ever run client-side, after a click.
+const shareUrl = () => window.location.href;
+
+const shareToTelegram = () => {
+    if (!content.value) return;
+    const url = new URL("https://t.me/share/url");
+    url.searchParams.set("url", shareUrl());
+    url.searchParams.set("text", content.value.title);
+    window.open(url.toString(), "_blank");
+};
+
+const shareToWhatsApp = () => {
+    if (!content.value) return;
+    const url = new URL("https://wa.me/");
+    url.searchParams.set("text", `${content.value.title} ${shareUrl()}`);
+    window.open(url.toString(), "_blank");
+};
+
 // The normal SPA sets the tab/window title imperatively (it has no @unhead plugin). The web
 // build's `useContentHead` above owns the whole head there, including the meta
 // description — serialized into the prerendered HTML that crawlers actually read.
@@ -682,6 +707,28 @@ const quickLanguageSwitch = (languageId: string) => {
     showDropdown.value = false;
 };
 
+// Check if the current content has audio files - fully reactive to data changes
+const hasAudioFiles = computed(() => {
+    // Check the live query result first (most up-to-date), then fall back to content ref
+    const dataSource = contentArr.value[0] || content.value;
+    return !!audioFilesOf(dataSource)?.length;
+});
+
+// Function to start playing audio
+const playAudio = () => {
+    if (content.value && hasAudioFiles.value) {
+        addToMediaQueue(content.value);
+    }
+};
+
+// Whether the hero image can carry the title/summary as an overlay. Video has its own
+// player chrome the overlay would fight with, so it keeps a plain title above instead.
+const hasHeroImage = computed(
+    () =>
+        !hasVideoSource(content.value) &&
+        !!(content.value?.parentId || content.value?.parentImageData),
+);
+
 watch([isLoading, content, is404], async () => {
     if (is404.value) {
         await nextTick();
@@ -806,15 +853,16 @@ watch([isLoading, content, is404], async () => {
                     :label="t('singlecontent.loading')"
                     class="lg:col-start-2"
                 />
-
                 <template v-else-if="content">
                     <article
                         ref="articleRef"
                         class="w-full lg:col-start-2"
                     >
                         <!-- Desktop: title row originates at the top of the page, level with the pinned
-                         topbar chrome, and scrolls away with the content like normal. -->
+                         topbar chrome, and scrolls away with the content like normal. Suppressed when
+                         a hero image is present, since its overlay carries the title instead. -->
                         <div
+                            v-if="!hasHeroImage"
                             ref="desktopTitleRef"
                             class="hidden h-9 items-center justify-center gap-2 lg:flex"
                         >
@@ -834,6 +882,7 @@ watch([isLoading, content, is404], async () => {
                         </div>
 
                         <div
+                            v-if="!hasHeroImage"
                             ref="mobileTitleRef"
                             class="flex w-full flex-col items-center lg:hidden"
                         >
@@ -868,8 +917,8 @@ watch([isLoading, content, is404], async () => {
                                     :language="selectedLanguageCode"
                                 />
                                 <div
-                                    v-else-if="content.parentId || content.parentImageData"
-                                    class="relative cursor-pointer overflow-hidden"
+                                    v-else-if="hasHeroImage"
+                                    class="relative cursor-pointer overflow-hidden lg:rounded-xl"
                                     @click="
                                         () => {
                                             if (content)
@@ -886,20 +935,66 @@ watch([isLoading, content, is404], async () => {
                                         size="post"
                                     />
                                     <div
-                                        v-if="
-                                            (content.parentImageData?.fileCollections?.length ??
-                                                0) > 1
-                                        "
+                                        v-if="(content.parentImageData?.fileCollections?.length ?? 0) > 1"
                                         class="absolute bottom-2 right-2 flex items-center gap-1"
                                     >
                                         <DocumentDuplicateIcon class="h-10 w-10 text-zinc-400" />
+                                    </div>
+
+                                    <!-- Small Play Audio Button (only show if content has audio but no video) -->
+                                    <button
+                                        v-if="hasAudioFiles"
+                                        @click.stop="
+                                            (event) => {
+                                                playAudio();
+                                                // Prevent focus staying on button
+                                                (event.target as HTMLElement).blur();
+                                            }
+                                        "
+                                        class="absolute bottom-2.5 left-3.5 flex items-center justify-center gap-1.5 rounded-full bg-black/60 py-1 pl-2 pr-3.5 text-white shadow-lg backdrop-blur-sm transition-all duration-200 hover:scale-110 hover:bg-black/80 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                                        title="Play Audio"
+                                    >
+                                        <SpeakerWaveIcon class="h-5 w-5" />
+                                        {{ t("singlecontent.listen") }}
+                                    </button>
+
+                                    <!-- Title + summary scrim: the gradient carries just the title/summary
+                                         zone, not the whole image, so the photo above it stays readable. -->
+                                    <div
+                                        class="pointer-events-none absolute inset-x-0 bottom-0 h-3/4 bg-gradient-to-t from-black/85 via-black/45 to-transparent"
+                                    ></div>
+                                    <div
+                                        class="absolute inset-x-0 bottom-0 flex flex-col gap-1.5 p-4 lg:gap-2 lg:p-6"
+                                        @click.stop
+                                    >
+                                        <div class="flex items-start gap-2">
+                                            <h1
+                                                class="text-xl font-semibold leading-tight text-white [text-wrap:balance] lg:text-3xl"
+                                            >
+                                                {{ content.title }}
+                                            </h1>
+                                            <button
+                                                v-if="canEdit() && cmsUrl"
+                                                @click="openCmsEditor"
+                                                class="mt-1 flex flex-shrink-0 cursor-pointer items-center text-white/70 hover:text-yellow-400"
+                                                data-test="editButton"
+                                            >
+                                                <PencilIcon class="h-5 w-5" />
+                                            </button>
+                                        </div>
+                                        <p
+                                            v-if="content.summary"
+                                            class="max-w-2xl text-sm leading-relaxed text-white/85 lg:text-base"
+                                        >
+                                            {{ content.summary }}
+                                        </p>
                                     </div>
                                 </div>
                             </IgnorePagePadding>
                         </div>
 
                         <div
-                            v-if="content.summary"
+                            v-if="!hasHeroImage && content.summary"
                             class="mt-6 flex justify-center"
                         >
                             <p
@@ -909,10 +1004,10 @@ watch([isLoading, content, is404], async () => {
                             </p>
                         </div>
 
-                        <div class="mt-6 flex flex-col items-center gap-4">
-                            <div
-                                class="flex w-fit flex-wrap items-center justify-center gap-y-2 border-t-2 border-yellow-500/25 px-8 pt-6 text-sm text-zinc-500 dark:text-slate-400"
-                            >
+                        <div
+                            class="mt-5 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 border-t border-zinc-100 px-4 pt-4 text-sm text-zinc-500 dark:border-slate-800 dark:text-slate-400"
+                        >
+                            <div class="flex flex-wrap items-center justify-center gap-y-1">
                                 <!-- Author -->
                                 <div
                                     v-if="content.author"
@@ -944,28 +1039,52 @@ watch([isLoading, content, is404], async () => {
                                 <FallbackLanguageBadge :content="content" />
                             </div>
 
-                            <!-- Bookmark Button -->
-                            <button
-                                v-if="
-                                    !(
-                                        content.parentPostType &&
-                                        content.parentPostType == PostType.Page
-                                    )
-                                "
-                                @click="toggleBookmark"
-                                data-test="bookmark"
-                                class="flex items-center transition-colors"
-                            >
-                                <component
-                                    :is="isBookmarked ? BookmarkIconSolid : BookmarkIconOutline"
-                                    class="h-5 w-5"
-                                    :class="{
-                                        'text-yellow-500': isBookmarked,
-                                        'text-zinc-400 hover:text-zinc-600 dark:text-slate-500 dark:hover:text-slate-200':
-                                            !isBookmarked,
-                                    }"
-                                />
-                            </button>
+                            <span class="h-4 w-px bg-zinc-200 dark:bg-slate-700"></span>
+
+                            <div class="flex items-center gap-3">
+                                <!-- Bookmark Button -->
+                                <button
+                                    v-if="
+                                        !(
+                                            content.parentPostType &&
+                                            content.parentPostType == PostType.Page
+                                        )
+                                    "
+                                    @click="toggleBookmark"
+                                    data-test="bookmark"
+                                    class="flex items-center transition-colors"
+                                >
+                                    <component
+                                        :is="isBookmarked ? BookmarkIconSolid : BookmarkIconOutline"
+                                        class="h-5 w-5"
+                                        :class="{
+                                            'text-yellow-500': isBookmarked,
+                                            'text-zinc-400 hover:text-zinc-600 dark:text-slate-500 dark:hover:text-slate-200':
+                                                !isBookmarked,
+                                        }"
+                                    />
+                                </button>
+
+                                <!-- Share Buttons -->
+                                <button
+                                    type="button"
+                                    @click="shareToTelegram"
+                                    data-test="shareTelegram"
+                                    :aria-label="t('singlecontent.shareTelegram')"
+                                    class="flex items-center text-zinc-400 transition-colors hover:text-zinc-600 dark:text-slate-500 dark:hover:text-slate-200"
+                                >
+                                    <TelegramIcon class="h-5 w-5" />
+                                </button>
+                                <button
+                                    type="button"
+                                    @click="shareToWhatsApp"
+                                    data-test="shareWhatsApp"
+                                    :aria-label="t('singlecontent.shareWhatsApp')"
+                                    class="flex items-center text-zinc-400 transition-colors hover:text-zinc-600 dark:text-slate-500 dark:hover:text-slate-200"
+                                >
+                                    <WhatsAppIcon class="h-5 w-5" />
+                                </button>
+                            </div>
                         </div>
 
                         <div
