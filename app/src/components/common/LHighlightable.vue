@@ -5,10 +5,24 @@ import {
     PencilSquareIcon,
     TrashIcon,
     ChevronLeftIcon,
+    ShareIcon,
 } from "@heroicons/vue/24/outline";
 import { db } from "luminary-shared";
+import TelegramIcon from "@/components/icons/TelegramIcon.vue";
+import WhatsAppIcon from "@/components/icons/WhatsAppIcon.vue";
+import XIcon from "@/components/icons/XIcon.vue";
+import RedditIcon from "@/components/icons/RedditIcon.vue";
+import InstagramIcon from "@/components/icons/InstagramIcon.vue";
+import {
+    buildTelegramShareUrl,
+    buildWhatsAppShareUrl,
+    buildXShareUrl,
+    buildRedditShareUrl,
+    formatHighlightShareMessage,
+} from "@/composables/useSocialShare";
+import { useNotificationStore } from "@/stores/notification";
 
-const props = defineProps<{ contentId: string }>();
+const props = defineProps<{ contentId: string; title: string }>();
 
 const content = ref<HTMLElement | undefined>(undefined);
 const actionsMenu = ref<HTMLElement | undefined>(undefined);
@@ -16,6 +30,8 @@ const showActions = ref(false);
 const menuPos = ref({ x: 0, y: 0 });
 const isHighlighted = ref(false);
 const showColorPicker = ref(false);
+const showShareMenu = ref(false);
+const selectedTextForShare = ref("");
 
 let debounceTimeout: ReturnType<typeof setTimeout> | undefined;
 
@@ -45,6 +61,7 @@ function onSelectionChange() {
     // Hide menu immediately when selection starts changing to prevent jitter
     showActions.value = false;
     showColorPicker.value = false;
+    showShareMenu.value = false;
 
     clearTimeout(debounceTimeout);
     debounceTimeout = setTimeout(() => {
@@ -302,6 +319,68 @@ function copyText() {
     }
 }
 
+// Sharing
+
+// Captured on open, not read lazily by each platform button — the selection can
+// collapse once the user starts interacting with the popup.
+function openShareMenu() {
+    const sel = window.getSelection();
+    selectedTextForShare.value = sel ? sel.toString() : "";
+    showShareMenu.value = true;
+}
+
+function closeShareMenu() {
+    showShareMenu.value = false;
+}
+
+function finalizeShare() {
+    showActions.value = false;
+    showShareMenu.value = false;
+}
+
+function shareHighlightText(): string {
+    return formatHighlightShareMessage({
+        quote: selectedTextForShare.value,
+        articleTitle: props.title,
+    });
+}
+
+function shareHighlightToTelegram() {
+    window.open(buildTelegramShareUrl(shareHighlightText(), window.location.href), "_blank");
+    finalizeShare();
+}
+
+function shareHighlightToWhatsApp() {
+    window.open(buildWhatsAppShareUrl(shareHighlightText(), window.location.href), "_blank");
+    finalizeShare();
+}
+
+function shareHighlightToX() {
+    window.open(buildXShareUrl(shareHighlightText(), window.location.href), "_blank");
+    finalizeShare();
+}
+
+function shareHighlightToReddit() {
+    window.open(buildRedditShareUrl(props.title, window.location.href), "_blank");
+    finalizeShare();
+}
+
+// Instagram has no web share-URL API for posts/links, so the closest one-click
+// equivalent is copying the text + link for the user to paste into a DM, Story or bio.
+async function shareHighlightToInstagram() {
+    await navigator.clipboard.writeText(`${shareHighlightText()}\n\n${window.location.href}`);
+    useNotificationStore().addNotification({
+        id: "share-link-copied",
+        title: "Link copied",
+        description:
+            "Instagram doesn't support sharing links directly — paste it into a DM, Story or bio.",
+        state: "success",
+        type: "toast",
+        timeout: 5000,
+    });
+    finalizeShare();
+}
+
 // Persistence
 
 /**
@@ -457,7 +536,10 @@ onUnmounted(() => {
                 @mousedown.stop.prevent
             >
                 <!-- Main Menu -->
-                <div v-if="!showColorPicker" class="flex items-center gap-1">
+                <div
+                    v-if="!showColorPicker && !showShareMenu"
+                    class="flex items-center gap-1"
+                >
                     <!-- Highlight Toggle -->
                     <button
                         @click="isHighlighted ? removeHighlight() : (showColorPicker = true)"
@@ -480,10 +562,25 @@ onUnmounted(() => {
                         <DocumentDuplicateIcon class="size-4" />
                         Copy
                     </button>
+
+                    <div class="mx-0.5 h-4 w-px bg-zinc-200 dark:bg-slate-500"></div>
+
+                    <!-- Share -->
+                    <button
+                        @click="openShareMenu"
+                        data-test="highlightShareTrigger"
+                        class="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 active:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-600 dark:active:bg-slate-500"
+                    >
+                        <ShareIcon class="size-4" />
+                        Share
+                    </button>
                 </div>
 
                 <!-- Color Picker -->
-                <div v-else class="flex items-center gap-2 p-1">
+                <div
+                    v-else-if="showColorPicker"
+                    class="flex items-center gap-2 p-1"
+                >
                     <button
                         @click="showColorPicker = false"
                         class="rounded-full p-1 text-zinc-500 hover:bg-zinc-100 dark:text-slate-300 dark:hover:bg-slate-600"
@@ -499,6 +596,63 @@ onUnmounted(() => {
                             :style="{ backgroundColor: color }"
                             @click="applyColor(color)"
                         ></button>
+                    </div>
+                </div>
+
+                <!-- Share Targets -->
+                <div
+                    v-else
+                    class="flex items-center gap-1 p-1"
+                >
+                    <button
+                        @click="closeShareMenu"
+                        data-test="highlightShareBack"
+                        class="rounded-full p-1 text-zinc-500 hover:bg-zinc-100 dark:text-slate-300 dark:hover:bg-slate-600"
+                    >
+                        <ChevronLeftIcon class="size-5" />
+                    </button>
+
+                    <div class="flex gap-1">
+                        <button
+                            @click="shareHighlightToTelegram"
+                            data-test="highlightShareTelegram"
+                            aria-label="Share on Telegram"
+                            class="rounded-full p-1.5 text-zinc-700 transition-colors hover:bg-zinc-100 dark:text-slate-100 dark:hover:bg-slate-600"
+                        >
+                            <TelegramIcon class="size-5" />
+                        </button>
+                        <button
+                            @click="shareHighlightToWhatsApp"
+                            data-test="highlightShareWhatsApp"
+                            aria-label="Share on WhatsApp"
+                            class="rounded-full p-1.5 text-zinc-700 transition-colors hover:bg-zinc-100 dark:text-slate-100 dark:hover:bg-slate-600"
+                        >
+                            <WhatsAppIcon class="size-5" />
+                        </button>
+                        <button
+                            @click="shareHighlightToX"
+                            data-test="highlightShareX"
+                            aria-label="Share on X"
+                            class="rounded-full p-1.5 text-zinc-700 transition-colors hover:bg-zinc-100 dark:text-slate-100 dark:hover:bg-slate-600"
+                        >
+                            <XIcon class="size-5" />
+                        </button>
+                        <button
+                            @click="shareHighlightToReddit"
+                            data-test="highlightShareReddit"
+                            aria-label="Share on Reddit"
+                            class="rounded-full p-1.5 text-zinc-700 transition-colors hover:bg-zinc-100 dark:text-slate-100 dark:hover:bg-slate-600"
+                        >
+                            <RedditIcon class="size-5" />
+                        </button>
+                        <button
+                            @click="shareHighlightToInstagram"
+                            data-test="highlightShareInstagram"
+                            aria-label="Share on Instagram"
+                            class="rounded-full p-1.5 text-zinc-700 transition-colors hover:bg-zinc-100 dark:text-slate-100 dark:hover:bg-slate-600"
+                        >
+                            <InstagramIcon class="size-5" />
+                        </button>
                     </div>
                 </div>
 
