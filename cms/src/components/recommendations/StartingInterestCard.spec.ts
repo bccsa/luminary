@@ -35,10 +35,10 @@ describe("StartingInterestCard", () => {
             props: { tagId: "tag-a", label: "Commentary", score: 0.4, updatedTimeUtc: 1 },
         });
 
-        expect(wrapper.findComponent({ name: "EditStartingInterestModal" }).exists()).toBe(false);
+        expect(wrapper.findComponent({ name: "StartingInterestModal" }).exists()).toBe(false);
 
         await wrapper.find("[data-test='display-card']").trigger("click");
 
-        expect(wrapper.findComponent({ name: "EditStartingInterestModal" }).exists()).toBe(true);
+        expect(wrapper.findComponent({ name: "StartingInterestModal" }).exists()).toBe(true);
     });
 });

@@ -8,4 +8,8 @@ stats.html
 
 # Throwaway SSG proof-of-concept (kept locally for reference, not part of the repo)
 vite-ssg_poc/
-.worktree-ports
+.worktree-ports*
+scripts/worktree-setup.sh
+dev-api.sh
+dev-app.sh
+dev-cms.sh

@@ -5,7 +5,7 @@ import LButton from "@/components/button/LButton.vue";
 import FilterOptions from "@/components/common/FilterOptions.vue";
 import EmptyState from "@/components/EmptyState.vue";
 import StartingInterestCard from "@/components/recommendations/StartingInterestCard.vue";
-import AddStartingInterestModal from "@/components/recommendations/AddStartingInterestModal.vue";
+import StartingInterestModal from "@/components/recommendations/StartingInterestModal.vue";
 import AffinityConfigPanel from "@/components/recommendations/AffinityConfigPanel.vue";
 import { useDefaultAffinity } from "@/composables/useDefaultAffinity";
 import { useTopicTagOptions } from "@/composables/useTopicTagOptions";
@@ -108,6 +108,6 @@ const filteredEntries = computed(() => {
             <AffinityConfigPanel v-if="canEdit" class="lg:h-full lg:min-h-0" />
         </div>
 
-        <AddStartingInterestModal v-if="showAddModal" v-model:is-visible="showAddModal" />
+        <StartingInterestModal v-if="showAddModal" v-model:is-visible="showAddModal" />
     </BasePage>
 </template>

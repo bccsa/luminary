@@ -8,7 +8,7 @@ import { affinityConfig } from "@/recommendation/defaultAffinityStore";
  * per-tag scores sorted descending, plus a tag-id → title lookup for display. Takes
  * `profile`/`now` as refs so decay ticks on the caller's own timer.
  */
-export function useAffinityDebugData(profile: Ref<AffinityProfile | undefined>, now: Ref<number>) {
+export function useAffinityStats(profile: Ref<AffinityProfile | undefined>, now: Ref<number>) {
     const decayedEntries = computed(() => {
         const decayed = decay(profile.value, now.value, affinityConfig.value);
         return Object.entries(decayed.affinity).sort((a, b) => b[1] - a[1]);

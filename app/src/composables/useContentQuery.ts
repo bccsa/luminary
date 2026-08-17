@@ -138,11 +138,13 @@ export type ContentQueryState = {
 };
 
 /**
- * Thin wrapper around {@link useContentQueryWithState} for Content documents, returning
- * only its `output` ref. Injects the boilerplate every content feed repeats — a top-level
- * `{ type: Content }` (which HybridQuery routing requires to take the local-first +
- * API-supplement path), the `mangoIsPublished` filter, and the `use_index` hint — and
- * defaults to `live` + `persistOffline`.
+ * Thin wrapper for Content documents, returning only the `output` ref of the same query
+ * {@link useContentQueryWithState} runs (both delegate to the same internal state
+ * builder) — use that variant instead when the caller also needs `isFetching`. Injects the
+ * boilerplate every content feed repeats — a top-level `{ type: Content }` (which
+ * HybridQuery routing requires to take the local-first + API-supplement path), the
+ * `mangoIsPublished` filter, and the `use_index` hint — and defaults to `live` +
+ * `persistOffline`.
  *
  * The web/SSG build needs nothing special at call sites: on the browser this is the
  * SAME local-first hybrid query as the normal SPA, and its `cache: true` first-paint seed is

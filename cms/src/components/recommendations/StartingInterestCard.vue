@@ -2,7 +2,7 @@
 import { ref } from "vue";
 import DisplayCard from "@/components/common/DisplayCard.vue";
 import LBadge from "@/components/common/LBadge.vue";
-import EditStartingInterestModal from "./EditStartingInterestModal.vue";
+import StartingInterestModal from "./StartingInterestModal.vue";
 import type { Uuid } from "luminary-shared";
 
 type Props = {
@@ -24,7 +24,7 @@ const isModalVisible = ref(false);
         </template>
     </DisplayCard>
 
-    <EditStartingInterestModal
+    <StartingInterestModal
         v-if="isModalVisible"
         v-model:is-visible="isModalVisible"
         :tagId="tagId"

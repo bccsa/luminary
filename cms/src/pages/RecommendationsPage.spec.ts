@@ -100,11 +100,11 @@ describe("RecommendationsPage", () => {
     it("opens the add-interest modal from the top bar", async () => {
         const wrapper = mount(RecommendationsPage);
 
-        expect(wrapper.findComponent({ name: "AddStartingInterestModal" }).exists()).toBe(false);
+        expect(wrapper.findComponent({ name: "StartingInterestModal" }).exists()).toBe(false);
 
         await wrapper.find("button[data-test='openAddStartingInterestModal']").trigger("click");
 
-        expect(wrapper.findComponent({ name: "AddStartingInterestModal" }).exists()).toBe(true);
+        expect(wrapper.findComponent({ name: "StartingInterestModal" }).exists()).toBe(true);
     });
 
     it("renders the recommendation-settings panel inline, with no toggle needed", () => {

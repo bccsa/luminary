@@ -3,7 +3,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import { queryLocal, TagType, DocType, type BaseDocumentDto, type Uuid } from "luminary-shared";
 import { useContentQuery } from "@/composables/useContentQuery";
-import { useAffinityDebugData, getPreviewTier } from "@/composables/useAffinityDebugData";
+import { useAffinityStats, getPreviewTier } from "@/composables/useAffinityStats";
 import { affinityProfile } from "@/recommendation/affinityStore";
 import { filterTopicTagIds } from "@/recommendation/topicTags";
 
@@ -20,7 +20,7 @@ onMounted(() => {
     });
 });
 
-const { decayedEntries, tagTitleMap } = useAffinityDebugData(affinityProfile, now);
+const { decayedEntries, tagTitleMap } = useAffinityStats(affinityProfile, now);
 
 const route = useRoute();
 const currentSlug = computed(() => {
