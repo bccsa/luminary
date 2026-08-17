@@ -9,6 +9,9 @@ import { matchTrackLanguage } from "./audioTrackLanguage";
 import LImage from "../images/LImage.vue";
 import { appLanguagesPreferredAsRef, queryParams } from "@/globalConfig";
 import { getMediaProgress, removeMediaProgress, setMediaProgress } from "@/contentProgress";
+import { recordAffinity } from "@/recommendation/affinityStore";
+import { affinityConfig } from "@/recommendation/defaultAffinityStore";
+import { markSeen } from "@/recommendation/seenStore";
 import { extractAndBuildAudioMaster } from "./extractAndBuildAudioMaster";
 import { isYouTubeUrl, convertToVideoJSYouTubeUrl } from "@/util/youtube";
 
@@ -370,6 +373,14 @@ onMounted(async () => {
             // The 'ended' event fires when the video reaches the end, regardless of video source
             removeMediaProgress(videoSource, props.content._id);
             progressRemoved = true;
+            // Finishing a video is a strong engagement signal — weight it above a plain
+            // open. This is the single completion call site (of the player's several
+            // `ended`/near-end listeners) that fires for every source, so affinity isn't
+            // double-counted for YouTube videos wired to more than one of them.
+            recordAffinity(props.content.parentTags, affinityConfig.value.eventWeight.completion);
+            // mediaProgress is a 10-slot ring buffer used only to resume playback,
+            // not a history — record completion in the durable seen store instead.
+            markSeen(props.content._id);
 
             try {
                 player?.exitFullscreen();

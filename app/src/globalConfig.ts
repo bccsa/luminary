@@ -215,6 +215,17 @@ watch(
 );
 
 /**
+ * Locally searchable languages in display priority order: the primary preferred
+ * language first, followed only by other preferred languages the user downloaded.
+ * Unlike `appDisplayLanguageIdsAsRef`, this deliberately excludes the fetched
+ * default-language fallback because local FTS has no complete local corpus for it.
+ */
+export const appSyncedDisplayLanguageIdsAsRef = computed<string[]>(() => {
+    const synced = new Set(appSyncedLanguageIdsAsRef.value);
+    return appLanguageIdsAsRef.value.filter((id) => synced.has(id));
+});
+
+/**
  * The list of user selected languages sorted by preference as Vue ref.
  */
 export const appLanguagesPreferredAsRef = computed(

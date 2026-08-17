@@ -3,6 +3,9 @@ import { ref, onMounted, onUnmounted, computed, watch, nextTick } from "vue";
 import { useRouter } from "vue-router";
 import { type ContentDto, db } from "luminary-shared";
 import { useContentQuery } from "@/composables/useContentQuery";
+import { recordAffinity } from "@/recommendation/affinityStore";
+import { affinityConfig } from "@/recommendation/defaultAffinityStore";
+import { markSeen } from "@/recommendation/seenStore";
 import {
     PlayIcon,
     PauseIcon,
@@ -759,6 +762,12 @@ onMounted(() => {
             const audioSource = matchAudioFileUrl.value;
             if (audioSource && currentContent.value._id) {
                 removeMediaProgress(audioSource, currentContent.value._id);
+                // Finishing a track is a strong engagement signal — weight it above a
+                // plain open.
+                recordAffinity(currentContent.value.parentTags, affinityConfig.value.eventWeight.completion);
+                // mediaProgress is a 10-slot ring buffer used only to resume playback,
+                // not a history — record completion in the durable seen store instead.
+                markSeen(currentContent.value._id);
             }
         });
 
