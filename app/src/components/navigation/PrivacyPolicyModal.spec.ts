@@ -4,7 +4,7 @@ import { mount } from "@vue/test-utils";
 import PrivacyPolicyModal from "./PrivacyPolicyModal.vue";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
-import { userPreferencesAsRef } from "@/globalConfig";
+import { userPreferencesAsRef, appLanguageIdsAsRef } from "@/globalConfig";
 import { mockEnglishContentDto, mockLanguageDtoEng } from "@/tests/mockdata";
 import { db, type ContentDto } from "luminary-shared";
 import * as auth from "@/auth";
@@ -183,6 +183,12 @@ describe("PrivacyPolicyModal.vue", () => {
             ts: 1000004000000, // 2001-09-08 — before the policy's publishDate above
         };
 
+        // Resolve a display language so useContentQuery's language clause matches
+        // the doc above — with no display language the query is provably empty
+        // (`{ language: { $in: [] } }`) and the policy never resolves as "outdated".
+        const prevLanguageIds = appLanguageIdsAsRef.value;
+        appLanguageIdsAsRef.value = ["lang-eng"];
+
         const wrapper = mount(PrivacyPolicyModal, {
             props: {
                 show: true,
@@ -197,6 +203,8 @@ describe("PrivacyPolicyModal.vue", () => {
 
         // Verify that the "Accept" button is visible
         expect(wrapper.find("button[name='accept']").exists()).toBe(true);
+
+        appLanguageIdsAsRef.value = prevLanguageIds;
     });
 
     it("hides 'Necessary Only' button when there is a pending login", async () => {

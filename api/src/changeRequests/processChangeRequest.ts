@@ -22,6 +22,7 @@ import { UserDto } from "../dto/UserDto";
 import processRedirectDto from "./documentProcessing/processRedirectDto";
 import { RedirectDto } from "../dto/RedirectDto";
 import { createSlugChangeRedirect, findSlugReversionRedirect } from "./createSlugChangeRedirect";
+import { isTrackableSlugChange } from "./computePreviousSlugs";
 
 type ProcessChangeRequestResult = {
     result: DbUpsertResult;
@@ -75,7 +76,12 @@ export async function processChangeRequest(
         [DocType.Post]: () => processPostTagDto(doc as PostDto, prevDoc as PostDto, db),
         [DocType.Tag]: () => processPostTagDto(doc as TagDto, prevDoc as TagDto, db),
         [DocType.Content]: () =>
-            processContentDto(doc as ContentDto, db, slugReversionRedirect?._id),
+            processContentDto(
+                doc as ContentDto,
+                db,
+                slugReversionRedirect?._id,
+                prevDoc as ContentDto | undefined,
+            ),
         [DocType.Language]: () => processLanguageDto(doc as LanguageDto, db),
         [DocType.Group]: () => processGroupDto(doc as GroupDto),
         [DocType.Storage]: () => processStorageDto(doc as StorageDto, prevDoc as StorageDto, db),
@@ -140,6 +146,21 @@ export async function processChangeRequest(
         }
         if (redirectResult?.info) {
             res.info = [redirectResult.info];
+        }
+
+        // A trackable rename that did NOT produce a redirect (no redirect-edit
+        // permission, or a collision) leaves the old slug's static file orphaned.
+        // Emit a `SlugChange` DeleteCmd so the SSG build deletes it; clients ignore
+        // the cmd (the content is still live under its new slug).
+        if (
+            !redirectResult?.info &&
+            isTrackableSlugChange(doc as ContentDto, prevDoc as ContentDto | undefined)
+        ) {
+            await db.insertSlugDeleteCmd(
+                doc as ContentDto,
+                prevDoc as ContentDto,
+                (prevDoc as ContentDto).slug,
+            );
         }
     }
 

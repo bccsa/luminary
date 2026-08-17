@@ -41,6 +41,7 @@ withDefaults(defineProps<Props>(), {
                             {{ description }}
                         </p>
                     </div>
+                    <slot />
                 </div>
             </div>
         </template>

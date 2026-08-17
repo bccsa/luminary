@@ -41,6 +41,7 @@ import {
     ACTIVE_PROVIDER_KEY,
     activeProviderId,
     clearAuthCache,
+    hasPersistedSession,
     isAuthPluginInstalled,
     loginWithProvider,
     openProviderModal,
@@ -52,6 +53,10 @@ import {
     showProviderSelectionModal,
     useAuth,
 } from "./auth";
+import {
+    LEGACY_AUTH0_CACHE_PREFIX,
+    ACTIVE_PROVIDER_KEY as STORAGE_ACTIVE_PROVIDER_KEY,
+} from "./authStorage";
 
 const providerA: AuthProviderDto = {
     _id: "provider-a",
@@ -223,6 +228,61 @@ describe("auth", () => {
             await loginWithProvider(providerA);
 
             expect(mockSigninRedirect).toHaveBeenCalledWith({ extraQueryParams: undefined });
+        });
+    });
+
+    // hasPersistedSession backs useContentQuery's response-cache auth scoping
+    // (fix for "flash of public content" on reload while logged in) — it must
+    // stay a pure, synchronous localStorage peek, no Dexie/async work.
+    describe("hasPersistedSession", () => {
+        it("returns false on empty storage", () => {
+            expect(hasPersistedSession()).toBe(false);
+        });
+
+        it("returns true from a persisted OIDC user cache key alone", () => {
+            localStorage.setItem("oidc.user:https://issuer:client-a", "old-user");
+            expect(hasPersistedSession()).toBe(true);
+        });
+
+        it("returns true from a legacy Auth0 session cache key alone", () => {
+            localStorage.setItem(
+                `@@auth0spajs@@::${providerA.clientId}::${providerA.audience}::openid profile email offline_access`,
+                JSON.stringify({ body: {} }),
+            );
+            expect(hasPersistedSession()).toBe(true);
+        });
+
+        it("uses the shared storage constants", () => {
+            expect(STORAGE_ACTIVE_PROVIDER_KEY).toBe(ACTIVE_PROVIDER_KEY);
+            localStorage.setItem(
+                `${LEGACY_AUTH0_CACHE_PREFIX}${providerA.clientId}::${providerA.audience}::openid profile email offline_access`,
+                JSON.stringify({ body: {} }),
+            );
+            expect(hasPersistedSession()).toBe(true);
+        });
+
+        it("returns true from the persisted-provider fallback alone (issue #1671 eviction case)", () => {
+            persistActiveProvider(providerA);
+            expect(hasPersistedSession()).toBe(true);
+        });
+
+        it("returns false after clearAuthCache wipes all signals", () => {
+            localStorage.setItem("oidc.user:https://issuer:client-a", "old-user");
+            localStorage.setItem(
+                `@@auth0spajs@@::${providerA.clientId}::${providerA.audience}::openid profile email offline_access`,
+                JSON.stringify({ body: {} }),
+            );
+            persistActiveProvider(providerA);
+            clearAuthCache();
+            expect(hasPersistedSession()).toBe(false);
+        });
+    });
+
+    describe("openProviderModal", () => {
+        it("flips showProviderSelectionModal to true", () => {
+            expect(showProviderSelectionModal.value).toBe(false);
+            openProviderModal();
+            expect(showProviderSelectionModal.value).toBe(true);
         });
     });
 
@@ -468,6 +528,63 @@ describe("auth", () => {
             Object.defineProperty(window, "location", {
                 writable: true,
                 value: originalLocation,
+            });
+        });
+    });
+
+    describe("shared-device sign-out (forceReauthOnNextLogin)", () => {
+        beforeEach(async () => {
+            mockClearStaleState.mockResolvedValue(undefined);
+            mockSigninRedirect.mockResolvedValue(undefined);
+            mockSignoutRedirect.mockResolvedValue(undefined);
+            await loginWithProvider(providerA);
+        });
+
+        it("forces prompt=login on the next unprompted login after a flagged logout", async () => {
+            await useAuth().logout({ forceReauthOnNextLogin: true });
+
+            mockSigninRedirect.mockClear();
+            await loginWithProvider(providerB);
+
+            expect(mockSigninRedirect).toHaveBeenCalledWith({
+                extraQueryParams: { prompt: "login" },
+            });
+        });
+
+        it("does not force a prompt after a plain logout", async () => {
+            await useAuth().logout();
+
+            mockSigninRedirect.mockClear();
+            await loginWithProvider(providerB);
+
+            expect(mockSigninRedirect).toHaveBeenCalledWith({ extraQueryParams: undefined });
+        });
+
+        it("consumes the flag after one use", async () => {
+            await useAuth().logout({ forceReauthOnNextLogin: true });
+            await loginWithProvider(providerB);
+
+            mockSigninRedirect.mockClear();
+            await loginWithProvider(providerA);
+
+            expect(mockSigninRedirect).toHaveBeenCalledWith({ extraQueryParams: undefined });
+        });
+
+        it("leaves the flag pending when the caller already requests an explicit prompt", async () => {
+            await useAuth().logout({ forceReauthOnNextLogin: true });
+
+            // Simulates a session-recovery call site (main.ts) that already
+            // passes its own prompt — not the "next person logs in" path.
+            await loginWithProvider(providerB, { prompt: "select_account" });
+            expect(mockSigninRedirect).toHaveBeenLastCalledWith({
+                extraQueryParams: { prompt: "select_account" },
+            });
+
+            mockSigninRedirect.mockClear();
+            await loginWithProvider(providerA);
+
+            expect(mockSigninRedirect).toHaveBeenCalledWith({
+                extraQueryParams: { prompt: "login" },
             });
         });
     });

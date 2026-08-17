@@ -303,6 +303,152 @@ describe("processContentDto", () => {
         expect(dbDocFr.docs[0].availableTranslations).not.toContain("lang-fra");
     });
 
+    it("propagates publishDate and expiryDate to sibling translations when the parent has date-linking enabled", async () => {
+        await db.upsertDoc({
+            _id: "post-link-dates-test",
+            type: "post",
+            memberOf: ["group-public-content"],
+            tags: [],
+            publishDateVisible: true,
+            postType: "blog",
+            linkDates: true,
+        } as PostDto);
+
+        // French sibling, created first with its own (soon-to-be-overwritten) dates
+        const changeRequestFr = changeRequest_content();
+        changeRequestFr.doc.parentId = "post-link-dates-test";
+        changeRequestFr.doc._id = "content-fr-link-dates-test";
+        changeRequestFr.doc.language = "lang-fra";
+        await processChangeRequest("test-user", changeRequestFr, ["group-super-admins"], db);
+
+        // English translation saved afterwards with new dates
+        const changeRequestEn = changeRequest_content();
+        changeRequestEn.doc.parentId = "post-link-dates-test";
+        changeRequestEn.doc._id = "content-en-link-dates-test";
+        changeRequestEn.doc.language = "lang-eng";
+        changeRequestEn.doc.publishDate = 1800000000000;
+        changeRequestEn.doc.expiryDate = 1900000000000;
+        await processChangeRequest("test-user", changeRequestEn, ["group-super-admins"], db);
+
+        const dbDocFr = await db.getDoc("content-fr-link-dates-test");
+
+        expect(dbDocFr.docs[0].publishDate).toBe(1800000000000);
+        expect(dbDocFr.docs[0].expiryDate).toBe(1900000000000);
+    });
+
+    it("rejects the whole save when the acting user cannot translate a sibling's language, instead of partially propagating", async () => {
+        await db.upsertDoc({
+            _id: "post-link-dates-permission-test",
+            type: "post",
+            memberOf: ["group-public-content"],
+            tags: [],
+            publishDateVisible: true,
+            postType: "blog",
+            linkDates: true,
+        } as PostDto);
+
+        const changeRequestFr = changeRequest_content();
+        changeRequestFr.doc.parentId = "post-link-dates-permission-test";
+        changeRequestFr.doc._id = "content-fr-link-dates-permission-test";
+        changeRequestFr.doc.language = "lang-fra";
+        await processChangeRequest("test-user", changeRequestFr, ["group-super-admins"], db);
+
+        // Scope lang-fra to a group that group-public-editors has no Translate access to,
+        // simulating a user who can edit the post but not translate one of its languages.
+        const french = await db.getDoc("lang-fra");
+        await db.upsertDoc({ ...french.docs[0], memberOf: ["group-super-admins"] });
+
+        const changeRequestEn = changeRequest_content();
+        changeRequestEn.doc.parentId = "post-link-dates-permission-test";
+        changeRequestEn.doc._id = "content-en-link-dates-permission-test";
+        changeRequestEn.doc.language = "lang-eng";
+        changeRequestEn.doc.publishDate = 1800000000000;
+        changeRequestEn.doc.expiryDate = 1900000000000;
+
+        // The permission gate lives in validateChangeRequestAccess (runs before any processing),
+        // so the whole request is rejected up front rather than processContentDto silently
+        // skipping the French sibling after already doing the rest of the save.
+        await expect(
+            processChangeRequest("test-user", changeRequestEn, ["group-public-editors"], db),
+        ).rejects.toThrow(
+            "No 'Translate' access to all translations required to save content with linked dates",
+        );
+
+        const dbDocFr = await db.getDoc("content-fr-link-dates-permission-test");
+        const dbDocEn = await db.getDoc("content-en-link-dates-permission-test");
+
+        // Restore for other tests
+        await db.upsertDoc(french.docs[0]);
+
+        expect(dbDocFr.docs[0].publishDate).toBe(1704114000000);
+        expect(dbDocFr.docs[0].expiryDate).toBe(1704114000000);
+        // The English doc itself must not have been saved either — it's an all-or-nothing gate.
+        expect(dbDocEn.docs.length).toBe(0);
+    });
+
+    it("does not propagate dates to sibling translations when date-linking is disabled", async () => {
+        await db.upsertDoc({
+            _id: "post-no-link-dates-test",
+            type: "post",
+            memberOf: ["group-public-content"],
+            tags: [],
+            publishDateVisible: true,
+            postType: "blog",
+        } as PostDto);
+
+        const changeRequestFr = changeRequest_content();
+        changeRequestFr.doc.parentId = "post-no-link-dates-test";
+        changeRequestFr.doc._id = "content-fr-no-link-dates-test";
+        changeRequestFr.doc.language = "lang-fra";
+        await processChangeRequest("test-user", changeRequestFr, ["group-super-admins"], db);
+
+        const changeRequestEn = changeRequest_content();
+        changeRequestEn.doc.parentId = "post-no-link-dates-test";
+        changeRequestEn.doc._id = "content-en-no-link-dates-test";
+        changeRequestEn.doc.language = "lang-eng";
+        changeRequestEn.doc.publishDate = 1800000000000;
+        changeRequestEn.doc.expiryDate = 1900000000000;
+        await processChangeRequest("test-user", changeRequestEn, ["group-super-admins"], db);
+
+        const dbDocFr = await db.getDoc("content-fr-no-link-dates-test");
+
+        expect(dbDocFr.docs[0].publishDate).toBe(1704114000000);
+        expect(dbDocFr.docs[0].expiryDate).toBe(1704114000000);
+    });
+
+    it("does not wipe a sibling's date when the saved translation has no date of its own", async () => {
+        await db.upsertDoc({
+            _id: "post-link-dates-guard-test",
+            type: "post",
+            memberOf: ["group-public-content"],
+            tags: [],
+            publishDateVisible: true,
+            postType: "blog",
+            linkDates: true,
+        } as PostDto);
+
+        const changeRequestFr = changeRequest_content();
+        changeRequestFr.doc.parentId = "post-link-dates-guard-test";
+        changeRequestFr.doc._id = "content-fr-link-dates-guard-test";
+        changeRequestFr.doc.language = "lang-fra";
+        await processChangeRequest("test-user", changeRequestFr, ["group-super-admins"], db);
+
+        // Draft English translation with no publishDate/expiryDate of its own
+        const changeRequestEn = changeRequest_content();
+        changeRequestEn.doc.parentId = "post-link-dates-guard-test";
+        changeRequestEn.doc._id = "content-en-link-dates-guard-test";
+        changeRequestEn.doc.language = "lang-eng";
+        changeRequestEn.doc.status = PublishStatus.Draft;
+        changeRequestEn.doc.publishDate = undefined;
+        changeRequestEn.doc.expiryDate = undefined;
+        await processChangeRequest("test-user", changeRequestEn, ["group-super-admins"], db);
+
+        const dbDocFr = await db.getDoc("content-fr-link-dates-guard-test");
+
+        expect(dbDocFr.docs[0].publishDate).toBe(1704114000000);
+        expect(dbDocFr.docs[0].expiryDate).toBe(1704114000000);
+    });
+
     it("forces a published content document to draft (with a warning) when its slug already has a redirect", async () => {
         // The seeded `redirect-post1` owns the slug "post1-eng"; no seeded content uses it,
         // so validateSlug leaves the slug intact and the redirect-collision guard fires.
@@ -357,6 +503,11 @@ describe("processContentDto", () => {
             db,
         );
         expect(await db.getDocsBySlug("reversion-a", DocType.Redirect)).toHaveLength(1);
+        // previousSlugs is a purely additive, denormalized copy of the same history —
+        // it does not replace or affect the Redirect doc above.
+        expect((await db.getDoc(original.doc._id)).docs[0].previousSlugs).toEqual([
+            "reversion-a",
+        ]);
 
         await processChangeRequest(
             "test-user",
@@ -369,5 +520,71 @@ describe("processContentDto", () => {
         expect(saved.docs[0].slug).toBe("reversion-a");
         expect(saved.docs[0].status).toBe(PublishStatus.Published);
         expect(await db.getDocsBySlug("reversion-a", DocType.Redirect)).toHaveLength(0);
+        // "reversion-a" is live again, so it drops out of the history; "reversion-b" (the
+        // slug just vacated) takes its place.
+        expect(saved.docs[0].previousSlugs).toEqual(["reversion-b"]);
+    });
+
+    it("populates previousSlugs alongside the Redirect doc on a published slug rename", async () => {
+        const original = changeRequest_content();
+        original.doc.parentId = "post-blog1";
+        original.doc._id = "content-previousslugs-rename";
+        original.doc.slug = "prevslugs-rename-a";
+        original.doc.status = PublishStatus.Published;
+        original.doc.publishDate = Date.now() - 1000;
+        delete original.doc.expiryDate;
+        await processChangeRequest("test-user", original, ["group-super-admins"], db);
+
+        await processChangeRequest(
+            "test-user",
+            { doc: { ...original.doc, slug: "prevslugs-rename-b" } },
+            ["group-super-admins"],
+            db,
+        );
+
+        const saved = await db.getDoc(original.doc._id);
+        expect(saved.docs[0].slug).toBe("prevslugs-rename-b");
+        expect(saved.docs[0].previousSlugs).toEqual(["prevslugs-rename-a"]);
+
+        const redirects = await db.getDocsBySlug("prevslugs-rename-a", DocType.Redirect);
+        expect(redirects).toHaveLength(1);
+        expect(redirects[0]).toMatchObject({
+            type: DocType.Redirect,
+            slug: "prevslugs-rename-a",
+            toSlug: "prevslugs-rename-b",
+        });
+    });
+
+    it("does not populate previousSlugs while the document is a draft", async () => {
+        const changeRequest1 = changeRequest_content();
+        changeRequest1.doc.parentId = "post-blog1";
+        changeRequest1.doc._id = "content-previousslugs-draft-rename";
+        changeRequest1.doc.slug = "prevslugs-draft-rename-a";
+        changeRequest1.doc.status = PublishStatus.Draft;
+        await processChangeRequest("test-user", changeRequest1, ["group-super-admins"], db);
+
+        await processChangeRequest(
+            "test-user",
+            { doc: { ...changeRequest1.doc, slug: "prevslugs-draft-rename-b" } },
+            ["group-super-admins"],
+            db,
+        );
+
+        const saved = await db.getDoc(changeRequest1.doc._id);
+        expect(saved.docs[0].slug).toBe("prevslugs-draft-rename-b");
+        expect(saved.docs[0].previousSlugs).toBeUndefined();
+    });
+
+    it("strips a client-forged previousSlugs value", async () => {
+        const changeRequest = changeRequest_content();
+        changeRequest.doc.parentId = "post-blog1";
+        changeRequest.doc._id = "content-previousslugs-forged";
+        changeRequest.doc.slug = "prevslugs-forged-slug";
+        (changeRequest.doc as any).previousSlugs = ["not-a-real-history-entry"];
+
+        await processChangeRequest("test-user", changeRequest, ["group-super-admins"], db);
+
+        const saved = await db.getDoc(changeRequest.doc._id);
+        expect(saved.docs[0].previousSlugs).toBeUndefined();
     });
 });

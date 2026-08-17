@@ -27,6 +27,7 @@ import { initSync, initAuthLangSync } from "./sync";
 import { APP_DOCS_INDEX } from "./docsIndex";
 import { initSentry, Sentry } from "@/util/initSentry";
 import { markAppReady, markAppError } from "@/util/renderState";
+import { initLivePublishClock } from "@/util/livePublishClock";
 
 export const app = createApp(App);
 
@@ -72,6 +73,11 @@ async function Startup() {
     });
 
     const socket = getSocket();
+
+    // Advance the session "now" bound when live-sync delivers newly published
+    // content, so the Newest feed (and every content feed) picks it up live
+    // without a page refresh. Registered before connect — socket.io buffers it.
+    initLivePublishClock();
 
     // Register the apiAuthFailed listener BEFORE setupAuth(), because setupAuth()
     // may connect the socket with an expired token — if the listener isn't ready
@@ -125,6 +131,7 @@ async function Startup() {
     watch(serverError, (error) => {
         if (error) {
             serverError.value = null;
+            console.error(`Server error: ${error.status}${error.message ? ` ${error.message}` : ""}`);
             if (serverErrorTimeout) return;
             Sentry?.captureMessage(
                 `Server error: ${error.status}${error.message ? ` ${error.message}` : ""}`,

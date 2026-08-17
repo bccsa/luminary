@@ -2,6 +2,7 @@ import {
     IsArray,
     IsBoolean,
     IsEnum,
+    IsIn,
     IsNotEmpty,
     IsNumber,
     IsOptional,
@@ -156,6 +157,17 @@ export class ContentDto extends _contentBaseDto {
     parentUseVerticalTileLayout?: boolean;
 
     @IsOptional() // Optional as it is set upon change request processing
+    @IsString()
+    @IsIn(["person", "org"])
+    @Expose()
+    parentAuthorType?: "person" | "org"; // Mirrors parent authorType: "org" = Organization, "person"/undefined = Person
+
+    @IsOptional() // Optional as it is set upon change request processing
+    @IsBoolean()
+    @Expose()
+    parentLinkDates?: boolean;
+
+    @IsOptional() // Optional as it is set upon change request processing
     @IsArray()
     @Expose()
     parentTaggedDocs?: Uuid[];
@@ -203,4 +215,10 @@ export class ContentDto extends _contentBaseDto {
     @IsString()
     @Expose()
     statusChangeDeleteCmdId?: Uuid;
+
+    @IsOptional() // Server-controlled: tracks past slugs this doc was published under. Sanitized from incoming change requests.
+    @IsArray()
+    @IsString({ each: true })
+    @Expose()
+    previousSlugs?: string[];
 }

@@ -148,6 +148,10 @@ export default async function processPostTagDto(
         if (doc.alwaysOffline) contentDoc.parentAlwaysOffline = true;
         else delete contentDoc.parentAlwaysOffline;
         contentDoc.parentUseVerticalTileLayout = doc.useVerticalTileLayout ?? false;
+        contentDoc.parentAuthorType = doc.authorType;
+
+        if (doc.linkDates) contentDoc.parentLinkDates = true;
+        else delete contentDoc.parentLinkDates;
         await db.upsertDoc(contentDoc);
     }
 

@@ -11,7 +11,7 @@ import {
 import { Bars3Icon as Bars3IconSolid } from "@heroicons/vue/24/solid";
 import ThemeSelectorModal from "./ThemeSelectorModal.vue";
 import { useRouter } from "vue-router";
-import { computed, ref, type ComputedRef } from "vue";
+import { computed, onMounted, ref, type ComputedRef } from "vue";
 import {
     ShieldCheckIcon,
     BookmarkIcon,
@@ -30,6 +30,7 @@ import { useI18n } from "vue-i18n";
 import { isConnected } from "luminary-shared";
 import { useNotificationStore, type Notification } from "@/stores/notification";
 import LDialog from "../common/LDialog.vue";
+import LToggle from "../form/LToggle.vue";
 import MobileSidebar from "../common/MobileSidebar.vue";
 import DropdownMenu from "../common/DropdownMenu.vue";
 import { getNavigationItems } from "./navigationItems";
@@ -50,7 +51,13 @@ const router = useRouter();
 const showThemeSelector = ref(false);
 const showLanguageModal = ref(false);
 const showLogoutDialog = ref(false);
+const forceReauthOnNextLogin = ref(true);
 const menuOpen = ref(false);
+const isMounted = ref(false);
+
+onMounted(() => {
+    isMounted.value = true;
+});
 
 const { t } = useI18n();
 const menuLabel = computed(() => t("profile_menu.title"));
@@ -80,7 +87,8 @@ const confirmLogout = async () => {
     showLogoutDialog.value = false;
     // logout() already clears local state in the right order — don't call
     // clearAuthCache() here first, or it turns logout() into a no-op.
-    await logout();
+    await logout({ forceReauthOnNextLogin: forceReauthOnNextLogin.value });
+    forceReauthOnNextLogin.value = false;
 };
 
 const handleLogout = () => {
@@ -521,22 +529,40 @@ const sidebarNavigation = computed(() =>
         </template>
     </MobileSidebar>
 
-    <LanguageModal
-        :isVisible="showLanguageModal"
-        @close="showLanguageModal = false"
-    />
-    <ThemeSelectorModal
-        :isVisible="showThemeSelector"
-        @close="showThemeSelector = false"
-    />
+    <template v-if="isMounted">
+        <LanguageModal
+            :isVisible="showLanguageModal"
+            @close="showLanguageModal = false"
+        />
+        <ThemeSelectorModal
+            :isVisible="showThemeSelector"
+            @close="showThemeSelector = false"
+        />
 
-    <LDialog
-        v-model:open="showLogoutDialog"
-        :title="t('logout.modal.title')"
-        :description="t('logout.modal.description')"
-        :primaryAction="confirmLogout"
-        :primaryButtonText="t('logout.modal.button_logout')"
-        :secondaryAction="() => (showLogoutDialog = false)"
-        :secondaryButtonText="t('logout.modal.button_cancel')"
-    />
+        <LDialog
+            v-model:open="showLogoutDialog"
+            :title="t('logout.modal.title')"
+            :description="t('logout.modal.description')"
+            :primaryAction="confirmLogout"
+            :primaryButtonText="t('logout.modal.button_logout')"
+            :secondaryAction="() => (showLogoutDialog = false)"
+            :secondaryButtonText="t('logout.modal.button_cancel')"
+        >
+            <label class="mt-4 flex cursor-pointer items-start gap-3">
+                <LToggle
+                    :modelValue="forceReauthOnNextLogin"
+                    @update:modelValue="(value: boolean) => (forceReauthOnNextLogin = value)"
+                    data-test="shared-device-toggle"
+                />
+                <span class="text-sm">
+                    <span class="block font-medium text-zinc-900 dark:text-white">
+                        {{ t("logout.modal.force_global_logout_label") }}
+                    </span>
+                    <span class="mt-0.5 block text-zinc-500 dark:text-slate-300">
+                        {{ t("logout.modal.force_global_logout_description") }}
+                    </span>
+                </span>
+            </label>
+        </LDialog>
+    </template>
 </template>

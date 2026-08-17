@@ -15,7 +15,8 @@ import {
     changeRequest_group,
 } from "../test/changeRequestDocuments";
 import { ContentDto } from "../dto/ContentDto";
-import { DocType, PublishStatus } from "../enums";
+import { DeleteCmdDto } from "../dto/DeleteCmdDto";
+import { DocType, PublishStatus, DeleteReason } from "../enums";
 
 jest.mock("./documentProcessing/processContentDto", () => ({
     __esModule: true,
@@ -185,5 +186,38 @@ describe("processChangeRequest", () => {
             toSlug: "new-auto-slug",
             updatedBy: "user-1",
         });
+    });
+
+    it("does not emit a slugChange delete cmd when a rename creates a redirect", async () => {
+        const prevDoc = {
+            _id: "content-rename-with-redirect",
+            type: DocType.Content,
+            memberOf: ["group-public-content"],
+            parentId: "post-blog1",
+            parentType: DocType.Post,
+            language: "lang-eng",
+            status: PublishStatus.Published,
+            slug: "old-rename-with-redirect",
+            title: "Rename with redirect",
+            publishDate: Date.now() - 1000,
+            parentTags: [],
+        } as ContentDto;
+        await db.upsertDoc(prevDoc);
+
+        await processChangeRequest(
+            "user-1",
+            { doc: { ...prevDoc, slug: "new-rename-with-redirect" } },
+            ["group-super-admins"],
+            db,
+        );
+
+        const slugChangeCmds = (
+            (await db.getDocsByType(DocType.DeleteCmd)).docs as DeleteCmdDto[]
+        ).filter(
+            (c) =>
+                c.deleteReason === DeleteReason.SlugChange &&
+                c.docId === prevDoc._id,
+        );
+        expect(slugChangeCmds).toHaveLength(0);
     });
 });

@@ -3,16 +3,18 @@ import { getNavigationItems } from "./navigationItems";
 import { useSearchOverlay } from "@/composables/useSearchOverlay";
 import { computed, ref, onMounted, onUnmounted, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import ProfileMenu from "./ProfileMenu.vue";
 
-// Use global search overlay
-const { isSearchOpen, openSearch, closeSearch } = useSearchOverlay();
+// `closeSearch` still closes the desktop modal if it happens to be open; mobile navigates to
+// the dedicated /search page rather than opening the overlay.
+const { closeSearch } = useSearchOverlay();
 
 const { t } = useI18n();
 const route = useRoute();
+const router = useRouter();
 
-// Close search whenever the user navigates to another route
+// Close the desktop modal whenever the user navigates to another route.
 watch(
     () => route.fullPath,
     () => {
@@ -20,17 +22,22 @@ watch(
     },
 );
 
-// Search tab is active (highlighted) when the overlay is open
-const isSearchActive = computed(() => isSearchOpen.value);
+// Search tab is active (highlighted) when on the dedicated /search page (covers the localized
+// `search-<code>` routes too).
+const isSearchActive = computed(
+    () =>
+        route.name === "search" ||
+        (typeof route.name === "string" && route.name.startsWith("search-")),
+);
 
-// When search is open, only Search looks active; when closed, show the current route's tab as active
-const isNavItemActive = (routeActive: boolean) => routeActive && !isSearchOpen.value;
+// When on the search page, only Search looks active; otherwise show the current route's tab.
+const isNavItemActive = (routeActive: boolean) => routeActive && !isSearchActive.value;
 
 // Store navigation items to avoid multiple function calls
 const navigationItems = computed(() => getNavigationItems(t));
 
 const handleSearchClick = () => {
-    openSearch();
+    router.push({ name: "search" });
 };
 
 // Publish the menu's rendered height as --mobile-menu-h so overlays (e.g. SearchModal)

@@ -59,6 +59,12 @@ These are the seams that bite when you change one side and forget the other:
 - **E2E / Playwright runs are owned by the user — do not invoke them.** This applies to `playwright-tests/`, the `cms/` package's own Playwright e2e, and any DB/S3-dependent tests in `api/`. CI for E2E uses `scripts/start-couchdb-in-ci.sh` and `scripts/start-minio-in-ci.sh`.
 - **CI:** `.github/workflows/` has one unit-test workflow per package (`api-unit-tests.yml`, `shared-unit-tests.yml`, etc.) plus `e2e-tests.yml`. Each runs only on its own package's path changes.
 
+## Comment style
+
+Comments explain **why** code is added, in ~1–3 small sentences — neat and quick to read. They must not describe domain-specific / Luminary-internal concepts in depth, describe a problem or bug, narrate how logic previously worked ("previously", "used to", "the old approach", "now"), reference issue/ticket/spec/phase numbers, or run into multi-paragraph rationale (that belongs in PR descriptions, ADRs, or commit messages). Apply this to inline `//`, block `/* */`, JSDoc `/** */`, and `<!-- -->` in `.vue`. Don't rewrite pre-existing comments unless asked; only apply it to comments you're adding or already changing.
+
+Comments should stay relevant to the repo they're in — don't explain how something outside this repo (a separate packaging/deploy pipeline, another service, an external tool) consumes or wraps the code. This repo has one source of truth for its own behavior; what happens to the build afterward belongs in that other project's docs, not here.
+
 ## When changes span multiple packages
 
 Touching DTOs, FTS, sync queries, or auth payloads almost always means a coordinated edit across `api/` + `shared/` (and sometimes `app/`/`cms/`). Build order for verifying locally: `shared` → `api` → `app`/`cms`. `app`/`cms` consume `shared/src` directly (Vite alias), so a shared **behaviour** change needs no rebuild; only a shared **type** change requires `npm run build` in `shared/` for the consumers' type-check to see it (they resolve shared types from `dist/index.d.ts`).

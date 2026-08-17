@@ -1,4 +1,5 @@
 import { ref } from "vue";
+import { isPrerender } from "@/ssg/isPrerender";
 
 // Check for a new deploy by polling version.json and comparing it to the build id baked into
 // this bundle. This does not rely on a web service worker, so it also works if the app is
@@ -23,8 +24,10 @@ async function checkForUpdate() {
 }
 
 // Capacitor builds set this to "false": the app store already owns the update flow there, and
-// a page-reload prompt is meaningless once the app ships inside a native binary.
-if (import.meta.env.VITE_ENABLE_UPDATE_PROMPT !== "false") {
+// a page-reload prompt is meaningless once the app ships inside a native binary. Also skipped
+// during the Node SSG prerender, which has no running deploy to poll against — vite-ssg's jsdom
+// mock would otherwise let this interval run for the whole ~2000-page build.
+if (import.meta.env.VITE_ENABLE_UPDATE_PROMPT !== "false" && !isPrerender()) {
     setInterval(checkForUpdate, UPDATE_CHECK_INTERVAL_MS);
     checkForUpdate();
 }

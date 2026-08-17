@@ -5,3 +5,10 @@ node_modules
 
 stats.html
 .agents
+
+# Throwaway SSG proof-of-concept (kept locally for reference, not part of the repo)
+vite-ssg_poc/
+.worktree-ports.env
+.dev-api.sh
+.dev-app.sh
+.dev-cms.sh
