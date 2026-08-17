@@ -45,8 +45,7 @@ import RelatedContent from "@/components/content/RelatedContent.vue";
 import VerticalTagViewer from "@/components/tags/VerticalTagViewer.vue";
 
 import LImage from "@/components/images/LImage.vue";
-import TelegramIcon from "@/components/icons/TelegramIcon.vue";
-import WhatsAppIcon from "@/components/icons/WhatsAppIcon.vue";
+import ShareMenu from "@/components/content/ShareMenu.vue";
 
 import { userPreferencesAsRef } from "@/globalConfig";
 import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
@@ -470,25 +469,6 @@ const isBookmarked = computed(() => {
     return userPreferencesAsRef.value.bookmarks?.some((b) => b.id == content.value?.parentId);
 });
 
-// `window.location.href` (not the build-time `canonicalUrl`) so the shared link is
-// always the URL actually open in the browser, regardless of whether VITE_WEB_ORIGIN
-// is configured — these buttons only ever run client-side, after a click.
-const shareUrl = () => window.location.href;
-
-const shareToTelegram = () => {
-    if (!content.value) return;
-    const url = new URL("https://t.me/share/url");
-    url.searchParams.set("url", shareUrl());
-    url.searchParams.set("text", content.value.title);
-    window.open(url.toString(), "_blank");
-};
-
-const shareToWhatsApp = () => {
-    if (!content.value) return;
-    const url = new URL("https://wa.me/");
-    url.searchParams.set("text", `${content.value.title} ${shareUrl()}`);
-    window.open(url.toString(), "_blank");
-};
 
 // The normal SPA sets the tab/window title imperatively (it has no @unhead plugin). The web
 // build's `useContentHead` above owns the whole head there, including the meta
@@ -848,9 +828,7 @@ watch([isLoading, content, is404], async () => {
                         </p>
                     </div>
 
-                    <div
-                        class="mt-5 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 border-t border-zinc-100 px-4 pt-4 text-sm text-zinc-500 dark:border-slate-800 dark:text-slate-400"
-                    >
+                    <div class="mt-4 flex flex-col items-center gap-2 px-4 text-sm text-zinc-500 dark:text-slate-400">
                         <div class="flex flex-wrap items-center justify-center gap-y-1">
                             <!-- Author -->
                             <div
@@ -883,8 +861,6 @@ watch([isLoading, content, is404], async () => {
                             <FallbackLanguageBadge :content="content" />
                         </div>
 
-                        <span class="h-4 w-px bg-zinc-200 dark:bg-slate-700"></span>
-
                         <div class="flex items-center gap-3">
                             <!-- Bookmark Button -->
                             <button
@@ -909,25 +885,7 @@ watch([isLoading, content, is404], async () => {
                                 />
                             </button>
 
-                            <!-- Share Buttons -->
-                            <button
-                                type="button"
-                                @click="shareToTelegram"
-                                data-test="shareTelegram"
-                                :aria-label="t('singlecontent.shareTelegram')"
-                                class="flex items-center text-zinc-400 transition-colors hover:text-zinc-600 dark:text-slate-500 dark:hover:text-slate-200"
-                            >
-                                <TelegramIcon class="h-5 w-5" />
-                            </button>
-                            <button
-                                type="button"
-                                @click="shareToWhatsApp"
-                                data-test="shareWhatsApp"
-                                :aria-label="t('singlecontent.shareWhatsApp')"
-                                class="flex items-center text-zinc-400 transition-colors hover:text-zinc-600 dark:text-slate-500 dark:hover:text-slate-200"
-                            >
-                                <WhatsAppIcon class="h-5 w-5" />
-                            </button>
+                            <ShareMenu :content="content" />
                         </div>
                     </div>
 
@@ -960,7 +918,7 @@ watch([isLoading, content, is404], async () => {
                             v-html="text"
                             class="prose prose-zinc mt-8 max-w-full dark:prose-invert lg:prose-lg prose-headings:font-bold prose-a:text-yellow-600 dark:prose-a:text-yellow-400"
                             :class="{
-                                'border-t border-zinc-100 pt-8 dark:border-slate-800':
+                                'border-t border-zinc-100 pt-4 dark:border-slate-800':
                                     categoryTags.length == 0,
                             }"
                         ></div> </LHighlightable

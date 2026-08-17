@@ -104,17 +104,13 @@ onUnmounted(() => {
                     </div>
                 </div>
 
-                <!-- Desktop notification: normal flow below the pinned chrome; pushes article down when present.
-                     [&>div]:mb-2 trims the banner's default mb-4 so the gap above the title matches the page-top gap. -->
+                <!-- Desktop notification: normal flow below the pinned chrome; pushes article down when present. -->
                 <div
                     v-if="desktopTopBar"
                     class="hidden justify-center lg:flex"
                 >
                     <div class="w-full lg:w-3/4 lg:max-w-3xl">
-                        <NotificationBannerManager
-                            v-if="showNotifications && notificationsReady"
-                            class="[&>div]:mb-2"
-                        />
+                        <NotificationBannerManager v-if="showNotifications && notificationsReady" />
                     </div>
                 </div>
 
