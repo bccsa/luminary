@@ -5,6 +5,7 @@ import { DbService } from "../../db/db.service";
 import { DocType, Uuid } from "../../enums";
 import { deleteImage, processImage } from "./processImageDto";
 import { processMedia } from "./processMediaDto";
+import { deleteMediaCollection } from "./deleteMediaCollection";
 
 /**
  * Process Post / Tag DTO
@@ -35,10 +36,20 @@ export default async function processPostTagDto(
             warnings.push(...imageWarnings);
         }
 
-        // Media is an HLS collection written to the bucket by the encoder, not by
-        // this API, and nothing here tracks which objects belong to it. Deleting the
-        // document therefore leaves the collection in place, to be reclaimed by
-        // stale-collection cleanup rather than guessed at from a URL.
+        // Media files go only when the user asked for them in the delete
+        // confirmation. Opt-in because it is irreversible and because the
+        // collection may be referenced somewhere this API cannot see; the previous
+        // document is the authority on where the files are, and the incoming one
+        // carries the intent.
+        if (doc.media?.deleteFiles) {
+            warnings.push(
+                ...(await deleteMediaCollection(
+                    prevDoc?.media,
+                    prevDoc?.mediaBucketId,
+                    db,
+                )),
+            );
+        }
 
         return warnings; // no need to process further
     }

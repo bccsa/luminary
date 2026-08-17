@@ -205,6 +205,8 @@ export type MediaDto = {
     hlsUrl?: string;
     hlsKey_id?: Uuid;
     hlsKey?: string;
+    /** Write-only: delete the files in storage along with the document. */
+    deleteFiles?: boolean;
     fileCollections: MediaFileDto[];
     uploadData?: MediaUploadDataDto[];
 };

@@ -332,6 +332,27 @@ export class S3Service {
     }
 
     /**
+     * Every object key under a prefix, recursively.
+     *
+     * `listObjects` above returns the whole bucket as a stream, which cannot answer
+     * "what belongs to this collection" — and a caller that means to delete needs
+     * an exact list, not a stream it might abandon half-read. Pass the prefix with
+     * its trailing slash: `foo` would also match `foo-archive/…`.
+     */
+    public async listObjectsUnder(prefix: string): Promise<string[]> {
+        this.touch();
+        return new Promise((resolve, reject) => {
+            const keys: string[] = [];
+            const stream = this.client.listObjectsV2(this.bucketName, prefix, true);
+            stream.on("data", (item) => {
+                if (item.name) keys.push(item.name);
+            });
+            stream.on("end", () => resolve(keys));
+            stream.on("error", reject);
+        });
+    }
+
+    /**
      * Check if an S3 service is reachable
      */
     public async checkConnection(): Promise<boolean> {
