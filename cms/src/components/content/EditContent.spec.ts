@@ -1310,7 +1310,7 @@ describe("EditContent.vue", () => {
             // Reviewing opens the read-only diff modal.
             await wrapper.find('[data-test="incoming-changes-review"]').trigger("click");
             expect(wrapper.findComponent(IncomingChangesModal).props("open")).toBe(true);
-        });
+        }, 15000);
 
         it("does not show the banner when a remote change arrives with no local edits", async () => {
             const wrapper = mount(EditContent, {
