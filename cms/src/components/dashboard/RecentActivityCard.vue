@@ -40,7 +40,7 @@ function formatRelativeTime(timestamp: number): string {
                 class="rounded-lg p-1.5 hover:bg-zinc-300 dark:hover:bg-slate-800"
             >
                 <RouterLink
-                    class="grid w-full grid-cols-[auto_1fr_auto_auto] items-center gap-x-2 sm:grid-cols-[20px_1fr_150px_100px_80px] sm:gap-x-0"
+                    class="grid w-full grid-cols-[auto_1fr_auto_auto] items-center gap-x-2 rounded-sm border-l-4 pl-2 hover:dark:border-yellow-400 sm:grid-cols-[20px_1fr_150px_100px_80px] sm:gap-x-0"
                     :to="parentRoute(doc)!"
                 >
                     <component
