@@ -65,10 +65,12 @@ function shareToTelegram() {
 }
 
 function shareToWhatsApp() {
-    // api.whatsapp.com/send (WhatsApp's documented Click-to-Chat endpoint), not the wa.me
-    // short link — on desktop, wa.me is frequently intercepted by the native app's own
-    // URL-scheme handler, which drops everything in `text` but the trailing URL.
-    const url = new URL("https://api.whatsapp.com/send");
+    // web.whatsapp.com, not wa.me / api.whatsapp.com — both of those are registered as
+    // OS-level Universal Links, so the click is handed straight to the native desktop
+    // app before the page (or the `text` param) is involved, and the app's own handler
+    // drops everything but the trailing URL. web.whatsapp.com isn't a Universal Link
+    // target, so it opens as a normal page and keeps the full pre-filled text intact.
+    const url = new URL("https://web.whatsapp.com/send");
     url.searchParams.set("text", `${shareText.value}\n\n${shareUrl()}`);
     window.open(url.toString(), "_blank");
     open.value = false;
@@ -112,7 +114,7 @@ async function shareToInstagram() {
     <DropdownMenu
         v-model:open="open"
         placement="top-start"
-        panel-class="w-52 rounded-lg bg-white p-1.5 shadow-xl ring-1 ring-zinc-200 dark:bg-slate-700 dark:ring-slate-500"
+        panel-class="w-60 rounded-lg bg-white p-1.5 shadow-xl ring-1 ring-zinc-200 dark:bg-slate-700 dark:ring-slate-500"
     >
         <template #trigger>
             <span
@@ -132,7 +134,7 @@ async function shareToInstagram() {
                 :class="itemClass"
             >
                 <TelegramIcon class="size-4 flex-shrink-0" />
-                {{ t("singlecontent.shareTelegram") }}
+                <span class="min-w-0 truncate">{{ t("singlecontent.shareTelegram") }}</span>
             </button>
             <button
                 type="button"
@@ -141,7 +143,7 @@ async function shareToInstagram() {
                 :class="itemClass"
             >
                 <WhatsAppIcon class="size-4 flex-shrink-0" />
-                {{ t("singlecontent.shareWhatsApp") }}
+                <span class="min-w-0 truncate">{{ t("singlecontent.shareWhatsApp") }}</span>
             </button>
             <button
                 type="button"
@@ -150,7 +152,7 @@ async function shareToInstagram() {
                 :class="itemClass"
             >
                 <XIcon class="size-4 flex-shrink-0" />
-                {{ t("singlecontent.shareX") }}
+                <span class="min-w-0 truncate">{{ t("singlecontent.shareX") }}</span>
             </button>
             <button
                 type="button"
@@ -159,7 +161,7 @@ async function shareToInstagram() {
                 :class="itemClass"
             >
                 <RedditIcon class="size-4 flex-shrink-0" />
-                {{ t("singlecontent.shareReddit") }}
+                <span class="min-w-0 truncate">{{ t("singlecontent.shareReddit") }}</span>
             </button>
             <button
                 type="button"
@@ -168,7 +170,7 @@ async function shareToInstagram() {
                 :class="itemClass"
             >
                 <InstagramIcon class="size-4 flex-shrink-0" />
-                {{ t("singlecontent.shareInstagram") }}
+                <span class="min-w-0 truncate">{{ t("singlecontent.shareInstagram") }}</span>
             </button>
         </div>
 
