@@ -164,6 +164,10 @@ function assertRouteLanguage(route: string, keys: Set<string> | undefined): void
 const OUT_DIR = "dist-web";
 const WEB_ORIGIN = (env.VITE_WEB_ORIGIN || "").replace(/\/$/, "");
 const APP_NAME = env.VITE_APP_NAME || "Luminary";
+// Node-side build/SSR fetches only — prefers a colocated internal API when set, falling
+// back to the public URL. The client bundle keeps using VITE_API_URL (compiled into the
+// shipped JS), so this never reaches real visitors' browsers.
+const SSG_API_URL = process.env.SSG_API_URL || env.VITE_API_URL;
 type SsgLanguage = KeysetDocument & { languageCode?: string; default?: number };
 type SsgRedirect = KeysetDocument & {
     slug?: string;
@@ -657,10 +661,10 @@ const config: UserConfig & { ssgOptions: ViteSSGOptions } = {
         // the build is CPU-bound (a JSDOM per page), so N cores gives roughly N× here.
         concurrency: Number(process.env.SSG_CONCURRENCY || 1),
         includedRoutes: async (_paths: string[], routes: readonly RouteRecordRaw[]) => {
-            const apiUrl = env.VITE_API_URL;
+            const apiUrl = SSG_API_URL;
             if (!apiUrl) {
                 // Fail fast: a partial build that silently drops pages is worse than no build.
-                throw new Error("[ssg] VITE_API_URL is required for route enumeration");
+                throw new Error("[ssg] VITE_API_URL (or SSG_API_URL) is required for route enumeration");
             }
 
             // Always populate the route→language map + default language (used per
@@ -768,9 +772,9 @@ const config: UserConfig & { ssgOptions: ViteSSGOptions } = {
                 writeManifest();
                 writeRouteIndex();
                 writeDocFacets();
-                writeDeleteQueue(await fetchDeleteCmds(env.VITE_API_URL));
+                writeDeleteQueue(await fetchDeleteCmds(SSG_API_URL));
                 if (!IS_SCOPED) {
-                    await writeRedirectFiles(env.VITE_API_URL);
+                    await writeRedirectFiles(SSG_API_URL);
                 }
                 // Sitemap/robots/llms reflect the full route set on both full and scoped builds.
                 writeSeoArtifacts();

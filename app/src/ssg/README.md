@@ -62,6 +62,13 @@ The normal SPA build (`npm run build` → `dist/`, with its service worker) is
 **unchanged** and unaffected by anything here. Web config is `app/vite.config.web.ts`;
 the normal SPA is `app/vite.config.ts`.
 
+**Build-time API URL:** the build's own Node-side fetches (route/language/redirect/delete-cmd
+enumeration, the per-page `queryTransport` reads) resolve `SSG_API_URL`, falling back to
+`VITE_API_URL` when unset. This lets a deployer point the build at a colocated internal API
+without touching what gets compiled into the client bundle — `VITE_API_URL` is still the only
+origin embedded in the shipped JS (via `src/globalConfig.ts`), so it must stay publicly
+reachable. Unset `SSG_API_URL` and nothing changes.
+
 ---
 
 ## File map
@@ -317,7 +324,7 @@ full `build:web` to completion across all ~1934 routes against a production-size
 
 **Still the user's to run (browser-level):** `preview:web` in Incognito (a stale normal SPA SW
 will otherwise hijack localhost) — confirm no flash, no hydration warnings, language
-switch, 404, and nav links. Note `VITE_API_URL` must point at a running API.
+switch, 404, and nav links. Note `VITE_API_URL` (or `SSG_API_URL`) must point at a running API.
 
 ---
 
