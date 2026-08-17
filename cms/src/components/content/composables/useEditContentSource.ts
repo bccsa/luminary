@@ -55,7 +55,7 @@ export type UseEditContentSource = {
     /** Persist the parent + edited content children and re-baseline the dirty state. */
     save: () => Promise<void>;
     /** Delete the parent document (does not mark content children for deletion). */
-    deleteParent: () => Promise<boolean>;
+    deleteParent: (deleteMediaFiles?: boolean) => Promise<boolean>;
     /** Revert the parent and all content children to their last-saved state. */
     revert: () => void;
     /**
@@ -293,9 +293,19 @@ export function useEditContentSource(options: UseEditContentSourceOptions): UseE
         );
     };
 
-    const deleteParent = async (): Promise<boolean> => {
+    /**
+     * Delete the parent and, when asked, the media files in storage with it.
+     *
+     * The flag is set on the document rather than passed alongside it because a
+     * delete is a change request: the whole document goes to the API with
+     * `deleteReq` set, and `media.deleteFiles` is a write-only field the API reads
+     * and never stores. Nothing to undo afterwards — the document is gone either
+     * way, and the field never reaches the database.
+     */
+    const deleteParent = async (deleteMediaFiles = false): Promise<boolean> => {
         const parent = editableParent.value;
         if (!parent) return false;
+        if (deleteMediaFiles && parent.media) parent.media.deleteFiles = true;
         const res = await removeParent(parent._id);
         return res?.ack === AckStatus.Accepted;
     };
