@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 set -euo pipefail
-cd "/Users/dirk/orca/workspaces/luminary/278-cms-add-toggle-to-link-dates-on-content-documents-belonging-to-the-same-parent/api"
+cd "/Users/dirk/orca/workspaces/luminary/1888-app-sync-sequencing-not-syncing-auth-providers-in-time/api"
 npm run start:dev
