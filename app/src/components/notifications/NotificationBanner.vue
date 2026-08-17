@@ -82,7 +82,7 @@ const handleNotificationClick = (notification: Notification) => {
         >
             <div class="banner-grid-content">
                 <div
-                    class="mb-2 rounded-lg text-zinc-900"
+                    class="mb-3 rounded-lg text-zinc-900"
                     :class="color"
                 >
                     <div
