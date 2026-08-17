@@ -1,4 +1,5 @@
 import * as Minio from "minio";
+import { Readable } from "stream";
 import { S3CredentialDto } from "../dto/S3CredentialDto";
 import { DbService } from "../db/db.service";
 import { retrieveCryptoData, decryptObject } from "../util/encryption";
@@ -281,6 +282,30 @@ export class S3Service {
             "Content-Type": mimetype,
         };
         return this.client.putObject(this.bucketName, key, file, file.length, metadata);
+    }
+
+    /**
+     * Uploads a stream of a known length, without holding the object in memory.
+     *
+     * `uploadFile` above takes a Buffer, which is right for an image and wrong for
+     * media: a byte-range chunk chain is capped at 500 MB by default, so buffering
+     * one to copy it would trade a bounded stream for an unbounded heap. The size is
+     * required because S3 needs either a length or a multipart upload, and the
+     * source's own `statObject` already knows it.
+     */
+    public async putStream(key: string, stream: Readable, size: number, mimetype: string) {
+        this.touch();
+        return this.client.putObject(this.bucketName, key, stream, size, {
+            "Content-Type": mimetype,
+        });
+    }
+
+    /**
+     * Size and metadata of a single object, without fetching its body.
+     */
+    public async statObject(key: string): Promise<Minio.BucketItemStat> {
+        this.touch();
+        return this.client.statObject(this.bucketName, key);
     }
 
     /**

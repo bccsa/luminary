@@ -6,6 +6,7 @@ import { DocType, Uuid } from "../../enums";
 import { deleteImage, processImage } from "./processImageDto";
 import { processMedia } from "./processMediaDto";
 import { deleteMediaCollection } from "./deleteMediaCollection";
+import { migrateMediaCollection } from "./migrateMediaCollection";
 
 /**
  * Process Post / Tag DTO
@@ -113,6 +114,28 @@ export default async function processPostTagDto(
         // edit of the collection has to be pointed back at.
         if (!doc.mediaBucketId) {
             throw new Error("Bucket is not specified for media processing.");
+        }
+
+        // A bucket change has to take the files with it. `mediaBucketId` and
+        // `hlsUrl` must name the same bucket: if they diverge, the collection can no
+        // longer be resolved from the URL, and deleting the document then leaves the
+        // files behind for good.
+        if (prevDoc?.mediaBucketId && prevDoc.mediaBucketId !== doc.mediaBucketId) {
+            const migration = await migrateMediaCollection(
+                doc.media,
+                prevDoc.media?.hlsUrl,
+                prevDoc.mediaBucketId,
+                doc.mediaBucketId,
+                db,
+            );
+            warnings.push(...migration.warnings);
+
+            if (migration.failed) {
+                doc.mediaBucketId = prevDoc.mediaBucketId;
+                warnings.push(
+                    "Media migration failed. Reverted to previous bucket configuration to ensure files remain accessible.",
+                );
+            }
         }
 
         try {
