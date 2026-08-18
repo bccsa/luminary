@@ -72,7 +72,9 @@ const availablePermissionsPerDocType = {
     ],
 };
 
-// Valid DocTypes that can be used for ACL assignments
+// Derived from the map keys, NOT the DocType enum — so omitting Crypto/Sidecar
+// here is load-bearing: no ACL can grant view on them, so no client joins a
+// crypto-*/sidecar-* room.
 const validDocTypes = Object.keys(availablePermissionsPerDocType) as DocType[];
 
 // Check if a permission is available for a given DocType

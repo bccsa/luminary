@@ -7,6 +7,7 @@ import { deleteImage, processImage } from "./processImageDto";
 import { processMedia } from "./processMediaDto";
 import { deleteMediaCollection } from "./deleteMediaCollection";
 import { migrateMediaCollection } from "./migrateMediaCollection";
+import { syncSidecarMemberOf } from "../../sidecar/sidecar.service";
 
 /**
  * Process Post / Tag DTO
@@ -177,6 +178,10 @@ export default async function processPostTagDto(
         else delete contentDoc.parentLinkDates;
         await db.upsertDoc(contentDoc);
     }
+
+    // Re-stamp the parent's memberOf onto its sidecars (same groups as the parent);
+    // run on every save, not just media changes.
+    await syncSidecarMemberOf(db, doc);
 
     // tag caching to the taggedDocs / parentTaggedDocs property of tag / content documents. This is done to improve client query performance.
     const addedTags = prevDoc ? doc.tags.filter((tag) => !prevDoc.tags.includes(tag)) : doc.tags;

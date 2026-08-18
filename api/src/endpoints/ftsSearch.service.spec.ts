@@ -123,6 +123,23 @@ describe("FtsSearchService", () => {
         );
     });
 
+    it("returns nothing for types: [sidecar] and never routes to the aux path", async () => {
+        // Sidecar must not be bulk-searchable; fails loudly if a sidecar aux config
+        // is ever added.
+        // Grant Sidecar (per-type group check) + Language (non-cms accessibleLanguages
+        // guard needs a language to see, else 403 before the dispatch).
+        (permissions.PermissionSystem.accessMapToGroups as jest.Mock).mockReturnValueOnce({
+            [DocType.Sidecar]: ["g1"],
+            [DocType.Language]: [LANG_GROUP],
+        } as any);
+
+        const res = await service.search(makeReq({ types: [DocType.Sidecar] as any }), mockUser);
+
+        expect(res).toEqual([]);
+        expect(dbService.ftsAuxTrigramCandidates).not.toHaveBeenCalled();
+        expect(dbService.ftsAuxTrigramDf).not.toHaveBeenCalled();
+    });
+
     it("rejects a status filter unless cms=true", async () => {
         await expect(
             service.search(makeReq({ status: PublishStatus.Draft }), mockUser),

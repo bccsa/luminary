@@ -10,6 +10,7 @@ import type {
     MediaPreset,
     AclPermission,
     AckStatus,
+    SidecarType,
 } from "../types";
 import type { AffinityConfig } from "../recommendation/affinity";
 
@@ -232,6 +233,29 @@ export type StorageDto = ContentBaseDto & {
 
 export type CryptoDto = BaseDocumentDto & {
     data: any;
+};
+
+/**
+ * The masked AES-128 key for an HLS collection. XOR-masked with
+ * SHA-256(sidecar _id)[0..15] so the stored form is not the raw key.
+ * Mirrored from api/src/sidecar/hlsEncryptionKey.ts.
+ */
+export type HlsEncryptionKeyData = {
+    /** AES-128 key, hex, XOR-masked with SHA-256(sidecar _id)[0..15]. */
+    maskedKeyHex: string;
+};
+
+/**
+ * A payload that belongs to a Post / Tag but is never replicated to clients. The
+ * only read path is GET /sidecar. `data`'s shape is determined by `sidecarType`;
+ * `unknown` forces consumers to narrow. Mirrored from api/src/dto/SidecarDto.ts.
+ */
+export type SidecarDto = ContentBaseDto & {
+    type: DocType.Sidecar;
+    parentId: Uuid;
+    parentType: DocType.Post | DocType.Tag;
+    sidecarType: SidecarType;
+    data: unknown;
 };
 
 export type MediaDto = {
