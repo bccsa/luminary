@@ -519,6 +519,88 @@ describe("DbService", () => {
 
             service.off("groupUpdate", groupDeleteHandler);
         });
+
+        it("emits 'permissionChange' event when a document's memberOf gains a group (pure addition, no DeleteCmd)", async () => {
+            const doc = {
+                _id: "permission-change-event-add",
+                testData: "test123",
+                type: DocType.Post,
+                memberOf: ["group-public-content"],
+            };
+
+            await service.upsertDoc(doc);
+
+            let receivedEvent: any;
+            const permissionChangeHandler = (update: any) => {
+                if (update.docId === "permission-change-event-add") receivedEvent = update;
+            };
+            service.on("permissionChange", permissionChangeHandler);
+
+            const updatedDoc = {
+                ...doc,
+                memberOf: ["group-public-content", "group-private-content"],
+            };
+
+            await service.upsertDoc(updatedDoc);
+
+            await waitForExpect(() => {
+                expect(receivedEvent).toEqual({
+                    docType: DocType.Post,
+                    docId: "permission-change-event-add",
+                });
+            });
+
+            service.off("permissionChange", permissionChangeHandler);
+        });
+
+        it("does not emit 'permissionChange' on a no-op write or a new-doc insert", async () => {
+            let eventReceived = false;
+            const permissionChangeHandler = (update: any) => {
+                if (update.docId === "permission-change-event-noop") eventReceived = true;
+            };
+            service.on("permissionChange", permissionChangeHandler);
+
+            const doc = {
+                _id: "permission-change-event-noop",
+                testData: "test123",
+                type: DocType.Post,
+                memberOf: ["group-public-content"],
+            };
+
+            // New-doc insert
+            await service.upsertDoc(doc);
+
+            // Identical no-op write
+            await service.upsertDoc(doc);
+
+            expect(eventReceived).toBe(false);
+
+            service.off("permissionChange", permissionChangeHandler);
+        });
+
+        it("does not emit 'permissionChange' when a Group document's memberOf changes", async () => {
+            const groupDoc = {
+                _id: "permission-change-event-group",
+                type: DocType.Group,
+                name: "Test Group",
+                acl: [],
+                memberOf: ["permission-change-event-group"],
+            };
+
+            await service.upsertDoc(groupDoc);
+
+            let eventReceived = false;
+            const permissionChangeHandler = (update: any) => {
+                if (update.docId === "permission-change-event-group") eventReceived = true;
+            };
+            service.on("permissionChange", permissionChangeHandler);
+
+            await service.upsertDoc({ ...groupDoc, memberOf: [] });
+
+            expect(eventReceived).toBe(false);
+
+            service.off("permissionChange", permissionChangeHandler);
+        });
     });
 
     describe("disconnect events", () => {
