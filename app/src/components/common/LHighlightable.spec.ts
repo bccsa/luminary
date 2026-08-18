@@ -1,6 +1,8 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { mount } from "@vue/test-utils";
+import { setActivePinia } from "pinia";
+import { createTestingPinia } from "@pinia/testing";
 import LHighlightable from "./LHighlightable.vue";
 import { db } from "luminary-shared";
 
@@ -22,6 +24,7 @@ const mountHighlightable = (contentId = "test-content-1", title = "Test Article"
 describe("LHighlightable", () => {
     beforeEach(() => {
         vi.useFakeTimers();
+        setActivePinia(createTestingPinia());
     });
 
     afterEach(() => {
@@ -93,7 +96,8 @@ describe("LHighlightable", () => {
 
         // Simulate having highlighted content
         const prose = wrapper.find(".prose");
-        prose.element.innerHTML = '<p>Some <mark style="background-color: yellow">highlighted</mark> text</p>';
+        prose.element.innerHTML =
+            '<p>Some <mark style="background-color: yellow">highlighted</mark> text</p>';
 
         // Trigger save by calling the internal method via the component
         // We test that the persistence mechanism works
@@ -102,7 +106,8 @@ describe("LHighlightable", () => {
     });
 
     it("restores highlights from IndexedDB on mount", async () => {
-        const savedHtml = '<p>Restored <mark style="background-color: yellow">highlight</mark> text</p>';
+        const savedHtml =
+            '<p>Restored <mark style="background-color: yellow">highlight</mark> text</p>';
         vi.spyOn(db, "getLuminaryInternals").mockResolvedValue({
             "restore-test": savedHtml,
         });
@@ -177,8 +182,15 @@ describe("LHighlightable", () => {
 
         // Mock getBoundingClientRect on the range (jsdom doesn't implement it)
         range.getBoundingClientRect = vi.fn(() => ({
-            left: 100, top: 100, right: 200, bottom: 120, width: 100, height: 20,
-            x: 100, y: 100, toJSON: () => {},
+            left: 100,
+            top: 100,
+            right: 200,
+            bottom: 120,
+            width: 100,
+            height: 20,
+            x: 100,
+            y: 100,
+            toJSON: () => {},
         }));
 
         // Mock getSelection to return our range
@@ -222,7 +234,8 @@ describe("LHighlightable", () => {
         const prose = wrapper.find(".prose");
 
         // Set up content with an existing highlight
-        prose.element.innerHTML = '<p>Before <mark style="background-color: rgba(253, 224, 71, 0.5)" class="rounded-sm px-0.5 box-decoration-clone">highlighted</mark> after</p>';
+        prose.element.innerHTML =
+            '<p>Before <mark style="background-color: rgba(253, 224, 71, 0.5)" class="rounded-sm px-0.5 box-decoration-clone">highlighted</mark> after</p>';
         const markEl = prose.element.querySelector("mark")!;
         const textNode = markEl.firstChild!;
 
@@ -233,8 +246,15 @@ describe("LHighlightable", () => {
 
         // Mock getBoundingClientRect on the range (jsdom doesn't implement it)
         range.getBoundingClientRect = vi.fn(() => ({
-            left: 100, top: 100, right: 200, bottom: 120, width: 100, height: 20,
-            x: 100, y: 100, toJSON: () => {},
+            left: 100,
+            top: 100,
+            right: 200,
+            bottom: 120,
+            width: 100,
+            height: 20,
+            x: 100,
+            y: 100,
+            toJSON: () => {},
         }));
 
         const mockSelection = {
@@ -369,8 +389,15 @@ describe("LHighlightable", () => {
 
         // Mock getBoundingClientRect on the range (jsdom doesn't implement it)
         range.getBoundingClientRect = vi.fn(() => ({
-            left: 100, top: 100, right: 200, bottom: 120, width: 100, height: 20,
-            x: 100, y: 100, toJSON: () => {},
+            left: 100,
+            top: 100,
+            right: 200,
+            bottom: 120,
+            width: 100,
+            height: 20,
+            x: 100,
+            y: 100,
+            toJSON: () => {},
         }));
 
         const mockSelection = {
@@ -401,6 +428,9 @@ describe("LHighlightable", () => {
 
     it("shows share targets and opens the correct URL for the selected text", async () => {
         const wrapper = mountHighlightable("share-test", "Test Article");
+        // Let the async onMounted (restoreHighlights) finish before dispatching
+        // selectionchange — the listener isn't registered until it resolves.
+        await vi.advanceTimersByTimeAsync(50);
         const prose = wrapper.find(".prose");
 
         const textNode = prose.element.querySelector("p")!.firstChild!;
@@ -476,6 +506,7 @@ describe("LHighlightable", () => {
         Object.assign(navigator, { clipboard: { writeText } });
 
         const wrapper = mountHighlightable("share-instagram-test", "Test Article");
+        await vi.advanceTimersByTimeAsync(50);
         const prose = wrapper.find(".prose");
 
         const textNode = prose.element.querySelector("p")!.firstChild!;
@@ -508,9 +539,7 @@ describe("LHighlightable", () => {
         vi.advanceTimersByTime(300);
         await wrapper.vm.$nextTick();
 
-        (
-            document.body.querySelector('[data-test="highlightShareTrigger"]') as HTMLElement
-        ).click();
+        (document.body.querySelector('[data-test="highlightShareTrigger"]') as HTMLElement).click();
         await wrapper.vm.$nextTick();
 
         (
