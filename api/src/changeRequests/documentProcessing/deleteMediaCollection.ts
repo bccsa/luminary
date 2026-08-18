@@ -1,7 +1,7 @@
 import { MediaDto } from "../../dto/MediaDto";
 import { DbService } from "../../db/db.service";
 import { S3Service } from "../../s3/s3.service";
-import { isBucketRelative } from "./mediaUrl";
+import { isBucketRelative, toStoredMediaUrl } from "./mediaUrl";
 
 /**
  * Where a collection lives in its bucket, or why we will not touch it.
@@ -134,6 +134,17 @@ export async function deleteMediaCollection(
         bucket = result.docs[0];
     } catch (error) {
         warnings.push(`Media files were not deleted: ${error.message}`);
+        return warnings;
+    }
+
+    // Media hosted elsewhere — a YouTube link, a master on someone else's CDN —
+    // has nothing here to delete, and telling the operator to go and remove it
+    // "on the storage provider" would send them looking for files their bucket
+    // never held.
+    if (
+        !isBucketRelative(media.hlsUrl) &&
+        toStoredMediaUrl(media.hlsUrl, bucket.publicUrl) === media.hlsUrl
+    ) {
         return warnings;
     }
 

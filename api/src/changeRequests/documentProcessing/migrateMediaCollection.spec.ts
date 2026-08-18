@@ -227,6 +227,40 @@ describe("migrateMediaCollection", () => {
         expect(S3Service.create).not.toHaveBeenCalled();
     });
 
+    it("leaves external media alone and lets the bucket change stand", async () => {
+        // A YouTube link or a master on someone else's CDN is not ours to move,
+        // and the bucket change is about where future output goes. Failing here
+        // would revert a deliberate change and warn about files that were never
+        // going anywhere.
+        stubS3();
+        const yt = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
+        const m = { hlsUrl: yt } as MediaDto;
+
+        const result = await migrateMediaCollection(
+            m,
+            yt,
+            "bucket-old",
+            "bucket-new",
+            defaultDb(),
+        );
+
+        expect(result.failed).toBe(false);
+        expect(result.warnings).toEqual([]);
+        expect(m.hlsUrl).toBe(yt);
+        expect(S3Service.create).not.toHaveBeenCalled();
+    });
+
+    it("still moves media that is in the old bucket", async () => {
+        // The guard above must not swallow the case it sits in front of.
+        const { source } = stubS3();
+        const m = media();
+
+        const result = await migrate(m, defaultDb());
+
+        expect(result.failed).toBe(false);
+        expect(source.removeObjects).toHaveBeenCalled();
+    });
+
     it("does nothing for a document that never had media", async () => {
         stubS3();
 

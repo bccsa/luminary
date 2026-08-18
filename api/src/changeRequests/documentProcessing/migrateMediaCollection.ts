@@ -2,7 +2,7 @@ import { MediaDto } from "../../dto/MediaDto";
 import { DbService } from "../../db/db.service";
 import { S3Service } from "../../s3/s3.service";
 import { resolveCollectionPrefix } from "./deleteMediaCollection";
-import { isBucketRelative } from "./mediaUrl";
+import { isBucketRelative, toStoredMediaUrl } from "./mediaUrl";
 
 /** What the encoder publishes at the root of a collection. */
 const MASTER = "master.m3u8";
@@ -90,6 +90,16 @@ export async function migrateMediaCollection(
 
     // The same proof used before deleting: a prefix we cannot derive from the
     // bucket's own public base is a collection we did not write.
+    // Media that is not in the old bucket is not ours to move: a YouTube link
+    // or a master on someone else's CDN belongs to whoever serves it, and the
+    // bucket change is about where *future* output goes. Treating that as a
+    // failed migration would revert a change the user made deliberately and
+    // warn about files that were never going anywhere.
+    const external =
+        !isBucketRelative(previousHlsUrl) &&
+        toStoredMediaUrl(previousHlsUrl, oldBucket.publicUrl) === previousHlsUrl;
+    if (external) return { failed: false, warnings };
+
     const resolved = resolveCollectionPrefix(previousHlsUrl, oldBucket.publicUrl);
     if ("refusal" in resolved) {
         warnings.push(`Media files were not moved because ${resolved.refusal}.`);
