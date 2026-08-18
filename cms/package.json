@@ -32,6 +32,7 @@
         "lodash-es": "^4.17.21",
         "lodash.clonedeep": "^4.5.0",
         "lodash.isequal": "^4.5.0",
+        "@luminary-media-converter/player-web-legacy": "file:../media-convert/player-web-legacy",
         "luminary-shared": "file:../shared",
         "luxon": "^3.4.4",
         "oidc-client-ts": "^3.5.0",
