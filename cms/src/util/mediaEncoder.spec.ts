@@ -19,6 +19,17 @@ afterEach(() => {
 });
 
 describe("unmaskKeyHex", () => {
+    // Shared test vector — the same (seed, key) → masked literal is asserted in
+    // api/src/util/maskKey.spec.ts (maskKeyHex). A divergence between the two
+    // implementations fails a test here rather than a video in the player.
+    it("matches the shared test vector", async () => {
+        const seed = "sidecar-post-abc-hlsEncryptionKey";
+        const keyHex = "000102030405060708090a0b0c0d0e0f";
+
+        expect(maskKey(seed, keyHex)).toBe("98ceb55553113bf2fdd5a74b3fa6e8d8");
+        expect(await unmaskKeyHex(seed, "98ceb55553113bf2fdd5a74b3fa6e8d8")).toBe(keyHex);
+    });
+
     it("recovers a key masked with SHA-256(sessionId)[0..15]", async () => {
         const sessionId = "abc123";
         const keyHex = "000102030405060708090a0b0c0d0e0f";
