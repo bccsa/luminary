@@ -97,6 +97,98 @@ describe("validateChangeRequest", () => {
         expect(result.error).toContain("Invalid document type");
     });
 
+    // An explicit deny is the only barrier between a client-authored sidecar and
+    // CouchDB — the type check no longer rejects it once Sidecar is a valid enum member.
+    describe("sidecar change requests are rejected", () => {
+        const sidecarId = "sidecar-post-sidecar-test-hlsEncryptionKey";
+
+        afterEach(async () => {
+            // Clean up any sidecar that leaked through a regression.
+            await db.deleteDoc(sidecarId).catch(() => {});
+            await db.deleteDoc("post-sidecar-test").catch(() => {});
+        });
+
+        it("rejects doc.type: 'sidecar' as an invalid document type", async () => {
+            const changeRequest = {
+                doc: {
+                    _id: sidecarId,
+                    type: "sidecar",
+                    memberOf: ["group-test"],
+                    parentId: "post-sidecar-test",
+                    parentType: "post",
+                    sidecarType: "hlsEncryptionKey",
+                    data: { maskedKeyHex: "0".repeat(32) },
+                },
+            };
+
+            const result = await validateChangeRequest(changeRequest, ["group-test"], db);
+
+            expect(result.validated).toBe(false);
+            expect(result.error).toContain("Invalid document type");
+        });
+
+        it("rejects a well-formed sidecar body and writes no document", async () => {
+            // Assert the doc is absent, not just the error — the risk is db.upsertDoc
+            // running after a validation pass.
+            const changeRequest = {
+                doc: {
+                    _id: sidecarId,
+                    type: "sidecar",
+                    memberOf: ["group-test"],
+                    parentId: "post-sidecar-test",
+                    parentType: "post",
+                    sidecarType: "hlsEncryptionKey",
+                    data: { maskedKeyHex: "0".repeat(32) },
+                },
+            };
+
+            const result = await validateChangeRequest(changeRequest, ["group-test"], db);
+
+            expect(result.validated).toBe(false);
+            const stored = await db.getDoc(sidecarId);
+            expect(stored.docs).toHaveLength(0);
+        });
+
+        it("rejects a deleteReq naming a sidecar and leaves the sidecar intact", async () => {
+            // Create a real sidecar via the server-side path, then attempt a
+            // client deleteReq against it.
+            const { upsertSidecar } = await import("../sidecar/sidecar.service");
+            await db.upsertDoc({
+                _id: "post-sidecar-test",
+                type: "post",
+                memberOf: ["group-test"],
+                postType: "blog",
+            } as any);
+            await upsertSidecar(
+                db,
+                {
+                    _id: "post-sidecar-test",
+                    type: DocType.Post,
+                    memberOf: ["group-test"],
+                    updatedBy: "user-test",
+                } as any,
+                "hlsEncryptionKey" as any,
+                { maskedKeyHex: "0".repeat(32) },
+            );
+            const before = await db.getDoc(sidecarId);
+            expect(before.docs).toHaveLength(1);
+
+            const changeRequest = {
+                doc: {
+                    _id: sidecarId,
+                    type: "sidecar",
+                    deleteReq: 1,
+                },
+            };
+
+            const result = await validateChangeRequest(changeRequest, ["group-test"], db);
+
+            expect(result.validated).toBe(false);
+            const after = await db.getDoc(sidecarId);
+            expect(after.docs).toHaveLength(1); // survived
+        });
+    });
+
     it("fails validation for invalid document data", async () => {
         const changeRequest = {
             doc: {

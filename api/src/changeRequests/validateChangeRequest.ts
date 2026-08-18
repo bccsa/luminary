@@ -65,6 +65,16 @@ export async function validateChangeRequest(
         };
     }
 
+    // Sidecars are server-side only; deny explicitly. DocType.Sidecar is a valid
+    // enum member so the type check above won't reject it, and class-validator's
+    // forbidUnknownValues could flip silently on a dependency bump.
+    if (changeRequest.doc.type === DocType.Sidecar) {
+        return {
+            validated: false,
+            error: `Submitted "${changeRequest.doc.type}" document validation failed:\nInvalid document type`,
+        };
+    }
+
     if (changeRequest.doc.type == DocType.Redirect) {
         const currentDoc = changeRequest.doc as RedirectDto;
         const slugIsUnique = await dbService.checkUniqueSlug(

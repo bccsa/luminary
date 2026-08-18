@@ -118,4 +118,13 @@ describe("validateAcl", () => {
 
         expect(result).toHaveLength(0);
     });
+
+    it("should reject an ACL entry for DocType.Sidecar (never replicable, never grantable)", () => {
+        // Sidecar is absent from availablePermissionsPerDocType — the load-bearing
+        // non-replication guarantee. An entry is stripped.
+        const acl = [createEntry(DocType.Sidecar, "g1", [AclPermission.View, AclPermission.CmsView])];
+        const result = validateAcl(acl);
+
+        expect(result).toHaveLength(0);
+    });
 });
