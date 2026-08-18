@@ -70,7 +70,7 @@ export function formatArticleShareMessage({
     excerpt,
     copyright,
 }: ArticleShareMessageInput): string {
-    return [`📖 ${title}`, summary, excerpt ? `"${excerpt}"` : undefined, "Read more:", copyright]
+    return [title, summary, excerpt ? `"${excerpt}"` : undefined, "Read more:", copyright]
         .filter(Boolean)
         .join("\n\n");
 }
@@ -85,5 +85,5 @@ export function formatHighlightShareMessage({
     quote,
     articleTitle,
 }: HighlightShareMessageInput): string {
-    return [`💬 "${quote}"`, `— from "${articleTitle}"`, "Read more:"].join("\n\n");
+    return [`"${quote}"`, `— from "${articleTitle}"`, "Read more:"].join("\n\n");
 }
