@@ -395,16 +395,23 @@ if (!isSSG) {
     );
 }
 
+// All known Language docs by id — `cmsLanguages` (global, prerender-seeded) plus
+// `localLanguages` (client supplement for a translation whose Language doc isn't in the
+// public set). Used both for the dropdown (below) and for looking up the current article's
+// own language doc directly, independent of which translations happen to be published.
+const languagesById = computed(
+    () => new Map([...cmsLanguages.value, ...localLanguages.value].map((l) => [l._id, l])),
+);
+
 // Only translations whose Language doc is actually loaded get a dropdown entry — never
 // fabricate a languageCode from the language id. `cmsLanguages` (prerender) and the
 // `localLanguages` fetch (client) cover every referenced language, so an unloaded one is a
 // brief pre-load gap, not a permanent drop.
-const languages = computed<LanguageDto[]>(() => {
-    const byId = new Map([...cmsLanguages.value, ...localLanguages.value].map((l) => [l._id, l]));
-    return availableTranslations.value
-        .map((t) => byId.get(t.language))
-        .filter((l): l is LanguageDto => !!l);
-});
+const languages = computed<LanguageDto[]>(() =>
+    availableTranslations.value
+        .map((t) => languagesById.value.get(t.language))
+        .filter((l): l is LanguageDto => !!l),
+);
 
 // Tags drive the category chips and RelatedContent. In the prerender the seam fetches them chained after `content` (via `ssrChain`, so the selector reads a resolved parent) and primes a per-slug cache for no-flash hydration.
 const tags = useContentQuery(
@@ -555,9 +562,14 @@ const readingTrackerEnabled = computed(() => !!content.value?._id && !!content.v
 
 const contentId = computed(() => content.value?._id);
 
-const contentLanguage = computed(() =>
-    languages.value.find((l) => l._id === content.value?.language),
-);
+// Looked up from the full language map, not the translation-dropdown-only `languages`
+// (which is empty unless 2+ translations are published) — otherwise a single-language
+// article would always miss its own Language doc and silently fall back to the default
+// reading speed instead of the one configured for it.
+const contentLanguage = computed(() => {
+    const languageId = content.value?.language;
+    return languageId ? languagesById.value.get(languageId) : undefined;
+});
 
 const averageReadingSpeed = computed(() =>
     resolveReadingSpeedWpm(contentLanguage.value?.averageReadingSpeed),
