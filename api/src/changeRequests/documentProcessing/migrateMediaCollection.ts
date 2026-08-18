@@ -2,6 +2,7 @@ import { MediaDto } from "../../dto/MediaDto";
 import { DbService } from "../../db/db.service";
 import { S3Service } from "../../s3/s3.service";
 import { resolveCollectionPrefix } from "./deleteMediaCollection";
+import { isBucketRelative } from "./mediaUrl";
 
 /** What the encoder publishes at the root of a collection. */
 const MASTER = "master.m3u8";
@@ -77,7 +78,9 @@ export async function migrateMediaCollection(
     const oldBucket = oldResult.bucket;
     const newBucket = newResult.bucket;
 
-    if (!newBucket.publicUrl) {
+    // Only an absolute URL has to be rebuilt, and only that needs the
+    // destination's public URL.
+    if (!newBucket.publicUrl && !isBucketRelative(previousHlsUrl)) {
         warnings.push(
             "Media files were not moved: the destination bucket has no public URL configured, " +
                 "so the new media URL cannot be built.",
@@ -129,7 +132,14 @@ export async function migrateMediaCollection(
         }
 
         // Only now is the new location real, so only now may the document name it.
-        media.hlsUrl = `${newBucket.publicUrl.replace(/\/+$/, "")}/${prefix}/${MASTER}`;
+        //
+        // A relative URL already names a path inside whichever bucket the
+        // document points at, so moving buckets does not change it — which is
+        // the point of storing it that way. Only the legacy absolute form has
+        // to be rewritten.
+        if (!isBucketRelative(media.hlsUrl)) {
+            media.hlsUrl = `${newBucket.publicUrl.replace(/\/+$/, "")}/${prefix}/${MASTER}`;
+        }
 
         // Last, and its failure is not the migration's failure: the files are in
         // the new bucket and the document points at them. Leftovers in the old

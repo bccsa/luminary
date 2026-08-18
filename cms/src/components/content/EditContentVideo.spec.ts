@@ -90,6 +90,27 @@ describe("EditContentVideo.vue", () => {
         );
     });
 
+    it("warns before a saved key is replaced", async () => {
+        // The one edit on this form that cannot be undone: the media was
+        // encrypted with the old key and nothing keeps a copy of it.
+        const wrapper = mountVideo(parentWith({ hlsUrl: HLS_URL, hlsKey_id: "crypto-1" }));
+        expect(wrapper.find('[data-test="video-key-warning"]').exists()).toBe(false);
+
+        await wrapper.find("input[name='hlsKey']").setValue("beefbeefbeefbeef");
+
+        expect(wrapper.find('[data-test="video-key-warning"]').text()).toContain(
+            "unplayable",
+        );
+    });
+
+    it("does not warn when there is no saved key to replace", async () => {
+        const wrapper = mountVideo(parentWith({ hlsUrl: HLS_URL }));
+
+        await wrapper.find("input[name='hlsKey']").setValue("beefbeefbeefbeef");
+
+        expect(wrapper.find('[data-test="video-key-warning"]').exists()).toBe(false);
+    });
+
     it("explains when no key is needed", async () => {
         const wrapper = mountVideo(parentWith({ hlsUrl: HLS_URL }));
 

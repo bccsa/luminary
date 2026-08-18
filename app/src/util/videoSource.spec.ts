@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { videoSourceFor, hasVideoSource } from "./videoSource";
+import { videoSourceFor, hasVideoSource, resolveVideoSource } from "./videoSource";
 import type { ContentDto } from "luminary-shared";
 
 const content = (video?: string, hlsUrl?: string) =>
@@ -55,5 +55,41 @@ describe("hasVideoSource", () => {
 
     it("is false when neither is set", () => {
         expect(hasVideoSource(content())).toBe(false);
+    });
+});
+
+describe("resolveVideoSource", () => {
+    const BASE = "https://cdn.example.com/media";
+    const REL = "/c5829f07-4ba8-42ed-a449-80d83e6c0b53/master.m3u8";
+
+    it("joins a stored relative URL onto the bucket", () => {
+        const content = { parentMedia: { hlsUrl: REL } } as any;
+        expect(resolveVideoSource(content, BASE)).toBe(`${BASE}${REL}`);
+    });
+
+    it("tolerates a trailing slash on the bucket", () => {
+        const content = { parentMedia: { hlsUrl: REL } } as any;
+        expect(resolveVideoSource(content, `${BASE}/`)).toBe(`${BASE}${REL}`);
+    });
+
+    it("leaves an external URL alone — YouTube has no bucket", () => {
+        const yt = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
+        const content = { video: yt } as any;
+        expect(resolveVideoSource(content, BASE)).toBe(yt);
+    });
+
+    it("returns undefined while the bucket is still loading", () => {
+        // The honest answer: the URL is not knowable yet, and returning the
+        // bare path would have the browser fetch it from the app's own origin.
+        const content = { parentMedia: { hlsUrl: REL } } as any;
+        expect(resolveVideoSource(content, undefined)).toBeUndefined();
+    });
+
+    it("still prefers the encoded collection over a typed-in URL", () => {
+        const content = {
+            video: "https://example.com/old.m3u8",
+            parentMedia: { hlsUrl: REL },
+        } as any;
+        expect(resolveVideoSource(content, BASE)).toBe(`${BASE}${REL}`);
     });
 });

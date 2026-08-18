@@ -139,7 +139,7 @@ export default async function processPostTagDto(
         }
 
         try {
-            warnings.push(...(await processMedia(doc.media, db)));
+            warnings.push(...(await processMedia(doc.media, db, doc.mediaBucketId)));
         } catch (error) {
             warnings.push(`Media processing failed: ${error.message}`);
         }

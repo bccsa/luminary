@@ -56,6 +56,9 @@ const hlsKey = computed({
  */
 const hasStoredKey = computed(() => Boolean(parent.value?.media?.hlsKey_id));
 
+/** The user has typed a replacement over a key that is already saved. */
+const replacingKey = computed(() => Boolean(hlsKey.value));
+
 // Collapse the card only initially if there's no video
 watch(
     () => parent.value?.media?.hlsUrl,
@@ -111,6 +114,20 @@ watch(
             <template v-else>
                 Only needed for an encrypted collection. Encoding fills this in for you.
             </template>
+        </p>
+        <!--
+            Replacing a saved key is the one edit on this form that cannot be
+            undone by retyping: the media was encrypted with the old key, and
+            nothing keeps a copy of it. Warned at the moment of typing rather
+            than on save, because by then the old key is already gone.
+        -->
+        <p
+            v-if="hasStoredKey && replacingKey"
+            class="text-xs font-medium text-amber-600 dark:text-amber-500"
+            data-test="video-key-warning"
+        >
+            This replaces the saved key. Anything already encrypted with the old
+            one becomes unplayable, and the old key cannot be recovered.
         </p>
     </LCard>
 </template>

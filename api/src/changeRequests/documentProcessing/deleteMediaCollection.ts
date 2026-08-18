@@ -1,6 +1,7 @@
 import { MediaDto } from "../../dto/MediaDto";
 import { DbService } from "../../db/db.service";
 import { S3Service } from "../../s3/s3.service";
+import { isBucketRelative } from "./mediaUrl";
 
 /**
  * Where a collection lives in its bucket, or why we will not touch it.
@@ -37,21 +38,30 @@ export function resolveCollectionPrefix(
     publicUrl: string | undefined,
 ): PrefixResolution {
     if (!hlsUrl) return { refusal: "the document has no media URL" };
-    if (!publicUrl) return { refusal: "the bucket has no public URL configured" };
 
     // Query strings and fragments are addressing, not location.
     const url = hlsUrl.split(/[?#]/)[0];
-    const base = publicUrl.replace(/\/+$/, "");
 
-    // The separator has to be part of the match, or a bucket published at
-    // `https://cdn/media` would claim URLs belonging to `https://cdn/media-archive`.
-    if (!url.startsWith(`${base}/`)) {
-        return {
-            refusal: `the media URL is not in this bucket (expected it to start with ${base}/)`,
-        };
+    // A relative URL is already a key: it says where in this document's bucket
+    // the collection is and nothing else, so there is no public base to strip
+    // and no way for the two to disagree.
+    let key: string;
+    if (isBucketRelative(url)) {
+        key = url.slice(1);
+    } else {
+        if (!publicUrl) {
+            return { refusal: "the bucket has no public URL configured" };
+        }
+        const base = publicUrl.replace(/\/+$/, "");
+        // The separator has to be part of the match, or a bucket published at
+        // `https://cdn/media` would claim URLs belonging to `https://cdn/media-archive`.
+        if (!url.startsWith(`${base}/`)) {
+            return {
+                refusal: `the media URL is not in this bucket (expected it to start with ${base}/)`,
+            };
+        }
+        key = url.slice(base.length + 1);
     }
-
-    const key = url.slice(base.length + 1);
 
     // Named before the suffix check below, which would otherwise report a master
     // at the bucket root as "not a master playlist" — true but unhelpful for the
