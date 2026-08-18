@@ -7,9 +7,9 @@ RUN npm ci
 RUN npm run build
 
 # Build the encoder's player libraries. They ship only dist/, and app depends on
-# player-web by path (file:../media-convert/player-web), so this has to happen
-# before app installs. The submodule's own workspace links resolve player-core
-# and hls-core underneath it.
+# player-web-legacy by path (file:../media-convert/player-web-legacy), so this
+# has to happen before app installs. The submodule's own workspace links resolve
+# player-core and hls-core underneath it.
 WORKDIR /media-convert
 COPY ./media-convert ./
 RUN npm ci
