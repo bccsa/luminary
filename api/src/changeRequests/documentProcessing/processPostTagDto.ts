@@ -139,11 +139,13 @@ export default async function processPostTagDto(
             }
         }
 
-        try {
-            warnings.push(...(await processMedia(doc.media, db, doc.mediaBucketId)));
-        } catch (error) {
-            warnings.push(`Media processing failed: ${error.message}`);
-        }
+        // A failed key store must fail the change request, not become a warning: the
+        // plaintext key exists only for the duration of this request (processMedia has
+        // already dropped it by the time the error is caught), so saving the Post with
+        // an `hlsUrl` and no `hlsKey_id` would leave an unplayable, unrecoverable
+        // collection. Let it throw — processChangeRequest has no catch here, so the CR
+        // fails and the editor still holds the key to retry.
+        warnings.push(...(await processMedia(doc.media, doc, db)));
     }
 
     // Get content documents that are children of the Post / Tag document

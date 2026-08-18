@@ -1,6 +1,11 @@
 import { MediaDto } from "../../dto/MediaDto";
+import { PostDto } from "../../dto/PostDto";
+import { TagDto } from "../../dto/TagDto";
 import { DbService } from "../../db/db.service";
-import { retrieveCryptoData, storeCryptoData } from "../../util/encryption";
+import { SidecarType } from "../../enums";
+import { maskKeyHex } from "../../util/maskKey";
+import { sidecarId } from "../../sidecar/sidecar.service";
+import { HlsEncryptionKeyData, upsertHlsKeySidecar } from "../../sidecar/hlsEncryptionKey";
 import { toStoredMediaUrl } from "./mediaUrl";
 
 /**
@@ -11,9 +16,11 @@ import { toStoredMediaUrl } from "./mediaUrl";
  * the document carries a URL to a collection this API never handles the bytes of on
  * the way in.
  *
- * What this function handles is the decryption key. It arrives once, on the change
- * request that first saves the collection, and is stored as a crypto object so it
- * never rests in plain text on the content document.
+ * What does need handling is the decryption key. It arrives once, on the change
+ * request that first saves the collection, and is stored as a masked sidecar so
+ * the raw key never rests on the content document or in a log line. The sidecar
+ * carries the parent's `memberOf` so the permission system gates it. See
+ * docs/sidecar/04 and docs/sidecar/06.
  *
  * Moving and removing the collection are the caller's, in `processPostTagDto`:
  * `migrateMediaCollection` on a bucket change and `deleteMediaCollection` when the
@@ -21,16 +28,16 @@ import { toStoredMediaUrl } from "./mediaUrl";
  */
 export async function processMedia(
     media: MediaDto,
+    parent: PostDto | TagDto,
     db: DbService,
-    bucketId?: string,
 ): Promise<string[]> {
     const warnings: string[] = [];
 
     // Stored relative to the bucket the document already names, so the two
     // cannot disagree later. External URLs are left alone — see mediaUrl.ts.
-    if (media.hlsUrl && bucketId) {
+    if (media.hlsUrl && parent.mediaBucketId) {
         try {
-            const result = await db.getDoc(bucketId);
+            const result = await db.getDoc(parent.mediaBucketId);
             const publicUrl = result.docs?.[0]?.publicUrl;
             media.hlsUrl = toStoredMediaUrl(media.hlsUrl, publicUrl) as string;
         } catch (error) {
@@ -42,33 +49,15 @@ export async function processMedia(
 
     if (!media.hlsKey) return warnings;
 
-    // Re-submitting the key that is already stored is not a change. The CMS
-    // cannot tell — a saved key is only ever an id there, and the plaintext is
-    // never readable again — so it asks the user to confirm a replacement it
-    // cannot rule out. Here the two can actually be compared, and an identical
-    // key keeps its existing crypto object rather than minting a second one and
-    // orphaning the first.
-    if (media.hlsKey_id) {
-        try {
-            const stored = await retrieveCryptoData<string>(db, media.hlsKey_id);
-            if (stored === media.hlsKey) {
-                delete media.hlsKey;
-                return warnings;
-            }
-        } catch {
-            // Unreadable — a rotated ENCRYPTION_KEY, a missing crypto doc — so
-            // there is nothing to compare against and the submitted key is
-            // stored as a replacement, which is the safe direction.
-        }
-    }
-
     try {
-        media.hlsKey_id = await storeCryptoData<string>(db, media.hlsKey);
+        const seed = sidecarId(parent._id, SidecarType.HlsEncryptionKey);
+        const data: HlsEncryptionKeyData = { maskedKeyHex: maskKeyHex(seed, media.hlsKey) };
+        media.hlsKey_id = await upsertHlsKeySidecar(db, parent, data);
     } catch (error) {
-        throw new Error(`Failed to encrypt the HLS key: ${error.message}`);
+        throw new Error(`Failed to store the HLS key: ${error.message}`);
     } finally {
         // Dropped whether or not it was stored, and before the caller can catch:
-        // a key that failed to encrypt must not reach the document either.
+        // a key that failed to store must not reach the document either.
         delete media.hlsKey;
     }
 

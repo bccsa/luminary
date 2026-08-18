@@ -500,27 +500,29 @@ describe("processPostTagDto", () => {
         ).rejects.toThrow("Bucket is not specified for media processing");
     });
 
-    it("warns rather than failing the save when media processing throws", async () => {
+    it("fails the change request when the key store throws (no silent key loss)", async () => {
         const changeRequest = changeRequest_post();
         changeRequest.doc._id = "post-med-throw";
         (changeRequest.doc as PostDto).mediaBucketId = "media-bucket";
         (changeRequest.doc as PostDto).media = {
             hlsUrl: "http://test.com/media/post-med-throw/master.m3u8",
+            hlsKey: "0123456789abcdef0123456789abcdef",
         };
 
         (processMedia as jest.Mock).mockRejectedValueOnce(new Error("key store unavailable"));
 
-        const result = await processChangeRequest(
-            "test-user",
-            changeRequest,
-            ["group-super-admins"],
-            db,
-        );
+        // A key that could not be stored must fail the change request, not become a
+        // warning: the plaintext key existed only for this request (processMedia has
+        // already dropped it), so saving the Post with an `hlsUrl` and no `hlsKey_id`
+        // would leave an unplayable, unrecoverable collection. The save fails so the
+        // editor still holds the key and can retry. See docs/sidecar/04.
+        await expect(
+            processChangeRequest("test-user", changeRequest, ["group-super-admins"], db),
+        ).rejects.toThrow("key store unavailable");
 
-        // A key that could not be stored costs the encryption, not the document —
-        // processMedia has already dropped the plaintext key by this point.
-        expect(result.warnings.some((w) => w.includes("Media processing failed"))).toBe(true);
-        expect(result.result.ok).toBe(true);
+        // The Post was not saved.
+        const res = await db.getDoc("post-med-throw");
+        expect(res.docs).toHaveLength(0);
     });
 
     it("copies tag properties to content documents for Tag type", async () => {
@@ -558,7 +560,7 @@ describe("processPostTagDto", () => {
         }
     });
 
-    it("passes the media object and the db to processMedia on save", async () => {
+    it("passes the media object, the parent doc, and the db to processMedia on save", async () => {
         const changeRequest = changeRequest_post();
         changeRequest.doc._id = "post-blog8";
         (changeRequest.doc as PostDto).mediaBucketId = "test-bucket-id";
@@ -571,11 +573,16 @@ describe("processPostTagDto", () => {
 
         await processChangeRequest("test-user", changeRequest, ["group-super-admins"], db);
 
-        // The bucket goes with it: the stored URL is made relative to it.
+        // The parent passed in is the class-transformer-instantiated PostDto inside
+        // processPostTagDto, not the raw changeRequest.doc fixture, so match it by its
+        // identifying fields rather than by deep equality against the fixture.
         expect(processMedia).toHaveBeenCalledWith(
             (changeRequest.doc as PostDto).media,
+            expect.objectContaining({
+                _id: "post-blog8",
+                type: DocType.Post,
+            }),
             db,
-            "test-bucket-id",
         );
     });
 });

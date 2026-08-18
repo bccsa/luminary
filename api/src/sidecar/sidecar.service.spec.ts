@@ -12,7 +12,7 @@ import {
     syncSidecarMemberOf,
     upsertSidecar,
 } from "./sidecar.service";
-import { getHlsKeySidecar, isHlsEncryptionKeyData, upsertHlsKeySidecar } from "./hlsEncryptionKey";
+import { getHlsKeySidecar, isHlsEncryptionKeyData } from "./hlsEncryptionKey";
 
 // Pure unit tests for the key guard and ID scheme — no DB, runnable by anyone.
 describe("sidecar (pure unit)", () => {
