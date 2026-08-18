@@ -1,0 +1,4 @@
+[submodule "media-convert"]
+	path = media-convert
+	url = https://github.com/bccsa/luminary-media-convert.git
+	branch = 185-rename-hls-core
