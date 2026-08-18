@@ -90,6 +90,48 @@ describe("EditContentVideo.vue", () => {
         );
     });
 
+    it("asks the exact question before replacing a saved key", async () => {
+        const wrapper = mountVideo(parentWith({ hlsUrl: HLS_URL, hlsKey_id: "crypto-1" }));
+
+        await wrapper.find("input[name='hlsKey']").setValue("beefbeefbeefbeef");
+
+        expect(wrapper.text()).toContain("Replace the encryption key?");
+        expect(wrapper.text()).toContain("unplayable");
+    });
+
+    it("does not ask when there is no saved key", async () => {
+        const wrapper = mountVideo(parentWith({ hlsUrl: HLS_URL }));
+
+        await wrapper.find("input[name='hlsKey']").setValue("beefbeefbeefbeef");
+
+        expect(wrapper.text()).not.toContain("Replace the encryption key?");
+    });
+
+    it("offers to enter a new key once one is saved", async () => {
+        const wrapper = mountVideo(parentWith({ hlsUrl: HLS_URL, hlsKey_id: "crypto-1" }));
+
+        expect(
+            wrapper.find("input[name='hlsKey']").attributes("placeholder"),
+        ).toBe("Enter new encryption key");
+    });
+
+    it("clears the field when the replacement is declined", async () => {
+        // Declining has to leave nothing behind: a half-typed key that reached
+        // the document would replace the saved one at the next save.
+        const parent = parentWith({ hlsUrl: HLS_URL, hlsKey_id: "crypto-1" });
+        const wrapper = mountVideo(parent);
+
+        await wrapper.find("input[name='hlsKey']").setValue("beefbeefbeefbeef");
+        expect(parent.value.media?.hlsKey).toBe("beefbeefbeefbeef");
+
+        const cancel = wrapper
+            .findAll("button")
+            .find((b) => b.text().includes("Cancel"));
+        await cancel!.trigger("click");
+
+        expect(parent.value.media?.hlsKey).toBeUndefined();
+    });
+
     it("warns before a saved key is replaced", async () => {
         // The one edit on this form that cannot be undone: the media was
         // encrypted with the old key and nothing keeps a copy of it.
