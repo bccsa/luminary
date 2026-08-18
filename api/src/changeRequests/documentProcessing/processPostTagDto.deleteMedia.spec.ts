@@ -115,6 +115,19 @@ describe("processPostTagDto — deleting media files from storage", () => {
         expect(warnings.some((w) => w.includes("unreachable"))).toBe(true);
     });
 
+    it("says nothing when the media is hosted elsewhere", async () => {
+        // Nothing in this bucket to delete, and no instruction to go looking.
+        (deleteMediaCollection as jest.Mock).mockResolvedValueOnce([]);
+        const incoming = deleteRequest(true);
+        incoming.media!.hlsUrl = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
+        const saved_ = saved();
+        saved_.media!.hlsUrl = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
+
+        const warnings = await processPostTagDto(incoming, saved_, stubDb());
+
+        expect(warnings).toEqual([]);
+    });
+
     it("still cascades the delete to the child content documents", async () => {
         // The media work must not displace what the delete path is actually for.
         const db = stubDb();

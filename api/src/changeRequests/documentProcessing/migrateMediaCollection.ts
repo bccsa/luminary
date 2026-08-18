@@ -2,6 +2,7 @@ import { MediaDto } from "../../dto/MediaDto";
 import { DbService } from "../../db/db.service";
 import { S3Service } from "../../s3/s3.service";
 import { resolveCollectionPrefix } from "./deleteMediaCollection";
+import { isBucketRelative, toStoredMediaUrl } from "./mediaUrl";
 
 /** What the encoder publishes at the root of a collection. */
 const MASTER = "master.m3u8";
@@ -77,7 +78,9 @@ export async function migrateMediaCollection(
     const oldBucket = oldResult.bucket;
     const newBucket = newResult.bucket;
 
-    if (!newBucket.publicUrl) {
+    // Only an absolute URL has to be rebuilt, and only that needs the
+    // destination's public URL.
+    if (!newBucket.publicUrl && !isBucketRelative(previousHlsUrl)) {
         warnings.push(
             "Media files were not moved: the destination bucket has no public URL configured, " +
                 "so the new media URL cannot be built.",
@@ -87,6 +90,16 @@ export async function migrateMediaCollection(
 
     // The same proof used before deleting: a prefix we cannot derive from the
     // bucket's own public base is a collection we did not write.
+    // Media that is not in the old bucket is not ours to move: a YouTube link
+    // or a master on someone else's CDN belongs to whoever serves it, and the
+    // bucket change is about where *future* output goes. Treating that as a
+    // failed migration would revert a change the user made deliberately and
+    // warn about files that were never going anywhere.
+    const external =
+        !isBucketRelative(previousHlsUrl) &&
+        toStoredMediaUrl(previousHlsUrl, oldBucket.publicUrl) === previousHlsUrl;
+    if (external) return { failed: false, warnings };
+
     const resolved = resolveCollectionPrefix(previousHlsUrl, oldBucket.publicUrl);
     if ("refusal" in resolved) {
         warnings.push(`Media files were not moved because ${resolved.refusal}.`);
@@ -129,7 +142,14 @@ export async function migrateMediaCollection(
         }
 
         // Only now is the new location real, so only now may the document name it.
-        media.hlsUrl = `${newBucket.publicUrl.replace(/\/+$/, "")}/${prefix}/${MASTER}`;
+        //
+        // A relative URL already names a path inside whichever bucket the
+        // document points at, so moving buckets does not change it — which is
+        // the point of storing it that way. Only the legacy absolute form has
+        // to be rewritten.
+        if (!isBucketRelative(media.hlsUrl)) {
+            media.hlsUrl = `${newBucket.publicUrl.replace(/\/+$/, "")}/${prefix}/${MASTER}`;
+        }
 
         // Last, and its failure is not the migration's failure: the files are in
         // the new bucket and the document points at them. Leftovers in the old

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import AudioVideoToggle from "../form/AudioVideoToggle.vue";
 import "videojs-mobile-ui";
 import type Player from "video.js/dist/types/player";
@@ -14,7 +14,8 @@ import { affinityConfig } from "@/recommendation/defaultAffinityStore";
 import { markSeen } from "@/recommendation/seenStore";
 import { extractAndBuildAudioMaster } from "./extractAndBuildAudioMaster";
 import { isYouTubeUrl, convertToVideoJSYouTubeUrl } from "@/util/youtube";
-import { videoSourceFor } from "@/util/videoSource";
+import { resolveVideoSource, videoSourceFor } from "@/util/videoSource";
+import { useBucketInfo } from "@/composables/useBucketInfo";
 
 type Props = {
     content: ContentDto;
@@ -22,6 +23,11 @@ type Props = {
 };
 
 const props = defineProps<Props>();
+
+// The media bucket, so a stored relative URL can be resolved to a fetchable
+// one — see resolveVideoSource.
+const mediaBucketIdRef = computed(() => props.content?.parentMediaBucketId);
+const { bucketBaseUrl: mediaBucketBaseUrl } = useBucketInfo(mediaBucketIdRef);
 
 const playerElement = ref<HTMLVideoElement>();
 const audioModeToggle = ref<typeof AudioVideoToggle>();
@@ -39,8 +45,8 @@ const isRestoringTrack = ref<boolean>(false);
 const isYouTube = ref<boolean>(false);
 
 // Check if the current video is a YouTube video
-if (videoSourceFor(props.content)) {
-    isYouTube.value = isYouTubeUrl(videoSourceFor(props.content)!);
+if (resolveVideoSource(props.content, mediaBucketBaseUrl.value)) {
+    isYouTube.value = isYouTubeUrl(resolveVideoSource(props.content, mediaBucketBaseUrl.value)!);
     if (isYouTube.value) {
         // hides audio mode toggle for YouTube videos as it's not supported
         showAudioModeToggle.value = false;
@@ -237,7 +243,7 @@ onMounted(async () => {
         player.poster(px); // Set the player poster to a 1px transparent image to prevent the default poster from showing
 
         // Set player source based on video type (YouTube vs regular)
-        const videoSource = videoSourceFor(props.content);
+        const videoSource = resolveVideoSource(props.content, mediaBucketBaseUrl.value);
         if (isYouTube.value && props.content.video) {
             // For YouTube videos, disable audio-only mode toggle since it's not supported for YouTube videos
             showAudioModeToggle.value = false;
@@ -371,7 +377,7 @@ onMounted(async () => {
             const currentTime = player?.currentTime() || 0;
             const durationTime = player?.duration() || 0;
 
-            const videoSource = videoSourceFor(props.content);
+            const videoSource = resolveVideoSource(props.content, mediaBucketBaseUrl.value);
             if (durationTime == Infinity || !videoSource || currentTime < 60) return;
 
             // For YouTube videos, aggressively check if we're at the end and remove progress
@@ -395,7 +401,7 @@ onMounted(async () => {
 
         // Get and apply the player saved progress (rewind 30 seconds)
         player.on("ready", () => {
-            const videoSource = videoSourceFor(props.content);
+            const videoSource = resolveVideoSource(props.content, mediaBucketBaseUrl.value);
             if (!videoSource) return;
 
             // For YouTube videos, wait for loadedmetadata to restore progress (iframe needs to be ready)
@@ -406,7 +412,7 @@ onMounted(async () => {
         });
 
         player.on("ended", () => {
-            const videoSource = videoSourceFor(props.content);
+            const videoSource = resolveVideoSource(props.content, mediaBucketBaseUrl.value);
             if (!videoSource) return;
             stopKeepAudioAlive();
 
@@ -431,7 +437,7 @@ onMounted(async () => {
         });
 
         player.on("pause", () => {
-            const videoSource = videoSourceFor(props.content);
+            const videoSource = resolveVideoSource(props.content, mediaBucketBaseUrl.value);
             if (!videoSource) return;
 
             if (audioMode.value) syncKeepAudioStateAlive();
@@ -506,7 +512,7 @@ watch(audioMode, async (mode) => {
 
     // Generate the audio playlist with the currently selected track as default
     // This ensures the player loads the correct track immediately without needing to switch
-    const videoSource = videoSourceFor(props.content);
+    const videoSource = resolveVideoSource(props.content, mediaBucketBaseUrl.value);
     let audioPlaylistUrl: string | null = null;
     if (mode && videoSource) {
         const audioMaster = await extractAndBuildAudioMaster(videoSource, selectedTrackInfo);

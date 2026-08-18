@@ -11,6 +11,28 @@ const refusalOf = (r: ReturnType<typeof resolveCollectionPrefix>) =>
     "refusal" in r ? r.refusal : undefined;
 
 describe("resolveCollectionPrefix", () => {
+    describe("a URL stored relative to the bucket", () => {
+        it("needs no public URL at all — the path is already the key", () => {
+            const r = resolveCollectionPrefix(
+                "/c5829f07-4ba8-42ed-a449-80d83e6c0b53/master.m3u8",
+                undefined,
+            );
+            expect("prefix" in r && r.prefix).toBe(
+                "c5829f07-4ba8-42ed-a449-80d83e6c0b53",
+            );
+        });
+
+        it("still refuses a folder the encoder did not write", () => {
+            const r = resolveCollectionPrefix("/shared-folder/master.m3u8", undefined);
+            expect("refusal" in r && r.refusal).toContain("not a session id");
+        });
+
+        it("still refuses the bucket root", () => {
+            const r = resolveCollectionPrefix("/master.m3u8", undefined);
+            expect("refusal" in r && r.refusal).toContain("bucket root");
+        });
+    });
+
     describe("resolves a collection this API wrote", () => {
         it("strips the bucket's public base and the master filename", () => {
             expect(prefixOf(resolveCollectionPrefix(HLS, PUBLIC))).toBe(SESSION);

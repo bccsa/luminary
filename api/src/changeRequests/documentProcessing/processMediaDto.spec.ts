@@ -45,6 +45,37 @@ describe("processMediaDto", () => {
         expect(first.hlsKey_id).not.toBe(second.hlsKey_id);
     });
 
+    it("re-submitting the same key changes nothing", async () => {
+        // The CMS cannot tell whether a typed key matches the stored one — a
+        // saved key is only an id there — so it asks the user to confirm a
+        // replacement. Here the two can be compared, and an identical key must
+        // not mint a second crypto object and orphan the first.
+        const media: MediaDto = { hlsUrl: HLS_URL, hlsKey: HLS_KEY };
+        await processMedia(media, db);
+        const firstId = media.hlsKey_id;
+
+        media.hlsKey = HLS_KEY;
+        await processMedia(media, db);
+
+        expect(media.hlsKey_id).toBe(firstId);
+        expect(media.hlsKey).toBeUndefined();
+        await expect(retrieveCryptoData<string>(db, media.hlsKey_id!)).resolves.toBe(HLS_KEY);
+    });
+
+    it("a genuinely different key does replace the reference", async () => {
+        const media: MediaDto = { hlsUrl: HLS_URL, hlsKey: HLS_KEY };
+        await processMedia(media, db);
+        const firstId = media.hlsKey_id;
+
+        media.hlsKey = "fedcba9876543210fedcba9876543210";
+        await processMedia(media, db);
+
+        expect(media.hlsKey_id).not.toBe(firstId);
+        await expect(retrieveCryptoData<string>(db, media.hlsKey_id!)).resolves.toBe(
+            "fedcba9876543210fedcba9876543210",
+        );
+    });
+
     it("leaves an unencrypted collection alone", async () => {
         const media: MediaDto = { hlsUrl: HLS_URL };
 

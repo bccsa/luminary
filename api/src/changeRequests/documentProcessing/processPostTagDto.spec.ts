@@ -571,6 +571,11 @@ describe("processPostTagDto", () => {
 
         await processChangeRequest("test-user", changeRequest, ["group-super-admins"], db);
 
-        expect(processMedia).toHaveBeenCalledWith((changeRequest.doc as PostDto).media, db);
+        // The bucket goes with it: the stored URL is made relative to it.
+        expect(processMedia).toHaveBeenCalledWith(
+            (changeRequest.doc as PostDto).media,
+            db,
+            "test-bucket-id",
+        );
     });
 });

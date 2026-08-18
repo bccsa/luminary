@@ -1,6 +1,7 @@
 import { MediaDto } from "../../dto/MediaDto";
 import { DbService } from "../../db/db.service";
-import { storeCryptoData } from "../../util/encryption";
+import { retrieveCryptoData, storeCryptoData } from "../../util/encryption";
+import { toStoredMediaUrl } from "./mediaUrl";
 
 /**
  * Processes the media object on a content parent document.
@@ -18,10 +19,48 @@ import { storeCryptoData } from "../../util/encryption";
  * `migrateMediaCollection` on a bucket change and `deleteMediaCollection` when the
  * document is deleted and the user asked for the files to go with it.
  */
-export async function processMedia(media: MediaDto, db: DbService): Promise<string[]> {
+export async function processMedia(
+    media: MediaDto,
+    db: DbService,
+    bucketId?: string,
+): Promise<string[]> {
     const warnings: string[] = [];
 
+    // Stored relative to the bucket the document already names, so the two
+    // cannot disagree later. External URLs are left alone — see mediaUrl.ts.
+    if (media.hlsUrl && bucketId) {
+        try {
+            const result = await db.getDoc(bucketId);
+            const publicUrl = result.docs?.[0]?.publicUrl;
+            media.hlsUrl = toStoredMediaUrl(media.hlsUrl, publicUrl) as string;
+        } catch (error) {
+            // Not fatal: an absolute URL still plays, and the next save
+            // normalises it once the bucket is readable again.
+            warnings.push(`Could not normalise the media URL: ${error.message}`);
+        }
+    }
+
     if (!media.hlsKey) return warnings;
+
+    // Re-submitting the key that is already stored is not a change. The CMS
+    // cannot tell — a saved key is only ever an id there, and the plaintext is
+    // never readable again — so it asks the user to confirm a replacement it
+    // cannot rule out. Here the two can actually be compared, and an identical
+    // key keeps its existing crypto object rather than minting a second one and
+    // orphaning the first.
+    if (media.hlsKey_id) {
+        try {
+            const stored = await retrieveCryptoData<string>(db, media.hlsKey_id);
+            if (stored === media.hlsKey) {
+                delete media.hlsKey;
+                return warnings;
+            }
+        } catch {
+            // Unreadable — a rotated ENCRYPTION_KEY, a missing crypto doc — so
+            // there is nothing to compare against and the submitted key is
+            // stored as a replacement, which is the safe direction.
+        }
+    }
 
     try {
         media.hlsKey_id = await storeCryptoData<string>(db, media.hlsKey);

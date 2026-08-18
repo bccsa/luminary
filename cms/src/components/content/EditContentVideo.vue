@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import LDialog from "@/components/common/LDialog.vue";
 import LCard from "@/components/common/LCard.vue";
 import LInput from "@/components/forms/LInput.vue";
 import { VideoCameraIcon, LinkIcon, KeyIcon } from "@heroicons/vue/20/solid";
@@ -49,12 +50,41 @@ const hlsKey = computed({
 });
 
 /**
+ * Replacing a saved key is confirmed once, on the first keystroke.
+ *
+ * The damage is done at save, but the decision is made here — and asking at save
+ * time would mean asking about an edit the user made minutes earlier, next to
+ * every other change they are committing. Confirmed once rather than per
+ * keystroke: a key is typed or pasted in one go, and a dialog per character
+ * would be unusable. Declining clears the field, so the saved key survives.
+ */
+const confirmReplaceOpen = ref(false);
+const replaceConfirmed = ref(false);
+
+/** True once the field holds a replacement for a key that is already saved. */
+const replacingKey = computed(() => Boolean(hlsKey.value));
+
+function onKeyInput(value: string) {
+    if (hasStoredKey.value && value && !replaceConfirmed.value) {
+        confirmReplaceOpen.value = true;
+    }
+    hlsKey.value = value;
+}
+
+function cancelReplace() {
+    hlsKey.value = undefined;
+    replaceConfirmed.value = false;
+    confirmReplaceOpen.value = false;
+}
+
+/**
  * A stored key is only ever a reference: the API encrypts the submitted key into a
  * crypto object on save and returns its id, so the key itself is never readable
  * again. The field therefore starts empty on a saved document, and saying so beats
  * an empty box that looks like no key at all.
  */
 const hasStoredKey = computed(() => Boolean(parent.value?.media?.hlsKey_id));
+
 
 // Collapse the card only initially if there's no video
 watch(
@@ -93,12 +123,11 @@ watch(
 
         <LInput
             name="hlsKey"
-            v-model="hlsKey"
+            :modelValue="hlsKey"
+            @update:modelValue="onKeyInput"
             :icon="KeyIcon"
             :placeholder="
-                hasStoredKey
-                    ? 'A key is saved — type a new one to replace it'
-                    : 'Encryption key (hex)'
+                hasStoredKey ? 'Enter new encryption key' : 'Encryption key (hex)'
             "
             :disabled="disabled"
             class="pb-1"
@@ -112,5 +141,36 @@ watch(
                 Only needed for an encrypted collection. Encoding fills this in for you.
             </template>
         </p>
+        <!--
+            Replacing a saved key is the one edit on this form that cannot be
+            undone by retyping: the media was encrypted with the old key, and
+            nothing keeps a copy of it. Warned at the moment of typing rather
+            than on save, because by then the old key is already gone.
+        -->
+        <p
+            v-if="hasStoredKey && replacingKey"
+            class="text-xs font-medium text-amber-600 dark:text-amber-500"
+            data-test="video-key-warning"
+        >
+            This replaces the saved key. Anything already encrypted with the old
+            one becomes unplayable, and the old key cannot be recovered.
+        </p>
     </LCard>
+
+    <LDialog
+        v-model:open="confirmReplaceOpen"
+        title="Replace the encryption key?"
+        description="This video already has a key saved. Replacing it makes anything encrypted with the old key unplayable, and the old key cannot be recovered."
+        :primaryAction="
+            () => {
+                replaceConfirmed = true;
+                confirmReplaceOpen = false;
+            }
+        "
+        :secondaryAction="cancelReplace"
+        primaryButtonText="Replace key"
+        secondaryButtonText="Cancel"
+        context="danger"
+        :showClosingButton="false"
+    />
 </template>

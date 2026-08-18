@@ -99,7 +99,12 @@ describe("processPostTagDto — migrating media between buckets", () => {
 
         await processPostTagDto(incoming, post("bucket-old"), stubDb());
 
-        expect(processMedia).toHaveBeenCalledWith(incoming.media, expect.anything());
+        expect(processMedia).toHaveBeenCalledWith(
+            incoming.media,
+            expect.anything(),
+            // the bucket, so the stored URL can be made relative to it
+            "bucket-new",
+        );
     });
 
     it("does not migrate on a delete request", async () => {
