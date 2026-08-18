@@ -92,6 +92,9 @@ describe("configuration", () => {
         delete process.env.QUERY_MAX_LIMIT;
         delete process.env.QUERY_EXPENSIVE_DOCS_EXAMINED;
         delete process.env.QUERY_EXPENSIVE_EXAMINED_RATIO;
+        delete process.env.QUERY_MAX_FANOUT_PARENTS;
+        delete process.env.QUERY_FANOUT_CONCURRENCY;
+        delete process.env.QUERY_FANOUT_STRIKE_THRESHOLD;
         delete process.env.QUERY_RATE_LIMIT_ENABLED;
         delete process.env.QUERY_RATE_LIMIT_FREE_STRIKES;
         delete process.env.QUERY_RATE_LIMIT_BASE_BACKOFF_MS;
@@ -102,6 +105,9 @@ describe("configuration", () => {
         expect(config.query.maxLimit).toBe(500);
         expect(config.query.expensiveDocsExamined).toBe(1000);
         expect(config.query.expensiveExaminedRatio).toBe(10);
+        expect(config.query.maxFanoutParents).toBe(200);
+        expect(config.query.fanoutConcurrency).toBe(20);
+        expect(config.query.fanoutStrikeThreshold).toBe(25);
         expect(config.query.rateLimit).toEqual({
             enabled: false,
             freeStrikes: 3,
@@ -120,5 +126,16 @@ describe("configuration", () => {
         expect(config.query.rateLimit.enabled).toBe(true);
         expect(config.query.rateLimit.freeStrikes).toBe(5);
         expect(config.query.expensiveDocsExamined).toBe(2000);
+    });
+
+    it("should read the fan-out cap/concurrency/strike config from env vars", () => {
+        process.env.QUERY_MAX_FANOUT_PARENTS = "50";
+        process.env.QUERY_FANOUT_CONCURRENCY = "5";
+        process.env.QUERY_FANOUT_STRIKE_THRESHOLD = "10";
+
+        const config = configuration();
+        expect(config.query.maxFanoutParents).toBe(50);
+        expect(config.query.fanoutConcurrency).toBe(5);
+        expect(config.query.fanoutStrikeThreshold).toBe(10);
     });
 });
