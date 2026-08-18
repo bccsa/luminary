@@ -68,6 +68,16 @@ const preferredLanguage = computed(
     () => props.language || appLanguagesPreferredAsRef.value[0]?.languageCode || undefined,
 );
 
+/**
+ * Which of the player's own controls this app offers.
+ *
+ * The subtitles menu is off because the app's control bar has never had one, and
+ * Luminary ships no sidecar subtitles: video.js would hide the button today
+ * anyway, but the first stream carrying a caption track would otherwise put a
+ * new control in front of every viewer without anyone deciding to.
+ */
+const controls = { subtitlesMenu: false };
+
 const source = computed<PlayerSource | null>(() => {
     const url = videoSource.value;
     if (!url) return null;
@@ -171,6 +181,7 @@ function onEnded() {
                 ref="player"
                 :source="source"
                 :preferred-language="preferredLanguage"
+                :controls="controls"
                 :data-matomo-title="content.title"
                 @loadedmetadata="onLoadedMetadata"
                 @timeupdate="onTimeUpdate"
