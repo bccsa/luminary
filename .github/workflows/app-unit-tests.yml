@@ -22,6 +22,10 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+        with:
+          # The encoder's player packages are consumed from media-convert/,
+          # which is a submodule rather than a published package.
+          submodules: true
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
