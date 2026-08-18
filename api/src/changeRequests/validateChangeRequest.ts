@@ -16,6 +16,7 @@ import { RedirectDto } from "../dto/RedirectDto";
 import { StorageDto } from "../dto/StorageDto";
 import { AuthProviderDto } from "../dto/AuthProviderDto";
 import { AutoGroupMappingsDto } from "../dto/AutoGroupMappingsDto";
+import { DefaultAffinityDto } from "../dto/DefaultAffinityDto";
 /**
  * DocType to DTO map
  */
@@ -30,6 +31,7 @@ const DocTypeMap = {
     storage: StorageDto,
     authProvider: AuthProviderDto,
     autoGroupMappings: AutoGroupMappingsDto,
+    defaultAffinity: DefaultAffinityDto,
 };
 
 /**

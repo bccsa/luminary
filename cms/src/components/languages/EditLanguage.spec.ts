@@ -102,7 +102,7 @@ describe("EditLanguage.vue", () => {
 
         // Update language name and code
         await currentLanguage[0].setValue("English (updated)");
-        await currentLanguage[1].setValue("eng (updated)");
+        await currentLanguage[1].setValue("en-US");
 
         // Trigger save action
         await wrapper.find('[data-test="save-button"]').trigger("click");
@@ -114,8 +114,29 @@ describe("EditLanguage.vue", () => {
             )[0] as LanguageDto;
 
             expect(updatedLanguage.name).toBe("English (updated)");
-            expect(updatedLanguage.languageCode).toBe("eng (updated)");
+            expect(updatedLanguage.languageCode).toBe("en-US");
         });
+    });
+
+    it("should not save if language code is not a valid BCP 47 language tag", async () => {
+        const wrapper = mount(EditLanguage, {
+            props: {
+                id: mockLanguageDtoEng._id,
+            },
+        });
+
+        await ensureValidFormData(wrapper);
+
+        const currentLanguage = wrapper.findAll("input");
+        await currentLanguage[1].setValue("not a valid tag");
+
+        await wrapper.find('[data-test="save-button"]').trigger("click");
+
+        const updatedLanguage = (
+            await db.docs.where({ _id: mockLanguageDtoEng._id }).toArray()
+        )[0] as LanguageDto;
+
+        expect(updatedLanguage.languageCode).toBe(mockLanguageDtoEng.languageCode);
     });
 
     it("translation strings: can add a new translation", async () => {

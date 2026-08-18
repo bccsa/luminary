@@ -495,6 +495,7 @@ describe("AuthGuard (Integrated)", () => {
 
         mockDbService = {
             getDoc: jest.fn().mockResolvedValue({ docs: [baseProviderDoc] }),
+            getDocs: jest.fn(),
             executeFindQuery: jest.fn(),
             upsertDoc: jest.fn().mockResolvedValue({}),
         };

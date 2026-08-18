@@ -106,7 +106,6 @@ export class QueryService {
             );
         if (type === DocType.Crypto || docType === DocType.Crypto)
             throw new HttpException("Forbidden", HttpStatus.FORBIDDEN);
-
         if (type === DocType.DeleteCmd && !docType)
             throw new HttpException(
                 "'docType' field is required for DeleteCmd type",

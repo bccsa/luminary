@@ -26,6 +26,26 @@ vi.mock("vue-i18n", () => ({
     }),
 }));
 
+// Cold/empty defaults keep the existing tests green; the engine-influenced tests below
+// mutate these holders to drive seen-exclusion and affinity ordering. The refs themselves
+// are created lazily inside the (async) mock factories so `ref` is imported, not TDZ'd.
+const affinityStoreMock = vi.hoisted(() => ({ affinityProfile: null as any }));
+const seenStoreMock = vi.hoisted(() => ({ seenVersion: null as any, seenIds: [] as string[] }));
+
+vi.mock("@/recommendation/affinityStore", async () => {
+    const { ref } = await import("vue");
+    affinityStoreMock.affinityProfile = ref({ affinity: {}, lastDecayUtc: undefined });
+    return { affinityProfile: affinityStoreMock.affinityProfile };
+});
+vi.mock("@/recommendation/seenStore", async () => {
+    const { ref } = await import("vue");
+    seenStoreMock.seenVersion = ref(0);
+    return {
+        seenVersion: seenStoreMock.seenVersion,
+        getSeenArticleIds: () => seenStoreMock.seenIds,
+    };
+});
+
 describe("RelatedContent", () => {
     beforeEach(async () => {
         await db.docs.bulkPut([
@@ -36,6 +56,9 @@ describe("RelatedContent", () => {
             } as ContentDto,
         ]);
         appLanguageIdsAsRef.value.unshift("lang-eng");
+        affinityStoreMock.affinityProfile.value = { affinity: {}, lastDecayUtc: undefined };
+        seenStoreMock.seenIds = [];
+        seenStoreMock.seenVersion.value++;
     });
 
     afterEach(async () => {
@@ -43,16 +66,26 @@ describe("RelatedContent", () => {
     });
 
     it("doesn't display the current post in the related topic", async () => {
+        await db.docs.bulkPut([
+            {
+                ...mockEnglishContentDto,
+                parentId: "post-post2",
+                _id: "content-post2-eng",
+                title: "Post 2",
+                parentTags: [mockTopicContentDto.parentId],
+            } as ContentDto,
+        ]);
+
         const wrapper = mount(RelatedContent, {
             props: {
-                tags: [mockTopicContentDto],
+                tags: [{ ...mockTopicContentDto, parentTaggedDocs: ["post-post2"] }],
                 selectedContent: mockEnglishContentDto,
             },
         });
 
         await waitForExpect(() => {
-            // The topic itself is included in Read more, but the current post isn't.
-            expect(wrapper.html()).toContain(mockTopicContentDto.title);
+            // The related post appears, but the current article doesn't.
+            expect(wrapper.html()).toContain("Post 2");
             expect(wrapper.html()).not.toContain(mockEnglishContentDto.title);
         });
     });
@@ -86,6 +119,7 @@ describe("RelatedContent", () => {
                 ],
                 selectedContent: {
                     ...mockEnglishContentDto,
+                    parentId: "post-post3",
                     _id: "content-post3-eng",
                     title: "Post 3",
                     parentTags: [mockTopicContentDto.parentId],
@@ -189,40 +223,259 @@ describe("RelatedContent", () => {
         await waitForExpect(() => {
             expect(wrapper.html()).toContain("A short related summary");
         });
-        expect(wrapper.findComponent(ReadMore).html()).toContain(mockTopicContentDto.title);
     });
 
-    it("displays all topics in the same Read more collection as related posts", async () => {
-        const topicB = {
-            ...mockTopicContentDto,
-            _id: "content-tag-topicB",
-            parentId: "tag-topicB",
-            slug: "content-tag-topicB",
-            title: "Topic B",
-        } as ContentDto;
+    it("excludes already-seen articles from Read more", async () => {
+        seenStoreMock.seenIds = ["content-postA-eng"];
+        seenStoreMock.seenVersion.value++;
 
-        await db.docs.put({
-            ...mockEnglishContentDto,
-            parentId: "post-post2",
-            _id: "content-post2-eng",
-            title: "Post 2",
-        } as ContentDto);
+        await db.docs.bulkPut([
+            {
+                ...mockEnglishContentDto,
+                parentId: "post-postA",
+                _id: "content-postA-eng",
+                title: "Seen Post",
+                parentTags: [mockTopicContentDto.parentId],
+            } as ContentDto,
+            {
+                ...mockEnglishContentDto,
+                parentId: "post-postB",
+                _id: "content-postB-eng",
+                title: "Unseen Post",
+                parentTags: [mockTopicContentDto.parentId],
+            } as ContentDto,
+        ]);
 
         const wrapper = mount(RelatedContent, {
             props: {
                 tags: [
-                    { ...mockTopicContentDto, parentTaggedDocs: ["post-post2"] },
-                    topicB,
+                    {
+                        ...mockTopicContentDto,
+                        parentTaggedDocs: ["post-postA", "post-postB"],
+                    },
                 ],
-                selectedContent: mockEnglishContentDto,
+                selectedContent: {
+                    ...mockEnglishContentDto,
+                    _id: "content-other-eng",
+                    title: "Other",
+                } as ContentDto,
             },
         });
 
         await waitForExpect(() => {
-            const readMore = wrapper.findComponent(ReadMore).html();
-            expect(readMore).toContain("Post 2");
-            expect(readMore).toContain(mockTopicContentDto.title);
-            expect(readMore).toContain("Topic B");
+            expect(wrapper.html()).toContain("Unseen Post");
+            expect(wrapper.html()).not.toContain("Seen Post");
+        });
+    });
+
+    it("excludes another translation of the current article from Read more", async () => {
+        // English is the preferred display language, but the user is reading the French
+        // translation of "Shared Article". The Read-more query returns the English translation
+        // (preferred), which shares `parentId` with the article being read but has a different
+        // `_id`. Excluding by `_id` would let that English card through as a duplicate of the
+        // article the user is already reading; excluding by `parentId` drops it.
+        await db.docs.bulkPut([
+            {
+                ...mockEnglishContentDto,
+                parentId: "post-shared",
+                _id: "content-shared-eng",
+                slug: "shared-eng",
+                title: "Shared Article",
+                language: "lang-eng",
+                availableTranslations: ["lang-eng", "lang-fra"],
+                parentTags: [mockTopicContentDto.parentId],
+            } as ContentDto,
+            {
+                ...mockEnglishContentDto,
+                parentId: "post-shared",
+                _id: "content-shared-fra",
+                slug: "shared-fra",
+                title: "Shared Article",
+                language: "lang-fra",
+                availableTranslations: ["lang-eng", "lang-fra"],
+                parentTags: [mockTopicContentDto.parentId],
+            } as ContentDto,
+            {
+                ...mockEnglishContentDto,
+                parentId: "post-other",
+                _id: "content-other-eng",
+                slug: "other-eng",
+                title: "Other Article",
+                parentTags: [mockTopicContentDto.parentId],
+            } as ContentDto,
+        ]);
+
+        const wrapper = mount(RelatedContent, {
+            props: {
+                tags: [
+                    {
+                        ...mockTopicContentDto,
+                        parentTaggedDocs: ["post-shared", "post-other"],
+                    },
+                ],
+                selectedContent: {
+                    ...mockEnglishContentDto,
+                    parentId: "post-shared",
+                    _id: "content-shared-fra",
+                    slug: "shared-fra",
+                    title: "Shared Article",
+                    language: "lang-fra",
+                } as ContentDto,
+            },
+        });
+
+        await waitForExpect(() => {
+            // The unrelated post still appears...
+            expect(wrapper.findComponent(ReadMore).html()).toContain("Other Article");
+            // ...but neither translation of the article being read shows in Read more.
+            const sharedCards = wrapper
+                .findAll("[data-mobile-title]")
+                .filter((el) => el.text().includes("Shared Article"));
+            expect(sharedCards).toHaveLength(0);
+        });
+    });
+
+    it("ranks content sharing more of the current article's tags above a newer, less-related item", async () => {
+        // Relevance (tag overlap with the current article) is the primary signal: an item
+        // sharing two of the current article's tags ranks above a newer item sharing only one,
+        // even though recency alone would put the newer item first.
+        affinityStoreMock.affinityProfile.value = { affinity: {}, lastDecayUtc: undefined };
+        const baseDate = mockEnglishContentDto.publishDate ?? 0;
+        const day = 1000 * 60 * 60 * 24;
+        await db.docs.bulkPut([
+            {
+                ...mockEnglishContentDto,
+                parentId: "post-sharesTwo",
+                _id: "content-sharesTwo-eng",
+                title: "Shares Two Tags",
+                parentTags: [mockTopicContentDto.parentId, "tag-topicX"],
+                publishDate: baseDate, // older
+            } as ContentDto,
+            {
+                ...mockEnglishContentDto,
+                parentId: "post-sharesOne",
+                _id: "content-sharesOne-eng",
+                title: "Shares One Tag",
+                parentTags: [mockTopicContentDto.parentId],
+                publishDate: baseDate + 30 * day, // newer — recency alone would rank it first
+            } as ContentDto,
+        ]);
+
+        const wrapper = mount(RelatedContent, {
+            props: {
+                tags: [
+                    {
+                        ...mockTopicContentDto,
+                        parentTaggedDocs: ["post-sharesTwo", "post-sharesOne"],
+                    },
+                ],
+                selectedContent: {
+                    ...mockEnglishContentDto,
+                    _id: "content-other-eng",
+                    title: "Other",
+                    parentTags: [mockTopicContentDto.parentId, "tag-topicX"],
+                } as ContentDto,
+            },
+        });
+
+        await waitForExpect(() => {
+            const titles = wrapper.findAll("[data-mobile-title]").map((el) => el.text());
+            const twoIdx = titles.findIndex((t) => t.includes("Shares Two Tags"));
+            const oneIdx = titles.findIndex((t) => t.includes("Shares One Tag"));
+            expect(twoIdx).toBeGreaterThanOrEqual(0);
+            expect(oneIdx).toBeGreaterThanOrEqual(0);
+            expect(twoIdx).toBeLessThan(oneIdx);
+        });
+    });
+
+    it("keeps affinity as a mild nudge: a much newer non-affinity item beats an older affinity one", async () => {
+        // At equal relevance (both share one tag) recency orders; affinity is tempered below
+        // the recency span so it cannot leapfrog a much newer item. Under the old un-tempered
+        // weight the affinity-favoured older item would have won.
+        const now = Date.now();
+        const day = 1000 * 60 * 60 * 24;
+        affinityStoreMock.affinityProfile.value = {
+            // One strong engagement on the raw config scale (~0.005 → nominal ~0.5).
+            affinity: { [mockTopicContentDto.parentId]: 0.005 },
+            lastDecayUtc: undefined,
+        };
+        await db.docs.bulkPut([
+            {
+                ...mockEnglishContentDto,
+                parentId: "post-affOld",
+                _id: "content-affOld-eng",
+                title: "Affinity Old",
+                parentTags: [mockTopicContentDto.parentId],
+                publishDate: now - 365 * day,
+            } as ContentDto,
+            {
+                ...mockEnglishContentDto,
+                parentId: "post-recNew",
+                _id: "content-recNew-eng",
+                title: "Recent New",
+                parentTags: [mockTopicContentDto.parentId],
+                publishDate: now - day,
+            } as ContentDto,
+        ]);
+
+        const wrapper = mount(RelatedContent, {
+            props: {
+                tags: [
+                    {
+                        ...mockTopicContentDto,
+                        parentTaggedDocs: ["post-affOld", "post-recNew"],
+                    },
+                ],
+                selectedContent: {
+                    ...mockEnglishContentDto,
+                    _id: "content-other-eng",
+                    title: "Other",
+                    parentTags: [mockTopicContentDto.parentId],
+                } as ContentDto,
+            },
+        });
+
+        await waitForExpect(() => {
+            const titles = wrapper.findAll("[data-mobile-title]").map((el) => el.text());
+            const recIdx = titles.findIndex((t) => t.includes("Recent New"));
+            const affIdx = titles.findIndex((t) => t.includes("Affinity Old"));
+            expect(recIdx).toBeGreaterThanOrEqual(0);
+            expect(affIdx).toBeGreaterThanOrEqual(0);
+            expect(recIdx).toBeLessThan(affIdx);
+        });
+    });
+
+    it("caps the Read more collection at 12 items", async () => {
+        // Seed more related posts than the cap; only the top 12 (by recency, the cold-profile
+        // fallback) should reach ReadMore regardless of how many the query returns.
+        const posts = Array.from({ length: 15 }, (_, i) => ({
+            ...mockEnglishContentDto,
+            parentId: `post-cap${i}`,
+            _id: `content-cap${i}-eng`,
+            title: `Cap Post ${i}`,
+            parentTags: [mockTopicContentDto.parentId],
+        })) as ContentDto[];
+        await db.docs.bulkPut(posts);
+
+        const wrapper = mount(RelatedContent, {
+            props: {
+                tags: [
+                    {
+                        ...mockTopicContentDto,
+                        parentTaggedDocs: posts.map((p) => p.parentId),
+                    },
+                ],
+                selectedContent: {
+                    ...mockEnglishContentDto,
+                    _id: "content-other-eng",
+                    title: "Other",
+                } as ContentDto,
+            },
+        });
+
+        await waitForExpect(() => {
+            const items = wrapper.findComponent(ReadMore).props("items") as ContentDto[];
+            expect(items).toHaveLength(12);
         });
     });
 });
