@@ -12,7 +12,8 @@ export class MediaDto {
     hlsUrl: string;
 
     /**
-     * ID to the CryptoObject where the (optional) encryption key is stored
+     * ID of the sidecar document holding this collection's (optional) decryption key.
+     * The key itself is never on this document — clients fetch it from GET /sidecar.
      */
     @IsOptional()
     @IsString()
@@ -20,9 +21,8 @@ export class MediaDto {
     hlsKey_id?: Uuid;
 
     /**
-     * Optional field for submitting an HLS encryption key for a newly added HLS URL.
-     * When set, this key is stored as a crypto object, and the crypto object ID is
-     * exposed as the hlsKey_id.
+     * Write-only: an encryption key submitted with a newly added HLS URL. Stored as a
+     * masked sidecar and dropped before the document is written, so it never rests here.
      */
     @IsOptional()
     @IsString()
