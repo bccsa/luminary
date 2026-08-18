@@ -16,6 +16,7 @@ import { FtsSearchService } from "./endpoints/ftsSearch.service";
 import { FtsSearchController } from "./endpoints/ftsSearch.controller";
 import { StorageStatusController } from "./endpoints/storageStatus.controller";
 import { EncoderConfigController } from "./endpoints/encoderConfig.controller";
+import { MediaKeyController } from "./endpoints/mediaKey.controller";
 import { AuthIdentityService } from "./auth/authIdentity.service";
 import { QueryRateLimiterService } from "./ratelimit/queryRateLimiter.service";
 
@@ -59,6 +60,7 @@ if (!process.env.NODE_ENV || process.env.NODE_ENV === "development") {
         FtsSearchController,
         StorageStatusController,
         EncoderConfigController,
+        MediaKeyController,
     ],
     providers: [
         DbService,
