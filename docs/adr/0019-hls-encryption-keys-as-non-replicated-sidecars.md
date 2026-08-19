@@ -122,10 +122,13 @@ permission check and the absence of a bulk read path do.*
 - **Offline playback of encrypted media** is out of scope here. Persisting keys client-side is the
   only way an offline-first app plays encrypted downloads offline, and it partly undoes the
   no-bulk-extraction property.
-- **No end-to-end verification yet.** The consumer (the app player's decryption layer) does not
-  exist on this branch; encryption is currently switched off in the encoder. The endpoint will sit
-  unused until that lands, which is an argument for building it correctly and cheaply — not for not
-  building it. The round-trip tests substitute for end-to-end verification.
+- **~~No end-to-end verification yet.~~** Resolved after this ADR was accepted. The consumer landed
+  (`VideoPlayer.vue` renders `LuminaryPlayer`, which decrypts LMCENC playlists and takes the key
+  from this endpoint), and encryption is requested again in `useMediaEncoder.ts`. Verified against a
+  real encoder session: an LMCENC-encrypted collection in S3, the key held only in a sidecar, the
+  document carrying just `hlsKey_id` — `GET /sidecar` unmasked to exactly the key the encoder
+  generated, and the video played in the app in a browser. The round-trip tests are no longer
+  standing in for end-to-end verification; both exist.
 
 ## Related
 

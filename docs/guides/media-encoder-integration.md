@@ -36,51 +36,43 @@ uploaded through this API.
 same fields the encoder writes — so a hand-entered collection and an encoded one are
 indistinguishable downstream.
 
-## Temporary — remove when `player-web` is adopted
+## The player, and what adopting it retired
 
-The app plays HLS with video.js / hls.js. That player cannot read an **encrypted** collection:
-the playlists are LMCENC-encrypted (so it receives ciphertext on an HTTP 200 and fails parsing
-the master) and `#EXT-X-KEY` names the `luminary://key` sentinel, which a browser cannot fetch.
-Decryption has to happen before hls.js sees the bytes, which is what `player-core` adds.
+The app and the CMS play HLS through `LuminaryPlayer` from the encoder's
+`player-web-legacy` package — Video.js 8 over the shared `player-core` pipeline. It
+decrypts LMCENC playlists before the engine sees them and serves the AES key from
+memory for the `luminary://key` sentinel, which is what makes an encrypted
+collection playable at all. `player-web-legacy` rather than `player-web` (the hls.js
+build) because it reproduces the chrome the app already drew, so the swap was
+invisible to viewers.
 
-Everything in this section exists only because that integration has not happened yet.
+Encryption is requested on every session (`encryption: { required: true }` in
+[`useMediaEncoder.ts`](../../cms/src/composables/useMediaEncoder.ts)). The CMS states
+a *requirement*; the encoder still generates and holds the key, and delivers it to
+entitled callers through the sidecar endpoint — see
+[ADR 0019](../adr/0019-hls-encryption-keys-as-non-replicated-sidecars.md).
 
-| # | What | Where | Remove by |
-|---|------|-------|-----------|
-| 1 | **Encryption is not requested.** `encryption: { required: false }` on every session, so output is plaintext and the current player can read it. | [`useMediaEncoder.ts`](../../cms/src/composables/useMediaEncoder.ts) | Setting it back to `{ required: true }` |
-| 2 | **Player debug logging**, behind `?playerdebug=true`. | [`VideoPlayer.vue`](../../app/src/components/content/VideoPlayer.vue) | Deleting the block |
-| 3 | **Plaintext shim objects in S3.** Prefixes ending `-plaintext/` holding decrypted playlists **and a published `key.bin`**. Written by hand for two collections encoded before item 1 was in place. | The media bucket, not this repo | Deleting those prefixes |
+Three workarounds existed while the old player could not read encrypted output. Two
+are gone:
 
-**Item 3 is the one to be uncomfortable about.** Publishing the decryption key as a public
-object beside the video makes the encryption decorative — precisely what the encoder refuses to
-do by design. It exists only so two already-encrypted test collections could be played, it was
-never applied to anything but local dev, and it must not be reproduced. With item 1 in place no
-new collection needs it.
+| # | What it was | Status |
+|---|-------------|--------|
+| 1 | `encryption: { required: false }` on every session, so output was plaintext | **Removed.** Encryption is requested again, and pinned by a test so it cannot drift back unnoticed. |
+| 2 | Player debug logging behind `?playerdebug=true` | **Removed** with the player swap; the old `VideoPlayer.vue` that carried it is gone. |
+| 3 | **Plaintext shim objects in S3** — prefixes ending `-plaintext/` holding decrypted playlists **and a published `key.bin`** | **Outstanding, outside this repo.** See below. |
 
-Also temporary in the sense that `player-core` replaces the code, though both are genuine bug
-fixes worth keeping until then:
+### Item 3 — the published keys
 
-- **All audio tracks disabled when none matches the app language** — `setAudioTrackLanguage`
-  disabled tracks as it walked the list, so an encode whose audio groups are quality tiers
-  (`HD`, `Standard`, `Bandwidth Saving`, no `LANGUAGE` attribute) left the stream with no audio
-  rendition. Playback stalled a few seconds in and the stall handler looped. Now the choice is
-  made first (`pickAudioTrack`) and no match leaves the player's own selection alone.
-- **Audio-only master built with one variant per track** instead of one per group, so several
-  renditions of one group each became a variant while all still named that group — the player
-  played a variant *and* the group's default rendition. Also declared `#EXT-X-VERSION:4` for
-  playlists using `#EXT-X-MAP`, which needs 6 or higher. See
-  [`extractAndBuildAudioMaster.ts`](../../app/src/components/content/extractAndBuildAudioMaster.ts).
+Publishing a decryption key as a public object beside the video makes the encryption
+decorative, which is precisely what the encoder refuses to do by design. These were
+written by hand for two collections encoded before item 1 was in place, and the
+practice must not be reproduced — no new collection needs it.
 
-## Blocked on
-
-**`player-web` / `player-core` / `hls` are `private: true` and published to no registry**, so
-Luminary cannot depend on them. Open-sourcing them is a prerequisite; the integration itself is
-planned with Ivan.
-
-Adopting them removes, in one step: the LMCENC limitation, the published key, the per-encode
-shim, and the need to keep encryption switched off. They also bring angle extraction, quality
-capping, chapters, subtitles, recovery policy and a "not available yet" state that polls until
-the playlist appears.
+They live in a media bucket rather than in this repository, so removing them is a
+bucket operation someone with access has to perform: **delete any prefix ending
+`-plaintext/`, and confirm no `key.bin` remains published anywhere in the media
+buckets.** It was believed to be local-dev only; that belief has not been verified
+against the real buckets, and until it is, this stays open.
 
 ## Not done yet
 
