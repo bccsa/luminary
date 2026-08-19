@@ -89,8 +89,8 @@ export class SidecarController {
         const isCms = cms === "true";
         const userDetails = request.user;
 
-        // 404 for both "no such parent" and "no sidecar" so the response can't be used to
-        // probe which parent IDs exist (ADR 0018).
+        // 404 for "no such parent", "no permission", and "no sidecar" so the response can't
+        // be used to probe which parent IDs exist or which groups a caller lacks (ADR 0018).
         const parent = (await this.dbService.getDoc(parentId)).docs?.[0];
         if (!parent || (parent.type !== DocType.Post && parent.type !== DocType.Tag)) {
             probeFail(HttpStatus.NOT_FOUND, "Not found");
@@ -105,7 +105,7 @@ export class SidecarController {
             userDetails.groups,
         );
         if (!hasPermission) {
-            probeFail(HttpStatus.FORBIDDEN, "Forbidden");
+            probeFail(HttpStatus.NOT_FOUND, "Not found");
         }
 
         // A View grant is permanent; publication state is not. Draft/scheduled/expired

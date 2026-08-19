@@ -264,10 +264,10 @@ describe("SidecarController", () => {
         expect(maskKeyHex(res.body.sidecarId, res.body.data.maskedKeyHex)).toBe(KEY);
     });
 
-    it("returns 403 for a caller without View on the parent's groups", async () => {
+    it("returns 404 for a caller without View on the parent's groups", async () => {
         requestUser = { groups: [], userId: "test-user" };
         const res = await get({ parentId: "post-sc-live", sidecarType: SidecarType.HlsEncryptionKey });
-        expect(res.status).toBe(403);
+        expect(res.status).toBe(404);
     });
 
     it("returns 404 for an unknown parentId", async () => {
@@ -373,14 +373,14 @@ describe("SidecarController", () => {
             expect(res.status).toBe(200);
         });
 
-        it("still 403s a caller with neither View nor CmsView", async () => {
+        it("still 404s a caller with neither View nor CmsView", async () => {
             requestUser = { groups: [], userId: "test-user" };
             const res = await get({
                 parentId: "post-sc-draft",
                 sidecarType: SidecarType.HlsEncryptionKey,
                 cms: "true",
             });
-            expect(res.status).toBe(403);
+            expect(res.status).toBe(404);
         });
 
         it("404s a caller holding only View (no CmsView) even for a live parent", async () => {
@@ -390,7 +390,7 @@ describe("SidecarController", () => {
                 sidecarType: SidecarType.HlsEncryptionKey,
                 cms: "true",
             });
-            expect(res.status).toBe(403);
+            expect(res.status).toBe(404);
         });
     });
 
@@ -416,17 +416,18 @@ describe("SidecarController", () => {
 
         it("records a read strike on a successful fetch, keyed by the caller's identity", async () => {
             rateLimiter.recordReadStrike.mockClear();
+            rateLimiter.recordProbeStrike.mockClear();
             await get({ parentId: "post-sc-live", sidecarType: SidecarType.HlsEncryptionKey });
             expect(rateLimiter.recordReadStrike).toHaveBeenCalledWith("test-user");
             expect(rateLimiter.recordProbeStrike).not.toHaveBeenCalledWith("test-user");
         });
 
-        it("records a probe strike, not a read strike, for a 403", async () => {
+        it("records a probe strike, not a read strike, for a 404 permission denial", async () => {
             requestUser = { groups: [], userId: "test-user" };
             rateLimiter.recordReadStrike.mockClear();
             rateLimiter.recordProbeStrike.mockClear();
             const res = await get({ parentId: "post-sc-live", sidecarType: SidecarType.HlsEncryptionKey });
-            expect(res.status).toBe(403);
+            expect(res.status).toBe(404);
             expect(rateLimiter.recordProbeStrike).toHaveBeenCalledWith("test-user");
             expect(rateLimiter.recordReadStrike).not.toHaveBeenCalled();
         });

@@ -187,6 +187,24 @@ describe("validateChangeRequest", () => {
             const after = await db.getDoc(sidecarId);
             expect(after.docs).toHaveLength(1); // survived
         });
+
+        it("rejects a non-Sidecar doc squatting on the reserved 'sidecar-' _id prefix", async () => {
+            const changeRequest = {
+                doc: {
+                    _id: sidecarId, // real DocType.Sidecar id, submitted as a Post
+                    type: "post",
+                    memberOf: ["group-test"],
+                    postType: "blog",
+                },
+            };
+
+            const result = await validateChangeRequest(changeRequest, ["group-test"], db);
+
+            expect(result.validated).toBe(false);
+            expect(result.error).toContain("reserved");
+            const stored = await db.getDoc(sidecarId);
+            expect(stored.docs).toHaveLength(0);
+        });
     });
 
     it("fails validation for invalid document data", async () => {

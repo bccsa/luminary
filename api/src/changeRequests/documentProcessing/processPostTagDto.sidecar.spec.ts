@@ -95,7 +95,7 @@ describe("processPostTagDto — sidecar lifecycle", () => {
         const result = await processChangeRequest("test-user", del, ["group-super-admins"], db);
 
         expect(result.result.ok).toBe(true);
-        expect(result.warnings.filter((w) => w.includes("sidecar"))).toEqual([]);
+        expect((result.warnings ?? []).filter((w) => w.includes("sidecar"))).toEqual([]);
         expect((await db.getDoc(id)).docs).toHaveLength(0);
     });
 
