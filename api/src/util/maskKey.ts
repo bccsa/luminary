@@ -6,7 +6,8 @@ import { createHash } from "crypto";
  *
  * Deliberate duplication of `cms/src/util/mediaEncoder.ts` `unmaskKeyHex` — the API cannot
  * import from shared/cms. The shared test vector in both specs catches divergence.
- * Seed is the sidecar `_id`; the mask is obscurity, not a secret (see docs/sidecar/06).
+ * Seed is the sidecar `_id`; the mask is obscurity, not a secret (see ADR 0018,
+ * docs/adr/0018-hls-encryption-keys-as-non-replicated-sidecars.md).
  */
 export function maskKeyHex(seed: string, keyHex: string): string {
     const mask = createHash("sha256").update(seed).digest().subarray(0, 16);

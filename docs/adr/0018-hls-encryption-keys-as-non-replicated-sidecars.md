@@ -91,12 +91,13 @@ permission check and the absence of a bulk read path do.*
   where extraction pays for itself:
   - **`read`** bounds successful key fetches — the harvesting limiter. `freeStrikes: 30`,
     `baseBackoffMs: 2000`, `maxBackoffMs: 60000`, `strikeDecayMs: 2000` (steady-state ~30
-    requests/minute/identity before backoff, matching docs/sidecar/02's "low tens per minute is
-    generous" — a key is fetched once per video open).
+    requests/minute/identity before backoff — low tens per minute is generous, since a key is
+    fetched once per video open).
   - **`probe`** bounds repeated 403/404 responses (parent-id / permission probing) at a lower
     ceiling. `freeStrikes: 10`, `baseBackoffMs: 5000`, `maxBackoffMs: 300000`,
-    `strikeDecayMs: 60000`. Deliberately less generous than `read`: docs/sidecar/10's 404-for-both
-    rule already makes probing uninformative, so this is a backstop, not the primary defense.
+    `strikeDecayMs: 60000`. Deliberately less generous than `read`: the endpoint's 404-for-both
+    rule (`sidecar.controller.ts`) already makes probing uninformative, so this is a backstop, not
+    the primary defense.
   - Unlike `QueryRateLimiterService` (default OFF — `/query` is already permission-filtered and
     returns data the caller syncs anyway), both sidecar limiters default ON: this endpoint hands
     out secrets, and the no-batch-parameter guarantee is only real if a caller can't substitute a
@@ -120,7 +121,7 @@ permission check and the absence of a bulk read path do.*
   ticket, flagged for a future incident-driven requirement.
 - **Offline playback of encrypted media** is out of scope here. Persisting keys client-side is the
   only way an offline-first app plays encrypted downloads offline, and it partly undoes the
-  no-bulk-extraction property. Noted in `docs/sidecar/10`.
+  no-bulk-extraction property.
 - **No end-to-end verification yet.** The consumer (the app player's decryption layer) does not
   exist on this branch; encryption is currently switched off in the encoder. The endpoint will sit
   unused until that lands, which is an argument for building it correctly and cheaply — not for not
@@ -128,6 +129,5 @@ permission check and the absence of a bulk read path do.*
 
 ## Related
 
-- `docs/sidecar/` — the design docs for the sidecar substrate and key service.
 - ADR 0005 — backwards compatibility (the `apiVersion` gate).
 - ADR 0013 — the `View`/`CmsView` permission distinction the sidecar access check reuses.
