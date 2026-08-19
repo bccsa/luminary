@@ -54,7 +54,7 @@ The protections on the key, in place of encryption at rest:
    (`query.service.ts`, `aclValidation.ts`). One key per authorised request; there is no listing
    primitive. Extracting a library costs *N* individually authorised requests, which is why the
    absence of a batch/listing parameter is load-bearing and rate limiting is a requirement on the
-   endpoint.
+   endpoint — see below for the concrete limits chosen.
 3. **Masking** — the key is XOR-masked with `SHA-256(sidecar._id)[0..15]` (`api/src/util/maskKey.ts`)
    so the raw AES key never appears verbatim in the document, a log line, a proxy cache, or a DB
    dump. This is **obscurity, not a secret**: anyone who can read the sidecar can derive the mask,
@@ -83,6 +83,25 @@ permission check and the absence of a bulk read path do.*
   has not been deployed, so no real or staging database holds an HLS key as a crypto document. The
   `storeCryptoData` call in `processMedia` is deleted outright. Local dev databases may hold junk
   from manual testing; orphaned crypto docs there are inert and unreachable, not worth automating.
+- **Rate limiting on `GET /sidecar` (`api/src/ratelimit/sidecarRateLimiter.service.ts`), default
+  ON.** Two independently-bucketed per-identity limiters, both built on the same
+  `StrikeLimiter`/`RateLimiterService` (`api/src/ratelimit/`) the `/query` endpoint already uses —
+  extracted to a shared, config-driven wrapper class rather than duplicated, since a second and
+  third call site of the exact same "config-gated strike limiter" logic in one branch is the point
+  where extraction pays for itself:
+  - **`read`** bounds successful key fetches — the harvesting limiter. `freeStrikes: 30`,
+    `baseBackoffMs: 2000`, `maxBackoffMs: 60000`, `strikeDecayMs: 2000` (steady-state ~30
+    requests/minute/identity before backoff, matching docs/sidecar/02's "low tens per minute is
+    generous" — a key is fetched once per video open).
+  - **`probe`** bounds repeated 403/404 responses (parent-id / permission probing) at a lower
+    ceiling. `freeStrikes: 10`, `baseBackoffMs: 5000`, `maxBackoffMs: 300000`,
+    `strikeDecayMs: 60000`. Deliberately less generous than `read`: docs/sidecar/10's 404-for-both
+    rule already makes probing uninformative, so this is a backstop, not the primary defense.
+  - Unlike `QueryRateLimiterService` (default OFF — `/query` is already permission-filtered and
+    returns data the caller syncs anyway), both sidecar limiters default ON: this endpoint hands
+    out secrets, and the no-batch-parameter guarantee is only real if a caller can't substitute a
+    fast loop of single requests. Tunable per environment via `SIDECAR_RATE_LIMIT_READ_*` /
+    `SIDECAR_RATE_LIMIT_PROBE_*` env vars (see `api/src/configuration.ts`).
 
 ## Consequences
 

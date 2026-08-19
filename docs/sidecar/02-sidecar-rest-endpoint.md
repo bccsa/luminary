@@ -247,20 +247,25 @@ parent ID they already hold from sync and harvest the whole encrypted library at
 absence of a batch parameter is cosmetic if the endpoint answers a thousand single requests a
 second.
 
-`QueryRateLimiterService` (`api/src/ratelimit/queryRateLimiter.service.ts`) is currently wired to
-`/query` only and defaults off (`QUERY_RATE_LIMIT_ENABLED`). Two things to decide at
-implementation time:
+**Built.** `SidecarRateLimiterService` (`api/src/ratelimit/sidecarRateLimiter.service.ts`) wires two
+independently-bucketed limiters into `GET /sidecar`, both built on the same config-gated
+`StrikeLimiter` wrapper (`api/src/ratelimit/rateLimiter.service.ts`) that `QueryRateLimiterService`
+uses for `/query` — extracted to a shared class rather than duplicated once a second call site
+needed the identical logic:
 
-- **A per-identity request rate on successful reads.** This is the one that bounds harvesting. It
-  should default **on** — unlike the query limiter, whose default-off setting is defensible because
-  `/query` is already permission-filtered and returns data the caller syncs anyway.
-- **A strike limit on repeated 403/404s** (`ratelimit/strikeLimiter.ts`), which bounds probing for
-  parent IDs. Lower value than the first, since [10](10-retrieval-by-parent-id.md)'s 404-for-both
-  rule already makes probing uninformative.
+- **A per-identity request rate on successful reads** (`read`). This is the one that bounds
+  harvesting. It defaults **on** — unlike the query limiter, whose default-off setting is
+  defensible because `/query` is already permission-filtered and returns data the caller syncs
+  anyway.
+- **A strike limit on repeated 403/404s** (`probe`), which bounds probing for parent IDs. Lower
+  value than `read`, since [10](10-retrieval-by-parent-id.md)'s 404-for-both rule already makes
+  probing uninformative. 400s and 409s do not strike this limiter — they reveal nothing a caller
+  didn't already know.
 
-Pick a limit from the real access pattern: a key is fetched once per video open, so a ceiling in
-the low tens per minute per identity is generous. Whatever is chosen, record it in the ADR — the
-number is the quantitative form of the no-bulk-extraction claim.
+Concrete limits (low tens per minute per identity for `read`, matching the real access pattern of
+one key fetch per video open) are recorded in ADR 0018, along with the rationale for the specific
+numbers. Both are tunable per environment via `SIDECAR_RATE_LIMIT_READ_*` /
+`SIDECAR_RATE_LIMIT_PROBE_*` env vars.
 
 ## Audit logging
 
