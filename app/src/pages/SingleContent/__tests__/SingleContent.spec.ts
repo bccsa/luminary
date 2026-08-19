@@ -661,11 +661,16 @@ describe("SingleContent", () => {
         // Open the language dropdown (click the DropdownMenu trigger that has the toggle handler)
         const dropdownMenu = wrapper!.findComponent(DropdownMenu);
         await dropdownMenu.find("[role='button']").trigger("click");
-        await nextTick();
 
-        // Options are in the dropdown panel (role=menu)
-        const options = wrapper!.findAll("[role='menu'] button");
-        expect(options.length, "translation options should be at least 2").toBeGreaterThan(1);
+        // Waited for, not ticked past: the options come from translations loaded
+        // out of IndexedDB, the same asynchronous source the two waits above
+        // exist for. A single `nextTick` wins that race on a fast machine and
+        // loses it on a slower one.
+        let options = wrapper!.findAll("[role='menu'] button");
+        await waitForExpect(() => {
+            options = wrapper!.findAll("[role='menu'] button");
+            expect(options.length, "translation options should be at least 2").toBeGreaterThan(1);
+        });
 
         // Choose the French option explicitly if present, otherwise pick the second option
         const frenchOption =
