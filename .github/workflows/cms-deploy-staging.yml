@@ -35,15 +35,9 @@ jobs:
         uses: actions/checkout@v5
         with:
           # The encoder's player packages are consumed from media-convert/, which is
-          # a submodule rather than a published package.
-          #
-          # `luminary-media-convert` is private, and a workflow's GITHUB_TOKEN is
-          # scoped to this repository alone — a private sibling answers "Repository
-          # not found", so the clone fails before any step runs. The token below is
-          # a credential with read access to that repo. If the encoder repository is
-          # ever made public, this line can go and `submodules: true` is enough.
+          # a submodule rather than a published package. The submodule repository is
+          # public, so the built-in token suffices; no extra credential is needed.
           submodules: true
-          token: ${{ secrets.MEDIA_CONVERT_TOKEN }}
 
       - name: Create .env file
         run: |
