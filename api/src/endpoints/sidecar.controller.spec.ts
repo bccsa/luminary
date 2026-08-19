@@ -15,6 +15,7 @@ import { MediaDto } from "../dto/MediaDto";
 import { SidecarDto } from "../dto/SidecarDto";
 import { sidecarId } from "../sidecar/sidecar.service";
 import { maskKeyHex } from "../util/maskKey";
+import { SidecarRateLimiterService } from "../ratelimit/sidecarRateLimiter.service";
 
 // CouchDB-backed: exercises real processChangeRequest writes and the real
 // PermissionSystem, per docs/sidecar/02's test list. User-run.
@@ -72,15 +73,31 @@ describe("SidecarController", () => {
     let app: INestApplication;
     let dbService: DbService;
     let requestUser: { groups: string[]; userId?: string };
+    let rateLimiter: {
+        checkRead: jest.Mock;
+        recordReadStrike: jest.Mock;
+        checkProbe: jest.Mock;
+        recordProbeStrike: jest.Mock;
+    };
 
     beforeAll(async () => {
         const testingModule = await createTestingModule("sidecar-controller");
         dbService = testingModule.dbService;
         PermissionSystem.upsertGroups((await dbService.getGroups()).docs);
 
+        rateLimiter = {
+            checkRead: jest.fn().mockReturnValue({ allowed: true, retryAfterMs: 0 }),
+            recordReadStrike: jest.fn(),
+            checkProbe: jest.fn().mockReturnValue({ allowed: true, retryAfterMs: 0 }),
+            recordProbeStrike: jest.fn(),
+        };
+
         const moduleRef: TestingModule = await Test.createTestingModule({
             controllers: [SidecarController],
-            providers: [{ provide: DbService, useValue: dbService }],
+            providers: [
+                { provide: DbService, useValue: dbService },
+                { provide: SidecarRateLimiterService, useValue: rateLimiter },
+            ],
         })
             .overrideGuard(AuthGuard)
             .useValue({
@@ -374,6 +391,73 @@ describe("SidecarController", () => {
                 cms: "true",
             });
             expect(res.status).toBe(403);
+        });
+    });
+
+    describe("rate limiting", () => {
+        afterEach(() => {
+            rateLimiter.checkRead.mockReturnValue({ allowed: true, retryAfterMs: 0 });
+            rateLimiter.checkProbe.mockReturnValue({ allowed: true, retryAfterMs: 0 });
+        });
+
+        it("returns 429 with Retry-After when the read limiter denies the request", async () => {
+            rateLimiter.checkRead.mockReturnValueOnce({ allowed: false, retryAfterMs: 4200 });
+            const res = await get({ parentId: "post-sc-live", sidecarType: SidecarType.HlsEncryptionKey });
+            expect(res.status).toBe(429);
+            expect(res.headers["retry-after"]).toBe("5"); // ceil(4200/1000)
+        });
+
+        it("returns 429 when the probe limiter denies, even for a request that would otherwise succeed", async () => {
+            rateLimiter.checkProbe.mockReturnValueOnce({ allowed: false, retryAfterMs: 1000 });
+            const res = await get({ parentId: "post-sc-live", sidecarType: SidecarType.HlsEncryptionKey });
+            expect(res.status).toBe(429);
+            expect(res.headers["retry-after"]).toBe("1");
+        });
+
+        it("records a read strike on a successful fetch, keyed by the caller's identity", async () => {
+            rateLimiter.recordReadStrike.mockClear();
+            await get({ parentId: "post-sc-live", sidecarType: SidecarType.HlsEncryptionKey });
+            expect(rateLimiter.recordReadStrike).toHaveBeenCalledWith("test-user");
+            expect(rateLimiter.recordProbeStrike).not.toHaveBeenCalledWith("test-user");
+        });
+
+        it("records a probe strike, not a read strike, for a 403", async () => {
+            requestUser = { groups: [], userId: "test-user" };
+            rateLimiter.recordReadStrike.mockClear();
+            rateLimiter.recordProbeStrike.mockClear();
+            const res = await get({ parentId: "post-sc-live", sidecarType: SidecarType.HlsEncryptionKey });
+            expect(res.status).toBe(403);
+            expect(rateLimiter.recordProbeStrike).toHaveBeenCalledWith("test-user");
+            expect(rateLimiter.recordReadStrike).not.toHaveBeenCalled();
+        });
+
+        it("records a probe strike, not a read strike, for a 404", async () => {
+            rateLimiter.recordReadStrike.mockClear();
+            rateLimiter.recordProbeStrike.mockClear();
+            const res = await get({
+                parentId: "post-sc-does-not-exist",
+                sidecarType: SidecarType.HlsEncryptionKey,
+            });
+            expect(res.status).toBe(404);
+            expect(rateLimiter.recordProbeStrike).toHaveBeenCalledWith("test-user");
+            expect(rateLimiter.recordReadStrike).not.toHaveBeenCalled();
+        });
+
+        it("does not record a probe strike for a 400 (missing parentId)", async () => {
+            rateLimiter.recordProbeStrike.mockClear();
+            const res = await get({ sidecarType: SidecarType.HlsEncryptionKey });
+            expect(res.status).toBe(400);
+            expect(rateLimiter.recordProbeStrike).not.toHaveBeenCalled();
+        });
+
+        it("does not record a probe strike for a 409 (corrupt payload)", async () => {
+            rateLimiter.recordProbeStrike.mockClear();
+            const res = await get({
+                parentId: "post-sc-corrupt",
+                sidecarType: SidecarType.HlsEncryptionKey,
+            });
+            expect(res.status).toBe(409);
+            expect(rateLimiter.recordProbeStrike).not.toHaveBeenCalled();
         });
     });
 });
