@@ -115,32 +115,18 @@ vi.mock("@/router", () => ({
 
 vi.mock("@/auth", async () => (await import("@/tests/mockAuth")).createAuthMock());
 
-// Mock video.js to prevent initialization errors
-vi.mock("video.js", () => {
-    const mockVideoPlayer = {
-        poster: vi.fn(),
-        src: vi.fn(),
-        mobileUi: vi.fn(),
-        on: vi.fn(),
-        userActive: vi.fn(),
-        requestFullscreen: vi.fn(),
-        isFullscreen: vi.fn(() => false),
-        pause: vi.fn(),
-        play: vi.fn(),
-        dispose: vi.fn(),
-        off: vi.fn(),
-        currentTime: vi.fn(),
-        duration: vi.fn(),
-        audioTracks: vi.fn(() => []), // Mock audioTracks method
-    };
-
-    const defaultFunction = () => mockVideoPlayer;
-    defaultFunction.browser = {
-        IS_SAFARI: false,
-    };
-
+// The real player has no jsdom-compatible serving strategy; these tests aren't about playback.
+vi.mock("@luminary-media-converter/player-web-legacy", async () => {
+    const { defineComponent, h } = await import("vue");
     return {
-        default: defaultFunction,
+        LuminaryPlayer: defineComponent({
+            name: "LuminaryPlayer",
+            props: { source: { type: Object, required: true }, preferredLanguage: {} },
+            emits: ["loadedmetadata", "timeupdate", "ended"],
+            setup() {
+                return () => h("div", { class: "luminary-player-stub" });
+            },
+        }),
     };
 });
 
