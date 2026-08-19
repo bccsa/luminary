@@ -23,10 +23,20 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
         with:
-          # The encoder's player packages are consumed from luminary-media-convert/, which is
-          # a submodule rather than a published package. The submodule repository is
-          # public, so the built-in token suffices; no extra credential is needed.
+          # The encoder's player packages are consumed from luminary-media-convert/,
+          # which is a submodule rather than a published package.
+          #
+          # That repository is private, and a workflow's GITHUB_TOKEN reaches only the
+          # repository it runs in — a private sibling answers "Repository not found"
+          # and checkout aborts before any step runs. MEDIA_CONVERT_TOKEN is a
+          # credential with read access to it.
+          #
+          # The fallback matters: `actions/checkout` rejects an empty `token:`
+          # outright ("Input required and not supplied"), which would break this
+          # repository's own checkout while the secret is unset, rather than leaving
+          # only the submodule to fail.
           submodules: true
+          token: ${{ secrets.MEDIA_CONVERT_TOKEN || github.token }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
