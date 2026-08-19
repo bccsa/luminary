@@ -99,11 +99,12 @@ describe("processPostTagDto — migrating media between buckets", () => {
 
         await processPostTagDto(incoming, post("bucket-old"), stubDb());
 
+        // processMedia reads the bucket off the parent (mediaBucketId) rather than
+        // taking it as a separate argument.
         expect(processMedia).toHaveBeenCalledWith(
             incoming.media,
+            expect.objectContaining({ _id: "post-1", mediaBucketId: "bucket-new" }),
             expect.anything(),
-            // the bucket, so the stored URL can be made relative to it
-            "bucket-new",
         );
     });
 

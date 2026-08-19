@@ -21,6 +21,8 @@ const stubDb = () =>
         upsertDoc: jest.fn().mockResolvedValue({ id: "x" }),
         getDocs: jest.fn().mockResolvedValue({ docs: [] }),
         getDoc: jest.fn().mockResolvedValue({ docs: [] }),
+        // The delete path also drops the document's sidecars (ADR 0018).
+        deleteDoc: jest.fn().mockResolvedValue(undefined),
     }) as unknown as DbService;
 
 const HLS = "http://localhost:9000/media/c5829f07-4ba8-42ed-a449-80d83e6c0b53/master.m3u8";
