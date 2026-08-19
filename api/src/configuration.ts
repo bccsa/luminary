@@ -47,16 +47,17 @@ export type QueryConfig = {
 export type SidecarRateLimitConfig = {
     /**
      * Bounds successful key fetches — the harvesting-mitigation limiter described in
-     * docs/sidecar/02-sidecar-rest-endpoint.md#rate-limiting. Unlike the query limiter, this
-     * defaults ON: /sidecar hands out decryption keys, and the absence of a batch/listing
-     * parameter is only meaningful if a caller can't substitute a fast loop of single requests.
+     * ADR 0018 (docs/adr/0018-hls-encryption-keys-as-non-replicated-sidecars.md). Unlike the query
+     * limiter, this defaults ON: /sidecar hands out decryption keys, and the absence of a
+     * batch/listing parameter is only meaningful if a caller can't substitute a fast loop of single
+     * requests.
      * Environment variable: SIDECAR_RATE_LIMIT_READ_ENABLED (default true).
      */
     read: RateLimiterConfig;
     /**
      * Bounds repeated 403/404 responses (parent-id / permission probing). Lower ceiling than
-     * `read` since docs/sidecar/10's 404-for-both rule already makes probing uninformative — this
-     * limiter is a backstop, not the primary defense. Defaults ON.
+     * `read` since the endpoint's 404-for-both rule already makes probing uninformative (ADR 0018)
+     * — this limiter is a backstop, not the primary defense. Defaults ON.
      * Environment variable: SIDECAR_RATE_LIMIT_PROBE_ENABLED (default true).
      */
     probe: RateLimiterConfig;

@@ -4,12 +4,12 @@ import { SidecarRateLimitConfig } from "../configuration";
 import { RateLimiterService } from "./rateLimiter.service";
 
 /**
- * Two independently-bucketed limiters for GET /sidecar
- * (docs/sidecar/02-sidecar-rest-endpoint.md#rate-limiting): `read` bounds successful key fetches —
- * the harvesting risk, since a caller with View on a large group could otherwise walk every parent
- * id it already holds from sync and pull the whole encrypted library at HTTP speed — and `probe`
- * bounds repeated 403/404s (parent-id / permission probing) at a lower ceiling. Both default ON,
- * unlike the query limiter: /sidecar hands out secrets, /query does not.
+ * Two independently-bucketed limiters for GET /sidecar (ADR 0018,
+ * docs/adr/0018-hls-encryption-keys-as-non-replicated-sidecars.md): `read` bounds successful key
+ * fetches — the harvesting risk, since a caller with View on a large group could otherwise walk
+ * every parent id it already holds from sync and pull the whole encrypted library at HTTP speed —
+ * and `probe` bounds repeated 403/404s (parent-id / permission probing) at a lower ceiling. Both
+ * default ON, unlike the query limiter: /sidecar hands out secrets, /query does not.
  */
 @Injectable()
 export class SidecarRateLimiterService {

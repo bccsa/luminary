@@ -515,7 +515,7 @@ describe("processPostTagDto", () => {
         // warning: the plaintext key existed only for this request (processMedia has
         // already dropped it), so saving the Post with an `hlsUrl` and no `hlsKey_id`
         // would leave an unplayable, unrecoverable collection. The save fails so the
-        // editor still holds the key and can retry. See docs/sidecar/04.
+        // editor still holds the key and can retry. See ADR 0018.
         await expect(
             processChangeRequest("test-user", changeRequest, ["group-super-admins"], db),
         ).rejects.toThrow("key store unavailable");

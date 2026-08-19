@@ -28,8 +28,9 @@ export type SidecarResponseDto = {
 
 /**
  * Serves sidecar payloads (currently: the HLS decryption key) one parent at a time.
- * See docs/sidecar/02, 09, 10 — no batch parameter and no listing endpoint by design
- * (docs/sidecar/08), so bulk extraction costs one authorised request per parent.
+ * No batch parameter and no listing endpoint by design, so bulk extraction costs one
+ * authorised request per parent. See ADR 0018
+ * (docs/adr/0018-hls-encryption-keys-as-non-replicated-sidecars.md).
  */
 @Controller("sidecar")
 export class SidecarController {
@@ -51,7 +52,7 @@ export class SidecarController {
     ): Promise<SidecarResponseDto> {
         await validateApiVersion(apiVersion);
 
-        // Same identity used by both limiters (docs/sidecar/02#rate-limiting) — read bounds
+        // Same identity used by both limiters (ADR 0018) — read bounds
         // successful key fetches, probe bounds repeated 403/404s. Both gate pre-execution; a
         // blocked identity is rejected before doing any work.
         const identityKey = request.user?.userId ?? `anon:${request.ip}`;
@@ -89,7 +90,7 @@ export class SidecarController {
         const userDetails = request.user;
 
         // 404 for both "no such parent" and "no sidecar" so the response can't be used to
-        // probe which parent IDs exist (docs/sidecar/02).
+        // probe which parent IDs exist (ADR 0018).
         const parent = (await this.dbService.getDoc(parentId)).docs?.[0];
         if (!parent || (parent.type !== DocType.Post && parent.type !== DocType.Tag)) {
             probeFail(HttpStatus.NOT_FOUND, "Not found");
@@ -108,7 +109,7 @@ export class SidecarController {
         }
 
         // A View grant is permanent; publication state is not. Draft/scheduled/expired
-        // parents are refused to a non-CMS caller even holding View (docs/sidecar/02). The
+        // parents are refused to a non-CMS caller even holding View (ADR 0018). The
         // CMS is exempt — an editor previewing media ahead of publish holds only CmsView and
         // has no live Content yet, mirroring the cms-exempts-publish-gating rule in
         // query.service.ts / ftsSearch.service.ts.
