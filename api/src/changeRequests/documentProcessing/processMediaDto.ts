@@ -19,8 +19,8 @@ import { toStoredMediaUrl } from "./mediaUrl";
  * What does need handling is the decryption key. It arrives once, on the change
  * request that first saves the collection, and is stored as a masked sidecar so
  * the raw key never rests on the content document or in a log line. The sidecar
- * carries the parent's `memberOf` so the permission system gates it. See ADR 0018
- * (docs/adr/0018-hls-encryption-keys-as-non-replicated-sidecars.md).
+ * carries the parent's `memberOf` so the permission system gates it. See ADR 0019
+ * (docs/adr/0019-hls-encryption-keys-as-non-replicated-sidecars.md).
  *
  * Moving and removing the collection are the caller's, in `processPostTagDto`:
  * `migrateMediaCollection` on a bucket change and `deleteMediaCollection` when the

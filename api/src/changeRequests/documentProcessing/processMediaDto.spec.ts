@@ -64,7 +64,7 @@ describe("processMediaDto", () => {
         expect(stored!.maskedKeyHex).toBe(maskKeyHex(seed, HLS_KEY));
         expect(stored!.maskedKeyHex).not.toBe(HLS_KEY);
 
-        // Regression guard (ADR 0018): the stored payload is a sidecar, not a
+        // Regression guard (ADR 0019): the stored payload is a sidecar, not a
         // CryptoDto envelope — there is no `data.encrypted` AES-256-CBC blob.
         const raw = await getSidecar(db, parent._id, SidecarType.HlsEncryptionKey);
         expect(raw!.type).toBe(DocType.Sidecar);

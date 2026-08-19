@@ -13,7 +13,7 @@ import { maskKeyHex } from "../../util/maskKey";
 
 // Unmocked counterpart to processPostTagDto.spec.ts: these tests round-trip through
 // the real processMedia write path, which the mocked spec cannot exercise. Covers
-// sidecar lifecycle and deletion (ADR 0018).
+// sidecar lifecycle and deletion (ADR 0019).
 
 const HLS_URL = "https://cdn.example.com/media/master.m3u8";
 const KEY_A = "0123456789abcdef0123456789abcdef";
@@ -202,7 +202,7 @@ describe("processPostTagDto — sidecar lifecycle", () => {
         expect(before).toBeDefined();
 
         // Re-save carrying the existing hlsKey_id, changing only an unrelated field.
-        // Regression guard (ADR 0018): if hlsKey_id were not @Expose'd,
+        // Regression guard (ADR 0019): if hlsKey_id were not @Expose'd,
         // instanceToPlain would drop it on write and the "reference disappeared"
         // condition would delete the key on every unrelated save.
         const update = postCr(id, { hlsUrl: HLS_URL, hlsKey_id: seed });

@@ -164,7 +164,7 @@ export default async function processPostTagDto(
     // `if (doc.media)` block on purpose: removing the collection drops doc.media
     // entirely, which is the case a check inside processMedia would never see. A
     // fresh hlsKey in the same request means replace, not delete — processMedia
-    // has already recreated the sidecar at the same id. See ADR 0018.
+    // has already recreated the sidecar at the same id. See ADR 0019.
     if (prevDoc?.media?.hlsKey_id && !doc.media?.hlsKey_id && !doc.media?.hlsKey) {
         await deleteSidecar(db, doc._id, SidecarType.HlsEncryptionKey);
     }

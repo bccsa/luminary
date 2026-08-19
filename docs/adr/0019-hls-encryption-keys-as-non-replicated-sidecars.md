@@ -1,4 +1,4 @@
-# 18. HLS encryption keys as non-replicated, permission-gated sidecars (masked, not encrypted at rest)
+# 19. HLS encryption keys as non-replicated, permission-gated sidecars (masked, not encrypted at rest)
 
 Date: 2026-08-18
 

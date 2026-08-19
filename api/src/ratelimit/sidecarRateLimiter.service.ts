@@ -4,8 +4,8 @@ import { SidecarRateLimitConfig } from "../configuration";
 import { RateLimiterService } from "./rateLimiter.service";
 
 /**
- * Two independently-bucketed limiters for GET /sidecar (ADR 0018,
- * docs/adr/0018-hls-encryption-keys-as-non-replicated-sidecars.md): `read` bounds successful key
+ * Two independently-bucketed limiters for GET /sidecar (ADR 0019,
+ * docs/adr/0019-hls-encryption-keys-as-non-replicated-sidecars.md): `read` bounds successful key
  * fetches — the harvesting risk, since a caller with View on a large group could otherwise walk
  * every parent id it already holds from sync and pull the whole encrypted library at HTTP speed —
  * and `probe` bounds repeated 403/404s (parent-id / permission probing) at a lower ceiling. Both

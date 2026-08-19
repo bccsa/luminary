@@ -18,7 +18,7 @@ import { maskKeyHex } from "../util/maskKey";
 import { SidecarRateLimiterService } from "../ratelimit/sidecarRateLimiter.service";
 
 // CouchDB-backed: exercises real processChangeRequest writes and the real
-// PermissionSystem (ADR 0018). User-run.
+// PermissionSystem (ADR 0019). User-run.
 
 const HLS_URL = "https://cdn.example.com/media/master.m3u8";
 const KEY = "0123456789abcdef0123456789abcdef";
