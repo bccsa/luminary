@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mount } from "@vue/test-utils";
+import waitForExpect from "wait-for-expect";
 import VideoPreview from "./VideoPreview.vue";
 
 const getSidecarMock = vi.hoisted(() => vi.fn());
@@ -140,7 +141,10 @@ describe("VideoPreview", () => {
         const wrapper = await mountAndOpen({ hlsUrl: "/abc/master.m3u8", hlsKey_id: "sidecar-1" });
 
         expect(getSidecarMock).toHaveBeenCalledWith("post-1", "hlsEncryptionKey", { cms: true });
-        expect(player(wrapper).props("source").keyHex).toBe(KEY_HEX);
+        // Two awaits deep, not one: the sidecar fetch, then unmaskKeyHex's
+        // crypto.subtle.digest. A single tick wins that race locally and loses it
+        // on a slower runner.
+        await waitForExpect(() => expect(player(wrapper).props("source").keyHex).toBe(KEY_HEX));
     });
 
     it("prefers the typed key over the saved one", async () => {
