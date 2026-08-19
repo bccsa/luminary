@@ -12,7 +12,11 @@ RUN npm run build
 # player-core and hls-core underneath it.
 WORKDIR /media-convert
 COPY ./media-convert ./
-RUN npm ci
+# ci:libs, not ci: a plain install pulls in electron and electron-builder and
+# downloads the Electron binary — around 500 MB to produce five small
+# libraries and a desktop app this image will never run. The workspace list
+# lives beside build:libs in the submodule, so the two cannot drift.
+RUN npm run ci:libs
 RUN npm run build:libs
 
 # Build the CMS
