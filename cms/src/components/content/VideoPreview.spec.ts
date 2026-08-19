@@ -78,6 +78,42 @@ describe("VideoPreview", () => {
         );
     });
 
+    describe("a YouTube link", () => {
+        const YT = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
+
+        it("is handed to the player untouched", async () => {
+            // The player recognises it and switches to its YouTube mode; nothing
+            // here has to know that, so long as the URL is not rewritten. Media
+            // hosted elsewhere has no bucket to be relative to.
+            const wrapper = await mountAndOpen({ hlsUrl: YT });
+
+            expect(player(wrapper).props("source").masterUrl).toBe(YT);
+        });
+
+        it("is offered a preview like any other source", async () => {
+            const wrapper = mount(VideoPreview, { props: { parent: parent({ hlsUrl: YT }) } });
+            await new Promise((resolve) => setTimeout(resolve, 0));
+
+            expect(wrapper.find('[data-test="video-preview-load"]').exists()).toBe(true);
+        });
+
+        it("is not resolved against the bucket even when one is configured", async () => {
+            // Prefixing the bucket would produce a URL that fetches nothing.
+            getBucketByIdMock.mockReturnValue({ publicUrl: "https://cdn.example.com/media" });
+
+            const wrapper = await mountAndOpen({ hlsUrl: YT });
+
+            expect(player(wrapper).props("source").masterUrl).not.toContain("cdn.example.com");
+        });
+
+        it("asks for no key", async () => {
+            // A YouTube video has nothing to decrypt.
+            await mountAndOpen({ hlsUrl: YT });
+
+            expect(getMediaKeyMock).not.toHaveBeenCalled();
+        });
+    });
+
     it("uses a key the editor has just typed, before it is ever saved", async () => {
         // Checking a key before committing it is the point of previewing.
         const wrapper = await mountAndOpen({ hlsUrl: "/abc/master.m3u8", hlsKey: "a".repeat(32) });
