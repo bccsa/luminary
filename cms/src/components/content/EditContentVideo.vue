@@ -2,6 +2,7 @@
 import LDialog from "@/components/common/LDialog.vue";
 import LCard from "@/components/common/LCard.vue";
 import LInput from "@/components/forms/LInput.vue";
+import VideoPreview from "./VideoPreview.vue";
 import { VideoCameraIcon, LinkIcon, KeyIcon } from "@heroicons/vue/20/solid";
 import { type ContentParentDto } from "luminary-shared";
 import { computed, ref, watch } from "vue";
@@ -147,6 +148,8 @@ watch(
             nothing keeps a copy of it. Warned at the moment of typing rather
             than on save, because by then the old key is already gone.
         -->
+        <VideoPreview :parent="parent" />
+
         <p
             v-if="hasStoredKey && replacingKey"
             class="text-xs font-medium text-amber-600 dark:text-amber-500"

@@ -22,11 +22,18 @@ export type MediaKeyResponseDto = {
  * undecryptable by every client, which is where this started.
  *
  * This is key *delivery*, not access control over the media itself: anything a
- * viewer may watch, they may also be handed the key for. The permission checked
- * is therefore exactly the one that decides whether they may see the document —
- * `View` on the parent Post or Tag — and no other. Anything stricter would deny
- * the key for content already on the viewer's screen; anything looser would
- * hand out keys for content they cannot see.
+ * caller may see, they may also be handed the key for. The permission checked is
+ * therefore exactly the one that decides whether the document is visible to
+ * them, and no other. Anything stricter would deny the key for content already
+ * on their screen; anything looser would hand out keys for content they cannot
+ * see.
+ *
+ * That is two permissions rather than one, because there are two ways to be
+ * shown a document: `View` is the app's, `CmsView` is the editor's, and an
+ * editor previewing media they are about to publish holds the second without
+ * necessarily holding the first. Either suffices, and no request parameter
+ * chooses between them — a caller cannot claim to be the CMS to gain anything,
+ * since both are checked against the groups they actually hold.
  *
  * The key is as recoverable as the media is watchable, and no more: it protects
  * bytes sitting in a public bucket from being played by whoever finds the URL.
@@ -70,11 +77,13 @@ export class MediaKeyController {
         const parentType: DocType =
             doc.type === DocType.Content ? (doc.parentType ?? DocType.Post) : doc.type;
 
-        const hasPermission = PermissionSystem.verifyAccess(
-            doc.memberOf ?? [],
-            parentType,
-            AclPermission.View,
-            userDetails.groups,
+        const hasPermission = [AclPermission.View, AclPermission.CmsView].some((permission) =>
+            PermissionSystem.verifyAccess(
+                doc.memberOf ?? [],
+                parentType,
+                permission,
+                userDetails.groups,
+            ),
         );
 
         // Deliberately the same 404 a missing document gets. Distinguishing them

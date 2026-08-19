@@ -70,6 +70,16 @@ describe("MediaKeyController", () => {
         expect(mockRetrieveCryptoData).toHaveBeenCalledWith(expect.anything(), "crypto-1");
     });
 
+    it("hands the key to an editor who may see the document in the CMS", async () => {
+        // CmsView without View: an editor previewing media they are about to
+        // publish. Denying it would mean the CMS could not play what it just
+        // encoded.
+        mockGetDoc.mockResolvedValue({ docs: [contentDoc()] });
+        mockVerifyAccess.mockImplementation((_g, _t, permission) => permission === "cmsView");
+
+        expect((await get()).status).toBe(200);
+    });
+
     it("checks View on the parent type, not on the content document", async () => {
         // Content is not separately permissioned — that is why memberOf is copied
         // down onto it — so the permission that decides this is the parent's.
