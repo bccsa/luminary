@@ -7,10 +7,10 @@
 
 # Test fixtures and desktop build output from the encoder submodule: large,
 # and nothing in an image needs them.
-media-convert/test-media
-media-convert/app-electron/bin
-media-convert/app-electron/release
-media-convert/api/work
+luminary-media-convert/test-media
+luminary-media-convert/app-electron/bin
+luminary-media-convert/app-electron/release
+luminary-media-convert/api/work
 
 # NOT .env: the deploy workflow writes app/.env immediately before `docker build`,
 # and the PWA plugin reads its icon paths from it. Excluding it here would fail

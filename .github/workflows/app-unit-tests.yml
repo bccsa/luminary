@@ -23,7 +23,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
         with:
-          # The encoder's player packages are consumed from media-convert/, which is
+          # The encoder's player packages are consumed from luminary-media-convert/, which is
           # a submodule rather than a published package. The submodule repository is
           # public, so the built-in token suffices; no extra credential is needed.
           submodules: true
@@ -42,7 +42,7 @@ jobs:
         # resolve entry for package". ci:libs installs the five library workspaces
         # without electron; build:libs builds them. Same as both Dockerfiles.
         run: npm run ci:libs; npm run build:libs;
-        working-directory: media-convert
+        working-directory: luminary-media-convert
 
       - name: Build shared dependencies
         run: npm ci; npm run build;
