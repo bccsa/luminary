@@ -86,6 +86,11 @@ export type EncoderConfigResponse = {
     publicBaseUrl: string;
 };
 
+/** The decryption key for one media collection, as 32 hex characters. */
+export type MediaKeyResponse = {
+    keyHex: string;
+};
+
 class RestApi {
     private http: HttpReq<any>;
     /**
@@ -129,6 +134,25 @@ class RestApi {
     async getStorageStatus(bucketId: string): Promise<StorageStatusResponse | undefined> {
         return await this.http.getWithQueryParams("storage/storagestatus", {
             bucketId,
+            apiVersion: "0.0.0",
+        });
+    }
+
+    /**
+     * The AES-128 decryption key for a document's media collection, as 32 hex
+     * characters.
+     *
+     * Encrypted HLS is encrypted at rest in the bucket, and documents carry only
+     * `hlsKey_id` — an id, not a secret — so the key has to be asked for. The
+     * server hands it to anyone who may view the document and to nobody else.
+     *
+     * `undefined` covers both "this media is not encrypted" and "you may not see
+     * it", which are the same answer from the caller's side: play what the
+     * playlists give you and let playback fail if they turn out to need a key.
+     */
+    async getMediaKey(docId: string): Promise<MediaKeyResponse | undefined> {
+        return await this.http.getWithQueryParams("media/key", {
+            docId,
             apiVersion: "0.0.0",
         });
     }
