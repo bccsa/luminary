@@ -397,6 +397,31 @@ describe("validateChangeRequest", () => {
         expect(result.error).toBe(undefined);
     });
 
+    it("fails validation for a malformed hlsKey", async () => {
+        const changeRequest = {
+            id: 42,
+            doc: {
+                _id: "post-test",
+                type: "post",
+                memberOf: ["group-super-admins"],
+                postType: "blog",
+                tags: [],
+                publishDateVisible: true,
+                media: {
+                    hlsUrl: "https://cdn.example.com/media/post-test/master.m3u8",
+                    // Not valid hex, and too short: masking this would silently
+                    // produce a broken sidecar rather than a validation error.
+                    hlsKey: "not-valid-hex",
+                },
+            },
+        };
+
+        const result = await validateChangeRequest(changeRequest, ["group-super-admins"], db);
+
+        expect(result.validated).toBe(false);
+        expect(result.error).toContain("hlsKey");
+    });
+
     it("fails validation for media with no playlist URL", async () => {
         const changeRequest = {
             id: 42,

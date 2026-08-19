@@ -1,5 +1,5 @@
 import "reflect-metadata"; // https://stackoverflow.com/questions/72009995/typeerror-reflect-getmetadata-is-not-a-function
-import { IsBoolean, IsOptional, IsString } from "class-validator";
+import { IsBoolean, IsOptional, IsString, Matches } from "class-validator";
 import { Expose } from "class-transformer";
 import { Uuid } from "src/enums";
 
@@ -26,6 +26,7 @@ export class MediaDto {
      */
     @IsOptional()
     @IsString()
+    @Matches(/^[0-9a-f]{32}$/i, { message: "hlsKey must be a 32-character hex string (AES-128)" })
     @Expose({ toClassOnly: true })
     hlsKey?: string;
 
