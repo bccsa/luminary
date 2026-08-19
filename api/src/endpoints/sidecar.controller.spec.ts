@@ -415,7 +415,12 @@ describe("SidecarController", () => {
         });
 
         it("records a read strike on a successful fetch, keyed by the caller's identity", async () => {
+            // Both, because the second assertion below is a negative one and the
+            // suite clears nothing between tests: the eight 403/404 cases above
+            // have already struck as "test-user", so an uncleared probe mock
+            // arrives pre-called and the assertion fails on the strike they left.
             rateLimiter.recordReadStrike.mockClear();
+            rateLimiter.recordProbeStrike.mockClear();
             await get({ parentId: "post-sc-live", sidecarType: SidecarType.HlsEncryptionKey });
             expect(rateLimiter.recordReadStrike).toHaveBeenCalledWith("test-user");
             expect(rateLimiter.recordProbeStrike).not.toHaveBeenCalledWith("test-user");

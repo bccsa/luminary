@@ -95,7 +95,9 @@ describe("processPostTagDto — sidecar lifecycle", () => {
         const result = await processChangeRequest("test-user", del, ["group-super-admins"], db);
 
         expect(result.result.ok).toBe(true);
-        expect(result.warnings.filter((w) => w.includes("sidecar"))).toEqual([]);
+        // `warnings` is omitted entirely when there are none — processChangeRequest
+        // only assigns it for a non-empty array — and a clean delete produces none.
+        expect((result.warnings ?? []).filter((w) => w.includes("sidecar"))).toEqual([]);
         expect((await db.getDoc(id)).docs).toHaveLength(0);
     });
 
