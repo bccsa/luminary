@@ -79,10 +79,9 @@ function cancelReplace() {
 }
 
 /**
- * A stored key is only ever a reference: the API encrypts the submitted key into a
- * crypto object on save and returns its id, so the key itself is never readable
- * again. The field therefore starts empty on a saved document, and saying so beats
- * an empty box that looks like no key at all.
+ * A stored key is only ever a reference: the submitted key is never handed back, only
+ * an id. The field therefore starts empty on a saved document, and saying so beats an
+ * empty box that looks like no key at all.
  */
 const hasStoredKey = computed(() => Boolean(parent.value?.media?.hlsKey_id));
 
