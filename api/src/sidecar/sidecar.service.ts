@@ -3,7 +3,8 @@ import { DbService } from "../db/db.service";
 import { SidecarDto } from "../dto/SidecarDto";
 import { PostDto } from "../dto/PostDto";
 import { TagDto } from "../dto/TagDto";
-import { DocType, SidecarType, Uuid } from "../enums";
+import { ContentDto } from "../dto/ContentDto";
+import { DocType, PublishStatus, SidecarType, Uuid } from "../enums";
 
 // Generic mechanism — never import a payload type here; typed wrappers live in
 // sidecar/<type>.ts so a registry swap stays contained.
@@ -68,6 +69,24 @@ export async function deleteSidecarsForParent(db: DbService, parentId: Uuid): Pr
     for (const type of Object.values(SidecarType)) {
         await db.deleteDoc(sidecarId(parentId, type));
     }
+}
+
+/**
+ * True when a non-CMS caller could currently receive at least one of this parent's Content
+ * documents. Mirrors the /fts non-CMS filter (the stricter of the two — it refuses scheduled
+ * content, which /query does not). Keys for unreleased or expired content must not be
+ * retrievable: the encrypted segments already sit at a public URL, so the key is the only
+ * thing withholding them.
+ */
+export async function isParentAvailable(db: DbService, parentId: Uuid, now: number): Promise<boolean> {
+    const { docs } = await db.getContentByParentId(parentId);
+    return (docs as ContentDto[]).some(
+        (c) =>
+            c.status === PublishStatus.Published &&
+            c.publishDate != null &&
+            c.publishDate <= now &&
+            (c.expiryDate == null || c.expiryDate > now),
+    );
 }
 
 /** Re-stamp the parent's memberOf onto sidecars whose memberOf differs; skip unchanged to avoid churn. */

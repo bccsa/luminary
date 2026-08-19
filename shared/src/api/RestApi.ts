@@ -86,9 +86,16 @@ export type EncoderConfigResponse = {
     publicBaseUrl: string;
 };
 
-/** The decryption key for one media collection, as 32 hex characters. */
-export type MediaKeyResponse = {
-    keyHex: string;
+/**
+ * A sidecar payload for one (parent, sidecarType) pair. `data`'s shape depends on
+ * `sidecarType` — for `"hlsEncryptionKey"` it is `{ maskedKeyHex: string }`, masked
+ * against `sidecarId` (self-inverse XOR, see `unmaskKeyHex`).
+ */
+export type SidecarResponse = {
+    sidecarId: string;
+    parentId: string;
+    sidecarType: string;
+    data: unknown;
 };
 
 class RestApi {
@@ -139,20 +146,27 @@ class RestApi {
     }
 
     /**
-     * The AES-128 decryption key for a document's media collection, as 32 hex
-     * characters.
+     * A sidecar payload for one parent document, one sidecar type at a time (no
+     * batching — see the API's `SidecarController`).
      *
-     * Encrypted HLS is encrypted at rest in the bucket, and documents carry only
-     * `hlsKey_id` — an id, not a secret — so the key has to be asked for. The
-     * server hands it to anyone who may view the document and to nobody else.
+     * Sidecars carry data that must never replicate to every client, such as an
+     * HLS decryption key: documents hold only an id (`hlsKey_id`), and the payload
+     * is fetched from here instead. The server hands it to anyone who may view the
+     * parent and to nobody else; `cms: true` asks under `CmsView` instead of
+     * `View`, for an editor previewing a parent that has no live content yet.
      *
-     * `undefined` covers both "this media is not encrypted" and "you may not see
-     * it", which are the same answer from the caller's side: play what the
-     * playlists give you and let playback fail if they turn out to need a key.
+     * `undefined` covers "no such sidecar" and "you may not see it" alike — both
+     * are simply "there is nothing to use" from the caller's side.
      */
-    async getMediaKey(docId: string): Promise<MediaKeyResponse | undefined> {
-        return await this.http.getWithQueryParams("media/key", {
-            docId,
+    async getSidecar(
+        parentId: string,
+        sidecarType: string,
+        opts: { cms?: boolean } = {},
+    ): Promise<SidecarResponse | undefined> {
+        return await this.http.getWithQueryParams("sidecar", {
+            parentId,
+            sidecarType,
+            ...(opts.cms ? { cms: "true" } : {}),
             apiVersion: "0.0.0",
         });
     }

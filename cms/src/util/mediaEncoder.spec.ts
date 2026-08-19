@@ -20,8 +20,9 @@ afterEach(() => {
 
 describe("unmaskKeyHex", () => {
     // Shared test vector — the same (seed, key) → masked literal is asserted in
-    // api/src/util/maskKey.spec.ts (maskKeyHex). A divergence between the two
-    // implementations fails a test here rather than a video in the player.
+    // api/src/util/maskKey.spec.ts (maskKeyHex) and shared/src/util/unmaskKeyHex.spec.ts.
+    // A divergence between the implementations fails a test here rather than a video
+    // in the player.
     it("matches the shared test vector", async () => {
         const seed = "sidecar-post-abc-hlsEncryptionKey";
         const keyHex = "000102030405060708090a0b0c0d0e0f";

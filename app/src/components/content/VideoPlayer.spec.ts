@@ -20,7 +20,7 @@ const playMock = vi.hoisted(() => vi.fn(() => Promise.resolve(true)));
 const pauseMock = vi.hoisted(() => vi.fn());
 const enterFullscreenMock = vi.hoisted(() => vi.fn(() => Promise.resolve()));
 const exitFullscreenMock = vi.hoisted(() => vi.fn());
-const getMediaKeyMock = vi.hoisted(() => vi.fn());
+const getSidecarMock = vi.hoisted(() => vi.fn());
 
 // Built inside the factory: vi.mock is hoisted above the imports, so a stub
 // defined at module scope is not there yet when the factory runs.
@@ -54,7 +54,7 @@ vi.mock("@/composables/useBucketInfo", () => ({
 
 vi.mock("luminary-shared", async (importOriginal) => ({
     ...(await importOriginal<typeof import("luminary-shared")>()),
-    getRest: () => ({ getMediaKey: getMediaKeyMock }),
+    getRest: () => ({ getSidecar: getSidecarMock }),
 }));
 
 const setMediaProgressMock = vi.hoisted(() => vi.fn());
@@ -101,7 +101,7 @@ const stub = (wrapper: any) => wrapper.findComponent({ name: "LuminaryPlayer" })
 beforeEach(() => {
     vi.clearAllMocks();
     getMediaProgressMock.mockReturnValue(0);
-    getMediaKeyMock.mockResolvedValue(undefined);
+    getSidecarMock.mockResolvedValue(undefined);
 });
 
 describe("VideoPlayer", () => {
@@ -124,33 +124,46 @@ describe("VideoPlayer", () => {
     });
 
     describe("the decryption key", () => {
-        it("is fetched and handed to the player when the media is encrypted", async () => {
-            getMediaKeyMock.mockResolvedValue({ keyHex: "0".repeat(32) });
+        // Real (seed, masked) → key vector shared with api/src/util/maskKey.spec.ts,
+        // cms/src/util/mediaEncoder.spec.ts and shared/src/util/unmaskKeyHex.spec.ts —
+        // exercises the real unmaskKeyHex rather than a mock of it.
+        const SIDECAR_ID = "sidecar-post-abc-hlsEncryptionKey";
+        const MASKED_KEY_HEX = "98ceb55553113bf2fdd5a74b3fa6e8d8";
+        const KEY_HEX = "000102030405060708090a0b0c0d0e0f";
 
-            const wrapper = await mountPlayer({
-                parentMedia: { hlsUrl: RELATIVE, hlsKey_id: "crypto-1" },
+        it("is fetched and handed to the player when the media is encrypted", async () => {
+            getSidecarMock.mockResolvedValue({
+                sidecarId: SIDECAR_ID,
+                parentId: mockEnglishContentDto.parentId,
+                sidecarType: "hlsEncryptionKey",
+                data: { maskedKeyHex: MASKED_KEY_HEX },
             });
 
-            await waitForExpect(() =>
-                expect(stub(wrapper).props("source").keyHex).toBe("0".repeat(32)),
+            const wrapper = await mountPlayer({
+                parentMedia: { hlsUrl: RELATIVE, hlsKey_id: "sidecar-1" },
+            });
+
+            await waitForExpect(() => expect(stub(wrapper).props("source").keyHex).toBe(KEY_HEX));
+            expect(getSidecarMock).toHaveBeenCalledWith(
+                mockEnglishContentDto.parentId,
+                "hlsEncryptionKey",
             );
-            expect(getMediaKeyMock).toHaveBeenCalledWith(mockEnglishContentDto._id);
         });
 
         it("is not asked for when the media is not encrypted", async () => {
             // Unencrypted is the common case; a request per video would be waste.
             await mountPlayer();
 
-            expect(getMediaKeyMock).not.toHaveBeenCalled();
+            expect(getSidecarMock).not.toHaveBeenCalled();
         });
 
         it("still plays when the key cannot be had", async () => {
             // "Not encrypted" and "not yours to have" are the same answer here:
             // play what the playlists give, and let playback fail if it must.
-            getMediaKeyMock.mockResolvedValue(undefined);
+            getSidecarMock.mockResolvedValue(undefined);
 
             const wrapper = await mountPlayer({
-                parentMedia: { hlsUrl: RELATIVE, hlsKey_id: "crypto-1" },
+                parentMedia: { hlsUrl: RELATIVE, hlsKey_id: "sidecar-1" },
             });
 
             expect(stub(wrapper).props("source").masterUrl).toBe(ABSOLUTE);

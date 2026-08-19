@@ -16,8 +16,7 @@
  */
 import { computed, ref, watch } from "vue";
 import { LuminaryPlayer, type PlayerSource } from "@luminary-media-converter/player-web-legacy";
-import { type ContentDto } from "luminary-shared";
-import { getRest } from "luminary-shared";
+import { type ContentDto, SidecarType, getRest, unmaskKeyHex } from "luminary-shared";
 import LImage from "../images/LImage.vue";
 import { appLanguagesPreferredAsRef, queryParams } from "@/globalConfig";
 import { getMediaProgress, removeMediaProgress, setMediaProgress } from "@/contentProgress";
@@ -94,10 +93,15 @@ const source = computed<PlayerSource | null>(() => {
  */
 watch(
     () => props.content?._id,
-    async (id) => {
+    async () => {
         keyHex.value = undefined;
-        if (!id || !props.content?.parentMedia?.hlsKey_id) return;
-        keyHex.value = (await getRest().getMediaKey(id))?.keyHex;
+        const parentId = props.content?.parentId;
+        if (!parentId || !props.content?.parentMedia?.hlsKey_id) return;
+        const sidecar = await getRest().getSidecar(parentId, SidecarType.HlsEncryptionKey);
+        if (!sidecar) return;
+        const data = sidecar.data as { maskedKeyHex: string } | undefined;
+        if (!data?.maskedKeyHex) return;
+        keyHex.value = await unmaskKeyHex(sidecar.sidecarId, data.maskedKeyHex);
     },
     { immediate: true },
 );

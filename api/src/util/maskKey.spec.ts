@@ -2,8 +2,9 @@ import { maskKeyHex } from "./maskKey";
 
 describe("maskKeyHex", () => {
     // Shared test vector — the same (seed, key) → masked literal is asserted in
-    // cms/src/util/mediaEncoder.spec.ts. A divergence between the two implementations
-    // fails a test here rather than a video in the player.
+    // cms/src/util/mediaEncoder.spec.ts and shared/src/util/unmaskKeyHex.spec.ts. A
+    // divergence between the implementations fails a test here rather than a video
+    // in the player.
     it("matches the shared test vector", () => {
         const seed = "sidecar-post-abc-hlsEncryptionKey";
         const keyHex = "000102030405060708090a0b0c0d0e0f";
