@@ -7,11 +7,11 @@ RUN npm ci
 RUN npm run build
 
 # Build the encoder's player libraries. They ship only dist/, and app depends on
-# player-web-legacy by path (file:../media-convert/player-web-legacy), so this
+# player-web-legacy by path (file:../luminary-media-convert/player-web-legacy), so this
 # has to happen before app installs. The submodule's own workspace links resolve
 # player-core and hls-core underneath it.
-WORKDIR /media-convert
-COPY ./media-convert ./
+WORKDIR /luminary-media-convert
+COPY ./luminary-media-convert ./
 # ci:libs, not ci: a plain install pulls in electron and electron-builder and
 # downloads the Electron binary — around 500 MB to produce five small
 # libraries and a desktop app this image will never run. The workspace list
