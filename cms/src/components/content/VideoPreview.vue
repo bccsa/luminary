@@ -13,7 +13,7 @@
  */
 import { computed, ref, watch } from "vue";
 import { LuminaryPlayer, type PlayerSource } from "@luminary-media-converter/player-web-legacy";
-import { type ContentParentDto, getRest } from "luminary-shared";
+import { type ContentParentDto, SidecarType, getRest, unmaskKeyHex } from "luminary-shared";
 import { storageSelection } from "@/composables/storageSelection";
 import { toAbsoluteMediaUrl } from "@/util/mediaUrl";
 
@@ -53,7 +53,11 @@ watch(
     async ([id, keyId]) => {
         storedKey.value = undefined;
         if (!id || !keyId) return;
-        storedKey.value = (await getRest().getMediaKey(id))?.keyHex;
+        const sidecar = await getRest().getSidecar(id, SidecarType.HlsEncryptionKey, { cms: true });
+        if (!sidecar) return;
+        const data = sidecar.data as { maskedKeyHex: string } | undefined;
+        if (!data?.maskedKeyHex) return;
+        storedKey.value = await unmaskKeyHex(sidecar.sidecarId, data.maskedKeyHex);
     },
     { immediate: true },
 );
