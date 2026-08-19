@@ -36,6 +36,14 @@ jobs:
           cache: "npm"
           cache-dependency-path: app/package-lock.json
 
+      - name: Build the encoder's player libraries
+        # The submodule's packages ship only dist/, which is gitignored — a fresh
+        # checkout has sources and no entry points, and Vite fails with "Failed to
+        # resolve entry for package". ci:libs installs the five library workspaces
+        # without electron; build:libs builds them. Same as both Dockerfiles.
+        run: npm run ci:libs; npm run build:libs;
+        working-directory: media-convert
+
       - name: Build shared dependencies
         run: npm ci; npm run build;
         working-directory: shared
