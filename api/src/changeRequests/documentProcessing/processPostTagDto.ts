@@ -2,12 +2,12 @@ import { ContentDto } from "../../dto/ContentDto";
 import { PostDto } from "../../dto/PostDto";
 import { TagDto } from "../../dto/TagDto";
 import { DbService } from "../../db/db.service";
-import { DocType, Uuid } from "../../enums";
+import { DocType, SidecarType, Uuid } from "../../enums";
 import { deleteImage, processImage } from "./processImageDto";
 import { processMedia } from "./processMediaDto";
 import { deleteMediaCollection } from "./deleteMediaCollection";
 import { migrateMediaCollection } from "./migrateMediaCollection";
-import { syncSidecarMemberOf } from "../../sidecar/sidecar.service";
+import { deleteSidecar, deleteSidecarsForParent, syncSidecarMemberOf } from "../../sidecar/sidecar.service";
 
 /**
  * Process Post / Tag DTO
@@ -51,6 +51,17 @@ export default async function processPostTagDto(
                     db,
                 )),
             );
+        }
+
+        // Sidecars are children of this document — nothing else references them and
+        // no client holds a copy, so they go with it. Hard delete, no DeleteCmd. A
+        // failure here must not block the content delete: an orphaned sidecar is
+        // unreadable once the parent is gone (GET /sidecar 404s), so warn rather
+        // than throw, matching deleteImage's precedent.
+        try {
+            await deleteSidecarsForParent(db, doc._id);
+        } catch (error) {
+            warnings.push(`Failed to delete sidecars for ${doc._id}: ${error.message}`);
         }
 
         return warnings; // no need to process further
@@ -146,6 +157,16 @@ export default async function processPostTagDto(
         // collection. Let it throw — processChangeRequest has no catch here, so the CR
         // fails and the editor still holds the key to retry.
         warnings.push(...(await processMedia(doc.media, doc, db)));
+    }
+
+    // A key that was referenced and no longer is has been removed by the editor —
+    // whether they cleared the key field or the whole media object. Outside the
+    // `if (doc.media)` block on purpose: removing the collection drops doc.media
+    // entirely, which is the case a check inside processMedia would never see. A
+    // fresh hlsKey in the same request means replace, not delete — processMedia
+    // has already recreated the sidecar at the same id. See docs/sidecar/03.
+    if (prevDoc?.media?.hlsKey_id && !doc.media?.hlsKey_id && !doc.media?.hlsKey) {
+        await deleteSidecar(db, doc._id, SidecarType.HlsEncryptionKey);
     }
 
     // Get content documents that are children of the Post / Tag document
