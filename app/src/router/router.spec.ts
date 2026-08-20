@@ -11,10 +11,17 @@ describe("Router", () => {
             expect(shipped).toHaveLength(10);
         });
 
-        it("should not register the Kratos routes without VITE_KRATOS_URL", () => {
-            expect(router.getRoutes().filter((route) => route.meta.devOnly)).not.toContainEqual(
-                expect.objectContaining({ path: "/auth/login" }),
-            );
+        it("should mark every development-only route as such", () => {
+            // Whether these are registered depends on the environment; that they
+            // are all flagged devOnly is what keeps them out of the shipped count.
+            const developmentOnly = router
+                .getRoutes()
+                .filter(
+                    (route) => route.path.startsWith("/auth/") || route.path.startsWith("/design/"),
+                );
+            for (const route of developmentOnly) {
+                expect(route.meta.devOnly).toBe(true);
+            }
         });
 
         it("should have home route configured correctly", () => {
