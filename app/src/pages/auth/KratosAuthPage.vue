@@ -44,6 +44,12 @@ const showMethods = ref(props.flowType === "login");
 
 onMounted(async () => {
     await start(route.query.flow as string | undefined, returnTo.value);
+    // Already signed in: show the account rather than an error about a flow
+    // Kratos was right to refuse.
+    if (step.value === "signed-in") {
+        router.replace("/auth/account");
+        return;
+    }
     if (props.flowType !== "login" || !providers.value.length) showMethods.value = false;
 });
 

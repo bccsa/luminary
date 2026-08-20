@@ -50,6 +50,15 @@ export type KratosSessionListEntry = KratosSession & {
 export type FlowType = "login" | "registration" | "verification" | "recovery" | "settings";
 
 /**
+ * Starting a flow can find you already signed in — Kratos answers 400
+ * `session_already_available` rather than handing back a flow.
+ */
+export type FlowStart =
+    | { kind: "flow"; flow: KratosFlow }
+    | { kind: "session_exists" }
+    | { kind: "unavailable" };
+
+/**
  * Every way a submit can land. `flow` is the ordinary "here are your validation
  * errors" case — Kratos answers 400 with the same flow, re-rendered.
  */
