@@ -7,7 +7,7 @@ export const authCopy = {
     "auth.methods.title": "Sign in",
     "auth.methods.subtitle":
         "Use your email address, or continue with an account you already have.",
-    "auth.methods.email": "Continue with email",
+    "auth.methods.guest_sign_in": "Sign in as Guest",
     "auth.methods.divider": "or",
     "auth.methods.guest": "Continue without an account",
     "auth.methods.none": "No sign-in methods are available right now.",

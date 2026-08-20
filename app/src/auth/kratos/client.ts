@@ -1,4 +1,5 @@
 import type {
+    FlowStart,
     FlowType,
     KratosFlow,
     KratosSession,
@@ -27,17 +28,32 @@ async function readJson<T>(response: Response): Promise<T> {
     return (await response.json()) as T;
 }
 
-/** Start a browser flow. `returnTo` survives the round trip and decides where success lands. */
-export async function createFlow(type: FlowType, returnTo?: string): Promise<KratosFlow> {
+/**
+ * Start a browser flow. `returnTo` survives the round trip and decides where
+ * success lands. Being signed in already is a normal answer here, not a failure:
+ * Kratos refuses to open a login or registration flow for a live session.
+ */
+export async function createFlow(type: FlowType, returnTo?: string): Promise<FlowStart> {
     const url = new URL(`${KRATOS_BASE}/self-service/${type}/browser`, window.location.origin);
     if (returnTo) url.searchParams.set("return_to", returnTo);
 
-    const response = await fetch(url, {
-        headers: { Accept: "application/json" },
-        credentials: "include",
-    });
-    if (!response.ok) throw new Error(`Could not start the ${type} flow (${response.status})`);
-    return readJson<KratosFlow>(response);
+    let response: Response;
+    try {
+        response = await fetch(url, {
+            headers: { Accept: "application/json" },
+            credentials: "include",
+        });
+    } catch {
+        return { kind: "unavailable" };
+    }
+
+    if (response.ok) return { kind: "flow", flow: await readJson<KratosFlow>(response) };
+
+    if (response.status === 400) {
+        const body = await readJson<{ error?: { id?: string } }>(response);
+        if (body.error?.id === "session_already_available") return { kind: "session_exists" };
+    }
+    return { kind: "unavailable" };
 }
 
 /** Fetch the flow named in the URL Kratos redirected the browser to. */

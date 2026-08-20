@@ -74,7 +74,7 @@ const handleGuestSelect = () => {
                     <EnvelopeIcon class="h-5 w-5" />
                 </div>
                 <span class="text-start text-[15px] font-medium text-zinc-700 dark:text-slate-200">
-                    {{ c("auth.methods.email") }}
+                    {{ c("auth.methods.guest_sign_in") }}
                 </span>
             </button>
 

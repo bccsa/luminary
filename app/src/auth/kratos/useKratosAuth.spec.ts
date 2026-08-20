@@ -35,12 +35,31 @@ const submitted = () => vi.mocked(submitFlow).mock.calls.at(-1)![1];
 describe("useKratosAuth", () => {
     beforeEach(() => {
         vi.useFakeTimers();
-        vi.mocked(createFlow).mockResolvedValue(registrationStart);
+        vi.mocked(createFlow).mockResolvedValue({ kind: "flow", flow: registrationStart });
         vi.mocked(submitFlow).mockResolvedValue({ kind: "flow", flow: awaitingCode });
     });
     afterEach(() => {
         vi.useRealTimers();
         vi.clearAllMocks();
+    });
+
+    it("reports an existing session instead of failing the flow", async () => {
+        // Kratos answers 400 session_already_available rather than opening a
+        // login flow for a live session; that is not an error to show the user.
+        vi.mocked(createFlow).mockResolvedValue({ kind: "session_exists" });
+        const { auth } = host("login");
+        await auth.start();
+
+        expect(auth.step.value).toBe("signed-in");
+        expect(auth.failure.value).toBe("");
+    });
+
+    it("shows the failure screen when Kratos cannot be reached", async () => {
+        vi.mocked(createFlow).mockResolvedValue({ kind: "unavailable" });
+        const { auth } = host("login");
+        await auth.start();
+
+        expect(auth.step.value).toBe("failed");
     });
 
     it("opens on the address step", async () => {
@@ -64,7 +83,7 @@ describe("useKratosAuth", () => {
     });
 
     it("submits login as an identifier, because that is what that flow asks for", async () => {
-        vi.mocked(createFlow).mockResolvedValue(loginStart);
+        vi.mocked(createFlow).mockResolvedValue({ kind: "flow", flow: loginStart });
         const { auth } = host("login");
         await auth.start();
         auth.email.value = "johan@example.com";

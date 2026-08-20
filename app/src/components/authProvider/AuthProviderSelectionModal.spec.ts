@@ -232,7 +232,7 @@ describe("AuthProviderSelectionModal.vue", () => {
 
             await waitForExpect(() => {
                 expect(wrapper.html()).toContain("Acme Corp");
-                expect(wrapper.html()).toContain("Continue with email");
+                expect(wrapper.html()).toContain("Sign in as Guest");
             });
         });
 
@@ -242,7 +242,7 @@ describe("AuthProviderSelectionModal.vue", () => {
             });
 
             await waitForExpect(() => {
-                expect(wrapper.html()).toContain("Continue with email");
+                expect(wrapper.html()).toContain("Sign in as Guest");
             });
             expect(wrapper.html()).not.toContain("auth.no_methods_available");
         });
@@ -253,11 +253,11 @@ describe("AuthProviderSelectionModal.vue", () => {
             });
 
             await waitForExpect(() => {
-                expect(wrapper.html()).toContain("Continue with email");
+                expect(wrapper.html()).toContain("Sign in as Guest");
             });
             const emailButton = wrapper
                 .findAll("button")
-                .find((button) => button.text().includes("Continue with email"));
+                .find((button) => button.text().includes("Sign in as Guest"));
             await emailButton!.trigger("click");
 
             // Kratos is not an OIDC provider; routing it through the OIDC client
