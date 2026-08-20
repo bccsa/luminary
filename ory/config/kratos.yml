@@ -24,10 +24,18 @@ session:
         domain: localhost
         same_site: Lax
 
+# Hydra's admin API. With this set, Kratos understands the `login_challenge`
+# Hydra puts on the login URL: it validates the challenge, honours Hydra's skip
+# flag, and on success accepts the OAuth2 login request itself. Consent is not
+# Kratos' job.
+oauth2_provider:
+    url: http://hydra:4445
+
 selfservice:
     default_browser_return_url: http://localhost:4174/
     allowed_return_urls:
         - http://localhost:4174
+        - http://localhost:4444
 
     methods:
         # One decision, both flows: `passwordless_enabled` turns the emailed

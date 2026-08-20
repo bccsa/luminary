@@ -6,19 +6,20 @@ import LoadingSpinner from "@/components/LoadingSpinner.vue";
 import AccountSettingsScreen from "@/components/auth/kratos/AccountSettingsScreen.vue";
 import AuthErrorScreen from "@/components/auth/kratos/AuthErrorScreen.vue";
 import type { ActiveSession } from "@/components/auth/kratos/AccountSettingsScreen.vue";
-import { listOtherSessions, signOutOtherSessions } from "@/auth/kratos/client";
-import { kratosSession, refreshKratosSession, signOutKratos } from "@/auth/kratos/session";
+import { listOtherSessions, logout, signOutOtherSessions, whoami } from "@/auth/kratos/client";
 import type { KratosSessionListEntry } from "@/auth/kratos/types";
 
 const router = useRouter();
 const loading = ref(true);
-// Shared with the profile menu, so signing out here updates it too.
-const session = kratosSession;
+const session = ref<KratosSessionListEntry | null>(null);
 const others = ref<KratosSessionListEntry[]>([]);
 
 const email = computed(() => session.value?.identity?.traits.email ?? "");
 const verified = computed(
-    () => session.value?.identity?.verifiable_addresses?.some((a) => a.verified) ?? false,
+    () =>
+        session.value?.identity?.verifiable_addresses?.some(
+            (address: { verified: boolean }) => address.verified,
+        ) ?? false,
 );
 
 /** A user agent is not a device name; this is only good enough to tell rows apart. */
@@ -49,7 +50,7 @@ const rows = computed<ActiveSession[]>(() => [
 
 async function load() {
     loading.value = true;
-    await refreshKratosSession();
+    session.value = await whoami();
     others.value = session.value ? await listOtherSessions() : [];
     loading.value = false;
 }
@@ -61,7 +62,7 @@ async function onSignOutOthers() {
 }
 
 async function onSignOut() {
-    await signOutKratos();
+    await logout();
     router.push("/auth/login");
 }
 </script>

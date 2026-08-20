@@ -35,8 +35,6 @@ import LToggle from "../form/LToggle.vue";
 import MobileSidebar from "../common/MobileSidebar.vue";
 import DropdownMenu from "../common/DropdownMenu.vue";
 import { getNavigationItems } from "./navigationItems";
-import { kratosIdentityLabel, kratosSession, signOutKratos } from "@/auth/kratos/session";
-import { useAuthCopy } from "@/components/auth/kratos/useAuthCopy";
 import { useSearchOverlay } from "@/composables/useSearchOverlay";
 
 type Trigger = "avatar" | "bars" | "sidebar";
@@ -49,7 +47,6 @@ withDefaults(defineProps<Props>(), {
 });
 
 const { user, logout, loginWithRedirect, isAuthenticated } = useAuthWithPrivacyPolicy();
-const c = useAuthCopy();
 const router = useRouter();
 
 const showThemeSelector = ref(false);
@@ -160,47 +157,12 @@ const privacyPolicyNavigationItem = computed(
     }),
 );
 
-/**
- * Shown only while a Kratos session exists. It is not folded into the login/logout
- * item above: that one reflects the OIDC session the Luminary API actually honours,
- * and a guest session is a separate thing.
- */
-/**
- * The name on the menu trigger. A guest session is not the OIDC session the API
- * honours, but it is still who the user signed in as, so it is what to show them.
- */
-/** A guest session is only the account on show while there is no OIDC one. */
-const hasGuestSession = computed(() => !isAuthenticated.value && !!kratosSession.value);
-
-const authActionLabel = computed(() => {
-    if (isAuthenticated.value) return t("profile_menu.logout");
-    return hasGuestSession.value ? c("auth.guest.sign_out") : t("profile_menu.login");
-});
-
-const handleAuthAction = () => {
-    if (isAuthenticated.value) return handleLogout();
-    if (hasGuestSession.value) return signOutKratos();
-    return handleLogin();
-};
-
+/** The name shown on the menu trigger and in the panel header. */
 const accountLabel = computed(() => {
-    if (isAuthenticated.value) {
-        // `user` is a ref in the app but a plain object in some mounted tests.
-        const details = unref(user) as { name?: string; email?: string } | undefined;
-        return details?.name || details?.email;
-    }
-    return kratosIdentityLabel.value || t("profile_menu.title");
+    // `user` is a ref in the app but a plain object in some mounted tests.
+    const details = unref(user) as { name?: string; email?: string } | undefined;
+    return isAuthenticated.value ? details?.name || details?.email : t("profile_menu.title");
 });
-
-const kratosNavigationItem = computed(() =>
-    kratosSession.value
-        ? {
-              name: c("auth.guest.signed_in_as", { name: kratosIdentityLabel.value }),
-              icon: UserCircleIcon,
-              action: () => router.push("/auth/account"),
-          }
-        : null,
-);
 
 const userNavigation = computed(() => {
     const authItem = isAuthenticated.value
@@ -215,37 +177,25 @@ const userNavigation = computed(() => {
                   showOfflineNotification();
               },
           }
-        : kratosSession.value
-          ? {
-                name: c("auth.guest.sign_out"),
-                icon: ArrowRightEndOnRectangleIcon,
-                action: () => signOutKratos(),
-            }
-          : {
-                name: t("profile_menu.login"),
-                icon: ArrowLeftEndOnRectangleIcon,
-                action: () => {
-                    if (isConnected.value) {
-                        loginWithRedirect();
-                        return;
-                    }
-                    useNotificationStore().addNotification({
-                        id: "no-internet-connection-login",
-                        title: t("profile_menu.login.offline_notification_title"),
-                        description: t("profile_menu.login.offline_notification"),
-                        type: "toast",
-                        state: "error",
-                    } as Notification);
-                },
-            };
+        : {
+              name: t("profile_menu.login"),
+              icon: ArrowLeftEndOnRectangleIcon,
+              action: () => {
+                  if (isConnected.value) {
+                      loginWithRedirect();
+                      return;
+                  }
+                  useNotificationStore().addNotification({
+                      id: "no-internet-connection-login",
+                      title: t("profile_menu.login.offline_notification_title"),
+                      description: t("profile_menu.login.offline_notification"),
+                      type: "toast",
+                      state: "error",
+                  } as Notification);
+              },
+          };
 
-    const kratosItem = kratosNavigationItem.value;
-    return [
-        ...commonNavigation.value,
-        ...(kratosItem ? [kratosItem] : []),
-        privacyPolicyNavigationItem.value,
-        authItem,
-    ];
+    return [...commonNavigation.value, privacyPolicyNavigationItem.value, authItem];
 });
 
 const sidebarNavigation = computed(() =>
@@ -555,23 +505,25 @@ const sidebarNavigation = computed(() =>
                 <button
                     type="button"
                     class="mb-2 flex w-full cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-left text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
-                    @click="handleAuthAction()"
+                    @click="isAuthenticated ? handleLogout() : handleLogin()"
                 >
                     <component
                         :is="
-                            isAuthenticated || hasGuestSession
+                            isAuthenticated
                                 ? ArrowRightEndOnRectangleIcon
                                 : ArrowLeftEndOnRectangleIcon
                         "
                         class="h-5 w-5 flex-shrink-0"
                         aria-hidden="true"
                     />
-                    <span class="text-sm font-medium">{{ authActionLabel }}</span>
+                    <span class="text-sm font-medium">
+                        {{ isAuthenticated ? t("profile_menu.logout") : t("profile_menu.login") }}
+                    </span>
                 </button>
 
                 <!-- Profile display -->
                 <div
-                    v-if="isAuthenticated || hasGuestSession"
+                    v-if="isAuthenticated"
                     class="flex items-center gap-3 rounded-md px-3 py-1.5"
                 >
                     <img

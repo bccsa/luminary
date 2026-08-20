@@ -8,9 +8,6 @@ import AuthProviderSelectionModal from "./AuthProviderSelectionModal.vue";
 
 vi.mock("vue-i18n", () => ({
     useI18n: () => ({
-        // `te` is false throughout: the Kratos entry's copy has no translation
-        // here, so it renders its English default.
-        te: () => false,
         t: (key: string) =>
             (
                 ({
@@ -23,13 +20,6 @@ vi.mock("vue-i18n", () => ({
 vi.mock("@/auth", () => ({
     loginWithProvider: vi.fn(),
     showProviderSelectionModal: ref(true),
-}));
-
-// Whether the Kratos entry is offered depends on an environment variable, which
-// would otherwise make these assertions depend on the developer's own .env.
-const kratosEnabled = { value: false };
-vi.mock("@/auth/kratos/client", () => ({
-    isKratosEnabled: () => kratosEnabled.value,
 }));
 
 vi.mock("@/components/images/LImage.vue", () => ({
@@ -92,7 +82,6 @@ const mockProviderDisplayNameFallback: AuthProviderDto = {
 describe("AuthProviderSelectionModal.vue", () => {
     beforeEach(async () => {
         vi.clearAllMocks();
-        kratosEnabled.value = false;
         showProviderSelectionModal.value = true;
         await db.docs.clear();
     });
@@ -215,55 +204,6 @@ describe("AuthProviderSelectionModal.vue", () => {
 
         await waitForExpect(() => {
             expect(wrapper.html()).toContain("Login with Display Name");
-        });
-    });
-
-    describe("with the Kratos screens switched on", () => {
-        beforeEach(() => {
-            kratosEnabled.value = true;
-        });
-
-        it("offers the email entry alongside the configured providers", async () => {
-            await db.docs.put(mockProviderA);
-
-            const wrapper = mount(AuthProviderSelectionModal, {
-                props: { isVisible: true },
-            });
-
-            await waitForExpect(() => {
-                expect(wrapper.html()).toContain("Acme Corp");
-                expect(wrapper.html()).toContain("Sign in as Guest");
-            });
-        });
-
-        it("is a method in its own right, so no empty state with no providers", async () => {
-            const wrapper = mount(AuthProviderSelectionModal, {
-                props: { isVisible: true },
-            });
-
-            await waitForExpect(() => {
-                expect(wrapper.html()).toContain("Sign in as Guest");
-            });
-            expect(wrapper.html()).not.toContain("auth.no_methods_available");
-        });
-
-        it("does not send the email entry through loginWithProvider", async () => {
-            const wrapper = mount(AuthProviderSelectionModal, {
-                props: { isVisible: true },
-            });
-
-            await waitForExpect(() => {
-                expect(wrapper.html()).toContain("Sign in as Guest");
-            });
-            const emailButton = wrapper
-                .findAll("button")
-                .find((button) => button.text().includes("Sign in as Guest"));
-            await emailButton!.trigger("click");
-
-            // Kratos is not an OIDC provider; routing it through the OIDC client
-            // would redirect to an /authorize endpoint that does not exist.
-            expect(loginWithProvider).not.toHaveBeenCalled();
-            expect(showProviderSelectionModal.value).toBe(false);
         });
     });
 });

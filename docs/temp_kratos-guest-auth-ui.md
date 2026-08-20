@@ -1,4 +1,12 @@
-# Guest auth on Ory Kratos — UI design
+# Guest auth on Ory — UI design
+
+> **Status: built on Hydra.** The recommendation at the end of this doc was
+> taken. Kratos authenticates and **Hydra issues the tokens**, so a guest is an
+> ordinary `AuthProvider` row and neither the app's OIDC client nor the API's
+> JWKS validation has a Kratos special case. Sections below that weigh
+> Kratos-only against Hydra are kept because they are why the decision went that
+> way — not because both options are live. `ory/README.md` is the running
+> instructions.
 
 Working doc for the app-side login screens. The screens themselves are real components in
 `app/src/components/auth/kratos/`; run `npm run dev` in `app/` and open `/design/auth` to
@@ -304,3 +312,45 @@ one and `ext.email` for another, and the CMS config stays uniform.
   allowed `offline_access` and issue refresh tokens. The app itself needs no
   change.
 - The JWKS path and the `azp ?? client_id` check match Hydra's output as-is.
+
+## What the Hydra refactor actually changed
+
+Verified against Hydra v2.2.0 and Kratos v1.3.1 running locally, not against the
+docs alone.
+
+**Removed.** The parallel guest session the Kratos-only PoC needed — its shared
+`kratosSession` ref, the bespoke entry in the provider modal, and the guest
+branches in the profile menu and desktop sidebar. With Hydra the ordinary OIDC
+session is _the_ session, so a second one alongside it would have been a second
+answer to "who is signed in".
+
+**Added.**
+
+- `api/src/oauth/` — Hydra's consent and logout hand-offs. Accepting either needs
+  Hydra's admin API, which a browser must never reach, so `urls.consent` points
+  at the API rather than the web client. It grants only what the request asked
+  for, and only for the one trusted client id; anything else is refused rather
+  than silently approved.
+- `providerBaseUrl()` in `authIdentity.service.ts` — the issuer and JWKS URL were
+  built as `https://${domain}/`, so a provider could never be reached over http.
+  An explicit scheme is now honoured and https still assumed without one, which
+  is the rule `app/src/auth.ts` already applied on the client. Without it no
+  local Hydra can be validated at all.
+- `ory/seed-auth-provider.mjs` — writes the provider doc. Deliberately the same
+  shape the CMS writes; there is no Kratos-specific field to add.
+
+**Two findings that shaped the code.**
+
+- `skip_consent: true` on the client does **not** remove the consent round trip
+  in self-hosted Hydra. It still redirects and still expects an accept. The
+  observed consent request even reported `skip: false`. An endpoint was needed
+  either way.
+- **A browser flow has to be navigated to, not fetched.** Requesting
+  `/self-service/login/browser?login_challenge=…` with `Accept: application/json`
+  returns `200 null` in the case where Kratos can complete the flow itself; the
+  `303` only appears for a real navigation. The PoC fetched it, which worked
+  only because nothing had a live session yet.
+
+**Confirmed end to end**: `iss`, `aud`, `client_id` and `sub` all land where the
+API's validator expects them, `tier` arrives promoted to the top level rather
+than under `ext`, and a refresh token is issued — which `signinSilent()` requires.
