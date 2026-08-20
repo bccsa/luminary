@@ -1,0 +1,66 @@
+# Hydra configuration for the guest-auth proof of concept. Development only.
+#
+# Hydra is what makes a guest an ordinary OIDC provider from Luminary's side:
+# the app's existing oidc-client-ts redirect and the API's existing JWKS
+# validation both apply unchanged. Kratos authenticates; Hydra issues the token.
+serve:
+    public:
+        port: 4444
+        cors:
+            enabled: true
+            allowed_origins:
+                - http://localhost:4174
+            allowed_methods: [GET, POST, PUT, DELETE]
+            allowed_headers: [Authorization, Content-Type]
+            allow_credentials: true
+    admin:
+        port: 4445
+
+dsn: sqlite:///var/lib/sqlite/hydra.sqlite?_fk=true&mode=rwc
+
+urls:
+    self:
+        # The API derives both the expected issuer and the JWKS URL from the
+        # AuthProvider doc's `domain`, so this value and that field must agree
+        # exactly, trailing slash included.
+        issuer: http://localhost:4444/
+    # Hydra sends the user here to authenticate; it is our own route, driving
+    # Kratos. The screens the user sees are ours.
+    login: http://localhost:4174/auth/login
+    # Consent and logout are accepted through Hydra's admin API, which a browser
+    # must never reach — so they are handled by the API, not by the web client.
+    consent: http://localhost:3001/oauth/consent
+    logout: http://localhost:3001/oauth/logout
+    error: http://localhost:4174/auth/error
+    post_logout_redirect: http://localhost:4174/
+
+oauth2:
+    # Claims added at consent are nested under `ext` unless they are promoted.
+    # Promoting them keeps AutoGroupMappings conditions identical across
+    # providers — `email`, not `ext.email` for this one and `email` for others.
+    allowed_top_level_claims:
+        - email
+        - name
+        - tier
+    mirror_top_level_claims: false
+    exclude_not_before_claim: false
+
+strategies:
+    # Opaque tokens are the default and would fail the API's JWT verification
+    # outright. The environment variable spelling of this setting does not work.
+    access_token: jwt
+
+ttl:
+    access_token: 1h
+    refresh_token: 720h
+    id_token: 1h
+    auth_code: 10m
+
+secrets:
+    system:
+        - PLEASE-CHANGE-ME-I-AM-A-DEV-ONLY-SECRET
+
+log:
+    level: debug
+    format: text
+    leak_sensitive_values: true

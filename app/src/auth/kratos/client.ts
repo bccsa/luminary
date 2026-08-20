@@ -29,6 +29,22 @@ async function readJson<T>(response: Response): Promise<T> {
 }
 
 /**
+ * The URL a browser flow must be **navigated** to, not fetched. Kratos answers a
+ * JSON fetch of this endpoint with `200 null` when it can complete the flow on
+ * its own — the OAuth2 skip case, where a live session lets it accept Hydra's
+ * login request immediately. Only a real navigation follows the 303 it issues.
+ */
+export function browserInitUrl(
+    type: FlowType,
+    opts: { returnTo?: string; loginChallenge?: string } = {},
+): string {
+    const url = new URL(`${KRATOS_BASE}/self-service/${type}/browser`, window.location.origin);
+    if (opts.returnTo) url.searchParams.set("return_to", opts.returnTo);
+    if (opts.loginChallenge) url.searchParams.set("login_challenge", opts.loginChallenge);
+    return url.toString();
+}
+
+/**
  * Start a browser flow. `returnTo` survives the round trip and decides where
  * success lands. Being signed in already is a normal answer here, not a failure:
  * Kratos refuses to open a login or registration flow for a live session.

@@ -33,8 +33,6 @@ import {
     showPrivacyPolicyModal,
     useAuthWithPrivacyPolicy,
 } from "@/composables/useAuthWithPrivacyPolicy";
-import { kratosIdentityLabel, kratosSession, signOutKratos } from "@/auth/kratos/session";
-import { useAuthCopy } from "@/components/auth/kratos/useAuthCopy";
 import { isConnected } from "luminary-shared";
 import { useNotificationStore, type Notification } from "@/stores/notification";
 import { useHydrated } from "@/composables/useHydrated";
@@ -43,7 +41,6 @@ const { t } = useI18n();
 const { openSearch, isSearchOpen } = useSearchOverlay();
 const { collapsed, toggleCollapsed } = useDesktopSidebar();
 const { user, logout, loginWithRedirect, isAuthenticated } = useAuthWithPrivacyPolicy();
-const c = useAuthCopy();
 
 const LOGO = import.meta.env.VITE_LOGO || defaultLogo;
 const LOGO_DARK = import.meta.env.VITE_LOGO_DARK || defaultLogoDark;
@@ -93,31 +90,12 @@ const languageTooltip = computed(() => {
     return name ? `${t("profile_menu.language")} — ${name}` : t("profile_menu.language");
 });
 
-/** A guest session is only the account on show while there is no OIDC one. */
-const hasGuestSession = computed(() => !isAuthenticated.value && !!kratosSession.value);
-
 const accountLabel = computed(() => {
-    if (isAuthenticated.value) {
-        const details = unref(user) as { name?: string; email?: string } | undefined;
-        return details?.name || details?.email || t("profile_menu.title");
-    }
-    return kratosIdentityLabel.value;
+    const details = unref(user) as { name?: string; email?: string } | undefined;
+    return details?.name || details?.email || t("profile_menu.title");
 });
 
-const profileTooltip = computed(() =>
-    isAuthenticated.value || hasGuestSession.value ? accountLabel.value : "",
-);
-
-const authActionLabel = computed(() => {
-    if (isAuthenticated.value) return t("profile_menu.logout");
-    return hasGuestSession.value ? c("auth.guest.sign_out") : t("profile_menu.login");
-});
-
-const handleAuthAction = () => {
-    if (isAuthenticated.value) return handleLogout();
-    if (hasGuestSession.value) return signOutKratos();
-    return handleLogin();
-};
+const profileTooltip = computed(() => (isAuthenticated.value ? accountLabel.value : ""));
 
 const showOfflineNotification = () => {
     useNotificationStore().addNotification({
@@ -421,14 +399,12 @@ const handleLogin = () => {
             <button
                 type="button"
                 :class="[...actionButtonClasses(), !collapsed ? 'mb-2' : 'mb-1']"
-                :title="authActionLabel"
-                @click="handleAuthAction()"
+                :title="isAuthenticated ? t('profile_menu.logout') : t('profile_menu.login')"
+                @click="isAuthenticated ? handleLogout() : handleLogin()"
             >
                 <component
                     :is="
-                        isAuthenticated || hasGuestSession
-                            ? ArrowRightEndOnRectangleIcon
-                            : ArrowLeftEndOnRectangleIcon
+                        isAuthenticated ? ArrowRightEndOnRectangleIcon : ArrowLeftEndOnRectangleIcon
                     "
                     :class="navIconClass"
                     aria-hidden="true"
@@ -437,12 +413,12 @@ const handleLogin = () => {
                     v-if="!collapsed"
                     :class="navLabelClass"
                 >
-                    {{ authActionLabel }}
+                    {{ isAuthenticated ? t("profile_menu.logout") : t("profile_menu.login") }}
                 </span>
             </button>
 
             <div
-                v-if="isAuthenticated || hasGuestSession"
+                v-if="isAuthenticated"
                 :class="[
                     'flex items-center rounded-md',
                     collapsed ? 'justify-center px-0 py-1' : 'gap-3 py-1.5 pl-1.5',
