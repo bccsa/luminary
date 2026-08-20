@@ -22,6 +22,7 @@ import AffinityDebugOverlay from "@/components/debug/AffinityDebugOverlay.vue";
 import { useAuthWithPrivacyPolicy } from "@/composables/useAuthWithPrivacyPolicy";
 import { showProviderSelectionModal } from "@/auth";
 import AuthProviderSelectionModal from "@/components/authProvider/AuthProviderSelectionModal.vue";
+import { refreshKratosSession } from "@/auth/kratos/session";
 import { useI18n } from "vue-i18n";
 import defaultLogo from "@/assets/logo.svg?url";
 import { usePwaUpdate } from "@/composables/usePwaUpdate";
@@ -159,6 +160,9 @@ onMounted(() => {
     // auth-scoped response cache, so it's never the wrong (public) content. No-op when
     // the gate never engaged (logged-out reload, or the normal SPA build).
     document.documentElement.classList.remove("ssg-auth-pending");
+
+    // No-op unless the Kratos proof of concept is switched on.
+    refreshKratosSession();
 });
 
 onErrorCaptured((err) => {
