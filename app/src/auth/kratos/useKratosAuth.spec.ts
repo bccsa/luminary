@@ -130,7 +130,6 @@ describe("useKratosAuth", () => {
         await auth.submitIdentifier();
 
         expect(auth.step.value).toBe("done");
-        expect(auth.session.value?.id).toBe("s1");
     });
 
     it("shows the expired screen rather than a generic failure", async () => {

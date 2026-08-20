@@ -8,7 +8,6 @@ import {
     ServiceUnavailableException,
 } from "@nestjs/common";
 import type { FastifyReply } from "fastify";
-import { hydraConfig } from "./hydra.config";
 
 type ConsentRequest = {
     client?: { client_id?: string };
@@ -25,12 +24,17 @@ type ConsentRequest = {
  */
 @Controller("oauth")
 export class OauthController {
+    /**
+     * Read per call, not captured: with HYDRA_ADMIN_URL unset every request is
+     * refused, so an environment that does not run Hydra cannot be talked into
+     * acting as its consent authority.
+     */
     private admin(): { adminUrl: string; trustedClientId?: string } {
-        const { adminUrl, trustedClientId } = hydraConfig();
+        const adminUrl = process.env.HYDRA_ADMIN_URL?.replace(/\/+$/, "");
         if (!adminUrl) {
             throw new ServiceUnavailableException("No OAuth2 provider is configured");
         }
-        return { adminUrl, trustedClientId };
+        return { adminUrl, trustedClientId: process.env.HYDRA_TRUSTED_CLIENT_ID };
     }
 
     private async hydra<T>(url: string, init?: RequestInit): Promise<T> {

@@ -27,8 +27,8 @@ export function isAwaitingCode(flow: KratosFlow): boolean {
     return !!code && code.attributes.type !== "hidden";
 }
 
-/** Messages from the flow and from every node, newest-first is not a thing here — order is Kratos'. */
-export function allMessages(flow: KratosFlow): KratosMessage[] {
+/** Messages from the flow and from every node, in the order Kratos sent them. */
+function allMessages(flow: KratosFlow): KratosMessage[] {
     return [...(flow.ui.messages ?? []), ...flow.ui.nodes.flatMap((node) => node.messages ?? [])];
 }
 
@@ -36,17 +36,6 @@ export function firstMessage(flow: KratosFlow): KratosMessage | undefined {
     const messages = allMessages(flow);
     // An error is what the user needs to see, even when an info message precedes it.
     return messages.find((message) => message.type === "error") ?? messages[0];
-}
-
-/** OIDC providers Kratos offers on this flow, so social sign-in sits beside the email option. */
-export function oidcProviders(flow: KratosFlow): { id: string; label: string }[] {
-    return flow.ui.nodes
-        .filter((node) => node.group === "oidc" && node.attributes.name === "provider")
-        .map((node) => ({
-            id: String(node.attributes.value ?? ""),
-            label: node.meta?.label?.text ?? String(node.attributes.value ?? ""),
-        }))
-        .filter((provider) => provider.id);
 }
 
 /** The traits already entered, so a re-render after an error doesn't blank the form. */

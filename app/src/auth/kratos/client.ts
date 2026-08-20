@@ -16,9 +16,6 @@ import { collectDefaults } from "./nodes";
  */
 export const KRATOS_BASE = import.meta.env.VITE_KRATOS_URL || "/.ory";
 
-/** Whether the Kratos PoC is wired up at all. No env var, no routes. */
-export const isKratosEnabled = (): boolean => !!import.meta.env.VITE_KRATOS_URL;
-
 const jsonHeaders = { Accept: "application/json", "Content-Type": "application/json" };
 
 /** Kratos answers 410/404 for a flow that has expired or was never issued. */

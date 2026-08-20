@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import fixtures from "./fixtures.spec-data.json";
-import { collectDefaults, firstMessage, isAwaitingCode, oidcProviders, traitValue } from "./nodes";
+import { collectDefaults, firstMessage, isAwaitingCode, traitValue } from "./nodes";
 import type { KratosFlow } from "./types";
 
 // Recorded from Kratos v1.3.1 driving the real flows, so these assert against
@@ -52,9 +52,5 @@ describe("kratos nodes", () => {
             id: "x",
         };
         expect(firstMessage(flow)?.text).toBe("The code is invalid.");
-    });
-
-    it("finds no oidc providers when none are configured", () => {
-        expect(oidcProviders(loginStart)).toEqual([]);
     });
 });

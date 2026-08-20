@@ -1,7 +1,7 @@
-import { computed, onUnmounted, ref, shallowRef } from "vue";
+import { onUnmounted, ref, shallowRef } from "vue";
 import { createFlow, fetchFlow, submitFlow } from "./client";
-import { findNode, firstMessage, isAwaitingCode, oidcProviders, traitValue } from "./nodes";
-import type { FlowType, KratosFlow, KratosMessage, KratosSession, SubmitResult } from "./types";
+import { findNode, firstMessage, isAwaitingCode, traitValue } from "./nodes";
+import type { FlowType, KratosFlow, KratosMessage, SubmitResult } from "./types";
 
 export type AuthStep =
     | "loading"
@@ -37,7 +37,6 @@ export function useKratosAuth(type: FlowType) {
     const code = ref("");
     const message = ref<KratosMessage | null>(null);
     const failure = ref("");
-    const session = ref<KratosSession | null>(null);
     const resendIn = ref(0);
 
     let countdown: ReturnType<typeof setInterval> | undefined;
@@ -54,8 +53,6 @@ export function useKratosAuth(type: FlowType) {
         }, 1000);
     }
     onUnmounted(stopCountdown);
-
-    const providers = computed(() => (flow.value ? oidcProviders(flow.value) : []));
 
     function adopt(next: KratosFlow) {
         flow.value = next;
@@ -103,7 +100,6 @@ export function useKratosAuth(type: FlowType) {
             const result = await submitFlow(flow.value, values);
             switch (result.kind) {
                 case "session":
-                    session.value = result.session;
                     step.value = "done";
                     break;
                 case "flow": {
@@ -169,10 +165,6 @@ export function useKratosAuth(type: FlowType) {
         step.value = "identifier";
     }
 
-    function chooseProvider(provider: string) {
-        return send({ method: "oidc", provider });
-    }
-
     return {
         step,
         busy,
@@ -181,15 +173,12 @@ export function useKratosAuth(type: FlowType) {
         code,
         message,
         failure,
-        session,
         resendIn,
-        providers,
         start,
         submitIdentifier,
         submitCode,
         resend,
         changeIdentifier,
-        chooseProvider,
         restart: () => start(),
     };
 }

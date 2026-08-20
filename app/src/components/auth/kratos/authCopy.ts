@@ -17,7 +17,6 @@ export const authCopy = {
     "auth.email.label": "Email address",
     "auth.email.placeholder": "you@example.com",
     "auth.email.submit": "Send me a code",
-    "auth.email.invalid": "That doesn't look like an email address.",
 
     "auth.code.title": "Enter your code",
     "auth.code.subtitle": "We sent a 6-digit code to {email}.",
@@ -26,9 +25,6 @@ export const authCopy = {
     "auth.code.resend": "Send a new code",
     "auth.code.resend_in": "You can ask for a new code in {seconds}s",
     "auth.code.change_email": "Use a different email address",
-    "auth.code.invalid": "That code isn't right. Check it and try again.",
-    "auth.code.expired": "This code has expired. Ask for a new one.",
-    "auth.code.too_many": "Too many tries. Wait a minute, then ask for a new code.",
 
     "auth.register.title": "Create your account",
     "auth.register.subtitle": "Your saved items and progress move with you, on every device.",
@@ -57,7 +53,6 @@ export const authCopy = {
     "auth.recovery.subtitle":
         "Enter the email you signed up with and we'll send you a code to get back in.",
     "auth.recovery.submit": "Send recovery code",
-    "auth.recovery.sent": "If that address has an account, a code is on its way.",
 
     "auth.settings.title": "Account",
     "auth.settings.email_section": "Email address",
@@ -75,9 +70,6 @@ export const authCopy = {
         "Sign in to save what you read across your devices — or look around first.",
     "auth.guest.sign_in": "Sign in",
     "auth.guest.continue": "Continue without an account",
-    "auth.guest.badge": "Guest",
-    "auth.guest.signed_in_as": "Signed in as {name}",
-    "auth.guest.sign_out": "Sign out",
 
     "auth.gate.bookmarks_title": "Save this for later",
     "auth.gate.bookmarks_body":
