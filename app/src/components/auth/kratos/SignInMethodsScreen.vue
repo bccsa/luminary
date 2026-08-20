@@ -39,7 +39,7 @@ const c = useAuthCopy();
                 <EnvelopeIcon class="h-5 w-5" />
             </span>
             <span class="text-[15px] font-medium text-zinc-800 dark:text-slate-100">
-                {{ c("auth.methods.email") }}
+                {{ c("auth.methods.guest_sign_in") }}
             </span>
         </button>
 

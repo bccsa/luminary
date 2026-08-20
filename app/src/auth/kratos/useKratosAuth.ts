@@ -8,6 +8,8 @@ export type AuthStep =
     | "identifier"
     | "code"
     | "done"
+    /** Kratos refused to open the flow because a session is already live. */
+    | "signed-in"
     | "expired"
     | "offline"
     | "failed";
@@ -69,9 +71,25 @@ export function useKratosAuth(type: FlowType) {
         step.value = "loading";
         try {
             const existing = flowId ? await fetchFlow(type, flowId) : null;
-            const next = existing ?? (await createFlow(type, returnTo));
-            adopt(next);
-            if (isAwaitingCode(next)) startCountdown();
+            if (existing) {
+                adopt(existing);
+                if (isAwaitingCode(existing)) startCountdown();
+                return;
+            }
+
+            const started = await createFlow(type, returnTo);
+            if (started.kind === "session_exists") {
+                step.value = "signed-in";
+                return;
+            }
+            if (started.kind === "unavailable") {
+                step.value = navigator.onLine === false ? "offline" : "failed";
+                failure.value = "The sign-in service could not be reached.";
+                return;
+            }
+
+            adopt(started.flow);
+            if (isAwaitingCode(started.flow)) startCountdown();
         } catch {
             step.value = navigator.onLine === false ? "offline" : "failed";
             failure.value = "The sign-in service could not be reached.";
