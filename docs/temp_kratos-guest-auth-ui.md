@@ -109,3 +109,67 @@ component. The table above doubles as the string inventory for whoever adds the 
 - Is a guest's bookmark set meant to sync per user once they have an account? The upgrade
   screen promises "everything saved on this device comes with you", which is true today only
   because nothing moves. It becomes a real promise the moment bookmarks sync.
+
+## Proof of concept
+
+The screens are wired to a real Kratos. `kratos/README.md` has the run
+instructions; the short version is `docker compose -f kratos/docker-compose.yml up -d`
+plus `VITE_KRATOS_URL="/.ory"` in `app/.env`. Without that variable the `/auth/*`
+routes are not registered at all, so the PoC is inert wherever it hasn't been
+switched on.
+
+What is implemented:
+
+- `app/src/auth/kratos/client.ts` — the flow API over `fetch`, no SDK. Every
+  outcome is a value rather than a throw, because a 400 carrying validation
+  errors is an ordinary step in these flows.
+- `app/src/auth/kratos/nodes.ts` — builds the submitted payload **from the flow's
+  own `ui.nodes`**. That is what keeps `csrf_token`, echoed traits, and any field
+  a Kratos upgrade adds in the body without a code change here.
+- `app/src/auth/kratos/useKratosAuth.ts` — the state machine behind the screens:
+  address step → code step → session, plus resend cooldown, flow expiry and the
+  offline case.
+- `app/src/pages/auth/KratosAuthPage.vue` — picks which designed screen renders
+  for the current step. One component serves login, signup, verification and
+  recovery, because Kratos models them as the same two-step shape.
+
+### What was verified against Kratos v1.3.1, not assumed
+
+- **Sign-up works in one method.** Posting `method: "code"` with traits to the
+  registration flow sends the code directly — the two-step `profile` screen newer
+  Kratos versions show by default is not on the path. Second post with the code
+  returns `200` and an active session, because registration runs the `session` hook.
+- **Login is the same shape** with `identifier` instead of `traits.email`. The
+  flow itself says which field it wants, so `identifierField()` reads it off the
+  nodes rather than hard-coding a table.
+- **Flat dotted keys are accepted as JSON.** `{"traits.email": "…"}` populates the
+  trait — so the payload built straight from node names needs no un-flattening.
+- **The proxy topology holds.** Through `/.ory` the CSRF cookie comes back as
+  `Domain=localhost; SameSite=Lax` and `ui.action` points at the app's own origin.
+
+The recorded flows are checked in as `fixtures.spec-data.json` and the specs
+assert against them, so the tests describe what Kratos actually sends.
+
+## The gap this PoC does not close
+
+**A Kratos session does not authenticate anything to the Luminary API.** Today
+`AuthGuard` and `socketio.ts` validate a JWT against the JWKS of the provider named
+in `x-auth-provider-id`. Kratos issues a cookie session, not a JWT. So a user who
+completes this flow is signed in to Kratos and still anonymous to Luminary — which
+is fine for the PoC (guests are anonymous by design) and blocks nothing that guests
+can already do.
+
+Two ways to close it, when it matters:
+
+1. **Introspect in the API.** A new branch in `AuthIdentityService` that calls
+   Kratos' `/sessions/whoami` with the forwarded cookie, caches the answer briefly,
+   and maps the identity onto groups through `AutoGroupMappings` under a synthetic
+   provider id. No new infrastructure, no new crypto; costs one cacheable hop, and
+   the socket handshake needs the cookie rather than a bearer token.
+2. **Put Ory Oathkeeper in front.** It converts the session into a JWT the existing
+   JWKS path already validates, so the API changes not at all — at the price of
+   another service to run and configure.
+
+For a self-hosted deployment I'd take (1): it keeps the moving parts in a codebase
+we own, and the identity→groups mapping it needs is a thing `AuthIdentityService`
+already does. Either way it is a deliberate second step, not an oversight in this one.

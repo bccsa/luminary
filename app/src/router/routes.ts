@@ -11,6 +11,33 @@ const BookmarksPage = () => import("@/pages/BookmarksPage.vue");
 const SingleContent = () => import("@/pages/SingleContent/SingleContent.vue");
 const NotFoundPage = () => import("@/pages/NotFoundPage.vue");
 const AuthDesignPage = () => import("@/pages/design/AuthDesignPage.vue");
+const KratosAuthPage = () => import("@/pages/auth/KratosAuthPage.vue");
+
+/**
+ * Kratos self-service screens. Registered only when VITE_KRATOS_URL is set, so
+ * the proof of concept is inert everywhere it hasn't been switched on. The paths
+ * must match the `ui_url`s in the Kratos config.
+ */
+const kratosRoutes: RouteRecordRaw[] = import.meta.env.VITE_KRATOS_URL
+    ? (
+          [
+              ["/auth/login", "login"],
+              ["/auth/signup", "registration"],
+              ["/auth/verify", "verification"],
+              ["/auth/recovery", "recovery"],
+              ["/auth/account", "settings"],
+          ] as const
+      ).map(([path, flowType]) => ({
+          path,
+          component: KratosAuthPage,
+          name: `kratos-${flowType}`,
+          props: { flowType },
+          meta: {
+              analyticsIgnore: true,
+              devOnly: true,
+          },
+      }))
+    : [];
 
 /**
  * Design canvas for the Kratos auth screens. Development only — it renders every
@@ -24,6 +51,7 @@ const designRoutes: RouteRecordRaw[] = import.meta.env.DEV
               name: "design-auth",
               meta: {
                   analyticsIgnore: true,
+                  devOnly: true,
               },
           },
       ]
@@ -96,6 +124,7 @@ export const routes: RouteRecordRaw[] = [
         },
     },
     ...designRoutes,
+    ...kratosRoutes,
     // Note that this route should always come after all defined routes,
     // to prevent wrongly configured slugs from taking over pages
     {

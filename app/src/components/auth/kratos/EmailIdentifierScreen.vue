@@ -61,5 +61,12 @@ const submitLabel = () =>
                 {{ submitLabel() }}
             </LButton>
         </form>
+
+        <template
+            v-if="$slots.footer"
+            #footer
+        >
+            <slot name="footer" />
+        </template>
     </AuthShell>
 </template>
