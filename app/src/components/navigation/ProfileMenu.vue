@@ -14,6 +14,7 @@ import { useRouter } from "vue-router";
 import { computed, onMounted, ref, type ComputedRef } from "vue";
 import {
     ShieldCheckIcon,
+    UserCircleIcon,
     BookmarkIcon,
     Bars3Icon,
     Cog6ToothIcon,
@@ -34,6 +35,8 @@ import LToggle from "../form/LToggle.vue";
 import MobileSidebar from "../common/MobileSidebar.vue";
 import DropdownMenu from "../common/DropdownMenu.vue";
 import { getNavigationItems } from "./navigationItems";
+import { kratosIdentityLabel, kratosSession } from "@/auth/kratos/session";
+import { useAuthCopy } from "@/components/auth/kratos/useAuthCopy";
 import { useSearchOverlay } from "@/composables/useSearchOverlay";
 
 type Trigger = "avatar" | "bars" | "sidebar";
@@ -46,6 +49,7 @@ withDefaults(defineProps<Props>(), {
 });
 
 const { user, logout, loginWithRedirect, isAuthenticated } = useAuthWithPrivacyPolicy();
+const c = useAuthCopy();
 const router = useRouter();
 
 const showThemeSelector = ref(false);
@@ -156,6 +160,21 @@ const privacyPolicyNavigationItem = computed(
     }),
 );
 
+/**
+ * Shown only while a Kratos session exists. It is not folded into the login/logout
+ * item above: that one reflects the OIDC session the Luminary API actually honours,
+ * and a guest session is a separate thing.
+ */
+const kratosNavigationItem = computed(() =>
+    kratosSession.value
+        ? {
+              name: c("auth.guest.signed_in_as", { name: kratosIdentityLabel.value }),
+              icon: UserCircleIcon,
+              action: () => router.push("/auth/account"),
+          }
+        : null,
+);
+
 const userNavigation = computed(() => {
     const authItem = isAuthenticated.value
         ? {
@@ -187,7 +206,13 @@ const userNavigation = computed(() => {
               },
           };
 
-    return [...commonNavigation.value, privacyPolicyNavigationItem.value, authItem];
+    const kratosItem = kratosNavigationItem.value;
+    return [
+        ...commonNavigation.value,
+        ...(kratosItem ? [kratosItem] : []),
+        privacyPolicyNavigationItem.value,
+        authItem,
+    ];
 });
 
 const sidebarNavigation = computed(() =>
@@ -207,7 +232,6 @@ const sidebarNavigation = computed(() =>
         aria-label="Open user menu"
         class="-m-1.5 flex items-center gap-1 rounded-md px-2 py-1.5 hover:bg-zinc-200 dark:hover:bg-slate-600"
         @click="menuOpen = !menuOpen"
-
     >
         <img
             v-if="isAuthenticated && user?.picture"
@@ -436,11 +460,14 @@ const sidebarNavigation = computed(() =>
                             aria-hidden="true"
                         />
                         <div class="flex flex-col leading-none">
-                            <span class="text-sm font-medium">{{ t("profile_menu.language") }}</span>
+                            <span class="text-sm font-medium">{{
+                                t("profile_menu.language")
+                            }}</span>
                             <span
                                 v-if="appLanguageAsRef?.name"
                                 class="mt-0.5 text-xs text-zinc-500 dark:text-slate-300"
-                            >{{ appLanguageAsRef.name }}</span>
+                                >{{ appLanguageAsRef.name }}</span
+                            >
                         </div>
                     </span>
 
@@ -467,7 +494,9 @@ const sidebarNavigation = computed(() =>
                                 class="h-5 w-5 flex-shrink-0"
                                 aria-hidden="true"
                             />
-                            <span class="text-sm font-medium">{{ t("profile_menu.settings") }}</span>
+                            <span class="text-sm font-medium">{{
+                                t("profile_menu.settings")
+                            }}</span>
                         </span>
                     </RouterLink>
                 </div>
@@ -496,7 +525,11 @@ const sidebarNavigation = computed(() =>
                     @click="isAuthenticated ? handleLogout() : handleLogin()"
                 >
                     <component
-                        :is="isAuthenticated ? ArrowRightEndOnRectangleIcon : ArrowLeftEndOnRectangleIcon"
+                        :is="
+                            isAuthenticated
+                                ? ArrowRightEndOnRectangleIcon
+                                : ArrowLeftEndOnRectangleIcon
+                        "
                         class="h-5 w-5 flex-shrink-0"
                         aria-hidden="true"
                     />
@@ -522,7 +555,9 @@ const sidebarNavigation = computed(() =>
                     >
                         <UserIcon class="h-5 w-5 text-zinc-600 dark:text-slate-100" />
                     </div>
-                    <span class="flex-1 truncate text-sm font-medium text-zinc-700 dark:text-slate-100">
+                    <span
+                        class="flex-1 truncate text-sm font-medium text-zinc-700 dark:text-slate-100"
+                    >
                         {{ user?.name || user?.email }}
                     </span>
                 </div>
