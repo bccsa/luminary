@@ -1,12 +1,7 @@
 <script setup lang="ts">
 import LModal from "@/components/form/LModal.vue";
 import LImage from "@/components/images/LImage.vue";
-import { EnvelopeIcon, ExclamationTriangleIcon } from "@heroicons/vue/24/outline";
-// The router singleton rather than useRouter(), so this modal keeps working
-// wherever it is mounted without a router context.
-import router from "@/router";
-import { isKratosEnabled } from "@/auth/kratos/client";
-import { useAuthCopy } from "@/components/auth/kratos/useAuthCopy";
+import { ExclamationTriangleIcon } from "@heroicons/vue/24/outline";
 import { showProviderSelectionModal, loginWithProvider } from "@/auth";
 import { DocType, useHybridQuery, type AuthProviderDto } from "luminary-shared";
 import { computed } from "vue";
@@ -14,9 +9,6 @@ import { useI18n } from "vue-i18n";
 import { resolveI18nEmbedded } from "@/util/resolveI18nEmbedded";
 
 const { t } = useI18n();
-const c = useAuthCopy();
-// Only offered where the Kratos screens exist at all.
-const kratosEnabled = isKratosEnabled();
 const isVisible = defineModel<boolean>("isVisible");
 // AuthProvider is a fully-synced type, so HybridQuery reads from IndexedDB only.
 // Sorting by sortIndex (a non-content field) stays in a computed.
@@ -44,15 +36,6 @@ const handleProviderSelect = (provider: AuthProviderDto) => {
 const handleClose = () => {
     showProviderSelectionModal.value = false;
 };
-
-/**
- * Kratos is not an OIDC provider, so it cannot be an AuthProvider doc and does
- * not go through loginWithProvider — it is its own route in this app.
- */
-const handleGuestSelect = () => {
-    handleClose();
-    router.push({ path: "/auth/login", query: { return_to: router.currentRoute.value.fullPath } });
-};
 </script>
 
 <template>
@@ -63,21 +46,6 @@ const handleGuestSelect = () => {
     >
         <!-- Provider list -->
         <div class="flex flex-col gap-3 py-2">
-            <button
-                v-if="kratosEnabled"
-                class="flex h-full w-full items-center gap-3 rounded-lg border border-zinc-200 bg-white px-4 py-5 hover:bg-zinc-50 hover:shadow-sm dark:border-slate-600 dark:bg-slate-700 dark:hover:bg-slate-600/60"
-                @click="handleGuestSelect"
-            >
-                <div
-                    class="flex size-9 shrink-0 items-center justify-center rounded-md bg-yellow-500/15 text-yellow-700 dark:text-yellow-400"
-                >
-                    <EnvelopeIcon class="h-5 w-5" />
-                </div>
-                <span class="text-start text-[15px] font-medium text-zinc-700 dark:text-slate-200">
-                    {{ c("auth.methods.guest_sign_in") }}
-                </span>
-            </button>
-
             <button
                 v-for="provider in providers"
                 :key="provider._id"
@@ -129,7 +97,7 @@ const handleGuestSelect = () => {
             </button>
 
             <div
-                v-if="providers.length === 0 && !kratosEnabled"
+                v-if="providers.length === 0"
                 class="flex flex-col items-center justify-center py-8 text-center"
             >
                 <div class="mb-3 rounded-full bg-zinc-100 p-3 dark:bg-slate-700">
