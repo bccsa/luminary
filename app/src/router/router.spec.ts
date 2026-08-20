@@ -4,8 +4,17 @@ import { flushPromises } from "@vue/test-utils";
 
 describe("Router", () => {
     describe("Router Configuration", () => {
-        it("should have the correct number of routes", () => {
-            expect(router.getRoutes()).toHaveLength(10);
+        it("should have the correct number of shipped routes", () => {
+            // Dev-only routes (the design canvas, the Kratos screens) are marked
+            // devOnly and ship in no build, so they don't count towards this.
+            const shipped = router.getRoutes().filter((route) => !route.meta.devOnly);
+            expect(shipped).toHaveLength(10);
+        });
+
+        it("should not register the Kratos routes without VITE_KRATOS_URL", () => {
+            expect(router.getRoutes().filter((route) => route.meta.devOnly)).not.toContainEqual(
+                expect.objectContaining({ path: "/auth/login" }),
+            );
         });
 
         it("should have home route configured correctly", () => {
