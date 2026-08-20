@@ -102,6 +102,22 @@ services:
     working_dir: /app
     command: node server.js
 
+  admin:
+    image: node:20-alpine
+    container_name: ory-admin
+    restart: unless-stopped
+    depends_on:
+      - kratos
+      - hydra
+    environment:
+      - HYDRA_ADMIN_URL=http://hydra:4445
+      - KRATOS_ADMIN_URL=http://kratos:4434
+      - PORT=4457
+    volumes:
+      - ./admin:/app
+    working_dir: /app
+    command: node server.js
+
   caddy:
     image: caddy:2
     container_name: caddy
@@ -109,6 +125,7 @@ services:
     depends_on:
       - hydra
       - login-consent
+      - admin
     ports:
       - "443:443"
       - "80:80"
