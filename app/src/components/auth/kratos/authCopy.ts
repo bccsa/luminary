@@ -76,6 +76,8 @@ export const authCopy = {
     "auth.guest.sign_in": "Sign in",
     "auth.guest.continue": "Continue without an account",
     "auth.guest.badge": "Guest",
+    "auth.guest.signed_in_as": "Signed in as {name}",
+    "auth.guest.sign_out": "Sign out of your guest account",
 
     "auth.gate.bookmarks_title": "Save this for later",
     "auth.gate.bookmarks_body":

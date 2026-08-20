@@ -8,11 +8,14 @@ import AuthProviderSelectionModal from "./AuthProviderSelectionModal.vue";
 
 vi.mock("vue-i18n", () => ({
     useI18n: () => ({
+        // `te` is false throughout: the Kratos entry's copy has no translation
+        // here, so it renders its English default.
+        te: () => false,
         t: (key: string) =>
             (
-                {
+                ({
                     "login.provider.button": "Sign in with Example Org",
-                } as Record<string, string>
+                }) as Record<string, string>
             )[key] ?? key,
     }),
 }));
@@ -20,6 +23,13 @@ vi.mock("vue-i18n", () => ({
 vi.mock("@/auth", () => ({
     loginWithProvider: vi.fn(),
     showProviderSelectionModal: ref(true),
+}));
+
+// Whether the Kratos entry is offered depends on an environment variable, which
+// would otherwise make these assertions depend on the developer's own .env.
+const kratosEnabled = { value: false };
+vi.mock("@/auth/kratos/client", () => ({
+    isKratosEnabled: () => kratosEnabled.value,
 }));
 
 vi.mock("@/components/images/LImage.vue", () => ({
@@ -82,6 +92,7 @@ const mockProviderDisplayNameFallback: AuthProviderDto = {
 describe("AuthProviderSelectionModal.vue", () => {
     beforeEach(async () => {
         vi.clearAllMocks();
+        kratosEnabled.value = false;
         showProviderSelectionModal.value = true;
         await db.docs.clear();
     });
@@ -137,9 +148,7 @@ describe("AuthProviderSelectionModal.vue", () => {
             expect(wrapper.html()).toContain("Acme Corp");
         });
 
-        const providerBtn = wrapper
-            .findAll("button")
-            .find((b) => b.text().includes("Acme Corp"));
+        const providerBtn = wrapper.findAll("button").find((b) => b.text().includes("Acme Corp"));
         await providerBtn!.trigger("click");
 
         expect(loginWithProvider).toHaveBeenCalledTimes(1);
@@ -159,9 +168,7 @@ describe("AuthProviderSelectionModal.vue", () => {
             expect(wrapper.html()).toContain("Beta Inc");
         });
 
-        const providerBtn = wrapper
-            .findAll("button")
-            .find((b) => b.text().includes("Beta Inc"));
+        const providerBtn = wrapper.findAll("button").find((b) => b.text().includes("Beta Inc"));
         const style = providerBtn!.attributes("style") ?? "";
         expect(style).toContain("background-color");
         expect(style).toContain("color");
@@ -208,6 +215,55 @@ describe("AuthProviderSelectionModal.vue", () => {
 
         await waitForExpect(() => {
             expect(wrapper.html()).toContain("Login with Display Name");
+        });
+    });
+
+    describe("with the Kratos screens switched on", () => {
+        beforeEach(() => {
+            kratosEnabled.value = true;
+        });
+
+        it("offers the email entry alongside the configured providers", async () => {
+            await db.docs.put(mockProviderA);
+
+            const wrapper = mount(AuthProviderSelectionModal, {
+                props: { isVisible: true },
+            });
+
+            await waitForExpect(() => {
+                expect(wrapper.html()).toContain("Acme Corp");
+                expect(wrapper.html()).toContain("Continue with email");
+            });
+        });
+
+        it("is a method in its own right, so no empty state with no providers", async () => {
+            const wrapper = mount(AuthProviderSelectionModal, {
+                props: { isVisible: true },
+            });
+
+            await waitForExpect(() => {
+                expect(wrapper.html()).toContain("Continue with email");
+            });
+            expect(wrapper.html()).not.toContain("auth.no_methods_available");
+        });
+
+        it("does not send the email entry through loginWithProvider", async () => {
+            const wrapper = mount(AuthProviderSelectionModal, {
+                props: { isVisible: true },
+            });
+
+            await waitForExpect(() => {
+                expect(wrapper.html()).toContain("Continue with email");
+            });
+            const emailButton = wrapper
+                .findAll("button")
+                .find((button) => button.text().includes("Continue with email"));
+            await emailButton!.trigger("click");
+
+            // Kratos is not an OIDC provider; routing it through the OIDC client
+            // would redirect to an /authorize endpoint that does not exist.
+            expect(loginWithProvider).not.toHaveBeenCalled();
+            expect(showProviderSelectionModal.value).toBe(false);
         });
     });
 });
