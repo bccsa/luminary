@@ -12,6 +12,7 @@ import GuestGateCard from "./GuestGateCard.vue";
 import GuestUpgradeScreen from "./GuestUpgradeScreen.vue";
 import AccountSettingsScreen from "./AccountSettingsScreen.vue";
 import AuthErrorScreen from "./AuthErrorScreen.vue";
+import ConsentScreen from "./ConsentScreen.vue";
 
 // No auth key is translated yet, so `te` is false everywhere and the screens
 // fall back to the English defaults in authCopy — which is what they render in
@@ -47,6 +48,25 @@ describe("Kratos auth screens", () => {
         for (const [heading, wrapper] of cases) {
             expect(wrapper.text()).toContain(heading);
         }
+    });
+
+    it("names the client asking for consent", () => {
+        const wrapper = mount(ConsentScreen, {
+            props: { clientName: "Some App", scopes: ["openid", "email"] },
+        });
+
+        expect(wrapper.text()).toContain("Some App");
+        expect(wrapper.text()).not.toContain("{client}");
+        // Scopes we have wording for are described...
+        expect(wrapper.text()).toContain(authCopy["auth.consent.scope.email"]);
+    });
+
+    it("shows an unknown scope as Hydra named it rather than inventing wording", () => {
+        const wrapper = mount(ConsentScreen, {
+            props: { clientName: "Some App", scopes: ["billing:write"] },
+        });
+
+        expect(wrapper.text()).toContain("billing:write");
     });
 
     it("interpolates the address into the code screen's subtitle", () => {

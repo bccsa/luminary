@@ -88,6 +88,16 @@ export const authCopy = {
     "auth.error.back": "Back to reading",
     "auth.error.reference": "Reference: {id}",
 
+    "auth.consent.title": "Allow {client} to sign you in?",
+    "auth.consent.subtitle": "It is asking for the following. You can say no.",
+    "auth.consent.allow": "Allow",
+    "auth.consent.deny": "Not now",
+    "auth.consent.remember": "Don't ask me again for this app",
+    "auth.consent.scope.openid": "Confirm who you are",
+    "auth.consent.scope.profile": "Your name and profile details",
+    "auth.consent.scope.email": "Your email address",
+    "auth.consent.scope.offline_access": "Keep you signed in",
+
     "auth.common.back": "Back",
     "auth.common.privacy_note": "By continuing you accept our privacy policy.",
 } as const;

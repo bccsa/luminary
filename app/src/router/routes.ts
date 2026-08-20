@@ -13,6 +13,7 @@ const NotFoundPage = () => import("@/pages/NotFoundPage.vue");
 const AuthDesignPage = () => import("@/pages/design/AuthDesignPage.vue");
 const KratosAuthPage = () => import("@/pages/auth/KratosAuthPage.vue");
 const KratosAccountPage = () => import("@/pages/auth/KratosAccountPage.vue");
+const KratosConsentPage = () => import("@/pages/auth/KratosConsentPage.vue");
 
 /**
  * Kratos self-service screens. Registered only when VITE_KRATOS_URL is set, so
@@ -44,12 +45,22 @@ const kratosRoutes: RouteRecordRaw[] = import.meta.env.VITE_KRATOS_URL
  * it is a page of its own rather than another `flowType`.
  */
 if (import.meta.env.VITE_KRATOS_URL) {
-    kratosRoutes.push({
-        path: "/auth/account",
-        component: KratosAccountPage,
-        name: "kratos-account",
-        meta: { analyticsIgnore: true, devOnly: true },
-    });
+    kratosRoutes.push(
+        {
+            path: "/auth/account",
+            component: KratosAccountPage,
+            name: "kratos-account",
+            meta: { analyticsIgnore: true, devOnly: true },
+        },
+        {
+            // Hydra sends the browser here only when the API decides a screen is
+            // needed; a first-party client is granted without one.
+            path: "/auth/consent",
+            component: KratosConsentPage,
+            name: "kratos-consent",
+            meta: { analyticsIgnore: true, devOnly: true },
+        },
+    );
 }
 
 /**

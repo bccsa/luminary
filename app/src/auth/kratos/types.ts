@@ -47,6 +47,15 @@ export type KratosSessionListEntry = KratosSession & {
     devices?: { id: string; ip_address?: string; user_agent?: string; location?: string }[];
 };
 
+/** Mirrors the API's ConsentView — what a consent screen is allowed to know. */
+export type ConsentView = {
+    clientId: string;
+    clientName: string;
+    clientUri?: string;
+    logoUri?: string;
+    scopes: string[];
+};
+
 export type FlowType = "login" | "registration" | "verification" | "recovery" | "settings";
 
 /**

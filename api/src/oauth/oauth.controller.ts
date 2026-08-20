@@ -1,8 +1,9 @@
 import {
     BadRequestException,
+    Body,
     Controller,
-    ForbiddenException,
     Get,
+    Post,
     Query,
     Res,
     ServiceUnavailableException,
@@ -10,17 +11,26 @@ import {
 import type { FastifyReply } from "fastify";
 
 type ConsentRequest = {
-    client?: { client_id?: string };
+    skip?: boolean;
+    client?: { client_id?: string; client_name?: string; client_uri?: string; logo_uri?: string };
     requested_scope?: string[];
     requested_access_token_audience?: string[];
     subject?: string;
-    context?: Record<string, unknown>;
+};
+
+/** What the consent screen is allowed to know — deliberately not the whole request. */
+export type ConsentView = {
+    clientId: string;
+    clientName: string;
+    clientUri?: string;
+    logoUri?: string;
+    scopes: string[];
 };
 
 /**
  * Hydra's consent and logout hand-offs. The browser is redirected here, this
- * accepts the request through Hydra's admin API, and sends the browser back.
- * Nothing about Hydra's admin API is ever exposed to the client.
+ * answers through Hydra's admin API, and sends the browser on. Nothing about
+ * that admin API is ever exposed to the client.
  */
 @Controller("oauth")
 export class OauthController {
@@ -48,11 +58,49 @@ export class OauthController {
         return (await response.json()) as T;
     }
 
+    private challengeUrl(adminUrl: string, path: string, challenge: string): string {
+        return `${adminUrl}/admin/oauth2/auth/requests/${path}?consent_challenge=${encodeURIComponent(
+            challenge,
+        )}`;
+    }
+
+    private consentRequest(adminUrl: string, challenge: string): Promise<ConsentRequest> {
+        return this.hydra<ConsentRequest>(this.challengeUrl(adminUrl, "consent", challenge));
+    }
+
+    private grant(
+        adminUrl: string,
+        challenge: string,
+        request: ConsentRequest,
+        remember: boolean,
+    ): Promise<{ redirect_to: string }> {
+        return this.hydra<{ redirect_to: string }>(
+            this.challengeUrl(adminUrl, "consent/accept", challenge),
+            {
+                method: "PUT",
+                body: JSON.stringify({
+                    grant_scope: request.requested_scope ?? [],
+                    grant_access_token_audience: request.requested_access_token_audience ?? [],
+                    remember,
+                    remember_for: 0,
+                    // The claims AutoGroupMappings conditions are written against.
+                    // Hydra's allowed_top_level_claims promotes them out of `ext`,
+                    // so a mapping reads `tier`, not `ext.tier`.
+                    session: {
+                        access_token: { tier: "guest" },
+                        id_token: { tier: "guest" },
+                    },
+                }),
+            },
+        );
+    }
+
     /**
-     * Grants exactly what the trusted client asked for. A first-party client has
-     * nothing to delegate — the user is consenting to the application they are
-     * already using — so there is no screen, but the grant is still explicit and
-     * still refused for any other client.
+     * Where Hydra sends the browser for consent, and where it is decided whether
+     * a screen is needed at all. Hydra's own `skip` (this user already consented
+     * and it was remembered) and the configured first-party client both grant
+     * outright — there is nothing to delegate when the client and the identity
+     * provider are the same product. Everything else goes to the screen.
      */
     @Get("consent")
     async consent(
@@ -62,40 +110,60 @@ export class OauthController {
         if (!challenge) throw new BadRequestException("Missing consent_challenge");
         const { adminUrl, trustedClientId } = this.admin();
 
-        const request = await this.hydra<ConsentRequest>(
-            `${adminUrl}/admin/oauth2/auth/requests/consent?consent_challenge=${encodeURIComponent(
-                challenge,
-            )}`,
-        );
+        const request = await this.consentRequest(adminUrl, challenge);
+        const isFirstParty = !!trustedClientId && request.client?.client_id === trustedClientId;
 
-        const clientId = request.client?.client_id;
-        if (!trustedClientId || clientId !== trustedClientId) {
-            throw new ForbiddenException("This client requires a consent screen");
+        if (request.skip || isFirstParty) {
+            const { redirect_to } = await this.grant(adminUrl, challenge, request, true);
+            reply.redirect(redirect_to, 302);
+            return;
         }
 
-        const { redirect_to } = await this.hydra<{ redirect_to: string }>(
-            `${adminUrl}/admin/oauth2/auth/requests/consent/accept?consent_challenge=${encodeURIComponent(
-                challenge,
-            )}`,
-            {
-                method: "PUT",
-                body: JSON.stringify({
-                    grant_scope: request.requested_scope ?? [],
-                    grant_access_token_audience: request.requested_access_token_audience ?? [],
-                    remember: true,
-                    remember_for: 0,
-                    // Claims the AutoGroupMappings conditions are written against.
-                    // Promoted to the top level by Hydra's allowed_top_level_claims,
-                    // so a mapping reads `tier`, not `ext.tier`.
-                    session: {
-                        access_token: { tier: "guest" },
-                        id_token: { tier: "guest" },
-                    },
-                }),
-            },
-        );
+        const ui = process.env.HYDRA_CONSENT_UI_URL;
+        if (!ui) throw new ServiceUnavailableException("No consent screen is configured");
+        reply.redirect(`${ui}?consent_challenge=${encodeURIComponent(challenge)}`, 302);
+    }
 
-        reply.redirect(redirect_to, 302);
+    /** What the consent screen renders. The challenge is the only credential it needs. */
+    @Get("consent/request")
+    async consentView(@Query("consent_challenge") challenge: string): Promise<ConsentView> {
+        if (!challenge) throw new BadRequestException("Missing consent_challenge");
+        const { adminUrl } = this.admin();
+
+        const request = await this.consentRequest(adminUrl, challenge);
+        return {
+            clientId: request.client?.client_id ?? "",
+            clientName: request.client?.client_name || request.client?.client_id || "",
+            clientUri: request.client?.client_uri || undefined,
+            logoUri: request.client?.logo_uri || undefined,
+            scopes: request.requested_scope ?? [],
+        };
+    }
+
+    /** The user's answer. Hydra decides where the browser goes next, either way. */
+    @Post("consent/decision")
+    async consentDecision(
+        @Body() body: { consent_challenge?: string; accept?: boolean; remember?: boolean },
+    ): Promise<{ redirect_to: string }> {
+        const challenge = body?.consent_challenge;
+        if (!challenge) throw new BadRequestException("Missing consent_challenge");
+        const { adminUrl } = this.admin();
+
+        if (!body.accept) {
+            return this.hydra<{ redirect_to: string }>(
+                this.challengeUrl(adminUrl, "consent/reject", challenge),
+                {
+                    method: "PUT",
+                    body: JSON.stringify({
+                        error: "access_denied",
+                        error_description: "The user did not allow this application.",
+                    }),
+                },
+            );
+        }
+
+        const request = await this.consentRequest(adminUrl, challenge);
+        return this.grant(adminUrl, challenge, request, body.remember ?? false);
     }
 
     /** The same hand-off for logout, which Hydra also routes through a challenge. */
