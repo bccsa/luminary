@@ -250,3 +250,57 @@ Kratos drives.
 **Worth doing if guests are meant to be real Luminary users with groups.** If the
 goal is only that a reader keeps their bookmarks across devices, Kratos plus
 session introspection in the API is much less machinery for the same outcome.
+
+## Recommendation
+
+**Take the Hydra path, and drop the idea of teaching `AuthProviderDto` a second
+kind.** The discriminator would have put a second code path through the most
+security-sensitive code in the system — the one whose failure codes already drive
+eviction and silent-refresh logic in both clients (see the cross-package
+contracts in the root `CLAUDE.md`) — and kept it there forever. Hydra makes that
+unnecessary: a guest becomes an ordinary OIDC provider, added from the CMS,
+mapped to groups by the machinery that already exists.
+
+The deciding evidence is that a **"Guest" `AuthProvider` doc already exists** in
+the running system. That says the intended model is _guest = an authenticated
+principal that gets groups_, not _guest = an anonymous reader_. Hydra preserves
+that model exactly; Kratos on its own replaces it with a second, parallel one.
+
+Be clear about what it costs, though: **the never-leave-the-app property goes
+away.** The user does bounce through Hydra's origin. What they do _not_ lose is
+our screens — Hydra's `urls.login` points back at `/auth/login`, so the pages
+they actually look at are the ones in this branch, on our domain, with our
+branding. It ends up the same shape as the existing BCC flow.
+
+### Order to build it
+
+1. **Now** — nothing. The Kratos-only PoC stands as the design proof. It touches
+   no production path, so there is nothing to undo.
+2. **Hydra beside Kratos** in the same compose file. Public client with PKCE,
+   `strategies.access_token: jwt`, issuer on `https://<domain>/` with the
+   trailing slash, `urls.login` → `/auth/login`, `urls.consent` → `/auth/consent`.
+3. **A consent endpoint of our own**, auto-accepting for the first-party client
+   only — never for arbitrary clients.
+4. **A `Guest` provider doc from the CMS**, pointing at Hydra's domain, client id
+   and audience. No change in `api/` or `app/src/auth.ts`. Verify the JWT
+   validates before going further.
+5. **`AutoGroupMappings` for that provider id**, then guests have groups.
+6. **Retire the interim entry** — "Sign in as Guest" becomes an ordinary provider
+   button again, and the bespoke `/auth/*` routes exist only as Hydra's login UI.
+
+### Decide the claim contract before writing any of it
+
+The consent endpoint decides what the token carries, and the group mappings are
+written against it — so getting it wrong is expensive to change once mappings
+exist in production. Suggested: a stable identity id, `email`, and a `tier`
+marker for guests, **promoted with `allowed_top_level_claims`** rather than left
+under `ext`. Mappings then read `email` for every provider instead of `email` for
+one and `ext.email` for another, and the CMS config stays uniform.
+
+### Two things that already line up
+
+- `app/src/auth.ts` requests `openid profile email offline_access`, and
+  `signinSilent()` throws without a refresh token — so Hydra's client must be
+  allowed `offline_access` and issue refresh tokens. The app itself needs no
+  change.
+- The JWKS path and the `azp ?? client_id` check match Hydra's output as-is.
