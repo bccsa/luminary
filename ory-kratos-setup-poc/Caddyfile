@@ -7,3 +7,8 @@ login.luminary.local {
 	tls internal
 	reverse_proxy login-consent:4456
 }
+
+admin.luminary.local {
+	tls internal
+	reverse_proxy admin:4457
+}
