@@ -173,3 +173,80 @@ Two ways to close it, when it matters:
 For a self-hosted deployment I'd take (1): it keeps the moving parts in a codebase
 we own, and the identity→groups mapping it needs is a thing `AuthIdentityService`
 already does. Either way it is a deliberate second step, not an oversight in this one.
+
+## Using the existing AuthProvider system via Ory Hydra
+
+Kratos alone cannot be an `AuthProvider` doc: it has no `/authorize`, no
+`client_id`, no JWKS and issues no JWT. **Hydra can.** Hydra is Ory's OAuth2 /
+OIDC server, and Kratos becomes the thing that authenticates users for it — so
+from Luminary's side it is an ordinary OIDC provider and the existing model
+applies unchanged.
+
+The shape:
+
+```
+app → Hydra /oauth2/auth → our /auth/login (the Kratos flow, these screens)
+    → Kratos accepts the login request → Hydra → our consent endpoint
+    → Hydra issues a JWT → the API validates it exactly as it does today
+```
+
+### What has to be true for the current API code to accept it
+
+Checked against `api/src/auth/authIdentity.service.ts`, not assumed:
+
+- **JWT access tokens must be switched on.** Hydra issues opaque tokens by
+  default, and an opaque token fails `jwtService.verifyAsync` outright. Set
+  `strategies.access_token: jwt` in Hydra's config file — the
+  `OAUTH2_ACCESS_TOKEN_STRATEGY` environment variable appears only in Hydra's
+  own tests and does not work.
+- **The issuer must match exactly.** The API builds `https://${provider.domain}/`
+  — hard-coded scheme, trailing slash, no path. So Hydra's `urls.self.issuer`
+  has to be `https://<domain>/`. A Hydra mounted at `https://example.com/hydra/`
+  or served over http will fail validation with no way to express it in an
+  `AuthProvider` doc.
+- **JWKS lines up.** The API fetches `https://${provider.domain}/.well-known/jwks.json`,
+  which is exactly where self-hosted Hydra publishes.
+- **The client id check passes.** The API compares `azp ?? client_id` against
+  `provider.clientId`; Hydra's JWT access tokens carry `client_id`.
+- **Audience.** `app/src/auth.ts` already sends `audience` as an authorization
+  parameter, which Hydra supports — the client must be configured to allow that
+  audience.
+
+### Group mappings work, at a different claim path
+
+Custom claims set when accepting consent land under **`ext`** in Hydra's JWT
+access tokens, not at the top level. So an `AutoGroupMappings` condition reads
+`ext.email` rather than `email`. Nothing needs changing for that:
+`extractClaimValue` already walks dotted paths. Hydra's
+`allowed_top_level_claims` can promote specific claims instead, with
+`mirror_top_level_claims` and `preserve_ext_claims` deciding whether they are
+also kept under `ext`.
+
+### What we would still have to build
+
+Kratos handles the login half once `oauth2_provider.url` points at Hydra's admin
+API: it reads the `login_challenge`, validates it, honours Hydra's `skip` flag,
+and on success calls `PUT /admin/oauth2/auth/requests/login/accept` with the
+identity and session ids (the session's AMR flows into the ID token's `amr`).
+
+**Consent is not Kratos' job.** We would own that endpoint. For a first-party app
+it can auto-accept, but it is still ours to write — and it is the natural place
+to inject the claims the group mappings read.
+
+### The trade
+
+Gained: no change to the API's auth model, the CMS can add it as an ordinary
+provider with no code change, and guests get the same group machinery as BCC
+users.
+
+Paid: a second Ory service and its database, a consent endpoint of our own, the
+issuer/JWKS constraints above pinning the deployment topology, and the redirect
+round-trip — the in-app, never-leave-the-page property that motivated this design
+goes away.
+
+The screens are not wasted either way: under Hydra they become the login UI
+Kratos drives.
+
+**Worth doing if guests are meant to be real Luminary users with groups.** If the
+goal is only that a reader keeps their bookmarks across devices, Kratos plus
+session introspection in the API is much less machinery for the same outcome.
