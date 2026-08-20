@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted } from "vue";
+import { computed, ref, onMounted, onUnmounted, unref } from "vue";
 import { useI18n } from "vue-i18n";
 import { getNavigationItems } from "./navigationItems";
 import { useSearchOverlay } from "@/composables/useSearchOverlay";
@@ -29,7 +29,12 @@ import LDialog from "../common/LDialog.vue";
 import LToggle from "../form/LToggle.vue";
 import { cmsLanguages } from "@/globalConfig";
 import { useDisplayLanguageIds } from "@/ssg/renderLanguage";
-import { showPrivacyPolicyModal, useAuthWithPrivacyPolicy } from "@/composables/useAuthWithPrivacyPolicy";
+import {
+    showPrivacyPolicyModal,
+    useAuthWithPrivacyPolicy,
+} from "@/composables/useAuthWithPrivacyPolicy";
+import { kratosIdentityLabel, kratosSession, signOutKratos } from "@/auth/kratos/session";
+import { useAuthCopy } from "@/components/auth/kratos/useAuthCopy";
 import { isConnected } from "luminary-shared";
 import { useNotificationStore, type Notification } from "@/stores/notification";
 import { useHydrated } from "@/composables/useHydrated";
@@ -38,6 +43,7 @@ const { t } = useI18n();
 const { openSearch, isSearchOpen } = useSearchOverlay();
 const { collapsed, toggleCollapsed } = useDesktopSidebar();
 const { user, logout, loginWithRedirect, isAuthenticated } = useAuthWithPrivacyPolicy();
+const c = useAuthCopy();
 
 const LOGO = import.meta.env.VITE_LOGO || defaultLogo;
 const LOGO_DARK = import.meta.env.VITE_LOGO_DARK || defaultLogoDark;
@@ -87,9 +93,31 @@ const languageTooltip = computed(() => {
     return name ? `${t("profile_menu.language")} — ${name}` : t("profile_menu.language");
 });
 
+/** A guest session is only the account on show while there is no OIDC one. */
+const hasGuestSession = computed(() => !isAuthenticated.value && !!kratosSession.value);
+
+const accountLabel = computed(() => {
+    if (isAuthenticated.value) {
+        const details = unref(user) as { name?: string; email?: string } | undefined;
+        return details?.name || details?.email || t("profile_menu.title");
+    }
+    return kratosIdentityLabel.value;
+});
+
 const profileTooltip = computed(() =>
-    isAuthenticated.value ? user.value?.name || user.value?.email || t("profile_menu.title") : "",
+    isAuthenticated.value || hasGuestSession.value ? accountLabel.value : "",
 );
+
+const authActionLabel = computed(() => {
+    if (isAuthenticated.value) return t("profile_menu.logout");
+    return hasGuestSession.value ? c("auth.guest.sign_out") : t("profile_menu.login");
+});
+
+const handleAuthAction = () => {
+    if (isAuthenticated.value) return handleLogout();
+    if (hasGuestSession.value) return signOutKratos();
+    return handleLogin();
+};
 
 const showOfflineNotification = () => {
     useNotificationStore().addNotification({
@@ -250,7 +278,8 @@ const handleLogin = () => {
                     <span
                         v-if="!collapsed"
                         :class="navLabelClass"
-                    >{{ item.name }}</span>
+                        >{{ item.name }}</span
+                    >
                 </a>
             </RouterLink>
 
@@ -271,7 +300,8 @@ const handleLogin = () => {
                 <span
                     v-if="!collapsed"
                     :class="navLabelClass"
-                >{{ t("menu.search") }}</span>
+                    >{{ t("menu.search") }}</span
+                >
             </span>
 
             <RouterLink
@@ -293,7 +323,8 @@ const handleLogin = () => {
                     <span
                         v-if="!collapsed"
                         :class="navLabelClass"
-                    >{{ t("profile_menu.bookmarks") }}</span>
+                        >{{ t("profile_menu.bookmarks") }}</span
+                    >
                 </a>
             </RouterLink>
 
@@ -313,7 +344,8 @@ const handleLogin = () => {
                     <span
                         v-if="!collapsed"
                         :class="navLabelClass"
-                    >{{ t("profile_menu.theme") }}</span>
+                        >{{ t("profile_menu.theme") }}</span
+                    >
                 </span>
 
                 <span
@@ -327,13 +359,14 @@ const handleLogin = () => {
                     />
                     <div
                         v-if="!collapsed"
-                        class="min-w-0 flex flex-col leading-none"
+                        class="flex min-w-0 flex-col leading-none"
                     >
                         <span :class="navLabelClass">{{ t("profile_menu.language") }}</span>
                         <span
                             v-if="renderLanguage?.name"
                             :class="navMetaClass"
-                        >{{ renderLanguage.name }}</span>
+                            >{{ renderLanguage.name }}</span
+                        >
                     </div>
                 </span>
 
@@ -356,7 +389,8 @@ const handleLogin = () => {
                         <span
                             v-if="!collapsed"
                             :class="navLabelClass"
-                        >{{ t("profile_menu.settings") }}</span>
+                            >{{ t("profile_menu.settings") }}</span
+                        >
                     </a>
                 </RouterLink>
             </div>
@@ -380,17 +414,22 @@ const handleLogin = () => {
                 <span
                     v-if="!collapsed"
                     :class="navLabelClass"
-                >{{ t("profile_menu.privacy_policy") }}</span>
+                    >{{ t("profile_menu.privacy_policy") }}</span
+                >
             </button>
 
             <button
                 type="button"
                 :class="[...actionButtonClasses(), !collapsed ? 'mb-2' : 'mb-1']"
-                :title="isAuthenticated ? t('profile_menu.logout') : t('profile_menu.login')"
-                @click="isAuthenticated ? handleLogout() : handleLogin()"
+                :title="authActionLabel"
+                @click="handleAuthAction()"
             >
                 <component
-                    :is="isAuthenticated ? ArrowRightEndOnRectangleIcon : ArrowLeftEndOnRectangleIcon"
+                    :is="
+                        isAuthenticated || hasGuestSession
+                            ? ArrowRightEndOnRectangleIcon
+                            : ArrowLeftEndOnRectangleIcon
+                    "
                     :class="navIconClass"
                     aria-hidden="true"
                 />
@@ -398,15 +437,15 @@ const handleLogin = () => {
                     v-if="!collapsed"
                     :class="navLabelClass"
                 >
-                    {{ isAuthenticated ? t("profile_menu.logout") : t("profile_menu.login") }}
+                    {{ authActionLabel }}
                 </span>
             </button>
 
             <div
-                v-if="isAuthenticated"
+                v-if="isAuthenticated || hasGuestSession"
                 :class="[
                     'flex items-center rounded-md',
-                    collapsed ? 'justify-center px-0 py-1' : 'gap-3 pl-1.5 py-1.5',
+                    collapsed ? 'justify-center px-0 py-1' : 'gap-3 py-1.5 pl-1.5',
                 ]"
                 :title="profileTooltip"
             >
@@ -426,7 +465,7 @@ const handleLogin = () => {
                     v-if="!collapsed"
                     class="min-w-0 flex-1 truncate text-sm font-medium text-zinc-700 dark:text-slate-100"
                 >
-                    {{ user?.name || user?.email }}
+                    {{ accountLabel }}
                 </span>
             </div>
         </div>

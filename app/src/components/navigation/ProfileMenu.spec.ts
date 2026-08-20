@@ -12,6 +12,7 @@ import { isConnected } from "luminary-shared";
 import { useI18n } from "vue-i18n";
 import { useNotificationStore } from "@/stores/notification";
 import { isAuthPluginInstalled } from "@/auth";
+import { kratosSession } from "@/auth/kratos/session";
 
 const routePushMock = vi.hoisted(() => vi.fn());
 vi.mock("vue-router", () => ({
@@ -24,6 +25,8 @@ vi.mock("@/auth", async () => (await import("@/tests/mockAuth")).createAuthMock(
 
 vi.mock("vue-i18n", () => ({
     useI18n: () => ({
+        // The Kratos copy has no translation here, so it renders its English default.
+        te: () => false,
         t: (key: string) => mockLanguageDtoEng.translations[key] || key,
     }),
 }));
@@ -54,6 +57,7 @@ describe("ProfileMenu", () => {
     afterEach(() => {
         vi.clearAllMocks();
         isAuthPluginInstalled.value = false;
+        kratosSession.value = null;
     });
 
     it("shows the user's name", async () => {
@@ -161,6 +165,44 @@ describe("ProfileMenu", () => {
         await waitForExpect(() => {
             expect(logout).not.toHaveBeenCalled();
             expect(notificationStore.addNotification).toHaveBeenCalled();
+        });
+    });
+
+    describe("with a guest session", () => {
+        const guest = {
+            id: "session-1",
+            active: true,
+            identity: { id: "i1", traits: { email: "guest@example.com", name: "Guest Person" } },
+        };
+
+        it("names the guest instead of offering a login", async () => {
+            (auth as any).useAuth.mockReturnValue({ isAuthenticated: ref(false) });
+            kratosSession.value = guest;
+
+            const wrapper = mount(ProfileMenu);
+            await wrapper.find("button").trigger("click");
+
+            expect(wrapper.html()).toContain("Guest Person");
+            // The auth row offers a way out of the guest session, not a way in.
+            const authRow = wrapper.findAll("button").find((button) => {
+                const text = button.text();
+                return text === "Sign out" || text === "Login";
+            });
+            expect(authRow?.text()).toBe("Sign out");
+        });
+
+        it("still offers a login when there is no guest session", async () => {
+            (auth as any).useAuth.mockReturnValue({ isAuthenticated: ref(false) });
+            kratosSession.value = null;
+
+            const wrapper = mount(ProfileMenu);
+            await wrapper.find("button").trigger("click");
+
+            const authRow = wrapper.findAll("button").find((button) => {
+                const text = button.text();
+                return text === "Sign out" || text === "Login";
+            });
+            expect(authRow?.text()).toBe("Login");
         });
     });
 });
