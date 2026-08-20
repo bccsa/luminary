@@ -10,6 +10,24 @@ const SettingsPage = () => import("@/pages/SettingsPage.vue");
 const BookmarksPage = () => import("@/pages/BookmarksPage.vue");
 const SingleContent = () => import("@/pages/SingleContent/SingleContent.vue");
 const NotFoundPage = () => import("@/pages/NotFoundPage.vue");
+const AuthDesignPage = () => import("@/pages/design/AuthDesignPage.vue");
+
+/**
+ * Design canvas for the Kratos auth screens. Development only — it renders every
+ * screen and state side by side and ships in no build.
+ */
+const designRoutes: RouteRecordRaw[] = import.meta.env.DEV
+    ? [
+          {
+              path: "/design/auth",
+              component: AuthDesignPage,
+              name: "design-auth",
+              meta: {
+                  analyticsIgnore: true,
+              },
+          },
+      ]
+    : [];
 
 /**
  * The shared route table for both the normal SPA entry and the web/SSG entry. `meta.prerender: true` marks public, crawlable routes the web build emits as static HTML; dynamic content slugs are enumerated from the API at build time.
@@ -77,6 +95,7 @@ export const routes: RouteRecordRaw[] = [
             title: "title.bookmarks",
         },
     },
+    ...designRoutes,
     // Note that this route should always come after all defined routes,
     // to prevent wrongly configured slugs from taking over pages
     {
