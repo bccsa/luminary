@@ -11,7 +11,7 @@ import {
 import { Bars3Icon as Bars3IconSolid } from "@heroicons/vue/24/solid";
 import ThemeSelectorModal from "./ThemeSelectorModal.vue";
 import { useRouter } from "vue-router";
-import { computed, onMounted, ref, type ComputedRef } from "vue";
+import { computed, onMounted, ref, unref, type ComputedRef } from "vue";
 import {
     ShieldCheckIcon,
     UserCircleIcon,
@@ -35,7 +35,7 @@ import LToggle from "../form/LToggle.vue";
 import MobileSidebar from "../common/MobileSidebar.vue";
 import DropdownMenu from "../common/DropdownMenu.vue";
 import { getNavigationItems } from "./navigationItems";
-import { kratosIdentityLabel, kratosSession } from "@/auth/kratos/session";
+import { kratosIdentityLabel, kratosSession, signOutKratos } from "@/auth/kratos/session";
 import { useAuthCopy } from "@/components/auth/kratos/useAuthCopy";
 import { useSearchOverlay } from "@/composables/useSearchOverlay";
 
@@ -165,6 +165,33 @@ const privacyPolicyNavigationItem = computed(
  * item above: that one reflects the OIDC session the Luminary API actually honours,
  * and a guest session is a separate thing.
  */
+/**
+ * The name on the menu trigger. A guest session is not the OIDC session the API
+ * honours, but it is still who the user signed in as, so it is what to show them.
+ */
+/** A guest session is only the account on show while there is no OIDC one. */
+const hasGuestSession = computed(() => !isAuthenticated.value && !!kratosSession.value);
+
+const authActionLabel = computed(() => {
+    if (isAuthenticated.value) return t("profile_menu.logout");
+    return hasGuestSession.value ? c("auth.guest.sign_out") : t("profile_menu.login");
+});
+
+const handleAuthAction = () => {
+    if (isAuthenticated.value) return handleLogout();
+    if (hasGuestSession.value) return signOutKratos();
+    return handleLogin();
+};
+
+const accountLabel = computed(() => {
+    if (isAuthenticated.value) {
+        // `user` is a ref in the app but a plain object in some mounted tests.
+        const details = unref(user) as { name?: string; email?: string } | undefined;
+        return details?.name || details?.email;
+    }
+    return kratosIdentityLabel.value || t("profile_menu.title");
+});
+
 const kratosNavigationItem = computed(() =>
     kratosSession.value
         ? {
@@ -188,23 +215,29 @@ const userNavigation = computed(() => {
                   showOfflineNotification();
               },
           }
-        : {
-              name: t("profile_menu.login"),
-              icon: ArrowLeftEndOnRectangleIcon,
-              action: () => {
-                  if (isConnected.value) {
-                      loginWithRedirect();
-                      return;
-                  }
-                  useNotificationStore().addNotification({
-                      id: "no-internet-connection-login",
-                      title: t("profile_menu.login.offline_notification_title"),
-                      description: t("profile_menu.login.offline_notification"),
-                      type: "toast",
-                      state: "error",
-                  } as Notification);
-              },
-          };
+        : kratosSession.value
+          ? {
+                name: c("auth.guest.sign_out"),
+                icon: ArrowRightEndOnRectangleIcon,
+                action: () => signOutKratos(),
+            }
+          : {
+                name: t("profile_menu.login"),
+                icon: ArrowLeftEndOnRectangleIcon,
+                action: () => {
+                    if (isConnected.value) {
+                        loginWithRedirect();
+                        return;
+                    }
+                    useNotificationStore().addNotification({
+                        id: "no-internet-connection-login",
+                        title: t("profile_menu.login.offline_notification_title"),
+                        description: t("profile_menu.login.offline_notification"),
+                        type: "toast",
+                        state: "error",
+                    } as Notification);
+                },
+            };
 
     const kratosItem = kratosNavigationItem.value;
     return [
@@ -280,7 +313,7 @@ const sidebarNavigation = computed(() =>
                 <span
                     class="flex-1 truncate text-left text-sm font-medium text-zinc-700 dark:text-slate-100"
                 >
-                    {{ isAuthenticated ? user?.name || user?.email : t("profile_menu.title") }}
+                    {{ accountLabel }}
                 </span>
                 <component
                     :is="menuOpen ? ChevronUpIcon : ChevronDownIcon"
@@ -522,25 +555,23 @@ const sidebarNavigation = computed(() =>
                 <button
                     type="button"
                     class="mb-2 flex w-full cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-left text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
-                    @click="isAuthenticated ? handleLogout() : handleLogin()"
+                    @click="handleAuthAction()"
                 >
                     <component
                         :is="
-                            isAuthenticated
+                            isAuthenticated || hasGuestSession
                                 ? ArrowRightEndOnRectangleIcon
                                 : ArrowLeftEndOnRectangleIcon
                         "
                         class="h-5 w-5 flex-shrink-0"
                         aria-hidden="true"
                     />
-                    <span class="text-sm font-medium">
-                        {{ isAuthenticated ? t("profile_menu.logout") : t("profile_menu.login") }}
-                    </span>
+                    <span class="text-sm font-medium">{{ authActionLabel }}</span>
                 </button>
 
                 <!-- Profile display -->
                 <div
-                    v-if="isAuthenticated"
+                    v-if="isAuthenticated || hasGuestSession"
                     class="flex items-center gap-3 rounded-md px-3 py-1.5"
                 >
                     <img
@@ -558,7 +589,7 @@ const sidebarNavigation = computed(() =>
                     <span
                         class="flex-1 truncate text-sm font-medium text-zinc-700 dark:text-slate-100"
                     >
-                        {{ user?.name || user?.email }}
+                        {{ accountLabel }}
                     </span>
                 </div>
             </div>

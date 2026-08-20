@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import LoadingSpinner from "@/components/LoadingSpinner.vue";
 import SignInMethodsScreen from "@/components/auth/kratos/SignInMethodsScreen.vue";
@@ -9,6 +9,7 @@ import RegistrationScreen from "@/components/auth/kratos/RegistrationScreen.vue"
 import AuthDoneScreen from "@/components/auth/kratos/AuthDoneScreen.vue";
 import AuthErrorScreen from "@/components/auth/kratos/AuthErrorScreen.vue";
 import { useKratosAuth } from "@/auth/kratos/useKratosAuth";
+import { refreshKratosSession } from "@/auth/kratos/session";
 import type { FlowType } from "@/auth/kratos/types";
 
 const props = defineProps<{ flowType: FlowType }>();
@@ -56,6 +57,14 @@ onMounted(async () => {
 const codeMode = computed(() => (props.flowType === "verification" ? "verification" : "login"));
 const identifierMode = computed(() => (props.flowType === "recovery" ? "recovery" : "login"));
 const flowMessage = computed(() => message.value ?? undefined);
+
+// The flow completes without a page load, so the shared session state — and
+// everything reading it, the profile menu included — is stale until it is
+// re-read. Watched rather than tied to the "continue" button, because the user
+// may navigate away from the success screen instead of pressing it.
+watch(step, (current) => {
+    if (current === "done") refreshKratosSession();
+});
 
 const leave = () => router.push(returnTo.value);
 
