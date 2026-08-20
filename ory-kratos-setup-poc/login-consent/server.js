@@ -1,38 +1,11 @@
 import { createServer } from "node:http";
+import { errorPage, loginPage, registerPage } from "./views.js";
 
 const HYDRA_ADMIN_URL = process.env.HYDRA_ADMIN_URL || "http://hydra:4445";
 const KRATOS_PUBLIC_URL = process.env.KRATOS_PUBLIC_URL || "http://kratos:4433";
 const KRATOS_ADMIN_URL = process.env.KRATOS_ADMIN_URL || "http://kratos:4434";
 const PORT = process.env.PORT || 4456;
 const REMEMBER_FOR_SECONDS = 3600;
-
-function loginFormHtml(challenge, error) {
-  return `<!doctype html>
-<html><body style="font-family: sans-serif; max-width: 360px; margin: 80px auto;">
-<h2>Sign in to Luminary</h2>
-${error ? `<p style="color:red;">${error}</p>` : ""}
-<form method="POST" action="/login?login_challenge=${encodeURIComponent(challenge)}">
-  <div><label>Email<br><input type="email" name="email" required autofocus></label></div>
-  <div style="margin-top:8px;"><label>Password<br><input type="password" name="password" required></label></div>
-  <button type="submit" style="margin-top:12px;">Sign in</button>
-</form>
-<p style="margin-top:16px;">New here? <a href="/register?login_challenge=${encodeURIComponent(challenge)}">Sign up</a></p>
-</body></html>`;
-}
-
-function registerFormHtml(challenge, error) {
-  return `<!doctype html>
-<html><body style="font-family: sans-serif; max-width: 360px; margin: 80px auto;">
-<h2>Sign up for Luminary</h2>
-${error ? `<p style="color:red;">${error}</p>` : ""}
-<form method="POST" action="/register?login_challenge=${encodeURIComponent(challenge)}">
-  <div><label>Email<br><input type="email" name="email" required autofocus></label></div>
-  <div style="margin-top:8px;"><label>Password<br><input type="password" name="password" required minlength="8"></label></div>
-  <button type="submit" style="margin-top:12px;">Sign up</button>
-</form>
-<p style="margin-top:16px;">Already have an account? <a href="/login?login_challenge=${encodeURIComponent(challenge)}">Sign in</a></p>
-</body></html>`;
-}
 
 async function readFormBody(req) {
   const chunks = [];
@@ -72,8 +45,8 @@ async function handleLoginGet(url, res) {
     return redirect(res, accept.redirect_to);
   }
 
-  res.writeHead(200, { "Content-Type": "text/html" });
-  res.end(loginFormHtml(challenge));
+  res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+  res.end(loginPage(challenge));
 }
 
 async function acceptLoginAndRedirect(res, challenge, identityId) {
@@ -105,8 +78,8 @@ async function handleLoginPost(req, url, res) {
   });
 
   if (!submit.ok) {
-    res.writeHead(200, { "Content-Type": "text/html" });
-    return res.end(loginFormHtml(challenge, "Invalid email or password."));
+    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+    return res.end(loginPage(challenge, "Invalid email or password."));
   }
 
   const { session } = await submit.json();
@@ -116,8 +89,8 @@ async function handleLoginPost(req, url, res) {
 async function handleRegisterGet(url, res) {
   const challenge = url.searchParams.get("login_challenge");
   if (!challenge) return badRequest(res, "missing login_challenge");
-  res.writeHead(200, { "Content-Type": "text/html" });
-  res.end(registerFormHtml(challenge));
+  res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+  res.end(registerPage(challenge));
 }
 
 async function handleRegisterPost(req, url, res) {
@@ -136,8 +109,8 @@ async function handleRegisterPost(req, url, res) {
   if (!submit.ok) {
     const body = await submit.json().catch(() => null);
     const message = body?.ui?.messages?.[0]?.text || "Could not create account. Try a different email or a stronger password.";
-    res.writeHead(200, { "Content-Type": "text/html" });
-    return res.end(registerFormHtml(challenge, message));
+    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+    return res.end(registerPage(challenge, message));
   }
 
   const { identity } = await submit.json();
@@ -194,8 +167,8 @@ async function handleLogoutGet(url, res) {
 }
 
 function badRequest(res, message) {
-  res.writeHead(400, { "Content-Type": "text/plain" });
-  res.end(message);
+  res.writeHead(400, { "Content-Type": "text/html; charset=utf-8" });
+  res.end(errorPage(message));
 }
 
 const server = createServer(async (req, res) => {
@@ -207,12 +180,14 @@ const server = createServer(async (req, res) => {
     if (url.pathname === "/register" && req.method === "POST") return await handleRegisterPost(req, url, res);
     if (url.pathname === "/consent" && req.method === "GET") return await handleConsentGet(url, res);
     if (url.pathname === "/logout" && req.method === "GET") return await handleLogoutGet(url, res);
-    res.writeHead(404, { "Content-Type": "text/plain" });
-    res.end("not found");
+    res.writeHead(404, { "Content-Type": "text/html; charset=utf-8" });
+    res.end(errorPage("That page does not exist."));
   } catch (err) {
+    // The reason goes to the log, not to the browser: an exception message from
+    // Kratos or Hydra says more about the deployment than the user needs.
     console.error(err);
-    res.writeHead(500, { "Content-Type": "text/plain" });
-    res.end(`internal error: ${err.message}`);
+    res.writeHead(500, { "Content-Type": "text/html; charset=utf-8" });
+    res.end(errorPage("The sign-in service could not complete your request."));
   }
 });
 
