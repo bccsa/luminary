@@ -1,4 +1,10 @@
-import type { FlowType, KratosFlow, KratosSession, SubmitResult } from "./types";
+import type {
+    FlowType,
+    KratosFlow,
+    KratosSession,
+    KratosSessionListEntry,
+    SubmitResult,
+} from "./types";
 import { collectDefaults } from "./nodes";
 
 /**
@@ -108,7 +114,7 @@ export async function submitFlow(
 }
 
 /** The current session, or null when there isn't one. Never throws for "not signed in". */
-export async function whoami(): Promise<KratosSession | null> {
+export async function whoami(): Promise<KratosSessionListEntry | null> {
     try {
         const response = await fetch(
             new URL(`${KRATOS_BASE}/sessions/whoami`, window.location.origin),
@@ -118,10 +124,33 @@ export async function whoami(): Promise<KratosSession | null> {
             },
         );
         if (!response.ok) return null;
-        return await readJson<KratosSession>(response);
+        return await readJson<KratosSessionListEntry>(response);
     } catch {
         return null;
     }
+}
+
+/**
+ * The identity's *other* sessions. Kratos deliberately leaves the current one
+ * out — that comes from `whoami` — so the account screen joins the two.
+ */
+export async function listOtherSessions(): Promise<KratosSessionListEntry[]> {
+    const response = await fetch(new URL(`${KRATOS_BASE}/sessions`, window.location.origin), {
+        headers: { Accept: "application/json" },
+        credentials: "include",
+    });
+    if (!response.ok) return [];
+    return readJson<KratosSessionListEntry[]>(response);
+}
+
+/** Ends every session except this one. Kratos models it as deleting the others. */
+export async function signOutOtherSessions(): Promise<boolean> {
+    const response = await fetch(new URL(`${KRATOS_BASE}/sessions`, window.location.origin), {
+        method: "DELETE",
+        headers: { Accept: "application/json" },
+        credentials: "include",
+    });
+    return response.ok;
 }
 
 /** Kratos hands out a single-use logout URL rather than accepting a bare POST. */

@@ -41,6 +41,12 @@ export type KratosSession = {
     };
 };
 
+/** A row of `GET /sessions` — the same session, plus the device that opened it. */
+export type KratosSessionListEntry = KratosSession & {
+    authenticated_at?: string;
+    devices?: { id: string; ip_address?: string; user_agent?: string; location?: string }[];
+};
+
 export type FlowType = "login" | "registration" | "verification" | "recovery" | "settings";
 
 /**
