@@ -1,0 +1,9 @@
+auth.luminary.local {
+	tls internal
+	reverse_proxy hydra:4444
+}
+
+login.luminary.local {
+	tls internal
+	reverse_proxy login-consent:4456
+}
