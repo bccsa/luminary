@@ -22,11 +22,14 @@ type Props = {
     emailVerified?: boolean;
     methods?: LinkedMethod[];
     sessions?: ActiveSession[];
+    /** Kratos has no self-service identity deletion, so hosts that lack it hide the offer. */
+    canDelete?: boolean;
 };
 withDefaults(defineProps<Props>(), {
     emailVerified: true,
     methods: () => [],
     sessions: () => [],
+    canDelete: true,
 });
 defineEmits<{
     changeEmail: [];
@@ -153,6 +156,7 @@ const c = useAuthCopy();
         </section>
 
         <button
+            v-if="canDelete"
             type="button"
             class="self-start text-sm text-red-600 underline underline-offset-2 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
             @click="$emit('deleteAccount')"

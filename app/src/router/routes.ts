@@ -12,6 +12,7 @@ const SingleContent = () => import("@/pages/SingleContent/SingleContent.vue");
 const NotFoundPage = () => import("@/pages/NotFoundPage.vue");
 const AuthDesignPage = () => import("@/pages/design/AuthDesignPage.vue");
 const KratosAuthPage = () => import("@/pages/auth/KratosAuthPage.vue");
+const KratosAccountPage = () => import("@/pages/auth/KratosAccountPage.vue");
 
 /**
  * Kratos self-service screens. Registered only when VITE_KRATOS_URL is set, so
@@ -25,7 +26,6 @@ const kratosRoutes: RouteRecordRaw[] = import.meta.env.VITE_KRATOS_URL
               ["/auth/signup", "registration"],
               ["/auth/verify", "verification"],
               ["/auth/recovery", "recovery"],
-              ["/auth/account", "settings"],
           ] as const
       ).map(([path, flowType]) => ({
           path,
@@ -38,6 +38,19 @@ const kratosRoutes: RouteRecordRaw[] = import.meta.env.VITE_KRATOS_URL
           },
       }))
     : [];
+
+/**
+ * The account screen reads the session directly rather than driving a flow, so
+ * it is a page of its own rather than another `flowType`.
+ */
+if (import.meta.env.VITE_KRATOS_URL) {
+    kratosRoutes.push({
+        path: "/auth/account",
+        component: KratosAccountPage,
+        name: "kratos-account",
+        meta: { analyticsIgnore: true, devOnly: true },
+    });
+}
 
 /**
  * Design canvas for the Kratos auth screens. Development only — it renders every
