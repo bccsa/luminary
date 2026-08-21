@@ -115,32 +115,18 @@ vi.mock("@/router", () => ({
 
 vi.mock("@/auth", async () => (await import("@/tests/mockAuth")).createAuthMock());
 
-// Mock video.js to prevent initialization errors
-vi.mock("video.js", () => {
-    const mockVideoPlayer = {
-        poster: vi.fn(),
-        src: vi.fn(),
-        mobileUi: vi.fn(),
-        on: vi.fn(),
-        userActive: vi.fn(),
-        requestFullscreen: vi.fn(),
-        isFullscreen: vi.fn(() => false),
-        pause: vi.fn(),
-        play: vi.fn(),
-        dispose: vi.fn(),
-        off: vi.fn(),
-        currentTime: vi.fn(),
-        duration: vi.fn(),
-        audioTracks: vi.fn(() => []), // Mock audioTracks method
-    };
-
-    const defaultFunction = () => mockVideoPlayer;
-    defaultFunction.browser = {
-        IS_SAFARI: false,
-    };
-
+// The real player has no jsdom-compatible serving strategy; these tests aren't about playback.
+vi.mock("@luminary-media-converter/player-web-legacy", async () => {
+    const { defineComponent, h } = await import("vue");
     return {
-        default: defaultFunction,
+        LuminaryPlayer: defineComponent({
+            name: "LuminaryPlayer",
+            props: { source: { type: Object, required: true }, preferredLanguage: {} },
+            emits: ["loadedmetadata", "timeupdate", "ended"],
+            setup() {
+                return () => h("div", { class: "luminary-player-stub" });
+            },
+        }),
     };
 });
 
@@ -675,11 +661,16 @@ describe("SingleContent", () => {
         // Open the language dropdown (click the DropdownMenu trigger that has the toggle handler)
         const dropdownMenu = wrapper!.findComponent(DropdownMenu);
         await dropdownMenu.find("[role='button']").trigger("click");
-        await nextTick();
 
-        // Options are in the dropdown panel (role=menu)
-        const options = wrapper!.findAll("[role='menu'] button");
-        expect(options.length, "translation options should be at least 2").toBeGreaterThan(1);
+        // Waited for, not ticked past: the options come from translations loaded
+        // out of IndexedDB, the same asynchronous source the two waits above
+        // exist for. A single `nextTick` wins that race on a fast machine and
+        // loses it on a slower one.
+        let options = wrapper!.findAll("[role='menu'] button");
+        await waitForExpect(() => {
+            options = wrapper!.findAll("[role='menu'] button");
+            expect(options.length, "translation options should be at least 2").toBeGreaterThan(1);
+        });
 
         // Choose the French option explicitly if present, otherwise pick the second option
         const frenchOption =

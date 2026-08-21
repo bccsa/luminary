@@ -1,0 +1,18 @@
+# The build context is the repository root, and every Dockerfile here installs
+# its own dependencies. Shipping the working tree's node_modules would send
+# well over a gigabyte to the daemon and then be overwritten by `npm ci` anyway.
+**/node_modules
+**/dist
+**/.git
+
+# Test fixtures and desktop build output from the encoder submodule: large,
+# and nothing in an image needs them.
+luminary-media-convert/test-media
+luminary-media-convert/app-electron/bin
+luminary-media-convert/app-electron/release
+luminary-media-convert/api/work
+
+# NOT .env: the deploy workflow writes app/.env immediately before `docker build`,
+# and the PWA plugin reads its icon paths from it. Excluding it here would fail
+# the staging build with an undefined icon path.
+**/*.log

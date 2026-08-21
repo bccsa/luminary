@@ -1,0 +1,4 @@
+[submodule "luminary-media-convert"]
+	path = luminary-media-convert
+	url = https://github.com/bccsa/luminary-media-convert.git
+	branch = luminary-1897-encrypted-hls

@@ -97,6 +97,16 @@ const {
 } = source;
 
 const showDeleteModal = ref(false);
+/**
+ * Whether the delete should take the media files in storage with it.
+ *
+ * Off by default and reset whenever the dialog opens: an irreversible option that
+ * remembers a previous "yes" is one someone eventually triggers without meaning to.
+ */
+const deleteMediaFiles = ref(false);
+watch(showDeleteModal, (open) => {
+    if (open) deleteMediaFiles.value = false;
+});
 
 // Concurrent-edit conflict UI: banner + read-only diff modal (ticket #932). Detection is driven by
 // `hasIncomingChanges` (toEditable `isModified` under the hood); "Use server version" reloads so the
@@ -246,14 +256,14 @@ const revertChanges = () => {
     );
 };
 
-const deleteParent = async () => {
+const deleteParent = async (deleteMediaFiles = false) => {
     if (!editableParent.value) return;
     if (!canDelete.value) {
         notify("error", "Insufficient Permissions", "You do not have delete permission");
         return;
     }
 
-    const deleted = await source.deleteParent();
+    const deleted = await source.deleteParent(deleteMediaFiles);
     if (!deleted) {
         notify(
             "error",
@@ -546,6 +556,7 @@ const actionsWrapperProps = computed(() => ({
                                             :tagOrPostType="props.tagOrPostType"
                                             :disabled="!canEditParent"
                                             :newDocument="newDocument"
+                                            :title="editableContent?.[0]?.title"
                                             v-model:parent="editableParent"
                                         />
 
@@ -558,9 +569,10 @@ const actionsWrapperProps = computed(() => ({
                                                 aria-hidden="true"
                                             />
                                             <EditContentVideo
+                                                v-if="editableParent"
                                                 bare
-                                                v-model:content="selectedContent"
-                                                :disabled="!canTranslate"
+                                                v-model:parent="editableParent"
+                                                :disabled="!canEditParent"
                                             />
                                         </template>
                                     </div>
@@ -684,7 +696,7 @@ const actionsWrapperProps = computed(() => ({
         :description="`Are you sure you want to delete this ${props.tagOrPostType} and all the translations? This action cannot be undone.`"
         :primaryAction="
             async () => {
-                await deleteParent();
+                await deleteParent(deleteMediaFiles);
                 showDeleteModal = false;
             }
         "
@@ -693,7 +705,25 @@ const actionsWrapperProps = computed(() => ({
         secondaryButtonText="Cancel"
         context="danger"
         :showClosingButton="false"
-    />
+    >
+        <!-- Offered only when there is something to delete, and never pre-ticked:
+             the files may be referenced somewhere the CMS cannot see, and this is
+             the one action in the dialog that cannot be undone by re-creating the
+             document. -->
+        <label
+            v-if="editableParent?.media?.hlsUrl"
+            class="mt-3 flex cursor-pointer select-none items-start gap-2 text-sm text-zinc-700"
+            data-test="delete-media-files"
+        >
+            <input v-model="deleteMediaFiles" type="checkbox" class="mt-0.5 h-4 w-4" />
+            <span>
+                Also delete the media files from storage
+                <span class="mt-0.5 block break-all font-mono text-xs text-zinc-500">
+                    {{ editableParent.media.hlsUrl }}
+                </span>
+            </span>
+        </label>
+    </LDialog>
     <LDialog
         v-model:open="showDuplicateModal"
         :title="`Duplicate ${props.tagOrPostType} and all translations`"

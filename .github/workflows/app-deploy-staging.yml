@@ -33,6 +33,11 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+        with:
+          # The encoder's player packages are consumed from luminary-media-convert/, which is
+          # a submodule rather than a published package. The submodule repository is
+          # public, so the built-in token suffices; no extra credential is needed.
+          submodules: true
 
       - name: Create .env file
         run: |

@@ -142,6 +142,53 @@ describe("Socketio", () => {
         }, 8000);
     }, 15000);
 
+    // A sidecar write must produce no `data` event on any connection (no room to
+    // join + fan-out early-return).
+    it("never broadcasts a sidecar document update", (done) => {
+        const client = connectClient();
+        const sidecarDocId = "sidecar-socketio-test-hlsEncryptionKey";
+        let gotSidecar = false;
+
+        client.on("connect", () => {
+            // Requesting sidecar rooms must join nothing — no ACL can grant it.
+            client.emit("clientConfigReq", { docTypes: [{ type: "sidecar" }] });
+        });
+
+        client.on("clientConfig", () => {
+            setTimeout(async () => {
+                try {
+                    await db.upsertDoc({
+                        _id: sidecarDocId,
+                        type: "sidecar",
+                        memberOf: ["group-super-admins"],
+                        parentId: "post-socketio-test",
+                        parentType: "post",
+                        sidecarType: "hlsEncryptionKey",
+                        data: { maskedKeyHex: "0".repeat(32) },
+                        updatedTimeUtc: Date.now(),
+                    } as any);
+                } catch {
+                    // Ignore if it already exists
+                }
+            }, 200);
+        });
+
+        client.on("data", (data: any) => {
+            if (data.docs && data.docs.some((d) => d._id === sidecarDocId)) {
+                gotSidecar = true;
+            }
+        });
+
+        // Wait long enough for the changes feed to deliver the update if it were
+        // going to, then assert it never arrived.
+        setTimeout(() => {
+            expect(gotSidecar).toBe(false);
+            client.disconnect();
+            db.deleteDoc(sidecarDocId).catch(() => {});
+            done();
+        }, 3000);
+    }, 15000);
+
     it("should handle database update for document without type", (done) => {
         const client = connectClient();
 

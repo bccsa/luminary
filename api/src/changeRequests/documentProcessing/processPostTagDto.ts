@@ -2,9 +2,12 @@ import { ContentDto } from "../../dto/ContentDto";
 import { PostDto } from "../../dto/PostDto";
 import { TagDto } from "../../dto/TagDto";
 import { DbService } from "../../db/db.service";
-import { DocType, Uuid } from "../../enums";
+import { DocType, SidecarType, Uuid } from "../../enums";
 import { deleteImage, processImage } from "./processImageDto";
 import { processMedia } from "./processMediaDto";
+import { deleteMediaCollection } from "./deleteMediaCollection";
+import { migrateMediaCollection } from "./migrateMediaCollection";
+import { deleteSidecar, deleteSidecarsForParent, syncSidecarMemberOf } from "../../sidecar/sidecar.service";
 
 /**
  * Process Post / Tag DTO
@@ -35,17 +38,30 @@ export default async function processPostTagDto(
             warnings.push(...imageWarnings);
         }
 
-        // Remove medias from S3
-        if (doc.media) {
-            const mediaResult = await processMedia(
-                { fileCollections: [] },
-                prevDoc?.media,
-                db,
-                prevDoc?.mediaBucketId, // Delete from the bucket where files currently exist
+        // Media files go only when the user asked for them in the delete
+        // confirmation. Opt-in because it is irreversible and because the
+        // collection may be referenced somewhere this API cannot see; the previous
+        // document is the authority on where the files are, and the incoming one
+        // carries the intent.
+        if (doc.media?.deleteFiles) {
+            warnings.push(
+                ...(await deleteMediaCollection(
+                    prevDoc?.media,
+                    prevDoc?.mediaBucketId,
+                    db,
+                )),
             );
-            if (mediaResult && mediaResult.warnings && mediaResult.warnings.length > 0) {
-                warnings.push(...mediaResult.warnings);
-            }
+        }
+
+        // Sidecars are children of this document — nothing else references them and
+        // no client holds a copy, so they go with it. Hard delete, no DeleteCmd. A
+        // failure here must not block the content delete: an orphaned sidecar is
+        // unreadable once the parent is gone (GET /sidecar 404s), so warn rather
+        // than throw, matching deleteImage's precedent.
+        try {
+            await deleteSidecarsForParent(db, doc._id);
+        } catch (error) {
+            warnings.push(`Failed to delete sidecars for ${doc._id}: ${error.message}`);
         }
 
         return warnings; // no need to process further
@@ -104,44 +120,53 @@ export default async function processPostTagDto(
         delete (doc as any).image; // Remove the legacy image field
     }
 
-    // Process media uploads
+    // Process media
     if (doc.media) {
-        let mediaWarnings: string[] = [];
-
-        // Check if bucket is specified for this upload
+        // The bucket is where the encoder was told to write, and is what a later
+        // edit of the collection has to be pointed back at.
         if (!doc.mediaBucketId) {
             throw new Error("Bucket is not specified for media processing.");
         }
 
-        // Use the new bucket processing with db service for bucket lookup
-        try {
-            const result = await processMedia(
+        // A bucket change has to take the files with it. `mediaBucketId` and
+        // `hlsUrl` must name the same bucket: if they diverge, the collection can no
+        // longer be resolved from the URL, and deleting the document then leaves the
+        // files behind for good.
+        if (prevDoc?.mediaBucketId && prevDoc.mediaBucketId !== doc.mediaBucketId) {
+            const migration = await migrateMediaCollection(
                 doc.media,
-                prevDoc?.media,
-                db,
+                prevDoc.media?.hlsUrl,
+                prevDoc.mediaBucketId,
                 doc.mediaBucketId,
-                prevDoc?.mediaBucketId, // Pass previous bucket ID for migration
+                db,
             );
-            mediaWarnings = result.warnings;
+            warnings.push(...migration.warnings);
 
-            // If migration failed, revert to the old bucket ID to keep files accessible
-            if (result.migrationFailed && prevDoc?.mediaBucketId) {
+            if (migration.failed) {
                 doc.mediaBucketId = prevDoc.mediaBucketId;
                 warnings.push(
                     "Media migration failed. Reverted to previous bucket configuration to ensure files remain accessible.",
                 );
             }
-        } catch (error) {
-            // If processing throws an error, also revert bucket ID
-            if (prevDoc?.mediaBucketId && doc.mediaBucketId !== prevDoc.mediaBucketId) {
-                doc.mediaBucketId = prevDoc.mediaBucketId;
-            }
-            mediaWarnings.push(`Bucket media processing failed: ${error.message}`);
         }
 
-        if (mediaWarnings && mediaWarnings.length > 0) {
-            warnings.push(...mediaWarnings);
-        }
+        // A failed key store must fail the change request, not become a warning: the
+        // plaintext key exists only for the duration of this request (processMedia has
+        // already dropped it by the time the error is caught), so saving the Post with
+        // an `hlsUrl` and no `hlsKey_id` would leave an unplayable, unrecoverable
+        // collection. Let it throw — processChangeRequest has no catch here, so the CR
+        // fails and the editor still holds the key to retry.
+        warnings.push(...(await processMedia(doc.media, doc, db)));
+    }
+
+    // A key that was referenced and no longer is has been removed by the editor —
+    // whether they cleared the key field or the whole media object. Outside the
+    // `if (doc.media)` block on purpose: removing the collection drops doc.media
+    // entirely, which is the case a check inside processMedia would never see. A
+    // fresh hlsKey in the same request means replace, not delete — processMedia
+    // has already recreated the sidecar at the same id. See ADR 0019.
+    if (prevDoc?.media?.hlsKey_id && !doc.media?.hlsKey_id && !doc.media?.hlsKey) {
+        await deleteSidecar(db, doc._id, SidecarType.HlsEncryptionKey);
     }
 
     // Get content documents that are children of the Post / Tag document
@@ -176,6 +201,10 @@ export default async function processPostTagDto(
         else delete contentDoc.parentLinkDates;
         await db.upsertDoc(contentDoc);
     }
+
+    // Re-stamp the parent's memberOf onto its sidecars (same groups as the parent);
+    // run on every save, not just media changes.
+    await syncSidecarMemberOf(db, doc);
 
     // tag caching to the taggedDocs / parentTaggedDocs property of tag / content documents. This is done to improve client query performance.
     const addedTags = prevDoc ? doc.tags.filter((tag) => !prevDoc.tags.includes(tag)) : doc.tags;

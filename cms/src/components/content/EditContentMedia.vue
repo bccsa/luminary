@@ -1,16 +1,10 @@
 <script setup lang="ts">
-import {
-    type ContentParentDto,
-    type DocType,
-    type PostType,
-    type TagType,
-    maxMediaUploadFileSize,
-} from "luminary-shared";
+import { type ContentParentDto, type DocType, type PostType, type TagType } from "luminary-shared";
 import LCard from "../common/LCard.vue";
-import { QuestionMarkCircleIcon, ArrowUpOnSquareIcon, FilmIcon } from "@heroicons/vue/24/outline";
-import { ref, computed } from "vue";
-import LButton from "../button/LButton.vue";
+import { QuestionMarkCircleIcon, FilmIcon } from "@heroicons/vue/24/outline";
+import { ref } from "vue";
 import MediaEditor from "../media/MediaEditor.vue";
+import EncodeMediaButton from "../media/EncodeMediaButton.vue";
 
 type Props = {
     docType: DocType;
@@ -18,6 +12,8 @@ type Props = {
     disabled: boolean;
     newDocument?: boolean;
     embedded?: boolean;
+    /** Shown in the encoder's session list so the editor can tell encodes apart. */
+    title?: string;
 };
 const props = withDefaults(defineProps<Props>(), {
     embedded: false,
@@ -25,29 +21,26 @@ const props = withDefaults(defineProps<Props>(), {
 
 const parent = defineModel<ContentParentDto>("parent");
 const showHelp = ref(false);
-const maxMediaUploadFileSizeMb = computed(() => maxMediaUploadFileSize.value / 1000000);
 
-const mediaEditorRef = ref<InstanceType<typeof MediaEditor> | null>(null);
-const uploadInput = ref<HTMLInputElement | null>(null);
+/**
+ * The encoder publishes its URL when encoding *starts*, so this lands well before
+ * the output exists. Written straight onto the document: the editor's normal save
+ * persists it, and the app's coming-soon state covers the gap until the first
+ * segments are in the bucket.
+ */
+const handleEncodedMedia = (media: { hlsUrl?: string; hlsKey?: string }) => {
+    if (!parent.value) return;
 
-const triggerFilePicker = () => {
-    // Important: reset input so that selecting the same file again works
-    if (uploadInput.value) {
-        uploadInput.value.value = "";
-    }
-
-    uploadInput.value!.showPicker();
+    parent.value.media = {
+        ...(parent.value.media ?? { fileCollections: [] }),
+        hlsUrl: media.hlsUrl,
+        hlsKey: media.hlsKey,
+    };
 };
 
-const handleFileChange = () => {
-    const files = uploadInput.value?.files;
-    if (files?.length && mediaEditorRef.value?.handleFiles) {
-        // Only process the first file since we allow one media per language
-        const fileList = new DataTransfer();
-        fileList.items.add(files[0]);
-        mediaEditorRef.value.handleFiles(fileList.files);
-        uploadInput.value!.value = ""; // reset input
-    }
+/** Records the bucket the encode was sent to, when it was auto-selected rather than picked. */
+const handleEncoderBucket = (bucketId: string) => {
+    if (parent.value) parent.value.mediaBucketId = bucketId;
 };
 </script>
 
@@ -62,26 +55,14 @@ const handleFileChange = () => {
             class="bg-white"
         >
             <template #actions>
-                <div>
-                    <LButton
-                        :icon="ArrowUpOnSquareIcon"
-                        size="base"
-                        :disabled="disabled"
-                        @click.stop="triggerFilePicker"
-                        data-test="upload-button"
-                    >
-                        <span class="block sm:hidden">Upload Audio</span>
-                        <span class="hidden text-sm sm:inline">Upload</span>
-                    </LButton>
-
-                    <input
-                        ref="uploadInput"
-                        type="file"
-                        class="hidden"
-                        accept="audio/aac, audio/mp3, audio/opus, audio/wav, audio/x-wav"
-                        @change="handleFileChange"
-                    />
-                </div>
+                <EncodeMediaButton
+                    :documentId="parent._id"
+                    :mediaBucketId="parent.mediaBucketId"
+                    :title="props.title"
+                    :disabled="disabled"
+                    @media-ready="handleEncodedMedia"
+                    @bucket-selected="handleEncoderBucket"
+                />
                 <button
                     class="flex cursor-pointer items-center gap-1 rounded-md"
                     @click.stop="showHelp = !showHelp"
@@ -91,21 +72,11 @@ const handleFileChange = () => {
             </template>
             <div v-if="showHelp">
                 <p class="mb-2 text-xs">
-                    You can upload multiple audio files, one per language. Each language can have only
-                    one audio file. Uploading a new file for a language that already has audio will
-                    replace the existing file.
-                </p>
-                <p class="mb-2 text-xs">
-                    Supported formats: MP3, AAC, Opus, WAV.
-                    <br />Maximum file size: {{ maxMediaUploadFileSizeMb }}MB.
+                    Video and audio are produced by Luminary Media Convert. Use Encode to open it,
+                    pick a file, and the encoded playlist is saved back to this document.
                 </p>
             </div>
-            <MediaEditor
-                ref="mediaEditorRef"
-                :disabled="disabled"
-                v-model:parent="parent"
-                class="scrollbar-hide"
-            />
+            <MediaEditor :disabled="disabled" v-model:parent="parent" class="scrollbar-hide" />
         </LCard>
 
         <div v-else>
@@ -115,16 +86,14 @@ const handleFileChange = () => {
                     <h3 class="text-sm font-medium leading-6 text-zinc-900">Media</h3>
                 </div>
                 <div class="flex items-center gap-2">
-                    <LButton
-                        :icon="ArrowUpOnSquareIcon"
-                        size="base"
+                    <EncodeMediaButton
+                        :documentId="parent._id"
+                        :mediaBucketId="parent.mediaBucketId"
+                        :title="props.title"
                         :disabled="disabled"
-                        @click.stop="triggerFilePicker"
-                        data-test="upload-button"
-                    >
-                        <span class="block sm:hidden">Upload Audio</span>
-                        <span class="hidden text-sm sm:inline">Upload</span>
-                    </LButton>
+                        @media-ready="handleEncodedMedia"
+                        @bucket-selected="handleEncoderBucket"
+                    />
                     <button
                         class="flex cursor-pointer items-center gap-1 rounded-md"
                         @click.stop="showHelp = !showHelp"
@@ -136,33 +105,15 @@ const handleFileChange = () => {
                 </div>
             </div>
 
-            <input
-                ref="uploadInput"
-                type="file"
-                class="hidden"
-                accept="audio/aac, audio/mp3, audio/opus, audio/wav, audio/x-wav"
-                @change="handleFileChange"
-            />
-
             <div v-if="showHelp" class="mt-2">
                 <p class="mb-2 text-xs">
-                    You can upload multiple audio files, one per language. Each language can have only
-                    one audio file. Uploading a new file for a language that already has audio will
-                    replace the existing file.
-                </p>
-                <p class="mb-2 text-xs">
-                    Supported formats: MP3, AAC, Opus, WAV.
-                    <br />Maximum file size: {{ maxMediaUploadFileSizeMb }}MB.
+                    Video and audio are produced by Luminary Media Convert. Use Encode to open it,
+                    pick a file, and the encoded playlist is saved back to this document.
                 </p>
             </div>
 
             <div class="mt-2">
-                <MediaEditor
-                    ref="mediaEditorRef"
-                    :disabled="disabled"
-                    v-model:parent="parent"
-                    class="scrollbar-hide"
-                />
+                <MediaEditor :disabled="disabled" v-model:parent="parent" class="scrollbar-hide" />
             </div>
         </div>
     </div>

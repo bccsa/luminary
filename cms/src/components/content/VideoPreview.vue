@@ -1,0 +1,105 @@
+<script setup lang="ts">
+/**
+ * Plays the video an editor has just pointed a document at.
+ *
+ * The URL and key fields say what *should* play; nothing said whether it does.
+ * An encoded collection can carry a wrong key, a path that 404s, or angles that
+ * never made it to the bucket, and every one of those looks identical in a text
+ * input — the editor finds out when a reader does.
+ *
+ * The same player the app uses, so what an editor checks here is what a viewer
+ * gets, rather than a second implementation that agrees right up until it does
+ * not.
+ */
+import { computed, ref, watch } from "vue";
+import { LuminaryPlayer, type PlayerSource } from "@luminary-media-converter/player-web-legacy";
+import { type ContentParentDto, SidecarType, getRest, unmaskKeyHex } from "luminary-shared";
+import { storageSelection } from "@/composables/storageSelection";
+import { toAbsoluteMediaUrl } from "@/util/mediaUrl";
+
+type Props = {
+    parent: ContentParentDto | undefined;
+};
+const props = defineProps<Props>();
+
+const { getBucketById } = storageSelection();
+
+/**
+ * The URL to play.
+ *
+ * Stored relative to the bucket, so it is resolved the same way the app resolves
+ * it — through the bucket's public URL. A collection hosted elsewhere is already
+ * absolute and passes through untouched.
+ */
+const masterUrl = computed(() => {
+    const url = props.parent?.media?.hlsUrl;
+    if (!url) return undefined;
+    const bucket = getBucketById(props.parent?.mediaBucketId ?? null);
+    return toAbsoluteMediaUrl(url, bucket?.publicUrl);
+});
+
+/**
+ * The key, as the player needs it.
+ *
+ * An unsaved key is in hand and is used directly — that is the whole point of
+ * previewing before saving. A saved one is never readable again from the
+ * document, so it is fetched; the server hands it to an editor who may see the
+ * document.
+ */
+const storedKey = ref<string | undefined>(undefined);
+
+watch(
+    () => [props.parent?._id, props.parent?.media?.hlsKey_id] as const,
+    async ([id, keyId]) => {
+        storedKey.value = undefined;
+        if (!id || !keyId) return;
+        const sidecar = await getRest().getSidecar(id, SidecarType.HlsEncryptionKey, { cms: true });
+        if (!sidecar) return;
+        const data = sidecar.data as { maskedKeyHex: string } | undefined;
+        if (!data?.maskedKeyHex) return;
+        storedKey.value = await unmaskKeyHex(sidecar.sidecarId, data.maskedKeyHex);
+    },
+    { immediate: true },
+);
+
+const keyHex = computed(() => props.parent?.media?.hlsKey || storedKey.value);
+
+const source = computed<PlayerSource | null>(() =>
+    masterUrl.value ? { masterUrl: masterUrl.value, keyHex: keyHex.value } : null,
+);
+
+/**
+ * Loaded on request rather than on sight.
+ *
+ * Opening a document should not start fetching segments from a bucket — an
+ * editor opens many and previews few, and a preview that plays itself is a
+ * surprise in a form.
+ */
+const showing = ref(false);
+
+// A different document, or a different collection on the same one, is a
+// different thing to check.
+watch(masterUrl, () => (showing.value = false));
+</script>
+
+<template>
+    <div v-if="source" class="pt-2" data-test="video-preview">
+        <button
+            v-if="!showing"
+            type="button"
+            class="text-sm font-medium text-zinc-600 underline underline-offset-2 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200"
+            data-test="video-preview-load"
+            @click="showing = true"
+        >
+            Preview this video
+        </button>
+
+        <div v-else class="overflow-hidden rounded-md bg-black">
+            <LuminaryPlayer
+                :source="source"
+                :controls="{ subtitlesMenu: false }"
+                data-test="video-preview-player"
+            />
+        </div>
+    </div>
+</template>
