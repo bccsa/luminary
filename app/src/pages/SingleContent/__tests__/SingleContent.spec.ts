@@ -924,6 +924,48 @@ describe("SingleContent", () => {
         });
     });
 
+    it("uses the article's own language reading speed even with no other published translation", async () => {
+        // Regression test: an article with only one published translation must still pick up
+        // its language's configured averageReadingSpeed via the global cmsLanguages list —
+        // not silently fall back to the default because the translation-dropdown-only
+        // `availableTranslations`/`languages` list is empty in this (most common) case.
+        const wordCount = 400;
+        const readingSpeed = 100;
+        const defaultSpeedReadingTime = computeEstimatedReadingMinutes(wordCount, 200);
+        const expectedReadingTime = computeEstimatedReadingMinutes(wordCount, readingSpeed);
+        expect(expectedReadingTime).not.toBe(defaultSpeedReadingTime);
+
+        isConnected.value = false;
+
+        // No sibling translation published for this content's parent.
+        await db.docs.delete(mockFrenchContentDto._id);
+        await db.docs.put({
+            ...mockEnglishContentDto,
+            wordCount,
+        } as ContentDto);
+
+        cmsLanguages.value = [{ ...mockLanguageDtoEng, averageReadingSpeed: readingSpeed }];
+
+        await flushPromises();
+
+        wrapper = mount(SingleContent, {
+            props: {
+                slug: mockEnglishContentDto.slug,
+            },
+        });
+
+        await flushPromises();
+
+        await waitForExpect(() => {
+            expect(wrapper!.text()).toContain(mockEnglishContentDto.title);
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper!.text()).toContain(`${expectedReadingTime} min`);
+        });
+        expect(wrapper!.text()).not.toContain(`${defaultSpeedReadingTime} min`);
+    });
+
     it("preserves saved reading progress on mount", async () => {
         setReadingProgress(mockEnglishContentDto._id, 60);
 
