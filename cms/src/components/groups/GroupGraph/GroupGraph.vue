@@ -283,12 +283,12 @@ watch(isFullscreen, () => {
             </VueFlow>
 
             <div
-                class="pointer-events-none absolute left-3 right-3 top-1 z-40 flex items-start gap-2 py-2 sm:right-4 sm:top-2"
+                class="pointer-events-none absolute left-3 right-3 top-1 z-40 flex items-start gap-2 py-2 sm:right-1 sm:top-2"
             >
                 <div
                     class="pointer-events-auto -my-2 min-w-0 flex-1 overflow-x-auto py-2 scrollbar-hide"
                 >
-                    <div class="flex w-max flex-nowrap items-start gap-2 sm:ml-auto">
+                    <div class="ml-1 flex w-max flex-nowrap items-start gap-2 sm:ml-auto">
                         <div
                             class="pointer-events-auto flex h-9 shrink-0 divide-x divide-zinc-300 overflow-hidden rounded-md shadow-sm ring-1 ring-zinc-300"
                         >
