@@ -66,4 +66,114 @@ describe("notification store", () => {
             expect(store.notifications.length).toBe(0);
         });
     });
+
+    describe("persistence across page loads", () => {
+        beforeEach(() => {
+            localStorage.clear();
+        });
+
+        it("restores an active banner from localStorage on store creation", async () => {
+            const store = useNotificationStore();
+            store.addNotification({
+                id: "offlineBanner",
+                title: "You are offline",
+                type: "banner",
+                state: "warning",
+            });
+
+            await waitForExpect(() => {
+                expect(store.notifications.length).toBe(1);
+            });
+
+            // Simulate a page load: a fresh Pinia instance re-runs the store setup.
+            setActivePinia(createPinia());
+            const reloadedStore = useNotificationStore();
+
+            expect(reloadedStore.notifications).toHaveLength(1);
+            expect(reloadedStore.notifications[0]).toMatchObject({
+                id: "offlineBanner",
+                title: "You are offline",
+            });
+        });
+
+        it("does not restore toasts or notifications without a string id", async () => {
+            const store = useNotificationStore();
+            store.addNotification({
+                title: "Saved",
+                type: "toast",
+                state: "success",
+            });
+
+            await waitForExpect(() => {
+                expect(store.notifications.length).toBe(1);
+            });
+
+            setActivePinia(createPinia());
+            const reloadedStore = useNotificationStore();
+
+            expect(reloadedStore.notifications).toHaveLength(0);
+        });
+
+        it("keeps a dismissed banner suppressed after a simulated reload", async () => {
+            const store = useNotificationStore();
+            store.addNotification({
+                id: "offlineBanner",
+                title: "You are offline",
+                type: "banner",
+                state: "warning",
+            });
+
+            await waitForExpect(() => {
+                expect(store.notifications.length).toBe(1);
+            });
+
+            store.dismissNotification("offlineBanner");
+            expect(store.notifications).toHaveLength(0);
+
+            setActivePinia(createPinia());
+            const reloadedStore = useNotificationStore();
+
+            // The user dismissed it before reloading, so it must not come back even
+            // though the underlying (still-offline) condition would re-add it.
+            reloadedStore.addNotification({
+                id: "offlineBanner",
+                title: "You are offline",
+                type: "banner",
+                state: "warning",
+            });
+
+            expect(reloadedStore.notifications).toHaveLength(0);
+        });
+
+        it("forgets the dismissal once removeNotification clears the resolved situation", async () => {
+            const store = useNotificationStore();
+            store.addNotification({
+                id: "offlineBanner",
+                title: "You are offline",
+                type: "banner",
+                state: "warning",
+            });
+
+            await waitForExpect(() => {
+                expect(store.notifications.length).toBe(1);
+            });
+
+            store.dismissNotification("offlineBanner");
+
+            // Connection restored: App.vue's watcher calls removeNotification, which
+            // should also clear the remembered dismissal for the next occurrence.
+            store.removeNotification("offlineBanner");
+
+            store.addNotification({
+                id: "offlineBanner",
+                title: "You are offline again",
+                type: "banner",
+                state: "warning",
+            });
+
+            await waitForExpect(() => {
+                expect(store.notifications).toHaveLength(1);
+            });
+        });
+    });
 });

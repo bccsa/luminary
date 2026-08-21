@@ -29,7 +29,7 @@ const show = ref(true);
 
 const icon = ref<FunctionalComponent>();
 
-const { removeNotification } = useNotificationStore();
+const { dismissNotification } = useNotificationStore();
 
 if (props.notification.icon) {
     icon.value = props.notification.icon;
@@ -130,7 +130,7 @@ const handleNotificationClick = (notification: Notification) => {
                             type="button"
                             @click.stop="
                                 notification.id
-                                    ? removeNotification(notification.id)
+                                    ? dismissNotification(notification.id)
                                     : (show = false)
                             "
                             class="h-6 min-h-6 w-6 min-w-6 cursor-pointer underline md:h-5 md:min-h-5 md:w-5 md:min-w-5"
