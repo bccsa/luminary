@@ -261,19 +261,19 @@ watch(isFullscreen, () => {
                 <Panel position="bottom-left">
                     <div class="flex flex-col gap-1">
                         <LButton
-                            size="sm"
+                            size="lg"
                             variant="secondary"
                             :icon="PlusSmallIcon"
                             @click="zoomIn({ duration: 80 })"
                         />
                         <LButton
-                            size="sm"
+                            size="lg"
                             variant="secondary"
                             :icon="MinusIcon"
                             @click="zoomOut({ duration: 80 })"
                         />
                         <LButton
-                            size="sm"
+                            size="lg"
                             variant="secondary"
                             :icon="ArrowsPointingInIcon"
                             @click="fitView({ padding: 0.18, duration: 120 })"
@@ -283,17 +283,17 @@ watch(isFullscreen, () => {
             </VueFlow>
 
             <div
-                class="pointer-events-none absolute left-3 right-3 top-1 z-40 flex items-start gap-2 py-2 sm:right-4 sm:top-2"
+                class="pointer-events-none absolute left-3 right-3 top-1 z-40 flex items-start gap-2 py-2 sm:right-1 sm:top-2"
             >
                 <div
                     class="pointer-events-auto -my-2 min-w-0 flex-1 overflow-x-auto py-2 scrollbar-hide"
                 >
-                    <div class="flex w-max flex-nowrap items-start gap-2 sm:ml-auto">
+                    <div class="ml-1 flex w-max flex-nowrap items-start gap-2 sm:ml-auto">
                         <div
                             class="pointer-events-auto flex h-9 shrink-0 divide-x divide-zinc-300 overflow-hidden rounded-md shadow-sm ring-1 ring-zinc-300"
                         >
                             <LButton
-                                size="sm"
+                                size="lg"
                                 variant="secondary"
                                 :icon="CursorArrowRaysIcon"
                                 :main-dynamic-css="segClass(interactionMode === 'select')"
@@ -302,7 +302,7 @@ watch(isFullscreen, () => {
                                 Select
                             </LButton>
                             <LButton
-                                size="sm"
+                                size="lg"
                                 variant="secondary"
                                 :icon="HandRaisedIcon"
                                 :main-dynamic-css="segClass(interactionMode === 'drag')"
@@ -315,7 +315,7 @@ watch(isFullscreen, () => {
                             class="pointer-events-auto hidden h-9 shrink-0 divide-x divide-zinc-300 overflow-hidden rounded-md shadow-sm ring-1 ring-zinc-300 sm:flex"
                         >
                             <LButton
-                                size="sm"
+                                size="lg"
                                 variant="secondary"
                                 :main-dynamic-css="segClass(isTopToBottom)"
                                 @click="selectLayoutDirection('TB')"
@@ -323,7 +323,7 @@ watch(isFullscreen, () => {
                                 Top down
                             </LButton>
                             <LButton
-                                size="sm"
+                                size="lg"
                                 variant="secondary"
                                 :main-dynamic-css="segClass(!isTopToBottom)"
                                 @click="selectLayoutDirection('LR')"
@@ -332,7 +332,7 @@ watch(isFullscreen, () => {
                             </LButton>
                         </div>
                         <div
-                            class="pointer-events-auto hidden h-9 shrink-0 items-center gap-2 rounded-md bg-white px-3 text-xs text-zinc-600 shadow-sm ring-1 ring-zinc-300 sm:flex"
+                            class="pointer-events-auto hidden h-9 shrink-0 items-center gap-2 rounded-md px-3 text-xs shadow-sm ring-1 ring-zinc-300 dark:bg-slate-700 dark:text-zinc-100 sm:flex"
                         >
                             <label for="group-graph-columns-desktop" class="font-medium">
                                 Columns
@@ -344,16 +344,16 @@ watch(isFullscreen, () => {
                                 :max="TREE_MAX_COLUMNS"
                                 step="1"
                                 :value="treeColumnCount"
-                                class="h-2 w-28 cursor-pointer appearance-none rounded-lg bg-zinc-200 accent-zinc-700"
+                                class="h-2 w-28 cursor-pointer appearance-none rounded-lg bg-zinc-200 dark:accent-zinc-100"
                                 @input="updateTreeColumnCount"
                             />
-                            <span class="w-3 text-right font-medium text-zinc-700">
+                            <span class="w-3 text-right font-medium dark:text-zinc-100">
                                 {{ treeColumnCount }}
                             </span>
                         </div>
                         <LButton
                             v-if="hasUnsavedLayout"
-                            size="sm"
+                            size="lg"
                             variant="secondary"
                             class="pointer-events-auto h-9 shrink-0"
                             @click="saveCustomLayout"
@@ -362,7 +362,7 @@ watch(isFullscreen, () => {
                         </LButton>
                         <LButton
                             v-if="savedLayout"
-                            size="sm"
+                            size="lg"
                             variant="secondary"
                             class="pointer-events-auto hidden h-9 shrink-0 sm:flex"
                             @click="applyStoredLayout()"
@@ -370,7 +370,7 @@ watch(isFullscreen, () => {
                             Use saved layout
                         </LButton>
                         <LButton
-                            size="sm"
+                            size="lg"
                             variant="secondary"
                             class="pointer-events-auto hidden h-9 shrink-0 sm:flex"
                             @click="resetLayout"
@@ -379,7 +379,7 @@ watch(isFullscreen, () => {
                         </LButton>
                         <LButton
                             v-if="savedLayout"
-                            size="sm"
+                            size="lg"
                             variant="secondary"
                             class="pointer-events-auto hidden h-9 shrink-0 sm:flex"
                             @click="clearSavedLayout"
@@ -398,7 +398,7 @@ watch(isFullscreen, () => {
                         />
                         <LButton
                             v-if="!isFullscreen"
-                            size="sm"
+                            size="lg"
                             variant="secondary"
                             :icon="isFullscreen ? ArrowsPointingInIcon : ArrowsPointingOutIcon"
                             class="pointer-events-auto h-9 w-9 shrink-0"
@@ -408,7 +408,7 @@ watch(isFullscreen, () => {
                 </div>
                 <LButton
                     v-if="isFullscreen"
-                    size="sm"
+                    size="lg"
                     variant="secondary"
                     :icon="XMarkIcon"
                     class="pointer-events-auto h-9 w-9 shrink-0"
@@ -431,7 +431,7 @@ watch(isFullscreen, () => {
             >
                 <LButton
                     variant="tertiary"
-                    size="sm"
+                    size="lg"
                     class="w-full justify-start"
                     @click="openContextGroup"
                 >

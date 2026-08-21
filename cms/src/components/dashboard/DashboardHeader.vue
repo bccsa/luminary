@@ -20,8 +20,9 @@ const greeting = computed(() => {
 <template>
     <div class="flex flex-wrap items-center justify-between gap-3">
         <div class="flex flex-col lg:flex-row lg:items-baseline lg:gap-2">
-            <h1 class="text-lg font-semibold text-zinc-900">{{ greeting }}, {{ userName }}</h1>
-            <p class="text-xs text-zinc-500">Here's what's happening today</p>
+            <h1 class="text-lg font-semibold dark:text-zinc-100">{{ greeting }},</h1>
+            <h2 class="text-lg font-semibold text-zinc-600 dark:text-yellow-400">{{ userName }}</h2>
+            <p class="text-xs text-zinc-600 dark:text-zinc-300">Here's what's happening today</p>
         </div>
         <div class="flex items-center gap-2">
             <!-- Sync indicator -->

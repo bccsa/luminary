@@ -21,7 +21,10 @@ const providers = computed(() =>
     [...allProviders.value].sort((a, b) => (a.sortIndex ?? 0) - (b.sortIndex ?? 0)),
 );
 const resolveProviderLabel = (provider: AuthProviderDto) =>
-    resolveI18nEmbedded(provider.label || provider.displayName || provider.domain || provider._id, t);
+    resolveI18nEmbedded(
+        provider.label || provider.displayName || provider.domain || provider._id,
+        t,
+    );
 
 const hasIcon = (provider: AuthProviderDto) =>
     provider.imageData?.fileCollections?.some((fc) => fc.imageFiles?.length > 0) ?? false;

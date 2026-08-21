@@ -11,9 +11,10 @@ import {
 import { Bars3Icon as Bars3IconSolid } from "@heroicons/vue/24/solid";
 import ThemeSelectorModal from "./ThemeSelectorModal.vue";
 import { useRouter } from "vue-router";
-import { computed, onMounted, ref, type ComputedRef } from "vue";
+import { computed, onMounted, ref, unref, type ComputedRef } from "vue";
 import {
     ShieldCheckIcon,
+    UserCircleIcon,
     BookmarkIcon,
     Bars3Icon,
     Cog6ToothIcon,
@@ -156,6 +157,13 @@ const privacyPolicyNavigationItem = computed(
     }),
 );
 
+/** The name shown on the menu trigger and in the panel header. */
+const accountLabel = computed(() => {
+    // `user` is a ref in the app but a plain object in some mounted tests.
+    const details = unref(user) as { name?: string; email?: string } | undefined;
+    return isAuthenticated.value ? details?.name || details?.email : t("profile_menu.title");
+});
+
 const userNavigation = computed(() => {
     const authItem = isAuthenticated.value
         ? {
@@ -207,7 +215,6 @@ const sidebarNavigation = computed(() =>
         aria-label="Open user menu"
         class="-m-1.5 flex items-center gap-1 rounded-md px-2 py-1.5 hover:bg-zinc-200 dark:hover:bg-slate-600"
         @click="menuOpen = !menuOpen"
-
     >
         <img
             v-if="isAuthenticated && user?.picture"
@@ -256,7 +263,7 @@ const sidebarNavigation = computed(() =>
                 <span
                     class="flex-1 truncate text-left text-sm font-medium text-zinc-700 dark:text-slate-100"
                 >
-                    {{ isAuthenticated ? user?.name || user?.email : t("profile_menu.title") }}
+                    {{ accountLabel }}
                 </span>
                 <component
                     :is="menuOpen ? ChevronUpIcon : ChevronDownIcon"
@@ -436,11 +443,14 @@ const sidebarNavigation = computed(() =>
                             aria-hidden="true"
                         />
                         <div class="flex flex-col leading-none">
-                            <span class="text-sm font-medium">{{ t("profile_menu.language") }}</span>
+                            <span class="text-sm font-medium">{{
+                                t("profile_menu.language")
+                            }}</span>
                             <span
                                 v-if="appLanguageAsRef?.name"
                                 class="mt-0.5 text-xs text-zinc-500 dark:text-slate-300"
-                            >{{ appLanguageAsRef.name }}</span>
+                                >{{ appLanguageAsRef.name }}</span
+                            >
                         </div>
                     </span>
 
@@ -467,7 +477,9 @@ const sidebarNavigation = computed(() =>
                                 class="h-5 w-5 flex-shrink-0"
                                 aria-hidden="true"
                             />
-                            <span class="text-sm font-medium">{{ t("profile_menu.settings") }}</span>
+                            <span class="text-sm font-medium">{{
+                                t("profile_menu.settings")
+                            }}</span>
                         </span>
                     </RouterLink>
                 </div>
@@ -496,7 +508,11 @@ const sidebarNavigation = computed(() =>
                     @click="isAuthenticated ? handleLogout() : handleLogin()"
                 >
                     <component
-                        :is="isAuthenticated ? ArrowRightEndOnRectangleIcon : ArrowLeftEndOnRectangleIcon"
+                        :is="
+                            isAuthenticated
+                                ? ArrowRightEndOnRectangleIcon
+                                : ArrowLeftEndOnRectangleIcon
+                        "
                         class="h-5 w-5 flex-shrink-0"
                         aria-hidden="true"
                     />
@@ -522,8 +538,10 @@ const sidebarNavigation = computed(() =>
                     >
                         <UserIcon class="h-5 w-5 text-zinc-600 dark:text-slate-100" />
                     </div>
-                    <span class="flex-1 truncate text-sm font-medium text-zinc-700 dark:text-slate-100">
-                        {{ user?.name || user?.email }}
+                    <span
+                        class="flex-1 truncate text-sm font-medium text-zinc-700 dark:text-slate-100"
+                    >
+                        {{ accountLabel }}
                     </span>
                 </div>
             </div>
