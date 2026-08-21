@@ -1010,6 +1010,27 @@ describe("HybridQuery", () => {
         });
     });
 
+    describe("omitFields forwarding (queryRemote)", () => {
+        it("forwards omitFields so the API never sends the unread fields", async () => {
+            postHttpMock.mockResolvedValueOnce({ docs: [] });
+
+            await queryRemote({ selector: { type: "content" }, omitFields: ["text", "fts"] });
+
+            const payload = postHttpMock.mock.calls[0]![1] as Record<string, unknown>;
+            expect(payload.omitFields).toEqual(["text", "fts"]);
+        });
+
+        it("omits the key when unset or empty, so the API returns full docs", async () => {
+            postHttpMock.mockResolvedValueOnce({ docs: [] });
+            await queryRemote({ selector: { type: "content" } });
+            expect("omitFields" in (postHttpMock.mock.calls[0]![1] as object)).toBe(false);
+
+            postHttpMock.mockResolvedValueOnce({ docs: [] });
+            await queryRemote({ selector: { type: "content" }, omitFields: [] });
+            expect("omitFields" in (postHttpMock.mock.calls[1]![1] as object)).toBe(false);
+        });
+    });
+
     describe("cutoff threading", () => {
         // Parameterize across the three content sub-branches so a regression that
         // hard-codes the cutoff (or reads it at module-load) would fail at least
@@ -2699,6 +2720,42 @@ describe("HybridQuery", () => {
             const s1 = (q.output.value as any[]).find((d) => d._id === "S1");
             expect(s1).toBeDefined();
             expect(s1).not.toHaveProperty("text");
+        });
+
+        it("asks the API to omit the stripped fields instead of downloading them", async () => {
+            mocks.mangoToDexieMock.mockResolvedValueOnce([]);
+            postHttpMock.mockResolvedValueOnce({ docs: [] });
+
+            new HybridQuery(contentQuery, { stripFields: ["text", "fts"] });
+            await flush();
+
+            const payload = postHttpMock.mock.calls[0]![1] as Record<string, unknown>;
+            expect(payload.omitFields).toEqual(["text", "fts"]);
+        });
+
+        it("does NOT project when persistOffline needs the full doc for IndexedDB", async () => {
+            mocks.mangoToDexieMock.mockResolvedValueOnce([]);
+            postHttpMock.mockResolvedValueOnce({ docs: [] });
+
+            new HybridQuery(contentQuery, {
+                stripFields: ["text", "fts"],
+                persistOffline: true,
+            });
+            await flush();
+
+            expect("omitFields" in (postHttpMock.mock.calls[0]![1] as object)).toBe(false);
+        });
+
+        it("never projects away a field the API reads off the response", async () => {
+            mocks.mangoToDexieMock.mockResolvedValueOnce([]);
+            postHttpMock.mockResolvedValueOnce({ docs: [] });
+
+            // updatedTimeUtc drives the API's blockStart/blockEnd; forwarding it would be rejected.
+            new HybridQuery(contentQuery, { stripFields: ["text", "updatedTimeUtc", "status"] });
+            await flush();
+
+            const payload = postHttpMock.mock.calls[0]![1] as Record<string, unknown>;
+            expect(payload.omitFields).toEqual(["text"]);
         });
 
         it("default (no stripFields) leaves docs untouched", async () => {
