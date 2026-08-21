@@ -109,18 +109,19 @@ export const hasChangedPermission = computed(() => {
  * Validate an ACL entry and returns the validated entry
  */
 export const validateAclEntry = (aclEntry: GroupAclEntryDto, prevAclEntry: GroupAclEntryDto) => {
-    // Add the view permission if any other permission is set
+    // Add CMS visibility if any other permission is set. App-facing View is never implied — it is
+    // assigned deliberately, so a CMS-only permission change can't grant app visibility by accident.
     if (
         aclEntry.permission.length &&
-        !aclEntry.permission.includes(AclPermission.View) &&
+        !aclEntry.permission.includes(AclPermission.CmsView) &&
         prevAclEntry.permission.length === 0
     ) {
-        aclEntry.permission.push(AclPermission.View);
+        aclEntry.permission.push(AclPermission.CmsView);
     }
 
-    // Remove all other permissions if the view permission is removed
-    if (!aclEntry.permission.includes(AclPermission.View)) {
-        aclEntry.permission = [];
+    // CMS-only permissions can't be exercised without CmsView; app-facing View stands on its own
+    if (!aclEntry.permission.includes(AclPermission.CmsView)) {
+        aclEntry.permission = aclEntry.permission.filter((p) => p === AclPermission.View);
     }
 
     // Remove edit permission if assign permission is removed on groups

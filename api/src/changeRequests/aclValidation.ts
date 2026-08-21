@@ -75,6 +75,18 @@ const availablePermissionsPerDocType = {
 // Valid DocTypes that can be used for ACL assignments
 const validDocTypes = Object.keys(availablePermissionsPerDocType) as DocType[];
 
+/**
+ * Permissions only the CMS acts on — the app consumes View alone. None of these can be exercised
+ * without CmsView, so granting one implies it.
+ */
+export const cmsOnlyPermissions = [
+    AclPermission.Edit,
+    AclPermission.Delete,
+    AclPermission.Assign,
+    AclPermission.Translate,
+    AclPermission.Publish,
+];
+
 // Check if a permission is available for a given DocType
 function isPermissionAvailable(docType: DocType, aclPermission: AclPermission): boolean {
     if (!validDocTypes.includes(docType)) return false;
@@ -84,12 +96,13 @@ function isPermissionAvailable(docType: DocType, aclPermission: AclPermission): 
 
 // Validate an ACL entry and return the validated entry
 function validateAclEntry(aclEntry: GroupAclEntryDto): void {
-    if (aclEntry.permission.length && !aclEntry.permission.includes(AclPermission.View)) {
-        aclEntry.permission.push(AclPermission.View);
-    }
-
-    if (!aclEntry.permission.includes(AclPermission.View)) {
-        aclEntry.permission = [];
+    // Grant CmsView alongside any CMS-only permission. Adding rather than stripping keeps ACLs from
+    // older clients — which sent View where they meant CMS access — intact (ADR 0005).
+    if (
+        aclEntry.permission.some((p) => cmsOnlyPermissions.includes(p)) &&
+        !aclEntry.permission.includes(AclPermission.CmsView)
+    ) {
+        aclEntry.permission.push(AclPermission.CmsView);
     }
 
     if (

@@ -80,7 +80,8 @@ const toggleAclEntry = (aclEntry: any) => {
     if (aclEntry.permission.length > 0) {
         aclEntry.permission = [];
     } else {
-        aclEntry.permission.push(AclPermission.View);
+        // Matches the auto-assign rule in validateAclEntry
+        aclEntry.permission.push(AclPermission.CmsView);
     }
 };
 
