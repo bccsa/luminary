@@ -922,6 +922,146 @@ describe("QueryService", () => {
             expect(res.docs[0]).not.toHaveProperty("fts");
         });
 
+        it("omits the caller-nominated fields from returned docs", async () => {
+            const access = {
+                [DocType.Post]: ["gp1"],
+                [DocType.Language]: ["lang-g1"],
+            } as any;
+            (permissions.PermissionSystem.accessMapToGroups as jest.Mock).mockReturnValueOnce(
+                access,
+            );
+            (service as any).languages = [{ _id: "lang-eng", memberOf: ["lang-g1"] }];
+
+            const query = makeQuery((s) => {
+                (s as any).type = DocType.Content;
+                (s as any).parentType = DocType.Post;
+            });
+            (query as any).omitFields = ["fts", "ftsTokenCount", "text", "memberOf"];
+
+            dbService.executeFindQuery.mockResolvedValueOnce({
+                docs: [
+                    {
+                        _id: "c1",
+                        type: DocType.Content,
+                        status: PublishStatus.Published,
+                        updatedTimeUtc: 5,
+                        memberOf: ["gp1"],
+                        language: "lang-eng",
+                        title: "a title",
+                        text: "<p>a very long body</p>",
+                        fts: ["abc:1"],
+                        ftsTokenCount: 3,
+                    },
+                ],
+            });
+
+            const res = await service.query(query, mockUser);
+
+            expect(res.docs[0]).toHaveProperty("title", "a title");
+            expect(res.docs[0]).toHaveProperty("updatedTimeUtc", 5);
+            expect(res.docs[0]).not.toHaveProperty("text");
+            expect(res.docs[0]).not.toHaveProperty("fts");
+            expect(res.docs[0]).not.toHaveProperty("ftsTokenCount");
+            expect(res.docs[0]).not.toHaveProperty("memberOf");
+        });
+
+        it("omits fields for cms:true responses too", async () => {
+            const access = {
+                [DocType.Post]: ["gp1"],
+                [DocType.Language]: ["lang-g1"],
+            } as any;
+            (permissions.PermissionSystem.accessMapToGroups as jest.Mock).mockReturnValueOnce(
+                access,
+            );
+            (service as any).languages = [{ _id: "lang-eng", memberOf: ["lang-g1"] }];
+
+            const query = makeQuery((s) => {
+                (s as any).type = DocType.Content;
+                (s as any).parentType = DocType.Post;
+            });
+            (query as any).cms = true;
+            (query as any).omitFields = ["text"];
+
+            dbService.executeFindQuery.mockResolvedValueOnce({
+                docs: [
+                    {
+                        _id: "c1",
+                        type: DocType.Content,
+                        status: PublishStatus.Draft,
+                        title: "a title",
+                        text: "<p>a very long body</p>",
+                    },
+                ],
+            });
+
+            const res = await service.query(query, mockUser);
+
+            expect(res.docs[0]).toHaveProperty("title", "a title");
+            expect(res.docs[0]).not.toHaveProperty("text");
+        });
+
+        it("does not forward omitFields to CouchDB", async () => {
+            const access = { [DocType.Post]: ["gp1"] } as any;
+            (permissions.PermissionSystem.accessMapToGroups as jest.Mock).mockReturnValueOnce(
+                access,
+            );
+
+            const query = makeQuery((s) => {
+                (s as any).type = DocType.Post;
+            });
+            (query as any).omitFields = ["text"];
+
+            dbService.executeFindQuery.mockResolvedValueOnce({ docs: [] });
+
+            await service.query(query, mockUser);
+
+            expect(dbService.executeFindQuery.mock.calls[0][0]).not.toHaveProperty("omitFields");
+        });
+
+        it("keeps the expired-content stub intact when omitFields is also set", async () => {
+            const access = {
+                [DocType.Post]: ["gp1"],
+                [DocType.Language]: ["lang-g1"],
+            } as any;
+            (permissions.PermissionSystem.accessMapToGroups as jest.Mock).mockReturnValueOnce(
+                access,
+            );
+            (service as any).languages = [{ _id: "lang-eng", memberOf: ["lang-g1"] }];
+
+            const query = makeQuery((s) => {
+                (s as any).type = DocType.Content;
+                (s as any).parentType = DocType.Post;
+            });
+            (query as any).includeExpired = true;
+            // memberOf is on the stub's keep-list; the stub wins, so the client can still
+            // route/prune the doc it is being told to drop.
+            (query as any).omitFields = ["text", "memberOf"];
+
+            dbService.executeFindQuery.mockResolvedValueOnce({
+                docs: [
+                    {
+                        _id: "c1",
+                        type: DocType.Content,
+                        status: PublishStatus.Published,
+                        expiryDate: 1,
+                        updatedTimeUtc: 5,
+                        memberOf: ["gp1"],
+                        language: "lang-eng",
+                        title: "secret title",
+                        text: "<p>secret body</p>",
+                    },
+                ],
+            });
+
+            const res = await service.query(query, mockUser);
+
+            expect(res.docs[0]).toEqual(
+                expect.objectContaining({ _id: "c1", expiryDate: 1, memberOf: ["gp1"] }),
+            );
+            expect(res.docs[0]).not.toHaveProperty("title");
+            expect(res.docs[0]).not.toHaveProperty("text");
+        });
+
         it("does NOT strip expired Content for cms:true responses", async () => {
             const access = {
                 [DocType.Post]: ["gp1"],
