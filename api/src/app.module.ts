@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { JwtModule } from "@nestjs/jwt";
 import { AppController } from "./app.controller";
+import { OauthController } from "./oauth/oauth.controller";
 import { DbService } from "./db/db.service";
 import { Socketio } from "./socketio";
 import { S3Service } from "./s3/s3.service";
@@ -57,6 +58,7 @@ if (!process.env.NODE_ENV || process.env.NODE_ENV === "development") {
         QueryController,
         FtsSearchController,
         StorageStatusController,
+        OauthController,
     ],
     providers: [
         DbService,

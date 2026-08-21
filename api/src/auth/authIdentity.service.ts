@@ -35,6 +35,17 @@ export type AuthFailureReason = "provider_not_found" | "token_invalid";
 
 export const AUTH_FAILURE_MESSAGE = "Invalid authentication token";
 
+/**
+ * The provider's base URL. `domain` is normally a bare hostname and https is
+ * assumed, but an explicit scheme is honoured so a provider can be reached over
+ * http in development — the same rule `app/src/auth.ts` already applies when it
+ * builds the OIDC authority, so both ends agree on what a domain means.
+ */
+export function providerBaseUrl(domain: string): string {
+    const withScheme = /^https?:\/\//.test(domain) ? domain : `https://${domain}`;
+    return withScheme.replace(/\/+$/, "");
+}
+
 @Injectable()
 export class AuthIdentityService implements OnModuleInit {
     private readonly logger = new Logger(AuthIdentityService.name);
@@ -325,7 +336,7 @@ export class AuthIdentityService implements OnModuleInit {
                     cache: true,
                     rateLimit: true,
                     jwksRequestsPerMinute: 5,
-                    jwksUri: `https://${provider.domain}/.well-known/jwks.json`,
+                    jwksUri: `${providerBaseUrl(provider.domain)}/.well-known/jwks.json`,
                 });
                 this.jwksClients.set(provider.domain, jwksClient);
             }
@@ -344,7 +355,7 @@ export class AuthIdentityService implements OnModuleInit {
             const payload = await this.jwtService.verifyAsync(token, {
                 secret: publicKey,
                 audience: provider.audience,
-                issuer: `https://${provider.domain}/`,
+                issuer: `${providerBaseUrl(provider.domain)}/`,
                 algorithms: ["RS256"],
             });
 

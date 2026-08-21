@@ -1,0 +1,121 @@
+# Kratos configuration for the guest-auth proof of concept. Development only.
+#
+# `serve.public.base_url` is the app's own origin plus the proxy prefix, not
+# Kratos' own address: every URL Kratos hands the browser (`ui.action`, redirects)
+# has to be same-site with the app or the session and CSRF cookies are dropped.
+# Vite proxies /.ory to this container — the same shape production should use.
+version: v1.3.1
+
+dsn: sqlite:///var/lib/sqlite/db.sqlite?_fk=true
+
+serve:
+    public:
+        base_url: http://localhost:4174/.ory/
+    admin:
+        base_url: http://kratos:4434/
+
+cookies:
+    domain: localhost
+    same_site: Lax
+
+session:
+    lifespan: 720h
+    cookie:
+        domain: localhost
+        same_site: Lax
+
+# Hydra's admin API. With this set, Kratos understands the `login_challenge`
+# Hydra puts on the login URL: it validates the challenge, honours Hydra's skip
+# flag, and on success accepts the OAuth2 login request itself. Consent is not
+# Kratos' job.
+oauth2_provider:
+    url: http://hydra:4445
+
+selfservice:
+    default_browser_return_url: http://localhost:4174/
+    allowed_return_urls:
+        - http://localhost:4174
+        - http://localhost:4444
+
+    methods:
+        # One decision, both flows: `passwordless_enabled` turns the emailed
+        # one-time code into a login method as well as a registration method.
+        code:
+            enabled: true
+            passwordless_enabled: true
+            config:
+                lifespan: 15m
+        password:
+            enabled: false
+        link:
+            enabled: false
+
+    flows:
+        error:
+            ui_url: http://localhost:4174/auth/error
+
+        login:
+            ui_url: http://localhost:4174/auth/login
+            lifespan: 30m
+
+        registration:
+            ui_url: http://localhost:4174/auth/signup
+            lifespan: 30m
+            after:
+                code:
+                    hooks:
+                        # Sign the user in as soon as they register, so the PoC
+                        # ends on a session rather than on "now go and log in".
+                        - hook: session
+
+        verification:
+            enabled: true
+            ui_url: http://localhost:4174/auth/verify
+            use: code
+            after:
+                default_browser_return_url: http://localhost:4174/
+
+        recovery:
+            enabled: true
+            ui_url: http://localhost:4174/auth/recovery
+            use: code
+
+        settings:
+            ui_url: http://localhost:4174/auth/account
+            privileged_session_max_age: 15m
+
+        logout:
+            after:
+                default_browser_return_url: http://localhost:4174/
+
+identity:
+    default_schema_id: guest
+    schemas:
+        - id: guest
+          url: file:///etc/config/kratos/identity.schema.json
+
+courier:
+    smtp:
+        # Mailpit, not a real relay — codes are read from its web UI on :8025.
+        connection_uri: smtp://mailpit:1025/?disable_starttls=true
+        from_address: no-reply@luminary.local
+        from_name: Luminary
+
+log:
+    level: debug
+    format: text
+    leak_sensitive_values: true
+
+secrets:
+    cookie:
+        - PLEASE-CHANGE-ME-I-AM-A-DEV-ONLY-SECRET
+    cipher:
+        - 32-LONG-SECRET-NOT-SECURE-AT-ALL
+
+ciphers:
+    algorithm: xchacha20-poly1305
+
+hashers:
+    algorithm: bcrypt
+    bcrypt:
+        cost: 8

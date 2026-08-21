@@ -1,4 +1,4 @@
-import { AuthIdentityService } from "./authIdentity.service";
+import { AuthIdentityService, providerBaseUrl } from "./authIdentity.service";
 import { Test, TestingModule } from "@nestjs/testing";
 import { JwtService } from "@nestjs/jwt";
 import { DbService } from "../db/db.service";
@@ -1194,5 +1194,19 @@ describe("AuthGuard (Integrated)", () => {
             expect(captured.reason).toBe("token_invalid");
             expect(captured.message).toBe("Invalid authentication token");
         });
+    });
+});
+
+describe("providerBaseUrl", () => {
+    it("assumes https for a bare hostname, as every configured provider uses", () => {
+        expect(providerBaseUrl("auth.example.com")).toBe("https://auth.example.com");
+    });
+
+    it("honours an explicit scheme, so a provider can be reached over http in development", () => {
+        expect(providerBaseUrl("http://localhost:4444")).toBe("http://localhost:4444");
+    });
+
+    it("drops a trailing slash, which the issuer and JWKS URLs add back themselves", () => {
+        expect(providerBaseUrl("https://auth.example.com/")).toBe("https://auth.example.com");
     });
 });
