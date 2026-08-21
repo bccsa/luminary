@@ -15,12 +15,38 @@ function createEntry(
 }
 
 describe("validateAcl", () => {
-    it("should auto-add View when other permissions are present", () => {
+    it("should auto-add CmsView, not View, when a CMS-only permission is present", () => {
         const acl = [createEntry(DocType.Post, "g1", [AclPermission.Edit])];
+        const result = validateAcl(acl);
+
+        expect(result[0].permission).toContain(AclPermission.CmsView);
+        expect(result[0].permission).toContain(AclPermission.Edit);
+        expect(result[0].permission).not.toContain(AclPermission.View);
+    });
+
+    it("should leave a View-only entry alone", () => {
+        const acl = [createEntry(DocType.Post, "g1", [AclPermission.View])];
+        const result = validateAcl(acl);
+
+        expect(result[0].permission).toEqual([AclPermission.View]);
+    });
+
+    it("should keep a CmsView-only entry", () => {
+        const acl = [createEntry(DocType.Post, "g1", [AclPermission.CmsView])];
+        const result = validateAcl(acl);
+
+        expect(result[0].permission).toEqual([AclPermission.CmsView]);
+    });
+
+    // Older clients sent View where they meant CMS access — the entry gains CmsView rather than
+    // having its CMS-only permissions stripped (ADR 0005).
+    it("should add CmsView to a legacy View+Edit entry without dropping Edit", () => {
+        const acl = [createEntry(DocType.Post, "g1", [AclPermission.View, AclPermission.Edit])];
         const result = validateAcl(acl);
 
         expect(result[0].permission).toContain(AclPermission.View);
         expect(result[0].permission).toContain(AclPermission.Edit);
+        expect(result[0].permission).toContain(AclPermission.CmsView);
     });
 
     it("should remove entries with empty permissions", () => {
