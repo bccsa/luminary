@@ -268,7 +268,7 @@ describe("validateChangeRequest", () => {
                     {
                         type: "language",
                         groupId: "group-private-content",
-                        permission: ["invalid-permission"], // Stripped by validateAcl, entry removed (empty permissions)
+                        permission: ["invalid-permission"],
                     },
                 ],
             },
@@ -276,10 +276,11 @@ describe("validateChangeRequest", () => {
 
         const result = await validateChangeRequest(changeRequest, ["group-super-admins"], db);
 
-        // validateAcl strips "invalid-permission"; validateAclEntry then sees a
-        // non-empty array and auto-adds View, so the entry survives with ["view"].
+        // validateAcl strips "invalid-permission", leaving nothing to imply a visibility
+        // permission, so the entry is dropped as empty and only the "view" entry remains.
         expect(result.validated).toBe(true);
-        expect(result.validatedData.acl).toHaveLength(2);
+        expect(result.validatedData.acl).toHaveLength(1);
+        expect(result.validatedData.acl[0].groupId).toBe("group-public-content");
     });
 
     it("validates a post with valid audio upload data for multiple languages", async () => {

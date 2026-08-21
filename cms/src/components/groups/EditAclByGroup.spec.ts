@@ -137,6 +137,49 @@ describe("EditAclByGroup.vue", () => {
         ).toBeUndefined();
     });
 
+    it("seeds a newly enabled doc type with 'cmsView' only", async () => {
+        const group = _.cloneDeep(mockGroupDtoPublicContent);
+        group.acl.push({
+            type: DocType.Redirect,
+            groupId: "group-public-editors",
+            permission: [],
+        });
+        const assignedGroup = _.cloneDeep(mockGroupDtoPublicEditors);
+        const availableGroups = [group, assignedGroup];
+        await db.docs.bulkPut(availableGroups);
+
+        const wrapper = await createWrapper(
+            group,
+            assignedGroup,
+            _.cloneDeep(group),
+            availableGroups,
+        );
+
+        await wrapper.find('[data-test="display-card"]').trigger("click");
+        await wrapper.vm.$nextTick();
+
+        const trigger = wrapper
+            .findAll("button")
+            .find((b) => b.text().includes("Add / Remove"))!;
+        await trigger.trigger("click");
+        await wrapper.vm.$nextTick();
+
+        await waitForExpect(() => {
+            expect(
+                wrapper.findAll("button").some((b) => b.text().trim() === "Redirect"),
+            ).toBe(true);
+        });
+
+        const toggle = wrapper.findAll("button").find((b) => b.text().trim() === "Redirect")!;
+        await toggle.trigger("click");
+
+        const entry = group.acl.find(
+            (acl) => acl.groupId === "group-public-editors" && acl.type == DocType.Redirect,
+        )!;
+        expect(entry.permission).toContain(AclPermission.CmsView);
+        expect(entry.permission).not.toContain(AclPermission.View);
+    });
+
     it("correctly duplicates an ACL group", async () => {
         const wrapper = mount(DuplicateGroupAclButton, {
             props: {

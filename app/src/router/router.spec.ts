@@ -4,8 +4,24 @@ import { flushPromises } from "@vue/test-utils";
 
 describe("Router", () => {
     describe("Router Configuration", () => {
-        it("should have the correct number of routes", () => {
-            expect(router.getRoutes()).toHaveLength(10);
+        it("should have the correct number of shipped routes", () => {
+            // Dev-only routes (the design canvas, the Kratos screens) are marked
+            // devOnly and ship in no build, so they don't count towards this.
+            const shipped = router.getRoutes().filter((route) => !route.meta.devOnly);
+            expect(shipped).toHaveLength(10);
+        });
+
+        it("should mark every development-only route as such", () => {
+            // Whether these are registered depends on the environment; that they
+            // are all flagged devOnly is what keeps them out of the shipped count.
+            const developmentOnly = router
+                .getRoutes()
+                .filter(
+                    (route) => route.path.startsWith("/auth/") || route.path.startsWith("/design/"),
+                );
+            for (const route of developmentOnly) {
+                expect(route.meta.devOnly).toBe(true);
+            }
         });
 
         it("should have home route configured correctly", () => {

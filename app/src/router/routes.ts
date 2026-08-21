@@ -10,6 +10,76 @@ const SettingsPage = () => import("@/pages/SettingsPage.vue");
 const BookmarksPage = () => import("@/pages/BookmarksPage.vue");
 const SingleContent = () => import("@/pages/SingleContent/SingleContent.vue");
 const NotFoundPage = () => import("@/pages/NotFoundPage.vue");
+const AuthDesignPage = () => import("@/pages/design/AuthDesignPage.vue");
+const KratosAuthPage = () => import("@/pages/auth/KratosAuthPage.vue");
+const KratosAccountPage = () => import("@/pages/auth/KratosAccountPage.vue");
+const KratosConsentPage = () => import("@/pages/auth/KratosConsentPage.vue");
+
+/**
+ * Kratos self-service screens. Registered only when VITE_KRATOS_URL is set, so
+ * the proof of concept is inert everywhere it hasn't been switched on. The paths
+ * must match the `ui_url`s in the Kratos config.
+ */
+const kratosRoutes: RouteRecordRaw[] = import.meta.env.VITE_KRATOS_URL
+    ? (
+          [
+              ["/auth/login", "login"],
+              ["/auth/signup", "registration"],
+              ["/auth/verify", "verification"],
+              ["/auth/recovery", "recovery"],
+          ] as const
+      ).map(([path, flowType]) => ({
+          path,
+          component: KratosAuthPage,
+          name: `kratos-${flowType}`,
+          props: { flowType },
+          meta: {
+              analyticsIgnore: true,
+              devOnly: true,
+          },
+      }))
+    : [];
+
+/**
+ * The account screen reads the session directly rather than driving a flow, so
+ * it is a page of its own rather than another `flowType`.
+ */
+if (import.meta.env.VITE_KRATOS_URL) {
+    kratosRoutes.push(
+        {
+            path: "/auth/account",
+            component: KratosAccountPage,
+            name: "kratos-account",
+            meta: { analyticsIgnore: true, devOnly: true },
+        },
+        {
+            // Hydra sends the browser here only when the API decides a screen is
+            // needed; a first-party client is granted without one.
+            path: "/auth/consent",
+            component: KratosConsentPage,
+            name: "kratos-consent",
+            meta: { analyticsIgnore: true, devOnly: true },
+        },
+    );
+}
+
+/**
+ * Design canvas for the Kratos auth screens. Development only — it renders every
+ * screen and state side by side and ships in no build.
+ */
+const designRoutes: RouteRecordRaw[] = import.meta.env.DEV
+    ? [
+          {
+              path: "/design/auth",
+              component: AuthDesignPage,
+              name: "design-auth",
+              meta: {
+                  analyticsIgnore: true,
+                  devOnly: true,
+              },
+          },
+      ]
+    : [];
 
 /**
  * The shared route table for both the normal SPA entry and the web/SSG entry. `meta.prerender: true` marks public, crawlable routes the web build emits as static HTML; dynamic content slugs are enumerated from the API at build time.
@@ -77,6 +147,8 @@ export const routes: RouteRecordRaw[] = [
             title: "title.bookmarks",
         },
     },
+    ...designRoutes,
+    ...kratosRoutes,
     // Note that this route should always come after all defined routes,
     // to prevent wrongly configured slugs from taking over pages
     {
