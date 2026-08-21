@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { TagType, decay, type ContentDto } from "luminary-shared";
+import { decay, type ContentDto } from "luminary-shared";
 import { computed } from "vue";
 import { useContentQuery } from "@/composables/useContentQuery";
 import { rank, affinityScoreScale } from "@/recommendation/ranking";
@@ -17,9 +17,6 @@ type Props = {
 const props = defineProps<Props>();
 
 const { t } = useI18n();
-
-// Topic pages already list their own content, so the "Read more" block is for non-topics.
-const isNotTopic = computed(() => props.selectedContent.parentTagType !== TagType.Topic);
 
 // Ids of posts tagged with any of the current article's topic tags. `parentTaggedDocs`
 // is optional and may contain null/undefined holes — drop them before they become
@@ -90,7 +87,7 @@ const readMoreItems = computed(() => {
 
 <template>
     <section
-        v-if="isNotTopic && readMoreItems.length"
+        v-if="readMoreItems.length"
         class="w-full pb-2"
     >
         <!-- Horizontal padding mirrors the list/grid inset in ReadMore so the heading
