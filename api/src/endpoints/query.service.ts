@@ -240,8 +240,11 @@ export class QueryService {
             viewGroups = userViewGroups[type as DocType] || [];
         }
 
+        const omitFields = Array.isArray(query.omitFields) ? query.omitFields : [];
+
         delete query.cms;
         delete query.includeExpired;
+        delete query.omitFields;
 
         // For content queries without parentType the per-parentType $or above already injected
         // memberOf scoping; otherwise apply the single global memberOf filter here.
@@ -277,13 +280,31 @@ export class QueryService {
         // returned purely so the client can prune its stale copy — never to display. Strip the body
         // so it never crosses the wire. CMS (cms:true / CmsView-validated) responses keep full docs.
         // See util/stripExpiredContent.ts; the Socket.io base-room emit applies the same projection.
-        if (!isCms && Array.isArray(result?.docs)) {
-            result.docs = result.docs.map((doc: any) =>
-                isExpiredContent(doc, now) ? stripExpiredContent(doc) : doc,
-            );
+        //
+        // The caller's `omitFields` projection runs in the same pass, after executeFindQuery so the
+        // blockStart/blockEnd cursor is already computed from the full docs. An expired-content stub
+        // is already minimal, so it needs no further projection.
+        if ((!isCms || omitFields.length) && Array.isArray(result?.docs)) {
+            result.docs = result.docs.map((doc: any) => {
+                if (!isCms && isExpiredContent(doc, now)) return stripExpiredContent(doc);
+                return omitDocFields(doc, omitFields);
+            });
         }
         return result;
     }
+}
+
+/**
+ * Drop the caller-nominated fields from a returned doc. Returns the doc untouched when there is
+ * nothing to omit, so an unprojected query allocates nothing.
+ */
+function omitDocFields<T extends Record<string, any>>(doc: T, fields: string[]): T {
+    if (!fields.length || !doc) return doc;
+    if (!fields.some((f) => doc[f] !== undefined)) return doc;
+
+    const projected: Record<string, any> = { ...doc };
+    for (const field of fields) delete projected[field];
+    return projected as T;
 }
 
 /**
