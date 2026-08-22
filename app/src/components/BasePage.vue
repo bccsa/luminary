@@ -23,6 +23,8 @@ defineProps<{
     content?: ContentDto;
     showBackButton?: boolean;
     desktopTopBar?: boolean;
+    /** Reading progress (0-100), rendered as a mobile bar above the bottom nav. Undefined hides it. */
+    readingProgress?: number;
 }>();
 
 const { onBackClick } = useBackNavigation();
@@ -50,6 +52,18 @@ onUnmounted(() => {
 </script>
 
 <template>
+    <!-- Reading progress, mobile: sits right on top of the bottom nav bar. Teleported to
+         <body> since nested overflow containers (App.vue's root, this main's
+         overflow-y-scroll) can clip position:fixed descendants on mobile WebKit, even
+         though they shouldn't per spec — escaping to body sidesteps that entirely. -->
+    <Teleport to="body">
+        <div
+            v-if="readingProgress !== undefined"
+            class="pointer-events-none fixed inset-x-0 z-[120] h-0.5 bg-yellow-500 transition-[width] duration-150 ease-out dark:bg-yellow-400 lg:hidden"
+            :style="{ bottom: 'var(--mobile-menu-h, 78px)', width: `${readingProgress}%` }"
+        />
+    </Teleport>
+
     <div class="flex h-full w-full scrollbar-hide">
         <!-- Desktop left sidebar — prerendered on the SSG build too (public nav /
              logo; the auth/Dexie bits self-defer inside the component). -->

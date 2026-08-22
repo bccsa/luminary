@@ -322,6 +322,47 @@ export function useReadingProgressTracker(options: {
         return p > 0 && p < 100;
     });
 
+    // Live scroll position within the article, for the top-bar reading indicator. Deliberately
+    // independent of the dwell/skim-gated segment confirmation above (which drives the "continue
+    // reading" persistence) — this is a pure visual read of how far the article has scrolled by,
+    // updating smoothly on every frame rather than stepping on dwell confirmation.
+    const scrollProgressPercent = ref(0);
+    let progressRafPending = false;
+
+    function computeScrollProgress() {
+        const el = options.articleRoot.value;
+        if (!el) {
+            scrollProgressPercent.value = 0;
+            return;
+        }
+
+        const rect = el.getBoundingClientRect();
+        if (rect.height <= 0) {
+            scrollProgressPercent.value = 0;
+            return;
+        }
+
+        const container = options.scrollContainer.value;
+        const containerBottom =
+            container === window
+                ? window.innerHeight
+                : (container as HTMLElement).getBoundingClientRect().bottom;
+
+        const percent = ((containerBottom - rect.top) / rect.height) * 100;
+        scrollProgressPercent.value = Math.min(100, Math.max(0, Math.round(percent)));
+    }
+
+    function scheduleProgressUpdate() {
+        if (progressRafPending) return;
+        progressRafPending = true;
+        requestAnimationFrame(() => {
+            progressRafPending = false;
+            computeScrollProgress();
+        });
+    }
+
+    useEventListener(options.scrollContainer, "scroll", scheduleProgressUpdate, { passive: true });
+
     const observerRoot = computed(() =>
         options.scrollContainer.value === window
             ? null
@@ -730,6 +771,7 @@ export function useReadingProgressTracker(options: {
                 if (!options.enabled.value) return;
                 const prevLength = segmentList.length;
                 collectSegments();
+                computeScrollProgress();
                 if (segmentList.length !== prevLength) {
                     visibleSegments.clear();
                     clearDwellAccumulation();
@@ -791,6 +833,7 @@ export function useReadingProgressTracker(options: {
     function setup(contentChanged: boolean) {
         collectSegments();
         setupResizeObserver();
+        computeScrollProgress();
 
         if (!options.enabled.value) return;
 
@@ -822,6 +865,7 @@ export function useReadingProgressTracker(options: {
                 sourceElements.value = [];
                 teardownResizeObserver();
                 trackedContentId = undefined;
+                scrollProgressPercent.value = 0;
                 return;
             }
 
@@ -854,6 +898,7 @@ export function useReadingProgressTracker(options: {
         isRestoring,
         savedProgressPercent,
         hasResumableProgress,
+        scrollProgressPercent,
         restoreScrollPosition,
         setup,
     };
