@@ -445,6 +445,142 @@ describe("RelatedContent", () => {
         });
     });
 
+    describe("on a topic's own single-content page", () => {
+        // Regression: RelatedContent used to hide "Read more" entirely whenever
+        // `selectedContent.parentTagType === TagType.Topic`, so opening a topic page showed
+        // no recommendations at all. These tests pin `selectedContent` to the topic's own
+        // content doc (mirroring what SingleContent.vue passes when the page being viewed
+        // is a topic) and assert the section still populates, ranked the same way as any
+        // other page.
+
+        it("shows content tagged with the topic, ranked by affinity, on the topic's own page", async () => {
+            const now = Date.now();
+            const day = 1000 * 60 * 60 * 24;
+            // One strong engagement on the topic tag (raw ~0.005 -> nominal ~0.5), same
+            // magnitude as the equivalent non-topic-page affinity test above.
+            affinityStoreMock.affinityProfile.value = {
+                affinity: { [mockTopicContentDto.parentId]: 0.005 },
+                lastDecayUtc: undefined,
+            };
+            await db.docs.bulkPut([
+                {
+                    ...mockEnglishContentDto,
+                    parentId: "post-affOld",
+                    _id: "content-affOld-eng",
+                    title: "Affinity Old",
+                    parentTags: [mockTopicContentDto.parentId],
+                    publishDate: now - 365 * day,
+                } as ContentDto,
+                {
+                    ...mockEnglishContentDto,
+                    parentId: "post-recNew",
+                    _id: "content-recNew-eng",
+                    title: "Recent New",
+                    parentTags: [mockTopicContentDto.parentId],
+                    publishDate: now - day,
+                } as ContentDto,
+            ]);
+
+            const wrapper = mount(RelatedContent, {
+                props: {
+                    tags: [
+                        {
+                            ...mockTopicContentDto,
+                            parentTaggedDocs: ["post-affOld", "post-recNew"],
+                        },
+                    ],
+                    // The page being viewed is the topic itself.
+                    selectedContent: mockTopicContentDto,
+                },
+            });
+
+            await waitForExpect(() => {
+                expect(wrapper.findComponent(ReadMore).exists()).toBe(true);
+                const titles = wrapper.findAll("[data-mobile-title]").map((el) => el.text());
+                expect(titles.some((t) => t.includes("Affinity Old"))).toBe(true);
+                expect(titles.some((t) => t.includes("Recent New"))).toBe(true);
+                // Recency stays the deciding factor at equal tag overlap — affinity is a
+                // tempered nudge, not a leapfrog — matching the non-topic-page behaviour.
+                const recIdx = titles.findIndex((t) => t.includes("Recent New"));
+                const affIdx = titles.findIndex((t) => t.includes("Affinity Old"));
+                expect(recIdx).toBeLessThan(affIdx);
+            });
+        });
+
+        it("excludes the topic's own content doc from its Read more list", async () => {
+            await db.docs.bulkPut([
+                {
+                    ...mockEnglishContentDto,
+                    parentId: "post-post2",
+                    _id: "content-post2-eng",
+                    title: "Post 2",
+                    parentTags: [mockTopicContentDto.parentId],
+                } as ContentDto,
+            ]);
+
+            const wrapper = mount(RelatedContent, {
+                props: {
+                    tags: [
+                        {
+                            ...mockTopicContentDto,
+                            // A malformed/self-referencing tag doc shouldn't surface the
+                            // topic's own content card among its "read more" items.
+                            parentTaggedDocs: [mockTopicContentDto.parentId, "post-post2"],
+                        },
+                    ],
+                    selectedContent: mockTopicContentDto,
+                },
+            });
+
+            await waitForExpect(() => {
+                expect(wrapper.html()).toContain("Post 2");
+                const titles = wrapper.findAll("[data-mobile-title]").map((el) => el.text());
+                expect(titles.some((t) => t.includes(mockTopicContentDto.title))).toBe(false);
+            });
+        });
+
+        it("still hides Read more on a topic page when the topic has no tagged content", async () => {
+            const wrapper = mount(RelatedContent, {
+                props: {
+                    tags: [{ ...mockTopicContentDto, parentTaggedDocs: [] }],
+                    selectedContent: mockTopicContentDto,
+                },
+            });
+
+            await waitForExpect(() => {
+                expect(wrapper.findComponent(ReadMore).exists()).toBe(false);
+            });
+        });
+
+        it("caps a topic page's Read more collection at 12 items", async () => {
+            const posts = Array.from({ length: 15 }, (_, i) => ({
+                ...mockEnglishContentDto,
+                parentId: `post-topicCap${i}`,
+                _id: `content-topicCap${i}-eng`,
+                title: `Topic Cap Post ${i}`,
+                parentTags: [mockTopicContentDto.parentId],
+            })) as ContentDto[];
+            await db.docs.bulkPut(posts);
+
+            const wrapper = mount(RelatedContent, {
+                props: {
+                    tags: [
+                        {
+                            ...mockTopicContentDto,
+                            parentTaggedDocs: posts.map((p) => p.parentId),
+                        },
+                    ],
+                    selectedContent: mockTopicContentDto,
+                },
+            });
+
+            await waitForExpect(() => {
+                const items = wrapper.findComponent(ReadMore).props("items") as ContentDto[];
+                expect(items).toHaveLength(12);
+            });
+        });
+    });
+
     it("caps the Read more collection at 12 items", async () => {
         // Seed more related posts than the cap; only the top 12 (by recency, the cold-profile
         // fallback) should reach ReadMore regardless of how many the query returns.

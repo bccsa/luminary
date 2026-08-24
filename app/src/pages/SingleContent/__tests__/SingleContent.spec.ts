@@ -394,9 +394,9 @@ describe("SingleContent", () => {
         expect(readMore.find("li").exists()).toBe(true);
     });
 
-    it("hides the related content section on a topic page", async () => {
-        // RelatedContent is a "read more" for articles read via a topic — a topic page
-        // itself already lists its own tagged content, so the section stays hidden there.
+    it("shows the related content section on a topic page", async () => {
+        // Regression for #1905: a topic page used to hide "Read more" entirely, so
+        // visitors landing on a topic's own page saw no recommendations at all.
         await db.docs.bulkPut([
             {
                 ...mockTopicContentDto,
@@ -412,11 +412,13 @@ describe("SingleContent", () => {
 
         await waitForExpect(() => {
             expect(wrapper!.text()).toContain(mockTopicContentDto.title);
+            expect(wrapper!.findComponent(ReadMore).exists()).toBe(true);
         });
 
-        // RelatedContent's own root has a v-if, so nothing renders below it for a topic page.
-        expect(wrapper!.text()).not.toContain("Read more");
-        expect(wrapper!.findComponent(ReadMore).exists()).toBe(false);
+        const readMore = wrapper!.findComponent(ReadMore);
+        expect(readMore.props("items").map((item: ContentDto) => item._id)).toContain(
+            mockEnglishContentDto._id,
+        );
     });
 
     it("doesn't display tag when content not tagged", async () => {
