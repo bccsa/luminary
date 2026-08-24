@@ -91,8 +91,10 @@ function setAudioTrackLanguage(languageCode: string | null) {
         return;
     }
 
-    const trackLanguages: (string | null)[] = [];
-    for (let i = 0; i < audioTracks.length; i++) trackLanguages.push(audioTracks[i].language);
+    // audioTracks is a video.js AudioTrackList (array-like, not a real Array) — copy it to an
+    // array once so we can use map/forEach on it.
+    const tracks = Array.from(audioTracks) as { language: string | null; enabled: boolean }[];
+    const trackLanguages = tracks.map((track) => track.language);
 
     const matchIndex = selectAudioTrackIndex(trackLanguages, languageCode);
     if (matchIndex === -1) {
@@ -103,9 +105,7 @@ function setAudioTrackLanguage(languageCode: string | null) {
         return;
     }
 
-    for (let i = 0; i < audioTracks.length; i++) {
-        audioTracks[i].enabled = i === matchIndex;
-    }
+    tracks.forEach((track, i) => (track.enabled = i === matchIndex));
 }
 
 function syncKeepAudioStateAlive() {
