@@ -10,9 +10,9 @@ vi.mock("vue-i18n", () => ({
     useI18n: () => ({
         t: (key: string) =>
             (
-                ({
+                {
                     "login.provider.button": "Sign in with Example Org",
-                }) as Record<string, string>
+                } as Record<string, string>
             )[key] ?? key,
     }),
 }));
@@ -137,7 +137,9 @@ describe("AuthProviderSelectionModal.vue", () => {
             expect(wrapper.html()).toContain("Acme Corp");
         });
 
-        const providerBtn = wrapper.findAll("button").find((b) => b.text().includes("Acme Corp"));
+        const providerBtn = wrapper
+            .findAll("button")
+            .find((b) => b.text().includes("Acme Corp"));
         await providerBtn!.trigger("click");
 
         expect(loginWithProvider).toHaveBeenCalledTimes(1);
@@ -157,7 +159,9 @@ describe("AuthProviderSelectionModal.vue", () => {
             expect(wrapper.html()).toContain("Beta Inc");
         });
 
-        const providerBtn = wrapper.findAll("button").find((b) => b.text().includes("Beta Inc"));
+        const providerBtn = wrapper
+            .findAll("button")
+            .find((b) => b.text().includes("Beta Inc"));
         const style = providerBtn!.attributes("style") ?? "";
         expect(style).toContain("background-color");
         expect(style).toContain("color");

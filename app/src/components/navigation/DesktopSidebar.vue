@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted, unref } from "vue";
+import { computed, ref, onMounted, onUnmounted } from "vue";
 import { useI18n } from "vue-i18n";
 import { getNavigationItems } from "./navigationItems";
 import { useSearchOverlay } from "@/composables/useSearchOverlay";
@@ -29,10 +29,7 @@ import LDialog from "../common/LDialog.vue";
 import LToggle from "../form/LToggle.vue";
 import { cmsLanguages } from "@/globalConfig";
 import { useDisplayLanguageIds } from "@/ssg/renderLanguage";
-import {
-    showPrivacyPolicyModal,
-    useAuthWithPrivacyPolicy,
-} from "@/composables/useAuthWithPrivacyPolicy";
+import { showPrivacyPolicyModal, useAuthWithPrivacyPolicy } from "@/composables/useAuthWithPrivacyPolicy";
 import { isConnected } from "luminary-shared";
 import { useNotificationStore, type Notification } from "@/stores/notification";
 import { useHydrated } from "@/composables/useHydrated";
@@ -90,12 +87,9 @@ const languageTooltip = computed(() => {
     return name ? `${t("profile_menu.language")} — ${name}` : t("profile_menu.language");
 });
 
-const accountLabel = computed(() => {
-    const details = unref(user) as { name?: string; email?: string } | undefined;
-    return details?.name || details?.email || t("profile_menu.title");
-});
-
-const profileTooltip = computed(() => (isAuthenticated.value ? accountLabel.value : ""));
+const profileTooltip = computed(() =>
+    isAuthenticated.value ? user.value?.name || user.value?.email || t("profile_menu.title") : "",
+);
 
 const showOfflineNotification = () => {
     useNotificationStore().addNotification({
@@ -256,8 +250,7 @@ const handleLogin = () => {
                     <span
                         v-if="!collapsed"
                         :class="navLabelClass"
-                        >{{ item.name }}</span
-                    >
+                    >{{ item.name }}</span>
                 </a>
             </RouterLink>
 
@@ -278,8 +271,7 @@ const handleLogin = () => {
                 <span
                     v-if="!collapsed"
                     :class="navLabelClass"
-                    >{{ t("menu.search") }}</span
-                >
+                >{{ t("menu.search") }}</span>
             </span>
 
             <RouterLink
@@ -301,8 +293,7 @@ const handleLogin = () => {
                     <span
                         v-if="!collapsed"
                         :class="navLabelClass"
-                        >{{ t("profile_menu.bookmarks") }}</span
-                    >
+                    >{{ t("profile_menu.bookmarks") }}</span>
                 </a>
             </RouterLink>
 
@@ -322,8 +313,7 @@ const handleLogin = () => {
                     <span
                         v-if="!collapsed"
                         :class="navLabelClass"
-                        >{{ t("profile_menu.theme") }}</span
-                    >
+                    >{{ t("profile_menu.theme") }}</span>
                 </span>
 
                 <span
@@ -337,14 +327,13 @@ const handleLogin = () => {
                     />
                     <div
                         v-if="!collapsed"
-                        class="flex min-w-0 flex-col leading-none"
+                        class="min-w-0 flex flex-col leading-none"
                     >
                         <span :class="navLabelClass">{{ t("profile_menu.language") }}</span>
                         <span
                             v-if="renderLanguage?.name"
                             :class="navMetaClass"
-                            >{{ renderLanguage.name }}</span
-                        >
+                        >{{ renderLanguage.name }}</span>
                     </div>
                 </span>
 
@@ -367,8 +356,7 @@ const handleLogin = () => {
                         <span
                             v-if="!collapsed"
                             :class="navLabelClass"
-                            >{{ t("profile_menu.settings") }}</span
-                        >
+                        >{{ t("profile_menu.settings") }}</span>
                     </a>
                 </RouterLink>
             </div>
@@ -392,8 +380,7 @@ const handleLogin = () => {
                 <span
                     v-if="!collapsed"
                     :class="navLabelClass"
-                    >{{ t("profile_menu.privacy_policy") }}</span
-                >
+                >{{ t("profile_menu.privacy_policy") }}</span>
             </button>
 
             <button
@@ -403,9 +390,7 @@ const handleLogin = () => {
                 @click="isAuthenticated ? handleLogout() : handleLogin()"
             >
                 <component
-                    :is="
-                        isAuthenticated ? ArrowRightEndOnRectangleIcon : ArrowLeftEndOnRectangleIcon
-                    "
+                    :is="isAuthenticated ? ArrowRightEndOnRectangleIcon : ArrowLeftEndOnRectangleIcon"
                     :class="navIconClass"
                     aria-hidden="true"
                 />
@@ -421,7 +406,7 @@ const handleLogin = () => {
                 v-if="isAuthenticated"
                 :class="[
                     'flex items-center rounded-md',
-                    collapsed ? 'justify-center px-0 py-1' : 'gap-3 py-1.5 pl-1.5',
+                    collapsed ? 'justify-center px-0 py-1' : 'gap-3 pl-1.5 py-1.5',
                 ]"
                 :title="profileTooltip"
             >
@@ -441,7 +426,7 @@ const handleLogin = () => {
                     v-if="!collapsed"
                     class="min-w-0 flex-1 truncate text-sm font-medium text-zinc-700 dark:text-slate-100"
                 >
-                    {{ accountLabel }}
+                    {{ user?.name || user?.email }}
                 </span>
             </div>
         </div>
