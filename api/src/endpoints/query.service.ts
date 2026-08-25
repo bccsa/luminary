@@ -131,10 +131,8 @@ export class QueryService {
         }
 
         // CMS-scoped requests (cms:true) are permission-gated by CmsView; app/public requests by
-        // View. The two are granted independently, so CMS access does not imply app-side published
-        // access. When the caller holds no CmsView on any requested group the resulting empty groups
-        // fall through to the same 403 guards as a missing View — so requesting cms:true without
-        // CmsView is Forbidden, not a silent published-only result.
+        // View. Without CmsView the resulting empty groups fall through to the same 403 guards as a
+        // missing View, so a cms:true request is Forbidden rather than silently published-only.
         const isCms = query.cms === true;
         const userViewGroups = PermissionSystem.accessMapToGroups(
             userDetails.accessMap,

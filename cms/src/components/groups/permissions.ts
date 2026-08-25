@@ -106,22 +106,41 @@ export const hasChangedPermission = computed(() => {
 });
 
 /**
+ * Permission implied when an ACL entry is granted anything. App-facing View is never implied — it is
+ * assigned deliberately, so a CMS permission change can't grant app visibility by accident.
+ */
+export const impliedAclPermission = AclPermission.CmsView;
+
+/**
+ * Check if an ACL entry carries either of the visibility permissions the other permissions depend on
+ */
+const hasVisibilityPermission = (aclEntry: GroupAclEntryDto) =>
+    aclEntry.permission.includes(AclPermission.View) ||
+    aclEntry.permission.includes(AclPermission.CmsView);
+
+/**
+ * Switch an ACL entry on or off
+ */
+export const toggleAclEntry = (aclEntry: GroupAclEntryDto) => {
+    aclEntry.permission = aclEntry.permission.length ? [] : [impliedAclPermission];
+};
+
+/**
  * Validate an ACL entry and returns the validated entry
  */
 export const validateAclEntry = (aclEntry: GroupAclEntryDto, prevAclEntry: GroupAclEntryDto) => {
-    // Add CMS visibility if any other permission is set. App-facing View is never implied — it is
-    // assigned deliberately, so a CMS-only permission change can't grant app visibility by accident.
+    // Add visibility if any other permission is set
     if (
         aclEntry.permission.length &&
-        !aclEntry.permission.includes(AclPermission.CmsView) &&
+        !hasVisibilityPermission(aclEntry) &&
         prevAclEntry.permission.length === 0
     ) {
-        aclEntry.permission.push(AclPermission.CmsView);
+        aclEntry.permission.push(impliedAclPermission);
     }
 
-    // CMS-only permissions can't be exercised without CmsView; app-facing View stands on its own
-    if (!aclEntry.permission.includes(AclPermission.CmsView)) {
-        aclEntry.permission = aclEntry.permission.filter((p) => p === AclPermission.View);
+    // No other permission can be exercised without one of the visibility permissions
+    if (!hasVisibilityPermission(aclEntry)) {
+        aclEntry.permission = [];
     }
 
     // Remove edit permission if assign permission is removed on groups

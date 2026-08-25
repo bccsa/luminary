@@ -7,6 +7,7 @@ import { accessMap, AclPermission, db, DocType, type GroupAclEntryDto } from "lu
 import {
     hasChangedPermission,
     isPermissionAvailable,
+    toggleAclEntry,
     validateAclEntry,
     validDocTypes,
 } from "./permissions";
@@ -140,6 +141,32 @@ describe("Group editor permissions (permissions.ts)", () => {
         ).toBe(true);
     });
 
+    describe("ACL entry toggling", () => {
+        it("sets 'cmsView' only when switching an entry on", async () => {
+            const aclEntry: GroupAclEntryDto = {
+                groupId: "group-public-users",
+                type: DocType.Group,
+                permission: [],
+            };
+
+            toggleAclEntry(aclEntry);
+
+            expect(aclEntry.permission).toEqual([AclPermission.CmsView]);
+        });
+
+        it("clears all permissions when switching an entry off", async () => {
+            const aclEntry: GroupAclEntryDto = {
+                groupId: "group-public-users",
+                type: DocType.Group,
+                permission: [AclPermission.View, AclPermission.CmsView, AclPermission.Assign],
+            };
+
+            toggleAclEntry(aclEntry);
+
+            expect(aclEntry.permission).toEqual([]);
+        });
+    });
+
     describe("ACL entry permissions validation", () => {
         it("automatically sets 'cmsView', and not 'view', when another permission is set", async () => {
             const aclEntry: GroupAclEntryDto = {
@@ -160,7 +187,7 @@ describe("Group editor permissions (permissions.ts)", () => {
             expect(aclEntry.permission.includes(AclPermission.View)).toBe(false);
         });
 
-        it("clears the CMS-only permissions but keeps 'view' when 'cmsView' is cleared", async () => {
+        it("keeps the other permissions when 'cmsView' is cleared but 'view' is set", async () => {
             const aclEntry: GroupAclEntryDto = {
                 groupId: "group-public-users",
                 type: DocType.Group,
@@ -175,7 +202,7 @@ describe("Group editor permissions (permissions.ts)", () => {
 
             validateAclEntry(aclEntry, prevAclEntry);
 
-            expect(aclEntry.permission).toEqual([AclPermission.View]);
+            expect(aclEntry.permission).toEqual([AclPermission.View, AclPermission.Assign]);
         });
 
         it("clears the entry when 'cmsView' is cleared and 'view' was not set", async () => {

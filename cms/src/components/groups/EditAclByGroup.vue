@@ -4,7 +4,7 @@ import EditAclEntry from "./EditAclEntry.vue";
 import DuplicateGroupAclButton from "./DuplicateGroupAclButton.vue";
 import { type GroupDto, AclPermission, type GroupAclEntryDto } from "luminary-shared";
 import { capitaliseFirstLetter, getTheFirstLetter } from "@/util/string";
-import { validDocTypes, isPermissionAvailable } from "./permissions";
+import { validDocTypes, isPermissionAvailable, toggleAclEntry } from "./permissions";
 import _ from "lodash";
 import { isMobileScreen } from "@/globalConfig";
 import DisplayCard from "@/components/common/DisplayCard.vue";
@@ -75,15 +75,6 @@ const typesWithActivePermissions = computed(() => {
 const activeAclEntries = computed(() => {
     return visibleAclEntries.value.filter((aclEntry) => aclEntry.permission.length > 0);
 });
-
-const toggleAclEntry = (aclEntry: any) => {
-    if (aclEntry.permission.length > 0) {
-        aclEntry.permission = [];
-    } else {
-        // Matches the auto-assign rule in validateAclEntry
-        aclEntry.permission.push(AclPermission.CmsView);
-    }
-};
 
 const activePermissions = (aclEntry: GroupAclEntryDto): AclPermission[] => {
     if (!aclEntry) return [];

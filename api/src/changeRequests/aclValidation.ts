@@ -105,6 +105,14 @@ function validateAclEntry(aclEntry: GroupAclEntryDto): void {
         aclEntry.permission.push(AclPermission.CmsView);
     }
 
+    // No other permission can be exercised without one of the visibility permissions
+    if (
+        !aclEntry.permission.includes(AclPermission.View) &&
+        !aclEntry.permission.includes(AclPermission.CmsView)
+    ) {
+        aclEntry.permission = [];
+    }
+
     if (
         aclEntry.type == DocType.Group &&
         !aclEntry.permission.includes(AclPermission.Assign) &&
