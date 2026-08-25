@@ -100,9 +100,8 @@ async function Startup() {
                 clearAuthCache();
                 socket.setAuth("", null);
                 openProviderModal();
-                // Reconnection was disabled above when this auth_failed error
-                // arrived — reconnect as anonymous now so the AuthProvider sync
-                // watcher can populate the provider list the modal just opened.
+                // Connect anonymously so the AuthProvider sync watcher can
+                // populate the provider list the modal just opened.
                 socket.connect();
                 return;
             }
