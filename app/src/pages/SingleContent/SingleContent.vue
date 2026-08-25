@@ -600,6 +600,13 @@ const { hasResumableProgress, savedProgressPercent, scrollProgressPercent, resto
         },
     });
 
+// The outline belongs to the article itself, not the related-content section below it.
+// Once the final prose has entered the reading viewport, hide the rail and restore it if
+// the reader scrolls back up.
+const showArticleOutline = computed(
+    () => readingTrackerEnabled.value && scrollProgressPercent.value < 100,
+);
+
 /** Hide the resume prompt for this visit after the user continues or dismisses. */
 const continuePromptHandled = ref(false);
 
@@ -771,6 +778,8 @@ watch([isLoading, content, is404], async () => {
                             :scrollContainer="scrollContainer"
                             :progress="scrollProgressPercent"
                             :contentId="content._id"
+                            :class="{ 'pointer-events-none invisible': !showArticleOutline }"
+                            :aria-hidden="!showArticleOutline"
                         />
                     </aside>
 

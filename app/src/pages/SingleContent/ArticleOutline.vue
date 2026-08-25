@@ -118,9 +118,8 @@ function goToHeading(id: string) {
 
 <template>
     <nav
-        v-if="headings.length > 1"
-        class="sticky top-1/2 mx-auto hidden max-h-[70vh] w-full max-w-52 -translate-y-1/2 xl:block"
-        aria-label="Article sections"
+        class="sticky top-14 mx-auto mt-11 hidden max-h-[70vh] w-full max-w-52 lg:block"
+        aria-label="Reading progress and article sections"
     >
         <ol class="relative max-h-[70vh] overflow-y-auto pl-3 scrollbar-hide">
             <div class="absolute inset-y-0 left-0 w-px bg-zinc-200 dark:bg-slate-700">
