@@ -290,7 +290,7 @@ watch(isFullscreen, () => {
                 >
                     <div class="ml-1 flex w-max flex-nowrap items-start gap-2 sm:ml-auto">
                         <div
-                            class="pointer-events-auto flex h-9 shrink-0 divide-x divide-zinc-300 overflow-hidden rounded-md shadow-sm ring-1 ring-zinc-300"
+                            class="pointer-events-auto flex h-9 shrink-0 divide-x divide-zinc-500 overflow-hidden rounded-md shadow-sm"
                         >
                             <LButton
                                 size="lg"
@@ -312,7 +312,7 @@ watch(isFullscreen, () => {
                             </LButton>
                         </div>
                         <div
-                            class="pointer-events-auto hidden h-9 shrink-0 divide-x divide-zinc-300 overflow-hidden rounded-md shadow-sm ring-1 ring-zinc-300 sm:flex"
+                            class="pointer-events-auto hidden h-9 shrink-0 divide-x divide-zinc-500 overflow-hidden rounded-md shadow-sm sm:flex"
                         >
                             <LButton
                                 size="lg"
@@ -332,7 +332,7 @@ watch(isFullscreen, () => {
                             </LButton>
                         </div>
                         <div
-                            class="pointer-events-auto hidden h-9 shrink-0 items-center gap-2 rounded-md px-3 text-xs shadow-sm ring-1 ring-zinc-300 dark:bg-slate-700 dark:text-zinc-100 sm:flex"
+                            class="pointer-events-auto hidden h-9 shrink-0 items-center gap-2 rounded-md px-3 text-xs shadow-sm dark:bg-slate-700 dark:text-zinc-100 sm:flex"
                         >
                             <label for="group-graph-columns-desktop" class="font-medium">
                                 Columns
