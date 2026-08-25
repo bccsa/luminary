@@ -1,0 +1,56 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: zitadel-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: zitadel
+    volumes:
+      - zitadel-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d zitadel"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  zitadel:
+    image: ghcr.io/zitadel/zitadel:v4.17.1
+    container_name: zitadel
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # Caddy terminates TLS, so Zitadel serves plaintext behind it while still
+    # advertising https URLs via ExternalSecure.
+    command: >
+      start-from-init
+      --config /etc/zitadel/zitadel.yaml
+      --steps /etc/zitadel/steps.yaml
+      --masterkey ${ZITADEL_MASTERKEY:?set ZITADEL_MASTERKEY to exactly 32 characters}
+      --tlsMode external
+    volumes:
+      - ./zitadel-config:/etc/zitadel:ro
+      - ./secrets:/secrets
+    ports:
+      - "8080:8080"
+
+  caddy:
+    image: caddy:2
+    container_name: zitadel-caddy
+    restart: unless-stopped
+    depends_on:
+      - zitadel
+    ports:
+      - "443:443"
+      - "80:80"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  zitadel-postgres-data:
+  caddy-data:
+  caddy-config:
