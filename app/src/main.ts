@@ -100,6 +100,9 @@ async function Startup() {
                 clearAuthCache();
                 socket.setAuth("", null);
                 openProviderModal();
+                // Connect anonymously so the AuthProvider sync watcher can
+                // populate the provider list the modal just opened.
+                socket.connect();
                 return;
             }
 
@@ -122,6 +125,13 @@ async function Startup() {
             }
         },
     );
+
+    // Start the auth-provider/language sync watcher before setupAuth(), which may
+    // connect the socket (directly, or indirectly via the connect_error handler
+    // above forcing an anonymous reconnect): if the watcher isn't listening yet,
+    // the isConnected/accessMap transition that should kick off the AuthProvider
+    // sync is missed until some later, unrelated change re-triggers it.
+    initAuthLangSync();
 
     await setupAuth(app, router);
     socket.connect(); // ensure socket connects for public users (no-op if auth already called reconnect())
@@ -162,7 +172,6 @@ async function Startup() {
     app.use(appPluginsManager);
     app.mount("#app");
 
-    initAuthLangSync();
     await initLanguage();
     initSync();
 
