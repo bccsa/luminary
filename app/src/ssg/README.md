@@ -56,6 +56,7 @@ Run from `app/`:
 | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | `npm run build:web`                         | **Full** prerender → `dist-web/` (every public route) + `ssg-deps.json` + `sitemap.xml` + `robots.txt` + `llms.txt`. |
 | `SSG_ONLY_ROUTES="/a,/b" npm run build:web` | **Scoped** rebuild of only those routes; preserves all other files; **merges** their entries into `ssg-deps.json`.   |
+| `SSG_EMIT_REDIRECTS=1 …` | Marks a **scoped** build as the pass that owns redirect artifacts, which scoped builds otherwise skip (the ISR watcher maintains the index between builds). For a driver that renders the site in several scoped passes and so never runs an unscoped build — without this, nothing in the run would emit them. |
 | `npm run preview:web`                       | Serve `dist-web/` locally (test in Incognito / unregister old service workers first).                                |
 
 The normal SPA build (`npm run build` → `dist/`, with its service worker) is
@@ -264,7 +265,11 @@ algorithm }` (`docFacetShards.ts`'s `docFacetsIndex()`); each doc's entry lives 
       tolerating this class of gap.
 - **Scoped rebuild** (`SSG_ONLY_ROUTES=... npm run build:web`): renders only those routes,
   `emptyOutDir:false` (keep other files), **merges** the manifest (not overwrites),
-  restores the SPA `index.html` if `/` wasn't in scope.
+  restores the SPA `index.html` if `/` wasn't in scope. Redirect artifacts are **not** written:
+  they are re-read from the API and rewritten wholesale, and between builds the ISR watcher owns
+  that index — so a scoped pass re-reading the API could revert a change the watcher already
+  applied. `SSG_EMIT_REDIRECTS=1` (above) hands ownership to a scoped pass for drivers that never
+  run an unscoped build.
 
 ### Build scope
 
