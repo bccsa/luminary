@@ -114,17 +114,6 @@ export default defineConfig({
         watch: {
             ignored: ["dist/**", "dist-web/**", "**/dist/**", "**/dist-web/**"],
         },
-        // Kratos has to answer on the app's own origin or the browser drops its
-        // session and CSRF cookies as cross-site. This proxy is the dev stand-in
-        // for the reverse proxy production needs; Kratos' `serve.public.base_url`
-        // names the same /.ory prefix so the URLs it hands back stay same-origin.
-        proxy: {
-            "/.ory": {
-                target: env.KRATOS_PUBLIC_URL || "http://127.0.0.1:4433",
-                changeOrigin: false,
-                rewrite: (path: string) => path.replace(/^\/\.ory/, ""),
-            },
-        },
     },
     build: {
         target: "es2015",
