@@ -96,8 +96,8 @@ function isPermissionAvailable(docType: DocType, aclPermission: AclPermission): 
 
 // Validate an ACL entry and return the validated entry
 function validateAclEntry(aclEntry: GroupAclEntryDto): void {
-    // Grant CmsView alongside any CMS-only permission. Adding rather than stripping keeps ACLs from
-    // older clients — which sent View where they meant CMS access — intact (ADR 0005).
+    // A CMS-only permission implies CMS visibility. Adding it rather than stripping the permission
+    // keeps entries from clients that don't send CmsView working (ADR 0005).
     if (
         aclEntry.permission.some((p) => cmsOnlyPermissions.includes(p)) &&
         !aclEntry.permission.includes(AclPermission.CmsView)

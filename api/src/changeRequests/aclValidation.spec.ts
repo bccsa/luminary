@@ -38,9 +38,9 @@ describe("validateAcl", () => {
         expect(result[0].permission).toEqual([AclPermission.CmsView]);
     });
 
-    // Older clients sent View where they meant CMS access — the entry gains CmsView rather than
-    // having its CMS-only permissions stripped (ADR 0005).
-    it("should add CmsView to a legacy View+Edit entry without dropping Edit", () => {
+    // An entry from a client that doesn't send CmsView gains it, rather than having its CMS-only
+    // permissions stripped (ADR 0005).
+    it("should add CmsView to a View+Edit entry without dropping Edit", () => {
         const acl = [createEntry(DocType.Post, "g1", [AclPermission.View, AclPermission.Edit])];
         const result = validateAcl(acl);
 
@@ -139,7 +139,9 @@ describe("validateAcl", () => {
 
     it("should strip CmsView from a doc type not in availablePermissionsPerDocType", () => {
         // Crypto is an internal doc type with no ACL config → all permissions stripped, entry removed.
-        const acl = [createEntry(DocType.Crypto, "g1", [AclPermission.View, AclPermission.CmsView])];
+        const acl = [
+            createEntry(DocType.Crypto, "g1", [AclPermission.View, AclPermission.CmsView]),
+        ];
         const result = validateAcl(acl);
 
         expect(result).toHaveLength(0);
