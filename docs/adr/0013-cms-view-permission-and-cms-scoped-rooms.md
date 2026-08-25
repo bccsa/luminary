@@ -64,6 +64,16 @@ graph, AccessMap, and CMS group-editor UI are data-driven, so the value flows th
    traffic, is idempotent, and a one-time client recovery (`groupSyncListReset_v2`) re-fetches groups
    for clients whose sync block was left stuck during the rollout.
 
+5. **CmsView is what CMS-only permissions imply.** ACL validation (`changeRequests/aclValidation.ts`
+   and its CMS mirror `cms/src/components/groups/permissions.ts`) auto-assigns `CmsView` — not
+   `View` — alongside any CMS-only permission (`Edit`, `Delete`, `Assign`, `Translate`, `Publish`),
+   which is meaningless without CMS visibility. `View` is never implied — it is assigned
+   deliberately, so a CMS-only permission change cannot grant app-facing visibility as a side
+   effect, and a new ACL entry starts CMS-only. This is not the broad auto-grant ruled out above: it tracks
+   permissions that already implied CMS access, and `View`-only entries never gain `CmsView`. Schema
+   upgrade `v20` applies the rule to existing entries, skipping those that grant `group-public-users`
+   (effectively the anonymous group, which would otherwise gain CMS visibility of drafts).
+
 ## Considered and not chosen
 
 - **Unify status-change cleanup under stripped stubs** (deliver a stripped stub for *both* drafts and
