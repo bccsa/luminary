@@ -187,7 +187,8 @@ describe("Group editor permissions (permissions.ts)", () => {
             expect(aclEntry.permission.includes(AclPermission.View)).toBe(false);
         });
 
-        it("keeps the other permissions when 'cmsView' is cleared but 'view' is set", async () => {
+        // The server applies the same rule, so the CMS may not show a state that reverts on sync.
+        it("restores 'cmsView' when it is cleared while a CMS-only permission and 'view' remain", async () => {
             const aclEntry: GroupAclEntryDto = {
                 groupId: "group-public-users",
                 type: DocType.Group,
@@ -202,7 +203,47 @@ describe("Group editor permissions (permissions.ts)", () => {
 
             validateAclEntry(aclEntry, prevAclEntry);
 
-            expect(aclEntry.permission).toEqual([AclPermission.View, AclPermission.Assign]);
+            expect(aclEntry.permission).toEqual([
+                AclPermission.View,
+                AclPermission.Assign,
+                AclPermission.CmsView,
+            ]);
+        });
+
+        it("sets 'cmsView' when a CMS-only permission is added to a 'view'-only entry", async () => {
+            const aclEntry: GroupAclEntryDto = {
+                groupId: "group-public-users",
+                type: DocType.Group,
+                permission: [AclPermission.View, AclPermission.Assign],
+            };
+
+            const prevAclEntry: GroupAclEntryDto = {
+                groupId: "group-public-users",
+                type: DocType.Group,
+                permission: [AclPermission.View],
+            };
+
+            validateAclEntry(aclEntry, prevAclEntry);
+
+            expect(aclEntry.permission).toContain(AclPermission.CmsView);
+        });
+
+        it("leaves a 'view'-only entry alone", async () => {
+            const aclEntry: GroupAclEntryDto = {
+                groupId: "group-public-users",
+                type: DocType.Group,
+                permission: [AclPermission.View],
+            };
+
+            const prevAclEntry: GroupAclEntryDto = {
+                groupId: "group-public-users",
+                type: DocType.Group,
+                permission: [AclPermission.View, AclPermission.CmsView],
+            };
+
+            validateAclEntry(aclEntry, prevAclEntry);
+
+            expect(aclEntry.permission).toEqual([AclPermission.View]);
         });
 
         it("clears the entry when 'cmsView' is cleared and 'view' was not set", async () => {

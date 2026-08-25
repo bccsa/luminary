@@ -71,8 +71,8 @@ graph, AccessMap, and CMS group-editor UI are data-driven, so the value flows th
    deliberately, so a CMS-only permission change cannot grant app-facing visibility as a side
    effect, and a new ACL entry starts CMS-only. This is not the broad auto-grant ruled out above: it tracks
    permissions that already implied CMS access, and `View`-only entries never gain `CmsView`. Schema
-   upgrade `v20` applies the rule to existing entries, skipping `group-public-users` (effectively the
-   anonymous group, whose broad seeded grants would otherwise expose drafts to any CMS visitor).
+   upgrade `v20` applies the rule to existing entries, skipping those that grant `group-public-users`
+   (effectively the anonymous group, which would otherwise gain CMS visibility of drafts).
 
 ## Considered and not chosen
 

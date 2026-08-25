@@ -16,8 +16,8 @@ const PUBLIC_USERS_GROUP_ID = "group-public-users";
  * imply. Entries holding `View` alone are genuine app-consumer grants and are left untouched, so
  * CmsView stays a real, narrowable permission (ADR 0013).
  *
- * `group-public-users` is skipped: it is effectively the anonymous group, and its broad seeded
- * Edit/Delete/Publish grants would otherwise turn into CMS visibility of drafts and expired content
+ * Entries granting `group-public-users` are skipped: it is effectively the anonymous group, so a
+ * CMS-only permission granted to it must not turn into CMS visibility of drafts and expired content
  * for anyone opening the CMS. Its one intended CmsView grant (AuthProvider) was made by v19.
  *
  * Idempotent: only pushes CmsView where missing, so re-running (e.g. `npm run seed` runs the upgrade
@@ -35,17 +35,17 @@ export default async function (db: DbService) {
 
             await db.processAllDocs([DocType.Group], async (doc: any) => {
                 if (!doc || !Array.isArray(doc.acl)) return;
-                if (doc._id === PUBLIC_USERS_GROUP_ID) {
-                    skippedCount++;
-                    return;
-                }
 
                 let changed = false;
 
                 doc.acl.forEach((entry: any) => {
                     if (!Array.isArray(entry.permission)) return;
+                    // The grantee is entry.groupId — the group the permission is given to.
+                    if (entry.groupId === PUBLIC_USERS_GROUP_ID) return;
                     if (entry.permission.includes(AclPermission.CmsView)) return;
-                    if (!entry.permission.some((p: AclPermission) => cmsOnlyPermissions.includes(p)))
+                    if (
+                        !entry.permission.some((p: AclPermission) => cmsOnlyPermissions.includes(p))
+                    )
                         return;
 
                     entry.permission.push(AclPermission.CmsView);

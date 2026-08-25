@@ -6,7 +6,7 @@ import { S3Service } from "../s3/s3.service";
 import { DbService } from "../db/db.service";
 import { AuthGuard } from "../auth/auth.guard";
 import * as permissionsService from "../permissions/permissions.service";
-import { DocType } from "../enums";
+import { AclPermission, DocType } from "../enums";
 import { v4 as uuidv4 } from "uuid";
 
 describe("StorageController", () => {
@@ -99,6 +99,14 @@ describe("StorageController", () => {
             expect(mockGetDoc).toHaveBeenCalledWith(bucketId);
             expect(mockS3ServiceCreate).toHaveBeenCalledWith(bucketId, expect.any(Object));
             expect(mockCheckBucketConnectivity).toHaveBeenCalled();
+
+            // CMS-only endpoint: CmsView, not the app-facing View, gates it
+            expect(mockVerifyAccess).toHaveBeenCalledWith(
+                mockBucket.memberOf,
+                DocType.Storage,
+                AclPermission.CmsView,
+                ["group-public-users"],
+            );
         });
 
         it("should return not-found when bucket document does not exist", async () => {
@@ -365,6 +373,5 @@ describe("StorageController", () => {
             expect(mockS3ServiceCreate).not.toHaveBeenCalled();
             expect(mockCheckBucketConnectivity).not.toHaveBeenCalled();
         });
-
     });
 });

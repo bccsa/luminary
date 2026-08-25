@@ -112,6 +112,18 @@ export const hasChangedPermission = computed(() => {
 export const impliedAclPermission = AclPermission.CmsView;
 
 /**
+ * Permissions only the CMS acts on. None can be exercised without CmsView, so granting one implies
+ * it. Mirrors api/src/changeRequests/aclValidation.ts.
+ */
+export const cmsOnlyPermissions = [
+    AclPermission.Edit,
+    AclPermission.Delete,
+    AclPermission.Assign,
+    AclPermission.Translate,
+    AclPermission.Publish,
+];
+
+/**
  * Check if an ACL entry carries either of the visibility permissions the other permissions depend on
  */
 const hasVisibilityPermission = (aclEntry: GroupAclEntryDto) =>
@@ -136,6 +148,16 @@ export const validateAclEntry = (aclEntry: GroupAclEntryDto, prevAclEntry: Group
         prevAclEntry.permission.length === 0
     ) {
         aclEntry.permission.push(impliedAclPermission);
+    }
+
+    // A CMS-only permission alongside View implies CmsView. The server applies this too, so leaving
+    // it out here would show the editor a state that reverts on the next sync.
+    if (
+        aclEntry.permission.some((p) => cmsOnlyPermissions.includes(p)) &&
+        !aclEntry.permission.includes(AclPermission.CmsView) &&
+        aclEntry.permission.includes(AclPermission.View)
+    ) {
+        aclEntry.permission.push(AclPermission.CmsView);
     }
 
     // No other permission can be exercised without one of the visibility permissions

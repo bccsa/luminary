@@ -17,8 +17,8 @@ describe("v20 — CmsView implication backfill", () => {
         return { db, inserted };
     }
 
-    function entry(type: DocType, permission: AclPermission[]) {
-        return { type, groupId: "g", permission };
+    function entry(type: DocType, permission: AclPermission[], groupId = "g") {
+        return { type, groupId, permission };
     }
 
     function group(id: string, acl: any[]) {
@@ -75,10 +75,18 @@ describe("v20 — CmsView implication backfill", () => {
         expect(redirect.permission).not.toContain(AclPermission.CmsView);
     });
 
-    it("skips group-public-users entirely", async () => {
-        const g = group("group-public-users", [
-            entry(DocType.Post, [AclPermission.View, AclPermission.Edit, AclPermission.Publish]),
-            entry(DocType.AuthProvider, [AclPermission.View, AclPermission.CmsView]),
+    it("skips entries granting group-public-users", async () => {
+        const g = group("group-public-content", [
+            entry(
+                DocType.Post,
+                [AclPermission.View, AclPermission.Edit, AclPermission.Publish],
+                "group-public-users",
+            ),
+            entry(
+                DocType.AuthProvider,
+                [AclPermission.View, AclPermission.CmsView],
+                "group-public-users",
+            ),
         ]);
         const { db, inserted } = mockDb(19, [g]);
 
@@ -87,6 +95,28 @@ describe("v20 — CmsView implication backfill", () => {
         expect(inserted).toHaveLength(0);
         const post = g.acl.find((e: any) => e.type === DocType.Post);
         expect(post.permission).not.toContain(AclPermission.CmsView);
+    });
+
+    // The grantee decides, not the group the entry lives in: the Public Users group doc holds the
+    // super admins' grants over that group, which must stay visible in the CMS.
+    it("backfills entries inside the group-public-users doc that grant another group", async () => {
+        const g = group("group-public-users", [
+            entry(
+                DocType.Group,
+                [AclPermission.View, AclPermission.Edit, AclPermission.Assign],
+                "group-super-admins",
+            ),
+            entry(DocType.Post, [AclPermission.View], "group-public-users"),
+        ]);
+        const { db, inserted } = mockDb(19, [g]);
+
+        await v20(db);
+
+        expect(inserted).toHaveLength(1);
+        const superAdmins = inserted[0].acl.find((e: any) => e.groupId === "group-super-admins");
+        const publicUsers = inserted[0].acl.find((e: any) => e.groupId === "group-public-users");
+        expect(superAdmins.permission).toContain(AclPermission.CmsView);
+        expect(publicUsers.permission).not.toContain(AclPermission.CmsView);
     });
 
     it("is idempotent — does not re-add CmsView already present", async () => {
