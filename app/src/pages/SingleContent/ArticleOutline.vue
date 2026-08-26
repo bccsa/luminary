@@ -1,20 +1,33 @@
 <script setup lang="ts">
-import { nextTick, ref, watch } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 import { useEventListener } from "@vueuse/core";
+import { CheckCircleIcon, ChevronDownIcon } from "@heroicons/vue/24/outline";
+import DropdownMenu from "@/components/common/DropdownMenu.vue";
 
 const props = defineProps<{
     articleRoot: HTMLElement | null;
     scrollContainer: HTMLElement | Window;
-    /** Reading progress, 0-100 — drawn as a fill on the rail behind the heading list. */
-    progress: number;
     /** Re-scans headings whenever this changes (a translation/article swap). */
     contentId: string | undefined;
+    /**
+     * Title elements the dropdown stands in for: it stays hidden until the visible one has
+     * scrolled above the container. Several may be passed when the title is rendered per
+     * breakpoint; only the displayed one is measured.
+     */
+    titleEls?: (HTMLElement | null)[];
 }>();
 
 type OutlineHeading = { id: string; text: string; level: number };
 
 const headings = ref<OutlineHeading[]>([]);
 const activeId = ref<string | null>(null);
+const titleScrolledOut = ref(false);
+const open = ref(false);
+
+const activeHeading = computed(
+    () => headings.value.find((h) => h.id === activeId.value) ?? headings.value[0],
+);
+const visible = computed(() => headings.value.length > 0 && titleScrolledOut.value);
 
 function slugify(text: string, taken: Set<string>) {
     const base =
@@ -53,11 +66,19 @@ function collectHeadings() {
 
 watch(
     () => [props.articleRoot, props.contentId] as const,
-    () => nextTick(collectHeadings),
+    () => {
+        open.value = false;
+        nextTick(collectHeadings);
+    },
     {
         immediate: true,
     },
 );
+
+function containerTop() {
+    const container = props.scrollContainer;
+    return container === window ? 0 : (container as HTMLElement).getBoundingClientRect().top;
+}
 
 // Active heading: the last one that's scrolled past a small offset from the container's
 // visible top, rAF-throttled like the other scroll-driven reads in this composable family.
@@ -65,36 +86,53 @@ const ACTIVE_OFFSET = 80;
 
 function updateActiveHeading() {
     if (!headings.value.length) return;
-    const container = props.scrollContainer;
-    const containerTop =
-        container === window ? 0 : (container as HTMLElement).getBoundingClientRect().top;
+    const top = containerTop();
 
     let current = headings.value[0]?.id ?? null;
     for (const h of headings.value) {
         const el = document.getElementById(h.id);
         if (!el) continue;
-        if (el.getBoundingClientRect().top - containerTop <= ACTIVE_OFFSET) current = h.id;
+        if (el.getBoundingClientRect().top - top <= ACTIVE_OFFSET) current = h.id;
         else break;
     }
     activeId.value = current;
 }
 
+function updateTitleScrolledOut() {
+    const title = props.titleEls?.find((el) => el && el.getClientRects().length > 0);
+    if (!title) {
+        titleScrolledOut.value = true;
+        return;
+    }
+    titleScrolledOut.value = title.getBoundingClientRect().bottom - containerTop() <= 0;
+}
+
 let rafPending = false;
-function scheduleActiveUpdate() {
+function scheduleUpdate() {
     if (rafPending) return;
     rafPending = true;
     requestAnimationFrame(() => {
         rafPending = false;
         updateActiveHeading();
+        updateTitleScrolledOut();
     });
 }
 
-useEventListener(() => props.scrollContainer, "scroll", scheduleActiveUpdate, { passive: true });
-watch(headings, () => nextTick(updateActiveHeading));
+useEventListener(() => props.scrollContainer, "scroll", scheduleUpdate, { passive: true });
+watch(headings, () =>
+    nextTick(() => {
+        updateActiveHeading();
+        updateTitleScrolledOut();
+    }),
+);
+watch(visible, (isVisible) => {
+    if (!isVisible) open.value = false;
+});
 
 const SCROLL_OFFSET = 96;
 
 function goToHeading(id: string) {
+    open.value = false;
     const el = document.getElementById(id);
     if (!el) return;
     const container = props.scrollContainer;
@@ -117,35 +155,49 @@ function goToHeading(id: string) {
 </script>
 
 <template>
-    <nav
-        class="sticky top-14 mx-auto mt-11 hidden max-h-[70vh] w-full max-w-52 lg:block"
-        aria-label="Reading progress and article sections"
+    <DropdownMenu
+        v-if="visible"
+        v-model:open="open"
+        placement="bottom-start"
+        panel-class="max-h-[60vh] w-72 max-w-[calc(100vw-2rem)] overflow-y-auto py-1"
+        class="min-w-0 max-w-full"
+        data-test="articleOutline"
     >
-        <ol class="relative max-h-[70vh] overflow-y-auto pl-3 scrollbar-hide">
-            <div class="absolute inset-y-0 left-0 w-px bg-zinc-200 dark:bg-slate-700">
-                <div
-                    class="w-full bg-yellow-500 transition-[height] duration-150 ease-out dark:bg-yellow-400"
-                    :style="{ height: `${progress}%` }"
-                />
-            </div>
-            <li
-                v-for="h in headings"
-                :key="h.id"
-                :class="{ 'ml-3': h.level === 3 }"
+        <template #trigger>
+            <span
+                class="flex max-w-full items-center gap-1 rounded-md bg-zinc-100/90 px-2 py-1 text-sm text-zinc-700 backdrop-blur-sm hover:bg-zinc-200 dark:bg-slate-800/90 dark:text-slate-100 dark:hover:bg-slate-700"
+                :aria-label="`Current section: ${activeHeading?.text ?? ''}`"
+                data-test="articleOutlineTrigger"
             >
-                <button
-                    type="button"
-                    class="block w-full truncate py-1 text-left text-xs leading-snug transition-colors"
-                    :class="
-                        activeId === h.id
-                            ? 'font-medium text-yellow-600 dark:text-yellow-400'
-                            : 'text-zinc-500 hover:text-zinc-800 dark:text-slate-400 dark:hover:text-slate-100'
-                    "
-                    @click="goToHeading(h.id)"
-                >
-                    {{ h.text }}
-                </button>
-            </li>
-        </ol>
-    </nav>
+                <span class="truncate font-medium">{{ activeHeading?.text }}</span>
+                <ChevronDownIcon
+                    class="h-4 w-4 flex-shrink-0 transition-transform"
+                    :class="{ 'rotate-180': open }"
+                    aria-hidden="true"
+                />
+            </span>
+        </template>
+        <button
+            v-for="h in headings"
+            :key="h.id"
+            type="button"
+            role="menuitem"
+            class="flex w-full cursor-pointer select-none items-center gap-2 py-2 pr-3 text-left text-sm leading-5 hover:bg-zinc-50 dark:hover:bg-slate-600"
+            :class="[
+                h.level === 3 ? 'pl-8' : 'pl-4',
+                activeId === h.id
+                    ? 'font-medium text-yellow-600 dark:text-yellow-400'
+                    : 'text-zinc-800 dark:text-white',
+            ]"
+            data-test="articleOutlineOption"
+            @click="goToHeading(h.id)"
+        >
+            <span class="flex-1">{{ h.text }}</span>
+            <CheckCircleIcon
+                v-if="activeId === h.id"
+                class="h-5 w-5 flex-shrink-0 text-yellow-500"
+                aria-hidden="true"
+            />
+        </button>
+    </DropdownMenu>
 </template>

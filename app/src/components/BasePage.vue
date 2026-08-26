@@ -113,8 +113,22 @@ onUnmounted(() => {
                             <ChevronLeftIcon class="h-5 w-5" />
                         </a>
                     </RouterLink>
+                    <div class="pointer-events-auto mx-2 flex min-w-0 flex-1 justify-center">
+                        <slot name="topBarCenter" />
+                    </div>
                     <div class="pointer-events-auto ml-auto flex items-center gap-2 pr-2">
                         <slot name="quickControls" />
+                    </div>
+                </div>
+
+                <!-- Mobile counterpart of the centre slot: pinned at the top of the scrolling
+                     area with the same collapsed flow height, so it floats over the content. -->
+                <div
+                    v-if="$slots.topBarCenter"
+                    class="pointer-events-none sticky top-0 z-20 -mb-9 flex h-9 items-center justify-center lg:hidden"
+                >
+                    <div class="pointer-events-auto flex min-w-0 max-w-full justify-center">
+                        <slot name="topBarCenter" />
                     </div>
                 </div>
 

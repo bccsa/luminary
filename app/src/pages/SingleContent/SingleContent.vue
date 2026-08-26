@@ -560,6 +560,8 @@ const selectedCategory = computed(() => {
 });
 
 const articleProseRef = ref<HTMLElement | null>(null);
+const desktopTitleRef = ref<HTMLElement | null>(null);
+const mobileTitleRef = ref<HTMLElement | null>(null);
 const scrollContainer = ref<HTMLElement | Window>(window);
 
 const readingTrackerEnabled = computed(() => !!content.value?._id && !!content.value?.text);
@@ -601,8 +603,8 @@ const { hasResumableProgress, savedProgressPercent, scrollProgressPercent, resto
     });
 
 // The outline belongs to the article itself, not the related-content section below it.
-// Once the final prose has entered the reading viewport, hide the rail and restore it if
-// the reader scrolls back up.
+// Once the final prose has entered the reading viewport, hide the dropdown and restore it
+// if the reader scrolls back up.
 const showArticleOutline = computed(
     () => readingTrackerEnabled.value && scrollProgressPercent.value < 100,
 );
@@ -682,6 +684,20 @@ watch([isLoading, content, is404], async () => {
         desktopTopBar
         :readingProgress="readingTrackerEnabled ? scrollProgressPercent : undefined"
     >
+        <!-- Chapter dropdown stands in for the title once it scrolls out of view. -->
+        <template
+            #topBarCenter
+            v-if="!is404 && content && readingTrackerEnabled"
+        >
+            <ArticleOutline
+                :articleRoot="articleProseRef"
+                :scrollContainer="scrollContainer"
+                :contentId="content._id"
+                :titleEls="[desktopTitleRef, mobileTitleRef]"
+                :class="{ 'pointer-events-none invisible': !showArticleOutline }"
+                :aria-hidden="!showArticleOutline"
+            />
+        </template>
         <template
             #quickControls
             v-if="!is404"
@@ -769,24 +785,13 @@ watch([isLoading, content, is404], async () => {
                 />
 
                 <template v-else-if="content">
-                    <!-- Left gutter: heading outline + reading-progress rail, centred in the
-                         column rather than pinned to either edge. -->
-                    <aside class="hidden lg:block">
-                        <ArticleOutline
-                            v-if="readingTrackerEnabled"
-                            :articleRoot="articleProseRef"
-                            :scrollContainer="scrollContainer"
-                            :progress="scrollProgressPercent"
-                            :contentId="content._id"
-                            :class="{ 'pointer-events-none invisible': !showArticleOutline }"
-                            :aria-hidden="!showArticleOutline"
-                        />
-                    </aside>
-
                     <article class="w-full lg:col-start-2">
                         <!-- Desktop: title row originates at the top of the page, level with the pinned
                          topbar chrome, and scrolls away with the content like normal. -->
-                        <div class="hidden h-9 items-center justify-center gap-2 lg:flex">
+                        <div
+                            ref="desktopTitleRef"
+                            class="hidden h-9 items-center justify-center gap-2 lg:flex"
+                        >
                             <h1
                                 class="truncate text-xl tracking-tight text-zinc-900 dark:text-slate-50 lg:text-2xl"
                             >
@@ -802,7 +807,10 @@ watch([isLoading, content, is404], async () => {
                             </button>
                         </div>
 
-                        <div class="flex w-full flex-col items-center lg:hidden">
+                        <div
+                            ref="mobileTitleRef"
+                            class="flex w-full flex-col items-center lg:hidden"
+                        >
                             <div class="mt-1 flex flex-col gap-4 text-center md:mt-4">
                                 <div class="flex flex-row items-start justify-center gap-2">
                                     <h1
