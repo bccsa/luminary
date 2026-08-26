@@ -198,7 +198,7 @@ function goToHeading(id: string) {
         v-else-if="visible"
         v-model:open="open"
         placement="bottom-center"
-        panel-class="max-h-[60vh] w-72 max-w-[calc(100vw-2rem)] overflow-y-auto py-1"
+        panel-class="max-h-[60vh] w-max min-w-full max-w-[calc(100vw-2rem)] overflow-y-auto py-1"
         class="min-w-0 max-w-full"
         data-test="articleOutline"
     >
@@ -208,7 +208,19 @@ function goToHeading(id: string) {
                 :aria-label="`Current section: ${activeHeading?.text ?? ''}`"
                 data-test="articleOutlineTrigger"
             >
-                <span class="truncate font-medium">{{ activeHeading?.text }}</span>
+                <!-- Every heading is stacked invisibly in the same grid cell, so the pill is
+                     sized to the longest one and stays put as the active chapter changes. -->
+                <span class="grid min-w-0 text-center font-medium">
+                    <span
+                        v-for="h in headings"
+                        :key="h.id"
+                        class="invisible col-start-1 row-start-1 whitespace-nowrap"
+                        aria-hidden="true"
+                    >
+                        {{ h.text }}
+                    </span>
+                    <span class="col-start-1 row-start-1 truncate">{{ activeHeading?.text }}</span>
+                </span>
                 <ChevronDownIcon
                     class="h-4 w-4 flex-shrink-0 transition-transform"
                     :class="{ 'rotate-180': open }"
