@@ -31,11 +31,12 @@ const { onBackClick } = useBackNavigation();
 
 const main = ref<HTMLElement | undefined>(undefined);
 
-// The fade under the pinned chrome only makes sense once content has scrolled beneath it;
-// at the top it would dim the page title that shares the row.
+// The fade under the pinned chrome only makes sense once body content has scrolled beneath
+// it; until the strip's own height has gone by, what sits under it is still the page title.
+const TOP_CHROME_H = 56;
 const scrolled = ref(false);
 const onMainScroll = () => {
-    scrolled.value = (main.value?.scrollTop ?? 0) > 0;
+    scrolled.value = (main.value?.scrollTop ?? 0) >= TOP_CHROME_H;
 };
 const topChromeFade = "bg-gradient-to-b from-white from-40% to-transparent dark:from-slate-900";
 
