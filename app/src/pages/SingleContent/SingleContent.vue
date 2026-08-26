@@ -602,13 +602,6 @@ const { hasResumableProgress, savedProgressPercent, scrollProgressPercent, resto
         },
     });
 
-// The outline belongs to the article itself, not the related-content section below it.
-// Once the final prose has entered the reading viewport, hide the dropdown and restore it
-// if the reader scrolls back up.
-const showArticleOutline = computed(
-    () => readingTrackerEnabled.value && scrollProgressPercent.value < 100,
-);
-
 /** Hide the resume prompt for this visit after the user continues or dismisses. */
 const continuePromptHandled = ref(false);
 
@@ -695,8 +688,6 @@ watch([isLoading, content, is404], async () => {
                 :contentId="content._id"
                 :title="content.title"
                 :titleEls="[desktopTitleRef, mobileTitleRef]"
-                :class="{ 'pointer-events-none invisible': !showArticleOutline }"
-                :aria-hidden="!showArticleOutline"
             />
         </template>
         <template

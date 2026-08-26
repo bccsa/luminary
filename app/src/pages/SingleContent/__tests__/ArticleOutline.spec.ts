@@ -12,8 +12,9 @@ function makeTitleEl(scrolledOut: boolean) {
     return el;
 }
 
-function makeRoot(headingTexts: string[]) {
+function makeRoot(headingTexts: string[], scrolledPast = false) {
     const root = document.createElement("div");
+    root.getBoundingClientRect = () => ({ top: 0, bottom: scrolledPast ? -10 : 1000 }) as DOMRect;
     for (const text of headingTexts) {
         const h = document.createElement("h2");
         h.textContent = text;
@@ -35,10 +36,14 @@ describe("ArticleOutline", () => {
         document.body.innerHTML = "";
     });
 
-    async function mountOutline(headingTexts: string[], scrolledOut: boolean) {
+    async function mountOutline(
+        headingTexts: string[],
+        scrolledOut: boolean,
+        articleScrolledPast = false,
+    ) {
         const wrapper = mount(ArticleOutline, {
             props: {
-                articleRoot: makeRoot(headingTexts),
+                articleRoot: makeRoot(headingTexts, articleScrolledPast),
                 scrollContainer: window,
                 contentId: "c1",
                 title: "The Long Walk",
@@ -62,6 +67,12 @@ describe("ArticleOutline", () => {
         // active; only the pill's presence and the option list are meaningful here.
         expect(wrapper.find('[data-test="articleOutlineTrigger"]').text()).toMatch(/Chapter/);
         expect(wrapper.findAll('[data-test="articleOutlineOption"]')).toHaveLength(2);
+    });
+
+    it("steps aside once the whole article body has scrolled past", async () => {
+        const wrapper = await mountOutline(["Chapter one"], true, true);
+        expect(wrapper.find('[data-test="articleOutline"]').exists()).toBe(false);
+        expect(wrapper.find('[data-test="articleOutlineTitle"]').exists()).toBe(false);
     });
 
     it("falls back to the article title when there are no headings", async () => {

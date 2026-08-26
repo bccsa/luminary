@@ -24,12 +24,15 @@ type OutlineHeading = { id: string; text: string; level: number };
 const headings = ref<OutlineHeading[]>([]);
 const activeId = ref<string | null>(null);
 const titleScrolledOut = ref(false);
+const articleScrolledPast = ref(false);
 const open = ref(false);
 
 const activeHeading = computed(
     () => headings.value.find((h) => h.id === activeId.value) ?? headings.value[0],
 );
-const visible = computed(() => titleScrolledOut.value);
+// The pill belongs to the article: it takes over from the title and steps aside again once
+// the whole body has gone past and the reader is in the related content below.
+const visible = computed(() => titleScrolledOut.value && !articleScrolledPast.value);
 
 function slugify(text: string, taken: Set<string>) {
     const base =
@@ -109,6 +112,12 @@ function updateTitleScrolledOut() {
     titleScrolledOut.value = title.getBoundingClientRect().bottom - containerTop() <= 0;
 }
 
+function updateArticleScrolledPast() {
+    const root = props.articleRoot;
+    articleScrolledPast.value =
+        !!root && root.getBoundingClientRect().bottom - containerTop() <= ACTIVE_OFFSET;
+}
+
 let rafPending = false;
 function scheduleUpdate() {
     if (rafPending) return;
@@ -117,6 +126,7 @@ function scheduleUpdate() {
         rafPending = false;
         updateActiveHeading();
         updateTitleScrolledOut();
+        updateArticleScrolledPast();
     });
 }
 
@@ -125,6 +135,7 @@ watch(headings, () =>
     nextTick(() => {
         updateActiveHeading();
         updateTitleScrolledOut();
+        updateArticleScrolledPast();
     }),
 );
 watch(visible, (isVisible) => {
