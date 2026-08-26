@@ -38,6 +38,8 @@ const scrolled = ref(false);
 const onMainScroll = () => {
     scrolled.value = (main.value?.scrollTop ?? 0) >= TOP_CHROME_H;
 };
+// Shared so whatever a page puts in the centre slot can reveal itself in step with the fade.
+provide("topChromeScrolled", scrolled);
 // Rendered as an always-present layer whose opacity animates, so the fade eases in rather
 // than snapping on at the threshold.
 const topChromeFade =

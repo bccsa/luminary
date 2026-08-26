@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from "vue";
+import { computed, inject, nextTick, ref, watch, type Ref } from "vue";
 import { useEventListener } from "@vueuse/core";
 import { CheckCircleIcon, ChevronDownIcon } from "@heroicons/vue/24/outline";
 import DropdownMenu from "@/components/common/DropdownMenu.vue";
@@ -27,12 +27,18 @@ const titleScrolledOut = ref(false);
 const articleScrolledPast = ref(false);
 const open = ref(false);
 
+// Provided by BasePage: true once its top-chrome fade is showing, so the pill appears in
+// the same moment rather than a few pixels earlier.
+const chromeScrolled = inject<Ref<boolean>>("topChromeScrolled", ref(true));
+
 const activeHeading = computed(
     () => headings.value.find((h) => h.id === activeId.value) ?? headings.value[0],
 );
 // The pill belongs to the article: it takes over from the title and steps aside again once
 // the whole body has gone past and the reader is in the related content below.
-const visible = computed(() => titleScrolledOut.value && !articleScrolledPast.value);
+const visible = computed(
+    () => chromeScrolled.value && titleScrolledOut.value && !articleScrolledPast.value,
+);
 
 function slugify(text: string, taken: Set<string>) {
     const base =
