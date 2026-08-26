@@ -210,7 +210,7 @@ function goToHeading(id: string) {
             >
                 <!-- Every heading is stacked invisibly in the same grid cell, so the pill is
                      sized to the longest one and stays put as the active chapter changes. -->
-                <span class="grid min-w-0 text-center font-medium">
+                <span class="grid min-w-0 flex-1 text-left font-medium">
                     <span
                         v-for="h in headings"
                         :key="h.id"
