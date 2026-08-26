@@ -23,6 +23,8 @@ defineProps<{
     content?: ContentDto;
     showBackButton?: boolean;
     desktopTopBar?: boolean;
+    /** The centre slot is occupied before any scrolling; keep the row below the chrome clear for it. */
+    reserveTopBarCenter?: boolean;
 }>();
 
 const { onBackClick } = useBackNavigation();
@@ -170,6 +172,13 @@ onUnmounted(() => {
                         <slot name="topBarCenter" />
                     </div>
                 </div>
+
+                <!-- Spacer that keeps in-flow content (banners, the page title) out from under a
+                     centre-slot control that is showing before the page has scrolled. -->
+                <div
+                    v-if="desktopTopBar && reserveTopBarCenter"
+                    class="h-11"
+                />
 
                 <!-- Desktop notification: normal flow below the pinned chrome; pushes article down when present.
                      [&>div]:mb-2 trims the banner's default mb-4 so the gap above the title matches the page-top gap. -->

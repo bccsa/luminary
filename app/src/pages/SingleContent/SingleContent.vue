@@ -65,7 +65,6 @@ import { markLanguageSwitch } from "@/util/isLangSwitch";
 import LoadingBar from "@/components/LoadingBar.vue";
 import { activeImageCollection } from "@/components/images/LImageProvider.vue";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
-import ContinueReadingPrompt from "@/components/content/ContinueReadingPrompt.vue";
 import LHighlightable from "@/components/common/LHighlightable.vue";
 import DropdownMenu from "@/components/common/DropdownMenu.vue";
 import ArticleOutline from "./ArticleOutline.vue";
@@ -560,7 +559,6 @@ const selectedCategory = computed(() => {
 });
 
 const articleProseRef = ref<HTMLElement | null>(null);
-const articleRef = ref<HTMLElement | null>(null);
 const desktopTitleRef = ref<HTMLElement | null>(null);
 const mobileTitleRef = ref<HTMLElement | null>(null);
 const scrollContainer = ref<HTMLElement | Window>(window);
@@ -587,11 +585,10 @@ const readingTime = computed<number>(() =>
     computeEstimatedReadingMinutes(content.value?.wordCount ?? 0, averageReadingSpeed.value),
 );
 
-const { hasResumableProgress, savedProgressPercent, scrollProgressPercent, restoreScrollPosition } =
+const { hasResumableProgress, readingProgressPercent, restoreScrollPosition } =
     useReadingProgressTracker({
         contentId,
         articleRoot: articleProseRef,
-        progressRoot: articleRef,
         scrollContainer,
         enabled: readingTrackerEnabled,
         averageReadingSpeed,
@@ -604,8 +601,9 @@ const { hasResumableProgress, savedProgressPercent, scrollProgressPercent, resto
         },
     });
 
-/** Hide the resume prompt for this visit after the user continues or dismisses. */
+/** Hide the resume offer for this visit after the user continues, dismisses, or scrolls. */
 const continuePromptHandled = ref(false);
+const resumeOffered = computed(() => hasResumableProgress.value && !continuePromptHandled.value);
 
 watch(contentId, () => {
     continuePromptHandled.value = false;
@@ -677,8 +675,10 @@ watch([isLoading, content, is404], async () => {
     <BasePage
         :showBackButton="true"
         desktopTopBar
+        :reserveTopBarCenter="resumeOffered"
     >
-        <!-- Chapter dropdown stands in for the title once it scrolls out of view. -->
+        <!-- Reading pill: offers to resume on open, then stands in for the title as a chapter
+             dropdown once it scrolls out of view. -->
         <template
             #topBarCenter
             v-if="!is404 && content && readingTrackerEnabled"
@@ -688,8 +688,12 @@ watch([isLoading, content, is404], async () => {
                 :scrollContainer="scrollContainer"
                 :contentId="content._id"
                 :title="content.title"
-                :progress="scrollProgressPercent"
+                :progress="readingProgressPercent"
+                :resumable="hasResumableProgress"
+                :offerResume="resumeOffered"
                 :titleEls="[desktopTitleRef, mobileTitleRef]"
+                @resume="onContinueReading"
+                @dismiss="continuePromptHandled = true"
             />
         </template>
         <template
@@ -779,10 +783,7 @@ watch([isLoading, content, is404], async () => {
                 />
 
                 <template v-else-if="content">
-                    <article
-                        ref="articleRef"
-                        class="w-full lg:col-start-2"
-                    >
+                    <article class="w-full lg:col-start-2">
                         <!-- Desktop: title row originates at the top of the page, level with the pinned
                          topbar chrome, and scrolls away with the content like normal. -->
                         <div
@@ -1029,14 +1030,6 @@ watch([isLoading, content, is404], async () => {
             <IgnorePagePadding ignoreBottom>
                 <CopyrightBanner />
             </IgnorePagePadding>
-
-            <ContinueReadingPrompt
-                v-if="readingTrackerEnabled"
-                :visible="hasResumableProgress && !continuePromptHandled"
-                :progress-percent="savedProgressPercent"
-                @continue="onContinueReading"
-                @dismiss="continuePromptHandled = true"
-            />
         </div>
     </BasePage>
 

@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed, inject, nextTick, ref, watch, type Ref } from "vue";
 import { useEventListener } from "@vueuse/core";
-import { CheckCircleIcon, ChevronDownIcon } from "@heroicons/vue/24/outline";
+import { useI18n } from "vue-i18n";
+import { ArrowUturnLeftIcon, CheckCircleIcon, ChevronDownIcon } from "@heroicons/vue/24/outline";
+import { XMarkIcon } from "@heroicons/vue/20/solid";
 import DropdownMenu from "@/components/common/DropdownMenu.vue";
 
 const props = defineProps<{
@@ -11,8 +13,12 @@ const props = defineProps<{
     contentId: string | undefined;
     /** Shown in place of the chapter dropdown when the article has no headings. */
     title?: string;
-    /** Reading progress, 0-100 — drawn as a thin track along the pill's bottom edge. */
+    /** Reading progress, 0-100 — drawn as a track along the pill's bottom edge. */
     progress?: number;
+    /** A saved reading position exists; adds a "continue" entry to the chapter list. */
+    resumable?: boolean;
+    /** Show the pill as a resume offer instead of the chapter dropdown. */
+    offerResume?: boolean;
     /**
      * Title elements the dropdown stands in for: it stays hidden until the visible one has
      * scrolled above the container. Several may be passed when the title is rendered per
@@ -20,6 +26,13 @@ const props = defineProps<{
      */
     titleEls?: (HTMLElement | null)[];
 }>();
+
+const emit = defineEmits<{
+    resume: [];
+    dismiss: [];
+}>();
+
+const { t } = useI18n();
 
 type OutlineHeading = { id: string; text: string; level: number };
 
@@ -37,10 +50,19 @@ const activeHeading = computed(
     () => headings.value.find((h) => h.id === activeId.value) ?? headings.value[0],
 );
 // The pill belongs to the article: it takes over from the title and steps aside again once
-// the whole body has gone past and the reader is in the related content below.
+// the whole body has gone past and the reader is in the related content below. The resume
+// offer is the exception — it shows from the start, before any scrolling.
 const visible = computed(
-    () => chromeScrolled.value && titleScrolledOut.value && !articleScrolledPast.value,
+    () =>
+        props.offerResume ||
+        (chromeScrolled.value && titleScrolledOut.value && !articleScrolledPast.value),
 );
+
+// Starting to read is an answer to the offer: once the reader scrolls into the article it
+// gives way to the chapter dropdown.
+watch(chromeScrolled, (scrolled) => {
+    if (scrolled && props.offerResume) emit("dismiss");
+});
 
 function slugify(text: string, taken: Set<string>) {
     const base =
@@ -173,11 +195,55 @@ function goToHeading(id: string) {
         SCROLL_OFFSET;
     containerEl.scrollTo({ top, behavior: "smooth" });
 }
+
+function onResume() {
+    open.value = false;
+    emit("resume");
+}
 </script>
 
 <template>
     <span
-        v-if="visible && !headings.length"
+        v-if="visible && offerResume"
+        class="relative flex max-w-full items-center rounded-lg bg-zinc-200 shadow-md ring-1 ring-zinc-900/10 backdrop-blur-sm dark:bg-slate-700 dark:ring-white/10"
+        data-test="articleOutlineResume"
+    >
+        <button
+            type="button"
+            class="flex min-w-0 flex-1 cursor-pointer items-center gap-2 overflow-hidden rounded-l-lg px-3.5 pb-2.5 pt-1.5 text-left text-sm text-zinc-800 hover:bg-zinc-300 dark:text-slate-50 dark:hover:bg-slate-600"
+            :aria-label="`${t('content.continueReading.action')} · ${progress ?? 0}%`"
+            data-test="articleOutlineResumeButton"
+            @click="onResume"
+        >
+            <ArrowUturnLeftIcon
+                class="h-4 w-4 flex-shrink-0 text-yellow-600 dark:text-yellow-400"
+                aria-hidden="true"
+            />
+            <span class="truncate font-medium">{{ t("content.continueReading.action") }}</span>
+            <span class="tabular-nums text-zinc-500 dark:text-slate-300">{{ progress ?? 0 }}%</span>
+        </button>
+        <button
+            type="button"
+            class="mr-1 flex-shrink-0 cursor-pointer self-start rounded-md p-1 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-800 dark:text-slate-300 dark:hover:bg-slate-600 dark:hover:text-slate-50"
+            :aria-label="t('content.continueReading.dismiss')"
+            data-test="articleOutlineDismiss"
+            @click="emit('dismiss')"
+        >
+            <XMarkIcon class="h-4 w-4" />
+        </button>
+        <span
+            class="pointer-events-none absolute inset-x-0 bottom-0 h-1 overflow-hidden rounded-b-lg bg-zinc-300 dark:bg-slate-600"
+            aria-hidden="true"
+            data-test="articleOutlineProgress"
+        >
+            <span
+                class="block h-full bg-yellow-500 transition-[width] duration-300 dark:bg-yellow-400"
+                :style="{ width: `${progress ?? 0}%` }"
+            />
+        </span>
+    </span>
+    <span
+        v-else-if="visible && !headings.length"
         class="relative flex max-w-full items-center overflow-hidden rounded-lg bg-zinc-200 px-3.5 pb-2.5 pt-1.5 text-sm text-zinc-800 shadow-md ring-1 ring-zinc-900/10 backdrop-blur-sm dark:bg-slate-700 dark:text-slate-50 dark:ring-white/10"
         data-test="articleOutlineTitle"
     >
@@ -239,6 +305,23 @@ function goToHeading(id: string) {
                 </span>
             </span>
         </template>
+        <button
+            v-if="resumable"
+            type="button"
+            role="menuitem"
+            class="mb-1 flex w-full cursor-pointer select-none items-center gap-2 border-b border-zinc-900/10 py-2 pl-4 pr-3 text-left text-sm font-medium leading-5 text-yellow-600 hover:bg-zinc-50 dark:border-white/10 dark:text-yellow-400 dark:hover:bg-slate-600"
+            data-test="articleOutlineResumeOption"
+            @click="onResume"
+        >
+            <ArrowUturnLeftIcon
+                class="h-4 w-4 flex-shrink-0"
+                aria-hidden="true"
+            />
+            <span class="flex-1">{{ t("content.continueReading.action") }}</span>
+            <span class="font-normal tabular-nums text-zinc-500 dark:text-slate-300">
+                {{ progress ?? 0 }}%
+            </span>
+        </button>
         <button
             v-for="h in headings"
             :key="h.id"

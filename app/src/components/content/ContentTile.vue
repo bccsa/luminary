@@ -240,7 +240,7 @@ const displayProgress = computed(() => Math.max(mediaProgress.value, readingProg
                             </p>
                         </div>
 
-                        <!-- Progress (playback or reading): same bar design as ContinueReadingPrompt, on the image's bottom edge. -->
+                        <!-- Progress (playback or reading): same bar design as the reading pill, on the image's bottom edge. -->
                         <div
                             v-if="showProgress && displayProgress > 0"
                             class="absolute inset-x-0 bottom-0 z-20 h-1 overflow-hidden rounded-b-lg bg-zinc-200 dark:bg-slate-600"
