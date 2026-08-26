@@ -4,7 +4,6 @@ import * as Sentry from "@sentry/vue";
 import { db, getSocket, removeCustomHeader, setCustomHeader } from "luminary-shared";
 import type { AuthProviderDto } from "luminary-shared";
 
-const OIDC_USER_PREFIX = "oidc.user:";
 const OIDC_STATE_PREFIX = "oidc.";
 const LEGACY_AUTH0_CACHE_PREFIX = "@@auth0spajs@@::";
 const LEGACY_AUTH0_STATE_PREFIX = "a0.spajs.";
@@ -73,7 +72,10 @@ function consumeForceReauthOnNextLogin(): boolean {
 }
 
 function authority(domain: string): string {
-    return /^https?:\/\//.test(domain) ? domain.replace(/\/$/, "") : `https://${domain}`;
+    const withScheme = /^https?:\/\//.test(domain) ? domain : `https://${domain}`;
+    // A trailing slash survives into `${authority}/.well-known/openid-configuration`,
+    // which some providers 404 on.
+    return withScheme.replace(/\/+$/, "");
 }
 
 function setProviderIdHeader(id: string | null): void {
@@ -138,6 +140,7 @@ export function readPersistedProvider(): PersistedProvider | null {
 export async function resolveActiveProvider(): Promise<ProviderConfig | null> {
     const persisted = readPersistedProvider();
     if (persisted) return persisted;
+    if (typeof localStorage === "undefined") return null;
     if (localStorage.getItem(ACTIVE_PROVIDER_KEY)) clearAuthCache();
     return null;
 }
@@ -171,16 +174,28 @@ function createManager(provider: ProviderConfig): UserManager {
 }
 
 let installedOidc: UserManager | null = null;
+/**
+ * Provider id of the current install, held next to `installedOidc` so a token and
+ * the provider it came from are always written together. `activeProviderId` can
+ * be cleared on its own to mark a sign-in as incomplete, so it cannot serve this
+ * role.
+ */
+let installedProviderId: string | null = null;
 
 function installManager(provider: ProviderConfig): UserManager {
     const manager = createManager(provider);
     installedOidc = manager;
+    installedProviderId = provider._id;
     isAuthPluginInstalled.value = true;
     setProviderIdHeader(provider._id);
+    // A superseded manager keeps emitting — a late signinSilent on the provider
+    // the user just switched away from would otherwise write the shared user ref.
     manager.events.addUserLoaded((loadedUser) => {
+        if (installedOidc !== manager) return;
         oidcUser.value = loadedUser;
     });
     manager.events.addUserUnloaded(() => {
+        if (installedOidc !== manager) return;
         oidcUser.value = null;
     });
     return manager;
@@ -201,19 +216,24 @@ export async function setupAuth(): Promise<void> {
         return;
     }
 
+    const url = new URL(location.href);
+    const isCallback = url.searchParams.has("code") && url.searchParams.has("state");
+    const cleanUrl = url.pathname + url.hash;
+
     const provider = await resolveActiveProvider();
     if (!provider) {
         // No provider selected yet. conditionalAuthGuard opens the provider
-        // modal because no OIDC manager was installed — nothing to do here.
+        // modal because no OIDC manager was installed. Nothing is left that can
+        // redeem a code, and leaving it in the URL keeps an authorization code
+        // in history and outbound Referer headers.
+        if (isCallback) history.replaceState(history.state, "", cleanUrl);
         return;
     }
 
     const manager = installManager(provider);
     isLoading.value = true;
+    let handled = false;
     try {
-        const url = new URL(location.href);
-        const isCallback = url.searchParams.has("code") && url.searchParams.has("state");
-        let handled = false;
         if (isCallback) {
             try {
                 oidcUser.value = await manager.signinRedirectCallback();
@@ -230,18 +250,23 @@ export async function setupAuth(): Promise<void> {
                 // Must run whether or not the callback succeeded: leaving
                 // code+state in the URL means every subsequent load retries
                 // and fails the exact same way, forever.
-                history.replaceState(history.state, "", url.pathname + (url.hash || "") || "/");
+                history.replaceState(history.state, "", cleanUrl);
             }
         } else {
             oidcUser.value = await manager.getUser();
         }
 
         const ok = await refreshTokenSilently();
-        if (!ok && !handled) {
-            // CMS has no unauthenticated state — returning-user with an expired
-            // refresh token gets prompted to re-login via the provider modal.
+        if (!ok) {
+            // Drop the provider id along with the missing token: main.ts reads it to
+            // decide whether to open an anonymous socket, and an anonymous handshake
+            // replaces the persisted accessMap and purges group-scoped local data.
             setProviderIdHeader(null);
-            openProviderModal();
+            // CMS has no unauthenticated state — returning-user with an expired
+            // refresh token gets prompted to re-login via the provider modal. A
+            // just-completed callback already established a session, so it is not
+            // prompted again.
+            if (!handled) openProviderModal();
         }
     } catch (error) {
         Sentry?.captureException(error);
@@ -252,6 +277,13 @@ export async function setupAuth(): Promise<void> {
 
 let refreshInFlight: Promise<boolean> | null = null;
 let refreshInFlightManager: UserManager | null = null;
+
+/**
+ * Bound on one silent-refresh attempt: oidc-client-ts puts no timeout on the
+ * refresh-token grant, and a request that never settles would hold the
+ * single-flight slot for every later caller until the page reloads.
+ */
+const REFRESH_TIMEOUT_MS = 30_000;
 
 /**
  * Refresh through the provider's OIDC refresh-token flow. With `ignoreCache`,
@@ -271,29 +303,41 @@ let refreshInFlightManager: UserManager | null = null;
  */
 export async function refreshTokenSilently(opts?: { ignoreCache?: boolean }): Promise<boolean> {
     const manager = installedOidc;
-    if (!manager) return false;
+    const providerId = installedProviderId;
+    if (!manager || !providerId) return false;
     if (refreshInFlight && refreshInFlightManager === manager) return refreshInFlight;
     refreshInFlightManager = manager;
     refreshInFlight = (async () => {
-        try {
+        const attempt = async (): Promise<boolean> => {
             let current = opts?.ignoreCache ? null : await manager.getUser();
             if (!current || current.expired) current = await manager.signinSilent();
             if (!current?.access_token) return false;
-            // A logout may have superseded this call while it was in flight —
-            // don't resurrect a session the user already left. Checked as
-            // "cleared to null", not "reassigned to something else": the latter
-            // also matches ordinary reassignment (e.g. a fresh installManager()
-            // for the same provider), which would wrongly reject a perfectly
-            // healthy refresh.
-            if (!installedOidc) return false;
+            // A logout (cleared to null) or a provider switch may have superseded
+            // this call while it was in flight — don't resurrect a session the user
+            // already left, and never pair one provider's token with another's id.
+            // Compared by provider id rather than manager identity so an ordinary
+            // re-install of the same provider still counts as current.
+            if (!installedOidc || installedProviderId !== providerId) return false;
             oidcUser.value = current;
             setCustomHeader("Authorization", `Bearer ${current.access_token}`);
-            getSocket().setAuth(current.access_token, activeProviderId.value);
+            // Re-assert the id: the API rejects a token that arrives without its
+            // provider, and the header may have been cleared while in flight.
+            setProviderIdHeader(providerId);
+            getSocket().setAuth(current.access_token, providerId);
             getSocket().reconnect();
             return true;
-        } catch {
-            return false;
+        };
+
+        let timeout: ReturnType<typeof setTimeout> | undefined;
+        try {
+            return await Promise.race([
+                attempt().catch(() => false),
+                new Promise<boolean>((resolve) => {
+                    timeout = setTimeout(() => resolve(false), REFRESH_TIMEOUT_MS);
+                }),
+            ]);
         } finally {
+            clearTimeout(timeout);
             // Only clear if this call is still the current one — a newer call
             // for a different (just-installed) manager may have already
             // replaced these while this one was still in flight.
@@ -371,6 +415,7 @@ export function useAuth() {
 /** Clear generic OIDC browser state, provider identity, and shared token. */
 export function clearAuthCache(): void {
     installedOidc = null;
+    installedProviderId = null;
     setProviderIdHeader(null);
     oidcUser.value = null;
     isAuthPluginInstalled.value = false;
@@ -381,7 +426,12 @@ export function clearAuthCache(): void {
     // logout (about to redirect or reload) — none of those want an extra
     // connect cycle competing with refreshTokenSilently()'s own reconnect().
     getSocket().setAuth("", null);
-    clearStoragePrefix(localStorage, OIDC_USER_PREFIX);
+    // oidc-client-ts keeps both the user (`oidc.user:…`) and in-flight signin state
+    // including the PKCE verifier (`oidc.<state-id>`) in localStorage, so the
+    // `oidc.` sweep has to cover localStorage — `oidc.user:` alone leaves every
+    // abandoned login's verifier behind. sessionStorage is swept too in case a
+    // custom stateStore is ever configured.
+    clearStoragePrefix(localStorage, OIDC_STATE_PREFIX);
     clearStoragePrefix(sessionStorage, OIDC_STATE_PREFIX);
     clearStoragePrefix(localStorage, LEGACY_AUTH0_CACHE_PREFIX);
     clearStoragePrefix(sessionStorage, LEGACY_AUTH0_STATE_PREFIX);

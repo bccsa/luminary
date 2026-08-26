@@ -28,6 +28,39 @@ const {
     mockAddUserUnloaded: vi.fn(),
 }));
 
+// The token and the provider id it belongs to are only observable where they
+// leave the module, so the shared socket is stubbed rather than connected.
+const { mockSetAuth, mockReconnect, mockConnect, mockSetCustomHeader, mockRemoveCustomHeader } =
+    vi.hoisted(() => ({
+        mockSetAuth: vi.fn(),
+        mockReconnect: vi.fn(),
+        mockConnect: vi.fn(),
+        mockSetCustomHeader: vi.fn(),
+        mockRemoveCustomHeader: vi.fn(),
+    }));
+
+vi.mock("luminary-shared", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("luminary-shared")>();
+    const socketStub = {
+        setAuth: mockSetAuth,
+        reconnect: mockReconnect,
+        connect: mockConnect,
+        disconnect: vi.fn(),
+        on: vi.fn(),
+        off: vi.fn(),
+        emit: vi.fn(),
+    };
+    // Proxy rather than a spread so the module's live bindings are preserved.
+    return new Proxy(actual, {
+        get(target, prop) {
+            if (prop === "getSocket") return () => socketStub;
+            if (prop === "setCustomHeader") return mockSetCustomHeader;
+            if (prop === "removeCustomHeader") return mockRemoveCustomHeader;
+            return Reflect.get(target, prop);
+        },
+    });
+});
+
 vi.mock("oidc-client-ts", () => ({
     UserManager: mockUserManager,
     WebStorageStateStore: mockWebStorageStateStore,
@@ -42,6 +75,7 @@ import {
     activeProviderId,
     clearAuthCache,
     hasPersistedSession,
+    isAuthenticated,
     isAuthPluginInstalled,
     loginWithProvider,
     openProviderModal,
@@ -52,6 +86,7 @@ import {
     setupAuth,
     showProviderSelectionModal,
     useAuth,
+    user,
 } from "./auth";
 import {
     LEGACY_AUTH0_CACHE_PREFIX,
@@ -113,6 +148,11 @@ function resetWorld(): void {
         mockClearStaleState,
         mockAddUserLoaded,
         mockAddUserUnloaded,
+        mockSetAuth,
+        mockReconnect,
+        mockConnect,
+        mockSetCustomHeader,
+        mockRemoveCustomHeader,
     ])
         mock.mockReset();
     installManagerMock();
@@ -162,6 +202,16 @@ describe("auth", () => {
             expect(sessionStorage.getItem("oidc.pending")).toBeNull();
         });
 
+        it("resolves to null without touching storage where localStorage does not exist", async () => {
+            // auth.ts is importable from the Node prerender, which has no storage.
+            vi.stubGlobal("localStorage", undefined);
+            try {
+                await expect(resolveActiveProvider()).resolves.toBeNull();
+            } finally {
+                vi.unstubAllGlobals();
+            }
+        });
+
         it("returns null for corrupt persisted JSON", async () => {
             localStorage.setItem(ACTIVE_PROVIDER_KEY, "{not valid json");
 
@@ -181,6 +231,29 @@ describe("auth", () => {
                 audience: providerA.audience,
             });
             expect(localStorage.getItem(ACTIVE_PROVIDER_KEY)).not.toContain("access_token");
+        });
+
+        it("survives a storage write that throws, since a redirect must still proceed", () => {
+            const setItem = vi.spyOn(localStorage, "setItem").mockImplementation(() => {
+                throw new Error("QuotaExceededError");
+            });
+            try {
+                expect(() => persistActiveProvider(providerA)).not.toThrow();
+                expect(setItem).toHaveBeenCalled();
+                expect(readPersistedProvider()).toBeNull();
+            } finally {
+                setItem.mockRestore();
+            }
+        });
+
+        it("writes nothing where localStorage does not exist", () => {
+            vi.stubGlobal("localStorage", undefined);
+            try {
+                expect(() => persistActiveProvider(providerA)).not.toThrow();
+                expect(readPersistedProvider()).toBeNull();
+            } finally {
+                vi.unstubAllGlobals();
+            }
         });
 
         it("returns null when a required client setting is missing", () => {
@@ -219,6 +292,18 @@ describe("auth", () => {
             });
             expect(mockAddUserLoaded).toHaveBeenCalledTimes(1);
             expect(mockAddUserUnloaded).toHaveBeenCalledTimes(1);
+        });
+
+        it("omits the audience parameter for a provider that does not set one", async () => {
+            mockClearStaleState.mockResolvedValue(undefined);
+            mockSigninRedirect.mockResolvedValue(undefined);
+
+            // A strict OIDC provider can reject `audience=` outright.
+            await loginWithProvider({ ...providerA, audience: "" });
+
+            expect(mockUserManager).toHaveBeenLastCalledWith(
+                expect.objectContaining({ extraQueryParams: undefined }),
+            );
         });
 
         it("does not add an empty prompt parameter", async () => {
@@ -295,6 +380,26 @@ describe("auth", () => {
             await loginWithProvider(providerA);
             mockGetUser.mockReset();
             mockSigninSilent.mockReset();
+        });
+
+        it("gives up on a token request that never settles, so the next caller isn't stuck", async () => {
+            vi.useFakeTimers();
+            try {
+                mockSigninSilent.mockReturnValue(new Promise(() => {}));
+
+                const hung = refreshTokenSilently({ ignoreCache: true });
+                await vi.advanceTimersByTimeAsync(30_000);
+
+                await expect(hung).resolves.toBe(false);
+
+                // The single-flight slot is free again: a hung request must not
+                // leave auth unrecoverable for every later caller.
+                mockSigninSilent.mockResolvedValue(user);
+                await expect(refreshTokenSilently({ ignoreCache: true })).resolves.toBe(true);
+                expect(mockSigninSilent).toHaveBeenCalledTimes(2);
+            } finally {
+                vi.useRealTimers();
+            }
         });
 
         it("uses the existing unexpired user on the normal boot path", async () => {
@@ -385,8 +490,52 @@ describe("auth", () => {
 
             resolveFirst({ access_token: "a-token", expired: false, profile: { sub: "user-a" } });
 
-            await expect(firstRefresh).resolves.toBe(true);
+            // Provider A's refresh lands after the switch. It must abandon its
+            // result: pairing A's token with B's provider id is rejected by the
+            // API outright, which reads to the user as a spontaneous logout.
+            await expect(firstRefresh).resolves.toBe(false);
             await expect(secondRefresh).resolves.toBe(true);
+            expect(mockSigninSilent).toHaveBeenCalledTimes(2);
+            expect(activeProviderId.value).toBe(providerB._id);
+            expect(mockSetAuth).toHaveBeenLastCalledWith("b-token", providerB._id);
+            expect(mockSetAuth).not.toHaveBeenCalledWith("a-token", providerB._id);
+        });
+
+        it("keeps the current flight's slot when a superseded refresh settles late", async () => {
+            mockClearStaleState.mockResolvedValue(undefined);
+            mockSigninRedirect.mockResolvedValue(undefined);
+
+            let resolveA!: (user: unknown) => void;
+            mockSigninSilent.mockImplementationOnce(
+                () =>
+                    new Promise((resolve) => {
+                        resolveA = resolve;
+                    }),
+            );
+            const staleRefresh = refreshTokenSilently({ ignoreCache: true });
+
+            await loginWithProvider(providerB);
+            let resolveB!: (user: unknown) => void;
+            mockSigninSilent.mockImplementationOnce(
+                () =>
+                    new Promise((resolve) => {
+                        resolveB = resolve;
+                    }),
+            );
+            const currentRefresh = refreshTokenSilently({ ignoreCache: true });
+
+            // Provider A's abandoned refresh settles first. Releasing the slot here
+            // would let the next caller POST provider B's refresh token a second
+            // time while B's own request is still open — rotation then invalidates
+            // one of them and the user is signed out at random.
+            resolveA({ access_token: "a-token", expired: false, profile: { sub: "user-a" } });
+            await expect(staleRefresh).resolves.toBe(false);
+
+            const joiner = refreshTokenSilently({ ignoreCache: true });
+            resolveB({ access_token: "b-token", expired: false, profile: { sub: "user-b" } });
+
+            await expect(currentRefresh).resolves.toBe(true);
+            await expect(joiner).resolves.toBe(true);
             expect(mockSigninSilent).toHaveBeenCalledTimes(2);
         });
 
@@ -490,6 +639,25 @@ describe("auth", () => {
             expect(mockUserManager).not.toHaveBeenCalled();
             expect(activeProviderId.value).toBeNull();
         });
+
+        it("strips an unredeemable code from the URL when no provider is selected", async () => {
+            history.replaceState(null, "", "/callback?code=abc&state=xyz#section");
+
+            await setupAuth(appStub, routerStub);
+
+            // Nothing is left that can redeem it, and leaving it in the URL keeps
+            // an authorization code in history and outbound Referer headers.
+            expect(mockUserManager).not.toHaveBeenCalled();
+            expect(routerStub.replace).toHaveBeenCalledWith("/callback#section");
+        });
+
+        it("leaves a URL that carries no callback parameters untouched", async () => {
+            history.replaceState(null, "", "/dashboard?tab=posts");
+
+            await setupAuth(appStub, routerStub);
+
+            expect(routerStub.replace).not.toHaveBeenCalled();
+        });
     });
 
     describe("useAuth", () => {
@@ -506,6 +674,32 @@ describe("auth", () => {
 
             expect(mockSigninRedirect).toHaveBeenCalledTimes(1);
             expect(mockSignoutRedirect).toHaveBeenCalledTimes(1);
+        });
+
+        it("carries id_token_hint captured before the cache is wiped", async () => {
+            await loginWithProvider(providerA);
+            const userLoaded = mockAddUserLoaded.mock.calls.at(-1)?.[0];
+            userLoaded?.({
+                access_token: "a-token",
+                id_token: "an-id-token",
+                expired: false,
+                profile: { sub: "user-a" },
+            });
+
+            await useAuth().logout();
+
+            // clearAuthCache() wipes the user before the redirect is issued, so the
+            // hint has to be read first or the provider gets a bare signout.
+            expect(mockSignoutRedirect).toHaveBeenCalledWith({ id_token_hint: "an-id-token" });
+        });
+
+        it("is inert before a provider has been installed", async () => {
+            const { loginWithRedirect, logout } = useAuth();
+
+            await expect(logout()).resolves.toBeUndefined();
+            expect(loginWithRedirect()).toBeUndefined();
+            expect(mockSignoutRedirect).not.toHaveBeenCalled();
+            expect(mockSigninRedirect).not.toHaveBeenCalled();
         });
 
         it("reloads locally when the IdP signout redirect fails (e.g. no end_session_endpoint)", async () => {
@@ -549,6 +743,34 @@ describe("auth", () => {
             expect(mockSigninRedirect).toHaveBeenCalledWith({
                 extraQueryParams: { prompt: "login" },
             });
+        });
+
+        it("does not look for the flag where localStorage does not exist", async () => {
+            vi.stubGlobal("localStorage", undefined);
+            try {
+                await loginWithProvider(providerA);
+
+                expect(mockSigninRedirect).toHaveBeenLastCalledWith({
+                    extraQueryParams: undefined,
+                });
+            } finally {
+                vi.unstubAllGlobals();
+            }
+        });
+
+        it("still signs out when the shared-device flag cannot be written", async () => {
+            await loginWithProvider(providerA);
+            const setItem = vi.spyOn(localStorage, "setItem").mockImplementation(() => {
+                throw new Error("QuotaExceededError");
+            });
+            try {
+                await useAuth().logout({ forceReauthOnNextLogin: true });
+            } finally {
+                setItem.mockRestore();
+            }
+
+            // The flag is hardening; losing it must not strand the user signed in.
+            expect(mockSignoutRedirect).toHaveBeenCalled();
         });
 
         it("does not force a prompt after a plain logout", async () => {
@@ -613,6 +835,40 @@ describe("auth", () => {
             expect(sessionStorage.getItem("unrelated")).toBe("keep");
         });
 
+        it("strips the socket's credentials so a later reconnect can't carry them", () => {
+            clearAuthCache();
+
+            expect(mockSetAuth).toHaveBeenCalledWith("", null);
+            expect(mockRemoveCustomHeader).toHaveBeenCalledWith("Authorization");
+            expect(mockRemoveCustomHeader).toHaveBeenCalledWith("x-auth-provider-id");
+        });
+
+        it("clears an abandoned login's PKCE state, which oidc-client-ts keeps in localStorage", () => {
+            // oidc-client-ts stores signin state under `oidc.<state-id>` in
+            // localStorage, next to the `oidc.user:` entry. Sweeping only the
+            // user prefix leaves every abandoned login's code_verifier behind.
+            localStorage.setItem("oidc.b8f3c1de9a", '{"code_verifier":"secret"}');
+
+            clearAuthCache();
+
+            expect(localStorage.getItem("oidc.b8f3c1de9a")).toBeNull();
+        });
+
+        it("completes even when removing the provider key throws", () => {
+            const removeItem = vi
+                .spyOn(localStorage, "removeItem")
+                .mockImplementation((key: string) => {
+                    if (key === ACTIVE_PROVIDER_KEY) throw new Error("SecurityError");
+                });
+            try {
+                expect(() => clearAuthCache()).not.toThrow();
+                expect(removeItem).toHaveBeenCalledWith(ACTIVE_PROVIDER_KEY);
+                expect(activeProviderId.value).toBeNull();
+            } finally {
+                removeItem.mockRestore();
+            }
+        });
+
         it("removes the installed manager so a later refresh is safe", async () => {
             mockClearStaleState.mockResolvedValue(undefined);
             mockSigninRedirect.mockResolvedValue(undefined);
@@ -620,6 +876,137 @@ describe("auth", () => {
             clearAuthCache();
 
             await expect(refreshTokenSilently()).resolves.toBe(false);
+        });
+    });
+
+    describe("provider identity", () => {
+        beforeEach(() => {
+            mockClearStaleState.mockResolvedValue(undefined);
+            mockSigninRedirect.mockResolvedValue(undefined);
+        });
+
+        it("sends a token and the provider id it was issued for together", async () => {
+            await loginWithProvider(providerA);
+            mockGetUser.mockResolvedValue({
+                access_token: "a-token",
+                expired: false,
+                profile: { sub: "user-a" },
+            });
+
+            await expect(refreshTokenSilently()).resolves.toBe(true);
+
+            // The API rejects a token that arrives without its provider outright,
+            // so the pair must never be split.
+            expect(mockSetAuth).toHaveBeenLastCalledWith("a-token", providerA._id);
+            expect(activeProviderId.value).toBe(providerA._id);
+            // REST carries the same token as the socket handshake.
+            expect(mockSetCustomHeader).toHaveBeenCalledWith("Authorization", "Bearer a-token");
+            expect(mockSetCustomHeader).toHaveBeenCalledWith("x-auth-provider-id", providerA._id);
+            // A fresh token is worthless until the rejected connection is retried.
+            expect(mockReconnect).toHaveBeenCalled();
+        });
+
+        it("re-asserts the provider id when a failed sign-in cleared it", async () => {
+            await loginWithProvider(providerA);
+            // Mirrors the state left by a sign-in that installed a manager but
+            // could not complete: the header is cleared, the manager stays.
+            activeProviderId.value = null;
+            mockGetUser.mockResolvedValue({
+                access_token: "a-token",
+                expired: false,
+                profile: { sub: "user-a" },
+            });
+
+            await expect(refreshTokenSilently()).resolves.toBe(true);
+
+            expect(mockSetAuth).toHaveBeenLastCalledWith("a-token", providerA._id);
+            expect(mockSetAuth).not.toHaveBeenCalledWith("a-token", null);
+            expect(activeProviderId.value).toBe(providerA._id);
+            expect(mockSetCustomHeader).toHaveBeenCalledWith("x-auth-provider-id", providerA._id);
+        });
+
+        it("ignores user events from a manager the user has switched away from", async () => {
+            await loginWithProvider(providerA);
+            const providerAUserLoaded = mockAddUserLoaded.mock.calls.at(-1)?.[0];
+            await loginWithProvider(providerB);
+            const providerBUserLoaded = mockAddUserLoaded.mock.calls.at(-1)?.[0];
+
+            providerBUserLoaded?.({
+                access_token: "b-token",
+                expired: false,
+                profile: { sub: "user-b" },
+            });
+            // A late signinSilent on the abandoned provider still fires its
+            // events; they must not overwrite the current session.
+            providerAUserLoaded?.({
+                access_token: "a-token",
+                expired: false,
+                profile: { sub: "user-a" },
+            });
+
+            expect(isAuthenticated.value).toBe(true);
+            expect(user.value?.sub).toBe("user-b");
+        });
+
+        it("still clears the session when the current manager unloads its user", async () => {
+            await loginWithProvider(providerA);
+            const userLoaded = mockAddUserLoaded.mock.calls.at(-1)?.[0];
+            const userUnloaded = mockAddUserUnloaded.mock.calls.at(-1)?.[0];
+
+            userLoaded?.({ access_token: "a-token", expired: false, profile: { sub: "user-a" } });
+            expect(isAuthenticated.value).toBe(true);
+
+            userUnloaded?.();
+
+            expect(isAuthenticated.value).toBe(false);
+        });
+
+        it("ignores an unload from a manager the user has switched away from", async () => {
+            await loginWithProvider(providerA);
+            const providerAUserUnloaded = mockAddUserUnloaded.mock.calls.at(-1)?.[0];
+            await loginWithProvider(providerB);
+            const providerBUserLoaded = mockAddUserLoaded.mock.calls.at(-1)?.[0];
+
+            providerBUserLoaded?.({
+                access_token: "b-token",
+                expired: false,
+                profile: { sub: "user-b" },
+            });
+            // The abandoned manager unloads its own user on teardown; that must
+            // not sign out the provider the user actually switched to.
+            providerAUserUnloaded?.();
+
+            expect(isAuthenticated.value).toBe(true);
+            expect(user.value?.sub).toBe("user-b");
+        });
+
+        it("makes a cleared manager's late user events inert", async () => {
+            await loginWithProvider(providerA);
+            const userLoaded = mockAddUserLoaded.mock.calls.at(-1)?.[0];
+
+            clearAuthCache();
+            // A signinSilent still in flight when the cache was cleared fires its
+            // events regardless; it must not restore the session just left.
+            userLoaded?.({ access_token: "a-token", expired: false, profile: { sub: "user-a" } });
+
+            expect(isAuthenticated.value).toBe(false);
+        });
+
+        it("keeps an explicit scheme and strips repeated trailing slashes", async () => {
+            await loginWithProvider({ ...providerA, domain: "https://acme.example.com//" });
+
+            expect(mockUserManager).toHaveBeenLastCalledWith(
+                expect.objectContaining({ authority: "https://acme.example.com" }),
+            );
+        });
+
+        it("normalises a trailing slash out of a scheme-less provider domain", async () => {
+            await loginWithProvider({ ...providerA, domain: "acme.auth0.com/" });
+
+            // A trailing slash would yield `…com//.well-known/openid-configuration`.
+            expect(mockUserManager).toHaveBeenLastCalledWith(
+                expect.objectContaining({ authority: "https://acme.auth0.com" }),
+            );
         });
     });
 

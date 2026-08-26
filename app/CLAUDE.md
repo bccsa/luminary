@@ -34,9 +34,9 @@ The boot sequence is order-sensitive — read `main.ts` before reordering anythi
 1. Pinia is installed early so watchers registered during startup can resolve stores.
 2. `warmMangoCaches()` hydrates Mango query caches from localStorage before any IDB query.
 3. `init()` from `luminary-shared` sets up IndexedDB and the socket. What gets synced (and which socket rooms are joined) is owned by the sync engine in `src/sync.ts` (`AuthProvider`, `Tag`, `Post`, `Language`, `Redirect`, `Storage`; `contentOnly` docs scoped by language) — not declared in the `init()` config.
-4. A `connect_error` listener for `auth_failed` is registered **before** `setupAuth()` — otherwise the first failure event is lost and the client loops. Handles `provider_not_found` (forces provider re-pick) and silent refresh via `refreshTokenSilently({ ignoreCache: true })`.
+4. `registerAuthFailureHandler()` (`src/authFailure.ts`) attaches the `connect_error` listener for `auth_failed` **before** `setupAuth()` — otherwise the first failure event is lost and the client loops. Handles `provider_not_found` (clear credentials, open the provider modal, then reconnect anonymously so `AuthProvider` docs can still sync into it) and silent refresh via `refreshTokenSilently({ ignoreCache: true })`. `initAuthLangSync()` runs next, still before `setupAuth()`, so the watcher is listening when the first `isConnected`/`accessMap` transition lands.
 5. i18n is initialised before mount because splash-screen components call `useI18n()` at setup time.
-6. After mount: `initAuthLangSync`, `initLanguage`, `initSync`, plugin loading, then `markAppReady()`.
+6. After mount: `initLanguage`, `initSync`, plugin loading, then `markAppReady()`.
 
 ### Web/SSG startup (`src/main.web.ts`)
 
@@ -50,7 +50,7 @@ There is no Vuex/Pinia-managed document cache. Documents come from `luminary-sha
 
 ### Auth (`src/auth.ts`)
 
-Uses `@auth0/auth0-vue` with multiple providers selected at runtime from `AuthProvider` docs. The provider modal, silent refresh, and Auth0 cache clearing are all entry points used from `main.ts`'s error handler — keep them exported.
+Generic OIDC via `oidc-client-ts` (`UserManager`), not a Vue plugin — `useAuth()` is a plain function reading module-level refs. Multiple providers are selected at runtime from `AuthProvider` docs; the full config (`_id`/`domain`/`clientId`/`audience`) is persisted to localStorage so resolution never depends on Dexie or IdP-specific cache-key formats. The provider modal, silent refresh, and cache clearing are entry points used from `src/authFailure.ts` — keep them exported. A token and the provider id it was issued for are always written together (`installedProviderId`); the API rejects a token that arrives without its provider.
 
 ### Routing & pages
 
@@ -85,5 +85,5 @@ Supported flags (see `README.md` for full list): `autoplay=true`, `autofullscree
 - Path alias `@` → `src/` (configured in `vite.config.ts` and tsconfig).
 - Tailwind for styling; `prettier-plugin-tailwindcss` reorders classes on format.
 - Sentry is initialised via `src/util/initSentry.ts`; use the exported `Sentry` (may be undefined when DSN is unset) — always null-check.
-- `src/main.ts`, `src/analytics.ts`, `src/auth.ts`, and `src/guards/**` are excluded from coverage; don't chase coverage there.
+- `src/main.ts`, `src/analytics.ts`, and `src/guards/**` are excluded from coverage; don't chase coverage there. `src/auth.ts` is covered by `src/auth.spec.ts` and is not excluded.
 - Vitest globals are enabled (`describe`/`it`/`expect` are ambient).
