@@ -210,7 +210,7 @@ function onResume() {
     >
         <button
             type="button"
-            class="flex min-w-0 flex-1 cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-l-lg px-3.5 pb-2.5 pt-1.5 text-center text-sm text-zinc-800 hover:bg-zinc-300 dark:text-slate-50 dark:hover:bg-slate-600"
+            class="flex min-w-0 flex-1 cursor-pointer items-center justify-center gap-1.5 overflow-hidden rounded-l-lg pb-2.5 pl-2.5 pr-1 pt-1.5 text-center text-sm text-zinc-800 hover:bg-zinc-300 dark:text-slate-50 dark:hover:bg-slate-600"
             :aria-label="`${t('content.continueReading.action')} · ${progress ?? 0}%`"
             data-test="articleOutlineResumeButton"
             @click="onResume"
