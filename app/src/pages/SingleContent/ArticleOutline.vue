@@ -184,7 +184,7 @@ function goToHeading(id: string) {
     <DropdownMenu
         v-else-if="visible"
         v-model:open="open"
-        placement="bottom-start"
+        placement="bottom-center"
         panel-class="max-h-[60vh] w-72 max-w-[calc(100vw-2rem)] overflow-y-auto py-1"
         class="min-w-0 max-w-full"
         data-test="articleOutline"
