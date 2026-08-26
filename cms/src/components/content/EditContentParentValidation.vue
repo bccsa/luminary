@@ -299,7 +299,7 @@ watch(
                     v-if="!(canTranslate || canPublish) || !canEdit"
                     class="mb-1 rounded-md bg-zinc-50 p-2 shadow"
                 >
-                    <span v-if="!canTranslate" class="mb-1 flex gap-1 text-xs text-zinc-600">
+                    <span v-if="!canTranslate" class="mb-1 flex gap-1 text-xs dark:text-zinc-100">
                         <ExclamationCircleIcon class="h-4 min-h-4 w-4 min-w-4 text-red-400" />No
                         translate permission</span
                     >
@@ -321,7 +321,9 @@ watch(
                         >
                             <div class="flex items-center gap-2">
                                 <XCircleIcon class="h-[18px] w-[18px] min-w-[18px] text-red-400" />
-                                <span class="text-xs text-zinc-700">{{ validation.message }}</span>
+                                <span class="text-xs dark:text-zinc-100">{{
+                                    validation.message
+                                }}</span>
                             </div>
                         </div>
                     </div>
