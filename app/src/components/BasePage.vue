@@ -31,6 +31,14 @@ const { onBackClick } = useBackNavigation();
 
 const main = ref<HTMLElement | undefined>(undefined);
 
+// The fade under the pinned chrome only makes sense once content has scrolled beneath it;
+// at the top it would dim the page title that shares the row.
+const scrolled = ref(false);
+const onMainScroll = () => {
+    scrolled.value = (main.value?.scrollTop ?? 0) > 0;
+};
+const topChromeFade = "bg-gradient-to-b from-white from-40% to-transparent dark:from-slate-900";
+
 // Expose the scrolling <main> to descendants (e.g. SearchPanel in page mode) so they can drive
 // infinite scroll off the page's real scroll container instead of an internal one.
 provide("appMainScrollEl", main);
@@ -44,10 +52,12 @@ const handleArrowKeyFocus = (e: KeyboardEvent) => {
 onMounted(() => {
     if (isSSG) setTimeout(() => (notificationsReady.value = true), SSG_NOTIFICATION_DELAY_MS);
     document.addEventListener("keydown", handleArrowKeyFocus);
+    main.value?.addEventListener("scroll", onMainScroll, { passive: true });
 });
 
 onUnmounted(() => {
     document.removeEventListener("keydown", handleArrowKeyFocus);
+    main.value?.removeEventListener("scroll", onMainScroll);
 });
 </script>
 
@@ -97,7 +107,8 @@ onUnmounted(() => {
                      The fade below the controls row lets content dissolve under the chrome. -->
                 <div
                     v-if="desktopTopBar"
-                    class="pointer-events-none sticky top-0 z-20 -mb-14 hidden h-14 items-start bg-gradient-to-b from-white from-40% to-transparent dark:from-slate-900 lg:flex"
+                    class="pointer-events-none sticky top-0 z-20 -mb-14 hidden h-14 items-start lg:flex"
+                    :class="{ [topChromeFade]: scrolled }"
                 >
                     <div class="flex h-9 w-full items-center">
                         <RouterLink
@@ -128,7 +139,8 @@ onUnmounted(() => {
                      area with the same collapsed flow height, so it floats over the content. -->
                 <div
                     v-if="$slots.topBarCenter"
-                    class="pointer-events-none sticky top-0 z-20 -mb-14 flex h-14 items-start justify-center bg-gradient-to-b from-white from-40% to-transparent dark:from-slate-900 lg:hidden"
+                    class="pointer-events-none sticky top-0 z-20 -mb-14 flex h-14 items-start justify-center lg:hidden"
+                    :class="{ [topChromeFade]: scrolled }"
                 >
                     <div
                         class="pointer-events-auto flex h-9 min-w-0 max-w-full items-center justify-center"
