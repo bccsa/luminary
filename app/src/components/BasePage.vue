@@ -39,9 +39,12 @@ const scrolled = ref(false);
 // Reading pages let the mobile top bar and bottom menu step aside while scrolling down.
 const mobileChrome = useMobileChromeAutoHide();
 const onMainScroll = () => {
-    const scrollTop = main.value?.scrollTop ?? 0;
+    const el = main.value;
+    const scrollTop = el?.scrollTop ?? 0;
     scrolled.value = scrollTop >= TOP_CHROME_H;
-    if (props.desktopTopBar) mobileChrome.onScroll(scrollTop);
+    if (props.desktopTopBar && el) {
+        mobileChrome.onScroll(scrollTop, el.scrollHeight - el.clientHeight - scrollTop);
+    }
 };
 // Shared so whatever a page puts in the centre slot can reveal itself in step with the fade.
 provide("topChromeScrolled", scrolled);

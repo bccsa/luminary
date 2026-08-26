@@ -38,6 +38,14 @@ describe("useMobileChromeAutoHide", () => {
         expect(chrome.hidden.value).toBe(false);
     });
 
+    it("comes back when the end of the page is reached while scrolling down", () => {
+        chrome.onScroll(300, 2000);
+        chrome.onScroll(400, 1900);
+        expect(chrome.hidden.value).toBe(true);
+        chrome.onScroll(2250, 50);
+        expect(chrome.hidden.value).toBe(false);
+    });
+
     it("is shared between callers and cleared by reset", () => {
         chrome.onScroll(200);
         chrome.onScroll(300);

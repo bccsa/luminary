@@ -4,6 +4,8 @@ import { ref } from "vue";
 const SHOW_NEAR_TOP_PX = 80;
 /** Minimum movement in one direction before the chrome reacts, so jitter doesn't toggle it. */
 const DIRECTION_THRESHOLD_PX = 12;
+/** Remaining scroll distance below which the chrome comes back — the reader has arrived. */
+const SHOW_NEAR_END_PX = 80;
 
 // Shared across the app shell: the page that owns the scroll container reports scrolling,
 // while the top bar (BasePage) and the bottom menu (App.vue) read the result.
@@ -15,10 +17,14 @@ let lastScrollTop = 0;
  * down, comes back as soon as they scroll up or return to the top.
  */
 export function useMobileChromeAutoHide() {
-    function onScroll(scrollTop: number) {
+    /**
+     * @param scrollTop current scroll offset
+     * @param remaining distance left to the end of the scroll range, when known
+     */
+    function onScroll(scrollTop: number, remaining = Infinity) {
         const delta = scrollTop - lastScrollTop;
 
-        if (scrollTop <= SHOW_NEAR_TOP_PX) {
+        if (scrollTop <= SHOW_NEAR_TOP_PX || remaining <= SHOW_NEAR_END_PX) {
             hidden.value = false;
             lastScrollTop = scrollTop;
             return;
