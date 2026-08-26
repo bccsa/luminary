@@ -9,6 +9,7 @@ import { queryParams } from "@/globalConfig";
 import type { ContentDto } from "luminary-shared";
 import { ChevronLeftIcon } from "@heroicons/vue/24/outline";
 import { useBackNavigation } from "@/composables/useBackNavigation";
+import { useMobileChromeAutoHide } from "@/composables/useMobileChromeAutoHide";
 
 const showNotifications = !queryParams.has("supress-notifications");
 
@@ -19,7 +20,7 @@ const isSSG = import.meta.env.VITE_BUILD_TARGET === "web";
 const SSG_NOTIFICATION_DELAY_MS = 3000;
 const notificationsReady = ref(!isSSG);
 
-defineProps<{
+const props = defineProps<{
     content?: ContentDto;
     showBackButton?: boolean;
     desktopTopBar?: boolean;
@@ -35,8 +36,12 @@ const main = ref<HTMLElement | undefined>(undefined);
 // it; until the strip's own height has gone by, what sits under it is still the page title.
 const TOP_CHROME_H = 56;
 const scrolled = ref(false);
+// Reading pages let the mobile top bar and bottom menu step aside while scrolling down.
+const mobileChrome = useMobileChromeAutoHide();
 const onMainScroll = () => {
-    scrolled.value = (main.value?.scrollTop ?? 0) >= TOP_CHROME_H;
+    const scrollTop = main.value?.scrollTop ?? 0;
+    scrolled.value = scrollTop >= TOP_CHROME_H;
+    if (props.desktopTopBar) mobileChrome.onScroll(scrollTop);
 };
 // Shared so whatever a page puts in the centre slot can reveal itself in step with the fade.
 provide("topChromeScrolled", scrolled);
@@ -76,6 +81,7 @@ onMounted(() => {
 onUnmounted(() => {
     document.removeEventListener("keydown", handleArrowKeyFocus);
     main.value?.removeEventListener("scroll", onMainScroll);
+    mobileChrome.reset();
 });
 </script>
 
@@ -87,13 +93,25 @@ onUnmounted(() => {
 
         <!-- Content column -->
         <div class="flex min-w-0 flex-1 flex-col scrollbar-hide">
-            <!-- Mobile top bar -->
-            <TopBar
-                :showBackButton="showBackButton"
-                class="border-b-2 border-b-zinc-200/50 dark:border-b-slate-950/50 lg:hidden"
+            <!-- Mobile top bar. Collapses via grid rows (no height to measure) while the
+                 reader scrolls down, and returns on the first scroll up. -->
+            <div
+                class="grid transition-[grid-template-rows] duration-300 ease-out lg:hidden"
+                :class="
+                    mobileChrome.hidden.value
+                        ? '[grid-template-rows:0fr]'
+                        : '[grid-template-rows:1fr]'
+                "
             >
-                <template #quickControls><slot name="quickControls" /></template>
-            </TopBar>
+                <div class="min-h-0 overflow-hidden">
+                    <TopBar
+                        :showBackButton="showBackButton"
+                        class="border-b-2 border-b-zinc-200/50 dark:border-b-slate-950/50"
+                    >
+                        <template #quickControls><slot name="quickControls" /></template>
+                    </TopBar>
+                </div>
+            </div>
 
             <Teleport
                 v-if="notificationsReady"
