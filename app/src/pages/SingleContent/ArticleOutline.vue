@@ -178,17 +178,21 @@ function goToHeading(id: string) {
 <template>
     <span
         v-if="visible && !headings.length"
-        class="relative flex max-w-full items-center overflow-hidden rounded-full bg-zinc-200 px-3.5 py-1.5 text-sm text-zinc-800 shadow-md ring-1 ring-zinc-900/10 backdrop-blur-sm dark:bg-slate-700 dark:text-slate-50 dark:ring-white/10"
+        class="relative flex max-w-full items-center overflow-hidden rounded-lg bg-zinc-200 px-3.5 pb-2.5 pt-1.5 text-sm text-zinc-800 shadow-md ring-1 ring-zinc-900/10 backdrop-blur-sm dark:bg-slate-700 dark:text-slate-50 dark:ring-white/10"
         data-test="articleOutlineTitle"
     >
         <span class="truncate font-medium">{{ title }}</span>
         <span
             v-if="progress !== undefined"
-            class="pointer-events-none absolute inset-x-0 bottom-0 h-0.5 bg-yellow-500 transition-[width] duration-150 ease-out dark:bg-yellow-400"
-            :style="{ width: `${progress}%` }"
+            class="pointer-events-none absolute inset-x-0 bottom-0 h-1 bg-zinc-300 dark:bg-slate-600"
             aria-hidden="true"
             data-test="articleOutlineProgress"
-        />
+        >
+            <span
+                class="block h-full bg-yellow-500 transition-[width] duration-300 dark:bg-yellow-400"
+                :style="{ width: `${progress}%` }"
+            />
+        </span>
     </span>
     <DropdownMenu
         v-else-if="visible"
@@ -200,7 +204,7 @@ function goToHeading(id: string) {
     >
         <template #trigger>
             <span
-                class="relative flex max-w-full items-center gap-1.5 overflow-hidden rounded-full bg-zinc-200 px-3.5 py-1.5 text-sm text-zinc-800 shadow-md ring-1 ring-zinc-900/10 backdrop-blur-sm hover:bg-zinc-300 dark:bg-slate-700 dark:text-slate-50 dark:ring-white/10 dark:hover:bg-slate-600"
+                class="relative flex max-w-full items-center gap-1.5 overflow-hidden rounded-lg bg-zinc-200 px-3.5 pb-2.5 pt-1.5 text-sm text-zinc-800 shadow-md ring-1 ring-zinc-900/10 backdrop-blur-sm hover:bg-zinc-300 dark:bg-slate-700 dark:text-slate-50 dark:ring-white/10 dark:hover:bg-slate-600"
                 :aria-label="`Current section: ${activeHeading?.text ?? ''}`"
                 data-test="articleOutlineTrigger"
             >
@@ -212,11 +216,15 @@ function goToHeading(id: string) {
                 />
                 <span
                     v-if="progress !== undefined"
-                    class="pointer-events-none absolute inset-x-0 bottom-0 h-0.5 bg-yellow-500 transition-[width] duration-150 ease-out dark:bg-yellow-400"
-                    :style="{ width: `${progress}%` }"
+                    class="pointer-events-none absolute inset-x-0 bottom-0 h-1 bg-zinc-300 dark:bg-slate-600"
                     aria-hidden="true"
                     data-test="articleOutlineProgress"
-                />
+                >
+                    <span
+                        class="block h-full bg-yellow-500 transition-[width] duration-300 dark:bg-yellow-400"
+                        :style="{ width: `${progress}%` }"
+                    />
+                </span>
             </span>
         </template>
         <button

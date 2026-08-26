@@ -44,12 +44,12 @@ provide("topChromeScrolled", scrolled);
 // Backing that lifts the pinned controls off whatever scrolls beneath them (hero images,
 // text); fades in with the chrome so nothing changes at rest.
 const controlBacking =
-    "transition-[background-color,box-shadow] duration-500 ease-out rounded-full ring-1 ring-transparent";
+    "transition-[background-color,box-shadow] duration-500 ease-out rounded-lg ring-1 ring-transparent";
 const controlBackingOn =
     "bg-zinc-200 shadow-md !ring-zinc-900/10 dark:bg-slate-700 dark:!ring-white/10";
 // Same treatment applied to each quick control individually, so they read as separate pills.
 const quickControlBacking =
-    "[&>*]:rounded-full [&>*]:ring-1 [&>*]:ring-transparent [&>*]:transition-[background-color,box-shadow] [&>*]:duration-500 [&>*]:ease-out";
+    "[&>*]:rounded-lg [&>*]:ring-1 [&>*]:ring-transparent [&>*]:transition-[background-color,box-shadow] [&>*]:duration-500 [&>*]:ease-out";
 const quickControlBackingOn =
     "[&>*]:bg-zinc-200 [&>*]:shadow-md [&>*]:!ring-zinc-900/10 dark:[&>*]:bg-slate-700 dark:[&>*]:!ring-white/10";
 const topChromeFade =
