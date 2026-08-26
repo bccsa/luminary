@@ -23,7 +23,7 @@ defineProps<{
     content?: ContentDto;
     showBackButton?: boolean;
     desktopTopBar?: boolean;
-    /** Reading progress (0-100), rendered as a mobile bar above the bottom nav. Undefined hides it. */
+    /** Reading progress (0-100), drawn as a thin bar along the top edge of the scroll area. Undefined hides it. */
     readingProgress?: number;
 }>();
 
@@ -69,18 +69,6 @@ onUnmounted(() => {
 </script>
 
 <template>
-    <!-- Reading progress, mobile: sits right on top of the bottom nav bar. Teleported to
-         <body> since nested overflow containers (App.vue's root, this main's
-         overflow-y-scroll) can clip position:fixed descendants on mobile WebKit, even
-         though they shouldn't per spec — escaping to body sidesteps that entirely. -->
-    <Teleport to="body">
-        <div
-            v-if="readingProgress !== undefined"
-            class="pointer-events-none fixed inset-x-0 z-[120] h-0.5 bg-yellow-500 transition-[width] duration-150 ease-out dark:bg-yellow-400 lg:hidden"
-            :style="{ bottom: 'var(--mobile-menu-h, 78px)', width: `${readingProgress}%` }"
-        />
-    </Teleport>
-
     <div class="flex h-full w-full scrollbar-hide">
         <!-- Desktop left sidebar — prerendered on the SSG build too (public nav /
              logo; the auth/Dexie bits self-defer inside the component). -->
@@ -104,22 +92,31 @@ onUnmounted(() => {
             </Teleport>
 
             <main
-                class="flex-1 overflow-y-scroll px-2 py-2 scrollbar-hide focus:outline-none dark:bg-slate-900 md:max-lg:px-4"
+                class="flex-1 overflow-y-scroll px-2 pb-2 scrollbar-hide focus:outline-none dark:bg-slate-900 md:max-lg:px-4"
+                :class="desktopTopBar ? 'pt-0' : 'pt-2'"
                 ref="main"
             >
                 <!-- Desktop pinned chrome: back (left) + quick controls (right) stay fixed while scrolling.
                      Direct child of the scrolling <main> so `sticky` keeps it pinned the whole way.
-                     Negative margins/top let it bleed to the scroll area's edges over <main>'s padding;
-                     the negative bottom margin collapses its flow height so page content originates at the top of the page,
-                     sharing this row; pointer-events-none lets clicks fall through the empty centre.
+                     <main> drops its top padding on these pages so `top-0` lands on the scrollport edge in
+                     every engine; the strip's 8px of remaining flow height (h-16 minus -mb-14) stands in for
+                     that padding, so page content still originates where it always did, sharing this row.
+                     Negative side margins let it bleed over <main>'s horizontal padding; pointer-events-none
+                     lets clicks fall through the empty centre.
                      The fade below the controls row lets content dissolve under the chrome. -->
                 <div
                     v-if="desktopTopBar"
-                    class="pointer-events-none sticky -top-2 z-20 -mx-2 -mb-16 hidden h-16 items-start px-2 pt-2 lg:flex"
+                    class="pointer-events-none sticky top-0 z-20 -mx-2 -mb-14 hidden h-16 items-start px-2 pt-2 lg:flex"
                 >
                     <div
                         :class="[topChromeFade, scrolled ? 'opacity-100' : 'opacity-0']"
                         aria-hidden="true"
+                    />
+                    <div
+                        v-if="readingProgress !== undefined"
+                        class="pointer-events-none absolute inset-x-0 top-0 h-0.5 bg-yellow-500 transition-[width] duration-150 ease-out dark:bg-yellow-400"
+                        :style="{ width: `${readingProgress}%` }"
+                        data-test="readingProgressBar"
                     />
                     <div class="relative flex h-9 w-full items-center">
                         <!-- Centred on the full row (= the content column's axis) rather than
@@ -152,15 +149,21 @@ onUnmounted(() => {
                     </div>
                 </div>
 
-                <!-- Mobile counterpart of the centre slot: pinned at the top of the scrolling
-                     area with the same collapsed flow height, so it floats over the content. -->
+                <!-- Mobile counterpart of the centre slot and progress bar: pinned at the top of the
+                     scrolling area with the same collapsed flow height, so it floats over the content. -->
                 <div
-                    v-if="$slots.topBarCenter"
-                    class="pointer-events-none sticky -top-2 z-20 -mx-2 -mb-16 flex h-16 items-start justify-center px-2 pt-2 md:-mx-4 md:px-4 lg:hidden"
+                    v-if="desktopTopBar && ($slots.topBarCenter || readingProgress !== undefined)"
+                    class="pointer-events-none sticky top-0 z-20 -mx-2 -mb-14 flex h-16 items-start justify-center px-2 pt-2 md:-mx-4 md:px-4 lg:hidden"
                 >
                     <div
                         :class="[topChromeFade, scrolled ? 'opacity-100' : 'opacity-0']"
                         aria-hidden="true"
+                    />
+                    <div
+                        v-if="readingProgress !== undefined"
+                        class="pointer-events-none absolute inset-x-0 top-0 h-0.5 bg-yellow-500 transition-[width] duration-150 ease-out dark:bg-yellow-400"
+                        :style="{ width: `${readingProgress}%` }"
+                        data-test="readingProgressBar"
                     />
                     <div
                         class="pointer-events-auto relative flex h-9 min-w-0 max-w-full items-center justify-center"
