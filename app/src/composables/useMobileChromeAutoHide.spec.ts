@@ -46,6 +46,12 @@ describe("useMobileChromeAutoHide", () => {
         expect(chrome.hidden.value).toBe(false);
     });
 
+    it("never hides on a page with too little to scroll", () => {
+        chrome.onScroll(100, 150);
+        chrome.onScroll(140, 110);
+        expect(chrome.hidden.value).toBe(false);
+    });
+
     it("is shared between callers and cleared by reset", () => {
         chrome.onScroll(200);
         chrome.onScroll(300);

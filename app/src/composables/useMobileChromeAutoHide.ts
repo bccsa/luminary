@@ -6,6 +6,12 @@ const SHOW_NEAR_TOP_PX = 80;
 const DIRECTION_THRESHOLD_PX = 12;
 /** Remaining scroll distance below which the chrome comes back — the reader has arrived. */
 const SHOW_NEAR_END_PX = 80;
+/**
+ * Smallest scroll range worth hiding for. Collapsing the bars enlarges the viewport and so
+ * shrinks the range; on a short page that would clamp the reader to the end and pop the bars
+ * straight back, so short pages keep their chrome.
+ */
+const MIN_RANGE_PX = 480;
 
 // Shared across the app shell: the page that owns the scroll container reports scrolling,
 // while the top bar (BasePage) and the bottom menu (App.vue) read the result.
@@ -24,7 +30,11 @@ export function useMobileChromeAutoHide() {
     function onScroll(scrollTop: number, remaining = Infinity) {
         const delta = scrollTop - lastScrollTop;
 
-        if (scrollTop <= SHOW_NEAR_TOP_PX || remaining <= SHOW_NEAR_END_PX) {
+        if (
+            scrollTop + remaining < MIN_RANGE_PX ||
+            scrollTop <= SHOW_NEAR_TOP_PX ||
+            remaining <= SHOW_NEAR_END_PX
+        ) {
             hidden.value = false;
             lastScrollTop = scrollTop;
             return;
