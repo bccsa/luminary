@@ -693,6 +693,7 @@ watch([isLoading, content, is404], async () => {
                 :articleRoot="articleProseRef"
                 :scrollContainer="scrollContainer"
                 :contentId="content._id"
+                :title="content.title"
                 :titleEls="[desktopTitleRef, mobileTitleRef]"
                 :class="{ 'pointer-events-none invisible': !showArticleOutline }"
                 :aria-hidden="!showArticleOutline"

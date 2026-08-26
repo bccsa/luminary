@@ -9,6 +9,8 @@ const props = defineProps<{
     scrollContainer: HTMLElement | Window;
     /** Re-scans headings whenever this changes (a translation/article swap). */
     contentId: string | undefined;
+    /** Shown in place of the chapter dropdown when the article has no headings. */
+    title?: string;
     /**
      * Title elements the dropdown stands in for: it stays hidden until the visible one has
      * scrolled above the container. Several may be passed when the title is rendered per
@@ -27,7 +29,7 @@ const open = ref(false);
 const activeHeading = computed(
     () => headings.value.find((h) => h.id === activeId.value) ?? headings.value[0],
 );
-const visible = computed(() => headings.value.length > 0 && titleScrolledOut.value);
+const visible = computed(() => titleScrolledOut.value);
 
 function slugify(text: string, taken: Set<string>) {
     const base =
@@ -155,8 +157,15 @@ function goToHeading(id: string) {
 </script>
 
 <template>
+    <span
+        v-if="visible && !headings.length"
+        class="flex max-w-full items-center rounded-full bg-zinc-200 px-3.5 py-1.5 text-sm text-zinc-800 shadow-md ring-1 ring-zinc-900/10 backdrop-blur-sm dark:bg-slate-700 dark:text-slate-50 dark:ring-white/10"
+        data-test="articleOutlineTitle"
+    >
+        <span class="truncate font-medium">{{ title }}</span>
+    </span>
     <DropdownMenu
-        v-if="visible"
+        v-else-if="visible"
         v-model:open="open"
         placement="bottom-start"
         panel-class="max-h-[60vh] w-72 max-w-[calc(100vw-2rem)] overflow-y-auto py-1"
