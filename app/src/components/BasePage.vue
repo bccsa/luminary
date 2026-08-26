@@ -38,7 +38,10 @@ const scrolled = ref(false);
 const onMainScroll = () => {
     scrolled.value = (main.value?.scrollTop ?? 0) >= TOP_CHROME_H;
 };
-const topChromeFade = "bg-gradient-to-b from-white from-40% to-transparent dark:from-slate-900";
+// Rendered as an always-present layer whose opacity animates, so the fade eases in rather
+// than snapping on at the threshold.
+const topChromeFade =
+    "pointer-events-none absolute inset-0 bg-gradient-to-b from-white from-35% via-white/70 via-60% to-transparent transition-opacity duration-500 ease-out dark:from-slate-900 dark:via-slate-900/70";
 
 // Expose the scrolling <main> to descendants (e.g. SearchPanel in page mode) so they can drive
 // infinite scroll off the page's real scroll container instead of an internal one.
@@ -103,15 +106,18 @@ onUnmounted(() => {
             >
                 <!-- Desktop pinned chrome: back (left) + quick controls (right) stay fixed while scrolling.
                      Direct child of the scrolling <main> so `sticky` keeps it pinned the whole way.
-                     -mb-14 collapses its flow height so page content originates at the top of the page,
+                     -mb-20 collapses its flow height so page content originates at the top of the page,
                      sharing this row; pointer-events-none lets clicks fall through the empty centre.
                      The fade below the controls row lets content dissolve under the chrome. -->
                 <div
                     v-if="desktopTopBar"
-                    class="pointer-events-none sticky top-0 z-20 -mb-14 hidden h-14 items-start lg:flex"
-                    :class="{ [topChromeFade]: scrolled }"
+                    class="pointer-events-none sticky top-0 z-20 -mb-20 hidden h-20 items-start lg:flex"
                 >
-                    <div class="flex h-9 w-full items-center">
+                    <div
+                        :class="[topChromeFade, scrolled ? 'opacity-100' : 'opacity-0']"
+                        aria-hidden="true"
+                    />
+                    <div class="relative flex h-9 w-full items-center">
                         <RouterLink
                             v-if="showBackButton"
                             :to="{ name: 'home' }"
@@ -140,11 +146,14 @@ onUnmounted(() => {
                      area with the same collapsed flow height, so it floats over the content. -->
                 <div
                     v-if="$slots.topBarCenter"
-                    class="pointer-events-none sticky top-0 z-20 -mb-14 flex h-14 items-start justify-center lg:hidden"
-                    :class="{ [topChromeFade]: scrolled }"
+                    class="pointer-events-none sticky top-0 z-20 -mb-20 flex h-20 items-start justify-center lg:hidden"
                 >
                     <div
-                        class="pointer-events-auto flex h-9 min-w-0 max-w-full items-center justify-center"
+                        :class="[topChromeFade, scrolled ? 'opacity-100' : 'opacity-0']"
+                        aria-hidden="true"
+                    />
+                    <div
+                        class="pointer-events-auto relative flex h-9 min-w-0 max-w-full items-center justify-center"
                     >
                         <slot name="topBarCenter" />
                     </div>
