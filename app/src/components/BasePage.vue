@@ -41,7 +41,7 @@ const onMainScroll = () => {
 // Rendered as an always-present layer whose opacity animates, so the fade eases in rather
 // than snapping on at the threshold.
 const topChromeFade =
-    "pointer-events-none absolute inset-0 bg-gradient-to-b from-white from-35% via-white/70 via-60% to-transparent transition-opacity duration-500 ease-out dark:from-slate-900 dark:via-slate-900/70";
+    "pointer-events-none absolute inset-0 bg-gradient-to-b from-white from-45% via-white/60 via-70% to-transparent transition-opacity duration-500 ease-out dark:from-slate-900 dark:via-slate-900/70";
 
 // Expose the scrolling <main> to descendants (e.g. SearchPanel in page mode) so they can drive
 // infinite scroll off the page's real scroll container instead of an internal one.
@@ -112,7 +112,7 @@ onUnmounted(() => {
                      The fade below the controls row lets content dissolve under the chrome. -->
                 <div
                     v-if="desktopTopBar"
-                    class="pointer-events-none sticky -top-2 z-20 -mx-2 -mb-[88px] hidden h-[88px] items-start px-2 pt-2 lg:flex"
+                    class="pointer-events-none sticky -top-2 z-20 -mx-2 -mb-16 hidden h-16 items-start px-2 pt-2 lg:flex"
                 >
                     <div
                         :class="[topChromeFade, scrolled ? 'opacity-100' : 'opacity-0']"
@@ -147,7 +147,7 @@ onUnmounted(() => {
                      area with the same collapsed flow height, so it floats over the content. -->
                 <div
                     v-if="$slots.topBarCenter"
-                    class="pointer-events-none sticky -top-2 z-20 -mx-2 -mb-[88px] flex h-[88px] items-start justify-center px-2 pt-2 md:-mx-4 md:px-4 lg:hidden"
+                    class="pointer-events-none sticky -top-2 z-20 -mx-2 -mb-16 flex h-16 items-start justify-center px-2 pt-2 md:-mx-4 md:px-4 lg:hidden"
                 >
                     <div
                         :class="[topChromeFade, scrolled ? 'opacity-100' : 'opacity-0']"
