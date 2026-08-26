@@ -62,7 +62,7 @@ const affinityProfileMock = vi.hoisted(() => ({
     value: { affinity: {}, lastDecayUtc: undefined },
 }));
 type ReadingTrackerOptions = Parameters<
-    typeof import("@/composables/useReadingProgressTracker")["useReadingProgressTracker"]
+    (typeof import("@/composables/useReadingProgressTracker"))["useReadingProgressTracker"]
 >[0];
 const readingTrackerOptions = vi.hoisted(() => ({
     current: undefined as ReadingTrackerOptions | undefined,
@@ -924,7 +924,7 @@ describe("SingleContent", () => {
         });
     });
 
-    it("uses the article's own language reading speed even with no other published translation", async () => {
+    it("uses the article's own language reading speed", async () => {
         // Regression test: an article with only one published translation must still pick up
         // its language's configured averageReadingSpeed via the global cmsLanguages list —
         // not silently fall back to the default because the translation-dropdown-only
