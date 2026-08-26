@@ -92,32 +92,35 @@ onUnmounted(() => {
             >
                 <!-- Desktop pinned chrome: back (left) + quick controls (right) stay fixed while scrolling.
                      Direct child of the scrolling <main> so `sticky` keeps it pinned the whole way.
-                     -mb-9 collapses its flow height so page content originates at the top of the page,
-                     sharing this row; pointer-events-none lets clicks fall through the empty centre. -->
+                     -mb-14 collapses its flow height so page content originates at the top of the page,
+                     sharing this row; pointer-events-none lets clicks fall through the empty centre.
+                     The fade below the controls row lets content dissolve under the chrome. -->
                 <div
                     v-if="desktopTopBar"
-                    class="pointer-events-none sticky top-0 z-20 -mb-9 hidden h-9 items-center lg:flex"
+                    class="pointer-events-none sticky top-0 z-20 -mb-14 hidden h-14 items-start bg-gradient-to-b from-white from-40% to-transparent dark:from-slate-900 lg:flex"
                 >
-                    <RouterLink
-                        v-if="showBackButton"
-                        :to="{ name: 'home' }"
-                        v-slot="{ href }"
-                        custom
-                    >
-                        <a
-                            :href="href"
-                            class="pointer-events-auto flex-shrink-0 rounded-md p-1 text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
-                            @click="onBackClick($event)"
-                            aria-label="Go back"
+                    <div class="flex h-9 w-full items-center">
+                        <RouterLink
+                            v-if="showBackButton"
+                            :to="{ name: 'home' }"
+                            v-slot="{ href }"
+                            custom
                         >
-                            <ChevronLeftIcon class="h-5 w-5" />
-                        </a>
-                    </RouterLink>
-                    <div class="pointer-events-auto mx-2 flex min-w-0 flex-1 justify-center">
-                        <slot name="topBarCenter" />
-                    </div>
-                    <div class="pointer-events-auto ml-auto flex items-center gap-2 pr-2">
-                        <slot name="quickControls" />
+                            <a
+                                :href="href"
+                                class="pointer-events-auto flex-shrink-0 rounded-md p-1 text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
+                                @click="onBackClick($event)"
+                                aria-label="Go back"
+                            >
+                                <ChevronLeftIcon class="h-5 w-5" />
+                            </a>
+                        </RouterLink>
+                        <div class="pointer-events-auto mx-2 flex min-w-0 flex-1 justify-center">
+                            <slot name="topBarCenter" />
+                        </div>
+                        <div class="pointer-events-auto ml-auto flex items-center gap-2 pr-2">
+                            <slot name="quickControls" />
+                        </div>
                     </div>
                 </div>
 
@@ -125,9 +128,11 @@ onUnmounted(() => {
                      area with the same collapsed flow height, so it floats over the content. -->
                 <div
                     v-if="$slots.topBarCenter"
-                    class="pointer-events-none sticky top-0 z-20 -mb-9 flex h-9 items-center justify-center lg:hidden"
+                    class="pointer-events-none sticky top-0 z-20 -mb-14 flex h-14 items-start justify-center bg-gradient-to-b from-white from-40% to-transparent dark:from-slate-900 lg:hidden"
                 >
-                    <div class="pointer-events-auto flex min-w-0 max-w-full justify-center">
+                    <div
+                        class="pointer-events-auto flex h-9 min-w-0 max-w-full items-center justify-center"
+                    >
                         <slot name="topBarCenter" />
                     </div>
                 </div>
