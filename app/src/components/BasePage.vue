@@ -119,6 +119,13 @@ onUnmounted(() => {
                         aria-hidden="true"
                     />
                     <div class="relative flex h-9 w-full items-center">
+                        <!-- Centred on the full row (= the content column's axis) rather than
+                             on the space left between the two asymmetric control groups. -->
+                        <div class="pointer-events-none absolute inset-x-0 flex justify-center">
+                            <div class="pointer-events-auto flex min-w-0 max-w-[calc(100%-16rem)]">
+                                <slot name="topBarCenter" />
+                            </div>
+                        </div>
                         <RouterLink
                             v-if="showBackButton"
                             :to="{ name: 'home' }"
@@ -127,17 +134,16 @@ onUnmounted(() => {
                         >
                             <a
                                 :href="href"
-                                class="pointer-events-auto flex-shrink-0 rounded-md p-1 text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
+                                class="pointer-events-auto relative z-10 flex-shrink-0 rounded-md p-1 text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
                                 @click="onBackClick($event)"
                                 aria-label="Go back"
                             >
                                 <ChevronLeftIcon class="h-5 w-5" />
                             </a>
                         </RouterLink>
-                        <div class="pointer-events-auto mx-2 flex min-w-0 flex-1 justify-center">
-                            <slot name="topBarCenter" />
-                        </div>
-                        <div class="pointer-events-auto ml-auto flex items-center gap-2 pr-2">
+                        <div
+                            class="pointer-events-auto relative z-10 ml-auto flex items-center gap-2 pr-2"
+                        >
                             <slot name="quickControls" />
                         </div>
                     </div>
