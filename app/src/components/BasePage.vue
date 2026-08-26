@@ -23,8 +23,6 @@ defineProps<{
     content?: ContentDto;
     showBackButton?: boolean;
     desktopTopBar?: boolean;
-    /** Reading progress (0-100), drawn as a thin bar along the top edge of the scroll area. Undefined hides it. */
-    readingProgress?: number;
 }>();
 
 const { onBackClick } = useBackNavigation();
@@ -123,12 +121,6 @@ onUnmounted(() => {
                         :class="[topChromeFade, scrolled ? 'opacity-100' : 'opacity-0']"
                         aria-hidden="true"
                     />
-                    <div
-                        v-if="readingProgress !== undefined"
-                        class="pointer-events-none absolute inset-x-0 top-0 h-0.5 bg-yellow-500 transition-[width] duration-150 ease-out dark:bg-yellow-400"
-                        :style="{ width: `${readingProgress}%` }"
-                        data-test="readingProgressBar"
-                    />
                     <div class="relative flex h-9 w-full items-center">
                         <!-- Centred on the full row (= the content column's axis) rather than
                              on the space left between the two asymmetric control groups. -->
@@ -162,21 +154,15 @@ onUnmounted(() => {
                     </div>
                 </div>
 
-                <!-- Mobile counterpart of the centre slot and progress bar: pinned at the top of the
-                     scrolling area with the same collapsed flow height, so it floats over the content. -->
+                <!-- Mobile counterpart of the centre slot: pinned at the top of the scrolling area with
+                     the same collapsed flow height, so it floats over the content. -->
                 <div
-                    v-if="desktopTopBar && ($slots.topBarCenter || readingProgress !== undefined)"
+                    v-if="desktopTopBar && $slots.topBarCenter"
                     class="pointer-events-none sticky top-0 z-20 -mx-2 -mb-14 flex h-16 items-start justify-center px-2 pt-2 md:-mx-4 md:px-4 lg:hidden"
                 >
                     <div
                         :class="[topChromeFade, scrolled ? 'opacity-100' : 'opacity-0']"
                         aria-hidden="true"
-                    />
-                    <div
-                        v-if="readingProgress !== undefined"
-                        class="pointer-events-none absolute inset-x-0 top-0 h-0.5 bg-yellow-500 transition-[width] duration-150 ease-out dark:bg-yellow-400"
-                        :style="{ width: `${readingProgress}%` }"
-                        data-test="readingProgressBar"
                     />
                     <div
                         class="pointer-events-auto relative flex h-9 min-w-0 max-w-full items-center justify-center"

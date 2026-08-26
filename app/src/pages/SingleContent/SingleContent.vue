@@ -675,7 +675,6 @@ watch([isLoading, content, is404], async () => {
     <BasePage
         :showBackButton="true"
         desktopTopBar
-        :readingProgress="readingTrackerEnabled ? scrollProgressPercent : undefined"
     >
         <!-- Chapter dropdown stands in for the title once it scrolls out of view. -->
         <template
@@ -687,6 +686,7 @@ watch([isLoading, content, is404], async () => {
                 :scrollContainer="scrollContainer"
                 :contentId="content._id"
                 :title="content.title"
+                :progress="scrollProgressPercent"
                 :titleEls="[desktopTitleRef, mobileTitleRef]"
             />
         </template>

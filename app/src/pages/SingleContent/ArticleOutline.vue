@@ -11,6 +11,8 @@ const props = defineProps<{
     contentId: string | undefined;
     /** Shown in place of the chapter dropdown when the article has no headings. */
     title?: string;
+    /** Reading progress, 0-100 — drawn as a thin track along the pill's bottom edge. */
+    progress?: number;
     /**
      * Title elements the dropdown stands in for: it stays hidden until the visible one has
      * scrolled above the container. Several may be passed when the title is rendered per
@@ -176,10 +178,17 @@ function goToHeading(id: string) {
 <template>
     <span
         v-if="visible && !headings.length"
-        class="flex max-w-full items-center rounded-full bg-zinc-200 px-3.5 py-1.5 text-sm text-zinc-800 shadow-md ring-1 ring-zinc-900/10 backdrop-blur-sm dark:bg-slate-700 dark:text-slate-50 dark:ring-white/10"
+        class="relative flex max-w-full items-center overflow-hidden rounded-full bg-zinc-200 px-3.5 py-1.5 text-sm text-zinc-800 shadow-md ring-1 ring-zinc-900/10 backdrop-blur-sm dark:bg-slate-700 dark:text-slate-50 dark:ring-white/10"
         data-test="articleOutlineTitle"
     >
         <span class="truncate font-medium">{{ title }}</span>
+        <span
+            v-if="progress !== undefined"
+            class="pointer-events-none absolute inset-x-0 bottom-0 h-0.5 bg-yellow-500 transition-[width] duration-150 ease-out dark:bg-yellow-400"
+            :style="{ width: `${progress}%` }"
+            aria-hidden="true"
+            data-test="articleOutlineProgress"
+        />
     </span>
     <DropdownMenu
         v-else-if="visible"
@@ -191,7 +200,7 @@ function goToHeading(id: string) {
     >
         <template #trigger>
             <span
-                class="flex max-w-full items-center gap-1.5 rounded-full bg-zinc-200 px-3.5 py-1.5 text-sm text-zinc-800 shadow-md ring-1 ring-zinc-900/10 backdrop-blur-sm hover:bg-zinc-300 dark:bg-slate-700 dark:text-slate-50 dark:ring-white/10 dark:hover:bg-slate-600"
+                class="relative flex max-w-full items-center gap-1.5 overflow-hidden rounded-full bg-zinc-200 px-3.5 py-1.5 text-sm text-zinc-800 shadow-md ring-1 ring-zinc-900/10 backdrop-blur-sm hover:bg-zinc-300 dark:bg-slate-700 dark:text-slate-50 dark:ring-white/10 dark:hover:bg-slate-600"
                 :aria-label="`Current section: ${activeHeading?.text ?? ''}`"
                 data-test="articleOutlineTrigger"
             >
@@ -200,6 +209,13 @@ function goToHeading(id: string) {
                     class="h-4 w-4 flex-shrink-0 transition-transform"
                     :class="{ 'rotate-180': open }"
                     aria-hidden="true"
+                />
+                <span
+                    v-if="progress !== undefined"
+                    class="pointer-events-none absolute inset-x-0 bottom-0 h-0.5 bg-yellow-500 transition-[width] duration-150 ease-out dark:bg-yellow-400"
+                    :style="{ width: `${progress}%` }"
+                    aria-hidden="true"
+                    data-test="articleOutlineProgress"
                 />
             </span>
         </template>
