@@ -68,15 +68,12 @@ function isValidClientId(value: string): boolean {
     return !/\s/.test(trimmed);
 }
 
+// OIDC treats the audience as an opaque string. Auth0 issues URL-shaped API
+// identifiers, but Zitadel and Keycloak use plain IDs, so requiring a URL here
+// would lock those providers out for no gain — the API only checks non-empty.
 function isValidAudience(value: string): boolean {
     const trimmed = value.trim();
-    if (!trimmed) return false;
-    try {
-        const url = new URL(trimmed);
-        return url.protocol === "http:" || url.protocol === "https:";
-    } catch {
-        return false;
-    }
+    return trimmed.length > 0 && !/\s/.test(trimmed);
 }
 
 const providerValidations = ref<Validation[]>([]);
@@ -100,7 +97,7 @@ watch(
             (x) => isValidClientId(x.clientId ?? ""),
         );
         validate(
-            "Audience must be an absolute URL (e.g. https://api.example.com)",
+            "Audience must not be empty or contain whitespace",
             "audience",
             providerValidations.value,
             p,

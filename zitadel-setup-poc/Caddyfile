@@ -9,6 +9,11 @@ auth.luminary.local {
 		reverse_proxy h2c://zitadel:8080
 	}
 
+	# Login v2 runs as its own service, so this path leaves the monolith.
+	handle /ui/v2/login* {
+		reverse_proxy login:3000
+	}
+
 	# Zitadel serves gRPC alongside REST on one port, so the console needs h2c
 	# rather than a plain HTTP/1.1 upstream.
 	handle {

@@ -36,12 +36,33 @@ services:
     ports:
       - "8080:8080"
 
+  # Zitadel v4 defaults to Login v2, which ships as its own container rather than
+  # inside the monolith. Without it every login redirect and the console's own
+  # sign-in land on /ui/v2/login/* and 404.
+  login:
+    image: ghcr.io/zitadel/zitadel-login:v4.17.1
+    container_name: zitadel-login
+    restart: unless-stopped
+    depends_on:
+      - zitadel
+    environment:
+      ZITADEL_API_URL: http://zitadel:8080
+      # Zitadel resolves the instance from the Host header, so the in-network
+      # call has to claim the external domain to be recognised.
+      CUSTOM_REQUEST_HEADERS: Host:auth.luminary.local
+      # Written by first-instance setup; the entrypoint waits for it to appear.
+      ZITADEL_SERVICE_USER_TOKEN_FILE: /secrets/seed-pat.txt
+      NEXT_PUBLIC_BASE_PATH: /ui/v2/login
+    volumes:
+      - ./secrets:/secrets:ro
+
   caddy:
     image: caddy:2
     container_name: zitadel-caddy
     restart: unless-stopped
     depends_on:
       - zitadel
+      - login
     ports:
       - "443:443"
       - "80:80"

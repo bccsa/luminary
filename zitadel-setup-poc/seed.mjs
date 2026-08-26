@@ -15,15 +15,28 @@ try {
     process.exit(1);
 }
 
-async function api(path, body) {
+async function api(path, body, method = "POST") {
     const res = await fetch(`${BASE}${path}`, {
-        method: "POST",
+        method,
         headers: { Authorization: `Bearer ${pat}`, "Content-Type": "application/json" },
         body: JSON.stringify(body),
     });
     const json = await res.json().catch(() => null);
     if (!res.ok) throw new Error(`${path} -> ${res.status}: ${JSON.stringify(json)}`);
     return json;
+}
+
+// The Login v2 container authenticates as this same machine user, and its
+// session calls are refused with AUTH-AWfge unless it holds IAM_LOGIN_CLIENT.
+// IAM_OWNER from first-instance setup does not imply it.
+const members = await api("/admin/v1/members/_search", {});
+const loginClient = members.result?.find((m) => m.preferredLoginName === "seed-bot");
+if (loginClient && !loginClient.roles.includes("IAM_LOGIN_CLIENT")) {
+    await api(
+        `/admin/v1/members/${loginClient.userId}`,
+        { roles: [...loginClient.roles, "IAM_LOGIN_CLIENT"] },
+        "PUT",
+    );
 }
 
 const project = await api("/management/v1/projects", { name: "Luminary" });
