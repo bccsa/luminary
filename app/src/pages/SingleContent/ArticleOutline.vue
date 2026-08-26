@@ -165,7 +165,7 @@ function goToHeading(id: string) {
     >
         <template #trigger>
             <span
-                class="flex max-w-full items-center gap-1 rounded-md bg-zinc-100/90 px-2 py-1 text-sm text-zinc-700 backdrop-blur-sm hover:bg-zinc-200 dark:bg-slate-800/90 dark:text-slate-100 dark:hover:bg-slate-700"
+                class="flex max-w-full items-center gap-1.5 rounded-full bg-zinc-200 px-3.5 py-1.5 text-sm text-zinc-800 shadow-md ring-1 ring-zinc-900/10 backdrop-blur-sm hover:bg-zinc-300 dark:bg-slate-700 dark:text-slate-50 dark:ring-white/10 dark:hover:bg-slate-600"
                 :aria-label="`Current section: ${activeHeading?.text ?? ''}`"
                 data-test="articleOutlineTrigger"
             >

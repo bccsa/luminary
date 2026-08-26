@@ -106,12 +106,13 @@ onUnmounted(() => {
             >
                 <!-- Desktop pinned chrome: back (left) + quick controls (right) stay fixed while scrolling.
                      Direct child of the scrolling <main> so `sticky` keeps it pinned the whole way.
-                     -mb-20 collapses its flow height so page content originates at the top of the page,
+                     Negative margins/top let it bleed to the scroll area's edges over <main>'s padding;
+                     the negative bottom margin collapses its flow height so page content originates at the top of the page,
                      sharing this row; pointer-events-none lets clicks fall through the empty centre.
                      The fade below the controls row lets content dissolve under the chrome. -->
                 <div
                     v-if="desktopTopBar"
-                    class="pointer-events-none sticky top-0 z-20 -mb-20 hidden h-20 items-start lg:flex"
+                    class="pointer-events-none sticky -top-2 z-20 -mx-2 -mb-[88px] hidden h-[88px] items-start px-2 pt-2 lg:flex"
                 >
                     <div
                         :class="[topChromeFade, scrolled ? 'opacity-100' : 'opacity-0']"
@@ -146,7 +147,7 @@ onUnmounted(() => {
                      area with the same collapsed flow height, so it floats over the content. -->
                 <div
                     v-if="$slots.topBarCenter"
-                    class="pointer-events-none sticky top-0 z-20 -mb-20 flex h-20 items-start justify-center lg:hidden"
+                    class="pointer-events-none sticky -top-2 z-20 -mx-2 -mb-[88px] flex h-[88px] items-start justify-center px-2 pt-2 md:-mx-4 md:px-4 lg:hidden"
                 >
                     <div
                         :class="[topChromeFade, scrolled ? 'opacity-100' : 'opacity-0']"
