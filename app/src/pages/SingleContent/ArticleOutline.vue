@@ -210,26 +210,22 @@ function onResume() {
     >
         <button
             type="button"
-            class="flex min-w-0 flex-1 cursor-pointer items-center gap-2 overflow-hidden rounded-l-lg px-3.5 pb-2.5 pt-1.5 text-left text-sm text-zinc-800 hover:bg-zinc-300 dark:text-slate-50 dark:hover:bg-slate-600"
+            class="flex min-w-0 flex-1 cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-l-lg px-3.5 pb-2.5 pt-1.5 text-center text-sm text-zinc-800 hover:bg-zinc-300 dark:text-slate-50 dark:hover:bg-slate-600"
             :aria-label="`${t('content.continueReading.action')} · ${progress ?? 0}%`"
             data-test="articleOutlineResumeButton"
             @click="onResume"
         >
-            <ArrowUturnLeftIcon
-                class="h-4 w-4 flex-shrink-0 text-yellow-600 dark:text-yellow-400"
-                aria-hidden="true"
-            />
-            <span class="truncate font-medium">{{ t("content.continueReading.action") }}</span>
+            <span class="truncate font-semibold">{{ t("content.continueReading.action") }}</span>
             <span class="tabular-nums text-zinc-500 dark:text-slate-300">{{ progress ?? 0 }}%</span>
         </button>
         <button
             type="button"
-            class="mr-1 flex-shrink-0 cursor-pointer self-start rounded-md p-1 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-800 dark:text-slate-300 dark:hover:bg-slate-600 dark:hover:text-slate-50"
+            class="mr-1 flex-shrink-0 cursor-pointer self-start rounded-md p-1.5 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-800 dark:text-slate-300 dark:hover:bg-slate-600 dark:hover:text-slate-50"
             :aria-label="t('content.continueReading.dismiss')"
             data-test="articleOutlineDismiss"
             @click="emit('dismiss')"
         >
-            <XMarkIcon class="h-4 w-4" />
+            <XMarkIcon class="h-5 w-5" />
         </button>
         <span
             class="pointer-events-none absolute inset-x-0 bottom-0 h-1 overflow-hidden rounded-b-lg bg-zinc-300 dark:bg-slate-600"
