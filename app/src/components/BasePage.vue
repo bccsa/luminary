@@ -43,6 +43,12 @@ provide("topChromeScrolled", scrolled);
 // Rendered as an always-present layer whose opacity animates, so the fade eases in rather
 // than snapping on at the threshold. It overshoots the strip's top edge so browsers that
 // place the sticky strip a few pixels lower still get a fade that reaches the top bar.
+// Backing that lifts the pinned controls off whatever scrolls beneath them (hero images,
+// text); fades in with the chrome so nothing changes at rest.
+const controlBacking =
+    "transition-[background-color,box-shadow] duration-500 ease-out rounded-full ring-1 ring-transparent";
+const controlBackingOn =
+    "bg-zinc-200 shadow-md !ring-zinc-900/10 dark:bg-slate-700 dark:!ring-white/10";
 const topChromeFade =
     "pointer-events-none absolute inset-x-0 -top-4 bottom-0 bg-gradient-to-b from-white from-45% via-white/60 via-70% to-transparent transition-opacity duration-500 ease-out dark:from-slate-900 dark:via-slate-900/70";
 
@@ -134,7 +140,8 @@ onUnmounted(() => {
                         >
                             <a
                                 :href="href"
-                                class="pointer-events-auto relative z-10 flex-shrink-0 rounded-md p-1 text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
+                                class="pointer-events-auto relative z-10 flex-shrink-0 p-1.5 text-zinc-600 hover:bg-zinc-300 dark:text-slate-100 dark:hover:bg-slate-600"
+                                :class="[controlBacking, { [controlBackingOn]: scrolled }]"
                                 @click="onBackClick($event)"
                                 aria-label="Go back"
                             >
@@ -142,7 +149,8 @@ onUnmounted(() => {
                             </a>
                         </RouterLink>
                         <div
-                            class="pointer-events-auto relative z-10 ml-auto flex items-center gap-2 pr-2"
+                            class="pointer-events-auto relative z-10 ml-auto flex items-center gap-1 px-1.5"
+                            :class="[controlBacking, { [controlBackingOn]: scrolled }]"
                         >
                             <slot name="quickControls" />
                         </div>
