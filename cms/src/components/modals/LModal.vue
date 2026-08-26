@@ -49,6 +49,19 @@ watch(modalRef, (el) => {
 
 const breakpoints = useBreakpoints(breakpointsTailwind);
 const isMobileScreen = breakpoints.smaller("sm");
+
+const isFullscreen = () => {
+    if (
+        (isMobileScreen.value && props.stickToEdges) ||
+        (!isMobileScreen.value && props.stickToEdges)
+    ) {
+        return "h-[100dvh] w-[100vw] max-w-none rounded-none";
+    } else if (props.largeModal) {
+        return "h-[90dvh] w-full max-w-5xl lg:h-[80dvh]";
+    } else {
+        return "max-h-[90dvh] w-full max-w-md";
+    }
+};
 </script>
 
 <template>
@@ -69,12 +82,8 @@ const isMobileScreen = breakpoints.smaller("sm");
                 ref="modalRef"
                 data-test="modal-content"
                 :class="[
-                    'relative z-50 flex flex-col rounded-lg bg-white/90 p-5 shadow-xl focus:outline-none',
-                    isMobileScreen && stickToEdges
-                        ? 'h-[100dvh] w-[100vw] max-w-none rounded-none'
-                        : largeModal
-                          ? 'h-[90dvh] w-full max-w-5xl lg:h-[80dvh]'
-                          : 'max-h-[90dvh] w-full max-w-md',
+                    'relative z-50 flex max-h-[100dvh] flex-col rounded-lg bg-white/90 p-5 text-zinc-800 shadow-xl focus:outline-none',
+                    isFullscreen(),
                 ]"
             >
                 <div
