@@ -560,6 +560,7 @@ const selectedCategory = computed(() => {
 });
 
 const articleProseRef = ref<HTMLElement | null>(null);
+const articleRef = ref<HTMLElement | null>(null);
 const desktopTitleRef = ref<HTMLElement | null>(null);
 const mobileTitleRef = ref<HTMLElement | null>(null);
 const scrollContainer = ref<HTMLElement | Window>(window);
@@ -590,6 +591,7 @@ const { hasResumableProgress, savedProgressPercent, scrollProgressPercent, resto
     useReadingProgressTracker({
         contentId,
         articleRoot: articleProseRef,
+        progressRoot: articleRef,
         scrollContainer,
         enabled: readingTrackerEnabled,
         averageReadingSpeed,
@@ -777,7 +779,10 @@ watch([isLoading, content, is404], async () => {
                 />
 
                 <template v-else-if="content">
-                    <article class="w-full lg:col-start-2">
+                    <article
+                        ref="articleRef"
+                        class="w-full lg:col-start-2"
+                    >
                         <!-- Desktop: title row originates at the top of the page, level with the pinned
                          topbar chrome, and scrolls away with the content like normal. -->
                         <div

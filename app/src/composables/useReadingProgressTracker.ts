@@ -251,6 +251,12 @@ function getMaxSegmentHeight(container: HTMLElement | Window): number {
 export function useReadingProgressTracker(options: {
     contentId: Ref<Uuid | undefined>;
     articleRoot: Ref<HTMLElement | null>;
+    /**
+     * Element the visual scroll progress is measured over; defaults to `articleRoot`. Pass a
+     * wider wrapper (title through prose) so the bar starts filling as soon as the reader
+     * scrolls, not only once the body text reaches the top.
+     */
+    progressRoot?: Ref<HTMLElement | null>;
     scrollContainer: Ref<HTMLElement | Window>;
     enabled: Ref<boolean>;
     /** Language averageReadingSpeed (words per minute); defaults to 200 when unset. */
@@ -330,7 +336,7 @@ export function useReadingProgressTracker(options: {
     let progressRafPending = false;
 
     function computeScrollProgress() {
-        const el = options.articleRoot.value;
+        const el = options.progressRoot?.value ?? options.articleRoot.value;
         if (!el) {
             scrollProgressPercent.value = 0;
             return;
