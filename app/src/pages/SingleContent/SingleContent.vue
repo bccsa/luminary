@@ -495,7 +495,10 @@ const toggleBookmark = () => {
             (b) => b.id != content.value?.parentId,
         );
         if (content.value) {
-            recordAffinity(content.value.parentTags, affinityConfig.value.eventWeight.bookmarkRemoved);
+            recordAffinity(
+                content.value.parentTags,
+                affinityConfig.value.eventWeight.bookmarkRemoved,
+            );
         }
     } else {
         // Add to bookmarks
@@ -562,10 +565,7 @@ const readingTrackerEnabled = computed(() => !!content.value?._id && !!content.v
 
 const contentId = computed(() => content.value?._id);
 
-// Looked up from the full language map, not the translation-dropdown-only `languages`
-// (which is empty unless 2+ translations are published) — otherwise a single-language
-// article would always miss its own Language doc and silently fall back to the default
-// reading speed instead of the one configured for it.
+// Looked up from the full language map
 const contentLanguage = computed(() => {
     const languageId = content.value?.language;
     return languageId ? languagesById.value.get(languageId) : undefined;
@@ -945,7 +945,10 @@ watch([isLoading, content, is404], async () => {
                         v-if="content.text"
                         :content-id="content._id"
                         @highlighted="
-                            recordAffinity(content?.parentTags, affinityConfig.eventWeight.highlight)
+                            recordAffinity(
+                                content?.parentTags,
+                                affinityConfig.eventWeight.highlight,
+                            )
                         "
                         @highlight-removed="
                             recordAffinity(
