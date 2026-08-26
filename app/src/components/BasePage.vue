@@ -41,9 +41,10 @@ const onMainScroll = () => {
 // Shared so whatever a page puts in the centre slot can reveal itself in step with the fade.
 provide("topChromeScrolled", scrolled);
 // Rendered as an always-present layer whose opacity animates, so the fade eases in rather
-// than snapping on at the threshold.
+// than snapping on at the threshold. It overshoots the strip's top edge so browsers that
+// place the sticky strip a few pixels lower still get a fade that reaches the top bar.
 const topChromeFade =
-    "pointer-events-none absolute inset-0 bg-gradient-to-b from-white from-45% via-white/60 via-70% to-transparent transition-opacity duration-500 ease-out dark:from-slate-900 dark:via-slate-900/70";
+    "pointer-events-none absolute inset-x-0 -top-4 bottom-0 bg-gradient-to-b from-white from-45% via-white/60 via-70% to-transparent transition-opacity duration-500 ease-out dark:from-slate-900 dark:via-slate-900/70";
 
 // Expose the scrolling <main> to descendants (e.g. SearchPanel in page mode) so they can drive
 // infinite scroll off the page's real scroll container instead of an internal one.
