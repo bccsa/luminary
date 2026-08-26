@@ -343,12 +343,21 @@ export function useReadingProgressTracker(options: {
         }
 
         const container = options.scrollContainer.value;
-        const containerBottom =
+        const containerRect =
             container === window
-                ? window.innerHeight
-                : (container as HTMLElement).getBoundingClientRect().bottom;
+                ? { top: 0, bottom: window.innerHeight }
+                : (container as HTMLElement).getBoundingClientRect();
+        const viewportHeight = containerRect.bottom - containerRect.top;
 
-        const percent = ((containerBottom - rect.top) / rect.height) * 100;
+        // Reader position: 0 once the article's top reaches the viewport top, 100 once its
+        // bottom reaches the viewport bottom, so nothing shows before scrolling starts. An
+        // article shorter than the viewport can't travel that way, so it fills as it comes
+        // into view instead.
+        const travel = rect.height - viewportHeight;
+        const percent =
+            travel > 0
+                ? ((containerRect.top - rect.top) / travel) * 100
+                : ((containerRect.bottom - rect.top) / rect.height) * 100;
         scrollProgressPercent.value = Math.min(100, Math.max(0, Math.round(percent)));
     }
 
