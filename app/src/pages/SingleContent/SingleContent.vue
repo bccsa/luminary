@@ -579,6 +579,10 @@ function setScrollContainer() {
     scrollContainer.value = resolveArticleScrollContainer();
 }
 
+const readingTime = computed<number>(() =>
+    computeEstimatedReadingMinutes(content.value?.wordCount ?? 0, averageReadingSpeed.value),
+);
+
 const { hasResumableProgress, savedProgressPercent, restoreScrollPosition } =
     useReadingProgressTracker({
         contentId,
@@ -586,6 +590,7 @@ const { hasResumableProgress, savedProgressPercent, restoreScrollPosition } =
         scrollContainer,
         enabled: readingTrackerEnabled,
         averageReadingSpeed,
+        disableSaving: computed(() => readingTime.value <= 1),
         onSessionEnd: (endedContentId, finalDepthPercent) => {
             const endedTags = contentTagsById.get(endedContentId);
             contentTagsById.delete(endedContentId);
@@ -649,10 +654,6 @@ const playAudio = () => {
         addToMediaQueue(content.value);
     }
 };
-
-const readingTime = computed<number>(() =>
-    computeEstimatedReadingMinutes(content.value?.wordCount ?? 0, averageReadingSpeed.value),
-);
 
 watch([isLoading, content, is404], async () => {
     if (is404.value) {

@@ -968,6 +968,34 @@ describe("SingleContent", () => {
         expect(wrapper!.text()).not.toContain(`${defaultSpeedReadingTime} min`);
     });
 
+    it("disables progress saving for content estimated at 1 minute or less to read", async () => {
+        // Default mock content has no wordCount, so estimated reading time is 0 minutes.
+        wrapper = shallowMount(SingleContent, {
+            props: { slug: mockEnglishContentDto.slug },
+        });
+
+        await waitForExpect(() => {
+            expect(readingTrackerOptions.current?.contentId.value).toBe(mockEnglishContentDto._id);
+            expect(readingTrackerOptions.current?.disableSaving?.value).toBe(true);
+        });
+    });
+
+    it("enables progress saving once estimated reading time exceeds 1 minute", async () => {
+        await db.docs.put({
+            ...mockEnglishContentDto,
+            wordCount: 400,
+        } as ContentDto);
+
+        wrapper = shallowMount(SingleContent, {
+            props: { slug: mockEnglishContentDto.slug },
+        });
+
+        await waitForExpect(() => {
+            expect(readingTrackerOptions.current?.contentId.value).toBe(mockEnglishContentDto._id);
+            expect(readingTrackerOptions.current?.disableSaving?.value).toBe(false);
+        });
+    });
+
     it("preserves saved reading progress on mount", async () => {
         setReadingProgress(mockEnglishContentDto._id, 60);
 
