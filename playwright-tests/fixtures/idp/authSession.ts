@@ -1,4 +1,4 @@
-import type { BrowserContext } from "@playwright/test";
+import type { BrowserContext, Page } from "@playwright/test";
 import type { TokenSet } from "./mint";
 
 export type ClientTarget = "app" | "cms";
@@ -78,6 +78,39 @@ export async function seedAuthSession(
             providerValue: JSON.stringify(provider),
         },
     );
+}
+
+/** The parts of the persisted OIDC session a test may want to observe. */
+export type StoredSession = {
+    accessToken: string;
+    refreshToken: string | null;
+    /** Epoch seconds, matching what oidc-client-ts persists. */
+    expiresAt: number;
+};
+
+/**
+ * Reads the session the client currently holds. A test compares two reads to
+ * detect a silent refresh — the only client-visible trace of that path.
+ */
+export async function readStoredSession(
+    page: Page,
+    provider: ProviderConfig,
+): Promise<StoredSession | null> {
+    return page.evaluate((key) => {
+        try {
+            const raw = localStorage.getItem(key);
+            if (!raw) return null;
+            const parsed = JSON.parse(raw);
+            if (!parsed?.access_token) return null;
+            return {
+                accessToken: parsed.access_token,
+                refreshToken: parsed.refresh_token ?? null,
+                expiresAt: parsed.expires_at,
+            };
+        } catch {
+            return null;
+        }
+    }, userStoreKey(provider));
 }
 
 /** Drops any seeded session from an already-loaded page's origin. */

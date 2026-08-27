@@ -193,6 +193,7 @@ These are the specs that would catch a session surviving a provider switch, or a
 | ---- | ------ |
 | [login-flow.spec.ts](cms/authentication/login-flow.spec.ts) | The real redirect, sign-out, and a provider A → B → A cycle |
 | [session-persistence.spec.ts](cms/authentication/session-persistence.spec.ts) | Reload, and an expired token refreshed silently against the issuer's token endpoint |
+| [token-recovery.spec.ts](cms/authentication/token-recovery.spec.ts) | A token that goes stale *mid-session*: the API rejects the reconnecting socket, the client refreshes silently and reconnects — no re-login UI. Recovery is meant to be quiet, so quietness is what is asserted |
 | [provider-scoping.spec.ts](cms/authentication/provider-scoping.spec.ts) | The silent access-map reduction described above |
 
 Keep this set small — it is far more coupled to markup than the rest of the suite. Everything that is *not* about logging in should use `loginAs`.
