@@ -4,6 +4,8 @@
  * the product, so they deliberately do not live in `api/src/db/seedingDocs/`.
  */
 
+import { couchFetch, type CouchConfig } from "./couch";
+
 export const E2E_PROVIDER_ID = "auth-provider-e2e";
 export const E2E_DEFAULT_MAPPING_ID = "auto-group-mappings-e2e-default";
 
@@ -12,12 +14,6 @@ const PROVIDER_MEMBER_OF = ["group-super-admins", "group-public-users"];
 
 /** Applied to every identity including guests, so anonymous app sync has groups. */
 const DEFAULT_GROUPS = ["group-public-users"];
-
-export type CouchConfig = {
-    /** e.g. `http://admin:password@localhost:5984` */
-    connectionString: string;
-    database: string;
-};
 
 export type SeedProviderOptions = {
     couch: CouchConfig;
@@ -41,8 +37,7 @@ export type SeedProviderOptions = {
 };
 
 async function couchRequest(couch: CouchConfig, docPath: string, init?: RequestInit) {
-    const url = `${couch.connectionString.replace(/\/+$/, "")}/${couch.database}/${docPath}`;
-    const res = await fetch(url, {
+    const res = await couchFetch(couch, docPath, {
         ...init,
         headers: { "content-type": "application/json", ...(init?.headers ?? {}) },
     });

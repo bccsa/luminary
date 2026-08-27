@@ -1,4 +1,4 @@
-import type { CouchConfig } from "./seedProvider";
+import { couchFetch, couchUrl, type CouchConfig } from "./couch";
 
 /**
  * A stack that is not fully up otherwise surfaces as an unexplained timeout deep
@@ -8,16 +8,6 @@ import type { CouchConfig } from "./seedProvider";
 
 const PROBE_TIMEOUT_MS = 5_000;
 
-async function probe(url: string, init?: RequestInit): Promise<Response> {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
-    try {
-        return await fetch(url, { ...init, signal: controller.signal });
-    } finally {
-        clearTimeout(timer);
-    }
-}
-
 function fail(what: string, url: string, hint: string, cause?: unknown): never {
     const reason = cause instanceof Error ? ` (${cause.message})` : "";
     throw new Error(`E2E preflight: ${what} is not reachable at ${url}${reason}.\n  ${hint}`);
@@ -25,20 +15,23 @@ function fail(what: string, url: string, hint: string, cause?: unknown): never {
 
 /** Any HTTP response proves the port is served; the status itself does not matter. */
 export async function assertServing(what: string, url: string, hint: string): Promise<void> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
     try {
-        await probe(url);
+        await fetch(url, { signal: controller.signal });
     } catch (error) {
         fail(what, url, hint, error);
+    } finally {
+        clearTimeout(timer);
     }
 }
 
 export async function assertCouchDatabase(couch: CouchConfig): Promise<void> {
-    const base = couch.connectionString.replace(/\/+$/, "");
-    const url = `${base}/${couch.database}`;
+    const url = couchUrl(couch);
     let response: Response;
 
     try {
-        response = await probe(url);
+        response = await couchFetch(couch, "", { timeoutMs: PROBE_TIMEOUT_MS });
     } catch (error) {
         fail("CouchDB", url, "Start it with api/scripts/start-couchdb-in-ci.sh.", error);
     }
@@ -53,7 +46,7 @@ export async function assertCouchDatabase(couch: CouchConfig): Promise<void> {
     if (response.status === 404) {
         throw new Error(
             `E2E preflight: CouchDB database "${couch.database}" does not exist.\n` +
-                `  Create it with: curl -X PUT ${url}`,
+                `  Create it with: curl -X PUT "$E2E_COUCHDB_URL/${couch.database}"`,
         );
     }
 
@@ -67,13 +60,13 @@ export async function assertCouchDatabase(couch: CouchConfig): Promise<void> {
  * database yields empty access maps rather than an obvious failure.
  */
 export async function assertSeeded(couch: CouchConfig): Promise<void> {
-    const base = couch.connectionString.replace(/\/+$/, "");
-    const response = await probe(`${base}/${couch.database}/_all_docs`, {
+    const response = await couchFetch(couch, "_all_docs", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
             keys: ["group-super-admins", "group-public-content", "user-editor1"],
         }),
+        timeoutMs: PROBE_TIMEOUT_MS,
     });
 
     const body = (await response.json()) as { rows?: Array<{ error?: string; id?: string }> };

@@ -4,10 +4,12 @@ import { fileURLToPath } from "node:url";
 import { startFakeIdp, type FakeIdp } from "./fakeIdp";
 import { loadOrCreateSigningKey, type SigningKey } from "./signingKey";
 import { personaIdentities, personas } from "./personas";
-import { seedAuthProvider, type CouchConfig, type SeedProviderOptions } from "./seedProvider";
+import { seedAuthProvider, type SeedProviderOptions } from "./seedProvider";
+import { type CouchConfig } from "./couch";
 import { assertCouchDatabase, assertSeeded } from "./preflight";
 
 export * from "./authSession";
+export * from "./couch";
 export * from "./fakeIdp";
 export * from "./mint";
 export * from "./personas";
