@@ -1,6 +1,15 @@
 # Luminary E2E Tests
 
-End-to-end Playwright suite that runs against deployed Luminary environments (the App and the CMS). This package is intentionally standalone — it is **not** part of the `app/`, `cms/`, or `shared/` build pipelines, and it does not spin up local services. Every run hits a real, already-deployed environment.
+End-to-end Playwright suite for the App and the CMS. This package is intentionally standalone — it is **not** part of the `app/`, `cms/`, or `shared/` build pipelines.
+
+## Two modes
+
+| Mode | Opt in with | Auth | Use it for |
+| ---- | ----------- | ---- | ---------- |
+| **Deployed** | `E2E_USER_EMAIL` / `E2E_USER_PASSWORD` | One real UI login through the hosted provider, cached via `storageState` | Smoke-testing a real environment, and the only place the real OIDC redirect is exercised |
+| **Fake IdP** | `E2E_COUCHDB_URL` | A local OIDC issuer; each test picks a persona | Permission behaviour, multi-role flows, anything needing controlled data |
+
+Permissions cannot be tested meaningfully against a shared deployed environment — you control neither the data nor its reset. That is what fake-IdP mode is for. See [Fake IdP mode](#fake-idp-mode).
 
 ## What this suite covers
 
@@ -8,8 +17,8 @@ Two Playwright projects, each pointed at its own base URL:
 
 | Project | Base URL env var | Auth | Purpose |
 | ------- | ---------------- | ---- | ------- |
-| `app`   | `APP_BASE_URL`   | Guest (no login) | Public app behavior: home page, IndexedDB sync, navigation, content rendering |
-| `cms`   | `CMS_BASE_URL`   | UI login once, cached via `storageState` + IndexedDB | Authenticated CMS behavior: content editing, publishing flows, permissions |
+| `app`   | `APP_BASE_URL`   | Guest, or a persona | Public app behavior: home page, IndexedDB sync, navigation, content rendering |
+| `cms`   | `CMS_BASE_URL`   | UI login once (deployed) or a persona (fake IdP) | Authenticated CMS behavior: content editing, publishing flows, permissions |
 
 Both projects are discovered and executed by a single `npx playwright test` invocation.
 
@@ -34,8 +43,13 @@ cp .env.example .env
 | ---- | -------- | ----------- |
 | `APP_BASE_URL` | yes | Base URL of the deployed App (e.g. a dev/staging environment) |
 | `CMS_BASE_URL` | yes | Base URL of the deployed CMS |
-| `E2E_USER_EMAIL` | yes | Test user email for CMS login |
-| `E2E_USER_PASSWORD` | yes | Test user password for CMS login |
+| `E2E_USER_EMAIL` | deployed mode | Test user email for CMS login |
+| `E2E_USER_PASSWORD` | deployed mode | Test user password for CMS login |
+| `E2E_COUCHDB_URL` | fake-IdP mode | CouchDB of the stack under test, credentials included. Setting this switches the suite into [fake IdP mode](#fake-idp-mode) |
+| `E2E_COUCHDB_DATABASE` | no | CouchDB database name (default `luminary`) |
+| `E2E_IDP_PORT` | no | Port the fake issuer binds to (default `8099`) |
+| `E2E_API_URL` | no | API origin, used by the preflight probe (default `http://localhost:3000`) |
+| `E2E_WORKERS` | no | Worker count in fake-IdP mode (default 4 in CI) |
 
 No URLs are hard-coded anywhere in this package. If `APP_BASE_URL` / `CMS_BASE_URL` are missing, the suite refuses to start.
 
@@ -95,6 +109,114 @@ import { appTest as test, expect } from "../../fixtures/test";
 
 Both fixtures also capture `API warning received:` console warnings from `syncBatch.ts` and fail the test if any are emitted — these indicate CouchDB queries running without a valid index.
 
+## Fake IdP mode
+
+Set `E2E_COUCHDB_URL` and global setup starts a local OIDC issuer instead of logging into a real provider. The API's token verification runs completely unmodified — real RS256 signatures, real JWKS fetch, real audience/issuer/`azp` checks, real `AutoGroupMappings` evaluation and `User`-doc linking. Only the identity provider is substituted.
+
+```bash
+# .env
+APP_BASE_URL=http://localhost:4174
+CMS_BASE_URL=http://localhost:4175
+E2E_COUCHDB_URL=http://admin:password@localhost:5984
+E2E_COUCHDB_DATABASE=luminary
+E2E_IDP_PORT=8099
+```
+
+The API must be started with `AUTH_ALLOW_INSECURE_PROVIDER_DOMAIN=true` — it refuses a non-https AuthProvider domain by default, because the provider's JWKS is fetched from that host and a plaintext fetch would let an on-path attacker substitute signing keys. Without the flag every persona's token is rejected as `token_invalid`.
+
+The stack must already be running and seeded (`npm run seed` in `api/`). Global setup then:
+
+1. Loads or creates an RS256 keypair in `.auth/idp-key.json`.
+2. Starts the issuer on `E2E_IDP_PORT`, serving OIDC discovery, JWKS, `/authorize` and `/oauth/token`.
+3. Writes an `AuthProvider` doc (`auth-provider-e2e`) pointing at it, plus a provider-less `AutoGroupMappings` doc granting `group-public-users` to everyone including guests.
+4. Records the result in `.auth/idp.json` so test workers can mint tokens.
+
+### Signing in as a persona
+
+```ts
+import { cmsPersonaTest as test, expect } from "../../fixtures/persona";
+
+test("editors can open the content editor", async ({ page, loginAs }) => {
+    await loginAs("editor1");
+    await page.goto("/");
+    // …
+});
+```
+
+`loginAs` mints a signed token for the persona and injects an `oidc-client-ts` session into the browser context, so the client boots straight into its authenticated path — setting the `Authorization` and `x-auth-provider-id` headers and authenticating the socket exactly as a real login does. **Call it before the first navigation**; the session is an init script and a loaded page will not pick it up.
+
+App specs use `appPersonaTest` instead. A test that omits `loginAs` runs as a guest.
+
+### Personas
+
+Defined in [fixtures/idp/personas.ts](fixtures/idp/personas.ts), linked to `api/src/db/seedingDocs/` by email:
+
+| Persona | Groups | Reaches |
+| ------- | ------ | ------- |
+| `superAdmin` | `group-super-admins` | The admin groups — **not** the content groups |
+| `editor1` | public + private editors | Edit/publish in both content groups |
+| `editor2` | private editors | Private content only — the negative case for public edits |
+| `privateUser` | `group-private-users` | Reads public **and** private content |
+| `publicUser` | `group-public-users` | Reads public content only |
+| `unlinked` | — | Valid token, no `User` doc: default groups only |
+
+Add a persona by adding a `User` doc to the seeding docs and an entry here — no fixture changes needed.
+
+### What to assert
+
+Two client-side signals expose the server's real decision:
+
+- `localStorage.accessMap` — the `AccessMap` delivered on the socket handshake, mirrored by `luminary-shared`.
+- The `memberOf` of documents in the `luminary-db` IndexedDB store — anything a connection was not entitled to never arrives.
+
+See [cms/authentication/persona-access.spec.ts](cms/authentication/persona-access.spec.ts) and [app/flows/permission-scoped-sync.spec.ts](app/flows/permission-scoped-sync.spec.ts).
+
+### Driving the real redirect flow
+
+The issuer also implements `/authorize` and the authorization-code grant, so a test can click the real provider button rather than injecting a session. Pass `login_hint=<personaKey>` to choose the identity. Use this for tests that are genuinely about *logging in* — for everything else `loginAs` is faster and far less brittle.
+
+### Running it locally
+
+Five processes, once:
+
+```bash
+cd api  && ./scripts/start-couchdb-in-ci.sh && ./scripts/start-minio-in-ci.sh
+curl -X PUT http://admin:password@localhost:5984/luminary
+cd api  && npm run seed
+cd api  && AUTH_ALLOW_INSECURE_PROVIDER_DOMAIN=true npm start
+cd app  && npm run dev      # 4174
+cd cms  && npm run dev      # 4175
+```
+
+Then `cd playwright-tests && npm test`. Global setup probes CouchDB, the API, the App and the CMS before it starts the issuer, so a missing piece fails immediately with a message naming what to start rather than as a timeout inside a spec. It also checks the database actually holds the seeded Group and User docs — an unseeded database otherwise yields empty access maps instead of an obvious error.
+
+### Which specs run in which mode
+
+The two fixture families guard themselves, so a full `npx playwright test` is correct in either mode:
+
+- Persona specs skip outside fake-IdP mode (no local issuer to mint against).
+- `cmsTest` specs, which depend on the shared deployed session, skip inside fake-IdP mode.
+- `appTest` guest specs run in both.
+
+## Writing efficient specs
+
+The suite runs `fullyParallel` in fake-IdP mode — each test gets its own browser context and IndexedDB, and the persona specs only read, so they do not interfere. Against a deployed environment it stays serial, since that environment is shared with other consumers.
+
+Two rules matter more than anything else for speed and reliability:
+
+**Never wait on `networkidle`.** Both clients hold an open socket, so the page may never reach it. Wait on the state you actually care about instead — [fixtures/readiness.ts](fixtures/readiness.ts) provides `waitForAccessMap` and `waitForSynced`, which poll *inside* the page: one round trip for the whole wait, and one cached IndexedDB connection rather than one per attempt.
+
+**Never assert an absence first.** `expect(groups).not.toContain("group-private-content")` passes instantly against an empty database and proves nothing. Wait for something the persona *should* receive, then assert what it should not:
+
+```ts
+const { groups } = await waitForSynced(page, { groups: ["group-public-content"] });
+expect(groups).not.toContain("group-private-content");
+```
+
+`waitForSynced` takes `groups` and/or `types` and returns `{ groups, types, statuses }` for whatever you want to assert next. On timeout it reports what it did see, so a failure names the gap instead of just the deadline.
+
+`loginAs` enforces its own preconditions — it throws if called after the first navigation (an init script cannot reach a loaded page) or twice in one context.
+
 ## Folder structure
 
 Playwright discovers every `*.spec.ts` recursively under each project's `testDir`, so you are free to organize specs into whatever folders make sense. The convention for this repo is:
@@ -103,7 +225,15 @@ Playwright discovers every `*.spec.ts` recursively under each project's `testDir
 playwright-tests/
 ├── fixtures/                # shared test fixtures & global setup (no specs)
 │   ├── global-setup.ts
-│   └── test.ts
+│   ├── test.ts              # deployed-mode fixtures (cmsTest / appTest)
+│   ├── persona.ts           # fake-IdP fixtures (cmsPersonaTest / appPersonaTest)
+│   └── idp/                 # the fake OIDC issuer
+│       ├── fakeIdp.ts       # discovery, JWKS, /authorize, /oauth/token
+│       ├── mint.ts          # RS256 token minting (no server needed)
+│       ├── signingKey.ts    # persisted keypair, shared across processes
+│       ├── personas.ts      # identities mapped to api/src/db/seedingDocs
+│       ├── authSession.ts   # injects an oidc-client-ts session into a context
+│       └── seedProvider.ts  # writes the AuthProvider doc into CouchDB
 ├── app/                     # testDir for the "app" Playwright project
 │   ├── pages/               # per-route / per-page tests (home, explore, watch, content, …)
 │   │   └── home-page.spec.ts
@@ -134,7 +264,23 @@ playwright-tests/
 
 ## CI
 
-Tests run on every push to `main` via [.github/workflows/e2e-tests.yml](../.github/workflows/e2e-tests.yml), and can be kicked off manually via `workflow_dispatch`.
+Two workflows, one per mode:
+
+### Fake IdP — [e2e-local-stack.yml](../.github/workflows/e2e-local-stack.yml)
+
+Runs on pull requests touching `api/`, `app/`, `cms/`, `shared/` or `playwright-tests/`, and on `workflow_dispatch`. It stands the whole stack up on the runner — CouchDB, MinIO, a seeded API, and production builds of the App and CMS — then runs the suite against it. **No secrets or repo variables required**, so it works on forks and needs no deployed environment to be healthy.
+
+Notes on why it is shaped the way it is:
+
+- The API is started with `AUTH_ALLOW_INSECURE_PROVIDER_DOMAIN=true`; without it every persona token is rejected.
+- `APP_BASE_URL` / `CMS_BASE_URL` use `localhost`, not `127.0.0.1` — the API's `CORS_ORIGIN` allowlist names `localhost`, and the two are different origins to a browser.
+- Clients are built with `build-only`, skipping `vue-tsc`; type checking belongs to the per-package unit-test workflows.
+- Seeding runs `node dist/src/main seed` against the already-built output rather than `npm run seed`, which would compile a second time.
+- npm caches key off all five lockfiles; Playwright browsers are cached separately, with `install-deps` still run on a cache hit so a fresh runner gets the system libraries.
+
+### Deployed — [e2e-tests.yml](../.github/workflows/e2e-tests.yml)
+
+Runs on every push to `main` and via `workflow_dispatch`, against a real environment.
 
 Required GitHub repo configuration:
 
