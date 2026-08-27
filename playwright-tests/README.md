@@ -4,10 +4,10 @@ End-to-end Playwright suite for the App and the CMS. This package is intentional
 
 ## Two modes
 
-| Mode | Opt in with | Auth | Use it for |
-| ---- | ----------- | ---- | ---------- |
+| Mode         | Opt in with                            | Auth                                                                     | Use it for                                                                               |
+| ------------ | -------------------------------------- | ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
 | **Deployed** | `E2E_USER_EMAIL` / `E2E_USER_PASSWORD` | One real UI login through the hosted provider, cached via `storageState` | Smoke-testing a real environment, and the only place the real OIDC redirect is exercised |
-| **Fake IdP** | `E2E_COUCHDB_URL` | A local OIDC issuer; each test picks a persona | Permission behaviour, multi-role flows, anything needing controlled data |
+| **Fake IdP** | `E2E_COUCHDB_URL`                      | A local OIDC issuer; each test picks a persona                           | Permission behaviour, multi-role flows, anything needing controlled data                 |
 
 Permissions cannot be tested meaningfully against a shared deployed environment — you control neither the data nor its reset. That is what fake-IdP mode is for. See [Fake IdP mode](#fake-idp-mode).
 
@@ -15,10 +15,10 @@ Permissions cannot be tested meaningfully against a shared deployed environment 
 
 Two Playwright projects, each pointed at its own base URL:
 
-| Project | Base URL env var | Auth | Purpose |
-| ------- | ---------------- | ---- | ------- |
-| `app`   | `APP_BASE_URL`   | Guest, or a persona | Public app behavior: home page, IndexedDB sync, navigation, content rendering |
-| `cms`   | `CMS_BASE_URL`   | UI login once (deployed) or a persona (fake IdP) | Authenticated CMS behavior: content editing, publishing flows, permissions |
+| Project | Base URL env var | Auth                                             | Purpose                                                                       |
+| ------- | ---------------- | ------------------------------------------------ | ----------------------------------------------------------------------------- |
+| `app`   | `APP_BASE_URL`   | Guest, or a persona                              | Public app behavior: home page, IndexedDB sync, navigation, content rendering |
+| `cms`   | `CMS_BASE_URL`   | UI login once (deployed) or a persona (fake IdP) | Authenticated CMS behavior: content editing, publishing flows, permissions    |
 
 Both projects are discovered and executed by a single `npx playwright test` invocation.
 
@@ -39,17 +39,17 @@ cp .env.example .env
 
 ### Environment variables
 
-| Name | Required | Description |
-| ---- | -------- | ----------- |
-| `APP_BASE_URL` | yes | Base URL of the deployed App (e.g. a dev/staging environment) |
-| `CMS_BASE_URL` | yes | Base URL of the deployed CMS |
-| `E2E_USER_EMAIL` | deployed mode | Test user email for CMS login |
-| `E2E_USER_PASSWORD` | deployed mode | Test user password for CMS login |
-| `E2E_COUCHDB_URL` | fake-IdP mode | CouchDB of the stack under test, credentials included. Setting this switches the suite into [fake IdP mode](#fake-idp-mode) |
-| `E2E_COUCHDB_DATABASE` | no | CouchDB database name (default `luminary`) |
-| `E2E_IDP_PORT` | no | Port the primary issuer binds to (default `8099`); the secondary takes the next port up |
-| `E2E_API_URL` | no | API origin, used by the preflight probe (default `http://localhost:3000`) |
-| `E2E_WORKERS` | no | Worker count in fake-IdP mode (default 4 in CI) |
+| Name                   | Required      | Description                                                                                                                 |
+| ---------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `APP_BASE_URL`         | yes           | Base URL of the deployed App (e.g. a dev/staging environment)                                                               |
+| `CMS_BASE_URL`         | yes           | Base URL of the deployed CMS                                                                                                |
+| `E2E_USER_EMAIL`       | deployed mode | Test user email for CMS login                                                                                               |
+| `E2E_USER_PASSWORD`    | deployed mode | Test user password for CMS login                                                                                            |
+| `E2E_COUCHDB_URL`      | fake-IdP mode | CouchDB of the stack under test, credentials included. Setting this switches the suite into [fake IdP mode](#fake-idp-mode) |
+| `E2E_COUCHDB_DATABASE` | no            | CouchDB database name (default `luminary`)                                                                                  |
+| `E2E_IDP_PORT`         | no            | Port the primary issuer binds to (default `8099`); the secondary takes the next port up                                     |
+| `E2E_API_URL`          | no            | API origin, used by the preflight probe (default `http://localhost:3000`)                                                   |
+| `E2E_WORKERS`          | no            | Worker count in fake-IdP mode (default 4 in CI)                                                                             |
 
 No URLs are hard-coded anywhere in this package. If `APP_BASE_URL` / `CMS_BASE_URL` are missing, the suite refuses to start.
 
@@ -137,9 +137,9 @@ The stack must already be running and seeded (`npm run seed` in `api/`). Global 
 import { cmsPersonaTest as test, expect } from "../../fixtures/persona";
 
 test("editors can open the content editor", async ({ page, loginAs }) => {
-    await loginAs("editor1");
-    await page.goto("/");
-    // …
+  await loginAs("editor1");
+  await page.goto("/");
+  // …
 });
 ```
 
@@ -149,17 +149,17 @@ App specs use `appPersonaTest` instead. A test that omits `loginAs` runs as a gu
 
 ### Personas
 
-Defined in [fixtures/idp/personas.ts](fixtures/idp/personas.ts), linked to `api/src/db/seedingDocs/` by email. Every persona also picks up `group-public-users` from the provider-less `AutoGroupMappings` default, which grants read access to public content on top of its own membership — so the boundary between an editor and a reader shows up in the *permissions* on a group, not in whether the group appears at all:
+Defined in [fixtures/idp/personas.ts](fixtures/idp/personas.ts), linked to `api/src/db/seedingDocs/` by email. Every persona also picks up `group-public-users` from the provider-less `AutoGroupMappings` default, which grants read access to public content on top of its own membership — so the boundary between an editor and a reader shows up in the _permissions_ on a group, not in whether the group appears at all:
 
-| Persona | Groups | Reaches |
-| ------- | ------ | ------- |
-| `superAdmin` | `group-super-admins` | The admin groups — **not** the content groups |
-| `editor1` | public + private editors | Edit/publish in both content groups |
-| `editor2` | private editors | Edits private content only — reads public content via the default group |
-| `privateUser` | `group-private-users` | Reads public **and** private content |
-| `publicUser` | `group-public-users` | Reads public content only |
-| `providerScoped` | private editors | **Dedicated** to the provider-scoping spec — see below |
-| `unlinked` | — | Valid token, no `User` doc: default groups only |
+| Persona          | Groups                   | Reaches                                                                 |
+| ---------------- | ------------------------ | ----------------------------------------------------------------------- |
+| `superAdmin`     | `group-super-admins`     | The admin groups — **not** the content groups                           |
+| `editor1`        | public + private editors | Edit/publish in both content groups                                     |
+| `editor2`        | private editors          | Edits private content only — reads public content via the default group |
+| `privateUser`    | `group-private-users`    | Reads public **and** private content                                    |
+| `publicUser`     | `group-public-users`     | Reads public content only                                               |
+| `providerScoped` | private editors          | **Dedicated** to the provider-scoping spec — see below                  |
+| `unlinked`       | —                        | Valid token, no `User` doc: default groups only                         |
 
 `loginAs` takes the primary provider by default; pass `{ provider: "secondary" }` for the other one.
 
@@ -189,14 +189,15 @@ See [cms/authentication/persona-access.spec.ts](cms/authentication/persona-acces
 
 These are the specs that would catch a session surviving a provider switch, or a user being bounced to a login screen unexpectedly:
 
-| Spec | Covers |
-| ---- | ------ |
-| [login-flow.spec.ts](cms/authentication/login-flow.spec.ts) | The real redirect, sign-out, and a provider A → B → A cycle |
-| [session-persistence.spec.ts](cms/authentication/session-persistence.spec.ts) | Reload, and an expired token refreshed silently against the issuer's token endpoint |
-| [token-recovery.spec.ts](cms/authentication/token-recovery.spec.ts) | A token that goes stale *mid-session*: the API rejects the reconnecting socket, the client refreshes silently and reconnects — no re-login UI. Recovery is meant to be quiet, so quietness is what is asserted |
-| [provider-scoping.spec.ts](cms/authentication/provider-scoping.spec.ts) | The silent access-map reduction described above |
+| Spec                                                                                                                                                       | Covers                                                                                                                                                                                                         |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [login-flow.spec.ts](cms/authentication/login-flow.spec.ts)                                                                                                | The real redirect, sign-out, and a provider A → B → A cycle                                                                                                                                                    |
+| [session-persistence.spec.ts](cms/authentication/session-persistence.spec.ts)                                                                              | Reload, and an expired token refreshed silently against the issuer's token endpoint                                                                                                                            |
+| [token-recovery.spec.ts](cms/authentication/token-recovery.spec.ts)                                                                                        | A token that goes stale _mid-session_: the API rejects the reconnecting socket, the client refreshes silently and reconnects — no re-login UI. Recovery is meant to be quiet, so quietness is what is asserted |
+| [opaque-token-recovery.spec.ts](cms/authentication/opaque-token-recovery.spec.ts) and [auth-token-recovery.spec.ts](app/flows/auth-token-recovery.spec.ts) | An Auth0-style opaque token is rejected by the API, an opaque refresh result is not retried, and the forced visible login retains both `prompt=login` and the API `audience` before reconnecting with a JWT    |
+| [provider-scoping.spec.ts](cms/authentication/provider-scoping.spec.ts)                                                                                    | The silent access-map reduction described above                                                                                                                                                                |
 
-Keep this set small — it is far more coupled to markup than the rest of the suite. Everything that is *not* about logging in should use `loginAs`.
+Keep this set small — it is far more coupled to markup than the rest of the suite. Everything that is _not_ about logging in should use `loginAs`.
 
 The issuer's `/authorize` also accepts `login_hint=<personaKey>` to pick an identity with no page rendered, for a flow that needs the redirect but not the UI.
 
@@ -233,10 +234,12 @@ Two rules matter more than anything else for speed and reliability:
 
 **Never hand `page.waitForFunction` an async predicate.** It tests the returned value for truthiness without awaiting it, and a promise is always truthy, so the wait resolves on the first poll and silently becomes a race. `waitForAccessMap` reads `localStorage` synchronously and can use it; `waitForSynced` has to read IndexedDB, so it polls from the test process instead.
 
-**Never assert an absence first.** `expect(groups).not.toContain("group-private-content")` passes instantly against an empty database and proves nothing. Wait for something the persona *should* receive, then assert what it should not:
+**Never assert an absence first.** `expect(groups).not.toContain("group-private-content")` passes instantly against an empty database and proves nothing. Wait for something the persona _should_ receive, then assert what it should not:
 
 ```ts
-const { groups } = await waitForSynced(page, { groups: ["group-public-content"] });
+const { groups } = await waitForSynced(page, {
+  groups: ["group-public-content"],
+});
 expect(groups).not.toContain("group-private-content");
 ```
 
@@ -329,10 +332,10 @@ On failure it also opens (or comments on an existing) GitHub Issue labelled `e2e
 
 Both workflows upload to GitHub's own artifact storage, attached to the run — nothing is sent anywhere else. Get them from the run summary page, or with `gh run download <run-id>`.
 
-| Workflow | HTML report (always) | Traces, videos, screenshots (on failure) |
-| -------- | -------------------- | ---------------------------------------- |
-| Fake IdP | `playwright-report-local-stack` | `playwright-test-results-local-stack` |
-| Deployed | `playwright-report` | `playwright-test-results` |
+| Workflow | HTML report (always)            | Traces, videos, screenshots (on failure) |
+| -------- | ------------------------------- | ---------------------------------------- |
+| Fake IdP | `playwright-report-local-stack` | `playwright-test-results-local-stack`    |
+| Deployed | `playwright-report`             | `playwright-test-results`                |
 
 The names are suffixed per workflow so runs of both on one commit do not collide. All four are retained 14 days, overriding the repo default, and are readable by anyone with read access to the repo.
 
