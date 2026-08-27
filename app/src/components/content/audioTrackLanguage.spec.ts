@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { matchTrackLanguage, selectAudioTrackIndex } from "./audioTrackLanguage";
+import {
+    matchTrackLanguage,
+    selectAudioTrackIndex,
+    fallbackTrackIndex,
+} from "./audioTrackLanguage";
 
 describe("matchTrackLanguage", () => {
     it("matches a 3-letter code (as Android / Chrome reports)", () => {
@@ -50,9 +54,20 @@ describe("selectAudioTrackIndex", () => {
 
     // Regression: when no track matches the app language the caller must NOT disable every
     // track (that leaves the player with no audio and it stalls after ~5s once the buffer drains).
-    it("returns -1 when no track matches — keep the current track", () => {
+    it("returns -1 when no track matches", () => {
         expect(selectAudioTrackIndex(["fra", "spa"], "en")).toBe(-1);
         expect(selectAudioTrackIndex([null, undefined, ""], "en")).toBe(-1);
         expect(selectAudioTrackIndex([], "en")).toBe(-1);
+    });
+});
+
+describe("fallbackTrackIndex", () => {
+    // When nothing matches, one track must still be enabled or HLS never starts playing.
+    it("keeps the already-enabled (stream default) track", () => {
+        expect(fallbackTrackIndex([false, true, false])).toBe(1);
+    });
+
+    it("falls back to the first track when none is enabled", () => {
+        expect(fallbackTrackIndex([false, false, false])).toBe(0);
     });
 });

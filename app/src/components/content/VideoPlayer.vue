@@ -5,7 +5,7 @@ import "videojs-mobile-ui";
 import type Player from "video.js/dist/types/player";
 import { type ContentDto } from "luminary-shared";
 import px from "./px.png";
-import { selectAudioTrackIndex } from "./audioTrackLanguage";
+import { selectAudioTrackIndex, fallbackTrackIndex } from "./audioTrackLanguage";
 import LImage from "../images/LImage.vue";
 import { appLanguagesPreferredAsRef, queryParams } from "@/globalConfig";
 import { getMediaProgress, removeMediaProgress, setMediaProgress } from "@/contentProgress";
@@ -97,15 +97,17 @@ function setAudioTrackLanguage(languageCode: string | null) {
     const trackLanguages = tracks.map((track) => track.language);
 
     const matchIndex = selectAudioTrackIndex(trackLanguages, languageCode);
+
+    // Always enable exactly one track. When no track matches the app language, fall back to a
+    // default (the currently-enabled/stream default, else the first) — leaving every track
+    // disabled gives the player no audio rendition, so playback never starts.
+    const enabledIndex =
+        matchIndex !== -1 ? matchIndex : fallbackTrackIndex(tracks.map((track) => track.enabled));
     if (matchIndex === -1) {
-        // No track matches the app language — keep whatever track is currently enabled so audio
-        // keeps playing. Disabling every track leaves the player with no audio and it stalls once
-        // the buffer drains.
         console.warn(`No matching audio track found for language: ${languageCode}`);
-        return;
     }
 
-    tracks.forEach((track, i) => (track.enabled = i === matchIndex));
+    tracks.forEach((track, i) => (track.enabled = i === enabledIndex));
 }
 
 function syncKeepAudioStateAlive() {

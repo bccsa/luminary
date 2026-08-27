@@ -32,3 +32,13 @@ export function selectAudioTrackIndex(
 ): number {
     return trackLanguages.findIndex((lang) => matchTrackLanguage(lang, languageCode));
 }
+
+/**
+ * Which track to enable when no language matches: the one already enabled (the stream's
+ * default), else the first. The player must always have exactly one enabled audio track —
+ * with none enabled, HLS playback never starts. Assumes at least one track exists.
+ */
+export function fallbackTrackIndex(enabled: boolean[]): number {
+    const current = enabled.findIndex(Boolean);
+    return current === -1 ? 0 : current;
+}
