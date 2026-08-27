@@ -1,11 +1,12 @@
-import { cmsPersonaTest as test, providerConfig } from "../../fixtures/persona";
+import { appPersonaTest as test, providerConfig } from "../../fixtures/persona";
 import { assertSessionSurvivesUnreachableProvider } from "../../fixtures/providerUnreachable";
 
 /**
- * The counterpart to quiet token recovery: the same stale-token reconnect, but
- * with the token endpoint unreachable rather than answering.
+ * The app can fall back to guest browsing, which makes losing a session quieter
+ * here than in the CMS and so easier to ship unnoticed: content keeps rendering,
+ * only the user's own groups silently drop away.
  */
-test.describe("CMS unreachable provider", () => {
+test.describe("App unreachable provider", () => {
     test("keeps the session and retries when the token endpoint cannot be reached", async ({
         page,
         loginAs,
@@ -15,7 +16,7 @@ test.describe("CMS unreachable provider", () => {
         const persona = await loginAs("editor1", { expiresInSeconds: 12 });
 
         await assertSessionSurvivesUnreachableProvider(page, {
-            target: "cms",
+            target: "app",
             provider: { ...providerConfig(primary), origin: primary.origin },
             expectedGroups: persona.reaches,
         });
