@@ -47,7 +47,7 @@ cp .env.example .env
 | `E2E_USER_PASSWORD` | deployed mode | Test user password for CMS login |
 | `E2E_COUCHDB_URL` | fake-IdP mode | CouchDB of the stack under test, credentials included. Setting this switches the suite into [fake IdP mode](#fake-idp-mode) |
 | `E2E_COUCHDB_DATABASE` | no | CouchDB database name (default `luminary`) |
-| `E2E_IDP_PORT` | no | Port the fake issuer binds to (default `8099`) |
+| `E2E_IDP_PORT` | no | Port the primary issuer binds to (default `8099`); the secondary takes the next port up |
 | `E2E_API_URL` | no | API origin, used by the preflight probe (default `http://localhost:3000`) |
 | `E2E_WORKERS` | no | Worker count in fake-IdP mode (default 4 in CI) |
 
@@ -126,9 +126,9 @@ The API must be started with `AUTH_ALLOW_INSECURE_PROVIDER_DOMAIN=true` — it r
 
 The stack must already be running and seeded (`npm run seed` in `api/`). Global setup then:
 
-1. Loads or creates an RS256 keypair in `.auth/idp-key.json`.
-2. Starts the issuer on `E2E_IDP_PORT`, serving OIDC discovery, JWKS, `/authorize` and `/oauth/token`.
-3. Writes an `AuthProvider` doc (`auth-provider-e2e`) pointing at it, plus a provider-less `AutoGroupMappings` doc granting `group-public-users` to everyone including guests.
+1. Loads or creates an RS256 keypair per issuer in `.auth/idp-key-<primary|secondary>.json`.
+2. Starts **two** issuers, on `E2E_IDP_PORT` and the next port up, each serving OIDC discovery, JWKS, `/authorize` (with an account-chooser page), `/oauth/token` and `/logout`. Two separate issuers rather than two clients on one, so provider scoping is exercised against genuinely different domains, keys and JWKS endpoints.
+3. Writes an `AuthProvider` doc per issuer (`auth-provider-e2e`, `auth-provider-e2e-secondary`), a provider-less `AutoGroupMappings` doc granting `group-public-users` to everyone including guests, and the suite's own `user-e2e-provider-scope` User doc.
 4. Records the result in `.auth/idp.json` so test workers can mint tokens.
 
 ### Signing in as a persona
@@ -158,9 +158,21 @@ Defined in [fixtures/idp/personas.ts](fixtures/idp/personas.ts), linked to `api/
 | `editor2` | private editors | Edits private content only — reads public content via the default group |
 | `privateUser` | `group-private-users` | Reads public **and** private content |
 | `publicUser` | `group-public-users` | Reads public content only |
+| `providerScoped` | private editors | **Dedicated** to the provider-scoping spec — see below |
 | `unlinked` | — | Valid token, no `User` doc: default groups only |
 
+`loginAs` takes the primary provider by default; pass `{ provider: "secondary" }` for the other one.
+
 Add a persona by adding a `User` doc to the seeding docs and an entry here — no fixture changes needed.
+
+### Signing in stamps a user, permanently
+
+The API records the provider a `User` doc first signs in through, then excludes that doc's groups from every other provider (`authIdentity.service.ts`). It is deliberate — a token carrying the same email from an untrusted issuer must not inherit an account's permissions — but the second provider still signs in successfully, with a silently reduced access map that the server only records as a log warning.
+
+Two consequences for specs:
+
+- **The first sign-in mutates the seeded data.** CI gets a fresh database each run; locally, a re-run is running against already-stamped user docs.
+- **An identity that signs in through more than one provider cannot be shared.** Mark such a persona `dedicated: true` so `sharedPersonas()` keeps it out of the general sweep, and reserve it to one spec. `providerScoped` and its `user-e2e-provider-scope` doc exist for exactly this; `unlinked` has no `User` doc at all, so it is provider-neutral and safe for login-flow specs.
 
 ### What to assert
 
@@ -171,9 +183,21 @@ Two client-side signals expose the server's real decision:
 
 See [cms/authentication/persona-access.spec.ts](cms/authentication/persona-access.spec.ts) and [app/flows/permission-scoped-sync.spec.ts](app/flows/permission-scoped-sync.spec.ts).
 
-### Driving the real redirect flow
+### Driving the real login UI
 
-The issuer also implements `/authorize` and the authorization-code grant, so a test can click the real provider button rather than injecting a session. Pass `login_hint=<personaKey>` to choose the identity. Use this for tests that are genuinely about *logging in* — for everything else `loginAs` is faster and far less brittle.
+`loginAs` skips the login UI, so a handful of specs drive it for real instead — [fixtures/loginFlow.ts](fixtures/loginFlow.ts) provides `waitForProviderChoices`, `signInThroughUI`, `signOutThroughUI` and `readActiveProviderId`. Together they cover the provider modal, the OIDC redirect, the issuer's own account chooser, the authorization-code exchange and the sign-out round trip.
+
+These are the specs that would catch a session surviving a provider switch, or a user being bounced to a login screen unexpectedly:
+
+| Spec | Covers |
+| ---- | ------ |
+| [login-flow.spec.ts](cms/authentication/login-flow.spec.ts) | The real redirect, sign-out, and a provider A → B → A cycle |
+| [session-persistence.spec.ts](cms/authentication/session-persistence.spec.ts) | Reload, and an expired token refreshed silently against the issuer's token endpoint |
+| [provider-scoping.spec.ts](cms/authentication/provider-scoping.spec.ts) | The silent access-map reduction described above |
+
+Keep this set small — it is far more coupled to markup than the rest of the suite. Everything that is *not* about logging in should use `loginAs`.
+
+The issuer's `/authorize` also accepts `login_hint=<personaKey>` to pick an identity with no page rendered, for a flow that needs the redirect but not the UI.
 
 ### Running it locally
 

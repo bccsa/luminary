@@ -3,10 +3,15 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { startFakeIdp, type FakeIdp } from "./fakeIdp";
 import { loadOrCreateSigningKey, type SigningKey } from "./signingKey";
-import { personaIdentities, personas } from "./personas";
-import { seedAuthProvider, type SeedProviderOptions } from "./seedProvider";
-import { type CouchConfig } from "./couch";
+import { personaIdentities } from "./personas";
+import {
+    seedAuthProvider,
+    seedDefaultGroupMapping,
+    seedScopedUser,
+    type SeedProviderOptions,
+} from "./seedProvider";
 import { assertCouchDatabase, assertSeeded } from "./preflight";
+import { type CouchConfig } from "./couch";
 
 export * from "./authSession";
 export * from "./couch";
@@ -20,25 +25,57 @@ export * from "./signingKey";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const authDir = path.resolve(__dirname, "../../.auth");
 
-const KEY_FILE = path.join(authDir, "idp-key.json");
 const ENV_FILE = path.join(authDir, "idp.json");
 
-/** Fixed by default: the AuthProvider doc in CouchDB records this origin. */
+/** Fixed by default: the AuthProvider docs in CouchDB record these origins. */
 export const DEFAULT_IDP_PORT = 8099;
-export const DEFAULT_AUDIENCE = "luminary-e2e";
-export const DEFAULT_CLIENT_ID = "luminary-e2e-client";
+
+export type ProviderKey = "primary" | "secondary";
+
+/**
+ * Two issuers rather than two clients on one, so provider scoping is exercised
+ * against genuinely separate domains, keys and JWKS endpoints.
+ */
+const PROVIDER_DEFS: ReadonlyArray<{
+    key: ProviderKey;
+    providerId: string;
+    clientId: string;
+    audience: string;
+    label: string;
+}> = [
+    {
+        key: "primary",
+        providerId: "auth-provider-e2e",
+        clientId: "luminary-e2e-client",
+        audience: "luminary-e2e",
+        label: "E2E Primary",
+    },
+    {
+        key: "secondary",
+        providerId: "auth-provider-e2e-secondary",
+        clientId: "luminary-e2e-client-secondary",
+        audience: "luminary-e2e-secondary",
+        label: "E2E Secondary",
+    },
+];
 
 /** What a test worker needs in order to mint a token for a persona. */
-export type IdpEnvironment = {
+export type ProviderEnvironment = {
+    key: ProviderKey;
     origin: string;
     issuer: string;
     audience: string;
     clientId: string;
     providerId: string;
+    label: string;
 };
 
-export function readSigningKey(): SigningKey {
-    return loadOrCreateSigningKey(KEY_FILE);
+export type IdpEnvironment = {
+    providers: Record<ProviderKey, ProviderEnvironment>;
+};
+
+export function readSigningKey(provider: ProviderKey = "primary"): SigningKey {
+    return loadOrCreateSigningKey(path.join(authDir, `idp-key-${provider}.json`));
 }
 
 export function readIdpEnvironment(): IdpEnvironment {
@@ -61,60 +98,77 @@ export function clearIdpEnvironment(): void {
 
 export type StartE2eIdpOptions = {
     couch: CouchConfig;
+    /** The secondary issuer takes the next port up. */
     port?: number;
     host?: string;
-    audience?: string;
-    clientId?: string;
     mappings?: SeedProviderOptions["mappings"];
 };
 
 /**
- * Starts the issuer, registers it as an AuthProvider in CouchDB, and records
- * where it landed so the workers can mint against it. Call from global setup and
- * return the teardown so the issuer outlives setup but not the run.
+ * Starts both issuers, registers them as AuthProviders in CouchDB, and records
+ * where they landed so the workers can mint against them. Call from global setup
+ * and return the teardown so they outlive setup but not the run.
  */
 export async function startE2eIdp(options: StartE2eIdpOptions): Promise<{
-    idp: FakeIdp;
+    idps: Record<ProviderKey, FakeIdp>;
     env: IdpEnvironment;
     stop: () => Promise<void>;
 }> {
     clearIdpEnvironment();
     await assertCouchDatabase(options.couch);
     await assertSeeded(options.couch);
+    await seedDefaultGroupMapping(options.couch);
+    await seedScopedUser(options.couch);
 
-    const key = readSigningKey();
-    const audience = options.audience ?? DEFAULT_AUDIENCE;
-    const clientId = options.clientId ?? DEFAULT_CLIENT_ID;
+    const basePort = options.port ?? DEFAULT_IDP_PORT;
+    const identities = personaIdentities();
+    const idps = {} as Record<ProviderKey, FakeIdp>;
+    const providers = {} as Record<ProviderKey, ProviderEnvironment>;
 
-    const idp = await startFakeIdp({
-        key,
-        audience,
-        clientId,
-        host: options.host ?? "127.0.0.1",
-        port: options.port ?? DEFAULT_IDP_PORT,
-        identities: personaIdentities(),
-        defaultIdentity: personas.superAdmin,
-    });
+    for (const [index, def] of PROVIDER_DEFS.entries()) {
+        const idp = await startFakeIdp({
+            key: readSigningKey(def.key),
+            audience: def.audience,
+            clientId: def.clientId,
+            label: def.label,
+            host: options.host ?? "127.0.0.1",
+            port: basePort + index,
+            identities,
+        });
 
-    const providerId = await seedAuthProvider({
-        couch: options.couch,
-        // Scheme included: the API keeps it rather than forcing https.
-        domain: idp.origin,
-        audience,
-        clientId,
-        mappings: options.mappings,
-    });
+        await seedAuthProvider({
+            couch: options.couch,
+            providerId: def.providerId,
+            label: def.label,
+            // Scheme included: the API keeps it rather than forcing https.
+            domain: idp.origin,
+            audience: def.audience,
+            clientId: def.clientId,
+            sortIndex: index,
+            mappings: index === 0 ? options.mappings : undefined,
+        });
 
-    const env: IdpEnvironment = {
-        origin: idp.origin,
-        issuer: idp.issuer,
-        audience,
-        clientId,
-        providerId,
-    };
+        idps[def.key] = idp;
+        providers[def.key] = {
+            key: def.key,
+            origin: idp.origin,
+            issuer: idp.issuer,
+            audience: def.audience,
+            clientId: def.clientId,
+            providerId: def.providerId,
+            label: def.label,
+        };
+    }
 
+    const env: IdpEnvironment = { providers };
     fs.mkdirSync(authDir, { recursive: true });
     fs.writeFileSync(ENV_FILE, JSON.stringify(env, null, 2));
 
-    return { idp, env, stop: () => idp.stop() };
+    return {
+        idps,
+        env,
+        stop: async () => {
+            await Promise.all(Object.values(idps).map((idp) => idp.stop()));
+        },
+    };
 }

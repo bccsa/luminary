@@ -1,6 +1,6 @@
 import { cmsPersonaTest as test, expect } from "../../fixtures/persona";
 import { waitForAccessMap } from "../../fixtures/readiness";
-import { personas, type PersonaKey } from "../../fixtures/idp";
+import { sharedPersonas, type PersonaKey } from "../../fixtures/idp";
 
 /**
  * The AccessMap the API returns on the socket handshake is the whole permission
@@ -8,7 +8,7 @@ import { personas, type PersonaKey } from "../../fixtures/idp";
  * it checks the real server-side resolution rather than a UI proxy.
  */
 test.describe("CMS persona access", () => {
-    for (const persona of Object.values(personas)) {
+    for (const persona of sharedPersonas()) {
         test(`resolves the seeded groups for ${persona.key}`, async ({ page, loginAs }) => {
             await loginAs(persona.key as PersonaKey);
             await page.goto("/");

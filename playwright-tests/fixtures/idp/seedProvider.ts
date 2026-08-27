@@ -6,21 +6,32 @@
 
 import { couchFetch, type CouchConfig } from "./couch";
 
-export const E2E_PROVIDER_ID = "auth-provider-e2e";
 export const E2E_DEFAULT_MAPPING_ID = "auto-group-mappings-e2e-default";
+
+/**
+ * A User doc owned by the E2E suite. Provider scoping stamps a user with the
+ * first provider it signs in through, permanently, so the spec that exercises
+ * that needs an identity no other spec signs in as.
+ */
+export const E2E_SCOPED_USER_ID = "user-e2e-provider-scope";
+export const E2E_SCOPED_USER_EMAIL = "provider-scope@users.test";
 
 /** Mirrors the groups `api/scripts/add-auth-provider.ts` assigns. */
 const PROVIDER_MEMBER_OF = ["group-super-admins", "group-public-users"];
 
-/** Applied to every identity including guests, so anonymous app sync has groups. */
 const DEFAULT_GROUPS = ["group-public-users"];
 
 export type SeedProviderOptions = {
     couch: CouchConfig;
+    /** Document id, so several providers can coexist. */
+    providerId: string;
+    label: string;
     /** The fake issuer's origin, scheme included — `http://127.0.0.1:8099`. */
     domain: string;
     audience: string;
     clientId: string;
+    /** Order the provider appears in the login UI. */
+    sortIndex?: number;
     /**
      * Extra claim-driven group assignments, for exercising AutoGroupMappings
      * beyond the plain default-groups case.
@@ -62,37 +73,28 @@ async function putDoc(couch: CouchConfig, doc: Record<string, unknown> & { _id: 
 }
 
 export async function seedAuthProvider(options: SeedProviderOptions): Promise<string> {
-    const { couch, domain, audience, clientId } = options;
+    const { couch, providerId, label, domain, audience, clientId } = options;
     const updatedTimeUtc = Date.now();
 
     await putDoc(couch, {
-        _id: E2E_PROVIDER_ID,
+        _id: providerId,
         type: "authProvider",
         domain,
         audience,
         clientId,
         memberOf: PROVIDER_MEMBER_OF,
-        displayName: "E2E Fake IdP",
-        label: "E2E Fake IdP",
+        displayName: label,
+        label,
+        sortIndex: options.sortIndex ?? 0,
         userFieldMappings: { externalUserId: "sub", email: "email", name: "name" },
-        updatedTimeUtc,
-    });
-
-    // No providerId — the API reads provider-less mappings as global defaults.
-    await putDoc(couch, {
-        _id: E2E_DEFAULT_MAPPING_ID,
-        type: "autoGroupMappings",
-        groupIds: DEFAULT_GROUPS,
-        conditions: [{ type: "authenticated" }],
-        memberOf: PROVIDER_MEMBER_OF,
         updatedTimeUtc,
     });
 
     for (const [index, mapping] of (options.mappings ?? []).entries()) {
         await putDoc(couch, {
-            _id: `auto-group-mappings-e2e-${index}`,
+            _id: `auto-group-mappings-${providerId}-${index}`,
             type: "autoGroupMappings",
-            providerId: E2E_PROVIDER_ID,
+            providerId,
             groupIds: mapping.groupIds,
             conditions: mapping.conditions,
             memberOf: PROVIDER_MEMBER_OF,
@@ -100,5 +102,33 @@ export async function seedAuthProvider(options: SeedProviderOptions): Promise<st
         });
     }
 
-    return E2E_PROVIDER_ID;
+    return providerId;
+}
+
+/** Applied to every identity including guests, so anonymous app sync has groups. */
+export async function seedDefaultGroupMapping(couch: CouchConfig): Promise<void> {
+    // No providerId — the API reads provider-less mappings as global defaults.
+    await putDoc(couch, {
+        _id: E2E_DEFAULT_MAPPING_ID,
+        type: "autoGroupMappings",
+        groupIds: DEFAULT_GROUPS,
+        conditions: [{ type: "authenticated" }],
+        memberOf: PROVIDER_MEMBER_OF,
+        updatedTimeUtc: Date.now(),
+    });
+}
+
+/**
+ * Written here rather than into `api/src/db/seedingDocs/`, which ships as
+ * installation data — this user exists only for the E2E suite.
+ */
+export async function seedScopedUser(couch: CouchConfig): Promise<void> {
+    await putDoc(couch, {
+        _id: E2E_SCOPED_USER_ID,
+        type: "user",
+        name: "Provider Scope User",
+        email: E2E_SCOPED_USER_EMAIL,
+        memberOf: ["group-private-editors"],
+        updatedTimeUtc: Date.now(),
+    });
 }

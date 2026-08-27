@@ -10,11 +10,19 @@ import {
     type Persona,
     type PersonaKey,
     type ProviderConfig,
+    type ProviderEnvironment,
+    type ProviderKey,
 } from "./idp";
 
 export type LoginOptions = {
-    /** Shorten the token's life to exercise the client's silent-refresh path. */
+    /**
+     * Shorten the token's life to exercise the client's silent-refresh path. A
+     * negative value mints an already-expired token, which is what forces the
+     * refresh at boot rather than later.
+     */
     expiresInSeconds?: number;
+    /** Which issuer to sign in through. Defaults to the primary. */
+    provider?: ProviderKey;
 };
 
 export type LoginAs = (persona: PersonaKey, options?: LoginOptions) => Promise<Persona>;
@@ -36,12 +44,12 @@ type PersonaWorkerFixtures = {
 /** Persona specs need the local issuer; against a deployment there is none. */
 const LOCAL_STACK = !!process.env.E2E_COUCHDB_URL;
 
-function providerConfig(env: IdpEnvironment): ProviderConfig {
+export function providerConfig(provider: ProviderEnvironment): ProviderConfig {
     return {
-        _id: env.providerId,
-        domain: env.origin,
-        clientId: env.clientId,
-        audience: env.audience,
+        _id: provider.providerId,
+        domain: provider.origin,
+        clientId: provider.clientId,
+        audience: provider.audience,
     };
 }
 
@@ -69,12 +77,13 @@ async function login(
 ): Promise<Persona> {
     assertNotNavigated(context);
 
+    const provider = env.providers[options?.provider ?? "primary"];
     const persona = getPersona(personaKey);
     const tokens = mintTokenSet({
-        key: readSigningKey(),
-        issuer: env.issuer,
-        audience: env.audience,
-        clientId: env.clientId,
+        key: readSigningKey(provider.key),
+        issuer: provider.issuer,
+        audience: provider.audience,
+        clientId: provider.clientId,
         identity: {
             sub: persona.sub,
             email: persona.email,
@@ -86,7 +95,7 @@ async function login(
 
     await seedAuthSession(context, {
         target,
-        provider: providerConfig(env),
+        provider: providerConfig(provider),
         tokens,
         profile: { sub: persona.sub, email: persona.email, name: persona.name },
     });
@@ -120,7 +129,7 @@ function makePersonaTest(target: ClientTarget) {
                 if (used) {
                     throw new Error(
                         "loginAs() was called twice. A context holds one session; " +
-                            "use a separate test to exercise another persona.",
+                            "use a separate test to exercise another persona or provider.",
                     );
                 }
                 used = true;

@@ -7,6 +7,12 @@ import type { TokenIdentity } from "./mint";
  */
 export type Persona = TokenIdentity & {
     key: string;
+    /**
+     * Excluded from the general persona sweep. Signing in stamps a User doc with
+     * the provider used, permanently, so an identity that signs in through more
+     * than one provider must not be shared with specs that assume the first.
+     */
+    dedicated?: boolean;
     /** Seeded User doc this resolves to, or null for an identity with no User doc. */
     userDoc: string | null;
     /** `memberOf` on that User doc. Default and claim-mapped groups add to this. */
@@ -96,8 +102,29 @@ export const personas = {
     }),
 
     /**
-     * Valid token, no User doc. Exercises the path where a login resolves to
-     * default and claim-mapped groups only.
+     * Owns `user-e2e-provider-scope`, seeded by the suite itself. Reserved for
+     * the provider-scoping spec, which signs it in through both providers.
+     */
+    providerScoped: persona({
+        key: "providerScoped",
+        dedicated: true,
+        sub: "e2e|provider-scope",
+        email: "provider-scope@users.test",
+        name: "Provider Scope User",
+        userDoc: "user-e2e-provider-scope",
+        memberOf: ["group-private-editors"],
+        reaches: [
+            "group-private-content",
+            "group-languages",
+            "group-public-content",
+            "group-public-users",
+        ],
+    }),
+
+    /**
+     * Valid token, no User doc, so nothing is ever stamped with a provider.
+     * Exercises the path where a login resolves to default and claim-mapped
+     * groups only, and is safe to sign in through either provider.
      */
     unlinked: persona({
         key: "unlinked",
@@ -111,6 +138,11 @@ export const personas = {
 } satisfies Record<string, Persona>;
 
 export type PersonaKey = keyof typeof personas;
+
+/** The personas a general sweep should cover — see `Persona.dedicated`. */
+export function sharedPersonas(): Persona[] {
+    return Object.values(personas).filter((p) => !p.dedicated);
+}
 
 export function getPersona(key: PersonaKey): Persona {
     const found = personas[key];

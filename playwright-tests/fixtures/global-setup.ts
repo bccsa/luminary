@@ -148,9 +148,12 @@ async function setupFakeIdp(appBaseURL: string, cmsBaseURL: string): Promise<() 
         port: Number(process.env.E2E_IDP_PORT ?? DEFAULT_IDP_PORT),
     });
 
+    const listed = Object.values(env.providers)
+        .map((p) => `    ${p.label}: ${p.origin} (${p.providerId})`)
+        .join("\n");
     console.log(
-        `Fake IdP listening on ${env.origin} as provider ${env.providerId}\n` +
-            "  The API must run with AUTH_ALLOW_INSECURE_PROVIDER_DOMAIN=true to accept its tokens.",
+        `Fake IdP issuers listening:\n${listed}\n` +
+            "  The API must run with AUTH_ALLOW_INSECURE_PROVIDER_DOMAIN=true to accept their tokens.",
     );
     return stop;
 }

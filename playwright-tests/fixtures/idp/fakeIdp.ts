@@ -7,6 +7,8 @@ export type FakeIdpOptions = {
     key: SigningKey;
     audience: string;
     clientId: string;
+    /** Shown on the issuer's login page, so a test can tell the two apart. */
+    label?: string;
     host?: string;
     /** 0 asks the OS for a free port; read the real one off `origin` afterwards. */
     port?: number;
@@ -25,9 +27,44 @@ export type FakeIdp = {
     issuer: string;
     audience: string;
     clientId: string;
+    label: string;
     mint: (identity: TokenIdentity, opts?: { expiresInSeconds?: number }) => TokenSet;
     stop: () => Promise<void>;
 };
+
+function escapeHtml(value: string): string {
+    return value.replace(
+        /[&<>"']/g,
+        (c) =>
+            ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] as string,
+    );
+}
+
+/**
+ * Stand-in for a hosted login page. Each identity is a link carrying the
+ * original authorization parameters, so a test picks who to sign in as the same
+ * way a person picks an account.
+ */
+function loginPage(label: string, identityKeys: string[], params: URLSearchParams): string {
+    const buttons = identityKeys
+        .map((key) => {
+            const next = new URLSearchParams(params);
+            next.set("persona", key);
+            return `<li><a role="button" data-persona="${escapeHtml(
+                key,
+            )}" href="/authorize/continue?${escapeHtml(next.toString())}">${escapeHtml(
+                key,
+            )}</a></li>`;
+        })
+        .join("");
+
+    return `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(
+        label,
+    )}</title></head>
+<body><h1>${escapeHtml(
+        label,
+    )}</h1><p>Choose an identity to sign in as.</p><ul>${buttons}</ul></body></html>`;
+}
 
 /** Every response is read cross-origin by the browser under test. */
 const CORS_HEADERS = {
@@ -111,17 +148,42 @@ export async function startFakeIdp(options: FakeIdpOptions): Promise<FakeIdp> {
         // Real redirect flow. PKCE parameters are accepted and ignored — there is
         // no attacker to defend against here, and verifying them would only add a
         // way for the fixture itself to fail.
-        if (url.pathname === "/authorize") {
-            const hint = url.searchParams.get("login_hint") ?? "";
-            const identity = identities[hint] ?? options.defaultIdentity;
+        if (url.pathname === "/authorize" || url.pathname === "/authorize/continue") {
             const redirectUri = url.searchParams.get("redirect_uri");
-
-            if (!identity || !redirectUri) {
+            if (!redirectUri) {
                 json(res, 400, {
                     error: "invalid_request",
-                    error_description: !redirectUri
-                        ? "redirect_uri is required"
-                        : `no identity registered for login_hint "${hint}"`,
+                    error_description: "redirect_uri is required",
+                });
+                return;
+            }
+
+            // login_hint picks an identity without rendering anything, which is
+            // how a test that does not care about the login UI drives the flow.
+            const selector =
+                url.searchParams.get("persona") ?? url.searchParams.get("login_hint") ?? "";
+            const identity =
+                identities[selector] ?? (selector ? undefined : options.defaultIdentity);
+
+            if (!identity) {
+                if (url.pathname === "/authorize" && !selector) {
+                    res.writeHead(200, {
+                        ...CORS_HEADERS,
+                        "content-type": "text/html; charset=utf-8",
+                        "cache-control": "no-store",
+                    });
+                    res.end(
+                        loginPage(
+                            options.label ?? "E2E identity provider",
+                            Object.keys(identities),
+                            url.searchParams,
+                        ),
+                    );
+                    return;
+                }
+                json(res, 400, {
+                    error: "invalid_request",
+                    error_description: `no identity registered for "${selector}"`,
                 });
                 return;
             }
@@ -213,6 +275,7 @@ export async function startFakeIdp(options: FakeIdpOptions): Promise<FakeIdp> {
         issuer,
         audience: options.audience,
         clientId: options.clientId,
+        label: options.label ?? "E2E identity provider",
         mint: (identity, opts) => mint(identity, opts),
         stop: () => new Promise<void>((resolve) => server.close(() => resolve())),
     };
