@@ -287,10 +287,22 @@ Required GitHub repo configuration:
 - **Secrets**: `E2E_USER_EMAIL`, `E2E_USER_PASSWORD`
 - **Variables**: `APP_BASE_URL`, `CMS_BASE_URL`
 
-On failure the workflow:
+On failure it also opens (or comments on an existing) GitHub Issue labelled `e2e-failure` / `bug`, linking to the failing run.
 
-1. Uploads the `playwright-report/` HTML report and `test-results/` (traces, videos, screenshots) as artifacts (retained 14 days).
-2. Opens (or comments on an existing) GitHub Issue labelled `e2e-failure` / `bug`, linking to the failing run.
+### Artifacts
+
+Both workflows upload to GitHub's own artifact storage, attached to the run — nothing is sent anywhere else. Get them from the run summary page, or with `gh run download <run-id>`.
+
+| Workflow | HTML report (always) | Traces, videos, screenshots (on failure) |
+| -------- | -------------------- | ---------------------------------------- |
+| Fake IdP | `playwright-report-local-stack` | `playwright-test-results-local-stack` |
+| Deployed | `playwright-report` | `playwright-test-results` |
+
+The names are suffixed per workflow so runs of both on one commit do not collide. All four are retained 14 days, overriding the repo default, and are readable by anyone with read access to the repo.
+
+Traces and videos from a fake-IdP run contain the minted JWTs — they sit in `localStorage` and on request headers. Each run signs with its own generated keypair, against an issuer that only ever existed on that runner, so they grant nothing afterwards; it is still the reason retention is kept short.
+
+`e2e-local-stack.yml` also has a `Collect API log` step. That one produces no artifact: it prints the API's stdout into the step log, which is otherwise lost when the runner is torn down, and is usually where the answer is when the stack failed to come up.
 
 ## Debugging failures
 
@@ -299,7 +311,7 @@ npx playwright show-report                     # open the HTML report from the l
 npx playwright show-trace test-results/…/trace.zip   # open a specific trace
 ```
 
-In CI, download the `playwright-report` and `playwright-test-results` artifacts from the failing run and open them locally the same way.
+In CI, download the run's artifacts (see [Artifacts](#artifacts) for the names each workflow uses) and open them locally the same way.
 
 ## Files you should not commit
 
