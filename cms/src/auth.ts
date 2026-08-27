@@ -203,11 +203,21 @@ function installManager(provider: ProviderConfig): UserManager {
     return manager;
 }
 
+/**
+ * Drop the one-time authorization-code credentials from the current history
+ * entry. Leaving them behind keeps a redeemable code in history and in outbound
+ * Referer headers.
+ */
+export function stripAuthCallbackParams(): void {
+    const url = new URL(location.href);
+    if (!url.searchParams.has("code") && !url.searchParams.has("state")) return;
+    history.replaceState(history.state, "", url.pathname + url.hash);
+}
+
 /** Set up the generic OIDC client and finish an authorization-code callback. */
 export async function setupAuth(): Promise<void> {
     const url = new URL(location.href);
     const isCallback = url.searchParams.has("code") && url.searchParams.has("state");
-    const cleanUrl = url.pathname + url.hash;
 
     const provider = await resolveActiveProvider();
     if (!provider) {
@@ -215,7 +225,7 @@ export async function setupAuth(): Promise<void> {
         // modal because no OIDC manager was installed. Nothing is left that can
         // redeem a code, and leaving it in the URL keeps an authorization code
         // in history and outbound Referer headers.
-        if (isCallback) history.replaceState(history.state, "", cleanUrl);
+        if (isCallback) stripAuthCallbackParams();
         return;
     }
 
@@ -239,7 +249,7 @@ export async function setupAuth(): Promise<void> {
                 // Must run whether or not the callback succeeded: leaving
                 // code+state in the URL means every subsequent load retries
                 // and fails the exact same way, forever.
-                history.replaceState(history.state, "", cleanUrl);
+                stripAuthCallbackParams();
             }
         } else {
             oidcUser.value = await manager.getUser();

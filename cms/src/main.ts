@@ -13,7 +13,7 @@ import {
     serverError,
 } from "luminary-shared";
 import { apiUrl, contentSyncWindowMs, initLanguage } from "@/globalConfig";
-import auth, { readPersistedProvider } from "./auth";
+import auth, { readPersistedProvider, stripAuthCallbackParams } from "./auth";
 import { registerAuthFailureHandler } from "./authFailure";
 import { useNotificationStore } from "./stores/notification";
 import { initAuthLangSync, initSync } from "./sync";
@@ -128,6 +128,10 @@ async function Startup() {
     initSync();
 
     app.use(router);
+    // The router captures location.href at import time, before setupAuth strips
+    // the callback query, so its initial navigation restores it. Strip it again
+    // once that navigation has settled.
+    void router.isReady().then(stripAuthCallbackParams);
     app.mount("#app");
 }
 

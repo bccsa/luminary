@@ -203,17 +203,34 @@ function installManager(provider: ProviderConfig): UserManager {
     return manager;
 }
 
+/**
+ * Drop the one-time authorization-code credentials from the current history
+ * entry. Leaving them behind keeps a redeemable code in history and in outbound
+ * Referer headers.
+ */
+export function stripAuthCallbackParams(): void {
+    const url = new URL(location.href);
+    if (!url.searchParams.has("code") && !url.searchParams.has("state")) return;
+    history.replaceState(history.state, "", url.pathname + url.hash);
+}
+
 /** Set up the generic OIDC client and finish an authorization-code callback. */
-export async function setupAuth(_app: App<Element>, _router: Router): Promise<void> {
+export async function setupAuth(_app: App<Element>, router: Router): Promise<void> {
     const url = new URL(location.href);
     const isCallback = url.searchParams.has("code") && url.searchParams.has("state");
-    const cleanUrl = url.pathname + url.hash;
+
+    if (isCallback) {
+        // The router captures location.href when it is created — before this runs,
+        // whichever entry point is used — so its initial navigation restores the
+        // query stripped below. Strip it again once that navigation has settled.
+        void router.isReady().then(stripAuthCallbackParams);
+    }
 
     const provider = await resolveActiveProvider();
     if (!provider) {
         // Nothing is left that can redeem the code, and leaving it in the URL
         // keeps an authorization code in history and outbound Referer headers.
-        if (isCallback) history.replaceState(history.state, "", cleanUrl);
+        if (isCallback) stripAuthCallbackParams();
         return;
     }
 
@@ -225,7 +242,7 @@ export async function setupAuth(_app: App<Element>, _router: Router): Promise<vo
             // this as a duplicate of its uninitialised `/` route and leaves the
             // real browser URL unchanged. Capture the callback URL for the OIDC
             // client, then remove its one-time credentials directly from history.
-            history.replaceState(history.state, "", cleanUrl);
+            stripAuthCallbackParams();
             try {
                 oidcUser.value = await manager.signinRedirectCallback(url.href);
             } catch (error) {

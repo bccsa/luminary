@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { App } from "vue";
+import { createApp, type App } from "vue";
 import { createRouter, createWebHistory, type Router } from "vue-router";
 import { DocType, type AuthProviderDto } from "luminary-shared";
 import * as Sentry from "@sentry/vue";
@@ -597,6 +597,7 @@ describe("auth", () => {
         const appStub = {} as App<Element>;
         const routerStub = {
             replace: vi.fn(() => Promise.resolve(undefined)),
+            isReady: vi.fn(() => Promise.resolve()),
         } as unknown as Router;
         const user = { access_token: "boot-token", expired: false, profile: { sub: "user-1" } };
 
@@ -645,6 +646,32 @@ describe("auth", () => {
             await setupAuth(appStub, realRouter);
 
             expect(location.pathname + location.search + location.hash).toBe("/callback#section");
+        });
+
+        it("re-strips the callback parameters Vue Router's initial navigation restores", async () => {
+            persistActiveProvider(providerA);
+            history.replaceState(null, "", "/callback?code=abc&state=xyz#section");
+            mockSigninRedirectCallback.mockResolvedValue(user);
+            mockGetUser.mockResolvedValue(user);
+
+            // Created while the callback query is still on the URL, as it is in
+            // production: the router module is imported before setupAuth runs, and
+            // it snapshots location.href at creation.
+            const snapshottingRouter = createRouter({
+                history: createWebHistory(),
+                routes: [{ path: "/:pathMatch(.*)*", component: {} }],
+            });
+
+            await setupAuth(appStub, snapshottingRouter);
+
+            // Installing the router runs its initial navigation, which writes the
+            // snapshotted location — query included — back to the URL.
+            createApp({ render: () => null }).use(snapshottingRouter);
+            await snapshottingRouter.isReady();
+            await new Promise((resolve) => setTimeout(resolve, 0));
+
+            expect(location.search).toBe("");
+            expect(location.pathname + location.hash).toBe("/callback#section");
         });
 
         it("reports OIDC boot failures without throwing", async () => {
