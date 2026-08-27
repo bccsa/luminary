@@ -7,6 +7,8 @@ export type FakeIdpOptions = {
     key: SigningKey;
     audience: string;
     clientId: string;
+    /** Origins the IdP may redirect to after logout. */
+    logoutRedirectOrigins: readonly string[];
     /** Shown on the issuer's login page, so a test can tell the two apart. */
     label?: string;
     host?: string;
@@ -38,6 +40,39 @@ function escapeHtml(value: string): string {
         (c) =>
             ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] as string,
     );
+}
+
+function normaliseLogoutRedirectOrigins(origins: readonly string[]): string[] {
+    if (origins.length === 0) {
+        throw new Error("Fake IdP requires at least one allowed logout redirect origin");
+    }
+
+    return origins.map((origin) => {
+        const url = new URL(origin);
+        if (url.protocol !== "http:" && url.protocol !== "https:") {
+            throw new Error(`Fake IdP logout redirect origin must use http or https: ${origin}`);
+        }
+        return url.origin;
+    });
+}
+
+/**
+ * The end-session endpoint accepts a return URL from the browser. Return only
+ * one of the configured origins so the local fixture cannot become an open
+ * redirect; this also mirrors providers that register post-logout callbacks.
+ */
+function allowedLogoutRedirect(
+    returnTo: string | null,
+    allowedOrigins: readonly string[],
+): string {
+    if (!returnTo) return "/";
+
+    try {
+        const requestedOrigin = new URL(returnTo).origin;
+        return allowedOrigins.find((origin) => origin === requestedOrigin) ?? "/";
+    } catch {
+        return "/";
+    }
 }
 
 /**
@@ -96,6 +131,7 @@ function readBody(req: http.IncomingMessage): Promise<string> {
 export async function startFakeIdp(options: FakeIdpOptions): Promise<FakeIdp> {
     const host = options.host ?? "127.0.0.1";
     const identities = options.identities ?? {};
+    const logoutRedirectOrigins = normaliseLogoutRedirectOrigins(options.logoutRedirectOrigins);
     // Authorization codes are single-use and live only for the run.
     const pendingCodes = new Map<string, { identity: TokenIdentity; nonce?: string }>();
 
@@ -237,7 +273,9 @@ export async function startFakeIdp(options: FakeIdpOptions): Promise<FakeIdp> {
             const returnTo =
                 url.searchParams.get("post_logout_redirect_uri") ??
                 url.searchParams.get("returnTo");
-            res.writeHead(302, { location: returnTo ?? "/" });
+            res.writeHead(302, {
+                location: allowedLogoutRedirect(returnTo, logoutRedirectOrigins),
+            });
             res.end();
             return;
         }

@@ -98,6 +98,8 @@ export function clearIdpEnvironment(): void {
 
 export type StartE2eIdpOptions = {
     couch: CouchConfig;
+    /** App/CMS origins registered as post-logout redirect targets. */
+    logoutRedirectOrigins: readonly string[];
     /** The secondary issuer takes the next port up. */
     port?: number;
     host?: string;
@@ -130,6 +132,7 @@ export async function startE2eIdp(options: StartE2eIdpOptions): Promise<{
             key: readSigningKey(def.key),
             audience: def.audience,
             clientId: def.clientId,
+            logoutRedirectOrigins: options.logoutRedirectOrigins,
             label: def.label,
             host: options.host ?? "127.0.0.1",
             port: basePort + index,

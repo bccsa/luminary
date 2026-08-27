@@ -145,6 +145,7 @@ async function setupFakeIdp(appBaseURL: string, cmsBaseURL: string): Promise<() 
             connectionString: process.env.E2E_COUCHDB_URL as string,
             database: process.env.E2E_COUCHDB_DATABASE ?? "luminary",
         },
+        logoutRedirectOrigins: [appBaseURL, cmsBaseURL],
         port: Number(process.env.E2E_IDP_PORT ?? DEFAULT_IDP_PORT),
     });
 
