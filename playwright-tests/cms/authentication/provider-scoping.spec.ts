@@ -20,8 +20,18 @@ test.describe.serial("CMS provider scoping", () => {
         const persona = await loginAs("providerScoped", { provider: "primary" });
         await page.goto("/");
 
-        const groups = Object.keys(await waitForAccessMap(page));
-        expect(groups).toEqual(expect.arrayContaining(persona.reaches));
+        const accessMap = await waitForAccessMap(page);
+        expect(Object.keys(accessMap)).toEqual(expect.arrayContaining(persona.reaches));
+
+        // Granted by group-private-editors, which is what the stamp will scope away.
+        expect(accessMap["group-private-content"]?.post).toMatchObject({
+            edit: true,
+            cmsView: true,
+        });
+        expect(accessMap["group-languages"]?.language).toMatchObject({
+            translate: true,
+            cmsView: true,
+        });
     });
 
     test("a second provider signs in but loses the user's static groups", async ({
@@ -32,15 +42,22 @@ test.describe.serial("CMS provider scoping", () => {
         await page.goto("/");
 
         const accessMap = await waitForAccessMap(page);
-        const groups = Object.keys(accessMap);
 
         // Authenticated, and not sent back to sign-in — that is what makes the
         // reduction easy to miss.
         await expect(page.getByRole("heading", { name: /sign in/i })).toHaveCount(0);
 
-        // Only the provider-less default mapping survives.
-        expect(groups).toContain("group-public-content");
-        expect(groups).not.toContain("group-private-content");
-        expect(groups).not.toContain("group-languages");
+        // Only the provider-less default mapping survives. group-private-content
+        // is granted solely to the private groups, so it disappears entirely.
+        expect(Object.keys(accessMap)).toContain("group-public-content");
+        expect(Object.keys(accessMap)).not.toContain("group-private-content");
+
+        // group-languages still appears, reached transitively through the default
+        // group — but capped at the `view` that grants, so the editing rights are
+        // gone. Group presence is a closure over the ACL graph; only the
+        // permissions on a group show what was actually lost.
+        expect(accessMap["group-languages"]?.language?.view).toBe(true);
+        expect(accessMap["group-languages"]?.language?.translate).toBeFalsy();
+        expect(accessMap["group-languages"]?.language?.cmsView).toBeFalsy();
     });
 });

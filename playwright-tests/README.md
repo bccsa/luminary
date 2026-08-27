@@ -241,6 +241,13 @@ expect(groups).not.toContain("group-private-content");
 
 `waitForSynced` takes `groups` and/or `types` and returns `{ groups, types, statuses }` for whatever you want to assert next. On timeout it reports what it did see, so a failure names the gap instead of just the deadline.
 
+**Assert permissions, not group presence.** The AccessMap is a closure over the ACL graph — `permissions.service.ts` forwards a group's access to whoever can reach it, capped at the permissions of the link it came through. So a group shows up in the map for reasons far removed from the membership you are testing, and `expect(Object.keys(accessMap)).not.toContain(...)` will surprise you. What distinguishes an editor from a reader is `edit`/`cmsView` on a group, not whether the group is listed:
+
+```ts
+expect(accessMap["group-languages"]?.language?.view).toBe(true);
+expect(accessMap["group-languages"]?.language?.cmsView).toBeFalsy();
+```
+
 **Mind the viewport.** Specs run at Playwright's Desktop Chrome default of 1280×720, which is above Tailwind's `lg` breakpoint. The app's `banner` landmark lives in the mobile top bar (`lg:hidden`), so it is absent at that width — set a narrow viewport for anything asserting mobile chrome.
 
 `loginAs` enforces its own preconditions — it throws if called after the first navigation (an init script cannot reach a loaded page) or twice in one context.
