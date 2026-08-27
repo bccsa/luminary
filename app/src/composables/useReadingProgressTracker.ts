@@ -251,6 +251,12 @@ function getMaxSegmentHeight(container: HTMLElement | Window): number {
 export function useReadingProgressTracker(options: {
     contentId: Ref<Uuid | undefined>;
     articleRoot: Ref<HTMLElement | null>;
+    /**
+     * Element the visual scroll progress is measured over; defaults to `articleRoot`. Pass a
+     * wider wrapper (title through prose) so the bar starts filling as soon as the reader
+     * scrolls, not only once the body text reaches the top.
+     */
+    progressRoot?: Ref<HTMLElement | null>;
     scrollContainer: Ref<HTMLElement | Window>;
     enabled: Ref<boolean>;
     /** Language averageReadingSpeed (words per minute); defaults to 200 when unset. */
@@ -325,6 +331,53 @@ export function useReadingProgressTracker(options: {
     // Live reading progress for the top-bar pill: confirmed segments as a percentage, kept
     // even when saving is disabled for short articles, so the indicator always has a value.
     const readingProgressPercent = ref(0);
+
+    // Scroll position within the article for the chapter pill's track. Deliberately separate
+    // from the dwell-gated reading progress above: this follows the viewport frame by frame.
+    const scrollProgressPercent = ref(0);
+    let progressRafPending = false;
+
+    function computeScrollProgress() {
+        const el = options.progressRoot?.value ?? options.articleRoot.value;
+        if (!el) {
+            scrollProgressPercent.value = 0;
+            return;
+        }
+
+        const rect = el.getBoundingClientRect();
+        if (rect.height <= 0) {
+            scrollProgressPercent.value = 0;
+            return;
+        }
+
+        const container = options.scrollContainer.value;
+        const containerRect =
+            container === window
+                ? { top: 0, bottom: window.innerHeight }
+                : (container as HTMLElement).getBoundingClientRect();
+        const viewportHeight = containerRect.bottom - containerRect.top;
+
+        // Reader position: 0 once the article's top reaches the viewport top, 100 once its
+        // bottom reaches the viewport bottom. An article shorter than the viewport can't
+        // travel that way, so it fills as it comes into view instead.
+        const travel = rect.height - viewportHeight;
+        const percent =
+            travel > 0
+                ? ((containerRect.top - rect.top) / travel) * 100
+                : ((containerRect.bottom - rect.top) / rect.height) * 100;
+        scrollProgressPercent.value = Math.min(100, Math.max(0, Math.round(percent)));
+    }
+
+    function scheduleProgressUpdate() {
+        if (progressRafPending) return;
+        progressRafPending = true;
+        requestAnimationFrame(() => {
+            progressRafPending = false;
+            computeScrollProgress();
+        });
+    }
+
+    useEventListener(options.scrollContainer, "scroll", scheduleProgressUpdate, { passive: true });
 
     const observerRoot = computed(() =>
         options.scrollContainer.value === window
@@ -736,6 +789,7 @@ export function useReadingProgressTracker(options: {
                 if (!options.enabled.value) return;
                 const prevLength = segmentList.length;
                 collectSegments();
+                computeScrollProgress();
                 if (segmentList.length !== prevLength) {
                     visibleSegments.clear();
                     clearDwellAccumulation();
@@ -797,6 +851,7 @@ export function useReadingProgressTracker(options: {
     function setup(contentChanged: boolean) {
         collectSegments();
         setupResizeObserver();
+        computeScrollProgress();
 
         if (!options.enabled.value) return;
 
@@ -829,6 +884,7 @@ export function useReadingProgressTracker(options: {
                 teardownResizeObserver();
                 trackedContentId = undefined;
                 readingProgressPercent.value = 0;
+                scrollProgressPercent.value = 0;
                 return;
             }
 
@@ -862,6 +918,7 @@ export function useReadingProgressTracker(options: {
         savedProgressPercent,
         hasResumableProgress,
         readingProgressPercent,
+        scrollProgressPercent,
         restoreScrollPosition,
         setup,
     };

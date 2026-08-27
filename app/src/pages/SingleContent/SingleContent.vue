@@ -559,6 +559,7 @@ const selectedCategory = computed(() => {
 });
 
 const articleProseRef = ref<HTMLElement | null>(null);
+const articleRef = ref<HTMLElement | null>(null);
 const desktopTitleRef = ref<HTMLElement | null>(null);
 const mobileTitleRef = ref<HTMLElement | null>(null);
 const scrollContainer = ref<HTMLElement | Window>(window);
@@ -585,21 +586,26 @@ const readingTime = computed<number>(() =>
     computeEstimatedReadingMinutes(content.value?.wordCount ?? 0, averageReadingSpeed.value),
 );
 
-const { hasResumableProgress, readingProgressPercent, restoreScrollPosition } =
-    useReadingProgressTracker({
-        contentId,
-        articleRoot: articleProseRef,
-        scrollContainer,
-        enabled: readingTrackerEnabled,
-        averageReadingSpeed,
-        disableSaving: computed(() => readingTime.value <= 1),
-        onSessionEnd: (endedContentId, finalDepthPercent) => {
-            const endedTags = contentTagsById.get(endedContentId);
-            contentTagsById.delete(endedContentId);
-            const weight = readingDepthWeight(finalDepthPercent, affinityConfig.value);
-            if (weight > 0) recordAffinity(endedTags, weight);
-        },
-    });
+const {
+    hasResumableProgress,
+    readingProgressPercent,
+    scrollProgressPercent,
+    restoreScrollPosition,
+} = useReadingProgressTracker({
+    contentId,
+    articleRoot: articleProseRef,
+    progressRoot: articleRef,
+    scrollContainer,
+    enabled: readingTrackerEnabled,
+    averageReadingSpeed,
+    disableSaving: computed(() => readingTime.value <= 1),
+    onSessionEnd: (endedContentId, finalDepthPercent) => {
+        const endedTags = contentTagsById.get(endedContentId);
+        contentTagsById.delete(endedContentId);
+        const weight = readingDepthWeight(finalDepthPercent, affinityConfig.value);
+        if (weight > 0) recordAffinity(endedTags, weight);
+    },
+});
 
 /** Hide the resume offer for this visit after the user continues, dismisses, or scrolls. */
 const continuePromptHandled = ref(false);
@@ -688,7 +694,8 @@ watch([isLoading, content, is404], async () => {
                 :scrollContainer="scrollContainer"
                 :contentId="content._id"
                 :title="content.title"
-                :progress="readingProgressPercent"
+                :progress="scrollProgressPercent"
+                :savedProgress="readingProgressPercent"
                 :resumable="hasResumableProgress"
                 :offerResume="resumeOffered"
                 :titleEls="[desktopTitleRef, mobileTitleRef]"
@@ -783,7 +790,10 @@ watch([isLoading, content, is404], async () => {
                 />
 
                 <template v-else-if="content">
-                    <article class="w-full lg:col-start-2">
+                    <article
+                        ref="articleRef"
+                        class="w-full lg:col-start-2"
+                    >
                         <!-- Desktop: title row originates at the top of the page, level with the pinned
                          topbar chrome, and scrolls away with the content like normal. -->
                         <div

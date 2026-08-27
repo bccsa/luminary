@@ -81,6 +81,7 @@ vi.mock("@/composables/useReadingProgressTracker", () => ({
         hasResumableProgress: ref(false),
         savedProgressPercent: ref(0),
         readingProgressPercent: ref(0),
+        scrollProgressPercent: ref(0),
         restoreScrollPosition: vi.fn(),
     }),
     resolveArticleScrollContainer: () => (typeof window !== "undefined" ? window : {}),

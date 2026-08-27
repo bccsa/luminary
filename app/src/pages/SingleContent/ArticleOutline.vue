@@ -13,8 +13,10 @@ const props = defineProps<{
     contentId: string | undefined;
     /** Shown in place of the chapter dropdown when the article has no headings. */
     title?: string;
-    /** Reading progress, 0-100 — drawn as a track along the pill's bottom edge. */
+    /** Scroll position, 0-100 — the chapter pill's track. */
     progress?: number;
+    /** Saved reading progress, 0-100 — shown by the resume offer and its menu entry. */
+    savedProgress?: number;
     /** A saved reading position exists; adds a "continue" entry to the chapter list. */
     resumable?: boolean;
     /** Show the pill as a resume offer instead of the chapter dropdown. */
@@ -211,12 +213,14 @@ function onResume() {
         <button
             type="button"
             class="flex min-w-0 flex-1 cursor-pointer items-center justify-center gap-1.5 overflow-hidden rounded-l-lg pb-2.5 pl-2.5 pr-1 pt-1.5 text-center text-sm text-zinc-800 hover:bg-zinc-300 dark:text-slate-50 dark:hover:bg-slate-600"
-            :aria-label="`${t('content.continueReading.action')} · ${progress ?? 0}%`"
+            :aria-label="`${t('content.continueReading.action')} · ${savedProgress ?? 0}%`"
             data-test="articleOutlineResumeButton"
             @click="onResume"
         >
             <span class="truncate font-semibold">{{ t("content.continueReading.action") }}</span>
-            <span class="tabular-nums text-zinc-500 dark:text-slate-300">{{ progress ?? 0 }}%</span>
+            <span class="tabular-nums text-zinc-500 dark:text-slate-300">
+                {{ savedProgress ?? 0 }}%
+            </span>
         </button>
         <button
             type="button"
@@ -234,7 +238,7 @@ function onResume() {
         >
             <span
                 class="block h-full bg-yellow-500 transition-[width] duration-300 dark:bg-yellow-400"
-                :style="{ width: `${progress ?? 0}%` }"
+                :style="{ width: `${savedProgress ?? 0}%` }"
             />
         </span>
     </span>
@@ -315,7 +319,7 @@ function onResume() {
             />
             <span class="flex-1">{{ t("content.continueReading.action") }}</span>
             <span class="font-normal tabular-nums text-zinc-500 dark:text-slate-300">
-                {{ progress ?? 0 }}%
+                {{ savedProgress ?? 0 }}%
             </span>
         </button>
         <button

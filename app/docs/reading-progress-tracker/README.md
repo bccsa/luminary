@@ -211,7 +211,7 @@ When the user reopens an in-progress article, the top-bar reading pill (`Article
 - **Start from top** (×) — dismisses the offer; saved progress is kept
 - Scrolling into the article also dismisses it
 
-Either way the pill becomes the chapter dropdown, on the same track, which keeps a *Continue where you left off* entry while a saved position exists. The track shows `readingProgressPercent` (live confirmed segments, kept even when saving is disabled for short articles).
+Either way the pill becomes the chapter dropdown, which keeps a *Continue where you left off* entry while a saved position exists. The resume offer's track shows `readingProgressPercent` (live confirmed segments, kept even when saving is disabled for short articles); the chapter dropdown's track follows `scrollProgressPercent`, the viewport's position within the article.
 
 During programmatic restore, for **400 ms** (`READING_RESTORE_GUARD_MS`), tracking is suppressed so the scroll jump does not count as reading.
 

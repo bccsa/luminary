@@ -56,7 +56,8 @@ describe("ArticleOutline", () => {
                 scrollContainer: window,
                 contentId: "c1",
                 title: "The Long Walk",
-                progress: 42,
+                progress: 17,
+                savedProgress: 42,
                 resumable: options.resumable,
                 offerResume: options.offerResume,
                 titleEls: [makeTitleEl(scrolledOut)],
@@ -87,8 +88,18 @@ describe("ArticleOutline", () => {
         expect(wrapper.find('[data-test="articleOutlineResumeOption"]').exists()).toBe(false);
     });
 
-    it("draws the reading progress as a track on the pill", async () => {
+    it("draws the scroll position as a track on the chapter pill", async () => {
         const wrapper = await mountOutline(["Chapter one"], true);
+        expect(
+            wrapper.find('[data-test="articleOutlineProgress"] > span').attributes("style"),
+        ).toContain("width: 17%");
+    });
+
+    it("draws the saved reading progress on the resume offer", async () => {
+        const wrapper = await mountOutline(["Chapter one"], false, {
+            resumable: true,
+            offerResume: true,
+        });
         expect(
             wrapper.find('[data-test="articleOutlineProgress"] > span').attributes("style"),
         ).toContain("width: 42%");
