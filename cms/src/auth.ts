@@ -69,10 +69,15 @@ function consumeForceReauthOnNextLogin(): boolean {
 }
 
 function authority(domain: string): string {
-    const withScheme = /^https?:\/\//.test(domain) ? domain : `https://${domain}`;
+    const withScheme =
+        domain.startsWith("http://") || domain.startsWith("https://")
+            ? domain
+            : `https://${domain}`;
     // A trailing slash survives into `${authority}/.well-known/openid-configuration`,
     // which some providers 404 on.
-    return withScheme.replace(/\/+$/, "");
+    let end = withScheme.length;
+    while (end > 0 && withScheme[end - 1] === "/") end -= 1;
+    return withScheme.slice(0, end);
 }
 
 function setProviderIdHeader(id: string | null): void {
