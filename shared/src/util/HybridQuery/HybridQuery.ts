@@ -49,10 +49,14 @@ import { config, getContentPublishDateCutoff } from "../../config";
 import { OPEN_MIN } from "../../api/sync/utils";
 
 /**
- * Cap for remote (`/query`) responses when the caller omits `$limit`. Prevents an
- * unbounded query from accidentally downloading and parsing tens of MB of JSON on
- * low-end devices or metered connections. Callers that actually need more must
- * pass `$limit` explicitly.
+ * Hard cap on the `limit` sent to `/query`, applied whether or not the caller passes
+ * `$limit`. Keeps an unbounded query from downloading and parsing tens of MB of JSON on
+ * low-end devices or metered connections, and keeps every request inside the API's own
+ * cap, which rejects anything larger outright.
+ *
+ * Paired with `query.maxLimit` in `api/src/configuration.ts` (env `QUERY_MAX_LIMIT`):
+ * this value must not exceed it. Callers may ask for more — the remote leg is clamped
+ * while the local Dexie read still honours the full `$limit`.
  */
 export const DEFAULT_REMOTE_QUERY_LIMIT = 500;
 
@@ -91,8 +95,9 @@ export function _resetHybridQueryForTests(): void {
 
 /**
  * One-shot read against the **remote API** (`POST /query`) — the remote counterpart
- * to {@link queryLocal}. Bare network call: no local read, no merging. Applies the
- * remote `$limit` cap ({@link DEFAULT_REMOTE_QUERY_LIMIT}) when the query omits one.
+ * to {@link queryLocal}. Bare network call: no local read, no merging. Clamps the
+ * requested limit to {@link DEFAULT_REMOTE_QUERY_LIMIT}, and applies it as the default
+ * when the query omits `$limit`.
  * Throws if `initHybridQuery` has not wired an HTTP service — a programmer error, not
  * a runtime condition.
  *
@@ -110,7 +115,10 @@ export async function queryRemote<T = unknown>(query: MangoQuery): Promise<T[]> 
         // Callers outside the app's live queries override this so their load is separable in
         // the API's expensive-query logs.
         identifier: query.identifier ?? "hybridQuery",
-        limit: typeof query.$limit === "number" ? query.$limit : DEFAULT_REMOTE_QUERY_LIMIT,
+        limit: Math.min(
+            typeof query.$limit === "number" ? query.$limit : DEFAULT_REMOTE_QUERY_LIMIT,
+            DEFAULT_REMOTE_QUERY_LIMIT,
+        ),
     };
     // Match the consumer's scope: CMS reads (config.cms) are CmsView-gated server-side and include
     // drafts/expired; app reads stay View-gated + published-only. The remote supplement otherwise

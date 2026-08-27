@@ -30,7 +30,9 @@ export type QueryConfig = {
      * Maximum `limit` accepted on a POST /query request, enforced centrally for every
      * query identifier (sync, hybridQuery, …). Requests above this are rejected with 400.
      * Guards against a single authenticated client forcing CouchDB to materialize a huge
-     * result set. Environment variable: QUERY_MAX_LIMIT (default 500).
+     * result set. Keep in step with the client's remote-query clamp
+     * (`DEFAULT_REMOTE_QUERY_LIMIT` in `shared/src/util/HybridQuery/HybridQuery.ts`), which must
+     * not exceed it. Environment variable: QUERY_MAX_LIMIT (default 500).
      */
     maxLimit: number;
     /**
