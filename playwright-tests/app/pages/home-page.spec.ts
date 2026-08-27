@@ -1,4 +1,5 @@
 import { appTest as test, expect } from "../../fixtures/test";
+import { waitForSynced } from "../../fixtures/readiness";
 
 test.describe("App home page", () => {
     test("loads the home page", async ({ page }) => {
@@ -8,54 +9,20 @@ test.describe("App home page", () => {
     });
 
     test("syncs documents into IndexedDB", async ({ page }) => {
-        await page.goto("/", { waitUntil: "networkidle" });
+        await page.goto("/");
 
-        const types = await page.evaluate(async () => {
-            return new Promise<string[]>((resolve, reject) => {
-                const dbRequest = indexedDB.open("luminary-db");
-                dbRequest.onerror = () => reject("Error opening database");
-                dbRequest.onsuccess = () => {
-                    const db = dbRequest.result;
-                    const tx = db.transaction("docs", "readonly");
-                    const store = tx.objectStore("docs");
-                    const req = store.getAll();
-                    req.onerror = () => reject("Error getting documents");
-                    req.onsuccess = () => {
-                        const docs = req.result as Array<{ type: string }>;
-                        resolve([...new Set(docs.map((d) => d.type))]);
-                    };
-                };
-            });
-        });
-
-        await expect
-            .poll(() => types, { timeout: 30_000 })
-            .toEqual(expect.arrayContaining(["language", "content"]));
+        const { types } = await waitForSynced(page, { types: ["language", "content"] });
+        expect(types).toEqual(expect.arrayContaining(["language", "content"]));
     });
 
     test("does not sync drafted or expired docs to the client", async ({ page }) => {
-        await page.goto("/", { waitUntil: "networkidle" });
+        await page.goto("/");
 
-        const statuses = await page.evaluate(async () => {
-            return new Promise<string[]>((resolve, reject) => {
-                const dbRequest = indexedDB.open("luminary-db");
-                dbRequest.onerror = () => reject("Error opening database");
-                dbRequest.onsuccess = () => {
-                    const db = dbRequest.result;
-                    const tx = db.transaction("docs", "readonly");
-                    const store = tx.objectStore("docs");
-                    const req = store.getAll();
-                    req.onerror = () => reject("Error getting documents");
-                    req.onsuccess = () => {
-                        const docs = req.result as Array<{ status?: string }>;
-                        resolve([...new Set(docs.map((d) => d.status).filter(Boolean) as string[])]);
-                    };
-                };
-            });
-        });
-
-        expect(statuses).not.toEqual(expect.arrayContaining(["draft"]));
-        expect(statuses).not.toEqual(expect.arrayContaining(["expired"]));
-        expect(statuses).toEqual(expect.arrayContaining(["published"]));
+        // Wait for published content to arrive before asserting what did not —
+        // an empty database would satisfy the absence checks on its own.
+        const { statuses } = await waitForSynced(page, { types: ["content"] });
+        expect(statuses).toContain("published");
+        expect(statuses).not.toContain("draft");
+        expect(statuses).not.toContain("expired");
     });
 });
