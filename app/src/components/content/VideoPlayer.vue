@@ -274,23 +274,26 @@ onMounted(async () => {
             }
         });
 
-        // Handle the "waiting" event, which occurs when the player is buffering
+        // Recover from a wedged buffer, but at most once every few seconds. Seeking aborts
+        // in-flight HLS segment requests, so nudging on every "waiting" event feeds the very
+        // buffer starvation it tries to fix — VHS then reports "excessive segment downloading"
+        // and thrashes through renditions. Re-selecting the audio track here is dropped too: it
+        // is unrelated to buffering and re-touching the track list resets the audio loader.
+        let lastStallNudge = 0;
         player.on("waiting", () => {
             const currentTime = player?.currentTime() || 0; // Get the current playback time
             setTimeout(() => {
-                // Check if the player is still stalled after 2 seconds
-                if (player?.currentTime() === currentTime && !player?.paused()) {
+                // Still stalled at the same time, playing, and past the nudge cooldown.
+                if (
+                    player?.currentTime() === currentTime &&
+                    !player?.paused() &&
+                    Date.now() - lastStallNudge > 6000
+                ) {
                     console.warn("Player stalled, attempting to refresh buffer");
+                    lastStallNudge = Date.now();
 
                     // Slightly adjust the current time to refresh the buffer
                     player?.currentTime(currentTime + 0.001);
-
-                    // Reapply the preferred audio track language only if not restoring
-                    if (!isRestoringTrack.value) {
-                        setAudioTrackLanguage(
-                            appLanguagesPreferredAsRef.value[0].languageCode || null,
-                        );
-                    }
                 }
             }, 2000);
         });
