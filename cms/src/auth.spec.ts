@@ -280,9 +280,7 @@ describe("auth", () => {
             );
             expect(mockWebStorageStateStore).toHaveBeenCalledWith({ store: window.localStorage });
             expect(mockClearStaleState).toHaveBeenCalledTimes(1);
-            expect(mockSigninRedirect).toHaveBeenCalledWith({
-                extraQueryParams: { prompt: "login" },
-            });
+            expect(mockSigninRedirect).toHaveBeenCalledWith({ prompt: "login" });
             expect(mockAddUserLoaded).toHaveBeenCalledTimes(1);
             expect(mockAddUserUnloaded).toHaveBeenCalledTimes(1);
         });
@@ -305,7 +303,7 @@ describe("auth", () => {
 
             await loginWithProvider(providerA);
 
-            expect(mockSigninRedirect).toHaveBeenCalledWith({ extraQueryParams: undefined });
+            expect(mockSigninRedirect).toHaveBeenCalledWith({});
         });
     });
 
@@ -359,6 +357,37 @@ describe("auth", () => {
             await expect(refreshTokenSilently({ ignoreCache: true })).resolves.toBe(true);
             expect(mockGetUser).not.toHaveBeenCalled();
             expect(mockSigninSilent).toHaveBeenCalledTimes(1);
+        });
+
+        it("rejects an opaque replacement token after the API rejected the session", async () => {
+            mockSigninSilent.mockResolvedValue({
+                access_token: "opaque-access-token",
+                expired: false,
+                profile: { sub: "user-1" },
+            });
+
+            await expect(
+                refreshTokenSilently({ ignoreCache: true, requireJwt: true }),
+            ).resolves.toBe(false);
+            expect(mockSetCustomHeader).not.toHaveBeenCalledWith(
+                "Authorization",
+                expect.anything(),
+            );
+            expect(mockSetAuth).not.toHaveBeenCalled();
+        });
+
+        it("accepts a replacement JWT that identifies its signing key", async () => {
+            const jwt = "eyJraWQiOiJ0ZXN0LWtleSJ9.e30.signature";
+            mockSigninSilent.mockResolvedValue({
+                access_token: jwt,
+                expired: false,
+                profile: { sub: "user-1" },
+            });
+
+            await expect(
+                refreshTokenSilently({ ignoreCache: true, requireJwt: true }),
+            ).resolves.toBe(true);
+            expect(mockSetAuth).toHaveBeenCalledWith(jwt, providerA._id);
         });
 
         it("refreshes when the stored user is expired", async () => {
@@ -700,9 +729,7 @@ describe("auth", () => {
             mockSigninRedirect.mockClear();
             await loginWithProvider(providerB);
 
-            expect(mockSigninRedirect).toHaveBeenCalledWith({
-                extraQueryParams: { prompt: "login" },
-            });
+            expect(mockSigninRedirect).toHaveBeenCalledWith({ prompt: "login" });
         });
 
         it("does not look for the flag where localStorage does not exist", async () => {
@@ -710,9 +737,7 @@ describe("auth", () => {
             try {
                 await loginWithProvider(providerA);
 
-                expect(mockSigninRedirect).toHaveBeenLastCalledWith({
-                    extraQueryParams: undefined,
-                });
+                expect(mockSigninRedirect).toHaveBeenLastCalledWith({});
             } finally {
                 vi.unstubAllGlobals();
             }
@@ -739,7 +764,7 @@ describe("auth", () => {
             mockSigninRedirect.mockClear();
             await loginWithProvider(providerB);
 
-            expect(mockSigninRedirect).toHaveBeenCalledWith({ extraQueryParams: undefined });
+            expect(mockSigninRedirect).toHaveBeenCalledWith({});
         });
 
         it("consumes the flag after one use", async () => {
@@ -749,7 +774,7 @@ describe("auth", () => {
             mockSigninRedirect.mockClear();
             await loginWithProvider(providerA);
 
-            expect(mockSigninRedirect).toHaveBeenCalledWith({ extraQueryParams: undefined });
+            expect(mockSigninRedirect).toHaveBeenCalledWith({});
         });
 
         it("leaves the flag pending when the caller already requests an explicit prompt", async () => {
@@ -758,16 +783,12 @@ describe("auth", () => {
             // Simulates a session-recovery call site (main.ts/router) that already
             // passes its own prompt — not the "next person logs in" path.
             await loginWithProvider(providerB, { prompt: "select_account" });
-            expect(mockSigninRedirect).toHaveBeenLastCalledWith({
-                extraQueryParams: { prompt: "select_account" },
-            });
+            expect(mockSigninRedirect).toHaveBeenLastCalledWith({ prompt: "select_account" });
 
             mockSigninRedirect.mockClear();
             await loginWithProvider(providerA);
 
-            expect(mockSigninRedirect).toHaveBeenCalledWith({
-                extraQueryParams: { prompt: "login" },
-            });
+            expect(mockSigninRedirect).toHaveBeenCalledWith({ prompt: "login" });
         });
     });
 

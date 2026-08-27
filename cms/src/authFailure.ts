@@ -32,7 +32,7 @@ export async function handleConnectError(err: AuthConnectError): Promise<void> {
     // Normal case: the access token expired. Ask the OIDC client for a fresh one
     // via the refresh token — no redirect needed. Bypass the client's token cache:
     // the server already rejected what we had, so we must hit the token endpoint.
-    if (await refreshTokenSilently({ ignoreCache: true })) return;
+    if (await refreshTokenSilently({ ignoreCache: true, requireJwt: true })) return;
 
     // The refresh token itself is gone or rejected — need a visible re-login.
     Sentry.captureMessage("API authentication failed; silent refresh failed");

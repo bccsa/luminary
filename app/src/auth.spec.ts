@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { App } from "vue";
-import type { Router } from "vue-router";
+import { createRouter, createWebHistory, type Router } from "vue-router";
 import { DocType, type AuthProviderDto } from "luminary-shared";
 import * as Sentry from "@sentry/vue";
 
@@ -287,9 +287,7 @@ describe("auth", () => {
             );
             expect(mockWebStorageStateStore).toHaveBeenCalledWith({ store: window.localStorage });
             expect(mockClearStaleState).toHaveBeenCalledTimes(1);
-            expect(mockSigninRedirect).toHaveBeenCalledWith({
-                extraQueryParams: { prompt: "login" },
-            });
+            expect(mockSigninRedirect).toHaveBeenCalledWith({ prompt: "login" });
             expect(mockAddUserLoaded).toHaveBeenCalledTimes(1);
             expect(mockAddUserUnloaded).toHaveBeenCalledTimes(1);
         });
@@ -312,7 +310,7 @@ describe("auth", () => {
 
             await loginWithProvider(providerA);
 
-            expect(mockSigninRedirect).toHaveBeenCalledWith({ extraQueryParams: undefined });
+            expect(mockSigninRedirect).toHaveBeenCalledWith({});
         });
     });
 
@@ -421,6 +419,37 @@ describe("auth", () => {
             await expect(refreshTokenSilently({ ignoreCache: true })).resolves.toBe(true);
             expect(mockGetUser).not.toHaveBeenCalled();
             expect(mockSigninSilent).toHaveBeenCalledTimes(1);
+        });
+
+        it("rejects an opaque replacement token after the API rejected the session", async () => {
+            mockSigninSilent.mockResolvedValue({
+                access_token: "opaque-access-token",
+                expired: false,
+                profile: { sub: "user-1" },
+            });
+
+            await expect(
+                refreshTokenSilently({ ignoreCache: true, requireJwt: true }),
+            ).resolves.toBe(false);
+            expect(mockSetCustomHeader).not.toHaveBeenCalledWith(
+                "Authorization",
+                expect.anything(),
+            );
+            expect(mockSetAuth).not.toHaveBeenCalled();
+        });
+
+        it("accepts a replacement JWT that identifies its signing key", async () => {
+            const jwt = "eyJraWQiOiJ0ZXN0LWtleSJ9.e30.signature";
+            mockSigninSilent.mockResolvedValue({
+                access_token: jwt,
+                expired: false,
+                profile: { sub: "user-1" },
+            });
+
+            await expect(
+                refreshTokenSilently({ ignoreCache: true, requireJwt: true }),
+            ).resolves.toBe(true);
+            expect(mockSetAuth).toHaveBeenCalledWith(jwt, providerA._id);
         });
 
         it("refreshes when the stored user is expired", async () => {
@@ -597,10 +626,25 @@ describe("auth", () => {
             await setupAuth(appStub, routerStub);
 
             expect(mockSigninRedirectCallback).toHaveBeenCalledTimes(1);
-            expect(routerStub.replace).toHaveBeenCalledWith("/callback#section");
+            expect(location.pathname + location.search + location.hash).toBe("/callback#section");
             // refreshTokenSilently() must still run on the callback path.
             expect(mockGetUser).toHaveBeenCalledTimes(1);
             expect(mockSigninSilent).not.toHaveBeenCalled();
+        });
+
+        it("removes callback parameters before Vue Router is installed", async () => {
+            const realRouter = createRouter({
+                history: createWebHistory(),
+                routes: [{ path: "/:pathMatch(.*)*", component: {} }],
+            });
+            persistActiveProvider(providerA);
+            history.replaceState(null, "", "/callback?code=abc&state=xyz#section");
+            mockSigninRedirectCallback.mockResolvedValue(user);
+            mockGetUser.mockResolvedValue(user);
+
+            await setupAuth(appStub, realRouter);
+
+            expect(location.pathname + location.search + location.hash).toBe("/callback#section");
         });
 
         it("reports OIDC boot failures without throwing", async () => {
@@ -627,7 +671,7 @@ describe("auth", () => {
             expect(Sentry.captureException).toHaveBeenCalledWith(error);
             // Must still clean the URL — otherwise every later load retries and
             // fails the exact same way, forever.
-            expect(routerStub.replace).toHaveBeenCalledWith("/callback#section");
+            expect(location.pathname + location.search + location.hash).toBe("/callback#section");
             // Falls back to the already-established session instead of leaving
             // the user logged out.
             expect(mockGetUser).toHaveBeenCalled();
@@ -648,7 +692,7 @@ describe("auth", () => {
             // Nothing is left that can redeem it, and leaving it in the URL keeps
             // an authorization code in history and outbound Referer headers.
             expect(mockUserManager).not.toHaveBeenCalled();
-            expect(routerStub.replace).toHaveBeenCalledWith("/callback#section");
+            expect(location.pathname + location.search + location.hash).toBe("/callback#section");
         });
 
         it("leaves a URL that carries no callback parameters untouched", async () => {
@@ -656,7 +700,7 @@ describe("auth", () => {
 
             await setupAuth(appStub, routerStub);
 
-            expect(routerStub.replace).not.toHaveBeenCalled();
+            expect(location.pathname + location.search).toBe("/dashboard?tab=posts");
         });
     });
 
@@ -740,9 +784,7 @@ describe("auth", () => {
             mockSigninRedirect.mockClear();
             await loginWithProvider(providerB);
 
-            expect(mockSigninRedirect).toHaveBeenCalledWith({
-                extraQueryParams: { prompt: "login" },
-            });
+            expect(mockSigninRedirect).toHaveBeenCalledWith({ prompt: "login" });
         });
 
         it("does not look for the flag where localStorage does not exist", async () => {
@@ -750,9 +792,7 @@ describe("auth", () => {
             try {
                 await loginWithProvider(providerA);
 
-                expect(mockSigninRedirect).toHaveBeenLastCalledWith({
-                    extraQueryParams: undefined,
-                });
+                expect(mockSigninRedirect).toHaveBeenLastCalledWith({});
             } finally {
                 vi.unstubAllGlobals();
             }
@@ -779,7 +819,7 @@ describe("auth", () => {
             mockSigninRedirect.mockClear();
             await loginWithProvider(providerB);
 
-            expect(mockSigninRedirect).toHaveBeenCalledWith({ extraQueryParams: undefined });
+            expect(mockSigninRedirect).toHaveBeenCalledWith({});
         });
 
         it("consumes the flag after one use", async () => {
@@ -789,7 +829,7 @@ describe("auth", () => {
             mockSigninRedirect.mockClear();
             await loginWithProvider(providerA);
 
-            expect(mockSigninRedirect).toHaveBeenCalledWith({ extraQueryParams: undefined });
+            expect(mockSigninRedirect).toHaveBeenCalledWith({});
         });
 
         it("leaves the flag pending when the caller already requests an explicit prompt", async () => {
@@ -798,16 +838,12 @@ describe("auth", () => {
             // Simulates a session-recovery call site (main.ts) that already
             // passes its own prompt — not the "next person logs in" path.
             await loginWithProvider(providerB, { prompt: "select_account" });
-            expect(mockSigninRedirect).toHaveBeenLastCalledWith({
-                extraQueryParams: { prompt: "select_account" },
-            });
+            expect(mockSigninRedirect).toHaveBeenLastCalledWith({ prompt: "select_account" });
 
             mockSigninRedirect.mockClear();
             await loginWithProvider(providerA);
 
-            expect(mockSigninRedirect).toHaveBeenCalledWith({
-                extraQueryParams: { prompt: "login" },
-            });
+            expect(mockSigninRedirect).toHaveBeenCalledWith({ prompt: "login" });
         });
     });
 

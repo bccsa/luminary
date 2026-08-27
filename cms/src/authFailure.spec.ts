@@ -64,7 +64,10 @@ describe("authFailure", () => {
     it("recognises a bare auth_failed error that carries no data payload", async () => {
         await handleConnectError(new Error("auth_failed"));
 
-        expect(refreshTokenSilently).toHaveBeenCalledWith({ ignoreCache: true });
+        expect(refreshTokenSilently).toHaveBeenCalledWith({
+            ignoreCache: true,
+            requireJwt: true,
+        });
     });
 
     describe("provider_not_found", () => {
@@ -102,7 +105,10 @@ describe("authFailure", () => {
 
             await handleConnectError(authFailed("token_invalid"));
 
-            expect(refreshTokenSilently).toHaveBeenCalledWith({ ignoreCache: true });
+            expect(refreshTokenSilently).toHaveBeenCalledWith({
+                ignoreCache: true,
+                requireJwt: true,
+            });
             expect(clearAuthCache).not.toHaveBeenCalled();
             expect(openProviderModal).not.toHaveBeenCalled();
         });

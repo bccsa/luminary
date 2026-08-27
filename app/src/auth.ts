@@ -204,7 +204,7 @@ function installManager(provider: ProviderConfig): UserManager {
 }
 
 /** Set up the generic OIDC client and finish an authorization-code callback. */
-export async function setupAuth(_app: App<Element>, router: Router): Promise<void> {
+export async function setupAuth(_app: App<Element>, _router: Router): Promise<void> {
     const url = new URL(location.href);
     const isCallback = url.searchParams.has("code") && url.searchParams.has("state");
     const cleanUrl = url.pathname + url.hash;
@@ -213,7 +213,7 @@ export async function setupAuth(_app: App<Element>, router: Router): Promise<voi
     if (!provider) {
         // Nothing is left that can redeem the code, and leaving it in the URL
         // keeps an authorization code in history and outbound Referer headers.
-        if (isCallback) router.replace(cleanUrl).catch(() => {});
+        if (isCallback) history.replaceState(history.state, "", cleanUrl);
         return;
     }
 
@@ -221,8 +221,13 @@ export async function setupAuth(_app: App<Element>, router: Router): Promise<voi
     isLoading.value = true;
     try {
         if (isCallback) {
+            // setupAuth runs before app.use(router), so router.replace() treats
+            // this as a duplicate of its uninitialised `/` route and leaves the
+            // real browser URL unchanged. Capture the callback URL for the OIDC
+            // client, then remove its one-time credentials directly from history.
+            history.replaceState(history.state, "", cleanUrl);
             try {
-                oidcUser.value = await manager.signinRedirectCallback();
+                oidcUser.value = await manager.signinRedirectCallback(url.href);
             } catch (error) {
                 // A refresh on the callback URL after it already succeeded once
                 // retries the same, by-then-consumed code+state and always
@@ -231,11 +236,6 @@ export async function setupAuth(_app: App<Element>, router: Router): Promise<voi
                 // user logged out.
                 Sentry?.captureException(error);
                 oidcUser.value = await manager.getUser();
-            } finally {
-                // Must run whether or not the callback succeeded: leaving
-                // code+state in the URL means every subsequent load retries
-                // and fails the exact same way, forever.
-                router.replace(cleanUrl).catch(() => {});
             }
         } else {
             oidcUser.value = await manager.getUser();
@@ -259,6 +259,19 @@ let refreshInFlightManager: UserManager | null = null;
  */
 const REFRESH_TIMEOUT_MS = 30_000;
 
+function hasJwtSigningKey(token: string): boolean {
+    const parts = token.split(".");
+    if (parts.length !== 3 || parts.some((part) => !part)) return false;
+    try {
+        const encoded = parts[0].replace(/-/g, "+").replace(/_/g, "/");
+        const padded = encoded.padEnd(Math.ceil(encoded.length / 4) * 4, "=");
+        const header = JSON.parse(atob(padded)) as { kid?: unknown };
+        return typeof header.kid === "string" && header.kid.length > 0;
+    } catch {
+        return false;
+    }
+}
+
 /**
  * Refresh through the provider's OIDC refresh-token flow. With `ignoreCache`,
  * always call `signinSilent()` so a server-rejected token cannot be replayed.
@@ -275,7 +288,11 @@ const REFRESH_TIMEOUT_MS = 30_000;
  * caller starts its own refresh instead of joining a promise that resolves
  * against the now-stale provider.
  */
-export async function refreshTokenSilently(opts?: { ignoreCache?: boolean }): Promise<boolean> {
+export async function refreshTokenSilently(opts?: {
+    ignoreCache?: boolean;
+    /** The API verifies RS256 JWTs through the provider JWKS, so a rejected-token retry must carry a kid. */
+    requireJwt?: boolean;
+}): Promise<boolean> {
     const manager = installedOidc;
     const providerId = installedProviderId;
     if (!manager || !providerId) return false;
@@ -286,6 +303,7 @@ export async function refreshTokenSilently(opts?: { ignoreCache?: boolean }): Pr
             let current = opts?.ignoreCache ? null : await manager.getUser();
             if (!current || current.expired) current = await manager.signinSilent();
             if (!current?.access_token) return false;
+            if (opts?.requireJwt && !hasJwtSigningKey(current.access_token)) return false;
             // A logout (cleared to null) or a provider switch may have superseded
             // this call while it was in flight — don't resurrect a session the user
             // already left, and never pair one provider's token with another's id.
@@ -337,9 +355,10 @@ export async function loginWithProvider(
     // prompt: "login" themselves) — otherwise the flag stays pending for the
     // actual next unprompted login instead of being consumed here for nothing.
     const prompt = opts?.prompt ?? (consumeForceReauthOnNextLogin() ? "login" : undefined);
-    await manager.signinRedirect({
-        extraQueryParams: prompt ? { prompt } : undefined,
-    });
+    // `extraQueryParams` on a signin call REPLACES the manager-level object in
+    // oidc-client-ts; using it for prompt would drop Auth0's API audience and
+    // produce an opaque access token. `prompt` is a standard first-class option.
+    await manager.signinRedirect(prompt ? { prompt } : {});
 }
 
 /**
