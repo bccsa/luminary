@@ -220,7 +220,7 @@ function onResume() {
 <template>
     <span
         v-if="showResumeOffer"
-        class="relative flex max-w-full items-center rounded-lg bg-zinc-200 shadow-md ring-1 ring-zinc-900/10 backdrop-blur-sm dark:bg-slate-700 dark:ring-white/10"
+        class="relative flex max-w-full items-center rounded-lg bg-zinc-200/80 shadow-md ring-1 ring-zinc-900/10 backdrop-blur-sm dark:bg-slate-700/80 dark:ring-white/10"
         data-test="articleOutlineResume"
     >
         <button
@@ -257,10 +257,10 @@ function onResume() {
     </span>
     <span
         v-else-if="visible && !headings.length"
-        class="relative flex max-w-full items-center overflow-hidden rounded-lg bg-zinc-200 px-3.5 pb-2.5 pt-1.5 text-sm text-zinc-800 shadow-md ring-1 ring-zinc-900/10 backdrop-blur-sm dark:bg-slate-700 dark:text-slate-50 dark:ring-white/10"
+        class="relative flex max-w-full items-center overflow-hidden rounded-lg bg-zinc-200/80 px-3.5 pb-2.5 pt-1.5 text-sm text-zinc-800 shadow-md ring-1 ring-zinc-900/10 backdrop-blur-sm dark:bg-slate-700/80 dark:text-slate-50 dark:ring-white/10"
         data-test="articleOutlineTitle"
     >
-        <span class="truncate font-medium">{{ title }}</span>
+        <span class="truncate">{{ title }}</span>
         <span
             v-if="progress !== undefined"
             class="pointer-events-none absolute inset-x-0 bottom-0 h-1 bg-zinc-300 dark:bg-slate-600"
@@ -283,13 +283,13 @@ function onResume() {
     >
         <template #trigger>
             <span
-                class="relative flex max-w-full items-center gap-1.5 overflow-hidden rounded-lg bg-zinc-200 px-3.5 pb-2.5 pt-1.5 text-sm text-zinc-800 shadow-md ring-1 ring-zinc-900/10 backdrop-blur-sm hover:bg-zinc-300 dark:bg-slate-700 dark:text-slate-50 dark:ring-white/10 dark:hover:bg-slate-600"
+                class="relative flex max-w-full items-center gap-1.5 overflow-hidden rounded-lg bg-zinc-200/80 px-3.5 pb-2.5 pt-1.5 text-sm text-zinc-800 shadow-md ring-1 ring-zinc-900/10 backdrop-blur-sm hover:bg-zinc-300 dark:bg-slate-700/80 dark:text-slate-50 dark:ring-white/10 dark:hover:bg-slate-600"
                 :aria-label="`Current section: ${activeHeading?.text ?? ''}`"
                 data-test="articleOutlineTrigger"
             >
                 <!-- Every heading is stacked invisibly in the same grid cell, so the pill is
                      sized to the longest one and stays put as the active chapter changes. -->
-                <span class="grid min-w-0 flex-1 text-left font-medium">
+                <span class="grid min-w-0 flex-1 text-left">
                     <span
                         v-for="h in headings"
                         :key="h.id"
