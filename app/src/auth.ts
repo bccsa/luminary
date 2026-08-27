@@ -203,6 +203,59 @@ function installManager(provider: ProviderConfig): UserManager {
     return manager;
 }
 
+/** Custom state round-tripped through the OIDC state store across a login redirect. */
+type SigninState = { returnTo?: string };
+
+function appBasePath(): string {
+    const base = import.meta.env.BASE_URL || "/";
+    return base.endsWith("/") ? base : `${base}/`;
+}
+
+/**
+ * Router-relative location to come back to after a login redirect. `redirect_uri`
+ * is pinned to the origin (providers allow-list it exactly), so the destination
+ * has to travel separately and be restored client-side.
+ */
+export function currentReturnTo(): string | undefined {
+    if (typeof location === "undefined") return undefined;
+    const base = appBasePath();
+    const path = location.pathname.startsWith(base)
+        ? `/${location.pathname.slice(base.length)}`
+        : location.pathname;
+    // Starting a login from a callback URL would otherwise carry a spent
+    // authorization code into the destination.
+    const params = new URLSearchParams(location.search);
+    params.delete("code");
+    params.delete("state");
+    const search = params.toString();
+    return sanitizeReturnTo(`${path}${search ? `?${search}` : ""}${location.hash}`);
+}
+
+/**
+ * Accept only app-internal paths. `//host` and `/\host` are read as
+ * protocol-relative URLs by browsers, so they would navigate off-site.
+ */
+export function sanitizeReturnTo(value: unknown): string | undefined {
+    if (typeof value !== "string" || !value.startsWith("/")) return undefined;
+    if (value.startsWith("//") || value.startsWith("/\\")) return undefined;
+    return value === "/" ? undefined : value;
+}
+
+/**
+ * `state` rides in the local OIDC state store, never in the request to the
+ * provider, so the destination cannot be tampered with in transit.
+ */
+function signinArgs(
+    prompt: OidcPrompt | undefined,
+    returnTo: string | undefined,
+): { prompt?: OidcPrompt; state?: SigninState } {
+    const destination = returnTo ?? currentReturnTo();
+    return {
+        ...(prompt ? { prompt } : {}),
+        ...(destination ? { state: { returnTo: destination } } : {}),
+    };
+}
+
 /**
  * Drop the one-time authorization-code credentials from the current history
  * entry. Leaving them behind keeps a redeemable code in history and in outbound
@@ -245,6 +298,18 @@ export async function setupAuth(_app: App<Element>, router: Router): Promise<voi
             stripAuthCallbackParams();
             try {
                 oidcUser.value = await manager.signinRedirectCallback(url.href);
+                const returnTo = sanitizeReturnTo(
+                    (oidcUser.value.state as SigninState | undefined)?.returnTo,
+                );
+                // The router's initial navigation targets the origin-level
+                // `redirect_uri`, so the page the login started from has to be
+                // restored once that navigation has settled.
+                if (returnTo) {
+                    void router
+                        .isReady()
+                        .then(() => router.replace(returnTo))
+                        .catch((navigationError) => Sentry?.captureException(navigationError));
+                }
             } catch (error) {
                 // A refresh on the callback URL after it already succeeded once
                 // retries the same, by-then-consumed code+state and always
@@ -404,7 +469,7 @@ export async function refreshTokenSilently(opts?: {
 /** Start an OIDC authorization-code + PKCE redirect for a selected provider. */
 export async function loginWithProvider(
     provider: ProviderConfig,
-    opts?: { prompt?: OidcPrompt },
+    opts?: { prompt?: OidcPrompt; returnTo?: string },
 ): Promise<void> {
     persistActiveProvider(provider);
     const manager = installManager(provider);
@@ -417,7 +482,7 @@ export async function loginWithProvider(
     // `extraQueryParams` on a signin call REPLACES the manager-level object in
     // oidc-client-ts; using it for prompt would drop Auth0's API audience and
     // produce an opaque access token. `prompt` is a standard first-class option.
-    await manager.signinRedirect(prompt ? { prompt } : {});
+    await manager.signinRedirect(signinArgs(prompt, opts?.returnTo));
 }
 
 /**
@@ -441,7 +506,8 @@ export function useAuth() {
         isLoading,
         isAuthenticated,
         user,
-        loginWithRedirect: () => installedOidc?.signinRedirect(),
+        loginWithRedirect: (opts?: { returnTo?: string }) =>
+            installedOidc?.signinRedirect(signinArgs(undefined, opts?.returnTo)),
         logout: async (opts?: LogoutOptions) => {
             const manager = installedOidc;
             if (!manager) return;

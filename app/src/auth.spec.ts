@@ -74,6 +74,7 @@ import {
     ACTIVE_PROVIDER_KEY,
     activeProviderId,
     clearAuthCache,
+    currentReturnTo,
     hasPersistedSession,
     isAuthenticated,
     isAuthPluginInstalled,
@@ -84,6 +85,7 @@ import {
     refreshTokenSilently,
     refreshTokenWithOutcome,
     resolveActiveProvider,
+    sanitizeReturnTo,
     setupAuth,
     showProviderSelectionModal,
     useAuth,
@@ -312,6 +314,73 @@ describe("auth", () => {
             await loginWithProvider(providerA);
 
             expect(mockSigninRedirect).toHaveBeenCalledWith({});
+        });
+
+        it("carries the current page through the redirect as local state", async () => {
+            mockClearStaleState.mockResolvedValue(undefined);
+            mockSigninRedirect.mockResolvedValue(undefined);
+            history.replaceState(null, "", "/eng/restricted-article?x=1#top");
+
+            await loginWithProvider(providerA);
+
+            expect(mockSigninRedirect).toHaveBeenCalledWith({
+                state: { returnTo: "/eng/restricted-article?x=1#top" },
+            });
+        });
+
+        it("prefers an explicitly supplied destination over the current page", async () => {
+            mockClearStaleState.mockResolvedValue(undefined);
+            mockSigninRedirect.mockResolvedValue(undefined);
+            history.replaceState(null, "", "/eng/some-other-page");
+
+            await loginWithProvider(providerA, { returnTo: "/eng/restricted-article" });
+
+            expect(mockSigninRedirect).toHaveBeenCalledWith({
+                state: { returnTo: "/eng/restricted-article" },
+            });
+        });
+
+        it("keeps the prompt alongside the destination", async () => {
+            mockClearStaleState.mockResolvedValue(undefined);
+            mockSigninRedirect.mockResolvedValue(undefined);
+            history.replaceState(null, "", "/eng/restricted-article");
+
+            await loginWithProvider(providerA, { prompt: "login" });
+
+            expect(mockSigninRedirect).toHaveBeenCalledWith({
+                prompt: "login",
+                state: { returnTo: "/eng/restricted-article" },
+            });
+        });
+    });
+
+    describe("currentReturnTo / sanitizeReturnTo", () => {
+        it("captures the path, query and hash of the current page", () => {
+            history.replaceState(null, "", "/eng/post-slug?autoplay=true#chapter-2");
+
+            expect(currentReturnTo()).toBe("/eng/post-slug?autoplay=true#chapter-2");
+        });
+
+        it("treats the home page as no destination", () => {
+            history.replaceState(null, "", "/");
+
+            expect(currentReturnTo()).toBeUndefined();
+        });
+
+        it("drops a spent authorization code when login is restarted from a callback URL", () => {
+            history.replaceState(null, "", "/eng/post-slug?code=abc&state=xyz&autoplay=true");
+
+            expect(currentReturnTo()).toBe("/eng/post-slug?autoplay=true");
+        });
+
+        it("rejects destinations that would navigate off-site", () => {
+            expect(sanitizeReturnTo("//evil.example.com/phish")).toBeUndefined();
+            expect(sanitizeReturnTo("/\\evil.example.com/phish")).toBeUndefined();
+            expect(sanitizeReturnTo("https://evil.example.com")).toBeUndefined();
+            expect(sanitizeReturnTo("eng/post-slug")).toBeUndefined();
+            expect(sanitizeReturnTo(undefined)).toBeUndefined();
+            expect(sanitizeReturnTo({ returnTo: "/eng/post-slug" })).toBeUndefined();
+            expect(sanitizeReturnTo("/eng/post-slug")).toBe("/eng/post-slug");
         });
     });
 
@@ -694,6 +763,48 @@ describe("auth", () => {
             // refreshTokenSilently() must still run on the callback path.
             expect(mockGetUser).toHaveBeenCalledTimes(1);
             expect(mockSigninSilent).not.toHaveBeenCalled();
+        });
+
+        it("returns to the page the login was started from", async () => {
+            persistActiveProvider(providerA);
+            history.replaceState(null, "", "/?code=abc&state=xyz");
+            mockSigninRedirectCallback.mockResolvedValue({
+                ...user,
+                state: { returnTo: "/eng/restricted-article" },
+            });
+            mockGetUser.mockResolvedValue(user);
+
+            await setupAuth(appStub, routerStub);
+            await new Promise((resolve) => setTimeout(resolve, 0));
+
+            expect(routerStub.replace).toHaveBeenCalledWith("/eng/restricted-article");
+        });
+
+        it("stays on the callback landing page when no destination was carried", async () => {
+            persistActiveProvider(providerA);
+            history.replaceState(null, "", "/?code=abc&state=xyz");
+            mockSigninRedirectCallback.mockResolvedValue(user);
+            mockGetUser.mockResolvedValue(user);
+
+            await setupAuth(appStub, routerStub);
+            await new Promise((resolve) => setTimeout(resolve, 0));
+
+            expect(routerStub.replace).not.toHaveBeenCalled();
+        });
+
+        it("refuses an off-site destination returned with the callback", async () => {
+            persistActiveProvider(providerA);
+            history.replaceState(null, "", "/?code=abc&state=xyz");
+            mockSigninRedirectCallback.mockResolvedValue({
+                ...user,
+                state: { returnTo: "//evil.example.com/phish" },
+            });
+            mockGetUser.mockResolvedValue(user);
+
+            await setupAuth(appStub, routerStub);
+            await new Promise((resolve) => setTimeout(resolve, 0));
+
+            expect(routerStub.replace).not.toHaveBeenCalled();
         });
 
         it("removes callback parameters before Vue Router is installed", async () => {

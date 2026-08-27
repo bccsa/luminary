@@ -27,6 +27,7 @@ vi.mock("@/auth", async () => {
     return {
         isAuthPluginInstalled: mockRef(false),
         openProviderModal: vi.fn(),
+        currentReturnTo: vi.fn(() => "/eng/restricted-article"),
         useAuth: vi.fn(() => ({
             isLoading: mockRef(false),
             isAuthenticated: mockRef(false),
@@ -103,6 +104,21 @@ describe("useAuthWithPrivacyPolicy", () => {
             expect(loginWithRedirectMock).toHaveBeenCalled();
             expect(showPrivacyPolicyModal.value).toBe(false);
             expect(hasPendingLogin.value).toBe(false);
+        });
+    });
+
+    it("carries the page the login was started from through the privacy-policy gate", async () => {
+        const { loginWithRedirect, completePendingLogin } = useAuthWithPrivacyPolicy();
+        loginWithRedirect();
+
+        userPreferencesMock.value.privacyPolicy.status = "accepted";
+        (userPreferencesAsRef as any).value = userPreferencesMock.value;
+        completePendingLogin();
+
+        await waitForExpect(() => {
+            expect(loginWithRedirectMock).toHaveBeenCalledWith({
+                returnTo: "/eng/restricted-article",
+            });
         });
     });
 
