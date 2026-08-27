@@ -65,9 +65,7 @@ async function loginAndSaveState(
     await page.goto(baseURL, { waitUntil: "domcontentloaded" });
 
     // Click the "BCC Africa Guest" provider button on the CMS sign-in screen.
-    const guestProviderButton = page
-        .getByRole("button", { name: /BCC Africa Guest/i })
-        .first();
+    const guestProviderButton = page.getByRole("button", { name: /BCC Africa Guest/i }).first();
     await guestProviderButton.waitFor({ state: "visible", timeout: 15_000 });
     await guestProviderButton.click();
 
@@ -125,6 +123,38 @@ async function loginAndSaveState(
     await browser.close();
 }
 
+/**
+ * Bring up the fake OIDC issuer and register it as an AuthProvider. Opted into
+ * by pointing E2E_COUCHDB_URL at the stack under test; unset, the suite targets
+ * a deployed environment instead. Returns the issuer's teardown.
+ */
+async function setupFakeIdp(appBaseURL: string, cmsBaseURL: string): Promise<() => Promise<void>> {
+    const { startE2eIdp, assertServing, DEFAULT_IDP_PORT } = await import("./idp");
+    const apiURL = process.env.E2E_API_URL ?? "http://localhost:3000";
+
+    // Probe everything before starting the issuer: a stack that is only partly up
+    // otherwise fails much later as an unexplained timeout inside a spec.
+    await Promise.all([
+        assertServing("The API", `${apiURL}/protected`, "Start it with: npm start (in api/)"),
+        assertServing("The App", appBaseURL, "Start it with: npm run dev (in app/)"),
+        assertServing("The CMS", cmsBaseURL, "Start it with: npm run dev (in cms/)"),
+    ]);
+
+    const { env, stop } = await startE2eIdp({
+        couch: {
+            connectionString: process.env.E2E_COUCHDB_URL as string,
+            database: process.env.E2E_COUCHDB_DATABASE ?? "luminary",
+        },
+        port: Number(process.env.E2E_IDP_PORT ?? DEFAULT_IDP_PORT),
+    });
+
+    console.log(
+        `Fake IdP listening on ${env.origin} as provider ${env.providerId}\n` +
+            "  The API must run with AUTH_ALLOW_INSECURE_PROVIDER_DOMAIN=true to accept its tokens.",
+    );
+    return stop;
+}
+
 export default async function globalSetup(_config: FullConfig) {
     const appBaseURL = process.env.APP_BASE_URL;
     const cmsBaseURL = process.env.CMS_BASE_URL;
@@ -133,6 +163,12 @@ export default async function globalSetup(_config: FullConfig) {
         throw new Error(
             "APP_BASE_URL and CMS_BASE_URL must be set (via .env file or environment) before running tests.",
         );
+    }
+
+    // Specs pick an identity per test via the persona fixture, so this mode needs
+    // no shared storageState and skips the browser launches that would build it.
+    if (process.env.E2E_COUCHDB_URL) {
+        return setupFakeIdp(appBaseURL, cmsBaseURL);
     }
 
     // App permits guest browsing — no login required for smoke tests.
