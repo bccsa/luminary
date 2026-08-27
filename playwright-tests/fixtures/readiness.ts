@@ -1,12 +1,7 @@
 import type { Page } from "@playwright/test";
 
-/**
- * Waits are evaluated inside the page so the whole wait costs one round trip
- * instead of one per attempt, and the IndexedDB connection is opened once and
- * cached on `window` rather than reopened on every poll.
- */
-
 const DEFAULT_TIMEOUT = 30_000;
+const POLL_INTERVAL = 250;
 
 /** Key `luminary-shared` mirrors the socket handshake's AccessMap into. */
 const ACCESS_MAP_KEY = "accessMap";
@@ -35,6 +30,8 @@ export async function waitForAccessMap(
     page: Page,
     options?: { timeout?: number },
 ): Promise<AccessMap> {
+    // Safe as a waitForFunction predicate because it is synchronous; see the
+    // note on waitForSynced for why an async one would not be.
     await page.waitForFunction(
         (key) => {
             try {
@@ -63,19 +60,13 @@ export type SyncedExpectation = {
     types?: string[];
 };
 
+const EMPTY: SyncedSummary = { groups: [], types: [], statuses: [] };
+
 /**
- * Summarises every doc on the device, returning it only once `expected` is fully
- * present. Returning null while unsatisfied lets the same function serve
- * `page.evaluate` for a plain read (with no expectation) and
- * `page.waitForFunction` for a wait.
+ * Summarises every doc on the device. The IndexedDB handle is cached on
+ * `window` so repeated reads do not reopen the connection.
  */
-async function collectSynced({
-    dbName,
-    expected,
-}: {
-    dbName: string;
-    expected: Required<SyncedExpectation>;
-}): Promise<SyncedSummary | null> {
+async function collectSynced(dbName: string): Promise<SyncedSummary> {
     const scope = window as unknown as { __e2eDb?: IDBDatabase };
 
     const open = () =>
@@ -105,57 +96,50 @@ async function collectSynced({
         docs = await readAll(scope.__e2eDb);
     }
 
-    const summary: SyncedSummary = {
+    return {
         groups: [...new Set(docs.flatMap((d) => d.memberOf ?? []))],
         types: [...new Set(docs.map((d) => d.type).filter(Boolean) as string[])],
         statuses: [...new Set(docs.map((d) => d.status).filter(Boolean) as string[])],
     };
-
-    const satisfied =
-        expected.groups.every((group) => summary.groups.includes(group)) &&
-        expected.types.every((type) => summary.types.includes(type));
-
-    return satisfied ? summary : null;
 }
-
-const NOTHING_EXPECTED = { groups: [], types: [] };
 
 /** Everything currently on the device, without waiting for anything in particular. */
 export async function readSynced(page: Page): Promise<SyncedSummary> {
-    const summary = await page.evaluate(collectSynced, {
-        dbName: DB_NAME,
-        expected: NOTHING_EXPECTED,
-    });
-    return summary ?? { groups: [], types: [], statuses: [] };
+    return page.evaluate(collectSynced, DB_NAME);
 }
 
 /**
  * Resolves once everything named in `expected` has reached the device. Assert an
  * absence only after this has confirmed sync actually ran — otherwise the
  * assertion passes against an empty database and proves nothing.
+ *
+ * Polled from here rather than through `page.waitForFunction`, which treats the
+ * promise an async predicate returns as an immediately truthy result and so
+ * would not wait at all. Reading IndexedDB requires an async predicate.
  */
 export async function waitForSynced(
     page: Page,
     expected: SyncedExpectation,
     options?: { timeout?: number },
 ): Promise<SyncedSummary> {
-    const required = { groups: expected.groups ?? [], types: expected.types ?? [] };
+    const groups = expected.groups ?? [];
+    const types = expected.types ?? [];
+    const deadline = Date.now() + (options?.timeout ?? DEFAULT_TIMEOUT);
 
-    try {
-        const handle = await page.waitForFunction(
-            collectSynced,
-            { dbName: DB_NAME, expected: required },
-            { timeout: options?.timeout ?? DEFAULT_TIMEOUT, polling: 250 },
-        );
-        return (await handle.jsonValue()) ?? (await readSynced(page));
-    } catch {
-        const seen = await readSynced(page);
-        throw new Error(
-            `Timed out waiting for sync. Expected groups [${required.groups.join(", ")}] ` +
-                `and types [${required.types.join(", ")}]; saw groups [${seen.groups.join(
-                    ", ",
-                )}] ` +
-                `and types [${seen.types.join(", ")}].`,
-        );
+    let seen: SyncedSummary = EMPTY;
+    for (;;) {
+        seen = await readSynced(page);
+        const satisfied =
+            groups.every((group) => seen.groups.includes(group)) &&
+            types.every((type) => seen.types.includes(type));
+        if (satisfied) return seen;
+        if (Date.now() >= deadline) break;
+        await page.waitForTimeout(POLL_INTERVAL);
     }
+
+    throw new Error(
+        `Timed out waiting for sync. Expected groups [${groups.join(", ")}] and ` +
+            `types [${types.join(", ")}]; saw groups [${seen.groups.join(", ")}] and ` +
+            `types [${seen.types.join(", ")}].`,
+    );
 }

@@ -18,18 +18,29 @@ test.describe("CMS persona access", () => {
         });
     }
 
-    test("an editor without public-content rights does not receive that group", async ({
+    test("an editor gets edit rights only where its groups grant them", async ({
         page,
         loginAs,
     }) => {
         await loginAs("editor2");
         await page.goto("/");
 
-        // Wait for the map to arrive first; asserting absence against an empty
-        // map would pass without proving anything.
         const accessMap = await waitForAccessMap(page);
-        expect(Object.keys(accessMap)).toContain("group-private-content");
-        expect(Object.keys(accessMap)).not.toContain("group-public-content");
+
+        // Private-editor membership is what carries editing rights.
+        expect(accessMap["group-private-content"]?.post).toMatchObject({
+            edit: true,
+            publish: true,
+            cmsView: true,
+        });
+
+        // Public content is reachable only through the default group, which
+        // grants reading and nothing more — the group being present in the map
+        // is not itself the boundary.
+        expect(accessMap["group-public-content"]?.post).toMatchObject({ view: true });
+        expect(accessMap["group-public-content"]?.post?.edit).toBeFalsy();
+        expect(accessMap["group-public-content"]?.post?.publish).toBeFalsy();
+        expect(accessMap["group-public-content"]?.post?.cmsView).toBeFalsy();
     });
 
     test("a token with no matching User doc gets only the default groups", async ({
@@ -43,5 +54,6 @@ test.describe("CMS persona access", () => {
         // The provider-less AutoGroupMappings default is all this identity earns.
         expect(Object.keys(accessMap)).toContain("group-public-content");
         expect(Object.keys(accessMap)).not.toContain("group-private-content");
+        expect(accessMap["group-public-content"]?.post?.cmsView).toBeFalsy();
     });
 });

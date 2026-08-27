@@ -149,13 +149,13 @@ App specs use `appPersonaTest` instead. A test that omits `loginAs` runs as a gu
 
 ### Personas
 
-Defined in [fixtures/idp/personas.ts](fixtures/idp/personas.ts), linked to `api/src/db/seedingDocs/` by email:
+Defined in [fixtures/idp/personas.ts](fixtures/idp/personas.ts), linked to `api/src/db/seedingDocs/` by email. Every persona also picks up `group-public-users` from the provider-less `AutoGroupMappings` default, which grants read access to public content on top of its own membership — so the boundary between an editor and a reader shows up in the *permissions* on a group, not in whether the group appears at all:
 
 | Persona | Groups | Reaches |
 | ------- | ------ | ------- |
 | `superAdmin` | `group-super-admins` | The admin groups — **not** the content groups |
 | `editor1` | public + private editors | Edit/publish in both content groups |
-| `editor2` | private editors | Private content only — the negative case for public edits |
+| `editor2` | private editors | Edits private content only — reads public content via the default group |
 | `privateUser` | `group-private-users` | Reads public **and** private content |
 | `publicUser` | `group-public-users` | Reads public content only |
 | `unlinked` | — | Valid token, no `User` doc: default groups only |
@@ -204,7 +204,9 @@ The suite runs `fullyParallel` in fake-IdP mode — each test gets its own brows
 
 Two rules matter more than anything else for speed and reliability:
 
-**Never wait on `networkidle`.** Both clients hold an open socket, so the page may never reach it. Wait on the state you actually care about instead — [fixtures/readiness.ts](fixtures/readiness.ts) provides `waitForAccessMap` and `waitForSynced`, which poll *inside* the page: one round trip for the whole wait, and one cached IndexedDB connection rather than one per attempt.
+**Never wait on `networkidle`.** Both clients hold an open socket, so the page may never reach it. Wait on the state you actually care about instead — [fixtures/readiness.ts](fixtures/readiness.ts) provides `waitForAccessMap` and `waitForSynced`.
+
+**Never hand `page.waitForFunction` an async predicate.** It tests the returned value for truthiness without awaiting it, and a promise is always truthy, so the wait resolves on the first poll and silently becomes a race. `waitForAccessMap` reads `localStorage` synchronously and can use it; `waitForSynced` has to read IndexedDB, so it polls from the test process instead.
 
 **Never assert an absence first.** `expect(groups).not.toContain("group-private-content")` passes instantly against an empty database and proves nothing. Wait for something the persona *should* receive, then assert what it should not:
 
@@ -214,6 +216,8 @@ expect(groups).not.toContain("group-private-content");
 ```
 
 `waitForSynced` takes `groups` and/or `types` and returns `{ groups, types, statuses }` for whatever you want to assert next. On timeout it reports what it did see, so a failure names the gap instead of just the deadline.
+
+**Mind the viewport.** Specs run at Playwright's Desktop Chrome default of 1280×720, which is above Tailwind's `lg` breakpoint. The app's `banner` landmark lives in the mobile top bar (`lg:hidden`), so it is absent at that width — set a narrow viewport for anything asserting mobile chrome.
 
 `loginAs` enforces its own preconditions — it throws if called after the first navigation (an init script cannot reach a loaded page) or twice in one context.
 

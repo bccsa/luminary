@@ -11,7 +11,11 @@ export type Persona = TokenIdentity & {
     userDoc: string | null;
     /** `memberOf` on that User doc. Default and claim-mapped groups add to this. */
     memberOf: string[];
-    /** Groups the resulting AccessMap grants entries for, given the seeded ACLs. */
+    /**
+     * Groups the resulting AccessMap grants entries for, given the seeded ACLs.
+     * Every persona reaches `group-public-content` and `group-public-users`
+     * through the default group, on top of whatever its own membership grants.
+     */
     reaches: string[];
 };
 
@@ -33,6 +37,7 @@ export const personas = {
             "group-public-users",
             "group-private-editors",
             "group-private-users",
+            "group-public-content",
         ],
     }),
 
@@ -44,7 +49,12 @@ export const personas = {
         name: "Editor 1",
         userDoc: "user-editor1",
         memberOf: ["group-public-editors", "group-private-editors"],
-        reaches: ["group-public-content", "group-private-content", "group-languages"],
+        reaches: [
+            "group-public-content",
+            "group-private-content",
+            "group-languages",
+            "group-public-users",
+        ],
     }),
 
     /** Editor on private content only — the negative case for public-content edits. */
@@ -55,7 +65,12 @@ export const personas = {
         name: "Editor 2",
         userDoc: "user-editor2",
         memberOf: ["group-private-editors"],
-        reaches: ["group-private-content", "group-languages"],
+        reaches: [
+            "group-private-content",
+            "group-languages",
+            "group-public-content",
+            "group-public-users",
+        ],
     }),
 
     /** Reader who can see both public and private content. */
@@ -66,7 +81,7 @@ export const personas = {
         name: "Private User",
         userDoc: "user-private",
         memberOf: ["group-private-users"],
-        reaches: ["group-public-content", "group-private-content"],
+        reaches: ["group-public-content", "group-private-content", "group-public-users"],
     }),
 
     /** Reader limited to public content — the negative case for private content. */
@@ -91,7 +106,7 @@ export const personas = {
         name: "Unlinked User",
         userDoc: null,
         memberOf: [],
-        reaches: [],
+        reaches: ["group-public-content", "group-public-users"],
     }),
 } satisfies Record<string, Persona>;
 
