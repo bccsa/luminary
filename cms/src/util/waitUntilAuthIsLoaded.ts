@@ -1,14 +1,13 @@
 import { watchEffectOnceAsync } from "./watchEffectOnce";
-import { isAuthBypassed, isAuthPluginInstalled, useAuth } from "@/auth";
+import { isAuthPluginInstalled, useAuth } from "@/auth";
 
 export const waitUntilAuthIsLoaded = async (callback?: Function) => {
     const fn = async () => {
         if (callback) await callback();
     };
 
-    // In auth bypass mode, or when no OIDC manager was installed, there is
-    // nothing to wait for.
-    if (isAuthBypassed || !isAuthPluginInstalled.value) return fn();
+    // With no OIDC manager installed there is nothing to wait for.
+    if (!isAuthPluginInstalled.value) return fn();
 
     const { isLoading } = useAuth();
     if (!isLoading.value) return fn();

@@ -66,6 +66,17 @@ export type ValidationConfig = {
     bypassTemplateValidation: boolean;
 };
 
+export type AuthConfig = {
+    /**
+     * Permits an AuthProvider whose `domain` carries an `http://` scheme. The
+     * provider's JWKS is fetched from that host, so over plaintext an on-path
+     * attacker can substitute signing keys and forge accepted tokens.
+     * Environment variable: AUTH_ALLOW_INSECURE_PROVIDER_DOMAIN=true
+     * WARNING: local test issuers only — never enable this in production.
+     */
+    allowInsecureProviderDomain: boolean;
+};
+
 export type ImageProcessingConfig = {
     imageQuality: number;
 };
@@ -104,6 +115,7 @@ export type Configuration = {
     imageProcessing?: ImageProcessingConfig;
     socketIo?: SocketIoConfig;
     validation?: ValidationConfig;
+    auth?: AuthConfig;
 };
 
 export default () =>
@@ -147,4 +159,7 @@ export default () =>
         validation: {
             bypassTemplateValidation: process.env.BYPASS_TEMPLATE_VALIDATION === "true",
         } as ValidationConfig,
+        auth: {
+            allowInsecureProviderDomain: process.env.AUTH_ALLOW_INSECURE_PROVIDER_DOMAIN === "true",
+        } as AuthConfig,
     }) as Configuration;

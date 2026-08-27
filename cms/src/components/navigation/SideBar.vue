@@ -39,7 +39,7 @@ import {
     useSharedHybridQuery,
     type LanguageDto,
 } from "luminary-shared";
-import { isAuthBypassed, isAuthPluginInstalled, useAuth, type LogoutOptions } from "@/auth";
+import { isAuthPluginInstalled, useAuth, type LogoutOptions } from "@/auth";
 import OnlineIndicator from "../OnlineIndicator.vue";
 import LanguageModal from "../modals/LanguageModal.vue";
 import LDialog from "../common/LDialog.vue";
@@ -190,13 +190,9 @@ const closeDrawer = () => {
 
 // --- Footer: user, language, logout ---
 // Only use the configured OIDC manager if it was actually installed at boot.
-// Otherwise fall back to mock user data and a no-op logout.
-const auth = isAuthBypassed || !isAuthPluginInstalled.value ? null : useAuth();
-const user = computed(() =>
-    isAuthBypassed
-        ? { name: "E2E Test User", email: "e2e@test.local", picture: undefined }
-        : auth?.user.value,
-);
+// Otherwise there is no user to show and logout is a no-op.
+const auth = isAuthPluginInstalled.value ? useAuth() : null;
+const user = computed(() => auth?.user.value);
 const logout = auth
     ? auth.logout
     : (_opts?: LogoutOptions) => console.warn("Logout called without an active auth session");
