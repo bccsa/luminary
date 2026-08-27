@@ -565,26 +565,6 @@ describe("auth", () => {
             expect(mockGetUser).toHaveBeenCalled();
         });
 
-        it("short-circuits with a mock token in auth-bypass mode", async () => {
-            vi.resetModules();
-            vi.stubEnv("VITE_AUTH_BYPASS", "true");
-            try {
-                const bypassed = await import("./auth");
-
-                await bypassed.setupAuth();
-
-                expect(mockSetCustomHeader).toHaveBeenCalledWith(
-                    "Authorization",
-                    "Bearer mock-token-for-e2e-testing",
-                );
-                expect(bypassed.isAuthPluginInstalled.value).toBe(true);
-                expect(mockUserManager).not.toHaveBeenCalled();
-            } finally {
-                vi.unstubAllEnvs();
-                vi.resetModules();
-            }
-        });
-
         it("does nothing when no provider has been selected", async () => {
             await setupAuth();
 

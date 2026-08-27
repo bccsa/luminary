@@ -21,7 +21,6 @@ vi.mock("luminary-shared", async (importOriginal) => {
 
 vi.mock("@/auth", () => ({
     clearAuthCache: vi.fn(),
-    isAuthBypassed: false,
     loginWithProvider: vi.fn(),
     openProviderModal: vi.fn(),
     refreshTokenSilently: vi.fn(),
@@ -53,28 +52,6 @@ describe("authFailure", () => {
         registerAuthFailureHandler();
 
         expect(mockSocket.on).toHaveBeenCalledWith("connect_error", handleConnectError);
-    });
-
-    it("attaches nothing in auth-bypass mode, which has no OIDC session to recover", async () => {
-        vi.resetModules();
-        vi.doMock("@/auth", () => ({
-            clearAuthCache: vi.fn(),
-            isAuthBypassed: true,
-            loginWithProvider: vi.fn(),
-            openProviderModal: vi.fn(),
-            refreshTokenSilently: vi.fn(),
-            resolveActiveProvider: vi.fn(),
-        }));
-        try {
-            const bypassed = await import("./authFailure");
-
-            bypassed.registerAuthFailureHandler();
-
-            expect(mockSocket.on).not.toHaveBeenCalled();
-        } finally {
-            vi.doUnmock("@/auth");
-            vi.resetModules();
-        }
     });
 
     it("ignores connection errors that aren't authentication failures", async () => {

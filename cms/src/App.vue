@@ -6,15 +6,15 @@ import { appName } from "@/globalConfig";
 import NotificationManager from "./components/notifications/NotificationManager.vue";
 import router from "./router";
 import SideBar from "@/components/navigation/SideBar.vue";
-import { isAuthBypassed, isAuthPluginInstalled, showProviderSelectionModal, useAuth } from "@/auth";
+import { isAuthPluginInstalled, showProviderSelectionModal, useAuth } from "@/auth";
 import SelectionModal from "@/components/authProvider/SelectionModal.vue";
 import { usePwaUpdate } from "@/composables/usePwaUpdate";
 import { useNotificationStore } from "@/stores/notification";
 
 // Only use the configured OIDC manager if a provider was actually installed
 // at boot. Otherwise treat the app as unauthenticated.
-const auth = isAuthBypassed || !isAuthPluginInstalled.value ? null : useAuth();
-const isAuthenticated = computed(() => isAuthBypassed || auth?.isAuthenticated.value);
+const auth = isAuthPluginInstalled.value ? useAuth() : null;
+const isAuthenticated = computed(() => auth?.isAuthenticated.value);
 const sidebarOpen = ref(false);
 const { needRefresh, reload } = usePwaUpdate();
 const notificationStore = useNotificationStore();

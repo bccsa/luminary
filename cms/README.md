@@ -103,36 +103,15 @@ npm run test:unit
 
 ### E2E Tests
 
-The CMS uses Playwright for end-to-end testing. E2E tests run in **auth bypass mode**, which allows testing without requiring Auth0 integration.
+E2E tests live in [`../playwright-tests/`](../playwright-tests/README.md), not in this package.
 
-#### Running E2E Tests
-
-```sh
-# Install Playwright browsers (first time only)
-npx playwright install
-
-# Run E2E tests
-npm run test:e2e
-
-# Run with UI mode for debugging
-npx playwright test --ui
-
-# Generate test code
-npm run test:e2e:codegen
-```
-
-#### Auth Bypass Mode
-
-For E2E testing and local development without Auth0, set `VITE_AUTH_BYPASS=true` in your environment:
+They run locally against a disposable stack — CouchDB, MinIO, a seeded API, plus this CMS and the App — with a local OIDC issuer standing in for a real identity provider. Each test signs in as a seeded persona (`superAdmin`, `editor1`, `editor2`, `privateUser`, `publicUser`), so permission behaviour is exercised against real tokens the API verifies rather than a mocked-out session.
 
 ```sh
-# Add to your .env file for local development:
-VITE_AUTH_BYPASS=true
+cd ../playwright-tests
+npm install && npx playwright install chromium
+cp .env.example .env    # fill in E2E_COUCHDB_URL to select fake-IdP mode
+npm test
 ```
 
-When auth bypass is enabled:
-
-- The application skips Auth0 authentication entirely
-- A mock user (`E2E Test User`) is automatically "logged in"
-- All authenticated routes are accessible
-- ⚠️ **Never enable this in production!**
+The CMS must be running (`npm run dev`) and the API started with `AUTH_ALLOW_INSECURE_PROVIDER_DOMAIN=true`. See the [E2E README](../playwright-tests/README.md#running-it-locally) for the full local setup.

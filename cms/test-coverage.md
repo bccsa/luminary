@@ -103,7 +103,7 @@ These files are excluded in `vitest.config.ts` and do not count toward coverage 
 ## Files That Cannot Easily Reach 100%
 
 ### `src/auth.ts` (~50% coverage, up from 24%)
-Deep Auth0 SDK integration. `setupAuth()` initializes Auth0 with browser APIs (localStorage, window.location, redirect callbacks) - requires a real Auth0 environment. `loginRedirect()` and `getToken()` are now well-tested. The E2E test suite with `VITE_AUTH_BYPASS=true` covers the critical auth flow end-to-end.
+Deep Auth0 SDK integration. `setupAuth()` initializes Auth0 with browser APIs (localStorage, window.location, redirect callbacks) - requires a real Auth0 environment. `loginRedirect()` and `getToken()` are now well-tested. The E2E suite in `../playwright-tests/` covers the critical auth flow end-to-end against a local OIDC issuer.
 
 ### `src/components/images/ImageEditor.vue` (~40% coverage, up from 29%)
 Heavy use of browser File APIs (FileReader, DataTransfer, drag-and-drop events) and S3 bucket queries via `storageSelection()` composable. The `handleFiles()`/`processFiles()` flow requires complex DOM event simulation with mock FileReader. Basic rendering, empty states, and drag events are covered.
@@ -149,7 +149,7 @@ Many Vue components report 0% function coverage for `<script setup>` blocks beca
 | `src/util/youtubeUtils.spec.ts` | `isYouTubeUrl()`, `extractYouTubeId()` - all URL formats |
 | `src/util/watchEffectOnce.spec.ts` | `watchEffectOnce()`, `watchEffectOnceAsync()` |
 | `src/util/getPreferredContentLanguage.spec.ts` | All fallback paths |
-| `src/util/waitUntilAuth0IsLoaded.spec.ts` | Auth bypass, loading states, callback |
+| `src/util/waitUntilAuthIsLoaded.spec.ts` | Loading states, callback |
 | `src/components/BleedHorizontal.spec.ts` | Slot rendering |
 | `src/components/editor/icons/EditorIcons.spec.ts` | SVG rendering for Bold, Italic, Strikethrough |
 | `src/components/forms/LTextarea.spec.ts` | v-model, slots, states, sizes, disabled, icons, add-ons |

@@ -20,9 +20,6 @@ export const ACTIVE_PROVIDER_KEY = "cms_activeAuthProvider";
  */
 const FORCE_REAUTH_KEY = "cms_forceReauthOnNextLogin";
 
-/** Development / E2E testing bypass. */
-export const isAuthBypassed = import.meta.env.VITE_AUTH_BYPASS === "true";
-
 /** Currently active OAuth provider document id (or null when unauthenticated). */
 export const activeProviderId = ref<string | null>(null);
 /** When true, the provider selection modal should be shown. */
@@ -201,21 +198,8 @@ function installManager(provider: ProviderConfig): UserManager {
     return manager;
 }
 
-/**
- * Set up the generic OIDC client and finish an authorization-code callback.
- * In bypass mode, shortcircuit with a mock token so E2E tests can run
- * without a real identity provider.
- */
+/** Set up the generic OIDC client and finish an authorization-code callback. */
 export async function setupAuth(): Promise<void> {
-    if (isAuthBypassed) {
-        console.warn(
-            "⚠️ Auth bypass mode enabled - this should only be used for development/E2E testing",
-        );
-        setCustomHeader("Authorization", "Bearer mock-token-for-e2e-testing");
-        isAuthPluginInstalled.value = true;
-        return;
-    }
-
     const url = new URL(location.href);
     const isCallback = url.searchParams.has("code") && url.searchParams.has("state");
     const cleanUrl = url.pathname + url.hash;
@@ -456,5 +440,4 @@ export default {
     loginWithProvider,
     resolveActiveProvider,
     refreshTokenSilently,
-    isAuthBypassed,
 };

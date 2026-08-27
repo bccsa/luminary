@@ -1,7 +1,6 @@
 import { getSocket } from "luminary-shared";
 import {
     clearAuthCache,
-    isAuthBypassed,
     loginWithProvider,
     openProviderModal,
     refreshTokenSilently,
@@ -55,6 +54,5 @@ export async function handleConnectError(err: AuthConnectError): Promise<void> {
  * and the client loops.
  */
 export function registerAuthFailureHandler(): void {
-    if (isAuthBypassed) return;
     getSocket().on("connect_error", handleConnectError);
 }
