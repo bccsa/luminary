@@ -54,12 +54,9 @@ const RESUME_COMPLETE_PERCENT = 99;
 const hasUnfinishedSave = computed(
     () => !!props.resumable && (props.savedProgress ?? 0) < RESUME_COMPLETE_PERCENT,
 );
-// The resume offer needs an unfinished save; the menu's "continue" entry additionally only
-// earns its place while the reader is still behind the position they left off at.
+// Both the resume offer and the menu's "continue" entry exist as long as the save is unfinished.
 const showResumeOffer = computed(() => !!props.offerResume && hasUnfinishedSave.value);
-const showResumeOption = computed(
-    () => hasUnfinishedSave.value && (props.progress ?? 0) < (props.savedProgress ?? 0),
-);
+const showResumeOption = hasUnfinishedSave;
 
 const activeHeading = computed(
     () => headings.value.find((h) => h.id === activeId.value) ?? headings.value[0],
