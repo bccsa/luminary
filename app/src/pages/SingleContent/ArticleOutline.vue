@@ -48,10 +48,17 @@ const open = ref(false);
 // the same moment rather than a few pixels earlier.
 const chromeScrolled = inject<Ref<boolean>>("topChromeScrolled", ref(true));
 
-// The menu's "continue" entry only earns its place while the reader is still behind the
-// position they left off at; once scrolled past it there is nothing to return to.
+/** Reading progress from which an article counts as finished — nothing left to continue. */
+const RESUME_COMPLETE_PERCENT = 99;
+
+const hasUnfinishedSave = computed(
+    () => !!props.resumable && (props.savedProgress ?? 0) < RESUME_COMPLETE_PERCENT,
+);
+// The resume offer needs an unfinished save; the menu's "continue" entry additionally only
+// earns its place while the reader is still behind the position they left off at.
+const showResumeOffer = computed(() => !!props.offerResume && hasUnfinishedSave.value);
 const showResumeOption = computed(
-    () => !!props.resumable && (props.progress ?? 0) < (props.savedProgress ?? 0),
+    () => hasUnfinishedSave.value && (props.progress ?? 0) < (props.savedProgress ?? 0),
 );
 
 const activeHeading = computed(
@@ -62,14 +69,14 @@ const activeHeading = computed(
 // offer is the exception — it shows from the start, before any scrolling.
 const visible = computed(
     () =>
-        props.offerResume ||
+        showResumeOffer.value ||
         (chromeScrolled.value && titleScrolledOut.value && !articleScrolledPast.value),
 );
 
 // Starting to read is an answer to the offer: once the reader scrolls into the article it
 // gives way to the chapter dropdown.
 watch(chromeScrolled, (scrolled) => {
-    if (scrolled && props.offerResume) emit("dismiss");
+    if (scrolled && showResumeOffer.value) emit("dismiss");
 });
 
 function slugify(text: string, taken: Set<string>) {
@@ -212,7 +219,7 @@ function onResume() {
 
 <template>
     <span
-        v-if="visible && offerResume"
+        v-if="showResumeOffer"
         class="relative flex max-w-full items-center rounded-lg bg-zinc-200 shadow-md ring-1 ring-zinc-900/10 backdrop-blur-sm dark:bg-slate-700 dark:ring-white/10"
         data-test="articleOutlineResume"
     >

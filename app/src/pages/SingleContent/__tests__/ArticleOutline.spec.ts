@@ -156,6 +156,17 @@ describe("ArticleOutline", () => {
         expect(wrapper.emitted("resume")).toHaveLength(1);
     });
 
+    it("treats a 99%+ read as finished: no offer, no continue entry", async () => {
+        const wrapper = await mountOutline(["Chapter one"], true, {
+            resumable: true,
+            offerResume: true,
+        });
+        await wrapper.setProps({ savedProgress: 99, progress: 10 });
+        expect(wrapper.find('[data-test="articleOutlineResume"]').exists()).toBe(false);
+        expect(wrapper.find('[data-test="articleOutlineResumeOption"]').exists()).toBe(false);
+        expect(wrapper.find('[data-test="articleOutlineTrigger"]').exists()).toBe(true);
+    });
+
     it("drops the continue entry once the reader has scrolled past the saved position", async () => {
         const wrapper = await mountOutline(["Chapter one"], true, { resumable: true });
         await wrapper.setProps({ progress: 90 });
