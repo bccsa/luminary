@@ -148,11 +148,17 @@ describe("ArticleOutline", () => {
         expect(wrapper.emitted("dismiss")).toHaveLength(1);
     });
 
-    it("keeps a continue entry in the chapter list while a saved position exists", async () => {
+    it("keeps a continue entry in the chapter list while still behind the saved position", async () => {
         const wrapper = await mountOutline(["Chapter one"], true, { resumable: true });
         const row = wrapper.find('[data-test="articleOutlineResumeOption"]');
         expect(row.text()).toContain("content.continueReading.action");
         await row.trigger("click");
         expect(wrapper.emitted("resume")).toHaveLength(1);
+    });
+
+    it("drops the continue entry once the reader has scrolled past the saved position", async () => {
+        const wrapper = await mountOutline(["Chapter one"], true, { resumable: true });
+        await wrapper.setProps({ progress: 90 });
+        expect(wrapper.find('[data-test="articleOutlineResumeOption"]').exists()).toBe(false);
     });
 });

@@ -48,6 +48,12 @@ const open = ref(false);
 // the same moment rather than a few pixels earlier.
 const chromeScrolled = inject<Ref<boolean>>("topChromeScrolled", ref(true));
 
+// The menu's "continue" entry only earns its place while the reader is still behind the
+// position they left off at; once scrolled past it there is nothing to return to.
+const showResumeOption = computed(
+    () => !!props.resumable && (props.progress ?? 0) < (props.savedProgress ?? 0),
+);
+
 const activeHeading = computed(
     () => headings.value.find((h) => h.id === activeId.value) ?? headings.value[0],
 );
@@ -306,7 +312,7 @@ function onResume() {
             </span>
         </template>
         <button
-            v-if="resumable"
+            v-if="showResumeOption"
             type="button"
             role="menuitem"
             class="mb-1 flex w-full cursor-pointer select-none items-center gap-2 border-b border-zinc-900/10 py-2 pl-4 pr-3 text-left text-sm font-medium leading-5 text-yellow-600 hover:bg-zinc-50 dark:border-white/10 dark:text-yellow-400 dark:hover:bg-slate-600"
