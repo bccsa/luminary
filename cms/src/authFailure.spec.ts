@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { mockSocket } = vi.hoisted(() => ({
     mockSocket: {
@@ -23,7 +23,7 @@ vi.mock("@/auth", () => ({
     clearAuthCache: vi.fn(),
     loginWithProvider: vi.fn(),
     openProviderModal: vi.fn(),
-    refreshTokenSilently: vi.fn(),
+    refreshTokenWithOutcome: vi.fn(),
     resolveActiveProvider: vi.fn(),
 }));
 
@@ -34,7 +34,7 @@ import {
     clearAuthCache,
     loginWithProvider,
     openProviderModal,
-    refreshTokenSilently,
+    refreshTokenWithOutcome,
     resolveActiveProvider,
 } from "@/auth";
 
@@ -44,8 +44,15 @@ const authFailed = (reason?: string) =>
 describe("authFailure", () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        vi.useFakeTimers();
+        // Clears any backoff timer left pending by the previous test.
+        registerAuthFailureHandler();
         vi.mocked(resolveActiveProvider).mockResolvedValue(null);
-        vi.mocked(refreshTokenSilently).mockResolvedValue(false);
+        vi.mocked(refreshTokenWithOutcome).mockResolvedValue("rejected");
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
     });
 
     it("registers before anything can connect, so the first failure isn't missed", () => {
@@ -58,13 +65,13 @@ describe("authFailure", () => {
         await handleConnectError(new Error("xhr poll error"));
 
         expect(clearAuthCache).not.toHaveBeenCalled();
-        expect(refreshTokenSilently).not.toHaveBeenCalled();
+        expect(refreshTokenWithOutcome).not.toHaveBeenCalled();
     });
 
     it("recognises a bare auth_failed error that carries no data payload", async () => {
         await handleConnectError(new Error("auth_failed"));
 
-        expect(refreshTokenSilently).toHaveBeenCalledWith({
+        expect(refreshTokenWithOutcome).toHaveBeenCalledWith({
             ignoreCache: true,
             requireJwt: true,
         });
@@ -94,18 +101,18 @@ describe("authFailure", () => {
             await handleConnectError(authFailed("provider_not_found"));
 
             // Retrying with the cached provider is what loops.
-            expect(refreshTokenSilently).not.toHaveBeenCalled();
+            expect(refreshTokenWithOutcome).not.toHaveBeenCalled();
             expect(loginWithProvider).not.toHaveBeenCalled();
         });
     });
 
     describe("expired token", () => {
         it("recovers silently, leaving the session intact", async () => {
-            vi.mocked(refreshTokenSilently).mockResolvedValue(true);
+            vi.mocked(refreshTokenWithOutcome).mockResolvedValue("refreshed");
 
             await handleConnectError(authFailed("token_invalid"));
 
-            expect(refreshTokenSilently).toHaveBeenCalledWith({
+            expect(refreshTokenWithOutcome).toHaveBeenCalledWith({
                 ignoreCache: true,
                 requireJwt: true,
             });
@@ -134,6 +141,79 @@ describe("authFailure", () => {
             // Auto-reconnection is off after an auth failure, so without this the
             // modal has no AuthProvider docs to list.
             expect(mockSocket.connect).toHaveBeenCalled();
+        });
+    });
+
+    describe("provider unreachable", () => {
+        // The distinction this whole path exists for: a refresh that never got an
+        // answer says nothing about whether the credentials are still valid.
+        it("keeps the session and retries rather than signing the user out", async () => {
+            vi.mocked(refreshTokenWithOutcome).mockResolvedValue("unavailable");
+
+            await handleConnectError(authFailed("token_invalid"));
+
+            expect(clearAuthCache).not.toHaveBeenCalled();
+            expect(loginWithProvider).not.toHaveBeenCalled();
+            expect(openProviderModal).not.toHaveBeenCalled();
+        });
+
+        it("backs off between retries and stops once the refresh succeeds", async () => {
+            vi.mocked(refreshTokenWithOutcome).mockResolvedValue("unavailable");
+
+            await handleConnectError(authFailed("token_invalid"));
+            expect(refreshTokenWithOutcome).toHaveBeenCalledTimes(1);
+
+            // Nothing fires early.
+            await vi.advanceTimersByTimeAsync(1_999);
+            expect(refreshTokenWithOutcome).toHaveBeenCalledTimes(1);
+
+            await vi.advanceTimersByTimeAsync(1);
+            expect(refreshTokenWithOutcome).toHaveBeenCalledTimes(2);
+
+            // Second delay is longer than the first.
+            await vi.advanceTimersByTimeAsync(4_999);
+            expect(refreshTokenWithOutcome).toHaveBeenCalledTimes(2);
+
+            vi.mocked(refreshTokenWithOutcome).mockResolvedValue("refreshed");
+            await vi.advanceTimersByTimeAsync(1);
+            expect(refreshTokenWithOutcome).toHaveBeenCalledTimes(3);
+
+            // Recovered, so the loop stops.
+            await vi.advanceTimersByTimeAsync(120_000);
+            expect(refreshTokenWithOutcome).toHaveBeenCalledTimes(3);
+            expect(clearAuthCache).not.toHaveBeenCalled();
+        });
+
+        it("signs the user out once the provider actually refuses", async () => {
+            vi.mocked(refreshTokenWithOutcome).mockResolvedValue("unavailable");
+            await handleConnectError(authFailed("token_invalid"));
+
+            vi.mocked(refreshTokenWithOutcome).mockResolvedValue("rejected");
+            await vi.advanceTimersByTimeAsync(2_000);
+
+            expect(clearAuthCache).toHaveBeenCalled();
+        });
+
+        it("retries immediately when the browser comes back online", async () => {
+            vi.mocked(refreshTokenWithOutcome).mockResolvedValue("unavailable");
+            await handleConnectError(authFailed("token_invalid"));
+            expect(refreshTokenWithOutcome).toHaveBeenCalledTimes(1);
+
+            window.dispatchEvent(new Event("online"));
+            await vi.advanceTimersByTimeAsync(0);
+
+            expect(refreshTokenWithOutcome).toHaveBeenCalledTimes(2);
+        });
+    });
+
+    describe("superseded", () => {
+        it("does nothing when a logout or provider switch overtook the refresh", async () => {
+            vi.mocked(refreshTokenWithOutcome).mockResolvedValue("superseded");
+
+            await handleConnectError(authFailed("token_invalid"));
+
+            expect(clearAuthCache).not.toHaveBeenCalled();
+            expect(loginWithProvider).not.toHaveBeenCalled();
         });
     });
 });

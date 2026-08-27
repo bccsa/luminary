@@ -82,6 +82,7 @@ import {
     persistActiveProvider,
     readPersistedProvider,
     refreshTokenSilently,
+    refreshTokenWithOutcome,
     resolveActiveProvider,
     setupAuth,
     showProviderSelectionModal,
@@ -378,6 +379,68 @@ describe("auth", () => {
             await loginWithProvider(providerA);
             mockGetUser.mockReset();
             mockSigninSilent.mockReset();
+        });
+
+        describe("failure classification", () => {
+            // Everything below turns on this: only an OAuth error body means the
+            // credentials are dead. Anything else and the refresh token is very
+            // likely still good, so the session must survive.
+            it("reports a refused grant as rejected", async () => {
+                const refusal = Object.assign(new Error("invalid_grant"), {
+                    name: "ErrorResponse",
+                    error: "invalid_grant",
+                });
+                mockGetUser.mockResolvedValue(null);
+                mockSigninSilent.mockRejectedValue(refusal);
+
+                await expect(refreshTokenWithOutcome({ ignoreCache: true })).resolves.toBe(
+                    "rejected",
+                );
+            });
+
+            it("reports an unreachable provider as unavailable, not a refusal", async () => {
+                mockGetUser.mockResolvedValue(null);
+                mockSigninSilent.mockRejectedValue(new TypeError("Failed to fetch"));
+
+                await expect(refreshTokenWithOutcome({ ignoreCache: true })).resolves.toBe(
+                    "unavailable",
+                );
+            });
+
+            it("reports a 5xx from the token endpoint as unavailable", async () => {
+                // oidc-client-ts only builds an ErrorResponse when the body carries
+                // an OAuth `error`; a plain 5xx surfaces as a generic Error.
+                mockGetUser.mockResolvedValue(null);
+                mockSigninSilent.mockRejectedValue(new Error("Internal Server Error (500)"));
+
+                await expect(refreshTokenWithOutcome({ ignoreCache: true })).resolves.toBe(
+                    "unavailable",
+                );
+            });
+
+            it("reports a request that never settles as unavailable", async () => {
+                vi.useFakeTimers();
+                try {
+                    mockGetUser.mockResolvedValue(null);
+                    mockSigninSilent.mockReturnValue(new Promise(() => {}));
+
+                    const pending = refreshTokenWithOutcome({ ignoreCache: true });
+                    await vi.advanceTimersByTimeAsync(30_000);
+
+                    await expect(pending).resolves.toBe("unavailable");
+                } finally {
+                    vi.useRealTimers();
+                }
+            });
+
+            it("reports an opaque access token as rejected", async () => {
+                mockGetUser.mockResolvedValue(null);
+                mockSigninSilent.mockResolvedValue({ access_token: "opaque", expired: false });
+
+                await expect(
+                    refreshTokenWithOutcome({ ignoreCache: true, requireJwt: true }),
+                ).resolves.toBe("rejected");
+            });
         });
 
         it("gives up on a token request that never settles, so the next caller isn't stuck", async () => {

@@ -266,7 +266,7 @@ export async function setupAuth(_app: App<Element>, router: Router): Promise<voi
     }
 }
 
-let refreshInFlight: Promise<boolean> | null = null;
+let refreshInFlight: Promise<RefreshOutcome> | null = null;
 let refreshInFlightManager: UserManager | null = null;
 
 /**
@@ -275,6 +275,37 @@ let refreshInFlightManager: UserManager | null = null;
  * single-flight slot for every later caller until the page reloads.
  */
 const REFRESH_TIMEOUT_MS = 30_000;
+
+/**
+ * Why a silent refresh did not leave a usable session behind.
+ *
+ * The distinction that matters is `rejected` vs `unavailable`: only the first
+ * means the stored credentials are dead. Discarding them on the second would
+ * sign out a user whose refresh token was still perfectly good, because the
+ * network happened to be poor.
+ */
+export type RefreshOutcome =
+    /** A fresh token is installed and the socket has been re-authenticated. */
+    | "refreshed"
+    /** The provider refused the grant, or there was no session to refresh. */
+    | "rejected"
+    /** The provider could not be reached, or did not answer in time. */
+    | "unavailable"
+    /** A logout or provider switch overtook this call; the caller must not act. */
+    | "superseded";
+
+/**
+ * oidc-client-ts throws `ErrorResponse` only when the token endpoint answered
+ * with an OAuth error body. A 5xx, a non-JSON body, a timeout, or a failed
+ * fetch all surface as some other error — none of which say anything about
+ * whether the credentials are still valid.
+ */
+function classifyRefreshFailure(error: unknown): RefreshOutcome {
+    // Matched on the name oidc-client-ts stamps for exactly this purpose, rather
+    // than `instanceof`, which fails across a duplicated copy of the library.
+    if (error instanceof Error && error.name === "ErrorResponse") return "rejected";
+    return "unavailable";
+}
 
 function hasJwtSigningKey(token: string): boolean {
     const parts = token.split(".");
@@ -305,28 +336,29 @@ function hasJwtSigningKey(token: string): boolean {
  * caller starts its own refresh instead of joining a promise that resolves
  * against the now-stale provider.
  */
-export async function refreshTokenSilently(opts?: {
+export async function refreshTokenWithOutcome(opts?: {
     ignoreCache?: boolean;
     /** The API verifies RS256 JWTs through the provider JWKS, so a rejected-token retry must carry a kid. */
     requireJwt?: boolean;
-}): Promise<boolean> {
+}): Promise<RefreshOutcome> {
     const manager = installedOidc;
     const providerId = installedProviderId;
-    if (!manager || !providerId) return false;
+    // Nothing installed means there are no credentials to preserve either.
+    if (!manager || !providerId) return "rejected";
     if (refreshInFlight && refreshInFlightManager === manager) return refreshInFlight;
     refreshInFlightManager = manager;
     refreshInFlight = (async () => {
-        const attempt = async (): Promise<boolean> => {
+        const attempt = async (): Promise<RefreshOutcome> => {
             let current = opts?.ignoreCache ? null : await manager.getUser();
             if (!current || current.expired) current = await manager.signinSilent();
-            if (!current?.access_token) return false;
-            if (opts?.requireJwt && !hasJwtSigningKey(current.access_token)) return false;
+            if (!current?.access_token) return "rejected";
+            if (opts?.requireJwt && !hasJwtSigningKey(current.access_token)) return "rejected";
             // A logout (cleared to null) or a provider switch may have superseded
             // this call while it was in flight — don't resurrect a session the user
             // already left, and never pair one provider's token with another's id.
             // Compared by provider id rather than manager identity so an ordinary
             // re-install of the same provider still counts as current.
-            if (!installedOidc || installedProviderId !== providerId) return false;
+            if (!installedOidc || installedProviderId !== providerId) return "superseded";
             oidcUser.value = current;
             setCustomHeader("Authorization", `Bearer ${current.access_token}`);
             // Re-assert the id: the API rejects a token that arrives without its
@@ -334,15 +366,17 @@ export async function refreshTokenSilently(opts?: {
             setProviderIdHeader(providerId);
             getSocket().setAuth(current.access_token, providerId);
             getSocket().reconnect();
-            return true;
+            return "refreshed";
         };
 
         let timeout: ReturnType<typeof setTimeout> | undefined;
         try {
             return await Promise.race([
-                attempt().catch(() => false),
-                new Promise<boolean>((resolve) => {
-                    timeout = setTimeout(() => resolve(false), REFRESH_TIMEOUT_MS);
+                attempt().catch(classifyRefreshFailure),
+                new Promise<RefreshOutcome>((resolve) => {
+                    // A refresh that never settles says nothing about the
+                    // credentials, so it must not be read as a refusal.
+                    timeout = setTimeout(() => resolve("unavailable"), REFRESH_TIMEOUT_MS);
                 }),
             ]);
         } finally {
@@ -357,6 +391,14 @@ export async function refreshTokenSilently(opts?: {
         }
     })();
     return refreshInFlight;
+}
+
+/** `refreshTokenWithOutcome` for callers that only need "is the session usable now". */
+export async function refreshTokenSilently(opts?: {
+    ignoreCache?: boolean;
+    requireJwt?: boolean;
+}): Promise<boolean> {
+    return (await refreshTokenWithOutcome(opts)) === "refreshed";
 }
 
 /** Start an OIDC authorization-code + PKCE redirect for a selected provider. */
