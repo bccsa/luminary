@@ -166,7 +166,7 @@ const hasAnyContent = computed(() => (users.value?.length ?? 0) > 0);
         <template #topBarActionsMobile>
             <PlusIcon
                 v-if="canCreateNew && isConnected && hasAnyContent && isSmallScreen"
-                class="h-8 w-8 cursor-pointer rounded bg-zinc-100 p-1 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-700"
+                class="h-8 w-8 cursor-pointer rounded bg-zinc-100 p-1 hover:bg-zinc-300 hover:text-zinc-700 dark:text-zinc-100"
                 @click="openCreateUserModal"
             />
         </template>
