@@ -18,7 +18,9 @@ vi.mock("vue-i18n", () => ({
 }));
 
 vi.mock("@/auth", () => ({
+    closeProviderModal: vi.fn(),
     loginWithProvider: vi.fn(),
+    providerModalReturnTo: ref<string | undefined>("/eng/restricted-article"),
     showProviderSelectionModal: ref(true),
 }));
 
@@ -30,7 +32,7 @@ vi.mock("@/components/images/LImage.vue", () => ({
     },
 }));
 
-import { loginWithProvider, showProviderSelectionModal } from "@/auth";
+import { closeProviderModal, loginWithProvider, showProviderSelectionModal } from "@/auth";
 
 const mockProviderA: AuthProviderDto = {
     _id: "provider-a",
@@ -145,6 +147,7 @@ describe("AuthProviderSelectionModal.vue", () => {
         expect(loginWithProvider).toHaveBeenCalledTimes(1);
         expect(loginWithProvider).toHaveBeenCalledWith(
             expect.objectContaining({ _id: "provider-a" }),
+            { returnTo: "/eng/restricted-article" },
         );
     });
 
@@ -167,7 +170,7 @@ describe("AuthProviderSelectionModal.vue", () => {
         expect(style).toContain("color");
     });
 
-    it("sets showProviderSelectionModal to false when the modal emits close", async () => {
+    it("closes the provider modal when the modal emits close", async () => {
         showProviderSelectionModal.value = true;
 
         const wrapper = mount(AuthProviderSelectionModal, {
@@ -176,7 +179,7 @@ describe("AuthProviderSelectionModal.vue", () => {
 
         await wrapper.findComponent({ name: "LModal" }).vm.$emit("close");
 
-        expect(showProviderSelectionModal.value).toBe(false);
+        expect(closeProviderModal).toHaveBeenCalledTimes(1);
     });
 
     it("is hidden when isVisible is false", () => {
