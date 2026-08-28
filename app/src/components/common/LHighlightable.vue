@@ -19,11 +19,11 @@ import {
     buildWhatsAppShareUrl,
     buildXShareUrl,
     buildRedditShareUrl,
-    formatHighlightShareMessage,
+    formatShareMessage,
 } from "@/composables/useSocialShare";
 import { useNotificationStore } from "@/stores/notification";
 
-const props = defineProps<{ contentId: string; title: string }>();
+const props = defineProps<{ contentId: string; title: string; copyright?: string }>();
 // Fired when a highlight is created or genuinely removed. The parent (which knows
 // the content's tags) decides what to do with these events. `highlightsChanged` is
 // emitted only after IndexedDB reflects the active markup, so other local consumers
@@ -324,10 +324,12 @@ function removeHighlight() {
     finalizeHighlight();
 }
 
+// Copied text carries its attribution and a link back, so a pasted quote can always be
+// traced to the article it came from.
 function copyText() {
     const sel = window.getSelection();
     if (sel) {
-        navigator.clipboard.writeText(sel.toString());
+        navigator.clipboard.writeText(shareMessage(sel.toString(), { withUrl: true }));
         showActions.value = false;
         sel.removeAllRanges();
     }
@@ -352,20 +354,26 @@ function finalizeShare() {
     showShareMenu.value = false;
 }
 
-function shareHighlightText(): string {
-    return formatHighlightShareMessage({
-        quote: selectedTextForShare.value,
-        articleTitle: props.title,
+function shareMessage(quote: string, options: { withUrl?: boolean } = {}): string {
+    return formatShareMessage({
+        quote,
+        title: props.title,
+        copyright: props.copyright,
+        url: options.withUrl ? window.location.href : undefined,
     });
 }
 
+function shareHighlightText(options: { withUrl?: boolean } = {}): string {
+    return shareMessage(selectedTextForShare.value, options);
+}
+
 function shareHighlightToTelegram() {
-    window.open(buildTelegramShareUrl(shareHighlightText(), window.location.href), "_blank");
+    window.open(buildTelegramShareUrl(shareHighlightText({ withUrl: true })), "_blank");
     finalizeShare();
 }
 
 function shareHighlightToWhatsApp() {
-    window.open(buildWhatsAppShareUrl(shareHighlightText(), window.location.href), "_blank");
+    window.open(buildWhatsAppShareUrl(shareHighlightText({ withUrl: true })), "_blank");
     finalizeShare();
 }
 
@@ -382,7 +390,7 @@ function shareHighlightToReddit() {
 // Instagram has no web share-URL API for posts/links, so the closest one-click
 // equivalent is copying the text + link for the user to paste into a DM, Story or bio.
 async function shareHighlightToInstagram() {
-    await navigator.clipboard.writeText(`${shareHighlightText()}\n\n${window.location.href}`);
+    await navigator.clipboard.writeText(shareHighlightText({ withUrl: true }));
     useNotificationStore().addNotification({
         id: "share-link-copied",
         title: "Link copied",
@@ -583,6 +591,7 @@ onUnmounted(() => {
                     <!-- Copy -->
                     <button
                         @click="copyText"
+                        data-test="highlightCopy"
                         class="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 active:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-600 dark:active:bg-slate-500"
                     >
                         <DocumentDuplicateIcon class="size-4" />

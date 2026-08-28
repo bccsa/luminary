@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { ref } from "vue";
 import { ShareIcon } from "@heroicons/vue/24/outline";
 import type { ContentDto } from "luminary-shared";
 import { useI18n } from "vue-i18n";
@@ -10,7 +10,7 @@ import {
     buildXShareUrl,
     buildRedditShareUrl,
     firstParagraphExcerpt,
-    formatArticleShareMessage,
+    formatShareMessage,
 } from "@/composables/useSocialShare";
 import TelegramIcon from "@/components/icons/TelegramIcon.vue";
 import WhatsAppIcon from "@/components/icons/WhatsAppIcon.vue";
@@ -28,30 +28,29 @@ const open = ref(false);
 // the URL actually open in the browser — this only ever runs client-side, after a click.
 const shareUrl = () => window.location.href;
 
-const shareText = computed(() =>
-    formatArticleShareMessage({
+const shareMessage = (options: { withUrl?: boolean } = {}) =>
+    formatShareMessage({
+        quote: firstParagraphExcerpt(props.content.text) || props.content.summary,
         title: props.content.title,
-        summary: props.content.summary,
-        excerpt: firstParagraphExcerpt(props.content.text),
         copyright: props.content.copyright,
-    }),
-);
+        url: options.withUrl ? shareUrl() : undefined,
+    });
 
 const itemClass =
     "flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 active:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-600 dark:active:bg-slate-500";
 
 function shareToTelegram() {
-    window.open(buildTelegramShareUrl(shareText.value, shareUrl()), "_blank");
+    window.open(buildTelegramShareUrl(shareMessage({ withUrl: true })), "_blank");
     open.value = false;
 }
 
 function shareToWhatsApp() {
-    window.open(buildWhatsAppShareUrl(shareText.value, shareUrl()), "_blank");
+    window.open(buildWhatsAppShareUrl(shareMessage({ withUrl: true })), "_blank");
     open.value = false;
 }
 
 function shareToX() {
-    window.open(buildXShareUrl(shareText.value, shareUrl()), "_blank");
+    window.open(buildXShareUrl(shareMessage(), shareUrl()), "_blank");
     open.value = false;
 }
 
@@ -63,7 +62,7 @@ function shareToReddit() {
 // Instagram has no web share-URL API for posts/links, so the closest one-click equivalent
 // is copying the text + link for the user to paste into a DM, Story or bio.
 async function shareToInstagram() {
-    await navigator.clipboard.writeText(`${shareText.value}\n\n${shareUrl()}`);
+    await navigator.clipboard.writeText(shareMessage({ withUrl: true }));
     useNotificationStore().addNotification({
         id: "share-link-copied",
         title: t("singlecontent.shareInstagramCopiedTitle"),
