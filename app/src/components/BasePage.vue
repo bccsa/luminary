@@ -56,14 +56,14 @@ provide("topChromeScrolled", scrolled);
 const controlBacking =
     "transition-[background-color,box-shadow] duration-500 ease-out rounded-lg ring-1 ring-transparent";
 const controlBackingOn =
-    "bg-zinc-200 shadow-md !ring-zinc-900/10 dark:bg-slate-700 dark:!ring-white/10";
+    "bg-zinc-100 shadow-md !ring-zinc-900/10 dark:bg-slate-700 dark:!ring-white/10";
 // Same treatment applied to each quick control individually, so they read as separate pills.
 const quickControlBacking =
     "[&>*]:rounded-lg [&>*]:ring-1 [&>*]:ring-transparent [&>*]:transition-[background-color,box-shadow] [&>*]:duration-500 [&>*]:ease-out";
 const quickControlBackingOn =
-    "[&>*]:bg-zinc-200 [&>*]:shadow-md [&>*]:!ring-zinc-900/10 dark:[&>*]:bg-slate-700 dark:[&>*]:!ring-white/10";
+    "[&>*]:bg-zinc-100 [&>*]:shadow-md [&>*]:!ring-zinc-900/10 dark:[&>*]:bg-slate-700 dark:[&>*]:!ring-white/10";
 const topChromeFade =
-    "pointer-events-none absolute inset-x-0 -top-4 bottom-0 bg-gradient-to-b from-white from-45% via-white/60 via-70% to-transparent transition-opacity duration-500 ease-out dark:from-slate-900 dark:via-slate-900/70";
+    "pointer-events-none absolute inset-x-0 -top-4 bottom-6 bg-gradient-to-b from-white from-45% via-white/60 via-70% to-transparent transition-opacity duration-500 ease-out dark:from-slate-900 dark:via-slate-900/70";
 
 // Expose the scrolling <main> to descendants (e.g. SearchPanel in page mode) so they can drive
 // infinite scroll off the page's real scroll container instead of an internal one.
@@ -146,8 +146,11 @@ onUnmounted(() => {
                     />
                     <div class="relative flex h-9 w-full items-center">
                         <!-- Centred on the full row (= the content column's axis) rather than
-                             on the space left between the two asymmetric control groups. -->
-                        <div class="pointer-events-none absolute inset-x-0 flex justify-center">
+                             on the space left between the two asymmetric control groups.
+                             top-0.5 matches the 2px inset the centred back/quick controls get
+                             from being shorter than the row, so the pill's top edge lines up
+                             with theirs instead of sitting flush against the row top. -->
+                        <div class="pointer-events-none absolute inset-x-0 top-0.5 flex justify-center">
                             <div class="pointer-events-auto flex min-w-0 max-w-[calc(100%-16rem)]">
                                 <slot name="topBarCenter" />
                             </div>
@@ -160,7 +163,7 @@ onUnmounted(() => {
                         >
                             <a
                                 :href="href"
-                                class="pointer-events-auto relative z-10 flex-shrink-0 p-1.5 text-zinc-600 hover:bg-zinc-300 dark:text-slate-100 dark:hover:bg-slate-600"
+                                class="pointer-events-auto relative z-10 flex-shrink-0 p-1.5 text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-600"
                                 :class="[controlBacking, { [controlBackingOn]: scrolled }]"
                                 @click="onBackClick($event)"
                                 aria-label="Go back"

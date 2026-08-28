@@ -58,9 +58,13 @@ const hasUnfinishedSave = computed(
 const showResumeOffer = computed(() => !!props.offerResume && hasUnfinishedSave.value);
 const showResumeOption = hasUnfinishedSave;
 
-const activeHeading = computed(
-    () => headings.value.find((h) => h.id === activeId.value) ?? headings.value[0],
-);
+// Undefined until a heading has actually scrolled past the top offset — before that the
+// reader is still in the article's lead-in, not in any chapter.
+const activeHeading = computed(() => headings.value.find((h) => h.id === activeId.value));
+
+// The pill stands in for the article title first, and only names the active chapter once the
+// reader has scrolled into one — so it doesn't jump to the first heading before reaching it.
+const triggerLabel = computed(() => activeHeading.value?.text ?? props.title ?? "");
 // The pill belongs to the article: it takes over from the title and steps aside again once
 // the whole body has gone past and the reader is in the related content below. The resume
 // offer is the exception — it shows from the start, before any scrolling.
@@ -135,7 +139,7 @@ function updateActiveHeading() {
     if (!headings.value.length) return;
     const top = containerTop();
 
-    let current = headings.value[0]?.id ?? null;
+    let current: string | null = null;
     for (const h of headings.value) {
         const el = document.getElementById(h.id);
         if (!el) continue;
@@ -217,12 +221,12 @@ function onResume() {
 <template>
     <span
         v-if="showResumeOffer"
-        class="relative flex max-w-full items-center rounded-lg bg-zinc-200/80 shadow-md ring-1 ring-zinc-900/10 backdrop-blur-sm dark:bg-slate-700/80 dark:ring-white/10"
+        class="relative flex max-w-full items-center rounded-lg bg-zinc-100/70 shadow-md ring-1 ring-zinc-900/10 backdrop-blur-sm dark:bg-slate-700/70 dark:ring-white/10"
         data-test="articleOutlineResume"
     >
         <button
             type="button"
-            class="flex min-w-0 flex-1 cursor-pointer items-center justify-center gap-1.5 overflow-hidden rounded-l-lg pb-2.5 pl-2.5 pr-1 pt-1.5 text-center text-sm text-zinc-800 hover:bg-zinc-300 dark:text-slate-50 dark:hover:bg-slate-600"
+            class="flex min-w-0 flex-1 cursor-pointer items-center justify-center gap-1.5 overflow-hidden rounded-l-lg pb-2.5 pl-2.5 pr-1 pt-1.5 text-center text-sm text-zinc-800 hover:bg-zinc-200 dark:text-slate-50 dark:hover:bg-slate-600"
             :aria-label="`${t('content.continueReading.action')} · ${savedProgress ?? 0}%`"
             data-test="articleOutlineResumeButton"
             @click="onResume"
@@ -234,7 +238,7 @@ function onResume() {
         </button>
         <button
             type="button"
-            class="mr-1 flex-shrink-0 cursor-pointer self-start rounded-md p-1.5 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-800 dark:text-slate-300 dark:hover:bg-slate-600 dark:hover:text-slate-50"
+            class="mr-1 flex-shrink-0 cursor-pointer self-start rounded-md p-1.5 text-zinc-500 hover:bg-zinc-200 hover:text-zinc-800 dark:text-slate-300 dark:hover:bg-slate-600 dark:hover:text-slate-50"
             :aria-label="t('content.continueReading.dismiss')"
             data-test="articleOutlineDismiss"
             @click="emit('dismiss')"
@@ -254,7 +258,7 @@ function onResume() {
     </span>
     <span
         v-else-if="visible && !headings.length"
-        class="relative flex max-w-full items-center overflow-hidden rounded-lg bg-zinc-200/80 px-3.5 pb-2.5 pt-1.5 text-sm text-zinc-800 shadow-md ring-1 ring-zinc-900/10 backdrop-blur-sm dark:bg-slate-700/80 dark:text-slate-50 dark:ring-white/10"
+        class="relative flex max-w-full items-center overflow-hidden rounded-lg bg-zinc-100/70 px-3.5 pb-2.5 pt-1.5 text-sm text-zinc-800 shadow-md ring-1 ring-zinc-900/10 backdrop-blur-sm dark:bg-slate-700/70 dark:text-slate-50 dark:ring-white/10"
         data-test="articleOutlineTitle"
     >
         <span class="truncate">{{ title }}</span>
@@ -280,13 +284,19 @@ function onResume() {
     >
         <template #trigger>
             <span
-                class="relative flex max-w-full items-center gap-1.5 overflow-hidden rounded-lg bg-zinc-200/80 px-3.5 pb-2.5 pt-1.5 text-sm text-zinc-800 shadow-md ring-1 ring-zinc-900/10 backdrop-blur-sm hover:bg-zinc-300 dark:bg-slate-700/80 dark:text-slate-50 dark:ring-white/10 dark:hover:bg-slate-600"
-                :aria-label="`Current section: ${activeHeading?.text ?? ''}`"
+                class="relative flex max-w-full items-center gap-1.5 overflow-hidden rounded-lg bg-zinc-100/70 px-3.5 pb-2.5 pt-1.5 text-sm text-zinc-800 shadow-md ring-1 ring-zinc-900/10 backdrop-blur-sm hover:bg-zinc-200 dark:bg-slate-700/70 dark:text-slate-50 dark:ring-white/10 dark:hover:bg-slate-600"
+                :aria-label="activeHeading ? `Current section: ${activeHeading.text}` : title"
                 data-test="articleOutlineTrigger"
             >
-                <!-- Every heading is stacked invisibly in the same grid cell, so the pill is
-                     sized to the longest one and stays put as the active chapter changes. -->
+                <!-- The title and every heading are stacked invisibly in the same grid cell, so the
+                     pill is sized to the longest label and stays put as its content changes. -->
                 <span class="grid min-w-0 flex-1 text-left">
+                    <span
+                        class="invisible col-start-1 row-start-1 whitespace-nowrap"
+                        aria-hidden="true"
+                    >
+                        {{ title }}
+                    </span>
                     <span
                         v-for="h in headings"
                         :key="h.id"
@@ -295,7 +305,7 @@ function onResume() {
                     >
                         {{ h.text }}
                     </span>
-                    <span class="col-start-1 row-start-1 truncate">{{ activeHeading?.text }}</span>
+                    <span class="col-start-1 row-start-1 truncate">{{ triggerLabel }}</span>
                 </span>
                 <ChevronDownIcon
                     class="h-4 w-4 flex-shrink-0 transition-transform"
