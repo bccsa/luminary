@@ -253,6 +253,22 @@ describe("HybridQuery", () => {
             expect(q.output.value.map((d) => d._id)).toEqual(["a"]);
         });
 
+        it("cold cache + $limit above the cap ⇒ POSTs the clamped limit, not the shortfall", async () => {
+            mocks.mangoToDexieMock.mockResolvedValueOnce([]); // cold cache: nothing local yet
+            postHttpMock.mockResolvedValueOnce({ docs: [] });
+
+            new HybridQuery({ selector: { type: "content" }, $limit: 1000 });
+            await flush();
+
+            // The local read still gets the full pool; only the wire payload is clamped.
+            expect(mocks.mangoToDexieMock).toHaveBeenCalledWith(mocks.docsTable, {
+                selector: { type: "content" },
+                $limit: 1000,
+            });
+            const payload = postHttpMock.mock.calls[0]![1] as Record<string, unknown>;
+            expect(payload.limit).toBe(DEFAULT_REMOTE_QUERY_LIMIT);
+        });
+
         it("multi-parent $in ⇒ fans out into per-parent indexed POSTs and merges", async () => {
             mocks.mangoToDexieMock.mockResolvedValueOnce([]); // local empty
             postHttpMock
@@ -3010,6 +3026,19 @@ describe("queryRemote", () => {
             identifier: "hybridQuery",
             limit: 25,
             sort: [{ updatedTimeUtc: "desc" }],
+        });
+    });
+
+    it("clamps an explicit $limit above the cap to DEFAULT_REMOTE_QUERY_LIMIT", async () => {
+        postHttpMock.mockResolvedValueOnce({ docs: [] });
+        initHybridQuery({ post: postHttpMock } as any);
+
+        await queryRemote({ selector: { type: "post" }, $limit: 1000 });
+
+        expect(postHttpMock).toHaveBeenCalledWith("query", {
+            selector: { type: "post" },
+            identifier: "hybridQuery",
+            limit: DEFAULT_REMOTE_QUERY_LIMIT,
         });
     });
 
