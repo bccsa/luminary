@@ -54,10 +54,16 @@
         "settings.data_saver.slow_connection_note": "Votre connexion semble lente. L'utilisation réduite des données sera donc appliquée automatiquement.",
         "home.title": "Accueil",
         "home.continue": "Continuer",
+        "home.description": "Découvrez les derniers articles, vidéos et contenus audio.",
         "home.continueListening": "Continuer à écouter",
+        "home.recommended": "Recommandé pour vous",
         "explore.title": "Explore",
+        "explore.description": "Explorez les sujets et découvrez du contenu.",
         "explore.other": "Autre",
+        "search.title": "Rechercher",
+        "search.description": "Recherchez des articles, vidéos et bien plus dans la bibliothèque.",
         "watch.title": "Regarde",
+        "watch.description": "Regardez les dernières vidéos.",
         "home.newest": "Nouveaux",
         "content.related_title": "Contenus similaires",
         "content.read_more": "Lire plus",
@@ -81,6 +87,8 @@
         "notification.translation_available.description": "Le contenu est également disponible en {language}. Cliquez ici pour le voir.",
         "notification.server_error.title": "Erreur serveur",
         "notification.server_error.description": "Une erreur s'est produite sur le serveur. Veuillez réessayer dans une minute.",
+        "notification.update_available.title": "Mise à jour disponible",
+        "notification.update_available.description": "Une nouvelle version de l'application est disponible. Cliquez ici pour mettre à jour.",
         "privacy_policy.modal.title": "Politique de confidentialité",
         "privacy_policy.modal.message": "En utilisant cette application, vous acceptez notre politique de confidentialité.",
         "privacy_policy.modal.button_accept": "Accepter",
@@ -135,6 +143,8 @@
         "logout.modal.description": "Êtes-vous sûr de vouloir vous déconnecter ?",
         "logout.modal.button_cancel": "Annuler",
         "logout.modal.button_logout": "Déconnexion",
+        "logout.modal.force_global_logout_label": "Ceci est un appareil partagé ou public",
+        "logout.modal.force_global_logout_description": "Exiger une nouvelle connexion la prochaine fois, afin que personne d'autre ne puisse continuer à utiliser votre compte ici.",
         "notfoundpage.navigation.home": "Retour à la maison",
         "notfoundpage.unauthenticated.title": "Oups ! Vous n'êtes pas connecté.",
         "notfoundpage.unauthenticated.loginPrompt.before": "Veuillez cliquer",
@@ -149,6 +159,7 @@
         "openapp_warning.button_cancel": "Annuler",
         "auth.sign_in": "Se connecter",
         "auth.no_methods_available": "Aucun méthode d'authentification disponible. Veuillez réessayer dans un moment.",
-        "singlecontent.listen": "Écouter"
+        "singlecontent.listen": "Écoutez",
+        "singlecontent.loading": "Chargement..."
     }
 }

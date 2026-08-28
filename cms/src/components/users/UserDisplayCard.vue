@@ -52,7 +52,7 @@ const userProvider = computed(() =>
 const userProviderLabel = computed(() => {
     const provider = userProvider.value;
     if (!provider) return "";
-    return provider.displayName || provider.domain || "Auth provider";
+    return provider.label || provider.domain || "Auth provider";
 });
 </script>
 

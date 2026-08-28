@@ -776,6 +776,45 @@ describe("DbService", () => {
             expect(res.docs[0].docId).toBe(doc._id);
         });
 
+        it("does not set slug on a delete instruction for a document type without a slug", async () => {
+            const doc = {
+                _id: "group-no-slug",
+                testData: "test123",
+                type: DocType.Group,
+            };
+
+            const insertResult = await service.insertDeleteCmd({
+                reason: DeleteReason.Deleted,
+                doc: doc as any,
+                prevDoc: doc as any,
+            });
+
+            expect(insertResult.ok).toBe(true);
+            const res = await service.getDoc(insertResult.id);
+            expect(res.docs[0].slug).toBeUndefined();
+        });
+
+        it("sets slug and language on a delete instruction for a content document", async () => {
+            const doc = {
+                _id: "content-delete-slug-test",
+                type: DocType.Content,
+                slug: "content-delete-slug-test-slug",
+                language: "lang-eng",
+                memberOf: ["group-public-content"],
+            };
+
+            const insertResult = await service.insertDeleteCmd({
+                reason: DeleteReason.Deleted,
+                doc: doc as any,
+                prevDoc: doc as any,
+            });
+
+            expect(insertResult.ok).toBe(true);
+            const res = await service.getDoc(insertResult.id);
+            expect(res.docs[0].slug).toBe(doc.slug);
+            expect(res.docs[0].language).toBe(doc.language);
+        });
+
         it("can generate a delete instruction for a 'statusChange' reason", async () => {
             const doc = {
                 _id: "delete-test",
@@ -1214,6 +1253,144 @@ describe("DbService", () => {
                     expect(updateEventDoc.type).toBe(DocType.DeleteCmd);
                     expect(updateEventDoc.docType).toBe(DocType.Post);
                 });
+            });
+
+            it("insertSlugDeleteCmd creates a 'slugChange' delete cmd carrying the given slug", async () => {
+                const doc = {
+                    _id: "content-slugchange-helper",
+                    type: DocType.Content,
+                    parentType: DocType.Post,
+                    slug: "new-slug",
+                    language: "lang-eng",
+                    memberOf: ["group-public-content"],
+                } as any;
+                const prevDoc = { ...doc, slug: "old-slug" } as any;
+
+                const result = await service.insertSlugDeleteCmd(doc, prevDoc, "old-slug");
+                expect(result.ok).toBe(true);
+
+                const cmd = (await service.getDoc(result.id)).docs[0] as DeleteCmdDto;
+                expect(cmd.type).toBe(DocType.DeleteCmd);
+                expect(cmd.deleteReason).toBe(DeleteReason.SlugChange);
+                expect(cmd.slug).toBe("old-slug");
+                expect(cmd.docId).toBe(doc._id);
+                expect(cmd.docType).toBe(DocType.Post);
+                expect(cmd.language).toBe("lang-eng");
+                expect(cmd.memberOf).toEqual(["group-public-content"]);
+            });
+
+            it("on content delete, emits a Deleted DeleteCmd per previousSlug (each carrying that slug)", async () => {
+                const content = {
+                    _id: "content-prevslugs-delete",
+                    type: DocType.Content,
+                    parentType: DocType.Post,
+                    slug: "content-prevslugs-delete-current",
+                    language: "lang-eng",
+                    memberOf: ["group-public-content"],
+                    previousSlugs: ["content-prevslugs-delete-old-a", "content-prevslugs-delete-old-b"],
+                } as any;
+                await service.upsertDoc(content);
+                await service.upsertDoc({ ...content, deleteReq: 1 });
+
+                const cmds = (
+                    (await service.getDocsByType(DocType.DeleteCmd)).docs as DeleteCmdDto[]
+                ).filter((c) => c.docId === content._id && c.deleteReason === DeleteReason.Deleted);
+
+                const slugs = cmds.map((c) => c.slug).sort();
+                expect(slugs).toEqual([
+                    "content-prevslugs-delete-current",
+                    "content-prevslugs-delete-old-a",
+                    "content-prevslugs-delete-old-b",
+                ]);
+                expect(cmds.every((c) => c.docType === DocType.Post)).toBe(true);
+            });
+
+            it("on content delete, deletes a live redirect sitting on a previousSlug instead of emitting a content cmd", async () => {
+                const content = {
+                    _id: "content-prevslugs-redirect",
+                    type: DocType.Content,
+                    parentType: DocType.Post,
+                    slug: "content-prevslugs-redirect-current",
+                    language: "lang-eng",
+                    memberOf: ["group-public-content"],
+                    previousSlugs: ["content-prevslugs-redirect-old"],
+                } as any;
+                await service.upsertDoc(content);
+
+                const redirect = {
+                    _id: "redirect-on-prevslug",
+                    type: DocType.Redirect,
+                    memberOf: ["group-public-content"],
+                    slug: "content-prevslugs-redirect-old",
+                    toSlug: "elsewhere",
+                    redirectType: "permanent",
+                } as any;
+                await service.upsertDoc(redirect);
+
+                await service.upsertDoc({ ...content, deleteReq: 1 });
+
+                // The redirect itself is deleted.
+                const remainingRedirects = (await service.getDocsByType(DocType.Redirect))
+                    .docs as any[];
+                expect(remainingRedirects.find((r) => r._id === redirect._id)).toBeUndefined();
+
+                // Its own Deleted DeleteCmd carries the old slug, drained as a redirect cmd.
+                const redirectCmds = (
+                    (await service.getDocsByType(DocType.DeleteCmd)).docs as DeleteCmdDto[]
+                ).filter((c) => c.docId === redirect._id);
+                expect(redirectCmds).toHaveLength(1);
+                expect(redirectCmds[0].deleteReason).toBe(DeleteReason.Deleted);
+                expect(redirectCmds[0].slug).toBe("content-prevslugs-redirect-old");
+                expect(redirectCmds[0].docType).toBe(DocType.Redirect);
+
+                // No Content DeleteCmd was emitted for the redirect's slug.
+                const contentCmds = (
+                    (await service.getDocsByType(DocType.DeleteCmd)).docs as DeleteCmdDto[]
+                ).filter((c) => c.docId === content._id && c.deleteReason === DeleteReason.Deleted);
+                expect(contentCmds.map((c) => c.slug)).toEqual([
+                    "content-prevslugs-redirect-current",
+                ]);
+            });
+
+            it("on content unpublish (statusChange), preserves previousSlug redirects and emits only the current-slug cmd", async () => {
+                const content = {
+                    _id: "content-prevslugs-unpublish",
+                    type: DocType.Content,
+                    parentType: DocType.Post,
+                    status: "published",
+                    slug: "content-prevslugs-unpublish-current",
+                    language: "lang-eng",
+                    memberOf: ["group-public-content"],
+                    previousSlugs: ["content-prevslugs-unpublish-old"],
+                } as any;
+                await service.upsertDoc(content);
+
+                const redirect = {
+                    _id: "redirect-on-prevslug-unpublish",
+                    type: DocType.Redirect,
+                    memberOf: ["group-public-content"],
+                    slug: "content-prevslugs-unpublish-old",
+                    toSlug: "elsewhere",
+                    redirectType: "permanent",
+                } as any;
+                await service.upsertDoc(redirect);
+
+                await service.upsertDoc({ ...content, status: "draft" });
+
+                // The redirect is preserved across the unpublish→republish cycle.
+                const remainingRedirects = (await service.getDocsByType(DocType.Redirect))
+                    .docs as any[];
+                expect(remainingRedirects.find((r) => r._id === redirect._id)).toBeDefined();
+
+                // Only the primary StatusChange cmd for the current slug; no previousSlug cmds.
+                const cmds = (
+                    (await service.getDocsByType(DocType.DeleteCmd)).docs as DeleteCmdDto[]
+                ).filter(
+                    (c) =>
+                        c.docId === content._id && c.deleteReason === DeleteReason.StatusChange,
+                );
+                expect(cmds).toHaveLength(1);
+                expect(cmds[0].slug).toBe("content-prevslugs-unpublish-current");
             });
         });
     });

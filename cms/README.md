@@ -76,6 +76,21 @@ docker run -e ENABLE_GZIP=false --rm -it -p 8080:80 luminary-cms
 
 This will run the CMS on port 8080 on the host machine.
 
+### Update-detection cache TTL (CDN tuneable)
+
+The in-app update banner ([`usePwaUpdate.ts`](src/composables/usePwaUpdate.ts)) polls `/version.json` every 5 seconds and compares it to the build ID baked into the running bundle. `nginx.conf` sends `Cache-Control: no-cache, s-maxage=60` for this file: browsers must always revalidate (TTL 0), while a shared/CDN cache may serve it from cache for up to 60 seconds (TTL 60) to absorb that polling load without meaningfully delaying update detection.
+
+**If you deploy behind a CDN, verify it honours `s-maxage`** — some CDNs ignore it, or only cache recognised static extensions and skip a bare `/version.json` by default, or need an explicit cache/rewrite rule to apply a short TTL to this path instead. Keep the TTL small (order of a minute) so deployed clients still pick up new builds promptly.
+
+To check whether the CDN is actually honouring the TTL, request `/version.json` through the CDN (not the origin) a few times in a row and inspect the response headers:
+
+```sh
+curl -sD - -o /dev/null https://<your-cdn-domain>/version.json
+```
+
+- Look for a cache-status header (`Age`, `X-Cache`, `CF-Cache-Status`, `X-Amz-Cf-Id`, etc. depending on vendor). `Age` should climb from `0` toward `60` and then reset; `X-Cache`/`CF-Cache-Status` should show `HIT` between origin fetches.
+- If every request comes back `MISS`/`Age: 0`, or the `Cache-Control` header is missing/rewritten, the CDN isn't respecting `s-maxage` and needs an explicit path rule for `/version.json` (e.g. Cloudflare Cache Rules, a CloudFront cache behavior, or a Fastly VCL snippet) forcing an edge TTL of ~60s.
+
 ## Testing
 
 ### Unit Tests
@@ -88,36 +103,15 @@ npm run test:unit
 
 ### E2E Tests
 
-The CMS uses Playwright for end-to-end testing. E2E tests run in **auth bypass mode**, which allows testing without requiring Auth0 integration.
+E2E tests live in [`../playwright-tests/`](../playwright-tests/README.md), not in this package.
 
-#### Running E2E Tests
-
-```sh
-# Install Playwright browsers (first time only)
-npx playwright install
-
-# Run E2E tests
-npm run test:e2e
-
-# Run with UI mode for debugging
-npx playwright test --ui
-
-# Generate test code
-npm run test:e2e:codegen
-```
-
-#### Auth Bypass Mode
-
-For E2E testing and local development without Auth0, set `VITE_AUTH_BYPASS=true` in your environment:
+They run locally against a disposable stack — CouchDB, MinIO, a seeded API, plus this CMS and the App — with a local OIDC issuer standing in for a real identity provider. Each test signs in as a seeded persona (`superAdmin`, `editor1`, `editor2`, `privateUser`, `publicUser`), so permission behaviour is exercised against real tokens the API verifies rather than a mocked-out session.
 
 ```sh
-# Add to your .env file for local development:
-VITE_AUTH_BYPASS=true
+cd ../playwright-tests
+npm install && npx playwright install chromium
+cp .env.example .env    # fill in E2E_COUCHDB_URL to select fake-IdP mode
+npm test
 ```
 
-When auth bypass is enabled:
-
-- The application skips Auth0 authentication entirely
-- A mock user (`E2E Test User`) is automatically "logged in"
-- All authenticated routes are accessible
-- ⚠️ **Never enable this in production!**
+The CMS must be running (`npm run dev`) and the API started with `AUTH_ALLOW_INSECURE_PROVIDER_DOMAIN=true`. See the [E2E README](../playwright-tests/README.md#running-it-locally) for the full local setup.

@@ -66,7 +66,7 @@ export const changeRequest_language = () => {
             _id: "test-lang-eng",
             type: "language",
             memberOf: ["group-languages"],
-            languageCode: "test-eng",
+            languageCode: "eng",
             name: "test-English" + randomString(),
             default: 0,
             translations: {

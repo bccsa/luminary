@@ -134,6 +134,8 @@ function mountTracker(
     averageReadingSpeed = DEFAULT_READING_SPEED_WPM,
     blockTexts?: string[],
     elementHeight: number | number[] = 300,
+    onSessionEnd?: (endedContentId: string, finalDepthPercent: number) => void,
+    disableSaving = false,
 ) {
     mockElementHeight(elementHeight);
 
@@ -149,6 +151,7 @@ function mountTracker(
             const contentId = ref(TEST_CONTENT_ID);
             const enabled = ref(true);
             const readingSpeed = ref(averageReadingSpeed);
+            const disableSavingRef = ref(disableSaving);
 
             watchEffect(() => {
                 if (scrollable && scrollContainerEl.value) {
@@ -162,9 +165,18 @@ function mountTracker(
                 scrollContainer,
                 enabled,
                 averageReadingSpeed: readingSpeed,
+                disableSaving: disableSavingRef,
+                onSessionEnd,
             });
 
-            return { articleRoot, scrollContainerEl, scrollContainer, trackerApi };
+            return {
+                articleRoot,
+                scrollContainerEl,
+                scrollContainer,
+                contentId,
+                enabled,
+                trackerApi,
+            };
         },
         template: scrollable
             ? `
@@ -548,6 +560,34 @@ describe("useReadingProgressTracker", () => {
         wrapper.unmount();
     });
 
+    it("does not persist progress when disableSaving is true, even after dwell completes", async () => {
+        const onSessionEnd = vi.fn();
+        const { wrapper } = mountTracker(
+            2,
+            false,
+            DEFAULT_READING_SPEED_WPM,
+            undefined,
+            300,
+            onSessionEnd,
+            true,
+        );
+        await flushPromises();
+        await nextTick();
+
+        const observer = latestObserver();
+        observer.trigger(observer.elements[0], true);
+        advanceDwellMs(BLOCK_ONE_DWELL_MS);
+
+        expect(getReadingProgress(TEST_CONTENT_ID)).toBe(0);
+
+        // Internal tracking still runs — a session end still reports the live depth.
+        (wrapper.vm as { contentId: string }).contentId = "next-content-id";
+        await nextTick();
+
+        expect(onSessionEnd).toHaveBeenCalledWith(TEST_CONTENT_ID, 50);
+        wrapper.unmount();
+    });
+
     it("cancels dwell timer when a block leaves the viewport before dwell completes", async () => {
         const { wrapper } = mountTracker();
         await flushPromises();
@@ -773,5 +813,125 @@ describe("useReadingProgressTracker", () => {
 
         expect(getReadingProgress(TEST_CONTENT_ID)).toBe(20);
         wrapper.unmount();
+    });
+
+    it("reports the old content id and rounded final depth when content changes", async () => {
+        const onSessionEnd = vi.fn();
+        const { wrapper } = mountTracker(
+            3,
+            false,
+            DEFAULT_READING_SPEED_WPM,
+            undefined,
+            300,
+            onSessionEnd,
+        );
+        await flushPromises();
+        await nextTick();
+
+        const observer = latestObserver();
+        observer.trigger(observer.elements[0], true);
+        advanceDwellMs(BLOCK_ONE_DWELL_MS);
+
+        (wrapper.vm as { contentId: string }).contentId = "next-content-id";
+        await nextTick();
+
+        expect(onSessionEnd).toHaveBeenCalledOnce();
+        expect(onSessionEnd).toHaveBeenCalledWith(TEST_CONTENT_ID, 33);
+        wrapper.unmount();
+    });
+
+    it("reports a completed read from live state after persisted progress is removed", async () => {
+        const onSessionEnd = vi.fn();
+        const { wrapper } = mountTracker(
+            1,
+            false,
+            DEFAULT_READING_SPEED_WPM,
+            undefined,
+            300,
+            onSessionEnd,
+        );
+        await flushPromises();
+        await nextTick();
+
+        const observer = latestObserver();
+        observer.trigger(observer.elements[0], true);
+        advanceDwellMs(BLOCK_ONE_DWELL_MS);
+        expect(getReadingProgress(TEST_CONTENT_ID)).toBe(0);
+
+        (wrapper.vm as { contentId: string }).contentId = "next-content-id";
+        await nextTick();
+
+        expect(onSessionEnd).toHaveBeenCalledOnce();
+        expect(onSessionEnd).toHaveBeenCalledWith(TEST_CONTENT_ID, 100);
+        wrapper.unmount();
+    });
+
+    it("reports final depth when an active session unmounts", async () => {
+        const onSessionEnd = vi.fn();
+        const { wrapper } = mountTracker(
+            2,
+            false,
+            DEFAULT_READING_SPEED_WPM,
+            undefined,
+            300,
+            onSessionEnd,
+        );
+        await flushPromises();
+        await nextTick();
+
+        const observer = latestObserver();
+        observer.trigger(observer.elements[0], true);
+        advanceDwellMs(BLOCK_ONE_DWELL_MS);
+        wrapper.unmount();
+
+        expect(onSessionEnd).toHaveBeenCalledOnce();
+        expect(onSessionEnd).toHaveBeenCalledWith(TEST_CONTENT_ID, 50);
+    });
+
+    it("ends a session when disabled without re-emitting when re-enabled", async () => {
+        const onSessionEnd = vi.fn();
+        const { wrapper } = mountTracker(
+            2,
+            false,
+            DEFAULT_READING_SPEED_WPM,
+            undefined,
+            300,
+            onSessionEnd,
+        );
+        await flushPromises();
+        await nextTick();
+
+        const observer = latestObserver();
+        observer.trigger(observer.elements[0], true);
+        advanceDwellMs(BLOCK_ONE_DWELL_MS);
+
+        (wrapper.vm as { enabled: boolean }).enabled = false;
+        await nextTick();
+        expect(onSessionEnd).toHaveBeenCalledOnce();
+        expect(onSessionEnd).toHaveBeenCalledWith(TEST_CONTENT_ID, 50);
+
+        (wrapper.vm as { enabled: boolean }).enabled = true;
+        await nextTick();
+        await nextTick();
+        expect(onSessionEnd).toHaveBeenCalledOnce();
+        wrapper.unmount();
+    });
+
+    it("does not report a session for an article with zero segments", async () => {
+        const onSessionEnd = vi.fn();
+        const { wrapper } = mountTracker(
+            0,
+            false,
+            DEFAULT_READING_SPEED_WPM,
+            undefined,
+            300,
+            onSessionEnd,
+        );
+        await flushPromises();
+        await nextTick();
+
+        wrapper.unmount();
+
+        expect(onSessionEnd).not.toHaveBeenCalled();
     });
 });

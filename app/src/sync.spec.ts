@@ -59,6 +59,7 @@ describe("sync.ts", () => {
             [DocType.Crypto]: [],
             [DocType.AuthProvider]: [],
             [DocType.AutoGroupMappings]: [],
+            [DocType.DefaultAffinity]: [],
         });
     });
 
@@ -129,6 +130,7 @@ describe("sync.ts", () => {
                 [DocType.Crypto]: [],
                 [DocType.AuthProvider]: [],
                 [DocType.AutoGroupMappings]: [],
+                [DocType.DefaultAffinity]: [],
             });
 
             initAuthLangSync();
@@ -154,6 +156,7 @@ describe("sync.ts", () => {
                 [DocType.Crypto]: [],
                 [DocType.AuthProvider]: [],
                 [DocType.AutoGroupMappings]: [],
+                [DocType.DefaultAffinity]: [],
             });
 
             initAuthLangSync();
@@ -179,6 +182,7 @@ describe("sync.ts", () => {
                 [DocType.Crypto]: [],
                 [DocType.AuthProvider]: [],
                 [DocType.AutoGroupMappings]: [],
+                [DocType.DefaultAffinity]: [],
             });
 
             initAuthLangSync();
@@ -192,6 +196,75 @@ describe("sync.ts", () => {
                     limit: 100,
                     cms: false,
                 });
+            });
+        });
+
+        // The provider-selection modal renders whatever AuthProvider docs sync has
+        // landed, so an anonymous connection has to be enough to fill it — that is
+        // the only connection a user who cannot authenticate will ever have.
+        it("should sync auth providers once an anonymous connection is established", async () => {
+            vi.mocked(getAccessibleGroups).mockReturnValue({
+                [DocType.Content]: [],
+                [DocType.Group]: [],
+                [DocType.Language]: [],
+                [DocType.Redirect]: [],
+                [DocType.Post]: [],
+                [DocType.Tag]: [],
+                [DocType.User]: [],
+                [DocType.DeleteCmd]: [],
+                [DocType.Storage]: [],
+                [DocType.Crypto]: [],
+                [DocType.AuthProvider]: ["group1"],
+                [DocType.AutoGroupMappings]: [],
+                [DocType.DefaultAffinity]: [],
+            });
+
+            initAuthLangSync();
+            isConnected.value = true;
+            await nextTick();
+
+            await waitForExpect(() => {
+                expect(sync).toHaveBeenCalledWith({
+                    type: DocType.AuthProvider,
+                    memberOf: ["group1"],
+                    limit: 100,
+                    cms: false,
+                });
+            });
+        });
+
+        it("should re-sync auth providers when a later connection replaces a dropped one", async () => {
+            vi.mocked(getAccessibleGroups).mockReturnValue({
+                [DocType.Content]: [],
+                [DocType.Group]: [],
+                [DocType.Language]: [],
+                [DocType.Redirect]: [],
+                [DocType.Post]: [],
+                [DocType.Tag]: [],
+                [DocType.User]: [],
+                [DocType.DeleteCmd]: [],
+                [DocType.Storage]: [],
+                [DocType.Crypto]: [],
+                [DocType.AuthProvider]: ["group1"],
+                [DocType.AutoGroupMappings]: [],
+                [DocType.DefaultAffinity]: [],
+            });
+
+            initAuthLangSync();
+            isConnected.value = true;
+            await nextTick();
+            await waitForExpect(() => expect(sync).toHaveBeenCalled());
+
+            vi.mocked(sync).mockClear();
+            isConnected.value = false;
+            await nextTick();
+            isConnected.value = true;
+            await nextTick();
+
+            await waitForExpect(() => {
+                expect(sync).toHaveBeenCalledWith(
+                    expect.objectContaining({ type: DocType.AuthProvider }),
+                );
             });
         });
 
@@ -209,6 +282,7 @@ describe("sync.ts", () => {
                 [DocType.Crypto]: [],
                 [DocType.AuthProvider]: [],
                 [DocType.AutoGroupMappings]: [],
+                [DocType.DefaultAffinity]: [],
             });
 
             initAuthLangSync();
@@ -235,6 +309,7 @@ describe("sync.ts", () => {
                 [DocType.Crypto]: [],
                 [DocType.AuthProvider]: [],
                 [DocType.AutoGroupMappings]: [],
+                [DocType.DefaultAffinity]: [],
             });
 
             initAuthLangSync();
@@ -297,6 +372,7 @@ describe("sync.ts", () => {
                 [DocType.Crypto]: [],
                 [DocType.AuthProvider]: [],
                 [DocType.AutoGroupMappings]: [],
+                [DocType.DefaultAffinity]: [],
             });
 
             initSync();
@@ -331,6 +407,7 @@ describe("sync.ts", () => {
                 [DocType.Crypto]: [],
                 [DocType.AuthProvider]: [],
                 [DocType.AutoGroupMappings]: [],
+                [DocType.DefaultAffinity]: [],
             });
 
             initSync();
@@ -365,6 +442,7 @@ describe("sync.ts", () => {
                 [DocType.Crypto]: [],
                 [DocType.AuthProvider]: [],
                 [DocType.AutoGroupMappings]: [],
+                [DocType.DefaultAffinity]: [],
             });
 
             initSync();
@@ -411,6 +489,7 @@ describe("sync.ts", () => {
                 [DocType.Crypto]: [],
                 [DocType.AuthProvider]: [],
                 [DocType.AutoGroupMappings]: [],
+                [DocType.DefaultAffinity]: [],
             });
 
             initSync();
@@ -445,6 +524,7 @@ describe("sync.ts", () => {
                 [DocType.Crypto]: [],
                 [DocType.AuthProvider]: [],
                 [DocType.AutoGroupMappings]: [],
+                [DocType.DefaultAffinity]: [],
             });
 
             initSync();

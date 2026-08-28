@@ -1,6 +1,6 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
-import { mount, shallowMount, flushPromises } from "@vue/test-utils";
+import { mount, shallowMount, flushPromises, type VueWrapper } from "@vue/test-utils";
 import { nextTick } from "vue";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
@@ -19,11 +19,19 @@ import {
     mockRedirectDto,
 } from "@/tests/mockdata";
 import LoadingBar from "@/components/LoadingBar.vue";
-import { db, isConnected, type ContentDto, type LanguageDto } from "luminary-shared";
+import {
+    db,
+    EventWeight,
+    isConnected,
+    readingDepthWeight,
+    type ContentDto,
+    type LanguageDto,
+} from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import {
     appLanguageIdsAsRef,
     appName,
+    cmsLanguages,
     initLanguage,
     userPreferencesAsRef,
     cmsUrl,
@@ -37,13 +45,44 @@ import {
 import { computeEstimatedReadingMinutes } from "@/util/readingTime";
 import { ref, computed } from "vue";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
+import RelatedContent from "@/components/content/RelatedContent.vue";
+import ReadMore from "@/components/content/ReadMore.vue";
 import * as auth from "@/auth";
 import LImage from "@/components/images/LImage.vue";
 import ImageModal from "@/components/images/ImageModal.vue";
 import { resolveNotificationText, useNotificationStore } from "@/stores/notification";
+import { articleJsonLd, languageCodeForContent } from "@/seo/contentHead";
+import LHighlightable from "@/components/common/LHighlightable.vue";
+import { highlightVersion } from "@/recommendation/highlightStore";
 
 const routeReplaceMock = vi.hoisted(() => vi.fn());
 const mockIsExternalNavigation = vi.hoisted(() => vi.fn());
+const recordAffinityMock = vi.hoisted(() => vi.fn());
+const affinityProfileMock = vi.hoisted(() => ({
+    value: { affinity: {}, lastDecayUtc: undefined },
+}));
+type ReadingTrackerOptions = Parameters<
+    (typeof import("@/composables/useReadingProgressTracker"))["useReadingProgressTracker"]
+>[0];
+const readingTrackerOptions = vi.hoisted(() => ({
+    current: undefined as ReadingTrackerOptions | undefined,
+}));
+
+vi.mock("@/recommendation/affinityStore", () => ({
+    affinityProfile: affinityProfileMock,
+    recordAffinity: recordAffinityMock,
+}));
+
+vi.mock("@/composables/useReadingProgressTracker", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("@/composables/useReadingProgressTracker")>();
+    return {
+        ...actual,
+        useReadingProgressTracker: (options: ReadingTrackerOptions) => {
+            readingTrackerOptions.current = options;
+            return actual.useReadingProgressTracker(options);
+        },
+    };
+});
 
 vi.mock("vue-router", async (importOriginal) => {
     const actual = await importOriginal();
@@ -118,6 +157,9 @@ vi.mock("@/composables/useBucketInfo", () => ({
 }));
 
 describe("SingleContent", () => {
+    // Tracked so afterEach can unmount it: an un-unmounted SingleContent keeps its watchers live for the rest of the file's run, racing later tests over shared reactive state.
+    let wrapper: VueWrapper | undefined;
+
     beforeEach(async () => {
         // Clearing the database before populating it helps prevent some sequencing issues causing the first to fail.
         await db.docs.clear();
@@ -156,6 +198,7 @@ describe("SingleContent", () => {
 
         // Reset notification store spy
         vi.clearAllMocks();
+        readingTrackerOptions.current = undefined;
         vi.useRealTimers();
 
         (auth as any).useAuth.mockReturnValue({
@@ -168,11 +211,14 @@ describe("SingleContent", () => {
     });
 
     afterEach(async () => {
+        wrapper?.unmount();
+        wrapper = undefined;
         removeReadingProgress(mockEnglishContentDto._id);
         localStorage.removeItem("contentProgress");
         syncContentProgressFromStorage();
         await db.docs.clear();
         cmsUrl.value = "";
+        cmsLanguages.value = [];
         isConnected.value = false;
     });
 
@@ -182,13 +228,13 @@ describe("SingleContent", () => {
             video: "test-video.mp4",
         } as any);
 
-        const wrapper = shallowMount(SingleContent, {
+        wrapper = shallowMount(SingleContent, {
             props: {
                 slug: mockEnglishContentDto.slug,
             },
         });
 
-        const videoPlayer = wrapper.findComponent(VideoPlayer);
+        const videoPlayer = wrapper!.findComponent(VideoPlayer);
 
         await waitForExpect(() => {
             expect(videoPlayer).toBeDefined();
@@ -196,60 +242,119 @@ describe("SingleContent", () => {
     });
 
     it("displays the content image", async () => {
-        const wrapper = mount(SingleContent, {
+        wrapper = mount(SingleContent, {
             props: {
                 slug: mockEnglishContentDto.slug,
             },
         });
 
         await waitForExpect(() => {
-            expect(wrapper.html()).toContain("test-image.webp");
+            expect(wrapper!.html()).toContain("test-image.webp");
         });
     });
 
-    it("displays the publish date", async () => {
-        const wrapper = mount(SingleContent, {
+    it("does not render the SSR article-text marker on the hydrated client", async () => {
+        // The marker is prerender-only (import.meta.env.SSR): the hydrated client must
+        // omit it so the recovered text doesn't carry a stale attribute into the vdom.
+        wrapper = mount(SingleContent, {
             props: {
                 slug: mockEnglishContentDto.slug,
             },
         });
 
         await waitForExpect(() => {
-            expect(wrapper.html()).toContain("Jan 1, 2024");
+            expect(wrapper!.find("article").exists()).toBe(true);
+        });
+
+        expect(wrapper!.find("[data-ssr-article-text]").exists()).toBe(false);
+    });
+
+    it("displays the publish date", async () => {
+        wrapper = mount(SingleContent, {
+            props: {
+                slug: mockEnglishContentDto.slug,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper!.html()).toContain("Jan 1, 2024");
+        });
+    });
+
+    it("formats the publish date in the displayed translation's locale, not the browser's", async () => {
+        // Same publishDate as the English mock (Jan 1, 2024) — French formatting
+        // ("1 janv. 2024") proves the locale comes from the content's own language,
+        // not navigator.language (jsdom's default is en-US either way).
+        wrapper = mount(SingleContent, {
+            props: {
+                slug: mockFrenchContentDto.slug,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper!.html()).not.toContain("Jan 1, 2024");
+            expect(wrapper!.html()).toContain("janv.");
+        });
+    });
+
+    it("excludes a future-dated 'coming soon' translation from the translations list", async () => {
+        // A future publishDate with parentShowComingSoon would match under the default
+        // includeScheduled:true, but the translations list must only show siblings that
+        // are already readable — so the language dropdown stays hidden here.
+        await db.docs.update(mockFrenchContentDto._id, {
+            publishDate: Date.now() + 10_000_000,
+            parentShowComingSoon: true,
+        } as any);
+
+        wrapper = mount(SingleContent, {
+            props: {
+                slug: mockEnglishContentDto.slug,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper!.text()).toContain(mockEnglishContentDto.title);
+        });
+        await flushPromises();
+
+        // Only English is published-right-now; the French "coming soon" sibling is
+        // excluded, so the dropdown (shown only when >1 readable translation) is absent.
+        await waitForExpect(() => {
+            expect(wrapper!.find("[data-test='translationSelector']").exists()).toBe(false);
         });
     });
 
     it("hides the publishDate if publishDateVisible is false", async () => {
         const mockContent = { ...mockEnglishContentDto, parentPublishDateVisible: false };
-        const wrapper = mount(SingleContent, {
+        wrapper = mount(SingleContent, {
             props: {
                 slug: mockContent.slug,
             },
         });
-        expect(wrapper.text()).not.toContain("Jan 1, 2024");
+        expect(wrapper!.text()).not.toContain("Jan 1, 2024");
     });
 
     it("displays the summary content", async () => {
-        const wrapper = mount(SingleContent, {
+        wrapper = mount(SingleContent, {
             props: {
                 slug: mockEnglishContentDto.slug,
             },
         });
 
         await waitForExpect(() => {
-            expect(wrapper.html()).toContain("This is an example post");
+            expect(wrapper!.html()).toContain("This is an example post");
         });
     });
 
     it("displays the content text", async () => {
-        const wrapper = mount(SingleContent, {
+        wrapper = mount(SingleContent, {
             props: {
                 slug: mockEnglishContentDto.slug,
             },
         });
 
         await waitForExpect(() => {
-            expect(wrapper.find("p").exists()).toBe(true);
+            expect(wrapper!.find("p").exists()).toBe(true);
         });
     });
 
@@ -261,6 +366,7 @@ describe("SingleContent", () => {
                 _id: "content2",
                 parentId: "post2",
                 title: "content 2",
+                slug: "content-2",
                 parentTags: [mockTopicContentDto.parentId],
             } as ContentDto,
             {
@@ -269,61 +375,108 @@ describe("SingleContent", () => {
             } as ContentDto,
         ]);
 
-        const wrapper = mount(SingleContent, {
+        wrapper = mount(SingleContent, {
             props: {
                 slug: mockEnglishContentDto.slug,
             },
         });
         await waitForExpect(() => {
-            expect(wrapper.text()).toContain("content 2");
+            expect(wrapper!.text()).toContain("content 2");
         });
-        // The related-content cards show their topic/category chips (mobile row).
-        expect(wrapper.text()).toContain(mockTopicContentDto.title);
+
+        // The RelatedContent/ReadMore components are actually mounted and render the
+        // related article as a card — not just a coincidental text match elsewhere on the page.
+        const relatedContent = wrapper!.findComponent(RelatedContent);
+        expect(relatedContent.exists()).toBe(true);
+        const readMore = relatedContent.findComponent(ReadMore);
+        expect(readMore.exists()).toBe(true);
+        expect(readMore.props("items").map((item: ContentDto) => item._id)).toContain("content2");
+        expect(readMore.find("li").exists()).toBe(true);
+    });
+
+    it("shows the related content section on a topic page", async () => {
+        // Regression for #1905: a topic page used to hide "Read more" entirely, so
+        // visitors landing on a topic's own page saw no recommendations at all.
+        await db.docs.bulkPut([
+            {
+                ...mockTopicContentDto,
+                parentTaggedDocs: [mockEnglishContentDto.parentId],
+            } as ContentDto,
+        ]);
+
+        wrapper = mount(SingleContent, {
+            props: {
+                slug: mockTopicContentDto.slug,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper!.text()).toContain(mockTopicContentDto.title);
+            expect(wrapper!.findComponent(ReadMore).exists()).toBe(true);
+        });
+
+        const readMore = wrapper!.findComponent(ReadMore);
+        expect(readMore.props("items").map((item: ContentDto) => item._id)).toContain(
+            mockEnglishContentDto._id,
+        );
     });
 
     it("doesn't display tag when content not tagged", async () => {
         const mockContent = { ...mockEnglishContentDto, tags: [] };
-        const wrapper = mount(SingleContent, {
+        wrapper = mount(SingleContent, {
             props: {
                 slug: mockContent.slug,
             },
         });
 
         await waitForExpect(() => {
-            expect(wrapper.html()).not.toContain("Tags");
+            expect(wrapper!.html()).not.toContain("Tags");
         });
     });
 
-    it("sets the meta data correctly", async () => {
-        mount(SingleContent, {
+    it("sets the document title correctly", async () => {
+        // Native's imperative title-setting watch — the meta description tag is no
+        // longer set here (that's the web/SSG build's `useContentHead` job, since no
+        // crawler ever inspects a running native app's live DOM).
+        cmsLanguages.value = [mockLanguageDtoEng, mockLanguageDtoFra];
+        wrapper = mount(SingleContent, {
             props: {
                 slug: mockEnglishContentDto.slug,
             },
         });
 
         await waitForExpect(() => {
-            const metaDescription = document.head.querySelector("meta[name='description']");
-
             expect(document.title).toBe(`${mockEnglishContentDto.seoTitle} - ${appName}`);
-            expect(metaDescription?.getAttribute("content")).toBe(mockEnglishContentDto.seoString);
         });
+    });
+
+    it("builds Article JSON-LD with the language code, not the language doc id", () => {
+        const lang = languageCodeForContent(mockEnglishContentDto.language, [mockLanguageDtoEng]);
+        const jsonLd = articleJsonLd(
+            mockEnglishContentDto,
+            mockEnglishContentDto.seoString ?? "",
+            lang,
+        );
+
+        expect(jsonLd.inLanguage).toBe(mockLanguageDtoEng.languageCode);
+        expect(jsonLd.inLanguage).not.toBe(mockEnglishContentDto.language);
     });
 
     it("can add and remove a bookmark", async () => {
         userPreferencesAsRef.value.bookmarks = [];
         const notificationStore = useNotificationStore();
 
-        const wrapper = mount(SingleContent, {
+        wrapper = mount(SingleContent, {
             props: {
                 slug: mockEnglishContentDto.slug,
             },
         });
 
         await waitForExpect(() => {
-            expect(wrapper.text()).not.toContain("Loading...");
+            expect(wrapper!.text()).not.toContain("Loading...");
         });
 
-        const bookmarkButton = wrapper.find("button[data-test='bookmark']");
+        const bookmarkButton = wrapper!.find("button[data-test='bookmark']");
         expect(bookmarkButton.exists()).toBe(true);
         await bookmarkButton.trigger("click");
 
@@ -360,15 +513,74 @@ describe("SingleContent", () => {
         expect(notificationStore.addNotification).toHaveBeenCalledTimes(1);
     });
 
-    it("displays the author", async () => {
+    it("records bookmark-removal affinity when un-bookmarking content", async () => {
+        userPreferencesAsRef.value.bookmarks = [
+            { id: mockEnglishContentDto.parentId, ts: Date.now() },
+        ];
         const wrapper = mount(SingleContent, {
+            props: { slug: mockEnglishContentDto.slug },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.find("button[data-test='bookmark']").exists()).toBe(true);
+        });
+        recordAffinityMock.mockClear();
+
+        await wrapper.find("button[data-test='bookmark']").trigger("click");
+
+        expect(recordAffinityMock).toHaveBeenCalledWith(
+            mockEnglishContentDto.parentTags,
+            EventWeight.BookmarkRemoved,
+        );
+        wrapper.unmount();
+    });
+
+    it("records highlight-removal affinity from LHighlightable", async () => {
+        const wrapper = mount(SingleContent, {
+            props: { slug: mockEnglishContentDto.slug },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.findComponent(LHighlightable).exists()).toBe(true);
+        });
+        recordAffinityMock.mockClear();
+
+        wrapper.findComponent(LHighlightable).vm.$emit("highlightRemoved");
+        await nextTick();
+
+        expect(recordAffinityMock).toHaveBeenCalledWith(
+            mockEnglishContentDto.parentTags,
+            EventWeight.HighlightRemoved,
+        );
+        wrapper.unmount();
+    });
+
+    it("refreshes local highlight recommendations after LHighlightable saves", async () => {
+        const wrapper = mount(SingleContent, {
+            props: { slug: mockEnglishContentDto.slug },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.findComponent(LHighlightable).exists()).toBe(true);
+        });
+        const before = highlightVersion.value;
+
+        wrapper.findComponent(LHighlightable).vm.$emit("highlightsChanged");
+        await nextTick();
+
+        expect(highlightVersion.value).toBe(before + 1);
+        wrapper.unmount();
+    });
+
+    it("displays the author", async () => {
+        wrapper = mount(SingleContent, {
             props: {
                 slug: mockEnglishContentDto.slug,
             },
         });
 
         await waitForExpect(() => {
-            expect(wrapper.text()).toContain(mockEnglishContentDto.author);
+            expect(wrapper!.text()).toContain(mockEnglishContentDto.author);
         });
 
         // Bump updatedTimeUtc: HybridQuery's window dedup (sameWindow) keys on
@@ -381,7 +593,7 @@ describe("SingleContent", () => {
         await db.docs.update(mockContent._id, mockContent);
 
         await waitForExpect(() => {
-            expect(wrapper.text()).not.toContain(mockEnglishContentDto.author);
+            expect(wrapper!.text()).not.toContain(mockEnglishContentDto.author);
         });
     });
 
@@ -399,7 +611,7 @@ describe("SingleContent", () => {
         // Update the database with modified content
         await db.docs.update(mockContentWithoutVideo._id, mockContentWithoutVideo);
 
-        const wrapper = mount(SingleContent, {
+        wrapper = mount(SingleContent, {
             props: {
                 slug: mockContentWithoutVideo.slug,
             },
@@ -407,7 +619,7 @@ describe("SingleContent", () => {
 
         // First, wait for content to load and image to appear
         await waitForExpect(async () => {
-            const image = wrapper.findComponent(LImage);
+            const image = wrapper!.findComponent(LImage);
             expect(image.exists()).toBe(true);
 
             // click on the LImage
@@ -415,18 +627,18 @@ describe("SingleContent", () => {
 
             // Wait for the modal to appear
             await waitForExpect(() => {
-                expect(wrapper.findComponent(ImageModal).exists()).toBe(true);
-                expect(wrapper.findComponent(ImageModal).props("imageCollections")).toEqual(
+                expect(wrapper!.findComponent(ImageModal).exists()).toBe(true);
+                expect(wrapper!.findComponent(ImageModal).props("imageCollections")).toEqual(
                     mockContentWithoutVideo.parentImageData?.fileCollections,
                 );
-                expect(wrapper.findComponent(ImageModal).props("aspectRatio")).toBe("original");
-                expect(wrapper.findComponent(ImageModal).props("size")).toBe("post");
+                expect(wrapper!.findComponent(ImageModal).props("aspectRatio")).toBe("original");
+                expect(wrapper!.findComponent(ImageModal).props("size")).toBe("post");
             });
         });
     });
 
     it("shows the theme button", async () => {
-        const wrapper = mount(SingleContent, {
+        wrapper = mount(SingleContent, {
             props: {
                 slug: mockEnglishContentDto.slug,
             },
@@ -434,16 +646,16 @@ describe("SingleContent", () => {
 
         // Wait until content is loaded (article is rendered)
         await waitForExpect(() => {
-            expect(wrapper.find("article").exists()).toBe(true);
+            expect(wrapper!.find("article").exists()).toBe(true);
         });
 
         // Now the quick controls slot should be rendered
-        const quickControls = wrapper.find('[data-test="themeButton"]');
+        const quickControls = wrapper!.find('[data-test="themeButton"]');
         expect(quickControls.exists()).toBe(true);
     });
 
     it("switches the language of content when clicking on the language button", async () => {
-        const wrapper = mount(SingleContent, {
+        wrapper = mount(SingleContent, {
             props: {
                 slug: mockEnglishContentDto.slug,
             },
@@ -451,24 +663,24 @@ describe("SingleContent", () => {
 
         // Wait until initial content is rendered
         await waitForExpect(() => {
-            expect(wrapper.text()).toContain(mockEnglishContentDto.title);
+            expect(wrapper!.text()).toContain(mockEnglishContentDto.title);
         });
         await flushPromises();
 
         // Wait for language dropdown to be available (translations loaded from IDB)
         await waitForExpect(() => {
-            const translationSelector = wrapper.find("[data-test='translationSelector']");
+            const translationSelector = wrapper!.find("[data-test='translationSelector']");
             expect(translationSelector.exists()).toBe(true);
         });
         await flushPromises();
 
         // Open the language dropdown (click the DropdownMenu trigger that has the toggle handler)
-        const dropdownMenu = wrapper.findComponent(DropdownMenu);
+        const dropdownMenu = wrapper!.findComponent(DropdownMenu);
         await dropdownMenu.find("[role='button']").trigger("click");
         await nextTick();
 
         // Options are in the dropdown panel (role=menu)
-        const options = wrapper.findAll("[role='menu'] button");
+        const options = wrapper!.findAll("[role='menu'] button");
         expect(options.length, "translation options should be at least 2").toBeGreaterThan(1);
 
         // Choose the French option explicitly if present, otherwise pick the second option
@@ -478,7 +690,7 @@ describe("SingleContent", () => {
 
         // Expect French content to be shown
         await waitForExpect(() => {
-            expect(wrapper.text()).toContain(mockFrenchContentDto.title);
+            expect(wrapper!.text()).toContain(mockFrenchContentDto.title);
         });
     });
 
@@ -499,14 +711,14 @@ describe("SingleContent", () => {
         mockIsExternalNavigation.mockReturnValue(true);
 
         // Navigate to French content (not the preferred language)
-        const wrapper = mount(SingleContent, {
+        wrapper = mount(SingleContent, {
             props: {
                 slug: mockFrenchContentDto.slug,
             },
         });
 
         await waitForExpect(() => {
-            expect(wrapper.text()).toContain(mockFrenchContentDto.title);
+            expect(wrapper!.text()).toContain(mockFrenchContentDto.title);
         });
 
         await waitForExpect(() => {
@@ -544,14 +756,14 @@ describe("SingleContent", () => {
         // Mock external navigation (e.g., from Google)
         mockIsExternalNavigation.mockReturnValue(true);
 
-        const wrapper = mount(SingleContent, {
+        wrapper = mount(SingleContent, {
             props: {
                 slug: mockFrenchContentDto.slug,
             },
         });
 
         await waitForExpect(() => {
-            expect(wrapper.text()).toContain(mockFrenchContentDto.title);
+            expect(wrapper!.text()).toContain(mockFrenchContentDto.title);
         });
 
         await waitForExpect(() => {
@@ -589,14 +801,14 @@ describe("SingleContent", () => {
         // Mock external navigation (direct link/bookmark/URL paste)
         mockIsExternalNavigation.mockReturnValue(true);
 
-        const wrapper = mount(SingleContent, {
+        wrapper = mount(SingleContent, {
             props: {
                 slug: mockFrenchContentDto.slug,
             },
         });
 
         await waitForExpect(() => {
-            expect(wrapper.text()).toContain(mockFrenchContentDto.title);
+            expect(wrapper!.text()).toContain(mockFrenchContentDto.title);
         });
 
         // Direct links are treated as external, so notification SHOULD show
@@ -610,22 +822,22 @@ describe("SingleContent", () => {
     });
 
     it("displays LoadingBar when content is loading", async () => {
-        const wrapper = mount(SingleContent, {
+        wrapper = mount(SingleContent, {
             props: {
                 slug: mockEnglishContentDto.slug,
             },
         });
 
         await waitForExpect(() => {
-            const hasLoadingBar = wrapper.findComponent(LoadingBar).exists();
-            const hasContent = wrapper.find("article").exists();
+            const hasLoadingBar = wrapper!.findComponent(LoadingBar).exists();
+            const hasContent = wrapper!.find("article").exists();
 
             expect(hasLoadingBar || hasContent).toBe(true);
         });
 
         await waitForExpect(() => {
-            expect(wrapper.findComponent(LoadingBar).exists()).toBe(false);
-            expect(wrapper.find("article").exists()).toBe(true);
+            expect(wrapper!.findComponent(LoadingBar).exists()).toBe(false);
+            expect(wrapper!.find("article").exists()).toBe(true);
         });
     });
 
@@ -635,19 +847,19 @@ describe("SingleContent", () => {
 
         cmsUrl.value = "https://cms.example.com";
 
-        const wrapper = mount(SingleContent, {
+        wrapper = mount(SingleContent, {
             props: {
                 slug: mockEnglishContentDto.slug,
             },
         });
         await waitForExpect(() => {
-            expect(wrapper.text()).toContain(mockEnglishContentDto.title);
+            expect(wrapper!.text()).toContain(mockEnglishContentDto.title);
         });
         await waitForExpect(() => {
-            const translationSelector = wrapper.find("[data-test='translationSelector']");
+            const translationSelector = wrapper!.find("[data-test='translationSelector']");
             expect(translationSelector.exists()).toBe(true);
         });
-        const editButton = wrapper.find("button[data-test='editButton']");
+        const editButton = wrapper!.find("button[data-test='editButton']");
         if (editButton.exists()) {
             await editButton.trigger("click");
 
@@ -663,19 +875,19 @@ describe("SingleContent", () => {
     it.skip("does not show edit button when cmsUrl is not defined", async () => {
         cmsUrl.value = "";
 
-        const wrapper = mount(SingleContent, {
+        wrapper = mount(SingleContent, {
             props: {
                 slug: mockEnglishContentDto.slug,
             },
         });
         await waitForExpect(() => {
-            expect(wrapper.text()).toContain(mockEnglishContentDto.title);
+            expect(wrapper!.text()).toContain(mockEnglishContentDto.title);
         });
         await waitForExpect(() => {
-            const translationSelector = wrapper.find("[data-test='translationSelector']");
+            const translationSelector = wrapper!.find("[data-test='translationSelector']");
             expect(translationSelector.exists()).toBe(true);
         });
-        const editButton = wrapper.find("button[data-test='editButton']");
+        const editButton = wrapper!.find("button[data-test='editButton']");
         expect(editButton.exists()).toBe(false);
     });
 
@@ -697,7 +909,7 @@ describe("SingleContent", () => {
 
         await flushPromises();
 
-        const wrapper = mount(SingleContent, {
+        wrapper = mount(SingleContent, {
             props: {
                 slug: mockEnglishContentDto.slug,
             },
@@ -706,18 +918,88 @@ describe("SingleContent", () => {
         await flushPromises();
 
         await waitForExpect(() => {
-            expect(wrapper.text()).toContain(mockEnglishContentDto.title);
+            expect(wrapper!.text()).toContain(mockEnglishContentDto.title);
         });
 
         await waitForExpect(() => {
-            expect(wrapper.text()).toContain(`${expectedReadingTime} min`);
+            expect(wrapper!.text()).toContain(`${expectedReadingTime} min`);
+        });
+    });
+
+    it("uses the article's own language reading speed", async () => {
+        // Regression test: an article with only one published translation must still pick up
+        // its language's configured averageReadingSpeed via the global cmsLanguages list —
+        // not silently fall back to the default because the translation-dropdown-only
+        // `availableTranslations`/`languages` list is empty in this (most common) case.
+        const wordCount = 400;
+        const readingSpeed = 100;
+        const defaultSpeedReadingTime = computeEstimatedReadingMinutes(wordCount, 200);
+        const expectedReadingTime = computeEstimatedReadingMinutes(wordCount, readingSpeed);
+        expect(expectedReadingTime).not.toBe(defaultSpeedReadingTime);
+
+        isConnected.value = false;
+
+        // No sibling translation published for this content's parent.
+        await db.docs.delete(mockFrenchContentDto._id);
+        await db.docs.put({
+            ...mockEnglishContentDto,
+            wordCount,
+        } as ContentDto);
+
+        cmsLanguages.value = [{ ...mockLanguageDtoEng, averageReadingSpeed: readingSpeed }];
+
+        await flushPromises();
+
+        wrapper = mount(SingleContent, {
+            props: {
+                slug: mockEnglishContentDto.slug,
+            },
+        });
+
+        await flushPromises();
+
+        await waitForExpect(() => {
+            expect(wrapper!.text()).toContain(mockEnglishContentDto.title);
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper!.text()).toContain(`${expectedReadingTime} min`);
+        });
+        expect(wrapper!.text()).not.toContain(`${defaultSpeedReadingTime} min`);
+    });
+
+    it("disables progress saving for content estimated at 1 minute or less to read", async () => {
+        // Default mock content has no wordCount, so estimated reading time is 0 minutes.
+        wrapper = shallowMount(SingleContent, {
+            props: { slug: mockEnglishContentDto.slug },
+        });
+
+        await waitForExpect(() => {
+            expect(readingTrackerOptions.current?.contentId.value).toBe(mockEnglishContentDto._id);
+            expect(readingTrackerOptions.current?.disableSaving?.value).toBe(true);
+        });
+    });
+
+    it("enables progress saving once estimated reading time exceeds 1 minute", async () => {
+        await db.docs.put({
+            ...mockEnglishContentDto,
+            wordCount: 400,
+        } as ContentDto);
+
+        wrapper = shallowMount(SingleContent, {
+            props: { slug: mockEnglishContentDto.slug },
+        });
+
+        await waitForExpect(() => {
+            expect(readingTrackerOptions.current?.contentId.value).toBe(mockEnglishContentDto._id);
+            expect(readingTrackerOptions.current?.disableSaving?.value).toBe(false);
         });
     });
 
     it("preserves saved reading progress on mount", async () => {
         setReadingProgress(mockEnglishContentDto._id, 60);
 
-        const wrapper = mount(SingleContent, {
+        wrapper = mount(SingleContent, {
             props: {
                 slug: mockEnglishContentDto.slug,
             },
@@ -727,7 +1009,114 @@ describe("SingleContent", () => {
         await nextTick();
 
         expect(getReadingProgress(mockEnglishContentDto._id)).toBe(60);
+    });
 
+    it("records affinity exactly once when a reading session ends", async () => {
+        const wrapper = shallowMount(SingleContent, {
+            props: { slug: mockEnglishContentDto.slug },
+        });
+
+        await waitForExpect(() => {
+            expect(readingTrackerOptions.current?.contentId.value).toBe(mockEnglishContentDto._id);
+            expect(readingTrackerOptions.current?.onSessionEnd).toBeTypeOf("function");
+        });
+
+        readingTrackerOptions.current!.onSessionEnd!(mockEnglishContentDto._id, 60);
+
+        expect(recordAffinityMock).toHaveBeenCalledOnce();
+        expect(recordAffinityMock).toHaveBeenCalledWith(
+            mockEnglishContentDto.parentTags,
+            readingDepthWeight(60),
+        );
         wrapper.unmount();
+    });
+
+    it("does not record affinity for a sub-floor reading depth", async () => {
+        const wrapper = shallowMount(SingleContent, {
+            props: { slug: mockEnglishContentDto.slug },
+        });
+
+        await waitForExpect(() => {
+            expect(readingTrackerOptions.current?.contentId.value).toBe(mockEnglishContentDto._id);
+            expect(readingTrackerOptions.current?.onSessionEnd).toBeTypeOf("function");
+        });
+
+        readingTrackerOptions.current!.onSessionEnd!(mockEnglishContentDto._id, 19);
+
+        expect(recordAffinityMock).not.toHaveBeenCalled();
+        wrapper.unmount();
+    });
+
+    it("records a full read with read-completion weight", async () => {
+        const wrapper = shallowMount(SingleContent, {
+            props: { slug: mockEnglishContentDto.slug },
+        });
+
+        await waitForExpect(() => {
+            expect(readingTrackerOptions.current?.contentId.value).toBe(mockEnglishContentDto._id);
+            expect(readingTrackerOptions.current?.onSessionEnd).toBeTypeOf("function");
+        });
+
+        readingTrackerOptions.current!.onSessionEnd!(mockEnglishContentDto._id, 100);
+
+        expect(recordAffinityMock).toHaveBeenCalledOnce();
+        expect(recordAffinityMock).toHaveBeenCalledWith(
+            mockEnglishContentDto.parentTags,
+            EventWeight.ReadCompletion,
+        );
+        expect(EventWeight.ReadCompletion).toBe(0.0035);
+        wrapper.unmount();
+    });
+
+    it("keeps the dwell-based open signal for text-less content", async () => {
+        await db.docs.update(mockEnglishContentDto._id, {
+            text: "",
+            updatedTimeUtc: mockEnglishContentDto.updatedTimeUtc + 1,
+        } as any);
+        const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout");
+        const wrapper = shallowMount(SingleContent, {
+            props: { slug: mockEnglishContentDto.slug },
+        });
+
+        await waitForExpect(() => {
+            expect(readingTrackerOptions.current?.contentId.value).toBe(mockEnglishContentDto._id);
+            expect(readingTrackerOptions.current?.enabled.value).toBe(false);
+            expect(setTimeoutSpy.mock.calls.some(([, delay]) => delay === 15000)).toBe(true);
+        });
+
+        const dwellCallback = setTimeoutSpy.mock.calls.find(([, delay]) => delay === 15000)?.[0];
+        expect(dwellCallback).toBeTypeOf("function");
+        (dwellCallback as () => void)();
+
+        expect(recordAffinityMock).toHaveBeenCalledOnce();
+        expect(recordAffinityMock).toHaveBeenCalledWith(mockEnglishContentDto.parentTags);
+        wrapper.unmount();
+        setTimeoutSpy.mockRestore();
+    });
+
+    it("does not add a dwell-based open signal for text content", async () => {
+        const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout");
+        const wrapper = shallowMount(SingleContent, {
+            props: { slug: mockEnglishContentDto.slug },
+        });
+
+        await waitForExpect(() => {
+            expect(readingTrackerOptions.current?.contentId.value).toBe(mockEnglishContentDto._id);
+            expect(readingTrackerOptions.current?.onSessionEnd).toBeTypeOf("function");
+            expect(setTimeoutSpy.mock.calls.some(([, delay]) => delay === 15000)).toBe(true);
+        });
+
+        readingTrackerOptions.current!.onSessionEnd!(mockEnglishContentDto._id, 100);
+        const dwellCallback = setTimeoutSpy.mock.calls.find(([, delay]) => delay === 15000)?.[0];
+        expect(dwellCallback).toBeTypeOf("function");
+        (dwellCallback as () => void)();
+
+        expect(recordAffinityMock).toHaveBeenCalledOnce();
+        expect(recordAffinityMock).toHaveBeenCalledWith(
+            mockEnglishContentDto.parentTags,
+            EventWeight.ReadCompletion,
+        );
+        wrapper.unmount();
+        setTimeoutSpy.mockRestore();
     });
 });

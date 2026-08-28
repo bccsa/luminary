@@ -22,7 +22,7 @@ import { markLanguageSwitch } from "@/util/isLangSwitch";
 import { useNotificationStore } from "@/stores/notification";
 import { useDragReorder } from "@/composables/useDragReorder";
 
-import { computed, ref, watch } from "vue";
+import { computed, ref, watch, type ShallowRef } from "vue";
 import { useI18n } from "vue-i18n";
 
 type Props = {
@@ -53,12 +53,16 @@ const notifyClearBlocked = () =>
         type: "toast",
     });
 
-// Language is a fully-synced type, so HybridQuery reads from IndexedDB only. Only the i18n
-// singleton needs `translations`; the modal reads just id/name, so drop the heavy strings map.
-const languages = useHybridQuery<LanguageDto>(() => ({ selector: { type: DocType.Language } }), {
-    live: true,
-    stripFields: ["translations", "_rev"],
-});
+// Language is a fully-synced type, so HybridQuery reads from IndexedDB only.
+// Only the i18n singleton in globalConfig needs `translations`; the modal reads
+// just id/name/default, so drop the heavy strings map to keep it off the heap.
+const languages: ShallowRef<LanguageDto[]> = useHybridQuery<LanguageDto>(
+    () => ({ selector: { type: DocType.Language } }),
+    {
+        live: true,
+        stripFields: ["translations", "_rev"],
+    },
+);
 
 const emit = defineEmits(["close"]);
 

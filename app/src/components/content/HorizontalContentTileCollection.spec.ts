@@ -16,6 +16,18 @@ vi.mock("vue-i18n", () => ({
 }));
 
 describe("HorizontalContentTileCollection", () => {
+    it("renders nothing when there are no docs", () => {
+        const wrapper = mount(HorizontalContentTileCollection, {
+            props: {
+                contentDocs: [],
+                title: "Empty section",
+            },
+        });
+
+        expect(wrapper.find(".select-none").exists()).toBe(false);
+        expect(wrapper.text()).not.toContain("Empty section");
+    });
+
     it("displays a content tile", async () => {
         const wrapper = mount(HorizontalContentTileCollection, {
             props: {

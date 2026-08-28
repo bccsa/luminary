@@ -93,7 +93,10 @@ useInfiniteScroll(
 </script>
 
 <template>
-    <div class="select-none">
+    <div
+        v-if="contentDocs.length"
+        class="select-none"
+    >
         <h2
             v-if="title"
             class="flex min-w-0 items-baseline gap-2 px-4 text-lg text-zinc-800 dark:text-slate-50"
@@ -133,7 +136,8 @@ useInfiniteScroll(
 
             <div
                 ref="scrollElement"
-                class="scrollbar-hide flex overflow-x-scroll py-2"
+                data-content-tile-scroll
+                class="flex overflow-x-scroll py-2 scrollbar-hide"
                 @scroll="setSpinBtnVisibility"
             >
                 <div

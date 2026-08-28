@@ -361,11 +361,13 @@ by choosing the shared variant).
   API. The imperative counterpart to `useHybridQuery`, for boot-time / non-Vue code.
 - `queryRemote<T>(query)` — awaitable one-shot read of the **remote** API
   (`POST /query`). Applies the `DEFAULT_REMOTE_QUERY_LIMIT` (500) as the **default**
-  when `$limit` is omitted (caller-supplied limits are forwarded unchanged, not
-  clamped). (`HybridQuery` is `queryLocal` merged with `queryRemote`, kept reactive.)
+  when `$limit` is omitted, and as a **clamp** on caller-supplied limits above it.
+  (`HybridQuery` is `queryLocal` merged with `queryRemote`, kept reactive.)
 - `initHybridQuery(http)` — wire the HTTP service once at startup
   (`shared/src/luminary.ts`).
-- `DEFAULT_REMOTE_QUERY_LIMIT = 500`.
+- `DEFAULT_REMOTE_QUERY_LIMIT = 500` — paired with the API's `QUERY_MAX_LIMIT`
+  (`api/src/configuration.ts`, same default), which rejects larger limits with a 400.
+  The clamp applies to the remote leg only; the local Dexie read honours the full `$limit`.
 
 ## Provably-empty short-circuit
 

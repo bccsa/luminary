@@ -5,10 +5,13 @@ import "videojs-mobile-ui";
 import type Player from "video.js/dist/types/player";
 import { type ContentDto } from "luminary-shared";
 import px from "./px.png";
-import { matchTrackLanguage } from "./audioTrackLanguage";
+import { selectAudioTrackIndex } from "./audioTrackLanguage";
 import LImage from "../images/LImage.vue";
 import { appLanguagesPreferredAsRef, queryParams } from "@/globalConfig";
 import { getMediaProgress, removeMediaProgress, setMediaProgress } from "@/contentProgress";
+import { recordAffinity } from "@/recommendation/affinityStore";
+import { affinityConfig } from "@/recommendation/defaultAffinityStore";
+import { markSeen } from "@/recommendation/seenStore";
 import { extractAndBuildAudioMaster } from "./extractAndBuildAudioMaster";
 import { isYouTubeUrl, convertToVideoJSYouTubeUrl } from "@/util/youtube";
 
@@ -88,21 +91,21 @@ function setAudioTrackLanguage(languageCode: string | null) {
         return;
     }
 
-    let trackFound = false;
-    for (let i = 0; i < audioTracks.length; i++) {
-        const track = audioTracks[i];
+    // audioTracks is a video.js AudioTrackList (array-like, not a real Array) — copy it to an
+    // array once so we can use map/forEach on it.
+    const tracks = Array.from(audioTracks) as { language: string | null; enabled: boolean }[];
+    const trackLanguages = tracks.map((track) => track.language);
 
-        if (matchTrackLanguage(track.language, languageCode)) {
-            track.enabled = true;
-            trackFound = true;
-        } else {
-            track.enabled = false;
-        }
-    }
-
-    if (!trackFound) {
+    const matchIndex = selectAudioTrackIndex(trackLanguages, languageCode);
+    if (matchIndex === -1) {
+        // No track matches the app language — keep whatever track is currently enabled so audio
+        // keeps playing. Disabling every track leaves the player with no audio and it stalls once
+        // the buffer drains.
         console.warn(`No matching audio track found for language: ${languageCode}`);
+        return;
     }
+
+    tracks.forEach((track, i) => (track.enabled = i === matchIndex));
 }
 
 function syncKeepAudioStateAlive() {
@@ -370,6 +373,14 @@ onMounted(async () => {
             // The 'ended' event fires when the video reaches the end, regardless of video source
             removeMediaProgress(videoSource, props.content._id);
             progressRemoved = true;
+            // Finishing a video is a strong engagement signal — weight it above a plain
+            // open. This is the single completion call site (of the player's several
+            // `ended`/near-end listeners) that fires for every source, so affinity isn't
+            // double-counted for YouTube videos wired to more than one of them.
+            recordAffinity(props.content.parentTags, affinityConfig.value.eventWeight.completion);
+            // mediaProgress is a 10-slot ring buffer used only to resume playback,
+            // not a history — record completion in the durable seen store instead.
+            markSeen(props.content._id);
 
             try {
                 player?.exitFullscreen();

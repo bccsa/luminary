@@ -164,6 +164,19 @@ export function initSync() {
                     Sentry?.captureException(err);
                 });
             }
+
+            // Sync the CMS-managed default affinity singleton (recommendation cold-start
+            // baseline + tuning config) — previously delivered ad hoc via auth identity.
+            if (access[DocType.DefaultAffinity] && access[DocType.DefaultAffinity].length) {
+                sync({
+                    type: DocType.DefaultAffinity,
+                    memberOf: access[DocType.DefaultAffinity],
+                    limit: 1,
+                    cms: false,
+                }).catch((err) => {
+                    Sentry?.captureException(err);
+                });
+            }
         },
         { immediate: true },
     );

@@ -20,3 +20,15 @@ export function matchTrackLanguage(
     // convert to the 2-letter app code. A language can have two 3-letter codes.
     return iso.iso6392TTo1[track] === target || iso.iso6392BTo1[track] === target;
 }
+
+/**
+ * Index of the audio track to enable for `languageCode`, or -1 when none matches. Callers
+ * MUST treat -1 as "keep the current track" — disabling every track leaves the player with no
+ * audio and it stalls once the buffer drains.
+ */
+export function selectAudioTrackIndex(
+    trackLanguages: (string | null | undefined)[],
+    languageCode: string | null | undefined,
+): number {
+    return trackLanguages.findIndex((lang) => matchTrackLanguage(lang, languageCode));
+}

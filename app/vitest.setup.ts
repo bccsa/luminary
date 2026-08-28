@@ -2,6 +2,23 @@ import "fake-indexeddb/auto";
 import { RouterLinkStub, config, enableAutoUnmount } from "@vue/test-utils";
 import { afterEach, beforeAll, beforeEach, vi } from "vitest";
 
+if (typeof localStorage === "undefined") {
+    const store = new Map<string, string>();
+    Object.defineProperty(globalThis, "localStorage", {
+        configurable: true,
+        value: {
+            get length() {
+                return store.size;
+            },
+            clear: () => store.clear(),
+            getItem: (key: string) => store.get(key) ?? null,
+            key: (index: number) => [...store.keys()][index] ?? null,
+            removeItem: (key: string) => void store.delete(key),
+            setItem: (key: string, value: string) => void store.set(key, String(value)),
+        },
+    });
+}
+
 // Auto-unmount mounted components after each test so their HybridQuery live Dexie
 // subscriptions are disposed. Without this, leaked subscriptions accumulate across
 // a file's tests and re-run real mangoToDexie on every beforeEach mutation, which
@@ -70,9 +87,15 @@ vi.mock("luminary-shared", async (importOriginal) => {
     const actual = await importOriginal<typeof import("luminary-shared")>();
     const mangoToDexieMock = async <T>(
         table: { filter: (fn: (d: unknown) => boolean) => { toArray(): Promise<T[]> } },
-        query: { selector: unknown; $sort?: Array<Record<string, "asc" | "desc">>; $limit?: number },
+        query: {
+            selector: unknown;
+            $sort?: Array<Record<string, "asc" | "desc">>;
+            $limit?: number;
+        },
     ) => {
-        const pred = actual.mangoCompile(query.selector as Parameters<typeof actual.mangoCompile>[0]);
+        const pred = actual.mangoCompile(
+            query.selector as Parameters<typeof actual.mangoCompile>[0],
+        );
         let result = await table.filter((doc: unknown) => pred(doc)).toArray();
         const sort = Array.isArray(query?.$sort) ? query.$sort[0] : undefined;
         if (sort) {

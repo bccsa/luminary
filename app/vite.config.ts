@@ -1,5 +1,5 @@
 import { fileURLToPath, URL } from "node:url";
-import { defineConfig, loadEnv } from "vite";
+import { defineConfig, loadEnv, type Plugin } from "vite";
 import vue from "@vitejs/plugin-vue";
 import { viteStaticCopy } from "vite-plugin-static-copy";
 import { visualizer } from "rollup-plugin-visualizer";
@@ -10,9 +10,50 @@ import { buildTargetVirtuals } from "./vite-plugins/buildTargetVirtuals";
 
 const env = loadEnv("", process.cwd());
 
+// 404s any dev-server request for /dist or /dist-web. Both are build output, not
+// source; serving them from a stale on-disk build would silently mask changes that
+// aren't actually live in the dev server.
+const blockGeneratedOutput = (): Plugin => ({
+    name: "block-generated-output-in-dev",
+    configureServer(server) {
+        server.middlewares.use((req, res, next) => {
+            const path = req.url?.split("?", 1)[0] ?? "";
+            if (
+                path === "/dist" ||
+                path.startsWith("/dist/") ||
+                path === "/dist-web" ||
+                path.startsWith("/dist-web/")
+            ) {
+                res.statusCode = 404;
+                res.end("Generated output is not served by npm run dev. Use npm run dev:web.");
+                return;
+            }
+            next();
+        });
+    },
+});
+
+// The deployed version manifest and the code that reads it must be created from
+// exactly the same ISO timestamp.
+const buildId = new Date().toISOString();
+
+function versionManifest(): Plugin {
+    return {
+        name: "version-manifest",
+        generateBundle() {
+            this.emitFile({
+                type: "asset",
+                fileName: "version.json",
+                source: JSON.stringify({ buildId }),
+            });
+        },
+    };
+}
+
 // https://vitejs.dev/config/
 export default defineConfig({
     plugins: [
+        blockGeneratedOutput(),
         buildTargetVirtuals(),
         visualizer({ open: false }), // Open visualiser when reviewing build bundle size
         vue(),
@@ -24,8 +65,11 @@ export default defineConfig({
                 },
             ],
         }),
+        // Keep the installable PWA manifest and offline worker, but do not let
+        // Workbox decide when to reload an active client. Deploy detection and
+        // the user-facing reload prompt are handled by versionManifest below.
         VitePWA({
-            registerType: "autoUpdate",
+            registerType: "prompt",
             includeAssets: ["src/assets"],
             manifest: {
                 name: env.VITE_APP_NAME,
@@ -41,14 +85,12 @@ export default defineConfig({
                 ],
             },
             workbox: {
-                // No image runtimeCaching: content images rely on the browser's native HTTP cache
-                // (api serves them with `Cache-Control: ...immutable`). A service-worker image cache
-                // can't run under Capacitor's WKWebView/Android WebView anyway. globPatterns keeps
-                // only app-identity assets (favicon/logo/icons); bundled content images are left to
-                // the browser HTTP cache too.
+                // No image runtimeCaching: content images rely on browser HTTP
+                // caching. Only identity assets are precached by the PWA worker.
                 globPatterns: ["**/*.{ico,png,svg}"],
             },
         }),
+        versionManifest(),
         movePreloadScriptsToBody(),
     ],
     resolve: {
@@ -61,11 +103,17 @@ export default defineConfig({
         // shared/src imports these; dedupe so app + shared share one instance.
         dedupe: ["vue", "dexie", "@vueuse/core"],
     },
+    define: {
+        __APP_BUILD_ID__: JSON.stringify(buildId),
+    },
     server: {
         port: 4174,
         strictPort: true,
         // Allow Vite to serve the sibling shared/ source (outside this package root).
         fs: { allow: [".."] },
+        watch: {
+            ignored: ["dist/**", "dist-web/**", "**/dist/**", "**/dist-web/**"],
+        },
     },
     build: {
         target: "es2015",

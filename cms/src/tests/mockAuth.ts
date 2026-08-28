@@ -15,7 +15,6 @@ export function createAuthMock() {
     return {
         activeProviderId: ref<string | null>(null),
         clearAuthCache: vi.fn(),
-        isAuthBypassed: false,
         isAuthPluginInstalled: ref(true),
         // Also exported top-level (not just nested under useAuth()) because
         // router/index.ts's conditionalAuthGuard reads these directly.
