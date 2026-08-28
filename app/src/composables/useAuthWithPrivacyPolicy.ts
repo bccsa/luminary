@@ -71,7 +71,11 @@ export function useAuthWithPrivacyPolicy() {
             isAuthenticated: computed(() => false),
             user: computed(() => null),
             logout: (_opts?: LogoutOptions) => {},
-            loginWithRedirect: () => gateBehindPrivacyPolicy(() => openProviderModal()),
+            // Same capture-on-click reasoning as the installed-provider branch below.
+            loginWithRedirect: () => {
+                const returnTo = currentReturnTo();
+                gateBehindPrivacyPolicy(() => openProviderModal(returnTo));
+            },
             isPrivacyPolicyAccepted,
             showPrivacyPolicyModal,
             hasPendingLogin,

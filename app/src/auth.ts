@@ -574,17 +574,32 @@ export function clearAuthCache(): void {
     }
 }
 
-export function openProviderModal(): void {
+/**
+ * Destination the pending provider pick should return to. Captured when the
+ * modal opens rather than when the redirect starts, because the privacy-policy
+ * gate can defer the pick across a route change.
+ */
+export const providerModalReturnTo = ref<string | undefined>(undefined);
+
+export function openProviderModal(returnTo?: string): void {
+    providerModalReturnTo.value = returnTo ?? currentReturnTo();
     showProviderSelectionModal.value = true;
+}
+
+export function closeProviderModal(): void {
+    providerModalReturnTo.value = undefined;
+    showProviderSelectionModal.value = false;
 }
 
 export default {
     setupAuth,
     openProviderModal,
+    closeProviderModal,
     clearAuthCache,
     activeProviderId,
     showProviderSelectionModal,
     loginWithProvider,
+    providerModalReturnTo,
     resolveActiveProvider,
     refreshTokenSilently,
     hasPersistedSession,

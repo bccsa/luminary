@@ -74,6 +74,7 @@ import {
     ACTIVE_PROVIDER_KEY,
     activeProviderId,
     clearAuthCache,
+    closeProviderModal,
     currentReturnTo,
     hasPersistedSession,
     isAuthenticated,
@@ -81,6 +82,7 @@ import {
     loginWithProvider,
     openProviderModal,
     persistActiveProvider,
+    providerModalReturnTo,
     readPersistedProvider,
     refreshTokenSilently,
     refreshTokenWithOutcome,
@@ -139,6 +141,7 @@ function resetWorld(): void {
     history.replaceState(null, "", "/");
     clearAuthCache();
     showProviderSelectionModal.value = false;
+    providerModalReturnTo.value = undefined;
 
     for (const mock of [
         mockUserManager,
@@ -436,6 +439,31 @@ describe("auth", () => {
             expect(showProviderSelectionModal.value).toBe(false);
             openProviderModal();
             expect(showProviderSelectionModal.value).toBe(true);
+        });
+
+        it("keeps the destination the caller captured at click time", () => {
+            history.replaceState(null, "", "/eng/privacy-policy");
+
+            openProviderModal("/eng/restricted-article");
+
+            expect(providerModalReturnTo.value).toBe("/eng/restricted-article");
+        });
+
+        it("falls back to the current page when the caller passes no destination", () => {
+            history.replaceState(null, "", "/eng/restricted-article");
+
+            openProviderModal();
+
+            expect(providerModalReturnTo.value).toBe("/eng/restricted-article");
+        });
+
+        it("drops the destination when the modal is closed without a pick", () => {
+            openProviderModal("/eng/restricted-article");
+
+            closeProviderModal();
+
+            expect(showProviderSelectionModal.value).toBe(false);
+            expect(providerModalReturnTo.value).toBeUndefined();
         });
     });
 

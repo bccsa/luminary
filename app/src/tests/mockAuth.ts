@@ -18,6 +18,8 @@ export function createAuthMock() {
         hasPersistedSession: vi.fn(() => false),
         isAuthPluginInstalled: ref(true),
         openProviderModal: vi.fn(),
+        closeProviderModal: vi.fn(),
+        providerModalReturnTo: ref<string | undefined>(undefined),
         showProviderSelectionModal: ref(false),
         useAuth: vi.fn(() => ({
             isLoading: ref(false),
