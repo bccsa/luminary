@@ -15,9 +15,13 @@ vi.mock("vue", async (importOriginal) => {
     };
 });
 
-const mountHighlightable = (contentId = "test-content-1", title = "Test Article") =>
+const mountHighlightable = (
+    contentId = "test-content-1",
+    title = "Test Article",
+    copyright?: string,
+) =>
     mount(LHighlightable, {
-        props: { contentId, title },
+        props: { contentId, title, copyright },
         slots: { default: "<p>Some highlighted text content</p>" },
         attachTo: document.body,
     });
@@ -567,6 +571,59 @@ describe("LHighlightable", () => {
 
         // The popup fully closes after a share action, same as Highlight/Copy.
         expect(document.body.querySelector(".fixed.z-50")).toBeFalsy();
+
+        wrapper.unmount();
+    });
+
+    it("copies the selection with its attribution, copyright and link", async () => {
+        const writeText = vi.fn().mockResolvedValue(undefined);
+        Object.assign(navigator, { clipboard: { writeText } });
+
+        const wrapper = mountHighlightable("copy-format-test", "Test Article", "© Test Publisher");
+        await vi.advanceTimersByTimeAsync(50);
+        const prose = wrapper.find(".prose");
+
+        const textNode = prose.element.querySelector("p")!.firstChild!;
+        const range = document.createRange();
+        range.setStart(textNode, 0);
+        range.setEnd(textNode, 4);
+        range.getBoundingClientRect = vi.fn(() => ({
+            left: 100,
+            top: 100,
+            right: 200,
+            bottom: 120,
+            width: 100,
+            height: 20,
+            x: 100,
+            y: 100,
+            toJSON: () => {},
+        }));
+
+        vi.spyOn(window, "getSelection").mockReturnValue({
+            isCollapsed: false,
+            rangeCount: 1,
+            getRangeAt: vi.fn(() => range),
+            toString: () => "Some",
+            removeAllRanges: vi.fn(),
+            anchorNode: textNode,
+        } as any);
+
+        document.dispatchEvent(new Event("selectionchange"));
+        vi.advanceTimersByTime(300);
+        await wrapper.vm.$nextTick();
+
+        (document.body.querySelector('[data-test="highlightCopy"]') as HTMLElement).click();
+        await wrapper.vm.$nextTick();
+
+        expect(writeText).toHaveBeenCalledWith(
+            [
+                "“Some”",
+                "",
+                "— from “Test Article”\n— © Test Publisher",
+                "",
+                window.location.href,
+            ].join("\n"),
+        );
 
         wrapper.unmount();
     });

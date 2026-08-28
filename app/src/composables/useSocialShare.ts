@@ -1,6 +1,9 @@
-export function buildTelegramShareUrl(text: string, url: string): string {
+// The link rides inside `text` (with an empty `url` param) so it lands at the bottom of
+// the message: Telegram composes the draft as `url` followed by `text`, which puts a
+// populated `url` param above the quote. Telegram still finds the link for its preview.
+export function buildTelegramShareUrl(text: string): string {
     const shareUrl = new URL("https://t.me/share/url");
-    shareUrl.searchParams.set("url", url);
+    shareUrl.searchParams.set("url", "");
     shareUrl.searchParams.set("text", text);
     return shareUrl.toString();
 }
@@ -10,9 +13,9 @@ export function buildTelegramShareUrl(text: string, url: string): string {
 // before the page (or the `text` param) is involved, and the app's own handler drops
 // everything but the trailing URL. web.whatsapp.com isn't a Universal Link target, so
 // it opens as a normal page and keeps the full pre-filled text intact.
-export function buildWhatsAppShareUrl(text: string, url: string): string {
+export function buildWhatsAppShareUrl(text: string): string {
     const shareUrl = new URL("https://web.whatsapp.com/send");
-    shareUrl.searchParams.set("text", `${text}\n\n${url}`);
+    shareUrl.searchParams.set("text", text);
     return shareUrl.toString();
 }
 
@@ -53,37 +56,24 @@ export function firstParagraphExcerpt(html: string | undefined): string {
     return `${truncated.slice(0, lastSpace > 0 ? lastSpace : EXCERPT_MAX_LENGTH)}…`;
 }
 
-type ArticleShareMessageInput = {
+type ShareMessageInput = {
+    /** The quoted passage: a reader's text selection, or an excerpt of the article. */
+    quote?: string;
     title: string;
-    summary?: string;
-    excerpt?: string;
     copyright?: string;
+    /**
+     * Appended as the closing line. Only for targets that don't take the link as their
+     * own parameter (Telegram, WhatsApp, Instagram, clipboard); passing it to the others
+     * would show the link twice.
+     */
+    url?: string;
 };
 
-// The message body only — never the URL itself. Telegram/X get the link as a separate
-// share-intent param and attach it themselves; WhatsApp/Instagram (which have no such
-// param) append it after this text at the call site. Baking a link in here too would
-// show it twice.
-export function formatArticleShareMessage({
-    title,
-    summary,
-    excerpt,
-    copyright,
-}: ArticleShareMessageInput): string {
-    return [title, summary, excerpt ? `"${excerpt}"` : undefined, "Read more:", copyright]
+/** The one share/copy layout: quote, attribution, then the bare link. */
+export function formatShareMessage({ quote, title, copyright, url }: ShareMessageInput): string {
+    const attribution = [`— from “${title}”`, copyright && `— ${copyright}`]
         .filter(Boolean)
-        .join("\n\n");
-}
+        .join("\n");
 
-type HighlightShareMessageInput = {
-    quote: string;
-    articleTitle: string;
-};
-
-// Same "no URL baked in" rule as formatArticleShareMessage.
-export function formatHighlightShareMessage({
-    quote,
-    articleTitle,
-}: HighlightShareMessageInput): string {
-    return [`"${quote}"`, `— from "${articleTitle}"`, "Read more:"].join("\n\n");
+    return [quote ? `“${quote}”` : undefined, attribution, url].filter(Boolean).join("\n\n");
 }
