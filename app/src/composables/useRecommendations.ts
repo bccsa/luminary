@@ -259,13 +259,17 @@ export function useRecommendations({
         let ftsDebounceTimer: ReturnType<typeof setTimeout> | undefined;
         let lastFtsSignature: string | undefined;
         watch(
-            ftsQueries,
-            (queries) => {
+            // The language list is watched explicitly: it is only read inside the debounced
+            // async callback below, which `watch` cannot track, so a display-language switch
+            // would otherwise leave the previous language's hits in the feed until a restart.
+            [ftsQueries, appSyncedDisplayLanguageIdsAsRef] as const,
+            ([queries, languageIds]) => {
                 // The computed rebuilds its array when upstream refs re-evaluate; only restart
                 // retrieval when the query values themselves have meaningfully changed.
-                const signature = JSON.stringify(
+                const signature = JSON.stringify([
+                    languageIds,
                     queries.map(({ query, weight }) => [query, weight.toFixed(4)]),
-                );
+                ]);
                 if (signature === lastFtsSignature) return;
                 lastFtsSignature = signature;
                 const runSeq = ++ftsRunSeq;
@@ -284,7 +288,7 @@ export function useRecommendations({
                                 // display default may be fetched on demand, but it is not a
                                 // complete local FTS corpus and must not trigger a BM25 scan.
                                 const perLanguage = await Promise.all(
-                                    appSyncedDisplayLanguageIdsAsRef.value.map((languageId) =>
+                                    languageIds.map((languageId) =>
                                         ftsSearch({
                                             query,
                                             languageId,

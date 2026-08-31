@@ -185,6 +185,62 @@ describe("useRecommendations FTS retrieval", () => {
         }
     });
 
+    it("re-runs the search against the new language when the display language is switched", async () => {
+        const tagId = "tag-language-switch-fts";
+        const tagTitleDoc = {
+            ...makeContent("content-tag-language-switch-fts"),
+            parentType: DocType.Tag,
+            parentId: tagId,
+            title: "Switchable topic title",
+            // Comfortably before `sessionNow()` (fixed at module load) so the title doc
+            // still passes the publish-date filter late in the suite.
+            publishDate: Date.now() - 7 * 24 * 60 * 60 * 1000,
+        } as ContentDto;
+        const previousLanguages = [...appLanguageIdsAsRef.value];
+        const previousSyncedLanguages = [...appSyncedLanguageIdsAsRef.value];
+        const previousProfile = affinityProfile.value;
+        const ftsSearch = vi.spyOn(shared, "ftsSearch").mockResolvedValue([]);
+        const scope = effectScope();
+
+        try {
+            await shared.db.docs.put(tagTitleDoc);
+            appLanguageIdsAsRef.value = ["lang-eng"];
+            appSyncedLanguageIdsAsRef.value = ["lang-eng"];
+            affinityProfile.value = {
+                affinity: { [tagId]: 0.8 },
+                lastDecayUtc: Date.now(),
+            };
+            scope.run(() => useRecommendations());
+
+            await waitForExpect(() =>
+                expect(ftsSearch).toHaveBeenCalledWith(
+                    expect.objectContaining({ languageId: "lang-eng" }),
+                ),
+            );
+            ftsSearch.mockClear();
+
+            appLanguageIdsAsRef.value = ["lang-fra"];
+            appSyncedLanguageIdsAsRef.value = ["lang-fra"];
+            await nextTick();
+
+            await waitForExpect(() =>
+                expect(ftsSearch).toHaveBeenCalledWith(
+                    expect.objectContaining({ languageId: "lang-fra" }),
+                ),
+            );
+            expect(ftsSearch).not.toHaveBeenCalledWith(
+                expect.objectContaining({ languageId: "lang-eng" }),
+            );
+        } finally {
+            scope.stop();
+            ftsSearch.mockRestore();
+            affinityProfile.value = previousProfile;
+            appLanguageIdsAsRef.value = previousLanguages;
+            appSyncedLanguageIdsAsRef.value = previousSyncedLanguages;
+            await shared.db.docs.delete(tagTitleDoc._id);
+        }
+    });
+
     it("uses saved highlighted text to warm recommendations without topic affinity", async () => {
         const languageId = "lang-eng";
         const highlightedMatch = makeContent("highlight-fts-match");
