@@ -14,6 +14,7 @@ const DEFAULT_AFFINITY_CONFIG = {
     maxTags: 50,
     depthScale: 20,
     readFloorPercent: 20,
+    mediaCompletionPercent: 75,
     eventWeight: {
         bookmark: 0.25,
         bookmarkRemoved: -0.15,
@@ -99,6 +100,19 @@ describe("AffinityConfigPanel", () => {
                 description: "Nope",
                 state: "error",
             }),
+        );
+    });
+
+    it("clamps the media-completion threshold up to its floor", async () => {
+        const wrapper = mount(AffinityConfigPanel);
+
+        await wrapper.find("input[name='mediaCompletionPercent']").setValue("0");
+        await wrapper.find("button[data-test='affinity-config-save']").trigger("click");
+        await flushPromises();
+
+        expect(mockSaveConfig).toHaveBeenCalledWith(
+            expect.objectContaining({ mediaCompletionPercent: 1 }),
+            ["group-super-admins"],
         );
     });
 

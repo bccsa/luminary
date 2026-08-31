@@ -54,6 +54,12 @@ export type AffinityConfig = {
     depthScale: number;
     /** Reading depth (0-100) below which a read is "opened and abandoned" — no evidence. */
     readFloorPercent: number;
+    /**
+     * Percentage (0-100) of a video/audio track that must actually be played for it to
+     * count as a completion. Few people sit through outros and end credits, so waiting
+     * for the media element's `ended` event misses real completions.
+     */
+    mediaCompletionPercent: number;
     /** Shared vocabulary for interaction strength — see {@link EventWeight}. */
     eventWeight: {
         /** The user explicitly bookmarked the content. Strong, unambiguous intent. */
@@ -111,6 +117,7 @@ export const DEFAULT_AFFINITY_CONFIG: AffinityConfig = {
     maxTags: 50,
     depthScale: 20,
     readFloorPercent: 20,
+    mediaCompletionPercent: 75,
     eventWeight: {
         bookmark: 0.0025,
         bookmarkRemoved: -0.0015,

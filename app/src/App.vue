@@ -19,6 +19,7 @@ import SearchModal from "@/components/navigation/SearchModal.vue";
 import AudioPlayer from "@/components/content/AudioPlayer.vue";
 import MobileMenu from "@/components/navigation/MobileMenu.vue";
 import AffinityDebugOverlay from "@/components/debug/AffinityDebugOverlay.vue";
+import { affinityDebugEnabled, applyAffinityDebugQuery } from "@/recommendation/affinityDebug";
 import { useAuthWithPrivacyPolicy } from "@/composables/useAuthWithPrivacyPolicy";
 import { showProviderSelectionModal } from "@/auth";
 import AuthProviderSelectionModal from "@/components/authProvider/AuthProviderSelectionModal.vue";
@@ -34,11 +35,12 @@ const { needRefresh, reload } = usePwaUpdate();
 
 const router = useRouter();
 
-// Affinity debug overlay — hidden by default, shown only via ?affinityDebug=true (no other
-// gate, so it works on any deployed environment, not just local dev).
-const showAffinityDebugOverlay = computed(
-    () => router.currentRoute.value.query.affinityDebug === "true",
-);
+// Affinity debug overlay — hidden by default, switched on via ?affinityDebug (no other gate,
+// so it works on any deployed environment, not just local dev). The flag is held in the
+// session, not read off the route, so the overlay outlives the navigation that set it.
+watch(() => router.currentRoute.value.query.affinityDebug, applyAffinityDebugQuery, {
+    immediate: true,
+});
 const {
     isAuthenticated,
     user,
@@ -225,7 +227,7 @@ onErrorCaptured((err) => {
             @close="handleModalClose"
         />
 
-        <AffinityDebugOverlay v-if="showAffinityDebugOverlay" />
+        <AffinityDebugOverlay v-if="isMounted && affinityDebugEnabled" />
     </div>
     <!-- Modals depend on i18n, which isn't installed until splash finishes — keep them out of the tree during the loading phase. On web they are also gated behind mount (signed-out shell). -->
     <template v-if="!isAppLoading && isMounted">
