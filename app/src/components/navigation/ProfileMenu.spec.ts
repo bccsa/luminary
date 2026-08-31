@@ -94,6 +94,40 @@ describe("ProfileMenu", () => {
         expect(wrapper.html()).toContain(t("language.modal.title"));
     });
 
+    it("closes the slide-in menu when a non-routed item is clicked", async () => {
+        const { t } = useI18n();
+
+        (auth as any).useAuth.mockReturnValue({
+            isAuthenticated: ref(false),
+        });
+
+        const wrapper = mount(ProfileMenu);
+
+        await wrapper.find("button").trigger("click");
+        expect(wrapper.find("[aria-label='Close menu']").exists()).toBe(true);
+
+        const languageItem = wrapper
+            .findAll("span")
+            .find((el) => el.text().includes(t("profile_menu.language")));
+        await languageItem!.trigger("click");
+
+        expect(wrapper.find("[aria-label='Close menu']").exists()).toBe(false);
+    });
+
+    it("closes the slide-in menu from its close button", async () => {
+        (auth as any).useAuth.mockReturnValue({
+            isAuthenticated: ref(false),
+        });
+
+        const wrapper = mount(ProfileMenu);
+
+        await wrapper.find("button").trigger("click");
+
+        await wrapper.find("[aria-label='Close menu']").trigger("click");
+
+        expect(wrapper.find("[aria-label='Close menu']").exists()).toBe(false);
+    });
+
     it("logs the user out after clicking logout", async () => {
         const logout = vi.fn();
         (auth as any).useAuth.mockReturnValue({
