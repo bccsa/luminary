@@ -11,7 +11,6 @@ import { isConnected } from "luminary-shared";
 import { resolveNotificationText, useNotificationStore } from "./stores/notification";
 import { mockEnglishContentDto } from "./tests/mockdata";
 import { isAppLoading, theme } from "./globalConfig";
-import LoadingBar from "@/components/LoadingBar.vue";
 import { createMemoryHistory, createRouter } from "vue-router";
 import HomePage from "@/pages/HomePage.vue";
 import ExplorePage from "@/pages/ExplorePage.vue";
@@ -45,7 +44,9 @@ describe("App", () => {
         isAppLoading.value = true;
     });
 
-    describe("Splash screen", () => {
+    // The startup splash itself lives in index.html (see bootSplash.spec.ts); what this
+    // component owns is withholding the app until startup has finished.
+    describe("Startup gate", () => {
         beforeEach(() => {
             (auth as any).useAuth.mockReturnValue({
                 isLoading: ref(false),
@@ -53,12 +54,12 @@ describe("App", () => {
             });
         });
 
-        it("displays the splash screen while the app is loading", () => {
+        it("withholds the app content while the app is loading", () => {
             isAppLoading.value = true;
 
             const wrapper = mount(App, { shallow: true });
 
-            expect(wrapper.findComponent(LoadingBar).exists()).toBe(true);
+            expect(wrapper.find("router-view-stub").exists()).toBe(false);
         });
 
         it("displays the app content once loading is complete", () => {
@@ -66,7 +67,6 @@ describe("App", () => {
 
             const wrapper = mount(App, { shallow: true });
 
-            expect(wrapper.findComponent(LoadingBar).exists()).toBe(false);
             expect(wrapper.find("router-view-stub").exists()).toBe(true);
         });
     });

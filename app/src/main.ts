@@ -1,5 +1,5 @@
 import "./assets/main.css";
-import { createApp, watch } from "vue";
+import { createApp, nextTick, watch } from "vue";
 import { createPinia } from "pinia";
 import App from "./App.vue";
 import router from "./router";
@@ -23,6 +23,7 @@ import { APP_DOCS_INDEX } from "./docsIndex";
 import { initSentry, Sentry } from "@/util/initSentry";
 import { markAppReady, markAppError } from "@/util/renderState";
 import { initLivePublishClock } from "@/util/livePublishClock";
+import { BOOT_SPLASH_ID } from "./bootSplash";
 
 export const app = createApp(App);
 
@@ -130,6 +131,12 @@ async function Startup() {
     initSync();
 
     isAppLoading.value = false;
+
+    // Drop the pre-Vue splash from index.html only after the flag above has been rendered,
+    // so the app is already painted underneath and uncovering it can't expose a blank frame.
+    await nextTick();
+    document.getElementById(BOOT_SPLASH_ID)?.remove();
+
     initAppTitle(i18n);
     initAnalytics();
     markAppReady();
