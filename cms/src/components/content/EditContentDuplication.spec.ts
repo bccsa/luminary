@@ -1,7 +1,15 @@
 import { describe, it, afterEach, beforeEach, expect, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
-import { db, DocType, accessMap, PostType, TagType, type TagDto, PublishStatus } from "luminary-shared";
+import {
+    db,
+    DocType,
+    accessMap,
+    PostType,
+    TagType,
+    type TagDto,
+    PublishStatus,
+} from "luminary-shared";
 import * as mockData from "@/tests/mockdata";
 import { setActivePinia } from "pinia";
 import EditContent from "./EditContent.vue";
@@ -511,6 +519,114 @@ describe("EditContent.vue - Duplication", () => {
         // Image fileCollections should be preserved by default and duplicate intent should be set
         expect(vm.editableParent.imageData.fileCollections.length).toBeGreaterThan(0);
         expect(vm.editableParent.imageData.duplicate).toBe(true);
+    }, 15000);
+
+    it("warns when the source has image files but no storage bucket to copy them from", async () => {
+        const mockNotification = vi.fn();
+        const notificationStore = useNotificationStore();
+        notificationStore.addNotification = mockNotification;
+
+        // mockPostDto carries fileCollections but no imageBucketId — the legacy shape.
+        expect(mockData.mockPostDto.imageData?.fileCollections.length).toBeGreaterThan(0);
+        expect((mockData.mockPostDto as any).imageBucketId).toBeUndefined();
+
+        const wrapper = mount(EditContent, {
+            props: {
+                docType: DocType.Post,
+                id: mockData.mockPostDto._id,
+                languageCode: "eng",
+                tagOrPostType: PostType.Blog,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain("English");
+        });
+
+        const dropdownTrigger = wrapper.find('[data-test="dropdown-trigger"]');
+        await dropdownTrigger.trigger("click");
+        await nextTick();
+
+        let duplicateBtn;
+        await waitForExpect(() => {
+            duplicateBtn = wrapper.find("[data-test='duplicate-button']");
+            expect(duplicateBtn.exists()).toBe(true);
+        });
+
+        let confirmBtn;
+        await waitForExpect(async () => {
+            duplicateBtn!.trigger("click");
+            confirmBtn = wrapper.find('[data-test="modal-primary-button"]');
+            expect(confirmBtn.exists()).toBe(true);
+        });
+        await confirmBtn!.trigger("click");
+
+        await waitForExpect(() => {
+            expect(mockNotification).toHaveBeenCalledWith(
+                expect.objectContaining({ title: "Image not copied", state: "warning" }),
+            );
+        });
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const vm: any = wrapper.vm;
+        expect(vm.editableParent.imageData.fileCollections).toEqual([]);
+    }, 15000);
+
+    it("does not warn about the image when the source has a storage bucket", async () => {
+        await db.docs.put({
+            ...mockData.mockPostDto,
+            imageBucketId: "storage-image-bucket",
+        } as any);
+
+        const mockNotification = vi.fn();
+        const notificationStore = useNotificationStore();
+        notificationStore.addNotification = mockNotification;
+
+        const wrapper = mount(EditContent, {
+            props: {
+                docType: DocType.Post,
+                id: mockData.mockPostDto._id,
+                languageCode: "eng",
+                tagOrPostType: PostType.Blog,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain("English");
+        });
+
+        await waitForExpect(() => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const vm: any = wrapper.vm;
+            expect(vm.editableParent.imageBucketId).toBe("storage-image-bucket");
+        });
+
+        const dropdownTrigger = wrapper.find('[data-test="dropdown-trigger"]');
+        await dropdownTrigger.trigger("click");
+        await nextTick();
+
+        let duplicateBtn;
+        await waitForExpect(() => {
+            duplicateBtn = wrapper.find("[data-test='duplicate-button']");
+            expect(duplicateBtn.exists()).toBe(true);
+        });
+
+        let confirmBtn;
+        await waitForExpect(async () => {
+            duplicateBtn!.trigger("click");
+            confirmBtn = wrapper.find('[data-test="modal-primary-button"]');
+            expect(confirmBtn.exists()).toBe(true);
+        });
+        await confirmBtn!.trigger("click");
+
+        await waitForExpect(() => {
+            expect(mockNotification).toHaveBeenCalledWith(
+                expect.objectContaining({ title: "Successfully duplicated" }),
+            );
+        });
+        expect(mockNotification).not.toHaveBeenCalledWith(
+            expect.objectContaining({ title: "Image not copied" }),
+        );
     }, 15000);
 
     it("clears image fileCollections when duplicate image is unchecked", async () => {
