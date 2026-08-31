@@ -124,6 +124,15 @@ const { output: contentArr, isFetching: isContentFetching } = useContentQueryWit
     },
 );
 
+// The hybrid query keeps its previous window across a query rebuild, so right after a
+// slug change `contentArr` still holds the post the reader came from. Scope every read of
+// it to the current slug, so the page never renders — or resolves not-found against — a
+// different post's document.
+const contentForSlug = computed<ContentDto | undefined>(() => {
+    const doc = contentArr.value[0];
+    return doc?.slug === props.slug ? doc : undefined;
+});
+
 // `content` is a computed over the query result plus an override for in-place language switches. A computed stays readable at SSR render time (a watch-based binding would not run there). `contentOverride` is cleared on slug change so a stale override can't shadow the new page.
 const contentOverride = ref<ContentDto | undefined>();
 // Cold-start backstop: a doc fetched by `resolveNotFound` when the response-cache
@@ -133,7 +142,7 @@ const contentOverride = ref<ContentDto | undefined>();
 // `stripFields: []`, so the live doc takes over cleanly).
 const coldStartBackstop = ref<ContentDto | undefined>();
 const content = computed<ContentDto | undefined>(
-    () => contentOverride.value ?? coldStartBackstop.value ?? contentArr.value[0],
+    () => contentOverride.value ?? coldStartBackstop.value ?? contentForSlug.value,
 );
 watch(
     () => props.slug,
@@ -145,7 +154,7 @@ watch(
 
 // One-time hydration patch (client only): recover `text` (omitted from the cache seed via `ssrCacheStripFields`) from the snapshot `main.web.ts` captured before `app.mount` cleared the prerendered DOM, so `v-html` matches the prerendered HTML. Runs in setup (not a watcher) so it lands before the template's first evaluation. Guarded on `!isPrerender` so it runs in the browser after the web build hydrates but skips the Node prerender pass; the normal SPA always passes. No-op when the seed already carries `text` or there's nothing to recover.
 if (!isPrerender()) {
-    const recovered = recoverSsrArticleText(contentArr.value[0], takeSsrArticleTextSnapshot());
+    const recovered = recoverSsrArticleText(contentForSlug.value, takeSsrArticleTextSnapshot());
     if (recovered) contentOverride.value = recovered;
 }
 
@@ -193,14 +202,14 @@ function routeRedirect(redirect: RedirectDto): boolean {
 // localStorage), the prerender seeded nothing for this session, so start loading instead:
 // otherwise `is404` (below) would read the still-empty `content` as "not found" and flash
 // NotFoundPage before the cold-start backstop resolves it.
-const isLoading = ref(isSSG && !isPrerender() ? contentArr.value.length === 0 : !isSSG);
+const isLoading = ref(isSSG && !isPrerender() ? !contentForSlug.value : !isSSG);
 
 // Slug this generation's not-found resolution belongs to — guards against a stale redirect probe resolving after the slug moves on, and against re-running the probe once this slug is already resolved.
 let notFoundSlug: string | undefined;
 
 // Wait for the query to genuinely settle (`isContentFetching` false) before treating an empty result as "not found", so a slow query isn't wrongly declared missing. Last chance before 404: a server-only redirect.
 const resolveNotFound = async () => {
-    if (contentArr.value.length || isContentFetching.value) return;
+    if (contentForSlug.value || isContentFetching.value) return;
     const slug = props.slug;
     if (notFoundSlug === slug) return; // already resolved (or resolving) for this slug
     notFoundSlug = slug;
@@ -246,7 +255,7 @@ const resolveNotFound = async () => {
     }
     // `content` is a computed over the (empty) query result → already
     // undefined; just stop loading so the 404 branch shows.
-    if (props.slug === slug && !contentArr.value.length) {
+    if (props.slug === slug && !contentForSlug.value) {
         isLoading.value = false;
     }
 };
@@ -281,9 +290,9 @@ if (!isPrerender()) {
     // carries full `text` (`stripFields: []`), so once it emits the backstop
     // snapshot is dropped and the live, socket-updated doc takes over.
     watch(
-        contentArr,
-        (docs) => {
-            if (docs.length) {
+        contentForSlug,
+        (doc) => {
+            if (doc) {
                 coldStartBackstop.value = undefined;
                 isLoading.value = false;
             }
@@ -292,7 +301,7 @@ if (!isPrerender()) {
     );
 
     // Resolve "not found" once the content query has genuinely settled and is still empty (see `resolveNotFound`).
-    watch([contentArr, isContentFetching], () => void resolveNotFound(), { immediate: true });
+    watch([contentForSlug, isContentFetching], () => void resolveNotFound(), { immediate: true });
 
     // Keep a viewed article alive in the offline document store: refresh its retention
     // deadline whenever a real content doc is displayed, so a below-cutoff article the
@@ -643,7 +652,7 @@ const quickLanguageSwitch = (languageId: string) => {
 // Check if the current content has audio files - fully reactive to data changes
 const hasAudioFiles = computed(() => {
     // Check the live query result first (most up-to-date), then fall back to content ref
-    const dataSource = contentArr.value[0] || content.value;
+    const dataSource = contentForSlug.value || content.value;
     const fileCollections = dataSource?.parentMedia?.fileCollections;
     return !!(fileCollections && Array.isArray(fileCollections) && fileCollections.length > 0);
 });
@@ -806,6 +815,7 @@ watch([isLoading, content, is404], async () => {
                         >
                             <VideoPlayer
                                 v-if="content && content.video"
+                                :key="content._id"
                                 :content="content"
                                 :language="selectedLanguageCode"
                             />
