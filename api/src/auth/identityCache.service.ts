@@ -10,8 +10,9 @@ import { BoundedTtlCache } from "./boundedTtlCache";
 
 /**
  * What we cache per token: the resolved membership + identity, WITHOUT the accessMap.
- * The accessMap is re-derived live from {@link PermissionSystem} on every hit so ACL
- * (`groupUpdate`) changes are picked up for free without invalidating this cache.
+ * The accessMap comes from {@link PermissionSystem} on every hit — memoised there per group
+ * set and invalidated by the group graph itself — so ACL (`groupUpdate`) changes are picked up
+ * for free without invalidating this cache.
  */
 type CachedIdentity = {
     status: "authenticated";
@@ -25,10 +26,10 @@ type CachedIdentity = {
  * Transport-agnostic cache in front of {@link AuthIdentityService.resolveOrDefault}.
  *
  * The full resolve (RS256 verify + 3–4 Mango user lookups + a `lastLogin` write) runs
- * once per token per TTL window; subsequent requests with the same token re-derive only
- * the (cheap) accessMap projection. Both the REST `AuthGuard` and the socket handshake
- * call this; a future SSE handler would call the same method, so SSE reconnect churn
- * becomes cache hits instead of re-resolves.
+ * once per token per TTL window; subsequent requests with the same token only pick up the
+ * accessMap, which {@link PermissionSystem} memoises per group set. Both the REST `AuthGuard`
+ * and the socket handshake call this; a future SSE handler would call the same method, so
+ * SSE reconnect churn becomes cache hits instead of re-resolves.
  *
  * Ships OFF (`IDENTITY_CACHE_ENABLED`). When disabled it is a pure passthrough.
  */
@@ -72,12 +73,12 @@ export class IdentityCacheService implements OnModuleInit {
         });
 
         // Invalidate on the rare events that change resolved membership or token-verification
-        // rules. NOT `groupUpdate`: we don't cache the accessMap (it's re-derived live), so an
-        // ACL edit needs no flush here. A plain User `update` (e.g. the `lastLogin` write) is
-        // intentionally ignored — membership changes come through `permissionChange` (above) and
-        // user deletion/provider/mapping changes are handled below, so `lastLogin` churn never
-        // evicts the cache. Keeping this load-bearing lets the `lastLogin` write cadence stay a
-        // free, decoupled choice.
+        // rules. NOT `groupUpdate`: we don't cache the accessMap (PermissionSystem owns it and
+        // drops its own memo on any graph change), so an ACL edit needs no flush here. A plain
+        // User `update` (e.g. the `lastLogin` write) is intentionally ignored — membership
+        // changes come through `permissionChange` (above) and user deletion/provider/mapping
+        // changes are handled below, so `lastLogin` churn never evicts the cache. Keeping this
+        // load-bearing lets the `lastLogin` write cadence stay a free, decoupled choice.
         this.db.on("update", (doc: any) => {
             if (!doc?.type) return;
 
@@ -133,7 +134,7 @@ export class IdentityCacheService implements OnModuleInit {
 
         const hit = this.cache.get(key);
         if (hit) {
-            // Re-derive the accessMap live so ACL-graph changes are always reflected.
+            // Sourced from PermissionSystem so ACL-graph changes are always reflected.
             const accessMap = PermissionSystem.getAccessMap(hit.groups);
             return {
                 status: hit.status,

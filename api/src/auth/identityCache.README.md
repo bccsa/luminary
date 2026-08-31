@@ -10,7 +10,7 @@ Resolving a user's identity from their auth token is expensive: verifying the JW
 
 1. A request comes in with a token. `IdentityCacheService.resolveOrDefault(token, providerId)` is called instead of going straight to `AuthIdentityService`.
 2. The token is hashed (SHA-256) and used as a cache key — the raw token is never stored.
-3. **Cache hit:** the cached groups/user info is returned immediately. The user's permissions (`accessMap`) are recalculated fresh every time, so permission changes are picked up instantly even on a hit.
+3. **Cache hit:** the cached groups/user info is returned immediately. The user's permissions (`accessMap`) are not stored here — they come from `PermissionSystem`, which keeps its own memo per group set and drops it whenever the group graph changes, so permission changes are picked up instantly even on a hit.
 4. **Cache miss:** the full resolve runs against `AuthIdentityService`, and the result is stored in the cache before being returned.
 
 Both the REST API (`AuthGuard`) and the Socket.io connection handshake use this same cache.
@@ -42,4 +42,5 @@ If the API runs as multiple instances, a *membership addition* on one instance o
 
 - `boundedTtlCache.ts` — the underlying generic cache (max size + expiry, no background timers).
 - `authIdentity.service.ts` — does the actual resolve work this cache is fronting.
+- `../permissions/permissions.service.ts` — owns the `accessMap` projection and its memo.
 - `../configuration.ts` — defines the `IDENTITY_CACHE_*` environment variables.
