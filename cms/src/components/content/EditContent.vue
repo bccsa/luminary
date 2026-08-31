@@ -106,8 +106,11 @@ const acceptServerVersion = () => window.location.reload();
 
 const icon = props.docType === DocType.Tag ? TagIcon : DocumentIcon;
 
-const notify = (state: "success" | "error" | "info", title: string, description: string) =>
-    addNotification({ title, description, state });
+const notify = (
+    state: "success" | "error" | "info" | "warning",
+    title: string,
+    description: string,
+) => addNotification({ title, description, state });
 
 // Which translation is being edited (driven by the route), + the language lists.
 const {
@@ -302,11 +305,13 @@ watch(showDuplicateModal, (open) => {
 const duplicate = async () => {
     showDuplicateModal.value = false;
     if (!editableParent.value) return;
-    const { parent: clonedParent, content: clonedContent } = buildContentDuplicate(
-        editableParent.value,
-        editableContent.value,
-        { duplicateImage: duplicateImageOnCopy.value },
-    );
+    const {
+        parent: clonedParent,
+        content: clonedContent,
+        imageOutcome,
+    } = buildContentDuplicate(editableParent.value, editableContent.value, {
+        duplicateImage: duplicateImageOnCopy.value,
+    });
     source.installClones(clonedParent, clonedContent);
     if (import.meta.env.MODE !== "test") {
         await router.replace({
@@ -325,6 +330,14 @@ const duplicate = async () => {
         "Successfully duplicated",
         `This ${props.tagOrPostType} has successfully been duplicated`,
     );
+    // The image is only copyable when the original records the bucket it is stored in.
+    if (imageOutcome === "noSourceBucket") {
+        notify(
+            "warning",
+            "Image not copied",
+            `The original ${props.tagOrPostType} has no storage bucket saved on it, so its image could not be copied. Add an image to the duplicate before saving.`,
+        );
+    }
 };
 
 const showLanguageSelector = ref(false);
