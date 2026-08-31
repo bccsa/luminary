@@ -24,6 +24,99 @@
             content="#0f172a"
             media="(prefers-color-scheme: dark)"
         />
+
+        <!-- boot-splash:start -->
+        <!-- The splash in App.vue can only appear once Vue mounts, which is the second-to-last
+             step of Startup() — so the slow part of the boot (database open, auth) has nothing on
+             screen. This copy is plain HTML/CSS so it paints on first parse, and main.ts removes it
+             once the app is ready. Colours and metrics mirror App.vue + LoadingBar.vue; Tailwind is
+             unavailable this early, so they are written out longhand. -->
+        <script>
+            // Resolve the theme the way globalConfig does, before first paint, so the splash
+            // below is not white for a dark-mode user.
+            try {
+                var bootTheme = localStorage.getItem("theme");
+                if (
+                    bootTheme === "dark" ||
+                    (bootTheme !== "light" &&
+                        window.matchMedia("(prefers-color-scheme: dark)").matches)
+                ) {
+                    document.documentElement.classList.add("dark");
+                }
+            } catch (e) {
+                /* Storage can be unavailable (private mode); light is a safe default. */
+            }
+        </script>
+        <style>
+            #bootSplash {
+                position: fixed;
+                inset: 0;
+                z-index: 9999;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: #ffffff;
+                font-family:
+                    system-ui,
+                    -apple-system,
+                    sans-serif;
+            }
+            #bootSplash > div {
+                display: flex;
+                width: 100%;
+                flex-direction: column;
+                align-items: center;
+                gap: 1rem;
+            }
+            #bootSplash img {
+                width: 18rem;
+                max-width: 80%;
+            }
+            #bootSplash .bs-label {
+                font-size: 1.25rem;
+                font-weight: 600;
+                color: #71717a;
+            }
+            #bootSplash .bs-track {
+                position: relative;
+                height: 0.75rem;
+                width: 80%;
+                max-width: 28rem;
+                overflow: hidden;
+                border-radius: 9999px;
+                background: #e4e4e7;
+            }
+            #bootSplash .bs-slug {
+                position: absolute;
+                top: 0;
+                bottom: 0;
+                width: 40%;
+                border-radius: 9999px;
+                background: #71717a;
+                animation: bs-running-slug 1.2s linear infinite;
+            }
+            html.dark #bootSplash {
+                background: #0f172a;
+            }
+            html.dark #bootSplash .bs-label {
+                color: #94a3b8;
+            }
+            html.dark #bootSplash .bs-track {
+                background: #334155;
+            }
+            html.dark #bootSplash .bs-slug {
+                background: #94a3b8;
+            }
+            @keyframes bs-running-slug {
+                0% {
+                    left: -40%;
+                }
+                100% {
+                    left: 100%;
+                }
+            }
+        </style>
+        <!-- boot-splash:end -->
     </head>
     <body
         class="overscroll-none bg-white text-slate-900 dark:bg-slate-900 dark:text-slate-50"
@@ -33,6 +126,21 @@
         "
     >
         <div id="app"></div>
+        <!-- boot-splash:start -->
+        <!-- Served from public/, so the URL resolves from any route depth. -->
+        <div id="bootSplash">
+            <div>
+                <img
+                    src="/logo.svg"
+                    alt=""
+                />
+                <div class="bs-label">Loading...</div>
+                <div class="bs-track">
+                    <div class="bs-slug"></div>
+                </div>
+            </div>
+        </div>
+        <!-- boot-splash:end -->
         <script
             type="module"
             src="/src/main.ts"
