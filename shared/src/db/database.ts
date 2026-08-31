@@ -874,29 +874,46 @@ class Database extends Dexie {
 
 export let db: Database;
 
+/**
+ * IndexedDB gives no answer at all when an open is blocked by another connection, so
+ * every open in the boot path is bounded.
+ */
+const DB_OPEN_TIMEOUT_MS = 10_000;
+
+function withDbTimeout<T>(promise: Promise<T>, action: string): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+        const timeout = setTimeout(
+            () => reject(new Error(`Timed out trying to ${action}`)),
+            DB_OPEN_TIMEOUT_MS,
+        );
+        promise.then(
+            (value) => {
+                clearTimeout(timeout);
+                resolve(value);
+            },
+            (error) => {
+                clearTimeout(timeout);
+                reject(error);
+            },
+        );
+    });
+}
+
 export async function initDatabase() {
     const _v: number = await getDbVersion();
     db = new Database(_v, config.docsIndex);
 
-    // Open the database and wait for it to be ready
-    await new Promise<void>((resolve) => {
-        if (db.isOpen()) {
-            resolve();
-            return;
-        }
-
-        db.on("ready", () => {
-            resolve();
-        });
-
-        if (!db.isOpen()) {
-            db.open();
-        }
-    });
-
+    // Registered before open(): a blocked upgrade is what this reports, and it is
+    // raised during the open, not after it.
     db.on("blocked", () => {
         console.error("Database blocked");
     });
+
+    // Awaiting open() rather than the "ready" event means a rejected open is raised
+    // as a boot error instead of leaving this promise unsettled.
+    if (!db.isOpen()) {
+        await withDbTimeout(db.open(), "open the database");
+    }
 
     // Compute FTS corpus stats on startup.
     // Uses setTimeout(0) to avoid Dexie PSD zone deadlocks during initialization.
@@ -979,13 +996,21 @@ async function resetGroupSyncListForRecovery() {
 }
 
 /**
- * Get IndexDB version before DB class is initialized
+ * Get IndexDB version before DB class is initialized. Rejects rather than staying
+ * unsettled when the open is blocked or fails, because this runs before the app is
+ * mounted and an unsettled promise here strands the user on the boot screen.
  * @returns IndexDB Version
  */
-export const getDbVersion = async () => {
-    const request = indexedDB.open(dbName);
-    return new Promise((resolve) => {
+export const getDbVersion = () =>
+    new Promise<number>((resolve, reject) => {
+        const request = indexedDB.open(dbName);
+        const timeout = setTimeout(
+            () => reject(new Error("Timed out reading the database version")),
+            DB_OPEN_TIMEOUT_MS,
+        );
+
         request.onsuccess = (event: any) => {
+            clearTimeout(timeout);
             const db = event.target.result;
             const version: number = (db && db.version) || 0;
             db.addEventListener("close", () => {});
@@ -993,13 +1018,14 @@ export const getDbVersion = async () => {
             resolve(version);
         };
         request.onblocked = () => {
-            console.error("Database blocked");
+            clearTimeout(timeout);
+            reject(new Error("Database blocked while reading the database version"));
         };
         request.onerror = () => {
-            console.error("Database error");
+            clearTimeout(timeout);
+            reject(new Error("Database error while reading the database version"));
         };
-    }) as unknown as Promise<number>;
-};
+    });
 
 /**
  * Concatenate Shared Library index with the external index, to avoid having duplicate indexes
