@@ -281,9 +281,9 @@ function updateConditionValues(mappingIdx: number, conditionIdx: number, value: 
             <div>
                 <label class="text-sm font-medium text-zinc-800">Group Assignments</label>
                 <p class="mt-0.5 text-[11px] text-zinc-400">
-                    Assign one or more groups when all conditions are true (AND). e.g. Assign "St
-                    Mary's Editors" and "St Mary's Reviewers" if Authenticated and churchName equals
-                    "St Mary's".
+                    Assign one or more groups when all conditions are true (AND). e.g. Assign
+                    "St Mary's Editors" and "St Mary's Reviewers" if Authenticated and churchName
+                    equals "St Mary's".
                 </p>
             </div>
             <LButton
@@ -349,11 +349,7 @@ function updateConditionValues(mappingIdx: number, conditionIdx: number, value: 
                 </p>
 
                 <p
-                    v-if="
-                        mapping.conditions.filter(
-                            (c: AuthProviderCondition) => c.type !== 'authenticated',
-                        ).length === 0
-                    "
+                    v-if="mapping.conditions.filter((c: AuthProviderCondition) => c.type !== 'authenticated').length === 0"
                     class="mb-1 text-[11px] italic text-zinc-400"
                 >
                     Assigned to all authenticated users.
