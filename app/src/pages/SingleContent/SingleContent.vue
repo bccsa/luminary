@@ -376,8 +376,14 @@ const translationsArr = useContentQuery(
 const isPublishedNow = mangoCompile({ $and: publishedNowConditions({ includeScheduled: false }) });
 
 const availableTranslations = computed<ContentDto[]>(() => {
-    if (!content.value) return [];
-    const published = translationsArr.value.filter((c) => isPublishedNow(c));
+    const current = content.value;
+    if (!current) return [];
+    // The siblings query keeps its previous window across a rebuild, and outside the SSG
+    // build its cache entry is shape-keyed, so both can hand this page another post's
+    // translations. Scope to the current parent — the switcher navigates on this list.
+    const published = translationsArr.value.filter(
+        (c) => c.parentId === current.parentId && isPublishedNow(c),
+    );
     return published.length > 1 ? published : [];
 });
 

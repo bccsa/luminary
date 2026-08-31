@@ -60,6 +60,8 @@ vi.mock("luminary-shared", async (importOriginal) => {
     });
 });
 
+const routeReplaceMock = vi.hoisted(() => vi.fn());
+
 vi.mock("vue-router", async (importOriginal) => {
     const actual = await importOriginal();
     return {
@@ -67,7 +69,7 @@ vi.mock("vue-router", async (importOriginal) => {
         ...actual,
         useRouter: vi.fn().mockImplementation(() => ({
             currentRoute: ref({ name: "content", params: { slug: "post-a" } }),
-            replace: vi.fn(),
+            replace: routeReplaceMock,
             back: vi.fn(),
             resolve: vi.fn().mockImplementation((to: any) => {
                 if (typeof to === "string") return { href: to } as any;
@@ -113,6 +115,14 @@ const videoPostA: ContentDto = {
     video: "https://example.com/post-a.m3u8",
 };
 
+const fraPostA: ContentDto = {
+    ...mockFrenchContentDto,
+    _id: "content-post-a-fra",
+    parentId: "post-a",
+    slug: "post-a-fra",
+    title: "Post A",
+};
+
 const videoPostB: ContentDto = {
     ...mockEnglishContentDto,
     _id: "content-post-b",
@@ -129,6 +139,8 @@ describe("SingleContent navigation between posts", () => {
         playerMounts.length = 0;
         playerUnmounts.length = 0;
         queryRemoteMock.mockClear();
+        routeReplaceMock.mockClear();
+        localStorage.clear();
 
         appLanguageIdsAsRef.value = ["lang-eng"];
         cmsLanguages.value = [mockLanguageDtoEng, mockLanguageDtoFra];
@@ -177,6 +189,30 @@ describe("SingleContent navigation between posts", () => {
         expect(wrapper.text()).not.toContain("Post A");
 
         wrapper.unmount();
+    });
+
+    it("does not navigate to the previous post's translation when a post is opened cold", async () => {
+        // A second published translation is what gives the language switcher a slug it
+        // could auto-navigate to.
+        await db.docs.bulkPut([fraPostA]);
+
+        const first = mount(SingleContent, { props: { slug: "post-a" } });
+        await waitForExpect(() => {
+            expect(first.find("[data-test='translationSelector']").exists()).toBe(true);
+        });
+        first.unmount();
+
+        // A fresh instance, as the router's per-path key gives every post: its siblings
+        // query seeds from the shape-keyed cache entry post-a just wrote.
+        routeReplaceMock.mockClear();
+        const second = mount(SingleContent, { props: { slug: "post-b" } });
+
+        await waitForExpect(() => {
+            expect(second.text()).toContain("Post B");
+        });
+        expect(routeReplaceMock).not.toHaveBeenCalled();
+
+        second.unmount();
     });
 
     it("builds a new video player for the post navigated to", async () => {
