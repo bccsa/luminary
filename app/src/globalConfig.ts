@@ -274,8 +274,27 @@ export const appLanguageAsRef = computed(() => appLanguagesPreferredAsRef.value[
 /**
  * Initialize the language settings. If no user preferred language is set, the browser preferred language is used if it is supported. Otherwise, the CMS default language is used.
  */
+/**
+ * Language docs arrive only through sync, which is gated on the socket connecting, so a
+ * client that starts offline with an empty database would otherwise wait here forever —
+ * stranding the splash, sync startup and analytics behind it.
+ */
+const LANGUAGE_BOOT_TIMEOUT_MS = 5_000;
+
 export const initLanguage = () => {
     return new Promise<void>((resolve) => {
+        let settled = false;
+        const settle = () => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(bootTimeout);
+            resolve();
+        };
+
+        // Let boot continue without languages. The watcher below is deliberately left
+        // live in that case, so a later sync still normalizes the preferred/synced sets.
+        const bootTimeout = setTimeout(settle, LANGUAGE_BOOT_TIMEOUT_MS);
+
         // Language is a fully-synced type, so this HybridQuery reads from IndexedDB
         // only. Constructed at app scope (never disposed) — its output ref feeds the
         // shared cmsLanguages list.
@@ -340,7 +359,7 @@ export const initLanguage = () => {
                 );
 
                 unwatchCmsLanguages();
-                resolve();
+                settle();
             },
             { deep: true },
         );

@@ -76,6 +76,23 @@ test.describe("App boot recovery", () => {
     );
   });
 
+  test("does not strand the splash when the socket never connects", async ({
+    page,
+  }) => {
+    // Only the socket is blocked — REST stays reachable. Language docs are a
+    // fully-synced type whose sync is gated on `isConnected`, so a client that
+    // cannot open a socket never receives them, and `initLanguage()` is awaited
+    // between mount and the splash being cleared.
+    await page.route("**/socket.io/**", (route) => route.abort());
+    await page.goto("/");
+
+    // Mounted: the static splash is gone, so the boot path got past app.mount().
+    await expect(page.locator("#boot-splash")).toHaveCount(0);
+
+    // The app must still become usable offline rather than sitting on the splash.
+    await expect(page.getByRole("main")).toBeVisible({ timeout: 30_000 });
+  });
+
   test("reports an error when the database open never answers", async ({
     page,
   }) => {
