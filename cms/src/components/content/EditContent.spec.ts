@@ -1120,7 +1120,7 @@ describe("EditContent.vue", () => {
     });
 
     describe("dirty state on load", () => {
-        // Regression tests for a bug where MediaEditor / ImageEditor auto-selected the
+        // Regression tests for a bug where MediaBucketSelect / ImageEditor auto-selected the
         // single available storage bucket on mount and wrote it only to editableParent,
         // which made the diff against existingParent flag a phantom dirty state every
         // time a legacy doc (no bucket IDs persisted) was opened.

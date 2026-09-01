@@ -19,6 +19,9 @@ type Props = {
     disabled: boolean;
     /** Render as a plain section (no card chrome / collapse) for nesting in another card. */
     bare?: boolean;
+    /** Passed to the preview, so "nothing here yet" can say how far the encode is. */
+    encodeStatus?: string;
+    encodeProgress?: number;
 };
 defineProps<Props>();
 
@@ -62,10 +65,19 @@ const hlsKey = computed({
 const confirmReplaceOpen = ref(false);
 const replaceConfirmed = ref(false);
 
-/** True once the field holds a replacement for a key that is already saved. */
-const replacingKey = computed(() => Boolean(hlsKey.value));
+/**
+ * True once the *editor* has put a replacement in the field.
+ *
+ * The encoder writes this field too, and a key arriving from an encode is not
+ * someone discarding the old one — warning about it there would put a permanent
+ * red paragraph under every encoded video.
+ */
+const keyTypedHere = ref(false);
+const replacingKey = computed(() => keyTypedHere.value && Boolean(hlsKey.value));
 
 function onKeyInput(value: string) {
+    keyTypedHere.value = true;
+
     if (hasStoredKey.value && value && !replaceConfirmed.value) {
         confirmReplaceOpen.value = true;
     }
@@ -74,6 +86,7 @@ function onKeyInput(value: string) {
 
 function cancelReplace() {
     hlsKey.value = undefined;
+    keyTypedHere.value = false;
     replaceConfirmed.value = false;
     confirmReplaceOpen.value = false;
 }
@@ -85,6 +98,13 @@ function cancelReplace() {
  */
 const hasStoredKey = computed(() => Boolean(parent.value?.media?.hlsKey_id));
 
+watch(
+    () => parent.value?._id,
+    () => {
+        keyTypedHere.value = false;
+        replaceConfirmed.value = false;
+    },
+);
 
 // Collapse the card only initially if there's no video
 watch(
@@ -126,9 +146,7 @@ watch(
             :modelValue="hlsKey"
             @update:modelValue="onKeyInput"
             :icon="KeyIcon"
-            :placeholder="
-                hasStoredKey ? 'Enter new encryption key' : 'Encryption key (hex)'
-            "
+            :placeholder="hasStoredKey ? 'Enter new encryption key' : 'Encryption key (hex)'"
             :disabled="disabled"
             class="pb-1"
             data-test="video-key-input"
@@ -147,16 +165,20 @@ watch(
             nothing keeps a copy of it. Warned at the moment of typing rather
             than on save, because by then the old key is already gone.
         -->
-        <VideoPreview :parent="parent" />
-
         <p
             v-if="hasStoredKey && replacingKey"
-            class="text-xs font-medium text-amber-600 dark:text-amber-500"
+            class="mt-1 text-xs font-medium text-amber-600 dark:text-amber-500"
             data-test="video-key-warning"
         >
-            This replaces the saved key. Anything already encrypted with the old
-            one becomes unplayable, and the old key cannot be recovered.
+            This replaces the saved key. Anything already encrypted with the old one becomes
+            unplayable, and the old key cannot be recovered.
         </p>
+
+        <VideoPreview
+            :parent="parent"
+            :encodeStatus="encodeStatus"
+            :encodeProgress="encodeProgress"
+        />
     </LCard>
 
     <LDialog

@@ -110,9 +110,9 @@ describe("EditContentVideo.vue", () => {
     it("offers to enter a new key once one is saved", async () => {
         const wrapper = mountVideo(parentWith({ hlsUrl: HLS_URL, hlsKey_id: "crypto-1" }));
 
-        expect(
-            wrapper.find("input[name='hlsKey']").attributes("placeholder"),
-        ).toBe("Enter new encryption key");
+        expect(wrapper.find("input[name='hlsKey']").attributes("placeholder")).toBe(
+            "Enter new encryption key",
+        );
     });
 
     it("clears the field when the replacement is declined", async () => {
@@ -124,9 +124,7 @@ describe("EditContentVideo.vue", () => {
         await wrapper.find("input[name='hlsKey']").setValue("beefbeefbeefbeef");
         expect(parent.value.media?.hlsKey).toBe("beefbeefbeefbeef");
 
-        const cancel = wrapper
-            .findAll("button")
-            .find((b) => b.text().includes("Cancel"));
+        const cancel = wrapper.findAll("button").find((b) => b.text().includes("Cancel"));
         await cancel!.trigger("click");
 
         expect(parent.value.media?.hlsKey).toBeUndefined();
@@ -140,9 +138,17 @@ describe("EditContentVideo.vue", () => {
 
         await wrapper.find("input[name='hlsKey']").setValue("beefbeefbeefbeef");
 
-        expect(wrapper.find('[data-test="video-key-warning"]').text()).toContain(
-            "unplayable",
+        expect(wrapper.find('[data-test="video-key-warning"]').text()).toContain("unplayable");
+    });
+
+    it("does not warn about a key the encoder wrote, which replaces nothing", async () => {
+        // The encoder writes hlsKey on every encode. Treating that as a
+        // replacement puts a permanent red paragraph under every encoded video.
+        const wrapper = mountVideo(
+            parentWith({ hlsUrl: HLS_URL, hlsKey_id: "crypto-1", hlsKey: "beefbeefbeefbeef" }),
         );
+
+        expect(wrapper.find('[data-test="video-key-warning"]').exists()).toBe(false);
     });
 
     it("does not warn when there is no saved key to replace", async () => {
