@@ -120,6 +120,7 @@ const isMobileScreen = breakpoints.smaller("sm");
                                 variant="secondary"
                                 mainDynamicCss="px-0.5 py-0.5 rounded-xl"
                                 iconClass="h-5 w-5"
+                                data-test="modal-close"
                             >
                             </LButton>
                         </div>

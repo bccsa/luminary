@@ -13,8 +13,9 @@
  */
 import { computed, ref, watch } from "vue";
 import LButton from "@/components/button/LButton.vue";
-import LDialog from "@/components/common/LDialog.vue";
+import LModal from "@/components/modals/LModal.vue";
 import { PlayCircleIcon } from "@heroicons/vue/24/outline";
+import { LockClosedIcon, LockOpenIcon, ClipboardIcon, CheckIcon } from "@heroicons/vue/20/solid";
 import { LuminaryPlayer, type PlayerSource } from "@luminary-media-converter/player-web-legacy";
 import { type ContentParentDto, SidecarType, getRest, unmaskKeyHex } from "luminary-shared";
 import { storageSelection } from "@/composables/storageSelection";
@@ -71,6 +72,38 @@ const source = computed<PlayerSource | null>(() =>
     masterUrl.value ? { masterUrl: masterUrl.value, keyHex: keyHex.value } : null,
 );
 
+/** The bucket the relative URL was resolved through, for the footer to name. */
+const bucketName = computed(() => getBucketById(props.parent?.mediaBucketId ?? null)?.name);
+
+/**
+ * Where the key being used came from.
+ *
+ * A key typed into the form and one fetched from the sidecar fail in different
+ * ways and look identical in the player, so the dialog says which is in play.
+ */
+const keySource = computed(() => {
+    if (props.parent?.media?.hlsKey) return "unsaved";
+    if (storedKey.value) return "saved";
+    return undefined;
+});
+
+const copied = ref(false);
+
+/**
+ * The URL is the answer to the question a failed preview always raises, and it is
+ * composed rather than stored — so it cannot be copied out of the form above.
+ */
+const copyUrl = async () => {
+    if (!masterUrl.value) return;
+    try {
+        await navigator.clipboard.writeText(masterUrl.value);
+        copied.value = true;
+        setTimeout(() => (copied.value = false), 2000);
+    } catch {
+        /* a browser refusing the clipboard is not worth an error state here */
+    }
+};
+
 /**
  * Loaded on request rather than on sight, and in a dialog rather than in the form.
  *
@@ -83,7 +116,10 @@ const showing = ref(false);
 
 // A different document, or a different collection on the same one, is a
 // different thing to check.
-watch(masterUrl, () => (showing.value = false));
+watch(masterUrl, () => {
+    showing.value = false;
+    copied.value = false;
+});
 </script>
 
 <template>
@@ -98,13 +134,12 @@ watch(masterUrl, () => (showing.value = false));
             Preview video
         </LButton>
 
-        <LDialog
-            v-model:open="showing"
-            title="Preview video"
+        <LModal
+            v-model:isVisible="showing"
+            heading="Preview video"
+            noDivider
             wide
             preventBackdropClose
-            :primaryAction="() => (showing = false)"
-            primaryButtonText="Close"
         >
             <div class="overflow-hidden rounded-md bg-black">
                 <LuminaryPlayer
@@ -114,6 +149,49 @@ watch(masterUrl, () => (showing.value = false));
                     data-test="video-preview-player"
                 />
             </div>
-        </LDialog>
+
+            <!--
+                What is actually being played. The URL is composed from the bucket's
+                public URL rather than stored, so it is the one thing a broken
+                preview turns on and the one thing the form above cannot show.
+            -->
+            <template #footer>
+                <div class="flex flex-col gap-1.5 text-xs text-zinc-500">
+                    <div class="flex items-center gap-1.5" data-test="preview-encryption">
+                        <component
+                            :is="keySource ? LockClosedIcon : LockOpenIcon"
+                            class="h-3.5 w-3.5 shrink-0"
+                        />
+                        <span v-if="keySource == 'unsaved'">
+                            Encrypted — playing the key entered above, not yet saved
+                        </span>
+                        <span v-else-if="keySource == 'saved'">
+                            Encrypted — playing the key saved for this video
+                        </span>
+                        <span v-else>Not encrypted</span>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <span class="truncate font-mono" :title="masterUrl" data-test="preview-url">
+                            {{ masterUrl }}
+                        </span>
+                        <button
+                            type="button"
+                            class="flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 font-medium text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900"
+                            data-test="preview-copy-url"
+                            @click="copyUrl"
+                        >
+                            <component
+                                :is="copied ? CheckIcon : ClipboardIcon"
+                                class="h-3.5 w-3.5"
+                            />
+                            {{ copied ? "Copied" : "Copy" }}
+                        </button>
+                    </div>
+
+                    <p v-if="bucketName" data-test="preview-bucket">via {{ bucketName }}</p>
+                </div>
+            </template>
+        </LModal>
     </div>
 </template>

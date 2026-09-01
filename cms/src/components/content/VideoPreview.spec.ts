@@ -202,7 +202,7 @@ describe("VideoPreview in a dialog", () => {
         const wrapper = await mountAndOpen({ hlsUrl: "a1b2c3/master.m3u8" });
         expect(player(wrapper).exists()).toBe(true);
 
-        await wrapper.find('[data-test="modal-primary-button"]').trigger("click");
+        await wrapper.find('[data-test="modal-close"]').trigger("click");
 
         expect(player(wrapper).exists()).toBe(false);
     });
@@ -223,11 +223,64 @@ describe("VideoPreview in a dialog", () => {
         expect(player(wrapper).exists()).toBe(false);
     });
 
+    it("closes from one control, not two that do the same thing", async () => {
+        const wrapper = await mountAndOpen({ hlsUrl: "a1b2c3/master.m3u8" });
+
+        expect(wrapper.findAll('[data-test="modal-close"]')).toHaveLength(1);
+        expect(wrapper.find('[data-test="modal-primary-button"]').exists()).toBe(false);
+    });
+
     it("closes when the document is pointed at a different collection", async () => {
         const wrapper = await mountAndOpen({ hlsUrl: "a1b2c3/master.m3u8" });
 
         await wrapper.setProps({ parent: parent({ hlsUrl: "d4e5f6/master.m3u8" }) });
 
         expect(player(wrapper).exists()).toBe(false);
+    });
+});
+
+/**
+ * A preview that will not play raises one question — what did it try to load? The
+ * URL is composed from the bucket's public URL, so it exists nowhere the editor
+ * can read it.
+ */
+describe("what the preview says it is playing", () => {
+    it("shows the resolved URL, not the relative one stored on the document", async () => {
+        getBucketByIdMock.mockReturnValue({ publicUrl: "https://cdn.example.com/media" });
+
+        const wrapper = await mountAndOpen({ hlsUrl: "/a1b2c3/master.m3u8" });
+
+        expect(wrapper.find('[data-test="preview-url"]').text()).toBe(
+            "https://cdn.example.com/media/a1b2c3/master.m3u8",
+        );
+    });
+
+    it("names the bucket it resolved through", async () => {
+        getBucketByIdMock.mockReturnValue({
+            publicUrl: "https://cdn.example.com/media",
+            name: "Local MinIO",
+        });
+
+        const wrapper = await mountAndOpen({ hlsUrl: "/a1b2c3/master.m3u8" });
+
+        expect(wrapper.find('[data-test="preview-bucket"]').text()).toContain("Local MinIO");
+    });
+
+    it("distinguishes a key typed into the form from one already saved", async () => {
+        const typed = await mountAndOpen({ hlsUrl: "/a1b2c3/master.m3u8", hlsKey: "beef" });
+
+        expect(typed.find('[data-test="preview-encryption"]').text()).toContain("not yet saved");
+    });
+
+    it("says so when nothing is encrypted", async () => {
+        const wrapper = await mountAndOpen({ hlsUrl: "/a1b2c3/master.m3u8" });
+
+        expect(wrapper.find('[data-test="preview-encryption"]').text()).toBe("Not encrypted");
+    });
+
+    it("offers the URL for copying, since it cannot be read off the form", async () => {
+        const wrapper = await mountAndOpen({ hlsUrl: "/a1b2c3/master.m3u8" });
+
+        expect(wrapper.find('[data-test="preview-copy-url"]').exists()).toBe(true);
     });
 });
