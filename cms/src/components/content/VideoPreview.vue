@@ -87,7 +87,7 @@ watch(masterUrl, () => (showing.value = false));
 </script>
 
 <template>
-    <div v-if="source" data-test="video-preview">
+    <div v-if="source" class="py-2" data-test="video-preview">
         <LButton
             variant="secondary"
             size="sm"
@@ -101,7 +101,7 @@ watch(masterUrl, () => (showing.value = false));
         <LDialog
             v-model:open="showing"
             title="Preview video"
-            largeModal
+            wide
             :primaryAction="() => (showing = false)"
             primaryButtonText="Close"
         >

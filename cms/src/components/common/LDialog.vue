@@ -14,6 +14,7 @@ type Props = {
     context?: "default" | "danger";
     primaryButtonDisabled?: boolean;
     largeModal?: boolean;
+    wide?: boolean;
     stickToEdges?: boolean;
     showClosingButton?: boolean;
 };
@@ -32,6 +33,7 @@ withDefaults(defineProps<Props>(), {
         :heading="title"
         :noDivider="true"
         :largeModal="largeModal"
+        :wide="wide"
         :stickToEdges="stickToEdges"
         :showClosingButton="showClosingButton"
     >

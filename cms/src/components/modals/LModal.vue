@@ -9,6 +9,8 @@ type Props = {
     heading: string;
     noDivider?: boolean;
     largeModal?: boolean;
+    /** Wide, but only as tall as its content — `largeModal` fixes the height. */
+    wide?: boolean;
     stickToEdges?: boolean;
     noPadding?: boolean;
     transparentHeader?: boolean;
@@ -19,6 +21,7 @@ type Props = {
 };
 const props = withDefaults(defineProps<Props>(), {
     largeModal: false,
+    wide: false,
     noDivider: false,
     noPadding: false,
     transparentHeader: false,
@@ -74,7 +77,9 @@ const isMobileScreen = breakpoints.smaller("sm");
                         ? 'h-[100dvh] w-[100vw] max-w-none rounded-none'
                         : largeModal
                           ? 'h-[90dvh] w-full max-w-5xl lg:h-[80dvh]'
-                          : 'max-h-[90dvh] w-full max-w-md',
+                          : wide
+                            ? 'max-h-[90dvh] w-full max-w-3xl'
+                            : 'max-h-[90dvh] w-full max-w-md',
                 ]"
             >
                 <div
