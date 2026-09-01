@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, computed } from "vue";
+import { onMounted, computed, watch } from "vue";
 import { type MediaDto } from "luminary-shared";
 import { FilmIcon, ArrowTopRightOnSquareIcon } from "@heroicons/vue/24/outline";
 import LButton from "../button/LButton.vue";
@@ -30,12 +30,31 @@ const effectiveBucketId = computed(
     () => props.mediaBucketId ?? bucketSelection.autoSelectMediaBucket.value ?? undefined,
 );
 
-const { availability, busy, status, progress, error, refreshAvailability, start } =
+const { availability, busy, status, progress, error, refreshAvailability, start, resume } =
     useMediaEncoder();
 
-onMounted(() => {
-    void refreshAvailability();
-});
+/**
+ * An encode outlives this page, so arriving at a document asks whether one is
+ * already running for it rather than assuming the encoder is idle.
+ */
+const checkAndResume = async () => {
+    await refreshAvailability();
+    if (!props.documentId) return;
+
+    await resume({
+        documentId: props.documentId,
+        onMediaReady: (media) => emit("mediaReady", media),
+    });
+};
+
+onMounted(() => void checkAndResume());
+
+// The editor can move between documents without this component being rebuilt, and
+// the previous document's encode is not this one's.
+watch(
+    () => props.documentId,
+    () => void checkAndResume(),
+);
 
 /** The encoder's session statuses, in the words an editor should see. */
 const STATUS_LABELS: Record<string, string> = {
@@ -85,8 +104,7 @@ const recheckAfterLaunch = () => {
 const disabledReason = computed(() => {
     if (props.disabled) return "You do not have permission to edit this document.";
     if (!props.documentId) return "Save the document before encoding media for it.";
-    if (!effectiveBucketId.value)
-        return "No media storage bucket is configured for this document.";
+    if (!effectiveBucketId.value) return "No media storage bucket is configured for this document.";
     if (availability.value == "checking") return "Looking for Luminary Media Convert…";
     if (availability.value != "available") return "Luminary Media Convert is not running.";
     if (busy.value) return "Starting an encoding session…";
@@ -118,8 +136,22 @@ const encode = () => {
             is nothing to click, so the button becomes a launch link instead of a
             disabled control that explains nothing.
         -->
+        <!--
+            Only Chromium implements the loopback grant this depends on, so
+            elsewhere the launch link cannot work however many times it is clicked.
+        -->
+        <span
+            v-if="availability == 'browser-unsupported'"
+            class="inline-flex items-center gap-1.5 px-3 py-2 text-sm text-zinc-400"
+            title="Luminary Media Convert can only be reached from Chrome. Open this page in Chrome to encode video."
+            data-test="encoder-browser-unsupported"
+        >
+            <FilmIcon class="h-5 w-5" />
+            <span class="hidden text-sm sm:inline">Encoding needs Chrome</span>
+        </span>
+
         <a
-            v-if="availability == 'unavailable'"
+            v-else-if="availability == 'unavailable'"
             :href="ENCODER_PROTOCOL_URL"
             class="inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-semibold text-zinc-600 hover:text-zinc-800"
             title="Luminary Media Convert is not running. Open it, then try again."

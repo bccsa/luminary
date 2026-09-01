@@ -25,11 +25,31 @@
  * VITE_ENCODER_URL exists for running the encoder's API standalone in development,
  * where it defaults to 3000 instead.
  */
-export const ENCODER_BASE_URL =
-    import.meta.env?.VITE_ENCODER_URL || "http://127.0.0.1:31711";
+export const ENCODER_BASE_URL = import.meta.env?.VITE_ENCODER_URL || "http://127.0.0.1:31711";
 
 /** Launch link for an encoder that is installed but not running. */
 export const ENCODER_PROTOCOL_URL = "luminary-convert://";
+
+/**
+ * Can this browser reach loopback from a public origin at all?
+ *
+ * Only Chromium implements the Local Network Access grant, so everywhere else the
+ * health check fails for a reason no amount of launching the app will fix. Asking
+ * up front lets the CMS say so instead of offering a link that cannot work.
+ *
+ * iOS browsers wear a Chromium name over WebKit, so they are excluded by name.
+ */
+export function browserCanReachEncoder(): boolean {
+    if (typeof navigator == "undefined") return false;
+
+    // Present only in Chromium, which makes it the answer whenever it exists.
+    const brands = (navigator as any).userAgentData?.brands as { brand: string }[] | undefined;
+    if (brands?.length) return brands.some((b) => b.brand == "Chromium");
+
+    const ua = navigator.userAgent || "";
+    if (/CriOS|EdgiOS|FxiOS|OPiOS/.test(ua)) return false;
+    return /Chrome\/|Chromium\//.test(ua);
+}
 
 export type EncoderHealth = {
     available: boolean;
@@ -109,6 +129,13 @@ export async function createEncoderSession(
         body: JSON.stringify(request),
     });
     const text = await res.text();
+    if (res.status == 403) {
+        // The likeliest cause by far, and indistinguishable from a fault unless said.
+        throw new Error(
+            "Luminary Media Convert has not been allowed to work with this site. " +
+                "Accept the prompt in the encoder window, then try again. (HTTP 403)",
+        );
+    }
     if (!res.ok) {
         throw new Error(`Encoder refused the session (HTTP ${res.status}): ${text}`);
     }
@@ -140,6 +167,41 @@ export function subscribeToEncoderSession(
     source.onerror = () => handlers.onError?.();
 
     return () => source.close();
+}
+
+/** What a session looks like when asked directly rather than followed. */
+export type EncoderSessionStatus = {
+    sessionId: string;
+    status: string;
+    progress?: number;
+    error?: string;
+    hlsUrl?: string;
+    documentId?: string;
+};
+
+/**
+ * Read a session's current state in one request.
+ *
+ * The event stream only carries what happens next, so a page that arrives partway
+ * through an encode needs this to know where it is. Returns undefined when the
+ * encoder no longer holds the session, which is the answer that lets a stored
+ * handle be discarded.
+ */
+export async function fetchEncoderSessionStatus(
+    sessionId: string,
+    readToken: string,
+    baseUrl: string = ENCODER_BASE_URL,
+): Promise<EncoderSessionStatus | undefined> {
+    try {
+        const res = await fetch(
+            `${baseUrl}/api/sessions/${encodeURIComponent(sessionId)}` +
+                `?token=${encodeURIComponent(readToken)}`,
+        );
+        if (!res.ok) return undefined;
+        return (await res.json()) as EncoderSessionStatus;
+    } catch {
+        return undefined;
+    }
 }
 
 /**
@@ -187,4 +249,55 @@ export async function unmaskKeyHex(sessionId: string, maskedKeyHex: string): Pro
     return Array.from(masked, (byte, i) =>
         (byte ^ mask[i % mask.length]).toString(16).padStart(2, "0"),
     ).join("");
+}
+
+/**
+ * A session handle, kept so a reload can pick the encode back up.
+ *
+ * An encode runs for minutes in an application the browser does not own, and the
+ * read token is watch-only — it cannot start, cancel, or reach the source file —
+ * so keeping it costs nothing and is what makes a refresh survivable. Scoped per
+ * document, and stored rather than held in memory because the point is the reload.
+ */
+export type EncoderSessionHandle = {
+    sessionId: string;
+    readToken: string;
+    eventsUrl: string;
+};
+
+const SESSION_HANDLE_PREFIX = "cms_encoderSession_";
+
+const handleKey = (documentId: string) => `${SESSION_HANDLE_PREFIX}${documentId}`;
+
+export function rememberEncoderSession(documentId: string, handle: EncoderSessionHandle): void {
+    if (typeof localStorage == "undefined") return;
+    try {
+        localStorage.setItem(handleKey(documentId), JSON.stringify(handle));
+    } catch {
+        /* a browser refusing to store this is not a reason to fail the encode */
+    }
+}
+
+export function recallEncoderSession(documentId: string): EncoderSessionHandle | undefined {
+    if (typeof localStorage == "undefined") return undefined;
+    try {
+        const stored = localStorage.getItem(handleKey(documentId));
+        if (!stored) return undefined;
+
+        const handle = JSON.parse(stored) as Partial<EncoderSessionHandle>;
+        if (!handle?.sessionId || !handle.readToken || !handle.eventsUrl) return undefined;
+
+        return handle as EncoderSessionHandle;
+    } catch {
+        return undefined;
+    }
+}
+
+export function forgetEncoderSession(documentId: string): void {
+    if (typeof localStorage == "undefined") return;
+    try {
+        localStorage.removeItem(handleKey(documentId));
+    } catch {
+        /* nothing downstream depends on the removal succeeding */
+    }
 }

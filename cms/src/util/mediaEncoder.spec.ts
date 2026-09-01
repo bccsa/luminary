@@ -2,9 +2,14 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { createHash } from "crypto";
 import {
     unmaskKeyHex,
+    browserCanReachEncoder,
     checkEncoderHealth,
     createEncoderSession,
     fetchEncoderSessionKey,
+    fetchEncoderSessionStatus,
+    forgetEncoderSession,
+    recallEncoderSession,
+    rememberEncoderSession,
 } from "./mediaEncoder";
 
 /** The masking the encoder applies, computed here independently of the code under test. */
@@ -133,6 +138,22 @@ describe("createEncoderSession", () => {
             }),
         ).rejects.toThrow(/403/);
     });
+
+    it("names the trust prompt, which a bare status code leaves the editor guessing at", async () => {
+        vi.stubGlobal(
+            "fetch",
+            vi.fn().mockResolvedValue({ ok: false, status: 403, text: async () => "Forbidden" }),
+        );
+
+        await expect(
+            createEncoderSession({
+                documentId: "post-1",
+                title: "t",
+                s3: { endPoint: "e", bucket: "b", accessKey: "a", secretKey: "s" },
+                publicBaseUrl: "https://cdn.example.com",
+            }),
+        ).rejects.toThrow(/Accept the prompt/);
+    });
 });
 
 describe("fetchEncoderSessionKey", () => {
@@ -154,5 +175,119 @@ describe("fetchEncoderSessionKey", () => {
         vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 404 }));
 
         expect(await fetchEncoderSessionKey("s1", "read_1")).toBeUndefined();
+    });
+});
+
+describe("browserCanReachEncoder", () => {
+    it("accepts Chromium, which is what implements the loopback grant", () => {
+        vi.stubGlobal("navigator", { userAgentData: { brands: [{ brand: "Chromium" }] } });
+
+        expect(browserCanReachEncoder()).toBe(true);
+    });
+
+    it("rejects a browser with no Chromium brand", () => {
+        vi.stubGlobal("navigator", { userAgentData: { brands: [{ brand: "WebKit" }] } });
+
+        expect(browserCanReachEncoder()).toBe(false);
+    });
+
+    it("accepts desktop Chrome by user agent when the brands are absent", () => {
+        vi.stubGlobal("navigator", {
+            userAgent:
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 " +
+                "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+        });
+
+        expect(browserCanReachEncoder()).toBe(true);
+    });
+
+    it("rejects Safari", () => {
+        vi.stubGlobal("navigator", {
+            userAgent:
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 " +
+                "(KHTML, like Gecko) Version/17.0 Safari/605.1.15",
+        });
+
+        expect(browserCanReachEncoder()).toBe(false);
+    });
+
+    it("rejects Chrome on iOS, which is WebKit under a Chromium name", () => {
+        vi.stubGlobal("navigator", {
+            userAgent:
+                "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 " +
+                "(KHTML, like Gecko) CriOS/131.0.0.0 Mobile/15E148 Safari/604.1",
+        });
+
+        expect(browserCanReachEncoder()).toBe(false);
+    });
+});
+
+describe("fetchEncoderSessionStatus", () => {
+    it("reads the session, so a page arriving mid-encode knows where it is", async () => {
+        const fetchMock = vi.fn().mockResolvedValue({
+            ok: true,
+            json: async () => ({ sessionId: "s1", status: "encoding", progress: 42 }),
+        });
+        vi.stubGlobal("fetch", fetchMock);
+
+        expect(await fetchEncoderSessionStatus("s1", "read_1")).toEqual({
+            sessionId: "s1",
+            status: "encoding",
+            progress: 42,
+        });
+        expect(fetchMock.mock.calls[0][0]).toContain("/api/sessions/s1?token=read_1");
+    });
+
+    it("returns undefined when the encoder no longer holds the session", async () => {
+        vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 404 }));
+
+        expect(await fetchEncoderSessionStatus("s1", "read_1")).toBeUndefined();
+    });
+
+    it("returns undefined rather than throwing when the encoder is gone", async () => {
+        vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
+
+        expect(await fetchEncoderSessionStatus("s1", "read_1")).toBeUndefined();
+    });
+});
+
+describe("the stored session handle", () => {
+    const handle = {
+        sessionId: "s1",
+        readToken: "read_1",
+        eventsUrl: "http://127.0.0.1:31711/api/sessions/s1/events?token=read_1",
+    };
+
+    afterEach(() => localStorage.clear());
+
+    it("survives the reload it exists for", () => {
+        rememberEncoderSession("post-1", handle);
+
+        expect(recallEncoderSession("post-1")).toEqual(handle);
+    });
+
+    it("is scoped to its document, so one post cannot follow another's encode", () => {
+        rememberEncoderSession("post-1", handle);
+
+        expect(recallEncoderSession("post-2")).toBeUndefined();
+    });
+
+    it("is gone once forgotten", () => {
+        rememberEncoderSession("post-1", handle);
+        forgetEncoderSession("post-1");
+
+        expect(recallEncoderSession("post-1")).toBeUndefined();
+    });
+
+    it("ignores a half-written handle rather than following an unusable one", () => {
+        localStorage.setItem("cms_encoderSession_post-1", JSON.stringify({ sessionId: "s1" }));
+
+        expect(recallEncoderSession("post-1")).toBeUndefined();
+    });
+
+    it("ignores unparseable storage", () => {
+        localStorage.setItem("cms_encoderSession_post-1", "not json");
+
+        expect(recallEncoderSession("post-1")).toBeUndefined();
     });
 });

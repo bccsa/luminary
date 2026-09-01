@@ -13,6 +13,7 @@ const encoderState = {
     sessionId: ref<string | undefined>(undefined),
     refreshAvailability: vi.fn().mockResolvedValue(true),
     start: vi.fn(),
+    resume: vi.fn().mockResolvedValue(false),
     stop: vi.fn(),
 };
 
@@ -36,6 +37,7 @@ beforeEach(() => {
     encoderState.progress.value = undefined;
     encoderState.error.value = undefined;
     encoderState.start.mockClear();
+    encoderState.resume.mockClear();
 });
 
 describe("EncodeMediaButton status text", () => {
@@ -112,5 +114,56 @@ describe("EncodeMediaButton availability", () => {
 
         expect(button.attributes("disabled")).toBeDefined();
         expect(button.attributes("title")).toContain("Save the document");
+    });
+});
+
+describe("EncodeMediaButton browser support", () => {
+    it("says the browser is the problem rather than offering a link that cannot work", () => {
+        encoderState.availability.value = "browser-unsupported";
+
+        const wrapper = mountButton();
+
+        expect(wrapper.find('[data-test="encoder-browser-unsupported"]').exists()).toBe(true);
+        expect(wrapper.find('[data-test="encoder-launch"]').exists()).toBe(false);
+        expect(wrapper.find('[data-test="encode-media-button"]').exists()).toBe(false);
+    });
+
+    it("names the browser that does work", () => {
+        encoderState.availability.value = "browser-unsupported";
+
+        const notice = mountButton().find('[data-test="encoder-browser-unsupported"]');
+
+        expect(notice.attributes("title")).toContain("Chrome");
+    });
+});
+
+describe("EncodeMediaButton resume", () => {
+    it("asks whether this document already has an encode running", async () => {
+        mountButton();
+        await new Promise((resolve) => setTimeout(resolve));
+
+        expect(encoderState.resume).toHaveBeenCalledWith(
+            expect.objectContaining({ documentId: "post-1" }),
+        );
+    });
+
+    it("has nothing to resume for a document that has never been saved", async () => {
+        mountButton({ documentId: undefined });
+        await new Promise((resolve) => setTimeout(resolve));
+
+        expect(encoderState.resume).not.toHaveBeenCalled();
+    });
+
+    it("follows the editor to another document rather than the one it was built for", async () => {
+        const wrapper = mountButton();
+        await new Promise((resolve) => setTimeout(resolve));
+        encoderState.resume.mockClear();
+
+        await wrapper.setProps({ documentId: "post-2" });
+        await new Promise((resolve) => setTimeout(resolve));
+
+        expect(encoderState.resume).toHaveBeenCalledWith(
+            expect.objectContaining({ documentId: "post-2" }),
+        );
     });
 });
