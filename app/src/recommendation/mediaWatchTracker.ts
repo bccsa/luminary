@@ -15,7 +15,7 @@ export type MediaWatchTracker = {
     track: (position: number) => void;
     /**
      * True the first time the played fraction reaches `thresholdPercent` of `duration`.
-     * An unknown or live duration never qualifies.
+     * An unknown or live duration, or a missing threshold, never qualifies.
      */
     claimCompletionIfWatched: (duration: number, thresholdPercent: number) => boolean;
     /**
@@ -50,6 +50,7 @@ export function createMediaWatchTracker(): MediaWatchTracker {
         claimCompletionIfWatched(duration, thresholdPercent) {
             if (completionClaimed) return false;
             if (!Number.isFinite(duration) || duration <= 0) return false;
+            if (!Number.isFinite(thresholdPercent) || thresholdPercent <= 0) return false;
             if (watchedSeconds / duration < thresholdPercent / 100) return false;
             return claimCompletion();
         },

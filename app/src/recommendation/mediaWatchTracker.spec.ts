@@ -47,6 +47,18 @@ describe("createMediaWatchTracker", () => {
         expect(tracker.claimCompletionIfWatched(0, 75)).toBe(false);
     });
 
+    it("never completes on a missing or non-finite threshold", () => {
+        const tracker = createMediaWatchTracker();
+
+        play(tracker, 0, 100);
+
+        expect(tracker.claimCompletionIfWatched(100, undefined as unknown as number)).toBe(false);
+        expect(tracker.claimCompletionIfWatched(100, NaN)).toBe(false);
+        expect(tracker.claimCompletionIfWatched(100, 0)).toBe(false);
+        // Still unclaimed, so a real threshold can fire afterwards.
+        expect(tracker.claimCompletionIfWatched(100, 75)).toBe(true);
+    });
+
     it("still lets `ended` claim a completion the threshold never reached", () => {
         const tracker = createMediaWatchTracker();
 

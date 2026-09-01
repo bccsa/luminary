@@ -131,6 +131,18 @@ export const DEFAULT_AFFINITY_CONFIG: AffinityConfig = {
 };
 
 /**
+ * Fills a stored config out with the defaults field by field, so a doc written before a
+ * knob existed yields that knob's default rather than `undefined`.
+ */
+export function resolveAffinityConfig(config?: Partial<AffinityConfig>): AffinityConfig {
+    return {
+        ...DEFAULT_AFFINITY_CONFIG,
+        ...config,
+        eventWeight: { ...DEFAULT_AFFINITY_CONFIG.eventWeight, ...config?.eventWeight },
+    };
+}
+
+/**
  * Shared vocabulary for interaction strength, so every call site agrees on relative
  * weight instead of picking its own number. `Open` is the implicit default in
  * {@link applyEvent}. Explicit intent (bookmarking) and completion (finishing a

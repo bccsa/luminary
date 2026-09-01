@@ -43,6 +43,11 @@ vi.mock("luminary-shared", async () => {
         },
         DEFAULT_AFFINITY_ID: "default-affinity",
         DEFAULT_AFFINITY_CONFIG,
+        resolveAffinityConfig: (config?: any) => ({
+            ...DEFAULT_AFFINITY_CONFIG,
+            ...config,
+            eventWeight: { ...DEFAULT_AFFINITY_CONFIG.eventWeight, ...config?.eventWeight },
+        }),
         hasAnyPermission: vi.fn(() => true),
         useHybridQueryWithState: vi.fn(() => ({ output: ref([]), isFetching: ref(false) })),
         toEditable: vi.fn(() => ({
