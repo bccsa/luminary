@@ -207,6 +207,22 @@ describe("VideoPreview in a dialog", () => {
         expect(player(wrapper).exists()).toBe(false);
     });
 
+    it("survives a click beside the video, which should not throw the preview away", async () => {
+        const wrapper = await mountAndOpen({ hlsUrl: "a1b2c3/master.m3u8" });
+
+        await wrapper.find('[data-test="modal-backdrop"]').trigger("mousedown");
+
+        expect(player(wrapper).exists()).toBe(true);
+    });
+
+    it("still closes on Escape, so nothing is trapped", async () => {
+        const wrapper = await mountAndOpen({ hlsUrl: "a1b2c3/master.m3u8" });
+
+        await wrapper.find('[data-test="modal-content"]').trigger("keydown.esc");
+
+        expect(player(wrapper).exists()).toBe(false);
+    });
+
     it("closes when the document is pointed at a different collection", async () => {
         const wrapper = await mountAndOpen({ hlsUrl: "a1b2c3/master.m3u8" });
 

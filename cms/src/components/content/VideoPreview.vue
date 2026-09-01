@@ -102,6 +102,7 @@ watch(masterUrl, () => (showing.value = false));
             v-model:open="showing"
             title="Preview video"
             wide
+            preventBackdropClose
             :primaryAction="() => (showing = false)"
             primaryButtonText="Close"
         >
