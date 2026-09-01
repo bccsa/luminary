@@ -217,7 +217,7 @@ function handleDelete() {
                             }
                         "
                     />
-                    <p v-if="!isEditing" class="mt-0.5 text-[11px] text-zinc-200">
+                    <p v-if="!isEditing" class="mt-0.5 text-[11px] dark:text-zinc-200">
                         Must be set manually including "http://" or "https://"
                     </p>
                 </div>

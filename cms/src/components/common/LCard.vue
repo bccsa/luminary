@@ -56,7 +56,7 @@ function collapse() {
         :class="[
             bare
                 ? ''
-                : 'border-y border-zinc-300 px-2 shadow-sm sm:mx-0 sm:rounded-md sm:border sm:border-zinc-700 dark:border-slate-700 dark:shadow-none',
+                : 'border-y border-zinc-300 px-2 shadow-sm dark:border-slate-700 dark:shadow-none sm:mx-0 sm:rounded-md sm:border dark:sm:border-zinc-700',
             {
                 'shadow-none': !bare && props.shadow === 'none',
                 'shadow-sm': !bare && props.shadow === 'small',
@@ -128,7 +128,7 @@ function collapse() {
             >
                 <slot />
             </div>
-            <!-- Footer ajusté pour le mode sombre -->
+
             <div v-if="$slots.footer" class="bg-zinc-50 px-2 py-3 dark:bg-slate-900/50">
                 <slot name="footer" />
             </div>

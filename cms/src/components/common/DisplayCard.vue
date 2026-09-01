@@ -47,11 +47,10 @@ const handleClick = () => {
 };
 </script>
 
-Apply
 <template>
     <div
         data-test="display-card"
-        class="w-full divide-y divide-zinc-100 border-y border-zinc-300 bg-white px-2 py-1 transition-all duration-200 dark:divide-slate-800/80 dark:border-slate-700 dark:bg-slate-800/50 dark:hover:divide-slate-700 sm:rounded-md sm:border"
+        class="w-full divide-y divide-zinc-100 border-y border-zinc-300 bg-white px-2 py-1 transition-all duration-200 sm:rounded-md sm:border dark:divide-slate-800/80 dark:border-slate-700 dark:bg-slate-800/50 dark:hover:divide-slate-700"
         :class="[
             {
                 'cursor-pointer hover:bg-zinc-50 dark:hover:bg-slate-800/70 dark:hover:shadow-lg':
@@ -132,7 +131,7 @@ Apply
 
         <div
             v-if="!isSmallScreen && $slots.desktopFooter"
-            class="flex items-center justify-between pt-1 text-xs dark:text-zinc-500 sm:gap-4"
+            class="flex items-center justify-between pt-1 text-xs sm:gap-4 dark:text-zinc-500"
         >
             <slot name="desktopFooter" />
             <div
