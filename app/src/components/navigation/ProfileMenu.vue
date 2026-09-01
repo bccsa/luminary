@@ -19,6 +19,7 @@ import {
     Cog6ToothIcon,
     LanguageIcon,
     SunIcon,
+    ChevronRightIcon,
 } from "@heroicons/vue/24/outline";
 import LanguageModal from "@/components/navigation/LanguageModal.vue";
 import { appLanguageAsRef } from "@/globalConfig";
@@ -330,6 +331,22 @@ const sidebarNavigation = computed(() =>
         v-if="trigger !== 'sidebar'"
         v-model:open="menuOpen"
     >
+        <template #header="{ close }">
+            <!-- Close toggle — mirrors the desktop sidebar's collapse button, on the
+                 left edge since this panel slides in from the right -->
+            <button
+                type="button"
+                aria-label="Close menu"
+                class="absolute left-0 top-1/2 z-20 flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-300 bg-white text-zinc-600 shadow-md transition-colors hover:bg-zinc-50 hover:text-zinc-800 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600 dark:hover:text-slate-100"
+                @click="close()"
+            >
+                <ChevronRightIcon
+                    class="h-4 w-4 translate-x-0.5"
+                    aria-hidden="true"
+                />
+            </button>
+        </template>
+
         <template #default="{ close }">
             <div class="flex flex-col gap-1 p-3">
                 <!-- Primary nav items -->
@@ -417,7 +434,10 @@ const sidebarNavigation = computed(() =>
                     <!-- Theme -->
                     <span
                         class="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
-                        @click="showThemeSelector = true"
+                        @click="
+                            showThemeSelector = true;
+                            close();
+                        "
                     >
                         <SunIcon
                             class="h-5 w-5 flex-shrink-0"
@@ -429,7 +449,10 @@ const sidebarNavigation = computed(() =>
                     <!-- Language -->
                     <span
                         class="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
-                        @click="showLanguageModal = true"
+                        @click="
+                            showLanguageModal = true;
+                            close();
+                        "
                     >
                         <LanguageIcon
                             class="h-5 w-5 flex-shrink-0"
@@ -474,13 +497,16 @@ const sidebarNavigation = computed(() =>
             </div>
         </template>
 
-        <template #footer>
+        <template #footer="{ close }">
             <div class="border-t border-zinc-200 px-3 py-3 dark:border-slate-700">
                 <!-- Privacy Policy -->
                 <button
                     type="button"
                     class="mb-1 flex w-full cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-left text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
-                    @click="showPrivacyPolicyModal = true"
+                    @click="
+                        showPrivacyPolicyModal = true;
+                        close();
+                    "
                 >
                     <ShieldCheckIcon
                         class="h-5 w-5 flex-shrink-0"
@@ -493,7 +519,10 @@ const sidebarNavigation = computed(() =>
                 <button
                     type="button"
                     class="mb-2 flex w-full cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-left text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
-                    @click="isAuthenticated ? handleLogout() : handleLogin()"
+                    @click="
+                        isAuthenticated ? handleLogout() : handleLogin();
+                        close();
+                    "
                 >
                     <component
                         :is="isAuthenticated ? ArrowRightEndOnRectangleIcon : ArrowLeftEndOnRectangleIcon"
