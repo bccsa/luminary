@@ -12,6 +12,7 @@ import { nextTick, onActivated, ref } from "vue";
 import { markPageReady } from "@/util/renderState";
 import { useLocalizedStaticHead } from "@/seo/contentHead";
 
+const hasPinnedRows = ref(false);
 const pinnedResolved = ref(false);
 const newestResolved = ref(false);
 
@@ -31,14 +32,17 @@ useLocalizedStaticHead("/");
 <template>
     <BasePage>
         <IgnorePagePadding ignoreTop>
-            <HomePageSearch v-if="isMdScreen" />
+            <HomePageSearch
+                v-if="isMdScreen"
+                :has-pinned-rows="hasPinnedRows"
+            />
             <Suspense
                 @resolve="
                     pinnedResolved = true;
                     checkReady();
                 "
             >
-                <HomePagePinned />
+                <HomePagePinned @has-rows="hasPinnedRows = $event" />
             </Suspense>
             <Suspense
                 @resolve="

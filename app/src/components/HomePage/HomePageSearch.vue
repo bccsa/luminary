@@ -2,22 +2,17 @@
 import { MagnifyingGlassIcon } from "@heroicons/vue/24/outline";
 import { useSearchOverlay } from "@/composables/useSearchOverlay";
 import { isMac, isMobileScreen } from "@/globalConfig";
-import { useContentQuery } from "@/composables/useContentQuery";
 import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
+
+const props = defineProps<{ hasPinnedRows?: boolean }>();
 
 const { openSearch } = useSearchOverlay();
 const { t } = useI18n();
 const router = useRouter();
 
 const shortcutLabel = computed(() => (isMac.value ? "⌘K" : "Ctrl+K"));
-const pinnedCategories = useContentQuery(() => [{ parentPinned: 1 }], {
-    cache: true,
-    useIndex: "content-parentPinned-publishDate-index",
-    sort: [{ publishDate: "desc" }],
-});
-const hasPinnedCategories = computed(() => pinnedCategories.value.length > 0);
 
 // Desktop opens the search modal overlay; mobile navigates to the dedicated /search page
 // (the bottom-menu search button does the same — the modal is desktop-only).
@@ -46,7 +41,7 @@ onMounted(() => {
 <template>
     <section
         class="px-4 pt-2"
-        :class="hasPinnedCategories ? 'bg-yellow-500/10 dark:bg-yellow-500/5' : ''"
+        :class="props.hasPinnedRows ? 'bg-yellow-500/10 dark:bg-yellow-500/5' : ''"
     >
         <div class="mx-auto max-w-xl">
             <button
