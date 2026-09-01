@@ -14,8 +14,9 @@
 import { computed, ref, watch } from "vue";
 import LButton from "@/components/button/LButton.vue";
 import LModal from "@/components/modals/LModal.vue";
+import LBadge from "@/components/common/LBadge.vue";
 import { PlayCircleIcon } from "@heroicons/vue/24/outline";
-import { LockClosedIcon, LockOpenIcon, ClipboardIcon, CheckIcon } from "@heroicons/vue/20/solid";
+import { LockClosedIcon, LockOpenIcon } from "@heroicons/vue/16/solid";
 import { LuminaryPlayer, type PlayerSource } from "@luminary-media-converter/player-web-legacy";
 import { type ContentParentDto, SidecarType, getRest, unmaskKeyHex } from "luminary-shared";
 import { storageSelection } from "@/composables/storageSelection";
@@ -121,9 +122,6 @@ const encodeNote = computed(() => {
         : "The encode is still running.";
 });
 
-/** The bucket the relative URL was resolved through, for the footer to name. */
-const bucketName = computed(() => getBucketById(props.parent?.mediaBucketId ?? null)?.name);
-
 /**
  * Where the key being used came from.
  *
@@ -135,23 +133,6 @@ const keySource = computed(() => {
     if (storedKey.value) return "saved";
     return undefined;
 });
-
-const copied = ref(false);
-
-/**
- * The URL is the answer to the question a failed preview always raises, and it is
- * composed rather than stored — so it cannot be copied out of the form above.
- */
-const copyUrl = async () => {
-    if (!masterUrl.value) return;
-    try {
-        await navigator.clipboard.writeText(masterUrl.value);
-        copied.value = true;
-        setTimeout(() => (copied.value = false), 2000);
-    } catch {
-        /* a browser refusing the clipboard is not worth an error state here */
-    }
-};
 
 /**
  * Loaded on request rather than on sight, and in a dialog rather than in the form.
@@ -165,10 +146,7 @@ const showing = ref(false);
 
 // A different document, or a different collection on the same one, is a
 // different thing to check.
-watch(masterUrl, () => {
-    showing.value = false;
-    copied.value = false;
-});
+watch(masterUrl, () => (showing.value = false));
 </script>
 
 <template>
@@ -190,6 +168,28 @@ watch(masterUrl, () => {
             wide
             preventBackdropClose
         >
+            <!--
+                Whether the collection is encrypted decides how it can fail, so it
+                belongs where it is read before pressing play rather than under it.
+            -->
+            <template #rightHeading>
+                <LBadge
+                    :variant="keySource ? 'default' : 'warning'"
+                    :icon="keySource ? LockClosedIcon : LockOpenIcon"
+                    withIcon
+                    :title="
+                        keySource == 'unsaved'
+                            ? 'Playing the key entered above, not yet saved'
+                            : keySource == 'saved'
+                              ? 'Playing the key saved for this video'
+                              : 'This collection is not encrypted'
+                    "
+                    data-test="preview-encryption"
+                >
+                    {{ keySource ? "Encrypted" : "Not encrypted" }}
+                </LBadge>
+            </template>
+
             <div class="overflow-hidden rounded-md bg-black">
                 <LuminaryPlayer
                     v-if="showing"
@@ -241,49 +241,6 @@ watch(masterUrl, () => {
                     </template>
                 </LuminaryPlayer>
             </div>
-
-            <!--
-                What is actually being played. The URL is composed from the bucket's
-                public URL rather than stored, so it is the one thing a broken
-                preview turns on and the one thing the form above cannot show.
-            -->
-            <template #footer>
-                <div class="flex flex-col gap-1.5 text-xs text-zinc-500">
-                    <div class="flex items-center gap-1.5" data-test="preview-encryption">
-                        <component
-                            :is="keySource ? LockClosedIcon : LockOpenIcon"
-                            class="h-3.5 w-3.5 shrink-0"
-                        />
-                        <span v-if="keySource == 'unsaved'">
-                            Encrypted — playing the key entered above, not yet saved
-                        </span>
-                        <span v-else-if="keySource == 'saved'">
-                            Encrypted — playing the key saved for this video
-                        </span>
-                        <span v-else>Not encrypted</span>
-                    </div>
-
-                    <div class="flex items-center gap-2">
-                        <span class="truncate font-mono" :title="masterUrl" data-test="preview-url">
-                            {{ masterUrl }}
-                        </span>
-                        <button
-                            type="button"
-                            class="flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 font-medium text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900"
-                            data-test="preview-copy-url"
-                            @click="copyUrl"
-                        >
-                            <component
-                                :is="copied ? CheckIcon : ClipboardIcon"
-                                class="h-3.5 w-3.5"
-                            />
-                            {{ copied ? "Copied" : "Copy" }}
-                        </button>
-                    </div>
-
-                    <p v-if="bucketName" data-test="preview-bucket">via {{ bucketName }}</p>
-                </div>
-            </template>
         </LModal>
     </div>
 </template>
