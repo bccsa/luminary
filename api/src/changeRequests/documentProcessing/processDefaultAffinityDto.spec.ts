@@ -62,6 +62,7 @@ describe("processDefaultAffinityDto", () => {
                     maxTags: 5000,
                     depthScale: 0,
                     readFloorPercent: 150,
+                    mediaCompletionPercent: 0,
                     eventWeight: {
                         bookmark: 5,
                         bookmarkRemoved: NaN as unknown as number,
@@ -80,6 +81,7 @@ describe("processDefaultAffinityDto", () => {
             expect(doc.config?.maxTags).toBe(500);
             expect(doc.config?.depthScale).toBe(1);
             expect(doc.config?.readFloorPercent).toBe(100);
+            expect(doc.config?.mediaCompletionPercent).toBe(1);
             expect(doc.config?.eventWeight.bookmark).toBe(1);
             // Malformed field falls back to the default rather than being clamped to a bound.
             expect(doc.config?.eventWeight.bookmarkRemoved).toBe(
@@ -95,6 +97,7 @@ describe("processDefaultAffinityDto", () => {
                 maxTags: 40,
                 depthScale: 15,
                 readFloorPercent: 15,
+                mediaCompletionPercent: 80,
                 eventWeight: {
                     bookmark: 0.2,
                     bookmarkRemoved: -0.1,

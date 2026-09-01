@@ -12,6 +12,7 @@ import { getMediaProgress, removeMediaProgress, setMediaProgress } from "@/conte
 import { recordAffinity } from "@/recommendation/affinityStore";
 import { affinityConfig } from "@/recommendation/defaultAffinityStore";
 import { markSeen } from "@/recommendation/seenStore";
+import { createMediaWatchTracker } from "@/recommendation/mediaWatchTracker";
 import { extractAndBuildAudioMaster } from "./extractAndBuildAudioMaster";
 import { isYouTubeUrl, convertToVideoJSYouTubeUrl } from "@/util/youtube";
 
@@ -47,6 +48,19 @@ if (props.content.video) {
 }
 
 const AUDIO_MODE_TIME_ADJUSTMENT = 0.25;
+
+const watchTracker = createMediaWatchTracker();
+
+/**
+ * Score a completion. Both call sites claim it from the tracker first, so a watch that
+ * crossed the threshold isn't counted again when the track ends.
+ */
+function applyCompletion() {
+    recordAffinity(props.content.parentTags, affinityConfig.value.eventWeight.completion);
+    // mediaProgress is a 10-slot ring buffer used only to resume playback,
+    // not a history — record completion in the durable seen store instead.
+    markSeen(props.content._id);
+}
 
 let timeout: ReturnType<typeof setTimeout> | undefined;
 function autoHidePlayerControls() {
@@ -330,6 +344,17 @@ onMounted(async () => {
             const currentTime = player?.currentTime() || 0;
             const durationTime = player?.duration() || 0;
 
+            watchTracker.track(currentTime);
+            if (
+                watchTracker.claimCompletionIfWatched(
+                    durationTime,
+                    affinityConfig.value.mediaCompletionPercent,
+                )
+            ) {
+                // The saved progress deliberately stays put — there's still a tail to resume.
+                applyCompletion();
+            }
+
             const videoSource = props.content.video || props.content.parentMedia?.hlsUrl;
             if (durationTime == Infinity || !videoSource || currentTime < 60) return;
 
@@ -377,10 +402,7 @@ onMounted(async () => {
             // open. This is the single completion call site (of the player's several
             // `ended`/near-end listeners) that fires for every source, so affinity isn't
             // double-counted for YouTube videos wired to more than one of them.
-            recordAffinity(props.content.parentTags, affinityConfig.value.eventWeight.completion);
-            // mediaProgress is a 10-slot ring buffer used only to resume playback,
-            // not a history — record completion in the durable seen store instead.
-            markSeen(props.content._id);
+            if (watchTracker.claimCompletion()) applyCompletion();
 
             try {
                 player?.exitFullscreen();
