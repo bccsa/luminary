@@ -281,6 +281,15 @@ describe("the encryption marker", () => {
         );
     });
 
+    it("reads as a badge, not a line of grey text lost beside the close control", async () => {
+        const wrapper = await mountAndOpen({ hlsUrl: "/a1b2c3/master.m3u8", hlsKey: "beef" });
+        const badge = wrapper.find('[data-test="preview-encryption"]');
+
+        // The stated fact is the visible one; an unencrypted collection is not an alarm.
+        expect(badge.classes().join(" ")).toContain("bg-blue-100");
+        expect(badge.find("svg").exists()).toBe(true);
+    });
+
     it("leaves nothing under the player to read", async () => {
         const wrapper = await mountAndOpen({ hlsUrl: "/a1b2c3/master.m3u8" });
 

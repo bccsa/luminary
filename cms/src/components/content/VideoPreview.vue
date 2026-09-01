@@ -174,9 +174,10 @@ watch(masterUrl, () => (showing.value = false));
             -->
             <template #rightHeading>
                 <LBadge
-                    :variant="keySource ? 'default' : 'warning'"
+                    :variant="keySource ? 'success' : 'default'"
                     :icon="keySource ? LockClosedIcon : LockOpenIcon"
                     withIcon
+                    paddingY="py-0.5"
                     :title="
                         keySource == 'unsaved'
                             ? 'Playing the key entered above, not yet saved'
