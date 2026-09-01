@@ -285,8 +285,8 @@ describe("the encryption marker", () => {
         const wrapper = await mountAndOpen({ hlsUrl: "/a1b2c3/master.m3u8", hlsKey: "beef" });
         const badge = wrapper.find('[data-test="preview-encryption"]');
 
-        // The stated fact is the visible one; an unencrypted collection is not an alarm.
-        expect(badge.classes().join(" ")).toContain("bg-blue-100");
+        // Green reads as secured; an unencrypted collection is quiet, not an alarm.
+        expect(badge.classes().join(" ")).toContain("bg-green-100");
         expect(badge.find("svg").exists()).toBe(true);
     });
 
