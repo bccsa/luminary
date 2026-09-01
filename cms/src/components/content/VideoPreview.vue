@@ -12,6 +12,9 @@
  * not.
  */
 import { computed, ref, watch } from "vue";
+import LButton from "@/components/button/LButton.vue";
+import LDialog from "@/components/common/LDialog.vue";
+import { PlayCircleIcon } from "@heroicons/vue/24/outline";
 import { LuminaryPlayer, type PlayerSource } from "@luminary-media-converter/player-web-legacy";
 import { type ContentParentDto, SidecarType, getRest, unmaskKeyHex } from "luminary-shared";
 import { storageSelection } from "@/composables/storageSelection";
@@ -69,11 +72,12 @@ const source = computed<PlayerSource | null>(() =>
 );
 
 /**
- * Loaded on request rather than on sight.
+ * Loaded on request rather than on sight, and in a dialog rather than in the form.
  *
  * Opening a document should not start fetching segments from a bucket — an
  * editor opens many and previews few, and a preview that plays itself is a
- * surprise in a form.
+ * surprise in a form. The dialog also gives the picture room the edit column does
+ * not have, and unmounts the player on close, so closing actually stops it.
  */
 const showing = ref(false);
 
@@ -83,23 +87,32 @@ watch(masterUrl, () => (showing.value = false));
 </script>
 
 <template>
-    <div v-if="source" class="pt-2" data-test="video-preview">
-        <button
-            v-if="!showing"
-            type="button"
-            class="text-sm font-medium text-zinc-600 underline underline-offset-2 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200"
+    <div v-if="source" data-test="video-preview">
+        <LButton
+            variant="secondary"
+            size="sm"
+            :icon="PlayCircleIcon"
             data-test="video-preview-load"
             @click="showing = true"
         >
-            Preview this video
-        </button>
+            Preview video
+        </LButton>
 
-        <div v-else class="overflow-hidden rounded-md bg-black">
-            <LuminaryPlayer
-                :source="source"
-                :controls="{ subtitlesMenu: false }"
-                data-test="video-preview-player"
-            />
-        </div>
+        <LDialog
+            v-model:open="showing"
+            title="Preview video"
+            largeModal
+            :primaryAction="() => (showing = false)"
+            primaryButtonText="Close"
+        >
+            <div class="overflow-hidden rounded-md bg-black">
+                <LuminaryPlayer
+                    v-if="showing"
+                    :source="source"
+                    :controls="{ subtitlesMenu: false }"
+                    data-test="video-preview-player"
+                />
+            </div>
+        </LDialog>
     </div>
 </template>

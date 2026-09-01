@@ -25,7 +25,6 @@ import { DocumentIcon, TagIcon } from "@heroicons/vue/24/solid";
 import { computed, ref, watch } from "vue";
 import EditContentText from "@/components/content/EditContentText.vue";
 import EditContentBasic from "@/components/content/EditContentBasic.vue";
-import EditContentVideo from "@/components/content/EditContentVideo.vue";
 import EditContentParentValidation from "@/components/content/EditContentParentValidation.vue";
 import EmptyState from "@/components/EmptyState.vue";
 import LoadingBar from "@/components/LoadingBar.vue";
@@ -551,30 +550,11 @@ const actionsWrapperProps = computed(() => ({
 
                                         <EditContentMedia
                                             v-if="editableParent"
-                                            embedded
-                                            :docType="props.docType"
-                                            :tagOrPostType="props.tagOrPostType"
                                             :disabled="!canEditParent"
-                                            :newDocument="newDocument"
                                             :title="editableContent?.[0]?.title"
+                                            :showVideo="Boolean(selectedContent)"
                                             v-model:parent="editableParent"
                                         />
-
-                                        <!-- light-polish: video sits with media in the
-                                             settings card (the two merge later). -->
-                                        <template v-if="selectedContent">
-                                            <div
-                                                class="border-t border-zinc-200 pt-3"
-                                                role="separator"
-                                                aria-hidden="true"
-                                            />
-                                            <EditContentVideo
-                                                v-if="editableParent"
-                                                bare
-                                                v-model:parent="editableParent"
-                                                :disabled="!canEditParent"
-                                            />
-                                        </template>
                                     </div>
                                 </div>
                             </template>

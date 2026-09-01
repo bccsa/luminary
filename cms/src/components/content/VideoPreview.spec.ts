@@ -11,7 +11,10 @@ vi.mock("@luminary-media-converter/player-web-legacy", async () => {
     return {
         LuminaryPlayer: defineComponent({
             name: "LuminaryPlayer",
-            props: { source: { type: Object, required: true }, controls: { type: Object, default: undefined } },
+            props: {
+                source: { type: Object, required: true },
+                controls: { type: Object, default: undefined },
+            },
             setup: () => () => h("div", { class: "player-stub" }),
         }),
     };
@@ -178,6 +181,36 @@ describe("VideoPreview", () => {
         expect(player(wrapper).exists()).toBe(true);
 
         await wrapper.setProps({ parent: parent({ hlsUrl: "/def/master.m3u8" }) });
+
+        expect(player(wrapper).exists()).toBe(false);
+    });
+});
+
+/**
+ * The preview opens in a dialog: the edit column is too narrow to judge a picture
+ * in, and closing has to actually stop the player rather than leave it mounted for
+ * the rest of the editing session.
+ */
+describe("VideoPreview in a dialog", () => {
+    it("plays inside the dialog once opened", async () => {
+        const wrapper = await mountAndOpen({ hlsUrl: "a1b2c3/master.m3u8" });
+
+        expect(player(wrapper).exists()).toBe(true);
+    });
+
+    it("tears the player down on close, so closing stops it", async () => {
+        const wrapper = await mountAndOpen({ hlsUrl: "a1b2c3/master.m3u8" });
+        expect(player(wrapper).exists()).toBe(true);
+
+        await wrapper.find('[data-test="modal-primary-button"]').trigger("click");
+
+        expect(player(wrapper).exists()).toBe(false);
+    });
+
+    it("closes when the document is pointed at a different collection", async () => {
+        const wrapper = await mountAndOpen({ hlsUrl: "a1b2c3/master.m3u8" });
+
+        await wrapper.setProps({ parent: parent({ hlsUrl: "d4e5f6/master.m3u8" }) });
 
         expect(player(wrapper).exists()).toBe(false);
     });
