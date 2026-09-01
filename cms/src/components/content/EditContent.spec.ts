@@ -29,6 +29,19 @@ import IncomingChangesModal from "./IncomingChangesModal.vue";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+const applyRemoteContentUpdate = async (changes: Partial<ContentDto>) => {
+    const current = await db.get<ContentDto>(mockData.mockEnglishContentDto._id);
+    if (!current) throw new Error("Expected the English content fixture to exist");
+
+    await db.bulkPut([
+        {
+            ...current,
+            ...changes,
+            updatedTimeUtc: current.updatedTimeUtc + 1,
+        },
+    ]);
+};
+
 vi.mock("@/auth", async () => (await import("@/tests/mockAuth")).createAuthMock());
 
 vi.mock("vue-router", async (importOriginal) => {
@@ -81,6 +94,7 @@ describe("EditContent.vue", () => {
         ]);
 
         accessMap.value = { ...mockData.superAdminAccessMap };
+        isConnected.value = false;
         initLanguage();
     });
 
@@ -1297,15 +1311,19 @@ describe("EditContent.vue", () => {
             });
 
             // Someone else changes a different field on the same content doc.
-            await db.docs.put({
-                ...mockData.mockEnglishContentDto,
-                author: "Remote Author",
-                updatedTimeUtc: Date.now(),
-            } as ContentDto);
+            await applyRemoteContentUpdate({ author: "Remote Author" });
 
             await waitForExpect(() => {
+                const existingContent = wrapper
+                    .findComponent(IncomingChangesModal)
+                    .props("existingContent");
+                expect(
+                    existingContent?.find(
+                        (content) => content._id === mockData.mockEnglishContentDto._id,
+                    )?.author,
+                ).toBe("Remote Author");
                 expect(wrapper.find('[data-test="incoming-changes-banner"]').exists()).toBe(true);
-            });
+            }, 10_000);
 
             // Reviewing opens the read-only diff modal.
             await wrapper.find('[data-test="incoming-changes-review"]').trigger("click");
@@ -1327,14 +1345,20 @@ describe("EditContent.vue", () => {
             });
 
             // Remote change with no local edits: toEditable folds it in silently (no conflict).
-            await db.docs.put({
-                ...mockData.mockEnglishContentDto,
-                author: "Remote Author",
-                updatedTimeUtc: Date.now(),
-            } as ContentDto);
-            await wait(100); // let the live query propagate the change in
+            await applyRemoteContentUpdate({ author: "Remote Author" });
+
+            await waitForExpect(() => {
+                const existingContent = wrapper
+                    .findComponent(IncomingChangesModal)
+                    .props("existingContent");
+                expect(
+                    existingContent?.find(
+                        (content) => content._id === mockData.mockEnglishContentDto._id,
+                    )?.author,
+                ).toBe("Remote Author");
+            }, 10_000);
 
             expect(wrapper.find('[data-test="incoming-changes-banner"]').exists()).toBe(false);
-        });
+        }, 15000);
     });
 });

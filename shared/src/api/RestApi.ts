@@ -6,6 +6,7 @@ import { db } from "../db/database";
 import { useDexieLiveQuery } from "../util";
 import { syncLocalChanges } from "./syncLocalChanges";
 import type { ApiFtsResult } from "../fts/types";
+import { effectScope, type EffectScope } from "vue";
 
 /**
  * Query for the server-side full-text search endpoint (`POST /fts`).
@@ -100,6 +101,7 @@ export type SidecarResponse = {
 
 class RestApi {
     private http: HttpReq<any>;
+    private scope: EffectScope;
     /**
      * Create a new REST API client instance
      * @param options - Options
@@ -114,11 +116,22 @@ class RestApi {
 
         this.http = new HttpReq(config.apiUrl || "");
 
-        const localChanges = useDexieLiveQuery(
-            () => db.localChanges.toArray() as unknown as Promise<LocalChangeDto[]>,
-            { initialValue: [] as unknown as LocalChangeDto[] },
-        );
-        syncLocalChanges(localChanges);
+        // The client is constructed outside any component, so the Dexie subscription
+        // needs a scope of its own to be disposable — without one it can never be
+        // unsubscribed and leaks for the lifetime of the process.
+        this.scope = effectScope(true);
+        this.scope.run(() => {
+            const localChanges = useDexieLiveQuery(
+                () => db.localChanges.toArray() as unknown as Promise<LocalChangeDto[]>,
+                { initialValue: [] as unknown as LocalChangeDto[] },
+            );
+            syncLocalChanges(localChanges);
+        });
+    }
+
+    /** Tears down the local-changes subscription. Called when the singleton is replaced. */
+    dispose() {
+        this.scope.stop();
     }
 
     /**
@@ -199,6 +212,7 @@ export function getRest(
 ): RestApi {
     if (rest && !options.reset) return rest;
 
+    rest?.dispose();
     rest = new RestApi();
 
     return rest;

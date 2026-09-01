@@ -256,6 +256,11 @@ export function useReadingProgressTracker(options: {
     /** Language averageReadingSpeed (words per minute); defaults to 200 when unset. */
     averageReadingSpeed: Ref<number | undefined>;
     /**
+     * Whether to disable saving progress to local storage (e.g. for short articles).
+     * Internal tracking for affinity still runs.
+     */
+    disableSaving?: Ref<boolean>;
+    /**
      * Called once, right before internal tracking state is torn down for a content id
      * that had an active session — i.e. on a real content change, `enabled` flipping to
      * false, or unmount. NOT called for a session that never produced any segments (empty
@@ -533,7 +538,9 @@ export function useReadingProgressTracker(options: {
         if (progress >= 100) {
             removeReadingProgress(id);
         } else if (progress > 0) {
-            setReadingProgress(id, progress);
+            if (!options.disableSaving?.value) {
+                setReadingProgress(id, progress);
+            }
         }
     }
 

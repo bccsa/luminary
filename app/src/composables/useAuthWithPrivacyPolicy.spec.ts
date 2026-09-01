@@ -7,7 +7,7 @@ import { userPreferencesAsRef } from "@/globalConfig";
 import { ref } from "vue";
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import waitForExpect from "wait-for-expect";
-import { isAuthPluginInstalled, openProviderModal, useAuth } from "@/auth";
+import { currentReturnTo, isAuthPluginInstalled, openProviderModal, useAuth } from "@/auth";
 
 // Mock userPreferencesAsRef
 vi.mock("@/globalConfig", () => ({
@@ -27,6 +27,7 @@ vi.mock("@/auth", async () => {
     return {
         isAuthPluginInstalled: mockRef(false),
         openProviderModal: vi.fn(),
+        currentReturnTo: vi.fn(() => "/eng/restricted-article"),
         useAuth: vi.fn(() => ({
             isLoading: mockRef(false),
             isAuthenticated: mockRef(false),
@@ -106,6 +107,21 @@ describe("useAuthWithPrivacyPolicy", () => {
         });
     });
 
+    it("carries the page the login was started from through the privacy-policy gate", async () => {
+        const { loginWithRedirect, completePendingLogin } = useAuthWithPrivacyPolicy();
+        loginWithRedirect();
+
+        userPreferencesMock.value.privacyPolicy.status = "accepted";
+        (userPreferencesAsRef as any).value = userPreferencesMock.value;
+        completePendingLogin();
+
+        await waitForExpect(() => {
+            expect(loginWithRedirectMock).toHaveBeenCalledWith({
+                returnTo: "/eng/restricted-article",
+            });
+        });
+    });
+
     it("cancelPendingLogin clears pending login and closes modal", async () => {
         const { loginWithRedirect, cancelPendingLogin } = useAuthWithPrivacyPolicy();
         loginWithRedirect();
@@ -158,6 +174,7 @@ describe("useAuthWithPrivacyPolicy", () => {
         beforeEach(() => {
             isAuthPluginInstalled.value = false;
             (openProviderModal as Mock).mockClear();
+            (currentReturnTo as Mock).mockReturnValue("/eng/restricted-article");
         });
 
         it("gates openProviderModal behind the privacy policy when not accepted", () => {
@@ -200,6 +217,24 @@ describe("useAuthWithPrivacyPolicy", () => {
                 expect(openProviderModal).toHaveBeenCalledTimes(1);
                 expect(showPrivacyPolicyModal.value).toBe(false);
                 expect(hasPendingLogin.value).toBe(false);
+            });
+        });
+
+        it("carries the destination captured at click time into a deferred provider pick", async () => {
+            userPreferencesMock.value.privacyPolicy.status = "not_accepted";
+            (userPreferencesAsRef as any).value = userPreferencesMock.value;
+
+            const { loginWithRedirect, completePendingLogin } = useAuthWithPrivacyPolicy();
+            loginWithRedirect();
+
+            // The privacy-policy modal's "read more" navigates away before acceptance.
+            (currentReturnTo as Mock).mockReturnValue("/eng/privacy-policy");
+            userPreferencesMock.value.privacyPolicy.status = "accepted";
+            (userPreferencesAsRef as any).value = userPreferencesMock.value;
+            completePendingLogin();
+
+            await waitForExpect(() => {
+                expect(openProviderModal).toHaveBeenCalledWith("/eng/restricted-article");
             });
         });
 

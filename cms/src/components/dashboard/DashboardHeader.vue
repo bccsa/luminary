@@ -1,13 +1,11 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { syncActive } from "luminary-shared";
-import { isAuthBypassed, useAuth } from "@/auth";
+import { useAuth } from "@/auth";
 import { ArrowPathIcon } from "@heroicons/vue/20/solid";
 
-const auth = isAuthBypassed ? null : useAuth();
-const userName = computed(() =>
-    isAuthBypassed ? "E2E Test User" : (auth?.user.value?.name ?? "User"),
-);
+const auth = useAuth();
+const userName = computed(() => auth.user.value?.name ?? "User");
 
 const greeting = computed(() => {
     const hour = new Date().getHours();

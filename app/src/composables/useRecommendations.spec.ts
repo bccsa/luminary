@@ -185,6 +185,81 @@ describe("useRecommendations FTS retrieval", () => {
         }
     });
 
+    it("re-runs the search against the new language when the display language is switched", async () => {
+        const tagId = "tag-language-switch-fts";
+        // Comfortably before `sessionNow()` (fixed at module load) so the title docs
+        // still pass the publish-date filter late in the suite.
+        const publishDate = Date.now() - 7 * 24 * 60 * 60 * 1000;
+        // Both translations are seeded so the tag-title query resolves to one doc per display
+        // language rather than falling empty on the switch and cancelling the pending search.
+        // They share a title (an untranslated proper noun), so the synthesized queries are
+        // identical across the switch and only the language list changes.
+        const tagTitle = "Kigali";
+        const tagTitleEng = {
+            ...makeContent("content-tag-language-switch-fts-eng"),
+            parentType: DocType.Tag,
+            parentId: tagId,
+            title: tagTitle,
+            availableTranslations: ["lang-eng", "lang-fra"],
+            publishDate,
+        } as ContentDto;
+        const tagTitleFra = {
+            ...tagTitleEng,
+            _id: "content-tag-language-switch-fts-fra",
+            slug: "content-tag-language-switch-fts-fra",
+            language: "lang-fra",
+        } as ContentDto;
+        const previousLanguages = [...appLanguageIdsAsRef.value];
+        const previousSyncedLanguages = [...appSyncedLanguageIdsAsRef.value];
+        const previousProfile = affinityProfile.value;
+        const ftsSearch = vi.spyOn(shared, "ftsSearch").mockResolvedValue([]);
+        const scope = effectScope();
+
+        try {
+            await shared.db.docs.bulkPut([tagTitleEng, tagTitleFra]);
+            appLanguageIdsAsRef.value = ["lang-eng"];
+            appSyncedLanguageIdsAsRef.value = ["lang-eng"];
+            affinityProfile.value = {
+                affinity: { [tagId]: 0.8 },
+                lastDecayUtc: Date.now(),
+            };
+            scope.run(() => useRecommendations());
+
+            await waitForExpect(() =>
+                expect(ftsSearch).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        query: tagTitle,
+                        languageId: "lang-eng",
+                    }),
+                ),
+            );
+            ftsSearch.mockClear();
+
+            appLanguageIdsAsRef.value = ["lang-fra"];
+            appSyncedLanguageIdsAsRef.value = ["lang-fra"];
+            await nextTick();
+
+            await waitForExpect(() =>
+                expect(ftsSearch).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        query: tagTitle,
+                        languageId: "lang-fra",
+                    }),
+                ),
+            );
+            expect(ftsSearch).not.toHaveBeenCalledWith(
+                expect.objectContaining({ languageId: "lang-eng" }),
+            );
+        } finally {
+            scope.stop();
+            ftsSearch.mockRestore();
+            affinityProfile.value = previousProfile;
+            appLanguageIdsAsRef.value = previousLanguages;
+            appSyncedLanguageIdsAsRef.value = previousSyncedLanguages;
+            await shared.db.docs.bulkDelete([tagTitleEng._id, tagTitleFra._id]);
+        }
+    });
+
     it("uses saved highlighted text to warm recommendations without topic affinity", async () => {
         const languageId = "lang-eng";
         const highlightedMatch = makeContent("highlight-fts-match");
@@ -228,6 +303,68 @@ describe("useRecommendations FTS retrieval", () => {
             appLanguageIdsAsRef.value = previousLanguages;
             appSyncedLanguageIdsAsRef.value = previousSyncedLanguages;
             await shared.db.setLuminaryInternals("highlights", previousHighlights);
+        }
+    });
+});
+
+describe("useRecommendations pinned content", () => {
+    it("drops content with a pinned parent from both the tag and FTS legs", async () => {
+        const languageId = "lang-eng";
+        const tagId = "tag-pinned-exclusion";
+        const publishDate = Date.now() - 7 * 24 * 60 * 60 * 1000;
+        const tagTitleDoc = {
+            ...makeContent("content-tag-pinned-exclusion"),
+            parentType: DocType.Tag,
+            parentId: tagId,
+            title: "Pinned exclusion topic",
+            publishDate,
+        } as ContentDto;
+        const unpinnedTagMatch = makeContent("unpinned-tag-match", [tagId], publishDate);
+        const pinnedTagMatch = {
+            ...makeContent("pinned-tag-match", [tagId], publishDate),
+            parentPinned: 1,
+        } as ContentDto;
+        // A pinned category's own content doc carries no tags, so the FTS leg is the only way
+        // it reaches the feed — the case reported on staging.
+        const unpinnedFtsHit = makeContent("unpinned-fts-hit");
+        const pinnedFtsHit = { ...makeContent("pinned-fts-hit"), parentPinned: 1 } as ContentDto;
+        const previousLanguages = [...appLanguageIdsAsRef.value];
+        const previousSyncedLanguages = [...appSyncedLanguageIdsAsRef.value];
+        const previousProfile = affinityProfile.value;
+        const ftsSearch = vi
+            .spyOn(shared, "ftsSearch")
+            .mockResolvedValue([makeFtsResult(pinnedFtsHit, 10), makeFtsResult(unpinnedFtsHit, 9)]);
+        const scope = effectScope();
+
+        try {
+            await shared.db.docs.bulkPut([tagTitleDoc, unpinnedTagMatch, pinnedTagMatch]);
+            appLanguageIdsAsRef.value = [languageId];
+            appSyncedLanguageIdsAsRef.value = [languageId];
+            affinityProfile.value = { affinity: { [tagId]: 0.8 }, lastDecayUtc: Date.now() };
+            const result = scope.run(() => useRecommendations());
+            if (!result) throw new Error("recommendation scope did not initialize");
+
+            // Both legs have landed once their unpinned docs are ranked, so the absences
+            // below are genuine exclusions rather than a leg that has not resolved yet.
+            await waitForExpect(() => {
+                const ids = result.recommended.value.map((doc) => doc._id);
+                expect(ids).toContain(unpinnedTagMatch._id);
+                expect(ids).toContain(unpinnedFtsHit._id);
+            });
+            const ids = result.recommended.value.map((doc) => doc._id);
+            expect(ids).not.toContain(pinnedTagMatch._id);
+            expect(ids).not.toContain(pinnedFtsHit._id);
+        } finally {
+            scope.stop();
+            ftsSearch.mockRestore();
+            affinityProfile.value = previousProfile;
+            appLanguageIdsAsRef.value = previousLanguages;
+            appSyncedLanguageIdsAsRef.value = previousSyncedLanguages;
+            await shared.db.docs.bulkDelete([
+                tagTitleDoc._id,
+                unpinnedTagMatch._id,
+                pinnedTagMatch._id,
+            ]);
         }
     });
 });

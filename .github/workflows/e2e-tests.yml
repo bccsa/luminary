@@ -15,6 +15,10 @@ env:
 jobs:
     e2e:
         runs-on: ubuntu-latest
+        # APP_BASE_URL/CMS_BASE_URL and the test-user credentials are scoped to
+        # this environment; without it `vars`/`secrets` resolve empty and the
+        # Playwright config throws before any test loads.
+        environment: end-to-end
         timeout-minutes: 20
         defaults:
             run:

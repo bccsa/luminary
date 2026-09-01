@@ -41,7 +41,6 @@ vi.mock("@/globalConfig", async (importOriginal) => {
 vi.mock("@/auth", async () => {
     const { ref } = await import("vue");
     return {
-        isAuthBypassed: false,
         isAuthPluginInstalled: { value: true },
         useAuth: () => ({
             user: ref({ name: "Test User" }),

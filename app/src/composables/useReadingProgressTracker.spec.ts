@@ -135,6 +135,7 @@ function mountTracker(
     blockTexts?: string[],
     elementHeight: number | number[] = 300,
     onSessionEnd?: (endedContentId: string, finalDepthPercent: number) => void,
+    disableSaving = false,
 ) {
     mockElementHeight(elementHeight);
 
@@ -150,6 +151,7 @@ function mountTracker(
             const contentId = ref(TEST_CONTENT_ID);
             const enabled = ref(true);
             const readingSpeed = ref(averageReadingSpeed);
+            const disableSavingRef = ref(disableSaving);
 
             watchEffect(() => {
                 if (scrollable && scrollContainerEl.value) {
@@ -163,6 +165,7 @@ function mountTracker(
                 scrollContainer,
                 enabled,
                 averageReadingSpeed: readingSpeed,
+                disableSaving: disableSavingRef,
                 onSessionEnd,
             });
 
@@ -554,6 +557,34 @@ describe("useReadingProgressTracker", () => {
         advanceDwellMs(BLOCK_ONE_DWELL_MS);
 
         expect(getReadingProgress(TEST_CONTENT_ID)).toBe(50);
+        wrapper.unmount();
+    });
+
+    it("does not persist progress when disableSaving is true, even after dwell completes", async () => {
+        const onSessionEnd = vi.fn();
+        const { wrapper } = mountTracker(
+            2,
+            false,
+            DEFAULT_READING_SPEED_WPM,
+            undefined,
+            300,
+            onSessionEnd,
+            true,
+        );
+        await flushPromises();
+        await nextTick();
+
+        const observer = latestObserver();
+        observer.trigger(observer.elements[0], true);
+        advanceDwellMs(BLOCK_ONE_DWELL_MS);
+
+        expect(getReadingProgress(TEST_CONTENT_ID)).toBe(0);
+
+        // Internal tracking still runs — a session end still reports the live depth.
+        (wrapper.vm as { contentId: string }).contentId = "next-content-id";
+        await nextTick();
+
+        expect(onSessionEnd).toHaveBeenCalledWith(TEST_CONTENT_ID, 50);
         wrapper.unmount();
     });
 

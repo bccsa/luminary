@@ -1,6 +1,12 @@
 import { computed, ref } from "vue";
 import { userPreferencesAsRef } from "@/globalConfig";
-import { isAuthPluginInstalled, openProviderModal, useAuth, type LogoutOptions } from "@/auth";
+import {
+    currentReturnTo,
+    isAuthPluginInstalled,
+    openProviderModal,
+    useAuth,
+    type LogoutOptions,
+} from "@/auth";
 
 // Global state for privacy policy modal
 export const showPrivacyPolicyModal = ref(false);
@@ -65,7 +71,11 @@ export function useAuthWithPrivacyPolicy() {
             isAuthenticated: computed(() => false),
             user: computed(() => null),
             logout: (_opts?: LogoutOptions) => {},
-            loginWithRedirect: () => gateBehindPrivacyPolicy(() => openProviderModal()),
+            // Same capture-on-click reasoning as the installed-provider branch below.
+            loginWithRedirect: () => {
+                const returnTo = currentReturnTo();
+                gateBehindPrivacyPolicy(() => openProviderModal(returnTo));
+            },
             isPrivacyPolicyAccepted,
             showPrivacyPolicyModal,
             hasPendingLogin,
@@ -76,7 +86,12 @@ export function useAuthWithPrivacyPolicy() {
 
     const { isAuthenticated, user, loginWithRedirect: originalLoginWithRedirect, logout } = auth;
 
-    const loginWithRedirect = () => gateBehindPrivacyPolicy(() => originalLoginWithRedirect());
+    // Capture the destination when the user clicks login, not when the redirect
+    // finally starts — the privacy-policy modal can defer that across a route change.
+    const loginWithRedirect = () => {
+        const returnTo = currentReturnTo();
+        gateBehindPrivacyPolicy(() => originalLoginWithRedirect({ returnTo }));
+    };
 
     return {
         isAuthenticated,
