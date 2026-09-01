@@ -4,6 +4,13 @@ import waitForExpect from "wait-for-expect";
 import VideoPreview from "./VideoPreview.vue";
 
 const getSidecarMock = vi.hoisted(() => vi.fn());
+const retryMock = vi.hoisted(() => vi.fn());
+// Which panel the stubbed player is showing, so a test can put it in the state
+// the real player reaches on a missing playlist or a bad key.
+const panelState = vi.hoisted(() => ({
+    panel: undefined as string | undefined,
+    error: undefined as any,
+}));
 const getBucketByIdMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@luminary-media-converter/player-web-legacy", async () => {
@@ -15,7 +22,17 @@ vi.mock("@luminary-media-converter/player-web-legacy", async () => {
                 source: { type: Object, required: true },
                 controls: { type: Object, default: undefined },
             },
-            setup: () => () => h("div", { class: "player-stub" }),
+            // Renders whichever panel the test asks for, the way the real player
+            // renders its own when the lifecycle reaches that state.
+            setup:
+                (_props: any, { slots }: any) =>
+                () =>
+                    h("div", { class: "player-stub" }, [
+                        panelState.panel == "coming-soon" ? slots["coming-soon"]?.() : undefined,
+                        panelState.panel == "error"
+                            ? slots.error?.({ error: panelState.error, retry: retryMock })
+                            : undefined,
+                    ]),
         }),
     };
 });
@@ -282,5 +299,82 @@ describe("what the preview says it is playing", () => {
         const wrapper = await mountAndOpen({ hlsUrl: "/a1b2c3/master.m3u8" });
 
         expect(wrapper.find('[data-test="preview-copy-url"]').exists()).toBe(true);
+    });
+});
+
+/**
+ * The player's own panels are written for a reader, who can do nothing about a
+ * wrong key or a missing segment. These are the mistakes the preview exists to
+ * catch, so they are named for the person who can fix them.
+ */
+describe("what the preview says when it cannot play", () => {
+    const openWithPanel = async (panel: string, error?: Record<string, unknown>, props = {}) => {
+        getBucketByIdMock.mockReturnValue({ publicUrl: "https://cdn.example.com/media" });
+        panelState.panel = panel;
+        panelState.error = error;
+
+        const wrapper = mount(VideoPreview, {
+            props: { parent: parent({ hlsUrl: "/a1b2c3/master.m3u8" }), ...props },
+        });
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        await wrapper.find('[data-test="video-preview-load"]').trigger("click");
+        return wrapper;
+    };
+
+    beforeEach(() => {
+        panelState.panel = undefined;
+        panelState.error = undefined;
+        retryMock.mockClear();
+    });
+
+    it("says nothing is at the URL yet, rather than a reader's coming-soon", async () => {
+        const wrapper = await openWithPanel("coming-soon");
+
+        expect(wrapper.find('[data-test="preview-not-yet"]').text()).toContain(
+            "Nothing at this URL yet",
+        );
+    });
+
+    it("says how far the encode has got, when one is running", async () => {
+        const wrapper = await openWithPanel("coming-soon", undefined, {
+            encodeStatus: "encoding",
+            encodeProgress: 27,
+        });
+
+        expect(wrapper.find('[data-test="preview-not-yet"]').text()).toContain("27%");
+    });
+
+    it("names a wrong key as a wrong key", async () => {
+        const wrapper = await openWithPanel("error", { code: "decrypt-failed" });
+
+        expect(wrapper.find('[data-test="preview-error"]').text()).toContain("key does not match");
+    });
+
+    it("distinguishes a missing segment from a bad key", async () => {
+        const wrapper = await openWithPanel("error", { code: "fetch-failed" });
+
+        expect(wrapper.find('[data-test="preview-error"]').text()).toContain(
+            "missing from the bucket",
+        );
+    });
+
+    it("keeps the code for whoever is asked about it later", async () => {
+        const wrapper = await openWithPanel("error", { code: "invalid-content" });
+
+        expect(wrapper.find('[data-test="preview-error-code"]').text()).toBe("invalid-content");
+    });
+
+    it("still says something useful for a failure it has no name for", async () => {
+        const wrapper = await openWithPanel("error", { code: "unknown" });
+
+        expect(wrapper.find('[data-test="preview-error"]').text()).toContain("could not be played");
+    });
+
+    it("offers the retry the player already knows how to do", async () => {
+        const wrapper = await openWithPanel("error", { code: "network" });
+
+        await wrapper.find('[data-test="preview-retry"]').trigger("click");
+
+        expect(retryMock).toHaveBeenCalled();
     });
 });

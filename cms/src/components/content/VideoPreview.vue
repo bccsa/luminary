@@ -23,6 +23,9 @@ import { toAbsoluteMediaUrl } from "@/util/mediaUrl";
 
 type Props = {
     parent: ContentParentDto | undefined;
+    /** The encode in flight, so "nothing here yet" can say how long is left. */
+    encodeStatus?: string;
+    encodeProgress?: number;
 };
 const props = defineProps<Props>();
 
@@ -71,6 +74,52 @@ const keyHex = computed(() => props.parent?.media?.hlsKey || storedKey.value);
 const source = computed<PlayerSource | null>(() =>
     masterUrl.value ? { masterUrl: masterUrl.value, keyHex: keyHex.value } : null,
 );
+
+/**
+ * What a failure means to the person who can fix it.
+ *
+ * The player types its failures, and the codes map onto exactly the mistakes this
+ * preview exists to catch. Its own panel is written for a reader, who can do
+ * nothing about any of them.
+ */
+const DIAGNOSES: Record<string, { what: string; fix: string }> = {
+    "key-required": {
+        what: "This collection is encrypted and no key was given.",
+        fix: "Add the encryption key above, or re-encode to generate one.",
+    },
+    "decrypt-failed": {
+        what: "The key does not match this collection.",
+        fix: "Check the key above. Media encoded with a different key cannot be recovered.",
+    },
+    "fetch-failed": {
+        what: "Part of the collection is missing from the bucket.",
+        fix: "If the encode is still running, the segments may not be uploaded yet.",
+    },
+    "invalid-content": {
+        what: "This URL does not return a playlist.",
+        fix: "Check it points at the collection's master.m3u8.",
+    },
+    "unsupported-browser": {
+        what: "This browser cannot play the collection.",
+        fix: "Chrome plays every collection the app does.",
+    },
+};
+
+const diagnose = (code?: string) =>
+    (code && DIAGNOSES[code]) || {
+        what: "The collection could not be played.",
+        fix: "Check the URL and the bucket's CORS rules allow the Range header.",
+    };
+
+/** How far along the encode is, when one is running for this document. */
+const encodeNote = computed(() => {
+    if (!props.encodeStatus || props.encodeStatus == "completed") return undefined;
+    if (props.encodeStatus == "failed") return "The encode failed.";
+
+    return props.encodeProgress != undefined
+        ? `Encoding is at ${props.encodeProgress}%.`
+        : "The encode is still running.";
+});
 
 /** The bucket the relative URL was resolved through, for the footer to name. */
 const bucketName = computed(() => getBucketById(props.parent?.mediaBucketId ?? null)?.name);
@@ -147,7 +196,50 @@ watch(masterUrl, () => {
                     :source="source"
                     :controls="{ subtitlesMenu: false }"
                     data-test="video-preview-player"
-                />
+                >
+                    <!--
+                        The player's own panels speak to a reader, who cannot act on
+                        any of this. These speak to the person who can.
+                    -->
+                    <template #coming-soon>
+                        <div class="lmpl-panel" data-test="preview-not-yet">
+                            <p class="text-sm font-medium text-white">Nothing at this URL yet.</p>
+                            <p class="mt-1 max-w-sm text-xs text-zinc-300">
+                                {{
+                                    encodeNote ??
+                                    "The playlist has not been published to the bucket."
+                                }}
+                                Checking again automatically.
+                            </p>
+                        </div>
+                    </template>
+
+                    <template #error="{ error, retry }">
+                        <div class="lmpl-panel" data-test="preview-error">
+                            <p class="text-sm font-medium text-white">
+                                {{ diagnose(error?.code).what }}
+                            </p>
+                            <p class="mt-1 max-w-sm text-xs text-zinc-300">
+                                {{ diagnose(error?.code).fix }}
+                            </p>
+                            <button
+                                type="button"
+                                class="mt-3 rounded-md bg-white/10 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/20"
+                                data-test="preview-retry"
+                                @click="retry"
+                            >
+                                Try again
+                            </button>
+                            <p
+                                v-if="error?.code"
+                                class="mt-2 font-mono text-[11px] text-zinc-500"
+                                data-test="preview-error-code"
+                            >
+                                {{ error.code }}
+                            </p>
+                        </div>
+                    </template>
+                </LuminaryPlayer>
             </div>
 
             <!--

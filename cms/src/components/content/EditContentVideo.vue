@@ -19,6 +19,9 @@ type Props = {
     disabled: boolean;
     /** Render as a plain section (no card chrome / collapse) for nesting in another card. */
     bare?: boolean;
+    /** Passed to the preview, so "nothing here yet" can say how far the encode is. */
+    encodeStatus?: string;
+    encodeProgress?: number;
 };
 defineProps<Props>();
 
@@ -171,7 +174,11 @@ watch(
             unplayable, and the old key cannot be recovered.
         </p>
 
-        <VideoPreview :parent="parent" />
+        <VideoPreview
+            :parent="parent"
+            :encodeStatus="encodeStatus"
+            :encodeProgress="encodeProgress"
+        />
     </LCard>
 
     <LDialog
