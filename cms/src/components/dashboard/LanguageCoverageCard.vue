@@ -47,7 +47,7 @@ const maxContentCount = computed(() => {
                         {{ contentCountPerLanguage[lang._id] ?? 0 }}
                     </span>
                 </div>
-                <div class="mt-0.5 h-1 w-full overflow-hidden rounded-full bg-zinc-100">
+                <div class="dark mt-0.5 h-1 w-full overflow-hidden rounded-full bg-zinc-400">
                     <div
                         class="h-full rounded-full transition-all"
                         :class="

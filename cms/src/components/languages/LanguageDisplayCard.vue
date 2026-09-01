@@ -28,13 +28,13 @@ const isLocalChanges = computed(() => props.hasLocalChanges(props.languagesDoc._
                 <div class="flex justify-between py-2 min-[1500px]:pt-2">
                     <div>
                         <span>
-                            <span class="font-medium text-zinc-100">
+                            <span class="font-medium dark:text-zinc-100">
                                 <LBadge>{{ languagesDoc.languageCode.toLocaleUpperCase() }}</LBadge>
                             </span>
                             <span class="pl-1 text-sm font-medium dark:text-zinc-100">{{
                                 languagesDoc.name
                             }}</span>
-                            <span class="ml-4 font-medium text-zinc-100">
+                            <span class="ml-4 font-medium dark:text-zinc-100">
                                 <LBadge v-if="languagesDoc.default" variant="success">
                                     Default
                                 </LBadge>
