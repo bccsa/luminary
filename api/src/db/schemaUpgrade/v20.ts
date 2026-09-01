@@ -1,89 +1,78 @@
 import { DbService } from "../db.service";
-import { DocType } from "../../enums";
+import { AclPermission, DocType } from "../../enums";
+import { cmsOnlyPermissions } from "../../changeRequests/aclValidation";
+
+/**
+ * The anonymous/default group, deliberately left out of this backfill (see below).
+ */
+const PUBLIC_USERS_GROUP_ID = "group-public-users";
 
 /**
  * Upgrade the database schema from version 19 to 20.
  *
- * Moves the legacy per-language `ContentDto.video` URL onto the parent's
- * `media.hlsUrl` (`_contentParentDto.media`, `MediaDto.hlsUrl`). The CMS video editor
- * (`EditContentVideo.vue`) already writes exclusively to `parent.media.hlsUrl`, and the
- * app already prefers `parentMedia.hlsUrl` over `content.video` (`videoSourceFor`) — so
- * `video` is dead weight on any Content doc whose parent already has an `hlsUrl`, and a
- * stale leftover on parents that don't.
+ * Backfills `CmsView` on existing ACL entries that hold a CMS-only permission (Edit, Delete, Assign,
+ * Translate, Publish). Those permissions used to imply `View`, so entries were granted app-facing
+ * visibility as a side effect of a CMS-only permission change; `CmsView` is what they actually
+ * imply. Entries holding `View` alone are genuine app-consumer grants and are left untouched, so
+ * CmsView stays a real, narrowable permission (ADR 0013).
  *
- * For each Post/Tag with no `media.hlsUrl`, the first non-empty `video` found among its
- * child Content docs (across languages) is copied onto `parent.media.hlsUrl` — the
- * per-parent `media` field can only hold one collection, so this is a many-to-one
- * collapse; any other distinct value among the remaining children is logged and
- * dropped. `video` is then deleted from every child that had it, regardless of whether
- * its value was the one kept, since a per-child video field is no longer read anywhere
- * once `parentMedia.hlsUrl` exists.
+ * Entries granting `group-public-users` are skipped: it is effectively the anonymous group, so a
+ * CMS-only permission granted to it must not turn into CMS visibility of drafts and expired content
+ * for anyone opening the CMS. Its one intended CmsView grant (AuthProvider) was made by v19.
+ *
+ * Idempotent: only pushes CmsView where missing, so re-running (e.g. `npm run seed` runs the upgrade
+ * chain) is a no-op. Uses `insertDoc` to preserve `updatedTimeUtc`; the granted access takes effect
+ * via the server-recomputed AccessMap delivered to clients on connect.
  */
 export default async function (db: DbService) {
     try {
         const schemaVersion = await db.getSchemaVersion();
-        if (schemaVersion !== 19) {
+        if (schemaVersion === 19) {
+            console.info("Upgrading database schema from version 19 to 20");
+
+            let updatedCount = 0;
+            let skippedCount = 0;
+
+            await db.processAllDocs([DocType.Group], async (doc: any) => {
+                if (!doc || !Array.isArray(doc.acl)) return;
+
+                let changed = false;
+
+                doc.acl.forEach((entry: any) => {
+                    if (!Array.isArray(entry.permission)) return;
+                    // The grantee is entry.groupId — the group the permission is given to.
+                    if (entry.groupId === PUBLIC_USERS_GROUP_ID) return;
+                    if (entry.permission.includes(AclPermission.CmsView)) return;
+                    if (
+                        !entry.permission.some((p: AclPermission) => cmsOnlyPermissions.includes(p))
+                    )
+                        return;
+
+                    entry.permission.push(AclPermission.CmsView);
+                    changed = true;
+                });
+
+                if (changed) {
+                    await db.insertDoc(doc);
+                    updatedCount++;
+                } else {
+                    skippedCount++;
+                }
+            });
+
+            console.info(
+                `CmsView implication backfill complete: ${updatedCount} groups updated, ${skippedCount} unchanged`,
+            );
+
+            await db.setSchemaVersion(20);
+            console.info("Database schema upgrade from version 19 to 20 completed successfully");
+        } else {
             console.info(
                 `Skipping schema upgrade v20: current version is ${schemaVersion}, expected 19`,
             );
-            return;
         }
-
-        console.info(`Upgrading database schema from version ${schemaVersion} to 20`);
-
-        const stats = {
-            parentsScanned: 0,
-            parentsUpdated: 0,
-            childrenCleared: 0,
-            valuesDropped: 0,
-        };
-
-        for (const docType of [DocType.Post, DocType.Tag]) {
-            const { docs: parents } = await db.getDocsByType(docType);
-
-            for (const parent of parents) {
-                stats.parentsScanned++;
-
-                const { docs: children } = await db.getContentByParentId(parent._id);
-                const withVideo = (children as any[]).filter((c) => c.video);
-                if (!withVideo.length) continue;
-
-                if (!parent.media?.hlsUrl) {
-                    if (!parent.media) parent.media = { fileCollections: [] };
-                    parent.media.hlsUrl = withVideo[0].video;
-
-                    const distinctValues = new Set(withVideo.map((c) => c.video));
-                    if (distinctValues.size > 1) {
-                        stats.valuesDropped += distinctValues.size - 1;
-                        console.warn(
-                            `Parent ${parent._id} had ${distinctValues.size} distinct legacy video URLs across its content languages; kept "${withVideo[0].video}" on media.hlsUrl, dropped the rest.`,
-                        );
-                    }
-
-                    parent.updatedTimeUtc = Date.now();
-                    await db.upsertDoc(parent);
-                    stats.parentsUpdated++;
-                }
-
-                for (const child of withVideo) {
-                    delete child.video;
-                    child.updatedTimeUtc = Date.now();
-                    await db.upsertDoc(child);
-                    stats.childrenCleared++;
-                }
-            }
-        }
-
-        console.info(
-            `Video-field migration: scanned ${stats.parentsScanned} parent(s); moved a value onto ${stats.parentsUpdated} parent(s)' media.hlsUrl; cleared the legacy video field on ${stats.childrenCleared} content doc(s); ${stats.valuesDropped} distinct value(s) dropped (a parent can only hold one hlsUrl).`,
-        );
-
-        await db.setSchemaVersion(20);
-        console.info(
-            `Database schema upgrade from version ${schemaVersion} to 20 completed successfully`,
-        );
     } catch (error) {
-        console.error("Database schema upgrade to version 20 failed:", error);
+        console.error("Database schema upgrade from version 19 to 20 failed:", error);
         throw error;
     }
 }

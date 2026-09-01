@@ -21,6 +21,7 @@ export const DEFAULT_AFFINITY_CONFIG: AffinityConfigDto = {
     maxTags: 50,
     depthScale: 20,
     readFloorPercent: 20,
+    mediaCompletionPercent: 75,
     eventWeight: {
         bookmark: 0.0025,
         bookmarkRemoved: -0.0015,

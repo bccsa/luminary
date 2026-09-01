@@ -3,14 +3,8 @@ import { createApp, watch } from "vue";
 import { createPinia } from "pinia";
 import App from "./App.vue";
 import router from "./router";
-import {
-    setupAuth,
-    openProviderModal,
-    clearAuthCache,
-    resolveActiveProvider,
-    loginWithProvider,
-    refreshTokenSilently,
-} from "@/auth";
+import { setupAuth } from "@/auth";
+import { registerAuthFailureHandler } from "@/authFailure";
 import { useNotificationStore } from "./stores/notification";
 import { appPluginsManager } from "@/build-time/contracts/plugin-registry";
 import { getSocket, init, warmMangoCaches, serverError } from "luminary-shared";
@@ -84,44 +78,14 @@ async function Startup() {
     // without a page refresh. Registered before connect — socket.io buffers it.
     initLivePublishClock();
 
-    // Register the apiAuthFailed listener BEFORE setupAuth(), because setupAuth()
-    // may connect the socket with an expired token — if the listener isn't ready
-    // by then, the event is lost and the client loops forever.
-    socket.on(
-        "connect_error",
-        async (err: Error & { data?: { type?: string; reason?: string } }) => {
-            if (err.data?.type !== "auth_failed" && err.message !== "auth_failed") return;
-            const reason = err.data?.reason;
+    registerAuthFailureHandler();
 
-            // Provider was deleted / never existed: don't re-attempt login with
-            // the cached provider (it'll loop). Force the user through provider
-            // selection instead.
-            if (reason === "provider_not_found") {
-                clearAuthCache();
-                socket.setAuth("", null);
-                openProviderModal();
-                return;
-            }
-
-            // Normal case: the access token expired. Ask the OIDC client for a
-            // fresh one via the refresh token — no redirect needed. Bypass
-            // the client's token cache: the server already rejected what we had,
-            // so the cached copy is useless and we must hit the token endpoint.
-            if (await refreshTokenSilently({ ignoreCache: true })) return;
-
-            // The refresh token itself is gone or rejected — need a visible
-            // re-login.
-            Sentry?.captureMessage("API authentication failed; silent refresh failed");
-            const lastProvider = await resolveActiveProvider();
-            clearAuthCache();
-            socket.setAuth("", null);
-            if (lastProvider) {
-                await loginWithProvider(lastProvider, { prompt: "login" });
-            } else {
-                openProviderModal();
-            }
-        },
-    );
+    // Start the auth-provider/language sync watcher before setupAuth(), which may
+    // connect the socket (directly, or indirectly via the auth-failure handler
+    // above forcing an anonymous reconnect): if the watcher isn't listening yet,
+    // the isConnected/accessMap transition that should kick off the AuthProvider
+    // sync is missed until some later, unrelated change re-triggers it.
+    initAuthLangSync();
 
     await setupAuth(app, router);
     socket.connect(); // ensure socket connects for public users (no-op if auth already called reconnect())
@@ -162,7 +126,6 @@ async function Startup() {
     app.use(appPluginsManager);
     app.mount("#app");
 
-    initAuthLangSync();
     await initLanguage();
     initSync();
 

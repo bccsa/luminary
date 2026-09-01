@@ -1,0 +1,170 @@
+name: E2E Tests (Local Stack)
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - main
+    paths:
+      - api/**
+      - app/**
+      - cms/**
+      - shared/**
+      - playwright-tests/**
+      - .github/workflows/e2e-local-stack.yml
+  workflow_dispatch:
+
+env:
+  CI: true
+  # Ports match the CORS_ORIGIN allowlist in api/.env.example — using 127.0.0.1
+  # here instead of localhost would be rejected by the API's CORS check.
+  APP_BASE_URL: http://localhost:4174
+  CMS_BASE_URL: http://localhost:4175
+  E2E_API_URL: http://localhost:3000
+  E2E_COUCHDB_URL: http://admin:password@127.0.0.1:5984
+  E2E_COUCHDB_DATABASE: luminary-e2e
+  E2E_IDP_PORT: 8099
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: playwright-tests/.node-version
+          cache: npm
+          cache-dependency-path: |
+            shared/package-lock.json
+            api/package-lock.json
+            app/package-lock.json
+            cms/package-lock.json
+            playwright-tests/package-lock.json
+
+      - name: Start CouchDB
+        run: |
+          ./scripts/start-couchdb-in-ci.sh
+          curl -fsS -X PUT "${{ env.E2E_COUCHDB_URL }}/${{ env.E2E_COUCHDB_DATABASE }}"
+        working-directory: api
+
+      - name: Start MinIO
+        run: ./scripts/start-minio-in-ci.sh
+        working-directory: api
+
+      - name: Build shared
+        run: npm ci && npm run build
+        working-directory: shared
+
+      - name: Install and build API
+        run: |
+          cp .env.example .env
+          npm ci
+          npm run build
+        working-directory: api
+
+      # Seeding writes the Group and User docs the personas resolve through, so
+      # it has to land before the API starts serving.
+      - name: Seed the database
+        run: node dist/src/main seed
+        working-directory: api
+        env:
+          DB_CONNECTION_STRING: ${{ env.E2E_COUCHDB_URL }}
+          DB_DATABASE: ${{ env.E2E_COUCHDB_DATABASE }}
+
+      - name: Start API
+        run: |
+          node dist/src/main > api.log 2>&1 &
+          echo "$!" > api.pid
+          for i in $(seq 1 60); do
+            curl -sS -o /dev/null "${{ env.E2E_API_URL }}/protected" && exit 0
+            sleep 1
+          done
+          echo "API failed to start:" && cat api.log && exit 1
+        working-directory: api
+        env:
+          DB_CONNECTION_STRING: ${{ env.E2E_COUCHDB_URL }}
+          DB_DATABASE: ${{ env.E2E_COUCHDB_DATABASE }}
+          # Required for the API to accept the fake issuer's http:// domain.
+          AUTH_ALLOW_INSECURE_PROVIDER_DOMAIN: "true"
+
+      # build-only skips vue-tsc; type checking is the unit-test workflows' job.
+      - name: Build and serve the App
+        run: |
+          cp .env.example .env
+          npm ci
+          npm run build-only
+          npx vite preview --port 4174 --strictPort > preview.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -sS -o /dev/null "${{ env.APP_BASE_URL }}" && exit 0
+            sleep 1
+          done
+          echo "App failed to start:" && cat preview.log && exit 1
+        working-directory: app
+
+      - name: Build and serve the CMS
+        run: |
+          cp .env.example .env
+          npm ci
+          npm run build-only
+          npx vite preview --port 4175 --strictPort > preview.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -sS -o /dev/null "${{ env.CMS_BASE_URL }}" && exit 0
+            sleep 1
+          done
+          echo "CMS failed to start:" && cat preview.log && exit 1
+        working-directory: cms
+
+      - name: Install Playwright dependencies
+        run: npm ci
+        working-directory: playwright-tests
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('playwright-tests/package-lock.json') }}
+
+      - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+        working-directory: playwright-tests
+
+      # Cached browsers still need their system libraries on a fresh runner.
+      - name: Install Playwright system dependencies
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+        working-directory: playwright-tests
+
+      - name: Run Playwright tests
+        run: npx playwright test
+        working-directory: playwright-tests
+
+      - name: Collect API log
+        if: failure()
+        run: cat api.log || true
+        working-directory: api
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-local-stack
+          path: playwright-tests/playwright-report
+          retention-days: 14
+
+      - name: Upload test results (traces/videos/screenshots)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-test-results-local-stack
+          path: playwright-tests/test-results
+          retention-days: 14

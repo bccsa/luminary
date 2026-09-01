@@ -62,7 +62,7 @@ const affinityProfileMock = vi.hoisted(() => ({
     value: { affinity: {}, lastDecayUtc: undefined },
 }));
 type ReadingTrackerOptions = Parameters<
-    typeof import("@/composables/useReadingProgressTracker")["useReadingProgressTracker"]
+    (typeof import("@/composables/useReadingProgressTracker"))["useReadingProgressTracker"]
 >[0];
 const readingTrackerOptions = vi.hoisted(() => ({
     current: undefined as ReadingTrackerOptions | undefined,
@@ -380,9 +380,9 @@ describe("SingleContent", () => {
         expect(readMore.find("li").exists()).toBe(true);
     });
 
-    it("hides the related content section on a topic page", async () => {
-        // RelatedContent is a "read more" for articles read via a topic — a topic page
-        // itself already lists its own tagged content, so the section stays hidden there.
+    it("shows the related content section on a topic page", async () => {
+        // Regression for #1905: a topic page used to hide "Read more" entirely, so
+        // visitors landing on a topic's own page saw no recommendations at all.
         await db.docs.bulkPut([
             {
                 ...mockTopicContentDto,
@@ -398,11 +398,13 @@ describe("SingleContent", () => {
 
         await waitForExpect(() => {
             expect(wrapper!.text()).toContain(mockTopicContentDto.title);
+            expect(wrapper!.findComponent(ReadMore).exists()).toBe(true);
         });
 
-        // RelatedContent's own root has a v-if, so nothing renders below it for a topic page.
-        expect(wrapper!.text()).not.toContain("Read more");
-        expect(wrapper!.findComponent(ReadMore).exists()).toBe(false);
+        const readMore = wrapper!.findComponent(ReadMore);
+        expect(readMore.props("items").map((item: ContentDto) => item._id)).toContain(
+            mockEnglishContentDto._id,
+        );
     });
 
     it("doesn't display tag when content not tagged", async () => {
@@ -912,6 +914,76 @@ describe("SingleContent", () => {
 
         await waitForExpect(() => {
             expect(wrapper!.text()).toContain(`${expectedReadingTime} min`);
+        });
+    });
+
+    it("uses the article's own language reading speed", async () => {
+        // Regression test: an article with only one published translation must still pick up
+        // its language's configured averageReadingSpeed via the global cmsLanguages list —
+        // not silently fall back to the default because the translation-dropdown-only
+        // `availableTranslations`/`languages` list is empty in this (most common) case.
+        const wordCount = 400;
+        const readingSpeed = 100;
+        const defaultSpeedReadingTime = computeEstimatedReadingMinutes(wordCount, 200);
+        const expectedReadingTime = computeEstimatedReadingMinutes(wordCount, readingSpeed);
+        expect(expectedReadingTime).not.toBe(defaultSpeedReadingTime);
+
+        isConnected.value = false;
+
+        // No sibling translation published for this content's parent.
+        await db.docs.delete(mockFrenchContentDto._id);
+        await db.docs.put({
+            ...mockEnglishContentDto,
+            wordCount,
+        } as ContentDto);
+
+        cmsLanguages.value = [{ ...mockLanguageDtoEng, averageReadingSpeed: readingSpeed }];
+
+        await flushPromises();
+
+        wrapper = mount(SingleContent, {
+            props: {
+                slug: mockEnglishContentDto.slug,
+            },
+        });
+
+        await flushPromises();
+
+        await waitForExpect(() => {
+            expect(wrapper!.text()).toContain(mockEnglishContentDto.title);
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper!.text()).toContain(`${expectedReadingTime} min`);
+        });
+        expect(wrapper!.text()).not.toContain(`${defaultSpeedReadingTime} min`);
+    });
+
+    it("disables progress saving for content estimated at 1 minute or less to read", async () => {
+        // Default mock content has no wordCount, so estimated reading time is 0 minutes.
+        wrapper = shallowMount(SingleContent, {
+            props: { slug: mockEnglishContentDto.slug },
+        });
+
+        await waitForExpect(() => {
+            expect(readingTrackerOptions.current?.contentId.value).toBe(mockEnglishContentDto._id);
+            expect(readingTrackerOptions.current?.disableSaving?.value).toBe(true);
+        });
+    });
+
+    it("enables progress saving once estimated reading time exceeds 1 minute", async () => {
+        await db.docs.put({
+            ...mockEnglishContentDto,
+            wordCount: 400,
+        } as ContentDto);
+
+        wrapper = shallowMount(SingleContent, {
+            props: { slug: mockEnglishContentDto.slug },
+        });
+
+        await waitForExpect(() => {
+            expect(readingTrackerOptions.current?.contentId.value).toBe(mockEnglishContentDto._id);
+            expect(readingTrackerOptions.current?.disableSaving?.value).toBe(false);
         });
     });
 

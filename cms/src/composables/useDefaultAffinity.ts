@@ -6,7 +6,7 @@ import {
     useHybridQueryWithState,
     toEditable,
     DEFAULT_AFFINITY_ID,
-    DEFAULT_AFFINITY_CONFIG,
+    resolveAffinityConfig,
     type DefaultAffinityDto,
     type AffinityMap,
     type AffinityConfig,
@@ -45,8 +45,8 @@ export function useDefaultAffinity() {
 
     // Exactly one row expected (the singleton) — undefined before it has ever been created.
     const current = computed(() => editable.value[0]);
-    /** The affinity engine tuning config, falling back to defaults before the singleton exists. */
-    const config = computed(() => current.value?.config ?? DEFAULT_AFFINITY_CONFIG);
+    /** The affinity engine tuning config, per field falling back to the defaults. */
+    const config = computed(() => resolveAffinityConfig(current.value?.config));
 
     /**
      * Stage a partial update onto the singleton doc (creating it with fixed `_id` if it

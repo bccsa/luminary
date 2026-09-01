@@ -2,7 +2,7 @@
 import LModal from "@/components/form/LModal.vue";
 import LImage from "@/components/images/LImage.vue";
 import { ExclamationTriangleIcon } from "@heroicons/vue/24/outline";
-import { showProviderSelectionModal, loginWithProvider } from "@/auth";
+import { closeProviderModal, loginWithProvider, providerModalReturnTo } from "@/auth";
 import { DocType, useHybridQuery, type AuthProviderDto } from "luminary-shared";
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
@@ -27,11 +27,11 @@ const hasIcon = (provider: AuthProviderDto) =>
     provider.imageData?.fileCollections?.some((fc) => fc.imageFiles?.length > 0) ?? false;
 
 const handleProviderSelect = (provider: AuthProviderDto) => {
-    loginWithProvider(provider);
+    loginWithProvider(provider, { returnTo: providerModalReturnTo.value });
 };
 
 const handleClose = () => {
-    showProviderSelectionModal.value = false;
+    closeProviderModal();
 };
 </script>
 

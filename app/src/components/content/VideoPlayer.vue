@@ -25,6 +25,7 @@ import { affinityConfig } from "@/recommendation/defaultAffinityStore";
 import { markSeen } from "@/recommendation/seenStore";
 import { resolveVideoSource } from "@/util/videoSource";
 import { useBucketInfo } from "@/composables/useBucketInfo";
+import { createMediaWatchTracker } from "@/recommendation/mediaWatchTracker";
 
 type Props = {
     content: ContentDto;
@@ -117,6 +118,25 @@ watch(
  */
 let completed = false;
 
+/**
+ * How much of the video was actually played.
+ *
+ * `ended` alone misses most completions — few people sit through the outro — so a
+ * watch that passes the configured fraction counts, and the tracker holds the one
+ * completion so ending afterwards cannot count it twice.
+ */
+const watchTracker = createMediaWatchTracker();
+
+/** Both call sites claim the completion from the tracker before scoring it. */
+function applyCompletion() {
+    // Finishing a video is a strong engagement signal — weighted above a plain open.
+    recordAffinity(props.content.parentTags, affinityConfig.value.eventWeight.completion);
+
+    // mediaProgress is a 10-slot ring buffer used only to resume playback, not a
+    // history — record completion in the durable seen store instead.
+    markSeen(props.content._id);
+}
+
 /** Below this, a position is not worth resuming and is not recorded. */
 const MIN_RESUME_SECONDS = 60;
 /** Resuming lands slightly before where the viewer left, to re-establish context. */
@@ -124,6 +144,7 @@ const RESUME_REWIND_SECONDS = 30;
 
 function onLoadedMetadata() {
     completed = false;
+    watchTracker.reset();
     const url = videoSource.value;
     if (!url) return;
 
@@ -135,6 +156,17 @@ function onLoadedMetadata() {
 }
 
 function onTimeUpdate(currentTime: number, duration: number) {
+    watchTracker.track(currentTime);
+    if (
+        watchTracker.claimCompletionIfWatched(
+            duration,
+            affinityConfig.value.mediaCompletionPercent,
+        )
+    ) {
+        // The saved progress deliberately stays put — there is still a tail to resume.
+        applyCompletion();
+    }
+
     const url = videoSource.value;
     if (!url || duration === Infinity || currentTime < MIN_RESUME_SECONDS) return;
 
@@ -156,14 +188,8 @@ function onEnded() {
 
     removeMediaProgress(url, props.content._id);
 
-    // Finishing a video is a strong engagement signal — weighted above a plain
-    // open. Guarded by `completed` so the near-end fallback and a real `ended`
-    // cannot both count it.
-    recordAffinity(props.content.parentTags, affinityConfig.value.eventWeight.completion);
-
-    // mediaProgress is a 10-slot ring buffer used only to resume playback, not a
-    // history — record completion in the durable seen store instead.
-    markSeen(props.content._id);
+    // Nothing to score if the watched fraction already claimed it.
+    if (watchTracker.claimCompletion()) applyCompletion();
 
     player.value?.exitFullscreen();
 }

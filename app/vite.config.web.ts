@@ -198,6 +198,14 @@ const SCOPED_DELETE_CMD_IDS: string[] = (process.env.SSG_DELETE_CMD_IDS || "")
     .map((id) => id.trim())
     .filter(Boolean);
 
+// Redirect artifacts are re-read in full from the API and rewritten wholesale, so exactly one
+// pass of a run should own them. Normally that is the unscoped full build: a scoped rebuild skips
+// them because the ISR watcher maintains the index itself between builds, and re-reading the API
+// there could revert a change the watcher has already applied locally but that the API has not
+// caught up with. `SSG_EMIT_REDIRECTS=1` marks a scoped pass as the one that owns them, for a
+// driver that renders the site in several scoped passes and so never runs an unscoped build.
+const EMIT_REDIRECTS = process.env.SSG_EMIT_REDIRECTS === "1";
+
 const indexHtmlPath = () => join(process.cwd(), OUT_DIR, "index.html");
 const manifestPath = () => join(process.cwd(), OUT_DIR, "ssg-deps.json");
 const redirectIndexPath = () => join(process.cwd(), OUT_DIR, "ssg-redirect-index.json");
@@ -773,7 +781,7 @@ const config: UserConfig & { ssgOptions: ViteSSGOptions } = {
                 writeRouteIndex();
                 writeDocFacets();
                 writeDeleteQueue(await fetchDeleteCmds(SSG_API_URL));
-                if (!IS_SCOPED) {
+                if (!IS_SCOPED || EMIT_REDIRECTS) {
                     await writeRedirectFiles(SSG_API_URL);
                 }
                 // Sitemap/robots/llms reflect the full route set on both full and scoped builds.

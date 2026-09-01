@@ -77,6 +77,18 @@ const availablePermissionsPerDocType = {
 // crypto-*/sidecar-* room.
 const validDocTypes = Object.keys(availablePermissionsPerDocType) as DocType[];
 
+/**
+ * Permissions only the CMS acts on — the app consumes View alone. None of these can be exercised
+ * without CmsView, so granting one implies it.
+ */
+export const cmsOnlyPermissions = [
+    AclPermission.Edit,
+    AclPermission.Delete,
+    AclPermission.Assign,
+    AclPermission.Translate,
+    AclPermission.Publish,
+];
+
 // Check if a permission is available for a given DocType
 function isPermissionAvailable(docType: DocType, aclPermission: AclPermission): boolean {
     if (!validDocTypes.includes(docType)) return false;
@@ -86,11 +98,20 @@ function isPermissionAvailable(docType: DocType, aclPermission: AclPermission): 
 
 // Validate an ACL entry and return the validated entry
 function validateAclEntry(aclEntry: GroupAclEntryDto): void {
-    if (aclEntry.permission.length && !aclEntry.permission.includes(AclPermission.View)) {
-        aclEntry.permission.push(AclPermission.View);
+    // A CMS-only permission implies CMS visibility. Adding it rather than stripping the permission
+    // keeps entries from clients that don't send CmsView working (ADR 0005).
+    if (
+        aclEntry.permission.some((p) => cmsOnlyPermissions.includes(p)) &&
+        !aclEntry.permission.includes(AclPermission.CmsView)
+    ) {
+        aclEntry.permission.push(AclPermission.CmsView);
     }
 
-    if (!aclEntry.permission.includes(AclPermission.View)) {
+    // No other permission can be exercised without one of the visibility permissions
+    if (
+        !aclEntry.permission.includes(AclPermission.View) &&
+        !aclEntry.permission.includes(AclPermission.CmsView)
+    ) {
         aclEntry.permission = [];
     }
 

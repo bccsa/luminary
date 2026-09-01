@@ -18,7 +18,9 @@ export type QueryConfig = {
      * Maximum `limit` accepted on a POST /query request, enforced centrally for every
      * query identifier (sync, hybridQuery, …). Requests above this are rejected with 400.
      * Guards against a single authenticated client forcing CouchDB to materialize a huge
-     * result set. Environment variable: QUERY_MAX_LIMIT (default 500).
+     * result set. Keep in step with the client's remote-query clamp
+     * (`DEFAULT_REMOTE_QUERY_LIMIT` in `shared/src/util/HybridQuery/HybridQuery.ts`), which must
+     * not exceed it. Environment variable: QUERY_MAX_LIMIT (default 500).
      */
     maxLimit: number;
     /**
@@ -77,6 +79,17 @@ export type ValidationConfig = {
     bypassTemplateValidation: boolean;
 };
 
+export type AuthConfig = {
+    /**
+     * Permits an AuthProvider whose `domain` carries an `http://` scheme. The
+     * provider's JWKS is fetched from that host, so over plaintext an on-path
+     * attacker can substitute signing keys and forge accepted tokens.
+     * Environment variable: AUTH_ALLOW_INSECURE_PROVIDER_DOMAIN=true
+     * WARNING: local test issuers only — never enable this in production.
+     */
+    allowInsecureProviderDomain: boolean;
+};
+
 export type ImageProcessingConfig = {
     imageQuality: number;
 };
@@ -116,6 +129,7 @@ export type Configuration = {
     imageProcessing?: ImageProcessingConfig;
     socketIo?: SocketIoConfig;
     validation?: ValidationConfig;
+    auth?: AuthConfig;
 };
 
 export default () =>
@@ -183,4 +197,7 @@ export default () =>
         validation: {
             bypassTemplateValidation: process.env.BYPASS_TEMPLATE_VALIDATION === "true",
         } as ValidationConfig,
+        auth: {
+            allowInsecureProviderDomain: process.env.AUTH_ALLOW_INSECURE_PROVIDER_DOMAIN === "true",
+        } as AuthConfig,
     }) as Configuration;
