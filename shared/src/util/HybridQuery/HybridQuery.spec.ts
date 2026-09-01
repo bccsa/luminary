@@ -1369,7 +1369,7 @@ describe("HybridQuery", () => {
         });
         // A reactive content-live query driven by `cats` (a string[] ref). An empty
         // `cats` makes the selector provably-empty (`$elemMatch $in []`).
-        const setup = async (cats: { value: string[] }) => {
+        const setup = async (cats: { value: string[] }, opts: Record<string, unknown> = {}) => {
             postHttpMock.mockResolvedValue({ docs: [] });
             const q = track(
                 new HybridQuery(
@@ -1381,7 +1381,7 @@ describe("HybridQuery", () => {
                             ],
                         },
                     }),
-                    { live: true },
+                    { live: true, ...opts },
                 ),
             );
             await flush();
@@ -1445,6 +1445,20 @@ describe("HybridQuery", () => {
 
             await emitLocal([contentDoc("b1", "B", 1500, 7)]);
             expect(q.output.value.map((d) => d._id)).toEqual(["b1"]); // replaced
+        });
+
+        it("clears previous output across a rebuild when keepPreviousResult is false", async () => {
+            const cats = ref(["A"]);
+            const q = await setup(cats, { keepPreviousResult: false });
+            await emitLocal([contentDoc("a1", "A", 2000, 5)]);
+            expect(q.output.value.map((d) => d._id)).toEqual(["a1"]);
+
+            cats.value = ["B"];
+            await flush(); // rebuilt, but gen-2 local not emitted yet
+            expect(q.output.value).toEqual([]); // CLEARED, where the default keeps ["a1"]
+
+            await emitLocal([contentDoc("b1", "B", 1500, 7)]);
+            expect(q.output.value.map((d) => d._id)).toEqual(["b1"]);
         });
 
         it("clears output when the new query is provably-empty, and re-attaches when non-empty again", async () => {

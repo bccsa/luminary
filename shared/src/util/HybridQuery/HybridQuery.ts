@@ -274,6 +274,20 @@ export type HybridQueryOptions = {
      */
     persistOffline?: boolean;
 
+    /**
+     * Whether `output` survives a query rebuild (reactive thunk dep change, syncList
+     * membership flip). Default `true`: the previous window stands in for the incoming
+     * one so a re-narrowed feed or a re-routed read does not blank between two
+     * substantially similar results.
+     *
+     * Set `false` when the query resolves an IDENTITY rather than narrowing a list —
+     * a lookup by slug or id, where the previous result is a different entity and
+     * showing it is wrong rather than merely stale. Such a query should render its
+     * empty/loading state until its own result arrives. The distinction cannot be made
+     * from the selector (both cases look like "the kept docs no longer match"), so it
+     * is the call site's to declare.
+     */
+    keepPreviousResult?: boolean;
 };
 
 /**
@@ -316,7 +330,8 @@ export type HybridQueryOptions = {
  * live mode) the API POST + socket predicates, discarding in-flight POSTs from the
  * previous query. In **one-shot** mode a thunk re-queries on each change but is a
  * snapshot between changes (no liveQuery/socket). `output` is kept across a rebuild
- * (no flash) unless the new query is provably-empty. The thunk must be **pure** (it
+ * (no flash) unless the new query is provably-empty or the caller set
+ * `keepPreviousResult: false`. The thunk must be **pure** (it
  * is called more than once per change). See the README "Reactive queries" section.
  *
  * ```ts
@@ -392,6 +407,8 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
     private _limit?: number;
     private _sort?: MangoQuery["$sort"];
     private readonly _live: boolean;
+    // See {@link HybridQueryOptions.keepPreviousResult}.
+    private readonly _keepPreviousResult: boolean;
     // Offline document persistence (opt-in). When true, the supplement's syncable
     // older-tail docs are bulkPut to IndexedDB. See {@link HybridQueryOptions.persistOffline}.
     private readonly _persistOffline: boolean;
@@ -439,6 +456,7 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
     constructor(query: MangoQuery | (() => MangoQuery), options: HybridQueryOptions = {}) {
         this._queryFn = typeof query === "function" ? query : () => query;
         this._live = options.live ?? false;
+        this._keepPreviousResult = options.keepPreviousResult ?? true;
         this._persistOffline = options.persistOffline ?? false;
         this._cache = options.cache ?? false;
         this._cacheId = options.cacheId;
@@ -489,7 +507,8 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
      * (Re)build a generation: tear down the previous generation's subscriptions,
      * snapshot the new query, reset per-generation state, and route. `output` is
      * deliberately KEPT across a rebuild (no flash) — the provably-empty branch in
-     * `_run` clears it for the one case that never recomputes.
+     * `_run` clears it for the one case that never recomputes, and
+     * `keepPreviousResult: false` opts an identity lookup out entirely.
      */
     private _rebuild(query: MangoQuery): void {
         if (this._disposed) return;
@@ -503,6 +522,9 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
         this._generation++;
         this._local = [];
         this._remote = [];
+        // An identity lookup's previous result is another entity, not a placeholder for
+        // the incoming one. The length guard keeps the initial build a no-op.
+        if (!this._keepPreviousResult && this.output.value.length) this.output.value = [];
         this._seed.reset();
         this._apiDecided = false;
         this._tombstones.clear();
