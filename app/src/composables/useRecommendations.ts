@@ -103,6 +103,11 @@ export type UseRecommendationsOptions = {
     useFts?: boolean;
 };
 
+// Content of a pinned parent already has its own home-page collection, so recommending it
+// only duplicates a tile the user is already looking at. The FTS leg is where these reach the
+// feed: it searches every content doc, including a pinned category's own (untagged) doc.
+const hasPinnedParent = (doc: ContentDto) => !!doc.parentPinned && doc.parentPinned > 0;
+
 export function useRecommendations({
     limit = DEFAULT_LIMIT,
     retrievalLimit = DEFAULT_RETRIEVAL_LIMIT,
@@ -340,12 +345,14 @@ export function useRecommendations({
     });
 
     const recommended = computed(() => {
-        // Filter seen content out *before* ranking/diversity-capping, not after — otherwise
-        // already-seen docs still consume slots in the per-tag MMR cap and push unseen
-        // content into overflow (and past `slice(0, limit)` entirely).
-        const unseenTagCandidates = content.value.filter((c) => !seenIds.value.has(c._id));
-        const unseenFtsCandidates = ftsResults.value.filter((r) => !seenIds.value.has(r.docId));
-        return rank(unseenTagCandidates, unseenFtsCandidates, decayedAffinity.value, {
+        // Filter seen and pinned content out *before* ranking/diversity-capping, not after —
+        // otherwise ineligible docs still consume slots in the per-tag MMR cap and push
+        // eligible content into overflow (and past `slice(0, limit)` entirely).
+        const isEligible = (doc: ContentDto, docId: Uuid) =>
+            !seenIds.value.has(docId) && !hasPinnedParent(doc);
+        const eligibleTagCandidates = content.value.filter((c) => isEligible(c, c._id));
+        const eligibleFtsCandidates = ftsResults.value.filter((r) => isEligible(r.doc, r.docId));
+        return rank(eligibleTagCandidates, eligibleFtsCandidates, decayedAffinity.value, {
             topicTagIds: topicTagIds.value,
             tagWeight: TAG_LEG_WEIGHT * (0.3 + 0.7 * richness.value),
             ftsWeight: FTS_LEG_WEIGHT * (1 - 0.5 * richness.value),
