@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import MediaNotice from "./MediaNotice.vue";
-import { ENCODER_PROTOCOL_URL } from "@/util/mediaEncoder";
+import { ENCODER_DOWNLOAD_URL, ENCODER_PROTOCOL_URL } from "@/util/mediaEncoder";
 import type { EncoderAvailability } from "@/composables/useMediaEncoder";
 
 /**
@@ -13,6 +13,8 @@ import type { EncoderAvailability } from "@/composables/useMediaEncoder";
  */
 type Props = {
     availability: EncoderAvailability;
+    /** Running, but older than this CMS knows how to talk to. */
+    outdated?: boolean;
     status?: string;
     progress?: number;
     error?: string;
@@ -51,7 +53,10 @@ const recheckAfterLaunch = () => setTimeout(() => emit("recheck"), 2000);
 </script>
 
 <template>
-    <div v-if="error || status || availability != 'available'" class="flex flex-col gap-2 py-1">
+    <div
+        v-if="error || status || outdated || availability != 'available'"
+        class="flex flex-col gap-2 py-1"
+    >
         <div v-if="status" data-test="encoder-status">
             <div v-if="percentage != undefined" class="flex items-center gap-2">
                 <div class="h-1.5 flex-1 overflow-hidden rounded-full bg-zinc-100">
@@ -76,6 +81,20 @@ const recheckAfterLaunch = () => setTimeout(() => emit("recheck"), 2000);
             {{ error }}
         </MediaNotice>
 
+        <!-- Outdated outranks the availability notices: the encoder answered, so
+             "not running" would be wrong, and encoding with it may fail anyway. -->
+        <MediaNotice v-else-if="outdated" state="warning" data-test="encoder-outdated">
+            Your Luminary Media Convert is outdated and may no longer work with this site.
+            <a
+                :href="ENCODER_DOWNLOAD_URL"
+                target="_blank"
+                rel="noopener"
+                class="font-medium underline underline-offset-2 hover:text-yellow-900"
+                data-test="encoder-download"
+                >Download the current version</a
+            >, then install it over the old one.
+        </MediaNotice>
+
         <!--
             Chrome is the browser this is known to work in; whether the others
             genuinely cannot reach the encoder is unverified (#1979), so the
@@ -93,8 +112,8 @@ const recheckAfterLaunch = () => setTimeout(() => emit("recheck"), 2000);
                 data-test="encoder-launch"
                 @click="recheckAfterLaunch"
                 >Open it</a
-            >, then try again. If it is already open, try this page in Chrome —
-            that is the browser this is known to work in.
+            >, then try again. If it is already open, try this page in Chrome — that is the browser
+            this is known to work in.
         </MediaNotice>
 
         <MediaNotice

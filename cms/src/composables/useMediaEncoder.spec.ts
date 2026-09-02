@@ -44,6 +44,7 @@ beforeEach(() => {
     getEncoderConfigMock.mockResolvedValue({
         s3: { endPoint: "s3.example.com", bucket: "media" },
         publicBaseUrl: "https://cdn.example.com/media",
+        encryption: { required: true },
     });
     checkEncoderHealthMock.mockResolvedValue({ available: true, apiVersion: "0.0.1" });
     fetchEncoderSessionKeyMock.mockResolvedValue("aabbccddeeff00112233445566778899");
@@ -56,7 +57,7 @@ beforeEach(() => {
 });
 
 describe("useMediaEncoder", () => {
-    it("asks the encoder to encrypt", async () => {
+    it("forwards the bucket's encryption requirement", async () => {
         const { start } = useMediaEncoder();
 
         await start({
@@ -71,6 +72,36 @@ describe("useMediaEncoder", () => {
 
         expect(createEncoderSessionMock).toHaveBeenCalledWith(
             expect.objectContaining({ encryption: { required: true } }),
+        );
+    });
+
+    it("forwards the bucket's byte-range settings without knowing what they mean", async () => {
+        // The encoderconfig response is shaped as the encoder's session body; a new
+        // setting added there must reach the encoder with no change to this page.
+        getEncoderConfigMock.mockResolvedValue({
+            s3: { endPoint: "s3.example.com", bucket: "media" },
+            publicBaseUrl: "https://cdn.example.com/media",
+            encryption: { required: false },
+            byteRange: false,
+            byteRangeMaxFileSizeMB: 100,
+            audioByteRangeMaxFileSizeMB: 100,
+        });
+        const { start } = useMediaEncoder();
+
+        await start({
+            documentId: "post-1",
+            title: "Episode 1",
+            mediaBucketId: "bucket-1",
+            onMediaReady: vi.fn(),
+        }).catch(() => {});
+
+        expect(createEncoderSessionMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                encryption: { required: false },
+                byteRange: false,
+                byteRangeMaxFileSizeMB: 100,
+                audioByteRangeMaxFileSizeMB: 100,
+            }),
         );
     });
 });

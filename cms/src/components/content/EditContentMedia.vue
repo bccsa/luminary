@@ -33,8 +33,17 @@ const parent = defineModel<ContentParentDto>("parent");
 const showHelp = ref(false);
 const bucketSelection = storageSelection();
 
-const { availability, busy, status, progress, error, refreshAvailability, start, resume } =
-    useMediaEncoder();
+const {
+    availability,
+    outdated,
+    busy,
+    status,
+    progress,
+    error,
+    refreshAvailability,
+    start,
+    resume,
+} = useMediaEncoder();
 
 // The bucket to encode into, on the same rule the bucket selector uses: a lone media
 // bucket counts as selected even though nothing has written it to the document yet.
@@ -138,6 +147,7 @@ watch(
 
             <EncodeStatus
                 :availability="availability"
+                :outdated="outdated"
                 :status="status"
                 :progress="progress"
                 :error="error"
