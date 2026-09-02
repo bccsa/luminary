@@ -6,6 +6,7 @@ import { JwtUserDetails } from "../auth/authIdentity.service";
 import { processChangeRequest } from "../changeRequests/processChangeRequest";
 import { ChangeReqAckDto } from "../dto/ChangeReqAckDto";
 import { PermissionSystem } from "../permissions/permissions.service";
+import { span, traceMeta } from "../util/perfTrace";
 
 @Injectable()
 export class ChangeRequestService {
@@ -15,12 +16,11 @@ export class ChangeRequestService {
         changeRequest: ChangeReqDto,
         userDetails: JwtUserDetails,
     ): Promise<ChangeReqAckDto> {
+        traceMeta({ docType: changeRequest?.doc?.type });
+
         // Process change request
-        return await processChangeRequest(
-            userDetails.userId,
-            changeRequest,
-            userDetails.groups,
-            this.db,
+        return await span("process", () =>
+            processChangeRequest(userDetails.userId, changeRequest, userDetails.groups, this.db),
         )
             .then(async (result) => {
                 const ack = await this.upsertDocAck(
@@ -40,6 +40,7 @@ export class ChangeRequestService {
                 return ack;
             })
             .catch(async (err) => {
+                traceMeta({ rejected: true });
                 return await this.upsertDocAck(
                     changeRequest,
                     AckStatus.Rejected,

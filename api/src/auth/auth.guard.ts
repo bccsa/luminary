@@ -1,6 +1,7 @@
 import { CanActivate, ExecutionContext, Injectable } from "@nestjs/common";
 import { FastifyRequest } from "fastify";
 import { AuthIdentityService, JwtUserDetails } from "./authIdentity.service";
+import { span, traceMeta } from "../util/perfTrace";
 
 declare module "fastify" {
     interface FastifyRequest {
@@ -17,8 +18,14 @@ export class AuthGuard implements CanActivate {
         const token = this.extractTokenFromHeader(request);
         const providerId = request.headers["x-auth-provider-id"] as string;
 
-        const result = await this.authIdentityService.resolveOrDefault(token, providerId);
+        const result = await span("auth", () =>
+            this.authIdentityService.resolveOrDefault(token, providerId),
+        );
         request.user = result.userDetails;
+        traceMeta({
+            authenticated: !!result.userDetails?.userId,
+            groups: result.userDetails?.groups?.length ?? 0,
+        });
         return true;
     }
 
