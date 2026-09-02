@@ -22,6 +22,7 @@ import { FastifyReply, FastifyRequest } from "fastify";
 import { classifyQueryCost } from "./queryStats";
 import { selectorFingerprint } from "../util/selectorFingerprint";
 import { QueryRateLimiterService } from "../ratelimit/queryRateLimiter.service";
+import { span, traceMeta } from "../util/perfTrace";
 
 /** Endpoint supporting MongoDB like queries (Mango Query) */
 @Controller("query")
@@ -65,7 +66,10 @@ export class QueryController {
         const maxLanguages = this.configService.get<number>("query.maxLanguages") ?? 4;
 
         let validationResult = { valid: true, error: "" };
-        if (!bypassValidation) validationResult = validateQuery(body, { maxLimit, maxLanguages });
+        if (!bypassValidation)
+            validationResult = await span("validate", async () =>
+                validateQuery(body, { maxLimit, maxLanguages }),
+            );
 
         if (!validationResult.valid) {
             throw new BadRequestException(`Invalid query: ${validationResult.error}`);
@@ -80,7 +84,9 @@ export class QueryController {
                 : "unknown";
         delete body.identifier;
 
-        const result = await this.queryService.query(body as MongoQueryDto, request.user);
+        const result = await span("query", () =>
+            this.queryService.query(body as MongoQueryDto, request.user),
+        );
 
         // Classify the executed query from CouchDB's execution stats. The cost is only
         // knowable post-hoc, so an expensive query logs once and records a strike
@@ -94,6 +100,16 @@ export class QueryController {
             result?.docs?.length ?? 0,
             thresholds,
         );
+        traceMeta({
+            identifier,
+            use_index: body?.use_index,
+            docs: result?.docs?.length ?? 0,
+            examined: result?.execution_stats?.total_docs_examined,
+            keys: result?.execution_stats?.total_keys_examined,
+            couchMs: result?.execution_stats?.execution_time_ms,
+            expensive: verdict.expensive,
+        });
+
         if (verdict.expensive) {
             this.logger.warn("Expensive /query", {
                 identifier,

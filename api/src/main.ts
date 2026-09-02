@@ -13,6 +13,7 @@ import { S3Service } from "./s3/s3.service";
 import { warmIndexNameRegistry } from "./db/indexNameRegistry";
 import { addSecurityHeaders } from "./util/securityHeaders";
 import { reconcileLanguageTranslationSeeds } from "./db/languageSeedReconciliation";
+import { registerPerfTraceHooks } from "./util/perfTrace.hooks";
 
 export async function bootstrap() {
     const app = await NestFactory.create<NestFastifyApplication>(
@@ -26,6 +27,10 @@ export async function bootstrap() {
     );
 
     addSecurityHeaders(app.getHttpAdapter().getInstance());
+
+    // Registered before compress so the traced payload size is the uncompressed body.
+    // No-ops unless PERF_TRACE=true.
+    registerPerfTraceHooks(app);
 
     // Register multipart plugin for file uploads
     await app.register(multipart, {

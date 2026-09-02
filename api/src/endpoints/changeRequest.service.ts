@@ -7,6 +7,7 @@ import { processChangeRequest } from "../changeRequests/processChangeRequest";
 import { ChangeReqAckDto } from "../dto/ChangeReqAckDto";
 import { PermissionSystem } from "../permissions/permissions.service";
 import { IdentityCacheService } from "../auth/identityCache.service";
+import { span, traceMeta } from "../util/perfTrace";
 
 @Injectable()
 export class ChangeRequestService {
@@ -25,12 +26,11 @@ export class ChangeRequestService {
             return { ack: AckStatus.Rejected, message: "Authentication required" };
         }
 
+        traceMeta({ docType: changeRequest?.doc?.type });
+
         // Process change request
-        return await processChangeRequest(
-            userDetails.userId,
-            changeRequest,
-            userDetails.groups,
-            this.db,
+        return await span("process", () =>
+            processChangeRequest(userDetails.userId, changeRequest, userDetails.groups, this.db),
         )
             .then(async (result) => {
                 // Admin User edits only arrive here; the auth path's own lastLogin write never
@@ -56,6 +56,7 @@ export class ChangeRequestService {
                 return ack;
             })
             .catch(async (err) => {
+                traceMeta({ rejected: true });
                 return await this.upsertDocAck(
                     changeRequest,
                     AckStatus.Rejected,
