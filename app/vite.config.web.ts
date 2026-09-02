@@ -21,7 +21,6 @@ import {
     LEGACY_AUTH0_CACHE_PREFIX,
     OIDC_USER_PREFIX,
 } from "./src/authStorage";
-import { THEME_STORAGE_KEY } from "./src/themeStorage";
 import { releaseSsrChain } from "./src/ssg/ssrChains";
 import { takeRenderIssues, type RenderIssue } from "./src/ssg/renderDiagnostics";
 import { setSessionNow } from "./src/util/sessionNow";
@@ -102,7 +101,11 @@ function hqCacheScript(cache: Record<string, string>): string {
 
 // Pre-paint theme. Tailwind's dark variant is class-based, and the prerendered HTML carries no `dark` class, so the first paint is light until `globalConfig.ts` evaluates. This resolves the same stored-then-OS preference during head parse. CSS alone can't do it — `prefers-color-scheme` can't see the explicit choice in localStorage.
 function themeScript(): string {
-    const themeKey = JSON.stringify(THEME_STORAGE_KEY);
+    // The "theme" key is hard-coded rather than imported from `globalConfig.ts`: that module
+    // touches `window`/`document` at import time and cannot be loaded in this Node-side config.
+    // It is the one place the key is duplicated — renaming it in `globalConfig.ts` means
+    // renaming it here too, or the pre-paint script silently stops seeing the stored choice.
+    const themeKey = JSON.stringify("theme");
     // The storage read gets its own try so a browser that denies localStorage (blocked site
     // data, some sandboxes) still falls through to the OS preference instead of painting light.
     return (
