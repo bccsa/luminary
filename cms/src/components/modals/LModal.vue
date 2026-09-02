@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import LTeleport from "../common/LTeleport.vue";
 import { XMarkIcon } from "@heroicons/vue/24/solid";
 import { breakpointsTailwind, useBreakpoints } from "@vueuse/core";
@@ -50,18 +50,15 @@ watch(modalRef, (el) => {
 const breakpoints = useBreakpoints(breakpointsTailwind);
 const isMobileScreen = breakpoints.smaller("sm");
 
-const isFullscreen = () => {
-    if (
-        (isMobileScreen.value && props.stickToEdges) ||
-        (!isMobileScreen.value && props.stickToEdges)
-    ) {
+const isFullscreen = computed(() => {
+    if (props.stickToEdges || !props.stickToEdges) {
         return "h-[100dvh] w-[100vw] max-w-none rounded-none";
     } else if (props.largeModal) {
         return "h-[90dvh] w-full max-w-5xl lg:h-[80dvh]";
     } else {
         return "max-h-[90dvh] w-full max-w-md";
     }
-};
+});
 </script>
 
 <template>
@@ -82,8 +79,8 @@ const isFullscreen = () => {
                 ref="modalRef"
                 data-test="modal-content"
                 :class="[
-                    'relative z-50 flex max-h-[100dvh] flex-col rounded-lg bg-white/90 p-5 text-zinc-800 shadow-xl focus:outline-none',
-                    isFullscreen(),
+                    'relative z-50 flex flex-col rounded-lg bg-white/90 p-5 shadow-xl focus:outline-none',
+                    isFullscreen,
                 ]"
             >
                 <div
