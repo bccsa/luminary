@@ -37,7 +37,9 @@ const categories = useContentQuery(
         { parentTagType: TagType.Category },
         { $or: [{ parentPinned: { $exists: false } }, { parentPinned: { $ne: 1 } }] },
     ],
-    { cache: true },
+    // The category set grows with the content query above it — keep the rows already
+    // rendered rather than blanking them on each widening.
+    { cache: true, keepPreviousResult: true },
 );
 
 const unpinnedNewestContentByCategory = contentByTag(newest100Content, categories);

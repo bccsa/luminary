@@ -39,7 +39,9 @@ const pinnedCategoryContent = useContentQuery(
     // it (it is not in the local window); when the combined set exceeds the cap the
     // supplement falls back to a content-partition scan. sort+limit bound the window;
     // contentByTag re-sorts per category for display.
-    { cache: true, limit: 50, sort: [{ publishDate: "desc" }] },
+    // A pinned-category change re-narrows the same feed, so keep the tiles on screen
+    // while the new window loads.
+    { cache: true, limit: 50, sort: [{ publishDate: "desc" }], keepPreviousResult: true },
 );
 
 // sort pinned content by category

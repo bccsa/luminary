@@ -30,7 +30,9 @@ const content = useContentQuery(
     // cacheId disambiguates from ContinueWatching: both query the same shape
     // (`_id $in` + the same $or filters), so without it they would share one cache
     // entry and seed from each other on first paint.
-    { cache: true, cacheId: "continue-listening" },
+    // Listening progress changes the id set while the row is on screen; it stays the same
+    // list, so don't blank it.
+    { cache: true, cacheId: "continue-listening", keepPreviousResult: true },
 );
 
 // Re-sort to match the listened order, then keep only audio content (has audio
