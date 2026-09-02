@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { onMounted, ref } from "vue";
 import { ShareIcon } from "@heroicons/vue/24/outline";
 import type { ContentDto } from "luminary-shared";
 import { useI18n } from "vue-i18n";
@@ -35,6 +35,37 @@ const shareMessage = (options: { withUrl?: boolean } = {}) =>
         copyright: props.content.copyright,
         url: options.withUrl ? shareUrl() : undefined,
     });
+
+// Only phones/tablets (coarse pointer) get the OS share sheet: there it opens the
+// messaging apps the reader actually has, while a desktop sheet mostly re-lists web
+// targets the curated menu already covers. Resolved after mount, not at setup: the
+// prerendered HTML has no `navigator`, and rendering the menu on both sides keeps
+// hydration matched.
+const nativeShareAvailable = ref(false);
+onMounted(() => {
+    nativeShareAvailable.value =
+        typeof navigator?.share === "function" && window.matchMedia("(pointer: coarse)").matches;
+});
+
+// Prefer the share sheet where it's available, with the curated targets as the fallback.
+async function shareNatively() {
+    try {
+        await navigator.share({
+            title: props.content.title,
+            text: shareMessage(),
+            url: shareUrl(),
+        });
+    } catch (e) {
+        if ((e as DOMException)?.name === "AbortError") return; // reader dismissed the sheet
+        // Web Share can be present but blocked (e.g. an iframe without the web-share
+        // permission) — drop to the curated targets for the rest of this page view.
+        nativeShareAvailable.value = false;
+        open.value = true;
+    }
+}
+
+const triggerClass =
+    "flex items-center text-zinc-400 transition-colors hover:text-zinc-600 dark:text-slate-500 dark:hover:text-slate-200";
 
 const itemClass =
     "flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 active:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-600 dark:active:bg-slate-500";
@@ -76,7 +107,19 @@ async function shareToInstagram() {
 </script>
 
 <template>
+    <button
+        v-if="nativeShareAvailable"
+        type="button"
+        :aria-label="t('singlecontent.share')"
+        data-test="shareMenuTrigger"
+        :class="triggerClass"
+        @click="shareNatively"
+    >
+        <ShareIcon class="h-5 w-5" />
+    </button>
+
     <DropdownMenu
+        v-else
         v-model:open="open"
         placement="top-start"
         panel-class="w-60 rounded-lg bg-white p-1.5 shadow-xl ring-1 ring-zinc-200 dark:bg-slate-700 dark:ring-slate-500"
@@ -85,7 +128,7 @@ async function shareToInstagram() {
             <span
                 :aria-label="t('singlecontent.share')"
                 data-test="shareMenuTrigger"
-                class="flex items-center text-zinc-400 transition-colors hover:text-zinc-600 dark:text-slate-500 dark:hover:text-slate-200"
+                :class="triggerClass"
             >
                 <ShareIcon class="h-5 w-5" />
             </span>
