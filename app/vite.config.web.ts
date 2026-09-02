@@ -21,7 +21,6 @@ import {
     LEGACY_AUTH0_CACHE_PREFIX,
     OIDC_USER_PREFIX,
 } from "./src/authStorage";
-import { stripBootSplash } from "./src/bootSplash";
 import { releaseSsrChain } from "./src/ssg/ssrChains";
 import { takeRenderIssues, type RenderIssue } from "./src/ssg/renderDiagnostics";
 import { setSessionNow } from "./src/util/sessionNow";
@@ -463,7 +462,7 @@ const rewriteWebEntry = (): Plugin => ({
     name: "ssg-web-entry",
     transformIndexHtml: {
         order: "pre",
-        handler: (html) => stripBootSplash(html.replace("/src/main.ts", "/src/main.web.ts")),
+        handler: (html) => html.replace("/src/main.ts", "/src/main.web.ts"),
     },
 });
 
