@@ -6,8 +6,6 @@ import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
 
-const props = defineProps<{ hasPinnedRows?: boolean }>();
-
 const { openSearch } = useSearchOverlay();
 const { t } = useI18n();
 const router = useRouter();
@@ -39,10 +37,7 @@ onMounted(() => {
 </script>
 
 <template>
-    <section
-        class="px-4 pt-2"
-        :class="props.hasPinnedRows ? 'bg-yellow-500/10 dark:bg-yellow-500/5' : ''"
-    >
+    <section class="px-4 pt-2">
         <div class="mx-auto max-w-xl">
             <button
                 type="button"
