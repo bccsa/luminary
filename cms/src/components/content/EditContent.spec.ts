@@ -1330,6 +1330,39 @@ describe("EditContent.vue", () => {
             expect(wrapper.findComponent(IncomingChangesModal).props("open")).toBe(true);
         }, 15000);
 
+        it("does not call the API's own mirror of the parent an incoming change", async () => {
+            // Saving a parent whose media changed makes the API re-stamp `parentMedia`
+            // onto every content child. That is this editor's own save coming back, not
+            // someone else's edit, and an encode makes it happen mid-session.
+            const wrapper = mount(EditContent, {
+                props: {
+                    docType: DocType.Post,
+                    id: mockData.mockPostDto._id,
+                    languageCode: "eng",
+                    tagOrPostType: PostType.Blog,
+                },
+            });
+
+            await waitForExpect(() => {
+                expect(wrapper.find('input[name="title"]').exists()).toBe(true);
+            });
+
+            await wrapper.find('input[name="title"]').setValue("My local title");
+            await waitForExpect(() => {
+                expect(wrapper.find('[data-test="revert-changes-button"]').exists()).toBe(true);
+            });
+
+            await applyRemoteContentUpdate({
+                parentMedia: {
+                    hlsUrl: "/post-blog1/master.m3u8",
+                    fileCollections: [],
+                },
+            });
+
+            await new Promise((resolve) => setTimeout(resolve, 500));
+            expect(wrapper.find('[data-test="incoming-changes-banner"]').exists()).toBe(false);
+        }, 15000);
+
         it("does not show the banner when a remote change arrives with no local edits", async () => {
             const wrapper = mount(EditContent, {
                 props: {

@@ -158,6 +158,36 @@ export function useEditContentSource(options: UseEditContentSourceOptions): UseE
     const { remove: removeParent } = parentEditable;
     const contentEditable = toEditable<ContentDto>(contentSource, {
         persistOffline: true,
+        // The API owns these: `memberOf` and the `parent*` family are re-stamped from the
+        // parent on every parent save, and the rest are derived. None is editable here, so
+        // without back-patching, this editor's own save comes back as "changed remotely by
+        // someone else" — most visibly during an encode, where the parent's media changes
+        // mid-session and `parentMedia` follows it onto every translation.
+        backPatchFields: [
+            "memberOf",
+            "parentTags",
+            "parentType",
+            "parentImageData",
+            "parentImageBucketId",
+            "parentMedia",
+            "parentMediaBucketId",
+            "parentPostType",
+            "parentTagType",
+            "parentPinned",
+            "parentTaggedDocs",
+            "parentPublishDateVisible",
+            "parentShowComingSoon",
+            "parentAlwaysOffline",
+            "parentUseVerticalTileLayout",
+            "parentAuthorType",
+            "parentLinkDates",
+            "availableTranslations",
+            "fts",
+            "ftsTokenCount",
+            "wordCount",
+            "previousSlugs",
+            "statusChangeDeleteCmdId",
+        ],
         // Optional fields: the UI writes "" / undefined where the DB simply omits the key. Strip
         // every empty own-key so typing-then-clearing any optional field reads clean again — both
         // sides are filtered before the dirty compare, so this is symmetric and needs no per-field
@@ -289,9 +319,8 @@ export function useEditContentSource(options: UseEditContentSourceOptions): UseE
     // Concurrent-edit conflict: the server value diverged from our baseline while we hold unsaved
     // edits. toEditable's `isModified` is true only in that case (an unedited doc's incoming change
     // flows in silently), so this is exactly "someone else pushed a change to what I'm editing".
-    // ponytail: a server round-trip that adds server-owned fields (fts, availableTranslations) right
-    // after our own save can transiently read as incoming if the user resumes editing before it lands
-    // — isEqualBase (shared) doesn't normalize those and we can't tune it. Narrow; not worth solving.
+    // The server-owned fields a save round-trip rewrites are back-patched above, so they
+    // never reach this comparison — without that, every save came back as someone else's edit.
     const isIncomingChange = computed(
         () => (id: Uuid) =>
             parentEditable.isModified.value(id) || contentEditable.isModified.value(id),
