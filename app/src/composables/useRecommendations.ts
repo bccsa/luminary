@@ -149,7 +149,9 @@ export function useRecommendations({
             tagSet.value.length
                 ? [{ parentTags: { $elemMatch: { $in: tagSet.value } } }]
                 : [{ _id: { $in: [] } }],
-        { cache: true, cacheId: "recommended", limit: retrievalLimit },
+        // The tag set shifts as affinity updates — the same feed, re-narrowed, so keep it
+        // painted while the new candidate pool loads.
+        { cache: true, cacheId: "recommended", limit: retrievalLimit, keepPreviousResult: true },
     );
 
     // Which of the candidates' `parentTags` are actually TagType.Topic (categories and

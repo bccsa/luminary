@@ -157,7 +157,7 @@ describe("useMediaEncoder resume", () => {
         expect(await resume({ documentId: "post-1", onMediaReady: vi.fn() })).toBe(true);
         expect(status.value).toBe("encoding");
         expect(progress.value).toBe(42);
-        expect(subscribeMock.mock.calls[0][0]).toBe(EVENTS_URL);
+        expect((subscribeMock.mock.calls[0] as unknown[])[0]).toBe(EVENTS_URL);
     });
 
     it("writes the URL back, so a reload before the first event does not lose it", async () => {

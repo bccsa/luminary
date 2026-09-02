@@ -281,7 +281,9 @@ export const initLanguage = () => {
         // shared cmsLanguages list.
         const languagesQuery = new HybridQuery<LanguageDto>(
             { selector: { type: DocType.Language } },
-            { live: true },
+            // The re-route when sync registers the Language type is the same list, so keep
+            // it: everything downstream resolves against these languages.
+            { live: true, keepPreviousResult: true },
         );
 
         // Watch for CMS languages and update cmsLanguages

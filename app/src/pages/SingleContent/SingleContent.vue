@@ -102,7 +102,10 @@ const { output: contentArr, isFetching: isContentFetching } = useContentQueryWit
     {
         includeScheduled: false,
         languageFilter: false,
-        cache: true,
+        // The cache key is a structural fingerprint that excludes values, and only the
+        // SSG build passes a per-slug `cacheId` — so caching here would otherwise share
+        // one entry across every article.
+        cache: isSSG,
         cacheId: isSSG ? props.slug : undefined,
         // Seek the single slug doc via the slug-led index. The publishDate sort is required
         // for CouchDB to engage the index (slug eq alone falls back to a full scan).
@@ -344,7 +347,7 @@ const translationsArr = useContentQuery(
             : [{ parentId: { $in: [] } }],
     {
         publishedFilter: false,
-        cache: true,
+        cache: isSSG,
         // Per-slug discriminator so the per-document cache is SAFE — a shape-only key
         // would seed this page from a previously-viewed post's translations. Only SSG
         // depends on this cache entry (matching the prerender's seed on first paint);
@@ -807,6 +810,7 @@ watch([isLoading, content, is404], async () => {
                         >
                             <VideoPlayer
                                 v-if="content && hasVideoSource(content)"
+                                :key="content._id"
                                 :content="content"
                                 :language="selectedLanguageCode"
                             />
