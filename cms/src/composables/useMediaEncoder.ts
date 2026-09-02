@@ -56,7 +56,6 @@ export function useMediaEncoder() {
 
         if (health.available) {
             availability.value = "available";
-            stopWatching();
             return true;
         }
 
@@ -80,42 +79,63 @@ export function useMediaEncoder() {
      * visible: a background tab is not a person waiting for a window to appear,
      * and this is a request per interval to a port that may have nothing on it.
      */
-    const POLL_MS = 3000;
-    let poll: ReturnType<typeof setInterval> | undefined;
+    /**
+     * Keep the encoder's availability true, in both directions.
+     *
+     * Nothing tells this page that a desktop app has started or stopped, so it
+     * is asked. Polling runs the whole time the section is mounted rather than
+     * only while the encoder is missing: an editor who quits it should not be
+     * left with a button that still looks usable, and a stale "not running"
+     * notice is no better.
+     *
+     * Slower once it has answered, because then it is confirming rather than
+     * waiting. Both are a loopback request that fails immediately when nothing
+     * is listening on the port.
+     */
+    const POLL_MISSING_MS = 3000;
+    const POLL_PRESENT_MS = 10000;
+    let poll: ReturnType<typeof setTimeout> | undefined;
 
     function stopWatching() {
-        if (poll) clearInterval(poll);
+        if (poll) clearTimeout(poll);
         poll = undefined;
     }
 
     async function tick() {
-        if (document.hidden) return;
-        if (await refreshAvailability()) stopWatching();
-        // Gone again: an editor who quits the encoder should not be left with a
-        // button that still looks usable.
-        else watchForEncoder();
+        // A hidden tab is nobody waiting for an answer; the next focus asks.
+        if (!document.hidden) await refreshAvailability();
+        schedule();
     }
 
-    /** Poll until the encoder answers. Safe to call repeatedly. */
+    function schedule() {
+        stopWatching();
+        const wait = availability.value === "available" ? POLL_PRESENT_MS : POLL_MISSING_MS;
+        poll = setTimeout(() => void tick(), wait);
+    }
+
+    /** Start watching. Safe to call repeatedly. */
     function watchForEncoder() {
-        if (poll || availability.value === "available") return;
-        poll = setInterval(() => void tick(), POLL_MS);
+        if (poll) return;
+        schedule();
     }
 
     /**
-     * Check on returning to the tab, whichever way the answer goes.
+     * Ask immediately when the window comes back.
      *
-     * Polling only runs while the encoder is missing — a request every few
-     * seconds for the life of an open document is not worth keeping a button
-     * greyed out. But quitting the encoder means leaving the browser and coming
-     * back, so this is the one moment that catches it for free.
+     * `visibilitychange` covers tab switches and minimising, but not switching
+     * to another application — which is how somebody quits the encoder, so it
+     * would miss exactly the case it is most needed for. `focus` on the window
+     * catches that.
      */
-    const onVisible = () => {
+    const onReturn = () => {
         if (document.hidden) return;
-        void tick();
+        void refreshAvailability();
     };
 
-    if (typeof document !== "undefined") document.addEventListener("visibilitychange", onVisible);
+    if (typeof document !== "undefined") {
+        document.addEventListener("visibilitychange", onReturn);
+        window.addEventListener("focus", onReturn);
+    }
 
     function stop() {
         unsubscribe?.();
@@ -289,8 +309,10 @@ export function useMediaEncoder() {
     onUnmounted(() => {
         stop();
         stopWatching();
-        if (typeof document !== "undefined")
-            document.removeEventListener("visibilitychange", onVisible);
+        if (typeof document !== "undefined") {
+            document.removeEventListener("visibilitychange", onReturn);
+            window.removeEventListener("focus", onReturn);
+        }
     });
 
     return {
