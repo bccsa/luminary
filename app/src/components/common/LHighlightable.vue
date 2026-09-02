@@ -368,7 +368,7 @@ function shareHighlightText(options: { withUrl?: boolean } = {}): string {
 }
 
 function shareHighlightToTelegram() {
-    window.open(buildTelegramShareUrl(shareHighlightText({ withUrl: true })), "_blank");
+    window.open(buildTelegramShareUrl(shareHighlightText(), window.location.href), "_blank");
     finalizeShare();
 }
 
@@ -420,7 +420,9 @@ async function saveHighlights(): Promise<boolean> {
         // Get existing highlights data from IndexedDB
         const existingData = (await db.getLuminaryInternals("highlights")) || {};
         const data: Record<string, unknown> =
-            typeof existingData === "object" && existingData !== null && !Array.isArray(existingData)
+            typeof existingData === "object" &&
+            existingData !== null &&
+            !Array.isArray(existingData)
                 ? { ...existingData }
                 : {};
 

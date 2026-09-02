@@ -99,4 +99,16 @@ describe("ShareMenu", () => {
             "_blank",
         );
     });
+
+    // t.me/share/url bounces to Telegram's home page on an empty `url`, so the article
+    // link has to ride in that param rather than only inside `text`.
+    it("gives Telegram the article link as its own share target", async () => {
+        const wrapper = await mountMenu();
+        await wrapper.find(TRIGGER).trigger("click");
+        await wrapper.find('[data-test="shareTelegram"]').trigger("click");
+
+        const opened = new URL(vi.mocked(window.open).mock.calls[0][0] as string);
+        expect(opened.searchParams.get("url")).toBe(window.location.href);
+        expect(opened.searchParams.get("text")).toContain(mockEnglishContentDto.title);
+    });
 });

@@ -71,7 +71,7 @@ const itemClass =
     "flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 active:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-600 dark:active:bg-slate-500";
 
 function shareToTelegram() {
-    window.open(buildTelegramShareUrl(shareMessage({ withUrl: true })), "_blank");
+    window.open(buildTelegramShareUrl(shareMessage(), shareUrl()), "_blank");
     open.value = false;
 }
 

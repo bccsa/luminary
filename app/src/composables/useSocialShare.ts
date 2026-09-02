@@ -1,9 +1,9 @@
-// The link rides inside `text` (with an empty `url` param) so it lands at the bottom of
-// the message: Telegram composes the draft as `url` followed by `text`, which puts a
-// populated `url` param above the quote. Telegram still finds the link for its preview.
-export function buildTelegramShareUrl(text: string): string {
+// `url` must carry the link: t.me/share/url treats it as the thing being shared and
+// bounces to Telegram's home page when it's empty, whatever `text` holds. Telegram
+// composes the draft as `url` then `text`, so the link sits above the quote.
+export function buildTelegramShareUrl(text: string, url: string): string {
     const shareUrl = new URL("https://t.me/share/url");
-    shareUrl.searchParams.set("url", "");
+    shareUrl.searchParams.set("url", url);
     shareUrl.searchParams.set("text", text);
     return shareUrl.toString();
 }
