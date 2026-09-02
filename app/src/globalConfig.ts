@@ -7,6 +7,7 @@ import {
 } from "luminary-shared";
 import { computed, ref, watch } from "vue";
 import { loadFallbackImageUrls } from "./util/loadFallbackImages";
+import { THEME_STORAGE_KEY } from "./themeStorage";
 
 export const appName = import.meta.env.VITE_APP_NAME;
 export const apiUrl = import.meta.env.VITE_API_URL;
@@ -431,7 +432,7 @@ watch(userPreferencesAsRef.value, (newVal) => {
  */
 export const queryParams = new URLSearchParams(window.location.search);
 
-const _theme = ref(localStorage.getItem("theme") || "system");
+const _theme = ref(localStorage.getItem(THEME_STORAGE_KEY) || "system");
 
 /**
  * The selected theme as Vue ref.
@@ -443,7 +444,7 @@ export const theme = computed<"system" | "dark" | "light">({
     },
     set: (value) => {
         _theme.value = value;
-        localStorage.setItem("theme", value);
+        localStorage.setItem(THEME_STORAGE_KEY, value);
     },
 });
 

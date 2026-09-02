@@ -21,6 +21,7 @@ import {
     LEGACY_AUTH0_CACHE_PREFIX,
     OIDC_USER_PREFIX,
 } from "./src/authStorage";
+import { THEME_STORAGE_KEY } from "./src/themeStorage";
 import { releaseSsrChain } from "./src/ssg/ssrChains";
 import { takeRenderIssues, type RenderIssue } from "./src/ssg/renderDiagnostics";
 import { setSessionNow } from "./src/util/sessionNow";
@@ -97,6 +98,24 @@ function hqCacheScript(cache: Record<string, string>): string {
     // silent — the client's cold-start backfill covers it, but the warning points
     // at the storage-level root cause.
     return `<script>(function(c){try{for(var k in c)localStorage.setItem(k,c[k])}catch(e){console.warn('[hqcache] seed write failed:',e&&e.name,e&&e.message)}})(${json})</script>`;
+}
+
+// Pre-paint theme. Tailwind's dark variant is class-based, and the prerendered HTML carries no `dark` class, so the first paint is light until `globalConfig.ts` evaluates. This resolves the same stored-then-OS preference during head parse. CSS alone can't do it — `prefers-color-scheme` can't see the explicit choice in localStorage.
+function themeScript(): string {
+    const themeKey = JSON.stringify(THEME_STORAGE_KEY);
+    // The storage read gets its own try so a browser that denies localStorage (blocked site
+    // data, some sandboxes) still falls through to the OS preference instead of painting light.
+    return (
+        `<script>(function(){` +
+        `var t=null;` +
+        `try{t=localStorage.getItem(${themeKey})}catch(e){}` +
+        `try{` +
+        `if(t!=="dark"&&t!=="light"){` +
+        `t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";` +
+        `}` +
+        `if(t==="dark")document.documentElement.classList.add("dark");` +
+        `}catch(e){}})();</script>`
+    );
 }
 
 // Pre-paint auth gate. The prerendered HTML is the public/anonymous view, which a returning logged-in user would briefly see before the JS boots; this hides `#app` via CSS until Vue's auth-scoped first render lands. Only engages when a persisted session looks present (mirrors `hasPersistedSession()`); revealed by App.vue's onMounted.
@@ -672,7 +691,9 @@ const config: UserConfig & { ssgOptions: ViteSSGOptions } = {
             const apiUrl = SSG_API_URL;
             if (!apiUrl) {
                 // Fail fast: a partial build that silently drops pages is worse than no build.
-                throw new Error("[ssg] VITE_API_URL (or SSG_API_URL) is required for route enumeration");
+                throw new Error(
+                    "[ssg] VITE_API_URL (or SSG_API_URL) is required for route enumeration",
+                );
             }
 
             // Always populate the route→language map + default language (used per
@@ -747,14 +768,16 @@ const config: UserConfig & { ssgOptions: ViteSSGOptions } = {
         },
         // --- Render-time dependency capture + response-cache seed ---
         onPageRendered: (route, renderedHTML) => {
-            // Auth gate is unconditional (every page); the cache seed is only injected
-            // when the page actually primed one. Both the keys and the seed were filed
+            // Theme and auth gate are unconditional (every page); the cache seed is only
+            // injected when the page actually primed one. Both the keys and the seed were filed
             // under this route as the render produced them, so no per-page reset is needed.
             const state = capture();
             assertRouteLanguage(route, state.manifest[route]);
             const cache = state.cache[route] ?? {};
             const script =
-                authGateScript() + (Object.keys(cache).length ? hqCacheScript(cache) : "");
+                themeScript() +
+                authGateScript() +
+                (Object.keys(cache).length ? hqCacheScript(cache) : "");
 
             // The page's HTML is written, so nothing reads these again. Drop them now: the
             // prerender's `localStorage` is an unbounded in-memory Map and `writeResponseCache`
