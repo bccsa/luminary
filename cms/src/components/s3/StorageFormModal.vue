@@ -275,7 +275,7 @@ function handleDelete() {
                 <div v-if="isMediaBucket" class="space-y-3" data-test="media-encode-settings">
                     <label class="block text-xs font-medium text-zinc-700">Media encoding</label>
 
-                    <div class="flex items-center justify-between">
+                    <div class="flex items-center justify-between pr-2">
                         <div>
                             <p class="text-sm text-zinc-800">Encrypt media</p>
                             <p class="text-[11px] text-zinc-500">
@@ -289,7 +289,7 @@ function handleDelete() {
                         />
                     </div>
 
-                    <div class="flex items-center justify-between">
+                    <div class="flex items-center justify-between pr-2">
                         <div>
                             <p class="text-sm text-zinc-800">Byte-range segments</p>
                             <p class="text-[11px] text-zinc-500">
