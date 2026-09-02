@@ -7,7 +7,12 @@ import { deleteImage, processImage } from "./processImageDto";
 import { processMedia } from "./processMediaDto";
 import { deleteMediaCollection } from "./deleteMediaCollection";
 import { migrateMediaCollection } from "./migrateMediaCollection";
-import { deleteSidecar, deleteSidecarsForParent, syncSidecarMemberOf } from "../../sidecar/sidecar.service";
+import { isInOurStorage } from "./mediaUrl";
+import {
+    deleteSidecar,
+    deleteSidecarsForParent,
+    syncSidecarMemberOf,
+} from "../../sidecar/sidecar.service";
 
 /**
  * Process Post / Tag DTO
@@ -45,11 +50,7 @@ export default async function processPostTagDto(
         // carries the intent.
         if (doc.media?.deleteFiles) {
             warnings.push(
-                ...(await deleteMediaCollection(
-                    prevDoc?.media,
-                    prevDoc?.mediaBucketId,
-                    db,
-                )),
+                ...(await deleteMediaCollection(prevDoc?.media, prevDoc?.mediaBucketId, db)),
             );
         }
 
@@ -123,9 +124,23 @@ export default async function processPostTagDto(
     // Process media
     if (doc.media) {
         // The bucket is where the encoder was told to write, and is what a later
-        // edit of the collection has to be pointed back at.
-        if (!doc.mediaBucketId) {
-            throw new Error("Bucket is not specified for media processing.");
+        // edit of the collection has to be pointed back at — so it is required
+        // for a collection in our own storage, and meaningless for one that is
+        // not. A YouTube link, or an HLS master on someone else's CDN, has no
+        // bucket to be relative to and nothing here to migrate or delete;
+        // demanding one records a bucket that does not own anything.
+        //
+        // Asked of the configured buckets rather than assumed from the shape of
+        // the URL: an absolute URL under a bucket's public URL is ours, and is
+        // exactly the case that must not be saved without naming its bucket —
+        // stored un-relative, it breaks the moment that bucket is renamed.
+        if (doc.media.hlsUrl && !doc.mediaBucketId) {
+            const buckets = await db.getDocsByType(DocType.Storage);
+            const publicUrls = buckets.docs.map((b: any) => b.publicUrl);
+
+            if (isInOurStorage(doc.media.hlsUrl, publicUrls)) {
+                throw new Error("Bucket is not specified for media processing.");
+            }
         }
 
         // A bucket change has to take the files with it. `mediaBucketId` and
