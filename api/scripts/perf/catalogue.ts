@@ -17,6 +17,12 @@ export type CatalogueEntry = {
     expectStatus?: number;
     /** Needs CmsView. Under an identity without it a 403 is the correct answer, not a failure. */
     requiresCmsView?: boolean;
+    /**
+     * Where this shape comes from. A hand-written approximation is worse than useless — it
+     * measures a query nothing sends and reports the result as a finding — so every entry
+     * names the call site it mirrors, or says it is synthetic.
+     */
+    source: string;
 };
 
 const DAY = 86_400_000;
@@ -62,6 +68,7 @@ export function buildCatalogue(ctx: PerfContext): CatalogueEntry[] {
             path: "/query",
             body,
             requiresCmsView: opts.cms,
+            source: "shared/src/api/sync/syncBatch.ts",
             explain: {
                 selector,
                 limit: SYNC_LIMIT,
@@ -145,6 +152,7 @@ export function buildCatalogue(ctx: PerfContext): CatalogueEntry[] {
     entries.push({
         id: "sync-content-includeExpired",
         group: "sync (app)",
+        source: "shared/src/api/sync/syncBatch.ts",
         label: "update sync — content with includeExpired",
         method: "POST",
         path: "/query",
@@ -168,6 +176,7 @@ export function buildCatalogue(ctx: PerfContext): CatalogueEntry[] {
     entries.push({
         id: "sync-content-publishDate-window",
         group: "sync (app)",
+        source: "shared/src/api/sync/syncBatch.ts",
         label: "incremental sync — content narrowed by publishDate cutoff",
         method: "POST",
         path: "/query",
@@ -212,11 +221,15 @@ export function buildCatalogue(ctx: PerfContext): CatalogueEntry[] {
     }
 
     // ── HybridQuery: the app's read-path supplements ──────────────────────────
-    const hybrid = (id: string, label: string, body: any) => {
+    // Every shape below is copied from the call site named in `source`. A `publishDate`
+    // sort appears on most of them because CouchDB will not engage a partial index from a
+    // bare equality — omit it and the pin is rejected and the query full-scans.
+    const hybrid = (id: string, label: string, source: string, body: any) => {
         entries.push({
             id,
             group: "hybridQuery",
             label,
+            source,
             method: "POST",
             path: "/query",
             body: { ...body, identifier: "hybridQuery" },
@@ -230,81 +243,108 @@ export function buildCatalogue(ctx: PerfContext): CatalogueEntry[] {
     };
 
     if (ctx.slugs.length) {
-        hybrid("hybrid-by-slug", "content by slug (single page load)", {
-            selector: { type: "content", parentType: "post", slug: ctx.slugs[0] },
-            limit: 1,
-            use_index: "content-slug-publishDate-index",
-        });
+        hybrid(
+            "hybrid-by-slug",
+            "content by slug — single page load",
+            "app/src/pages/SingleContent/SingleContent.vue",
+            {
+                selector: { $and: [{ type: "content" }, { slug: ctx.slugs[0] }] },
+                use_index: "content-slug-publishDate-index",
+                sort: [{ publishDate: "desc" }],
+                limit: 1,
+            },
+        );
     }
 
     if (ctx.parentIds.length) {
-        hybrid("hybrid-by-parentId", "content by parentId, publishDate desc (fan-out clone)", {
-            selector: { type: "content", parentId: ctx.parentIds[0] },
-            limit: 20,
-            sort: [{ publishDate: "desc" }],
-            use_index: "content-parentId-publishDate-index",
-        });
-        hybrid("hybrid-by-parentId-in", "content by parentId $in (un-fanned, 25 parents)", {
-            selector: { type: "content", parentId: { $in: ctx.parentIds.slice(0, 25) } },
-            limit: 50,
-            sort: [{ publishDate: "desc" }],
-            use_index: "content-publishDate-index",
-        });
-    }
-
-    if (ctx.tagIds.length) {
-        hybrid("hybrid-by-parentTags", "content by parentTags $elemMatch (category feed)", {
-            selector: {
-                type: "content",
-                parentType: "post",
-                parentTags: { $elemMatch: { $in: ctx.tagIds.slice(0, 5) } },
-                publishDate: { $lte: now },
+        hybrid(
+            "hybrid-by-parentId",
+            "content by one parentId — what the fan-out actually sends",
+            "shared/src/util/HybridQuery/queryIntrospection.ts (fanOut)",
+            {
+                selector: { $and: [{ type: "content" }, { parentId: ctx.parentIds[0] }] },
+                use_index: "content-parentId-publishDate-index",
+                sort: [{ publishDate: "desc" }],
+                limit: 50,
             },
-            limit: 20,
-            sort: [{ publishDate: "desc" }],
-            use_index: "content-publishDate-index",
-        });
+        );
+
+        // Above FANOUT_MAX_PARENTS the client stops fanning out and posts one query. The
+        // fallback is deliberate (it avoids a request storm) but it does full-scan.
+        hybrid(
+            "hybrid-parentId-fanout-overflow",
+            "content by parentId $in, over the 25-parent fan-out cap",
+            "shared/src/util/HybridQuery/queryIntrospection.ts (fallback)",
+            {
+                selector: {
+                    $and: [{ type: "content" }, { parentId: { $in: ctx.parentIds.slice(0, 40) } }],
+                },
+                use_index: "content-parentId-publishDate-index",
+                limit: 50,
+            },
+        );
     }
 
-    hybrid("hybrid-pinned", "pinned content feed", {
-        selector: { type: "content", parentPinned: 1, publishDate: { $lte: now } },
-        limit: 20,
-        sort: [{ publishDate: "desc" }],
-        use_index: "content-parentPinned-publishDate-index",
-    });
-
-    hybrid("hybrid-publishDate-window", "content publishDate window (newest feed)", {
-        selector: {
-            type: "content",
-            parentType: "post",
-            publishDate: { $lte: now, $gte: now - 90 * DAY },
+    hybrid(
+        "hybrid-pinned",
+        "pinned category feed",
+        "app/src/components/HomePage/HomePagePinned.vue",
+        {
+            selector: { $and: [{ type: "content" }, { parentPinned: 1 }] },
+            use_index: "content-parentPinned-publishDate-index",
+            sort: [{ publishDate: "desc" }],
+            limit: 20,
         },
-        limit: 20,
-        sort: [{ publishDate: "desc" }],
-        use_index: "content-publishDate-index",
-    });
+    );
 
-    hybrid("hybrid-by-tagType", "content by parentTagType (category listing)", {
-        selector: { type: "content", parentTagType: "category", publishDate: { $lte: now } },
-        limit: 20,
-        sort: [{ publishDate: "desc" }],
-        use_index: "content-parentTagType-publishDate-index",
-    });
+    hybrid(
+        "hybrid-by-tagType",
+        "topic listing by parentTagType",
+        "app/src/components/ExplorePage/UnpinnedTopics.vue",
+        {
+            selector: {
+                $and: [
+                    { type: "content" },
+                    { parentTagType: "topic" },
+                    { parentTaggedDocs: { $exists: true, $ne: [] } },
+                ],
+            },
+            use_index: "content-parentTagType-publishDate-index",
+            sort: [{ publishDate: "desc" }],
+            limit: 20,
+        },
+    );
 
     if (ctx.content.length) {
-        hybrid("hybrid-by-id-list", "content by _id $in (id-diff supplement)", {
-            selector: { type: "content", _id: { $in: ctx.content.slice(0, 25).map((d) => d._id) } },
-            limit: 25,
-        });
+        hybrid(
+            "hybrid-by-id-list",
+            "content by _id list — id-diff supplement (served by the built-in _id index)",
+            "shared/src/util/HybridQuery/queryIntrospection.ts (decideContentApiQuery)",
+            {
+                selector: {
+                    $and: [
+                        { type: "content" },
+                        { _id: { $in: ctx.content.slice(0, 25).map((d) => d._id) } },
+                    ],
+                },
+                limit: 25,
+            },
+        );
     }
 
-    // Worst legitimate case: a client asking for the maximum page the validator allows.
-    hybrid("hybrid-max-limit", `content at the maximum allowed limit (500)`, {
-        selector: { type: "content", parentType: "post", publishDate: { $lte: now } },
-        limit: 500,
-        sort: [{ publishDate: "desc" }],
-        use_index: "content-publishDate-index",
-    });
+    // Synthetic: no call site sends this. It exists to price the largest page the
+    // validator will accept, not to represent real traffic.
+    hybrid(
+        "hybrid-max-limit",
+        "content at the maximum allowed limit (500) — synthetic worst case",
+        "synthetic — no call site",
+        {
+            selector: { $and: [{ type: "content" }, { publishDate: { $lte: now } }] },
+            use_index: "content-publishDate-index",
+            sort: [{ publishDate: "desc" }],
+            limit: 500,
+        },
+    );
 
     // ── Full-text search ──────────────────────────────────────────────────────
     const fts = (id: string, label: string, body: any) => {
@@ -316,6 +356,7 @@ export function buildCatalogue(ctx: PerfContext): CatalogueEntry[] {
             path: "/fts",
             body: { apiVersion: "0.0.0", ...body },
             requiresCmsView: body.cms === true,
+            source: "shared/src/api/RestApi.ts (fts)",
         });
     };
 
@@ -372,6 +413,7 @@ export function buildCatalogue(ctx: PerfContext): CatalogueEntry[] {
         label: "GET /protected — auth guard only, no DB query of its own",
         method: "GET",
         path: "/protected",
+        source: "synthetic — isolates auth cost from query cost",
     });
     entries.push(
         ctx.storageBucketId
@@ -379,6 +421,7 @@ export function buildCatalogue(ctx: PerfContext): CatalogueEntry[] {
                   id: "storage-status",
                   group: "other",
                   label: "GET /storage/storagestatus — bucket connectivity probe",
+                  source: "cms bucket overview",
                   method: "GET",
                   path: `/storage/storagestatus?bucketId=${encodeURIComponent(
                       ctx.storageBucketId,
@@ -392,11 +435,13 @@ export function buildCatalogue(ctx: PerfContext): CatalogueEntry[] {
                   method: "GET",
                   path: "/storage/storagestatus?apiVersion=0.0.0",
                   expectStatus: 400,
+                  source: "cms bucket overview",
               },
     );
     entries.push({
         id: "reject-invalid-index",
         group: "rejects",
+        source: "synthetic — reject path",
         label: "rejected — unknown use_index (validator)",
         method: "POST",
         path: "/query",
@@ -411,6 +456,7 @@ export function buildCatalogue(ctx: PerfContext): CatalogueEntry[] {
     entries.push({
         id: "reject-over-limit",
         group: "rejects",
+        source: "synthetic — reject path",
         label: "rejected — limit above the cap",
         method: "POST",
         path: "/query",
@@ -420,6 +466,7 @@ export function buildCatalogue(ctx: PerfContext): CatalogueEntry[] {
     entries.push({
         id: "reject-crypto",
         group: "rejects",
+        source: "synthetic — reject path",
         label: "rejected — internal crypto doc type",
         method: "POST",
         path: "/query",
@@ -429,6 +476,7 @@ export function buildCatalogue(ctx: PerfContext): CatalogueEntry[] {
     entries.push({
         id: "reject-regex",
         group: "rejects",
+        source: "synthetic — reject path",
         label: "rejected — $regex operator (data-mining guard)",
         method: "POST",
         path: "/query",

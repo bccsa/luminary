@@ -108,6 +108,8 @@ export class QueryController {
             keys: result?.execution_stats?.total_keys_examined,
             couchMs: result?.execution_stats?.execution_time_ms,
             expensive: verdict.expensive,
+            // CouchDB says here when it declined the pinned index and scanned instead.
+            warning: (result as any)?.warning,
         });
 
         if (verdict.expensive) {

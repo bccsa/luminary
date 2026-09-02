@@ -114,6 +114,23 @@ export function deriveFindings(report: AuditReport): Finding[] {
         });
     }
 
+    // CouchDB's own warning is authoritative: it names the index it refused and why.
+    for (const row of ok) {
+        const warning = String(row.meta.warning ?? "");
+        if (warning.includes("not used because")) {
+            findings.push({
+                severity: "high",
+                area: "index",
+                title: `CouchDB rejected the pinned index: \`${row.entry.id}\``,
+                detail:
+                    `${warning.split("\n")[0]} Executed as a scan: ${
+                        row.meta.examined
+                    } examined for ` +
+                    `${row.meta.docs} returned. Shape mirrors ${row.entry.source}.`,
+            });
+        }
+    }
+
     // Scan-like queries.
     for (const row of ok) {
         const examined = Number(row.meta.examined ?? 0);
@@ -126,7 +143,7 @@ export function deriveFindings(report: AuditReport): Finding[] {
                 detail:
                     `examined ${examined} docs to return ${docs} (index \`${
                         row.meta.use_index ?? "none"
-                    }\`, ` +
+                    }\`, shape from ${row.entry.source}, ` +
                     `${r(
                         row.server!.mean,
                     )} ms mean). The injected permission/status/language clauses are ` +
@@ -450,7 +467,7 @@ function renderMarkdown(report: AuditReport): string {
             out.push("");
             for (const row of rows) {
                 out.push(
-                    `- \`${row.entry.id}\` — ${row.entry.label}` +
+                    `- \`${row.entry.id}\` — ${row.entry.label} _(${row.entry.source})_` +
                         (row.error ? ` — **${row.error}**` : "") +
                         (row.permissionBlocked ? ` — 🔒 not permitted for this identity` : ""),
                 );
