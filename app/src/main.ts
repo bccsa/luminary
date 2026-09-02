@@ -34,6 +34,19 @@ app.use(createPinia());
 initSentry(app);
 
 /**
+ * Backstop for a startup that stalls instead of failing. Nothing below rejects on a
+ * promise that simply never settles, so without this the user sits on the boot splash
+ * and nothing is reported. Comfortably above the ~30s worst case of a slow silent
+ * token refresh so a slow-but-working boot is not flagged.
+ */
+const BOOT_TIMEOUT_MS = 45_000;
+
+const bootWatchdog = setTimeout(() => {
+    markAppError();
+    Sentry?.captureMessage(`App boot did not complete within ${BOOT_TIMEOUT_MS}ms`, "error");
+}, BOOT_TIMEOUT_MS);
+
+/**
  * Content sync window. Installed (standalone) sessions sync the full corpus (no
  * cutoff). Browser-tab sessions sync only the last ~1 month; content with
  * `publishDate` older than `Date.now() - BROWSER_CONTENT_SYNC_WINDOW_MS` is not
@@ -63,9 +76,6 @@ async function Startup() {
         contentPublishDateCutoff: installedStandalone
             ? undefined // no cutoff → full corpus
             : Date.now() - BROWSER_CONTENT_SYNC_WINDOW_MS,
-    }).catch((err) => {
-        console.error(err);
-        Sentry?.captureException(err);
     });
 
     // Keep the CMS-managed default-affinity baseline/config in sync with the local
@@ -101,7 +111,9 @@ async function Startup() {
     watch(serverError, (error) => {
         if (error) {
             serverError.value = null;
-            console.error(`Server error: ${error.status}${error.message ? ` ${error.message}` : ""}`);
+            console.error(
+                `Server error: ${error.status}${error.message ? ` ${error.message}` : ""}`,
+            );
             if (serverErrorTimeout) return;
             Sentry?.captureMessage(
                 `Server error: ${error.status}${error.message ? ` ${error.message}` : ""}`,
@@ -132,17 +144,21 @@ async function Startup() {
 
     isAppLoading.value = false;
 
-    // Drop the pre-Vue splash from index.html only after the flag above has been rendered,
-    // so the app is already painted underneath and uncovering it can't expose a blank frame.
+    // Drop the boot splash only after the flag above has been rendered, so the app is already
+    // painted underneath and uncovering it can't expose a blank frame. A failed startup never
+    // reaches this line, which is deliberate: markAppError() below leaves the splash up and
+    // switches it to its error panel rather than stranding the user on an animating bar.
     await nextTick();
     document.getElementById(BOOT_SPLASH_ID)?.remove();
 
     initAppTitle(i18n);
     initAnalytics();
+    clearTimeout(bootWatchdog);
     markAppReady();
 }
 
 Startup().catch((err) => {
+    clearTimeout(bootWatchdog);
     console.error(err);
     Sentry?.captureException(err);
     markAppError();
