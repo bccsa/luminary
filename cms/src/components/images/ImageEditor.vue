@@ -26,6 +26,9 @@ const emit = defineEmits<{
 const parent = defineModel<ContentParentDto>("parent");
 const maxUploadFileSizeMb = computed(() => maxUploadFileSize.value / 1000000);
 
+const UNRESOLVED_BUCKET_MESSAGE =
+    "This image is stored in a bucket you don't have access to. The image is unaffected, but you cannot upload a new one until a bucket you can access is selected.";
+
 // Bucket selection (simplified approach using existing database data)
 const bucketSelection = storageSelection();
 
@@ -112,30 +115,25 @@ const dragCounter = ref(0);
 const showFailureMessage = ref(false);
 const failureMessage = ref<string | undefined>(undefined);
 
-// Validate that selected bucket still exists and auto-select if only one available
+// A bucket absent from the list is either deleted or in a group this user cannot view —
+// the two are indistinguishable here, so the reference is reported and never discarded.
+// Dropping it would strip the image from the document on the next save.
+const bucketIsUnresolved = computed(
+    () =>
+        !!parent.value?.imageBucketId &&
+        bucketSelection.imageBuckets.value.length > 0 &&
+        !bucketSelection.imageBuckets.value.some((b) => b._id === parent.value?.imageBucketId),
+);
+
+// Surface bucket configuration issues on load rather than only on upload.
 watchEffect(() => {
-    // Check if the currently selected bucket still exists in the database
-    if (parent.value?.imageBucketId) {
-        // Only validate if buckets have loaded (array is not empty)
-        // This prevents clearing imageBucketId while buckets are still loading from IndexedDB
-        if (bucketSelection.imageBuckets.value.length > 0) {
-            const currentBucketExists = bucketSelection.imageBuckets.value.some(
-                (b) => b._id === parent.value?.imageBucketId,
-            );
-
-            // If the bucket no longer exists, clear it
-            if (!currentBucketExists) {
-                parent.value.imageBucketId = undefined;
-            }
-        }
-    }
-
-    // Proactively show error messages for bucket configuration issues
-    // This ensures users see the error immediately, not just when they try to upload
     if (!bucketSelection.hasImageBuckets.value) {
         // No buckets configured at all
         failureMessage.value =
             "No storage buckets configured. Please configure at least one S3 bucket in the Storage settings before uploading images.";
+        showFailureMessage.value = true;
+    } else if (bucketIsUnresolved.value) {
+        failureMessage.value = UNRESOLVED_BUCKET_MESSAGE;
         showFailureMessage.value = true;
     } else if (!effectiveImageBucketId.value && bucketSelection.imageBuckets.value.length > 1) {
         // Multiple buckets available but none selected
@@ -147,7 +145,7 @@ watchEffect(() => {
         const bucketRelatedErrors = [
             "No storage buckets configured. Please configure at least one S3 bucket in the Storage settings before uploading images.",
             "Please select a storage bucket before uploading images.",
-            "The selected storage bucket no longer exists. Please select another bucket.",
+            UNRESOLVED_BUCKET_MESSAGE,
         ];
         if (failureMessage.value && bucketRelatedErrors.includes(failureMessage.value)) {
             failureMessage.value = undefined;
@@ -174,15 +172,10 @@ const handleFiles = (files: FileList | null) => {
         emit("bucketSelected", effectiveImageBucketId.value);
     }
 
-    // Check if the currently selected bucket still exists in the database
-    const currentBucketExists = bucketSelection.imageBuckets.value.some(
-        (b) => b._id === parent.value?.imageBucketId,
-    );
-
-    if (!currentBucketExists) {
-        if (parent.value) parent.value.imageBucketId = undefined;
-        failureMessage.value =
-            "The selected storage bucket no longer exists. Please select another bucket.";
+    // An upload needs a bucket this user can write to, so it is refused — but the existing
+    // reference is left alone; selecting another bucket is what replaces it.
+    if (bucketIsUnresolved.value) {
+        failureMessage.value = UNRESOLVED_BUCKET_MESSAGE;
         showFailureMessage.value = true;
         return;
     }

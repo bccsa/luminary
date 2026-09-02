@@ -302,6 +302,13 @@ watch(showDuplicateModal, (open) => {
     if (open) duplicateImageOnCopy.value = true;
 });
 
+// The copy is made from the bucket the original records, so an image without one cannot travel.
+const imageCannotBeCopied = computed(
+    () =>
+        !!editableParent.value?.imageData?.fileCollections?.length &&
+        !editableParent.value?.imageBucketId,
+);
+
 const duplicate = async () => {
     showDuplicateModal.value = false;
     if (!editableParent.value) return;
@@ -330,12 +337,11 @@ const duplicate = async () => {
         "Successfully duplicated",
         `This ${props.tagOrPostType} has successfully been duplicated`,
     );
-    // The image is only copyable when the original records the bucket it is stored in.
     if (imageOutcome === "noSourceBucket") {
         notify(
             "warning",
             "Image not copied",
-            `The original ${props.tagOrPostType} has no storage bucket saved on it, so its image could not be copied. Add an image to the duplicate before saving.`,
+            `No storage bucket is set on the original ${props.tagOrPostType}, so its image could not be copied. Set a storage bucket on the original, then duplicate it again.`,
         );
     }
 };
@@ -726,8 +732,21 @@ const actionsWrapperProps = computed(() => ({
             class="mt-3 flex cursor-pointer select-none items-start gap-2 text-sm text-zinc-700"
             data-test="duplicate-image-toggle"
         >
-            <input v-model="duplicateImageOnCopy" type="checkbox" class="mt-0.5 h-4 w-4" />
+            <input
+                v-model="duplicateImageOnCopy"
+                type="checkbox"
+                class="mt-0.5 h-4 w-4"
+                :disabled="imageCannotBeCopied"
+            />
             <span>Duplicate image</span>
         </label>
+        <p
+            v-if="imageCannotBeCopied"
+            class="mt-2 text-sm text-amber-700"
+            data-test="duplicate-image-unavailable"
+        >
+            No storage bucket is set on this {{ props.tagOrPostType }}, so its image cannot be
+            copied. Set a storage bucket first if you want the duplicate to keep the image.
+        </p>
     </LDialog>
 </template>

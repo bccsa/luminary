@@ -559,6 +559,10 @@ describe("EditContent.vue - Duplication", () => {
             confirmBtn = wrapper.find('[data-test="modal-primary-button"]');
             expect(confirmBtn.exists()).toBe(true);
         });
+
+        // The modal says the image cannot travel before the duplicate is committed.
+        expect(wrapper.find("[data-test='duplicate-image-unavailable']").exists()).toBe(true);
+
         await confirmBtn!.trigger("click");
 
         await waitForExpect(() => {
