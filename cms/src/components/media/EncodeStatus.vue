@@ -37,8 +37,11 @@ const running = computed(() => props.status == "encoding" || props.status == "up
 const label = computed(() => (props.status ? (STATUS_LABELS[props.status] ?? props.status) : ""));
 
 /** Only meaningful while something is running — "Encoded 100%" says it twice. */
+// One decimal: the encoder reports a raw float, so a bar labelled
+// "Encoding 1.7666666666666668%" is arithmetic rather than progress. Number()
+// drops a trailing .0, so a whole percentage still reads as one.
 const percentage = computed(() =>
-    running.value && props.progress != undefined ? props.progress : undefined,
+    running.value && props.progress != undefined ? Number(props.progress.toFixed(1)) : undefined,
 );
 </script>
 

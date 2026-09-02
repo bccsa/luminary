@@ -154,14 +154,7 @@ watch(
                 :error="error"
             />
 
-            <EditContentVideo
-                v-if="showVideo"
-                bare
-                :disabled="disabled"
-                :encodeStatus="status"
-                :encodeProgress="progress"
-                v-model:parent="parent"
-            />
+            <EditContentVideo v-if="showVideo" bare :disabled="disabled" v-model:parent="parent" />
 
             <MediaAudioList :parent="parent" />
         </div>
