@@ -91,6 +91,9 @@ export function useMediaEncoder() {
     async function tick() {
         if (document.hidden) return;
         if (await refreshAvailability()) stopWatching();
+        // Gone again: an editor who quits the encoder should not be left with a
+        // button that still looks usable.
+        else watchForEncoder();
     }
 
     /** Poll until the encoder answers. Safe to call repeatedly. */
@@ -99,10 +102,16 @@ export function useMediaEncoder() {
         poll = setInterval(() => void tick(), POLL_MS);
     }
 
-    // Coming back to the tab is the likeliest moment for the app to have been
-    // started, and the one time a check is worth making immediately.
+    /**
+     * Check on returning to the tab, whichever way the answer goes.
+     *
+     * Polling only runs while the encoder is missing — a request every few
+     * seconds for the life of an open document is not worth keeping a button
+     * greyed out. But quitting the encoder means leaving the browser and coming
+     * back, so this is the one moment that catches it for free.
+     */
     const onVisible = () => {
-        if (document.hidden || availability.value === "available") return;
+        if (document.hidden) return;
         void tick();
     };
 

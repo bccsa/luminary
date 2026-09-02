@@ -285,6 +285,35 @@ describe("useMediaEncoder watching for the encoder", () => {
         expect(checkEncoderHealthMock.mock.calls.length).toBe(before);
     });
 
+    it("notices the encoder going away, not only arriving", async () => {
+        // The button looking usable on an app that is not there is the same
+        // problem as the notice not clearing, in the other direction.
+        const { availability, refreshAvailability } = useMediaEncoder();
+        await refreshAvailability();
+        expect(availability.value).toBe("available");
+
+        checkEncoderHealthMock.mockResolvedValue({ available: false });
+        document.dispatchEvent(new Event("visibilitychange"));
+        await vi.advanceTimersByTimeAsync(0);
+
+        expect(availability.value).toBe("unavailable");
+    });
+
+    it("starts looking again once it has gone, so the notice recovers by itself", async () => {
+        const { availability, refreshAvailability } = useMediaEncoder();
+        await refreshAvailability();
+
+        checkEncoderHealthMock.mockResolvedValue({ available: false });
+        document.dispatchEvent(new Event("visibilitychange"));
+        await vi.advanceTimersByTimeAsync(0);
+        expect(availability.value).toBe("unavailable");
+
+        checkEncoderHealthMock.mockResolvedValue({ available: true, apiVersion: "0.0.1" });
+        await vi.advanceTimersByTimeAsync(3000);
+
+        expect(availability.value).toBe("available");
+    });
+
     it("leaves a hidden tab alone — nobody there is waiting for a window", async () => {
         checkEncoderHealthMock.mockResolvedValue({ available: false });
         const { refreshAvailability, watchForEncoder } = useMediaEncoder();
