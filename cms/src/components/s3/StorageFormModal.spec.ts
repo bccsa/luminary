@@ -338,3 +338,104 @@ describe("BucketFormModal", () => {
         expect(wrapper.props("isLoading")).toBe(true);
     });
 });
+
+/**
+ * Encode settings live on the media bucket, so every encode written into it
+ * behaves the same without each editor deciding per encode.
+ */
+describe("BucketFormModal media settings", () => {
+    const mediaBucket: StorageDto = {
+        _id: "storage-media",
+        type: DocType.Storage,
+        updatedTimeUtc: Date.now(),
+        memberOf: [],
+        name: "Media Bucket",
+        storageType: StorageType.Media,
+        publicUrl: "http://localhost:9000/media",
+        mimeTypes: ["video/*"],
+    };
+
+    const propsFor = (bucket: StorageDto) => ({
+        isVisible: true,
+        bucket,
+        isEditing: true,
+        isLoading: false,
+        errors: undefined,
+        availableGroups: [mockData.mockGroup] as GroupDto[],
+        canDelete: false,
+        isFormValid: true,
+        validations: [],
+        hasAttemptedSubmit: false,
+        hasFieldError: vi.fn(() => false),
+        touchField: vi.fn(),
+        localCredentials: {
+            endpoint: "http://localhost:9000",
+            bucketName: "media",
+            accessKey: "k",
+            secretKey: "s",
+        } as S3CredentialDto,
+        hasValidCredentials: true,
+    });
+
+    it("shows the section for a media bucket only", () => {
+        expect(
+            mount(StorageFormModal, { props: propsFor(mediaBucket) })
+                .find('[data-test="media-encode-settings"]')
+                .exists(),
+        ).toBe(true);
+
+        expect(
+            mount(StorageFormModal, {
+                props: propsFor({ ...mediaBucket, storageType: StorageType.Image }),
+            })
+                .find('[data-test="media-encode-settings"]')
+                .exists(),
+        ).toBe(false);
+    });
+
+    it("reads absent settings as the defaults: encrypted, byte-range on", () => {
+        const wrapper = mount(StorageFormModal, { props: propsFor(mediaBucket) });
+
+        expect(
+            wrapper.find('[data-test="media-encrypted-toggle"]').attributes("aria-checked"),
+        ).toBe("true");
+        expect(
+            wrapper.find('[data-test="media-byterange-toggle"]').attributes("aria-checked"),
+        ).toBe("true");
+    });
+
+    it("writes a change as one mediaSettings object on the bucket", async () => {
+        const wrapper = mount(StorageFormModal, { props: propsFor(mediaBucket) });
+
+        await wrapper.find('[data-test="media-encrypted-toggle"]').trigger("click");
+
+        const emitted = wrapper.emitted("update:bucket");
+        expect(emitted).toBeTruthy();
+        expect((emitted![0][0] as StorageDto).mediaSettings).toEqual({ encrypted: false });
+    });
+
+    it("records the chunk size in the same object", async () => {
+        const wrapper = mount(StorageFormModal, {
+            props: propsFor({ ...mediaBucket, mediaSettings: { byteRange: true } }),
+        });
+
+        await wrapper.find('input[name="mediaChunkSizeMB"]').setValue("100");
+
+        const emitted = wrapper.emitted("update:bucket");
+        expect(emitted).toBeTruthy();
+        expect((emitted!.at(-1)![0] as StorageDto).mediaSettings).toEqual({
+            byteRange: true,
+            chunkSizeMB: 100,
+        });
+    });
+
+    it("keeps an unencrypted choice visible when the modal reopens", () => {
+        const wrapper = mount(StorageFormModal, {
+            props: propsFor({ ...mediaBucket, mediaSettings: { encrypted: false } }),
+        });
+
+        expect(
+            wrapper.find('[data-test="media-encrypted-toggle"]').attributes("aria-checked"),
+        ).toBe("false");
+    });
+});

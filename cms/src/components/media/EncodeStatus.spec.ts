@@ -106,4 +106,23 @@ describe("EncodeStatus notices", () => {
     it("says nothing when the encoder is simply there", () => {
         expect(mountStatus().find('[data-test="media-notice"]').exists()).toBe(false);
     });
+
+    it("asks for a new download when the encoder is outdated", () => {
+        const wrapper = mountStatus({ outdated: true });
+        const notice = wrapper.find('[data-test="encoder-outdated"]');
+
+        expect(notice.text()).toContain("outdated");
+        expect(wrapper.find('[data-test="encoder-download"]').attributes("href")).toContain(
+            "releases",
+        );
+    });
+
+    it("does not say 'not running' about an encoder that answered but is old", () => {
+        // Outdated is only ever set when the health check succeeded, so the two
+        // notices cannot truthfully show together.
+        const wrapper = mountStatus({ availability: "unavailable", outdated: true });
+
+        expect(wrapper.find('[data-test="encoder-outdated"]').exists()).toBe(true);
+        expect(wrapper.find('[data-test="encoder-unavailable"]').exists()).toBe(false);
+    });
 });

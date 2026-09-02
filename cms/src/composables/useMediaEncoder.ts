@@ -1,4 +1,4 @@
-import { ref, onUnmounted } from "vue";
+import { computed, ref, onUnmounted } from "vue";
 import { getRest, type MediaDto } from "luminary-shared";
 import {
     browserCanReachEncoder,
@@ -9,6 +9,7 @@ import {
     forgetEncoderSession,
     recallEncoderSession,
     rememberEncoderSession,
+    isEncoderOutdated,
     subscribeToEncoderSession,
     type EncoderSessionEvent,
     type EncoderSessionHandle,
@@ -39,6 +40,11 @@ const isFinished = (status?: string) => status != undefined && FINISHED_STATUSES
 export function useMediaEncoder() {
     const availability = ref<EncoderAvailability>("unknown");
     const encoderVersion = ref<string>();
+
+    /** The encoder answered, but is older than this CMS knows how to talk to. */
+    const outdated = computed(
+        () => availability.value === "available" && isEncoderOutdated(encoderVersion.value),
+    );
 
     const busy = ref(false);
     const status = ref<string>();
@@ -102,17 +108,13 @@ export function useMediaEncoder() {
                 throw new Error("Could not read the storage configuration for this bucket.");
             }
 
+            // The response is shaped as the encoder's session body — the bucket's
+            // encode settings (encryption, byte range, chunk size) travel inside it,
+            // so this page forwards them without knowing what they are.
             const session = await createEncoderSession({
                 documentId: options.documentId,
                 title: options.title,
-                s3: config.s3,
-                publicBaseUrl: config.publicBaseUrl,
-                // A requirement, not a key policy: the encoder generates and holds
-                // the key either way. Encryption was switched off while the app
-                // still played HLS with hls.js, which cannot read LMCENC playlists;
-                // it now plays through `player-web-legacy`, which decrypts them and
-                // fetches the key from the sidecar endpoint (ADR 0019).
-                encryption: { required: true },
+                ...config,
             });
 
             const handle: EncoderSessionHandle = {
@@ -240,6 +242,7 @@ export function useMediaEncoder() {
     return {
         availability,
         encoderVersion,
+        outdated,
         busy,
         status,
         progress,
