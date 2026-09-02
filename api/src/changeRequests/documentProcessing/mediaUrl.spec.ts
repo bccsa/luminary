@@ -1,4 +1,4 @@
-import { isBucketRelative, toAbsoluteMediaUrl, toStoredMediaUrl } from "./mediaUrl";
+import { isInOurStorage, isBucketRelative, toAbsoluteMediaUrl, toStoredMediaUrl } from "./mediaUrl";
 
 const BASE = "https://cdn.example.com/media";
 const REL = "/c5829f07-4ba8-42ed-a449-80d83e6c0b53/master.m3u8";
@@ -63,5 +63,43 @@ describe("media URL storage form", () => {
         expect(isBucketRelative(REL)).toBe(true);
         expect(isBucketRelative(`${BASE}${REL}`)).toBe(false);
         expect(isBucketRelative(undefined)).toBe(false);
+    });
+});
+
+/**
+ * What decides whether `mediaBucketId` is required. A bucket is how a URL is
+ * stored relative, how a bucket change migrates the files, and how deleting the
+ * document finds them — all meaningless for a collection that is not ours.
+ */
+describe("isInOurStorage", () => {
+    const BUCKETS = ["https://cdn.example.com/media", "http://test.com/media"];
+
+    it("claims a bucket-relative URL, which is nothing without a bucket", () => {
+        expect(isInOurStorage("/abc/master.m3u8", [])).toBe(true);
+    });
+
+    it("claims an absolute URL under a configured bucket", () => {
+        expect(isInOurStorage("https://cdn.example.com/media/abc/master.m3u8", BUCKETS)).toBe(true);
+    });
+
+    it("disclaims a YouTube link", () => {
+        expect(isInOurStorage("https://www.youtube.com/watch?v=rExcQ5nm_yU", BUCKETS)).toBe(false);
+    });
+
+    it("disclaims an HLS master on someone else's CDN", () => {
+        expect(isInOurStorage("https://elsewhere.example/x/master.m3u8", BUCKETS)).toBe(false);
+    });
+
+    it("does not let one bucket claim another whose name it prefixes", () => {
+        // The separator is part of the match, exactly as in toStoredMediaUrl.
+        expect(isInOurStorage("https://cdn.example.com/media-archive/x.m3u8", BUCKETS)).toBe(false);
+    });
+
+    it("ignores a bucket with no public URL rather than matching everything", () => {
+        expect(isInOurStorage("https://elsewhere.example/x.m3u8", [undefined, ""])).toBe(false);
+    });
+
+    it("is false for no URL at all", () => {
+        expect(isInOurStorage(undefined, BUCKETS)).toBe(false);
     });
 });
