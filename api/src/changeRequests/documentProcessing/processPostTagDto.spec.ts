@@ -95,7 +95,6 @@ describe("processPostTagDto", () => {
         await processChangeRequest("test-user", postCr, ["group-super-admins"], db);
         await processChangeRequest("test-user", contentCr, ["group-super-admins"], db);
 
-       
         let contentRes = await db.getDoc(contentCr.doc._id);
         expect(contentRes.docs[0].parentAlwaysOffline).toBeUndefined();
 
@@ -636,6 +635,90 @@ describe("processPostTagDto", () => {
             (changeRequest.doc as PostDto).media,
             db,
             (changeRequest.doc as PostDto).mediaBucketId,
+        );
+    });
+    it("resolves the source bucket and files from the document named by duplicateFrom", async () => {
+        const sourceRequest = changeRequest_post();
+        sourceRequest.doc._id = "test-duplicate-source-post";
+        (sourceRequest.doc as any).imageBucketId = "storage-bucket-1";
+        (sourceRequest.doc as any).imageData = {
+            fileCollections: [
+                {
+                    aspectRatio: 1.5,
+                    imageFiles: [{ width: 100, height: 66, filename: "src.webp" }],
+                },
+            ],
+        };
+        await db.upsertDoc(sourceRequest.doc);
+
+        // The duplicate carries neither a bucket nor the source files — the API supplies both.
+        const duplicateRequest = changeRequest_post();
+        duplicateRequest.doc._id = "test-duplicate-target-post";
+        delete (duplicateRequest.doc as any).imageBucketId;
+        (duplicateRequest.doc as any).imageData = {
+            fileCollections: [],
+            duplicateFrom: "test-duplicate-source-post",
+        };
+
+        await processChangeRequest(
+            "test-user",
+            duplicateRequest as ChangeReqDto,
+            ["group-super-admins"],
+            db,
+        );
+
+        const stored = (await db.getDoc("test-duplicate-target-post")).docs[0] as PostDto;
+        expect(stored.imageBucketId).toBe("storage-bucket-1");
+
+        expect(processImage).toHaveBeenCalledWith(
+            expect.objectContaining({
+                fileCollections: (sourceRequest.doc as any).imageData.fileCollections,
+            }),
+            undefined,
+            db,
+            "storage-bucket-1",
+            undefined,
+            "storage-bucket-1",
+        );
+    });
+
+    it("keeps the duplicate's own bucket as the copy target when it has one", async () => {
+        const sourceRequest = changeRequest_post();
+        sourceRequest.doc._id = "test-duplicate-source-post-2";
+        (sourceRequest.doc as any).imageBucketId = "storage-bucket-1";
+        (sourceRequest.doc as any).imageData = {
+            fileCollections: [
+                {
+                    aspectRatio: 1.5,
+                    imageFiles: [{ width: 100, height: 66, filename: "src.webp" }],
+                },
+            ],
+        };
+        await db.upsertDoc(sourceRequest.doc);
+
+        const duplicateRequest = changeRequest_post();
+        duplicateRequest.doc._id = "test-duplicate-target-post-2";
+        (duplicateRequest.doc as any).imageBucketId = "storage-bucket-2";
+        (duplicateRequest.doc as any).imageData = {
+            fileCollections: [],
+            duplicateFrom: "test-duplicate-source-post-2",
+        };
+
+        await processChangeRequest(
+            "test-user",
+            duplicateRequest as ChangeReqDto,
+            ["group-super-admins"],
+            db,
+        );
+
+        // Source bucket is read from, the duplicate's own bucket is written to.
+        expect(processImage).toHaveBeenCalledWith(
+            expect.anything(),
+            undefined,
+            db,
+            "storage-bucket-2",
+            undefined,
+            "storage-bucket-1",
         );
     });
 });

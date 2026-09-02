@@ -183,6 +183,12 @@ export type GroupDto = BaseDocumentDto & {
 export type ImageDto = {
     fileCollections: ImageFileCollectionDto[];
     uploadData?: ImageUploadDto[];
+    /**
+     * Id of the parent this image is being copied from. The API resolves the source bucket and
+     * files from that document, so the copy does not depend on the client's own state.
+     */
+    duplicateFrom?: Uuid;
+    /** @deprecated Superseded by `duplicateFrom`; still accepted from older clients. */
     duplicate?: boolean;
 };
 
