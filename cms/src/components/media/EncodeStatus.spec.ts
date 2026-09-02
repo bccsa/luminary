@@ -61,13 +61,23 @@ describe("EncodeStatus notices", () => {
         expect(wrapper.find('[data-test="encoder-launch"]').exists()).toBe(true);
     });
 
-    it("offers no launch link when the browser is the obstacle, since it cannot work", () => {
+    it("asks for the encoder to be opened before blaming the browser", () => {
+        // Whether a non-Chromium browser genuinely cannot reach the encoder is
+        // unverified (#1979). Not running is the likelier cause and the one the
+        // editor can act on, so it leads and the launch link is offered.
+        const wrapper = mountStatus({ availability: "browser-unsupported" });
+        const notice = wrapper.find('[data-test="encoder-browser-unsupported"]');
+
+        expect(notice.text()).toContain("did not answer");
+        expect(wrapper.find('[data-test="encoder-launch"]').exists()).toBe(true);
+    });
+
+    it("still names Chrome as the browser it is known to work in", () => {
         const wrapper = mountStatus({ availability: "browser-unsupported" });
 
         expect(wrapper.find('[data-test="encoder-browser-unsupported"]').text()).toContain(
             "Chrome",
         );
-        expect(wrapper.find('[data-test="encoder-launch"]').exists()).toBe(false);
     });
 
     it("re-checks shortly after the launch link is followed", async () => {

@@ -76,13 +76,25 @@ const recheckAfterLaunch = () => setTimeout(() => emit("recheck"), 2000);
             {{ error }}
         </MediaNotice>
 
+        <!--
+            Chrome is the browser this is known to work in; whether the others
+            genuinely cannot reach the encoder is unverified (#1979), so the
+            first thing to ask is whether the app is running at all.
+        -->
         <MediaNotice
             v-else-if="availability == 'browser-unsupported'"
             state="warning"
             data-test="encoder-browser-unsupported"
         >
-            Encoding needs Chrome. Other browsers cannot reach Luminary Media Convert on this
-            machine.
+            Luminary Media Convert did not answer.
+            <a
+                :href="ENCODER_PROTOCOL_URL"
+                class="font-medium underline underline-offset-2 hover:text-yellow-900"
+                data-test="encoder-launch"
+                @click="recheckAfterLaunch"
+                >Open it</a
+            >, then try again. If it is already open, try this page in Chrome —
+            that is the browser this is known to work in.
         </MediaNotice>
 
         <MediaNotice

@@ -53,7 +53,7 @@ describe("EncodeMediaButton disabled reasons", () => {
     });
 
     it("says the browser cannot reach it", () => {
-        expect(reasonFor({ availability: "browser-unsupported" })).toContain("Chrome");
+        expect(reasonFor({ availability: "browser-unsupported" })).toContain("did not answer");
     });
 
     it("says the editor lacks permission", () => {

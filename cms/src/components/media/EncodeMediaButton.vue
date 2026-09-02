@@ -33,7 +33,8 @@ const disabledReason = computed(() => {
     if (!props.documentId) return "Save the document before encoding media for it.";
     if (!props.hasBucket) return "No media storage bucket is configured for this document.";
     if (props.availability == "checking") return "Looking for Luminary Media Convert…";
-    if (props.availability == "browser-unsupported") return "Encoding needs Chrome.";
+    if (props.availability == "browser-unsupported")
+        return "Luminary Media Convert did not answer. Open it, or try this page in Chrome.";
     if (props.availability != "available") return "Luminary Media Convert is not running.";
     if (props.busy) return "Starting an encoding session…";
     return "";
