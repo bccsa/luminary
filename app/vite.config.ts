@@ -7,7 +7,6 @@ import { VitePWA } from "vite-plugin-pwa";
 // @ts-expect-error - JavaScript module without type declarations
 import movePreloadScriptsToBody from "./src/assets/vite-plugins/movePreloadScriptsToBody.js";
 import { buildTargetVirtuals } from "./vite-plugins/buildTargetVirtuals";
-import { bootSplash } from "./vite-plugins/bootSplash";
 
 const env = loadEnv("", process.cwd());
 
@@ -56,7 +55,6 @@ export default defineConfig({
     plugins: [
         blockGeneratedOutput(),
         buildTargetVirtuals(),
-        bootSplash(),
         visualizer({ open: false }), // Open visualiser when reviewing build bundle size
         vue(),
         viteStaticCopy({

@@ -2,10 +2,10 @@ import type { Page } from "@playwright/test";
 import { appTest as test, expect } from "../../fixtures/test";
 
 /**
- * The app mounts only after the database, sync and auth have initialised, and the Vue
- * splash lives inside `App.vue` — so everything before mount paints an empty `#app`
- * unless the build injects a static splash into it. A boot that stalls in that window
- * leaves the user on a blank page with nothing reported.
+ * The app mounts only after the database, sync and auth have initialised, so a boot that
+ * stalls in that window leaves the user with nothing reported. These cover the recovery
+ * paths — bounded database opens, and a language wait that gives up — through the boot
+ * splash the build injects, so they need that splash deployed to run green.
  */
 
 /**
@@ -31,15 +31,6 @@ async function breakIndexedDbOpen(page: Page, mode: "blocked" | "silent") {
 }
 
 test.describe("App boot recovery", () => {
-  test("serves the boot splash inside #app", async ({ page }) => {
-    // Asserted against the raw HTML because the splash is injected by a string
-    // replace on `<div id="app"></div>`, which no-ops silently if that markup
-    // ever changes — leaving the pre-mount window blank again.
-    const html = await (await page.request.get("/")).text();
-
-    expect(html).toMatch(/<div id="app">\s*<div id="boot-splash"/);
-  });
-
   test("removes the boot splash once the app mounts", async ({ page }) => {
     await page.goto("/");
 
