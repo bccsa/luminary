@@ -19,8 +19,6 @@ type Props = {
 };
 const props = defineProps<Props>();
 
-const emit = defineEmits<{ recheck: [] }>();
-
 /** The encoder's session statuses, in the words an editor should see. */
 const STATUS_LABELS: Record<string, string> = {
     created: "Preparing",
@@ -42,12 +40,6 @@ const label = computed(() => (props.status ? (STATUS_LABELS[props.status] ?? pro
 const percentage = computed(() =>
     running.value && props.progress != undefined ? props.progress : undefined,
 );
-
-/**
- * Launching the app takes a moment and nothing tells this page when it is up, so
- * re-check shortly after the link is followed.
- */
-const recheckAfterLaunch = () => setTimeout(() => emit("recheck"), 2000);
 </script>
 
 <template>
@@ -91,9 +83,9 @@ const recheckAfterLaunch = () => setTimeout(() => emit("recheck"), 2000);
                 :href="ENCODER_PROTOCOL_URL"
                 class="font-medium underline underline-offset-2 hover:text-yellow-900"
                 data-test="encoder-launch"
-                @click="recheckAfterLaunch"
                 >Open it</a
-            >, then try again. If it is already open, try this page in Chrome —
+            >
+            — this updates on its own once it is. If it is already open, try this page in Chrome;
             that is the browser this is known to work in.
         </MediaNotice>
 
@@ -107,9 +99,9 @@ const recheckAfterLaunch = () => setTimeout(() => emit("recheck"), 2000);
                 :href="ENCODER_PROTOCOL_URL"
                 class="font-medium underline underline-offset-2 hover:text-zinc-900"
                 data-test="encoder-launch"
-                @click="recheckAfterLaunch"
                 >Open it</a
-            >, then try again.
+            >
+            — this updates on its own once it is.
         </MediaNotice>
     </div>
 </template>

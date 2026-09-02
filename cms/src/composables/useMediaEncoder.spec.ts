@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 /**
  * One assertion, on the value that was wrong for months.
@@ -225,5 +225,77 @@ describe("useMediaEncoder availability", () => {
 
         expect(availability.value).toBe("available");
         vi.unstubAllGlobals();
+    });
+});
+
+/**
+ * Nothing tells this page that a desktop app has started. The launch link's one
+ * delayed re-check fired before the encoder had finished booting, and did
+ * nothing at all for an editor who opened the app from the Dock instead.
+ */
+describe("useMediaEncoder watching for the encoder", () => {
+    beforeEach(() => {
+        vi.useFakeTimers();
+        // jsdom's user agent is not Chromium, which would land every failure on
+        // "browser-unsupported". Polling is the same either way; the label is not.
+        vi.stubGlobal("navigator", { userAgentData: { brands: [{ brand: "Chromium" }] } });
+    });
+    afterEach(() => {
+        vi.useRealTimers();
+        vi.unstubAllGlobals();
+    });
+
+    it("keeps looking until the encoder answers", async () => {
+        checkEncoderHealthMock.mockResolvedValue({ available: false });
+        const { availability, refreshAvailability, watchForEncoder } = useMediaEncoder();
+
+        await refreshAvailability();
+        expect(availability.value).toBe("unavailable");
+
+        watchForEncoder();
+        checkEncoderHealthMock.mockResolvedValue({ available: true, apiVersion: "0.0.1" });
+        await vi.advanceTimersByTimeAsync(3000);
+
+        expect(availability.value).toBe("available");
+    });
+
+    it("stops once it has answered, rather than polling a port forever", async () => {
+        checkEncoderHealthMock.mockResolvedValue({ available: false });
+        const { refreshAvailability, watchForEncoder } = useMediaEncoder();
+        await refreshAvailability();
+        watchForEncoder();
+
+        checkEncoderHealthMock.mockResolvedValue({ available: true, apiVersion: "0.0.1" });
+        await vi.advanceTimersByTimeAsync(3000);
+        const callsWhenFound = checkEncoderHealthMock.mock.calls.length;
+
+        await vi.advanceTimersByTimeAsync(30000);
+
+        expect(checkEncoderHealthMock.mock.calls.length).toBe(callsWhenFound);
+    });
+
+    it("does not start when the encoder is already there", async () => {
+        const { refreshAvailability, watchForEncoder } = useMediaEncoder();
+        await refreshAvailability();
+        const before = checkEncoderHealthMock.mock.calls.length;
+
+        watchForEncoder();
+        await vi.advanceTimersByTimeAsync(30000);
+
+        expect(checkEncoderHealthMock.mock.calls.length).toBe(before);
+    });
+
+    it("leaves a hidden tab alone — nobody there is waiting for a window", async () => {
+        checkEncoderHealthMock.mockResolvedValue({ available: false });
+        const { refreshAvailability, watchForEncoder } = useMediaEncoder();
+        await refreshAvailability();
+        watchForEncoder();
+
+        const hidden = vi.spyOn(document, "hidden", "get").mockReturnValue(true);
+        const before = checkEncoderHealthMock.mock.calls.length;
+        await vi.advanceTimersByTimeAsync(9000);
+
+        expect(checkEncoderHealthMock.mock.calls.length).toBe(before);
+        hidden.mockRestore();
     });
 });

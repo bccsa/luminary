@@ -80,13 +80,14 @@ describe("EncodeStatus notices", () => {
         );
     });
 
-    it("re-checks shortly after the launch link is followed", async () => {
+    it("says the notice updates itself, rather than asking for another try", () => {
+        // The owner polls while the encoder is missing, so an editor who opens the
+        // app — from this link or from the Dock — does not have to do anything else.
         const wrapper = mountStatus({ availability: "unavailable" });
 
-        await wrapper.find('[data-test="encoder-launch"]').trigger("click");
-        await new Promise((resolve) => setTimeout(resolve, 2100));
-
-        expect(wrapper.emitted("recheck")).toHaveLength(1);
+        expect(wrapper.find('[data-test="encoder-unavailable"]').text()).toContain(
+            "updates on its own",
+        );
     });
 
     it("shows a failure in full rather than truncated into a tooltip", () => {

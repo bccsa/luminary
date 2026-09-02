@@ -56,6 +56,7 @@ export function useMediaEncoder() {
 
         if (health.available) {
             availability.value = "available";
+            stopWatching();
             return true;
         }
 
@@ -65,6 +66,47 @@ export function useMediaEncoder() {
         availability.value = browserCanReachEncoder() ? "unavailable" : "browser-unsupported";
         return false;
     }
+
+    /**
+     * Notice when the encoder appears, without the editor having to try again.
+     *
+     * Nothing tells this page that a desktop app has started, and the launch
+     * link's one re-check was too early — the encoder boots Nest and probes the
+     * machine's encoders first, which takes longer than the couple of seconds an
+     * app usually needs. It also did nothing at all for someone who opened the
+     * app from the Dock rather than the link.
+     *
+     * Polling stops the moment it answers, and only runs while the tab is
+     * visible: a background tab is not a person waiting for a window to appear,
+     * and this is a request per interval to a port that may have nothing on it.
+     */
+    const POLL_MS = 3000;
+    let poll: ReturnType<typeof setInterval> | undefined;
+
+    function stopWatching() {
+        if (poll) clearInterval(poll);
+        poll = undefined;
+    }
+
+    async function tick() {
+        if (document.hidden) return;
+        if (await refreshAvailability()) stopWatching();
+    }
+
+    /** Poll until the encoder answers. Safe to call repeatedly. */
+    function watchForEncoder() {
+        if (poll || availability.value === "available") return;
+        poll = setInterval(() => void tick(), POLL_MS);
+    }
+
+    // Coming back to the tab is the likeliest moment for the app to have been
+    // started, and the one time a check is worth making immediately.
+    const onVisible = () => {
+        if (document.hidden || availability.value === "available") return;
+        void tick();
+    };
+
+    if (typeof document !== "undefined") document.addEventListener("visibilitychange", onVisible);
 
     function stop() {
         unsubscribe?.();
@@ -235,7 +277,12 @@ export function useMediaEncoder() {
         return true;
     }
 
-    onUnmounted(stop);
+    onUnmounted(() => {
+        stop();
+        stopWatching();
+        if (typeof document !== "undefined")
+            document.removeEventListener("visibilitychange", onVisible);
+    });
 
     return {
         availability,
@@ -246,6 +293,8 @@ export function useMediaEncoder() {
         error,
         sessionId,
         refreshAvailability,
+        watchForEncoder,
+        stopWatching,
         start,
         resume,
         stop,

@@ -33,8 +33,17 @@ const parent = defineModel<ContentParentDto>("parent");
 const showHelp = ref(false);
 const bucketSelection = storageSelection();
 
-const { availability, busy, status, progress, error, refreshAvailability, start, resume } =
-    useMediaEncoder();
+const {
+    availability,
+    busy,
+    status,
+    progress,
+    error,
+    refreshAvailability,
+    watchForEncoder,
+    start,
+    resume,
+} = useMediaEncoder();
 
 // The bucket to encode into, on the same rule the bucket selector uses: a lone media
 // bucket counts as selected even though nothing has written it to the document yet.
@@ -87,7 +96,9 @@ const encode = () => {
  * already running for it rather than assuming the encoder is idle.
  */
 const checkAndResume = async () => {
-    await refreshAvailability();
+    // Nothing tells this page that the desktop app has started, so if it is not
+    // there yet, keep looking rather than leaving the editor to try again.
+    if (!(await refreshAvailability())) watchForEncoder();
     if (!parent.value?._id) return;
 
     await resume({ documentId: parent.value._id, onMediaReady: handleEncodedMedia });
@@ -141,7 +152,6 @@ watch(
                 :status="status"
                 :progress="progress"
                 :error="error"
-                @recheck="refreshAvailability"
             />
 
             <EditContentVideo
