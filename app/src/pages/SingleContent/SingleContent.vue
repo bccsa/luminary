@@ -101,9 +101,6 @@ const { output: contentArr, isFetching: isContentFetching } = useContentQueryWit
     {
         includeScheduled: false,
         languageFilter: false,
-        // Identity lookup: the previous slug's document is a different article, not a
-        // placeholder for this one, so it must not survive the rebuild.
-        keepPreviousResult: false,
         // The cache key is a structural fingerprint that excludes values, and only the
         // SSG build passes a per-slug `cacheId` — so caching here would otherwise share
         // one entry across every article.
@@ -349,9 +346,6 @@ const translationsArr = useContentQuery(
             : [{ parentId: { $in: [] } }],
     {
         publishedFilter: false,
-        // Keyed to the current parent: another post's siblings are a different set, not
-        // a placeholder for this one.
-        keepPreviousResult: false,
         cache: isSSG,
         // Per-slug discriminator so the per-document cache is SAFE — a shape-only key
         // would seed this page from a previously-viewed post's translations. Only SSG
