@@ -54,7 +54,7 @@ const canViewGroups = hasAnyPermission(DocType.Group, AclPermission.CmsView);
 </script>
 
 <template>
-    <div class="grid grid-cols-2 gap-2 p-4 pb-0 lg:flex">
+    <div class="grid grid-cols-2 gap-2 max-lg:p-4 max-lg:pb-0 lg:flex">
         <RouterLink
             v-if="canViewPosts"
             :to="{
