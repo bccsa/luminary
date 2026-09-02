@@ -1,5 +1,6 @@
 import { Injectable, Inject } from "@nestjs/common";
 import * as nano from "nano";
+import { instrumentDbScope, perfTraceEnabled } from "../util/perfTrace";
 import { DeleteReason, DocType, PublishStatus, Uuid } from "../enums";
 import { ConfigService } from "@nestjs/config";
 import { DatabaseConfig, SyncConfig } from "../configuration";
@@ -222,7 +223,7 @@ export class DbService extends EventEmitter {
      * If the DB isn't available yet, the feed's error handler triggers reconnection.
      */
     private connect() {
-        this.db = nano({
+        const scope = nano({
             url: this.dbConfig.connectionString,
             requestDefaults: {
                 agent: new http.Agent({
@@ -234,6 +235,11 @@ export class DbService extends EventEmitter {
                 }),
             },
         }).use(this.dbConfig.database);
+
+        // Counting round trips at the scope covers every caller, including the ones
+        // outside the endpoints (auth identity lookups, schema upgrades). No-op unless
+        // PERF_TRACE=true.
+        this.db = perfTraceEnabled() ? instrumentDbScope(scope) : scope;
 
         // Start the changes feed immediately (its error handler will trigger reconnect if DB is down)
         this.startChangesFeed();

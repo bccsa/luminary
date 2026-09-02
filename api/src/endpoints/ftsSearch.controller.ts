@@ -21,6 +21,7 @@ import { QueryRateLimiterService } from "../ratelimit/queryRateLimiter.service";
 import { WINSTON_MODULE_PROVIDER } from "nest-winston";
 import { Logger } from "winston";
 import { FTS_DEFAULT_LIMIT, FTS_MAX_TRIGRAM_DOC_PERCENT } from "../util/ftsScoring";
+import { span, traceMeta } from "../util/perfTrace";
 
 const FTS_MAX_QUERY_LENGTH = 256;
 const FTS_MAX_LIMIT = 50;
@@ -57,7 +58,11 @@ export class FtsSearchController {
             );
         }
 
-        const { results, stats } = await this.ftsSearchService.searchWithStats(body, request.user);
+        const { results, stats } = await span("search", () =>
+            this.ftsSearchService.searchWithStats(body, request.user),
+        );
+        traceMeta({ ...stats, results: results.length, cms: body.cms === true });
+
         if (isExpensiveFtsSearch(stats)) {
             this.logger.warn("Expensive /fts", {
                 identity: identityKey,

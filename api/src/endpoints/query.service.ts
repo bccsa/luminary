@@ -10,6 +10,7 @@ import { MongoComparisonCriteria, MongoSelectorDto } from "../dto/MongoSelectorD
 import { LanguageDto } from "../dto/LanguageDto";
 import { expandMangoSelector } from "../util/expandMangoQuery";
 import { isExpiredContent, stripExpiredContent } from "../util/stripExpiredContent";
+import { mark, span } from "../util/perfTrace";
 
 @Injectable()
 export class QueryService {
@@ -75,6 +76,7 @@ export class QueryService {
 
     async query(query: MongoQueryDto, userDetails: JwtUserDetails): Promise<DbQueryResult> {
         const now = Date.now();
+        const filterStart = performance.now();
 
         // Expand the selector to ensure it is in the correct format, allowing injection of additional conditions like permission checks.
         query.selector = expandMangoSelector(query.selector);
@@ -268,7 +270,9 @@ export class QueryService {
         // only knowable post-hoc). Set here, not in executeFindQuery, so the auth /
         // languages / search callers of that method are unaffected.
         (query as any).execution_stats = true;
-        const result = await this.db.executeFindQuery(query);
+        mark("permissionFilter", performance.now() - filterStart);
+        const result = await span("couch", () => this.db.executeFindQuery(query));
+        const postStart = performance.now();
 
         // Data minimization (covers both sync and HybridQuery — both POST /query): a non-CMS
         // response can only contain an expired Content doc via the app's includeExpired update-sync,
@@ -280,6 +284,7 @@ export class QueryService {
                 isExpiredContent(doc, now) ? stripExpiredContent(doc) : doc,
             );
         }
+        mark("postProcess", performance.now() - postStart);
         return result;
     }
 }
