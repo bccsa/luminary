@@ -55,19 +55,37 @@ export default async function processPostTagDto(
     if (doc.imageData) {
         let imageWarnings: string[] = [];
 
+        // The source document is authoritative for where a duplicated image's files live and what
+        // they are, so a client that has lost or never synced its own bucket reference still
+        // produces a correct copy.
+        let sourceBucketId: Uuid | undefined;
+        if (doc.imageData.duplicateFrom) {
+            const sourceDoc = (await db.getDoc(doc.imageData.duplicateFrom)).docs[0] as
+                | PostDto
+                | TagDto
+                | undefined;
+            sourceBucketId = sourceDoc?.imageBucketId;
+            if (sourceDoc?.imageData?.fileCollections?.length) {
+                doc.imageData.fileCollections = sourceDoc.imageData.fileCollections;
+            }
+            // The copy stays in the source bucket unless the duplicate names its own.
+            if (!doc.imageBucketId) doc.imageBucketId = sourceBucketId;
+        }
+
         if (!doc.imageBucketId) {
             imageWarnings.push("Bucket is not specified for image processing.");
         }
 
         // prevDoc is undefined on first upsert. A duplication request must include
         // existing file references and a source bucket on the parent document.
-        if (!prevDoc && doc.imageData.duplicate) {
+        if (!prevDoc && (doc.imageData.duplicateFrom || doc.imageData.duplicate)) {
             const hasSourceFiles = doc.imageData.fileCollections?.some(
                 (collection) => collection.imageFiles?.length > 0,
             );
             if (!doc.imageBucketId || !hasSourceFiles) {
                 imageWarnings.push("Image duplication request is invalid.");
                 delete doc.imageData.duplicate;
+                delete doc.imageData.duplicateFrom;
                 doc.imageData.fileCollections = [];
             }
         }
@@ -80,6 +98,7 @@ export default async function processPostTagDto(
                 db,
                 doc.imageBucketId,
                 prevDoc?.imageBucketId, // Pass previous bucket ID for migration
+                sourceBucketId,
             );
             imageWarnings = result.warnings;
 

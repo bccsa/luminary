@@ -114,6 +114,32 @@ export async function validateChangeRequestAccess(
         };
     }
 
+    // A duplication names the document its image is copied from, and the server reads that
+    // document's files and bucket. The id is client-supplied, so it needs the same view access
+    // as reading the source document directly would.
+    if (doc.type === DocType.Post || doc.type === DocType.Tag) {
+        const duplicateFrom = (doc as _contentParentDto).imageData?.duplicateFrom;
+        if (duplicateFrom) {
+            const sourceDoc = (await dbService.getDoc(duplicateFrom)).docs[0];
+            if (
+                !sourceDoc ||
+                sourceDoc.type !== doc.type ||
+                !PermissionSystem.verifyAccess(
+                    (sourceDoc as _contentBaseDto).memberOf,
+                    sourceDoc.type,
+                    AclPermission.View,
+                    groupMembership,
+                    "all",
+                )
+            ) {
+                return {
+                    validated: false,
+                    error: "No 'View' access to the document the image is duplicated from",
+                };
+            }
+        }
+    }
+
     // Validate edit, translate and group ACL assign access
     // ====================================================
 

@@ -1,8 +1,9 @@
 import "reflect-metadata"; // https://stackoverflow.com/questions/72009995/typeerror-reflect-getmetadata-is-not-a-function
-import { IsArray, IsBoolean, IsOptional, ValidateNested } from "class-validator";
+import { IsArray, IsBoolean, IsOptional, IsString, ValidateNested } from "class-validator";
 import { Expose, Type } from "class-transformer";
 import { ImageUploadDto } from "./ImageUploadDto";
 import { ImageFileCollectionDto } from "./ImageFileCollectionDto";
+import { Uuid } from "../enums";
 
 /**
  * Database structured Image object
@@ -20,6 +21,16 @@ export class ImageDto {
     @Expose()
     uploadData?: ImageUploadDto[];
 
+    /**
+     * Id of the parent this image is being copied from. The source bucket and files are resolved
+     * from that document server-side, so the copy does not depend on the client's own state.
+     */
+    @IsOptional()
+    @IsString()
+    @Expose()
+    duplicateFrom?: Uuid;
+
+    /** @deprecated Superseded by `duplicateFrom`; still accepted from older clients. */
     @IsOptional()
     @IsBoolean()
     @Expose()

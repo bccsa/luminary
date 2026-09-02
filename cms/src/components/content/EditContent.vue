@@ -302,23 +302,14 @@ watch(showDuplicateModal, (open) => {
     if (open) duplicateImageOnCopy.value = true;
 });
 
-// The copy is made from the bucket the original records, so an image without one cannot travel.
-const imageCannotBeCopied = computed(
-    () =>
-        !!editableParent.value?.imageData?.fileCollections?.length &&
-        !editableParent.value?.imageBucketId,
-);
-
 const duplicate = async () => {
     showDuplicateModal.value = false;
     if (!editableParent.value) return;
-    const {
-        parent: clonedParent,
-        content: clonedContent,
-        imageOutcome,
-    } = buildContentDuplicate(editableParent.value, editableContent.value, {
-        duplicateImage: duplicateImageOnCopy.value,
-    });
+    const { parent: clonedParent, content: clonedContent } = buildContentDuplicate(
+        editableParent.value,
+        editableContent.value,
+        { duplicateImage: duplicateImageOnCopy.value },
+    );
     source.installClones(clonedParent, clonedContent);
     if (import.meta.env.MODE !== "test") {
         await router.replace({
@@ -337,13 +328,6 @@ const duplicate = async () => {
         "Successfully duplicated",
         `This ${props.tagOrPostType} has successfully been duplicated`,
     );
-    if (imageOutcome === "noSourceBucket") {
-        notify(
-            "warning",
-            "Image not copied",
-            `No storage bucket is set on the original ${props.tagOrPostType}, so its image could not be copied. Set a storage bucket on the original, then duplicate it again.`,
-        );
-    }
 };
 
 const showLanguageSelector = ref(false);
@@ -732,21 +716,8 @@ const actionsWrapperProps = computed(() => ({
             class="mt-3 flex cursor-pointer select-none items-start gap-2 text-sm text-zinc-700"
             data-test="duplicate-image-toggle"
         >
-            <input
-                v-model="duplicateImageOnCopy"
-                type="checkbox"
-                class="mt-0.5 h-4 w-4"
-                :disabled="imageCannotBeCopied"
-            />
+            <input v-model="duplicateImageOnCopy" type="checkbox" class="mt-0.5 h-4 w-4" />
             <span>Duplicate image</span>
         </label>
-        <p
-            v-if="imageCannotBeCopied"
-            class="mt-2 text-sm text-amber-700"
-            data-test="duplicate-image-unavailable"
-        >
-            No storage bucket is set on this {{ props.tagOrPostType }}, so its image cannot be
-            copied. Set a storage bucket first if you want the duplicate to keep the image.
-        </p>
     </LDialog>
 </template>

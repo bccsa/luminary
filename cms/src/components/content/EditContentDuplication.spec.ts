@@ -516,17 +516,20 @@ describe("EditContent.vue - Duplication", () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const vm: any = wrapper.vm;
 
-        // Image fileCollections should be preserved by default and duplicate intent should be set
+        // Image fileCollections should be preserved by default, and the clone should name the
+        // document the API copies the image from.
         expect(vm.editableParent.imageData.fileCollections.length).toBeGreaterThan(0);
-        expect(vm.editableParent.imageData.duplicate).toBe(true);
+        expect(vm.editableParent.imageData.duplicateFrom).toBe(mockData.mockPostDto._id);
+        expect(vm.editableParent.imageData.duplicate).toBeUndefined();
     }, 15000);
 
-    it("warns when the source has image files but no storage bucket to copy them from", async () => {
+    it("carries the image across when the source has no local storage bucket", async () => {
         const mockNotification = vi.fn();
         const notificationStore = useNotificationStore();
         notificationStore.addNotification = mockNotification;
 
-        // mockPostDto carries fileCollections but no imageBucketId — the legacy shape.
+        // mockPostDto carries fileCollections but no imageBucketId — the legacy shape. The API
+        // resolves the bucket from the source document, so the copy no longer depends on it.
         expect(mockData.mockPostDto.imageData?.fileCollections.length).toBeGreaterThan(0);
         expect((mockData.mockPostDto as any).imageBucketId).toBeUndefined();
 
@@ -559,21 +562,21 @@ describe("EditContent.vue - Duplication", () => {
             confirmBtn = wrapper.find('[data-test="modal-primary-button"]');
             expect(confirmBtn.exists()).toBe(true);
         });
-
-        // The modal says the image cannot travel before the duplicate is committed.
-        expect(wrapper.find("[data-test='duplicate-image-unavailable']").exists()).toBe(true);
-
         await confirmBtn!.trigger("click");
 
         await waitForExpect(() => {
             expect(mockNotification).toHaveBeenCalledWith(
-                expect.objectContaining({ title: "Image not copied", state: "warning" }),
+                expect.objectContaining({ title: "Successfully duplicated" }),
             );
         });
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const vm: any = wrapper.vm;
-        expect(vm.editableParent.imageData.fileCollections).toEqual([]);
+        expect(vm.editableParent.imageData.fileCollections.length).toBeGreaterThan(0);
+        expect(vm.editableParent.imageData.duplicateFrom).toBe(mockData.mockPostDto._id);
+        expect(mockNotification).not.toHaveBeenCalledWith(
+            expect.objectContaining({ title: "Image not copied" }),
+        );
     }, 15000);
 
     it("does not warn about the image when the source has a storage bucket", async () => {

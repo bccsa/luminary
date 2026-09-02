@@ -809,4 +809,58 @@ describe("validateChangeRequestAccess", () => {
             expect(res.validated).toBe(true);
         });
     });
+    describe("image duplication source access", () => {
+        it("rejects a duplicate naming a source the user cannot view", async () => {
+            const changeReq = plainToClass(ChangeReqDto, {
+                doc: {
+                    _id: "post-duplicate-of-private",
+                    type: "post",
+                    memberOf: ["group-public-content"],
+                    image: "",
+                    tags: [],
+                    imageData: { fileCollections: [], duplicateFrom: "post-blog2" },
+                },
+            });
+
+            const res = await validateChangeRequestAccess(changeReq, ["group-public-editors"], db);
+
+            expect(res.validated).toBe(false);
+            expect(res.error).toBe("No 'View' access to the document the image is duplicated from");
+        });
+
+        it("rejects a duplicate naming a source that does not exist", async () => {
+            const changeReq = plainToClass(ChangeReqDto, {
+                doc: {
+                    _id: "post-duplicate-of-missing",
+                    type: "post",
+                    memberOf: ["group-public-content"],
+                    image: "",
+                    tags: [],
+                    imageData: { fileCollections: [], duplicateFrom: "post-does-not-exist" },
+                },
+            });
+
+            const res = await validateChangeRequestAccess(changeReq, ["group-public-editors"], db);
+
+            expect(res.validated).toBe(false);
+            expect(res.error).toBe("No 'View' access to the document the image is duplicated from");
+        });
+
+        it("accepts a duplicate naming a source the user can view", async () => {
+            const changeReq = plainToClass(ChangeReqDto, {
+                doc: {
+                    _id: "post-duplicate-of-blog1",
+                    type: "post",
+                    memberOf: ["group-public-content"],
+                    image: "",
+                    tags: [],
+                    imageData: { fileCollections: [], duplicateFrom: "post-blog1" },
+                },
+            });
+
+            const res = await validateChangeRequestAccess(changeReq, ["group-public-editors"], db);
+
+            expect(res.validated).toBe(true);
+        });
+    });
 });

@@ -187,6 +187,8 @@ async function migrateImagesBetweenBuckets(
  * Processes an embedded image upload by resizing the image and uploading to S3
  * Requires bucket-specific credentials configured at the post/tag level
  * Bucket ID is passed from the parent post/tag document for consistency
+ * `sourceBucketId` is where a duplicated image's files are read from, resolved from the source
+ * document rather than the incoming one.
  * Returns object with migration failure status and warnings
  */
 export async function processImage(
@@ -195,13 +197,14 @@ export async function processImage(
     db: DbService,
     parentBucketId?: string,
     prevParentBucketId?: string,
+    sourceBucketId?: string,
 ): Promise<{ migrationFailed: boolean; warnings: string[] }> {
     const warnings: string[] = [];
     let migrationFailed = false;
     let duplicatedNow = false;
 
     try {
-        if (image.duplicate && image.fileCollections.length > 0) {
+        if ((image.duplicateFrom || image.duplicate) && image.fileCollections.length > 0) {
             const prevHasImageFiles = !!prevImage?.fileCollections?.some(
                 (collection) => collection.imageFiles?.length > 0,
             );
@@ -209,6 +212,9 @@ export async function processImage(
             if (prevHasImageFiles) {
                 image.fileCollections = prevImage.fileCollections;
             } else {
+                // Copy out of the bucket the source files actually live in. It falls back to the
+                // target bucket for older clients, which only send `duplicate` and no source id.
+                const copyFromBucketId = sourceBucketId || parentBucketId;
                 if (!parentBucketId) {
                     warnings.push("Parent bucket ID is required for duplicated image copy.");
                     return { migrationFailed, warnings };
@@ -217,7 +223,7 @@ export async function processImage(
                 const duplicateResult = await duplicateImageFilesWithoutReencoding(
                     image,
                     db,
-                    parentBucketId,
+                    copyFromBucketId,
                     parentBucketId,
                 );
                 warnings.push(...duplicateResult.warnings);
@@ -226,6 +232,7 @@ export async function processImage(
                     // Avoid persisting stale source filenames when copy fails.
                     image.fileCollections = [];
                     delete image.duplicate;
+                    delete image.duplicateFrom;
                     return { migrationFailed, warnings };
                 }
                 duplicatedNow = true;
@@ -323,6 +330,7 @@ export async function processImage(
         }
 
         delete image.duplicate;
+        delete image.duplicateFrom;
     } catch (error) {
         warnings.push(`Image processing failed: ${error.message}`);
     }
