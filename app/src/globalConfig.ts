@@ -1,11 +1,13 @@
 import {
     DocType,
     HybridQuery,
+    isConnected,
+    syncActive,
     type LanguageDto,
     type Uuid,
     type ContentDto,
 } from "luminary-shared";
-import { computed, ref, watch } from "vue";
+import { computed, ref, watch, watchEffect, type WatchStopHandle } from "vue";
 import { loadFallbackImageUrls } from "./util/loadFallbackImages";
 
 export const appName = import.meta.env.VITE_APP_NAME;
@@ -274,27 +276,9 @@ export const appLanguageAsRef = computed(() => appLanguagesPreferredAsRef.value[
 /**
  * Initialize the language settings. If no user preferred language is set, the browser preferred language is used if it is supported. Otherwise, the CMS default language is used.
  */
-/**
- * Language docs arrive only through sync, which is gated on the socket connecting, so a
- * client that starts offline with an empty database would otherwise wait here forever —
- * stranding the splash, sync startup and analytics behind it.
- */
-const LANGUAGE_BOOT_TIMEOUT_MS = 5_000;
-
 export const initLanguage = () => {
     return new Promise<void>((resolve) => {
-        let settled = false;
-        const settle = () => {
-            if (settled) return;
-            settled = true;
-            clearTimeout(bootTimeout);
-            resolve();
-        };
-
-        // Let boot continue without languages. The watcher below is deliberately left
-        // live in that case, so a later sync still normalizes the preferred/synced sets.
-        const bootTimeout = setTimeout(settle, LANGUAGE_BOOT_TIMEOUT_MS);
-
+        let booted = false;
         // Language is a fully-synced type, so this HybridQuery reads from IndexedDB
         // only. Constructed at app scope (never disposed) — its output ref feeds the
         // shared cmsLanguages list.
@@ -361,10 +345,35 @@ export const initLanguage = () => {
                 );
 
                 unwatchCmsLanguages();
-                settle();
+                booted = true;
+                resolve();
             },
             { deep: true },
         );
+
+        // Languages arrive only through sync, so a client that starts offline with an empty
+        // database has nothing to wait for. Rather than giving the wait a deadline, boot on
+        // the conditions that mean none are coming: no connection to deliver them, or a sync
+        // pass that has run to completion and left the local set empty. The watcher above is
+        // deliberately left live either way, so a later sync still normalizes the
+        // preferred/synced sets.
+        let sawSyncRun = false;
+        let stopBootGate: WatchStopHandle = () => {};
+        stopBootGate = watchEffect(() => {
+            if (booted) return stopBootGate();
+            if (syncActive.value) sawSyncRun = true;
+
+            // Still a chance of languages: the local read is in flight, or some arrived.
+            if (languagesQuery.isFetching.value) return;
+            if (cmsLanguages.value.length > 0) return;
+
+            const syncPassFinished = sawSyncRun && !syncActive.value;
+            if (isConnected.value && !syncPassFinished) return;
+
+            booted = true;
+            resolve();
+            stopBootGate();
+        });
     });
 };
 

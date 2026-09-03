@@ -11,20 +11,19 @@ import { appTest as test, expect } from "../../fixtures/test";
 
 /**
  * Replaces the IndexedDB open the boot path starts with. `blocked` is what a browser
- * reports when another connection still holds the database; `silent` never answers at
- * all, which is the case no event can rescue.
+ * reports while another connection still holds an older version open — a wait that clears
+ * itself. `error` is an open that genuinely cannot succeed.
  */
-async function breakIndexedDbOpen(page: Page, mode: "blocked" | "silent") {
+async function breakIndexedDbOpen(page: Page, mode: "blocked" | "error") {
   await page.addInitScript((stubMode) => {
     Object.defineProperty(window.indexedDB, "open", {
       configurable: true,
       value: () => {
         const request: Record<string, unknown> = {};
-        if (stubMode === "blocked") {
-          setTimeout(() => {
-            (request.onblocked as (() => void) | undefined)?.();
-          }, 0);
-        }
+        setTimeout(() => {
+          const handler = stubMode === "blocked" ? "onblocked" : "onerror";
+          (request[handler] as (() => void) | undefined)?.();
+        }, 0);
         return request;
       },
     });
@@ -61,15 +60,27 @@ test.describe("App boot recovery", () => {
     });
   });
 
-  test("reports an error when the database open is blocked", async ({
+  test("keeps waiting, not failing, while the database open is blocked", async ({
     page,
   }) => {
+    // Another connection holding an older version open is a state that clears itself when
+    // that connection closes, so the boot waits on the splash rather than declaring failure.
     await breakIndexedDbOpen(page, "blocked");
     await page.goto("/");
 
-    await expect(page.locator("#boot-splash .boot-splash-error")).toBeVisible({
-      timeout: 20_000,
-    });
+    await expect(page.locator("#boot-splash")).toBeVisible();
+    await expect(page.locator("#boot-splash .boot-splash-error")).toBeHidden();
+    await expect(page.locator("html")).not.toHaveAttribute(
+      "data-render-state",
+      "error",
+    );
+  });
+
+  test("reports an error when the database open fails", async ({ page }) => {
+    await breakIndexedDbOpen(page, "error");
+    await page.goto("/");
+
+    await expect(page.locator("#boot-splash .boot-splash-error")).toBeVisible();
     await expect(page.getByRole("button", { name: "Reload" })).toBeVisible();
     await expect(page.locator("html")).toHaveAttribute(
       "data-render-state",
@@ -92,21 +103,5 @@ test.describe("App boot recovery", () => {
 
     // The app must still become usable offline rather than sitting on the splash.
     await expect(page.getByRole("main")).toBeVisible({ timeout: 30_000 });
-  });
-
-  test("reports an error when the database open never answers", async ({
-    page,
-  }) => {
-    await breakIndexedDbOpen(page, "silent");
-    await page.goto("/");
-
-    // Bounded by the boot-path open timeout rather than waiting forever.
-    await expect(page.locator("#boot-splash .boot-splash-error")).toBeVisible({
-      timeout: 30_000,
-    });
-    await expect(page.locator("html")).toHaveAttribute(
-      "data-render-state",
-      "error",
-    );
   });
 });
