@@ -810,55 +810,48 @@ describe("validateChangeRequestAccess", () => {
         });
     });
     describe("image duplication source access", () => {
-        it("rejects a duplicate naming a source the user cannot view", async () => {
-            const changeReq = plainToClass(ChangeReqDto, {
+        // An existing public post is saved so the request clears the edit and group assign checks,
+        // leaving the duplication source as the only difference between these tests.
+        const duplicateChangeReq = (duplicateFrom: string) =>
+            plainToClass(ChangeReqDto, {
                 doc: {
-                    _id: "post-duplicate-of-private",
+                    _id: "post-page1",
                     type: "post",
                     memberOf: ["group-public-content"],
                     image: "",
                     tags: [],
-                    imageData: { fileCollections: [], duplicateFrom: "post-blog2" },
+                    imageData: { fileCollections: [], duplicateFrom },
                 },
             });
 
-            const res = await validateChangeRequestAccess(changeReq, ["group-public-editors"], db);
+        it("rejects a duplicate naming a source the user cannot view", async () => {
+            const res = await validateChangeRequestAccess(
+                duplicateChangeReq("post-blog2"),
+                ["group-public-editors"],
+                db,
+            );
 
             expect(res.validated).toBe(false);
             expect(res.error).toBe("No 'View' access to the document the image is duplicated from");
         });
 
         it("rejects a duplicate naming a source that does not exist", async () => {
-            const changeReq = plainToClass(ChangeReqDto, {
-                doc: {
-                    _id: "post-duplicate-of-missing",
-                    type: "post",
-                    memberOf: ["group-public-content"],
-                    image: "",
-                    tags: [],
-                    imageData: { fileCollections: [], duplicateFrom: "post-does-not-exist" },
-                },
-            });
-
-            const res = await validateChangeRequestAccess(changeReq, ["group-public-editors"], db);
+            const res = await validateChangeRequestAccess(
+                duplicateChangeReq("post-does-not-exist"),
+                ["group-public-editors"],
+                db,
+            );
 
             expect(res.validated).toBe(false);
             expect(res.error).toBe("No 'View' access to the document the image is duplicated from");
         });
 
         it("accepts a duplicate naming a source the user can view", async () => {
-            const changeReq = plainToClass(ChangeReqDto, {
-                doc: {
-                    _id: "post-duplicate-of-blog1",
-                    type: "post",
-                    memberOf: ["group-public-content"],
-                    image: "",
-                    tags: [],
-                    imageData: { fileCollections: [], duplicateFrom: "post-blog1" },
-                },
-            });
-
-            const res = await validateChangeRequestAccess(changeReq, ["group-public-editors"], db);
+            const res = await validateChangeRequestAccess(
+                duplicateChangeReq("post-blog1"),
+                ["group-public-editors"],
+                db,
+            );
 
             expect(res.validated).toBe(true);
         });
