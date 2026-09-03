@@ -88,25 +88,36 @@ watch(
     isMounted,
     (mounted) => {
         if (!mounted) return;
+
+        // Clear the banner — including one restored from the previous page load — the
+        // moment the socket is up, rather than waiting out the grace period below, which
+        // would leave a stale offline banner on screen for a reload that reconnects fine.
+        watch(
+            isConnected,
+            (connected) => {
+                if (connected) useNotificationStore().removeNotification("offlineBanner");
+            },
+            { immediate: true },
+        );
+
         // Wait 5 seconds to allow the socket connection to be established before checking the connection status
         setTimeout(() => {
             watch(
                 isConnected,
-                () => {
-                    if (!isConnected.value) {
-                        useNotificationStore().addNotification({
-                            id: "offlineBanner",
-                            title: () => t("notification.offline.title"),
-                            description: () => t("notification.offline.message"),
-                            state: "warning",
-                            type: "banner",
-                            icon: SignalSlashIcon,
-                            priority: 1,
-                        });
-                    }
-                    if (isConnected.value) {
-                        useNotificationStore().removeNotification("offlineBanner");
-                    }
+                (connected) => {
+                    if (connected) return;
+                    useNotificationStore().addNotification({
+                        id: "offlineBanner",
+                        title: () => t("notification.offline.title"),
+                        description: () => t("notification.offline.message"),
+                        state: "warning",
+                        type: "banner",
+                        icon: SignalSlashIcon,
+                        priority: 1,
+                        // Staying offline outlives the page, so a reload should say so
+                        // straight away instead of after the grace period above.
+                        persist: true,
+                    });
                 },
                 { immediate: true },
             );

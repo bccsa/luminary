@@ -5,6 +5,7 @@ import {
     appLanguageAsRef,
     appLanguageIdsAsRef,
     appSyncedLanguageIdsAsRef,
+    cmsLanguages,
     MAX_PREFERRED_LANGUAGES,
     MAX_SYNCED_LANGUAGES,
     normalizePreferredLanguages,
@@ -147,6 +148,28 @@ describe("globalConfig.ts", () => {
             // always contains the primary (first preferred) language
             expect(appSyncedLanguageIdsAsRef.value).toContain(appLanguageIdsAsRef.value[0]);
         });
+    });
+
+    it("REGRESSION: resolves offline when sync has not registered the Language type", async () => {
+        // A syncList persisted mid-sync is discarded wholesale on the next start, which routes
+        // the language query at the API — unanswerable offline, so startup would hang on the
+        // splash screen with the languages already on the device.
+        const persisted = await db.getLuminaryInternals("syncList");
+        await db.setLuminaryInternals("syncList", []);
+        await db.getSyncList();
+        cmsLanguages.value.length = 0;
+
+        try {
+            const outcome = await Promise.race([
+                initLanguage().then(() => "resolved"),
+                new Promise((resolve) => setTimeout(() => resolve("timed out"), 3000)),
+            ]);
+            expect(outcome).toBe("resolved");
+            expect(cmsLanguages.value).toContainEqual(mockLanguageDtoEng);
+        } finally {
+            await db.setLuminaryInternals("syncList", persisted);
+            await db.getSyncList();
+        }
     });
 
     it("REGRESSION: the synced set reactively tracks the preferred order (never left empty)", async () => {

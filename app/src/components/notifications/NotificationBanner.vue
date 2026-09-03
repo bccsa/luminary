@@ -27,26 +27,24 @@ const router = useRouter();
 
 const show = ref(true);
 
-const icon = ref<FunctionalComponent>();
+const { dismissNotification } = useNotificationStore();
 
-const { removeNotification } = useNotificationStore();
-
-if (props.notification.icon) {
-    icon.value = props.notification.icon;
-} else {
+// Computed rather than resolved once: a restored notification carries no icon until
+// its origin re-adds it, and the merge has to reach the rendered icon.
+const icon = computed<FunctionalComponent | undefined>(() => {
+    if (props.notification.icon) return props.notification.icon;
     switch (props.notification.state) {
         case "success":
-            icon.value = CheckCircleIcon;
-            break;
+            return CheckCircleIcon;
         case "error":
         case "info":
-            icon.value = InformationCircleIcon;
-            break;
+            return InformationCircleIcon;
         case "warning":
-            icon.value = ExclamationTriangleIcon;
-            break;
+            return ExclamationTriangleIcon;
+        default:
+            return undefined;
     }
-}
+});
 
 const color = ref<string>("bg-gray-100");
 
@@ -79,6 +77,8 @@ const handleNotificationClick = (notification: Notification) => {
         <div
             v-if="show"
             class="banner-grid"
+            data-test="notification-banner"
+            :data-notification-id="notification.id"
         >
             <div class="banner-grid-content">
                 <div
@@ -130,7 +130,7 @@ const handleNotificationClick = (notification: Notification) => {
                             type="button"
                             @click.stop="
                                 notification.id
-                                    ? removeNotification(notification.id)
+                                    ? dismissNotification(notification.id)
                                     : (show = false)
                             "
                             class="h-6 min-h-6 w-6 min-w-6 cursor-pointer underline md:h-5 md:min-h-5 md:w-5 md:min-w-5"
