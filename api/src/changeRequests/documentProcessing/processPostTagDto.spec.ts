@@ -281,6 +281,7 @@ describe("processPostTagDto", () => {
             db,
             (changeRequest.doc as PostDto).imageBucketId,
             undefined,
+            undefined, // no duplication source bucket
         );
     });
 
@@ -440,6 +441,7 @@ describe("processPostTagDto", () => {
             db,
             undefined, // no bucketId
             undefined, // no prevBucketId
+            undefined, // no duplication source bucket
         );
         expect(result.warnings).toContain("Bucket is not specified for image processing.");
     });
