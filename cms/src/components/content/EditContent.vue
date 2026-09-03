@@ -106,8 +106,11 @@ const acceptServerVersion = () => window.location.reload();
 
 const icon = props.docType === DocType.Tag ? TagIcon : DocumentIcon;
 
-const notify = (state: "success" | "error" | "info", title: string, description: string) =>
-    addNotification({ title, description, state });
+const notify = (
+    state: "success" | "error" | "info" | "warning",
+    title: string,
+    description: string,
+) => addNotification({ title, description, state });
 
 // Which translation is being edited (driven by the route), + the language lists.
 const {

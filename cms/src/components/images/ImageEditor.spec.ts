@@ -181,7 +181,13 @@ describe("ImageEditor", () => {
         const origBuckets = [...mockImageBuckets.value];
         mockImageBuckets.value = [
             ...origBuckets,
-            { _id: "bucket-2", name: "Second", publicUrl: "http://test2.com", storageType: "image", mimeTypes: ["image/*"] },
+            {
+                _id: "bucket-2",
+                name: "Second",
+                publicUrl: "http://test2.com",
+                storageType: "image",
+                mimeTypes: ["image/*"],
+            },
         ];
 
         const parent: ContentParentDto = {
@@ -195,7 +201,11 @@ describe("ImageEditor", () => {
 
         const component = wrapper.vm as any;
         const mockFile = new File(["img"], "test.jpg", { type: "image/jpeg" });
-        const fileList = { 0: mockFile, length: 1, item: (i: number) => (i === 0 ? mockFile : null) };
+        const fileList = {
+            0: mockFile,
+            length: 1,
+            item: (i: number) => (i === 0 ? mockFile : null),
+        };
 
         component.handleFiles(fileList);
         await wrapper.vm.$nextTick();
@@ -227,6 +237,47 @@ describe("ImageEditor", () => {
         mockImageBuckets.value = origBuckets;
     });
 
+    it("keeps an imageBucketId the user cannot resolve, and reports it", async () => {
+        const parent: ContentParentDto = {
+            ...JSON.parse(JSON.stringify(mockPostDto)),
+            imageBucketId: "bucket-in-a-group-this-user-cannot-view",
+        };
+
+        const wrapper = mount(ImageEditor, {
+            props: { parent, disabled: false },
+        });
+        await wrapper.vm.$nextTick();
+
+        expect(parent.imageBucketId).toBe("bucket-in-a-group-this-user-cannot-view");
+        expect(parent.imageData!.fileCollections.length).toBeGreaterThan(0);
+        expect(wrapper.text()).toContain("bucket you don't have access to");
+    });
+
+    it("refuses an upload to an unresolved bucket without discarding the reference", async () => {
+        const parent: ContentParentDto = {
+            ...JSON.parse(JSON.stringify(mockPostDto)),
+            imageBucketId: "bucket-in-a-group-this-user-cannot-view",
+        };
+
+        const wrapper = mount(ImageEditor, {
+            props: { parent, disabled: false },
+        });
+        const component = wrapper.vm as any;
+        const mockFile = new File(["img"], "test.jpg", { type: "image/jpeg" });
+        const fileList = {
+            0: mockFile,
+            length: 1,
+            item: (i: number) => (i === 0 ? mockFile : null),
+        };
+
+        component.handleFiles(fileList);
+        await wrapper.vm.$nextTick();
+
+        expect(parent.imageBucketId).toBe("bucket-in-a-group-this-user-cannot-view");
+        expect(parent.imageData!.uploadData).toBeUndefined();
+        expect(wrapper.text()).toContain("bucket you don't have access to");
+    });
+
     it("processFiles adds upload data to parent", async () => {
         const parent: ContentParentDto = {
             ...mockPostDto,
@@ -241,7 +292,11 @@ describe("ImageEditor", () => {
         const mockFile = new File(["image-data"], "test.jpg", { type: "image/jpeg" });
         Object.defineProperty(mockFile, "size", { value: 1024 }); // Small file
 
-        const fileList = { 0: mockFile, length: 1, item: (i: number) => (i === 0 ? mockFile : null) };
+        const fileList = {
+            0: mockFile,
+            length: 1,
+            item: (i: number) => (i === 0 ? mockFile : null),
+        };
 
         const component = wrapper.vm as any;
         component.handleFiles(fileList);
@@ -268,7 +323,11 @@ describe("ImageEditor", () => {
         const mockFile = new File(["x"], "huge.jpg", { type: "image/jpeg" });
         Object.defineProperty(mockFile, "size", { value: largeSize });
 
-        const fileList = { 0: mockFile, length: 1, item: (i: number) => (i === 0 ? mockFile : null) };
+        const fileList = {
+            0: mockFile,
+            length: 1,
+            item: (i: number) => (i === 0 ? mockFile : null),
+        };
 
         const component = wrapper.vm as any;
         component.handleFiles(fileList);
@@ -294,7 +353,11 @@ describe("ImageEditor", () => {
         // An actual upload is a real user edit and should persist the effective bucket.
         const mockFile = new File(["x"], "img.jpg", { type: "image/jpeg" });
         Object.defineProperty(mockFile, "size", { value: 1024 });
-        const fileList = { 0: mockFile, length: 1, item: (i: number) => (i === 0 ? mockFile : null) };
+        const fileList = {
+            0: mockFile,
+            length: 1,
+            item: (i: number) => (i === 0 ? mockFile : null),
+        };
         (wrapper.vm as any).handleFiles(fileList);
         await wrapper.vm.$nextTick();
 

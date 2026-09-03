@@ -809,4 +809,51 @@ describe("validateChangeRequestAccess", () => {
             expect(res.validated).toBe(true);
         });
     });
+    describe("image duplication source access", () => {
+        // An existing public post is saved so the request clears the edit and group assign checks,
+        // leaving the duplication source as the only difference between these tests.
+        const duplicateChangeReq = (duplicateFrom: string) =>
+            plainToClass(ChangeReqDto, {
+                doc: {
+                    _id: "post-page1",
+                    type: "post",
+                    memberOf: ["group-public-content"],
+                    image: "",
+                    tags: [],
+                    imageData: { fileCollections: [], duplicateFrom },
+                },
+            });
+
+        it("rejects a duplicate naming a source the user cannot view", async () => {
+            const res = await validateChangeRequestAccess(
+                duplicateChangeReq("post-blog2"),
+                ["group-public-editors"],
+                db,
+            );
+
+            expect(res.validated).toBe(false);
+            expect(res.error).toBe("No 'View' access to the document the image is duplicated from");
+        });
+
+        it("rejects a duplicate naming a source that does not exist", async () => {
+            const res = await validateChangeRequestAccess(
+                duplicateChangeReq("post-does-not-exist"),
+                ["group-public-editors"],
+                db,
+            );
+
+            expect(res.validated).toBe(false);
+            expect(res.error).toBe("No 'View' access to the document the image is duplicated from");
+        });
+
+        it("accepts a duplicate naming a source the user can view", async () => {
+            const res = await validateChangeRequestAccess(
+                duplicateChangeReq("post-blog1"),
+                ["group-public-editors"],
+                db,
+            );
+
+            expect(res.validated).toBe(true);
+        });
+    });
 });
