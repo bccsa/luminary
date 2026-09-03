@@ -1,0 +1,20 @@
+FirstInstance:
+  InstanceName: luminary-poc
+  # The seed script authenticates with this token, so first-instance setup is
+  # the only step that needs a human.
+  PatPath: /secrets/seed-pat.txt
+  Org:
+    Name: Luminary
+    Human:
+      UserName: admin
+      Password: Password1!
+      PasswordChangeRequired: false
+      Email:
+        Address: admin@luminary.local
+        Verified: true
+    Machine:
+      Machine:
+        Username: seed-bot
+        Name: Seed bot
+      Pat:
+        ExpirationDate: 2100-01-01T00:00:00Z
