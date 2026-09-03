@@ -1,6 +1,6 @@
 import { ref } from "vue";
 import { createRouter, createWebHistory } from "vue-router";
-import { isTelegramBrowser } from "@/util/inAppBrowser";
+import { isInAppBrowser } from "@/util/inAppBrowser";
 import { markPageLoading } from "@/util/renderState";
 import { routes } from "./routes";
 
@@ -32,13 +32,13 @@ const routeHistory = ref<string[]>([]);
 router.beforeEach((to) => {
     markPageLoading();
 
-    const telegramWarningAcknowledged =
-        sessionStorage.getItem("telegram_open_warning_ack") === "1";
+    const inAppWarningAcknowledged =
+        sessionStorage.getItem("inapp_open_warning_ack") === "1";
 
-    // Only show the interstitial on the first load inside Telegram's in-app browser.
+    // Only show the interstitial on the first load inside an in-app browser.
     if (
-        !telegramWarningAcknowledged &&
-        isTelegramBrowser() &&
+        !inAppWarningAcknowledged &&
+        isInAppBrowser() &&
         isExternalNavigation() &&
         to.name !== "open-warning"
     ) {
