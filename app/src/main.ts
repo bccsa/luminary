@@ -34,19 +34,6 @@ app.use(createPinia());
 initSentry(app);
 
 /**
- * Backstop for a startup that stalls instead of failing. Nothing below rejects on a
- * promise that simply never settles, so without this the user sits on the boot splash
- * and nothing is reported. Comfortably above the ~30s worst case of a slow silent
- * token refresh so a slow-but-working boot is not flagged.
- */
-const BOOT_TIMEOUT_MS = 45_000;
-
-const bootWatchdog = setTimeout(() => {
-    markAppError();
-    Sentry?.captureMessage(`App boot did not complete within ${BOOT_TIMEOUT_MS}ms`, "error");
-}, BOOT_TIMEOUT_MS);
-
-/**
  * Content sync window. Installed (standalone) sessions sync the full corpus (no
  * cutoff). Browser-tab sessions sync only the last ~1 month; content with
  * `publishDate` older than `Date.now() - BROWSER_CONTENT_SYNC_WINDOW_MS` is not
@@ -153,12 +140,10 @@ async function Startup() {
 
     initAppTitle(i18n);
     initAnalytics();
-    clearTimeout(bootWatchdog);
     markAppReady();
 }
 
 Startup().catch((err) => {
-    clearTimeout(bootWatchdog);
     console.error(err);
     Sentry?.captureException(err);
     markAppError();
