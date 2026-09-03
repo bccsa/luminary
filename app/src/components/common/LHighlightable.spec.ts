@@ -619,7 +619,7 @@ describe("LHighlightable", () => {
             [
                 "“Some”",
                 "",
-                "— from “Test Article”\n— © Test Publisher",
+                "— from “Test Article”\n© Test Publisher",
                 "",
                 window.location.href,
             ].join("\n"),
