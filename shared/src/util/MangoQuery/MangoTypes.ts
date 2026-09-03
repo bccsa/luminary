@@ -45,6 +45,14 @@ export type MangoQuery = {
      * Not validated server-side against any known set.
      */
     identifier?: string;
+    /**
+     * Document fields the API should drop from every returned doc, so a caller that never reads a
+     * heavy field (`text`, `fts`, …) does not pay to download it. Remote-only — the local Dexie
+     * read is unaffected. The API rejects the fields it reads itself (`_id`, `type`,
+     * `updatedTimeUtc`, `status`, `expiryDate`); older API versions ignore the key and return
+     * full docs.
+     */
+    omitFields?: string[];
 };
 
 /** Comparison object { $op: value } */

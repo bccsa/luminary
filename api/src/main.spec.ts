@@ -28,6 +28,7 @@ import { PermissionSystem } from "./permissions/permissions.service";
 import { upgradeDbSchema } from "./db/db.upgrade";
 import { reconcileLanguageTranslationSeeds } from "./db/languageSeedReconciliation";
 import { bootstrap } from "./main";
+import { constants } from "zlib";
 
 describe("bootstrap", () => {
     let mockApp: any;
@@ -74,6 +75,31 @@ describe("bootstrap", () => {
         expect(reconcileLanguageTranslationSeeds).toHaveBeenCalled();
         expect(mockApp.enableCors).toHaveBeenCalled();
         expect(mockApp.listen).toHaveBeenCalledWith("3000", "0.0.0.0");
+    });
+
+    it("should register compression with an explicit Brotli quality", async () => {
+        process.argv = ["node", "main.js"];
+        process.env.COMPRESS_BROTLI_QUALITY = "7";
+
+        await bootstrap();
+
+        const [, options] = mockApp.register.mock.calls.find(
+            ([, opts]: [unknown, any]) => opts?.encodings,
+        );
+        expect(options.encodings).toEqual(["br", "gzip", "deflate"]);
+        expect(options.brotliOptions.params[constants.BROTLI_PARAM_QUALITY]).toBe(7);
+    });
+
+    it("should default the Brotli quality above the plugin's own default", async () => {
+        process.argv = ["node", "main.js"];
+        delete process.env.COMPRESS_BROTLI_QUALITY;
+
+        await bootstrap();
+
+        const [, options] = mockApp.register.mock.calls.find(
+            ([, opts]: [unknown, any]) => opts?.encodings,
+        );
+        expect(options.brotliOptions.params[constants.BROTLI_PARAM_QUALITY]).toBe(6);
     });
 
     it("should seed and exit when 'seed' argument is provided", async () => {

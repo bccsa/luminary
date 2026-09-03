@@ -60,6 +60,12 @@ import { OPEN_MIN } from "../../api/sync/utils";
  */
 export const DEFAULT_REMOTE_QUERY_LIMIT = 500;
 
+/**
+ * Fields the API reads off each returned doc (sync cursor, expired-content minimization), so it
+ * rejects a `MangoQuery.omitFields` naming any of them.
+ */
+const SERVER_REQUIRED_FIELDS = new Set(["_id", "type", "updatedTimeUtc", "status", "expiryDate"]);
+
 let _httpService: HttpReq<any> | undefined;
 
 // Test-only registry of live instances, so `_resetHybridQueryForTests()` can dispose
@@ -133,6 +139,11 @@ export async function queryRemote<T = unknown>(query: MangoQuery): Promise<T[]> 
     // Opt-in only: without it the API filters expired Content out of the response, hiding
     // exactly the docs a caller watching for expiry crossings needs to see.
     if (query.includeExpired === true) payload.includeExpired = true;
+    // Wire-level projection: fields the caller never reads are dropped server-side rather than
+    // downloaded and discarded.
+    if (Array.isArray(query.omitFields) && query.omitFields.length) {
+        payload.omitFields = query.omitFields;
+    }
 
     const res = await _httpService.post("query", payload as any);
     return (res?.docs ?? []) as T[];
@@ -247,6 +258,12 @@ export type HybridQueryOptions = {
      * they are also what the response cache persists — so `stripFields` shrinks the
      * cache footprint too. {@link cacheStripFields} is the narrower tool: it removes
      * *additional* fields from the cache **only**, leaving them in `output`.
+     *
+     * **Also a wire saving.** Unless {@link persistOffline} is on, these fields are additionally
+     * forwarded to the API as a projection, so they are never downloaded in the first place — for
+     * a field like a full HTML body that is most of the response. `persistOffline` opts out
+     * because it writes the response to IndexedDB *before* the strip, and an offline read of a
+     * projected doc would be missing its body.
      *
      * **Safety.** The merge / sort / dedup / live-update machinery reads only `_id`
      * and `updatedTimeUtc`, so stripping any other field is correctness-neutral —
@@ -866,7 +883,9 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
             // allSettled (not all): one query's transient failure must not blank the whole batch —
             // keep the queries that succeeded. If EVERY query fails we leave `_remote` untouched
             // (preserving any cache seed, healing on remount), matching the prior behaviour.
-            const queries = apis.flatMap((api) => planRemoteContentQueries(api));
+            const queries = apis
+                .flatMap((api) => planRemoteContentQueries(api))
+                .map((q) => this._withRemoteProjection(q));
             const settled = await Promise.allSettled(queries.map((q) => queryRemote<T>(q)));
             // A rebuild (dep change) or dispose may have superseded this POST while
             // it was in flight — its result belongs to a dead generation.
@@ -1024,6 +1043,22 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
      */
     private _strip(docs: T[]): T[] {
         return this._stripFields.length ? docs.map((d) => omitFields(d, this._stripFields)) : docs;
+    }
+
+    /**
+     * Ask the API not to send `_stripFields` at all, since the supplement's docs are stripped at
+     * ingest anyway. Skipped under `persistOffline`, which writes the response to IndexedDB
+     * *before* the strip and so needs the full doc (an offline read of a projected doc would be
+     * missing its body). An explicit `omitFields` on the query wins.
+     *
+     * Server-required fields are filtered out rather than forwarded: `stripFields` is a heap
+     * concern the caller tunes freely, and listing one must not turn into a rejected query.
+     */
+    private _withRemoteProjection(query: MangoQuery): MangoQuery {
+        if (query.omitFields || this._persistOffline || !this._stripFields.length) return query;
+
+        const omitFields = this._stripFields.filter((f) => !SERVER_REQUIRED_FIELDS.has(f));
+        return omitFields.length ? { ...query, omitFields } : query;
     }
 
     /** Replace the local contribution (the live emission may have dropped docs). */
