@@ -51,7 +51,8 @@ export async function runLatencySuite(
         let error: string | undefined;
 
         for (let i = 0; i < config.samples; i++) {
-            const res = await fire(api, entry);
+            // Compressed size is a property of the body, not of the sample — measure it once.
+            const res = await fire(api, entry, i === 0);
             statuses.add(res.status);
             clientMs.push(res.ms);
             bytes = Math.max(bytes, res.bytes);
@@ -89,8 +90,10 @@ export async function runLatencySuite(
     return results;
 }
 
-async function fire(api: ApiClient, entry: CatalogueEntry) {
-    return entry.method === "GET" ? api.get(entry.path) : api.post(entry.path, entry.body);
+async function fire(api: ApiClient, entry: CatalogueEntry, measureWire = false) {
+    return entry.method === "GET"
+        ? api.get(entry.path, false, measureWire)
+        : api.post(entry.path, entry.body, false, measureWire);
 }
 
 function meanSpans(traces: ServerTrace[]): Record<string, number> {

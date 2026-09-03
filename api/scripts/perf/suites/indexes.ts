@@ -70,6 +70,8 @@ export async function runIndexSuite(
 function referencedIndexNames(entries: CatalogueEntry[]): Set<string> {
     const referenced = new Set<string>();
     for (const entry of entries) {
+        // A synthetic probe pins an index to price it, not because anything asks for it.
+        if (entry.source?.startsWith("synthetic")) continue;
         if (entry.body?.use_index) referenced.add(entry.body.use_index);
     }
 

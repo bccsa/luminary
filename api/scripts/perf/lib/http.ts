@@ -38,12 +38,17 @@ export class ApiClient {
         return headers;
     }
 
-    async post<T = any>(path: string, body: unknown, keepBody = false): Promise<Timed<T>> {
-        return this.send("POST", path, JSON.stringify(body), keepBody);
+    async post<T = any>(
+        path: string,
+        body: unknown,
+        keepBody = false,
+        measureWire = false,
+    ): Promise<Timed<T>> {
+        return this.send("POST", path, JSON.stringify(body), keepBody, measureWire);
     }
 
-    async get<T = any>(path: string, keepBody = false): Promise<Timed<T>> {
-        return this.send("GET", path, undefined, keepBody);
+    async get<T = any>(path: string, keepBody = false, measureWire = false): Promise<Timed<T>> {
+        return this.send("GET", path, undefined, keepBody, measureWire);
     }
 
     private async send<T>(
@@ -51,6 +56,7 @@ export class ApiClient {
         path: string,
         body: string | undefined,
         keepBody: boolean,
+        measureWire: boolean,
     ): Promise<Timed<T>> {
         const start = performance.now();
         try {
@@ -69,7 +75,7 @@ export class ApiClient {
                 status: res.status,
                 ms,
                 bytes: Buffer.byteLength(text),
-                wireBytes: compressedSize(text),
+                wireBytes: measureWire ? compressedSize(text) : 0,
                 trace: parseTrace(res.headers.get("x-perf-trace")),
                 body: keepBody ? safeJson<T>(text) : undefined,
                 error: res.ok ? undefined : text.slice(0, 300),
@@ -87,7 +93,13 @@ export class ApiClient {
     }
 }
 
-/** Bodies above this are sampled rather than fully compressed — brotli on megabytes is slow. */
+/**
+ * Brotli is CPU-heavy enough to distort a measurement if run on every response: under load it
+ * blocks the audit client's own event loop and surfaces as queueing the server never caused.
+ * Callers opt in, and the latency suite does so once per request shape.
+ *
+ * Bodies above this are sampled rather than fully compressed — brotli on megabytes is slow.
+ */
 const COMPRESS_SAMPLE_LIMIT = 2_000_000;
 
 function compressedSize(text: string): number {

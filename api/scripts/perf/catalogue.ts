@@ -39,71 +39,44 @@ export function buildCatalogue(ctx: PerfContext): CatalogueEntry[] {
     const langs = ctx.languages.slice(0, 3);
     const entries: CatalogueEntry[] = [];
 
-    const sync = (
-        id: string,
-        label: string,
-        type: string,
-        useIndex: string,
-        opts: { subType?: string; cms?: boolean; firstSync?: boolean; extra?: any } = {},
-    ) => {
-        const selector: any = {
-            type,
-            updatedTimeUtc: { $lte: now, $gte: opts.firstSync ? 0 : now - 7 * DAY },
-            memberOf: { $elemMatch: { $in: groups } },
-            ...(opts.extra ?? {}),
-        };
-        const body: any = {
-            selector,
-            limit: SYNC_LIMIT,
-            sort: [{ updatedTimeUtc: "desc" }],
-            use_index: useIndex,
-            identifier: "sync",
-        };
-        if (opts.cms) body.cms = true;
-        entries.push({
-            id,
-            group: opts.cms ? "sync (cms)" : "sync (app)",
-            label,
-            method: "POST",
-            path: "/query",
-            body,
-            requiresCmsView: opts.cms,
-            source: "shared/src/api/sync/syncBatch.ts",
-            explain: {
-                selector,
-                limit: SYNC_LIMIT,
-                sort: [{ updatedTimeUtc: "desc" }],
-                use_index: useIndex,
-            },
-        });
+    /**
+     * The sync columns the clients actually run, copied from `app/src/sync.ts` and
+     * `cms/src/sync.ts`. Doc types absent here are never synced — the app runs no
+     * Post/Tag/Group columns of its own, and nothing syncs User at all.
+     */
+    type SyncColumn = {
+        type: string;
+        subType?: string;
+        limit: number;
+        /** CMS content columns pass includeDeleteCmds:false — the parent column covers them. */
+        deleteCmds?: boolean;
     };
 
-    // ── Sync: simple doc types ────────────────────────────────────────────────
-    for (const [type, index] of [
-        ["post", "sync-post-index"],
-        ["tag", "sync-tag-index"],
-        ["language", "sync-language-index"],
-        ["group", "sync-group-index"],
-        ["redirect", "sync-redirect-index"],
-        ["defaultAffinity", "sync-defaultAffinity-index"],
-    ] as const) {
-        sync(`sync-${type}`, `incremental sync — ${type}`, type, index);
-        sync(`sync-${type}-first`, `first sync (full window) — ${type}`, type, index, {
-            firstSync: true,
-        });
-    }
+    const APP_SYNC: SyncColumn[] = [
+        { type: "authProvider", limit: 100 },
+        { type: "language", limit: 100 },
+        { type: "content", subType: "post", limit: 100 },
+        { type: "content", subType: "tag", limit: 100 },
+        { type: "redirect", limit: 100 },
+        { type: "storage", limit: 100 },
+        { type: "defaultAffinity", limit: 1 },
+    ];
 
-    // CMS-only doc types.
-    for (const [type, index] of [
-        ["user", "sync-user-index"],
-        ["storage", "sync-storage-index"],
-        ["authProvider", "sync-authProvider-index"],
-    ] as const) {
-        sync(`sync-${type}-cms`, `incremental sync — ${type}`, type, index, { cms: true });
-    }
+    const CMS_SYNC: SyncColumn[] = [
+        { type: "authProvider", limit: 100 },
+        { type: "language", limit: 100 },
+        { type: "post", limit: 500 },
+        { type: "content", subType: "post", limit: 100, deleteCmds: false },
+        { type: "tag", limit: 500 },
+        { type: "content", subType: "tag", limit: 100, deleteCmds: false },
+        { type: "redirect", limit: 500 },
+        { type: "group", limit: 500 },
+        { type: "storage", limit: 100 },
+    ];
 
-    // ── Sync: content, the heaviest and most-varied shape ─────────────────────
-    const languageKeep = langs.length
+    // App content sync keeps a language set plus a last-resort fallback translation; CMS
+    // syncs every language flat. Both shapes come from syncBatch.
+    const appLanguageKeep = langs.length
         ? {
               $or: [
                   { language: { $in: langs } },
@@ -116,68 +89,104 @@ export function buildCatalogue(ctx: PerfContext): CatalogueEntry[] {
           }
         : {};
 
-    for (const parentType of ["post", "tag"] as const) {
-        sync(
-            `sync-content-${parentType}`,
-            `incremental sync — content (${parentType}, language keep)`,
-            "content",
-            "sync-content-index",
-            { extra: { parentType, ...languageKeep } },
-        );
-        sync(
-            `sync-content-${parentType}-first`,
-            `first sync (full window) — content (${parentType})`,
-            "content",
-            "sync-content-index",
-            { firstSync: true, extra: { parentType, ...languageKeep } },
-        );
-        sync(
-            `sync-content-${parentType}-cms`,
-            `incremental sync — content (${parentType}, all languages)`,
-            "content",
-            "sync-content-index",
-            { cms: true, extra: { parentType, language: { $in: ctx.languages } } },
-        );
+    const syncIndexFor = (type: string, subType?: string) =>
+        type === "content"
+            ? "sync-content-index"
+            : `sync-${subType ? subType + "-" : ""}${type}-index`;
+
+    const pushSync = (column: SyncColumn, cms: boolean, firstSync: boolean) => {
+        const { type, subType, limit } = column;
+        const selector: any = {
+            type,
+            updatedTimeUtc: { $lte: now, $gte: firstSync ? 0 : now - 7 * DAY },
+            memberOf: { $elemMatch: { $in: groups } },
+        };
+        if (type === "content" && subType) {
+            selector.parentType = subType;
+            if (cms) selector.language = { $in: ctx.languages };
+            else Object.assign(selector, appLanguageKeep);
+        }
+
+        const body: any = {
+            selector,
+            limit,
+            sort: [{ updatedTimeUtc: "desc" }],
+            use_index: syncIndexFor(type, subType),
+            identifier: "sync",
+        };
+        if (cms) body.cms = true;
+
+        const name = subType ? `${type}-${subType}` : type;
+        entries.push({
+            id: `sync-${name}${cms ? "-cms" : ""}${firstSync ? "-first" : ""}`,
+            group: cms ? "sync (cms)" : "sync (app)",
+            label: `${
+                firstSync ? "first sync (full window)" : "incremental sync"
+            } — ${name}, limit ${limit}`,
+            source: cms ? "cms/src/sync.ts" : "app/src/sync.ts",
+            requiresCmsView: cms,
+            method: "POST",
+            path: "/query",
+            body,
+            explain: { selector, limit, sort: body.sort, use_index: body.use_index },
+        });
+    };
+
+    const pushDeleteCmdSibling = (column: SyncColumn, cms: boolean) => {
+        if (column.deleteCmds === false) return;
+        // sync() pairs each column with a deleteCmd column keyed on the parent doc type.
+        const docType = column.type === "content" ? column.subType! : column.type;
+        const selector: any = {
+            type: "deleteCmd",
+            docType,
+            updatedTimeUtc: { $lte: now, $gte: now - 7 * DAY },
+            memberOf: { $elemMatch: { $in: groups } },
+        };
+        const body: any = {
+            selector,
+            limit: column.limit,
+            sort: [{ updatedTimeUtc: "desc" }],
+            use_index: `sync-${docType}-deleteCmd-index`,
+            identifier: "sync",
+        };
+        if (cms) body.cms = true;
+        entries.push({
+            id: `sync-deleteCmd-${docType}${cms ? "-cms" : ""}`,
+            group: cms ? "sync (cms)" : "sync (app)",
+            label: `incremental sync — deleteCmd (${docType})`,
+            source: "shared/src/api/sync/sync.ts (deleteCmd sibling)",
+            requiresCmsView: cms,
+            method: "POST",
+            path: "/query",
+            body,
+            explain: { selector, limit: column.limit, sort: body.sort, use_index: body.use_index },
+        });
+    };
+
+    const seenDeleteCmd = new Set<string>();
+    for (const [columns, cms] of [
+        [APP_SYNC, false],
+        [CMS_SYNC, true],
+    ] as [SyncColumn[], boolean][]) {
+        for (const column of columns) {
+            pushSync(column, cms, false);
+            pushSync(column, cms, true);
+            const docType = column.type === "content" ? column.subType! : column.type;
+            const key = `${docType}-${cms}`;
+            if (column.deleteCmds !== false && !seenDeleteCmd.has(key)) {
+                seenDeleteCmd.add(key);
+                pushDeleteCmdSibling(column, cms);
+            }
+        }
     }
 
-    sync(
-        "sync-content-alwaysOffline",
-        "incremental sync — content (alwaysOffline parents)",
-        "content",
-        "sync-content-alwaysOffline-index",
-        { extra: { parentType: "post", parentAlwaysOffline: true, ...languageKeep } },
-    );
-
-    // The app's update-sync path: expiry filter omitted so expiry changes reach offline clients.
-    entries.push({
-        id: "sync-content-includeExpired",
-        group: "sync (app)",
-        source: "shared/src/api/sync/syncBatch.ts",
-        label: "update sync — content with includeExpired",
-        method: "POST",
-        path: "/query",
-        body: {
-            selector: {
-                type: "content",
-                parentType: "post",
-                updatedTimeUtc: { $lte: now, $gte: now - 7 * DAY },
-                memberOf: { $elemMatch: { $in: groups } },
-                ...languageKeep,
-            },
-            limit: SYNC_LIMIT,
-            sort: [{ updatedTimeUtc: "desc" }],
-            use_index: "sync-content-index",
-            includeExpired: true,
-            identifier: "sync",
-        },
-    });
-
-    // Content sync narrowed by the client's publishDate cutoff.
+    // Content sync narrowed by the client's publishDate cutoff (config.ts floors content
+    // publishDateMin; utils.ts resolves the range into the sync column).
     entries.push({
         id: "sync-content-publishDate-window",
         group: "sync (app)",
-        source: "shared/src/api/sync/syncBatch.ts",
-        label: "incremental sync — content narrowed by publishDate cutoff",
+        label: "incremental sync — content narrowed by the publishDate cutoff",
+        source: "shared/src/api/sync/utils.ts + shared/src/config.ts",
         method: "POST",
         path: "/query",
         body: {
@@ -187,38 +196,62 @@ export function buildCatalogue(ctx: PerfContext): CatalogueEntry[] {
                 updatedTimeUtc: { $lte: now, $gte: now - 30 * DAY },
                 publishDate: { $gte: now - 365 * DAY },
                 memberOf: { $elemMatch: { $in: groups } },
-                ...languageKeep,
+                ...appLanguageKeep,
             },
-            limit: SYNC_LIMIT,
+            limit: 100,
             sort: [{ updatedTimeUtc: "desc" }],
             use_index: "sync-content-index",
             identifier: "sync",
         },
     });
 
-    // ── Sync: delete commands ─────────────────────────────────────────────────
-    for (const [docType, index] of [
-        ["content", "sync-content-deleteCmd-index"],
-        ["post", "sync-post-deleteCmd-index"],
-        ["tag", "sync-tag-deleteCmd-index"],
-        ["language", "sync-language-deleteCmd-index"],
-        ["group", "sync-group-deleteCmd-index"],
-        ["redirect", "sync-redirect-deleteCmd-index"],
-        ["user", "sync-user-deleteCmd-index"],
-        ["storage", "sync-storage-deleteCmd-index"],
-        ["authProvider", "sync-authProvider-deleteCmd-index"],
-        ["defaultAffinity", "sync-defaultAffinity-deleteCmd-index"],
-    ] as const) {
-        sync(
-            `sync-deleteCmd-${docType}`,
-            `incremental sync — deleteCmd (${docType})`,
-            "deleteCmd",
-            index,
-            {
-                extra: { docType },
+    // The app's update-sync path: expiry filter omitted so expiry changes reach offline clients.
+    entries.push({
+        id: "sync-content-includeExpired",
+        group: "sync (app)",
+        label: "update sync — content with includeExpired",
+        source: "shared/src/api/sync/syncBatch.ts",
+        method: "POST",
+        path: "/query",
+        body: {
+            selector: {
+                type: "content",
+                parentType: "post",
+                updatedTimeUtc: { $lte: now, $gte: now - 7 * DAY },
+                memberOf: { $elemMatch: { $in: groups } },
+                ...appLanguageKeep,
             },
-        );
-    }
+            limit: 100,
+            sort: [{ updatedTimeUtc: "desc" }],
+            use_index: "sync-content-index",
+            includeExpired: true,
+            identifier: "sync",
+        },
+    });
+
+    // Synthetic: no client sets alwaysOffline. Kept only to price the index that exists for it.
+    entries.push({
+        id: "sync-content-alwaysOffline",
+        group: "sync (app)",
+        label: "content alwaysOffline sync — synthetic, no client sets this flag",
+        source: "synthetic — no call site",
+        method: "POST",
+        path: "/query",
+        body: {
+            selector: {
+                type: "content",
+                parentType: "post",
+                parentAlwaysOffline: true,
+                updatedTimeUtc: { $lte: now, $gte: 0 },
+                memberOf: { $elemMatch: { $in: groups } },
+                ...appLanguageKeep,
+            },
+            limit: 100,
+            sort: [{ updatedTimeUtc: "desc" }],
+            use_index: "sync-content-alwaysOffline-index",
+            identifier: "sync",
+        },
+    });
 
     // ── HybridQuery: the app's read-path supplements ──────────────────────────
     // Every shape below is copied from the call site named in `source`. A `publishDate`
@@ -347,64 +380,81 @@ export function buildCatalogue(ctx: PerfContext): CatalogueEntry[] {
     );
 
     // ── Full-text search ──────────────────────────────────────────────────────
-    const fts = (id: string, label: string, body: any) => {
+    // Two real callers: ftsSearchApi (content search, at most one language) and
+    // useServerFtsSearch (CMS table search — always matchAllWords plus a field sort).
+    const fts = (id: string, label: string, source: string, body: any) => {
         entries.push({
             id,
             group: "fts",
             label,
+            source,
             method: "POST",
             path: "/fts",
             body: { apiVersion: "0.0.0", ...body },
             requiresCmsView: body.cms === true,
-            source: "shared/src/api/RestApi.ts (fts)",
         });
     };
 
-    fts("fts-common", `content search — frequent term ("${ctx.ftsCommonTerm}")`, {
+    const CONTENT_SEARCH = "shared/src/fts/ftsSearchApi.ts";
+    const TABLE_SEARCH = "shared/src/fts/useServerFtsSearch.ts";
+
+    fts("fts-common", `content search — frequent term ("${ctx.ftsCommonTerm}")`, CONTENT_SEARCH, {
         queryString: ctx.ftsCommonTerm,
     });
-    fts("fts-rare", `content search — rare term ("${ctx.ftsRareTerm}")`, {
+    fts("fts-rare", `content search — rare term ("${ctx.ftsRareTerm}")`, CONTENT_SEARCH, {
         queryString: ctx.ftsRareTerm,
     });
-    fts("fts-miss", "content search — term with no matches", { queryString: ctx.ftsMissTerm });
-    fts("fts-multiword", "content search — multi-word query", {
-        queryString: `${ctx.ftsCommonTerm} ${ctx.ftsRareTerm}`,
+    fts("fts-miss", "content search — term with no matches", CONTENT_SEARCH, {
+        queryString: ctx.ftsMissTerm,
     });
-    fts("fts-long", "content search — long query (worst-case trigram count)", {
-        queryString: `${ctx.ftsCommonTerm} ${ctx.ftsRareTerm} `.repeat(6).slice(0, 200),
-    });
-    fts("fts-languages", "content search — language filtered", {
+    // ftsSearchApi sends at most one language (options.languageId), never a set.
+    fts("fts-language", "content search — single language filter", CONTENT_SEARCH, {
         queryString: ctx.ftsCommonTerm,
-        languages: langs,
+        languages: langs.slice(0, 1),
     });
-    fts("fts-deep-offset", "content search — deep pagination (offset 400)", {
+    fts("fts-deep-offset", "content search — deep pagination (offset 400)", CONTENT_SEARCH, {
         queryString: ctx.ftsCommonTerm,
         limit: 50,
         offset: 400,
     });
-    fts("fts-strict-sorted", "content search — strict match, title sorted", {
+    fts("fts-strict-sorted", "table search — strict match, title sorted", TABLE_SEARCH, {
         queryString: ctx.ftsCommonTerm,
         matchAllWords: true,
         sort: { field: "title", direction: "asc" },
     });
-    fts("fts-cms", "content search — CMS scope (all statuses)", {
+    fts("fts-cms", "content search — CMS scope (all statuses)", CONTENT_SEARCH, {
         queryString: ctx.ftsCommonTerm,
         cms: true,
     });
     if (ctx.userTerm) {
-        fts("fts-aux-user", `aux search — user ("${ctx.userTerm}")`, {
+        fts("fts-aux-user", `table search — user ("${ctx.userTerm}")`, TABLE_SEARCH, {
             queryString: ctx.userTerm,
             types: ["user"],
+            matchAllWords: true,
+            sort: { field: "name", direction: "asc" },
             cms: true,
         });
     }
     if (ctx.redirectTerm) {
-        fts("fts-aux-redirect", `aux search — redirect ("${ctx.redirectTerm}")`, {
+        fts("fts-aux-redirect", `table search — redirect ("${ctx.redirectTerm}")`, TABLE_SEARCH, {
             queryString: ctx.redirectTerm,
             types: ["redirect"],
+            matchAllWords: true,
+            sort: { field: "slug", direction: "asc" },
             cms: true,
         });
     }
+    // Synthetic stress shapes: no caller builds queries this long, but they bound the
+    // trigram pipeline's worst case.
+    fts(
+        "fts-multiword",
+        "content search — multi-word query (synthetic)",
+        "synthetic — stress shape",
+        { queryString: `${ctx.ftsCommonTerm} ${ctx.ftsRareTerm}` },
+    );
+    fts("fts-long", "content search — 200-char query (synthetic)", "synthetic — stress shape", {
+        queryString: `${ctx.ftsCommonTerm} ${ctx.ftsRareTerm} `.repeat(6).slice(0, 200),
+    });
 
     // ── Other endpoints and reject paths ──────────────────────────────────────
     entries.push({
