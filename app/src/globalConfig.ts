@@ -1,6 +1,7 @@
 import {
     DocType,
     HybridQuery,
+    queryLocal,
     type LanguageDto,
     type Uuid,
     type ContentDto,
@@ -296,6 +297,17 @@ export const initLanguage = () => {
             },
             { deep: true },
         );
+
+        // Seed straight from IndexedDB. The query above only reads Dexie once sync has
+        // registered the Language type; without a registration it waits on the API, so an
+        // offline start would never leave the splash screen even with languages on the
+        // device. Skipped once the query has produced its own (authoritative) list.
+        queryLocal<LanguageDto>({ selector: { type: DocType.Language } })
+            .then((languages) => {
+                if (cmsLanguages.value.length || !languages.length) return;
+                cmsLanguages.value.push(...languages);
+            })
+            .catch((err) => console.error("[initLanguage] local language read failed:", err));
 
         // Wait for cmsLanguages to populate before resolving so the i18n watcher
         // has loaded translations by the time the splash screen ends.
