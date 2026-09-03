@@ -33,11 +33,11 @@ function updateTreeColumnCount(event: Event) {
         class="pointer-events-auto shrink-0 sm:hidden"
     >
         <template #trigger>
-            <LButton size="sm" variant="secondary" :icon="Cog6ToothIcon" class="h-9 w-9" />
+            <LButton size="lg" variant="secondary" :icon="Cog6ToothIcon" class="h-9 w-9" />
         </template>
         <LButton
             variant="tertiary"
-            size="sm"
+            size="lg"
             role="menuitem"
             class="w-full justify-start"
             @click="
@@ -71,7 +71,7 @@ function updateTreeColumnCount(event: Event) {
         <LButton
             v-if="savedLayoutExists"
             variant="tertiary"
-            size="sm"
+            size="lg"
             role="menuitem"
             class="w-full justify-start"
             @click="
@@ -83,7 +83,7 @@ function updateTreeColumnCount(event: Event) {
         </LButton>
         <LButton
             variant="tertiary"
-            size="sm"
+            size="lg"
             role="menuitem"
             class="w-full justify-start"
             @click="
@@ -96,7 +96,7 @@ function updateTreeColumnCount(event: Event) {
         <LButton
             v-if="savedLayoutExists"
             variant="tertiary"
-            size="sm"
+            size="lg"
             role="menuitem"
             class="w-full justify-start"
             @click="
