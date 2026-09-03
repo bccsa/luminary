@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { ShareIcon } from "@heroicons/vue/24/outline";
 import type { ContentDto } from "luminary-shared";
 import { useI18n } from "vue-i18n";
@@ -11,7 +11,12 @@ import {
     buildRedditShareUrl,
     firstParagraphExcerpt,
     formatShareMessage,
+    fetchShareImageFile,
+    shareImageUrl,
 } from "@/composables/useSocialShare";
+import { useBucketInfo } from "@/composables/useBucketInfo";
+import { isDataSaverEnabled, userDataSaverEnabled } from "@/globalConfig";
+import { isSlowConnection } from "@/composables/useNetworkSpeedEstimator";
 import TelegramIcon from "@/components/icons/TelegramIcon.vue";
 import WhatsAppIcon from "@/components/icons/WhatsAppIcon.vue";
 import XIcon from "@/components/icons/XIcon.vue";
@@ -19,7 +24,11 @@ import RedditIcon from "@/components/icons/RedditIcon.vue";
 import InstagramIcon from "@/components/icons/InstagramIcon.vue";
 import { useNotificationStore } from "@/stores/notification";
 
-const props = defineProps<{ content: ContentDto }>();
+const props = defineProps<{
+    content: ContentDto;
+    /** The resolved copyright to attribute: the post's own, else the instance-wide notice. */
+    copyright?: string;
+}>();
 
 const { t } = useI18n();
 const open = ref(false);
@@ -32,7 +41,7 @@ const shareMessage = (options: { withUrl?: boolean } = {}) =>
     formatShareMessage({
         quote: firstParagraphExcerpt(props.content.text) || props.content.summary,
         title: props.content.title,
-        copyright: props.content.copyright,
+        copyright: props.copyright || props.content.copyright,
         url: options.withUrl ? shareUrl() : undefined,
     });
 
@@ -47,6 +56,39 @@ onMounted(() => {
         typeof navigator?.share === "function" && window.matchMedia("(pointer: coarse)").matches;
 });
 
+const { bucketBaseUrl } = useBucketInfo(computed(() => props.content.parentImageBucketId));
+
+// Instagram (and the other image-only apps) only offer themselves as share targets when the
+// share carries a file, so the article image is attached wherever the platform accepts one.
+// iOS drops the user activation across an `await`, so the file has to be in hand before the
+// tap: fetch it as soon as the share sheet is known to be this device's path (the bucket URL
+// arrives asynchronously, hence the watch) and hand `navigator.share` whatever is ready.
+const shareFiles = ref<File[]>();
+let preparedUrl: string | undefined;
+
+async function prepareShareImage(url: string) {
+    const file = await fetchShareImageFile(url);
+    if (file && navigator.canShare?.({ files: [file] })) shareFiles.value = [file];
+}
+
+// A reader who has asked for less data (or is on a slow link) gets the text-only share the
+// curated targets already send; the link preview still carries the image.
+const mayPrefetchImage = () =>
+    !isSlowConnection.value && !userDataSaverEnabled.value && !isDataSaverEnabled();
+
+watch(
+    () =>
+        nativeShareAvailable.value && mayPrefetchImage()
+            ? shareImageUrl(props.content, bucketBaseUrl.value)
+            : undefined,
+    (url) => {
+        if (!url || url === preparedUrl) return;
+        preparedUrl = url;
+        prepareShareImage(url);
+    },
+    { immediate: true },
+);
+
 // Prefer the share sheet where it's available, with the curated targets as the fallback.
 async function shareNatively() {
     try {
@@ -54,6 +96,7 @@ async function shareNatively() {
             title: props.content.title,
             text: shareMessage(),
             url: shareUrl(),
+            files: shareFiles.value,
         });
     } catch (e) {
         if ((e as DOMException)?.name === "AbortError") return; // reader dismissed the sheet

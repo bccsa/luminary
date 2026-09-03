@@ -56,6 +56,7 @@ import { userPreferencesAsRef } from "@/globalConfig";
 import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
 import LModal from "@/components/form/LModal.vue";
 import CopyrightBanner from "@/components/content/CopyrightBanner.vue";
+import { useGlobalCopyright } from "@/composables/useGlobalCopyright";
 import FallbackLanguageBadge from "@/components/content/FallbackLanguageBadge.vue";
 import { useI18n } from "vue-i18n";
 import ImageModal from "@/components/images/ImageModal.vue";
@@ -659,6 +660,11 @@ const playAudio = () => {
     }
 };
 
+// Posts rarely carry their own copyright, so shared quotes fall back to the instance-wide
+// notice the page already shows in its copyright banner.
+const { copyrightText: globalCopyright } = useGlobalCopyright();
+const shareCopyright = computed(() => content.value?.copyright || globalCopyright.value);
+
 // Whether the hero image can carry the title/summary as an overlay. Video has its own
 // player chrome the overlay would fight with, so it keeps a plain title above instead.
 const hasHeroImage = computed(
@@ -948,7 +954,10 @@ watch([isLoading, content, is404], async () => {
                                 />
                             </button>
 
-                            <ShareMenu :content="content" />
+                            <ShareMenu
+                                :content="content"
+                                :copyright="shareCopyright"
+                            />
                         </div>
                     </div>
 
@@ -975,7 +984,7 @@ watch([isLoading, content, is404], async () => {
                         v-if="content.text"
                         :content-id="content._id"
                         :title="content.title"
-                        :copyright="content.copyright"
+                        :copyright="shareCopyright"
                         @highlighted="
                             recordAffinity(
                                 content?.parentTags,
