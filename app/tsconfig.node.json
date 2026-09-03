@@ -7,6 +7,7 @@
         "vitest.config.*",
         "src/authStorage.ts",
         "src/themeStorage.ts",
+        "src/bootSplash.ts",
         "src/util/sessionNow.ts",
         "src/ssg/facetKeys.ts",
         "src/ssg/ssrChains.ts",
