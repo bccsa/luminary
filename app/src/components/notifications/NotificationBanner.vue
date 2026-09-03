@@ -27,26 +27,24 @@ const router = useRouter();
 
 const show = ref(true);
 
-const icon = ref<FunctionalComponent>();
-
 const { dismissNotification } = useNotificationStore();
 
-if (props.notification.icon) {
-    icon.value = props.notification.icon;
-} else {
+// Computed rather than resolved once: a restored notification carries no icon until
+// its origin re-adds it, and the merge has to reach the rendered icon.
+const icon = computed<FunctionalComponent | undefined>(() => {
+    if (props.notification.icon) return props.notification.icon;
     switch (props.notification.state) {
         case "success":
-            icon.value = CheckCircleIcon;
-            break;
+            return CheckCircleIcon;
         case "error":
         case "info":
-            icon.value = InformationCircleIcon;
-            break;
+            return InformationCircleIcon;
         case "warning":
-            icon.value = ExclamationTriangleIcon;
-            break;
+            return ExclamationTriangleIcon;
+        default:
+            return undefined;
     }
-}
+});
 
 const color = ref<string>("bg-gray-100");
 
@@ -79,6 +77,8 @@ const handleNotificationClick = (notification: Notification) => {
         <div
             v-if="show"
             class="banner-grid"
+            data-test="notification-banner"
+            :data-notification-id="notification.id"
         >
             <div class="banner-grid-content">
                 <div
