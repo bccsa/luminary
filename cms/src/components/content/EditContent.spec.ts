@@ -25,8 +25,22 @@ import RichTextEditor from "../editor/RichTextEditor.vue";
 import EditContentText from "./EditContentText.vue";
 import LoadingBar from "../LoadingBar.vue";
 import EditContentVideo from "./EditContentVideo.vue";
+import IncomingChangesModal from "./IncomingChangesModal.vue";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const applyRemoteContentUpdate = async (changes: Partial<ContentDto>) => {
+    const current = await db.get<ContentDto>(mockData.mockEnglishContentDto._id);
+    if (!current) throw new Error("Expected the English content fixture to exist");
+
+    await db.bulkPut([
+        {
+            ...current,
+            ...changes,
+            updatedTimeUtc: current.updatedTimeUtc + 1,
+        },
+    ]);
+};
 
 vi.mock("@/auth", async () => (await import("@/tests/mockAuth")).createAuthMock());
 
@@ -80,6 +94,7 @@ describe("EditContent.vue", () => {
         ]);
 
         accessMap.value = { ...mockData.superAdminAccessMap };
+        isConnected.value = false;
         initLanguage();
     });
 
@@ -722,7 +737,8 @@ describe("EditContent.vue", () => {
         });
 
         // Check that the publish button is disabled
-        const publishButton = wrapper.findAllComponents(LTextToggle)[1];
+        // Index 2: [0] Author type (Post only), [1] Visible/SEO, [2] Status/publish.
+        const publishButton = wrapper.findAllComponents(LTextToggle)[2];
         expect(publishButton.exists()).toBe(true);
         expect(publishButton.props().disabled).toBe(true);
 
@@ -1271,5 +1287,78 @@ describe("EditContent.vue", () => {
                 expect(wrapper.find('[data-test="revert-changes-button"]').exists()).toBe(false);
             });
         });
+    });
+
+    describe("incoming server changes", () => {
+        it("shows the banner when the doc is changed remotely while the user is editing", async () => {
+            const wrapper = mount(EditContent, {
+                props: {
+                    docType: DocType.Post,
+                    id: mockData.mockPostDto._id,
+                    languageCode: "eng",
+                    tagOrPostType: PostType.Blog,
+                },
+            });
+
+            await waitForExpect(() => {
+                expect(wrapper.find('input[name="title"]').exists()).toBe(true);
+            });
+
+            // Local edit → dirty. Confirm via the revert button before pushing the remote change.
+            await wrapper.find('input[name="title"]').setValue("My local title");
+            await waitForExpect(() => {
+                expect(wrapper.find('[data-test="revert-changes-button"]').exists()).toBe(true);
+            });
+
+            // Someone else changes a different field on the same content doc.
+            await applyRemoteContentUpdate({ author: "Remote Author" });
+
+            await waitForExpect(() => {
+                const existingContent = wrapper
+                    .findComponent(IncomingChangesModal)
+                    .props("existingContent");
+                expect(
+                    existingContent?.find(
+                        (content) => content._id === mockData.mockEnglishContentDto._id,
+                    )?.author,
+                ).toBe("Remote Author");
+                expect(wrapper.find('[data-test="incoming-changes-banner"]').exists()).toBe(true);
+            }, 10_000);
+
+            // Reviewing opens the read-only diff modal.
+            await wrapper.find('[data-test="incoming-changes-review"]').trigger("click");
+            expect(wrapper.findComponent(IncomingChangesModal).props("open")).toBe(true);
+        }, 15000);
+
+        it("does not show the banner when a remote change arrives with no local edits", async () => {
+            const wrapper = mount(EditContent, {
+                props: {
+                    docType: DocType.Post,
+                    id: mockData.mockPostDto._id,
+                    languageCode: "eng",
+                    tagOrPostType: PostType.Blog,
+                },
+            });
+
+            await waitForExpect(() => {
+                expect(wrapper.find('input[name="title"]').exists()).toBe(true);
+            });
+
+            // Remote change with no local edits: toEditable folds it in silently (no conflict).
+            await applyRemoteContentUpdate({ author: "Remote Author" });
+
+            await waitForExpect(() => {
+                const existingContent = wrapper
+                    .findComponent(IncomingChangesModal)
+                    .props("existingContent");
+                expect(
+                    existingContent?.find(
+                        (content) => content._id === mockData.mockEnglishContentDto._id,
+                    )?.author,
+                ).toBe("Remote Author");
+            }, 10_000);
+
+            expect(wrapper.find('[data-test="incoming-changes-banner"]').exists()).toBe(false);
+        }, 15000);
     });
 });

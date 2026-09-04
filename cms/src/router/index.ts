@@ -7,7 +7,6 @@ import StoragePage from "@/pages/StoragePage.vue";
 import { AclPermission, DocType, hasAnyPermission, isConnected } from "luminary-shared";
 import { useNotificationStore } from "@/stores/notification";
 import {
-    isAuthBypassed,
     isAuthPluginInstalled,
     isAuthenticated,
     loginWithProvider,
@@ -27,7 +26,6 @@ import { waitUntilAuthIsLoaded } from "@/util/waitUntilAuthIsLoaded";
  * provider, mirroring what `authGuard` itself did automatically.
  */
 const conditionalAuthGuard: NavigationGuard = async () => {
-    if (isAuthBypassed) return true;
     if (!isAuthPluginInstalled.value) {
         openProviderModal();
         return true;
@@ -84,6 +82,18 @@ export const router = createRouter({
                     component: () => import("../pages/SettingsPage.vue"),
                     meta: {
                         title: "Settings",
+                    },
+                },
+                {
+                    path: "recommendations",
+                    name: "recommendations",
+                    component: () => import("../pages/RecommendationsPage.vue"),
+                    meta: {
+                        title: "Recommendations",
+                        canAccess: {
+                            docType: DocType.DefaultAffinity,
+                            permission: AclPermission.CmsView,
+                        },
                     },
                 },
                 // Generic content document edit route

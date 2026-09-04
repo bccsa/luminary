@@ -9,6 +9,8 @@ import { DbService } from "../db/db.service";
 import { UserDto } from "../dto/UserDto";
 import { DocType, Uuid } from "../enums";
 import { AccessMap, PermissionSystem } from "../permissions/permissions.service";
+import { issuer, jwksUri } from "../util/authority";
+import configuration from "../configuration";
 
 export type JwtUserDetails = {
     groups: Array<Uuid>;
@@ -42,6 +44,8 @@ export class AuthIdentityService implements OnModuleInit {
     private providerCache: Map<string, AuthProviderDto> = new Map();
     private autoGroupMappingsCache: Map<string, AutoGroupMappingsDto[]> = new Map();
     private defaultGroupsCache: string[] | null = null;
+    private readonly allowInsecureProviderDomain =
+        configuration().auth?.allowInsecureProviderDomain === true;
 
     constructor(
         private jwtService: JwtService,
@@ -325,7 +329,7 @@ export class AuthIdentityService implements OnModuleInit {
                     cache: true,
                     rateLimit: true,
                     jwksRequestsPerMinute: 5,
-                    jwksUri: `https://${provider.domain}/.well-known/jwks.json`,
+                    jwksUri: jwksUri(provider.domain, this.allowInsecureProviderDomain),
                 });
                 this.jwksClients.set(provider.domain, jwksClient);
             }
@@ -344,7 +348,7 @@ export class AuthIdentityService implements OnModuleInit {
             const payload = await this.jwtService.verifyAsync(token, {
                 secret: publicKey,
                 audience: provider.audience,
-                issuer: `https://${provider.domain}/`,
+                issuer: issuer(provider.domain, this.allowInsecureProviderDomain),
                 algorithms: ["RS256"],
             });
 

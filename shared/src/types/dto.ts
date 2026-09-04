@@ -11,6 +11,7 @@ import type {
     AclPermission,
     AckStatus,
 } from "../types";
+import type { AffinityConfig } from "../recommendation/affinity";
 
 export type Uuid = string;
 
@@ -52,10 +53,31 @@ export type DeleteCmdDto = BaseDocumentDto & {
     deleteReason: DeleteReason;
     memberOf?: Uuid[];
     newMemberOf?: Uuid[];
+        /** Language ID of the deleted content document (only set for Content DeleteCmds). */
+    language?: Uuid;
+    /** Slug of the deleted document (only set for Content/Redirect DeleteCmds). */
+    slug?: string;
 };
 
 export type ContentBaseDto = BaseDocumentDto & {
     memberOf: Uuid[];
+};
+
+/**
+ * CMS-editable global baseline affinity profile (singleton, fixed `_id` —
+ * see `DEFAULT_AFFINITY_ID`). This is a normal group-scoped/permissioned doc
+ * edited by CMS admins via the standard change-request path. Its affinity map is
+ * delivered at login only to seed a previously unused client-local profile.
+ *
+ * `config`, if present, holds the CMS-editable affinity engine tuning knobs (see
+ * `AffinityConfig` in `recommendation/affinity.ts`) — falls back to
+ * `DEFAULT_AFFINITY_CONFIG` when absent. Delivered the same way as `affinity`, via
+ * `clientConfig`.
+ */
+export type DefaultAffinityDto = ContentBaseDto & {
+    type: DocType.DefaultAffinity;
+    affinity: AffinityMap;
+    config?: AffinityConfig;
 };
 
 export type LanguageDto = ContentBaseDto & {
@@ -79,6 +101,9 @@ export type UserDto = ContentBaseDto & {
     /** Server-set trigram FTS index (name + email) for strict server-side search. */
     fts?: string[];
 };
+
+/** tag id → affinity score (0..1), time-decayed. */
+export type AffinityMap = Record<Uuid, number>;
 
 export type ContentDto = ContentBaseDto & {
     parentId: Uuid;
@@ -106,6 +131,9 @@ export type ContentDto = ContentBaseDto & {
     parentAlwaysOffline?: boolean;
     parentPinned?: number;
     parentUseVerticalTileLayout?: boolean;
+    /** Drives the jsonLD author @type: "org" = Organization, "person"/undefined = Person. Mirrors parent authorType. */
+    parentAuthorType?: "person" | "org";
+    parentLinkDates?: boolean;
     parentTaggedDocs?: Uuid[];
     availableTranslations?: Uuid[];
     parentImageBucketId?: Uuid;
@@ -116,6 +144,8 @@ export type ContentDto = ContentBaseDto & {
     copyright?: string;
     wordCount?: number;
     statusChangeDeleteCmdId?: Uuid;
+    /** Server-set history of past slugs this doc was published under. Reserved for future ISR/SSG use. */
+    previousSlugs?: string[];
 };
 
 export type ContentParentDto = ContentBaseDto & {
@@ -128,6 +158,9 @@ export type ContentParentDto = ContentBaseDto & {
     media?: MediaDto;
     mediaBucketId?: Uuid;
     useVerticalTileLayout?: boolean;
+    /** Drives the jsonLD author @type: "org" = Organization, "person"/undefined = Person (default). */
+    authorType?: "person" | "org";
+    linkDates?: boolean;
 };
 
 export type PostDto = ContentParentDto & {

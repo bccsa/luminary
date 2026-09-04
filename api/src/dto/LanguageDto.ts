@@ -1,6 +1,7 @@
 import { IsInt, IsNotEmpty, IsOptional, IsString, Min } from "class-validator";
 import { _contentBaseDto } from "./_contentBaseDto";
 import { Expose } from "class-transformer";
+import { IsBcp47LanguageTag } from "../validation/IsBcp47LanguageTag";
 
 /**
  * Database structured Language object.
@@ -8,6 +9,7 @@ import { Expose } from "class-transformer";
 export class LanguageDto extends _contentBaseDto {
     @IsNotEmpty()
     @IsString()
+    @IsBcp47LanguageTag()
     @Expose()
     languageCode: string;
 

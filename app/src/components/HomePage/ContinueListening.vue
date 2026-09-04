@@ -4,14 +4,12 @@ import { PostType, TagType } from "luminary-shared";
 import { computed } from "vue";
 import { useContentQuery } from "@/composables/useContentQuery";
 import { useI18n } from "vue-i18n";
+import { useWatchedMediaIds } from "@/composables/useWatchedMediaIds";
 
 const { t } = useI18n();
 
-// TODO: Replace with central watch/listen/read service when implemented (separate ticket).
-// No id source is wired yet, so this resolves to an empty list (behaviour unchanged
-// from the previous implementation). The query + filter below are kept symmetric with
-// ContinueWatching so it works once an id source is provided.
-const contentIds = computed<string[]>(() => []);
+const mediaProgressRef = useWatchedMediaIds();
+const contentIds = computed(() => mediaProgressRef.value.map((entry) => entry.contentId));
 
 const content = useContentQuery(
     () => [
@@ -32,7 +30,9 @@ const content = useContentQuery(
     // cacheId disambiguates from ContinueWatching: both query the same shape
     // (`_id $in` + the same $or filters), so without it they would share one cache
     // entry and seed from each other on first paint.
-    { cache: true, cacheId: "continue-listening" },
+    // Listening progress changes the id set while the row is on screen; it stays the same
+    // list, so don't blank it.
+    { cache: true, cacheId: "continue-listening", keepPreviousResult: true },
 );
 
 // Re-sort to match the listened order, then keep only audio content (has audio

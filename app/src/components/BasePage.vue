@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from "vue";
+import { onMounted, onUnmounted, provide, ref } from "vue";
 import TopBar from "./navigation/TopBar.vue";
 import DesktopSidebar from "./navigation/DesktopSidebar.vue";
 import NotificationBannerManager from "./notifications/NotificationBannerManager.vue";
@@ -8,10 +8,16 @@ import NotificationBottomManager from "./notifications/NotificationBottomManager
 import { queryParams } from "@/globalConfig";
 import type { ContentDto } from "luminary-shared";
 import { ChevronLeftIcon } from "@heroicons/vue/24/outline";
-import { useRouter } from "vue-router";
-import { getRouteHistory } from "@/router";
+import { useBackNavigation } from "@/composables/useBackNavigation";
 
 const showNotifications = !queryParams.has("supress-notifications");
+
+// The desktop sidebar is prerendered; per-user notification chrome and the toast Teleport are gated behind `notificationsReady` so the prerendered HTML and first client render match (clean hydration). The normal SPA starts ready.
+const isSSG = import.meta.env.VITE_BUILD_TARGET === "web";
+
+// On the web/SSG tier, delay notifications briefly after hydration so account/offline banners don't shift content as the page settles (protects CLS/SEO). The normal SPA renders immediately.
+const SSG_NOTIFICATION_DELAY_MS = 3000;
+const notificationsReady = ref(!isSSG);
 
 defineProps<{
     content?: ContentDto;
@@ -19,13 +25,13 @@ defineProps<{
     desktopTopBar?: boolean;
 }>();
 
-const router = useRouter();
-
-const isPostAndNoHistory = computed(
-    () => getRouteHistory().value.length <= 1 && router.currentRoute.value.name === "content",
-);
+const { onBackClick } = useBackNavigation();
 
 const main = ref<HTMLElement | undefined>(undefined);
+
+// Expose the scrolling <main> to descendants (e.g. SearchPanel in page mode) so they can drive
+// infinite scroll off the page's real scroll container instead of an internal one.
+provide("appMainScrollEl", main);
 
 const handleArrowKeyFocus = (e: KeyboardEvent) => {
     if (e.key === "ArrowUp" || e.key === "ArrowDown") {
@@ -34,6 +40,7 @@ const handleArrowKeyFocus = (e: KeyboardEvent) => {
 };
 
 onMounted(() => {
+    if (isSSG) setTimeout(() => (notificationsReady.value = true), SSG_NOTIFICATION_DELAY_MS);
     document.addEventListener("keydown", handleArrowKeyFocus);
 });
 
@@ -44,7 +51,8 @@ onUnmounted(() => {
 
 <template>
     <div class="flex h-full w-full scrollbar-hide">
-        <!-- Desktop left sidebar -->
+        <!-- Desktop left sidebar — prerendered on the SSG build too (public nav /
+             logo; the auth/Dexie bits self-defer inside the component). -->
         <DesktopSidebar />
 
         <!-- Content column -->
@@ -57,12 +65,15 @@ onUnmounted(() => {
                 <template #quickControls><slot name="quickControls" /></template>
             </TopBar>
 
-            <Teleport to="body">
+            <Teleport
+                v-if="notificationsReady"
+                to="body"
+            >
                 <NotificationToastManager v-if="showNotifications" />
             </Teleport>
 
             <main
-                class="flex-1 overflow-y-scroll px-2 py-2 scrollbar-hide focus:outline-none dark:bg-slate-900"
+                class="flex-1 overflow-y-scroll px-2 py-2 scrollbar-hide focus:outline-none dark:bg-slate-900 md:max-lg:px-4"
                 ref="main"
             >
                 <!-- Desktop pinned chrome: back (left) + quick controls (right) stay fixed while scrolling.
@@ -73,14 +84,21 @@ onUnmounted(() => {
                     v-if="desktopTopBar"
                     class="pointer-events-none sticky top-0 z-20 -mb-9 hidden h-9 items-center lg:flex"
                 >
-                    <button
+                    <RouterLink
                         v-if="showBackButton"
-                        class="pointer-events-auto flex-shrink-0 rounded-md p-1 text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
-                        @click="isPostAndNoHistory ? router.push({ name: 'home' }) : router.back()"
-                        aria-label="Go back"
+                        :to="{ name: 'home' }"
+                        v-slot="{ href }"
+                        custom
                     >
-                        <ChevronLeftIcon class="h-5 w-5" />
-                    </button>
+                        <a
+                            :href="href"
+                            class="pointer-events-auto flex-shrink-0 rounded-md p-1 text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
+                            @click="onBackClick($event)"
+                            aria-label="Go back"
+                        >
+                            <ChevronLeftIcon class="h-5 w-5" />
+                        </a>
+                    </RouterLink>
                     <div class="pointer-events-auto ml-auto flex items-center gap-2 pr-2">
                         <slot name="quickControls" />
                     </div>
@@ -94,7 +112,7 @@ onUnmounted(() => {
                 >
                     <div class="w-full lg:w-3/4 lg:max-w-3xl">
                         <NotificationBannerManager
-                            v-if="showNotifications"
+                            v-if="showNotifications && notificationsReady"
                             class="[&>div]:mb-2"
                         />
                     </div>
@@ -102,7 +120,7 @@ onUnmounted(() => {
 
                 <!-- Notification for mobile (desktopTopBar pages) and all non-desktopTopBar pages. -->
                 <NotificationBannerManager
-                    v-if="showNotifications"
+                    v-if="showNotifications && notificationsReady"
                     :class="desktopTopBar ? 'lg:hidden' : 'px-2'"
                 />
 
@@ -110,7 +128,7 @@ onUnmounted(() => {
             </main>
 
             <div class="sticky bottom-0">
-                <NotificationBottomManager v-if="showNotifications" />
+                <NotificationBottomManager v-if="showNotifications && notificationsReady" />
                 <slot name="footer" />
             </div>
         </div>

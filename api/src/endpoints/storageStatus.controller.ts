@@ -45,11 +45,11 @@ export class StorageStatusController {
 
             const bucket = bucketResult.docs[0];
 
-            // Check if user has view permission for this bucket
+            // Gated by CmsView: the status probe is only used by the CMS bucket overview.
             const hasPermission = PermissionSystem.verifyAccess(
                 bucket.memberOf,
                 DocType.Storage,
-                AclPermission.View,
+                AclPermission.CmsView,
                 userDetails.groups,
             );
 

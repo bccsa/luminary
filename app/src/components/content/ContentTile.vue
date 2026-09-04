@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { db, type ContentDto } from "luminary-shared";
+import { type ContentDto } from "luminary-shared";
 import { DateTime } from "luxon";
 import LImage from "../images/LImage.vue";
 import { type AspectRatio, type ImageSize } from "../images/LImageProvider.vue";
@@ -7,8 +7,19 @@ import { PlayIcon, SpeakerWaveIcon } from "@heroicons/vue/24/solid";
 import { getMediaDuration, getMediaProgress, getReadingProgress } from "@/contentProgress";
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
+import { cmsLanguages, cmsDefaultLanguage } from "@/globalConfig";
+import { sessionNow } from "@/util/sessionNow";
 
 const { t } = useI18n();
+
+// The locale of the content's own language, not the visitor's browser locale — matches
+// the article page's `formatPublishDate` so a tile and the article it opens agree. The
+// code always comes from a CMS Language doc — the content's own, else the CMS default —
+// never synthesized from the language id or a hardcoded constant.
+const contentLanguageCode = computed(() => {
+    const lang = cmsLanguages.value.find((l) => l._id === props.content.language);
+    return lang?.languageCode ?? cmsDefaultLanguage.value?.languageCode;
+});
 
 type Props = {
     content: ContentDto;
@@ -36,7 +47,10 @@ const publishDateText = computed(() => {
     ) {
         return "";
     }
-    return db.toDateTime(props.content.publishDate).toLocaleString(DateTime.DATETIME_MED);
+    const dt = DateTime.fromMillis(props.content.publishDate);
+    return (
+        contentLanguageCode.value ? dt.setLocale(contentLanguageCode.value) : dt
+    ).toLocaleString(DateTime.DATETIME_MED);
 });
 
 const hasVideo = computed(() => Boolean(props.content.video));
@@ -53,9 +67,13 @@ const mediaIconClass = computed(() =>
 const isComingSoon = computed(() => {
     const publishDate = props.content.publishDate;
     // "Coming soon" = published doc with a future publishDate AND the opt-in flag set.
+    // Uses the frozen session reference time (not a live Date.now()) so a coming-soon
+    // tile's cutoff matches the SSG enumeration cutoff — a doc whose publishDate lands
+    // between enumeration and render still renders as a non-link badge, never as a link
+    // to a slug page that was never prerendered.
     return (
         typeof publishDate === "number" &&
-        publishDate > Date.now() &&
+        publishDate > sessionNow() &&
         props.content.parentShowComingSoon === true
     );
 });
@@ -97,6 +115,7 @@ const displayProgress = computed(() => Math.max(mediaProgress.value, readingProg
                   }
         "
         :aria-disabled="isComingSoon || undefined"
+        :data-content-id="content._id"
         class="ease-out-expo group transition"
         :class="
             isComingSoon

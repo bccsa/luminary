@@ -13,6 +13,7 @@ import { DeleteCmdDto } from "../dto/DeleteCmdDto";
 import { randomUUID } from "crypto";
 import { _contentBaseDto } from "../dto/_contentBaseDto";
 import { ContentDto } from "../dto/ContentDto";
+import { RedirectDto } from "../dto/RedirectDto";
 import { isEqualDoc } from "../util/isEqualDoc";
 import { isDeepStrictEqual } from "util";
 import { assertNoNullInArrayOperators } from "./assertNoNullInArrayOperators";
@@ -466,6 +467,16 @@ export class DbService extends EventEmitter {
                 prevDoc: existing as _contentBaseDto,
             });
 
+            // Also retire the static files for every slug this content was ever
+            // published under. Only on a permanent delete — unpublish/permission
+            // changes must preserve old-slug redirects across the republish cycle.
+            if (doc.type === DocType.Content) {
+                await this.emitPreviousSlugDeleteCmds(
+                    doc as ContentDto,
+                    existing as ContentDto | undefined,
+                );
+            }
+
             return await this.deleteDoc(doc._id);
         } else {
             // Generate delete command if the document's memberOf field has changed
@@ -623,6 +634,12 @@ export class DbService extends EventEmitter {
         reason: DeleteReason;
         doc: T;
         prevDoc?: T;
+        /**
+         * Override the cmd's `slug` instead of taking it from `doc`. Used to emit
+         * DeleteCmds for slugs other than the doc's current one (e.g. a content's
+         * `previousSlugs`, or the vacated slug on a rename).
+         */
+        slugOverride?: string;
     }): Promise<DbUpsertResult> {
         if (!options.prevDoc) {
             return {
@@ -651,7 +668,9 @@ export class DbService extends EventEmitter {
         }
 
         if ((options.doc as unknown as any).slug) {
-            cmd.slug = (options.doc as unknown as ContentDto).slug;
+            cmd.slug = options.slugOverride ?? (options.doc as unknown as ContentDto).slug;
+        } else if (options.slugOverride) {
+            cmd.slug = options.slugOverride;
         }
 
         const d = options.doc as unknown as _contentBaseDto;
@@ -696,7 +715,68 @@ export class DbService extends EventEmitter {
             cmd.newMemberOf = d.memberOf;
         }
 
+        if (options.reason === DeleteReason.SlugChange) {
+            // No client eviction (the content is still live) — memberOf is only used to
+            // fan the cmd out to the right socket rooms so the SSG's sync drain sees it.
+            cmd.memberOf = p.memberOf;
+        }
+
         return await this.insertDoc(cmd);
+    }
+
+    /**
+     * On a permanent content delete, retire the static files for every slug the content
+     * was ever published under (`previousSlugs`). A live Redirect sitting on an old slug
+     * is deleted (its own `Deleted` DeleteCmd removes the file); an old slug with no
+     * redirect gets a Content `Deleted` DeleteCmd carrying that slug so the SSG build
+     * deletes any orphaned content file. The current slug is handled by the primary
+     * DeleteCmd and skipped here.
+     */
+    private async emitPreviousSlugDeleteCmds(
+        doc: ContentDto,
+        prevDoc: ContentDto | undefined,
+    ): Promise<void> {
+        const previousSlugs = prevDoc?.previousSlugs ?? [];
+        if (previousSlugs.length === 0) return;
+
+        const seen = new Set<string>();
+        for (const slug of previousSlugs) {
+            if (slug === doc.slug || seen.has(slug)) continue;
+            seen.add(slug);
+
+            const redirects = (await this.getDocsBySlug(slug, DocType.Redirect)) as RedirectDto[];
+            const liveRedirect = redirects.find((r) => !r.deleteReq);
+            if (liveRedirect) {
+                // The redirect's own DeleteCmd (reason Deleted, slug = this slug) removes
+                // its file — no separate Content DeleteCmd needed for this slug.
+                await this.upsertDoc({ ...liveRedirect, deleteReq: 1 });
+            } else {
+                await this.insertDeleteCmd({
+                    reason: DeleteReason.Deleted,
+                    doc,
+                    prevDoc,
+                    slugOverride: slug,
+                });
+            }
+        }
+    }
+
+    /**
+     * Emit a `SlugChange` DeleteCmd for a single vacated slug (used when a published
+     * content slug is renamed and no redirect replaces the old slug). The SSG build
+     * deletes the old slug's static file; clients ignore the cmd (the content is live).
+     */
+    async insertSlugDeleteCmd(
+        doc: ContentDto,
+        prevDoc: ContentDto,
+        slug: string,
+    ): Promise<DbUpsertResult> {
+        return this.insertDeleteCmd({
+            reason: DeleteReason.SlugChange,
+            doc,
+            prevDoc,
+            slugOverride: slug,
+        });
     }
 
     /**

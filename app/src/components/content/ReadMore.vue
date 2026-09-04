@@ -20,7 +20,13 @@ const summaryText = (content: ContentDto): string => content.summary?.trim() ?? 
 const tagIds = computed(() => [...new Set(props.items.flatMap((item) => item.parentTags ?? []))]);
 const tagDocs = useContentQuery(
     () => [{ parentId: { $in: tagIds.value.length ? tagIds.value : [] } }],
-    { includeScheduled: false },
+    {
+        includeScheduled: false,
+        // Seek by parentId. Don't sort: a `$in` on this index's leading field plus a
+        // publishDate sort is unsatisfiable (CouchDB rejects "No index exists for this
+        // sort"), and `tagsFor` looks tags up by id, not order.
+        useIndex: "content-parentId-publishDate-index",
+    },
 );
 const tagsFor = (content: ContentDto): ContentDto[] => {
     const ids = new Set(content.parentTags ?? []);

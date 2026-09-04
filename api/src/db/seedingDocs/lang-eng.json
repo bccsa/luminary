@@ -54,10 +54,16 @@
         "settings.data_saver.slow_connection_note": "Your connection seems slow, so reduced data use will be applied automatically.",
         "home.title": "Home",
         "home.continue": "Continue",
+        "home.description": "Discover the latest articles, videos, and audio.",
         "home.continueListening": "Continue Listening",
+        "home.recommended": "Recommended for you",
         "explore.title": "Explore",
+        "explore.description": "Explore topics and discover content.",
         "explore.other": "Other",
+        "search.title": "Search",
+        "search.description": "Search articles, videos, and more across the library.",
         "watch.title": "Watch",
+        "watch.description": "Watch the latest videos.",
         "home.newest": "Newest",
         "content.related_title": "Related",
         "content.read_more": "Read more",
@@ -81,6 +87,8 @@
         "notification.translation_available.description": "The content is also available in {language}. Click here to view it.",
         "notification.server_error.title": "Server error",
         "notification.server_error.description": "Something went wrong on the server. Please try again in a minute.",
+        "notification.update_available.title": "Update available",
+        "notification.update_available.description": "A new version of the app is available. Click here to update.",
         "privacy_policy.modal.title": "Privacy Policy",
         "privacy_policy.modal.message": "By using this app, you agree to our privacy policy.",
         "privacy_policy.modal.button_accept": "Accept",
@@ -135,6 +143,8 @@
         "logout.modal.description": "Are you sure you want to log out?",
         "logout.modal.button_cancel": "Cancel",
         "logout.modal.button_logout": "Logout",
+        "logout.modal.force_global_logout_label": "This is a shared or public device",
+        "logout.modal.force_global_logout_description": "Require signing in again next time, so no one else can continue using your account here.",
         "notfoundpage.navigation.home": "Back to home",
         "notfoundpage.unauthenticated.title": "Oops! You are not logged in.",
         "notfoundpage.unauthenticated.loginPrompt.before": "Please click",
@@ -149,6 +159,7 @@
         "openapp_warning.button_cancel": "Cancel",
         "auth.sign_in": "Sign in",
         "auth.no_methods_available": "No authentication methods available. Please try again in a moment.",
-        "singlecontent.listen": "Listen"
+        "singlecontent.listen": "Listen",
+        "singlecontent.loading": "Loading..."
     }
 }

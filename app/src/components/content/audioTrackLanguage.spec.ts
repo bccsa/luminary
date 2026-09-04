@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { matchTrackLanguage } from "./audioTrackLanguage";
+import { matchTrackLanguage, selectAudioTrackIndex } from "./audioTrackLanguage";
 
 describe("matchTrackLanguage", () => {
     it("matches a 3-letter code (as Android / Chrome reports)", () => {
@@ -39,5 +39,20 @@ describe("matchTrackLanguage", () => {
         expect(matchTrackLanguage("eng", null)).toBe(false);
         expect(matchTrackLanguage(undefined, undefined)).toBe(false);
         expect(matchTrackLanguage("", "en")).toBe(false);
+    });
+});
+
+describe("selectAudioTrackIndex", () => {
+    it("returns the index of the matching track", () => {
+        expect(selectAudioTrackIndex(["fra", "eng", "spa"], "en")).toBe(1);
+        expect(selectAudioTrackIndex(["en-US", "fr-FR"], "fr")).toBe(1);
+    });
+
+    // Regression: when no track matches the app language the caller must NOT disable every
+    // track (that leaves the player with no audio and it stalls after ~5s once the buffer drains).
+    it("returns -1 when no track matches — keep the current track", () => {
+        expect(selectAudioTrackIndex(["fra", "spa"], "en")).toBe(-1);
+        expect(selectAudioTrackIndex([null, undefined, ""], "en")).toBe(-1);
+        expect(selectAudioTrackIndex([], "en")).toBe(-1);
     });
 });

@@ -23,6 +23,9 @@ const bookmarks = computed(
 
 const content = useContentQuery(() => [{ parentId: { $in: bookmarks.value } }], {
     includeScheduled: false,
+    // Adding or removing a bookmark re-narrows this same list, so keep the tiles on
+    // screen instead of blanking the page on every toggle.
+    keepPreviousResult: true,
 });
 
 const sorted = computed(

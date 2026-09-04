@@ -42,6 +42,8 @@ import { DocumentDuplicateIcon } from "@heroicons/vue/24/outline";
 import { clientAppUrl, cmsLanguages } from "@/globalConfig";
 import EditContentImage from "./EditContentImage.vue";
 import EditContentMedia from "./EditContentMedia.vue";
+import IncomingChangesModal from "./IncomingChangesModal.vue";
+import { ArrowPathIcon, ExclamationTriangleIcon } from "@heroicons/vue/20/solid";
 import LCard from "@/components/common/LCard.vue";
 import EditContentActionsWrapper from "./EditContentActionsWrapper.vue";
 import { TrashIcon } from "@heroicons/vue/24/outline";
@@ -83,15 +85,24 @@ const {
     newDocument,
     editableParent,
     editableContent,
+    existingParent,
     existingContent,
     isDirty,
     isParentDirty,
     isContentItemDirty,
     hasLocalChanges,
+    hasIncomingChanges,
+    isIncomingChange,
     isLoading,
 } = source;
 
 const showDeleteModal = ref(false);
+
+// Concurrent-edit conflict UI: banner + read-only diff modal (ticket #932). Detection is driven by
+// `hasIncomingChanges` (toEditable `isModified` under the hood); "Use server version" reloads so the
+// composable's load() re-reads the fresh doc already in Dexie, discarding the user's unsaved edits.
+const showIncomingModal = ref(false);
+const acceptServerVersion = () => window.location.reload();
 
 const icon = props.docType === DocType.Tag ? TagIcon : DocumentIcon;
 
@@ -117,6 +128,23 @@ const { canTranslate, canPublish, canEditParent, canDelete } = useContentPermiss
     docType: props.docType,
     selectedLanguage,
     selectedContent,
+});
+
+// A content doc's `availableTranslations` field lists every language this post/tag has a
+// translation in, computed server-side without regard to the acting user's access. The CMS
+// only syncs (and therefore only shows here in `editableContent`) translations the user has
+// access to — so if `availableTranslations` names a language we have no local content doc
+// for, there's a sibling translation this user can't see. That's the CMS-side reflection of
+// the all-or-nothing "Translate access to every translation" gate the API enforces on the
+// linkDates date cascade (see api/src/changeRequests/validateChangeRequestAccess.ts) —
+// EditContentParent's own toggle-disabling check can't catch this case because it only ever
+// reasons about the translations it can see.
+const hasAccessToAllTranslations = computed(() => {
+    const visibleLanguageIds = new Set(editableContent.value.map((c) => c.language));
+    const availableTranslationIds = editableContent.value.flatMap(
+        (c) => c.availableTranslations ?? [],
+    );
+    return availableTranslationIds.every((id) => visibleLanguageIds.has(id));
 });
 
 const createTranslation = (language: LanguageDto) => {
@@ -180,6 +208,14 @@ const saveChanges = async () => {
             "error",
             "Insufficient Permissions",
             "You need translate access to save this content.",
+        );
+        return;
+    }
+    if (editableParent.value?.linkDates && !hasAccessToAllTranslations.value) {
+        notify(
+            "error",
+            "Insufficient Permissions",
+            "You need translate access to every translation of this content to save changes while dates are linked.",
         );
         return;
     }
@@ -362,6 +398,13 @@ const actionsWrapperProps = computed(() => ({
     isLocalChange: hasLocalChanges.value,
     actions: contentActions.value,
 }));
+
+import { useMediaQuery } from "@vueuse/core";
+
+const isLgScreen = useMediaQuery("(min-width: 1024px)");
+watch(isLgScreen, (isLg) => {
+    if (isLg) showQuickLang.value = false;
+});
 </script>
 
 <template>
@@ -403,7 +446,11 @@ const actionsWrapperProps = computed(() => ({
                 v-if="selectedLanguage && translationLanguages.length > 1"
                 class="flex px-1 lg:hidden"
             >
-                <LDropdown v-model:show="showQuickLang" placement="bottom-end">
+                <LDropdown
+                    v-model:show="showQuickLang"
+                    placement="bottom-start"
+                    panel-class="!w-40"
+                >
                     <template #trigger>
                         <button
                             type="button"
@@ -442,6 +489,24 @@ const actionsWrapperProps = computed(() => ({
         <template #topBarActionsDesktop>
             <EditContentActionsWrapper v-bind="actionsWrapperProps" :mobile="false" />
         </template>
+        <!-- Concurrent-edit warning: someone else changed this doc on the server while we hold edits. -->
+        <div
+            v-if="hasIncomingChanges"
+            data-test="incoming-changes-banner"
+            class="mx-2 mb-2 mt-2 flex items-center gap-2 rounded-md border border-yellow-200 bg-yellow-50 px-3 py-2 text-sm text-yellow-800 lg:mx-8"
+        >
+            <ExclamationTriangleIcon class="h-5 w-5 flex-shrink-0 text-yellow-500" />
+            <span>This document was changed remotely by someone else.</span>
+            <button
+                type="button"
+                class="ml-auto flex items-center gap-1 whitespace-nowrap font-medium text-yellow-900 underline hover:text-yellow-950"
+                data-test="incoming-changes-review"
+                @click="showIncomingModal = true"
+            >
+                <ArrowPathIcon class="h-4 w-4" />
+                Review changes
+            </button>
+        </div>
         <div
             class="flex flex-col gap-0 lg:h-full lg:min-h-0 lg:flex-row lg:gap-2 lg:overflow-hidden lg:pl-8"
         >
@@ -462,6 +527,7 @@ const actionsWrapperProps = computed(() => ({
                             :isParentDirty="isParentDirty"
                             :disabled="!canEditParent"
                             :newDocument="newDocument"
+                            :content="editableContent"
                             v-model:parent="editableParent"
                         >
                             <template #supplementary>
@@ -613,6 +679,16 @@ const actionsWrapperProps = computed(() => ({
 
     <!-- modals -->
     <ConfirmBeforeLeavingModal :isDirty="isDirty && !editableParent?.deleteReq" />
+    <IncomingChangesModal
+        v-model:open="showIncomingModal"
+        :existingParent="existingParent"
+        :editableParent="editableParent"
+        :existingContent="existingContent"
+        :editableContent="editableContent"
+        :isIncomingChange="isIncomingChange"
+        @accept="acceptServerVersion"
+        @dismiss="showIncomingModal = false"
+    />
     <LDialog
         v-model:open="showDeleteModal"
         :title="`Delete ${props.tagOrPostType} and all translations`"

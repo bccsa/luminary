@@ -3,6 +3,10 @@ import { ref, onMounted, onUnmounted, computed, watch, nextTick } from "vue";
 import { useRouter } from "vue-router";
 import { type ContentDto, db } from "luminary-shared";
 import { useContentQuery } from "@/composables/useContentQuery";
+import { recordAffinity } from "@/recommendation/affinityStore";
+import { affinityConfig } from "@/recommendation/defaultAffinityStore";
+import { markSeen } from "@/recommendation/seenStore";
+import { createMediaWatchTracker } from "@/recommendation/mediaWatchTracker";
 import {
     PlayIcon,
     PauseIcon,
@@ -74,6 +78,19 @@ const liveContentArr = useContentQuery(() => [{ _id: { $in: [content.value._id] 
 // Use live content if available, otherwise fall back to model
 // This ensures we always have the latest data from the database
 const currentContent = computed(() => liveContentArr.value[0] || content.value);
+
+const watchTracker = createMediaWatchTracker();
+
+/**
+ * Score a completion. Both call sites claim it from the tracker first, so a track that
+ * crossed the threshold isn't counted again when it ends.
+ */
+function applyCompletion() {
+    recordAffinity(currentContent.value.parentTags, affinityConfig.value.eventWeight.completion);
+    // mediaProgress is a 10-slot ring buffer used only to resume playback,
+    // not a history — record completion in the durable seen store instead.
+    markSeen(currentContent.value._id);
+}
 
 // Language switcher state
 const showLanguageDropdown = ref(false);
@@ -704,6 +721,19 @@ onMounted(() => {
 
             const audioSource = matchAudioFileUrl.value;
             const durationTime = el.duration;
+
+            watchTracker.track(el.currentTime);
+            if (
+                currentContent.value._id &&
+                watchTracker.claimCompletionIfWatched(
+                    durationTime,
+                    affinityConfig.value.mediaCompletionPercent,
+                )
+            ) {
+                // The saved progress deliberately stays put — there's still a tail to resume.
+                applyCompletion();
+            }
+
             if (!audioSource || !currentContent.value._id || el.currentTime < 60) return;
             setMediaProgress(audioSource, currentContent.value._id, el.currentTime, durationTime);
         });
@@ -759,6 +789,9 @@ onMounted(() => {
             const audioSource = matchAudioFileUrl.value;
             if (audioSource && currentContent.value._id) {
                 removeMediaProgress(audioSource, currentContent.value._id);
+                // Finishing a track is a strong engagement signal — weight it above a
+                // plain open.
+                if (watchTracker.claimCompletion()) applyCompletion();
             }
         });
 
@@ -795,6 +828,7 @@ watch(
         // Only reset if it's a different content (new track)
         if (newId && oldId && newId !== oldId) {
             // Reset states when content changes
+            watchTracker.reset();
             currentTime.value = 0;
             duration.value = 0;
             audioError.value = null;

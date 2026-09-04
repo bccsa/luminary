@@ -5,6 +5,7 @@ import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
 import BasePage from "@/components/BasePage.vue";
 import { nextTick, onActivated, ref } from "vue";
 import { markPageReady } from "@/util/renderState";
+import { useLocalizedStaticHead } from "@/seo/contentHead";
 
 const pinnedResolved = ref(false);
 const unpinnedResolved = ref(false);
@@ -17,15 +18,26 @@ async function checkReady() {
 }
 
 onActivated(checkReady);
+useLocalizedStaticHead("/watch");
 </script>
 
 <template>
     <BasePage>
         <IgnorePagePadding ignoreTop>
-            <Suspense @resolve="pinnedResolved = true; checkReady()">
+            <Suspense
+                @resolve="
+                    pinnedResolved = true;
+                    checkReady();
+                "
+            >
                 <PinnedVideo />
             </Suspense>
-            <Suspense @resolve="unpinnedResolved = true; checkReady()">
+            <Suspense
+                @resolve="
+                    unpinnedResolved = true;
+                    checkReady();
+                "
+            >
                 <UnpinnedVideo />
             </Suspense>
         </IgnorePagePadding>

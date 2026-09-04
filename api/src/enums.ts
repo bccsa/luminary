@@ -24,6 +24,9 @@ export enum DocType {
     Crypto = "crypto",
     AuthProvider = "authProvider",
     AutoGroupMappings = "autoGroupMappings",
+    // CMS-editable global baseline affinity profile (singleton). Delivered at
+    // login to seed a client-local recommendation profile (cold start).
+    DefaultAffinity = "defaultAffinity",
 }
 
 /**
@@ -115,6 +118,13 @@ export enum DeleteReason {
     Deleted = "deleted",
     PermissionChange = "permissionChange",
     StatusChange = "statusChange",
+    /**
+     * A content slug was renamed and no redirect took the old slug's place. The SSG
+     * must delete the old slug's static file, but the content doc itself is still
+     * live — so clients must NOT evict it (unlike `Deleted`). Clients ignore this
+     * reason in `validateDeleteCommand`; only the SSG delete-queue acts on `cmd.slug`.
+     */
+    SlugChange = "slugChange",
 }
 
 /**

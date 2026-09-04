@@ -13,7 +13,11 @@ Cross-package E2E tests live in `../playwright-tests/` (separate `playwright.con
 Run everything from `app/`:
 
 - `npm run dev` — Vite dev server on http://localhost:4174 (strict port)
+- `npm run dev:web` — web/SSG dev server via `vite.config.web.ts`
 - `npm run build` — runs `type-check` and `build-only` in parallel
+- `npm run build:web` — full SSG prerender into `dist-web/`
+- `SSG_ONLY_ROUTES="/a,/b" npm run build:web` — scoped SSG rebuild for listed routes
+- `npm run preview:web` — preview `dist-web/` on port 4174
 - `npm run type-check` — `vue-tsc --build --force`
 - `npm run test` / `npm run test:unit` — Vitest (jsdom). Pass a path or `-t "name"` to run a subset, e.g. `npm run test -- src/pages/HomePage.spec.ts -t "renders"`.
 - `npm run lint` / `npm run lint:fix`
@@ -23,16 +27,22 @@ Install with a plain `npm install` (the shared lib is linked via `file:../shared
 
 ## Architecture
 
-### Startup flow (`src/main.ts`)
+### Normal SPA startup (`src/main.ts`)
 
 The boot sequence is order-sensitive — read `main.ts` before reordering anything:
 
 1. Pinia is installed early so watchers registered during startup can resolve stores.
 2. `warmMangoCaches()` hydrates Mango query caches from localStorage before any IDB query.
 3. `init()` from `luminary-shared` sets up IndexedDB and the socket. What gets synced (and which socket rooms are joined) is owned by the sync engine in `src/sync.ts` (`AuthProvider`, `Tag`, `Post`, `Language`, `Redirect`, `Storage`; `contentOnly` docs scoped by language) — not declared in the `init()` config.
-4. A `connect_error` listener for `auth_failed` is registered **before** `setupAuth()` — otherwise the first failure event is lost and the client loops. Handles `provider_not_found` (forces provider re-pick) and silent refresh via `refreshTokenSilently({ ignoreCache: true })`.
+4. `registerAuthFailureHandler()` (`src/authFailure.ts`) attaches the `connect_error` listener for `auth_failed` **before** `setupAuth()` — otherwise the first failure event is lost and the client loops. Handles `provider_not_found` (clear credentials, open the provider modal, then reconnect anonymously so `AuthProvider` docs can still sync into it) and silent refresh via `refreshTokenSilently({ ignoreCache: true })`. `initAuthLangSync()` runs next, still before `setupAuth()`, so the watcher is listening when the first `isConnected`/`accessMap` transition lands.
 5. i18n is initialised before mount because splash-screen components call `useI18n()` at setup time.
-6. After mount: `initAuthLangSync`, `initLanguage`, `initSync`, plugin loading, then `markAppReady()`.
+6. After mount: `initLanguage`, `initSync`, plugin loading, then `markAppReady()`.
+
+### Web/SSG startup (`src/main.web.ts`)
+
+`main.web.ts` is the web-only ViteSSG entry. The normal SPA keeps using `main.ts`; do not move web boot code into its boot path. The web build uses `vite.config.web.ts`, writes `dist-web/`, has no service worker, and hydrates prerendered public pages by seeding `luminary-shared`'s `hqcache:*` response cache before the ES module boots.
+
+During prerender, `main.web.ts` installs Pinia, initializes i18n from public `Language` docs fetched through anonymous `queryRemote`, adds localized public static routes, and sets the render language from the URL/route map. On the client it restores the serialized language/Pinia state, then dynamically imports `src/ssg/clientRuntime.ts` and `src/auth.ts` before mount so hydration uses the live shared data layer.
 
 ### Data layer
 
@@ -40,11 +50,17 @@ There is no Vuex/Pinia-managed document cache. Documents come from `luminary-sha
 
 ### Auth (`src/auth.ts`)
 
-Uses `@auth0/auth0-vue` with multiple providers selected at runtime from `AuthProvider` docs. The provider modal, silent refresh, and Auth0 cache clearing are all entry points used from `main.ts`'s error handler — keep them exported.
+Generic OIDC via `oidc-client-ts` (`UserManager`), not a Vue plugin — `useAuth()` is a plain function reading module-level refs. Multiple providers are selected at runtime from `AuthProvider` docs; the full config (`_id`/`domain`/`clientId`/`audience`) is persisted to localStorage so resolution never depends on Dexie or IdP-specific cache-key formats. The provider modal, silent refresh, and cache clearing are entry points used from `src/authFailure.ts` — keep them exported. A token and the provider id it was issued for are always written together (`installedProviderId`); the API rejects a token that arrives without its provider.
 
 ### Routing & pages
 
-`src/router/` defines routes; page-level components are in `src/pages/` and feature components in `src/components/`. The repo is mid-migration to colocate `__tests__/` next to feature folders (see `pages/SingleContent/`, `components/HomePage/`, etc.). New tests should follow that pattern.
+`src/router/routes.ts` is the shared route table used by both the normal SPA (`router/index.ts`) and web (`main.web.ts`). `src/router/localizedRoutes.ts` adds web-only locale-prefixed public static routes (`/<code>`, `/<code>/explore`, `/<code>/watch`); keep the normal SPA's routes unchanged unless it actually needs the same URL shape.
+
+Page-level components are in `src/pages/` and feature components in `src/components/`. The repo is mid-migration to colocate `__tests__/` next to feature folders (see `pages/SingleContent/`, `components/HomePage/`, etc.). New tests should follow that pattern.
+
+### Web SSG/ISR
+
+`src/ssg/README.md` is the detailed reference. The short version: `vite.config.web.ts` enumerates public routes, prerenders them with `vite-ssg`, emits SEO artifacts and SSG sidecars, and supports scoped rebuilds via `SSG_ONLY_ROUTES`. The separate deploy repo owns polling for changes, selecting affected routes, invoking the scoped build, Cloud upload, and edge-cache purge.
 
 ### Render state (for prerender/SSG tooling)
 
@@ -62,12 +78,12 @@ Full contract + injection-key + build-time virtual module pattern, diagrams, and
 
 ### Query string parameters
 
-Supported flags (see `README.md` for full list): `autoplay=true`, `autofullscreen=true`, `nonotifications` (suppresses all in-app notifications — current branch work).
+Supported flags (see `README.md` for full list): `autoplay=true`, `autofullscreen=true`, `nonotifications` (suppresses all in-app notifications — current branch work), `affinityDebug` (shows the floating recommendation-affinity debug overlay; session-scoped, off via `affinityDebug=false`).
 
 ## Conventions
 
 - Path alias `@` → `src/` (configured in `vite.config.ts` and tsconfig).
 - Tailwind for styling; `prettier-plugin-tailwindcss` reorders classes on format.
 - Sentry is initialised via `src/util/initSentry.ts`; use the exported `Sentry` (may be undefined when DSN is unset) — always null-check.
-- `src/main.ts`, `src/analytics.ts`, `src/auth.ts`, and `src/guards/**` are excluded from coverage; don't chase coverage there.
+- `src/main.ts`, `src/analytics.ts`, and `src/guards/**` are excluded from coverage; don't chase coverage there. `src/auth.ts` is covered by `src/auth.spec.ts` and is not excluded.
 - Vitest globals are enabled (`describe`/`it`/`expect` are ambient).

@@ -72,8 +72,13 @@ export type UseHybridQueryState<T extends BaseDocumentDto> = {
  * see {@link HybridQueryOptions} and the README. When two cached queries share a
  * structural shape and must not collide, give each a distinct `{ cacheId }`.
  *
+ * **Rebuild behaviour.** A rebuild clears `output` by default, so an identity lookup
+ * never shows the previous entity. A query that merely re-narrows a list (filter change,
+ * grown `$limit`, mutated id set) should pass `{ keepPreviousResult: true }` to keep the
+ * previous window until its own result lands.
+ *
  * **Caveats:**
- * - **Setup-only.** Called outside an effect scope (event handler, `.then`,
+ * - **Setup-only.** Called outside an effect scope (event handler, `.then`,2
  *   module top-level) it will NOT auto-dispose — there is no `dispose()` handle
  *   on the return value, so such callers should use the {@link HybridQuery} class
  *   directly and call `dispose()` themselves.

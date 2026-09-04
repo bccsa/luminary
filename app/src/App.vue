@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { RouterView } from "vue-router";
-import { computed, onErrorCaptured, watch } from "vue";
+import { computed, onErrorCaptured, onMounted, watch } from "vue";
 import { isConnected } from "luminary-shared";
 import {
     appName,
@@ -18,17 +18,29 @@ import PrivacyPolicyModal from "@/components/navigation/PrivacyPolicyModal.vue";
 import SearchModal from "@/components/navigation/SearchModal.vue";
 import AudioPlayer from "@/components/content/AudioPlayer.vue";
 import MobileMenu from "@/components/navigation/MobileMenu.vue";
+import AffinityDebugOverlay from "@/components/debug/AffinityDebugOverlay.vue";
+import { affinityDebugEnabled, applyAffinityDebugQuery } from "@/recommendation/affinityDebug";
 import { useAuthWithPrivacyPolicy } from "@/composables/useAuthWithPrivacyPolicy";
 import { showProviderSelectionModal } from "@/auth";
 import AuthProviderSelectionModal from "@/components/authProvider/AuthProviderSelectionModal.vue";
 import { useI18n } from "vue-i18n";
 import defaultLogo from "@/assets/logo.svg?url";
+import { usePwaUpdate } from "@/composables/usePwaUpdate";
+import { useHydrated } from "@/composables/useHydrated";
 
 const LOGO = import.meta.env.VITE_LOGO || defaultLogo;
 
 const { t } = useI18n();
+const { needRefresh, reload } = usePwaUpdate();
 
 const router = useRouter();
+
+// Affinity debug overlay — hidden by default, switched on via ?affinityDebug (no other gate,
+// so it works on any deployed environment, not just local dev). The flag is held in the
+// session, not read off the route, so the overlay outlives the navigation that set it.
+watch(() => router.currentRoute.value.query.affinityDebug, applyAffinityDebugQuery, {
+    immediate: true,
+});
 const {
     isAuthenticated,
     user,
@@ -51,29 +63,68 @@ const handleModalClose = () => {
     cancelPendingLogin();
 };
 
-// Wait 5 seconds to allow the socket connection to be established before checking the connection status
-setTimeout(() => {
-    watch(
-        isConnected,
-        () => {
-            if (!isConnected.value) {
-                useNotificationStore().addNotification({
-                    id: "offlineBanner",
-                    title: () => t("notification.offline.title"),
-                    description: () => t("notification.offline.message"),
-                    state: "warning",
-                    type: "banner",
-                    icon: SignalSlashIcon,
-                    priority: 1,
-                });
-            }
-            if (isConnected.value) {
-                useNotificationStore().removeNotification("offlineBanner");
-            }
-        },
-        { immediate: true },
-    );
-}, 5000);
+watch(needRefresh, (refreshNeeded) => {
+    if (!refreshNeeded) return;
+    useNotificationStore().addNotification({
+        id: "updateBanner",
+        title: () => t("notification.update_available.title"),
+        description: () => t("notification.update_available.description"),
+        state: "info",
+        type: "banner",
+        link: reload,
+        closable: false,
+        priority: 0,
+    });
+});
+
+// Gate client-only chrome (this offline-banner watch, and the auth-gate reveal further
+// down) behind mount so the web/SSG first client render matches the prerendered HTML
+// (clean hydration) — isConnected never changes during the Node prerender (no socket),
+// so an ungated watch here would leak an idle timer/watch for the life of the whole SSG
+// build. The normal SPA has no prerender, so this is a no-op there.
+const isMounted = useHydrated();
+
+watch(
+    isMounted,
+    (mounted) => {
+        if (!mounted) return;
+
+        // Clear the banner — including one restored from the previous page load — the
+        // moment the socket is up, rather than waiting out the grace period below, which
+        // would leave a stale offline banner on screen for a reload that reconnects fine.
+        watch(
+            isConnected,
+            (connected) => {
+                if (connected) useNotificationStore().removeNotification("offlineBanner");
+            },
+            { immediate: true },
+        );
+
+        // Wait 5 seconds to allow the socket connection to be established before checking the connection status
+        setTimeout(() => {
+            watch(
+                isConnected,
+                (connected) => {
+                    if (connected) return;
+                    useNotificationStore().addNotification({
+                        id: "offlineBanner",
+                        title: () => t("notification.offline.title"),
+                        description: () => t("notification.offline.message"),
+                        state: "warning",
+                        type: "banner",
+                        icon: SignalSlashIcon,
+                        priority: 1,
+                        // Staying offline outlives the page, so a reload should say so
+                        // straight away instead of after the grace period above.
+                        persist: true,
+                    });
+                },
+                { immediate: true },
+            );
+        }, 5000);
+    },
+    { immediate: true },
+);
 
 watch(
     [isConnected, isAuthenticated],
@@ -115,9 +166,19 @@ const routeKey = computed(() => {
     return router.currentRoute.value.fullPath;
 });
 
+onMounted(() => {
+    // Reveal content hidden by vite.config.web.ts's pre-paint auth gate (see
+    // authGateScript there for why): by now Vue's first render has landed, using the
+    // auth-scoped response cache, so it's never the wrong (public) content. No-op when
+    // the gate never engaged (logged-out reload, or the normal SPA build).
+    document.documentElement.classList.remove("ssg-auth-pending");
+});
+
 onErrorCaptured((err) => {
     console.error(err);
-    Sentry.captureException(err);
+    // Sentry's browser SDK isn't initialised during the SSG prerender (and its
+    // capture fns may be absent), so guard the call.
+    if (typeof Sentry?.captureException === "function") Sentry.captureException(err);
 });
 </script>
 
@@ -160,7 +221,7 @@ onErrorCaptured((err) => {
         <!-- <div class="w-full lg:hidden h-[2px] bg-zinc-100/25 dark:bg-slate-700/50"></div> -->
         <!-- Global Audio Player for All Devices -->
         <!-- AudioPlayer now uses fixed positioning internally, so no wrapper positioning needed -->
-        <div v-if="mediaQueue.length > 0">
+        <div v-if="isMounted && mediaQueue.length > 0">
             <AudioPlayer :content="mediaQueue[0]" />
         </div>
 
@@ -172,12 +233,15 @@ onErrorCaptured((err) => {
 
         <!-- Privacy Policy Modal for authentication flow -->
         <PrivacyPolicyModal
+            v-if="isMounted"
             v-model:show="showPrivacyPolicyModal"
             @close="handleModalClose"
         />
+
+        <AffinityDebugOverlay v-if="isMounted && affinityDebugEnabled" />
     </div>
-    <!-- Modals depend on i18n, which isn't installed until splash finishes — keep them out of the tree during the loading phase. -->
-    <template v-if="!isAppLoading">
+    <!-- Modals depend on i18n, which isn't installed until splash finishes — keep them out of the tree during the loading phase. On web they are also gated behind mount (signed-out shell). -->
+    <template v-if="!isAppLoading && isMounted">
         <SearchModal />
         <AuthProviderSelectionModal v-model:isVisible="showProviderSelectionModal" />
     </template>

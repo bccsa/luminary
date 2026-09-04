@@ -11,7 +11,7 @@ import {
 import { Bars3Icon as Bars3IconSolid } from "@heroicons/vue/24/solid";
 import ThemeSelectorModal from "./ThemeSelectorModal.vue";
 import { useRouter } from "vue-router";
-import { computed, ref, type ComputedRef } from "vue";
+import { computed, onMounted, ref, type ComputedRef } from "vue";
 import {
     ShieldCheckIcon,
     BookmarkIcon,
@@ -19,6 +19,7 @@ import {
     Cog6ToothIcon,
     LanguageIcon,
     SunIcon,
+    ChevronRightIcon,
 } from "@heroicons/vue/24/outline";
 import LanguageModal from "@/components/navigation/LanguageModal.vue";
 import { appLanguageAsRef } from "@/globalConfig";
@@ -30,6 +31,7 @@ import { useI18n } from "vue-i18n";
 import { isConnected } from "luminary-shared";
 import { useNotificationStore, type Notification } from "@/stores/notification";
 import LDialog from "../common/LDialog.vue";
+import LToggle from "../form/LToggle.vue";
 import MobileSidebar from "../common/MobileSidebar.vue";
 import DropdownMenu from "../common/DropdownMenu.vue";
 import { getNavigationItems } from "./navigationItems";
@@ -50,7 +52,13 @@ const router = useRouter();
 const showThemeSelector = ref(false);
 const showLanguageModal = ref(false);
 const showLogoutDialog = ref(false);
+const forceReauthOnNextLogin = ref(true);
 const menuOpen = ref(false);
+const isMounted = ref(false);
+
+onMounted(() => {
+    isMounted.value = true;
+});
 
 const { t } = useI18n();
 const menuLabel = computed(() => t("profile_menu.title"));
@@ -80,7 +88,8 @@ const confirmLogout = async () => {
     showLogoutDialog.value = false;
     // logout() already clears local state in the right order — don't call
     // clearAuthCache() here first, or it turns logout() into a no-op.
-    await logout();
+    await logout({ forceReauthOnNextLogin: forceReauthOnNextLogin.value });
+    forceReauthOnNextLogin.value = false;
 };
 
 const handleLogout = () => {
@@ -199,6 +208,7 @@ const sidebarNavigation = computed(() =>
         aria-label="Open user menu"
         class="-m-1.5 flex items-center gap-1 rounded-md px-2 py-1.5 hover:bg-zinc-200 dark:hover:bg-slate-600"
         @click="menuOpen = !menuOpen"
+
     >
         <img
             v-if="isAuthenticated && user?.picture"
@@ -321,6 +331,22 @@ const sidebarNavigation = computed(() =>
         v-if="trigger !== 'sidebar'"
         v-model:open="menuOpen"
     >
+        <template #header="{ close }">
+            <!-- Close toggle — mirrors the desktop sidebar's collapse button, on the
+                 left edge since this panel slides in from the right -->
+            <button
+                type="button"
+                aria-label="Close menu"
+                class="absolute left-0 top-1/2 z-20 flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-300 bg-white text-zinc-600 shadow-md transition-colors hover:bg-zinc-50 hover:text-zinc-800 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600 dark:hover:text-slate-100"
+                @click="close()"
+            >
+                <ChevronRightIcon
+                    class="h-4 w-4 translate-x-0.5"
+                    aria-hidden="true"
+                />
+            </button>
+        </template>
+
         <template #default="{ close }">
             <div class="flex flex-col gap-1 p-3">
                 <!-- Primary nav items -->
@@ -408,7 +434,10 @@ const sidebarNavigation = computed(() =>
                     <!-- Theme -->
                     <span
                         class="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
-                        @click="showThemeSelector = true"
+                        @click="
+                            showThemeSelector = true;
+                            close();
+                        "
                     >
                         <SunIcon
                             class="h-5 w-5 flex-shrink-0"
@@ -420,7 +449,10 @@ const sidebarNavigation = computed(() =>
                     <!-- Language -->
                     <span
                         class="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
-                        @click="showLanguageModal = true"
+                        @click="
+                            showLanguageModal = true;
+                            close();
+                        "
                     >
                         <LanguageIcon
                             class="h-5 w-5 flex-shrink-0"
@@ -465,13 +497,16 @@ const sidebarNavigation = computed(() =>
             </div>
         </template>
 
-        <template #footer>
+        <template #footer="{ close }">
             <div class="border-t border-zinc-200 px-3 py-3 dark:border-slate-700">
                 <!-- Privacy Policy -->
                 <button
                     type="button"
                     class="mb-1 flex w-full cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-left text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
-                    @click="showPrivacyPolicyModal = true"
+                    @click="
+                        showPrivacyPolicyModal = true;
+                        close();
+                    "
                 >
                     <ShieldCheckIcon
                         class="h-5 w-5 flex-shrink-0"
@@ -484,7 +519,10 @@ const sidebarNavigation = computed(() =>
                 <button
                     type="button"
                     class="mb-2 flex w-full cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-left text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
-                    @click="isAuthenticated ? handleLogout() : handleLogin()"
+                    @click="
+                        isAuthenticated ? handleLogout() : handleLogin();
+                        close();
+                    "
                 >
                     <component
                         :is="isAuthenticated ? ArrowRightEndOnRectangleIcon : ArrowLeftEndOnRectangleIcon"
@@ -521,22 +559,40 @@ const sidebarNavigation = computed(() =>
         </template>
     </MobileSidebar>
 
-    <LanguageModal
-        :isVisible="showLanguageModal"
-        @close="showLanguageModal = false"
-    />
-    <ThemeSelectorModal
-        :isVisible="showThemeSelector"
-        @close="showThemeSelector = false"
-    />
+    <template v-if="isMounted">
+        <LanguageModal
+            :isVisible="showLanguageModal"
+            @close="showLanguageModal = false"
+        />
+        <ThemeSelectorModal
+            :isVisible="showThemeSelector"
+            @close="showThemeSelector = false"
+        />
 
-    <LDialog
-        v-model:open="showLogoutDialog"
-        :title="t('logout.modal.title')"
-        :description="t('logout.modal.description')"
-        :primaryAction="confirmLogout"
-        :primaryButtonText="t('logout.modal.button_logout')"
-        :secondaryAction="() => (showLogoutDialog = false)"
-        :secondaryButtonText="t('logout.modal.button_cancel')"
-    />
+        <LDialog
+            v-model:open="showLogoutDialog"
+            :title="t('logout.modal.title')"
+            :description="t('logout.modal.description')"
+            :primaryAction="confirmLogout"
+            :primaryButtonText="t('logout.modal.button_logout')"
+            :secondaryAction="() => (showLogoutDialog = false)"
+            :secondaryButtonText="t('logout.modal.button_cancel')"
+        >
+            <label class="mt-4 flex cursor-pointer items-start gap-3">
+                <LToggle
+                    :modelValue="forceReauthOnNextLogin"
+                    @update:modelValue="(value: boolean) => (forceReauthOnNextLogin = value)"
+                    data-test="shared-device-toggle"
+                />
+                <span class="text-sm">
+                    <span class="block font-medium text-zinc-900 dark:text-white">
+                        {{ t("logout.modal.force_global_logout_label") }}
+                    </span>
+                    <span class="mt-0.5 block text-zinc-500 dark:text-slate-300">
+                        {{ t("logout.modal.force_global_logout_description") }}
+                    </span>
+                </span>
+            </label>
+        </LDialog>
+    </template>
 </template>

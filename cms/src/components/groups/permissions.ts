@@ -106,20 +106,62 @@ export const hasChangedPermission = computed(() => {
 });
 
 /**
+ * Permission implied when an ACL entry is granted anything. App-facing View is never implied — it is
+ * assigned deliberately, so a CMS permission change can't grant app visibility by accident.
+ */
+export const impliedAclPermission = AclPermission.CmsView;
+
+/**
+ * Permissions only the CMS acts on. None can be exercised without CmsView, so granting one implies
+ * it. Mirrors api/src/changeRequests/aclValidation.ts.
+ */
+export const cmsOnlyPermissions = [
+    AclPermission.Edit,
+    AclPermission.Delete,
+    AclPermission.Assign,
+    AclPermission.Translate,
+    AclPermission.Publish,
+];
+
+/**
+ * Check if an ACL entry carries either of the visibility permissions the other permissions depend on
+ */
+const hasVisibilityPermission = (aclEntry: GroupAclEntryDto) =>
+    aclEntry.permission.includes(AclPermission.View) ||
+    aclEntry.permission.includes(AclPermission.CmsView);
+
+/**
+ * Switch an ACL entry on or off
+ */
+export const toggleAclEntry = (aclEntry: GroupAclEntryDto) => {
+    aclEntry.permission = aclEntry.permission.length ? [] : [impliedAclPermission];
+};
+
+/**
  * Validate an ACL entry and returns the validated entry
  */
 export const validateAclEntry = (aclEntry: GroupAclEntryDto, prevAclEntry: GroupAclEntryDto) => {
-    // Add the view permission if any other permission is set
+    // Add visibility if any other permission is set
     if (
         aclEntry.permission.length &&
-        !aclEntry.permission.includes(AclPermission.View) &&
+        !hasVisibilityPermission(aclEntry) &&
         prevAclEntry.permission.length === 0
     ) {
-        aclEntry.permission.push(AclPermission.View);
+        aclEntry.permission.push(impliedAclPermission);
     }
 
-    // Remove all other permissions if the view permission is removed
-    if (!aclEntry.permission.includes(AclPermission.View)) {
+    // A CMS-only permission alongside View implies CmsView. The server applies this too, so leaving
+    // it out here would show the editor a state that reverts on the next sync.
+    if (
+        aclEntry.permission.some((p) => cmsOnlyPermissions.includes(p)) &&
+        !aclEntry.permission.includes(AclPermission.CmsView) &&
+        aclEntry.permission.includes(AclPermission.View)
+    ) {
+        aclEntry.permission.push(AclPermission.CmsView);
+    }
+
+    // No other permission can be exercised without one of the visibility permissions
+    if (!hasVisibilityPermission(aclEntry)) {
         aclEntry.permission = [];
     }
 

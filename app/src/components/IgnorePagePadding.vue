@@ -16,7 +16,7 @@ withDefaults(
 <template>
     <div
         :class="[
-            mobileOnly ? 'md:mx-0' : '',
+            mobileOnly ? 'md:mx-0' : 'md:max-lg:-mx-4',
             '-mx-2',
             ignoreTop ? (mobileOnly ? '-mt-2 md:mt-0' : '-mt-2') : '',
             ignoreBottom ? (mobileOnly ? '-mb-2 md:mb-0' : '-mb-2') : '',

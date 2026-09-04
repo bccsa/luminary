@@ -4,7 +4,6 @@ import { ref, nextTick } from "vue";
 const isLoadingRef = ref(false);
 
 vi.mock("@/auth", () => ({
-    isAuthBypassed: false,
     isAuthPluginInstalled: { value: true },
     useAuth: () => ({
         isLoading: isLoadingRef,
