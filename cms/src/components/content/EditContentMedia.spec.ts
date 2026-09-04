@@ -13,7 +13,9 @@ const encoder = {
     progress: ref<number | undefined>(undefined),
     error: ref<string | undefined>(undefined),
     sessionId: ref<string | undefined>(undefined),
+    outdated: ref(false),
     refreshAvailability: vi.fn().mockResolvedValue(true),
+    watchForEncoder: vi.fn(),
     start: vi.fn(),
     resume: vi.fn().mockResolvedValue(false),
     stop: vi.fn(),
@@ -70,6 +72,19 @@ describe("EditContentMedia", () => {
         expect(wrapper.find('[data-test="audio-stub"]').exists()).toBe(true);
     });
 
+    it("names where to get the app in the help text", async () => {
+        // Findable when no notice is showing — an editor who has not tried to
+        // encode yet has nothing else pointing at the download.
+        const wrapper = mountSection();
+        await settle();
+
+        await wrapper.find('[aria-label="Media help"]').trigger("click");
+
+        const link = wrapper.find('[data-test="media-help-download"]');
+        expect(link.exists()).toBe(true);
+        expect(link.attributes("href")).toContain("releases");
+    });
+
     it("shows the video fields only once a translation is selected", async () => {
         expect(mountSection().find('[data-test="video-stub"]').exists()).toBe(false);
         expect(mountSection({ showVideo: true }).find('[data-test="video-stub"]').exists()).toBe(
@@ -100,7 +115,7 @@ describe("EditContentMedia", () => {
 
         await wrapper.find('[data-test="encode-media-button"]').trigger("click");
 
-        expect(wrapper.props("parent").mediaBucketId).toBe("bucket-1");
+        expect(wrapper.props("parent")!.mediaBucketId).toBe("bucket-1");
     });
 
     it("writes the playback URL and key onto the document as soon as they exist", async () => {
@@ -112,8 +127,8 @@ describe("EditContentMedia", () => {
         onMediaReady({ hlsUrl: "https://cdn/master.m3u8", hlsKey: "abc" });
         await settle();
 
-        expect(wrapper.props("parent").media?.hlsUrl).toBe("https://cdn/master.m3u8");
-        expect(wrapper.props("parent").media?.hlsKey).toBe("abc");
+        expect(wrapper.props("parent")!.media?.hlsUrl).toBe("https://cdn/master.m3u8");
+        expect(wrapper.props("parent")!.media?.hlsKey).toBe("abc");
     });
 
     it("keeps the audio already on the document when the encoder writes a video", async () => {
@@ -121,11 +136,11 @@ describe("EditContentMedia", () => {
         await settle();
         await wrapper.find('[data-test="encode-media-button"]').trigger("click");
 
-        const before = wrapper.props("parent").media?.fileCollections;
+        const before = wrapper.props("parent")!.media?.fileCollections;
         encoder.start.mock.calls[0][0].onMediaReady({ hlsUrl: "https://cdn/master.m3u8" });
         await settle();
 
-        expect(wrapper.props("parent").media?.fileCollections).toEqual(before);
+        expect(wrapper.props("parent")!.media?.fileCollections).toEqual(before);
     });
 });
 
@@ -161,7 +176,7 @@ describe("EditContentMedia resume", () => {
         const wrapper = mountSection();
         await settle();
 
-        expect(wrapper.props("parent").media?.hlsUrl).toBe("https://cdn/resumed.m3u8");
+        expect(wrapper.props("parent")!.media?.hlsUrl).toBe("https://cdn/resumed.m3u8");
     });
 });
 

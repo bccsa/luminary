@@ -36,6 +36,14 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+        with:
+          # The app imports the encoder's player packages from the submodule. Until
+          # that repository is public, the built-in token cannot read it —
+          # MEDIA_CONVERT_SUBMODULE_TOKEN is a fine-grained PAT with read access to
+          # it. Once the repository is public the secret can be deleted; the
+          # fallback token then suffices.
+          token: ${{ secrets.MEDIA_CONVERT_SUBMODULE_TOKEN || github.token }}
+          submodules: true
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -48,6 +56,13 @@ jobs:
             app/package-lock.json
             cms/package-lock.json
             playwright-tests/package-lock.json
+
+      - name: Build the encoder's player libraries
+        # The submodule's packages ship only dist/, which is gitignored — a fresh
+        # checkout has sources and no entry points, and Vite fails with "Failed to
+        # resolve entry for package". Same as the unit-test workflows.
+        run: npm run ci:libs; npm run build:libs;
+        working-directory: luminary-media-convert
 
       - name: Start CouchDB
         run: |

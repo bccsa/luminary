@@ -27,6 +27,18 @@ describe("processPostTagDto", () => {
         const testingModule = await createTestingModule("process-post-tag-dto");
         db = testingModule.dbService;
         PermissionSystem.upsertGroups((await db.getGroups()).docs);
+
+        // Whether a media URL needs a bucket named is answered against the
+        // configured buckets, so the tests below need one to be under.
+        await db.upsertDoc({
+            _id: "media-bucket",
+            type: DocType.Storage,
+            memberOf: ["group-super-admins"],
+            name: "Media",
+            storageType: "media",
+            publicUrl: "http://test.com/media",
+            updatedTimeUtc: Date.now(),
+        } as any);
     });
 
     beforeEach(() => {
@@ -95,7 +107,6 @@ describe("processPostTagDto", () => {
         await processChangeRequest("test-user", postCr, ["group-super-admins"], db);
         await processChangeRequest("test-user", contentCr, ["group-super-admins"], db);
 
-       
         let contentRes = await db.getDoc(contentCr.doc._id);
         expect(contentRes.docs[0].parentAlwaysOffline).toBeUndefined();
 
@@ -487,7 +498,10 @@ describe("processPostTagDto", () => {
         );
     });
 
-    it("throws when mediaBucketId is not specified for non-deletion", async () => {
+    it("throws when a collection in our own storage does not name its bucket", async () => {
+        // Under a configured bucket's public URL, so it is ours: saved without
+        // naming the bucket it would be stored un-relative, and would break the
+        // moment that bucket was renamed or re-pointed.
         const changeRequest = changeRequest_post();
         changeRequest.doc._id = "post-no-med-bucket";
         (changeRequest.doc as PostDto).media = {
@@ -498,6 +512,49 @@ describe("processPostTagDto", () => {
         await expect(
             processChangeRequest("test-user", changeRequest, ["group-super-admins"], db),
         ).rejects.toThrow("Bucket is not specified for media processing");
+    });
+
+    it("throws when a bucket-relative URL does not name its bucket", async () => {
+        // Nothing without one: the URL is a path and says nothing about where.
+        const changeRequest = changeRequest_post();
+        changeRequest.doc._id = "post-relative-no-bucket";
+        (changeRequest.doc as PostDto).media = {
+            hlsUrl: "/post-relative-no-bucket/master.m3u8",
+        };
+        delete (changeRequest.doc as PostDto).mediaBucketId;
+
+        await expect(
+            processChangeRequest("test-user", changeRequest, ["group-super-admins"], db),
+        ).rejects.toThrow("Bucket is not specified for media processing");
+    });
+
+    it("saves a YouTube link with no bucket, which is what the Video field is for", async () => {
+        // A YouTube link has no bucket to be relative to and nothing here to
+        // migrate or delete. Demanding one refused a URL an editor is meant to be
+        // able to type by hand.
+        const changeRequest = changeRequest_post();
+        changeRequest.doc._id = "post-youtube-no-bucket";
+        (changeRequest.doc as PostDto).media = {
+            hlsUrl: "https://www.youtube.com/watch?v=rExcQ5nm_yU",
+        };
+        delete (changeRequest.doc as PostDto).mediaBucketId;
+
+        await expect(
+            processChangeRequest("test-user", changeRequest, ["group-super-admins"], db),
+        ).resolves.not.toThrow();
+    });
+
+    it("saves an HLS master on someone else's CDN with no bucket", async () => {
+        const changeRequest = changeRequest_post();
+        changeRequest.doc._id = "post-external-hls";
+        (changeRequest.doc as PostDto).media = {
+            hlsUrl: "https://cdn.example.com/somebody-else/master.m3u8",
+        };
+        delete (changeRequest.doc as PostDto).mediaBucketId;
+
+        await expect(
+            processChangeRequest("test-user", changeRequest, ["group-super-admins"], db),
+        ).resolves.not.toThrow();
     });
 
     it("fails the change request when the key store throws (no silent key loss)", async () => {

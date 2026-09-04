@@ -77,7 +77,15 @@ export function useContentBrowseQuery(opts: () => ContentOverviewQueryOptions, l
                 use_index: USE_INDEX[orderBy],
             };
         },
-        { live: true, persistOffline: false, cache: false, stripFields: STRIP_FIELDS },
+        // Every filter change and every "load more" (a grown `$limit`) rebuilds this query;
+        // it is the same list each time, and blanking it mid-scroll reads as a bug.
+        {
+            live: true,
+            persistOffline: false,
+            cache: false,
+            stripFields: STRIP_FIELDS,
+            keepPreviousResult: true,
+        },
     );
 
     // `untranslated` is a cross-doc condition (parent has no selected-language doc) that

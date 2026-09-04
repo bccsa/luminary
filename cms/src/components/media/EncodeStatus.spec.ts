@@ -104,7 +104,53 @@ describe("EncodeStatus notices", () => {
         expect(wrapper.find('[data-test="encoder-unavailable"]').exists()).toBe(false);
     });
 
+    it("offers the download when the encoder cannot be reached at all", () => {
+        // The one notice a first-time editor sees. Before this it only said
+        // "Open it" — a protocol link nothing has registered on a machine that
+        // has never had the app, so the click did nothing and there was no way
+        // to get it from here.
+        const wrapper = mountStatus({ availability: "unavailable" });
+        const download = wrapper.find('[data-test="encoder-download"]');
+
+        expect(download.exists()).toBe(true);
+        expect(download.attributes("href")).toContain("releases");
+    });
+
+    it("offers the download when the browser cannot reach it either", () => {
+        const wrapper = mountStatus({ availability: "browser-unsupported" });
+
+        expect(wrapper.find('[data-test="encoder-download"]').exists()).toBe(true);
+    });
+
+    it("opens the download away from the CMS, without handing it the opener", () => {
+        const download = mountStatus({ availability: "unavailable" }).find(
+            '[data-test="encoder-download"]',
+        );
+
+        expect(download.attributes("target")).toBe("_blank");
+        expect(download.attributes("rel")).toContain("noopener");
+    });
+
     it("says nothing when the encoder is simply there", () => {
         expect(mountStatus().find('[data-test="media-notice"]').exists()).toBe(false);
+    });
+
+    it("asks for a new download when the encoder is outdated", () => {
+        const wrapper = mountStatus({ outdated: true });
+        const notice = wrapper.find('[data-test="encoder-outdated"]');
+
+        expect(notice.text()).toContain("outdated");
+        expect(wrapper.find('[data-test="encoder-download"]').attributes("href")).toContain(
+            "releases",
+        );
+    });
+
+    it("does not say 'not running' about an encoder that answered but is old", () => {
+        // Outdated is only ever set when the health check succeeded, so the two
+        // notices cannot truthfully show together.
+        const wrapper = mountStatus({ availability: "unavailable", outdated: true });
+
+        expect(wrapper.find('[data-test="encoder-outdated"]').exists()).toBe(true);
+        expect(wrapper.find('[data-test="encoder-unavailable"]').exists()).toBe(false);
     });
 });

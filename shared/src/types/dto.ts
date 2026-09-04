@@ -54,7 +54,7 @@ export type DeleteCmdDto = BaseDocumentDto & {
     deleteReason: DeleteReason;
     memberOf?: Uuid[];
     newMemberOf?: Uuid[];
-        /** Language ID of the deleted content document (only set for Content DeleteCmds). */
+    /** Language ID of the deleted content document (only set for Content DeleteCmds). */
     language?: Uuid;
     /** Slug of the deleted document (only set for Content/Redirect DeleteCmds). */
     slug?: string;
@@ -222,6 +222,19 @@ export type S3CredentialDto = {
     secretKey: string;
 };
 
+/**
+ * Encode settings a media bucket applies to every encode written into it.
+ * All optional: an absent field means the encoder's own default.
+ */
+export type MediaEncodeSettingsDto = {
+    /** Encrypt the HLS output with AES-128. Absent = encrypted. */
+    encrypted?: boolean;
+    /** Byte-range HLS: one chunk file per rendition, split at chunkSizeMB. Absent = on. */
+    byteRange?: boolean;
+    /** Max size of one byte-range chunk file in MB, video and audio alike. Absent = encoder default. */
+    chunkSizeMB?: number;
+};
+
 export type StorageDto = ContentBaseDto & {
     name: string;
     mimeTypes: string[];
@@ -229,6 +242,8 @@ export type StorageDto = ContentBaseDto & {
     storageType: StorageType;
     credential?: S3CredentialDto;
     credential_id?: string;
+    /** Only meaningful on media buckets. */
+    mediaSettings?: MediaEncodeSettingsDto;
 };
 
 export type CryptoDto = BaseDocumentDto & {

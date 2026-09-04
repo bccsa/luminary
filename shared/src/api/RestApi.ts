@@ -85,6 +85,11 @@ export type EncoderConfigResponse = {
         secretKey: string;
     };
     publicBaseUrl: string;
+    /** Mirrors the encoder's session-body fields, so callers forward them unchanged. */
+    encryption: { required: boolean };
+    byteRange?: boolean;
+    byteRangeMaxFileSizeMB?: number;
+    audioByteRangeMaxFileSizeMB?: number;
 };
 
 /**

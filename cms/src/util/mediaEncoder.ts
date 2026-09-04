@@ -30,6 +30,33 @@ export const ENCODER_BASE_URL = import.meta.env?.VITE_ENCODER_URL || "http://127
 /** Launch link for an encoder that is installed but not running. */
 export const ENCODER_PROTOCOL_URL = "luminary-convert://";
 
+/** Where an editor gets the current installer when their encoder is too old. */
+export const ENCODER_DOWNLOAD_URL =
+    "https://github.com/bccsa/luminary-media-convert/releases/latest";
+
+/**
+ * The oldest encoder this CMS knows how to talk to. Raise it when the session
+ * contract changes; the Media section then asks editors to download the current
+ * installer instead of failing somewhere mid-encode.
+ */
+export const MIN_ENCODER_VERSION = "0.0.1";
+
+/**
+ * Whether a reported encoder version is older than {@link MIN_ENCODER_VERSION}.
+ * An unknown or unparsable version is not called outdated — the health check
+ * answered, and a false alarm would nag every working install.
+ */
+export function isEncoderOutdated(version: string | undefined): boolean {
+    if (!version) return false;
+    const parse = (v: string) => v.trim().replace(/^v/, "").split(".").map(Number);
+    const [reported, required] = [parse(version), parse(MIN_ENCODER_VERSION)];
+    if (reported.some(isNaN) || reported.length < 3) return false;
+    for (let i = 0; i < 3; i++) {
+        if (reported[i] !== required[i]) return reported[i] < required[i];
+    }
+    return false;
+}
+
 /**
  * Can this browser reach loopback from a public origin at all?
  *
@@ -74,6 +101,10 @@ export type CreateEncoderSessionRequest = {
     s3: EncoderS3Config;
     publicBaseUrl: string;
     encryption?: { required: boolean };
+    /** Byte-range HLS and its chunk sizing, from the bucket's media settings. */
+    byteRange?: boolean;
+    byteRangeMaxFileSizeMB?: number;
+    audioByteRangeMaxFileSizeMB?: number;
     existingMedia?: { hlsUrl: string; hlsKey?: string };
 };
 

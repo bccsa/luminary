@@ -23,6 +23,10 @@ export type EncoderConfigResponseDto = {
         secretKey: string;
     };
     publicBaseUrl: string;
+    encryption: { required: boolean };
+    byteRange?: boolean;
+    byteRangeMaxFileSizeMB?: number;
+    audioByteRangeMaxFileSizeMB?: number;
 };
 
 /**
@@ -113,6 +117,12 @@ export class EncoderConfigController {
         const url = new URL(credentials.endpoint);
         const useSSL = url.protocol === "https:";
 
+        // The bucket's encode settings, in the encoder's own field names. Encryption
+        // defaults to on — that was the behaviour before it became a setting — and
+        // the byte-range fields are omitted when unset, leaving the encoder's
+        // defaults in charge. One chunk size covers video and audio.
+        const settings = bucket.mediaSettings ?? {};
+
         return {
             s3: {
                 endPoint: url.hostname,
@@ -123,6 +133,12 @@ export class EncoderConfigController {
                 secretKey: credentials.secretKey,
             },
             publicBaseUrl: bucket.publicUrl,
+            encryption: { required: settings.encrypted !== false },
+            ...(settings.byteRange !== undefined && { byteRange: settings.byteRange }),
+            ...(settings.chunkSizeMB !== undefined && {
+                byteRangeMaxFileSizeMB: settings.chunkSizeMB,
+                audioByteRangeMaxFileSizeMB: settings.chunkSizeMB,
+            }),
         };
     }
 }

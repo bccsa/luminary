@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { createHash } from "crypto";
 import {
+    isEncoderOutdated,
     unmaskKeyHex,
     browserCanReachEncoder,
     checkEncoderHealth,
@@ -289,5 +290,33 @@ describe("the stored session handle", () => {
         localStorage.setItem("cms_encoderSession_post-1", "not json");
 
         expect(recallEncoderSession("post-1")).toBeUndefined();
+    });
+});
+
+/**
+ * Older than MIN_ENCODER_VERSION means the session contract may have moved on;
+ * anything unparsable is not called outdated, because a false alarm would nag
+ * every working install.
+ */
+describe("isEncoderOutdated", () => {
+    it("calls an older version outdated", () => {
+        expect(isEncoderOutdated("0.0.0")).toBe(true);
+    });
+
+    it("accepts the minimum version itself", () => {
+        expect(isEncoderOutdated("0.0.1")).toBe(false);
+    });
+
+    it("accepts anything newer", () => {
+        expect(isEncoderOutdated("1.2.3")).toBe(false);
+    });
+
+    it("tolerates a leading v", () => {
+        expect(isEncoderOutdated("v0.0.0")).toBe(true);
+    });
+
+    it("does not call an unknown version outdated", () => {
+        expect(isEncoderOutdated(undefined)).toBe(false);
+        expect(isEncoderOutdated("dev")).toBe(false);
     });
 });

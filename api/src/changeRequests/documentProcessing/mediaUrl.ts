@@ -53,3 +53,34 @@ export function toAbsoluteMediaUrl(
     if (!publicUrl) return undefined;
     return `${publicUrl.replace(/\/+$/, "")}${stored}`;
 }
+
+/**
+ * Whether this URL names a collection in one of our own buckets.
+ *
+ * A bucket-relative URL is ours by construction — it is nothing without a
+ * bucket to measure it against. An absolute one has to be asked: it is ours if
+ * it sits under some configured bucket's public URL, and external otherwise.
+ *
+ * The distinction is what decides whether `mediaBucketId` is required. It is
+ * not bookkeeping: the bucket is how a URL is stored relative, how a bucket
+ * change migrates the files, and how deleting the document finds them. A
+ * YouTube link and an HLS master on someone else's CDN have none of that, and
+ * demanding a bucket for them records a bucket that does not own anything.
+ *
+ * The separator is part of the match, for the same reason it is in
+ * {@link toStoredMediaUrl}: a bucket published at `https://cdn/media` must not
+ * claim `https://cdn/media-archive/...`.
+ */
+export function isInOurStorage(
+    hlsUrl: string | undefined,
+    publicUrls: (string | undefined)[],
+): boolean {
+    if (!hlsUrl) return false;
+    if (isBucketRelative(hlsUrl)) return true;
+
+    return publicUrls.some((publicUrl) => {
+        if (!publicUrl) return false;
+        const base = publicUrl.replace(/\/+$/, "");
+        return hlsUrl.startsWith(`${base}/`);
+    });
+}

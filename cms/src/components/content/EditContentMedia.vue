@@ -9,6 +9,7 @@ import MediaBucketSelect from "../media/MediaBucketSelect.vue";
 import MediaAudioList from "../media/MediaAudioList.vue";
 import EditContentVideo from "./EditContentVideo.vue";
 import { useMediaEncoder } from "@/composables/useMediaEncoder";
+import { ENCODER_DOWNLOAD_URL } from "@/util/mediaEncoder";
 import { storageSelection } from "@/composables/storageSelection";
 
 /**
@@ -35,6 +36,7 @@ const bucketSelection = storageSelection();
 
 const {
     availability,
+    outdated,
     busy,
     status,
     progress,
@@ -96,9 +98,12 @@ const encode = () => {
  * already running for it rather than assuming the encoder is idle.
  */
 const checkAndResume = async () => {
-    // Nothing tells this page that the desktop app has started, so if it is not
-    // there yet, keep looking rather than leaving the editor to try again.
-    if (!(await refreshAvailability())) watchForEncoder();
+    // Nothing tells this page that the desktop app has started or stopped, so it
+    // is asked for as long as this section is on screen — not only while it is
+    // missing. An editor who quits the encoder mid-edit should not be left with
+    // a button that still looks usable.
+    await refreshAvailability();
+    watchForEncoder();
     if (!parent.value?._id) return;
 
     await resume({ documentId: parent.value._id, onMediaReady: handleEncodedMedia });
@@ -138,7 +143,16 @@ watch(
         <div class="flex flex-col gap-3">
             <p v-if="showHelp" class="text-xs text-zinc-500">
                 Video and audio are produced by Luminary Media Convert. Use Encode to open it, pick
-                a file, and the encoded playlist is saved back to this document.
+                a file, and the encoded playlist is saved back to this document. You need the app on
+                your own machine —
+                <a
+                    :href="ENCODER_DOWNLOAD_URL"
+                    target="_blank"
+                    rel="noopener"
+                    class="font-medium underline underline-offset-2 hover:text-zinc-700"
+                    data-test="media-help-download"
+                    >download it here</a
+                >.
             </p>
 
             <MediaBucketSelect
@@ -149,6 +163,7 @@ watch(
 
             <EncodeStatus
                 :availability="availability"
+                :outdated="outdated"
                 :status="status"
                 :progress="progress"
                 :error="error"
