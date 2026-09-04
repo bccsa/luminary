@@ -2,6 +2,8 @@ import "fake-indexeddb/auto";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import waitForExpect from "wait-for-expect";
+import { setActivePinia } from "pinia";
+import { createTestingPinia } from "@pinia/testing";
 import LHighlightable from "./LHighlightable.vue";
 import { db } from "luminary-shared";
 
@@ -13,9 +15,13 @@ vi.mock("vue", async (importOriginal) => {
     };
 });
 
-const mountHighlightable = (contentId = "test-content-1") =>
+const mountHighlightable = (
+    contentId = "test-content-1",
+    title = "Test Article",
+    copyright?: string,
+) =>
     mount(LHighlightable, {
-        props: { contentId },
+        props: { contentId, title, copyright },
         slots: { default: "<p>Some highlighted text content</p>" },
         attachTo: document.body,
     });
@@ -23,6 +29,7 @@ const mountHighlightable = (contentId = "test-content-1") =>
 describe("LHighlightable", () => {
     beforeEach(() => {
         vi.useFakeTimers();
+        setActivePinia(createTestingPinia());
     });
 
     afterEach(() => {
@@ -489,6 +496,188 @@ describe("LHighlightable", () => {
         // The menu should now be visible via teleport
         const menu = document.body.querySelector(".fixed.z-50");
         expect(menu).toBeTruthy();
+
+        wrapper.unmount();
+    });
+
+    it("shows share targets and opens the correct URL for the selected text", async () => {
+        const wrapper = mountHighlightable("share-test", "Test Article");
+        // Let the async onMounted (restoreHighlights) finish before dispatching
+        // selectionchange — the listener isn't registered until it resolves.
+        await vi.advanceTimersByTimeAsync(50);
+        const prose = wrapper.find(".prose");
+
+        const textNode = prose.element.querySelector("p")!.firstChild!;
+        const range = document.createRange();
+        range.setStart(textNode, 0);
+        range.setEnd(textNode, 4); // "Some"
+
+        range.getBoundingClientRect = vi.fn(() => ({
+            left: 100,
+            top: 100,
+            right: 200,
+            bottom: 120,
+            width: 100,
+            height: 20,
+            x: 100,
+            y: 100,
+            toJSON: () => {},
+        }));
+
+        const mockSelection = {
+            isCollapsed: false,
+            rangeCount: 1,
+            getRangeAt: vi.fn(() => range),
+            toString: () => "Some",
+            removeAllRanges: vi.fn(),
+            anchorNode: textNode,
+        };
+        vi.spyOn(window, "getSelection").mockReturnValue(mockSelection as any);
+
+        document.dispatchEvent(new Event("selectionchange"));
+        vi.advanceTimersByTime(300);
+        await wrapper.vm.$nextTick();
+
+        const shareTrigger = document.body.querySelector(
+            '[data-test="highlightShareTrigger"]',
+        ) as HTMLElement;
+        expect(shareTrigger).toBeTruthy();
+        shareTrigger.click();
+        await wrapper.vm.$nextTick();
+
+        const telegramBtn = document.body.querySelector(
+            '[data-test="highlightShareTelegram"]',
+        ) as HTMLElement;
+        const whatsappBtn = document.body.querySelector('[data-test="highlightShareWhatsApp"]');
+        const xBtn = document.body.querySelector('[data-test="highlightShareX"]');
+        const redditBtn = document.body.querySelector('[data-test="highlightShareReddit"]');
+        const instagramBtn = document.body.querySelector('[data-test="highlightShareInstagram"]');
+        expect(telegramBtn).toBeTruthy();
+        expect(whatsappBtn).toBeTruthy();
+        expect(xBtn).toBeTruthy();
+        expect(redditBtn).toBeTruthy();
+        expect(instagramBtn).toBeTruthy();
+
+        const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
+        telegramBtn.click();
+        await wrapper.vm.$nextTick();
+
+        expect(openSpy).toHaveBeenCalledTimes(1);
+        const openedUrl = new URL(openSpy.mock.calls[0][0] as string);
+        expect(openedUrl.origin + openedUrl.pathname).toBe("https://t.me/share/url");
+        const openedText = openedUrl.searchParams.get("text");
+        expect(openedText).toContain("Some");
+        expect(openedText).toContain("Test Article");
+
+        // The popup fully closes after a share action, same as Highlight/Copy.
+        expect(document.body.querySelector(".fixed.z-50")).toBeFalsy();
+
+        wrapper.unmount();
+    });
+
+    it("copies the selection with its attribution, copyright and link", async () => {
+        const writeText = vi.fn().mockResolvedValue(undefined);
+        Object.assign(navigator, { clipboard: { writeText } });
+
+        const wrapper = mountHighlightable("copy-format-test", "Test Article", "© Test Publisher");
+        await vi.advanceTimersByTimeAsync(50);
+        const prose = wrapper.find(".prose");
+
+        const textNode = prose.element.querySelector("p")!.firstChild!;
+        const range = document.createRange();
+        range.setStart(textNode, 0);
+        range.setEnd(textNode, 4);
+        range.getBoundingClientRect = vi.fn(() => ({
+            left: 100,
+            top: 100,
+            right: 200,
+            bottom: 120,
+            width: 100,
+            height: 20,
+            x: 100,
+            y: 100,
+            toJSON: () => {},
+        }));
+
+        vi.spyOn(window, "getSelection").mockReturnValue({
+            isCollapsed: false,
+            rangeCount: 1,
+            getRangeAt: vi.fn(() => range),
+            toString: () => "Some",
+            removeAllRanges: vi.fn(),
+            anchorNode: textNode,
+        } as any);
+
+        document.dispatchEvent(new Event("selectionchange"));
+        vi.advanceTimersByTime(300);
+        await wrapper.vm.$nextTick();
+
+        (document.body.querySelector('[data-test="highlightCopy"]') as HTMLElement).click();
+        await wrapper.vm.$nextTick();
+
+        expect(writeText).toHaveBeenCalledWith(
+            [
+                "“Some”",
+                "",
+                "— from “Test Article”\n© Test Publisher",
+                "",
+                window.location.href,
+            ].join("\n"),
+        );
+
+        wrapper.unmount();
+    });
+
+    it("copies the selected text and article link when sharing to Instagram", async () => {
+        const writeText = vi.fn().mockResolvedValue(undefined);
+        Object.assign(navigator, { clipboard: { writeText } });
+
+        const wrapper = mountHighlightable("share-instagram-test", "Test Article");
+        await vi.advanceTimersByTimeAsync(50);
+        const prose = wrapper.find(".prose");
+
+        const textNode = prose.element.querySelector("p")!.firstChild!;
+        const range = document.createRange();
+        range.setStart(textNode, 0);
+        range.setEnd(textNode, 4);
+        range.getBoundingClientRect = vi.fn(() => ({
+            left: 100,
+            top: 100,
+            right: 200,
+            bottom: 120,
+            width: 100,
+            height: 20,
+            x: 100,
+            y: 100,
+            toJSON: () => {},
+        }));
+
+        const mockSelection = {
+            isCollapsed: false,
+            rangeCount: 1,
+            getRangeAt: vi.fn(() => range),
+            toString: () => "Some",
+            removeAllRanges: vi.fn(),
+            anchorNode: textNode,
+        };
+        vi.spyOn(window, "getSelection").mockReturnValue(mockSelection as any);
+
+        document.dispatchEvent(new Event("selectionchange"));
+        vi.advanceTimersByTime(300);
+        await wrapper.vm.$nextTick();
+
+        (document.body.querySelector('[data-test="highlightShareTrigger"]') as HTMLElement).click();
+        await wrapper.vm.$nextTick();
+
+        (
+            document.body.querySelector('[data-test="highlightShareInstagram"]') as HTMLElement
+        ).click();
+        await wrapper.vm.$nextTick();
+
+        expect(writeText).toHaveBeenCalledTimes(1);
+        const copiedText = writeText.mock.calls[0][0] as string;
+        expect(copiedText).toContain("Some");
+        expect(copiedText).toContain("Test Article");
 
         wrapper.unmount();
     });

@@ -66,6 +66,8 @@ vi.mock("@/globalConfig", () => ({
     appLanguageIdsAsRef: ref(["lang-eng"]),
     appLanguageAsRef: ref(undefined),
     initLanguage: vi.fn(),
+    userDataSaverEnabled: ref(false),
+    isDataSaverEnabled: () => false,
 }));
 
 vi.mock("@/seo/contentHead", () => ({ useContentHead: () => {} }));
