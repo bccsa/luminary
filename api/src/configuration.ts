@@ -60,10 +60,11 @@ export type QueryConfig = {
 
 export type IdentityCacheConfig = {
     /**
-     * Master switch for the in-memory per-token auth identity cache. Ships OFF — enable
-     * per environment once you want to relieve the /query (and other authenticated) paths
-     * from re-running the full identity resolve on every request.
-     * Environment variable: IDENTITY_CACHE_ENABLED (default false).
+     * Master switch for the in-memory per-token auth identity cache. Ships ON: without it
+     * every authenticated request re-runs the full identity resolve, costing ~16 ms and 7
+     * CouchDB round trips (including a lastLogin write) before any endpoint work begins.
+     * Set to the string "false" to opt out per environment.
+     * Environment variable: IDENTITY_CACHE_ENABLED (default true).
      */
     enabled: boolean;
     /**
@@ -187,7 +188,7 @@ export default () =>
             allowInsecureProviderDomain: process.env.AUTH_ALLOW_INSECURE_PROVIDER_DOMAIN === "true",
         } as AuthConfig,
         identityCache: {
-            enabled: process.env.IDENTITY_CACHE_ENABLED === "true",
+            enabled: process.env.IDENTITY_CACHE_ENABLED !== "false",
             ttlMs: parseInt(process.env.IDENTITY_CACHE_TTL_MS, 10) || 300000,
             maxEntries: parseInt(process.env.IDENTITY_CACHE_MAX_ENTRIES, 10) || 50000,
         } as IdentityCacheConfig,

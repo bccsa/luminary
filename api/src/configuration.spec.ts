@@ -129,7 +129,7 @@ describe("configuration", () => {
 
         const config = configuration();
         expect(config.identityCache).toEqual({
-            enabled: false,
+            enabled: true,
             ttlMs: 300000,
             maxEntries: 50000,
         });
@@ -148,15 +148,19 @@ describe("configuration", () => {
         });
     });
 
-    it("should only treat the literal string 'true' as enabling the identity cache", () => {
+    it("should only treat the literal string 'false' as disabling the identity cache", () => {
         process.env.IDENTITY_CACHE_ENABLED = "false";
         expect(configuration().identityCache.enabled).toBe(false);
 
-        process.env.IDENTITY_CACHE_ENABLED = "1";
-        expect(configuration().identityCache.enabled).toBe(false);
+        // Anything else leaves it on, so a typo cannot silently drop the cache.
+        process.env.IDENTITY_CACHE_ENABLED = "0";
+        expect(configuration().identityCache.enabled).toBe(true);
+
+        process.env.IDENTITY_CACHE_ENABLED = "true";
+        expect(configuration().identityCache.enabled).toBe(true);
 
         delete process.env.IDENTITY_CACHE_ENABLED;
-        expect(configuration().identityCache.enabled).toBe(false);
+        expect(configuration().identityCache.enabled).toBe(true);
     });
 
     it("should fall back to defaults for non-numeric or zero identity cache values", () => {
