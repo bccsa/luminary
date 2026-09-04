@@ -283,7 +283,7 @@ watch(isFullscreen, () => {
             </VueFlow>
 
             <div
-                class="pointer-events-none absolute left-3 right-3 top-1 z-40 flex items-start gap-2 py-2 sm:right-4 sm:top-2"
+                class="pointer-events-none absolute left-3 right-2 top-1 z-40 flex items-start gap-2 py-2 sm:right-0 sm:top-2"
             >
                 <div
                     class="pointer-events-auto -my-2 min-w-0 flex-1 overflow-x-auto py-2 scrollbar-hide"
@@ -411,7 +411,7 @@ watch(isFullscreen, () => {
                     size="sm"
                     variant="secondary"
                     :icon="XMarkIcon"
-                    class="pointer-events-auto h-9 w-9 shrink-0"
+                    class="pointer-events-auto mr-4 h-9 w-9 shrink-0"
                     @click="isFullscreen = false"
                 />
             </div>
