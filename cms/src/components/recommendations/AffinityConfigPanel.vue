@@ -40,6 +40,7 @@ function cloneConfig(config: AffinityConfig): AffinityConfig {
         maxTags: config.maxTags,
         depthScale: config.depthScale,
         readFloorPercent: config.readFloorPercent,
+        mediaCompletionPercent: config.mediaCompletionPercent,
         eventWeight: { ...config.eventWeight },
     };
 }
@@ -124,6 +125,12 @@ function normalizedConfig(): AffinityConfig {
         maxTags: Math.round(clamp(c.maxTags, 1, 500, savedConfig.value.maxTags)),
         depthScale: clamp(c.depthScale, 1, 1000, savedConfig.value.depthScale),
         readFloorPercent: clamp(c.readFloorPercent, 0, 100, savedConfig.value.readFloorPercent),
+        mediaCompletionPercent: clamp(
+            c.mediaCompletionPercent,
+            1,
+            100,
+            savedConfig.value.mediaCompletionPercent,
+        ),
         eventWeight: {
             bookmark: clamp(c.eventWeight.bookmark, -1, 1, savedConfig.value.eventWeight.bookmark),
             bookmarkRemoved: clamp(
@@ -376,6 +383,16 @@ async function save() {
                         rightAddOn="%"
                         v-model="form.readFloorPercent"
                         data-test="affinity-config-readFloorPercent"
+                    />
+                    <LInput
+                        name="mediaCompletionPercent"
+                        label="Watching/listening needed to count as finished"
+                        type="number"
+                        step="1"
+                        size="sm"
+                        rightAddOn="%"
+                        v-model="form.mediaCompletionPercent"
+                        data-test="affinity-config-mediaCompletionPercent"
                     />
                 </div>
             </fieldset>

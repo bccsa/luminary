@@ -31,14 +31,17 @@ useLocalizedStaticHead("/");
 <template>
     <BasePage>
         <IgnorePagePadding ignoreTop>
-            <HomePageSearch v-if="isMdScreen" />
             <Suspense
                 @resolve="
                     pinnedResolved = true;
                     checkReady();
                 "
             >
-                <HomePagePinned />
+                <HomePagePinned>
+                    <template #header>
+                        <HomePageSearch v-if="isMdScreen" />
+                    </template>
+                </HomePagePinned>
             </Suspense>
             <Suspense
                 @resolve="

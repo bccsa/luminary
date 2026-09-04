@@ -274,6 +274,21 @@ export type HybridQueryOptions = {
      */
     persistOffline?: boolean;
 
+    /**
+     * When `true`, `output` **survives a query rebuild** (a reactive thunk dep change, a
+     * syncList membership flip): the previous window stands in for the incoming one, so a
+     * list that is merely re-narrowed — a changed filter, a grown `$limit`, a mutated id
+     * set — does not blank while its new result loads. Off by default.
+     *
+     * Leave it off whenever the query resolves an IDENTITY rather than narrowing a list —
+     * a lookup by slug or id, or a parent's children — where the previous result is a
+     * different entity and showing it is wrong rather than merely stale. The distinction
+     * cannot be made from the selector (both cases look like "the kept docs no longer
+     * match"), so it is the call site's to declare.
+     *
+     * A provably-empty new query clears `output` either way.
+     */
+    keepPreviousResult?: boolean;
 };
 
 /**
@@ -315,9 +330,10 @@ export type HybridQueryOptions = {
  * compare dedupes no-op changes). Each dep change rebuilds the local read, and (in
  * live mode) the API POST + socket predicates, discarding in-flight POSTs from the
  * previous query. In **one-shot** mode a thunk re-queries on each change but is a
- * snapshot between changes (no liveQuery/socket). `output` is kept across a rebuild
- * (no flash) unless the new query is provably-empty. The thunk must be **pure** (it
- * is called more than once per change). See the README "Reactive queries" section.
+ * snapshot between changes (no liveQuery/socket). A rebuild clears `output` unless the
+ * caller opted into `keepPreviousResult: true` (a re-narrowed list). The thunk must be
+ * **pure** (it is called more than once per change). See the README "Reactive queries"
+ * section.
  *
  * ```ts
  * // reactive: rebuilds whenever pinnedCats changes
@@ -392,6 +408,8 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
     private _limit?: number;
     private _sort?: MangoQuery["$sort"];
     private readonly _live: boolean;
+    // See {@link HybridQueryOptions.keepPreviousResult}.
+    private readonly _keepPreviousResult: boolean;
     // Offline document persistence (opt-in). When true, the supplement's syncable
     // older-tail docs are bulkPut to IndexedDB. See {@link HybridQueryOptions.persistOffline}.
     private readonly _persistOffline: boolean;
@@ -439,6 +457,7 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
     constructor(query: MangoQuery | (() => MangoQuery), options: HybridQueryOptions = {}) {
         this._queryFn = typeof query === "function" ? query : () => query;
         this._live = options.live ?? false;
+        this._keepPreviousResult = options.keepPreviousResult ?? false;
         this._persistOffline = options.persistOffline ?? false;
         this._cache = options.cache ?? false;
         this._cacheId = options.cacheId;
@@ -487,9 +506,10 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
 
     /**
      * (Re)build a generation: tear down the previous generation's subscriptions,
-     * snapshot the new query, reset per-generation state, and route. `output` is
-     * deliberately KEPT across a rebuild (no flash) — the provably-empty branch in
-     * `_run` clears it for the one case that never recomputes.
+     * snapshot the new query, reset per-generation state, and route. `output` is cleared
+     * unless the caller opted into `keepPreviousResult` — a re-narrowed list keeps the
+     * previous window so it doesn't blank; the provably-empty branch in `_run` clears it
+     * even then, since that case never recomputes.
      */
     private _rebuild(query: MangoQuery): void {
         if (this._disposed) return;
@@ -503,6 +523,9 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
         this._generation++;
         this._local = [];
         this._remote = [];
+        // Only a caller that declared its query a narrowing of the same list keeps the
+        // previous window. The length guard keeps the initial build a no-op.
+        if (!this._keepPreviousResult && this.output.value.length) this.output.value = [];
         this._seed.reset();
         this._apiDecided = false;
         this._tombstones.clear();
@@ -567,7 +590,7 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
     // membership FLIPS — `false→true` when sync first registers the type (cold start:
     // a query built before its type was synced re-routes from API-only to Dexie-only
     // once both Dexie AND the syncList entry exist — db.bulkPut precedes the
-    // syncList.push, so the local read is already populated → no flash), and `true→false`
+    // syncList.push, so the local read is already populated), and `true→false`
     // on revoke (deleteRevoked trims the column and purges the Dexie docs, so we fall
     // back to the API). The watched value is the per-type memoized membership BOOLEAN, so
     // the callback fires once per genuine flip — never on the per-chunk block-range / eof
@@ -583,10 +606,10 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
                 // callback; the gen/dispose guard is belt-and-braces against a flip racing
                 // a rebuild that has already bumped `_generation`.
                 if (gen !== this._generation || this._disposed) return;
-                // `_rebuild` keeps `output` across the rebuild (no flash), bumps
-                // `_generation` (disarming this generation's in-flight POST / local read /
-                // socket cb via the gen guard), and re-runs `_run` — which now reads the
-                // flipped membership and takes the opposite branch.
+                // `_rebuild` bumps `_generation` (disarming this generation's in-flight
+                // POST / local read / socket cb via the gen guard) and re-runs `_run` —
+                // which now reads the flipped membership and takes the opposite branch.
+                // `keepPreviousResult` decides whether `output` bridges the re-route.
                 this._rebuild(this._queryFn());
             },
             { immediate: false },

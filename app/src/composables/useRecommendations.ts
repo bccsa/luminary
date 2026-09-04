@@ -103,6 +103,11 @@ export type UseRecommendationsOptions = {
     useFts?: boolean;
 };
 
+// Content of a pinned parent already has its own home-page collection, so recommending it
+// only duplicates a tile the user is already looking at. The FTS leg is where these reach the
+// feed: it searches every content doc, including a pinned category's own (untagged) doc.
+const hasPinnedParent = (doc: ContentDto) => !!doc.parentPinned && doc.parentPinned > 0;
+
 export function useRecommendations({
     limit = DEFAULT_LIMIT,
     retrievalLimit = DEFAULT_RETRIEVAL_LIMIT,
@@ -144,7 +149,9 @@ export function useRecommendations({
             tagSet.value.length
                 ? [{ parentTags: { $elemMatch: { $in: tagSet.value } } }]
                 : [{ _id: { $in: [] } }],
-        { cache: true, cacheId: "recommended", limit: retrievalLimit },
+        // The tag set shifts as affinity updates — the same feed, re-narrowed, so keep it
+        // painted while the new candidate pool loads.
+        { cache: true, cacheId: "recommended", limit: retrievalLimit, keepPreviousResult: true },
     );
 
     // Which of the candidates' `parentTags` are actually TagType.Topic (categories and
@@ -259,13 +266,17 @@ export function useRecommendations({
         let ftsDebounceTimer: ReturnType<typeof setTimeout> | undefined;
         let lastFtsSignature: string | undefined;
         watch(
-            ftsQueries,
-            (queries) => {
+            // The language list is watched explicitly: it is only read inside the debounced
+            // async callback below, which `watch` cannot track, so a display-language switch
+            // would otherwise leave the previous language's hits in the feed until a restart.
+            [ftsQueries, appSyncedDisplayLanguageIdsAsRef] as const,
+            ([queries, languageIds]) => {
                 // The computed rebuilds its array when upstream refs re-evaluate; only restart
                 // retrieval when the query values themselves have meaningfully changed.
-                const signature = JSON.stringify(
+                const signature = JSON.stringify([
+                    languageIds,
                     queries.map(({ query, weight }) => [query, weight.toFixed(4)]),
-                );
+                ]);
                 if (signature === lastFtsSignature) return;
                 lastFtsSignature = signature;
                 const runSeq = ++ftsRunSeq;
@@ -284,7 +295,7 @@ export function useRecommendations({
                                 // display default may be fetched on demand, but it is not a
                                 // complete local FTS corpus and must not trigger a BM25 scan.
                                 const perLanguage = await Promise.all(
-                                    appSyncedDisplayLanguageIdsAsRef.value.map((languageId) =>
+                                    languageIds.map((languageId) =>
                                         ftsSearch({
                                             query,
                                             languageId,
@@ -336,12 +347,14 @@ export function useRecommendations({
     });
 
     const recommended = computed(() => {
-        // Filter seen content out *before* ranking/diversity-capping, not after — otherwise
-        // already-seen docs still consume slots in the per-tag MMR cap and push unseen
-        // content into overflow (and past `slice(0, limit)` entirely).
-        const unseenTagCandidates = content.value.filter((c) => !seenIds.value.has(c._id));
-        const unseenFtsCandidates = ftsResults.value.filter((r) => !seenIds.value.has(r.docId));
-        return rank(unseenTagCandidates, unseenFtsCandidates, decayedAffinity.value, {
+        // Filter seen and pinned content out *before* ranking/diversity-capping, not after —
+        // otherwise ineligible docs still consume slots in the per-tag MMR cap and push
+        // eligible content into overflow (and past `slice(0, limit)` entirely).
+        const isEligible = (doc: ContentDto, docId: Uuid) =>
+            !seenIds.value.has(docId) && !hasPinnedParent(doc);
+        const eligibleTagCandidates = content.value.filter((c) => isEligible(c, c._id));
+        const eligibleFtsCandidates = ftsResults.value.filter((r) => isEligible(r.doc, r.docId));
+        return rank(eligibleTagCandidates, eligibleFtsCandidates, decayedAffinity.value, {
             topicTagIds: topicTagIds.value,
             tagWeight: TAG_LEG_WEIGHT * (0.3 + 0.7 * richness.value),
             ftsWeight: FTS_LEG_WEIGHT * (1 - 0.5 * richness.value),

@@ -295,6 +295,35 @@ offline.
 - **Limitations.** There is no hard size cap (TTL + eviction is the bound); a
   `QuotaExceededError` on persist is swallowed, degrading to the no-persistence behaviour.
 
+### Keeping the previous result across a rebuild (opt-in)
+
+```ts
+const items = useHybridQuery<ContentDto>(query, { keepPreviousResult: true });
+```
+
+A rebuild — a reactive thunk dep change, or a `syncList` membership flip that re-routes
+the query — starts a fresh generation with empty contributions, and **clears `output`**.
+With `{ keepPreviousResult: true }` the previous window stays in `output` until the new
+generation produces its own, so the view doesn't blank in between. Off by default;
+independent of `live`, `cache` and `persistOffline`.
+
+**Which one a query wants depends on what its result _means_**, and that can't be read
+off the selector — both cases look identical from the inside ("the kept docs no longer
+match"), so it is the call site's to declare:
+
+| The query…                                                                                                                 | Setting                    | Why                                                                                                                                                                                                                                                   |
+| -------------------------------------------------------------------------------------------------------------------------- | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **narrows a list** — a changed filter, a grown `$limit` ("load more"), a mutated id set (bookmarks, progress, pinned tags) | `keepPreviousResult: true` | The incoming result is a variation of what's on screen. Blanking a populated list to re-render nearly the same rows is a flash, and a "load more" that empties the list first is a visible bug.                                                       |
+| **resolves an identity** — a lookup by slug or `_id`, a parent's translations or children                                  | leave off (default)        | The previous result is a **different entity**. Showing it is wrong, not merely stale: the view would render the old document's title, body or media until the new one lands. Such a query should show its empty/loading state (`isFetching`) instead. |
+
+Note that the cache seed is a separate mechanism with a separate risk: `{ cache: true }`
+keys on the query's _shape_, not its values, so an identity lookup that also caches can
+paint **another** document's window on first paint. Give such a query a per-identity
+`cacheId`, or don't cache it. See [Response caching](#response-caching-opt-in).
+
+A provably-empty new query (e.g. an empty `$in`) always clears `output`, regardless of
+this option — that branch never recomputes, so a kept window would never be replaced.
+
 ### `useHybridQuery<T>(query, options?)` — composable
 
 A thin wrapper that constructs the class and returns **only** its `output` ref —
@@ -435,13 +464,14 @@ discarded by a generation guard.
   means "x must be missing" to Mango (it is _not_ the same as an absent `x`), and
   the rebuild key now distinguishes the two, so an `undefined`-valued field both
   changes the result set _and_ triggers a rebuild — usually not what you intend.
-- **Output on change is kept until the new query produces data** (no flash) —
-  **except** a provably-empty new query clears `output` immediately. Content /
-  synced queries recompute from local Dexie instantly, so they show the _new_
-  query's results right away (offline included). An **api-only** query (a type with
-  no local copy) is the exception: while offline or if the new POST fails, `output`
-  keeps the **previous selector's** result until the next successful POST/reconnect
-  — i.e. it shows data for the prior query, by design (keep-last-value).
+- **Output is cleared on every rebuild** unless the call site opts into
+  `{ keepPreviousResult: true }` — see
+  [Keeping the previous result across a rebuild](#keeping-the-previous-result-across-a-rebuild-opt-in).
+  Content / synced queries recompute from local Dexie almost immediately, so the
+  gap before the _new_ query's results paint is short (offline included). An
+  **api-only** query (a type with no local copy) is the one to watch: with the
+  option on, `output` keeps the **previous selector's** result while offline or if
+  the new POST fails, until the next successful POST/reconnect (keep-last-value).
 - **No built-in debounce.** Rapid changes rebuild per _distinct_ query (last-wins,
   safe — old POSTs are discarded). For a fast-typing filter, debounce the ref
   **upstream** (as `useFtsSearch` does); HybridQuery does not debounce.

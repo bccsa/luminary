@@ -3,6 +3,7 @@ import { PostType, TagType } from "luminary-shared";
 import { contentByTag } from "../contentByTag";
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
 import { useContentQuery } from "@/composables/useContentQuery";
+import { computed } from "vue";
 
 const pinnedCategories = useContentQuery(() => [{ parentPinned: 1 }], {
     cache: true,
@@ -38,14 +39,24 @@ const pinnedCategoryContent = useContentQuery(
     // it (it is not in the local window); when the combined set exceeds the cap the
     // supplement falls back to a content-partition scan. sort+limit bound the window;
     // contentByTag re-sorts per category for display.
-    { cache: true, limit: 50, sort: [{ publishDate: "desc" }] },
+    // A pinned-category change re-narrows the same feed, so keep the tiles on screen
+    // while the new window loads.
+    { cache: true, limit: 50, sort: [{ publishDate: "desc" }], keepPreviousResult: true },
 );
 
 // sort pinned content by category
 const pinnedContentByCategory = contentByTag(pinnedCategoryContent, pinnedCategories);
+
+const hasRows = computed(() => pinnedContentByCategory.tagged.value.length > 0);
 </script>
 
 <template>
+    <div
+        v-if="$slots.header"
+        :class="hasRows ? 'bg-yellow-500/10 dark:bg-yellow-500/5' : ''"
+    >
+        <slot name="header" />
+    </div>
     <HorizontalContentTileCollection
         v-for="(c, index) in pinnedContentByCategory.tagged.value"
         :key="c.tag._id"

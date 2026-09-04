@@ -4,6 +4,7 @@ import {
     db,
     DEFAULT_AFFINITY_CONFIG,
     DEFAULT_AFFINITY_ID,
+    resolveAffinityConfig,
     type AffinityConfig,
     type AffinityMap,
     type DefaultAffinityDto,
@@ -19,8 +20,8 @@ export const defaultAffinity = ref<AffinityMap | undefined>(undefined);
 
 /**
  * The CMS-managed affinity engine tuning config, read from the same synced singleton.
- * Always a complete config — falls back to `DEFAULT_AFFINITY_CONFIG` so callers never
- * need to null-check it.
+ * Always a complete config — every field falls back to `DEFAULT_AFFINITY_CONFIG`, so a doc
+ * saved before a knob existed still yields a usable value and callers never null-check.
  */
 export const affinityConfig = ref<AffinityConfig>(DEFAULT_AFFINITY_CONFIG);
 
@@ -38,6 +39,6 @@ export function initDefaultAffinitySync() {
 
     liveQuery(() => db.get<DefaultAffinityDto>(DEFAULT_AFFINITY_ID)).subscribe((doc) => {
         defaultAffinity.value = doc?.affinity;
-        affinityConfig.value = doc?.config ?? DEFAULT_AFFINITY_CONFIG;
+        affinityConfig.value = resolveAffinityConfig(doc?.config);
     });
 }

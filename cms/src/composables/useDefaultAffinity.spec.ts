@@ -13,6 +13,7 @@ const DEFAULT_AFFINITY_CONFIG = vi.hoisted(() => ({
     maxTags: 50,
     depthScale: 20,
     readFloorPercent: 20,
+    mediaCompletionPercent: 75,
     eventWeight: {
         bookmark: 0.25,
         bookmarkRemoved: -0.15,
@@ -42,6 +43,11 @@ vi.mock("luminary-shared", async () => {
         },
         DEFAULT_AFFINITY_ID: "default-affinity",
         DEFAULT_AFFINITY_CONFIG,
+        resolveAffinityConfig: (config?: any) => ({
+            ...DEFAULT_AFFINITY_CONFIG,
+            ...config,
+            eventWeight: { ...DEFAULT_AFFINITY_CONFIG.eventWeight, ...config?.eventWeight },
+        }),
         hasAnyPermission: vi.fn(() => true),
         useHybridQueryWithState: vi.fn(() => ({ output: ref([]), isFetching: ref(false) })),
         toEditable: vi.fn(() => ({

@@ -17,6 +17,7 @@ export type AffinityConfigDto = {
     maxTags: number;
     depthScale: number;
     readFloorPercent: number;
+    mediaCompletionPercent: number;
     eventWeight: {
         bookmark: number;
         bookmarkRemoved: number;
