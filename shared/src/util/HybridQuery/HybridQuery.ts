@@ -155,6 +155,19 @@ export function queryLocal<T extends BaseDocumentDto = BaseDocumentDto>(
     return mangoToDexie<T>(db.docs, query);
 }
 
+/**
+ * Serialize a query for identity comparison, ignoring `$limit`. Two queries with the
+ * same shape key describe the same window and differ only in how much of it they ask
+ * for. The `undefined` sentinel matches the constructor's dependency-tracking watch:
+ * `JSON.stringify` drops undefined-valued fields, but Mango reads `{ x: undefined }` as
+ * "x must be missing", so the two must not serialize alike.
+ */
+function shapeKeyOf(query: MangoQuery): string {
+    const shape: MangoQuery = { ...query };
+    delete shape.$limit;
+    return JSON.stringify(shape, (_k, v) => (v === undefined ? "\u0000undef" : v));
+}
+
 /** Options for {@link HybridQuery}. */
 export type HybridQueryOptions = {
     /**
@@ -426,6 +439,12 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
     // reach the live `output` (heap). See {@link HybridQueryOptions.stripFields}.
     private readonly _stripFields: string[];
     private _cacheKey = "";
+    // Serialized previous query MINUS `$limit`, so `_rebuild` can recognise a rebuild
+    // that only GROWS the window. See `_isLimitGrowth`.
+    private _shapeKey = "";
+    // True for the generation currently being built when it is a pure `$limit` growth of
+    // the previous one — the contributions carry over instead of being refetched.
+    private _limitGrowth = false;
     // Owns the response-cache seed bookkeeping: how long a seeded first-paint window
     // survives before authoritative reads replace it. The seed-to-live transition
     // table lives in the `SeedRetention` module.
@@ -505,11 +524,35 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
     }
 
     /**
+     * True when `query` differs from the generation in flight ONLY by a larger `$limit`.
+     * Such a rebuild widens the same window rather than describing a different one, so
+     * the documents already gathered still satisfy it and can be carried over. Gated on
+     * `keepPreviousResult`, by which the caller has declared this query a re-narrowing
+     * of one list (see {@link HybridQueryOptions.keepPreviousResult}).
+     */
+    private _isLimitGrowth(query: MangoQuery, shapeKey: string): boolean {
+        return (
+            this._keepPreviousResult &&
+            this._shapeKey !== "" &&
+            shapeKey === this._shapeKey &&
+            typeof query.$limit === "number" &&
+            typeof this._limit === "number" &&
+            query.$limit > this._limit
+        );
+    }
+
+    /**
      * (Re)build a generation: tear down the previous generation's subscriptions,
      * snapshot the new query, reset per-generation state, and route. `output` is cleared
      * unless the caller opted into `keepPreviousResult` — a re-narrowed list keeps the
      * previous window so it doesn't blank; the provably-empty branch in `_run` clears it
      * even then, since that case never recomputes.
+     *
+     * A pure `$limit` GROWTH additionally keeps the local + remote contributions
+     * themselves ({@link _isLimitGrowth}), so the list only ever gains rows: without it
+     * an API-supplemented feed drops back to its local-only subset for the length of the
+     * new supplement's round trip, which collapses the scroll height under an infinite
+     * scroller.
      */
     private _rebuild(query: MangoQuery): void {
         if (this._disposed) return;
@@ -520,15 +563,25 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
         this._generationDisposers.clear();
         ds.forEach((fn) => fn());
 
+        const shapeKey = shapeKeyOf(query);
+        const limitGrowth = this._isLimitGrowth(query, shapeKey);
+        this._shapeKey = shapeKey;
+        this._limitGrowth = limitGrowth;
+
         this._generation++;
-        this._local = [];
-        this._remote = [];
+        if (!limitGrowth) {
+            this._local = [];
+            this._remote = [];
+            this._tombstones.clear();
+            // The seed bookkeeping describes the contributions; when those carry over it
+            // must carry over with them (and `_run` then skips re-seeding).
+            this._seed.reset();
+        }
         // Only a caller that declared its query a narrowing of the same list keeps the
         // previous window. The length guard keeps the initial build a no-op.
         if (!this._keepPreviousResult && this.output.value.length) this.output.value = [];
-        this._seed.reset();
+        // Re-decided for the widened window: the supplement covers the new shortfall.
         this._apiDecided = false;
-        this._tombstones.clear();
         // Re-enter loading for the new generation. _generation++ above has already
         // disarmed any stale callback (the gen guard), so these synchronous writes are
         // safe; _run adjusts _remotePending per route (and clears _localPending for the
@@ -662,7 +715,7 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
             // NB: do NOT settle loading here. The seed is a first-paint accelerant; the
             // authoritative local read and remote POST are still in flight, so isFetching
             // stays true (painted-from-cache is still "fetching", not "settled").
-            if (this._cache) {
+            if (this._cache && !this._limitGrowth) {
                 const seed = readResponseCache<T>(this._cacheKey);
                 if (seed) {
                     // Strip defensively: a cache written before `stripFields` grew

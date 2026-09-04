@@ -130,6 +130,33 @@ const search = useContentSearchQuery(
 const searchIsStale = search.isStale;
 
 const contentDocs = computed(() => (searchActive.value ? search.docs.value : browse.docs.value));
+
+// Every rendered row needs its parent's other translations for the language badges. An
+// unbounded per-parent Content query always hits the API supplement, so asking per card
+// costs one request per row; one `$in` query for the whole page collapses that (and the
+// per-row Dexie subscriptions) into a single source.
+const rowTranslations = useHybridQuery<ContentDto>(
+    () => ({
+        selector: {
+            type: DocType.Content,
+            parentId: { $in: [...new Set(contentDocs.value.map((d) => d.parentId))] },
+        },
+    }),
+    {
+        live: true,
+        keepPreviousResult: true,
+        stripFields: ["fts", "ftsTokenCount", "text", "_rev"],
+    },
+);
+const translationsByParent = computed(() => {
+    const byParent = new Map<string, ContentDto[]>();
+    for (const doc of rowTranslations.value) {
+        const list = byParent.get(doc.parentId);
+        if (list) list.push(doc);
+        else byParent.set(doc.parentId, [doc]);
+    }
+    return byParent;
+});
 const isLoading = computed(() =>
     searchActive.value ? search.isLoading.value : browse.isLoading.value,
 );
@@ -284,6 +311,7 @@ const createNew = () => {
                 :key="contentDoc._id"
                 :groups="groups.filter((group) => contentDoc.memberOf?.includes(group._id))"
                 :content-doc="contentDoc as ContentDto"
+                :translations="translationsByParent.get(contentDoc.parentId) ?? []"
                 :parent-type="queryOptions.parentType"
                 :language-id="queryOptions.languageId"
                 :languages="languages"

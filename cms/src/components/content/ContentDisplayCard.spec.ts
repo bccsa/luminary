@@ -95,6 +95,7 @@ describe("ContentDisplayCard", () => {
                 parentType: mockData.mockEnglishContentDto.parentType as DocType.Post | DocType.Tag,
                 languageId: engNonDefault._id,
                 languages: [engNonDefault, mockData.mockLanguageDtoFra, swaDefault],
+                translations: [mockData.mockEnglishContentDto],
             },
         });
 
