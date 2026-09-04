@@ -9,6 +9,7 @@ import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import { cmsLanguages, cmsDefaultLanguage } from "@/globalConfig";
 import { sessionNow } from "@/util/sessionNow";
+import { hasVideoSource, videoSourceFor } from "@/util/videoSource";
 
 const { t } = useI18n();
 
@@ -53,9 +54,9 @@ const publishDateText = computed(() => {
     ).toLocaleString(DateTime.DATETIME_MED);
 });
 
-const hasVideo = computed(() => Boolean(props.content.video));
+const hasVideo = computed(() => hasVideoSource(props.content));
 const hasAudio = computed(
-    () => !props.content.video && Boolean(props.content.parentMedia?.fileCollections?.length),
+    () => !hasVideo.value && Boolean(props.content.parentMedia?.fileCollections?.length),
 );
 
 const mediaIconClass = computed(() =>
@@ -81,8 +82,9 @@ const isComingSoon = computed(() => {
 const mediaProgress = computed(() => {
     if (!props.showProgress) return 0;
 
-    const mediaIds = props.content.video
-        ? [props.content.video]
+    const videoSource = videoSourceFor(props.content);
+    const mediaIds = videoSource
+        ? [videoSource]
         : (props.content.parentMedia?.fileCollections ?? []).map((f) => f.fileUrl);
 
     for (const mediaId of mediaIds) {

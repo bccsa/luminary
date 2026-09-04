@@ -2,9 +2,18 @@ import { ContentDto } from "../../dto/ContentDto";
 import { PostDto } from "../../dto/PostDto";
 import { TagDto } from "../../dto/TagDto";
 import { DbService } from "../../db/db.service";
-import { DocType, Uuid } from "../../enums";
+import { DocType, SidecarType, Uuid } from "../../enums";
 import { deleteImage, processImage } from "./processImageDto";
 import { processMedia } from "./processMediaDto";
+import { deleteMediaCollection } from "./deleteMediaCollection";
+import { migrateMediaCollection } from "./migrateMediaCollection";
+import { isInOurStorage } from "./mediaUrl";
+import { StorageDto } from "../../dto/StorageDto";
+import {
+    deleteSidecar,
+    deleteSidecarsForParent,
+    syncSidecarMemberOf,
+} from "../../sidecar/sidecar.service";
 
 /**
  * Process Post / Tag DTO
@@ -35,17 +44,20 @@ export default async function processPostTagDto(
             warnings.push(...imageWarnings);
         }
 
-        // Remove medias from S3
-        if (doc.media) {
-            const mediaResult = await processMedia(
-                { fileCollections: [] },
-                prevDoc?.media,
-                db,
-                prevDoc?.mediaBucketId, // Delete from the bucket where files currently exist
+        // Opt-in from the delete confirmation: irreversible, and the collection may be
+        // referenced somewhere this API cannot see. prevDoc knows where the files are.
+        if (doc.media?.deleteFiles) {
+            warnings.push(
+                ...(await deleteMediaCollection(prevDoc?.media, prevDoc?.mediaBucketId, db)),
             );
-            if (mediaResult && mediaResult.warnings && mediaResult.warnings.length > 0) {
-                warnings.push(...mediaResult.warnings);
-            }
+        }
+
+        // Sidecars go with their parent (hard delete, no DeleteCmd). Warn rather than
+        // block the delete, as deleteImage does: an orphan is unreadable anyway.
+        try {
+            await deleteSidecarsForParent(db, doc._id);
+        } catch (error) {
+            warnings.push(`Failed to delete sidecars for ${doc._id}: ${error.message}`);
         }
 
         return warnings; // no need to process further
@@ -104,44 +116,49 @@ export default async function processPostTagDto(
         delete (doc as any).image; // Remove the legacy image field
     }
 
-    // Process media uploads
     if (doc.media) {
-        let mediaWarnings: string[] = [];
+        // A collection in our own storage must name its bucket: that is how the URL is
+        // stored relative, migrated and deleted. External media has no bucket to name.
+        if (doc.media.hlsUrl && !doc.mediaBucketId) {
+            const buckets = await db.getDocsByType(DocType.Storage);
+            const publicUrls = buckets.docs.map((b: StorageDto) => b.publicUrl);
 
-        // Check if bucket is specified for this upload
-        if (!doc.mediaBucketId) {
-            throw new Error("Bucket is not specified for media processing.");
+            if (isInOurStorage(doc.media.hlsUrl, publicUrls)) {
+                throw new Error("Bucket is not specified for media processing.");
+            }
         }
 
-        // Use the new bucket processing with db service for bucket lookup
-        try {
-            const result = await processMedia(
+        // A bucket change takes the files with it: `mediaBucketId` and `hlsUrl` must
+        // name the same bucket, or a later delete cannot find the collection.
+        if (prevDoc?.mediaBucketId && prevDoc.mediaBucketId !== doc.mediaBucketId) {
+            const migration = await migrateMediaCollection(
                 doc.media,
-                prevDoc?.media,
-                db,
+                prevDoc.media?.hlsUrl,
+                prevDoc.mediaBucketId,
                 doc.mediaBucketId,
-                prevDoc?.mediaBucketId, // Pass previous bucket ID for migration
+                db,
             );
-            mediaWarnings = result.warnings;
+            warnings.push(...migration.warnings);
 
-            // If migration failed, revert to the old bucket ID to keep files accessible
-            if (result.migrationFailed && prevDoc?.mediaBucketId) {
+            if (migration.failed) {
                 doc.mediaBucketId = prevDoc.mediaBucketId;
                 warnings.push(
                     "Media migration failed. Reverted to previous bucket configuration to ensure files remain accessible.",
                 );
             }
-        } catch (error) {
-            // If processing throws an error, also revert bucket ID
-            if (prevDoc?.mediaBucketId && doc.mediaBucketId !== prevDoc.mediaBucketId) {
-                doc.mediaBucketId = prevDoc.mediaBucketId;
-            }
-            mediaWarnings.push(`Bucket media processing failed: ${error.message}`);
         }
 
-        if (mediaWarnings && mediaWarnings.length > 0) {
-            warnings.push(...mediaWarnings);
-        }
+        // Deliberately not caught: the plaintext key exists only for this request, so a
+        // saved `hlsUrl` without its `hlsKey_id` would be unrecoverable. Failing the
+        // change request leaves the editor holding the key to retry.
+        warnings.push(...(await processMedia(doc.media, doc, db)));
+    }
+
+    // Outside `if (doc.media)`: removing the whole media object removes the key too.
+    // A fresh `hlsKey` in the same request is a replacement processMedia has already
+    // stored at the same sidecar id (ADR 0019).
+    if (prevDoc?.media?.hlsKey_id && !doc.media?.hlsKey_id && !doc.media?.hlsKey) {
+        await deleteSidecar(db, doc._id, SidecarType.HlsEncryptionKey);
     }
 
     // Get content documents that are children of the Post / Tag document
@@ -176,6 +193,10 @@ export default async function processPostTagDto(
         else delete contentDoc.parentLinkDates;
         await db.upsertDoc(contentDoc);
     }
+
+    // Re-stamp the parent's memberOf onto its sidecars (same groups as the parent);
+    // run on every save, not just media changes.
+    await syncSidecarMemberOf(db, doc);
 
     // tag caching to the taggedDocs / parentTaggedDocs property of tag / content documents. This is done to improve client query performance.
     const addedTags = prevDoc ? doc.tags.filter((tag) => !prevDoc.tags.includes(tag)) : doc.tags;

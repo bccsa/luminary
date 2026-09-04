@@ -134,7 +134,7 @@ Schema upgrades can be safely removed when:
 ### Current Baseline
 
 
-**Current Schema Version**: 20 (as of 2026-08-21)
+**Current Schema Version**: 21 (as of 2026-09-01)
 
 All production databases are expected to be at version 10 or higher. Historical upgrades v1-v9 have been removed as they are no longer needed.
 
@@ -188,3 +188,7 @@ Backfills the new `CmsView` ACL permission (GitHub #160). CmsView gates CMS-scop
 Backfills `CmsView` on existing ACL entries that hold a CMS-only permission (`Edit`, `Delete`, `Assign`, `Translate`, `Publish`), matching the new auto-assign rule in `changeRequests/aclValidation.ts` and its CMS mirror `cms/src/components/groups/permissions.ts`. Those permissions previously auto-assigned `View`, which granted app-facing visibility as a side effect of a CMS-only permission change; `CmsView` is what they actually imply, and `View` is now an independent toggle. Entries holding `View` alone are genuine app-consumer grants and are deliberately left untouched, so `CmsView` stays a real, narrowable permission (ADR 0013). `group-public-users` is skipped entirely — it is effectively the anonymous group, and its broad seeded `edit`/`delete`/`publish` grants would otherwise expose drafts and expired content to anyone opening the CMS; its one intended `CmsView` grant (AuthProvider) was made by v19. Idempotent (only pushes `CmsView` where missing), safe to re-run including on fresh DBs and via `npm run seed`. Uses `insertDoc` to preserve `updatedTimeUtc`: the granted access takes effect via the server-recomputed AccessMap delivered on connect.
 
 The CMS-managed "default affinity" recommendation feature (`DocType.DefaultAffinity`) followed the same ACL-administration path instead of an upgrade script: `group-super-admins`/`group-public-content` get the `DefaultAffinity` ACL entries directly in their seed fixtures (fresh DBs only — existing deployed DBs need it granted via ACL administration), and the singleton doc (`api/src/util/defaultAffinity.ts`) is created lazily by the CMS on first save rather than backfilled (`cms/src/composables/useDefaultAffinity.ts`'s `saveDoc`).
+
+### v21 — Legacy `video` field moved to `media.hlsUrl` (2026-09-01)
+
+Moves the legacy per-language `ContentDto.video` URL onto the parent's `media.hlsUrl` (`_contentParentDto.media`, `MediaDto.hlsUrl`). The CMS video editor now writes exclusively to `parent.media.hlsUrl`, and the app already prefers `parentMedia.hlsUrl` over `content.video`, so `video` is dead weight once a parent has an `hlsUrl` and a stale leftover otherwise. For each Post/Tag with no `media.hlsUrl`, the first non-empty `video` found among its child Content docs is copied onto `parent.media.hlsUrl` (a parent can only hold one collection, so any other distinct value among the remaining children is logged and dropped); `video` is then deleted from every child that had it, since a per-child value is no longer read anywhere once `parentMedia.hlsUrl` exists. Uses `upsertDoc`, bumping `updatedTimeUtc` on every doc it touches so clients re-sync the new shape.

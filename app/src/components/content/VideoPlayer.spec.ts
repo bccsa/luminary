@@ -1,392 +1,270 @@
 import "fake-indexeddb/auto";
-import { describe, it, expect, vi, afterEach, beforeAll, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mount } from "@vue/test-utils";
+import { computed } from "vue";
+import waitForExpect from "wait-for-expect";
 import VideoPlayer from "./VideoPlayer.vue";
 import { mockEnglishContentDto } from "@/tests/mockdata";
-import waitForExpect from "wait-for-expect";
-import { computed } from "vue";
+
+/**
+ * What is left to test here is Luminary's half of playback: which URL is played,
+ * where the key comes from, and what a resume point and a finished video mean.
+ *
+ * The player itself — control bar, auto-hide, keep-alive, rotation, audio-track
+ * selection, audio-only mode, the YouTube branch — belongs to
+ * `player-web-legacy` and is tested there. Reaching through this component to
+ * assert on it would be testing someone else's library through a keyhole.
+ */
+const seekMock = vi.hoisted(() => vi.fn());
+const playMock = vi.hoisted(() => vi.fn(() => Promise.resolve(true)));
+const pauseMock = vi.hoisted(() => vi.fn());
+const enterFullscreenMock = vi.hoisted(() => vi.fn(() => Promise.resolve()));
+const exitFullscreenMock = vi.hoisted(() => vi.fn());
+const fetchHlsKeyMock = vi.hoisted(() => vi.fn());
+
+// Built inside the factory: vi.mock is hoisted above the imports, so a stub
+// defined at module scope is not there yet when the factory runs.
+vi.mock("@luminary-media-converter/player-web-legacy", async () => {
+    const { defineComponent, h } = await import("vue");
+    return {
+        LuminaryPlayer: defineComponent({
+            name: "LuminaryPlayer",
+            props: {
+                source: { type: Object, required: true },
+                preferredLanguage: { type: String, default: undefined },
+            },
+            emits: ["loadedmetadata", "timeupdate", "ended"],
+            setup(_props, { expose }) {
+                expose({
+                    seek: seekMock,
+                    play: playMock,
+                    pause: pauseMock,
+                    enterFullscreen: enterFullscreenMock,
+                    exitFullscreen: exitFullscreenMock,
+                });
+                return () => h("div", { class: "luminary-player-stub" });
+            },
+        }),
+    };
+});
 
 vi.mock("@/composables/useBucketInfo", () => ({
-    useBucketInfo: () => ({
-        bucketBaseUrl: computed(() => "https://bucket.example.com"),
-    }),
+    useBucketInfo: () => ({ bucketBaseUrl: computed(() => "https://bucket.example.com") }),
 }));
 
-// Mock YouTube utilities
-vi.mock("@/util/youtube", () => ({
-    isYouTubeUrl: vi.fn((url: string) => {
-        if (!url) return false;
-        const youtubeRegex =
-            /^(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?/\s]{11})/;
-        return youtubeRegex.test(url);
-    }),
-    convertToVideoJSYouTubeUrl: vi.fn((url: string) => {
-        // Extract video ID and return in VideoJS format
-        const match = url.match(
-            /^(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?/\s]{11})/,
-        );
-        if (match) {
-            return `https://www.youtube.com/watch?v=${match[1]}`;
-        }
-        return url;
-    }),
+vi.mock("luminary-shared", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("luminary-shared")>()),
+    fetchHlsKey: fetchHlsKeyMock,
 }));
 
-const posterMock = vi.hoisted(() => vi.fn());
-const srcMock = vi.hoisted(() => vi.fn());
-const disposeMock = vi.hoisted(() => vi.fn());
-const audioOnlyModeMock = vi.hoisted(() => vi.fn());
-const audioPosterModeMock = vi.hoisted(() => vi.fn());
-const eventCallbacks = vi.hoisted(() => new Map<string, Function[]>());
-
-vi.mock("video.js", () => {
-    // Create a mock DOM element
-    const mockEl = document.createElement("div");
-    mockEl.className = "video-js";
-
-    const defaultFunction = () => {
-        return {
-            browser: {
-                IS_SAFARI: false,
-            },
-            poster: posterMock,
-            src: srcMock,
-            mobileUi: vi.fn(),
-            on: vi.fn((event: string | string[], callback: Function) => {
-                const events = Array.isArray(event) ? event : [event];
-                events.forEach((e) => {
-                    if (!eventCallbacks.has(e)) eventCallbacks.set(e, []);
-                    eventCallbacks.get(e)!.push(callback);
-                });
-            }),
-            one: vi.fn((event: string, callback: Function) => {
-                if (!eventCallbacks.has(event)) eventCallbacks.set(event, []);
-                eventCallbacks.get(event)!.push(callback);
-            }),
-            audioTracks: vi.fn(() => []),
-            el: vi.fn(() => mockEl),
-            userActive: vi.fn(),
-            paused: vi.fn(() => true),
-            currentTime: vi.fn(),
-            duration: vi.fn(() => 0),
-            play: vi.fn(),
-            pause: vi.fn(),
-            ready: vi.fn((callback) => {
-                if (callback) callback();
-                return {
-                    on: vi.fn((event: string | string[], callback: Function) => {
-                        const events = Array.isArray(event) ? event : [event];
-                        events.forEach((e) => {
-                            if (!eventCallbacks.has(e)) eventCallbacks.set(e, []);
-                            eventCallbacks.get(e)!.push(callback);
-                        });
-                    }),
-                };
-            }),
-            off: vi.fn(),
-            dispose: disposeMock,
-            isFullscreen: vi.fn(() => false),
-            requestFullscreen: vi.fn(),
-            exitFullscreen: vi.fn(),
-            audioOnlyMode: audioOnlyModeMock,
-            audioPosterMode: audioPosterModeMock,
-        };
-    };
-    defaultFunction.browser = {
-        IS_SAFARI: false,
-    };
-
-    return {
-        default: defaultFunction,
-    };
-});
-
-vi.mock("@/globalConfig", async (importOriginal) => {
-    const actual = (await importOriginal()) as Record<string, unknown>;
-    return {
-        ...actual,
-        queryParams: new URLSearchParams(),
-        appLanguagesPreferredAsRef: { value: [{ languageCode: "en" }] },
-    };
-});
-
-vi.mock("@/contentProgress", async (importOriginal) => {
-    const actual = (await importOriginal()) as Record<string, unknown>;
-    return {
-        ...actual,
-        getMediaProgress: vi.fn(() => 0),
-        setMediaProgress: vi.fn(),
-        removeMediaProgress: vi.fn(),
-    };
-});
-
-vi.mock("./extractAndBuildAudioMaster", () => ({
-    extractAndBuildAudioMaster: vi
-        .fn()
-        .mockResolvedValue("#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=128000\naudio.m3u8"),
+const setMediaProgressMock = vi.hoisted(() => vi.fn());
+const getMediaProgressMock = vi.hoisted(() => vi.fn(() => 0));
+const removeMediaProgressMock = vi.hoisted(() => vi.fn());
+vi.mock("@/contentProgress", () => ({
+    setMediaProgress: setMediaProgressMock,
+    getMediaProgress: getMediaProgressMock,
+    removeMediaProgress: removeMediaProgressMock,
 }));
 
-function triggerPlayerEvent(event: string, ...args: any[]) {
-    const callbacks = eventCallbacks.get(event) || [];
-    callbacks.forEach((cb: Function) => cb(...args));
+const recordAffinityMock = vi.hoisted(() => vi.fn());
+vi.mock("@/recommendation/affinityStore", () => ({ recordAffinity: recordAffinityMock }));
+vi.mock("@/recommendation/defaultAffinityStore", () => ({
+    affinityConfig: computed(() => ({ eventWeight: { completion: 5 } })),
+}));
+const markSeenMock = vi.hoisted(() => vi.fn());
+vi.mock("@/recommendation/seenStore", () => ({ markSeen: markSeenMock }));
+
+const RELATIVE = "/media/abc/master.m3u8";
+const ABSOLUTE = "https://bucket.example.com/media/abc/master.m3u8";
+
+function content(overrides: Record<string, unknown> = {}) {
+    return {
+        ...mockEnglishContentDto,
+        parentMediaBucketId: "bucket-1",
+        parentMedia: { hlsUrl: RELATIVE },
+        video: undefined,
+        ...overrides,
+    } as any;
 }
 
-// Mock HTMLMediaElement methods not implemented in jsdom
-beforeAll(() => {
-    HTMLMediaElement.prototype.pause = vi.fn();
-    HTMLMediaElement.prototype.play = vi.fn().mockResolvedValue(undefined);
-    HTMLMediaElement.prototype.load = vi.fn();
+async function mountPlayer(overrides: Record<string, unknown> = {}) {
+    const wrapper = mount(VideoPlayer, {
+        props: { content: content(overrides), language: "en" },
+        global: { stubs: { LImage: true } },
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    return wrapper;
+}
+
+const stub = (wrapper: any) => wrapper.findComponent({ name: "LuminaryPlayer" });
+
+beforeEach(() => {
+    vi.clearAllMocks();
+    getMediaProgressMock.mockReturnValue(0);
+    fetchHlsKeyMock.mockResolvedValue(undefined);
 });
 
 describe("VideoPlayer", () => {
-    beforeEach(() => {
-        eventCallbacks.clear();
+    it("resolves a bucket-relative URL to a fetchable one", async () => {
+        const wrapper = await mountPlayer();
+
+        expect(stub(wrapper).props("source").masterUrl).toBe(ABSOLUTE);
     });
 
-    afterEach(() => {
-        vi.clearAllMocks();
+    it("renders no player when the document carries no video", async () => {
+        const wrapper = await mountPlayer({ parentMedia: undefined });
+
+        expect(stub(wrapper).exists()).toBe(false);
     });
 
-    it("renders the poster image for regular video", async () => {
-        const content = {
-            ...mockEnglishContentDto,
-            // VideoPlayer reads `content.video`; mock data only defines parentMedia.hlsUrl
-            video: mockEnglishContentDto.parentMedia!.hlsUrl!,
-        };
+    it("passes the viewer's language through for audio-track selection", async () => {
+        const wrapper = await mountPlayer();
 
-        const wrapper = mount(VideoPlayer, {
-            props: {
-                language: "lang-eng",
-                content: content,
-            },
+        expect(stub(wrapper).props("preferredLanguage")).toBe("en");
+    });
+
+    describe("the decryption key", () => {
+        const KEY_HEX = "000102030405060708090a0b0c0d0e0f";
+
+        it("is fetched and handed to the player when the media is encrypted", async () => {
+            fetchHlsKeyMock.mockResolvedValue(KEY_HEX);
+
+            const wrapper = await mountPlayer({
+                parentMedia: { hlsUrl: RELATIVE, hlsKey_id: "sidecar-1" },
+            });
+
+            await waitForExpect(() => expect(stub(wrapper).props("source").keyHex).toBe(KEY_HEX));
+            expect(fetchHlsKeyMock).toHaveBeenCalledWith(mockEnglishContentDto.parentId);
         });
 
-        await waitForExpect(() => {
-            expect(srcMock).toHaveBeenCalledWith(expect.objectContaining({ src: content.video }));
+        it("is in hand before the player is given the source, so the stream loads once", async () => {
+            // Handing over the URL first and the key a tick later makes the player
+            // load, fail on the key, and load again.
+            let resolveKey!: (key: string) => void;
+            fetchHlsKeyMock.mockImplementationOnce(
+                () => new Promise<string>((resolve) => (resolveKey = resolve)),
+            );
+
+            const wrapper = await mountPlayer({
+                parentMedia: { hlsUrl: RELATIVE, hlsKey_id: "sidecar-1" },
+            });
+            expect(stub(wrapper).exists()).toBe(false);
+
+            resolveKey(KEY_HEX);
+            await waitForExpect(() => expect(stub(wrapper).props("source").keyHex).toBe(KEY_HEX));
         });
 
-        await waitForExpect(() => {
-            // Check that the default poster image is set to a transparent pixel
-            // In Vite, image imports resolve to paths starting with '/' or as data URLs
-            expect(posterMock).toHaveBeenCalled();
-            const posterArg = posterMock.mock.calls[0]?.[0];
-            expect(posterArg).toBeTruthy();
-            // The px.png import should resolve to a string path containing 'px' and '.png'
-            expect(typeof posterArg).toBe("string");
-            expect(posterArg).toMatch(/px.*\.png|\.png.*px/i);
+        it("is not asked for when the media is not encrypted", async () => {
+            // Unencrypted is the common case; a request per video would be waste.
+            await mountPlayer();
+
+            expect(fetchHlsKeyMock).not.toHaveBeenCalled();
         });
 
-        await waitForExpect(() => {
-            expect(wrapper.html()).toContain(
-                content.parentImageData?.fileCollections[0].imageFiles[0].filename,
+        it("still plays when the key cannot be had", async () => {
+            // "Not encrypted" and "not yours to have" are the same answer here:
+            // play what the playlists give, and let playback fail if it must.
+            fetchHlsKeyMock.mockResolvedValue(undefined);
+
+            const wrapper = await mountPlayer({
+                parentMedia: { hlsUrl: RELATIVE, hlsKey_id: "sidecar-1" },
+            });
+
+            expect(stub(wrapper).props("source").masterUrl).toBe(ABSOLUTE);
+            expect(stub(wrapper).props("source").keyHex).toBeUndefined();
+        });
+    });
+
+    describe("resume position", () => {
+        it("saves the position once past the resume threshold", async () => {
+            const wrapper = await mountPlayer();
+
+            stub(wrapper).vm.$emit("timeupdate", 90, 600);
+
+            expect(setMediaProgressMock).toHaveBeenCalledWith(
+                ABSOLUTE,
+                mockEnglishContentDto._id,
+                90,
+                600,
             );
         });
-    });
 
-    it("handles YouTube videos correctly", async () => {
-        const youtubeContent = {
-            ...mockEnglishContentDto,
-            video: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-        };
+        it("does not save a position too early to be worth resuming", async () => {
+            const wrapper = await mountPlayer();
 
-        mount(VideoPlayer, {
-            props: {
-                language: "lang-eng",
-                content: youtubeContent,
-            },
+            stub(wrapper).vm.$emit("timeupdate", 42, 600);
+
+            expect(setMediaProgressMock).not.toHaveBeenCalled();
         });
 
-        await waitForExpect(() => {
-            expect(srcMock).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    src: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-                    type: "video/youtube",
-                }),
-            );
-        });
-    });
+        it("does not save a position in a live stream", async () => {
+            const wrapper = await mountPlayer();
 
-    it("sets the poster to a transparent pixel", async () => {
-        mount(VideoPlayer, {
-            props: {
-                language: "lang-eng",
-                content: mockEnglishContentDto,
-            },
+            stub(wrapper).vm.$emit("timeupdate", 90, Infinity);
+
+            expect(setMediaProgressMock).not.toHaveBeenCalled();
         });
 
-        await waitForExpect(() => {
-            expect(posterMock).toHaveBeenCalled();
+        it("restores a saved position slightly behind where the viewer left", async () => {
+            getMediaProgressMock.mockReturnValue(300);
+            const wrapper = await mountPlayer();
+
+            stub(wrapper).vm.$emit("loadedmetadata");
+
+            expect(seekMock).toHaveBeenCalledWith(270);
+        });
+
+        it("does not seek for a position not worth resuming", async () => {
+            getMediaProgressMock.mockReturnValue(30);
+            const wrapper = await mountPlayer();
+
+            stub(wrapper).vm.$emit("loadedmetadata");
+
+            expect(seekMock).not.toHaveBeenCalled();
         });
     });
 
-    it("registers event handlers via on()", async () => {
-        mount(VideoPlayer, {
-            props: {
-                language: "lang-eng",
-                content: mockEnglishContentDto,
-            },
+    describe("finishing a video", () => {
+        it("clears the resume point and records the engagement", async () => {
+            const wrapper = await mountPlayer();
+
+            stub(wrapper).vm.$emit("ended");
+
+            expect(removeMediaProgressMock).toHaveBeenCalledWith(ABSOLUTE, mockEnglishContentDto._id);
+            expect(recordAffinityMock).toHaveBeenCalledWith(mockEnglishContentDto.parentTags, 5);
+            expect(markSeenMock).toHaveBeenCalledWith(mockEnglishContentDto._id);
+            expect(exitFullscreenMock).toHaveBeenCalled();
         });
 
-        await waitForExpect(() => {
-            // Should register multiple event handlers
-            expect(eventCallbacks.has("loadeddata")).toBe(true);
-        });
-    });
+        it("detects the end from the position when `ended` never arrives", async () => {
+            // The normal case on YouTube, whose tech is known to drop the event.
+            const wrapper = await mountPlayer();
 
-    it("sets HLS source for regular video", async () => {
-        const contentWithVideo = {
-            ...mockEnglishContentDto,
-            video: "https://example.com/stream.m3u8",
-        };
+            stub(wrapper).vm.$emit("timeupdate", 599.5, 600);
 
-        mount(VideoPlayer, {
-            props: {
-                language: "lang-eng",
-                content: contentWithVideo,
-            },
+            expect(markSeenMock).toHaveBeenCalledTimes(1);
         });
 
-        await waitForExpect(() => {
-            expect(srcMock).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    type: "application/x-mpegURL",
-                    src: "https://example.com/stream.m3u8",
-                }),
-            );
-        });
-    });
+        it("counts a completion once, however it was detected", async () => {
+            // Otherwise the near-end fallback fires on every tick of the last
+            // second, and affinity is counted several times for one viewing.
+            const wrapper = await mountPlayer();
 
-    it("registers ended event handler that removes progress", async () => {
-        const { removeMediaProgress } = await import("@/contentProgress");
+            stub(wrapper).vm.$emit("timeupdate", 599.2, 600);
+            stub(wrapper).vm.$emit("timeupdate", 599.6, 600);
+            stub(wrapper).vm.$emit("ended");
 
-        mount(VideoPlayer, {
-            props: {
-                language: "lang-eng",
-                content: mockEnglishContentDto,
-            },
+            expect(recordAffinityMock).toHaveBeenCalledTimes(1);
         });
 
-        await waitForExpect(() => {
-            expect(eventCallbacks.has("ended")).toBe(true);
+        it("arms again for the next playthrough", async () => {
+            const wrapper = await mountPlayer();
+
+            stub(wrapper).vm.$emit("ended");
+            stub(wrapper).vm.$emit("loadedmetadata");
+            stub(wrapper).vm.$emit("ended");
+
+            expect(recordAffinityMock).toHaveBeenCalledTimes(2);
         });
-
-        // Trigger ended event
-        triggerPlayerEvent("ended");
-
-        expect(removeMediaProgress).toHaveBeenCalled();
-    });
-
-    it("registers pause event handler", async () => {
-        mount(VideoPlayer, {
-            props: {
-                language: "lang-eng",
-                content: mockEnglishContentDto,
-            },
-        });
-
-        await waitForExpect(() => {
-            expect(eventCallbacks.has("pause")).toBe(true);
-        });
-
-        // Trigger pause - should not throw
-        triggerPlayerEvent("pause");
-    });
-
-    it("registers play event handler", async () => {
-        mount(VideoPlayer, {
-            props: {
-                language: "lang-eng",
-                content: mockEnglishContentDto,
-            },
-        });
-
-        await waitForExpect(() => {
-            expect(eventCallbacks.has("play")).toBe(true);
-        });
-
-        triggerPlayerEvent("play");
-    });
-
-    it("saves progress on timeupdate when currentTime > 60", async () => {
-        mount(VideoPlayer, {
-            props: {
-                language: "lang-eng",
-                content: mockEnglishContentDto,
-            },
-        });
-
-        await waitForExpect(() => {
-            expect(eventCallbacks.has("timeupdate")).toBe(true);
-        });
-
-        triggerPlayerEvent("timeupdate");
-
-        // Note: the actual player mock's currentTime/duration are from the vi.mock
-        // which returns 0/0, so setMediaProgress won't be called for currentTime < 60
-        // This test verifies the handler is registered
-    });
-
-    it("restores progress on ready event when progress > 60", async () => {
-        const { getMediaProgress } = await import("@/contentProgress");
-        vi.mocked(getMediaProgress).mockReturnValue(120);
-
-        mount(VideoPlayer, {
-            props: {
-                language: "lang-eng",
-                content: mockEnglishContentDto,
-            },
-        });
-
-        await waitForExpect(() => {
-            expect(eventCallbacks.has("ready")).toBe(true);
-        });
-
-        triggerPlayerEvent("ready");
-
-        expect(getMediaProgress).toHaveBeenCalled();
-    });
-
-    it("disposes player on unmount", async () => {
-        const contentWithVideo = {
-            ...mockEnglishContentDto,
-            video: "https://example.com/stream.m3u8",
-        };
-
-        const wrapper = mount(VideoPlayer, {
-            props: {
-                language: "lang-eng",
-                content: contentWithVideo,
-            },
-        });
-
-        // Wait for the async onMounted to fully complete (requestAnimationFrame + dynamic imports)
-        await waitForExpect(() => {
-            expect(eventCallbacks.has("ended")).toBe(true);
-        });
-
-        wrapper.unmount();
-
-        expect(disposeMock).toHaveBeenCalled();
-    });
-
-    it("hides audio toggle for YouTube videos", async () => {
-        const youtubeContent = {
-            ...mockEnglishContentDto,
-            video: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-        };
-
-        const wrapper = mount(VideoPlayer, {
-            props: {
-                language: "lang-eng",
-                content: youtubeContent,
-            },
-        });
-
-        // AudioVideoToggle should not be rendered for YouTube
-        await waitForExpect(() => {
-            expect(wrapper.findComponent({ name: "AudioVideoToggle" }).exists()).toBe(false);
-        });
-
-        wrapper.unmount();
     });
 });

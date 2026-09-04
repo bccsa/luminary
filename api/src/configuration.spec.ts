@@ -121,4 +121,36 @@ describe("configuration", () => {
         expect(config.query.rateLimit.freeStrikes).toBe(5);
         expect(config.query.expensiveDocsExamined).toBe(2000);
     });
+
+    it("should default the sidecar rate-limit config to enabled", () => {
+        delete process.env.SIDECAR_RATE_LIMIT_READ_ENABLED;
+        delete process.env.SIDECAR_RATE_LIMIT_READ_FREE_STRIKES;
+        delete process.env.SIDECAR_RATE_LIMIT_PROBE_ENABLED;
+        delete process.env.SIDECAR_RATE_LIMIT_PROBE_FREE_STRIKES;
+
+        const config = configuration();
+        expect(config.sidecar.rateLimit.read).toEqual({
+            enabled: true,
+            freeStrikes: 30,
+            baseBackoffMs: 2000,
+            maxBackoffMs: 60000,
+            strikeDecayMs: 2000,
+        });
+        expect(config.sidecar.rateLimit.probe).toEqual({
+            enabled: true,
+            freeStrikes: 10,
+            baseBackoffMs: 5000,
+            maxBackoffMs: 300000,
+            strikeDecayMs: 60000,
+        });
+    });
+
+    it("should allow the sidecar rate limiters to be disabled and tuned via env vars", () => {
+        process.env.SIDECAR_RATE_LIMIT_READ_ENABLED = "false";
+        process.env.SIDECAR_RATE_LIMIT_PROBE_FREE_STRIKES = "3";
+
+        const config = configuration();
+        expect(config.sidecar.rateLimit.read.enabled).toBe(false);
+        expect(config.sidecar.rateLimit.probe.freeStrikes).toBe(3);
+    });
 });

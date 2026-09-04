@@ -105,7 +105,6 @@ vi.mock("@/router", () => ({
     markInternalNavigation: vi.fn(),
 }));
 
-vi.mock("video.js", () => ({ default: vi.fn() }));
 
 function passthrough(name: string) {
     return defineComponent({ name, inheritAttrs: false, setup: (_, { slots }) => () => h("div", slots.default?.()) });

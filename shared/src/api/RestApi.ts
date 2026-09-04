@@ -71,6 +71,39 @@ export type StorageStatusResponse = {
     message?: string;
 };
 
+/**
+ * The bucket's S3 credentials and public base URL, shaped for the local media
+ * encoder's session request so it can be forwarded without reshaping.
+ */
+export type EncoderConfigResponse = {
+    s3: {
+        endPoint: string;
+        port: number;
+        useSSL: boolean;
+        bucket: string;
+        accessKey: string;
+        secretKey: string;
+    };
+    publicBaseUrl: string;
+    /** Mirrors the encoder's session-body fields, so callers forward them unchanged. */
+    encryption: { required: boolean };
+    byteRange?: boolean;
+    byteRangeMaxFileSizeMB?: number;
+    audioByteRangeMaxFileSizeMB?: number;
+};
+
+/**
+ * A sidecar payload for one (parent, sidecarType) pair. `data`'s shape depends on
+ * `sidecarType` — for `"hlsEncryptionKey"` it is `{ maskedKeyHex: string }`, masked
+ * against `sidecarId` (self-inverse XOR, see `unmaskKeyHex`).
+ */
+export type SidecarResponse = {
+    sidecarId: string;
+    parentId: string;
+    sidecarType: string;
+    data: unknown;
+};
+
 class RestApi {
     private http: HttpReq<any>;
     private scope: EffectScope;
@@ -125,6 +158,43 @@ class RestApi {
 
     async getStorageStatus(bucketId: string): Promise<StorageStatusResponse | undefined> {
         return await this.http.getWithQueryParams("storage/storagestatus", {
+            bucketId,
+            apiVersion: "0.0.0",
+        });
+    }
+
+    /**
+     * A sidecar payload for one parent document, one sidecar type at a time (no
+     * batching — see the API's `SidecarController`).
+     *
+     * Sidecars carry data that must never replicate to every client, such as an
+     * HLS decryption key: documents hold only an id (`hlsKey_id`), and the payload
+     * is fetched from here instead. The server hands it to anyone who may view the
+     * parent and to nobody else; `cms: true` asks under `CmsView` instead of
+     * `View`, for an editor previewing a parent that has no live content yet.
+     *
+     * `undefined` covers "no such sidecar" and "you may not see it" alike — both
+     * are simply "there is nothing to use" from the caller's side.
+     */
+    async getSidecar(
+        parentId: string,
+        sidecarType: string,
+        opts: { cms?: boolean } = {},
+    ): Promise<SidecarResponse | undefined> {
+        return await this.http.getWithQueryParams("sidecar", {
+            parentId,
+            sidecarType,
+            ...(opts.cms ? { cms: "true" } : {}),
+            apiVersion: "0.0.0",
+        });
+    }
+
+    /**
+     * Fetch the encode destination for a media bucket. Requires Assign permission on
+     * the bucket, since the response carries credentials that can write to it.
+     */
+    async getEncoderConfig(bucketId: string): Promise<EncoderConfigResponse | undefined> {
+        return await this.http.getWithQueryParams("storage/encoderconfig", {
             bucketId,
             apiVersion: "0.0.0",
         });

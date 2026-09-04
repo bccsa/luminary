@@ -1,393 +1,142 @@
 import { processMedia } from "./processMediaDto";
-import { S3Service } from "../../s3/s3.service";
 import { createTestingModule } from "../../test/testingModule";
-import * as fs from "fs";
-import * as path from "path";
-import { v4 as uuidv4 } from "uuid";
 import { MediaDto } from "../../dto/MediaDto";
-import { MediaPreset, MediaType, DocType, StorageType } from "../../enums";
+import { PostDto } from "../../dto/PostDto";
 import { DbService } from "../../db/db.service";
-import { storeCryptoData } from "../../util/encryption";
-import { s3TestConfig, createTestCredentials } from "../../test/s3TestConfig";
+import { DocType, SidecarType } from "../../enums";
+import { maskKeyHex } from "../../util/maskKey";
+import { sidecarId, getSidecar, deleteSidecarsForParent } from "../../sidecar/sidecar.service";
+import { getHlsKeySidecar } from "../../sidecar/hlsEncryptionKey";
+
+const HLS_URL = "https://cdn.example.com/media/post-1/master.m3u8";
+const HLS_KEY = "0123456789abcdef0123456789abcdef";
+
+function makePost(id: string): PostDto {
+    return {
+        _id: id,
+        type: DocType.Post,
+        memberOf: ["group-public-content"],
+        updatedBy: "user-test",
+        postType: "blog" as any,
+    } as PostDto;
+}
 
 describe("processMediaDto", () => {
     let db: DbService;
-    let s3Service: S3Service;
-    let testBucketId: string;
-    let testBucket: string;
-    const resMedia: MediaDto[] = [];
-
-    const testCredentials = createTestCredentials();
 
     beforeAll(async () => {
         const module = await createTestingModule("process-media-dto");
         db = module.dbService;
-
-        testBucket = `test-media-${uuidv4()}`;
-        testBucketId = `storage-test-${uuidv4()}`;
-        testCredentials.bucketName = testBucket;
-
-        // Create encrypted credentials for the test bucket
-        const encryptedCredId = await storeCryptoData(db, testCredentials);
-
-        // Create a bucket document
-        const bucketDoc = {
-            _id: testBucketId,
-            type: DocType.Storage,
-            name: "Test Media Bucket",
-            mimeTypes: ["audio/*"],
-            publicUrl: `${s3TestConfig.publicUrl}/${testBucket}`,
-            storageType: StorageType.Media,
-            credential_id: encryptedCredId,
-            memberOf: ["group-super-admins"],
-            updatedTimeUtc: Date.now(),
-        };
-
-        await db.upsertDoc(bucketDoc);
-
-        // Create S3Service instance and create the bucket
-        s3Service = await S3Service.create(testBucketId, db);
-        await s3Service.makeBucket();
     });
 
-    afterAll(async () => {
-        // Cleanup uploaded media files
-        const removeFiles = Array.from(
-            new Set(
-                resMedia.flatMap((r) =>
-                    r.fileCollections.map((f) => f.fileUrl.split("/").pop()!).filter(Boolean),
-                ),
-            ),
-        );
-        if (removeFiles.length > 0) {
-            try {
-                await s3Service.removeObjects(removeFiles);
-            } catch {
-                // Ignore errors during cleanup
-            }
-        }
-        try {
-            await s3Service.removeBucket();
-        } catch {
-            // Ignore errors if bucket is not empty or doesn't exist
-        }
-
-        // Clean up storage document
-        if (testBucketId) {
-            const storageDoc = (await db.getDoc(testBucketId)).docs[0];
-            if (storageDoc) {
-                storageDoc.deleteReq = 1;
-                await db.upsertDoc(storageDoc);
-            }
-        }
-
-        S3Service.clearCache();
-    });
-
-    it("should be defined", () => {
-        expect(processMedia).toBeDefined();
-    });
-
-    it("can process and upload a media file", async () => {
-        const media = new MediaDto();
-        media.fileCollections = [];
-        media.uploadData = [
-            {
-                fileData: fs.readFileSync(
-                    path.resolve(__dirname + "/../../test/" + "silence.wav"),
-                ) as unknown as ArrayBuffer,
-                preset: MediaPreset.Default,
-                mediaType: MediaType.Audio,
-                languageId: "lang-eng",
-            },
-        ];
-        const warnings = await processMedia(media, undefined, db, testBucketId);
-        expect(warnings.warnings.length).toBe(0);
-
-        // Check if files are uploaded (allow informational warnings like S3_PUBLIC_ACCESS_URL not configured)
-        const files = media.fileCollections.map((f) => f.fileUrl.split("/").pop()!);
-        expect(files.length).toBeGreaterThan(0);
-
-        for (const file of files) {
-            const exists = await s3Service.objectExists(file);
-            expect(exists).toBe(true);
-        }
-        resMedia.push(media);
-    });
-
-    it("can delete a removed media from S3", async () => {
-        const media = new MediaDto();
-        media.fileCollections = [];
-        media.uploadData = [
-            {
-                fileData: fs.readFileSync(
-                    path.resolve(__dirname + "/../../test/" + "silence.wav"),
-                ) as unknown as ArrayBuffer,
-                preset: MediaPreset.Default,
-                mediaType: MediaType.Audio,
-                languageId: "lang-eng",
-            },
-        ];
-        await processMedia(media, undefined, db, testBucketId);
-        const originalFiles = media.fileCollections.map((f) => f.fileUrl.split("/").pop()!);
-
-        // Simulate removing the media
-        const prevMedia = JSON.parse(JSON.stringify(media)) as MediaDto;
-        media.fileCollections = [];
-
-        // Process with previous media
-        await processMedia(media, prevMedia, db, testBucketId);
-
-        // Check if removed files are gone
-        for (const file of originalFiles) {
-            const exists = await s3Service.objectExists(file);
-            expect(exists).toBe(false);
+    afterEach(async () => {
+        // Clean up the sidecars each test writes (deterministic ids per parent).
+        for (const id of ["post-store", "post-readback", "post-same", "post-a", "post-b"]) {
+            await deleteSidecarsForParent(db, id);
         }
     });
 
-    it("discards user-added file collection objects", async () => {
-        const media = new MediaDto();
-        media.fileCollections = [];
-        media.uploadData = [
-            {
-                fileData: fs.readFileSync(
-                    path.resolve(__dirname + "/../../test/" + "silence.wav"),
-                ) as unknown as ArrayBuffer,
-                preset: MediaPreset.Default,
-                mediaType: MediaType.Audio,
-                languageId: "lang-eng",
-            },
-        ];
-        await processMedia(media, undefined, db, testBucketId);
+    it("stores a submitted HLS key as a masked sidecar and keeps only the reference", async () => {
+        const parent = makePost("post-store");
+        const media: MediaDto = { hlsUrl: HLS_URL, hlsKey: HLS_KEY };
 
-        const media2 = JSON.parse(JSON.stringify(media)) as MediaDto;
-        media2.fileCollections.push({
-            languageId: "invalid",
-            fileUrl: "http://example.com/invalid.mp3",
-            bitrate: 128,
-            mediaType: MediaType.Audio,
-        });
+        const warnings = await processMedia(media, parent, db);
 
-        await processMedia(media2, media, db, testBucketId);
-
-        // Check if the client-added file collection is removed
-        expect(media2.fileCollections.length).toBe(1);
-
-        resMedia.push(media);
+        expect(warnings).toEqual([]);
+        // hlsKey_id is the deterministic sidecar id, not a random crypto-doc id.
+        expect(media.hlsKey_id).toBe(sidecarId(parent._id, SidecarType.HlsEncryptionKey));
+        // The plaintext key must not survive onto the document.
+        expect(media.hlsKey).toBeUndefined();
+        expect(media.hlsUrl).toBe(HLS_URL);
     });
 
-    it("should allow uploading media for different languages independently", async () => {
-        // First, upload media for English
-        const media = new MediaDto();
-        media.fileCollections = [];
-        media.uploadData = [
-            {
-                fileData: fs.readFileSync(
-                    path.resolve(__dirname + "/../../test/" + "silence.wav"),
-                ) as unknown as ArrayBuffer,
-                preset: MediaPreset.Default,
-                mediaType: MediaType.Audio,
-                languageId: "lang-eng",
-            },
-        ];
-        await processMedia(media, undefined, db, testBucketId);
-        expect(media.fileCollections.length).toBe(1);
-        expect(media.fileCollections[0].languageId).toBe("lang-eng");
+    it("stores a key that can be read back masked, not plaintext, and not as a crypto envelope", async () => {
+        const parent = makePost("post-readback");
+        const media: MediaDto = { hlsUrl: HLS_URL, hlsKey: HLS_KEY };
 
-        const englishFileUrl = media.fileCollections[0].fileUrl;
+        await processMedia(media, parent, db);
 
-        // Now upload media for Spanish, keeping the English media
-        const media2 = JSON.parse(JSON.stringify(media)) as MediaDto;
-        media2.uploadData = [
-            {
-                fileData: fs.readFileSync(
-                    path.resolve(__dirname + "/../../test/" + "silence.wav"),
-                ) as unknown as ArrayBuffer,
-                preset: MediaPreset.Default,
-                mediaType: MediaType.Audio,
-                languageId: "lang-spa",
-            },
-        ];
+        const stored = await getHlsKeySidecar(db, parent._id);
+        expect(stored).toBeDefined();
 
-        await processMedia(media2, media, db, testBucketId);
+        const seed = sidecarId(parent._id, SidecarType.HlsEncryptionKey);
+        // Masked: equals maskKeyHex(seed, key), and is not the raw key.
+        expect(stored!.maskedKeyHex).toBe(maskKeyHex(seed, HLS_KEY));
+        expect(stored!.maskedKeyHex).not.toBe(HLS_KEY);
 
-        // Should have both English and Spanish media
-        expect(media2.fileCollections.length).toBe(2);
-        expect(media2.fileCollections.find((f) => f.languageId === "lang-eng")).toBeDefined();
-        expect(media2.fileCollections.find((f) => f.languageId === "lang-spa")).toBeDefined();
-        expect(media2.fileCollections.find((f) => f.languageId === "lang-eng")?.fileUrl).toBe(
-            englishFileUrl,
+        // Regression guard (ADR 0019): the stored payload is a sidecar, not a
+        // CryptoDto envelope — there is no `data.encrypted` AES-256-CBC blob.
+        const raw = await getSidecar(db, parent._id, SidecarType.HlsEncryptionKey);
+        expect(raw!.type).toBe(DocType.Sidecar);
+        expect(raw!.data).not.toHaveProperty("encrypted");
+    });
+
+    it("is idempotent per parent: the same parent gets the same sidecar id, replaced not duplicated", async () => {
+        const parent = makePost("post-same");
+        const first: MediaDto = { hlsUrl: HLS_URL, hlsKey: HLS_KEY };
+        const second: MediaDto = { hlsUrl: HLS_URL, hlsKey: "fedcba9876543210fedcba9876543210" };
+
+        await processMedia(first, parent, db);
+        const firstId = first.hlsKey_id;
+        await processMedia(second, parent, db);
+
+        // Deterministic id → same id, not a new document each time.
+        expect(second.hlsKey_id).toBe(firstId);
+
+        // And the stored payload is the second key (replace, not append).
+        const stored = await getHlsKeySidecar(db, parent._id);
+        const seed = sidecarId(parent._id, SidecarType.HlsEncryptionKey);
+        expect(stored!.maskedKeyHex).toBe(maskKeyHex(seed, "fedcba9876543210fedcba9876543210"));
+
+        const res = await db.getDoc(sidecarId(parent._id, SidecarType.HlsEncryptionKey));
+        expect(res.docs).toHaveLength(1);
+    });
+
+    it("gives different parents different sidecar ids", async () => {
+        const a = makePost("post-a");
+        const b = makePost("post-b");
+        const mediaA: MediaDto = { hlsUrl: HLS_URL, hlsKey: HLS_KEY };
+        const mediaB: MediaDto = { hlsUrl: HLS_URL, hlsKey: HLS_KEY };
+
+        await processMedia(mediaA, a, db);
+        await processMedia(mediaB, b, db);
+
+        expect(mediaA.hlsKey_id).not.toBe(mediaB.hlsKey_id);
+    });
+
+    it("leaves an unencrypted collection alone", async () => {
+        const parent = makePost("post-store");
+        const media: MediaDto = { hlsUrl: HLS_URL };
+
+        const warnings = await processMedia(media, parent, db);
+
+        expect(warnings).toEqual([]);
+        expect(media.hlsKey_id).toBeUndefined();
+    });
+
+    it("keeps an existing key reference when no new key is submitted", async () => {
+        const parent = makePost("post-store");
+        const media: MediaDto = { hlsUrl: HLS_URL, hlsKey_id: "sidecar-existing" };
+
+        await processMedia(media, parent, db);
+
+        expect(media.hlsKey_id).toBe("sidecar-existing");
+    });
+
+    it("drops the key rather than persisting it in plain text when storing fails", async () => {
+        const parent = makePost("post-store");
+        const media: MediaDto = { hlsUrl: HLS_URL, hlsKey: HLS_KEY };
+        const failingDb = {
+            upsertDoc: () => Promise.reject(new Error("database unavailable")),
+        } as unknown as DbService;
+
+        await expect(processMedia(media, parent, failingDb)).rejects.toThrow(
+            /Failed to store the HLS key/,
         );
 
-        // Verify both files exist in S3
-        for (const fileCollection of media2.fileCollections) {
-            const filename = fileCollection.fileUrl.split("/").pop()!;
-            const exists = await s3Service.objectExists(filename);
-            expect(exists).toBe(true);
-        }
-
-        resMedia.push(media2);
-    });
-
-    it("should replace media when uploading for same language", async () => {
-        // First, upload media for English
-        const media = new MediaDto();
-        media.fileCollections = [];
-        media.uploadData = [
-            {
-                fileData: fs.readFileSync(
-                    path.resolve(__dirname + "/../../test/" + "silence.wav"),
-                ) as unknown as ArrayBuffer,
-                preset: MediaPreset.Default,
-                mediaType: MediaType.Audio,
-                languageId: "lang-eng",
-            },
-        ];
-        await processMedia(media, undefined, db, testBucketId);
-        expect(media.fileCollections.length).toBe(1);
-
-        const firstFileUrl = media.fileCollections[0].fileUrl;
-
-        // Upload a new media for English (should replace the old one)
-        const media2 = JSON.parse(JSON.stringify(media)) as MediaDto;
-        media2.uploadData = [
-            {
-                fileData: fs.readFileSync(
-                    path.resolve(__dirname + "/../../test/" + "silence.wav"),
-                ) as unknown as ArrayBuffer,
-                preset: MediaPreset.Default,
-                mediaType: MediaType.Audio,
-                languageId: "lang-eng",
-            },
-        ];
-
-        await processMedia(media2, media, db, testBucketId);
-
-        // Should still have only one media file (the new one)
-        expect(media2.fileCollections.length).toBe(1);
-        expect(media2.fileCollections[0].languageId).toBe("lang-eng");
-        expect(media2.fileCollections[0].fileUrl).not.toBe(firstFileUrl);
-
-        resMedia.push(media2);
-    });
-
-    it("should warn when parentBucketId is not provided for upload", async () => {
-        const media = new MediaDto();
-        media.fileCollections = [];
-        media.uploadData = [
-            {
-                fileData: fs.readFileSync(
-                    path.resolve(__dirname + "/../../test/" + "silence.wav"),
-                ) as unknown as ArrayBuffer,
-                preset: MediaPreset.Default,
-                mediaType: MediaType.Audio,
-                languageId: "lang-eng",
-            },
-        ];
-
-        // Call without parentBucketId (undefined)
-        const result = await processMedia(media, undefined, db, undefined);
-
-        // Should have a warning about missing bucket
-        expect(result.warnings.length).toBeGreaterThan(0);
-    });
-
-    it("should warn when bucket document is not found", async () => {
-        const media = new MediaDto();
-        media.fileCollections = [];
-        media.uploadData = [
-            {
-                fileData: fs.readFileSync(
-                    path.resolve(__dirname + "/../../test/" + "silence.wav"),
-                ) as unknown as ArrayBuffer,
-                preset: MediaPreset.Default,
-                mediaType: MediaType.Audio,
-                languageId: "lang-eng",
-            },
-        ];
-
-        // Call with a non-existent bucket ID
-        const result = await processMedia(media, undefined, db, "nonexistent-bucket-id");
-
-        // Should have warnings about bucket not found
-        expect(result.warnings.length).toBeGreaterThan(0);
-    });
-
-    it("should warn when db is not provided for file deletion", async () => {
-        const media = new MediaDto();
-        media.fileCollections = [];
-
-        const prevMedia = new MediaDto();
-        prevMedia.fileCollections = [
-            {
-                languageId: "lang-eng",
-                fileUrl: `http://localhost:9000/test/some-file-key`,
-                bitrate: 128,
-                mediaType: MediaType.Audio,
-            },
-        ];
-
-        // Call with no db and no parentBucketId - files to delete but no way to delete them
-        const result = await processMedia(media, prevMedia, undefined as any, undefined);
-
-        expect(result.warnings.some((w) => w.includes("cannot be automatically deleted"))).toBe(
-            true,
-        );
-    });
-
-    it("should delete media file from S3 when removed from fileCollections", async () => {
-        // First, upload media for English and Spanish
-        const media = new MediaDto();
-        media.fileCollections = [];
-        media.uploadData = [
-            {
-                fileData: fs.readFileSync(
-                    path.resolve(__dirname + "/../../test/" + "silence.wav"),
-                ) as unknown as ArrayBuffer,
-                preset: MediaPreset.Default,
-                mediaType: MediaType.Audio,
-                languageId: "lang-eng",
-            },
-            {
-                fileData: fs.readFileSync(
-                    path.resolve(__dirname + "/../../test/" + "silence.wav"),
-                ) as unknown as ArrayBuffer,
-                preset: MediaPreset.Default,
-                mediaType: MediaType.Audio,
-                languageId: "lang-spa",
-            },
-        ];
-        await processMedia(media, undefined, db, testBucketId);
-        expect(media.fileCollections.length).toBe(2);
-
-        const englishFile = media.fileCollections.find((f) => f.languageId === "lang-eng");
-        const spanishFile = media.fileCollections.find((f) => f.languageId === "lang-spa");
-        expect(englishFile).toBeDefined();
-        expect(spanishFile).toBeDefined();
-
-        const englishKey = englishFile!.fileUrl.split("/").pop()!;
-        const spanishKey = spanishFile!.fileUrl.split("/").pop()!;
-
-        // Verify both files exist in S3
-        expect(await s3Service.objectExists(englishKey)).toBe(true);
-        expect(await s3Service.objectExists(spanishKey)).toBe(true);
-
-        // Remove English media from fileCollections (simulate user deletion)
-        const media2 = JSON.parse(JSON.stringify(media)) as MediaDto;
-        media2.fileCollections = media2.fileCollections.filter((f) => f.languageId !== "lang-eng");
-
-        await processMedia(media2, media, db, testBucketId);
-
-        // Should only have Spanish media now
-        expect(media2.fileCollections.length).toBe(1);
-        expect(media2.fileCollections[0].languageId).toBe("lang-spa");
-
-        // Verify English file is deleted from S3
-        expect(await s3Service.objectExists(englishKey)).toBe(false);
-
-        // Verify Spanish file still exists in S3
-        expect(await s3Service.objectExists(spanishKey)).toBe(true);
-
-        resMedia.push(media2);
+        // The whole point of the finally: a key that could not be stored must
+        // not reach the document by way of the caller's error handling.
+        expect(media.hlsKey).toBeUndefined();
+        expect(media.hlsKey_id).toBeUndefined();
     });
 });

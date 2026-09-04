@@ -1,3 +1,5 @@
+import { RateLimiterConfig } from "./ratelimit/rateLimiter.service";
+
 export type DatabaseConfig = {
     connectionString: string;
     database: string;
@@ -6,23 +8,6 @@ export type DatabaseConfig = {
 
 export type SyncConfig = {
     tolerance: number;
-};
-
-export type QueryRateLimitConfig = {
-    /**
-     * Master switch for the per-identity expensive-query rate limiter. Ships OFF —
-     * enable per environment only after the expensive-query logs show sane thresholds.
-     * Environment variable: QUERY_RATE_LIMIT_ENABLED (default false).
-     */
-    enabled: boolean;
-    /** Expensive-query strikes tolerated before the first block. QUERY_RATE_LIMIT_FREE_STRIKES (default 3). */
-    freeStrikes: number;
-    /** First block duration in ms; doubles per extra strike. QUERY_RATE_LIMIT_BASE_BACKOFF_MS (default 5000). */
-    baseBackoffMs: number;
-    /** Cap on a single block window in ms. QUERY_RATE_LIMIT_MAX_BACKOFF_MS (default 300000). */
-    maxBackoffMs: number;
-    /** One strike forgiven per this many ms. QUERY_RATE_LIMIT_STRIKE_DECAY_MS (default 600000). */
-    strikeDecayMs: number;
 };
 
 export type QueryConfig = {
@@ -55,7 +40,30 @@ export type QueryConfig = {
      */
     expensiveExaminedRatio: number;
     /** Per-identity expensive-query rate limiter (default off). */
-    rateLimit: QueryRateLimitConfig;
+    rateLimit: RateLimiterConfig;
+};
+
+export type SidecarRateLimitConfig = {
+    /**
+     * Bounds successful key fetches — the harvesting-mitigation limiter described in
+     * ADR 0019 (docs/adr/0019-hls-encryption-keys-as-non-replicated-sidecars.md). Unlike the query
+     * limiter, this defaults ON: /sidecar hands out decryption keys, and the absence of a
+     * batch/listing parameter is only meaningful if a caller can't substitute a fast loop of single
+     * requests.
+     * Environment variable: SIDECAR_RATE_LIMIT_READ_ENABLED (default true).
+     */
+    read: RateLimiterConfig;
+    /**
+     * Bounds repeated 403/404 responses (parent-id / permission probing). Lower ceiling than
+     * `read` since the endpoint's 404-for-both rule already makes probing uninformative (ADR 0019)
+     * — this limiter is a backstop, not the primary defense. Defaults ON.
+     * Environment variable: SIDECAR_RATE_LIMIT_PROBE_ENABLED (default true).
+     */
+    probe: RateLimiterConfig;
+};
+
+export type SidecarConfig = {
+    rateLimit: SidecarRateLimitConfig;
 };
 
 export type ValidationConfig = {
@@ -114,6 +122,7 @@ export type Configuration = {
     database?: DatabaseConfig;
     sync?: SyncConfig;
     query?: QueryConfig;
+    sidecar?: SidecarConfig;
     imageProcessing?: ImageProcessingConfig;
     socketIo?: SocketIoConfig;
     validation?: ValidationConfig;
@@ -143,6 +152,30 @@ export default () =>
                 strikeDecayMs: parseInt(process.env.QUERY_RATE_LIMIT_STRIKE_DECAY_MS, 10) || 600000,
             },
         } as QueryConfig,
+        sidecar: {
+            rateLimit: {
+                read: {
+                    enabled: process.env.SIDECAR_RATE_LIMIT_READ_ENABLED !== "false",
+                    freeStrikes: parseInt(process.env.SIDECAR_RATE_LIMIT_READ_FREE_STRIKES, 10) || 30,
+                    baseBackoffMs:
+                        parseInt(process.env.SIDECAR_RATE_LIMIT_READ_BASE_BACKOFF_MS, 10) || 2000,
+                    maxBackoffMs:
+                        parseInt(process.env.SIDECAR_RATE_LIMIT_READ_MAX_BACKOFF_MS, 10) || 60000,
+                    strikeDecayMs:
+                        parseInt(process.env.SIDECAR_RATE_LIMIT_READ_STRIKE_DECAY_MS, 10) || 2000,
+                },
+                probe: {
+                    enabled: process.env.SIDECAR_RATE_LIMIT_PROBE_ENABLED !== "false",
+                    freeStrikes: parseInt(process.env.SIDECAR_RATE_LIMIT_PROBE_FREE_STRIKES, 10) || 10,
+                    baseBackoffMs:
+                        parseInt(process.env.SIDECAR_RATE_LIMIT_PROBE_BASE_BACKOFF_MS, 10) || 5000,
+                    maxBackoffMs:
+                        parseInt(process.env.SIDECAR_RATE_LIMIT_PROBE_MAX_BACKOFF_MS, 10) || 300000,
+                    strikeDecayMs:
+                        parseInt(process.env.SIDECAR_RATE_LIMIT_PROBE_STRIKE_DECAY_MS, 10) || 60000,
+                },
+            },
+        } as SidecarConfig,
         imageProcessing: {
             imageQuality: parseInt(process.env.S3_IMG_QUALITY, 10) || 80,
         } as ImageProcessingConfig,

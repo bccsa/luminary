@@ -10,6 +10,7 @@ import type {
     MediaPreset,
     AclPermission,
     AckStatus,
+    SidecarType,
 } from "../types";
 import type { AffinityConfig } from "../recommendation/affinity";
 
@@ -53,7 +54,7 @@ export type DeleteCmdDto = BaseDocumentDto & {
     deleteReason: DeleteReason;
     memberOf?: Uuid[];
     newMemberOf?: Uuid[];
-        /** Language ID of the deleted content document (only set for Content DeleteCmds). */
+    /** Language ID of the deleted content document (only set for Content DeleteCmds). */
     language?: Uuid;
     /** Slug of the deleted document (only set for Content/Redirect DeleteCmds). */
     slug?: string;
@@ -221,6 +222,19 @@ export type S3CredentialDto = {
     secretKey: string;
 };
 
+/**
+ * Encode settings a media bucket applies to every encode written into it.
+ * All optional: an absent field means the encoder's own default.
+ */
+export type MediaEncodeSettingsDto = {
+    /** Encrypt the HLS output with AES-128. Absent = encrypted. */
+    encrypted?: boolean;
+    /** Byte-range HLS: one chunk file per rendition, split at chunkSizeMB. Absent = on. */
+    byteRange?: boolean;
+    /** Max size of one byte-range chunk file in MB, video and audio alike. Absent = encoder default. */
+    chunkSizeMB?: number;
+};
+
 export type StorageDto = ContentBaseDto & {
     name: string;
     mimeTypes: string[];
@@ -228,14 +242,43 @@ export type StorageDto = ContentBaseDto & {
     storageType: StorageType;
     credential?: S3CredentialDto;
     credential_id?: string;
+    /** Only meaningful on media buckets. */
+    mediaSettings?: MediaEncodeSettingsDto;
 };
 
 export type CryptoDto = BaseDocumentDto & {
     data: any;
 };
 
+/**
+ * The masked AES-128 key for an HLS collection. XOR-masked with
+ * SHA-256(sidecar _id)[0..15] so the stored form is not the raw key.
+ * Mirrored from api/src/sidecar/hlsEncryptionKey.ts.
+ */
+export type HlsEncryptionKeyData = {
+    /** AES-128 key, hex, XOR-masked with SHA-256(sidecar _id)[0..15]. */
+    maskedKeyHex: string;
+};
+
+/**
+ * A payload that belongs to a Post / Tag but is never replicated to clients. The
+ * only read path is GET /sidecar. `data`'s shape is determined by `sidecarType`;
+ * `unknown` forces consumers to narrow. Mirrored from api/src/dto/SidecarDto.ts.
+ */
+export type SidecarDto = ContentBaseDto & {
+    type: DocType.Sidecar;
+    parentId: Uuid;
+    parentType: DocType.Post | DocType.Tag;
+    sidecarType: SidecarType;
+    data: unknown;
+};
+
 export type MediaDto = {
     hlsUrl?: string;
+    hlsKey_id?: Uuid;
+    hlsKey?: string;
+    /** Write-only: delete the files in storage along with the document. */
+    deleteFiles?: boolean;
     fileCollections: MediaFileDto[];
     uploadData?: MediaUploadDataDto[];
 };

@@ -9,21 +9,30 @@ type Props = {
     heading: string;
     noDivider?: boolean;
     largeModal?: boolean;
+    /** Wide, but only as tall as its content — `largeModal` fixes the height. */
+    wide?: boolean;
     stickToEdges?: boolean;
     noPadding?: boolean;
     transparentHeader?: boolean;
     showClosingButton?: boolean;
     // When true, the modal cannot be dismissed by clicking outside of it or pressing Escape.
     preventClose?: boolean;
+    /**
+     * Ignore backdrop clicks only. For content a stray click should not throw away —
+     * Escape and the close controls still work, so nothing is trapped.
+     */
+    preventBackdropClose?: boolean;
     beforeClose?: () => boolean;
 };
 const props = withDefaults(defineProps<Props>(), {
     largeModal: false,
+    wide: false,
     noDivider: false,
     noPadding: false,
     transparentHeader: false,
     showClosingButton: true,
     preventClose: false,
+    preventBackdropClose: false,
 });
 
 const isVisible = defineModel<boolean>("isVisible");
@@ -34,8 +43,9 @@ const tryClose = () => {
 };
 
 // Dismiss attempts via the backdrop or the Escape key; blocked when preventClose is set.
-const tryDismiss = () => {
+const tryDismiss = (viaBackdrop = false) => {
     if (props.preventClose) return;
+    if (viaBackdrop && props.preventBackdropClose) return;
     tryClose();
 };
 
@@ -51,10 +61,12 @@ const breakpoints = useBreakpoints(breakpointsTailwind);
 const isMobileScreen = breakpoints.smaller("sm");
 
 const isFullscreen = computed(() => {
-    if (props.stickToEdges || !props.stickToEdges) {
+    if (isMobileScreen.value && props.stickToEdges) {
         return "h-[100dvh] w-[100vw] max-w-none rounded-none";
     } else if (props.largeModal) {
         return "h-[90dvh] w-full max-w-5xl lg:h-[80dvh]";
+    } else if (props.wide) {
+        return "max-h-[90dvh] w-full max-w-3xl";
     } else {
         return "max-h-[90dvh] w-full max-w-md";
     }
@@ -68,7 +80,7 @@ const isFullscreen = computed(() => {
                 'fixed inset-x-0 top-0 z-50 flex h-[100dvh] items-center justify-center bg-zinc-800 bg-opacity-50 backdrop-blur-sm',
                 noPadding || (stickToEdges && isMobileScreen) ? '' : 'p-2',
             ]"
-            @mousedown.self="tryDismiss()"
+            @mousedown.self="tryDismiss(true)"
             data-test="modal-backdrop"
         >
             <!-- Modal content at higher z-index -->
@@ -114,6 +126,7 @@ const isFullscreen = computed(() => {
                                 variant="secondary"
                                 mainDynamicCss="px-0.5 py-0.5 rounded-xl"
                                 iconClass="h-5 w-5"
+                                data-test="modal-close"
                             >
                             </LButton>
                         </div>
