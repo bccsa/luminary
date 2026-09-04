@@ -113,7 +113,15 @@ const recheckAfterLaunch = () => setTimeout(() => emit("recheck"), 2000);
                 @click="recheckAfterLaunch"
                 >Open it</a
             >, then try again. If it is already open, try this page in Chrome — that is the browser
-            this is known to work in.
+            this is known to work in. Never installed it?
+            <a
+                :href="ENCODER_DOWNLOAD_URL"
+                target="_blank"
+                rel="noopener"
+                class="font-medium underline underline-offset-2 hover:text-yellow-900"
+                data-test="encoder-download"
+                >Download it</a
+            >.
         </MediaNotice>
 
         <MediaNotice
@@ -128,7 +136,16 @@ const recheckAfterLaunch = () => setTimeout(() => emit("recheck"), 2000);
                 data-test="encoder-launch"
                 @click="recheckAfterLaunch"
                 >Open it</a
-            >, then try again.
+            >, then try again — or
+            <a
+                :href="ENCODER_DOWNLOAD_URL"
+                target="_blank"
+                rel="noopener"
+                class="font-medium underline underline-offset-2 hover:text-zinc-900"
+                data-test="encoder-download"
+                >download it</a
+            >
+            if it is not installed yet.
         </MediaNotice>
     </div>
 </template>
