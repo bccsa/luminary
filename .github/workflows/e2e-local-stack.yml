@@ -37,8 +37,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
         with:
-          # The app imports the encoder's player packages from the submodule, which
-          # is public — the built-in token reaches it.
           submodules: true
 
       - name: Setup Node.js

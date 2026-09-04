@@ -23,9 +23,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
         with:
-          # The encoder's player packages are consumed from luminary-media-convert/,
-          # which is a submodule rather than a published package. It is public, so
-          # the built-in token reaches it and no secret is involved.
           submodules: true
 
       - name: Setup Node.js
