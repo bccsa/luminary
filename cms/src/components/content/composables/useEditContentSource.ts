@@ -138,10 +138,10 @@ export function useEditContentSource(options: UseEditContentSourceOptions): UseE
     // in `editable` but not in `shadow` (new / just-duplicated, never saved) is never
     // removed when the source is empty — this is what protects unsaved docs.
     //
-    // `imageData`/`media` are back-patched: after an upload completes the server clears
-    // `uploadData` and populates `fileCollections`, then re-emits the parent. toEditable
-    // keeps these two fields tracking the source even while the user edits other fields, so
-    // the processed result is not lost (server-wins for these fields).
+    // `imageData`/`media` are back-patched: the server rewrites them after a save
+    // (image upload results, media URL normalisation), then re-emits the parent.
+    // toEditable keeps these two fields tracking the source even while the user edits
+    // other fields, so the processed result is not lost (server-wins for these fields).
     const parentEditable = toEditable<ContentParentDto>(parentSource, {
         persistOffline: true,
         backPatchFields: ["imageData", "media"],

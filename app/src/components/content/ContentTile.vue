@@ -3,7 +3,7 @@ import { type ContentDto } from "luminary-shared";
 import { DateTime } from "luxon";
 import LImage from "../images/LImage.vue";
 import { type AspectRatio, type ImageSize } from "../images/LImageProvider.vue";
-import { PlayIcon, SpeakerWaveIcon } from "@heroicons/vue/24/solid";
+import { PlayIcon } from "@heroicons/vue/24/solid";
 import { getMediaDuration, getMediaProgress, getReadingProgress } from "@/contentProgress";
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
@@ -55,10 +55,6 @@ const publishDateText = computed(() => {
 });
 
 const hasVideo = computed(() => hasVideoSource(props.content));
-const hasAudio = computed(
-    () => !hasVideo.value && Boolean(props.content.parentMedia?.fileCollections?.length),
-);
-
 const mediaIconClass = computed(() =>
     props.titlePosition === "overlay"
         ? "absolute text-white/80 md:bottom-2 md:right-1 md:h-6 md:w-6 max-md:hidden"
@@ -83,9 +79,7 @@ const mediaProgress = computed(() => {
     if (!props.showProgress) return 0;
 
     const videoSource = videoSourceFor(props.content);
-    const mediaIds = videoSource
-        ? [videoSource]
-        : (props.content.parentMedia?.fileCollections ?? []).map((f) => f.fileUrl);
+    const mediaIds = videoSource ? [videoSource] : [];
 
     for (const mediaId of mediaIds) {
         const progress = getMediaProgress(mediaId, props.content._id);
@@ -179,24 +173,6 @@ const displayProgress = computed(() => Math.max(mediaProgress.value, readingProg
                                 class="absolute inset-0 z-20 flex items-center justify-center rounded-lg"
                             >
                                 <PlayIcon :class="mediaIconClass" />
-                            </div>
-                            <div
-                                v-if="hasAudio"
-                                class="absolute inset-0 z-20 flex items-center justify-center rounded-lg"
-                            >
-                                <SpeakerWaveIcon
-                                    :class="[
-                                        mediaIconClass,
-                                        'text-black',
-                                        titlePosition === 'overlay' ? ' blur-[1.5px]' : 'blur-sm',
-                                    ]"
-                                />
-                            </div>
-                            <div
-                                v-if="hasAudio"
-                                class="absolute inset-0 z-20 flex items-center justify-center rounded-lg"
-                            >
-                                <SpeakerWaveIcon :class="mediaIconClass" />
                             </div>
                         </div>
                         <div

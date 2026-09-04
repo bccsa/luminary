@@ -37,7 +37,7 @@ const saved = () =>
         publishDateVisible: true,
         postType: "blog",
         mediaBucketId: "bucket-media",
-        media: { hlsUrl: HLS, fileCollections: [] },
+        media: { hlsUrl: HLS },
     }) as unknown as PostDto;
 
 /** The delete request, carrying the user's answer from the confirmation. */

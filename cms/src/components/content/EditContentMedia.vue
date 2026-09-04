@@ -6,7 +6,6 @@ import LCard from "../common/LCard.vue";
 import EncodeMediaButton from "../media/EncodeMediaButton.vue";
 import EncodeStatus from "../media/EncodeStatus.vue";
 import MediaBucketSelect from "../media/MediaBucketSelect.vue";
-import MediaAudioList from "../media/MediaAudioList.vue";
 import EditContentVideo from "./EditContentVideo.vue";
 import { useMediaEncoder } from "@/composables/useMediaEncoder";
 import { ENCODER_DOWNLOAD_URL } from "@/util/mediaEncoder";
@@ -65,7 +64,7 @@ const handleEncodedMedia = (media: Pick<MediaDto, "hlsUrl" | "hlsKey">) => {
     if (!parent.value) return;
 
     parent.value.media = {
-        ...(parent.value.media ?? { fileCollections: [] }),
+        ...(parent.value.media ?? {}),
         hlsUrl: media.hlsUrl,
         hlsKey: media.hlsKey,
     };
@@ -142,9 +141,9 @@ watch(
 
         <div class="flex flex-col gap-3">
             <p v-if="showHelp" class="text-xs text-zinc-500">
-                Video and audio are produced by Luminary Media Convert. Use Encode to open it, pick
-                a file, and the encoded playlist is saved back to this document. You need the app on
-                your own machine —
+                Video is produced by Luminary Media Convert. Use Encode to open it, pick a file, and
+                the encoded playlist is saved back to this document. You need the app on your own
+                machine —
                 <a
                     :href="ENCODER_DOWNLOAD_URL"
                     target="_blank"
@@ -170,8 +169,6 @@ watch(
             />
 
             <EditContentVideo v-if="showVideo" bare :disabled="disabled" v-model:parent="parent" />
-
-            <MediaAudioList :parent="parent" />
         </div>
     </LCard>
 </template>

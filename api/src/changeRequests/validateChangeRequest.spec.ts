@@ -462,6 +462,33 @@ describe("validateChangeRequest", () => {
         expect(result.error).toContain("hlsUrl");
     });
 
+    it("strips the retired per-language audio fields", async () => {
+        // Nothing reads them once the feature is gone; whitelisting is what keeps
+        // a stale client from writing them back.
+        const changeRequest = {
+            id: 43,
+            doc: {
+                _id: "post-test",
+                type: "post",
+                memberOf: ["group-super-admins"],
+                postType: "blog",
+                tags: [],
+                publishDateVisible: true,
+                mediaBucketId: "storage-media",
+                media: {
+                    hlsUrl: "/abc/master.m3u8",
+                    fileCollections: [{ languageId: "lang-eng", fileUrl: "https://cdn/a.mp3" }],
+                    uploadData: [],
+                },
+            },
+        };
+
+        const result = await validateChangeRequest(changeRequest, ["group-super-admins"], db);
+
+        expect(result.validated).toBe(true);
+        expect(result.validatedData.media).toEqual({ hlsUrl: "/abc/master.m3u8" });
+    });
+
     it("rejects a redirect whose slug has published content", async () => {
         await db.upsertDoc({
             _id: "content-published-for-redirect",

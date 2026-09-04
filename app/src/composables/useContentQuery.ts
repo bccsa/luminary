@@ -162,7 +162,7 @@ export type ContentQueryState = {
  * stale seed is a correctness bug, not a cosmetic flash (see SingleContent, which
  * passes a per-slug `cacheId`). When two cached feeds share a shape (so they'd collide
  * on one entry), pass a distinct `cacheId` per call site to separate their fingerprints
- * (see ContinueWatching / ContinueListening).
+ * (see ContinueWatching).
  *
  * Pass the caller-specific selector clauses as a thunk so any `ref` they read
  * (language ids, a sibling query's result, …) is auto-tracked and rebuilds the

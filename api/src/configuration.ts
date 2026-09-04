@@ -116,7 +116,6 @@ export type AudioS3Config = {
 
 export type SocketIoConfig = {
     maxHttpBufferSize: number;
-    maxMediaUploadFileSize?: number; // Optional for media uploads
 };
 
 export type Configuration = {
@@ -159,7 +158,8 @@ export default () =>
             rateLimit: {
                 read: {
                     enabled: process.env.SIDECAR_RATE_LIMIT_READ_ENABLED !== "false",
-                    freeStrikes: parseInt(process.env.SIDECAR_RATE_LIMIT_READ_FREE_STRIKES, 10) || 30,
+                    freeStrikes:
+                        parseInt(process.env.SIDECAR_RATE_LIMIT_READ_FREE_STRIKES, 10) || 30,
                     baseBackoffMs:
                         parseInt(process.env.SIDECAR_RATE_LIMIT_READ_BASE_BACKOFF_MS, 10) || 2000,
                     maxBackoffMs:
@@ -169,7 +169,8 @@ export default () =>
                 },
                 probe: {
                     enabled: process.env.SIDECAR_RATE_LIMIT_PROBE_ENABLED !== "false",
-                    freeStrikes: parseInt(process.env.SIDECAR_RATE_LIMIT_PROBE_FREE_STRIKES, 10) || 10,
+                    freeStrikes:
+                        parseInt(process.env.SIDECAR_RATE_LIMIT_PROBE_FREE_STRIKES, 10) || 10,
                     baseBackoffMs:
                         parseInt(process.env.SIDECAR_RATE_LIMIT_PROBE_BASE_BACKOFF_MS, 10) || 5000,
                     maxBackoffMs:
@@ -192,7 +193,6 @@ export default () =>
         } as AudioS3Config,
         socketIo: {
             maxHttpBufferSize: parseInt(process.env.MAX_HTTP_BUFFER_SIZE, 10) || 1e7,
-            maxMediaUploadFileSize: parseInt(process.env.MAX_MEDIA_UPLOAD_FILE_SIZE, 10) || 1.5e7, // Default to 15MB
         } as SocketIoConfig,
         validation: {
             bypassTemplateValidation: process.env.BYPASS_TEMPLATE_VALIDATION === "true",

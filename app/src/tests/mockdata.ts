@@ -13,7 +13,6 @@ import {
     PostType,
     type RedirectDto,
     RedirectType,
-    MediaType,
 } from "luminary-shared";
 
 export const mockCategoryDto: TagDto = {
@@ -130,14 +129,6 @@ export const mockEnglishContentDto: ContentDto = {
     availableTranslations: ["lang-eng", "lang-fra"],
     parentMedia: {
         hlsUrl: "https://example.com/video.m3u8",
-        fileCollections: [
-            {
-                languageId: "lang-eng",
-                fileUrl: "https://example.com/audio.mp3",
-                bitrate: 128000,
-                mediaType: MediaType.Audio,
-            },
-        ],
     },
 };
 export const mockFrenchContentDto: ContentDto = {
@@ -175,14 +166,6 @@ export const mockFrenchContentDto: ContentDto = {
     availableTranslations: ["lang-eng", "lang-fra"],
     parentMedia: {
         hlsUrl: "",
-        fileCollections: [
-            {
-                languageId: "lang-fra",
-                fileUrl: "https://example.com/audio-fr.mp3",
-                bitrate: 128000,
-                mediaType: MediaType.Audio,
-            },
-        ],
     },
 };
 export const mockSwahiliContentDto: ContentDto = {
@@ -220,14 +203,6 @@ export const mockSwahiliContentDto: ContentDto = {
     parentPublishDateVisible: true,
     parentMedia: {
         hlsUrl: "",
-        fileCollections: [
-            {
-                languageId: "lang-swa",
-                fileUrl: "https://example.com/audio-swa.mp3",
-                bitrate: 128000,
-                mediaType: MediaType.Audio,
-            },
-        ],
     },
 };
 export const mockCategoryContentDto: ContentDto = {
@@ -413,8 +388,7 @@ export const mockLanguageDtoEng: LanguageDto = {
         "bookmarks.empty_page":
             "You should try this! Click on this icon on any post to bookmark it.",
         "bookmarks.notification.title": "Bookmark added",
-        "bookmarks.notification.description":
-            "This content has been added to your bookmarks.",
+        "bookmarks.notification.description": "This content has been added to your bookmarks.",
         "language.modal.title": "Select Language",
         "language.modal.close": "Close",
         "singlecontent.loading": "Loading...",

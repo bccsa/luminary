@@ -1,7 +1,15 @@
 import { describe, it, afterEach, beforeEach, expect, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
-import { db, DocType, accessMap, PostType, TagType, type TagDto, PublishStatus } from "luminary-shared";
+import {
+    db,
+    DocType,
+    accessMap,
+    PostType,
+    TagType,
+    type TagDto,
+    PublishStatus,
+} from "luminary-shared";
 import * as mockData from "@/tests/mockdata";
 import { setActivePinia } from "pinia";
 import EditContent from "./EditContent.vue";
@@ -708,7 +716,7 @@ describe("EditContent.vue - Duplication", () => {
     it("preserves media on the duplicated parent", async () => {
         // The mock post has media data
         expect(mockData.mockPostDto.media).toBeDefined();
-        expect(mockData.mockPostDto.media!.fileCollections.length).toBeGreaterThan(0);
+        expect(mockData.mockPostDto.media!.hlsUrl).toBeTruthy();
 
         const wrapper = mount(EditContent, {
             props: {
@@ -754,8 +762,5 @@ describe("EditContent.vue - Duplication", () => {
         // Media should be preserved on the duplicated parent
         expect(vm.editableParent.media).toBeDefined();
         expect(vm.editableParent.media.hlsUrl).toBe(mockData.mockPostDto.media!.hlsUrl);
-        expect(vm.editableParent.media.fileCollections.length).toBe(
-            mockData.mockPostDto.media!.fileCollections.length,
-        );
     }, 15000);
 });

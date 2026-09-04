@@ -82,8 +82,10 @@ against the real buckets, and until it is, this stays open.
 - **Stale collections.** Nothing deletes a superseded collection, and deleting a document leaves
   its collection in the bucket — the encoder writes it and nothing here tracks which objects
   belong to it.
-- **Uploading media through the CMS is gone.** The API no longer processes `uploadData`, so
-  documents keep and play existing audio `fileCollections` but nothing can add more.
+- **Per-language audio is gone.** The upload path, the fields (`media.fileCollections`,
+  `media.uploadData`) and the app's audio player were all withdrawn. `media` now carries an
+  HLS collection or nothing. Existing documents keep the dead fields until their next save,
+  when change-request whitelisting drops them — nothing reads them in the meantime.
 
 ## Testing on dev from a Windows machine
 

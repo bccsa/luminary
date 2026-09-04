@@ -42,7 +42,6 @@ const mountSection = (props = {}) =>
         global: {
             stubs: {
                 EditContentVideo: { template: "<div data-test='video-stub' />" },
-                MediaAudioList: { template: "<div data-test='audio-stub' />" },
                 MediaBucketSelect: { template: "<div data-test='bucket-stub' />" },
             },
         },
@@ -69,7 +68,7 @@ describe("EditContentMedia", () => {
 
         expect(wrapper.find('[data-test="encode-media-button"]').exists()).toBe(true);
         expect(wrapper.find('[data-test="bucket-stub"]').exists()).toBe(true);
-        expect(wrapper.find('[data-test="audio-stub"]').exists()).toBe(true);
+        expect(wrapper.find('[data-test="encoder-status"]').exists()).toBe(false);
     });
 
     it("names where to get the app in the help text", async () => {
@@ -131,16 +130,17 @@ describe("EditContentMedia", () => {
         expect(wrapper.props("parent")!.media?.hlsKey).toBe("abc");
     });
 
-    it("keeps the audio already on the document when the encoder writes a video", async () => {
+    it("writes the URL without disturbing the rest of the document's media", async () => {
         const wrapper = mountSection();
         await settle();
         await wrapper.find('[data-test="encode-media-button"]').trigger("click");
 
-        const before = wrapper.props("parent")!.media?.fileCollections;
+        const bucketBefore = wrapper.props("parent")!.mediaBucketId;
         encoder.start.mock.calls[0][0].onMediaReady({ hlsUrl: "https://cdn/master.m3u8" });
         await settle();
 
-        expect(wrapper.props("parent")!.media?.fileCollections).toEqual(before);
+        expect(wrapper.props("parent")!.media?.hlsUrl).toBe("https://cdn/master.m3u8");
+        expect(wrapper.props("parent")!.mediaBucketId).toBe(bucketBefore);
     });
 });
 

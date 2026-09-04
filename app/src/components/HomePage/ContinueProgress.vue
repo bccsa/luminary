@@ -42,7 +42,7 @@ const content = useContentQuery(
             ],
         },
     ],
-    // cacheId disambiguates from ContinueListening: both query the same shape
+    // cacheId disambiguates from the other home-page queries of the same shape
     // (`_id $in` + the same $or filters), so without it they would share one cache
     // entry and seed from each other on first paint.
     // Reading progress changes the id set while the row is on screen; it stays the same

@@ -35,7 +35,7 @@ describe("v21 — legacy video field moved to media.hlsUrl", () => {
 
         await v21(db);
 
-        expect(p.media).toEqual({ fileCollections: [], hlsUrl: "https://example.com/master.m3u8" });
+        expect(p.media).toEqual({ hlsUrl: "https://example.com/master.m3u8" });
         expect(c.video).toBeUndefined();
         expect(upserted).toContain(p);
         expect(upserted).toContain(c);
@@ -43,7 +43,7 @@ describe("v21 — legacy video field moved to media.hlsUrl", () => {
     });
 
     it("leaves an existing parent hlsUrl untouched but still clears the child's video", async () => {
-        const p = post("post-1", { fileCollections: [], hlsUrl: "https://example.com/existing.m3u8" });
+        const p = post("post-1", { hlsUrl: "https://example.com/existing.m3u8" });
         const c = content("content-1", "post-1", "https://example.com/stale.m3u8");
         const { db, upserted } = mockDb(20, { [DocType.Post]: [p], [DocType.Tag]: [] }, { "post-1": [c] });
 

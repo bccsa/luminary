@@ -13,8 +13,8 @@ function readWatchedMediaIds(): WatchedMediaEntry[] {
 }
 
 /** Reactive, cross-tab-synced view of the `mediaProgress` localStorage ring buffer —
- *  the shared resume-position store both AudioPlayer and VideoPlayer write to via
- *  `setMediaProgress()`. Consumed by both ContinueWatching and ContinueListening. */
+ *  the shared resume-position store VideoPlayer writes to via `setMediaProgress()`.
+ *  Consumed by ContinueWatching. */
 export function useWatchedMediaIds() {
     const mediaProgressRef = ref(readWatchedMediaIds());
 

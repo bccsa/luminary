@@ -4,7 +4,6 @@ import HomePagePinned from "@/components/HomePage/HomePagePinned.vue";
 import HomePageNewest from "@/components/HomePage/HomePageNewest.vue";
 import BasePage from "@/components/BasePage.vue";
 import ContinueProgress from "@/components/HomePage/ContinueProgress.vue";
-import ContinueListening from "@/components/HomePage/ContinueListening.vue";
 import RecommendedForYou from "@/components/HomePage/RecommendedForYou.vue";
 import HomePageSearch from "@/components/HomePage/HomePageSearch.vue";
 import { isMdScreen } from "@/globalConfig";
@@ -51,7 +50,6 @@ useLocalizedStaticHead("/");
 
             <RecommendedForYou />
             <ContinueProgress />
-            <ContinueListening />
         </IgnorePagePadding>
     </BasePage>
 </template>

@@ -13,7 +13,7 @@ const HLS_URL = "https://example.com/media/post/master.m3u8";
 const parentWith = (media?: Partial<NonNullable<ContentParentDto["media"]>>) =>
     ref<ContentParentDto>({
         ...mockData.mockPostDto,
-        media: media ? ({ fileCollections: [], ...media } as any) : undefined,
+        media: media ? ({ ...media } as any) : undefined,
     } as ContentParentDto);
 
 const mountVideo = (parent: ReturnType<typeof parentWith>) =>

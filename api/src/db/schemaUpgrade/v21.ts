@@ -49,7 +49,7 @@ export default async function (db: DbService) {
                 if (!withVideo.length) continue;
 
                 if (!parent.media?.hlsUrl) {
-                    if (!parent.media) parent.media = { fileCollections: [] };
+                    if (!parent.media) parent.media = {};
                     parent.media.hlsUrl = withVideo[0].video;
 
                     const distinctValues = new Set(withVideo.map((c) => c.video));

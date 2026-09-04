@@ -2,13 +2,7 @@
 import { RouterView } from "vue-router";
 import { computed, onErrorCaptured, onMounted, watch } from "vue";
 import { isConnected } from "luminary-shared";
-import {
-    appName,
-    isAppLoading,
-    userPreferencesAsRef,
-    mediaQueue,
-    localCacheVersion,
-} from "./globalConfig";
+import { appName, isAppLoading, userPreferencesAsRef, localCacheVersion } from "./globalConfig";
 import LoadingBar from "@/components/LoadingBar.vue";
 import { useNotificationStore } from "./stores/notification";
 import { ArrowLeftEndOnRectangleIcon, SignalSlashIcon } from "@heroicons/vue/20/solid";
@@ -16,7 +10,6 @@ import * as Sentry from "@sentry/vue";
 import { useRouter } from "vue-router";
 import PrivacyPolicyModal from "@/components/navigation/PrivacyPolicyModal.vue";
 import SearchModal from "@/components/navigation/SearchModal.vue";
-import AudioPlayer from "@/components/content/AudioPlayer.vue";
 import MobileMenu from "@/components/navigation/MobileMenu.vue";
 import AffinityDebugOverlay from "@/components/debug/AffinityDebugOverlay.vue";
 import { affinityDebugEnabled, applyAffinityDebugQuery } from "@/recommendation/affinityDebug";
@@ -208,12 +201,6 @@ onErrorCaptured((err) => {
 
         <!-- Bottom menu divider for mobile view -->
         <!-- <div class="w-full lg:hidden h-[2px] bg-zinc-100/25 dark:bg-slate-700/50"></div> -->
-        <!-- Global Audio Player for All Devices -->
-        <!-- AudioPlayer now uses fixed positioning internally, so no wrapper positioning needed -->
-        <div v-if="isMounted && mediaQueue.length > 0">
-            <AudioPlayer :content="mediaQueue[0]" />
-        </div>
-
         <!-- Mobile Navigation (mobile only) -->
         <!-- <MobileMenu class="w-full lg:hidden z-10" /> -->
         <MobileMenu

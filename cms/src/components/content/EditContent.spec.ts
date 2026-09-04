@@ -1355,7 +1355,6 @@ describe("EditContent.vue", () => {
             await applyRemoteContentUpdate({
                 parentMedia: {
                     hlsUrl: "/post-blog1/master.m3u8",
-                    fileCollections: [],
                 },
             });
 

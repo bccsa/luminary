@@ -10,11 +10,6 @@ import {
     normalizePreferredLanguages,
     normalizeSyncedLanguages,
     initLanguage,
-    mediaQueue,
-    addToMediaQueue,
-    removeFromMediaQueue,
-    clearMediaQueue,
-    nextInMediaQueue,
     isInstalledStandalone,
 } from "@/globalConfig";
 import {
@@ -162,108 +157,6 @@ describe("globalConfig.ts", () => {
         appLanguageIdsAsRef.value = [mockLanguageDtoSwa._id, mockLanguageDtoFra._id];
         await waitForExpect(() => {
             expect(appSyncedLanguageIdsAsRef.value).toContain(mockLanguageDtoSwa._id);
-        });
-    });
-
-    describe("media queue", () => {
-        const contentWithAudio = {
-            ...mockEnglishContentDto,
-            _id: "content-audio-1",
-        } as ContentDto;
-
-        const contentWithAudio2 = {
-            ...mockEnglishContentDto,
-            _id: "content-audio-2",
-        } as ContentDto;
-
-        const contentWithAudio3 = {
-            ...mockEnglishContentDto,
-            _id: "content-audio-3",
-        } as ContentDto;
-
-        const contentWithoutAudio = {
-            ...mockEnglishContentDto,
-            _id: "content-no-audio",
-            parentMedia: undefined,
-        } as unknown as ContentDto;
-
-        beforeEach(() => {
-            clearMediaQueue();
-        });
-
-        it("addToMediaQueue adds content with audio files to front of queue", () => {
-            addToMediaQueue(contentWithAudio);
-            expect(mediaQueue.value).toHaveLength(1);
-            expect(mediaQueue.value[0]._id).toBe("content-audio-1");
-
-            addToMediaQueue(contentWithAudio2);
-            expect(mediaQueue.value).toHaveLength(2);
-            expect(mediaQueue.value[0]._id).toBe("content-audio-2");
-        });
-
-        it("addToMediaQueue warns when content has no audio files", () => {
-            const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-            addToMediaQueue(contentWithoutAudio);
-            expect(consoleSpy).toHaveBeenCalledWith("Content has no audio files to play");
-            expect(mediaQueue.value).toHaveLength(0);
-            consoleSpy.mockRestore();
-        });
-
-        it("addToMediaQueue moves existing content to front when already in queue", () => {
-            addToMediaQueue(contentWithAudio);
-            addToMediaQueue(contentWithAudio2);
-            addToMediaQueue(contentWithAudio3);
-            expect(mediaQueue.value[0]._id).toBe("content-audio-3");
-
-            // Add contentWithAudio again - should move to front
-            addToMediaQueue(contentWithAudio);
-            expect(mediaQueue.value).toHaveLength(3);
-            expect(mediaQueue.value[0]._id).toBe("content-audio-1");
-        });
-
-        it("removeFromMediaQueue removes content by ID", () => {
-            addToMediaQueue(contentWithAudio);
-            addToMediaQueue(contentWithAudio2);
-            expect(mediaQueue.value).toHaveLength(2);
-
-            removeFromMediaQueue("content-audio-1");
-            expect(mediaQueue.value).toHaveLength(1);
-            expect(mediaQueue.value[0]._id).toBe("content-audio-2");
-        });
-
-        it("removeFromMediaQueue does nothing for non-existent ID", () => {
-            addToMediaQueue(contentWithAudio);
-            expect(mediaQueue.value).toHaveLength(1);
-
-            removeFromMediaQueue("non-existent-id");
-            expect(mediaQueue.value).toHaveLength(1);
-        });
-
-        it("clearMediaQueue empties the queue", () => {
-            addToMediaQueue(contentWithAudio);
-            addToMediaQueue(contentWithAudio2);
-            expect(mediaQueue.value).toHaveLength(2);
-
-            clearMediaQueue();
-            expect(mediaQueue.value).toHaveLength(0);
-        });
-
-        it("nextInMediaQueue shifts first item when queue has more than 1 item", () => {
-            addToMediaQueue(contentWithAudio);
-            addToMediaQueue(contentWithAudio2);
-            expect(mediaQueue.value).toHaveLength(2);
-
-            nextInMediaQueue();
-            expect(mediaQueue.value).toHaveLength(1);
-            expect(mediaQueue.value[0]._id).toBe("content-audio-1");
-        });
-
-        it("nextInMediaQueue clears queue when only 1 item left", () => {
-            addToMediaQueue(contentWithAudio);
-            expect(mediaQueue.value).toHaveLength(1);
-
-            nextInMediaQueue();
-            expect(mediaQueue.value).toHaveLength(0);
         });
     });
 

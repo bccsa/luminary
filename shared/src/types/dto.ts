@@ -6,8 +6,6 @@ import type {
     RedirectType,
     DeleteReason,
     StorageType,
-    MediaType,
-    MediaPreset,
     AclPermission,
     AckStatus,
     SidecarType,
@@ -273,29 +271,13 @@ export type SidecarDto = ContentBaseDto & {
     data: unknown;
 };
 
+/** An HLS collection produced by Luminary Media Convert, or an external link. */
 export type MediaDto = {
     hlsUrl?: string;
     hlsKey_id?: Uuid;
     hlsKey?: string;
     /** Write-only: delete the files in storage along with the document. */
     deleteFiles?: boolean;
-    fileCollections: MediaFileDto[];
-    uploadData?: MediaUploadDataDto[];
-};
-
-export type MediaFileDto = {
-    languageId: string;
-    fileUrl: string;
-    bitrate: number;
-    mediaType: MediaType;
-    processingProgress?: number;
-};
-
-export type MediaUploadDataDto = {
-    fileData: ArrayBuffer;
-    mediaType: MediaType;
-    preset?: MediaPreset;
-    languageId?: string;
 };
 
 export type ChangeReqDto = {
