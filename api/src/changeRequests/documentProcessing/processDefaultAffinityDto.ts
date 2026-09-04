@@ -26,6 +26,14 @@ function normalizeConfig(config: Partial<AffinityConfigDto> | undefined): Affini
         maxTags: Math.round(clampNumber(c.maxTags, 1, 500, DEFAULT_AFFINITY_CONFIG.maxTags)),
         depthScale: clampNumber(c.depthScale, 1, 1000, DEFAULT_AFFINITY_CONFIG.depthScale),
         readFloorPercent: clampNumber(c.readFloorPercent, 0, 100, DEFAULT_AFFINITY_CONFIG.readFloorPercent),
+        // Floored at 1 so a fat-fingered 0 can't make every play count as a completion
+        // the instant it starts.
+        mediaCompletionPercent: clampNumber(
+            c.mediaCompletionPercent,
+            1,
+            100,
+            DEFAULT_AFFINITY_CONFIG.mediaCompletionPercent,
+        ),
         eventWeight: {
             bookmark: clampNumber(c.eventWeight?.bookmark, -1, 1, DEFAULT_AFFINITY_CONFIG.eventWeight.bookmark),
             bookmarkRemoved: clampNumber(

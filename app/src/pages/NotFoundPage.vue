@@ -41,7 +41,11 @@ onMounted(async () => {
             </div>
             <div v-else class="mt-10 text-center text-base leading-7 text-zinc-600 dark:text-white">
                 {{ t("notfoundpage.unauthenticated.loginPrompt.before") }}
-                <span class="cursor-pointer text-yellow-700 underline" @click="loginWithRedirect()">
+                <span
+                    data-test="login-prompt"
+                    class="cursor-pointer text-yellow-700 underline"
+                    @click="loginWithRedirect()"
+                >
                     {{ t("notfoundpage.unauthenticated.loginPrompt.linkText") }}
                 </span>
                 {{ t("notfoundpage.unauthenticated.loginPrompt.after") }}

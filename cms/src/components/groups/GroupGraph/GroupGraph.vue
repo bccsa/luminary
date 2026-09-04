@@ -411,7 +411,7 @@ watch(isFullscreen, () => {
                     size="lg"
                     variant="secondary"
                     :icon="XMarkIcon"
-                    class="pointer-events-auto h-9 w-9 shrink-0"
+                    class="pointer-events-auto mr-4 h-9 w-9 shrink-0"
                     @click="isFullscreen = false"
                 />
             </div>

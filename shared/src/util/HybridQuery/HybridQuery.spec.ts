@@ -648,10 +648,12 @@ describe("HybridQuery", () => {
             expect(postHttpMock).not.toHaveBeenCalled();
         });
 
-        it("re-route does not flash output through empty (Dexie already holds the column)", async () => {
+        it("re-route does not flash output through empty with keepPreviousResult (Dexie already holds the column)", async () => {
             const docs = [{ _id: "g1", updatedTimeUtc: 1, type: "group" }];
             postHttpMock.mockResolvedValueOnce({ docs });
-            const q = track(new HybridQuery({ selector: { type: "group" } }));
+            const q = track(
+                new HybridQuery({ selector: { type: "group" } }, { keepPreviousResult: true }),
+            );
             await flush();
             expect(q.output.value.map((d) => d._id)).toEqual(["g1"]);
 
@@ -1369,7 +1371,7 @@ describe("HybridQuery", () => {
         });
         // A reactive content-live query driven by `cats` (a string[] ref). An empty
         // `cats` makes the selector provably-empty (`$elemMatch $in []`).
-        const setup = async (cats: { value: string[] }) => {
+        const setup = async (cats: { value: string[] }, opts: Record<string, unknown> = {}) => {
             postHttpMock.mockResolvedValue({ docs: [] });
             const q = track(
                 new HybridQuery(
@@ -1381,7 +1383,7 @@ describe("HybridQuery", () => {
                             ],
                         },
                     }),
-                    { live: true },
+                    { live: true, ...opts },
                 ),
             );
             await flush();
@@ -1433,9 +1435,9 @@ describe("HybridQuery", () => {
             expect(postHttpMock.mock.calls.length).toBe(posts);
         });
 
-        it("keeps previous output across a non-empty rebuild until the new query emits", async () => {
+        it("keeps previous output across a non-empty rebuild when keepPreviousResult is set", async () => {
             const cats = ref(["A"]);
-            const q = await setup(cats);
+            const q = await setup(cats, { keepPreviousResult: true });
             await emitLocal([contentDoc("a1", "A", 2000, 5)]);
             expect(q.output.value.map((d) => d._id)).toEqual(["a1"]);
 
@@ -1445,6 +1447,20 @@ describe("HybridQuery", () => {
 
             await emitLocal([contentDoc("b1", "B", 1500, 7)]);
             expect(q.output.value.map((d) => d._id)).toEqual(["b1"]); // replaced
+        });
+
+        it("clears previous output across a rebuild by default", async () => {
+            const cats = ref(["A"]);
+            const q = await setup(cats);
+            await emitLocal([contentDoc("a1", "A", 2000, 5)]);
+            expect(q.output.value.map((d) => d._id)).toEqual(["a1"]);
+
+            cats.value = ["B"];
+            await flush(); // rebuilt, but gen-2 local not emitted yet
+            expect(q.output.value).toEqual([]); // CLEARED, where keepPreviousResult keeps ["a1"]
+
+            await emitLocal([contentDoc("b1", "B", 1500, 7)]);
+            expect(q.output.value.map((d) => d._id)).toEqual(["b1"]);
         });
 
         it("clears output when the new query is provably-empty, and re-attaches when non-empty again", async () => {
@@ -1663,6 +1679,8 @@ describe("HybridQuery", () => {
                     () => ({ selector: { type: "redirect", _id: { $in: ids.value } } }),
                     {
                         live: true,
+                        // Keep-last-value is what this asserts, so opt in explicitly.
+                        keepPreviousResult: true,
                     },
                 ),
             );
