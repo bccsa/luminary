@@ -13,6 +13,18 @@ export function isBucketRelative(url: string | undefined): boolean {
 }
 
 /**
+ * Trailing slashes off, by index rather than with `/\/+$/`.
+ *
+ * The regex backtracks quadratically over a long run of slashes, and in a library
+ * the argument is whatever a caller passes (CodeQL js/polynomial-redos).
+ */
+function withoutTrailingSlashes(url: string): string {
+    let end = url.length;
+    while (end > 0 && url.charCodeAt(end - 1) === 47) end--;
+    return url.slice(0, end);
+}
+
+/**
  * The absolute URL a player should fetch. Absolute (external) URLs pass through
  * untouched; a relative URL with no bucket to resolve against is `undefined`
  * rather than a broken path.
@@ -23,5 +35,5 @@ export function toAbsoluteMediaUrl(
 ): string | undefined {
     if (!stored || !isBucketRelative(stored)) return stored;
     if (!publicUrl) return undefined;
-    return `${publicUrl.replace(/\/+$/, "")}${stored}`;
+    return `${withoutTrailingSlashes(publicUrl)}${stored}`;
 }
