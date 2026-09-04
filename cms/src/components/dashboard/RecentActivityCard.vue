@@ -30,17 +30,17 @@ function formatRelativeTime(timestamp: number): string {
 
 <template>
     <LCard title="Recent activity" :icon="ClockIcon" fillHeight>
-        <div v-if="recentContent.length === 0" class="pl-1 text-center text-sm text-zinc-400">
+        <div v-if="recentContent.length === 0" class="py-6 text-center text-sm dark:text-zinc-200">
             No content found for the selected language.
         </div>
-        <ul v-else ref="listEl" class="divide-y divide-zinc-100">
+        <ul v-else ref="listEl" class="divide-y dark:divide-zinc-700">
             <li
                 v-for="doc in recentContent"
                 :key="doc._id"
                 class="rounded-lg px-0 py-1.5 hover:bg-zinc-100"
             >
                 <RouterLink
-                    class="grid w-full grid-cols-[auto_1fr_auto_auto] items-center gap-x-2 sm:grid-cols-[20px_1fr_150px_100px_80px] sm:gap-x-0"
+                    class="grid w-full grid-cols-[auto_1fr_auto_auto] items-center gap-x-2 rounded-sm border-l-4 pl-2 hover:dark:border-yellow-400 sm:grid-cols-[20px_1fr_150px_100px_80px] sm:gap-x-0"
                     :to="parentRoute(doc)!"
                 >
                     <component
@@ -49,7 +49,7 @@ function formatRelativeTime(timestamp: number): string {
                     />
                     <span
                         v-if="parentRoute(doc)"
-                        class="min-w-0 truncate text-sm font-medium text-zinc-900 hover:text-yellow-600"
+                        class="min-w-0 truncate text-sm font-medium text-zinc-500 dark:text-zinc-100 dark:hover:text-yellow-400"
                     >
                         {{ doc.title || "Untitled" }}
                     </span>

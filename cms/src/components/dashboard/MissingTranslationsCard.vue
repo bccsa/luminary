@@ -70,8 +70,10 @@ watch(missingTranslations, () => nextTick(update));
     <LCard v-if="missingTranslations.length > 0" fillHeight>
         <div class="flex flex-col gap-2 lg:h-full">
             <div class="flex items-center justify-start gap-2">
-                <PencilSquareIcon class="h-4 w-4 text-zinc-600" />
-                <h3 class="text-sm font-semibold leading-6 text-zinc-900">Needs translation</h3>
+                <PencilSquareIcon class="h-4 w-4 dark:text-zinc-100" />
+                <h3 class="text-sm font-semibold leading-6 dark:text-zinc-100">
+                    Needs translation
+                </h3>
             </div>
             <div class="flex w-full justify-center">
                 <div class="inline-flex w-full">
@@ -106,11 +108,11 @@ watch(missingTranslations, () => nextTick(update));
                     <li
                         v-for="item in missingTranslations"
                         :key="item.parentId"
-                        class="rounded-lg p-1.5 hover:bg-zinc-100"
+                        class="rounded-lg p-1.5 dark:hover:bg-slate-700"
                     >
                         <RouterLink
                             :to="parentRoute(item)!"
-                            class="block w-full text-sm text-zinc-900 hover:text-yellow-600"
+                            class="block w-full text-sm dark:text-zinc-100"
                         >
                             <div class="ml-0 flex items-center justify-between gap-2 pl-0">
                                 <span v-if="parentRoute(item)" class="-ml-1.5 min-w-0 truncate">
