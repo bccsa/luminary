@@ -24,9 +24,6 @@ import { toAbsoluteMediaUrl } from "@/util/mediaUrl";
 
 type Props = {
     parent: ContentParentDto | undefined;
-    /** The encode in flight, so "nothing here yet" can say how long is left. */
-    encodeStatus?: string;
-    encodeProgress?: number;
 };
 const props = defineProps<Props>();
 
@@ -112,16 +109,6 @@ const diagnose = (code?: string) =>
         fix: "Check the URL and the bucket's CORS rules allow the Range header.",
     };
 
-/** How far along the encode is, when one is running for this document. */
-const encodeNote = computed(() => {
-    if (!props.encodeStatus || props.encodeStatus == "completed") return undefined;
-    if (props.encodeStatus == "failed") return "The encode failed.";
-
-    return props.encodeProgress != undefined
-        ? `Encoding is at ${props.encodeProgress}%.`
-        : "The encode is still running.";
-});
-
 /**
  * Where the key being used came from.
  *
@@ -205,13 +192,6 @@ watch(masterUrl, () => (showing.value = false));
                     <template #coming-soon>
                         <div class="lmpl-panel" data-test="preview-not-yet">
                             <p class="text-sm font-medium text-white">Nothing at this URL yet.</p>
-                            <p class="mt-1 max-w-sm text-xs text-zinc-300">
-                                {{
-                                    encodeNote ??
-                                    "The playlist has not been published to the bucket."
-                                }}
-                                Checking again automatically.
-                            </p>
                         </div>
                     </template>
 

@@ -42,6 +42,7 @@ const {
     progress,
     error,
     refreshAvailability,
+    watchForEncoder,
     start,
     resume,
 } = useMediaEncoder();
@@ -97,7 +98,12 @@ const encode = () => {
  * already running for it rather than assuming the encoder is idle.
  */
 const checkAndResume = async () => {
+    // Nothing tells this page that the desktop app has started or stopped, so it
+    // is asked for as long as this section is on screen — not only while it is
+    // missing. An editor who quits the encoder mid-edit should not be left with
+    // a button that still looks usable.
     await refreshAvailability();
+    watchForEncoder();
     if (!parent.value?._id) return;
 
     await resume({ documentId: parent.value._id, onMediaReady: handleEncodedMedia });
@@ -161,17 +167,9 @@ watch(
                 :status="status"
                 :progress="progress"
                 :error="error"
-                @recheck="refreshAvailability"
             />
 
-            <EditContentVideo
-                v-if="showVideo"
-                bare
-                :disabled="disabled"
-                :encodeStatus="status"
-                :encodeProgress="progress"
-                v-model:parent="parent"
-            />
+            <EditContentVideo v-if="showVideo" bare :disabled="disabled" v-model:parent="parent" />
 
             <MediaAudioList :parent="parent" />
         </div>

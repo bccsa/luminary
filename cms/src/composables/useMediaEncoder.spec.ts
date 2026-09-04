@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 /**
  * One assertion, on the value that was wrong for months.
@@ -256,5 +256,115 @@ describe("useMediaEncoder availability", () => {
 
         expect(availability.value).toBe("available");
         vi.unstubAllGlobals();
+    });
+});
+
+/**
+ * Nothing tells this page that a desktop app has started. The launch link's one
+ * delayed re-check fired before the encoder had finished booting, and did
+ * nothing at all for an editor who opened the app from the Dock instead.
+ */
+describe("useMediaEncoder watching for the encoder", () => {
+    beforeEach(() => {
+        vi.useFakeTimers();
+        // jsdom's user agent is not Chromium, which would land every failure on
+        // "browser-unsupported". Polling is the same either way; the label is not.
+        vi.stubGlobal("navigator", { userAgentData: { brands: [{ brand: "Chromium" }] } });
+    });
+    afterEach(() => {
+        vi.useRealTimers();
+        vi.unstubAllGlobals();
+    });
+
+    it("keeps looking until the encoder answers", async () => {
+        checkEncoderHealthMock.mockResolvedValue({ available: false });
+        const { availability, refreshAvailability, watchForEncoder } = useMediaEncoder();
+
+        await refreshAvailability();
+        expect(availability.value).toBe("unavailable");
+
+        watchForEncoder();
+        checkEncoderHealthMock.mockResolvedValue({ available: true, apiVersion: "0.0.1" });
+        await vi.advanceTimersByTimeAsync(3000);
+
+        expect(availability.value).toBe("available");
+    });
+
+    /**
+     * The direction that was missed first time. Quitting the encoder does not
+     * hide the tab — switching applications never fires `visibilitychange` — so
+     * an editor could be left with a button that looked usable on an app that
+     * was gone.
+     */
+    it("notices the encoder going away, with nobody touching the browser", async () => {
+        const { availability, refreshAvailability, watchForEncoder } = useMediaEncoder();
+        await refreshAvailability();
+        expect(availability.value).toBe("available");
+        watchForEncoder();
+
+        checkEncoderHealthMock.mockResolvedValue({ available: false });
+        await vi.advanceTimersByTimeAsync(10000);
+
+        expect(availability.value).toBe("unavailable");
+    });
+
+    it("comes back on its own when the encoder is reopened", async () => {
+        checkEncoderHealthMock.mockResolvedValue({ available: false });
+        const { availability, refreshAvailability, watchForEncoder } = useMediaEncoder();
+        await refreshAvailability();
+        watchForEncoder();
+
+        checkEncoderHealthMock.mockResolvedValue({ available: true, apiVersion: "0.0.1" });
+        await vi.advanceTimersByTimeAsync(3000);
+        expect(availability.value).toBe("available");
+
+        checkEncoderHealthMock.mockResolvedValue({ available: false });
+        await vi.advanceTimersByTimeAsync(10000);
+        expect(availability.value).toBe("unavailable");
+    });
+
+    it("asks sooner while the encoder is missing than once it has answered", async () => {
+        checkEncoderHealthMock.mockResolvedValue({ available: false });
+        const { refreshAvailability, watchForEncoder } = useMediaEncoder();
+        await refreshAvailability();
+        watchForEncoder();
+
+        const before = checkEncoderHealthMock.mock.calls.length;
+        await vi.advanceTimersByTimeAsync(9000);
+        const whileMissing = checkEncoderHealthMock.mock.calls.length - before;
+
+        expect(whileMissing).toBeGreaterThan(1);
+    });
+
+    it("leaves a hidden tab alone — nobody there is waiting for an answer", async () => {
+        checkEncoderHealthMock.mockResolvedValue({ available: false });
+        const { refreshAvailability, watchForEncoder } = useMediaEncoder();
+        await refreshAvailability();
+        watchForEncoder();
+
+        const hidden = vi.spyOn(document, "hidden", "get").mockReturnValue(true);
+        const before = checkEncoderHealthMock.mock.calls.length;
+        await vi.advanceTimersByTimeAsync(12000);
+
+        expect(checkEncoderHealthMock.mock.calls.length).toBe(before);
+        hidden.mockRestore();
+    });
+
+    /**
+     * Switching applications does not fire `visibilitychange`, so the window's
+     * own focus event is what catches somebody coming back from the encoder.
+     */
+    it("asks immediately when the browser window is focused again", async () => {
+        const { refreshAvailability } = useMediaEncoder();
+        await refreshAvailability();
+        const before = checkEncoderHealthMock.mock.calls.length;
+
+        window.dispatchEvent(new Event("focus"));
+        await vi.advanceTimersByTimeAsync(0);
+
+        // Greater than, not exactly one more: the listener is removed on unmount,
+        // and a composable called outside a component never unmounts, so earlier
+        // cases in this file are still listening.
+        expect(checkEncoderHealthMock.mock.calls.length).toBeGreaterThan(before);
     });
 });

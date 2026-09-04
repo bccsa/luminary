@@ -21,8 +21,6 @@ type Props = {
 };
 const props = defineProps<Props>();
 
-const emit = defineEmits<{ recheck: [] }>();
-
 /** The encoder's session statuses, in the words an editor should see. */
 const STATUS_LABELS: Record<string, string> = {
     created: "Preparing",
@@ -41,15 +39,12 @@ const running = computed(() => props.status == "encoding" || props.status == "up
 const label = computed(() => (props.status ? (STATUS_LABELS[props.status] ?? props.status) : ""));
 
 /** Only meaningful while something is running — "Encoded 100%" says it twice. */
+// One decimal: the encoder reports a raw float, so a bar labelled
+// "Encoding 1.7666666666666668%" is arithmetic rather than progress. Number()
+// drops a trailing .0, so a whole percentage still reads as one.
 const percentage = computed(() =>
-    running.value && props.progress != undefined ? props.progress : undefined,
+    running.value && props.progress != undefined ? Number(props.progress.toFixed(1)) : undefined,
 );
-
-/**
- * Launching the app takes a moment and nothing tells this page when it is up, so
- * re-check shortly after the link is followed.
- */
-const recheckAfterLaunch = () => setTimeout(() => emit("recheck"), 2000);
 </script>
 
 <template>
@@ -110,10 +105,10 @@ const recheckAfterLaunch = () => setTimeout(() => emit("recheck"), 2000);
                 :href="ENCODER_PROTOCOL_URL"
                 class="font-medium underline underline-offset-2 hover:text-yellow-900"
                 data-test="encoder-launch"
-                @click="recheckAfterLaunch"
                 >Open it</a
-            >, then try again. If it is already open, try this page in Chrome — that is the browser
-            this is known to work in. Never installed it?
+            >
+            — this updates on its own once it is. If it is already open, try this page in Chrome;
+            that is the browser this is known to work in. Never installed it?
             <a
                 :href="ENCODER_DOWNLOAD_URL"
                 target="_blank"
@@ -134,9 +129,9 @@ const recheckAfterLaunch = () => setTimeout(() => emit("recheck"), 2000);
                 :href="ENCODER_PROTOCOL_URL"
                 class="font-medium underline underline-offset-2 hover:text-zinc-900"
                 data-test="encoder-launch"
-                @click="recheckAfterLaunch"
                 >Open it</a
-            >, then try again — or
+            >
+            — this updates on its own once it is — or
             <a
                 :href="ENCODER_DOWNLOAD_URL"
                 target="_blank"

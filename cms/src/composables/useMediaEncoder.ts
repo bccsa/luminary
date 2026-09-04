@@ -72,6 +72,77 @@ export function useMediaEncoder() {
         return false;
     }
 
+    /**
+     * Notice when the encoder appears, without the editor having to try again.
+     *
+     * Nothing tells this page that a desktop app has started, and the launch
+     * link's one re-check was too early — the encoder boots Nest and probes the
+     * machine's encoders first, which takes longer than the couple of seconds an
+     * app usually needs. It also did nothing at all for someone who opened the
+     * app from the Dock rather than the link.
+     *
+     * Polling stops the moment it answers, and only runs while the tab is
+     * visible: a background tab is not a person waiting for a window to appear,
+     * and this is a request per interval to a port that may have nothing on it.
+     */
+    /**
+     * Keep the encoder's availability true, in both directions.
+     *
+     * Nothing tells this page that a desktop app has started or stopped, so it
+     * is asked. Polling runs the whole time the section is mounted rather than
+     * only while the encoder is missing: an editor who quits it should not be
+     * left with a button that still looks usable, and a stale "not running"
+     * notice is no better.
+     *
+     * Slower once it has answered, because then it is confirming rather than
+     * waiting. Both are a loopback request that fails immediately when nothing
+     * is listening on the port.
+     */
+    const POLL_MISSING_MS = 3000;
+    const POLL_PRESENT_MS = 10000;
+    let poll: ReturnType<typeof setTimeout> | undefined;
+
+    function stopWatching() {
+        if (poll) clearTimeout(poll);
+        poll = undefined;
+    }
+
+    async function tick() {
+        // A hidden tab is nobody waiting for an answer; the next focus asks.
+        if (!document.hidden) await refreshAvailability();
+        schedule();
+    }
+
+    function schedule() {
+        stopWatching();
+        const wait = availability.value === "available" ? POLL_PRESENT_MS : POLL_MISSING_MS;
+        poll = setTimeout(() => void tick(), wait);
+    }
+
+    /** Start watching. Safe to call repeatedly. */
+    function watchForEncoder() {
+        if (poll) return;
+        schedule();
+    }
+
+    /**
+     * Ask immediately when the window comes back.
+     *
+     * `visibilitychange` covers tab switches and minimising, but not switching
+     * to another application — which is how somebody quits the encoder, so it
+     * would miss exactly the case it is most needed for. `focus` on the window
+     * catches that.
+     */
+    const onReturn = () => {
+        if (document.hidden) return;
+        void refreshAvailability();
+    };
+
+    if (typeof document !== "undefined") {
+        document.addEventListener("visibilitychange", onReturn);
+        window.addEventListener("focus", onReturn);
+    }
+
     function stop() {
         unsubscribe?.();
         unsubscribe = undefined;
@@ -237,7 +308,14 @@ export function useMediaEncoder() {
         return true;
     }
 
-    onUnmounted(stop);
+    onUnmounted(() => {
+        stop();
+        stopWatching();
+        if (typeof document !== "undefined") {
+            document.removeEventListener("visibilitychange", onReturn);
+            window.removeEventListener("focus", onReturn);
+        }
+    });
 
     return {
         availability,
@@ -249,6 +327,8 @@ export function useMediaEncoder() {
         error,
         sessionId,
         refreshAvailability,
+        watchForEncoder,
+        stopWatching,
         start,
         resume,
         stop,

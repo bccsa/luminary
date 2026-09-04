@@ -332,13 +332,15 @@ describe("what the preview says when it cannot play", () => {
         );
     });
 
-    it("says how far the encode has got, when one is running", async () => {
-        const wrapper = await openWithPanel("coming-soon", undefined, {
-            encodeStatus: "encoding",
-            encodeProgress: 27,
-        });
+    it("says only that there is nothing here, not how far something else has got", async () => {
+        // Encode progress belongs in the Media section, where the bar is. Repeating
+        // it over the picture put a raw float across the frame an editor is judging.
+        const wrapper = await openWithPanel("coming-soon", undefined, {});
 
-        expect(wrapper.find('[data-test="preview-not-yet"]').text()).toContain("27%");
+        const panel = wrapper.find('[data-test="preview-not-yet"]');
+        expect(panel.text()).toContain("Nothing at this URL yet");
+        expect(panel.text()).not.toContain("%");
+        expect(panel.text()).not.toContain("Checking again");
     });
 
     it("names a wrong key as a wrong key", async () => {
