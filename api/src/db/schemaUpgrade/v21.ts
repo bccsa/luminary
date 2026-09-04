@@ -1,23 +1,14 @@
 import { DbService } from "../db.service";
 import { DocType } from "../../enums";
+import { ContentDto } from "../../dto/ContentDto";
 
 /**
- * Upgrade the database schema from version 20 to 21.
+ * Upgrade the database schema from version 20 to 21: the legacy per-language
+ * `ContentDto.video` URL moves onto the parent's `media.hlsUrl`.
  *
- * Moves the legacy per-language `ContentDto.video` URL onto the parent's
- * `media.hlsUrl` (`_contentParentDto.media`, `MediaDto.hlsUrl`). The CMS video editor
- * (`EditContentVideo.vue`) already writes exclusively to `parent.media.hlsUrl`, and the
- * app already prefers `parentMedia.hlsUrl` over `content.video` (`videoSourceFor`) — so
- * `video` is dead weight on any Content doc whose parent already has an `hlsUrl`, and a
- * stale leftover on parents that don't.
- *
- * For each Post/Tag with no `media.hlsUrl`, the first non-empty `video` found among its
- * child Content docs (across languages) is copied onto `parent.media.hlsUrl` — the
- * per-parent `media` field can only hold one collection, so this is a many-to-one
- * collapse; any other distinct value among the remaining children is logged and
- * dropped. `video` is then deleted from every child that had it, regardless of whether
- * its value was the one kept, since a per-child video field is no longer read anywhere
- * once `parentMedia.hlsUrl` exists.
+ * A parent holds one collection, so the first child's value wins and any other
+ * distinct value is logged and dropped. `video` is then cleared from every child,
+ * and `parentMedia` stamped on them as a change request would.
  */
 export default async function (db: DbService) {
     try {
@@ -44,10 +35,12 @@ export default async function (db: DbService) {
             for (const parent of parents) {
                 stats.parentsScanned++;
 
-                const { docs: children } = await db.getContentByParentId(parent._id);
-                const withVideo = (children as any[]).filter((c) => c.video);
+                const { docs } = await db.getContentByParentId(parent._id);
+                const children = docs as ContentDto[];
+                const withVideo = children.filter((c) => c.video);
                 if (!withVideo.length) continue;
 
+                let parentUpdated = false;
                 if (!parent.media?.hlsUrl) {
                     if (!parent.media) parent.media = { fileCollections: [] };
                     parent.media.hlsUrl = withVideo[0].video;
@@ -63,13 +56,24 @@ export default async function (db: DbService) {
                     parent.updatedTimeUtc = Date.now();
                     await db.upsertDoc(parent);
                     stats.parentsUpdated++;
+                    parentUpdated = true;
                 }
 
-                for (const child of withVideo) {
+                // `parentMedia` is only ever stamped by a change request, so a migrated
+                // parent's children must get it here or the app shows no video until
+                // the parent is next saved.
+                for (const child of children) {
+                    const hadVideo = Boolean(child.video);
+                    if (!hadVideo && !parentUpdated) continue;
+
                     delete child.video;
+                    if (parentUpdated) {
+                        child.parentMedia = parent.media;
+                        child.parentMediaBucketId = parent.mediaBucketId;
+                    }
                     child.updatedTimeUtc = Date.now();
                     await db.upsertDoc(child);
-                    stats.childrenCleared++;
+                    if (hadVideo) stats.childrenCleared++;
                 }
             }
         }

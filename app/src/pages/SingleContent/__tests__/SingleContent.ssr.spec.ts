@@ -105,7 +105,6 @@ vi.mock("@/composables/useBucketInfo", () => ({
     useBucketInfo: () => ({ bucketBaseUrl: computed(() => "") }),
 }));
 
-vi.mock("video.js", () => ({ default: vi.fn() }));
 
 // Stub every presentational child that is not part of the query chain under test.
 // RelatedContent and ReadMore stay real — their queries and rendered output are the

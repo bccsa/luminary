@@ -32,6 +32,9 @@ vi.mock("@/composables/storageSelection", () => {
             autoSelectMediaBucket: _computed(() =>
                 mockMediaBuckets.value.length === 1 ? mockMediaBuckets.value[0]._id : null,
             ),
+            effectiveMediaBucketId: (persisted?: string) =>
+                persisted ??
+                (mockMediaBuckets.value.length === 1 ? mockMediaBuckets.value[0]._id : undefined),
         }),
     };
 });

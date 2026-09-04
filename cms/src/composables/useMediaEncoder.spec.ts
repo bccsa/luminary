@@ -171,10 +171,13 @@ describe("useMediaEncoder resume", () => {
 
         await useMediaEncoder().resume({ documentId: "post-1", onMediaReady });
 
-        expect(onMediaReady).toHaveBeenCalledWith({
-            hlsUrl: "https://cdn.example.com/media/s1/master.m3u8",
-            hlsKey: "aabbccddeeff00112233445566778899",
-        });
+        expect(onMediaReady).toHaveBeenCalledWith(
+            {
+                hlsUrl: "https://cdn.example.com/media/s1/master.m3u8",
+                hlsKey: "aabbccddeeff00112233445566778899",
+            },
+            "post-1",
+        );
     });
 
     it("does not follow a finished session, having nothing left to send", async () => {

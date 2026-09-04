@@ -8,6 +8,7 @@ import { processMedia } from "./processMediaDto";
 import { deleteMediaCollection } from "./deleteMediaCollection";
 import { migrateMediaCollection } from "./migrateMediaCollection";
 import { isInOurStorage } from "./mediaUrl";
+import { StorageDto } from "../../dto/StorageDto";
 import {
     deleteSidecar,
     deleteSidecarsForParent,
@@ -43,22 +44,16 @@ export default async function processPostTagDto(
             warnings.push(...imageWarnings);
         }
 
-        // Media files go only when the user asked for them in the delete
-        // confirmation. Opt-in because it is irreversible and because the
-        // collection may be referenced somewhere this API cannot see; the previous
-        // document is the authority on where the files are, and the incoming one
-        // carries the intent.
+        // Opt-in from the delete confirmation: irreversible, and the collection may be
+        // referenced somewhere this API cannot see. prevDoc knows where the files are.
         if (doc.media?.deleteFiles) {
             warnings.push(
                 ...(await deleteMediaCollection(prevDoc?.media, prevDoc?.mediaBucketId, db)),
             );
         }
 
-        // Sidecars are children of this document — nothing else references them and
-        // no client holds a copy, so they go with it. Hard delete, no DeleteCmd. A
-        // failure here must not block the content delete: an orphaned sidecar is
-        // unreadable once the parent is gone (GET /sidecar 404s), so warn rather
-        // than throw, matching deleteImage's precedent.
+        // Sidecars go with their parent (hard delete, no DeleteCmd). Warn rather than
+        // block the delete, as deleteImage does: an orphan is unreadable anyway.
         try {
             await deleteSidecarsForParent(db, doc._id);
         } catch (error) {
@@ -121,32 +116,20 @@ export default async function processPostTagDto(
         delete (doc as any).image; // Remove the legacy image field
     }
 
-    // Process media
     if (doc.media) {
-        // The bucket is where the encoder was told to write, and is what a later
-        // edit of the collection has to be pointed back at — so it is required
-        // for a collection in our own storage, and meaningless for one that is
-        // not. A YouTube link, or an HLS master on someone else's CDN, has no
-        // bucket to be relative to and nothing here to migrate or delete;
-        // demanding one records a bucket that does not own anything.
-        //
-        // Asked of the configured buckets rather than assumed from the shape of
-        // the URL: an absolute URL under a bucket's public URL is ours, and is
-        // exactly the case that must not be saved without naming its bucket —
-        // stored un-relative, it breaks the moment that bucket is renamed.
+        // A collection in our own storage must name its bucket: that is how the URL is
+        // stored relative, migrated and deleted. External media has no bucket to name.
         if (doc.media.hlsUrl && !doc.mediaBucketId) {
             const buckets = await db.getDocsByType(DocType.Storage);
-            const publicUrls = buckets.docs.map((b: any) => b.publicUrl);
+            const publicUrls = buckets.docs.map((b: StorageDto) => b.publicUrl);
 
             if (isInOurStorage(doc.media.hlsUrl, publicUrls)) {
                 throw new Error("Bucket is not specified for media processing.");
             }
         }
 
-        // A bucket change has to take the files with it. `mediaBucketId` and
-        // `hlsUrl` must name the same bucket: if they diverge, the collection can no
-        // longer be resolved from the URL, and deleting the document then leaves the
-        // files behind for good.
+        // A bucket change takes the files with it: `mediaBucketId` and `hlsUrl` must
+        // name the same bucket, or a later delete cannot find the collection.
         if (prevDoc?.mediaBucketId && prevDoc.mediaBucketId !== doc.mediaBucketId) {
             const migration = await migrateMediaCollection(
                 doc.media,
@@ -165,21 +148,15 @@ export default async function processPostTagDto(
             }
         }
 
-        // A failed key store must fail the change request, not become a warning: the
-        // plaintext key exists only for the duration of this request (processMedia has
-        // already dropped it by the time the error is caught), so saving the Post with
-        // an `hlsUrl` and no `hlsKey_id` would leave an unplayable, unrecoverable
-        // collection. Let it throw — processChangeRequest has no catch here, so the CR
-        // fails and the editor still holds the key to retry.
+        // Deliberately not caught: the plaintext key exists only for this request, so a
+        // saved `hlsUrl` without its `hlsKey_id` would be unrecoverable. Failing the
+        // change request leaves the editor holding the key to retry.
         warnings.push(...(await processMedia(doc.media, doc, db)));
     }
 
-    // A key that was referenced and no longer is has been removed by the editor —
-    // whether they cleared the key field or the whole media object. Outside the
-    // `if (doc.media)` block on purpose: removing the collection drops doc.media
-    // entirely, which is the case a check inside processMedia would never see. A
-    // fresh hlsKey in the same request means replace, not delete — processMedia
-    // has already recreated the sidecar at the same id. See ADR 0019.
+    // Outside `if (doc.media)`: removing the whole media object removes the key too.
+    // A fresh `hlsKey` in the same request is a replacement processMedia has already
+    // stored at the same sidecar id (ADR 0019).
     if (prevDoc?.media?.hlsKey_id && !doc.media?.hlsKey_id && !doc.media?.hlsKey) {
         await deleteSidecar(db, doc._id, SidecarType.HlsEncryptionKey);
     }

@@ -158,11 +158,8 @@ export function useEditContentSource(options: UseEditContentSourceOptions): UseE
     const { remove: removeParent } = parentEditable;
     const contentEditable = toEditable<ContentDto>(contentSource, {
         persistOffline: true,
-        // The API owns these: `memberOf` and the `parent*` family are re-stamped from the
-        // parent on every parent save, and the rest are derived. None is editable here, so
-        // without back-patching, this editor's own save comes back as "changed remotely by
-        // someone else" — most visibly during an encode, where the parent's media changes
-        // mid-session and `parentMedia` follows it onto every translation.
+        // Server-owned fields, re-stamped on every parent save. Without back-patching,
+        // this editor's own save comes back as "changed remotely by someone else".
         backPatchFields: [
             "memberOf",
             "parentTags",

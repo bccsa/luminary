@@ -3,20 +3,13 @@
  * Video playback for a content document.
  *
  * The player itself is `LuminaryPlayer` from the encoder's `player-web-legacy`
- * package — the same Video.js 8 chrome this component used to build by hand,
- * now maintained next to the encoder that produces the streams. What lives here
- * is everything that is Luminary's rather than the player's: which URL to play,
- * where the decryption key comes from, resume position, and the engagement
- * signals a finished video sends.
- *
- * The player owns, and this file no longer does: control-bar layout, auto-hiding
- * controls, the iOS keep-alive audio element, rotation/fullscreen handling,
- * audio-track selection by preferred language, the stall nudge, audio-only mode,
- * and the whole YouTube branch.
+ * package. What lives here is what is Luminary's rather than the player's: which
+ * URL to play, where the decryption key comes from, resume position, and the
+ * engagement signals a finished video sends.
  */
 import { computed, ref, watch } from "vue";
 import { LuminaryPlayer, type PlayerSource } from "@luminary-media-converter/player-web-legacy";
-import { type ContentDto, SidecarType, getRest, unmaskKeyHex } from "luminary-shared";
+import { type ContentDto, fetchHlsKey } from "luminary-shared";
 import LImage from "../images/LImage.vue";
 import { appLanguagesPreferredAsRef, queryParams } from "@/globalConfig";
 import { getMediaProgress, removeMediaProgress, setMediaProgress } from "@/contentProgress";
@@ -78,31 +71,29 @@ const preferredLanguage = computed(
  */
 const controls = { subtitlesMenu: false };
 
+/**
+ * Whether the key question has been answered for this document. An encrypted
+ * stream must not be handed to the player before its key is in hand, or it is
+ * loaded, fails, and is loaded again.
+ */
+const keyResolved = ref(false);
+
 const source = computed<PlayerSource | null>(() => {
     const url = videoSource.value;
-    if (!url) return null;
+    if (!url || !keyResolved.value) return null;
     return { masterUrl: url, keyHex: keyHex.value };
 });
 
-/**
- * Fetches the key for whatever document is being played.
- *
- * Runs before the source is built, so an encrypted stream is loaded once with
- * its key rather than loaded, failed, and reloaded. A document with no key
- * answers 404 and leaves `keyHex` undefined, which is the unencrypted case and
- * needs no special handling.
- */
 watch(
     () => props.content?._id,
     async () => {
         keyHex.value = undefined;
+        keyResolved.value = false;
         const parentId = props.content?.parentId;
-        if (!parentId || !props.content?.parentMedia?.hlsKey_id) return;
-        const sidecar = await getRest().getSidecar(parentId, SidecarType.HlsEncryptionKey);
-        if (!sidecar) return;
-        const data = sidecar.data as { maskedKeyHex: string } | undefined;
-        if (!data?.maskedKeyHex) return;
-        keyHex.value = await unmaskKeyHex(sidecar.sidecarId, data.maskedKeyHex);
+        if (parentId && props.content?.parentMedia?.hlsKey_id) {
+            keyHex.value = await fetchHlsKey(parentId);
+        }
+        keyResolved.value = true;
     },
     { immediate: true },
 );

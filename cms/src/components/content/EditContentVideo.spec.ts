@@ -81,9 +81,9 @@ describe("EditContentVideo.vue", () => {
     });
 
     it("says a key is saved when the document holds only its reference", async () => {
-        // After a save the key itself is gone — the API keeps a crypto object and
+        // After a save the key itself is gone — the API keeps it in a sidecar and
         // returns its id — so an empty field must not read as "no key".
-        const wrapper = mountVideo(parentWith({ hlsUrl: HLS_URL, hlsKey_id: "crypto-1" }));
+        const wrapper = mountVideo(parentWith({ hlsUrl: HLS_URL, hlsKey_id: "sidecar-1" }));
 
         expect(wrapper.find('[data-test="video-key-note"]').text()).toContain(
             "encryption key is saved",

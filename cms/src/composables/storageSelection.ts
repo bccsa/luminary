@@ -57,6 +57,15 @@ export function storageSelection() {
     });
 
     /**
+     * The media bucket a document is treated as using: the persisted one, else a
+     * lone media bucket. The fallback is not written to the document — that would
+     * dirty every legacy doc — so the parent records it only when the user picks a
+     * bucket or starts an encode.
+     */
+    const effectiveMediaBucketId = (persisted: string | undefined | null): string | undefined =>
+        persisted ?? autoSelectMediaBucket.value ?? undefined;
+
+    /**
      * Check if bucket selection is needed (more than one bucket)
      */
     const needsImageBucketSelection = computed(() => {
@@ -89,6 +98,7 @@ export function storageSelection() {
         // Auto-selection
         autoSelectImageBucket,
         autoSelectMediaBucket,
+        effectiveMediaBucketId,
 
         // Selection state
         selectedImageBucket,

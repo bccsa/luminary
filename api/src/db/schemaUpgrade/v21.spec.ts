@@ -24,7 +24,7 @@ describe("v21 — legacy video field moved to media.hlsUrl", () => {
         return { _id: id, type: DocType.Post, ...(media !== undefined ? { media } : {}) };
     }
 
-    function content(id: string, parentId: string, video?: string) {
+    function content(id: string, parentId: string, video?: string): any {
         return { _id: id, type: DocType.Content, parentId, ...(video ? { video } : {}) };
     }
 
@@ -37,9 +37,24 @@ describe("v21 — legacy video field moved to media.hlsUrl", () => {
 
         expect(p.media).toEqual({ fileCollections: [], hlsUrl: "https://example.com/master.m3u8" });
         expect(c.video).toBeUndefined();
+        expect(c.parentMedia).toEqual(p.media);
         expect(upserted).toContain(p);
         expect(upserted).toContain(c);
         expect(db.setSchemaVersion).toHaveBeenCalledWith(21);
+    });
+
+    it("stamps parentMedia on the siblings that never had a video of their own", async () => {
+        const p = post("post-1");
+        const withVideo = content("content-en", "post-1", "https://example.com/a.m3u8");
+        const without = content("content-fr", "post-1");
+        const { db, upserted } = mockDb(20, { [DocType.Post]: [p], [DocType.Tag]: [] }, {
+            "post-1": [withVideo, without],
+        });
+
+        await v21(db);
+
+        expect(without.parentMedia).toEqual(p.media);
+        expect(upserted).toContain(without);
     });
 
     it("leaves an existing parent hlsUrl untouched but still clears the child's video", async () => {
@@ -51,6 +66,7 @@ describe("v21 — legacy video field moved to media.hlsUrl", () => {
 
         expect(p.media.hlsUrl).toBe("https://example.com/existing.m3u8");
         expect(c.video).toBeUndefined();
+        expect(c.parentMedia).toBeUndefined();
         expect(upserted).not.toContain(p);
         expect(upserted).toContain(c);
     });

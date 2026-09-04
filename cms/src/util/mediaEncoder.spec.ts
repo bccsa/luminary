@@ -2,7 +2,6 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { createHash } from "crypto";
 import {
     isEncoderOutdated,
-    unmaskKeyHex,
     browserCanReachEncoder,
     checkEncoderHealth,
     createEncoderSession,
@@ -22,48 +21,6 @@ function maskKey(sessionId: string, keyHex: string): string {
 
 afterEach(() => {
     vi.unstubAllGlobals();
-});
-
-describe("unmaskKeyHex", () => {
-    // Shared test vector — the same (seed, key) → masked literal is asserted in
-    // api/src/util/maskKey.spec.ts (maskKeyHex) and shared/src/util/unmaskKeyHex.spec.ts.
-    // A divergence between the implementations fails a test here rather than a video
-    // in the player.
-    it("matches the shared test vector", async () => {
-        const seed = "sidecar-post-abc-hlsEncryptionKey";
-        const keyHex = "000102030405060708090a0b0c0d0e0f";
-
-        expect(maskKey(seed, keyHex)).toBe("98ceb55553113bf2fdd5a74b3fa6e8d8");
-        expect(await unmaskKeyHex(seed, "98ceb55553113bf2fdd5a74b3fa6e8d8")).toBe(keyHex);
-    });
-
-    it("recovers a key masked with SHA-256(sessionId)[0..15]", async () => {
-        const sessionId = "abc123";
-        const keyHex = "000102030405060708090a0b0c0d0e0f";
-
-        expect(await unmaskKeyHex(sessionId, maskKey(sessionId, keyHex))).toBe(keyHex);
-    });
-
-    it("is its own inverse, so masking twice returns the input", async () => {
-        const sessionId = "session-xyz";
-        const keyHex = "ffeeddccbbaa99887766554433221100";
-
-        const once = await unmaskKeyHex(sessionId, keyHex);
-        expect(await unmaskKeyHex(sessionId, once)).toBe(keyHex);
-    });
-
-    it("produces a different key for a different session, so keys cannot be crossed", async () => {
-        const keyHex = "0f0e0d0c0b0a09080706050403020100";
-        const masked = maskKey("session-a", keyHex);
-
-        expect(await unmaskKeyHex("session-b", masked)).not.toBe(keyHex);
-    });
-
-    it("returns 16 bytes for a 16-byte key", async () => {
-        const keyHex = "112233445566778899aabbccddeeff00";
-
-        expect(await unmaskKeyHex("s", maskKey("s", keyHex))).toHaveLength(32);
-    });
 });
 
 describe("checkEncoderHealth", () => {

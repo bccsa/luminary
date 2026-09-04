@@ -20,7 +20,7 @@ const playMock = vi.hoisted(() => vi.fn(() => Promise.resolve(true)));
 const pauseMock = vi.hoisted(() => vi.fn());
 const enterFullscreenMock = vi.hoisted(() => vi.fn(() => Promise.resolve()));
 const exitFullscreenMock = vi.hoisted(() => vi.fn());
-const getSidecarMock = vi.hoisted(() => vi.fn());
+const fetchHlsKeyMock = vi.hoisted(() => vi.fn());
 
 // Built inside the factory: vi.mock is hoisted above the imports, so a stub
 // defined at module scope is not there yet when the factory runs.
@@ -54,7 +54,7 @@ vi.mock("@/composables/useBucketInfo", () => ({
 
 vi.mock("luminary-shared", async (importOriginal) => ({
     ...(await importOriginal<typeof import("luminary-shared")>()),
-    getRest: () => ({ getSidecar: getSidecarMock }),
+    fetchHlsKey: fetchHlsKeyMock,
 }));
 
 const setMediaProgressMock = vi.hoisted(() => vi.fn());
@@ -101,7 +101,7 @@ const stub = (wrapper: any) => wrapper.findComponent({ name: "LuminaryPlayer" })
 beforeEach(() => {
     vi.clearAllMocks();
     getMediaProgressMock.mockReturnValue(0);
-    getSidecarMock.mockResolvedValue(undefined);
+    fetchHlsKeyMock.mockResolvedValue(undefined);
 });
 
 describe("VideoPlayer", () => {
@@ -124,43 +124,47 @@ describe("VideoPlayer", () => {
     });
 
     describe("the decryption key", () => {
-        // Real (seed, masked) → key vector shared with api/src/util/maskKey.spec.ts,
-        // cms/src/util/mediaEncoder.spec.ts and shared/src/util/unmaskKeyHex.spec.ts —
-        // exercises the real unmaskKeyHex rather than a mock of it.
-        const SIDECAR_ID = "sidecar-post-abc-hlsEncryptionKey";
-        const MASKED_KEY_HEX = "98ceb55553113bf2fdd5a74b3fa6e8d8";
         const KEY_HEX = "000102030405060708090a0b0c0d0e0f";
 
         it("is fetched and handed to the player when the media is encrypted", async () => {
-            getSidecarMock.mockResolvedValue({
-                sidecarId: SIDECAR_ID,
-                parentId: mockEnglishContentDto.parentId,
-                sidecarType: "hlsEncryptionKey",
-                data: { maskedKeyHex: MASKED_KEY_HEX },
-            });
+            fetchHlsKeyMock.mockResolvedValue(KEY_HEX);
 
             const wrapper = await mountPlayer({
                 parentMedia: { hlsUrl: RELATIVE, hlsKey_id: "sidecar-1" },
             });
 
             await waitForExpect(() => expect(stub(wrapper).props("source").keyHex).toBe(KEY_HEX));
-            expect(getSidecarMock).toHaveBeenCalledWith(
-                mockEnglishContentDto.parentId,
-                "hlsEncryptionKey",
+            expect(fetchHlsKeyMock).toHaveBeenCalledWith(mockEnglishContentDto.parentId);
+        });
+
+        it("is in hand before the player is given the source, so the stream loads once", async () => {
+            // Handing over the URL first and the key a tick later makes the player
+            // load, fail on the key, and load again.
+            let resolveKey!: (key: string) => void;
+            fetchHlsKeyMock.mockImplementationOnce(
+                () => new Promise<string>((resolve) => (resolveKey = resolve)),
             );
+
+            const wrapper = await mountPlayer({
+                parentMedia: { hlsUrl: RELATIVE, hlsKey_id: "sidecar-1" },
+            });
+            expect(stub(wrapper).exists()).toBe(false);
+
+            resolveKey(KEY_HEX);
+            await waitForExpect(() => expect(stub(wrapper).props("source").keyHex).toBe(KEY_HEX));
         });
 
         it("is not asked for when the media is not encrypted", async () => {
             // Unencrypted is the common case; a request per video would be waste.
             await mountPlayer();
 
-            expect(getSidecarMock).not.toHaveBeenCalled();
+            expect(fetchHlsKeyMock).not.toHaveBeenCalled();
         });
 
         it("still plays when the key cannot be had", async () => {
             // "Not encrypted" and "not yours to have" are the same answer here:
             // play what the playlists give, and let playback fail if it must.
-            getSidecarMock.mockResolvedValue(undefined);
+            fetchHlsKeyMock.mockResolvedValue(undefined);
 
             const wrapper = await mountPlayer({
                 parentMedia: { hlsUrl: RELATIVE, hlsKey_id: "sidecar-1" },

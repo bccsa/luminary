@@ -45,14 +45,11 @@ const {
     watchForEncoder,
     start,
     resume,
+    stop,
 } = useMediaEncoder();
 
-// The bucket to encode into, on the same rule the bucket selector uses: a lone media
-// bucket counts as selected even though nothing has written it to the document yet.
-// Requiring the persisted value would leave the button dead on every post that has
-// never had media attached, which is every post this feature is for.
-const effectiveBucketId = computed(
-    () => parent.value?.mediaBucketId ?? bucketSelection.autoSelectMediaBucket.value ?? undefined,
+const effectiveBucketId = computed(() =>
+    bucketSelection.effectiveMediaBucketId(parent.value?.mediaBucketId),
 );
 
 /**
@@ -61,8 +58,10 @@ const effectiveBucketId = computed(
  * persists it, and the app's coming-soon state covers the gap until the first
  * segments are in the bucket.
  */
-const handleEncodedMedia = (media: Pick<MediaDto, "hlsUrl" | "hlsKey">) => {
-    if (!parent.value) return;
+const handleEncodedMedia = (media: Pick<MediaDto, "hlsUrl" | "hlsKey">, documentId: string) => {
+    // The editor may have moved to another document while the encoder was slow to
+    // answer; that document must not receive this one's collection.
+    if (!parent.value || parent.value._id !== documentId) return;
 
     parent.value.media = {
         ...(parent.value.media ?? { fileCollections: [] }),
@@ -115,7 +114,10 @@ onMounted(() => void checkAndResume());
 // the previous document's encode is not this one's.
 watch(
     () => parent.value?._id,
-    () => void checkAndResume(),
+    () => {
+        stop();
+        void checkAndResume();
+    },
 );
 </script>
 
