@@ -49,6 +49,14 @@ export async function processMedia(
 
     if (!media.hlsKey) return warnings;
 
+    // A key with nothing to decrypt is not stored: it would sit in a sidecar no
+    // player ever asks for, and outlive the media it never belonged to.
+    if (!media.hlsUrl) {
+        delete media.hlsKey;
+        warnings.push("Ignored an encryption key submitted without a playlist URL.");
+        return warnings;
+    }
+
     try {
         const seed = sidecarId(parent._id, SidecarType.HlsEncryptionKey);
         const data: HlsEncryptionKeyData = { maskedKeyHex: maskKeyHex(seed, media.hlsKey) };

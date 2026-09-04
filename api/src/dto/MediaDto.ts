@@ -7,9 +7,11 @@ import { Uuid } from "src/enums";
  * Database structured Media object
  */
 export class MediaDto {
+    /** Optional: a document need not have media, and media need not have a URL yet. */
+    @IsOptional()
     @IsString()
     @Expose()
-    hlsUrl: string;
+    hlsUrl?: string;
 
     /**
      * ID of the sidecar document holding this collection's (optional) decryption key.
