@@ -398,6 +398,13 @@ const actionsWrapperProps = computed(() => ({
     isLocalChange: hasLocalChanges.value,
     actions: contentActions.value,
 }));
+
+import { useMediaQuery } from "@vueuse/core";
+
+const isLgScreen = useMediaQuery("(min-width: 1024px)");
+watch(isLgScreen, (isLg) => {
+    if (isLg) showQuickLang.value = false;
+});
 </script>
 
 <template>
@@ -442,7 +449,7 @@ const actionsWrapperProps = computed(() => ({
                 <LDropdown
                     v-model:show="showQuickLang"
                     placement="bottom-start"
-                    panel-class="!w-40"
+                    panel-class="!w-40 mt-1"
                 >
                     <template #trigger>
                         <button
