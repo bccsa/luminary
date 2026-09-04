@@ -50,11 +50,13 @@ import RelatedContent from "@/components/content/RelatedContent.vue";
 import VerticalTagViewer from "@/components/tags/VerticalTagViewer.vue";
 
 import LImage from "@/components/images/LImage.vue";
+import ShareMenu from "@/components/content/ShareMenu.vue";
 
 import { userPreferencesAsRef } from "@/globalConfig";
 import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
 import LModal from "@/components/form/LModal.vue";
 import CopyrightBanner from "@/components/content/CopyrightBanner.vue";
+import { useGlobalCopyright } from "@/composables/useGlobalCopyright";
 import FallbackLanguageBadge from "@/components/content/FallbackLanguageBadge.vue";
 import { useI18n } from "vue-i18n";
 import ImageModal from "@/components/images/ImageModal.vue";
@@ -658,6 +660,17 @@ const playAudio = () => {
     }
 };
 
+// Posts rarely carry their own copyright, so shared quotes fall back to the instance-wide
+// notice the page already shows in its copyright banner.
+const { copyrightText: globalCopyright } = useGlobalCopyright();
+const shareCopyright = computed(() => content.value?.copyright || globalCopyright.value);
+
+// Whether the hero image can carry the title/summary as an overlay. Video has its own
+// player chrome the overlay would fight with, so it keeps a plain title above instead.
+const hasHeroImage = computed(
+    () => !content.value?.video && !!(content.value?.parentId || content.value?.parentImageData),
+);
+
 watch([isLoading, content, is404], async () => {
     if (is404.value) {
         await nextTick();
@@ -764,104 +777,115 @@ watch([isLoading, content, is404], async () => {
                     class="w-full lg:w-3/4 lg:max-w-3xl"
                     v-else-if="content"
                 >
-                    <!-- Desktop: title row originates at the top of the page, level with the pinned
-                         topbar chrome, and scrolls away with the content like normal. -->
-                    <div class="hidden h-9 items-center justify-center gap-2 lg:flex">
+                    <!-- Plain title header: used when there's no hero image to carry it (video,
+                         or a doc with neither image nor video) — the image case renders the
+                         title as an overlay on the media below instead. -->
+                    <div
+                        v-if="!hasHeroImage"
+                        class="mb-5 flex items-start justify-center gap-2 text-center lg:mb-2"
+                    >
                         <h1
-                            class="truncate text-xl tracking-tight text-zinc-900 dark:text-slate-50 lg:text-2xl"
+                            class="text-xl font-semibold tracking-tight text-zinc-900 [text-wrap:balance] dark:text-slate-50 lg:text-2xl"
                         >
                             {{ content.title }}
                         </h1>
                         <button
                             v-if="canEdit() && cmsUrl"
                             @click="openCmsEditor"
-                            class="flex flex-shrink-0 cursor-pointer items-center text-zinc-400 hover:text-yellow-500 dark:hover:text-yellow-400"
+                            class="mt-1 flex flex-shrink-0 cursor-pointer items-center text-zinc-400 hover:text-yellow-500 dark:hover:text-yellow-400"
                             data-test="editButton"
                         >
                             <PencilIcon class="h-5 w-5" />
                         </button>
                     </div>
 
-                    <div class="flex w-full flex-col items-center lg:hidden">
-                        <div class="mt-1 flex flex-col gap-4 text-center md:mt-4">
-                            <div class="flex flex-row items-start justify-center gap-2">
-                                <h1
-                                    class="text-xl tracking-tight text-zinc-900 dark:text-slate-50 lg:text-2xl"
-                                >
-                                    {{ content.title }}
-                                </h1>
-                                <button
-                                    v-if="canEdit() && cmsUrl"
-                                    @click="openCmsEditor"
-                                    class="mt-1.5 flex cursor-pointer items-center text-zinc-400 hover:text-yellow-500 dark:hover:text-yellow-400"
-                                    data-test="editButton"
-                                >
-                                    <PencilIcon class="h-5 w-5" />
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="mt-5 lg:mt-2">
-                        <IgnorePagePadding
-                            :mobileOnly="true"
-                            :ignoreTop="true"
+                    <IgnorePagePadding
+                        :mobileOnly="true"
+                        :ignoreTop="true"
+                    >
+                        <VideoPlayer
+                            v-if="content && content.video"
+                            :key="content._id"
+                            :content="content"
+                            :language="selectedLanguageCode"
+                        />
+                        <div
+                            v-else-if="hasHeroImage"
+                            class="relative cursor-pointer overflow-hidden lg:rounded-xl"
+                            @click="
+                                () => {
+                                    if (content) currentImageIndex = activeImageCollection(content);
+                                    enableZoom = true;
+                                }
+                            "
                         >
-                            <VideoPlayer
-                                v-if="content && content.video"
-                                :key="content._id"
-                                :content="content"
-                                :language="selectedLanguageCode"
+                            <LImage
+                                :image="content.parentImageData"
+                                :content-parent-id="content.parentId"
+                                :parent-image-bucket-id="content.parentImageBucketId"
+                                aspectRatio="video"
+                                size="post"
                             />
                             <div
-                                v-else-if="content.parentId || content.parentImageData"
-                                class="relative cursor-pointer overflow-hidden"
-                                @click="
-                                    () => {
-                                        if (content)
-                                            currentImageIndex = activeImageCollection(content);
-                                        enableZoom = true;
+                                v-if="(content.parentImageData?.fileCollections?.length ?? 0) > 1"
+                                class="absolute bottom-2 right-2 flex items-center gap-1"
+                            >
+                                <DocumentDuplicateIcon class="h-10 w-10 text-zinc-400" />
+                            </div>
+
+                            <!-- Small Play Audio Button (only show if content has audio but no video) -->
+                            <button
+                                v-if="hasAudioFiles"
+                                @click.stop="
+                                    (event) => {
+                                        playAudio();
+                                        // Prevent focus staying on button
+                                        (event.target as HTMLElement).blur();
                                     }
                                 "
+                                class="absolute bottom-2.5 left-3.5 flex items-center justify-center gap-1.5 rounded-full bg-black/60 py-1 pl-2 pr-3.5 text-white shadow-lg backdrop-blur-sm transition-all duration-200 hover:scale-110 hover:bg-black/80 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                                title="Play Audio"
                             >
-                                <LImage
-                                    :image="content.parentImageData"
-                                    :content-parent-id="content.parentId"
-                                    :parent-image-bucket-id="content.parentImageBucketId"
-                                    aspectRatio="video"
-                                    size="post"
-                                />
-                                <div
-                                    v-if="
-                                        (content.parentImageData?.fileCollections?.length ?? 0) > 1
-                                    "
-                                    class="absolute bottom-2 right-2 flex items-center gap-1"
-                                >
-                                    <DocumentDuplicateIcon class="h-10 w-10 text-zinc-400" />
-                                </div>
+                                <SpeakerWaveIcon class="h-5 w-5" />
+                                {{ t("singlecontent.listen") }}
+                            </button>
 
-                                <!-- Small Play Audio Button (only show if content has audio but no video) -->
-                                <button
-                                    v-if="hasAudioFiles"
-                                    @click.stop="
-                                        (event) => {
-                                            playAudio();
-                                            // Prevent focus staying on button
-                                            (event.target as HTMLElement).blur();
-                                        }
-                                    "
-                                    class="absolute bottom-2.5 left-3.5 flex items-center justify-center gap-1.5 rounded-full bg-black/60 py-1 pl-2 pr-3.5 text-white shadow-lg backdrop-blur-sm transition-all duration-200 hover:scale-110 hover:bg-black/80 focus:outline-none focus:ring-2 focus:ring-yellow-400"
-                                    title="Play Audio"
+                            <!-- Title + summary scrim: the gradient carries just the title/summary
+                                     zone, not the whole image, so the photo above it stays readable. -->
+                            <div
+                                class="pointer-events-none absolute inset-x-0 bottom-0 h-3/4 bg-gradient-to-t from-black/85 via-black/45 to-transparent"
+                            ></div>
+                            <div
+                                class="absolute inset-x-0 bottom-0 flex flex-col gap-1.5 p-4 lg:gap-2 lg:p-6"
+                                @click.stop
+                            >
+                                <div class="flex items-start gap-2">
+                                    <h1
+                                        class="text-xl font-semibold leading-tight text-white [text-wrap:balance] lg:text-3xl"
+                                    >
+                                        {{ content.title }}
+                                    </h1>
+                                    <button
+                                        v-if="canEdit() && cmsUrl"
+                                        @click="openCmsEditor"
+                                        class="mt-1 flex flex-shrink-0 cursor-pointer items-center text-white/70 hover:text-yellow-400"
+                                        data-test="editButton"
+                                    >
+                                        <PencilIcon class="h-5 w-5" />
+                                    </button>
+                                </div>
+                                <p
+                                    v-if="content.summary"
+                                    class="max-w-2xl text-sm leading-relaxed text-white/85 lg:text-base"
                                 >
-                                    <SpeakerWaveIcon class="h-5 w-5" />
-                                    {{ t("singlecontent.listen") }}
-                                </button>
+                                    {{ content.summary }}
+                                </p>
                             </div>
-                        </IgnorePagePadding>
-                    </div>
+                        </div>
+                    </IgnorePagePadding>
 
                     <div
-                        v-if="content.summary"
+                        v-if="!hasHeroImage && content.summary"
                         class="mt-6 flex justify-center"
                     >
                         <p
@@ -871,10 +895,10 @@ watch([isLoading, content, is404], async () => {
                         </p>
                     </div>
 
-                    <div class="mt-6 flex flex-col items-center gap-4">
-                        <div
-                            class="flex w-fit flex-wrap items-center justify-center gap-y-2 border-t-2 border-yellow-500/25 px-8 pt-6 text-sm text-zinc-500 dark:text-slate-400"
-                        >
+                    <div
+                        class="mt-4 flex flex-col items-center gap-2 px-4 text-sm text-zinc-500 dark:text-slate-400"
+                    >
+                        <div class="flex flex-wrap items-center justify-center gap-y-1">
                             <!-- Author -->
                             <div
                                 v-if="content.author"
@@ -906,25 +930,35 @@ watch([isLoading, content, is404], async () => {
                             <FallbackLanguageBadge :content="content" />
                         </div>
 
-                        <!-- Bookmark Button -->
-                        <button
-                            v-if="
-                                !(content.parentPostType && content.parentPostType == PostType.Page)
-                            "
-                            @click="toggleBookmark"
-                            data-test="bookmark"
-                            class="flex items-center transition-colors"
-                        >
-                            <component
-                                :is="isBookmarked ? BookmarkIconSolid : BookmarkIconOutline"
-                                class="h-5 w-5"
-                                :class="{
-                                    'text-yellow-500': isBookmarked,
-                                    'text-zinc-400 hover:text-zinc-600 dark:text-slate-500 dark:hover:text-slate-200':
-                                        !isBookmarked,
-                                }"
+                        <div class="flex items-center gap-3">
+                            <!-- Bookmark Button -->
+                            <button
+                                v-if="
+                                    !(
+                                        content.parentPostType &&
+                                        content.parentPostType == PostType.Page
+                                    )
+                                "
+                                @click="toggleBookmark"
+                                data-test="bookmark"
+                                class="flex items-center transition-colors"
+                            >
+                                <component
+                                    :is="isBookmarked ? BookmarkIconSolid : BookmarkIconOutline"
+                                    class="h-5 w-5"
+                                    :class="{
+                                        'text-yellow-500': isBookmarked,
+                                        'text-zinc-400 hover:text-zinc-600 dark:text-slate-500 dark:hover:text-slate-200':
+                                            !isBookmarked,
+                                    }"
+                                />
+                            </button>
+
+                            <ShareMenu
+                                :content="content"
+                                :copyright="shareCopyright"
                             />
-                        </button>
+                        </div>
                     </div>
 
                     <div
@@ -949,6 +983,8 @@ watch([isLoading, content, is404], async () => {
                     <LHighlightable
                         v-if="content.text"
                         :content-id="content._id"
+                        :title="content.title"
+                        :copyright="shareCopyright"
                         @highlighted="
                             recordAffinity(
                                 content?.parentTags,
@@ -969,7 +1005,7 @@ watch([isLoading, content, is404], async () => {
                             v-html="text"
                             class="prose prose-zinc mt-8 max-w-full dark:prose-invert lg:prose-lg prose-headings:font-bold prose-a:text-yellow-600 dark:prose-a:text-yellow-400"
                             :class="{
-                                'border-t border-zinc-100 pt-8 dark:border-slate-800':
+                                'border-t border-zinc-100 pt-4 dark:border-slate-800':
                                     categoryTags.length == 0,
                             }"
                         ></div> </LHighlightable
