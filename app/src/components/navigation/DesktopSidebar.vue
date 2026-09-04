@@ -452,17 +452,20 @@ const handleLogin = () => {
             :secondaryAction="() => (showLogoutDialog = false)"
             :secondaryButtonText="t('logout.modal.button_cancel')"
         >
-            <label class="mt-4 flex cursor-pointer items-start gap-3">
+            <label
+                class="mt-4 flex cursor-pointer items-start gap-3 rounded-lg bg-zinc-100/80 p-3 dark:bg-slate-800/40"
+            >
                 <LToggle
+                    class="mt-0.5"
                     :modelValue="forceReauthOnNextLogin"
                     @update:modelValue="(value: boolean) => (forceReauthOnNextLogin = value)"
                     data-test="shared-device-toggle"
                 />
-                <span class="text-sm">
+                <span class="text-sm leading-snug">
                     <span class="block font-medium text-zinc-900 dark:text-white">
                         {{ t("logout.modal.force_global_logout_label") }}
                     </span>
-                    <span class="mt-0.5 block text-zinc-500 dark:text-slate-300">
+                    <span class="mt-1 block text-xs text-zinc-500 dark:text-slate-300">
                         {{ t("logout.modal.force_global_logout_description") }}
                     </span>
                 </span>
