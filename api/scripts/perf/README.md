@@ -54,6 +54,35 @@ authenticated auth path, which does substantially more work per request — wort
 - **socket** — connect and handshake timing, and the size of the access map sent to every client
   on every connect.
 
+## Running authenticated
+
+The anonymous path is cached and costs almost nothing, so the numbers that matter only appear
+under a real token. `local-issuer.mjs` serves a JWKS for the e2e signing key on the port the
+existing `auth-provider-e2e` provider document already points at, and mints a persona token —
+no database writes are needed to set it up.
+
+```sh
+# terminal 1 — issuer (leave running)
+node scripts/perf/local-issuer.mjs editor1
+
+# terminal 2 — API. The provider domain is http://, which the API refuses unless allowed.
+# Pass the flag on the command line; it is a security switch, not a setting.
+PERF_TRACE=true AUTH_ALLOW_INSECURE_PROVIDER_DOMAIN=true npm run start
+
+# terminal 3
+npm run perf:audit -- --token="$(cat .perf-token)" --provider=auth-provider-e2e
+```
+
+Personas: `editor1` (default), `editor2`, `superadmin`, `private`. A persona with CmsView
+unblocks the CMS sync and search shapes that the anonymous identity cannot reach — coverage
+goes from roughly 44 of 72 request shapes to 69.
+
+Two things to know before running it. Every authenticated request currently rewrites the
+persona's User document (`lastLogin`), so a full run adds a few thousand revisions to it.
+And under load the concurrency suite drives all requests through a single identity, so they
+contend on that one document — the resulting throughput is a per-identity ceiling, not a
+global one.
+
 ## Corpus scaling
 
 To see which requests degrade linearly and which fall off a cliff, seed a throwaway database and
