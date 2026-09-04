@@ -114,6 +114,20 @@ describe("processMediaDto", () => {
         expect(media.hlsKey_id).toBeUndefined();
     });
 
+    it("drops a key submitted with no playlist URL instead of storing an orphan sidecar", async () => {
+        // hlsUrl is optional again (legacy audio-only media), so this is the one
+        // place a key with nothing to decrypt can be refused.
+        const parent = makePost("post-key-no-url");
+        const media: MediaDto = { hlsKey: HLS_KEY };
+
+        const warnings = await processMedia(media, parent, db);
+
+        expect(media.hlsKey).toBeUndefined();
+        expect(media.hlsKey_id).toBeUndefined();
+        expect(warnings).toEqual(["Ignored an encryption key submitted without a playlist URL."]);
+        expect(await getSidecar(db, parent._id, SidecarType.HlsEncryptionKey)).toBeUndefined();
+    });
+
     it("keeps an existing key reference when no new key is submitted", async () => {
         const parent = makePost("post-store");
         const media: MediaDto = { hlsUrl: HLS_URL, hlsKey_id: "sidecar-existing" };

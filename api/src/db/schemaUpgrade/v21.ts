@@ -1,5 +1,11 @@
 import { DbService } from "../db.service";
 import { DocType } from "../../enums";
+import { toStoredMediaUrl } from "../../changeRequests/documentProcessing/mediaUrl";
+
+/** The configured bucket a URL lives in, if any — the same match processMedia uses. */
+function bucketFor(url: string, buckets: any[]): any | undefined {
+    return buckets.find((b) => b.publicUrl && toStoredMediaUrl(url, b.publicUrl) !== url);
+}
 
 /**
  * Upgrade the database schema from version 20 to 21.
@@ -34,9 +40,15 @@ export default async function (db: DbService) {
         const stats = {
             parentsScanned: 0,
             parentsUpdated: 0,
+            bucketsNamed: 0,
             childrenCleared: 0,
             valuesDropped: 0,
         };
+
+        // A URL inside one of our buckets must name that bucket, or the next save
+        // is refused ("Bucket is not specified") with no way to pick one when a
+        // single bucket exists.
+        const { docs: buckets } = await db.getDocsByType(DocType.Storage);
 
         for (const docType of [DocType.Post, DocType.Tag]) {
             const { docs: parents } = await db.getDocsByType(docType);
@@ -48,9 +60,11 @@ export default async function (db: DbService) {
                 const withVideo = (children as any[]).filter((c) => c.video);
                 if (!withVideo.length) continue;
 
+                let parentChanged = false;
                 if (!parent.media?.hlsUrl) {
                     if (!parent.media) parent.media = { fileCollections: [] };
                     parent.media.hlsUrl = withVideo[0].video;
+                    parentChanged = true;
 
                     const distinctValues = new Set(withVideo.map((c) => c.video));
                     if (distinctValues.size > 1) {
@@ -59,23 +73,41 @@ export default async function (db: DbService) {
                             `Parent ${parent._id} had ${distinctValues.size} distinct legacy video URLs across its content languages; kept "${withVideo[0].video}" on media.hlsUrl, dropped the rest.`,
                         );
                     }
+                }
 
+                if (!parent.mediaBucketId) {
+                    const bucket = bucketFor(parent.media.hlsUrl, buckets as any[]);
+                    if (bucket) {
+                        parent.mediaBucketId = bucket._id;
+                        parentChanged = true;
+                        stats.bucketsNamed++;
+                    }
+                }
+
+                if (parentChanged) {
                     parent.updatedTimeUtc = Date.now();
                     await db.upsertDoc(parent);
                     stats.parentsUpdated++;
                 }
 
-                for (const child of withVideo) {
+                // Every translation, not only those that carried a video: the app
+                // reads the parent's media through the child's mirror, and only a
+                // parent save would otherwise re-stamp it — until then the video is
+                // gone from the app.
+                for (const child of children as any[]) {
+                    const hadVideo = Boolean(child.video);
                     delete child.video;
+                    child.parentMedia = parent.media;
+                    child.parentMediaBucketId = parent.mediaBucketId;
                     child.updatedTimeUtc = Date.now();
                     await db.upsertDoc(child);
-                    stats.childrenCleared++;
+                    if (hadVideo) stats.childrenCleared++;
                 }
             }
         }
 
         console.info(
-            `Video-field migration: scanned ${stats.parentsScanned} parent(s); moved a value onto ${stats.parentsUpdated} parent(s)' media.hlsUrl; cleared the legacy video field on ${stats.childrenCleared} content doc(s); ${stats.valuesDropped} distinct value(s) dropped (a parent can only hold one hlsUrl).`,
+            `Video-field migration: scanned ${stats.parentsScanned} parent(s); updated ${stats.parentsUpdated} parent(s) (${stats.bucketsNamed} given their bucket); cleared the legacy video field on ${stats.childrenCleared} content doc(s); ${stats.valuesDropped} distinct value(s) dropped (a parent can only hold one hlsUrl).`,
         );
 
         await db.setSchemaVersion(21);

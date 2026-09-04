@@ -441,7 +441,9 @@ describe("validateChangeRequest", () => {
         expect(result.error).toContain("hlsKey");
     });
 
-    it("fails validation for media with no playlist URL", async () => {
+    it("accepts a media object with no playlist URL", async () => {
+        // Media is optional on a parent, and a URL is optional within it: a document
+        // can carry a bucket choice before an encode has produced anything.
         const changeRequest = {
             id: 42,
             doc: {
@@ -451,15 +453,13 @@ describe("validateChangeRequest", () => {
                 postType: "blog",
                 tags: [],
                 publishDateVisible: true,
-                // A key with nothing to decrypt is not a media object.
-                media: { hlsKey: "0123456789abcdef0123456789abcdef" },
+                media: {},
             },
         };
 
         const result = await validateChangeRequest(changeRequest, ["group-super-admins"], db);
 
-        expect(result.validated).toBe(false);
-        expect(result.error).toContain("hlsUrl");
+        expect(result.validated).toBe(true);
     });
 
     it("rejects a redirect whose slug has published content", async () => {
