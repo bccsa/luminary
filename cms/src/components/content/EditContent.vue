@@ -449,7 +449,7 @@ watch(isLgScreen, (isLg) => {
                 <LDropdown
                     v-model:show="showQuickLang"
                     placement="bottom-start"
-                    panel-class="!w-40 mt-1"
+                    panel-class="!w-40 mt-2"
                 >
                     <template #trigger>
                         <button
