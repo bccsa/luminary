@@ -37,12 +37,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
         with:
-          # The app imports the encoder's player packages from the submodule. Until
-          # that repository is public, the built-in token cannot read it —
-          # MEDIA_CONVERT_SUBMODULE_TOKEN is a fine-grained PAT with read access to
-          # it. Once the repository is public the secret can be deleted; the
-          # fallback token then suffices.
-          token: ${{ secrets.MEDIA_CONVERT_SUBMODULE_TOKEN || github.token }}
           submodules: true
 
       - name: Setup Node.js
