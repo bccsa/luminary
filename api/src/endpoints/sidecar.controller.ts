@@ -108,11 +108,8 @@ export class SidecarController {
             probeFail(HttpStatus.NOT_FOUND, "Not found");
         }
 
-        // A View grant is permanent; publication state is not. Draft/scheduled/expired
-        // parents are refused to a non-CMS caller even holding View (ADR 0019). The
-        // CMS is exempt — an editor previewing media ahead of publish holds only CmsView and
-        // has no live Content yet, mirroring the cms-exempts-publish-gating rule in
-        // query.service.ts / ftsSearch.service.ts.
+        // A View grant is permanent; publication state is not (ADR 0019). The CMS is
+        // exempt so an editor can preview ahead of publish, as in query.service.ts.
         if (!isCms) {
             const available = await isParentAvailable(this.dbService, parentId, Date.now());
             if (!available) {

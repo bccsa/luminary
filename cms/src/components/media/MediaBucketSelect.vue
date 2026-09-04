@@ -25,12 +25,8 @@ const parent = defineModel<ContentParentDto>("parent");
 
 const bucketSelection = storageSelection();
 
-// The bucket to treat as "current". Falls back to the auto-selected bucket when the
-// parent has none persisted yet — so a single-bucket setup behaves as if it were
-// selected without mutating the parent (which would create a fake dirty state on
-// legacy docs). The parent is only written to when the user actually picks one.
-const effectiveMediaBucketId = computed(
-    () => parent.value?.mediaBucketId ?? bucketSelection.autoSelectMediaBucket.value ?? undefined,
+const effectiveMediaBucketId = computed(() =>
+    bucketSelection.effectiveMediaBucketId(parent.value?.mediaBucketId),
 );
 
 const bucketOptions = computed(() =>

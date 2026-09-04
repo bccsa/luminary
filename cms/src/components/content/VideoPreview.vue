@@ -18,9 +18,8 @@ import LBadge from "@/components/common/LBadge.vue";
 import { PlayCircleIcon } from "@heroicons/vue/24/outline";
 import { LockClosedIcon, LockOpenIcon } from "@heroicons/vue/16/solid";
 import { LuminaryPlayer, type PlayerSource } from "@luminary-media-converter/player-web-legacy";
-import { type ContentParentDto, SidecarType, getRest, unmaskKeyHex } from "luminary-shared";
+import { type ContentParentDto, fetchHlsKey, toAbsoluteMediaUrl } from "luminary-shared";
 import { storageSelection } from "@/composables/storageSelection";
-import { toAbsoluteMediaUrl } from "@/util/mediaUrl";
 
 type Props = {
     parent: ContentParentDto | undefined;
@@ -52,17 +51,18 @@ const masterUrl = computed(() => {
  * document.
  */
 const storedKey = ref<string | undefined>(undefined);
+let keyRequest = 0;
 
 watch(
     () => [props.parent?._id, props.parent?.media?.hlsKey_id] as const,
     async ([id, keyId]) => {
         storedKey.value = undefined;
         if (!id || !keyId) return;
-        const sidecar = await getRest().getSidecar(id, SidecarType.HlsEncryptionKey, { cms: true });
-        if (!sidecar) return;
-        const data = sidecar.data as { maskedKeyHex: string } | undefined;
-        if (!data?.maskedKeyHex) return;
-        storedKey.value = await unmaskKeyHex(sidecar.sidecarId, data.maskedKeyHex);
+        // This component survives a switch of document, so a slow fetch for the
+        // previous one must not land as this one's key.
+        const request = ++keyRequest;
+        const key = await fetchHlsKey(id, { cms: true });
+        if (request === keyRequest) storedKey.value = key;
     },
     { immediate: true },
 );

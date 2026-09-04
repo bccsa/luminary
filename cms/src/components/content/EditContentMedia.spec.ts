@@ -26,6 +26,7 @@ vi.mock("@/composables/useMediaEncoder", () => ({ useMediaEncoder: () => encoder
 vi.mock("@/composables/storageSelection", () => ({
     storageSelection: () => ({
         autoSelectMediaBucket: ref("bucket-1"),
+        effectiveMediaBucketId: (persisted?: string) => persisted ?? "bucket-1",
         mediaBuckets: ref([{ _id: "bucket-1", name: "media" }]),
         hasMediaBuckets: ref(true),
         getBucketById: () => undefined,
@@ -124,11 +125,26 @@ describe("EditContentMedia", () => {
         await wrapper.find('[data-test="encode-media-button"]').trigger("click");
 
         const { onMediaReady } = encoder.start.mock.calls[0][0];
-        onMediaReady({ hlsUrl: "https://cdn/master.m3u8", hlsKey: "abc" });
+        onMediaReady({ hlsUrl: "https://cdn/master.m3u8", hlsKey: "abc" }, mockData.mockPostDto._id);
         await settle();
 
         expect(wrapper.props("parent")!.media?.hlsUrl).toBe("https://cdn/master.m3u8");
         expect(wrapper.props("parent")!.media?.hlsKey).toBe("abc");
+    });
+
+    it("refuses a result for a document the editor has since left", async () => {
+        // The encoder's trust prompt can hold start() open for as long as the user
+        // likes; by the time it answers, this section may be showing another post.
+        const wrapper = mountSection();
+        await settle();
+        await wrapper.find('[data-test="encode-media-button"]').trigger("click");
+        const { onMediaReady } = encoder.start.mock.calls[0][0];
+
+        await wrapper.setProps({ parent: { ...parent(), _id: "post-2", media: undefined } as PostDto });
+        onMediaReady({ hlsUrl: "https://cdn/master.m3u8", hlsKey: "abc" }, mockData.mockPostDto._id);
+        await settle();
+
+        expect(wrapper.props("parent")!.media).toBeUndefined();
     });
 
     it("keeps the audio already on the document when the encoder writes a video", async () => {
@@ -137,7 +153,10 @@ describe("EditContentMedia", () => {
         await wrapper.find('[data-test="encode-media-button"]').trigger("click");
 
         const before = wrapper.props("parent")!.media?.fileCollections;
-        encoder.start.mock.calls[0][0].onMediaReady({ hlsUrl: "https://cdn/master.m3u8" });
+        encoder.start.mock.calls[0][0].onMediaReady(
+            { hlsUrl: "https://cdn/master.m3u8" },
+            mockData.mockPostDto._id,
+        );
         await settle();
 
         expect(wrapper.props("parent")!.media?.fileCollections).toEqual(before);
@@ -168,8 +187,8 @@ describe("EditContentMedia resume", () => {
     });
 
     it("writes back a URL recovered from a resumed session", async () => {
-        encoder.resume.mockImplementation(async ({ onMediaReady }: any) => {
-            onMediaReady({ hlsUrl: "https://cdn/resumed.m3u8" });
+        encoder.resume.mockImplementation(async ({ documentId, onMediaReady }: any) => {
+            onMediaReady({ hlsUrl: "https://cdn/resumed.m3u8" }, documentId);
             return true;
         });
 

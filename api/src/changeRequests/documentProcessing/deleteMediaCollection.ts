@@ -1,7 +1,7 @@
 import { MediaDto } from "../../dto/MediaDto";
 import { DbService } from "../../db/db.service";
 import { S3Service } from "../../s3/s3.service";
-import { isBucketRelative, toStoredMediaUrl } from "./mediaUrl";
+import { isBucketRelative, isInOurStorage } from "./mediaUrl";
 
 /**
  * Where a collection lives in its bucket, or why we will not touch it.
@@ -22,7 +22,23 @@ export type PrefixResolution = { prefix: string } | { refusal: string };
 const SESSION_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** What the encoder publishes at the root of a collection. */
-const MASTER = "/master.m3u8";
+export const MASTER = "/master.m3u8";
+
+/** Where a bucket publishes its objects, and what to call it in a warning. */
+export type Bucket = { publicUrl?: string; name?: string };
+
+export async function loadBucket(
+    bucketId: string,
+    db: DbService,
+): Promise<{ bucket: Bucket } | { error: string }> {
+    try {
+        const result = await db.getDoc(bucketId);
+        if (!result.docs?.length) return { error: `bucket ${bucketId} no longer exists` };
+        return { bucket: result.docs[0] };
+    } catch (error) {
+        return { error: error.message };
+    }
+}
 
 /**
  * Turn a published `hlsUrl` into the object prefix holding that collection.
@@ -121,32 +137,19 @@ export async function deleteMediaCollection(
         return warnings;
     }
 
-    let bucket: { publicUrl?: string; name?: string };
-    try {
-        const result = await db.getDoc(bucketId);
-        if (!result.docs?.length) {
-            warnings.push(
-                `Media files were not deleted: bucket ${bucketId} no longer exists. ` +
-                    "Please remove them on the storage provider.",
-            );
-            return warnings;
-        }
-        bucket = result.docs[0];
-    } catch (error) {
-        warnings.push(`Media files were not deleted: ${error.message}`);
+    const loaded = await loadBucket(bucketId, db);
+    if ("error" in loaded) {
+        warnings.push(
+            `Media files were not deleted: ${loaded.error}. ` +
+                "Please remove them on the storage provider.",
+        );
         return warnings;
     }
+    const bucket = loaded.bucket;
 
-    // Media hosted elsewhere — a YouTube link, a master on someone else's CDN —
-    // has nothing here to delete, and telling the operator to go and remove it
-    // "on the storage provider" would send them looking for files their bucket
-    // never held.
-    if (
-        !isBucketRelative(media.hlsUrl) &&
-        toStoredMediaUrl(media.hlsUrl, bucket.publicUrl) === media.hlsUrl
-    ) {
-        return warnings;
-    }
+    // Media hosted elsewhere has nothing here to delete, and a warning would send the
+    // operator looking for files their bucket never held.
+    if (!isInOurStorage(media.hlsUrl, [bucket.publicUrl])) return warnings;
 
     const resolved = resolveCollectionPrefix(media.hlsUrl, bucket.publicUrl);
     if ("refusal" in resolved) {

@@ -1,32 +1,11 @@
 import { MediaDto } from "../../dto/MediaDto";
 import { DbService } from "../../db/db.service";
 import { S3Service } from "../../s3/s3.service";
-import { resolveCollectionPrefix } from "./deleteMediaCollection";
-import { isBucketRelative, toStoredMediaUrl } from "./mediaUrl";
-
-/** What the encoder publishes at the root of a collection. */
-const MASTER = "master.m3u8";
+import { MASTER, loadBucket, resolveCollectionPrefix } from "./deleteMediaCollection";
+import { isBucketRelative, isInOurStorage } from "./mediaUrl";
 
 /** The S3 API's own ceiling on keys per delete call. */
 const DELETE_BATCH = 1000;
-
-/**
- * Where a bucket publishes its objects, and what to call it in a warning.
- */
-type Bucket = { publicUrl?: string; name?: string };
-
-async function loadBucket(
-    bucketId: string,
-    db: DbService,
-): Promise<{ bucket: Bucket } | { error: string }> {
-    try {
-        const result = await db.getDoc(bucketId);
-        if (!result.docs?.length) return { error: `bucket ${bucketId} no longer exists` };
-        return { bucket: result.docs[0] };
-    } catch (error) {
-        return { error: error.message };
-    }
-}
 
 /**
  * Move a media collection from one bucket to another, then point the document at
@@ -88,17 +67,9 @@ export async function migrateMediaCollection(
         return { failed: true, warnings };
     }
 
-    // The same proof used before deleting: a prefix we cannot derive from the
-    // bucket's own public base is a collection we did not write.
-    // Media that is not in the old bucket is not ours to move: a YouTube link
-    // or a master on someone else's CDN belongs to whoever serves it, and the
-    // bucket change is about where *future* output goes. Treating that as a
-    // failed migration would revert a change the user made deliberately and
-    // warn about files that were never going anywhere.
-    const external =
-        !isBucketRelative(previousHlsUrl) &&
-        toStoredMediaUrl(previousHlsUrl, oldBucket.publicUrl) === previousHlsUrl;
-    if (external) return { failed: false, warnings };
+    // External media is not ours to move, and a bucket change is about where future
+    // output goes; calling it a failed migration would revert a deliberate change.
+    if (!isInOurStorage(previousHlsUrl, [oldBucket.publicUrl])) return { failed: false, warnings };
 
     const resolved = resolveCollectionPrefix(previousHlsUrl, oldBucket.publicUrl);
     if ("refusal" in resolved) {
@@ -141,14 +112,10 @@ export async function migrateMediaCollection(
             }
         }
 
-        // Only now is the new location real, so only now may the document name it.
-        //
-        // A relative URL already names a path inside whichever bucket the
-        // document points at, so moving buckets does not change it — which is
-        // the point of storing it that way. Only the legacy absolute form has
-        // to be rewritten.
+        // Only now is the new location real. A relative URL already names a path inside
+        // whichever bucket the document points at; only the legacy absolute form moves.
         if (!isBucketRelative(media.hlsUrl)) {
-            media.hlsUrl = `${newBucket.publicUrl.replace(/\/+$/, "")}/${prefix}/${MASTER}`;
+            media.hlsUrl = `${newBucket.publicUrl.replace(/\/+$/, "")}/${prefix}${MASTER}`;
         }
 
         // Last, and its failure is not the migration's failure: the files are in
@@ -177,11 +144,9 @@ export async function migrateMediaCollection(
         );
         return { failed: false, warnings };
     } catch (error) {
-        // Nothing was deleted and the URL was not rewritten, so the collection is
-        // still whole and still where the document says it is. Anything already
-        // copied is left in place: it is unreferenced, harmless, and overwritten by
-        // a retry — whereas deleting it on the way out of a failure risks removing
-        // objects we did not put there.
+        // Nothing was deleted and the URL was not rewritten. Copies already made are
+        // left: a retry overwrites them, and deleting on the way out risks objects we
+        // did not put there.
         warnings.push(
             `Media migration failed: ${error.message}. The files were left in ` +
                 `${oldBucket.name ?? oldBucketId}.`,

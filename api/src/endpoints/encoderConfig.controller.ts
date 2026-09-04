@@ -1,4 +1,13 @@
-import { Controller, Get, Query, UseGuards, Req, HttpException, HttpStatus } from "@nestjs/common";
+import {
+    Controller,
+    Get,
+    Header,
+    Query,
+    UseGuards,
+    Req,
+    HttpException,
+    HttpStatus,
+} from "@nestjs/common";
 import { AuthGuard } from "../auth/auth.guard";
 import { DbService } from "../db/db.service";
 import { validateApiVersion } from "../validation/apiVersion";
@@ -48,6 +57,8 @@ export class EncoderConfigController {
 
     @Get("encoderconfig")
     @UseGuards(AuthGuard)
+    // Live bucket credentials must not sit in a browser or proxy cache.
+    @Header("Cache-Control", "no-store")
     async getEncoderConfig(
         @Query("bucketId") bucketId: string,
         @Query("apiVersion") apiVersion: string,

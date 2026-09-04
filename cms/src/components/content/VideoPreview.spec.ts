@@ -3,7 +3,7 @@ import { mount } from "@vue/test-utils";
 import waitForExpect from "wait-for-expect";
 import VideoPreview from "./VideoPreview.vue";
 
-const getSidecarMock = vi.hoisted(() => vi.fn());
+const fetchHlsKeyMock = vi.hoisted(() => vi.fn());
 const retryMock = vi.hoisted(() => vi.fn());
 // Which panel the stubbed player is showing, so a test can put it in the state
 // the real player reaches on a missing playlist or a bad key.
@@ -39,7 +39,7 @@ vi.mock("@luminary-media-converter/player-web-legacy", async () => {
 
 vi.mock("luminary-shared", async (importOriginal) => ({
     ...(await importOriginal<typeof import("luminary-shared")>()),
-    getRest: () => ({ getSidecar: getSidecarMock }),
+    fetchHlsKey: fetchHlsKeyMock,
 }));
 
 vi.mock("@/composables/storageSelection", () => ({
@@ -61,7 +61,7 @@ async function mountAndOpen(media: Record<string, unknown> | undefined) {
 beforeEach(() => {
     vi.clearAllMocks();
     getBucketByIdMock.mockReturnValue({ publicUrl: "https://cdn.example.com/media" });
-    getSidecarMock.mockResolvedValue(undefined);
+    fetchHlsKeyMock.mockResolvedValue(undefined);
 });
 
 describe("VideoPreview", () => {
@@ -131,15 +131,10 @@ describe("VideoPreview", () => {
             // A YouTube video has nothing to decrypt.
             await mountAndOpen({ hlsUrl: YT });
 
-            expect(getSidecarMock).not.toHaveBeenCalled();
+            expect(fetchHlsKeyMock).not.toHaveBeenCalled();
         });
     });
 
-    // Real (seed, masked) → key vector shared with api/src/util/maskKey.spec.ts,
-    // cms/src/util/mediaEncoder.spec.ts and shared/src/util/unmaskKeyHex.spec.ts —
-    // exercises the real unmaskKeyHex rather than a mock of it.
-    const SIDECAR_ID = "sidecar-post-abc-hlsEncryptionKey";
-    const MASKED_KEY_HEX = "98ceb55553113bf2fdd5a74b3fa6e8d8";
     const KEY_HEX = "000102030405060708090a0b0c0d0e0f";
 
     it("uses a key the editor has just typed, before it is ever saved", async () => {
@@ -147,35 +142,45 @@ describe("VideoPreview", () => {
         const wrapper = await mountAndOpen({ hlsUrl: "/abc/master.m3u8", hlsKey: "a".repeat(32) });
 
         expect(player(wrapper).props("source").keyHex).toBe("a".repeat(32));
-        expect(getSidecarMock).not.toHaveBeenCalled();
+        expect(fetchHlsKeyMock).not.toHaveBeenCalled();
     });
 
     it("fetches a saved key, which the document cannot show again", async () => {
-        getSidecarMock.mockResolvedValue({
-            sidecarId: SIDECAR_ID,
-            parentId: "post-1",
-            sidecarType: "hlsEncryptionKey",
-            data: { maskedKeyHex: MASKED_KEY_HEX },
-        });
+        fetchHlsKeyMock.mockResolvedValue(KEY_HEX);
 
         const wrapper = await mountAndOpen({ hlsUrl: "/abc/master.m3u8", hlsKey_id: "sidecar-1" });
 
-        expect(getSidecarMock).toHaveBeenCalledWith("post-1", "hlsEncryptionKey", { cms: true });
-        // Two awaits deep, not one: the sidecar fetch, then unmaskKeyHex's
-        // crypto.subtle.digest. A single tick wins that race locally and loses it
-        // on a slower runner.
+        expect(fetchHlsKeyMock).toHaveBeenCalledWith("post-1", { cms: true });
         await waitForExpect(() => expect(player(wrapper).props("source").keyHex).toBe(KEY_HEX));
+    });
+
+    it("drops a key that arrives for the document the editor has already left", async () => {
+        // The component is reused across documents; a slow fetch for the previous
+        // one must not become this one's key.
+        let resolveFirst!: (key: string) => void;
+        fetchHlsKeyMock.mockImplementationOnce(
+            () => new Promise<string>((resolve) => (resolveFirst = resolve)),
+        );
+        fetchHlsKeyMock.mockResolvedValue("b".repeat(32));
+
+        const wrapper = mount(VideoPreview, {
+            props: { parent: parent({ hlsUrl: "/abc/master.m3u8", hlsKey_id: "sidecar-1" }) },
+        });
+        await wrapper.setProps({
+            parent: { ...parent({ hlsUrl: "/def/master.m3u8", hlsKey_id: "sidecar-2" }), _id: "post-2" },
+        });
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        resolveFirst("a".repeat(32));
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        await wrapper.find('[data-test="video-preview-load"]').trigger("click");
+
+        expect(player(wrapper).props("source").keyHex).toBe("b".repeat(32));
     });
 
     it("prefers the typed key over the saved one", async () => {
         // The editor is replacing it; previewing the old one would check the
         // wrong thing.
-        getSidecarMock.mockResolvedValue({
-            sidecarId: SIDECAR_ID,
-            parentId: "post-1",
-            sidecarType: "hlsEncryptionKey",
-            data: { maskedKeyHex: MASKED_KEY_HEX },
-        });
+        fetchHlsKeyMock.mockResolvedValue(KEY_HEX);
 
         const wrapper = await mountAndOpen({
             hlsUrl: "/abc/master.m3u8",

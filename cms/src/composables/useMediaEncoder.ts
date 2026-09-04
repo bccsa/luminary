@@ -1,5 +1,11 @@
 import { computed, ref, onUnmounted } from "vue";
 import { getRest, type MediaDto } from "luminary-shared";
+
+/** Called once per encode, as soon as it has a published URL, naming the document it is for. */
+export type MediaReadyHandler = (
+    media: Pick<MediaDto, "hlsUrl" | "hlsKey">,
+    documentId: string,
+) => void;
 import {
     browserCanReachEncoder,
     checkEncoderHealth,
@@ -54,9 +60,16 @@ export function useMediaEncoder() {
 
     let unsubscribe: (() => void) | undefined;
 
+    // The awaits in start/resume/publish can outlive the component (the encoder's
+    // trust prompt, a slow key fetch); nothing after them may touch a dead instance.
+    let disposed = false;
+
     /** Is the encoder installed and running? Safe to call repeatedly. */
     async function refreshAvailability(): Promise<boolean> {
-        availability.value = "checking";
+        // Only the first check shows as "checking": every later one is a re-check on
+        // a poll tick or window focus, and flipping the state then disables the Encode
+        // button under the editor's cursor.
+        if (availability.value === "unknown") availability.value = "checking";
         const health = await checkEncoderHealth();
         encoderVersion.value = health.apiVersion;
 
@@ -72,19 +85,6 @@ export function useMediaEncoder() {
         return false;
     }
 
-    /**
-     * Notice when the encoder appears, without the editor having to try again.
-     *
-     * Nothing tells this page that a desktop app has started, and the launch
-     * link's one re-check was too early — the encoder boots Nest and probes the
-     * machine's encoders first, which takes longer than the couple of seconds an
-     * app usually needs. It also did nothing at all for someone who opened the
-     * app from the Dock rather than the link.
-     *
-     * Polling stops the moment it answers, and only runs while the tab is
-     * visible: a background tab is not a person waiting for a window to appear,
-     * and this is a request per interval to a port that may have nothing on it.
-     */
     /**
      * Keep the encoder's availability true, in both directions.
      *
@@ -110,7 +110,7 @@ export function useMediaEncoder() {
     async function tick() {
         // A hidden tab is nobody waiting for an answer; the next focus asks.
         if (!document.hidden) await refreshAvailability();
-        schedule();
+        if (!disposed) schedule();
     }
 
     function schedule() {
@@ -159,7 +159,7 @@ export function useMediaEncoder() {
         documentId: string;
         title: string;
         mediaBucketId: string;
-        onMediaReady: (media: Pick<MediaDto, "hlsUrl" | "hlsKey">) => void;
+        onMediaReady: MediaReadyHandler;
     }): Promise<void> {
         error.value = undefined;
         status.value = undefined;
@@ -194,9 +194,10 @@ export function useMediaEncoder() {
                 eventsUrl: session.eventsUrl,
             };
             // Stored before the first event, so a reload during the encode can
-            // find it again.
+            // find it again — and so a page that has since moved on can resume it.
             rememberEncoderSession(options.documentId, handle);
 
+            if (disposed) return;
             follow(handle, options.documentId, options.onMediaReady);
         } catch (err: any) {
             error.value = err?.message ?? String(err);
@@ -208,8 +209,9 @@ export function useMediaEncoder() {
     /** Hand the caller the playback URL and, when the session has one, its key. */
     async function publish(
         handle: EncoderSessionHandle,
+        documentId: string,
         hlsUrl: string,
-        onMediaReady: (media: Pick<MediaDto, "hlsUrl" | "hlsKey">) => void,
+        onMediaReady: MediaReadyHandler,
     ): Promise<void> {
         // An unencrypted session has no key, which the encoder answers with a 404
         // and this reports as undefined.
@@ -217,7 +219,8 @@ export function useMediaEncoder() {
             () => undefined,
         );
 
-        onMediaReady({ hlsUrl, hlsKey });
+        if (disposed) return;
+        onMediaReady({ hlsUrl, hlsKey }, documentId);
     }
 
     /**
@@ -229,7 +232,7 @@ export function useMediaEncoder() {
     function follow(
         handle: EncoderSessionHandle,
         documentId: string,
-        onMediaReady: (media: Pick<MediaDto, "hlsUrl" | "hlsKey">) => void,
+        onMediaReady: MediaReadyHandler,
         alreadyPublished = false,
     ): void {
         sessionId.value = handle.sessionId;
@@ -249,7 +252,7 @@ export function useMediaEncoder() {
                 if (saved || !event.hlsUrl) return;
                 saved = true;
 
-                void publish(handle, event.hlsUrl, onMediaReady);
+                void publish(handle, documentId, event.hlsUrl, onMediaReady);
             },
             onError: () => {
                 // The stream drops when the encoder quits or the session ends.
@@ -272,13 +275,14 @@ export function useMediaEncoder() {
      */
     async function resume(options: {
         documentId: string;
-        onMediaReady: (media: Pick<MediaDto, "hlsUrl" | "hlsKey">) => void;
+        onMediaReady: MediaReadyHandler;
     }): Promise<boolean> {
         const handle = recallEncoderSession(options.documentId);
         if (!handle) return false;
-        if (!(await refreshAvailability())) return false;
+        if (!(await refreshAvailability()) || disposed) return false;
 
         const session = await fetchEncoderSessionStatus(handle.sessionId, handle.readToken);
+        if (disposed) return false;
         if (!session) {
             forgetEncoderSession(options.documentId);
             return false;
@@ -297,7 +301,10 @@ export function useMediaEncoder() {
 
         // Written again on resume because a reload before the first event would
         // otherwise lose the URL the encoder is already writing to.
-        if (session.hlsUrl) await publish(handle, session.hlsUrl, options.onMediaReady);
+        if (session.hlsUrl) {
+            await publish(handle, options.documentId, session.hlsUrl, options.onMediaReady);
+            if (disposed) return false;
+        }
 
         if (isFinished(session.status)) {
             forgetEncoderSession(options.documentId);
@@ -309,6 +316,7 @@ export function useMediaEncoder() {
     }
 
     onUnmounted(() => {
+        disposed = true;
         stop();
         stopWatching();
         if (typeof document !== "undefined") {

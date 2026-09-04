@@ -1,6 +1,3 @@
-// RateLimiterConfig shape: { enabled, freeStrikes, baseBackoffMs, maxBackoffMs, strikeDecayMs }.
-// Every endpoint-specific rate-limit config below is one of these, keyed under its own env prefix
-// and its own config namespace, so limiters never share a bucket across endpoints.
 import { RateLimiterConfig } from "./ratelimit/rateLimiter.service";
 
 export type DatabaseConfig = {

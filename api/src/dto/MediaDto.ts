@@ -1,7 +1,7 @@
 import "reflect-metadata"; // https://stackoverflow.com/questions/72009995/typeerror-reflect-getmetadata-is-not-a-function
 import { IsBoolean, IsOptional, IsString, Matches } from "class-validator";
 import { Expose } from "class-transformer";
-import { Uuid } from "src/enums";
+import { Uuid } from "../enums";
 
 /**
  * Database structured Media object

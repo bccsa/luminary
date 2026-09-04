@@ -15,6 +15,7 @@
  *    the user to trust this origin the first time. Firefox and Safari do not
  *    implement the grant, so this is Chrome-only at time of writing.
  */
+import { unmaskKeyHex } from "luminary-shared";
 
 /**
  * Where the encoder listens.
@@ -236,19 +237,9 @@ export async function fetchEncoderSessionStatus(
 }
 
 /**
- * Fetch the session's AES-128 key, unmasked.
- *
- * The key is never part of a status or event payload. It is served masked from its
- * own endpoint and unmasked by the holder:
- *
- *     mask = SHA-256(sessionId)[0..15]
- *     key  = masked XOR mask            (XOR is its own inverse)
- *
- * This keeps raw keys out of logs and proxies. It is obscurity, not DRM, and the
- * encoder documents it as such.
- *
- * Returns undefined when the session is unencrypted (404) — which is an answer,
- * not a failure.
+ * Fetch the session's AES-128 key, unmasked. The encoder serves it masked with
+ * SHA-256(sessionId) from its own endpoint — obscurity, not DRM. Undefined when
+ * the session is unencrypted (404).
  */
 export async function fetchEncoderSessionKey(
     sessionId: string,
@@ -265,21 +256,6 @@ export async function fetchEncoderSessionKey(
     if (!body.maskedKeyHex) return undefined;
 
     return await unmaskKeyHex(sessionId, body.maskedKeyHex);
-}
-
-/** XOR the masked key with SHA-256(sessionId)[0..15]. Self-inverse. */
-export async function unmaskKeyHex(sessionId: string, maskedKeyHex: string): Promise<string> {
-    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(sessionId));
-    const mask = new Uint8Array(digest).subarray(0, 16);
-
-    const masked = new Uint8Array(maskedKeyHex.length >> 1);
-    for (let i = 0; i < masked.length; i++) {
-        masked[i] = parseInt(maskedKeyHex.substring(i * 2, i * 2 + 2), 16);
-    }
-
-    return Array.from(masked, (byte, i) =>
-        (byte ^ mask[i % mask.length]).toString(16).padStart(2, "0"),
-    ).join("");
 }
 
 /**
