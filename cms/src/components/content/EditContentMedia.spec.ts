@@ -70,6 +70,19 @@ describe("EditContentMedia", () => {
         expect(wrapper.find('[data-test="audio-stub"]').exists()).toBe(true);
     });
 
+    it("names where to get the app in the help text", async () => {
+        // Findable when no notice is showing — an editor who has not tried to
+        // encode yet has nothing else pointing at the download.
+        const wrapper = mountSection();
+        await settle();
+
+        await wrapper.find('[aria-label="Media help"]').trigger("click");
+
+        const link = wrapper.find('[data-test="media-help-download"]');
+        expect(link.exists()).toBe(true);
+        expect(link.attributes("href")).toContain("releases");
+    });
+
     it("shows the video fields only once a translation is selected", async () => {
         expect(mountSection().find('[data-test="video-stub"]').exists()).toBe(false);
         expect(mountSection({ showVideo: true }).find('[data-test="video-stub"]').exists()).toBe(
