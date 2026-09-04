@@ -23,12 +23,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
         with:
-          # The encoder's player packages are consumed from luminary-media-convert/, which is
-          # a submodule rather than a published package. Until that repository is
-          # public, the built-in token cannot read it — MEDIA_CONVERT_SUBMODULE_TOKEN
-          # is a fine-grained PAT with read access to it. Once the repository is
-          # public the secret can be deleted; the fallback token then suffices.
-          token: ${{ secrets.MEDIA_CONVERT_SUBMODULE_TOKEN || github.token }}
+          # The encoder's player packages are consumed from luminary-media-convert/,
+          # which is a submodule rather than a published package. It is public, so
+          # the built-in token reaches it and no secret is involved.
           submodules: true
 
       - name: Setup Node.js
