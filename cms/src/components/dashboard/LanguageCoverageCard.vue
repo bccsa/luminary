@@ -36,8 +36,8 @@ const maxContentCount = computed(() => {
                         class="font-medium"
                         :class="
                             lang._id === cmsLanguageIdAsRef
-                                ? 'dark:text-yellow-400'
-                                : 'dark:text-yellow-400'
+                                ? 'dark:text-zinc-200'
+                                : 'dark:text-zinc-200'
                         "
                     >
                         {{ lang.name }}

@@ -16,7 +16,7 @@ const show = ref(true);
 <template>
     <div
         v-if="show"
-        class="pointer-events-auto w-full max-w-sm overflow-hidden rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5"
+        class="pointer-events-auto w-full max-w-sm overflow-hidden rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5 dark:bg-slate-700 dark:ring-white/10"
     >
         <div class="p-4">
             <div class="flex items-start">
@@ -34,8 +34,10 @@ const show = ref(true);
                     />
                 </div>
                 <div class="ml-3 w-0 flex-1 pt-0.5">
-                    <p class="text-sm font-medium text-zinc-900">{{ notification.title }}</p>
-                    <p class="mt-1 text-sm text-zinc-500">
+                    <p class="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                        {{ notification.title }}
+                    </p>
+                    <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-100">
                         {{ notification.description }}
                     </p>
                     <div class="mt-3" v-if="notification.action">
@@ -53,7 +55,7 @@ const show = ref(true);
                     <button
                         type="button"
                         @click="show = false"
-                        class="inline-flex rounded-md bg-white text-zinc-400 hover:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                        class="inline-flex rounded-md bg-white text-zinc-400 hover:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:bg-slate-700 dark:text-zinc-100 dark:hover:text-zinc-300 dark:focus:ring-offset-slate-700"
                     >
                         <span class="sr-only">Close</span>
                         <XMarkIcon class="h-5 w-5" aria-hidden="true" />
