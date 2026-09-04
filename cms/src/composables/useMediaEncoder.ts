@@ -17,6 +17,7 @@ import {
     rememberEncoderSession,
     isEncoderOutdated,
     subscribeToEncoderSession,
+    type EncoderPipelineProgress,
     type EncoderSessionEvent,
     type EncoderSessionHandle,
 } from "@/util/mediaEncoder";
@@ -55,6 +56,7 @@ export function useMediaEncoder() {
     const busy = ref(false);
     const status = ref<string>();
     const progress = ref<number>();
+    const pipelineProgress = ref<EncoderPipelineProgress>();
     const error = ref<string>();
     const sessionId = ref<string>();
 
@@ -164,6 +166,7 @@ export function useMediaEncoder() {
         error.value = undefined;
         status.value = undefined;
         progress.value = undefined;
+        pipelineProgress.value = undefined;
         busy.value = true;
 
         try {
@@ -243,6 +246,7 @@ export function useMediaEncoder() {
             onEvent: (event: EncoderSessionEvent) => {
                 status.value = event.status;
                 progress.value = event.progress;
+                pipelineProgress.value = event.pipelineProgress;
                 if (event.error) error.value = event.error;
 
                 // Nothing follows a finished session, so the handle stops being
@@ -297,6 +301,7 @@ export function useMediaEncoder() {
         sessionId.value = session.sessionId;
         status.value = session.status;
         progress.value = session.progress;
+        pipelineProgress.value = session.pipelineProgress;
         error.value = session.error;
 
         // Written again on resume because a reload before the first event would
@@ -332,6 +337,7 @@ export function useMediaEncoder() {
         busy,
         status,
         progress,
+        pipelineProgress,
         error,
         sessionId,
         refreshAvailability,

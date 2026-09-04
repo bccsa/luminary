@@ -40,6 +40,7 @@ const {
     busy,
     status,
     progress,
+    pipelineProgress,
     error,
     refreshAvailability,
     watchForEncoder,
@@ -168,6 +169,7 @@ watch(
                 :outdated="outdated"
                 :status="status"
                 :progress="progress"
+                :pipelineProgress="pipelineProgress"
                 :error="error"
             />
 

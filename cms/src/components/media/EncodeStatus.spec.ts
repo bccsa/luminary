@@ -17,6 +17,54 @@ describe("EncodeStatus progress", () => {
         expect(wrapper.find('[data-test="encoder-status"]').text()).toContain("Encoding 42%");
     });
 
+    /*
+     * Segments upload as they are packed, so the session status stays "encoding"
+     * until only the playlists are left — which read as "Encoding" here while the
+     * encoder's own window showed an upload bar moving.
+     */
+    describe("once encoding is done and only the upload is moving", () => {
+        it("says Uploading, with the upload's own percentage", () => {
+            const wrapper = mountStatus({
+                status: "encoding",
+                progress: 100,
+                pipelineProgress: { encoding: 100, uploading: 53 },
+            });
+
+            expect(wrapper.find('[data-test="encoder-status"]').text()).toContain("Uploading 53%");
+            expect(wrapper.find('[data-test="encoder-progress-bar"]').attributes("style")).toContain(
+                "53%",
+            );
+        });
+
+        it("still says Encoding while the two are running together", () => {
+            // Encoding is the honest answer while it is still producing segments.
+            const wrapper = mountStatus({
+                status: "encoding",
+                progress: 62,
+                pipelineProgress: { encoding: 62, uploading: 20 },
+            });
+
+            expect(wrapper.find('[data-test="encoder-status"]').text()).toContain("Encoding 62%");
+        });
+
+        it("hands back to the session status once the upload has finished", () => {
+            const wrapper = mountStatus({
+                status: "encoding",
+                progress: 100,
+                pipelineProgress: { encoding: 100, uploading: 100 },
+            });
+
+            expect(wrapper.find('[data-test="encoder-status"]').text()).toContain("Encoding");
+        });
+
+        it("is unaffected by an encoder that sends no pipeline detail", () => {
+            // Older encoders, and any frame before the pipeline starts reporting.
+            const wrapper = mountStatus({ status: "encoding", progress: 42 });
+
+            expect(wrapper.find('[data-test="encoder-status"]').text()).toContain("Encoding 42%");
+        });
+    });
+
     it("translates the encoder's statuses out of snake_case", () => {
         const wrapper = mountStatus({ status: "uploading_to_s3", progress: 10 });
 

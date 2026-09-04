@@ -117,11 +117,26 @@ export type CreateEncoderSessionResponse = {
     reused: boolean;
 };
 
+/**
+ * How far each stage of the encode has got.
+ *
+ * The stages overlap — segments upload as they are packed — so the session status
+ * stays `encoding` until only the playlists are left. These are what the encoder's
+ * own window shows, and the only way to tell encoding from uploading before then.
+ */
+export type EncoderPipelineProgress = {
+    encoding: number;
+    encrypting?: number;
+    uploading?: number;
+    phase?: string;
+};
+
 /** The encoder's SSE frame. Only the fields the CMS acts on are named. */
 export type EncoderSessionEvent = {
     sessionId: string;
     status: string;
     progress?: number;
+    pipelineProgress?: EncoderPipelineProgress;
     error?: string;
     hlsUrl?: string;
 };
@@ -206,6 +221,7 @@ export type EncoderSessionStatus = {
     sessionId: string;
     status: string;
     progress?: number;
+    pipelineProgress?: EncoderPipelineProgress;
     error?: string;
     hlsUrl?: string;
     documentId?: string;

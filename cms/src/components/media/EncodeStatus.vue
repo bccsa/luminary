@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import MediaNotice from "./MediaNotice.vue";
-import { ENCODER_DOWNLOAD_URL, ENCODER_PROTOCOL_URL } from "@/util/mediaEncoder";
+import {
+    ENCODER_DOWNLOAD_URL,
+    ENCODER_PROTOCOL_URL,
+    type EncoderPipelineProgress,
+} from "@/util/mediaEncoder";
 import type { EncoderAvailability } from "@/composables/useMediaEncoder";
 
 /**
@@ -17,6 +21,8 @@ type Props = {
     outdated?: boolean;
     status?: string;
     progress?: number;
+    /** Per-stage progress, which is the only thing that distinguishes uploading. */
+    pipelineProgress?: EncoderPipelineProgress;
     error?: string;
 };
 const props = defineProps<Props>();
@@ -36,15 +42,35 @@ const STATUS_LABELS: Record<string, string> = {
 
 const running = computed(() => props.status == "encoding" || props.status == "uploading_to_s3");
 
-const label = computed(() => (props.status ? (STATUS_LABELS[props.status] ?? props.status) : ""));
+/**
+ * How far the upload has got, once it is the only thing left to wait for.
+ *
+ * Segments upload as they are packed, so the session stays `encoding` until only
+ * the playlists remain — which left this reading "Encoding" while the encoder's
+ * own window showed an upload bar moving. Undefined until encoding is finished,
+ * because before that the two are running together and encoding is the honest
+ * answer.
+ */
+const uploaded = computed(() => {
+    const pipeline = props.pipelineProgress;
+    if (!pipeline || pipeline.encoding < 100) return undefined;
+    if (pipeline.uploading == undefined || pipeline.uploading >= 100) return undefined;
+    return pipeline.uploading;
+});
+
+const label = computed(() => {
+    if (uploaded.value != undefined) return STATUS_LABELS.uploading_to_s3;
+    return props.status ? (STATUS_LABELS[props.status] ?? props.status) : "";
+});
 
 /** Only meaningful while something is running — "Encoded 100%" says it twice. */
 // One decimal: the encoder reports a raw float, so a bar labelled
 // "Encoding 1.7666666666666668%" is arithmetic rather than progress. Number()
 // drops a trailing .0, so a whole percentage still reads as one.
-const percentage = computed(() =>
-    running.value && props.progress != undefined ? Number(props.progress.toFixed(1)) : undefined,
-);
+const percentage = computed(() => {
+    const value = uploaded.value ?? (running.value ? props.progress : undefined);
+    return value != undefined ? Number(value.toFixed(1)) : undefined;
+});
 </script>
 
 <template>
