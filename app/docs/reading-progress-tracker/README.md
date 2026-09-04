@@ -203,12 +203,15 @@ On first load, legacy `readingProgress` and `mediaProgress` keys are merged into
 
 ---
 
-## Return visit — optional continue prompt
+## Return visit — resume offer in the reading pill
 
-When the user reopens an in-progress article, a **Continue reading** card slides in from the right on SingleContent (not the notification system). The user chooses:
+When the user reopens an in-progress article, the top-bar reading pill (`ArticleOutline.vue`) opens as a **Continue where you left off** offer with the saved percentage on its track. The user chooses:
 
-- **Continue reading** — scrolls to the saved position after **300 ms**
-- **Start from top** — dismisses the prompt; saved progress is kept
+- **Continue where you left off** — scrolls to the saved position
+- **Start from top** (×) — dismisses the offer; saved progress is kept
+- Scrolling into the article also dismisses it
+
+Either way the pill becomes the chapter dropdown, which keeps a *Continue where you left off* entry while a saved position exists. The resume offer's track shows `readingProgressPercent` (live confirmed segments, kept even when saving is disabled for short articles); the chapter dropdown's track follows `scrollProgressPercent`, the viewport's position within the article.
 
 During programmatic restore, for **400 ms** (`READING_RESTORE_GUARD_MS`), tracking is suppressed so the scroll jump does not count as reading.
 
@@ -251,12 +254,12 @@ inside `collectSegments()` — if a gate needs a new measurement, precompute it 
 
 | File | Role |
 |------|------|
-| `app/src/pages/SingleContent/SingleContent.vue` | Wires the tracker and continue prompt |
+| `app/src/pages/SingleContent/SingleContent.vue` | Wires the tracker and the reading pill |
 | `app/src/composables/useReadingProgressTracker.ts` | Segments, gates, dwell loop, scroll restore |
 | `app/src/util/readingTime.ts` | WPM, dwell math, words/sec skim cap |
 | `app/src/contentProgress.ts` | `localStorage` read/write (`contentProgress`) |
 | `app/src/components/HomePage/ContinueProgress.vue` | Homepage row |
-| `app/src/components/content/ContinueReadingPrompt.vue` | In-article resume prompt |
+| `app/src/pages/SingleContent/ArticleOutline.vue` | Reading pill: resume offer, chapter dropdown, progress track |
 
 ---
 
@@ -280,8 +283,8 @@ inside `collectSegments()` — if a gate needs a new measurement, precompute it 
 
 - `app/src/composables/useReadingProgressTracker.spec.ts` — segments, gates, dwell, skim, restore
 - `app/src/util/readingTime.spec.ts` — dwell and words/sec math
-- `app/src/components/content/ContinueReadingPrompt.spec.ts` — resume prompt UI
+- `app/src/pages/SingleContent/__tests__/ArticleOutline.spec.ts` — reading pill UI
 
 ```sh
-cd app && npm run test -- src/util/readingTime.spec.ts src/composables/useReadingProgressTracker.spec.ts src/components/content/ContinueReadingPrompt.spec.ts
+cd app && npm run test -- src/util/readingTime.spec.ts src/composables/useReadingProgressTracker.spec.ts src/pages/SingleContent/__tests__/ArticleOutline.spec.ts
 ```

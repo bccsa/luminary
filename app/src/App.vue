@@ -18,6 +18,7 @@ import PrivacyPolicyModal from "@/components/navigation/PrivacyPolicyModal.vue";
 import SearchModal from "@/components/navigation/SearchModal.vue";
 import AudioPlayer from "@/components/content/AudioPlayer.vue";
 import MobileMenu from "@/components/navigation/MobileMenu.vue";
+import { useMobileChromeAutoHide } from "@/composables/useMobileChromeAutoHide";
 import AffinityDebugOverlay from "@/components/debug/AffinityDebugOverlay.vue";
 import { affinityDebugEnabled, applyAffinityDebugQuery } from "@/recommendation/affinityDebug";
 import { useAuthWithPrivacyPolicy } from "@/composables/useAuthWithPrivacyPolicy";
@@ -32,6 +33,7 @@ const LOGO = import.meta.env.VITE_LOGO || defaultLogo;
 
 const { t } = useI18n();
 const { needRefresh, reload } = usePwaUpdate();
+const mobileChrome = useMobileChromeAutoHide();
 
 const router = useRouter();
 
@@ -227,9 +229,19 @@ onErrorCaptured((err) => {
 
         <!-- Mobile Navigation (mobile only) -->
         <!-- <MobileMenu class="w-full lg:hidden z-10" /> -->
-        <MobileMenu
-            class="z-50 w-full border-t-2 border-t-zinc-100/25 dark:border-t-slate-700/50 lg:hidden"
-        />
+        <!-- Collapses via grid rows while a reading page scrolls down; see useMobileChromeAutoHide. -->
+        <div
+            class="z-50 grid w-full transition-[grid-template-rows] duration-300 ease-out lg:hidden"
+            :class="
+                mobileChrome.hidden.value ? '[grid-template-rows:0fr]' : '[grid-template-rows:1fr]'
+            "
+        >
+            <div class="min-h-0 overflow-hidden">
+                <MobileMenu
+                    class="w-full border-t-2 border-t-zinc-100/25 dark:border-t-slate-700/50"
+                />
+            </div>
+        </div>
 
         <!-- Privacy Policy Modal for authentication flow -->
         <PrivacyPolicyModal

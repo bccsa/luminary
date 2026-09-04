@@ -14,7 +14,9 @@ vi.mock("@/ssg/isPrerender", () => ({ isPrerender: () => false }));
 // the hydrated client starts from. The ref itself is created inside the mock
 // factory (which can async-import vue) — vi.hoisted runs before the module's own
 // `vue` import is initialized, so it cannot close over that binding directly.
-const { seed } = vi.hoisted(() => ({ seed: { ref: undefined as unknown as import("vue").Ref<ContentDto[]> } }));
+const { seed } = vi.hoisted(() => ({
+    seed: { ref: undefined as unknown as import("vue").Ref<ContentDto[]> },
+}));
 vi.mock("@/composables/useContentQuery", async () => {
     const { ref, computed } = await import("vue");
     seed.ref = ref<ContentDto[]>([]);
@@ -91,6 +93,8 @@ vi.mock("@/composables/useReadingProgressTracker", () => ({
     useReadingProgressTracker: () => ({
         hasResumableProgress: ref(false),
         savedProgressPercent: ref(0),
+        readingProgressPercent: ref(0),
+        scrollProgressPercent: ref(0),
         restoreScrollPosition: vi.fn(),
     }),
     resolveArticleScrollContainer: () => (typeof window !== "undefined" ? window : {}),
@@ -108,7 +112,14 @@ vi.mock("@/router", () => ({
 vi.mock("video.js", () => ({ default: vi.fn() }));
 
 function passthrough(name: string) {
-    return defineComponent({ name, inheritAttrs: false, setup: (_, { slots }) => () => h("div", slots.default?.()) });
+    return defineComponent({
+        name,
+        inheritAttrs: false,
+        setup:
+            (_, { slots }) =>
+            () =>
+                h("div", slots.default?.()),
+    });
 }
 function voidStub(name: string) {
     return defineComponent({ name, inheritAttrs: false, setup: () => () => h("div") });
@@ -118,22 +129,34 @@ vi.mock("@/components/BasePage.vue", () => ({
     default: defineComponent({
         name: "BasePage",
         inheritAttrs: false,
-        setup: (_, { slots }) => () => h("div", [slots.quickControls?.(), slots.default?.()]),
+        setup:
+            (_, { slots }) =>
+            () =>
+                h("div", [slots.quickControls?.(), slots.default?.()]),
     }),
 }));
-vi.mock("@/components/IgnorePagePadding.vue", () => ({ default: passthrough("IgnorePagePadding") }));
-vi.mock("@/components/common/LHighlightable.vue", () => ({ default: passthrough("LHighlightable") }));
+vi.mock("@/components/IgnorePagePadding.vue", () => ({
+    default: passthrough("IgnorePagePadding"),
+}));
+vi.mock("@/components/common/LHighlightable.vue", () => ({
+    default: passthrough("LHighlightable"),
+}));
 vi.mock("@/components/common/DropdownMenu.vue", () => ({ default: passthrough("DropdownMenu") }));
 vi.mock("@/components/images/LImage.vue", () => ({ default: voidStub("LImage") }));
 vi.mock("@/components/images/ImageModal.vue", () => ({ default: voidStub("ImageModal") }));
 vi.mock("@/components/images/LImageProvider.vue", () => ({ activeImageCollection: () => 0 }));
 vi.mock("@/components/content/VideoPlayer.vue", () => ({ default: voidStub("VideoPlayer") }));
-vi.mock("@/components/content/CopyrightBanner.vue", () => ({ default: voidStub("CopyrightBanner") }));
-vi.mock("@/components/content/FallbackLanguageBadge.vue", () => ({ default: voidStub("FallbackLanguageBadge") }));
-vi.mock("@/components/content/ContinueReadingPrompt.vue", () => ({ default: voidStub("ContinueReadingPrompt") }));
+vi.mock("@/components/content/CopyrightBanner.vue", () => ({
+    default: voidStub("CopyrightBanner"),
+}));
+vi.mock("@/components/content/FallbackLanguageBadge.vue", () => ({
+    default: voidStub("FallbackLanguageBadge"),
+}));
 vi.mock("@/components/content/RelatedContent.vue", () => ({ default: voidStub("RelatedContent") }));
 vi.mock("@/components/form/LModal.vue", () => ({ default: passthrough("LModal") }));
-vi.mock("@/components/tags/VerticalTagViewer.vue", () => ({ default: voidStub("VerticalTagViewer") }));
+vi.mock("@/components/tags/VerticalTagViewer.vue", () => ({
+    default: voidStub("VerticalTagViewer"),
+}));
 vi.mock("@/components/LoadingBar.vue", () => ({ default: voidStub("LoadingBar") }));
 vi.mock("@/pages/NotFoundPage.vue", () => ({ default: voidStub("NotFoundPage") }));
 
