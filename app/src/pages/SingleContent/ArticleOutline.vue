@@ -221,7 +221,7 @@ function onResume() {
 <template>
     <span
         v-if="showResumeOffer"
-        class="relative flex max-w-full items-center rounded-lg bg-zinc-100/70 shadow-md ring-1 ring-zinc-900/10 backdrop-blur-sm dark:bg-slate-700/70 dark:ring-white/10"
+        class="relative flex max-w-full items-center rounded-lg bg-zinc-100/70 shadow-md ring-1 ring-zinc-900/10 dark:bg-slate-700/70 dark:ring-white/10"
         data-test="articleOutlineResume"
     >
         <button
@@ -258,7 +258,7 @@ function onResume() {
     </span>
     <span
         v-else-if="visible && !headings.length"
-        class="relative flex max-w-full items-center overflow-hidden rounded-lg bg-zinc-100/70 px-3.5 pb-2.5 pt-1.5 text-sm text-zinc-800 shadow-md ring-1 ring-zinc-900/10 backdrop-blur-sm dark:bg-slate-700/70 dark:text-slate-50 dark:ring-white/10"
+        class="relative flex max-w-full items-center overflow-hidden rounded-lg bg-zinc-100/70 px-3.5 pb-2.5 pt-1.5 text-sm text-zinc-800 shadow-md ring-1 ring-zinc-900/10 dark:bg-slate-700/70 dark:text-slate-50 dark:ring-white/10"
         data-test="articleOutlineTitle"
     >
         <span class="truncate">{{ title }}</span>
@@ -284,7 +284,7 @@ function onResume() {
     >
         <template #trigger>
             <span
-                class="relative flex max-w-full items-center gap-1.5 overflow-hidden rounded-lg bg-zinc-100/70 px-3.5 pb-2.5 pt-1.5 text-sm text-zinc-800 shadow-md ring-1 ring-zinc-900/10 backdrop-blur-sm hover:bg-zinc-200 dark:bg-slate-700/70 dark:text-slate-50 dark:ring-white/10 dark:hover:bg-slate-600"
+                class="relative flex max-w-full items-center gap-1.5 overflow-hidden rounded-lg bg-zinc-100/70 px-3.5 pb-2.5 pt-1.5 text-sm text-zinc-800 shadow-md ring-1 ring-zinc-900/10 hover:bg-zinc-200 dark:bg-slate-700/70 dark:text-slate-50 dark:ring-white/10 dark:hover:bg-slate-600"
                 :aria-label="activeHeading ? `Current section: ${activeHeading.text}` : title"
                 data-test="articleOutlineTrigger"
             >
