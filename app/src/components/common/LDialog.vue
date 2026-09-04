@@ -63,6 +63,7 @@ withDefaults(defineProps<Props>(), {
                     @click="secondaryAction()"
                     class="inline-flex w-full sm:w-auto"
                     v-if="secondaryAction && secondaryButtonText"
+                    data-test="modal-secondary-button"
                 >
                     {{ secondaryButtonText }}
                 </LButton>

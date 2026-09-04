@@ -3,6 +3,7 @@ import { PostType, TagType } from "luminary-shared";
 import { contentByTag } from "../contentByTag";
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
 import { useContentQuery } from "@/composables/useContentQuery";
+import { computed } from "vue";
 
 const pinnedCategories = useContentQuery(() => [{ parentPinned: 1 }], {
     cache: true,
@@ -45,9 +46,17 @@ const pinnedCategoryContent = useContentQuery(
 
 // sort pinned content by category
 const pinnedContentByCategory = contentByTag(pinnedCategoryContent, pinnedCategories);
+
+const hasRows = computed(() => pinnedContentByCategory.tagged.value.length > 0);
 </script>
 
 <template>
+    <div
+        v-if="$slots.header"
+        :class="hasRows ? 'bg-yellow-500/10 dark:bg-yellow-500/5' : ''"
+    >
+        <slot name="header" />
+    </div>
     <HorizontalContentTileCollection
         v-for="(c, index) in pinnedContentByCategory.tagged.value"
         :key="c.tag._id"

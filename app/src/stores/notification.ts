@@ -36,11 +36,84 @@ export type Notification = {
     priority?: number;
     openLink?: boolean;
     actions?: FunctionalComponent | VNode | VNode[];
+    /**
+     * Opt in to surviving a page load. Set it on notifications whose condition
+     * outlives the page (e.g. the offline banner) — not on ones tied to the page
+     * they were raised on, or whose only affordance is an `actions`/callback the
+     * store cannot serialize.
+     */
+    persist?: boolean;
+};
+
+const NOTIFICATIONS_KEY = "notifications";
+const DISMISSED_NOTIFICATIONS_KEY = "dismissedNotifications";
+
+// A persisted notification needs `persist: true` plus a caller-assigned string id to
+// address it by. Toasts are timed/ephemeral by design, and auto-generated numeric ids
+// are re-issued from 0 each session, so persisting them risks a fresh id colliding with
+// a stale dismissal from a previous session. Function-typed fields (icon, callback link,
+// actions) aren't serializable and getter text can't stay language-reactive through
+// JSON, so a restored entry only carries a text snapshot until the notification's own
+// origin (e.g. an App.vue watcher) re-adds it with the full content — addNotification
+// merges onto the existing id rather than ignoring it.
+type PersistedNotification = Pick<
+    Notification,
+    "id" | "state" | "type" | "closable" | "priority" | "openLink" | "persist"
+> & {
+    title?: string;
+    description?: string;
+    link?: RouteLocationNamedRaw;
+};
+
+const isPersistable = (n: Notification): n is Notification & { id: string } =>
+    n.persist === true && typeof n.id === "string" && n.type !== "toast";
+
+const readPersistedNotifications = (): PersistedNotification[] => {
+    try {
+        const list = JSON.parse(localStorage.getItem(NOTIFICATIONS_KEY) || "[]");
+        return Array.isArray(list) ? list : [];
+    } catch {
+        return [];
+    }
+};
+
+const persistNotifications = (notifications: Notification[]) => {
+    const persistable: PersistedNotification[] = notifications.filter(isPersistable).map((n) => ({
+        id: n.id,
+        title: resolveNotificationText(n.title),
+        description: resolveNotificationText(n.description),
+        state: n.state,
+        type: n.type,
+        closable: n.closable,
+        priority: n.priority,
+        openLink: n.openLink,
+        link: typeof n.link === "object" ? n.link : undefined,
+        persist: true,
+    }));
+    localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(persistable));
+};
+
+const readDismissedIds = (): Set<string> => {
+    try {
+        const list = JSON.parse(localStorage.getItem(DISMISSED_NOTIFICATIONS_KEY) || "[]");
+        return new Set(Array.isArray(list) ? list.filter((id) => typeof id === "string") : []);
+    } catch {
+        return new Set();
+    }
+};
+
+const persistDismissedIds = (dismissedIds: Set<string>) => {
+    localStorage.setItem(DISMISSED_NOTIFICATIONS_KEY, JSON.stringify([...dismissedIds]));
 };
 
 export const useNotificationStore = defineStore("notification", () => {
     const id = ref(0);
-    const notifications = ref<Notification[]>([]);
+    const dismissedIds = ref<Set<string>>(readDismissedIds());
+    const notifications = ref<Notification[]>(
+        readPersistedNotifications().filter((n) => !dismissedIds.value.has(n.id as string)),
+    );
+
+    const persist = () => persistNotifications(notifications.value);
 
     const addNotification = (notification: Notification) => {
         // Set default values
@@ -48,8 +121,25 @@ export const useNotificationStore = defineStore("notification", () => {
         if (notification.priority == undefined) notification.priority = 10;
         if (notification.openLink == undefined) notification.openLink = false;
 
-        // Do not add the notification if the notification's ID is already in the list
-        if (notifications.value.some((n) => n.id === notification.id)) {
+        // Do not add a notification the user has already dismissed
+        if (typeof notification.id === "string" && dismissedIds.value.has(notification.id)) {
+            return notification.id;
+        }
+
+        const existingIndex =
+            notification.id === undefined
+                ? -1
+                : notifications.value.findIndex((n) => n.id === notification.id);
+
+        // Merge onto an existing (e.g. reload-restored) entry with the same id instead
+        // of ignoring the call, so the restored placeholder picks up the real content.
+        if (existingIndex !== -1) {
+            notifications.value[existingIndex] = {
+                ...notifications.value[existingIndex],
+                ...notification,
+            };
+            notifications.value.sort((a, b) => a.priority! - b.priority!);
+            persist();
             return notification.id;
         }
 
@@ -65,6 +155,7 @@ export const useNotificationStore = defineStore("notification", () => {
                 id: notificationId,
             });
             notifications.value.sort((a, b) => a.priority! - b.priority!);
+            persist();
         }, 100);
 
         if (notification.type == "toast") {
@@ -84,9 +175,38 @@ export const useNotificationStore = defineStore("notification", () => {
         return notifications.value.filter((n) => n.type == "bottom");
     });
 
+    // Removes a notification without remembering it as user-dismissed — for callers
+    // (e.g. App.vue's condition watchers) clearing a notification because the situation
+    // it represented has resolved, so it's free to reappear if the situation recurs.
     const removeNotification = (notificationId: number | string) => {
         notifications.value = notifications.value.filter((n) => n.id !== notificationId);
+        persist();
+        if (typeof notificationId === "string" && dismissedIds.value.delete(notificationId)) {
+            persistDismissedIds(dismissedIds.value);
+        }
     };
 
-    return { notifications, banners, bottomBanners, addNotification, removeNotification };
+    // Removes a notification and remembers it as user-dismissed, so it stays gone
+    // across reloads even while the situation it represents is still ongoing.
+    const dismissNotification = (notificationId: number | string) => {
+        const dismissed = notifications.value.find((n) => n.id === notificationId);
+        notifications.value = notifications.value.filter((n) => n.id !== notificationId);
+        persist();
+        // A notification that does not outlive the page has no reason to have its
+        // dismissal outlive it either — remembering one would suppress the next,
+        // unrelated occurrence on a later page.
+        if (typeof notificationId === "string" && dismissed?.persist) {
+            dismissedIds.value.add(notificationId);
+            persistDismissedIds(dismissedIds.value);
+        }
+    };
+
+    return {
+        notifications,
+        banners,
+        bottomBanners,
+        addNotification,
+        removeNotification,
+        dismissNotification,
+    };
 });
