@@ -31,7 +31,7 @@ type CachedIdentity = {
  * and the socket handshake call this; a future SSE handler would call the same method, so
  * SSE reconnect churn becomes cache hits instead of re-resolves.
  *
- * Ships OFF (`IDENTITY_CACHE_ENABLED`). When disabled it is a pure passthrough.
+ * Ships ON (`IDENTITY_CACHE_ENABLED=false` opts out). When disabled it is a pure passthrough.
  */
 @Injectable()
 export class IdentityCacheService implements OnModuleInit {
