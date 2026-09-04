@@ -1729,6 +1729,394 @@ describe("HybridQuery", () => {
         // is documented (README) rather than tested here.
     });
 
+    // `$limit` growth is the "load more" shape: the same query, asking for a wider
+    // window. Both clients page this way (the app's feeds, the CMS's overviews), so
+    // the widened generation must keep what it already holds rather than falling back
+    // to its local-only subset while the new supplement is in flight.
+    describe("$limit growth (window widening)", () => {
+        const contentDoc = (id: string, publishDate = 500, updatedTimeUtc = 1) => ({
+            _id: id,
+            type: "content",
+            parentTags: ["A"],
+            publishDate,
+            updatedTimeUtc,
+        });
+        // Drive the CURRENT generation's next local emission.
+        const emitLocal = async (docs: any[]) => {
+            mocks.liveRefs[mocks.liveRefs.length - 1]!.ref.value = docs;
+            await flush();
+        };
+        // A live content feed whose window size is a ref — the infinite-scroll shape.
+        const setupLimit = async (limit: { value: number }, opts: Record<string, unknown> = {}) => {
+            postHttpMock.mockResolvedValue({ docs: [] });
+            const q = track(
+                new HybridQuery(
+                    () => ({
+                        selector: {
+                            $and: [
+                                { type: "content" },
+                                { parentTags: { $elemMatch: { $in: ["A"] } } },
+                            ],
+                        },
+                        $sort: [{ publishDate: "desc" as const }],
+                        $limit: limit.value,
+                    }),
+                    { live: true, keepPreviousResult: true, ...opts },
+                ),
+            );
+            await flush();
+            return q;
+        };
+
+        it("a pure $limit growth keeps the remote supplement instead of refetching it", async () => {
+            const limit = ref(2);
+            postHttpMock.mockResolvedValueOnce({ docs: [contentDoc("r1", 500, 2)] });
+            const q = await setupLimit(limit);
+            await emitLocal([contentDoc("l1", 2000, 1)]);
+            expect(q.output.value.map((d) => d._id)).toEqual(["l1", "r1"]);
+
+            const snapshots: string[][] = [];
+            const stop = watch(q.output, (v) => snapshots.push(v.map((d) => d._id)), {
+                flush: "sync",
+            });
+
+            postHttpMock.mockResolvedValueOnce({ docs: [contentDoc("r2", 400, 3)] });
+            limit.value = 4;
+            await flush();
+            // The widened generation re-reads the local source, which still holds one doc.
+            await emitLocal([contentDoc("l1", 2000, 1)]);
+            await flush();
+            stop();
+
+            expect(q.output.value.map((d) => d._id)).toEqual(["l1", "r1", "r2"]);
+            // The supplement it already had was never dropped, so the window only grew —
+            // it never fell back to the local-only subset while the new POST was in flight.
+            expect(snapshots.every((s) => s.length >= 2)).toBe(true);
+            expect(snapshots.every((s) => s.includes("r1"))).toBe(true);
+        });
+
+        it("re-decides the supplement for the widened window", async () => {
+            const limit = ref(2);
+            const q = await setupLimit(limit);
+            await emitLocal([contentDoc("l1", 2000, 1)]);
+            const postsBefore = postHttpMock.mock.calls.length;
+
+            limit.value = 4;
+            await flush();
+            await emitLocal([contentDoc("l1", 2000, 1)]);
+
+            expect(mocks.liveRefs.length).toBe(2); // new local subscription for the wider read
+            expect(postHttpMock.mock.calls.length).toBe(postsBefore + 1);
+            expect((postHttpMock.mock.calls.at(-1)![1] as any).limit).toBe(3); // 4 − 1 local
+            expect(q.output.value.length).toBeGreaterThan(0);
+        });
+
+        it("re-applies sort and the NEW limit to the carried-over docs", async () => {
+            const limit = ref(2);
+            // A remote doc that sorts ABOVE the local one: order must come from $sort,
+            // not from which contribution a doc happens to sit in.
+            postHttpMock.mockResolvedValueOnce({ docs: [contentDoc("r-high", 3000, 2)] });
+            const q = await setupLimit(limit);
+            await emitLocal([contentDoc("l1", 2000, 1)]);
+            expect(q.output.value.map((d) => d._id)).toEqual(["r-high", "l1"]);
+
+            postHttpMock.mockResolvedValueOnce({ docs: [contentDoc("r-low", 100, 3)] });
+            limit.value = 3;
+            await flush();
+            await emitLocal([contentDoc("l1", 2000, 1)]);
+            await flush();
+
+            expect(q.output.value.map((d) => d._id)).toEqual(["r-high", "l1", "r-low"]);
+        });
+
+        it("does not duplicate a doc the widened supplement re-returns, and takes the newer copy", async () => {
+            const limit = ref(2);
+            postHttpMock.mockResolvedValueOnce({ docs: [contentDoc("r1", 500, 2)] });
+            const q = await setupLimit(limit);
+            await emitLocal([contentDoc("l1", 2000, 1)]);
+
+            // The wider POST covers the narrower one's range, so it returns r1 again —
+            // here with a newer revision — plus one more.
+            postHttpMock.mockResolvedValueOnce({
+                docs: [contentDoc("r1", 500, 9), contentDoc("r2", 400, 3)],
+            });
+            limit.value = 4;
+            await flush();
+            await emitLocal([contentDoc("l1", 2000, 1)]);
+            await flush();
+
+            expect(q.output.value.map((d) => d._id)).toEqual(["l1", "r1", "r2"]);
+            expect(q.output.value.find((d) => d._id === "r1")!.updatedTimeUtc).toBe(9);
+        });
+
+        it("swaps the socket listener rather than doubling it", async () => {
+            const limit = ref(2);
+            const q = await setupLimit(limit);
+            await emitLocal([contentDoc("l1", 2000, 1)]);
+            expect(mocks.socketDataHandlers.size).toBe(1);
+
+            limit.value = 4;
+            await flush();
+            await emitLocal([contentDoc("l1", 2000, 1)]);
+
+            expect(mocks.socketDataHandlers.size).toBe(1);
+            // The listener belongs to the widened generation and still feeds output.
+            mocks.emitSocket([contentDoc("s1", 300, 4)]);
+            expect(q.output.value.map((d) => d._id)).toContain("s1");
+        });
+
+        it("keeps a socket delete suppressed across the growth", async () => {
+            // A limit the local read can't fill, so a supplement is owed and the socket
+            // listener that carries deletes is attached.
+            const limit = ref(4);
+            const q = await setupLimit(limit);
+            await emitLocal([contentDoc("l1", 2000, 1), contentDoc("l2", 1900, 1)]);
+            expect(q.output.value.map((d) => d._id)).toEqual(["l1", "l2"]);
+            expect(mocks.socketDataHandlers.size).toBe(1);
+
+            mocks.emitSocket([
+                {
+                    _id: "del-l2",
+                    type: DocType.DeleteCmd,
+                    docType: "content",
+                    docId: "l2",
+                    updatedTimeUtc: 50,
+                },
+            ]);
+            expect(q.output.value.map((d) => d._id)).toEqual(["l1"]);
+
+            limit.value = 6;
+            await flush();
+            // Dexie hasn't caught up yet and still re-emits the deleted doc; the
+            // tombstone carried over with the contributions, so it stays suppressed.
+            await emitLocal([contentDoc("l1", 2000, 1), contentDoc("l2", 1900, 1)]);
+            expect(q.output.value.map((d) => d._id)).toEqual(["l1"]);
+        });
+
+        it("re-enters and settles isFetching across the growth", async () => {
+            const limit = ref(2);
+            const q = await setupLimit(limit);
+            await emitLocal([contentDoc("l1", 2000, 1)]);
+            await flush();
+            expect(q.isFetching.value).toBe(false);
+
+            limit.value = 4;
+            await flush();
+            expect(q.isFetching.value).toBe(true); // widened window is loading again
+
+            await emitLocal([contentDoc("l1", 2000, 1)]);
+            await flush();
+            expect(q.isFetching.value).toBe(false);
+        });
+
+        it("applies to a non-synced (API-only) type too", async () => {
+            const limit = ref(2);
+            postHttpMock.mockResolvedValueOnce({
+                docs: [{ _id: "u1", type: "user", updatedTimeUtc: 1 }],
+            });
+            const q = track(
+                new HybridQuery(
+                    () => ({ selector: { type: "user" }, $limit: limit.value }),
+                    { live: true, keepPreviousResult: true },
+                ),
+            );
+            await flush();
+            expect(q.output.value.map((d) => d._id)).toEqual(["u1"]);
+
+            // An API-only type has no local read to fall back on, so the carry-over is
+            // the only thing holding its window up while the wider POST is in flight.
+            // Fail that POST to prove the docs really are still held, not just painted:
+            // the next recompute (a socket upsert) must ADD to them, not replace them.
+            postHttpMock.mockRejectedValueOnce(new Error("network"));
+            limit.value = 4;
+            await flush();
+            expect(q.output.value.map((d) => d._id)).toEqual(["u1"]);
+
+            mocks.emitSocket([{ _id: "u2", type: "user", updatedTimeUtc: 2 }]);
+            expect(q.output.value.map((d) => d._id)).toEqual(["u1", "u2"]);
+        });
+
+        it("keeps the fetched tail when the widened supplement fails outright", async () => {
+            const limit = ref(4);
+            postHttpMock.mockResolvedValueOnce({
+                docs: [contentDoc("r1", 500, 2), contentDoc("r2", 400, 3)],
+            });
+            const q = await setupLimit(limit);
+            await emitLocal([contentDoc("l1", 2000, 1), contentDoc("l2", 1900, 1)]);
+            await flush();
+            expect(q.output.value.map((d) => d._id)).toEqual(["l1", "l2", "r1", "r2"]);
+
+            // Load more on a flaky connection: the local read lands as always, but the
+            // supplement never does. The window must hold what it already had rather
+            // than dropping to the local-only subset.
+            postHttpMock.mockRejectedValueOnce(new Error("network"));
+            limit.value = 6;
+            await flush();
+            await emitLocal([contentDoc("l1", 2000, 1), contentDoc("l2", 1900, 1)]);
+            await flush();
+
+            expect(q.output.value.map((d) => d._id)).toEqual(["l1", "l2", "r1", "r2"]);
+        });
+
+        it("applies to a fully-synced (Dexie-only) type too", async () => {
+            mocks.syncList.value = [{ chunkType: "group" }];
+            const limit = ref(2);
+            const q = track(
+                new HybridQuery(
+                    () => ({ selector: { type: "group" }, $limit: limit.value }),
+                    { live: true, keepPreviousResult: true },
+                ),
+            );
+            await flush();
+            await emitLocal([{ _id: "g1", type: "group", updatedTimeUtc: 1 }]);
+            expect(q.output.value.map((d) => d._id)).toEqual(["g1"]);
+
+            limit.value = 4;
+            await flush();
+            expect(postHttpMock).not.toHaveBeenCalled(); // synced type: still Dexie-only
+            expect(q.output.value.map((d) => d._id)).toEqual(["g1"]); // bridged
+
+            await emitLocal([
+                { _id: "g1", type: "group", updatedTimeUtc: 1 },
+                { _id: "g2", type: "group", updatedTimeUtc: 2 },
+            ]);
+            expect(q.output.value.map((d) => d._id)).toEqual(["g1", "g2"]);
+        });
+
+        it("a shrinking $limit is not a growth — contributions are discarded", async () => {
+            const limit = ref(4);
+            postHttpMock.mockResolvedValueOnce({ docs: [contentDoc("r1", 500, 2)] });
+            const q = await setupLimit(limit);
+            await emitLocal([contentDoc("l1", 2000, 1)]);
+            expect(q.output.value.map((d) => d._id)).toEqual(["l1", "r1"]);
+
+            postHttpMock.mockResolvedValueOnce({ docs: [] });
+            limit.value = 2;
+            await flush();
+            await emitLocal([contentDoc("l1", 2000, 1)]);
+
+            expect(q.output.value.map((d) => d._id)).toEqual(["l1"]); // remote dropped
+        });
+
+        it("a selector change at the same $limit is not a growth — contributions are discarded", async () => {
+            const cats = ref(["A"]);
+            postHttpMock.mockResolvedValueOnce({ docs: [contentDoc("r1", 500, 2)] });
+            const q = track(
+                new HybridQuery(
+                    () => ({
+                        selector: {
+                            $and: [
+                                { type: "content" },
+                                { parentTags: { $elemMatch: { $in: cats.value } } },
+                            ],
+                        },
+                        $limit: 4,
+                    }),
+                    { live: true, keepPreviousResult: true },
+                ),
+            );
+            await flush();
+            await emitLocal([contentDoc("l1", 2000, 1)]);
+            expect(q.output.value.map((d) => d._id)).toEqual(["l1", "r1"]);
+
+            postHttpMock.mockResolvedValueOnce({ docs: [] });
+            cats.value = ["B"];
+            await flush();
+            await emitLocal([{ ...contentDoc("b1", 2000, 1), parentTags: ["B"] }]);
+
+            expect(q.output.value.map((d) => d._id)).toEqual(["b1"]);
+        });
+
+        it("a sort change alongside the wider limit is not a growth", async () => {
+            const limit = ref(2);
+            const direction = ref("desc");
+            postHttpMock.mockResolvedValueOnce({ docs: [contentDoc("r1", 500, 2)] });
+            const q = track(
+                new HybridQuery(
+                    () => ({
+                        selector: { type: "content" },
+                        $sort: [{ publishDate: direction.value }],
+                        $limit: limit.value,
+                    }),
+                    { live: true, keepPreviousResult: true },
+                ),
+            );
+            await flush();
+            await emitLocal([contentDoc("l1", 2000, 1)]);
+            expect(q.output.value.map((d) => d._id)).toEqual(["l1", "r1"]);
+
+            postHttpMock.mockResolvedValueOnce({ docs: [] });
+            limit.value = 4;
+            direction.value = "asc";
+            await flush();
+            await emitLocal([contentDoc("l1", 2000, 1)]);
+
+            expect(q.output.value.map((d) => d._id)).toEqual(["l1"]);
+        });
+
+        it("acquiring a $limit where there was none is not a growth", async () => {
+            const limit = ref<number | undefined>(undefined);
+            postHttpMock.mockResolvedValueOnce({ docs: [contentDoc("r1", 500, 2)] });
+            const q = track(
+                new HybridQuery(
+                    () => ({ selector: { type: "content" }, $limit: limit.value }),
+                    { live: true, keepPreviousResult: true },
+                ),
+            );
+            await flush();
+            await emitLocal([contentDoc("l1", 2000, 1)]);
+            expect(q.output.value.map((d) => d._id)).toEqual(["l1", "r1"]);
+
+            postHttpMock.mockResolvedValueOnce({ docs: [] });
+            limit.value = 4;
+            await flush();
+            await emitLocal([contentDoc("l1", 2000, 1)]);
+
+            expect(q.output.value.map((d) => d._id)).toEqual(["l1"]);
+        });
+
+        it("without keepPreviousResult a $limit growth refetches as before", async () => {
+            const limit = ref(2);
+            postHttpMock.mockResolvedValueOnce({ docs: [contentDoc("r1", 500, 2)] });
+            const q = await setupLimit(limit, { keepPreviousResult: false });
+            await emitLocal([contentDoc("l1", 2000, 1)]);
+            expect(q.output.value.map((d) => d._id)).toEqual(["l1", "r1"]);
+
+            postHttpMock.mockResolvedValueOnce({ docs: [] });
+            limit.value = 4;
+            await flush();
+            await emitLocal([contentDoc("l1", 2000, 1)]);
+
+            expect(q.output.value.map((d) => d._id)).toEqual(["l1"]);
+        });
+
+        it("does not re-seed from the response cache on a growth", async () => {
+            const limit = ref(2);
+            postHttpMock.mockResolvedValueOnce({ docs: [contentDoc("r1", 500, 2)] });
+            const q = await setupLimit(limit, { cache: true });
+            await emitLocal([contentDoc("l1", 2000, 1)]);
+            await flush();
+            expect(q.output.value.map((d) => d._id)).toEqual(["l1", "r1"]);
+
+            // A stale entry under the same structural key must not repaint: the widened
+            // generation already holds the real contributions.
+            const key = structuralCacheKey({
+                selector: {
+                    $and: [{ type: "content" }, { parentTags: { $elemMatch: { $in: ["A"] } } }],
+                },
+                $sort: [{ publishDate: "desc" }],
+                $limit: 2,
+            });
+            writeResponseCache(key, { local: [contentDoc("stale", 9999, 1)], remote: [] });
+
+            postHttpMock.mockResolvedValueOnce({ docs: [] });
+            limit.value = 4;
+            await flush();
+
+            expect(q.output.value.map((d) => d._id)).toEqual(["l1", "r1"]);
+        });
+    });
+
     describe("response caching (cache: true)", () => {
         // A Dexie-only synced type keeps the basic tests focused on the seed path (no
         // POST, no watchers). The seed runs synchronously in the constructor, so an
