@@ -40,3 +40,6 @@ lerna-debug.log*
 
 # Performance audit output
 perf-reports/
+
+# Token minted by scripts/perf/local-issuer.mjs
+.perf-token
