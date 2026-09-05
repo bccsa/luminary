@@ -324,6 +324,16 @@ paint **another** document's window on first paint. Give such a query a per-iden
 A provably-empty new query (e.g. an empty `$in`) always clears `output`, regardless of
 this option — that branch never recomputes, so a kept window would never be replaced.
 
+**Growing `$limit` keeps the fetched documents too, not just `output`.** When a rebuild
+differs from the generation in flight only by a *larger* `$limit`, the local and remote
+contributions carry over instead of being emptied, and the supplement is re-decided for
+the widened window. Everything already gathered still satisfies the wider query, so the
+list only ever gains rows. Without this, an API-supplemented feed falls back to its
+local-only subset for the length of the new supplement's round trip — under an infinite
+scroller that collapses the scroll height and throws the reader back to the top. Applies
+only with `keepPreviousResult: true`; any other change to the query (selector, sort, a
+*shrinking* limit) is a normal rebuild.
+
 ### `useHybridQuery<T>(query, options?)` — composable
 
 A thin wrapper that constructs the class and returns **only** its `output` ref —
