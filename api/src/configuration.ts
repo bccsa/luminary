@@ -58,6 +58,28 @@ export type QueryConfig = {
     rateLimit: QueryRateLimitConfig;
 };
 
+export type IdentityCacheConfig = {
+    /**
+     * Master switch for the in-memory per-token auth identity cache. Ships ON: without it
+     * every authenticated request re-runs the full identity resolve, costing ~16 ms and 7
+     * CouchDB round trips (including a lastLogin write) before any endpoint work begins.
+     * Set to the string "false" to opt out per environment.
+     * Environment variable: IDENTITY_CACHE_ENABLED (default true).
+     */
+    enabled: boolean;
+    /**
+     * Max age (ms) of a cached identity. The effective TTL is min(this, token's own exp),
+     * so a hit never serves a token past expiry. IDENTITY_CACHE_TTL_MS (default 300000 = 5min).
+     */
+    ttlMs: number;
+    /**
+     * Soft cap on cached identities (OOM guardrail; lazy/sweep eviction, TTL bounds normal
+     * volume). Size to peak concurrent active tokens per instance, with headroom.
+     * IDENTITY_CACHE_MAX_ENTRIES (default 50000).
+     */
+    maxEntries: number;
+};
+
 export type ValidationConfig = {
     /**
      * When set to true, query template validation will log warnings instead of throwing exceptions.
@@ -118,6 +140,7 @@ export type Configuration = {
     socketIo?: SocketIoConfig;
     validation?: ValidationConfig;
     auth?: AuthConfig;
+    identityCache?: IdentityCacheConfig;
 };
 
 export default () =>
@@ -164,4 +187,9 @@ export default () =>
         auth: {
             allowInsecureProviderDomain: process.env.AUTH_ALLOW_INSECURE_PROVIDER_DOMAIN === "true",
         } as AuthConfig,
+        identityCache: {
+            enabled: process.env.IDENTITY_CACHE_ENABLED !== "false",
+            ttlMs: parseInt(process.env.IDENTITY_CACHE_TTL_MS, 10) || 300000,
+            maxEntries: parseInt(process.env.IDENTITY_CACHE_MAX_ENTRIES, 10) || 50000,
+        } as IdentityCacheConfig,
     }) as Configuration;

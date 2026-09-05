@@ -1318,4 +1318,68 @@ describe("PermissionService", () => {
             expect(after[DocType.Language]?.includes(groupId)).toBeFalsy();
         });
     });
+    describe("Access map memoisation", () => {
+        // An ACL entry on group G naming route group R grants R's members access to G's docs,
+        // so the access map under test is the one for "group-public-content".
+        const buildGroup = (id: string, permission: AclPermission[], updatedTimeUtc: number) => {
+            const g: GroupDto = new GroupDto();
+            g._id = id;
+            g.type = DocType.Group;
+            g.updatedTimeUtc = updatedTimeUtc;
+            g.name = id;
+            g.acl = [
+                {
+                    type: DocType.Language,
+                    groupId: "group-public-content",
+                    permission,
+                },
+            ];
+            return g;
+        };
+
+        it("returns the same memoised map for the same group set regardless of order or duplicates", () => {
+            const first = PermissionSystem.getAccessMap([
+                "group-public-users",
+                "group-public-editors",
+            ]);
+            const second = PermissionSystem.getAccessMap([
+                "group-public-editors",
+                "group-public-users",
+                "group-public-editors",
+            ]);
+
+            expect(second).toBe(first);
+        });
+
+        it("drops the memoised map when a group ACL changes", () => {
+            const groupId = "group-access-map-memo-acl";
+            PermissionSystem.upsertGroups([buildGroup(groupId, [AclPermission.View], 1)]);
+
+            const before = PermissionSystem.getAccessMap(["group-public-content"]);
+            expect(before[groupId][DocType.Language][AclPermission.View]).toBe(true);
+            expect(before[groupId][DocType.Language][AclPermission.Edit]).toBe(undefined);
+
+            PermissionSystem.upsertGroups([
+                buildGroup(groupId, [AclPermission.View, AclPermission.Edit], 2),
+            ]);
+
+            const after = PermissionSystem.getAccessMap(["group-public-content"]);
+            expect(after).not.toBe(before);
+            expect(after[groupId][DocType.Language][AclPermission.Edit]).toBe(true);
+        });
+
+        it("drops the memoised map when a group is removed", () => {
+            const groupId = "group-access-map-memo-remove";
+            PermissionSystem.upsertGroups([buildGroup(groupId, [AclPermission.View], 1)]);
+
+            const before = PermissionSystem.getAccessMap(["group-public-content"]);
+            expect(before[groupId][DocType.Language][AclPermission.View]).toBe(true);
+
+            PermissionSystem.removeGroups([groupId]);
+
+            const after = PermissionSystem.getAccessMap(["group-public-content"]);
+            expect(after).not.toBe(before);
+            expect(after[groupId]).toBe(undefined);
+        });
+    });
 });
