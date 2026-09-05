@@ -21,47 +21,48 @@ withDefaults(defineProps<Props>(), {
 </script>
 
 <template>
-    <LModal v-model:isVisible="open" :heading="title" @close="open = false">
+    <LModal
+        v-model:isVisible="open"
+        :heading="title"
+        @close="open = false"
+    >
         <template #default>
-            <div class="sm:flex sm:items-start">
+            <div class="flex items-start gap-3 sm:gap-4">
                 <div
-                    class="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10"
+                    class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-red-100"
                     v-if="context === 'danger'"
                 >
-                    <ExclamationTriangleIcon class="h-6 w-6 text-red-600" aria-hidden="true" />
+                    <ExclamationTriangleIcon
+                        class="h-6 w-6 text-red-600"
+                        aria-hidden="true"
+                    />
                 </div>
-                <div
-                    :class="[
-                        'mt-3 text-center sm:mt-0 sm:text-left',
-                        { 'sm:ml-4': context !== 'default' },
-                    ]"
-                >
-                    <div class="mt-2" v-if="description">
-                        <p class="text-sm">
-                            {{ description }}
-                        </p>
-                    </div>
+                <div class="min-w-0 flex-1 text-left">
+                    <p
+                        class="text-sm"
+                        v-if="description"
+                    >
+                        {{ description }}
+                    </p>
                     <slot />
                 </div>
             </div>
         </template>
 
         <template #footer>
-            <div class="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
-                <span class="mb-3 block sm:mb-0 sm:ml-3">
-                    <LButton
-                        @click="primaryAction()"
-                        variant="primary"
-                        class="inline-flex w-full sm:w-auto"
-                        :context="context"
-                        data-test="modal-primary-button"
-                    >
-                        {{ primaryButtonText }}
-                    </LButton>
-                </span>
+            <div class="mt-5 flex flex-col gap-2 sm:mt-4 sm:flex-row-reverse sm:gap-3">
+                <LButton
+                    @click="primaryAction()"
+                    variant="primary"
+                    class="w-full sm:w-auto"
+                    :context="context"
+                    data-test="modal-primary-button"
+                >
+                    {{ primaryButtonText }}
+                </LButton>
                 <LButton
                     @click="secondaryAction()"
-                    class="inline-flex w-full sm:w-auto"
+                    class="w-full sm:w-auto"
                     v-if="secondaryAction && secondaryButtonText"
                     data-test="modal-secondary-button"
                 >
