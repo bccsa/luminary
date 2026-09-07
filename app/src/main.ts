@@ -22,6 +22,7 @@ import { initDefaultAffinitySync } from "@/recommendation/defaultAffinityStore";
 import { APP_DOCS_INDEX } from "./docsIndex";
 import { initSentry, Sentry } from "@/util/initSentry";
 import { markAppReady, markAppError } from "@/util/renderState";
+import { hideNativeSplash } from "@/util/nativeSplash";
 import { initLivePublishClock } from "@/util/livePublishClock";
 
 export const app = createApp(App);
@@ -125,6 +126,8 @@ async function Startup() {
     app.use(i18n);
     app.use(appPluginsManager);
     app.mount("#app");
+    // The web loading UI is rendering from here on — hand over from the native splash.
+    hideNativeSplash();
 
     await initLanguage();
     initSync();
@@ -139,4 +142,6 @@ Startup().catch((err) => {
     console.error(err);
     Sentry?.captureException(err);
     markAppError();
+    // Don't strand the native splash over the error state.
+    hideNativeSplash();
 });
