@@ -204,6 +204,7 @@ watch(isFullscreen, () => {
         transparent-header
         large-modal
         stick-to-edges
+        :fullscreen="isFullscreen"
         :show-closing-button="false"
         :class="isFullscreen ? '' : 'h-full min-h-0 w-full'"
     >
