@@ -1,5 +1,5 @@
 import "./assets/main.css";
-import { createApp, watch } from "vue";
+import { createApp, nextTick, watch } from "vue";
 import { createPinia } from "pinia";
 import App from "./App.vue";
 import router from "./router";
@@ -23,6 +23,7 @@ import { APP_DOCS_INDEX } from "./docsIndex";
 import { initSentry, Sentry } from "@/util/initSentry";
 import { markAppReady, markAppError } from "@/util/renderState";
 import { initLivePublishClock } from "@/util/livePublishClock";
+import { BOOT_SPLASH_ID } from "./bootSplash";
 
 export const app = createApp(App);
 
@@ -62,9 +63,6 @@ async function Startup() {
         contentPublishDateCutoff: installedStandalone
             ? undefined // no cutoff → full corpus
             : Date.now() - BROWSER_CONTENT_SYNC_WINDOW_MS,
-    }).catch((err) => {
-        console.error(err);
-        Sentry?.captureException(err);
     });
 
     // Keep the CMS-managed default-affinity baseline/config in sync with the local
@@ -100,7 +98,9 @@ async function Startup() {
     watch(serverError, (error) => {
         if (error) {
             serverError.value = null;
-            console.error(`Server error: ${error.status}${error.message ? ` ${error.message}` : ""}`);
+            console.error(
+                `Server error: ${error.status}${error.message ? ` ${error.message}` : ""}`,
+            );
             if (serverErrorTimeout) return;
             Sentry?.captureMessage(
                 `Server error: ${error.status}${error.message ? ` ${error.message}` : ""}`,
@@ -130,6 +130,14 @@ async function Startup() {
     initSync();
 
     isAppLoading.value = false;
+
+    // Drop the boot splash only after the flag above has been rendered, so the app is already
+    // painted underneath and uncovering it can't expose a blank frame. A failed startup never
+    // reaches this line, which is deliberate: markAppError() below leaves the splash up and
+    // switches it to its error panel rather than stranding the user on an animating bar.
+    await nextTick();
+    document.getElementById(BOOT_SPLASH_ID)?.remove();
+
     initAppTitle(i18n);
     initAnalytics();
     markAppReady();
