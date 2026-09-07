@@ -115,7 +115,7 @@ html[data-render-state="error"] #${BOOT_SPLASH_ID} .boot-splash-error { display:
 }
 
 /**
- * Both strings are hardcoded English: the splash paints long before i18n, whose messages come
+ * The loading panel carries no text: the splash paints long before i18n, whose messages come
  * from Language documents fetched at runtime.
  */
 export function bootSplashMarkup(configuredLogo?: string): string {
@@ -123,7 +123,6 @@ export function bootSplashMarkup(configuredLogo?: string): string {
     return `<div id="${BOOT_SPLASH_ID}" role="status" aria-live="polite">
     <div class="boot-splash-panel boot-splash-loading">
         <img class="boot-splash-logo" src="${logo}" alt="" />
-        <p class="boot-splash-label">Loading...</p>
         <div class="boot-splash-track"><div class="boot-splash-slug"></div></div>
     </div>
     <div class="boot-splash-panel boot-splash-error">
