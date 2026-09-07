@@ -9,6 +9,7 @@ export function buildTargetVirtuals(): Plugin {
     const root = fileURLToPath(new URL("../src", import.meta.url));
     const virtualTargets: Record<string, string> = {
         "virtual:demo-banner": `${root}/build-time/plugins/demo-banner/index.ts`,
+        "virtual:platform-chrome": `${root}/build-time/plugins/platform-chrome/index.ts`,
     };
 
     return {

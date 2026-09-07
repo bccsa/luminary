@@ -32,3 +32,12 @@ declare module "virtual:demo-banner" {
         options?: { bannerComponent?: Component },
     ): void;
 }
+
+declare module "virtual:platform-chrome" {
+    import type { App } from "vue";
+    import type { InjectionKey } from "vue";
+    import type { PlatformChromeService } from "@/build-time/contracts/platform-chrome/contract";
+
+    export const PlatformChromeKey: InjectionKey<PlatformChromeService>;
+    export function installPlatformChrome(app: App): void;
+}

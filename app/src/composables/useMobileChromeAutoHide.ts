@@ -1,5 +1,4 @@
-import { ref, watch } from "vue";
-import { setNativeStatusBarHidden } from "@/util/nativeStatusBar";
+import { ref } from "vue";
 
 /** Scroll distance from the top below which the chrome always stays visible. */
 const SHOW_NEAR_TOP_PX = 80;
@@ -18,9 +17,6 @@ const MIN_RANGE_PX = 480;
 // while the top bar (BasePage) and the bottom menu (App.vue) read the result.
 const hidden = ref(false);
 let lastScrollTop = 0;
-
-// The native status bar steps aside together with the web chrome.
-watch(hidden, (value) => setNativeStatusBarHidden(value));
 
 /**
  * Mobile chrome that steps out of the way while reading: hides once the reader scrolls
