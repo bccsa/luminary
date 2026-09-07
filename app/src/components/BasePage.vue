@@ -10,6 +10,7 @@ import type { ContentDto } from "luminary-shared";
 import { ChevronLeftIcon } from "@heroicons/vue/24/outline";
 import { useBackNavigation } from "@/composables/useBackNavigation";
 import { useMobileChromeAutoHide } from "@/composables/useMobileChromeAutoHide";
+import { isNativeApp } from "@/util/inAppBrowser";
 
 const showNotifications = !queryParams.has("supress-notifications");
 
@@ -29,6 +30,11 @@ const props = defineProps<{
 }>();
 
 const { onBackClick } = useBackNavigation();
+
+// The packaged app drops the fade behind the pinned mobile chrome — with the
+// status bar hiding while reading, content scrolling under a gradient reads as
+// a smudge rather than a chrome backing.
+const isNative = isNativeApp();
 
 const main = ref<HTMLElement | undefined>(undefined);
 
@@ -181,12 +187,24 @@ onUnmounted(() => {
                 </div>
 
                 <!-- Mobile counterpart of the centre slot: pinned at the top of the scrolling area with
-                     the same collapsed flow height, so it floats over the content. -->
+                     the same collapsed flow height, so it floats over the content. While the top bar
+                     is collapsed the scrollport reaches the screen edge, so the pin point drops by the
+                     safe-area inset to keep the pill clear of the status bar; the transition tracks the
+                     top bar's collapse animation. -->
                 <div
                     v-if="desktopTopBar && $slots.topBarCenter"
-                    class="pointer-events-none sticky top-0 z-20 -mx-2 -mb-14 flex h-16 items-start justify-center px-2 pt-2 md:-mx-4 md:px-4 lg:hidden"
+                    class="pointer-events-none sticky z-20 -mx-2 -mb-14 flex h-16 items-start justify-center px-2 pt-2 transition-[top] duration-300 ease-out md:-mx-4 md:px-4 lg:hidden"
+                    :class="
+                        mobileChrome.hidden.value
+                            ? // Tucked slightly into the safe-area inset: the status bar is hidden
+                              // then, so only the sensor housing needs clearing. Clamped for
+                              // devices whose inset collapses once the status bar is gone.
+                              'top-[max(0px,calc(env(safe-area-inset-top)-0.75rem))]'
+                            : 'top-0'
+                    "
                 >
                     <div
+                        v-if="!isNative"
                         :class="[topChromeFade, scrolled ? 'opacity-100' : 'opacity-0']"
                         aria-hidden="true"
                     />
