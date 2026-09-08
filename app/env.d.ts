@@ -13,8 +13,6 @@ interface ImportMetaEnv {
 
     readonly VITE_SENTRY_DSN: string;
 
-    readonly VITE_APP_URL_SCHEME?: string;
-
 }
 
 interface ImportMeta {
@@ -51,4 +49,8 @@ declare module "virtual:auth-flow" {
 
     export const AuthFlowKey: InjectionKey<AuthFlowService>;
     export function installAuthFlow(app: App): void;
+}
+
+declare module "virtual:app-lifecycle" {
+    export function notifyUiReady(): void;
 }
