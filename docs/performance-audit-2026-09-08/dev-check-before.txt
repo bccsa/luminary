@@ -1,0 +1,17 @@
+host api.dev.app.bcc.africa — 100 sample docs, 100 ids, 34 parentIds
+
+── §2 id-list (the fix under test) ──
+_id:{$in} x25                      200  docs  25  ttfb 1050ms (p95 4679)  total 1076ms  warn 20/20  hash 18507b9876
+_id:{$in} x60                      200  docs  60  ttfb  481ms (p95 2026)  total  513ms  warn 20/20  hash bb449950d2
+
+── controls (must not regress) ──
+slug lookup                        200  docs   1  ttfb   50ms (p95   82)  total   50ms  warn 0/20  hash 6d854ab2fc
+single parentId                    200  docs   3  ttfb   58ms (p95  107)  total   58ms  warn 0/20  hash 134eb0e9cc
+empty incremental                  200  docs   0  ttfb   38ms (p95   96)  total   38ms  warn 0/20  hash 4f53cda18c
+
+── §1 tag index A/B (client-side change; shown for reference) ──
+tag sync — sync-content-index      200  docs  94  ttfb  449ms (p95 2550)  total  449ms  warn 20/20  hash c4a2a9e2d3
+tag sync — sync-tag-content-index  200  docs  94  ttfb  288ms (p95  607)  total  288ms  warn 0/20  hash c4a2a9e2d3
+
+── #1818 (not in this branch) ──
+multi-parent $in +sort x40         500  docs   0  ttfb   15ms (p95   17)  total   15ms  warn 0/20  hash 4f53cda18c
