@@ -162,6 +162,30 @@ matching write. Two of them (`sync-tag-content-index`, `sync-post-content-index`
 
 ---
 
+## 7. View-index lag after bulk writes / deploys (surfaced 8 Sept on dev)
+
+A single-parent topic-content query
+(`parentId` equality + `publishDate` sort, pinned `content-parentId-publishDate-index`)
+took **12.4 s** for one result on dev, then **18–24 ms** on every retry. CouchDB emits
+**no scan warning** for this — it silently blocks while the pinned view catches up on
+a backlog of unindexed writes. All docs under that parent carried an identical
+`updatedTimeUtc` (≈ 2026‑04‑18), i.e. a bulk reseed had invalidated the view; the
+first reader paid the whole rebuild.
+
+Production risk: same stall after any large content import or a deploy whose schema
+upgrade bumps `updatedTimeUtc` en masse — the first request to hit each lagging index
+eats its rebuild.
+
+**The change:** warm the query indexes at the end of a deploy / import — one cheap
+`limit: 1` query per `sync-*` / `content-*` design doc, or a `_view?stale=update_after`
+touch. Cheap; turns a user-facing 12 s stall into a background build.
+
+Note: this query **must** carry `use_index` — without the pin it returns HTTP 500
+(`No index exists for this sort`; the `$or` on `publishDate` blocks auto-selection).
+The client pins it correctly.
+
+---
+
 ## Priority order
 
 | # | Change | Effort | Payoff | Where |
@@ -172,3 +196,4 @@ matching write. Two of them (`sync-tag-content-index`, `sync-post-content-index`
 | 4 | Land + measure #1719 | review | largest real-world gain | #1719 |
 | 5 | Post-sync page size | measure per env | modest | `syncBatch.ts` |
 | 6 | Drop truly-unused indexes | audit each | write throughput | design docs |
+| 7 | Warm view indexes after deploy/import | small ops change | kills 12 s cold-start stalls | deploy script |
