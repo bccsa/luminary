@@ -55,9 +55,11 @@ production network path. Add the concurrency suite explicitly when measuring off
   matching write, so an unreferenced one is a permanent write cost.
 - **explain** — which index CouchDB picks for each client-shaped query, and whether a pinned
   `use_index` is actually honoured. A silent fall back to `_all_docs` is a full scan.
-- **latency** — the core suite. Every request shape in `catalogue.ts`, timed, with the API's own
-  per-phase breakdown (auth / validation / permission filtering / CouchDB / post-processing),
-  CouchDB round-trip counts, `total_docs_examined`, and response size.
+- **latency** — the core suite. Every request shape in `catalogue.ts`, timed end-to-end and to
+  first byte (`ttfb` — the API buffers the whole body before sending, so `ttfb` ≈ handler time
+  and `client - ttfb` is body download), with the API's own per-phase breakdown (auth /
+  validation / permission filtering / CouchDB / post-processing), CouchDB round-trip counts,
+  `total_docs_examined`, and response size.
 - **fts** — `/fts` broken into its stages: trigrams generated, trigrams kept after pruning,
   candidate rows scanned, survivors after filtering, top-K fetched. Search cost is driven by the
   query text, so this is where a slow search is explained.

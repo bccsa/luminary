@@ -15,6 +15,14 @@ export type Timed<T = any> = {
     status: number;
     /** Wall-clock ms measured by the client, including network and (de)serialization. */
     ms: number;
+    /**
+     * Time to first byte: request start → response headers received. `fetch` resolves on
+     * headers, so this is the wait before any body arrives — dominated by the API's handler
+     * (the API buffers, serialises and compresses the whole body before the first byte).
+     */
+    firstByteMs: number;
+    /** Body download time: `ms - firstByteMs`. ~0 on localhost; the real network cost remotely. */
+    transferMs: number;
     /** Decoded response body size in bytes — what the client parses. */
     bytes: number;
     /**
@@ -65,6 +73,7 @@ export class ApiClient {
                 headers: this.headers,
                 body,
             });
+            const firstByteMs = performance.now() - start;
             // Drain the body before stopping the clock — a timing that excludes transfer
             // would understate large sync responses, which is exactly what we're measuring.
             const text = await res.text();
@@ -74,6 +83,8 @@ export class ApiClient {
                 ok: res.ok,
                 status: res.status,
                 ms,
+                firstByteMs,
+                transferMs: ms - firstByteMs,
                 bytes: Buffer.byteLength(text),
                 wireBytes: measureWire ? compressedSize(text) : 0,
                 trace: parseTrace(res.headers.get("x-perf-trace")),
@@ -81,10 +92,13 @@ export class ApiClient {
                 error: res.ok ? undefined : text.slice(0, 300),
             };
         } catch (err: any) {
+            const ms = performance.now() - start;
             return {
                 ok: false,
                 status: 0,
-                ms: performance.now() - start,
+                ms,
+                firstByteMs: ms,
+                transferMs: 0,
                 bytes: 0,
                 wireBytes: 0,
                 error: err?.message ?? String(err),
