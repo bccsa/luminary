@@ -1,8 +1,77 @@
 diff --git a/node_modules/vite-ssg/dist/node.mjs b/node_modules/vite-ssg/dist/node.mjs
-index 6faa9cd..a8fc2d2 100644
+index 6faa9cd..9cc20ba 100644
 --- a/node_modules/vite-ssg/dist/node.mjs
 +++ b/node_modules/vite-ssg/dist/node.mjs
-@@ -1043,6 +1043,7 @@ async function build(ssgOptions = {}, viteConfig = {}) {
+@@ -931,7 +931,8 @@ async function build(ssgOptions = {}, viteConfig = {}) {
+   const config = await resolveConfig(viteConfig, "build", mode, nodeEnv);
+   const cwd = process.cwd();
+   const root = config.root || cwd;
+-  const ssgOut = join(root, ".vite-ssg-temp", Math.random().toString(36).substring(2, 12));
++  const __ssgReuse = process.env.SSG_REUSE_BUILD === "1";
++  const ssgOut = join(root, ".vite-ssg-temp", __ssgReuse ? "reuse" : Math.random().toString(36).substring(2, 12));
+   const outDir = config.build.outDir || "dist";
+   const out = isAbsolute(outDir) ? outDir : join(root, outDir);
+   const {
+@@ -951,8 +952,12 @@ async function build(ssgOptions = {}, viteConfig = {}) {
+     rootContainerId = "app",
+     base
+   } = Object.assign({}, config.ssgOptions || {}, ssgOptions);
+-  if (fs.existsSync(ssgOut))
++  if (!__ssgReuse && fs.existsSync(ssgOut))
+     await fs.remove(ssgOut);
++  const __clientDone = join(out, ".vite", "ssr-manifest.json");
++  if (__ssgReuse && fs.existsSync(__clientDone)) {
++    buildLog("Reusing client build...");
++  } else {
+   buildLog("Build for client...");
+   await build$1(mergeConfig(viteConfig, {
+     base,
+@@ -966,13 +971,18 @@ async function build(ssgOptions = {}, viteConfig = {}) {
+     },
+     mode: config.mode
+   }));
++  }
+   if (mock) {
+     const { jsdomGlobal } = await import('./chunks/jsdomGlobal.mjs');
+     jsdomGlobal();
+   }
+-  buildLog("Build for server...");
+   process.env.VITE_SSG = "true";
+   const ssrEntry = await resolveAlias(config, entry);
++  const __serverFile = join(ssgOut, parse(ssrEntry).name + (format === "esm" ? ".mjs" : ".cjs"));
++  if (__ssgReuse && fs.existsSync(__serverFile)) {
++    buildLog("Reusing server build...");
++  } else {
++  buildLog("Build for server...");
+   await build$1(mergeConfig(viteConfig, {
+     base,
+     build: {
+@@ -992,6 +1002,7 @@ async function build(ssgOptions = {}, viteConfig = {}) {
+     },
+     mode: config.mode
+   }));
++  }
+   const prefix = format === "esm" && process.platform === "win32" ? "file://" : "";
+   const ext = format === "esm" ? ".mjs" : ".cjs";
+   const serverEntry = prefix + join(ssgOut, parse(ssrEntry).name + ext).replace(/\\/g, "/");
+@@ -1015,7 +1026,15 @@ async function build(ssgOptions = {}, viteConfig = {}) {
+     // Vite 4 and below
+   );
+   const ssrManifest = JSON.parse(ssrManifestRaw);
+-  let indexHTML = await fs.readFile(join(out, "index.html"), "utf-8");
++  // The rendered homepage overwrites the template it was rendered from, so a pass that
++  // skips the client build must read the template snapshotted by the pass that produced it.
++  const __tplFile = join(ssgOut, "index.template.html");
++  if (__ssgReuse && !fs.existsSync(__tplFile))
++    await fs.copy(join(out, "index.html"), __tplFile);
++  let indexHTML = await fs.readFile(
++    __ssgReuse && fs.existsSync(__tplFile) ? __tplFile : join(out, "index.html"),
++    "utf-8"
++  );
+   indexHTML = rewriteScripts(indexHTML, script);
+   const { renderToString } = await import('vue/server-renderer');
+   const queue = new PQueue({ concurrency });
+@@ -1043,6 +1062,7 @@ async function build(ssgOptions = {}, viteConfig = {}) {
          if (head)
            await renderDOMHead(head, { document: jsdom.window.document });
          const html = jsdom.serialize();
@@ -10,3 +79,12 @@ index 6faa9cd..a8fc2d2 100644
          let transformed = await onPageRendered?.(route, html, appCtx) || html;
          if (critters)
            transformed = await critters.process(transformed);
+@@ -1061,7 +1081,7 @@ ${err.stack}`);
+     });
+   }
+   await queue.start().onIdle();
+-  await fs.remove(ssgOut);
++  if (!__ssgReuse) await fs.remove(ssgOut);
+   const pwaPlugin = config.plugins.find((i) => i.name === "vite-plugin-pwa")?.api;
+   if (pwaPlugin && !pwaPlugin.disabled && pwaPlugin.generateSW) {
+     buildLog("Regenerate PWA...");
