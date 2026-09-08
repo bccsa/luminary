@@ -105,20 +105,23 @@ export function deriveFindings(report: AuditReport): Finding[] {
         });
     }
 
-    // Extra CouchDB round trips on a single-query endpoint.
-    const chatty = ok.filter((row) => row.entry.path === "/query" && (row.db?.find ?? 0) > 1.5);
+    // Extra CouchDB round trips beyond what the request shape explains. A top-level
+    // `_id`/`parentId` `$in` fans out to one find per value by design, so subtract that.
+    const chatty = ok.filter((row) => {
+        if (row.entry.path !== "/query") return false;
+        const expected = 1 + fanoutWidth(row.entry.body?.selector);
+        return (row.db?.find ?? 0) > expected + 0.5;
+    });
     if (chatty.length) {
+        chatty.sort((a, b) => b.db!.find - a.db!.find);
         findings.push({
             severity: "medium",
             area: "db",
-            title: `${chatty.length} /query request(s) make more than one CouchDB find`,
+            title: `${chatty.length} /query request(s) make more CouchDB finds than the shape needs`,
             detail:
-                `Highest: \`${chatty.sort((a, b) => b.db!.find - a.db!.find)[0].entry.id}\` at ` +
-                `${r(
-                    chatty[0].db!.find,
-                    2,
-                )} finds. A single Mango query should be one round trip; ` +
-                `the extras come from identity or cache lookups on the same request.`,
+                `Highest: \`${chatty[0].entry.id}\` at ${r(chatty[0].db!.find, 2)} finds. ` +
+                `Beyond a single query (or one per value for an id/parentId fan-out), the extras ` +
+                `come from identity or cache lookups on the same request.`,
         });
     }
 
@@ -446,10 +449,13 @@ function renderMarkdown(report: AuditReport): string {
     if (report.latency?.length) {
         out.push(`## Request latency`);
         out.push(
-            `\`client\` is end-to-end including transfer. \`server\` is the API's own handler time. ` +
-                `\`auth\`/\`validate\`/\`couch\` are traced phases; \`db\` counts CouchDB round trips per request. ` +
-                `\`examined\` is CouchDB's \`total_docs_examined\`. \`wire\` is the Brotli-compressed ` +
-                `body estimated locally (not measured wire traffic); \`decoded\` is what it parses.`,
+            `\`client\` is end-to-end including transfer. \`ttfb\` is time to first byte ` +
+                `(request → response headers); the API buffers the whole body before sending, so ` +
+                `\`ttfb\` ≈ handler time and \`client - ttfb\` is body download. \`server\` is the ` +
+                `API's own handler time. \`auth\`/\`validate\`/\`couch\` are traced phases; \`db\` ` +
+                `counts CouchDB round trips per request. \`examined\` is CouchDB's ` +
+                `\`total_docs_examined\`. \`wire\` is the Brotli-compressed body estimated locally ` +
+                `(not measured wire traffic); \`decoded\` is what it parses.`,
         );
         out.push("");
 
@@ -461,6 +467,7 @@ function renderMarkdown(report: AuditReport): string {
                         "Request",
                         "p50",
                         "p95",
+                        "ttfb p50",
                         "server p50",
                         "auth",
                         "couch",
@@ -477,6 +484,7 @@ function renderMarkdown(report: AuditReport): string {
                         }`,
                         row.client.p50,
                         row.client.p95,
+                        row.firstByte.p50,
                         row.server ? row.server.p50 : "—",
                         r(row.spans.auth ?? 0),
                         r(row.spans.couch ?? row.spans.search ?? row.spans.query ?? 0),
@@ -487,7 +495,7 @@ function renderMarkdown(report: AuditReport): string {
                         humanBytes(row.wireBytes),
                         humanBytes(row.bytes),
                     ]),
-                    [false, true, true, true, true, true, true, true, true, true, true, true],
+                    [false, true, true, true, true, true, true, true, true, true, true, true, true],
                 ),
             );
             out.push("");
@@ -705,6 +713,21 @@ function phaseSummary(results: LatencyResult[]): string {
 function pct(part: number, whole: number): string {
     if (!whole) return "—";
     return `${r((part / whole) * 100, 1)}%`;
+}
+
+/**
+ * Values in a top-level `_id`/`parentId` `$in` — the API fans these out to one
+ * indexed find per value, so a find count near this is expected, not chatty.
+ */
+function fanoutWidth(selector: any): number {
+    const clauses = selector?.$and ?? (selector ? [selector] : []);
+    for (const clause of clauses) {
+        for (const field of ["_id", "parentId"]) {
+            const $in = clause?.[field]?.$in;
+            if (Array.isArray($in)) return $in.length;
+        }
+    }
+    return 0;
 }
 
 function severityLabel(severity: Finding["severity"]): string {

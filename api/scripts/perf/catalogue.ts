@@ -89,9 +89,13 @@ export function buildCatalogue(ctx: PerfContext): CatalogueEntry[] {
           }
         : {};
 
+    // Mirrors shared/src/api/sync/syncBatch.ts: tag content on its own partial index,
+    // post (and everything else) content on the generic one.
     const syncIndexFor = (type: string, subType?: string) =>
         type === "content"
-            ? "sync-content-index"
+            ? subType === "tag"
+                ? "sync-tag-content-index"
+                : "sync-content-index"
             : `sync-${subType ? subType + "-" : ""}${type}-index`;
 
     const pushSync = (column: SyncColumn, cms: boolean, firstSync: boolean) => {
@@ -351,7 +355,7 @@ export function buildCatalogue(ctx: PerfContext): CatalogueEntry[] {
     if (ctx.content.length) {
         hybrid(
             "hybrid-by-id-list",
-            "content by _id list — id-diff supplement (served by the built-in _id index)",
+            "content by _id list — id-diff supplement (API fans out to per-id lookups)",
             "shared/src/util/HybridQuery/queryIntrospection.ts (decideContentApiQuery)",
             {
                 selector: {

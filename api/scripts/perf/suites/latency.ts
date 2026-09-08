@@ -13,6 +13,9 @@ export type LatencyResult = {
     error?: string;
     /** End-to-end, measured by the audit client. */
     client: Distribution;
+    /** Time to first byte (request → response headers). The API buffers the whole body,
+     * so this is essentially its handler time; body download is `client - firstByte`. */
+    firstByte: Distribution;
     /** The API's own view of the request, from the X-Perf-Trace header. */
     server?: Distribution;
     /** Mean ms per traced phase. */
@@ -43,6 +46,7 @@ export async function runLatencySuite(
         for (let i = 0; i < config.warmup; i++) await fire(api, entry);
 
         const clientMs: number[] = [];
+        const firstByteMs: number[] = [];
         const serverMs: number[] = [];
         const traces: ServerTrace[] = [];
         const statuses = new Set<number>();
@@ -55,6 +59,7 @@ export async function runLatencySuite(
             const res = await fire(api, entry, i === 0);
             statuses.add(res.status);
             clientMs.push(res.ms);
+            firstByteMs.push(res.firstByteMs);
             bytes = Math.max(bytes, res.bytes);
             wireBytes = Math.max(wireBytes, res.wireBytes);
             if (res.trace) {
@@ -78,6 +83,7 @@ export async function runLatencySuite(
             permissionBlocked,
             error: unexpected ? error ?? `unexpected status ${status}` : undefined,
             client: distribution(clientMs),
+            firstByte: distribution(firstByteMs),
             server: serverMs.length ? distribution(serverMs) : undefined,
             spans: meanSpans(traces),
             db: meanDb(traces),
