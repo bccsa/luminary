@@ -57,6 +57,7 @@ Run from `app/`:
 | `npm run build:web`                         | **Full** prerender → `dist-web/` (every public route) + `ssg-deps.json` + `sitemap.xml` + `robots.txt` + `llms.txt`. |
 | `SSG_ONLY_ROUTES="/a,/b" npm run build:web` | **Scoped** rebuild of only those routes; preserves all other files; **merges** their entries into `ssg-deps.json`.   |
 | `SSG_EMIT_REDIRECTS=1 …` | Marks a **scoped** build as the pass that owns redirect artifacts, which scoped builds otherwise skip (the ISR watcher maintains the index between builds). For a driver that renders the site in several scoped passes and so never runs an unscoped build — without this, nothing in the run would emit them. |
+| `SSG_EMIT_DELETE_QUEUE=1 …` | Marks a **scoped** build as the pass that owns the full DeleteCmd drain, which scoped builds otherwise limit to `SSG_DELETE_CMD_IDS`. Same audience as `SSG_EMIT_REDIRECTS`: a driver rendering the whole site in several scoped passes cannot supply the ids, because discovering them is what the drain does. |
 | `npm run preview:web`                       | Serve `dist-web/` locally (test in Incognito / unregister old service workers first).                                |
 
 The normal SPA build (`npm run build` → `dist/`, with its service worker) is
@@ -256,6 +257,12 @@ algorithm }` (`docFacetShards.ts`'s `docFacetsIndex()`); each doc's entry lives 
       `writeRouteIndex()`/`writeDocFacets()` do; the caller passes the triggering
       DeleteCmd ids explicitly instead. Empty (or unset) on a purely content-driven
       scoped rebuild skips the drain entirely.
+    - **Scoped pass that owns the queue** (`SSG_EMIT_DELETE_QUEUE=1`): drains every
+      DeleteCmd exactly as a full build does, for a driver that renders the whole site
+      in several scoped passes and so has no ids to pass. A full drain is a superset of
+      any explicit ids, so `SSG_DELETE_CMD_IDS` is redundant alongside it. The
+      `liveDocs`/`hasStaticFile` guards still apply, so the site's whole deletion
+      history is not replayed against the pages on disk.
     - Known asymmetry, not fixed here: `ssg-route-index/` is cumulative (entries
       persist across full builds), so its legacy fallback works indefinitely.
       `ssg-redirect-index.json` is fully overwritten every full build with only
@@ -269,7 +276,7 @@ algorithm }` (`docFacetShards.ts`'s `docFacetsIndex()`); each doc's entry lives 
   they are re-read from the API and rewritten wholesale, and between builds the ISR watcher owns
   that index — so a scoped pass re-reading the API could revert a change the watcher already
   applied. `SSG_EMIT_REDIRECTS=1` (above) hands ownership to a scoped pass for drivers that never
-  run an unscoped build.
+  run an unscoped build, and `SSG_EMIT_DELETE_QUEUE=1` does the same for the delete queue.
 
 ### Build scope
 

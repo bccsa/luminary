@@ -228,6 +228,12 @@ const SCOPED_DELETE_CMD_IDS: string[] = (process.env.SSG_DELETE_CMD_IDS || "")
 // driver that renders the site in several scoped passes and so never runs an unscoped build.
 const EMIT_REDIRECTS = process.env.SSG_EMIT_REDIRECTS === "1";
 
+// A scoped rebuild only drains the DeleteCmd ids it was handed, because the driver that
+// triggered it knows which deletion caused it. `SSG_EMIT_DELETE_QUEUE=1` marks a scoped pass as
+// the one that owns the full drain, for a driver that renders the site in several scoped passes
+// and so cannot know the ids up front — discovering them is what the drain is for.
+const EMIT_DELETE_QUEUE = process.env.SSG_EMIT_DELETE_QUEUE === "1";
+
 const indexHtmlPath = () => join(process.cwd(), OUT_DIR, "index.html");
 const manifestPath = () => join(process.cwd(), OUT_DIR, "ssg-deps.json");
 const redirectIndexPath = () => join(process.cwd(), OUT_DIR, "ssg-redirect-index.json");
@@ -542,10 +548,12 @@ async function fetchRedirects(apiUrl: string): Promise<SsgRedirect[]> {
 async function fetchDeleteCmds(
     apiUrl: string,
 ): Promise<{ contentCmds: SsgDeleteCmdDoc[]; redirectCmds: SsgDeleteCmdDoc[] }> {
-    if (IS_SCOPED && SCOPED_DELETE_CMD_IDS.length === 0) {
+    // A full drain is a superset of any explicit ids, so the two flags never need combining.
+    const fullDrain = !IS_SCOPED || EMIT_DELETE_QUEUE;
+    if (!fullDrain && SCOPED_DELETE_CMD_IDS.length === 0) {
         return { contentCmds: [], redirectCmds: [] };
     }
-    const ids = IS_SCOPED ? SCOPED_DELETE_CMD_IDS : undefined;
+    const ids = fullDrain ? undefined : SCOPED_DELETE_CMD_IDS;
     const transport = queryTransport(apiUrl, "delete-cmd enumeration");
     const [posts, tags, redirects] = await Promise.all([
         enumerateDeleteCmds<SsgDeleteCmdDoc>(transport, DocType.Post, ids),
