@@ -86,10 +86,12 @@ the fetched docs (same as the sync/HybridQuery paths do today). Not touched by #
 **Status — done on this branch.** Implemented as a **per-id `_id: {$eq}` fan-out**
 (`api/src/util/queryIdFanout.ts`) rather than `_all_docs?keys`: fanning out lets
 CouchDB apply the whole permission-injected selector per sub-query, so nothing has to
-be re-evaluated in JS. Bounded at 100 ids / 20 concurrent; above the cap it falls
-back to the single query. Mirrors the #1818 parentId fan-out shape. Branch check
-against the local replica, `_id:{$in}` × 25: **229 ms / 2 423 examined / scan 20/20
-→ 9.5 ms / 25 examined / 0 warnings**, identical result set (~24× local).
+be re-evaluated in JS. Bounded at **50 ids / 4 concurrent** — one client request
+multiplies into that many CouchDB queries, and a page load fires ~25 client requests
+at once, so a high concurrency cap starves the connection pool and drags every
+concurrent query down (seen on dev). Above the cap it falls back to the single query.
+Branch check against the local replica, `_id:{$in}` × 25: **229 ms / 2 423 examined /
+scan 20/20 → ~12 ms / 25 examined / 0 warnings**, identical result set (~19× local).
 
 ---
 
