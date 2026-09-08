@@ -10,12 +10,10 @@ import { buildDeleteQueue } from "./src/ssg/deleteQueue";
 import {
     drainQuery,
     enumerateDeleteCmds,
-    enumeratePublicContent,
     isRouteEligible,
     type KeysetDocument,
-    type KeysetQuery,
-    type QueryTransport,
 } from "./src/ssg/queryDrain";
+import { enumerateSite, queryTransport } from "./src/ssg/routeEnumeration";
 import {
     ACTIVE_PROVIDER_KEY,
     LEGACY_AUTH0_CACHE_PREFIX,
@@ -190,7 +188,6 @@ const APP_NAME = env.VITE_APP_NAME || "Luminary";
 // back to the public URL. The client bundle keeps using VITE_API_URL (compiled into the
 // shipped JS), so this never reaches real visitors' browsers.
 const SSG_API_URL = process.env.SSG_API_URL || env.VITE_API_URL;
-type SsgLanguage = KeysetDocument & { languageCode?: string; default?: number };
 type SsgRedirect = KeysetDocument & {
     slug?: string;
     toSlug?: string;
@@ -442,14 +439,6 @@ function docFacetSnapshot(doc: SsgContent): DocLike | undefined {
     };
 }
 
-function localizedStaticPaths(staticRoutes: string[], langCodes: string[], defaultCode: string) {
-    return [...new Set(langCodes)]
-        .filter((code) => code && code !== defaultCode)
-        .flatMap((code) =>
-            staticRoutes.map((route) => (route === "/" ? `/${code}` : `/${code}${route}`)),
-        );
-}
-
 /**
  * Web / SSG build config. Separate from the native/default `vite.config.ts` so
  * the native SPA build (the future Capacitor base) stays byte-for-byte unchanged.
@@ -472,37 +461,12 @@ const rewriteWebEntry = (): Plugin => ({
     },
 });
 
-function queryTransport(apiUrl: string, operation: string): QueryTransport {
-    return async <T extends KeysetDocument>(query: KeysetQuery): Promise<T[]> => {
-        const res = await fetch(`${apiUrl}/query`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(query),
-        });
-        if (!res.ok) {
-            throw new Error(`[ssg] ${operation} failed: ${res.status} ${res.statusText}`);
-        }
-        const data = (await res.json()) as { docs?: T[] };
-        return data.docs ?? [];
-    };
-}
-
-// Enumerate every public content slug through anonymous /query access. Each
-// type-specific stream uses a stable (updatedTimeUtc, _id) keyset cursor.
-async function fetchPublicSlugs(apiUrl: string, now: number): Promise<string[]> {
-    // Drain the full published set, including scheduled "coming soon" docs. The corpus
-    // (published below) feeds the per-page local query resolver, which serves feed
-    // queries that intentionally match coming-soon tiles, so those docs must be present.
-    const docs = await enumeratePublicContent<SsgContent>(
-        queryTransport(apiUrl, "route enumeration"),
-    );
-    // Slug routes are gated to `publishDate <= now` via `isRouteEligible`: a coming-soon
-    // doc gets a feed tile (it's in the corpus) but no page, since it isn't readable yet.
+// Build the per-route sidecar inputs from the enumerated corpus: the route index, doc-facet
+// snapshots, sitemap lastmods, and the route→language map main.web.ts reads to pick each page's
+// render language. Route eligibility is `isRouteEligible` — the same gate the route set uses.
+function indexEnumeratedDocs(docs: SsgContent[], now: number): void {
     const routeEligible = (d: SsgContent) => isRouteEligible(d, now);
-    // Build the route→language map so each page prerenders in its own language
-    // (read by main.web.ts via globalThis). Same Node process as the SSR render.
     const routeLang: Record<string, string> = {};
-    const slugs = new Set<string>();
     routeIndex = buildRouteIndex(docs.filter(routeEligible));
     docFacets = {};
     docFacetRoutes = {};
@@ -515,7 +479,6 @@ async function fetchPublicSlugs(apiUrl: string, now: number): Promise<string[]> 
             docFacetRoutes[snapshot._id] = `/${d.slug}`;
         }
         if (!d.slug) continue;
-        slugs.add(d.slug);
         if (typeof d.updatedTimeUtc === "number") {
             routeLastmod[`/${d.slug}`] = new Date(d.updatedTimeUtc).toISOString();
         }
@@ -529,13 +492,6 @@ async function fetchPublicSlugs(apiUrl: string, now: number): Promise<string[]> 
     // never one the live API would surface mid-build without a prerendered slug page.
     (globalThis as Record<string, unknown>).__SSG_CONTENT_CORPUS__ =
         docs as unknown as ContentDto[];
-    return [...slugs];
-}
-
-async function fetchLanguages(apiUrl: string): Promise<SsgLanguage[]> {
-    return drainQuery<SsgLanguage>(queryTransport(apiUrl, "language enumeration"), {
-        type: "language",
-    });
 }
 
 async function fetchRedirects(apiUrl: string): Promise<SsgRedirect[]> {
@@ -716,12 +672,13 @@ const config: UserConfig & { ssgOptions: ViteSSGOptions } = {
             // tile to a slug page that was never prerendered. Must run before the first
             // render, where `mangoIsPublished` captures `sessionNow()` on first read.
             setSessionNow(routeEnumerationNow);
-            const slugs = await fetchPublicSlugs(apiUrl, routeEnumerationNow);
-            const languages = await fetchLanguages(apiUrl);
-            const defaultLanguage = languages.find((l) => l.default === 1) ?? languages[0];
-            const langCodes = languages
-                .map((l) => l.languageCode)
-                .filter((code): code is string => !!code);
+            const site = await enumerateSite<SsgContent>({
+                transportFor: (operation) => queryTransport(apiUrl, operation),
+                routeRecords: routes,
+                now: routeEnumerationNow,
+            });
+            const { docs, languages, defaultLanguage, routes: siteRoutes } = site;
+            indexEnumeratedDocs(docs, routeEnumerationNow);
             const g = globalThis as Record<string, unknown>;
             g.__SSG_DEFAULT_LANG__ = defaultLanguage?._id ?? "";
             g.__SSG_DEFAULT_LANG_CODE__ = defaultLanguage?.languageCode ?? "";
@@ -731,33 +688,7 @@ const config: UserConfig & { ssgOptions: ViteSSGOptions } = {
                     .map((l) => [l.languageCode as string, l._id as string]),
             );
 
-            // Private / per-user routes — never prerendered. The public "main" routes
-            // (`/`, `/explore`, `/watch`) ARE prerendered via `meta.prerender` (they
-            // render their tile collections through the SSG-aware useContentQuery seam).
-            const exclude = new Set(["/open", "/settings", "/bookmarks"]);
-
-            // Static public routes flagged for prerender (non-dynamic).
-            const staticRoutes = routes
-                .filter(
-                    (r) => r.meta?.prerender && typeof r.path === "string" && !r.path.includes(":"),
-                )
-                .map((r) => r.path as string);
-            // The 404 error page is prerendered only in the default language (a
-            // worker-served custom error page has no per-request locale), so keep
-            // it out of the locale-prefixed variants while still prerendering /404
-            // itself (it stays in `staticRoutes` → `all`).
-            const localizableStatic = staticRoutes.filter((r) => r !== "/404");
-            const localizedRoutes = localizedStaticPaths(
-                localizableStatic,
-                langCodes,
-                defaultLanguage?.languageCode ?? "",
-            );
-
-            const slugRoutes = slugs.map((s) => `/${s}`);
-
-            const all = [...new Set([...staticRoutes, ...localizedRoutes, ...slugRoutes])].filter(
-                (p) => !exclude.has(p),
-            );
+            const { staticRoutes, localizedRoutes, slugRoutes, all } = siteRoutes;
             prerenderedRoutes = all;
 
             // The sitemap always represents the full public route set, while a scoped
