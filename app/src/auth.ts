@@ -1,5 +1,7 @@
 import { UserManager, WebStorageStateStore, type User } from "oidc-client-ts";
-import { computed, ref, type App } from "vue";
+import { computed, inject, ref, type App } from "vue";
+import { AuthFlowKey } from "@/build-time/contracts/auth-flow/token";
+import type { AuthFlowService } from "@/build-time/contracts/auth-flow/contract";
 import type { Router } from "vue-router";
 import * as Sentry from "@sentry/vue";
 import { db, getSocket, removeCustomHeader, setCustomHeader } from "luminary-shared";
@@ -66,6 +68,28 @@ function consumeForceReauthOnNextLogin(): boolean {
     const wasSet = localStorage.getItem(FORCE_REAUTH_KEY) === "true";
     if (wasSet) localStorage.removeItem(FORCE_REAUTH_KEY);
     return wasSet;
+}
+
+let authFlow: AuthFlowService | null = null;
+
+/**
+ * Platform strategy for the interactive redirects. Resolved from the app in
+ * setupAuth(); until then (and in tests) the browser flow applies.
+ */
+function getAuthFlow(): AuthFlowService {
+    if (!authFlow) {
+        authFlow = {
+            signoutNavigates: true,
+            redirectUri: () => window.location.origin,
+            postLogoutRedirectUri: () => window.location.origin,
+            signin: async (manager, args) => {
+                await manager.signinRedirect(args);
+                return null;
+            },
+            signout: (manager, args) => manager.signoutRedirect(args),
+        };
+    }
+    return authFlow;
 }
 
 function authority(domain: string): string {
@@ -151,8 +175,8 @@ function createManager(provider: ProviderConfig): UserManager {
     return new UserManager({
         authority: authority(provider.domain),
         client_id: provider.clientId,
-        redirect_uri: window.location.origin,
-        post_logout_redirect_uri: window.location.origin,
+        redirect_uri: getAuthFlow().redirectUri(provider.domain),
+        post_logout_redirect_uri: getAuthFlow().postLogoutRedirectUri(provider.domain),
         response_type: "code",
         scope: "openid profile email offline_access",
         // `audience` is the existing AuthProvider contract. It is passed as an
@@ -268,7 +292,14 @@ export function stripAuthCallbackParams(): void {
 }
 
 /** Set up the generic OIDC client and finish an authorization-code callback. */
-export async function setupAuth(_app: App<Element>, router: Router): Promise<void> {
+export async function setupAuth(app: App<Element>, router: Router): Promise<void> {
+    // The platform's auth-flow service is provided by the plugin registry,
+    // which is installed before this runs (see the bootstrap ordering). Bare
+    // app mocks (tests) fall through to the browser flow.
+    if (typeof app.runWithContext === "function") {
+        authFlow = app.runWithContext(() => inject(AuthFlowKey, null)) ?? authFlow;
+    }
+
     const url = new URL(location.href);
     const isCallback = url.searchParams.has("code") && url.searchParams.has("state");
 
@@ -482,7 +513,27 @@ export async function loginWithProvider(
     // `extraQueryParams` on a signin call REPLACES the manager-level object in
     // oidc-client-ts; using it for prompt would drop Auth0's API audience and
     // produce an opaque access token. `prompt` is a standard first-class option.
-    await manager.signinRedirect(signinArgs(prompt, opts?.returnTo));
+    await completeInteractiveSignin(manager, signinArgs(prompt, opts?.returnTo));
+}
+
+/**
+ * Run the platform signin and, when it completes in place (no navigation),
+ * install the session the way a boot-time callback would have.
+ */
+async function completeInteractiveSignin(
+    manager: UserManager,
+    args: ReturnType<typeof signinArgs>,
+): Promise<void> {
+    const signedInUser = await getAuthFlow().signin(manager, args);
+    // null covers both a cancelled flow (leave any login UI open for another
+    // attempt) and a web redirect already navigating away.
+    if (!signedInUser) return;
+    // The user is already persisted by the callback processing. Reboot the SPA
+    // instead of reconciling in-SPA state by hand — same rationale as logout()'s
+    // fallback reload: fresh socket auth, fresh clientConfig/accessMap, no stale
+    // KeepAlive/sync/banner state. The URL is unchanged, so the reader returns
+    // to the page the login started from.
+    window.location.reload();
 }
 
 /**
@@ -507,7 +558,9 @@ export function useAuth() {
         isAuthenticated,
         user,
         loginWithRedirect: (opts?: { returnTo?: string }) =>
-            installedOidc?.signinRedirect(signinArgs(undefined, opts?.returnTo)),
+            installedOidc
+                ? completeInteractiveSignin(installedOidc, signinArgs(undefined, opts?.returnTo))
+                : undefined,
         logout: async (opts?: LogoutOptions) => {
             const manager = installedOidc;
             if (!manager) return;
@@ -525,9 +578,11 @@ export function useAuth() {
             // still-alive SPA can't guarantee, whereas purge() is immediate.
             await db.purge();
             try {
-                await manager.signoutRedirect({ id_token_hint: idTokenHint });
-                // A successful redirect navigates away and reboots the app
-                // cleanly on return, same as a normal login redirect.
+                await getAuthFlow().signout(manager, { id_token_hint: idTokenHint });
+                // On the web a successful redirect navigates away and reboots
+                // the app cleanly on return. A flow that completes in place
+                // needs the same clean reboot triggered locally.
+                if (!getAuthFlow().signoutNavigates) window.location.reload();
             } catch (error) {
                 // Not every provider exposes end_session_endpoint (some Auth0
                 // tenants don't), so this redirect can fail before navigating.

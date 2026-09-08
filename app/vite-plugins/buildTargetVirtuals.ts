@@ -10,6 +10,7 @@ export function buildTargetVirtuals(): Plugin {
     const virtualTargets: Record<string, string> = {
         "virtual:demo-banner": `${root}/build-time/plugins/demo-banner/index.ts`,
         "virtual:platform-chrome": `${root}/build-time/plugins/platform-chrome/index.ts`,
+        "virtual:auth-flow": `${root}/build-time/plugins/auth-flow/index.ts`,
     };
 
     return {

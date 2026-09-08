@@ -6,7 +6,20 @@ declare global {
         TelegramWebviewProxy?: unknown;
         // Set by the extension script Telegram injects into in-app browser tabs on Android.
         __tg__webview_set?: boolean;
+        // Injected by the native runtime when the page runs inside the packaged app.
+        Capacitor?: { isNativePlatform?: () => boolean };
     }
+}
+
+/**
+ * Whether the page is running inside the packaged native app's own webview.
+ *
+ * The native webview trips inapp-spy's generic markers, but it is the app itself —
+ * there is no external browser to send the user to — so the in-app interstitial must
+ * not fire here.
+ */
+export function isNativeApp(): boolean {
+    return typeof window !== "undefined" && window.Capacitor?.isNativePlatform?.() === true;
 }
 
 /**
@@ -35,6 +48,10 @@ export function isTelegramBrowser(userAgent?: string): boolean {
  * using it read as ordinary browsers unless they expose a bridge the way Telegram does.
  */
 export function isInAppBrowser(userAgent?: string): boolean {
+    // The packaged app's own webview is not an in-app browser. Only trust this for
+    // the live runtime, never during SSG prerender or UA-only tests.
+    if (!userAgent && isNativeApp()) return false;
+
     if (isTelegramBrowser(userAgent)) return true;
 
     // inapp-spy reads navigator when given no user agent, so skip it during SSG prerender.

@@ -13,6 +13,8 @@ interface ImportMetaEnv {
 
     readonly VITE_SENTRY_DSN: string;
 
+    readonly VITE_APP_URL_SCHEME?: string;
+
 }
 
 interface ImportMeta {
@@ -40,4 +42,13 @@ declare module "virtual:platform-chrome" {
 
     export const PlatformChromeKey: InjectionKey<PlatformChromeService>;
     export function installPlatformChrome(app: App): void;
+}
+
+declare module "virtual:auth-flow" {
+    import type { App } from "vue";
+    import type { InjectionKey } from "vue";
+    import type { AuthFlowService } from "@/build-time/contracts/auth-flow/contract";
+
+    export const AuthFlowKey: InjectionKey<AuthFlowService>;
+    export function installAuthFlow(app: App): void;
 }
