@@ -228,19 +228,16 @@ onErrorCaptured((err) => {
         </div>
 
         <!-- Mobile Navigation (mobile only) -->
-        <!-- <MobileMenu class="w-full lg:hidden z-10" /> -->
-        <!-- Collapses via grid rows while a reading page scrolls down; see useMobileChromeAutoHide. -->
+        <!-- Overlays the content and steps aside via transform while a reading page
+             scrolls down (see useMobileChromeAutoHide): a transform animates on the
+             compositor and never resizes the page mid-scroll, where a layout
+             animation reads as the text jumping. Content clears the bar through
+             --mobile-menu-h padding. -->
         <div
-            class="z-50 grid w-full transition-[grid-template-rows] duration-300 ease-out lg:hidden"
-            :class="
-                mobileChrome.hidden.value ? '[grid-template-rows:0fr]' : '[grid-template-rows:1fr]'
-            "
+            class="absolute inset-x-0 bottom-0 z-50 transition-transform duration-300 ease-out lg:hidden"
+            :class="mobileChrome.hidden.value ? 'translate-y-full' : 'translate-y-0'"
         >
-            <div class="min-h-0 overflow-hidden">
-                <MobileMenu
-                    class="w-full border-t-2 border-t-zinc-100/25 dark:border-t-slate-700/50"
-                />
-            </div>
+            <MobileMenu class="w-full border-t-2 border-t-zinc-100/25 dark:border-t-slate-700/50" />
         </div>
 
         <!-- Privacy Policy Modal for authentication flow -->

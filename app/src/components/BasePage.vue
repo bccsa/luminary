@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { inject, onMounted, onUnmounted, provide, ref } from "vue";
+import { computed, inject, onMounted, onUnmounted, provide, ref } from "vue";
 import TopBar from "./navigation/TopBar.vue";
 import DesktopSidebar from "./navigation/DesktopSidebar.vue";
 import NotificationBannerManager from "./notifications/NotificationBannerManager.vue";
@@ -40,6 +40,24 @@ const platformChrome = inject(PlatformChromeKey, {
 });
 
 const main = ref<HTMLElement | undefined>(undefined);
+
+// The mobile chrome overlays the scroller and steps aside via transform —
+// a layout animation would resize the page mid-scroll and read as the text
+// jumping. The scroller's content carries the bars' heights as padding
+// instead: --top-bar-h (published here, same pattern as --mobile-menu-h)
+// and --mobile-menu-h. The class fallbacks cover prerendered HTML before
+// any measurement runs, so hydration doesn't shift the page.
+const topBarWrap = ref<HTMLElement | undefined>(undefined);
+let topBarResizeObserver: ResizeObserver | undefined;
+
+const publishTopBarHeight = (height: number) =>
+    document.documentElement.style.setProperty("--top-bar-h", `${height}px`);
+
+// While the top bar is visible the pill pins just below it; the tucked
+// safe-area position (see the pill's class) applies once it has stepped aside.
+const pillPinnedStyle = computed(() =>
+    mobileChrome.hidden.value ? undefined : { top: "var(--top-bar-h, 74px)" },
+);
 
 // The fade under the pinned chrome only makes sense once body content has scrolled beneath
 // it; until the strip's own height has gone by, what sits under it is still the page title.
@@ -88,11 +106,21 @@ onMounted(() => {
     if (isSSG) setTimeout(() => (notificationsReady.value = true), SSG_NOTIFICATION_DELAY_MS);
     document.addEventListener("keydown", handleArrowKeyFocus);
     main.value?.addEventListener("scroll", onMainScroll, { passive: true });
+    if (topBarWrap.value && typeof ResizeObserver !== "undefined") {
+        const measure = () => {
+            if (topBarWrap.value)
+                publishTopBarHeight(topBarWrap.value.getBoundingClientRect().height);
+        };
+        measure();
+        topBarResizeObserver = new ResizeObserver(measure);
+        topBarResizeObserver.observe(topBarWrap.value);
+    }
 });
 
 onUnmounted(() => {
     document.removeEventListener("keydown", handleArrowKeyFocus);
     main.value?.removeEventListener("scroll", onMainScroll);
+    topBarResizeObserver?.disconnect();
     mobileChrome.reset();
 });
 </script>
@@ -104,25 +132,20 @@ onUnmounted(() => {
         <DesktopSidebar />
 
         <!-- Content column -->
-        <div class="flex min-w-0 flex-1 flex-col scrollbar-hide">
-            <!-- Mobile top bar. Collapses via grid rows (no height to measure) while the
-                 reader scrolls down, and returns on the first scroll up. -->
+        <div class="relative flex min-w-0 flex-1 flex-col scrollbar-hide">
+            <!-- Mobile top bar. Overlays the scroller and steps aside via transform while
+                 the reader scrolls down, returning on the first scroll up. -->
             <div
-                class="grid transition-[grid-template-rows] duration-300 ease-out lg:hidden"
-                :class="
-                    mobileChrome.hidden.value
-                        ? '[grid-template-rows:0fr]'
-                        : '[grid-template-rows:1fr]'
-                "
+                ref="topBarWrap"
+                class="absolute inset-x-0 top-0 z-30 transition-transform duration-300 ease-out lg:hidden"
+                :class="mobileChrome.hidden.value ? '-translate-y-full' : 'translate-y-0'"
             >
-                <div class="min-h-0 overflow-hidden">
-                    <TopBar
-                        :showBackButton="showBackButton"
-                        class="border-b-2 border-b-zinc-200/50 dark:border-b-slate-950/50"
-                    >
-                        <template #quickControls><slot name="quickControls" /></template>
-                    </TopBar>
-                </div>
+                <TopBar
+                    :showBackButton="showBackButton"
+                    class="border-b-2 border-b-zinc-200/50 dark:border-b-slate-950/50"
+                >
+                    <template #quickControls><slot name="quickControls" /></template>
+                </TopBar>
             </div>
 
             <Teleport
@@ -137,6 +160,12 @@ onUnmounted(() => {
                 :class="desktopTopBar ? 'pt-0' : 'pt-2'"
                 ref="main"
             >
+                <!-- Carries the overlaying mobile chrome's heights as scrollable padding,
+                     so content clears the bars at rest yet scrolls under them. The 74px
+                     fallback matches the bar's natural height for prerendered HTML. -->
+                <div
+                    class="pb-[var(--mobile-menu-h,0px)] pt-[var(--top-bar-h,74px)] lg:pb-0 lg:pt-0"
+                >
                 <!-- Desktop pinned chrome: back (left) + quick controls (right) stay fixed while scrolling.
                      Direct child of the scrolling <main> so `sticky` keeps it pinned the whole way.
                      <main> drops its top padding on these pages so `top-0` lands on the scrollport edge in
@@ -189,22 +218,17 @@ onUnmounted(() => {
                     </div>
                 </div>
 
-                <!-- Mobile counterpart of the centre slot: pinned at the top of the scrolling area with
-                     the same collapsed flow height, so it floats over the content. While the top bar
-                     is collapsed the scrollport reaches the screen edge, so the pin point drops by the
-                     safe-area inset to keep the pill clear of the status bar; the transition tracks the
-                     top bar's collapse animation. -->
+                <!-- Mobile counterpart of the centre slot: pinned at the top of the scrolling area
+                     with the same collapsed flow height, so it floats over the content. Pins below
+                     the top bar while that is visible (pillPinnedStyle); once the bar steps aside
+                     the class's tucked position applies — slightly into the safe-area inset, since
+                     the status bar is hidden then and only the sensor housing needs clearing
+                     (clamped for devices whose inset collapses once the status bar is gone). The
+                     transition tracks the top bar's slide. -->
                 <div
                     v-if="desktopTopBar && $slots.topBarCenter"
-                    class="pointer-events-none sticky z-20 -mx-2 -mb-14 flex h-16 items-start justify-center px-2 pt-2 transition-[top] duration-300 ease-out md:-mx-4 md:px-4 lg:hidden"
-                    :class="
-                        mobileChrome.hidden.value
-                            ? // Tucked slightly into the safe-area inset: the status bar is hidden
-                              // then, so only the sensor housing needs clearing. Clamped for
-                              // devices whose inset collapses once the status bar is gone.
-                              'top-[max(0px,calc(env(safe-area-inset-top)-0.75rem))]'
-                            : 'top-0'
-                    "
+                    class="pointer-events-none sticky top-[max(0px,calc(env(safe-area-inset-top)-0.75rem))] z-20 -mx-2 -mb-14 flex h-16 items-start justify-center px-2 pt-2 transition-[top] duration-300 ease-out md:-mx-4 md:px-4 lg:hidden"
+                    :style="pillPinnedStyle"
                 >
                     <div
                         v-if="platformChrome.chromeFadeEnabled"
@@ -246,6 +270,7 @@ onUnmounted(() => {
                 />
 
                 <slot />
+                </div>
             </main>
 
             <div class="sticky bottom-0">
