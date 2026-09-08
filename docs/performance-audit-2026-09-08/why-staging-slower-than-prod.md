@@ -1,6 +1,47 @@
 # Why staging/dev run slower than production
 
 Tester's observation: production is faster than staging, and the dev data agrees.
+
+## CONFIRMED ROOT CAUSE — database / view-index bloat
+
+**Deleting the dev CouchDB and re-replicating a fresh copy from production made
+everything 2–5× faster**, with no code change:
+
+| shape (dev, anonymous) | old dev DB | fresh replica |
+| --- | ---: | ---: |
+| tag sync — generic index | 2702 ms (p95 2.8 s) | **535 ms** |
+| tag sync — tag index | 134 ms | **89 ms** |
+| `_id:{$in}` ×25 | 166–225 ms | **109–158 ms** |
+| concurrent burst (20 mixed) — wall | 1.7 s | **0.8 s** |
+| — language query in that burst | 1.1–1.2 s | **0.4 s** |
+
+The old dev database had never been compacted (and carried a prior bad reseed —
+every doc under a parent shared one `updatedTimeUtc`). CouchDB keeps superseded
+document revisions and view-index cruft on disk until a compaction runs; over months
+the `.couch` and `.view` files bloat to many times the live data and every read walks
+that dead space. A fresh replica is dense.
+
+**Staging almost certainly has the same problem** if its DB is similarly old and
+un-compacted. Check and fix that first — see "Compaction" below.
+
+Everything after this point still contributes (it all got *worse* on the bloated DB),
+but bloat was the base multiplier.
+
+## Compaction — check this on staging and production
+
+```sh
+curl -s $COUCH/<db> | jq '.sizes'                       # file vs active — >2–3× ratio = bloated
+curl -s $COUCH/_node/_local/_config/smoosh              # is auto-compaction (smoosh) configured?
+curl -s $COUCH/_active_tasks | jq '.[]|select(.type|test("compaction"))'
+```
+
+If bloated: `POST $COUCH/<db>/_compact`, then `POST $COUCH/<db>/_compact/<ddoc>` for
+each design doc, and enable auto-compaction so it doesn't recur.
+
+---
+
+## Background (still worth doing, but not the root)
+
 Both staging and dev auto-deploy from `main` (ADR 0003); production is promoted
 manually and is on an older build. So the question is what landed on `main` — or
 what runs alongside staging/dev — that production doesn't have.
@@ -46,8 +87,14 @@ Last-month sync/query commits were fixes or **load reductions**:
 3. **Live-publish clock** — `6a7e56a5` #1885 (Aug 13). Every content `"data"` event
    bumps `sessionNow`, which re-keys **every** content HybridQuery feed → each re-runs
    its local read *and its remote `/query` supplement*. The commit message itself
-   calls out avoiding a "no-op re-key cascade across content feeds." On an environment
-   with steady content churn (see below) this fires repeatedly.
+   calls out avoiding a "no-op re-key cascade across content feeds."
+
+   **Is #1885 a cause?** It's a *multiplier*, not a root. When each `/query` supplement
+   is ~20 ms (healthy DB) a re-key cascade is a non-event; when each is a 0.5–3 s scan
+   (bloated DB × the §1 tag scan × the structurally-unindexable feeds) a cascade fires
+   several of those at once and you see stalls. It fires more on staging/dev than
+   production because the SSG replica delivers a steady stream of content changes
+   (→ `"data"` events). Fix the DB bloat and the §1/§2 scans and #1885 stops mattering.
 
 ## The SSG replica CouchDB — likely the dominant factor
 
