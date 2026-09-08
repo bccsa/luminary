@@ -1,0 +1,1696 @@
+{
+  "startedAt": "2026-09-08T10:23:55.799Z",
+  "baseUrl": "https://api.app.bcc.africa",
+  "samples": 15,
+  "warmup": 1,
+  "identity": "anonymous",
+  "pairs": [
+    {
+      "id": "sync-content-tag-first",
+      "original": {
+        "id": "sync-content-tag-first",
+        "group": "sync (app)",
+        "label": "first sync (full window) — content-tag, limit 100",
+        "source": "app/src/sync.ts",
+        "requiresCmsView": false,
+        "method": "POST",
+        "path": "/query",
+        "body": {
+          "selector": {
+            "type": "content",
+            "updatedTimeUtc": {
+              "$lte": 1788862336196,
+              "$gte": 0
+            },
+            "memberOf": {
+              "$elemMatch": {
+                "$in": [
+                  "group-public-content",
+                  "group-languages"
+                ]
+              }
+            },
+            "parentType": "tag",
+            "$or": [
+              {
+                "language": {
+                  "$in": [
+                    "14d07c30-f0a2-4d79-b37b-a957c64859f6",
+                    "lang-eng",
+                    "lang-fra"
+                  ]
+                }
+              },
+              {
+                "$and": [
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "14d07c30-f0a2-4d79-b37b-a957c64859f6"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "lang-eng"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "lang-fra"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "limit": 100,
+          "sort": [
+            {
+              "updatedTimeUtc": "desc"
+            }
+          ],
+          "use_index": "sync-content-index",
+          "identifier": "sync"
+        },
+        "explain": {
+          "selector": {
+            "type": "content",
+            "updatedTimeUtc": {
+              "$lte": 1788862336196,
+              "$gte": 0
+            },
+            "memberOf": {
+              "$elemMatch": {
+                "$in": [
+                  "group-public-content"
+                ]
+              }
+            },
+            "parentType": "tag",
+            "$or": [
+              {
+                "language": {
+                  "$in": [
+                    "14d07c30-f0a2-4d79-b37b-a957c64859f6",
+                    "lang-eng",
+                    "lang-fra"
+                  ]
+                }
+              },
+              {
+                "$and": [
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "14d07c30-f0a2-4d79-b37b-a957c64859f6"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "lang-eng"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "lang-fra"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "limit": 100,
+          "sort": [
+            {
+              "updatedTimeUtc": "desc"
+            }
+          ],
+          "use_index": "sync-content-index"
+        }
+      },
+      "candidate": {
+        "id": "sync-content-tag-first-subtype-index",
+        "group": "sync (app)",
+        "label": "first sync (full window) — content-tag, limit 100",
+        "source": "app/src/sync.ts",
+        "requiresCmsView": false,
+        "method": "POST",
+        "path": "/query",
+        "body": {
+          "selector": {
+            "type": "content",
+            "updatedTimeUtc": {
+              "$lte": 1788862336196,
+              "$gte": 0
+            },
+            "memberOf": {
+              "$elemMatch": {
+                "$in": [
+                  "group-public-content",
+                  "group-languages"
+                ]
+              }
+            },
+            "parentType": "tag",
+            "$or": [
+              {
+                "language": {
+                  "$in": [
+                    "14d07c30-f0a2-4d79-b37b-a957c64859f6",
+                    "lang-eng",
+                    "lang-fra"
+                  ]
+                }
+              },
+              {
+                "$and": [
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "14d07c30-f0a2-4d79-b37b-a957c64859f6"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "lang-eng"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "lang-fra"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "limit": 100,
+          "sort": [
+            {
+              "updatedTimeUtc": "desc"
+            }
+          ],
+          "use_index": "sync-tag-content-index",
+          "identifier": "sync"
+        },
+        "explain": {
+          "selector": {
+            "type": "content",
+            "updatedTimeUtc": {
+              "$lte": 1788862336196,
+              "$gte": 0
+            },
+            "memberOf": {
+              "$elemMatch": {
+                "$in": [
+                  "group-public-content"
+                ]
+              }
+            },
+            "parentType": "tag",
+            "$or": [
+              {
+                "language": {
+                  "$in": [
+                    "14d07c30-f0a2-4d79-b37b-a957c64859f6",
+                    "lang-eng",
+                    "lang-fra"
+                  ]
+                }
+              },
+              {
+                "$and": [
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "14d07c30-f0a2-4d79-b37b-a957c64859f6"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "lang-eng"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "lang-fra"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "limit": 100,
+          "sort": [
+            {
+              "updatedTimeUtc": "desc"
+            }
+          ],
+          "use_index": "sync-content-index"
+        }
+      }
+    }
+  ],
+  "rows": [
+    {
+      "id": "sync-content-tag-first",
+      "status": 200,
+      "firstByteMs": 1161.7957500000002,
+      "totalMs": 1162.1460000000002,
+      "transferMs": 0.35024999999996,
+      "encoding": "br",
+      "wireBytes": 15644,
+      "decodedBytes": 125896,
+      "docs": 100,
+      "fieldBytes": {
+        "_id": 2847,
+        "_rev": 3701,
+        "memberOf": 2400,
+        "type": 900,
+        "updatedBy": 1800,
+        "parentId": 1803,
+        "language": 1980,
+        "status": 1100,
+        "slug": 1854,
+        "title": 1811,
+        "publishDate": 1300,
+        "parentTags": 3278,
+        "parentTagType": 742,
+        "parentPublishDateVisible": 500,
+        "parentPinned": 100,
+        "availableTranslations": 7045,
+        "parentType": 500,
+        "parentTaggedDocs": 23013,
+        "updatedTimeUtc": 1300,
+        "fts": 9908,
+        "ftsTokenCount": 140,
+        "wordCount": 106,
+        "parentShowComingSoon": 15,
+        "parentUseVerticalTileLayout": 12,
+        "summary": 972,
+        "parentImageData": 20334,
+        "parentImageBucketId": 2128
+      },
+      "docIdsHash": "0c5ba88b819c8630e8dedc45507c93c7aec1131a3318f3ffbec91e50c9b5dc75",
+      "updatedTimeRange": [
+        1779456237621,
+        1784870106652
+      ],
+      "warning": "The number of documents examined is high in proportion to the number of results returned. Consider adding a more specific index to improve this.",
+      "sample": 0
+    },
+    {
+      "id": "sync-content-tag-first-subtype-index",
+      "status": 200,
+      "firstByteMs": 197.91879100000006,
+      "totalMs": 198.23358300000018,
+      "transferMs": 0.31479200000012497,
+      "encoding": "br",
+      "wireBytes": 15505,
+      "decodedBytes": 125728,
+      "docs": 100,
+      "fieldBytes": {
+        "_id": 2847,
+        "_rev": 3701,
+        "memberOf": 2400,
+        "type": 900,
+        "updatedBy": 1800,
+        "parentId": 1803,
+        "language": 1980,
+        "status": 1100,
+        "slug": 1854,
+        "title": 1811,
+        "publishDate": 1300,
+        "parentTags": 3278,
+        "parentTagType": 742,
+        "parentPublishDateVisible": 500,
+        "parentPinned": 100,
+        "availableTranslations": 7045,
+        "parentType": 500,
+        "parentTaggedDocs": 23013,
+        "updatedTimeUtc": 1300,
+        "fts": 9908,
+        "ftsTokenCount": 140,
+        "wordCount": 106,
+        "parentShowComingSoon": 15,
+        "parentUseVerticalTileLayout": 12,
+        "summary": 972,
+        "parentImageData": 20334,
+        "parentImageBucketId": 2128
+      },
+      "docIdsHash": "0c5ba88b819c8630e8dedc45507c93c7aec1131a3318f3ffbec91e50c9b5dc75",
+      "updatedTimeRange": [
+        1779456237621,
+        1784870106652
+      ],
+      "sample": 0
+    },
+    {
+      "id": "sync-content-tag-first-subtype-index",
+      "status": 200,
+      "firstByteMs": 272.70545900000025,
+      "totalMs": 272.96570900000006,
+      "transferMs": 0.26024999999981446,
+      "encoding": "br",
+      "wireBytes": 15505,
+      "decodedBytes": 125728,
+      "docs": 100,
+      "fieldBytes": {
+        "_id": 2847,
+        "_rev": 3701,
+        "memberOf": 2400,
+        "type": 900,
+        "updatedBy": 1800,
+        "parentId": 1803,
+        "language": 1980,
+        "status": 1100,
+        "slug": 1854,
+        "title": 1811,
+        "publishDate": 1300,
+        "parentTags": 3278,
+        "parentTagType": 742,
+        "parentPublishDateVisible": 500,
+        "parentPinned": 100,
+        "availableTranslations": 7045,
+        "parentType": 500,
+        "parentTaggedDocs": 23013,
+        "updatedTimeUtc": 1300,
+        "fts": 9908,
+        "ftsTokenCount": 140,
+        "wordCount": 106,
+        "parentShowComingSoon": 15,
+        "parentUseVerticalTileLayout": 12,
+        "summary": 972,
+        "parentImageData": 20334,
+        "parentImageBucketId": 2128
+      },
+      "docIdsHash": "0c5ba88b819c8630e8dedc45507c93c7aec1131a3318f3ffbec91e50c9b5dc75",
+      "updatedTimeRange": [
+        1779456237621,
+        1784870106652
+      ],
+      "sample": 1
+    },
+    {
+      "id": "sync-content-tag-first",
+      "status": 200,
+      "firstByteMs": 1505.3870000000002,
+      "totalMs": 1505.636959,
+      "transferMs": 0.24995899999976245,
+      "encoding": "br",
+      "wireBytes": 15644,
+      "decodedBytes": 125896,
+      "docs": 100,
+      "fieldBytes": {
+        "_id": 2847,
+        "_rev": 3701,
+        "memberOf": 2400,
+        "type": 900,
+        "updatedBy": 1800,
+        "parentId": 1803,
+        "language": 1980,
+        "status": 1100,
+        "slug": 1854,
+        "title": 1811,
+        "publishDate": 1300,
+        "parentTags": 3278,
+        "parentTagType": 742,
+        "parentPublishDateVisible": 500,
+        "parentPinned": 100,
+        "availableTranslations": 7045,
+        "parentType": 500,
+        "parentTaggedDocs": 23013,
+        "updatedTimeUtc": 1300,
+        "fts": 9908,
+        "ftsTokenCount": 140,
+        "wordCount": 106,
+        "parentShowComingSoon": 15,
+        "parentUseVerticalTileLayout": 12,
+        "summary": 972,
+        "parentImageData": 20334,
+        "parentImageBucketId": 2128
+      },
+      "docIdsHash": "0c5ba88b819c8630e8dedc45507c93c7aec1131a3318f3ffbec91e50c9b5dc75",
+      "updatedTimeRange": [
+        1779456237621,
+        1784870106652
+      ],
+      "warning": "The number of documents examined is high in proportion to the number of results returned. Consider adding a more specific index to improve this.",
+      "sample": 1
+    },
+    {
+      "id": "sync-content-tag-first",
+      "status": 200,
+      "firstByteMs": 955.3507920000002,
+      "totalMs": 955.6225000000004,
+      "transferMs": 0.271708000000217,
+      "encoding": "br",
+      "wireBytes": 15644,
+      "decodedBytes": 125896,
+      "docs": 100,
+      "fieldBytes": {
+        "_id": 2847,
+        "_rev": 3701,
+        "memberOf": 2400,
+        "type": 900,
+        "updatedBy": 1800,
+        "parentId": 1803,
+        "language": 1980,
+        "status": 1100,
+        "slug": 1854,
+        "title": 1811,
+        "publishDate": 1300,
+        "parentTags": 3278,
+        "parentTagType": 742,
+        "parentPublishDateVisible": 500,
+        "parentPinned": 100,
+        "availableTranslations": 7045,
+        "parentType": 500,
+        "parentTaggedDocs": 23013,
+        "updatedTimeUtc": 1300,
+        "fts": 9908,
+        "ftsTokenCount": 140,
+        "wordCount": 106,
+        "parentShowComingSoon": 15,
+        "parentUseVerticalTileLayout": 12,
+        "summary": 972,
+        "parentImageData": 20334,
+        "parentImageBucketId": 2128
+      },
+      "docIdsHash": "0c5ba88b819c8630e8dedc45507c93c7aec1131a3318f3ffbec91e50c9b5dc75",
+      "updatedTimeRange": [
+        1779456237621,
+        1784870106652
+      ],
+      "warning": "The number of documents examined is high in proportion to the number of results returned. Consider adding a more specific index to improve this.",
+      "sample": 2
+    },
+    {
+      "id": "sync-content-tag-first-subtype-index",
+      "status": 200,
+      "firstByteMs": 65.60300000000007,
+      "totalMs": 65.85283400000026,
+      "transferMs": 0.24983400000019174,
+      "encoding": "br",
+      "wireBytes": 15505,
+      "decodedBytes": 125728,
+      "docs": 100,
+      "fieldBytes": {
+        "_id": 2847,
+        "_rev": 3701,
+        "memberOf": 2400,
+        "type": 900,
+        "updatedBy": 1800,
+        "parentId": 1803,
+        "language": 1980,
+        "status": 1100,
+        "slug": 1854,
+        "title": 1811,
+        "publishDate": 1300,
+        "parentTags": 3278,
+        "parentTagType": 742,
+        "parentPublishDateVisible": 500,
+        "parentPinned": 100,
+        "availableTranslations": 7045,
+        "parentType": 500,
+        "parentTaggedDocs": 23013,
+        "updatedTimeUtc": 1300,
+        "fts": 9908,
+        "ftsTokenCount": 140,
+        "wordCount": 106,
+        "parentShowComingSoon": 15,
+        "parentUseVerticalTileLayout": 12,
+        "summary": 972,
+        "parentImageData": 20334,
+        "parentImageBucketId": 2128
+      },
+      "docIdsHash": "0c5ba88b819c8630e8dedc45507c93c7aec1131a3318f3ffbec91e50c9b5dc75",
+      "updatedTimeRange": [
+        1779456237621,
+        1784870106652
+      ],
+      "sample": 2
+    },
+    {
+      "id": "sync-content-tag-first-subtype-index",
+      "status": 200,
+      "firstByteMs": 66.66629100000046,
+      "totalMs": 67.02516600000035,
+      "transferMs": 0.35887499999989814,
+      "encoding": "br",
+      "wireBytes": 15505,
+      "decodedBytes": 125728,
+      "docs": 100,
+      "fieldBytes": {
+        "_id": 2847,
+        "_rev": 3701,
+        "memberOf": 2400,
+        "type": 900,
+        "updatedBy": 1800,
+        "parentId": 1803,
+        "language": 1980,
+        "status": 1100,
+        "slug": 1854,
+        "title": 1811,
+        "publishDate": 1300,
+        "parentTags": 3278,
+        "parentTagType": 742,
+        "parentPublishDateVisible": 500,
+        "parentPinned": 100,
+        "availableTranslations": 7045,
+        "parentType": 500,
+        "parentTaggedDocs": 23013,
+        "updatedTimeUtc": 1300,
+        "fts": 9908,
+        "ftsTokenCount": 140,
+        "wordCount": 106,
+        "parentShowComingSoon": 15,
+        "parentUseVerticalTileLayout": 12,
+        "summary": 972,
+        "parentImageData": 20334,
+        "parentImageBucketId": 2128
+      },
+      "docIdsHash": "0c5ba88b819c8630e8dedc45507c93c7aec1131a3318f3ffbec91e50c9b5dc75",
+      "updatedTimeRange": [
+        1779456237621,
+        1784870106652
+      ],
+      "sample": 3
+    },
+    {
+      "id": "sync-content-tag-first",
+      "status": 200,
+      "firstByteMs": 428.500583,
+      "totalMs": 428.92091600000003,
+      "transferMs": 0.4203330000000278,
+      "encoding": "br",
+      "wireBytes": 15644,
+      "decodedBytes": 125896,
+      "docs": 100,
+      "fieldBytes": {
+        "_id": 2847,
+        "_rev": 3701,
+        "memberOf": 2400,
+        "type": 900,
+        "updatedBy": 1800,
+        "parentId": 1803,
+        "language": 1980,
+        "status": 1100,
+        "slug": 1854,
+        "title": 1811,
+        "publishDate": 1300,
+        "parentTags": 3278,
+        "parentTagType": 742,
+        "parentPublishDateVisible": 500,
+        "parentPinned": 100,
+        "availableTranslations": 7045,
+        "parentType": 500,
+        "parentTaggedDocs": 23013,
+        "updatedTimeUtc": 1300,
+        "fts": 9908,
+        "ftsTokenCount": 140,
+        "wordCount": 106,
+        "parentShowComingSoon": 15,
+        "parentUseVerticalTileLayout": 12,
+        "summary": 972,
+        "parentImageData": 20334,
+        "parentImageBucketId": 2128
+      },
+      "docIdsHash": "0c5ba88b819c8630e8dedc45507c93c7aec1131a3318f3ffbec91e50c9b5dc75",
+      "updatedTimeRange": [
+        1779456237621,
+        1784870106652
+      ],
+      "warning": "The number of documents examined is high in proportion to the number of results returned. Consider adding a more specific index to improve this.",
+      "sample": 3
+    },
+    {
+      "id": "sync-content-tag-first",
+      "status": 200,
+      "firstByteMs": 343.8670000000002,
+      "totalMs": 344.0977920000005,
+      "transferMs": 0.23079200000029232,
+      "encoding": "br",
+      "wireBytes": 15644,
+      "decodedBytes": 125896,
+      "docs": 100,
+      "fieldBytes": {
+        "_id": 2847,
+        "_rev": 3701,
+        "memberOf": 2400,
+        "type": 900,
+        "updatedBy": 1800,
+        "parentId": 1803,
+        "language": 1980,
+        "status": 1100,
+        "slug": 1854,
+        "title": 1811,
+        "publishDate": 1300,
+        "parentTags": 3278,
+        "parentTagType": 742,
+        "parentPublishDateVisible": 500,
+        "parentPinned": 100,
+        "availableTranslations": 7045,
+        "parentType": 500,
+        "parentTaggedDocs": 23013,
+        "updatedTimeUtc": 1300,
+        "fts": 9908,
+        "ftsTokenCount": 140,
+        "wordCount": 106,
+        "parentShowComingSoon": 15,
+        "parentUseVerticalTileLayout": 12,
+        "summary": 972,
+        "parentImageData": 20334,
+        "parentImageBucketId": 2128
+      },
+      "docIdsHash": "0c5ba88b819c8630e8dedc45507c93c7aec1131a3318f3ffbec91e50c9b5dc75",
+      "updatedTimeRange": [
+        1779456237621,
+        1784870106652
+      ],
+      "warning": "The number of documents examined is high in proportion to the number of results returned. Consider adding a more specific index to improve this.",
+      "sample": 4
+    },
+    {
+      "id": "sync-content-tag-first-subtype-index",
+      "status": 200,
+      "firstByteMs": 74.22937499999989,
+      "totalMs": 74.46687499999916,
+      "transferMs": 0.2374999999992724,
+      "encoding": "br",
+      "wireBytes": 15505,
+      "decodedBytes": 125728,
+      "docs": 100,
+      "fieldBytes": {
+        "_id": 2847,
+        "_rev": 3701,
+        "memberOf": 2400,
+        "type": 900,
+        "updatedBy": 1800,
+        "parentId": 1803,
+        "language": 1980,
+        "status": 1100,
+        "slug": 1854,
+        "title": 1811,
+        "publishDate": 1300,
+        "parentTags": 3278,
+        "parentTagType": 742,
+        "parentPublishDateVisible": 500,
+        "parentPinned": 100,
+        "availableTranslations": 7045,
+        "parentType": 500,
+        "parentTaggedDocs": 23013,
+        "updatedTimeUtc": 1300,
+        "fts": 9908,
+        "ftsTokenCount": 140,
+        "wordCount": 106,
+        "parentShowComingSoon": 15,
+        "parentUseVerticalTileLayout": 12,
+        "summary": 972,
+        "parentImageData": 20334,
+        "parentImageBucketId": 2128
+      },
+      "docIdsHash": "0c5ba88b819c8630e8dedc45507c93c7aec1131a3318f3ffbec91e50c9b5dc75",
+      "updatedTimeRange": [
+        1779456237621,
+        1784870106652
+      ],
+      "sample": 4
+    },
+    {
+      "id": "sync-content-tag-first-subtype-index",
+      "status": 200,
+      "firstByteMs": 60.425874999999905,
+      "totalMs": 60.64812499999971,
+      "transferMs": 0.22224999999980355,
+      "encoding": "br",
+      "wireBytes": 15505,
+      "decodedBytes": 125728,
+      "docs": 100,
+      "fieldBytes": {
+        "_id": 2847,
+        "_rev": 3701,
+        "memberOf": 2400,
+        "type": 900,
+        "updatedBy": 1800,
+        "parentId": 1803,
+        "language": 1980,
+        "status": 1100,
+        "slug": 1854,
+        "title": 1811,
+        "publishDate": 1300,
+        "parentTags": 3278,
+        "parentTagType": 742,
+        "parentPublishDateVisible": 500,
+        "parentPinned": 100,
+        "availableTranslations": 7045,
+        "parentType": 500,
+        "parentTaggedDocs": 23013,
+        "updatedTimeUtc": 1300,
+        "fts": 9908,
+        "ftsTokenCount": 140,
+        "wordCount": 106,
+        "parentShowComingSoon": 15,
+        "parentUseVerticalTileLayout": 12,
+        "summary": 972,
+        "parentImageData": 20334,
+        "parentImageBucketId": 2128
+      },
+      "docIdsHash": "0c5ba88b819c8630e8dedc45507c93c7aec1131a3318f3ffbec91e50c9b5dc75",
+      "updatedTimeRange": [
+        1779456237621,
+        1784870106652
+      ],
+      "sample": 5
+    },
+    {
+      "id": "sync-content-tag-first",
+      "status": 200,
+      "firstByteMs": 340.0301669999999,
+      "totalMs": 340.21399999999994,
+      "transferMs": 0.18383300000004965,
+      "encoding": "br",
+      "wireBytes": 15644,
+      "decodedBytes": 125896,
+      "docs": 100,
+      "fieldBytes": {
+        "_id": 2847,
+        "_rev": 3701,
+        "memberOf": 2400,
+        "type": 900,
+        "updatedBy": 1800,
+        "parentId": 1803,
+        "language": 1980,
+        "status": 1100,
+        "slug": 1854,
+        "title": 1811,
+        "publishDate": 1300,
+        "parentTags": 3278,
+        "parentTagType": 742,
+        "parentPublishDateVisible": 500,
+        "parentPinned": 100,
+        "availableTranslations": 7045,
+        "parentType": 500,
+        "parentTaggedDocs": 23013,
+        "updatedTimeUtc": 1300,
+        "fts": 9908,
+        "ftsTokenCount": 140,
+        "wordCount": 106,
+        "parentShowComingSoon": 15,
+        "parentUseVerticalTileLayout": 12,
+        "summary": 972,
+        "parentImageData": 20334,
+        "parentImageBucketId": 2128
+      },
+      "docIdsHash": "0c5ba88b819c8630e8dedc45507c93c7aec1131a3318f3ffbec91e50c9b5dc75",
+      "updatedTimeRange": [
+        1779456237621,
+        1784870106652
+      ],
+      "warning": "The number of documents examined is high in proportion to the number of results returned. Consider adding a more specific index to improve this.",
+      "sample": 5
+    },
+    {
+      "id": "sync-content-tag-first",
+      "status": 200,
+      "firstByteMs": 365.0699999999997,
+      "totalMs": 365.3059999999996,
+      "transferMs": 0.2359999999998763,
+      "encoding": "br",
+      "wireBytes": 15644,
+      "decodedBytes": 125896,
+      "docs": 100,
+      "fieldBytes": {
+        "_id": 2847,
+        "_rev": 3701,
+        "memberOf": 2400,
+        "type": 900,
+        "updatedBy": 1800,
+        "parentId": 1803,
+        "language": 1980,
+        "status": 1100,
+        "slug": 1854,
+        "title": 1811,
+        "publishDate": 1300,
+        "parentTags": 3278,
+        "parentTagType": 742,
+        "parentPublishDateVisible": 500,
+        "parentPinned": 100,
+        "availableTranslations": 7045,
+        "parentType": 500,
+        "parentTaggedDocs": 23013,
+        "updatedTimeUtc": 1300,
+        "fts": 9908,
+        "ftsTokenCount": 140,
+        "wordCount": 106,
+        "parentShowComingSoon": 15,
+        "parentUseVerticalTileLayout": 12,
+        "summary": 972,
+        "parentImageData": 20334,
+        "parentImageBucketId": 2128
+      },
+      "docIdsHash": "0c5ba88b819c8630e8dedc45507c93c7aec1131a3318f3ffbec91e50c9b5dc75",
+      "updatedTimeRange": [
+        1779456237621,
+        1784870106652
+      ],
+      "warning": "The number of documents examined is high in proportion to the number of results returned. Consider adding a more specific index to improve this.",
+      "sample": 6
+    },
+    {
+      "id": "sync-content-tag-first-subtype-index",
+      "status": 200,
+      "firstByteMs": 71.12570799999958,
+      "totalMs": 71.28862500000014,
+      "transferMs": 0.16291700000056153,
+      "encoding": "br",
+      "wireBytes": 15505,
+      "decodedBytes": 125728,
+      "docs": 100,
+      "fieldBytes": {
+        "_id": 2847,
+        "_rev": 3701,
+        "memberOf": 2400,
+        "type": 900,
+        "updatedBy": 1800,
+        "parentId": 1803,
+        "language": 1980,
+        "status": 1100,
+        "slug": 1854,
+        "title": 1811,
+        "publishDate": 1300,
+        "parentTags": 3278,
+        "parentTagType": 742,
+        "parentPublishDateVisible": 500,
+        "parentPinned": 100,
+        "availableTranslations": 7045,
+        "parentType": 500,
+        "parentTaggedDocs": 23013,
+        "updatedTimeUtc": 1300,
+        "fts": 9908,
+        "ftsTokenCount": 140,
+        "wordCount": 106,
+        "parentShowComingSoon": 15,
+        "parentUseVerticalTileLayout": 12,
+        "summary": 972,
+        "parentImageData": 20334,
+        "parentImageBucketId": 2128
+      },
+      "docIdsHash": "0c5ba88b819c8630e8dedc45507c93c7aec1131a3318f3ffbec91e50c9b5dc75",
+      "updatedTimeRange": [
+        1779456237621,
+        1784870106652
+      ],
+      "sample": 6
+    },
+    {
+      "id": "sync-content-tag-first-subtype-index",
+      "status": 200,
+      "firstByteMs": 58.933084000000235,
+      "totalMs": 59.13395899999978,
+      "transferMs": 0.20087499999954161,
+      "encoding": "br",
+      "wireBytes": 15505,
+      "decodedBytes": 125728,
+      "docs": 100,
+      "fieldBytes": {
+        "_id": 2847,
+        "_rev": 3701,
+        "memberOf": 2400,
+        "type": 900,
+        "updatedBy": 1800,
+        "parentId": 1803,
+        "language": 1980,
+        "status": 1100,
+        "slug": 1854,
+        "title": 1811,
+        "publishDate": 1300,
+        "parentTags": 3278,
+        "parentTagType": 742,
+        "parentPublishDateVisible": 500,
+        "parentPinned": 100,
+        "availableTranslations": 7045,
+        "parentType": 500,
+        "parentTaggedDocs": 23013,
+        "updatedTimeUtc": 1300,
+        "fts": 9908,
+        "ftsTokenCount": 140,
+        "wordCount": 106,
+        "parentShowComingSoon": 15,
+        "parentUseVerticalTileLayout": 12,
+        "summary": 972,
+        "parentImageData": 20334,
+        "parentImageBucketId": 2128
+      },
+      "docIdsHash": "0c5ba88b819c8630e8dedc45507c93c7aec1131a3318f3ffbec91e50c9b5dc75",
+      "updatedTimeRange": [
+        1779456237621,
+        1784870106652
+      ],
+      "sample": 7
+    },
+    {
+      "id": "sync-content-tag-first",
+      "status": 200,
+      "firstByteMs": 358.3869159999995,
+      "totalMs": 358.51354099999935,
+      "transferMs": 0.1266249999998763,
+      "encoding": "br",
+      "wireBytes": 15644,
+      "decodedBytes": 125896,
+      "docs": 100,
+      "fieldBytes": {
+        "_id": 2847,
+        "_rev": 3701,
+        "memberOf": 2400,
+        "type": 900,
+        "updatedBy": 1800,
+        "parentId": 1803,
+        "language": 1980,
+        "status": 1100,
+        "slug": 1854,
+        "title": 1811,
+        "publishDate": 1300,
+        "parentTags": 3278,
+        "parentTagType": 742,
+        "parentPublishDateVisible": 500,
+        "parentPinned": 100,
+        "availableTranslations": 7045,
+        "parentType": 500,
+        "parentTaggedDocs": 23013,
+        "updatedTimeUtc": 1300,
+        "fts": 9908,
+        "ftsTokenCount": 140,
+        "wordCount": 106,
+        "parentShowComingSoon": 15,
+        "parentUseVerticalTileLayout": 12,
+        "summary": 972,
+        "parentImageData": 20334,
+        "parentImageBucketId": 2128
+      },
+      "docIdsHash": "0c5ba88b819c8630e8dedc45507c93c7aec1131a3318f3ffbec91e50c9b5dc75",
+      "updatedTimeRange": [
+        1779456237621,
+        1784870106652
+      ],
+      "warning": "The number of documents examined is high in proportion to the number of results returned. Consider adding a more specific index to improve this.",
+      "sample": 7
+    },
+    {
+      "id": "sync-content-tag-first",
+      "status": 200,
+      "firstByteMs": 375.18304100000023,
+      "totalMs": 375.38666600000033,
+      "transferMs": 0.20362500000010186,
+      "encoding": "br",
+      "wireBytes": 15644,
+      "decodedBytes": 125896,
+      "docs": 100,
+      "fieldBytes": {
+        "_id": 2847,
+        "_rev": 3701,
+        "memberOf": 2400,
+        "type": 900,
+        "updatedBy": 1800,
+        "parentId": 1803,
+        "language": 1980,
+        "status": 1100,
+        "slug": 1854,
+        "title": 1811,
+        "publishDate": 1300,
+        "parentTags": 3278,
+        "parentTagType": 742,
+        "parentPublishDateVisible": 500,
+        "parentPinned": 100,
+        "availableTranslations": 7045,
+        "parentType": 500,
+        "parentTaggedDocs": 23013,
+        "updatedTimeUtc": 1300,
+        "fts": 9908,
+        "ftsTokenCount": 140,
+        "wordCount": 106,
+        "parentShowComingSoon": 15,
+        "parentUseVerticalTileLayout": 12,
+        "summary": 972,
+        "parentImageData": 20334,
+        "parentImageBucketId": 2128
+      },
+      "docIdsHash": "0c5ba88b819c8630e8dedc45507c93c7aec1131a3318f3ffbec91e50c9b5dc75",
+      "updatedTimeRange": [
+        1779456237621,
+        1784870106652
+      ],
+      "warning": "The number of documents examined is high in proportion to the number of results returned. Consider adding a more specific index to improve this.",
+      "sample": 8
+    },
+    {
+      "id": "sync-content-tag-first-subtype-index",
+      "status": 200,
+      "firstByteMs": 78.97758299999987,
+      "totalMs": 79.26866599999994,
+      "transferMs": 0.2910830000000715,
+      "encoding": "br",
+      "wireBytes": 15505,
+      "decodedBytes": 125728,
+      "docs": 100,
+      "fieldBytes": {
+        "_id": 2847,
+        "_rev": 3701,
+        "memberOf": 2400,
+        "type": 900,
+        "updatedBy": 1800,
+        "parentId": 1803,
+        "language": 1980,
+        "status": 1100,
+        "slug": 1854,
+        "title": 1811,
+        "publishDate": 1300,
+        "parentTags": 3278,
+        "parentTagType": 742,
+        "parentPublishDateVisible": 500,
+        "parentPinned": 100,
+        "availableTranslations": 7045,
+        "parentType": 500,
+        "parentTaggedDocs": 23013,
+        "updatedTimeUtc": 1300,
+        "fts": 9908,
+        "ftsTokenCount": 140,
+        "wordCount": 106,
+        "parentShowComingSoon": 15,
+        "parentUseVerticalTileLayout": 12,
+        "summary": 972,
+        "parentImageData": 20334,
+        "parentImageBucketId": 2128
+      },
+      "docIdsHash": "0c5ba88b819c8630e8dedc45507c93c7aec1131a3318f3ffbec91e50c9b5dc75",
+      "updatedTimeRange": [
+        1779456237621,
+        1784870106652
+      ],
+      "sample": 8
+    },
+    {
+      "id": "sync-content-tag-first-subtype-index",
+      "status": 200,
+      "firstByteMs": 64.40599999999995,
+      "totalMs": 64.61216700000023,
+      "transferMs": 0.20616700000027777,
+      "encoding": "br",
+      "wireBytes": 15505,
+      "decodedBytes": 125728,
+      "docs": 100,
+      "fieldBytes": {
+        "_id": 2847,
+        "_rev": 3701,
+        "memberOf": 2400,
+        "type": 900,
+        "updatedBy": 1800,
+        "parentId": 1803,
+        "language": 1980,
+        "status": 1100,
+        "slug": 1854,
+        "title": 1811,
+        "publishDate": 1300,
+        "parentTags": 3278,
+        "parentTagType": 742,
+        "parentPublishDateVisible": 500,
+        "parentPinned": 100,
+        "availableTranslations": 7045,
+        "parentType": 500,
+        "parentTaggedDocs": 23013,
+        "updatedTimeUtc": 1300,
+        "fts": 9908,
+        "ftsTokenCount": 140,
+        "wordCount": 106,
+        "parentShowComingSoon": 15,
+        "parentUseVerticalTileLayout": 12,
+        "summary": 972,
+        "parentImageData": 20334,
+        "parentImageBucketId": 2128
+      },
+      "docIdsHash": "0c5ba88b819c8630e8dedc45507c93c7aec1131a3318f3ffbec91e50c9b5dc75",
+      "updatedTimeRange": [
+        1779456237621,
+        1784870106652
+      ],
+      "sample": 9
+    },
+    {
+      "id": "sync-content-tag-first",
+      "status": 200,
+      "firstByteMs": 347.65270800000053,
+      "totalMs": 347.93883300000016,
+      "transferMs": 0.2861249999996289,
+      "encoding": "br",
+      "wireBytes": 15644,
+      "decodedBytes": 125896,
+      "docs": 100,
+      "fieldBytes": {
+        "_id": 2847,
+        "_rev": 3701,
+        "memberOf": 2400,
+        "type": 900,
+        "updatedBy": 1800,
+        "parentId": 1803,
+        "language": 1980,
+        "status": 1100,
+        "slug": 1854,
+        "title": 1811,
+        "publishDate": 1300,
+        "parentTags": 3278,
+        "parentTagType": 742,
+        "parentPublishDateVisible": 500,
+        "parentPinned": 100,
+        "availableTranslations": 7045,
+        "parentType": 500,
+        "parentTaggedDocs": 23013,
+        "updatedTimeUtc": 1300,
+        "fts": 9908,
+        "ftsTokenCount": 140,
+        "wordCount": 106,
+        "parentShowComingSoon": 15,
+        "parentUseVerticalTileLayout": 12,
+        "summary": 972,
+        "parentImageData": 20334,
+        "parentImageBucketId": 2128
+      },
+      "docIdsHash": "0c5ba88b819c8630e8dedc45507c93c7aec1131a3318f3ffbec91e50c9b5dc75",
+      "updatedTimeRange": [
+        1779456237621,
+        1784870106652
+      ],
+      "warning": "The number of documents examined is high in proportion to the number of results returned. Consider adding a more specific index to improve this.",
+      "sample": 9
+    },
+    {
+      "id": "sync-content-tag-first",
+      "status": 200,
+      "firstByteMs": 327.4090839999999,
+      "totalMs": 327.5632919999998,
+      "transferMs": 0.15420799999992596,
+      "encoding": "br",
+      "wireBytes": 15644,
+      "decodedBytes": 125896,
+      "docs": 100,
+      "fieldBytes": {
+        "_id": 2847,
+        "_rev": 3701,
+        "memberOf": 2400,
+        "type": 900,
+        "updatedBy": 1800,
+        "parentId": 1803,
+        "language": 1980,
+        "status": 1100,
+        "slug": 1854,
+        "title": 1811,
+        "publishDate": 1300,
+        "parentTags": 3278,
+        "parentTagType": 742,
+        "parentPublishDateVisible": 500,
+        "parentPinned": 100,
+        "availableTranslations": 7045,
+        "parentType": 500,
+        "parentTaggedDocs": 23013,
+        "updatedTimeUtc": 1300,
+        "fts": 9908,
+        "ftsTokenCount": 140,
+        "wordCount": 106,
+        "parentShowComingSoon": 15,
+        "parentUseVerticalTileLayout": 12,
+        "summary": 972,
+        "parentImageData": 20334,
+        "parentImageBucketId": 2128
+      },
+      "docIdsHash": "0c5ba88b819c8630e8dedc45507c93c7aec1131a3318f3ffbec91e50c9b5dc75",
+      "updatedTimeRange": [
+        1779456237621,
+        1784870106652
+      ],
+      "warning": "The number of documents examined is high in proportion to the number of results returned. Consider adding a more specific index to improve this.",
+      "sample": 10
+    },
+    {
+      "id": "sync-content-tag-first-subtype-index",
+      "status": 200,
+      "firstByteMs": 70.33929200000057,
+      "totalMs": 70.52108299999963,
+      "transferMs": 0.18179099999906612,
+      "encoding": "br",
+      "wireBytes": 15505,
+      "decodedBytes": 125728,
+      "docs": 100,
+      "fieldBytes": {
+        "_id": 2847,
+        "_rev": 3701,
+        "memberOf": 2400,
+        "type": 900,
+        "updatedBy": 1800,
+        "parentId": 1803,
+        "language": 1980,
+        "status": 1100,
+        "slug": 1854,
+        "title": 1811,
+        "publishDate": 1300,
+        "parentTags": 3278,
+        "parentTagType": 742,
+        "parentPublishDateVisible": 500,
+        "parentPinned": 100,
+        "availableTranslations": 7045,
+        "parentType": 500,
+        "parentTaggedDocs": 23013,
+        "updatedTimeUtc": 1300,
+        "fts": 9908,
+        "ftsTokenCount": 140,
+        "wordCount": 106,
+        "parentShowComingSoon": 15,
+        "parentUseVerticalTileLayout": 12,
+        "summary": 972,
+        "parentImageData": 20334,
+        "parentImageBucketId": 2128
+      },
+      "docIdsHash": "0c5ba88b819c8630e8dedc45507c93c7aec1131a3318f3ffbec91e50c9b5dc75",
+      "updatedTimeRange": [
+        1779456237621,
+        1784870106652
+      ],
+      "sample": 10
+    },
+    {
+      "id": "sync-content-tag-first-subtype-index",
+      "status": 200,
+      "firstByteMs": 71.75487499999872,
+      "totalMs": 71.9045419999984,
+      "transferMs": 0.14966699999968114,
+      "encoding": "br",
+      "wireBytes": 15505,
+      "decodedBytes": 125728,
+      "docs": 100,
+      "fieldBytes": {
+        "_id": 2847,
+        "_rev": 3701,
+        "memberOf": 2400,
+        "type": 900,
+        "updatedBy": 1800,
+        "parentId": 1803,
+        "language": 1980,
+        "status": 1100,
+        "slug": 1854,
+        "title": 1811,
+        "publishDate": 1300,
+        "parentTags": 3278,
+        "parentTagType": 742,
+        "parentPublishDateVisible": 500,
+        "parentPinned": 100,
+        "availableTranslations": 7045,
+        "parentType": 500,
+        "parentTaggedDocs": 23013,
+        "updatedTimeUtc": 1300,
+        "fts": 9908,
+        "ftsTokenCount": 140,
+        "wordCount": 106,
+        "parentShowComingSoon": 15,
+        "parentUseVerticalTileLayout": 12,
+        "summary": 972,
+        "parentImageData": 20334,
+        "parentImageBucketId": 2128
+      },
+      "docIdsHash": "0c5ba88b819c8630e8dedc45507c93c7aec1131a3318f3ffbec91e50c9b5dc75",
+      "updatedTimeRange": [
+        1779456237621,
+        1784870106652
+      ],
+      "sample": 11
+    },
+    {
+      "id": "sync-content-tag-first",
+      "status": 200,
+      "firstByteMs": 359.0867909999997,
+      "totalMs": 359.2512079999997,
+      "transferMs": 0.16441699999995762,
+      "encoding": "br",
+      "wireBytes": 15644,
+      "decodedBytes": 125896,
+      "docs": 100,
+      "fieldBytes": {
+        "_id": 2847,
+        "_rev": 3701,
+        "memberOf": 2400,
+        "type": 900,
+        "updatedBy": 1800,
+        "parentId": 1803,
+        "language": 1980,
+        "status": 1100,
+        "slug": 1854,
+        "title": 1811,
+        "publishDate": 1300,
+        "parentTags": 3278,
+        "parentTagType": 742,
+        "parentPublishDateVisible": 500,
+        "parentPinned": 100,
+        "availableTranslations": 7045,
+        "parentType": 500,
+        "parentTaggedDocs": 23013,
+        "updatedTimeUtc": 1300,
+        "fts": 9908,
+        "ftsTokenCount": 140,
+        "wordCount": 106,
+        "parentShowComingSoon": 15,
+        "parentUseVerticalTileLayout": 12,
+        "summary": 972,
+        "parentImageData": 20334,
+        "parentImageBucketId": 2128
+      },
+      "docIdsHash": "0c5ba88b819c8630e8dedc45507c93c7aec1131a3318f3ffbec91e50c9b5dc75",
+      "updatedTimeRange": [
+        1779456237621,
+        1784870106652
+      ],
+      "warning": "The number of documents examined is high in proportion to the number of results returned. Consider adding a more specific index to improve this.",
+      "sample": 11
+    },
+    {
+      "id": "sync-content-tag-first",
+      "status": 200,
+      "firstByteMs": 335.8426249999993,
+      "totalMs": 335.9952919999996,
+      "transferMs": 0.15266700000029232,
+      "encoding": "br",
+      "wireBytes": 15644,
+      "decodedBytes": 125896,
+      "docs": 100,
+      "fieldBytes": {
+        "_id": 2847,
+        "_rev": 3701,
+        "memberOf": 2400,
+        "type": 900,
+        "updatedBy": 1800,
+        "parentId": 1803,
+        "language": 1980,
+        "status": 1100,
+        "slug": 1854,
+        "title": 1811,
+        "publishDate": 1300,
+        "parentTags": 3278,
+        "parentTagType": 742,
+        "parentPublishDateVisible": 500,
+        "parentPinned": 100,
+        "availableTranslations": 7045,
+        "parentType": 500,
+        "parentTaggedDocs": 23013,
+        "updatedTimeUtc": 1300,
+        "fts": 9908,
+        "ftsTokenCount": 140,
+        "wordCount": 106,
+        "parentShowComingSoon": 15,
+        "parentUseVerticalTileLayout": 12,
+        "summary": 972,
+        "parentImageData": 20334,
+        "parentImageBucketId": 2128
+      },
+      "docIdsHash": "0c5ba88b819c8630e8dedc45507c93c7aec1131a3318f3ffbec91e50c9b5dc75",
+      "updatedTimeRange": [
+        1779456237621,
+        1784870106652
+      ],
+      "warning": "The number of documents examined is high in proportion to the number of results returned. Consider adding a more specific index to improve this.",
+      "sample": 12
+    },
+    {
+      "id": "sync-content-tag-first-subtype-index",
+      "status": 200,
+      "firstByteMs": 65.58904199999961,
+      "totalMs": 65.72508300000118,
+      "transferMs": 0.13604100000156905,
+      "encoding": "br",
+      "wireBytes": 15505,
+      "decodedBytes": 125728,
+      "docs": 100,
+      "fieldBytes": {
+        "_id": 2847,
+        "_rev": 3701,
+        "memberOf": 2400,
+        "type": 900,
+        "updatedBy": 1800,
+        "parentId": 1803,
+        "language": 1980,
+        "status": 1100,
+        "slug": 1854,
+        "title": 1811,
+        "publishDate": 1300,
+        "parentTags": 3278,
+        "parentTagType": 742,
+        "parentPublishDateVisible": 500,
+        "parentPinned": 100,
+        "availableTranslations": 7045,
+        "parentType": 500,
+        "parentTaggedDocs": 23013,
+        "updatedTimeUtc": 1300,
+        "fts": 9908,
+        "ftsTokenCount": 140,
+        "wordCount": 106,
+        "parentShowComingSoon": 15,
+        "parentUseVerticalTileLayout": 12,
+        "summary": 972,
+        "parentImageData": 20334,
+        "parentImageBucketId": 2128
+      },
+      "docIdsHash": "0c5ba88b819c8630e8dedc45507c93c7aec1131a3318f3ffbec91e50c9b5dc75",
+      "updatedTimeRange": [
+        1779456237621,
+        1784870106652
+      ],
+      "sample": 12
+    },
+    {
+      "id": "sync-content-tag-first-subtype-index",
+      "status": 200,
+      "firstByteMs": 59.276332999999795,
+      "totalMs": 59.55937499999891,
+      "transferMs": 0.2830419999991136,
+      "encoding": "br",
+      "wireBytes": 15505,
+      "decodedBytes": 125728,
+      "docs": 100,
+      "fieldBytes": {
+        "_id": 2847,
+        "_rev": 3701,
+        "memberOf": 2400,
+        "type": 900,
+        "updatedBy": 1800,
+        "parentId": 1803,
+        "language": 1980,
+        "status": 1100,
+        "slug": 1854,
+        "title": 1811,
+        "publishDate": 1300,
+        "parentTags": 3278,
+        "parentTagType": 742,
+        "parentPublishDateVisible": 500,
+        "parentPinned": 100,
+        "availableTranslations": 7045,
+        "parentType": 500,
+        "parentTaggedDocs": 23013,
+        "updatedTimeUtc": 1300,
+        "fts": 9908,
+        "ftsTokenCount": 140,
+        "wordCount": 106,
+        "parentShowComingSoon": 15,
+        "parentUseVerticalTileLayout": 12,
+        "summary": 972,
+        "parentImageData": 20334,
+        "parentImageBucketId": 2128
+      },
+      "docIdsHash": "0c5ba88b819c8630e8dedc45507c93c7aec1131a3318f3ffbec91e50c9b5dc75",
+      "updatedTimeRange": [
+        1779456237621,
+        1784870106652
+      ],
+      "sample": 13
+    },
+    {
+      "id": "sync-content-tag-first",
+      "status": 200,
+      "firstByteMs": 351.88895799999955,
+      "totalMs": 352.1967079999995,
+      "transferMs": 0.3077499999999418,
+      "encoding": "br",
+      "wireBytes": 15644,
+      "decodedBytes": 125896,
+      "docs": 100,
+      "fieldBytes": {
+        "_id": 2847,
+        "_rev": 3701,
+        "memberOf": 2400,
+        "type": 900,
+        "updatedBy": 1800,
+        "parentId": 1803,
+        "language": 1980,
+        "status": 1100,
+        "slug": 1854,
+        "title": 1811,
+        "publishDate": 1300,
+        "parentTags": 3278,
+        "parentTagType": 742,
+        "parentPublishDateVisible": 500,
+        "parentPinned": 100,
+        "availableTranslations": 7045,
+        "parentType": 500,
+        "parentTaggedDocs": 23013,
+        "updatedTimeUtc": 1300,
+        "fts": 9908,
+        "ftsTokenCount": 140,
+        "wordCount": 106,
+        "parentShowComingSoon": 15,
+        "parentUseVerticalTileLayout": 12,
+        "summary": 972,
+        "parentImageData": 20334,
+        "parentImageBucketId": 2128
+      },
+      "docIdsHash": "0c5ba88b819c8630e8dedc45507c93c7aec1131a3318f3ffbec91e50c9b5dc75",
+      "updatedTimeRange": [
+        1779456237621,
+        1784870106652
+      ],
+      "warning": "The number of documents examined is high in proportion to the number of results returned. Consider adding a more specific index to improve this.",
+      "sample": 13
+    },
+    {
+      "id": "sync-content-tag-first",
+      "status": 200,
+      "firstByteMs": 319.4332919999997,
+      "totalMs": 319.81154199999946,
+      "transferMs": 0.3782499999997526,
+      "encoding": "br",
+      "wireBytes": 15644,
+      "decodedBytes": 125896,
+      "docs": 100,
+      "fieldBytes": {
+        "_id": 2847,
+        "_rev": 3701,
+        "memberOf": 2400,
+        "type": 900,
+        "updatedBy": 1800,
+        "parentId": 1803,
+        "language": 1980,
+        "status": 1100,
+        "slug": 1854,
+        "title": 1811,
+        "publishDate": 1300,
+        "parentTags": 3278,
+        "parentTagType": 742,
+        "parentPublishDateVisible": 500,
+        "parentPinned": 100,
+        "availableTranslations": 7045,
+        "parentType": 500,
+        "parentTaggedDocs": 23013,
+        "updatedTimeUtc": 1300,
+        "fts": 9908,
+        "ftsTokenCount": 140,
+        "wordCount": 106,
+        "parentShowComingSoon": 15,
+        "parentUseVerticalTileLayout": 12,
+        "summary": 972,
+        "parentImageData": 20334,
+        "parentImageBucketId": 2128
+      },
+      "docIdsHash": "0c5ba88b819c8630e8dedc45507c93c7aec1131a3318f3ffbec91e50c9b5dc75",
+      "updatedTimeRange": [
+        1779456237621,
+        1784870106652
+      ],
+      "warning": "The number of documents examined is high in proportion to the number of results returned. Consider adding a more specific index to improve this.",
+      "sample": 14
+    },
+    {
+      "id": "sync-content-tag-first-subtype-index",
+      "status": 200,
+      "firstByteMs": 70.72120800000084,
+      "totalMs": 70.97450000000026,
+      "transferMs": 0.2532919999994192,
+      "encoding": "br",
+      "wireBytes": 15505,
+      "decodedBytes": 125728,
+      "docs": 100,
+      "fieldBytes": {
+        "_id": 2847,
+        "_rev": 3701,
+        "memberOf": 2400,
+        "type": 900,
+        "updatedBy": 1800,
+        "parentId": 1803,
+        "language": 1980,
+        "status": 1100,
+        "slug": 1854,
+        "title": 1811,
+        "publishDate": 1300,
+        "parentTags": 3278,
+        "parentTagType": 742,
+        "parentPublishDateVisible": 500,
+        "parentPinned": 100,
+        "availableTranslations": 7045,
+        "parentType": 500,
+        "parentTaggedDocs": 23013,
+        "updatedTimeUtc": 1300,
+        "fts": 9908,
+        "ftsTokenCount": 140,
+        "wordCount": 106,
+        "parentShowComingSoon": 15,
+        "parentUseVerticalTileLayout": 12,
+        "summary": 972,
+        "parentImageData": 20334,
+        "parentImageBucketId": 2128
+      },
+      "docIdsHash": "0c5ba88b819c8630e8dedc45507c93c7aec1131a3318f3ffbec91e50c9b5dc75",
+      "updatedTimeRange": [
+        1779456237621,
+        1784870106652
+      ],
+      "sample": 14
+    }
+  ],
+  "completedAt": "2026-09-08T10:24:05.882Z"
+}

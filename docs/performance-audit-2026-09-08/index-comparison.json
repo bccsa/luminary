@@ -1,0 +1,2860 @@
+{
+  "startedAt": "2026-09-08T10:22:47.340Z",
+  "baseUrl": "https://api.app.bcc.africa",
+  "samples": 5,
+  "warmup": 1,
+  "identity": "anonymous",
+  "pairs": [
+    {
+      "id": "sync-content-post-first",
+      "original": {
+        "id": "sync-content-post-first",
+        "group": "sync (app)",
+        "label": "first sync (full window) — content-post, limit 100",
+        "source": "app/src/sync.ts",
+        "requiresCmsView": false,
+        "method": "POST",
+        "path": "/query",
+        "body": {
+          "selector": {
+            "type": "content",
+            "updatedTimeUtc": {
+              "$lte": 1788862336196,
+              "$gte": 0
+            },
+            "memberOf": {
+              "$elemMatch": {
+                "$in": [
+                  "group-public-content",
+                  "group-languages"
+                ]
+              }
+            },
+            "parentType": "post",
+            "$or": [
+              {
+                "language": {
+                  "$in": [
+                    "14d07c30-f0a2-4d79-b37b-a957c64859f6",
+                    "lang-eng",
+                    "lang-fra"
+                  ]
+                }
+              },
+              {
+                "$and": [
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "14d07c30-f0a2-4d79-b37b-a957c64859f6"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "lang-eng"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "lang-fra"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "limit": 100,
+          "sort": [
+            {
+              "updatedTimeUtc": "desc"
+            }
+          ],
+          "use_index": "sync-content-index",
+          "identifier": "sync"
+        },
+        "explain": {
+          "selector": {
+            "type": "content",
+            "updatedTimeUtc": {
+              "$lte": 1788862336196,
+              "$gte": 0
+            },
+            "memberOf": {
+              "$elemMatch": {
+                "$in": [
+                  "group-public-content"
+                ]
+              }
+            },
+            "parentType": "post",
+            "$or": [
+              {
+                "language": {
+                  "$in": [
+                    "14d07c30-f0a2-4d79-b37b-a957c64859f6",
+                    "lang-eng",
+                    "lang-fra"
+                  ]
+                }
+              },
+              {
+                "$and": [
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "14d07c30-f0a2-4d79-b37b-a957c64859f6"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "lang-eng"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "lang-fra"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "limit": 100,
+          "sort": [
+            {
+              "updatedTimeUtc": "desc"
+            }
+          ],
+          "use_index": "sync-content-index"
+        }
+      },
+      "candidate": {
+        "id": "sync-content-post-first-subtype-index",
+        "group": "sync (app)",
+        "label": "first sync (full window) — content-post, limit 100",
+        "source": "app/src/sync.ts",
+        "requiresCmsView": false,
+        "method": "POST",
+        "path": "/query",
+        "body": {
+          "selector": {
+            "type": "content",
+            "updatedTimeUtc": {
+              "$lte": 1788862336196,
+              "$gte": 0
+            },
+            "memberOf": {
+              "$elemMatch": {
+                "$in": [
+                  "group-public-content",
+                  "group-languages"
+                ]
+              }
+            },
+            "parentType": "post",
+            "$or": [
+              {
+                "language": {
+                  "$in": [
+                    "14d07c30-f0a2-4d79-b37b-a957c64859f6",
+                    "lang-eng",
+                    "lang-fra"
+                  ]
+                }
+              },
+              {
+                "$and": [
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "14d07c30-f0a2-4d79-b37b-a957c64859f6"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "lang-eng"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "lang-fra"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "limit": 100,
+          "sort": [
+            {
+              "updatedTimeUtc": "desc"
+            }
+          ],
+          "use_index": "sync-post-content-index",
+          "identifier": "sync"
+        },
+        "explain": {
+          "selector": {
+            "type": "content",
+            "updatedTimeUtc": {
+              "$lte": 1788862336196,
+              "$gte": 0
+            },
+            "memberOf": {
+              "$elemMatch": {
+                "$in": [
+                  "group-public-content"
+                ]
+              }
+            },
+            "parentType": "post",
+            "$or": [
+              {
+                "language": {
+                  "$in": [
+                    "14d07c30-f0a2-4d79-b37b-a957c64859f6",
+                    "lang-eng",
+                    "lang-fra"
+                  ]
+                }
+              },
+              {
+                "$and": [
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "14d07c30-f0a2-4d79-b37b-a957c64859f6"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "lang-eng"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "lang-fra"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "limit": 100,
+          "sort": [
+            {
+              "updatedTimeUtc": "desc"
+            }
+          ],
+          "use_index": "sync-content-index"
+        }
+      }
+    },
+    {
+      "id": "sync-content-tag-first",
+      "original": {
+        "id": "sync-content-tag-first",
+        "group": "sync (app)",
+        "label": "first sync (full window) — content-tag, limit 100",
+        "source": "app/src/sync.ts",
+        "requiresCmsView": false,
+        "method": "POST",
+        "path": "/query",
+        "body": {
+          "selector": {
+            "type": "content",
+            "updatedTimeUtc": {
+              "$lte": 1788862336196,
+              "$gte": 0
+            },
+            "memberOf": {
+              "$elemMatch": {
+                "$in": [
+                  "group-public-content",
+                  "group-languages"
+                ]
+              }
+            },
+            "parentType": "tag",
+            "$or": [
+              {
+                "language": {
+                  "$in": [
+                    "14d07c30-f0a2-4d79-b37b-a957c64859f6",
+                    "lang-eng",
+                    "lang-fra"
+                  ]
+                }
+              },
+              {
+                "$and": [
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "14d07c30-f0a2-4d79-b37b-a957c64859f6"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "lang-eng"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "lang-fra"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "limit": 100,
+          "sort": [
+            {
+              "updatedTimeUtc": "desc"
+            }
+          ],
+          "use_index": "sync-content-index",
+          "identifier": "sync"
+        },
+        "explain": {
+          "selector": {
+            "type": "content",
+            "updatedTimeUtc": {
+              "$lte": 1788862336196,
+              "$gte": 0
+            },
+            "memberOf": {
+              "$elemMatch": {
+                "$in": [
+                  "group-public-content"
+                ]
+              }
+            },
+            "parentType": "tag",
+            "$or": [
+              {
+                "language": {
+                  "$in": [
+                    "14d07c30-f0a2-4d79-b37b-a957c64859f6",
+                    "lang-eng",
+                    "lang-fra"
+                  ]
+                }
+              },
+              {
+                "$and": [
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "14d07c30-f0a2-4d79-b37b-a957c64859f6"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "lang-eng"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "lang-fra"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "limit": 100,
+          "sort": [
+            {
+              "updatedTimeUtc": "desc"
+            }
+          ],
+          "use_index": "sync-content-index"
+        }
+      },
+      "candidate": {
+        "id": "sync-content-tag-first-subtype-index",
+        "group": "sync (app)",
+        "label": "first sync (full window) — content-tag, limit 100",
+        "source": "app/src/sync.ts",
+        "requiresCmsView": false,
+        "method": "POST",
+        "path": "/query",
+        "body": {
+          "selector": {
+            "type": "content",
+            "updatedTimeUtc": {
+              "$lte": 1788862336196,
+              "$gte": 0
+            },
+            "memberOf": {
+              "$elemMatch": {
+                "$in": [
+                  "group-public-content",
+                  "group-languages"
+                ]
+              }
+            },
+            "parentType": "tag",
+            "$or": [
+              {
+                "language": {
+                  "$in": [
+                    "14d07c30-f0a2-4d79-b37b-a957c64859f6",
+                    "lang-eng",
+                    "lang-fra"
+                  ]
+                }
+              },
+              {
+                "$and": [
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "14d07c30-f0a2-4d79-b37b-a957c64859f6"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "lang-eng"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "lang-fra"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "limit": 100,
+          "sort": [
+            {
+              "updatedTimeUtc": "desc"
+            }
+          ],
+          "use_index": "sync-tag-content-index",
+          "identifier": "sync"
+        },
+        "explain": {
+          "selector": {
+            "type": "content",
+            "updatedTimeUtc": {
+              "$lte": 1788862336196,
+              "$gte": 0
+            },
+            "memberOf": {
+              "$elemMatch": {
+                "$in": [
+                  "group-public-content"
+                ]
+              }
+            },
+            "parentType": "tag",
+            "$or": [
+              {
+                "language": {
+                  "$in": [
+                    "14d07c30-f0a2-4d79-b37b-a957c64859f6",
+                    "lang-eng",
+                    "lang-fra"
+                  ]
+                }
+              },
+              {
+                "$and": [
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "14d07c30-f0a2-4d79-b37b-a957c64859f6"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "lang-eng"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "lang-fra"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "limit": 100,
+          "sort": [
+            {
+              "updatedTimeUtc": "desc"
+            }
+          ],
+          "use_index": "sync-content-index"
+        }
+      }
+    },
+    {
+      "id": "sync-content-post",
+      "original": {
+        "id": "sync-content-post",
+        "group": "sync (app)",
+        "label": "incremental sync — content-post, limit 100",
+        "source": "app/src/sync.ts",
+        "requiresCmsView": false,
+        "method": "POST",
+        "path": "/query",
+        "body": {
+          "selector": {
+            "type": "content",
+            "updatedTimeUtc": {
+              "$lte": 1788862336196,
+              "$gte": 1788257536196
+            },
+            "memberOf": {
+              "$elemMatch": {
+                "$in": [
+                  "group-public-content",
+                  "group-languages"
+                ]
+              }
+            },
+            "parentType": "post",
+            "$or": [
+              {
+                "language": {
+                  "$in": [
+                    "14d07c30-f0a2-4d79-b37b-a957c64859f6",
+                    "lang-eng",
+                    "lang-fra"
+                  ]
+                }
+              },
+              {
+                "$and": [
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "14d07c30-f0a2-4d79-b37b-a957c64859f6"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "lang-eng"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "lang-fra"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "limit": 100,
+          "sort": [
+            {
+              "updatedTimeUtc": "desc"
+            }
+          ],
+          "use_index": "sync-content-index",
+          "identifier": "sync",
+          "includeExpired": true
+        },
+        "explain": {
+          "selector": {
+            "type": "content",
+            "updatedTimeUtc": {
+              "$lte": 1788862336196,
+              "$gte": 1788257536196
+            },
+            "memberOf": {
+              "$elemMatch": {
+                "$in": [
+                  "group-public-content"
+                ]
+              }
+            },
+            "parentType": "post",
+            "$or": [
+              {
+                "language": {
+                  "$in": [
+                    "14d07c30-f0a2-4d79-b37b-a957c64859f6",
+                    "lang-eng",
+                    "lang-fra"
+                  ]
+                }
+              },
+              {
+                "$and": [
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "14d07c30-f0a2-4d79-b37b-a957c64859f6"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "lang-eng"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "lang-fra"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "limit": 100,
+          "sort": [
+            {
+              "updatedTimeUtc": "desc"
+            }
+          ],
+          "use_index": "sync-content-index"
+        }
+      },
+      "candidate": {
+        "id": "sync-content-post-subtype-index",
+        "group": "sync (app)",
+        "label": "incremental sync — content-post, limit 100",
+        "source": "app/src/sync.ts",
+        "requiresCmsView": false,
+        "method": "POST",
+        "path": "/query",
+        "body": {
+          "selector": {
+            "type": "content",
+            "updatedTimeUtc": {
+              "$lte": 1788862336196,
+              "$gte": 1788257536196
+            },
+            "memberOf": {
+              "$elemMatch": {
+                "$in": [
+                  "group-public-content",
+                  "group-languages"
+                ]
+              }
+            },
+            "parentType": "post",
+            "$or": [
+              {
+                "language": {
+                  "$in": [
+                    "14d07c30-f0a2-4d79-b37b-a957c64859f6",
+                    "lang-eng",
+                    "lang-fra"
+                  ]
+                }
+              },
+              {
+                "$and": [
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "14d07c30-f0a2-4d79-b37b-a957c64859f6"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "lang-eng"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "lang-fra"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "limit": 100,
+          "sort": [
+            {
+              "updatedTimeUtc": "desc"
+            }
+          ],
+          "use_index": "sync-post-content-index",
+          "identifier": "sync",
+          "includeExpired": true
+        },
+        "explain": {
+          "selector": {
+            "type": "content",
+            "updatedTimeUtc": {
+              "$lte": 1788862336196,
+              "$gte": 1788257536196
+            },
+            "memberOf": {
+              "$elemMatch": {
+                "$in": [
+                  "group-public-content"
+                ]
+              }
+            },
+            "parentType": "post",
+            "$or": [
+              {
+                "language": {
+                  "$in": [
+                    "14d07c30-f0a2-4d79-b37b-a957c64859f6",
+                    "lang-eng",
+                    "lang-fra"
+                  ]
+                }
+              },
+              {
+                "$and": [
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "14d07c30-f0a2-4d79-b37b-a957c64859f6"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "lang-eng"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "lang-fra"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "limit": 100,
+          "sort": [
+            {
+              "updatedTimeUtc": "desc"
+            }
+          ],
+          "use_index": "sync-content-index"
+        }
+      }
+    },
+    {
+      "id": "sync-content-tag",
+      "original": {
+        "id": "sync-content-tag",
+        "group": "sync (app)",
+        "label": "incremental sync — content-tag, limit 100",
+        "source": "app/src/sync.ts",
+        "requiresCmsView": false,
+        "method": "POST",
+        "path": "/query",
+        "body": {
+          "selector": {
+            "type": "content",
+            "updatedTimeUtc": {
+              "$lte": 1788862336196,
+              "$gte": 1788257536196
+            },
+            "memberOf": {
+              "$elemMatch": {
+                "$in": [
+                  "group-public-content",
+                  "group-languages"
+                ]
+              }
+            },
+            "parentType": "tag",
+            "$or": [
+              {
+                "language": {
+                  "$in": [
+                    "14d07c30-f0a2-4d79-b37b-a957c64859f6",
+                    "lang-eng",
+                    "lang-fra"
+                  ]
+                }
+              },
+              {
+                "$and": [
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "14d07c30-f0a2-4d79-b37b-a957c64859f6"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "lang-eng"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "lang-fra"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "limit": 100,
+          "sort": [
+            {
+              "updatedTimeUtc": "desc"
+            }
+          ],
+          "use_index": "sync-content-index",
+          "identifier": "sync",
+          "includeExpired": true
+        },
+        "explain": {
+          "selector": {
+            "type": "content",
+            "updatedTimeUtc": {
+              "$lte": 1788862336196,
+              "$gte": 1788257536196
+            },
+            "memberOf": {
+              "$elemMatch": {
+                "$in": [
+                  "group-public-content"
+                ]
+              }
+            },
+            "parentType": "tag",
+            "$or": [
+              {
+                "language": {
+                  "$in": [
+                    "14d07c30-f0a2-4d79-b37b-a957c64859f6",
+                    "lang-eng",
+                    "lang-fra"
+                  ]
+                }
+              },
+              {
+                "$and": [
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "14d07c30-f0a2-4d79-b37b-a957c64859f6"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "lang-eng"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "lang-fra"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "limit": 100,
+          "sort": [
+            {
+              "updatedTimeUtc": "desc"
+            }
+          ],
+          "use_index": "sync-content-index"
+        }
+      },
+      "candidate": {
+        "id": "sync-content-tag-subtype-index",
+        "group": "sync (app)",
+        "label": "incremental sync — content-tag, limit 100",
+        "source": "app/src/sync.ts",
+        "requiresCmsView": false,
+        "method": "POST",
+        "path": "/query",
+        "body": {
+          "selector": {
+            "type": "content",
+            "updatedTimeUtc": {
+              "$lte": 1788862336196,
+              "$gte": 1788257536196
+            },
+            "memberOf": {
+              "$elemMatch": {
+                "$in": [
+                  "group-public-content",
+                  "group-languages"
+                ]
+              }
+            },
+            "parentType": "tag",
+            "$or": [
+              {
+                "language": {
+                  "$in": [
+                    "14d07c30-f0a2-4d79-b37b-a957c64859f6",
+                    "lang-eng",
+                    "lang-fra"
+                  ]
+                }
+              },
+              {
+                "$and": [
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "14d07c30-f0a2-4d79-b37b-a957c64859f6"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "lang-eng"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "lang-fra"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "limit": 100,
+          "sort": [
+            {
+              "updatedTimeUtc": "desc"
+            }
+          ],
+          "use_index": "sync-tag-content-index",
+          "identifier": "sync",
+          "includeExpired": true
+        },
+        "explain": {
+          "selector": {
+            "type": "content",
+            "updatedTimeUtc": {
+              "$lte": 1788862336196,
+              "$gte": 1788257536196
+            },
+            "memberOf": {
+              "$elemMatch": {
+                "$in": [
+                  "group-public-content"
+                ]
+              }
+            },
+            "parentType": "tag",
+            "$or": [
+              {
+                "language": {
+                  "$in": [
+                    "14d07c30-f0a2-4d79-b37b-a957c64859f6",
+                    "lang-eng",
+                    "lang-fra"
+                  ]
+                }
+              },
+              {
+                "$and": [
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "14d07c30-f0a2-4d79-b37b-a957c64859f6"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "lang-eng"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "lang-fra"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "limit": 100,
+          "sort": [
+            {
+              "updatedTimeUtc": "desc"
+            }
+          ],
+          "use_index": "sync-content-index"
+        }
+      }
+    },
+    {
+      "id": "sync-content-publishDate-window",
+      "original": {
+        "id": "sync-content-publishDate-window",
+        "group": "sync (app)",
+        "label": "incremental sync — content narrowed by the publishDate cutoff",
+        "source": "shared/src/api/sync/utils.ts + shared/src/config.ts",
+        "method": "POST",
+        "path": "/query",
+        "body": {
+          "selector": {
+            "type": "content",
+            "parentType": "post",
+            "updatedTimeUtc": {
+              "$lte": 1788862336196,
+              "$gte": 1786270336196
+            },
+            "publishDate": {
+              "$gte": 1757326336196
+            },
+            "memberOf": {
+              "$elemMatch": {
+                "$in": [
+                  "group-public-content",
+                  "group-languages"
+                ]
+              }
+            },
+            "$or": [
+              {
+                "language": {
+                  "$in": [
+                    "14d07c30-f0a2-4d79-b37b-a957c64859f6",
+                    "lang-eng",
+                    "lang-fra"
+                  ]
+                }
+              },
+              {
+                "$and": [
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "14d07c30-f0a2-4d79-b37b-a957c64859f6"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "lang-eng"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "lang-fra"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "limit": 100,
+          "sort": [
+            {
+              "updatedTimeUtc": "desc"
+            }
+          ],
+          "use_index": "sync-content-index",
+          "identifier": "sync",
+          "includeExpired": true
+        }
+      },
+      "candidate": {
+        "id": "sync-content-publishDate-window-subtype-index",
+        "group": "sync (app)",
+        "label": "incremental sync — content narrowed by the publishDate cutoff",
+        "source": "shared/src/api/sync/utils.ts + shared/src/config.ts",
+        "method": "POST",
+        "path": "/query",
+        "body": {
+          "selector": {
+            "type": "content",
+            "parentType": "post",
+            "updatedTimeUtc": {
+              "$lte": 1788862336196,
+              "$gte": 1786270336196
+            },
+            "publishDate": {
+              "$gte": 1757326336196
+            },
+            "memberOf": {
+              "$elemMatch": {
+                "$in": [
+                  "group-public-content",
+                  "group-languages"
+                ]
+              }
+            },
+            "$or": [
+              {
+                "language": {
+                  "$in": [
+                    "14d07c30-f0a2-4d79-b37b-a957c64859f6",
+                    "lang-eng",
+                    "lang-fra"
+                  ]
+                }
+              },
+              {
+                "$and": [
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "14d07c30-f0a2-4d79-b37b-a957c64859f6"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "lang-eng"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "$not": {
+                      "availableTranslations": {
+                        "$elemMatch": {
+                          "$eq": "lang-fra"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "limit": 100,
+          "sort": [
+            {
+              "updatedTimeUtc": "desc"
+            }
+          ],
+          "use_index": "sync-post-content-index",
+          "identifier": "sync",
+          "includeExpired": true
+        }
+      }
+    }
+  ],
+  "rows": [
+    {
+      "id": "sync-content-post-first",
+      "status": 200,
+      "firstByteMs": 543.270125,
+      "totalMs": 616.7736670000002,
+      "transferMs": 73.50354200000015,
+      "encoding": "br",
+      "wireBytes": 359835,
+      "decodedBytes": 1147030,
+      "docs": 100,
+      "fieldBytes": {
+        "_id": 2700,
+        "_rev": 3632,
+        "memberOf": 2400,
+        "type": 900,
+        "updatedBy": 396,
+        "parentId": 1500,
+        "language": 1616,
+        "status": 1100,
+        "slug": 4961,
+        "title": 4899,
+        "summary": 9919,
+        "author": 1476,
+        "text": 528971,
+        "publishDate": 1300,
+        "seoTitle": 5285,
+        "seoString": 8863,
+        "parentTags": 7792,
+        "parentImageData": 33526,
+        "parentPostType": 600,
+        "parentPublishDateVisible": 400,
+        "availableTranslations": 6052,
+        "parentType": 600,
+        "updatedTimeUtc": 1300,
+        "parentImageBucketId": 3800,
+        "fts": 476546,
+        "ftsTokenCount": 399,
+        "wordCount": 323
+      },
+      "docIdsHash": "21ab78200c1ed436e60bb276e5e358749d674b59413f2bd31e4d221aa9ac6ed4",
+      "updatedTimeRange": [
+        1782294985355,
+        1782295031456
+      ],
+      "sample": 0
+    },
+    {
+      "id": "sync-content-post-first-subtype-index",
+      "status": 200,
+      "firstByteMs": 314.6283749999998,
+      "totalMs": 446.09241699999984,
+      "transferMs": 131.46404200000006,
+      "encoding": "br",
+      "wireBytes": 359820,
+      "decodedBytes": 1147019,
+      "docs": 100,
+      "fieldBytes": {
+        "_id": 2700,
+        "_rev": 3632,
+        "memberOf": 2400,
+        "type": 900,
+        "updatedBy": 396,
+        "parentId": 1500,
+        "language": 1616,
+        "status": 1100,
+        "slug": 4961,
+        "title": 4899,
+        "summary": 9919,
+        "author": 1476,
+        "text": 528971,
+        "publishDate": 1300,
+        "seoTitle": 5285,
+        "seoString": 8863,
+        "parentTags": 7792,
+        "parentImageData": 33526,
+        "parentPostType": 600,
+        "parentPublishDateVisible": 400,
+        "availableTranslations": 6052,
+        "parentType": 600,
+        "updatedTimeUtc": 1300,
+        "parentImageBucketId": 3800,
+        "fts": 476546,
+        "ftsTokenCount": 399,
+        "wordCount": 323
+      },
+      "docIdsHash": "21ab78200c1ed436e60bb276e5e358749d674b59413f2bd31e4d221aa9ac6ed4",
+      "updatedTimeRange": [
+        1782294985355,
+        1782295031456
+      ],
+      "sample": 0
+    },
+    {
+      "id": "sync-content-post-first-subtype-index",
+      "status": 200,
+      "firstByteMs": 370.82291699999996,
+      "totalMs": 456.4467090000003,
+      "transferMs": 85.62379200000032,
+      "encoding": "br",
+      "wireBytes": 359820,
+      "decodedBytes": 1147019,
+      "docs": 100,
+      "fieldBytes": {
+        "_id": 2700,
+        "_rev": 3632,
+        "memberOf": 2400,
+        "type": 900,
+        "updatedBy": 396,
+        "parentId": 1500,
+        "language": 1616,
+        "status": 1100,
+        "slug": 4961,
+        "title": 4899,
+        "summary": 9919,
+        "author": 1476,
+        "text": 528971,
+        "publishDate": 1300,
+        "seoTitle": 5285,
+        "seoString": 8863,
+        "parentTags": 7792,
+        "parentImageData": 33526,
+        "parentPostType": 600,
+        "parentPublishDateVisible": 400,
+        "availableTranslations": 6052,
+        "parentType": 600,
+        "updatedTimeUtc": 1300,
+        "parentImageBucketId": 3800,
+        "fts": 476546,
+        "ftsTokenCount": 399,
+        "wordCount": 323
+      },
+      "docIdsHash": "21ab78200c1ed436e60bb276e5e358749d674b59413f2bd31e4d221aa9ac6ed4",
+      "updatedTimeRange": [
+        1782294985355,
+        1782295031456
+      ],
+      "sample": 1
+    },
+    {
+      "id": "sync-content-post-first",
+      "status": 200,
+      "firstByteMs": 194.18595800000003,
+      "totalMs": 284.4741250000002,
+      "transferMs": 90.28816700000016,
+      "encoding": "br",
+      "wireBytes": 359835,
+      "decodedBytes": 1147030,
+      "docs": 100,
+      "fieldBytes": {
+        "_id": 2700,
+        "_rev": 3632,
+        "memberOf": 2400,
+        "type": 900,
+        "updatedBy": 396,
+        "parentId": 1500,
+        "language": 1616,
+        "status": 1100,
+        "slug": 4961,
+        "title": 4899,
+        "summary": 9919,
+        "author": 1476,
+        "text": 528971,
+        "publishDate": 1300,
+        "seoTitle": 5285,
+        "seoString": 8863,
+        "parentTags": 7792,
+        "parentImageData": 33526,
+        "parentPostType": 600,
+        "parentPublishDateVisible": 400,
+        "availableTranslations": 6052,
+        "parentType": 600,
+        "updatedTimeUtc": 1300,
+        "parentImageBucketId": 3800,
+        "fts": 476546,
+        "ftsTokenCount": 399,
+        "wordCount": 323
+      },
+      "docIdsHash": "21ab78200c1ed436e60bb276e5e358749d674b59413f2bd31e4d221aa9ac6ed4",
+      "updatedTimeRange": [
+        1782294985355,
+        1782295031456
+      ],
+      "sample": 1
+    },
+    {
+      "id": "sync-content-post-first",
+      "status": 200,
+      "firstByteMs": 174.17174999999997,
+      "totalMs": 240.64579099999992,
+      "transferMs": 66.47404099999994,
+      "encoding": "br",
+      "wireBytes": 359835,
+      "decodedBytes": 1147030,
+      "docs": 100,
+      "fieldBytes": {
+        "_id": 2700,
+        "_rev": 3632,
+        "memberOf": 2400,
+        "type": 900,
+        "updatedBy": 396,
+        "parentId": 1500,
+        "language": 1616,
+        "status": 1100,
+        "slug": 4961,
+        "title": 4899,
+        "summary": 9919,
+        "author": 1476,
+        "text": 528971,
+        "publishDate": 1300,
+        "seoTitle": 5285,
+        "seoString": 8863,
+        "parentTags": 7792,
+        "parentImageData": 33526,
+        "parentPostType": 600,
+        "parentPublishDateVisible": 400,
+        "availableTranslations": 6052,
+        "parentType": 600,
+        "updatedTimeUtc": 1300,
+        "parentImageBucketId": 3800,
+        "fts": 476546,
+        "ftsTokenCount": 399,
+        "wordCount": 323
+      },
+      "docIdsHash": "21ab78200c1ed436e60bb276e5e358749d674b59413f2bd31e4d221aa9ac6ed4",
+      "updatedTimeRange": [
+        1782294985355,
+        1782295031456
+      ],
+      "sample": 2
+    },
+    {
+      "id": "sync-content-post-first-subtype-index",
+      "status": 200,
+      "firstByteMs": 151.506167,
+      "totalMs": 254.66675000000032,
+      "transferMs": 103.16058300000032,
+      "encoding": "br",
+      "wireBytes": 359820,
+      "decodedBytes": 1147019,
+      "docs": 100,
+      "fieldBytes": {
+        "_id": 2700,
+        "_rev": 3632,
+        "memberOf": 2400,
+        "type": 900,
+        "updatedBy": 396,
+        "parentId": 1500,
+        "language": 1616,
+        "status": 1100,
+        "slug": 4961,
+        "title": 4899,
+        "summary": 9919,
+        "author": 1476,
+        "text": 528971,
+        "publishDate": 1300,
+        "seoTitle": 5285,
+        "seoString": 8863,
+        "parentTags": 7792,
+        "parentImageData": 33526,
+        "parentPostType": 600,
+        "parentPublishDateVisible": 400,
+        "availableTranslations": 6052,
+        "parentType": 600,
+        "updatedTimeUtc": 1300,
+        "parentImageBucketId": 3800,
+        "fts": 476546,
+        "ftsTokenCount": 399,
+        "wordCount": 323
+      },
+      "docIdsHash": "21ab78200c1ed436e60bb276e5e358749d674b59413f2bd31e4d221aa9ac6ed4",
+      "updatedTimeRange": [
+        1782294985355,
+        1782295031456
+      ],
+      "sample": 2
+    },
+    {
+      "id": "sync-content-post-first-subtype-index",
+      "status": 200,
+      "firstByteMs": 222,
+      "totalMs": 311.355583,
+      "transferMs": 89.35558300000002,
+      "encoding": "br",
+      "wireBytes": 359820,
+      "decodedBytes": 1147019,
+      "docs": 100,
+      "fieldBytes": {
+        "_id": 2700,
+        "_rev": 3632,
+        "memberOf": 2400,
+        "type": 900,
+        "updatedBy": 396,
+        "parentId": 1500,
+        "language": 1616,
+        "status": 1100,
+        "slug": 4961,
+        "title": 4899,
+        "summary": 9919,
+        "author": 1476,
+        "text": 528971,
+        "publishDate": 1300,
+        "seoTitle": 5285,
+        "seoString": 8863,
+        "parentTags": 7792,
+        "parentImageData": 33526,
+        "parentPostType": 600,
+        "parentPublishDateVisible": 400,
+        "availableTranslations": 6052,
+        "parentType": 600,
+        "updatedTimeUtc": 1300,
+        "parentImageBucketId": 3800,
+        "fts": 476546,
+        "ftsTokenCount": 399,
+        "wordCount": 323
+      },
+      "docIdsHash": "21ab78200c1ed436e60bb276e5e358749d674b59413f2bd31e4d221aa9ac6ed4",
+      "updatedTimeRange": [
+        1782294985355,
+        1782295031456
+      ],
+      "sample": 3
+    },
+    {
+      "id": "sync-content-post-first",
+      "status": 200,
+      "firstByteMs": 210.6590839999999,
+      "totalMs": 296.81929200000013,
+      "transferMs": 86.16020800000024,
+      "encoding": "br",
+      "wireBytes": 359835,
+      "decodedBytes": 1147030,
+      "docs": 100,
+      "fieldBytes": {
+        "_id": 2700,
+        "_rev": 3632,
+        "memberOf": 2400,
+        "type": 900,
+        "updatedBy": 396,
+        "parentId": 1500,
+        "language": 1616,
+        "status": 1100,
+        "slug": 4961,
+        "title": 4899,
+        "summary": 9919,
+        "author": 1476,
+        "text": 528971,
+        "publishDate": 1300,
+        "seoTitle": 5285,
+        "seoString": 8863,
+        "parentTags": 7792,
+        "parentImageData": 33526,
+        "parentPostType": 600,
+        "parentPublishDateVisible": 400,
+        "availableTranslations": 6052,
+        "parentType": 600,
+        "updatedTimeUtc": 1300,
+        "parentImageBucketId": 3800,
+        "fts": 476546,
+        "ftsTokenCount": 399,
+        "wordCount": 323
+      },
+      "docIdsHash": "21ab78200c1ed436e60bb276e5e358749d674b59413f2bd31e4d221aa9ac6ed4",
+      "updatedTimeRange": [
+        1782294985355,
+        1782295031456
+      ],
+      "sample": 3
+    },
+    {
+      "id": "sync-content-post-first",
+      "status": 200,
+      "firstByteMs": 193.10541599999942,
+      "totalMs": 250.04829100000006,
+      "transferMs": 56.94287500000064,
+      "encoding": "br",
+      "wireBytes": 359835,
+      "decodedBytes": 1147030,
+      "docs": 100,
+      "fieldBytes": {
+        "_id": 2700,
+        "_rev": 3632,
+        "memberOf": 2400,
+        "type": 900,
+        "updatedBy": 396,
+        "parentId": 1500,
+        "language": 1616,
+        "status": 1100,
+        "slug": 4961,
+        "title": 4899,
+        "summary": 9919,
+        "author": 1476,
+        "text": 528971,
+        "publishDate": 1300,
+        "seoTitle": 5285,
+        "seoString": 8863,
+        "parentTags": 7792,
+        "parentImageData": 33526,
+        "parentPostType": 600,
+        "parentPublishDateVisible": 400,
+        "availableTranslations": 6052,
+        "parentType": 600,
+        "updatedTimeUtc": 1300,
+        "parentImageBucketId": 3800,
+        "fts": 476546,
+        "ftsTokenCount": 399,
+        "wordCount": 323
+      },
+      "docIdsHash": "21ab78200c1ed436e60bb276e5e358749d674b59413f2bd31e4d221aa9ac6ed4",
+      "updatedTimeRange": [
+        1782294985355,
+        1782295031456
+      ],
+      "sample": 4
+    },
+    {
+      "id": "sync-content-post-first-subtype-index",
+      "status": 200,
+      "firstByteMs": 262.4304579999998,
+      "totalMs": 334.71441700000014,
+      "transferMs": 72.28395900000032,
+      "encoding": "br",
+      "wireBytes": 359820,
+      "decodedBytes": 1147019,
+      "docs": 100,
+      "fieldBytes": {
+        "_id": 2700,
+        "_rev": 3632,
+        "memberOf": 2400,
+        "type": 900,
+        "updatedBy": 396,
+        "parentId": 1500,
+        "language": 1616,
+        "status": 1100,
+        "slug": 4961,
+        "title": 4899,
+        "summary": 9919,
+        "author": 1476,
+        "text": 528971,
+        "publishDate": 1300,
+        "seoTitle": 5285,
+        "seoString": 8863,
+        "parentTags": 7792,
+        "parentImageData": 33526,
+        "parentPostType": 600,
+        "parentPublishDateVisible": 400,
+        "availableTranslations": 6052,
+        "parentType": 600,
+        "updatedTimeUtc": 1300,
+        "parentImageBucketId": 3800,
+        "fts": 476546,
+        "ftsTokenCount": 399,
+        "wordCount": 323
+      },
+      "docIdsHash": "21ab78200c1ed436e60bb276e5e358749d674b59413f2bd31e4d221aa9ac6ed4",
+      "updatedTimeRange": [
+        1782294985355,
+        1782295031456
+      ],
+      "sample": 4
+    },
+    {
+      "id": "sync-content-tag-first",
+      "status": 200,
+      "firstByteMs": 446.9895000000006,
+      "totalMs": 447.1835000000001,
+      "transferMs": 0.19399999999950523,
+      "encoding": "br",
+      "wireBytes": 15644,
+      "decodedBytes": 125896,
+      "docs": 100,
+      "fieldBytes": {
+        "_id": 2847,
+        "_rev": 3701,
+        "memberOf": 2400,
+        "type": 900,
+        "updatedBy": 1800,
+        "parentId": 1803,
+        "language": 1980,
+        "status": 1100,
+        "slug": 1854,
+        "title": 1811,
+        "publishDate": 1300,
+        "parentTags": 3278,
+        "parentTagType": 742,
+        "parentPublishDateVisible": 500,
+        "parentPinned": 100,
+        "availableTranslations": 7045,
+        "parentType": 500,
+        "parentTaggedDocs": 23013,
+        "updatedTimeUtc": 1300,
+        "fts": 9908,
+        "ftsTokenCount": 140,
+        "wordCount": 106,
+        "parentShowComingSoon": 15,
+        "parentUseVerticalTileLayout": 12,
+        "summary": 972,
+        "parentImageData": 20334,
+        "parentImageBucketId": 2128
+      },
+      "docIdsHash": "0c5ba88b819c8630e8dedc45507c93c7aec1131a3318f3ffbec91e50c9b5dc75",
+      "updatedTimeRange": [
+        1779456237621,
+        1784870106652
+      ],
+      "warning": "The number of documents examined is high in proportion to the number of results returned. Consider adding a more specific index to improve this.",
+      "sample": 0
+    },
+    {
+      "id": "sync-content-tag-first-subtype-index",
+      "status": 200,
+      "firstByteMs": 83.31983300000047,
+      "totalMs": 83.42725000000064,
+      "transferMs": 0.10741700000016863,
+      "encoding": "br",
+      "wireBytes": 15505,
+      "decodedBytes": 125728,
+      "docs": 100,
+      "fieldBytes": {
+        "_id": 2847,
+        "_rev": 3701,
+        "memberOf": 2400,
+        "type": 900,
+        "updatedBy": 1800,
+        "parentId": 1803,
+        "language": 1980,
+        "status": 1100,
+        "slug": 1854,
+        "title": 1811,
+        "publishDate": 1300,
+        "parentTags": 3278,
+        "parentTagType": 742,
+        "parentPublishDateVisible": 500,
+        "parentPinned": 100,
+        "availableTranslations": 7045,
+        "parentType": 500,
+        "parentTaggedDocs": 23013,
+        "updatedTimeUtc": 1300,
+        "fts": 9908,
+        "ftsTokenCount": 140,
+        "wordCount": 106,
+        "parentShowComingSoon": 15,
+        "parentUseVerticalTileLayout": 12,
+        "summary": 972,
+        "parentImageData": 20334,
+        "parentImageBucketId": 2128
+      },
+      "docIdsHash": "0c5ba88b819c8630e8dedc45507c93c7aec1131a3318f3ffbec91e50c9b5dc75",
+      "updatedTimeRange": [
+        1779456237621,
+        1784870106652
+      ],
+      "sample": 0
+    },
+    {
+      "id": "sync-content-tag-first-subtype-index",
+      "status": 200,
+      "firstByteMs": 62.41729200000009,
+      "totalMs": 62.51308400000016,
+      "transferMs": 0.09579200000007404,
+      "encoding": "br",
+      "wireBytes": 15505,
+      "decodedBytes": 125728,
+      "docs": 100,
+      "fieldBytes": {
+        "_id": 2847,
+        "_rev": 3701,
+        "memberOf": 2400,
+        "type": 900,
+        "updatedBy": 1800,
+        "parentId": 1803,
+        "language": 1980,
+        "status": 1100,
+        "slug": 1854,
+        "title": 1811,
+        "publishDate": 1300,
+        "parentTags": 3278,
+        "parentTagType": 742,
+        "parentPublishDateVisible": 500,
+        "parentPinned": 100,
+        "availableTranslations": 7045,
+        "parentType": 500,
+        "parentTaggedDocs": 23013,
+        "updatedTimeUtc": 1300,
+        "fts": 9908,
+        "ftsTokenCount": 140,
+        "wordCount": 106,
+        "parentShowComingSoon": 15,
+        "parentUseVerticalTileLayout": 12,
+        "summary": 972,
+        "parentImageData": 20334,
+        "parentImageBucketId": 2128
+      },
+      "docIdsHash": "0c5ba88b819c8630e8dedc45507c93c7aec1131a3318f3ffbec91e50c9b5dc75",
+      "updatedTimeRange": [
+        1779456237621,
+        1784870106652
+      ],
+      "sample": 1
+    },
+    {
+      "id": "sync-content-tag-first",
+      "status": 200,
+      "firstByteMs": 489.16112499999963,
+      "totalMs": 489.4049580000001,
+      "transferMs": 0.24383300000044983,
+      "encoding": "br",
+      "wireBytes": 15644,
+      "decodedBytes": 125896,
+      "docs": 100,
+      "fieldBytes": {
+        "_id": 2847,
+        "_rev": 3701,
+        "memberOf": 2400,
+        "type": 900,
+        "updatedBy": 1800,
+        "parentId": 1803,
+        "language": 1980,
+        "status": 1100,
+        "slug": 1854,
+        "title": 1811,
+        "publishDate": 1300,
+        "parentTags": 3278,
+        "parentTagType": 742,
+        "parentPublishDateVisible": 500,
+        "parentPinned": 100,
+        "availableTranslations": 7045,
+        "parentType": 500,
+        "parentTaggedDocs": 23013,
+        "updatedTimeUtc": 1300,
+        "fts": 9908,
+        "ftsTokenCount": 140,
+        "wordCount": 106,
+        "parentShowComingSoon": 15,
+        "parentUseVerticalTileLayout": 12,
+        "summary": 972,
+        "parentImageData": 20334,
+        "parentImageBucketId": 2128
+      },
+      "docIdsHash": "0c5ba88b819c8630e8dedc45507c93c7aec1131a3318f3ffbec91e50c9b5dc75",
+      "updatedTimeRange": [
+        1779456237621,
+        1784870106652
+      ],
+      "warning": "The number of documents examined is high in proportion to the number of results returned. Consider adding a more specific index to improve this.",
+      "sample": 1
+    },
+    {
+      "id": "sync-content-tag-first",
+      "status": 200,
+      "firstByteMs": 495.4547499999999,
+      "totalMs": 495.6987079999999,
+      "transferMs": 0.24395800000002055,
+      "encoding": "br",
+      "wireBytes": 15644,
+      "decodedBytes": 125896,
+      "docs": 100,
+      "fieldBytes": {
+        "_id": 2847,
+        "_rev": 3701,
+        "memberOf": 2400,
+        "type": 900,
+        "updatedBy": 1800,
+        "parentId": 1803,
+        "language": 1980,
+        "status": 1100,
+        "slug": 1854,
+        "title": 1811,
+        "publishDate": 1300,
+        "parentTags": 3278,
+        "parentTagType": 742,
+        "parentPublishDateVisible": 500,
+        "parentPinned": 100,
+        "availableTranslations": 7045,
+        "parentType": 500,
+        "parentTaggedDocs": 23013,
+        "updatedTimeUtc": 1300,
+        "fts": 9908,
+        "ftsTokenCount": 140,
+        "wordCount": 106,
+        "parentShowComingSoon": 15,
+        "parentUseVerticalTileLayout": 12,
+        "summary": 972,
+        "parentImageData": 20334,
+        "parentImageBucketId": 2128
+      },
+      "docIdsHash": "0c5ba88b819c8630e8dedc45507c93c7aec1131a3318f3ffbec91e50c9b5dc75",
+      "updatedTimeRange": [
+        1779456237621,
+        1784870106652
+      ],
+      "warning": "The number of documents examined is high in proportion to the number of results returned. Consider adding a more specific index to improve this.",
+      "sample": 2
+    },
+    {
+      "id": "sync-content-tag-first-subtype-index",
+      "status": 200,
+      "firstByteMs": 68.55575000000044,
+      "totalMs": 68.75654200000008,
+      "transferMs": 0.20079199999963748,
+      "encoding": "br",
+      "wireBytes": 15505,
+      "decodedBytes": 125728,
+      "docs": 100,
+      "fieldBytes": {
+        "_id": 2847,
+        "_rev": 3701,
+        "memberOf": 2400,
+        "type": 900,
+        "updatedBy": 1800,
+        "parentId": 1803,
+        "language": 1980,
+        "status": 1100,
+        "slug": 1854,
+        "title": 1811,
+        "publishDate": 1300,
+        "parentTags": 3278,
+        "parentTagType": 742,
+        "parentPublishDateVisible": 500,
+        "parentPinned": 100,
+        "availableTranslations": 7045,
+        "parentType": 500,
+        "parentTaggedDocs": 23013,
+        "updatedTimeUtc": 1300,
+        "fts": 9908,
+        "ftsTokenCount": 140,
+        "wordCount": 106,
+        "parentShowComingSoon": 15,
+        "parentUseVerticalTileLayout": 12,
+        "summary": 972,
+        "parentImageData": 20334,
+        "parentImageBucketId": 2128
+      },
+      "docIdsHash": "0c5ba88b819c8630e8dedc45507c93c7aec1131a3318f3ffbec91e50c9b5dc75",
+      "updatedTimeRange": [
+        1779456237621,
+        1784870106652
+      ],
+      "sample": 2
+    },
+    {
+      "id": "sync-content-tag-first-subtype-index",
+      "status": 200,
+      "firstByteMs": 63.107875000000604,
+      "totalMs": 63.380958000000646,
+      "transferMs": 0.2730830000000424,
+      "encoding": "br",
+      "wireBytes": 15505,
+      "decodedBytes": 125728,
+      "docs": 100,
+      "fieldBytes": {
+        "_id": 2847,
+        "_rev": 3701,
+        "memberOf": 2400,
+        "type": 900,
+        "updatedBy": 1800,
+        "parentId": 1803,
+        "language": 1980,
+        "status": 1100,
+        "slug": 1854,
+        "title": 1811,
+        "publishDate": 1300,
+        "parentTags": 3278,
+        "parentTagType": 742,
+        "parentPublishDateVisible": 500,
+        "parentPinned": 100,
+        "availableTranslations": 7045,
+        "parentType": 500,
+        "parentTaggedDocs": 23013,
+        "updatedTimeUtc": 1300,
+        "fts": 9908,
+        "ftsTokenCount": 140,
+        "wordCount": 106,
+        "parentShowComingSoon": 15,
+        "parentUseVerticalTileLayout": 12,
+        "summary": 972,
+        "parentImageData": 20334,
+        "parentImageBucketId": 2128
+      },
+      "docIdsHash": "0c5ba88b819c8630e8dedc45507c93c7aec1131a3318f3ffbec91e50c9b5dc75",
+      "updatedTimeRange": [
+        1779456237621,
+        1784870106652
+      ],
+      "sample": 3
+    },
+    {
+      "id": "sync-content-tag-first",
+      "status": 200,
+      "firstByteMs": 320.4917919999998,
+      "totalMs": 320.716042,
+      "transferMs": 0.224250000000211,
+      "encoding": "br",
+      "wireBytes": 15644,
+      "decodedBytes": 125896,
+      "docs": 100,
+      "fieldBytes": {
+        "_id": 2847,
+        "_rev": 3701,
+        "memberOf": 2400,
+        "type": 900,
+        "updatedBy": 1800,
+        "parentId": 1803,
+        "language": 1980,
+        "status": 1100,
+        "slug": 1854,
+        "title": 1811,
+        "publishDate": 1300,
+        "parentTags": 3278,
+        "parentTagType": 742,
+        "parentPublishDateVisible": 500,
+        "parentPinned": 100,
+        "availableTranslations": 7045,
+        "parentType": 500,
+        "parentTaggedDocs": 23013,
+        "updatedTimeUtc": 1300,
+        "fts": 9908,
+        "ftsTokenCount": 140,
+        "wordCount": 106,
+        "parentShowComingSoon": 15,
+        "parentUseVerticalTileLayout": 12,
+        "summary": 972,
+        "parentImageData": 20334,
+        "parentImageBucketId": 2128
+      },
+      "docIdsHash": "0c5ba88b819c8630e8dedc45507c93c7aec1131a3318f3ffbec91e50c9b5dc75",
+      "updatedTimeRange": [
+        1779456237621,
+        1784870106652
+      ],
+      "warning": "The number of documents examined is high in proportion to the number of results returned. Consider adding a more specific index to improve this.",
+      "sample": 3
+    },
+    {
+      "id": "sync-content-tag-first",
+      "status": 200,
+      "firstByteMs": 356.55533299999934,
+      "totalMs": 356.74683299999924,
+      "transferMs": 0.1914999999999054,
+      "encoding": "br",
+      "wireBytes": 15644,
+      "decodedBytes": 125896,
+      "docs": 100,
+      "fieldBytes": {
+        "_id": 2847,
+        "_rev": 3701,
+        "memberOf": 2400,
+        "type": 900,
+        "updatedBy": 1800,
+        "parentId": 1803,
+        "language": 1980,
+        "status": 1100,
+        "slug": 1854,
+        "title": 1811,
+        "publishDate": 1300,
+        "parentTags": 3278,
+        "parentTagType": 742,
+        "parentPublishDateVisible": 500,
+        "parentPinned": 100,
+        "availableTranslations": 7045,
+        "parentType": 500,
+        "parentTaggedDocs": 23013,
+        "updatedTimeUtc": 1300,
+        "fts": 9908,
+        "ftsTokenCount": 140,
+        "wordCount": 106,
+        "parentShowComingSoon": 15,
+        "parentUseVerticalTileLayout": 12,
+        "summary": 972,
+        "parentImageData": 20334,
+        "parentImageBucketId": 2128
+      },
+      "docIdsHash": "0c5ba88b819c8630e8dedc45507c93c7aec1131a3318f3ffbec91e50c9b5dc75",
+      "updatedTimeRange": [
+        1779456237621,
+        1784870106652
+      ],
+      "warning": "The number of documents examined is high in proportion to the number of results returned. Consider adding a more specific index to improve this.",
+      "sample": 4
+    },
+    {
+      "id": "sync-content-tag-first-subtype-index",
+      "status": 200,
+      "firstByteMs": 70.26837499999965,
+      "totalMs": 70.42904199999975,
+      "transferMs": 0.16066700000010314,
+      "encoding": "br",
+      "wireBytes": 15505,
+      "decodedBytes": 125728,
+      "docs": 100,
+      "fieldBytes": {
+        "_id": 2847,
+        "_rev": 3701,
+        "memberOf": 2400,
+        "type": 900,
+        "updatedBy": 1800,
+        "parentId": 1803,
+        "language": 1980,
+        "status": 1100,
+        "slug": 1854,
+        "title": 1811,
+        "publishDate": 1300,
+        "parentTags": 3278,
+        "parentTagType": 742,
+        "parentPublishDateVisible": 500,
+        "parentPinned": 100,
+        "availableTranslations": 7045,
+        "parentType": 500,
+        "parentTaggedDocs": 23013,
+        "updatedTimeUtc": 1300,
+        "fts": 9908,
+        "ftsTokenCount": 140,
+        "wordCount": 106,
+        "parentShowComingSoon": 15,
+        "parentUseVerticalTileLayout": 12,
+        "summary": 972,
+        "parentImageData": 20334,
+        "parentImageBucketId": 2128
+      },
+      "docIdsHash": "0c5ba88b819c8630e8dedc45507c93c7aec1131a3318f3ffbec91e50c9b5dc75",
+      "updatedTimeRange": [
+        1779456237621,
+        1784870106652
+      ],
+      "sample": 4
+    },
+    {
+      "id": "sync-content-post",
+      "status": 200,
+      "firstByteMs": 19.572291000000405,
+      "totalMs": 19.726958000000195,
+      "transferMs": 0.15466699999979028,
+      "encoding": "gzip",
+      "wireBytes": 173,
+      "decodedBytes": 213,
+      "docs": 0,
+      "fieldBytes": {},
+      "docIdsHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "warning": "The number of documents examined is high in proportion to the number of results returned. Consider adding a more specific index to improve this.",
+      "sample": 0
+    },
+    {
+      "id": "sync-content-post-subtype-index",
+      "status": 200,
+      "firstByteMs": 17.906082999999853,
+      "totalMs": 17.9940830000005,
+      "transferMs": 0.08800000000064756,
+      "encoding": "identity",
+      "wireBytes": 56,
+      "decodedBytes": 56,
+      "docs": 0,
+      "fieldBytes": {},
+      "docIdsHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "sample": 0
+    },
+    {
+      "id": "sync-content-post-subtype-index",
+      "status": 200,
+      "firstByteMs": 17.593667000000096,
+      "totalMs": 17.747416999999587,
+      "transferMs": 0.15374999999949068,
+      "encoding": "identity",
+      "wireBytes": 56,
+      "decodedBytes": 56,
+      "docs": 0,
+      "fieldBytes": {},
+      "docIdsHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "sample": 1
+    },
+    {
+      "id": "sync-content-post",
+      "status": 200,
+      "firstByteMs": 18.95612500000061,
+      "totalMs": 19.028125000000728,
+      "transferMs": 0.07200000000011642,
+      "encoding": "gzip",
+      "wireBytes": 173,
+      "decodedBytes": 213,
+      "docs": 0,
+      "fieldBytes": {},
+      "docIdsHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "warning": "The number of documents examined is high in proportion to the number of results returned. Consider adding a more specific index to improve this.",
+      "sample": 1
+    },
+    {
+      "id": "sync-content-post",
+      "status": 200,
+      "firstByteMs": 21.313624999999774,
+      "totalMs": 21.429916999999477,
+      "transferMs": 0.11629199999970297,
+      "encoding": "gzip",
+      "wireBytes": 173,
+      "decodedBytes": 213,
+      "docs": 0,
+      "fieldBytes": {},
+      "docIdsHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "warning": "The number of documents examined is high in proportion to the number of results returned. Consider adding a more specific index to improve this.",
+      "sample": 2
+    },
+    {
+      "id": "sync-content-post-subtype-index",
+      "status": 200,
+      "firstByteMs": 22.3060830000004,
+      "totalMs": 22.468165999999655,
+      "transferMs": 0.16208299999925657,
+      "encoding": "identity",
+      "wireBytes": 56,
+      "decodedBytes": 56,
+      "docs": 0,
+      "fieldBytes": {},
+      "docIdsHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "sample": 2
+    },
+    {
+      "id": "sync-content-post-subtype-index",
+      "status": 200,
+      "firstByteMs": 19.35899999999947,
+      "totalMs": 19.511249999999563,
+      "transferMs": 0.1522500000000946,
+      "encoding": "identity",
+      "wireBytes": 56,
+      "decodedBytes": 56,
+      "docs": 0,
+      "fieldBytes": {},
+      "docIdsHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "sample": 3
+    },
+    {
+      "id": "sync-content-post",
+      "status": 200,
+      "firstByteMs": 19.546042000000853,
+      "totalMs": 19.720542000000023,
+      "transferMs": 0.17449999999917054,
+      "encoding": "gzip",
+      "wireBytes": 173,
+      "decodedBytes": 213,
+      "docs": 0,
+      "fieldBytes": {},
+      "docIdsHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "warning": "The number of documents examined is high in proportion to the number of results returned. Consider adding a more specific index to improve this.",
+      "sample": 3
+    },
+    {
+      "id": "sync-content-post",
+      "status": 200,
+      "firstByteMs": 18.018833000000086,
+      "totalMs": 18.25016599999981,
+      "transferMs": 0.23133299999972223,
+      "encoding": "gzip",
+      "wireBytes": 173,
+      "decodedBytes": 213,
+      "docs": 0,
+      "fieldBytes": {},
+      "docIdsHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "warning": "The number of documents examined is high in proportion to the number of results returned. Consider adding a more specific index to improve this.",
+      "sample": 4
+    },
+    {
+      "id": "sync-content-post-subtype-index",
+      "status": 200,
+      "firstByteMs": 18.15758399999868,
+      "totalMs": 18.323708999998416,
+      "transferMs": 0.16612499999973807,
+      "encoding": "identity",
+      "wireBytes": 56,
+      "decodedBytes": 56,
+      "docs": 0,
+      "fieldBytes": {},
+      "docIdsHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "sample": 4
+    },
+    {
+      "id": "sync-content-tag",
+      "status": 200,
+      "firstByteMs": 18.875958000000537,
+      "totalMs": 19.06737500000054,
+      "transferMs": 0.19141700000000128,
+      "encoding": "gzip",
+      "wireBytes": 173,
+      "decodedBytes": 213,
+      "docs": 0,
+      "fieldBytes": {},
+      "docIdsHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "warning": "The number of documents examined is high in proportion to the number of results returned. Consider adding a more specific index to improve this.",
+      "sample": 0
+    },
+    {
+      "id": "sync-content-tag-subtype-index",
+      "status": 200,
+      "firstByteMs": 27.696916999999303,
+      "totalMs": 27.906041999998706,
+      "transferMs": 0.20912499999940337,
+      "encoding": "identity",
+      "wireBytes": 56,
+      "decodedBytes": 56,
+      "docs": 0,
+      "fieldBytes": {},
+      "docIdsHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "sample": 0
+    },
+    {
+      "id": "sync-content-tag-subtype-index",
+      "status": 200,
+      "firstByteMs": 21.954541000000972,
+      "totalMs": 22.188000000000102,
+      "transferMs": 0.23345899999912945,
+      "encoding": "identity",
+      "wireBytes": 56,
+      "decodedBytes": 56,
+      "docs": 0,
+      "fieldBytes": {},
+      "docIdsHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "sample": 1
+    },
+    {
+      "id": "sync-content-tag",
+      "status": 200,
+      "firstByteMs": 19.27375000000029,
+      "totalMs": 19.460417000000234,
+      "transferMs": 0.18666699999994307,
+      "encoding": "gzip",
+      "wireBytes": 173,
+      "decodedBytes": 213,
+      "docs": 0,
+      "fieldBytes": {},
+      "docIdsHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "warning": "The number of documents examined is high in proportion to the number of results returned. Consider adding a more specific index to improve this.",
+      "sample": 1
+    },
+    {
+      "id": "sync-content-tag",
+      "status": 200,
+      "firstByteMs": 19.452084000000468,
+      "totalMs": 19.634374999999636,
+      "transferMs": 0.18229099999916798,
+      "encoding": "gzip",
+      "wireBytes": 173,
+      "decodedBytes": 213,
+      "docs": 0,
+      "fieldBytes": {},
+      "docIdsHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "warning": "The number of documents examined is high in proportion to the number of results returned. Consider adding a more specific index to improve this.",
+      "sample": 2
+    },
+    {
+      "id": "sync-content-tag-subtype-index",
+      "status": 200,
+      "firstByteMs": 30.39208300000064,
+      "totalMs": 30.546707999999853,
+      "transferMs": 0.1546249999992142,
+      "encoding": "identity",
+      "wireBytes": 56,
+      "decodedBytes": 56,
+      "docs": 0,
+      "fieldBytes": {},
+      "docIdsHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "sample": 2
+    },
+    {
+      "id": "sync-content-tag-subtype-index",
+      "status": 200,
+      "firstByteMs": 17.761125000000902,
+      "totalMs": 18.059792000000016,
+      "transferMs": 0.2986669999991136,
+      "encoding": "identity",
+      "wireBytes": 56,
+      "decodedBytes": 56,
+      "docs": 0,
+      "fieldBytes": {},
+      "docIdsHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "sample": 3
+    },
+    {
+      "id": "sync-content-tag",
+      "status": 200,
+      "firstByteMs": 20.26458299999831,
+      "totalMs": 20.444124999999985,
+      "transferMs": 0.17954200000167475,
+      "encoding": "gzip",
+      "wireBytes": 173,
+      "decodedBytes": 213,
+      "docs": 0,
+      "fieldBytes": {},
+      "docIdsHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "warning": "The number of documents examined is high in proportion to the number of results returned. Consider adding a more specific index to improve this.",
+      "sample": 3
+    },
+    {
+      "id": "sync-content-tag",
+      "status": 200,
+      "firstByteMs": 18.8782910000009,
+      "totalMs": 19.05633300000045,
+      "transferMs": 0.17804199999955017,
+      "encoding": "gzip",
+      "wireBytes": 173,
+      "decodedBytes": 213,
+      "docs": 0,
+      "fieldBytes": {},
+      "docIdsHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "warning": "The number of documents examined is high in proportion to the number of results returned. Consider adding a more specific index to improve this.",
+      "sample": 4
+    },
+    {
+      "id": "sync-content-tag-subtype-index",
+      "status": 200,
+      "firstByteMs": 18.84583300000122,
+      "totalMs": 19.036000000000058,
+      "transferMs": 0.19016699999883713,
+      "encoding": "identity",
+      "wireBytes": 56,
+      "decodedBytes": 56,
+      "docs": 0,
+      "fieldBytes": {},
+      "docIdsHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "sample": 4
+    },
+    {
+      "id": "sync-content-publishDate-window",
+      "status": 200,
+      "firstByteMs": 24.701167000001078,
+      "totalMs": 24.89208300000064,
+      "transferMs": 0.19091599999956088,
+      "encoding": "gzip",
+      "wireBytes": 560,
+      "decodedBytes": 754,
+      "docs": 1,
+      "fieldBytes": {
+        "_id": 38,
+        "_rev": 36,
+        "type": 9,
+        "parentId": 38,
+        "parentType": 6,
+        "memberOf": 63,
+        "language": 10,
+        "status": 11,
+        "publishDate": 13,
+        "expiryDate": 13,
+        "updatedTimeUtc": 13
+      },
+      "docIdsHash": "8a999238546f1cafd6b453485248dc0186afcaf4ff44bb7ff933eaf62341d930",
+      "updatedTimeRange": [
+        1787745672836,
+        1787745672836
+      ],
+      "warning": "The number of documents examined is high in proportion to the number of results returned. Consider adding a more specific index to improve this.",
+      "sample": 0
+    },
+    {
+      "id": "sync-content-publishDate-window-subtype-index",
+      "status": 200,
+      "firstByteMs": 24.09137499999997,
+      "totalMs": 24.22504200000003,
+      "transferMs": 0.1336670000000595,
+      "encoding": "gzip",
+      "wireBytes": 524,
+      "decodedBytes": 742,
+      "docs": 1,
+      "fieldBytes": {
+        "_id": 38,
+        "_rev": 36,
+        "type": 9,
+        "parentId": 38,
+        "parentType": 6,
+        "memberOf": 63,
+        "language": 10,
+        "status": 11,
+        "publishDate": 13,
+        "expiryDate": 13,
+        "updatedTimeUtc": 13
+      },
+      "docIdsHash": "8a999238546f1cafd6b453485248dc0186afcaf4ff44bb7ff933eaf62341d930",
+      "updatedTimeRange": [
+        1787745672836,
+        1787745672836
+      ],
+      "warning": "The number of documents examined is high in proportion to the number of results returned. Consider adding a more specific index to improve this.",
+      "sample": 0
+    },
+    {
+      "id": "sync-content-publishDate-window-subtype-index",
+      "status": 200,
+      "firstByteMs": 22.109832999998616,
+      "totalMs": 22.324291999999332,
+      "transferMs": 0.2144590000007156,
+      "encoding": "gzip",
+      "wireBytes": 524,
+      "decodedBytes": 742,
+      "docs": 1,
+      "fieldBytes": {
+        "_id": 38,
+        "_rev": 36,
+        "type": 9,
+        "parentId": 38,
+        "parentType": 6,
+        "memberOf": 63,
+        "language": 10,
+        "status": 11,
+        "publishDate": 13,
+        "expiryDate": 13,
+        "updatedTimeUtc": 13
+      },
+      "docIdsHash": "8a999238546f1cafd6b453485248dc0186afcaf4ff44bb7ff933eaf62341d930",
+      "updatedTimeRange": [
+        1787745672836,
+        1787745672836
+      ],
+      "warning": "The number of documents examined is high in proportion to the number of results returned. Consider adding a more specific index to improve this.",
+      "sample": 1
+    },
+    {
+      "id": "sync-content-publishDate-window",
+      "status": 200,
+      "firstByteMs": 21.832209000000148,
+      "totalMs": 22.092209000000366,
+      "transferMs": 0.2600000000002183,
+      "encoding": "gzip",
+      "wireBytes": 560,
+      "decodedBytes": 754,
+      "docs": 1,
+      "fieldBytes": {
+        "_id": 38,
+        "_rev": 36,
+        "type": 9,
+        "parentId": 38,
+        "parentType": 6,
+        "memberOf": 63,
+        "language": 10,
+        "status": 11,
+        "publishDate": 13,
+        "expiryDate": 13,
+        "updatedTimeUtc": 13
+      },
+      "docIdsHash": "8a999238546f1cafd6b453485248dc0186afcaf4ff44bb7ff933eaf62341d930",
+      "updatedTimeRange": [
+        1787745672836,
+        1787745672836
+      ],
+      "warning": "The number of documents examined is high in proportion to the number of results returned. Consider adding a more specific index to improve this.",
+      "sample": 1
+    },
+    {
+      "id": "sync-content-publishDate-window",
+      "status": 200,
+      "firstByteMs": 21.873500000001513,
+      "totalMs": 22.03541700000096,
+      "transferMs": 0.1619169999994483,
+      "encoding": "gzip",
+      "wireBytes": 560,
+      "decodedBytes": 754,
+      "docs": 1,
+      "fieldBytes": {
+        "_id": 38,
+        "_rev": 36,
+        "type": 9,
+        "parentId": 38,
+        "parentType": 6,
+        "memberOf": 63,
+        "language": 10,
+        "status": 11,
+        "publishDate": 13,
+        "expiryDate": 13,
+        "updatedTimeUtc": 13
+      },
+      "docIdsHash": "8a999238546f1cafd6b453485248dc0186afcaf4ff44bb7ff933eaf62341d930",
+      "updatedTimeRange": [
+        1787745672836,
+        1787745672836
+      ],
+      "warning": "The number of documents examined is high in proportion to the number of results returned. Consider adding a more specific index to improve this.",
+      "sample": 2
+    },
+    {
+      "id": "sync-content-publishDate-window-subtype-index",
+      "status": 200,
+      "firstByteMs": 23.60845899999913,
+      "totalMs": 23.750334000000294,
+      "transferMs": 0.14187500000116415,
+      "encoding": "gzip",
+      "wireBytes": 524,
+      "decodedBytes": 742,
+      "docs": 1,
+      "fieldBytes": {
+        "_id": 38,
+        "_rev": 36,
+        "type": 9,
+        "parentId": 38,
+        "parentType": 6,
+        "memberOf": 63,
+        "language": 10,
+        "status": 11,
+        "publishDate": 13,
+        "expiryDate": 13,
+        "updatedTimeUtc": 13
+      },
+      "docIdsHash": "8a999238546f1cafd6b453485248dc0186afcaf4ff44bb7ff933eaf62341d930",
+      "updatedTimeRange": [
+        1787745672836,
+        1787745672836
+      ],
+      "warning": "The number of documents examined is high in proportion to the number of results returned. Consider adding a more specific index to improve this.",
+      "sample": 2
+    },
+    {
+      "id": "sync-content-publishDate-window-subtype-index",
+      "status": 200,
+      "firstByteMs": 20.67224999999962,
+      "totalMs": 20.877207999999882,
+      "transferMs": 0.20495800000026065,
+      "encoding": "gzip",
+      "wireBytes": 524,
+      "decodedBytes": 742,
+      "docs": 1,
+      "fieldBytes": {
+        "_id": 38,
+        "_rev": 36,
+        "type": 9,
+        "parentId": 38,
+        "parentType": 6,
+        "memberOf": 63,
+        "language": 10,
+        "status": 11,
+        "publishDate": 13,
+        "expiryDate": 13,
+        "updatedTimeUtc": 13
+      },
+      "docIdsHash": "8a999238546f1cafd6b453485248dc0186afcaf4ff44bb7ff933eaf62341d930",
+      "updatedTimeRange": [
+        1787745672836,
+        1787745672836
+      ],
+      "warning": "The number of documents examined is high in proportion to the number of results returned. Consider adding a more specific index to improve this.",
+      "sample": 3
+    },
+    {
+      "id": "sync-content-publishDate-window",
+      "status": 200,
+      "firstByteMs": 22.63129200000003,
+      "totalMs": 22.869291999999405,
+      "transferMs": 0.23799999999937427,
+      "encoding": "gzip",
+      "wireBytes": 560,
+      "decodedBytes": 754,
+      "docs": 1,
+      "fieldBytes": {
+        "_id": 38,
+        "_rev": 36,
+        "type": 9,
+        "parentId": 38,
+        "parentType": 6,
+        "memberOf": 63,
+        "language": 10,
+        "status": 11,
+        "publishDate": 13,
+        "expiryDate": 13,
+        "updatedTimeUtc": 13
+      },
+      "docIdsHash": "8a999238546f1cafd6b453485248dc0186afcaf4ff44bb7ff933eaf62341d930",
+      "updatedTimeRange": [
+        1787745672836,
+        1787745672836
+      ],
+      "warning": "The number of documents examined is high in proportion to the number of results returned. Consider adding a more specific index to improve this.",
+      "sample": 3
+    },
+    {
+      "id": "sync-content-publishDate-window",
+      "status": 200,
+      "firstByteMs": 23.554541999999856,
+      "totalMs": 23.740625000000364,
+      "transferMs": 0.18608300000050804,
+      "encoding": "gzip",
+      "wireBytes": 560,
+      "decodedBytes": 754,
+      "docs": 1,
+      "fieldBytes": {
+        "_id": 38,
+        "_rev": 36,
+        "type": 9,
+        "parentId": 38,
+        "parentType": 6,
+        "memberOf": 63,
+        "language": 10,
+        "status": 11,
+        "publishDate": 13,
+        "expiryDate": 13,
+        "updatedTimeUtc": 13
+      },
+      "docIdsHash": "8a999238546f1cafd6b453485248dc0186afcaf4ff44bb7ff933eaf62341d930",
+      "updatedTimeRange": [
+        1787745672836,
+        1787745672836
+      ],
+      "warning": "The number of documents examined is high in proportion to the number of results returned. Consider adding a more specific index to improve this.",
+      "sample": 4
+    },
+    {
+      "id": "sync-content-publishDate-window-subtype-index",
+      "status": 200,
+      "firstByteMs": 21.801000000001295,
+      "totalMs": 21.9481250000008,
+      "transferMs": 0.14712499999950523,
+      "encoding": "gzip",
+      "wireBytes": 524,
+      "decodedBytes": 742,
+      "docs": 1,
+      "fieldBytes": {
+        "_id": 38,
+        "_rev": 36,
+        "type": 9,
+        "parentId": 38,
+        "parentType": 6,
+        "memberOf": 63,
+        "language": 10,
+        "status": 11,
+        "publishDate": 13,
+        "expiryDate": 13,
+        "updatedTimeUtc": 13
+      },
+      "docIdsHash": "8a999238546f1cafd6b453485248dc0186afcaf4ff44bb7ff933eaf62341d930",
+      "updatedTimeRange": [
+        1787745672836,
+        1787745672836
+      ],
+      "warning": "The number of documents examined is high in proportion to the number of results returned. Consider adding a more specific index to improve this.",
+      "sample": 4
+    }
+  ],
+  "completedAt": "2026-09-08T10:22:56.013Z"
+}

@@ -4,6 +4,8 @@ import * as path from "path";
 dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
 
 export type PerfConfig = {
+    /** Skip direct CouchDB access when measuring a remote API. */
+    apiOnly?: boolean;
     /** Base URL of the running API. */
     baseUrl: string;
     /** CouchDB root URL (with credentials) and database name, for direct `_explain` / index reads. */
@@ -36,17 +38,24 @@ export function loadConfig(argv: string[]): PerfConfig {
         .toString()
         .replace(/\/+$/, "");
 
+    const apiOnly = flags["api-only"] === true || flags["api-only"] === "true";
     const requested = flags.suites
         ? String(flags.suites)
               .split(",")
               .map((s) => s.trim())
-        : ALL_SUITES;
+        : apiOnly
+          ? ["latency", "fts", "socket"]
+          : ALL_SUITES;
     const unknown = requested.filter((s) => !ALL_SUITES.includes(s));
     if (unknown.length) {
         throw new Error(`Unknown suite(s): ${unknown.join(", ")}. Known: ${ALL_SUITES.join(", ")}`);
     }
+    if (apiOnly && requested.some((suite) => suite === "indexes" || suite === "explain")) {
+        throw new Error("--api-only cannot run indexes or explain without the target CouchDB.");
+    }
 
     return {
+        apiOnly,
         baseUrl: (
             flags.url ??
             process.env.PERF_BASE_URL ??

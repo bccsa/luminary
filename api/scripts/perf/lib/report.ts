@@ -36,7 +36,15 @@ export function writeReport(report: AuditReport): { jsonPath: string; mdPath: st
     const jsonPath = path.join(report.config.outDir, `perf-audit-${stamp}.json`);
     const mdPath = path.join(report.config.outDir, `perf-audit-${stamp}.md`);
 
-    fs.writeFileSync(jsonPath, JSON.stringify(report, null, 2));
+    // Reports may be shared; never persist bearer tokens or CouchDB credentials.
+    const safeConfig = {
+        ...report.config,
+        token: report.config.token ? "[redacted]" : undefined,
+        couchUrl: report.config.apiOnly
+            ? undefined
+            : report.config.couchUrl.replace(/\/\/[^@]*@/, "//***@"),
+    };
+    fs.writeFileSync(jsonPath, JSON.stringify({ ...report, config: safeConfig }, null, 2));
     fs.writeFileSync(mdPath, renderMarkdown(report));
 
     return { jsonPath, mdPath };
@@ -371,7 +379,12 @@ function renderMarkdown(report: AuditReport): string {
     const out: string[] = [];
 
     out.push(`# API performance audit`);
-    out.push(`Run ${report.startedAt} against ${config.baseUrl} (database \`${config.couchDb}\`).`);
+    out.push(
+        `Run ${report.startedAt} against ${config.baseUrl}` +
+            (config.apiOnly
+                ? " (API-only; database not inspected)."
+                : ` (database \`${config.couchDb}\`).`),
+    );
     out.push("");
     out.push(
         `Identity: **${context.anonymous ? "anonymous" : "authenticated"}**. ` +
@@ -379,6 +392,15 @@ function renderMarkdown(report: AuditReport): string {
             `Suites: ${config.suites.join(", ")}.`,
     );
     out.push("");
+
+    if (config.apiOnly) {
+        out.push(
+            "> API-only measurement: internal phases require X-Perf-Trace. Where tracing is absent, " +
+                "zero phase/DB/pipeline values mean unavailable, not zero work. Client timings include " +
+                "network, proxy and body transfer; they cannot by themselves identify a server bottleneck.",
+        );
+        out.push("");
+    }
 
     if (context.anonymous) {
         out.push(
@@ -402,7 +424,11 @@ function renderMarkdown(report: AuditReport): string {
         ),
     );
     out.push("");
-    out.push(`Database file size: **${humanBytes(context.dbSizeBytes)}**.`);
+    out.push(
+        config.apiOnly
+            ? "Database counts, size and query plans: unavailable (API-only mode)."
+            : `Database file size: **${humanBytes(context.dbSizeBytes)}**.`,
+    );
     out.push("");
 
     out.push(`## Findings`);
@@ -423,7 +449,7 @@ function renderMarkdown(report: AuditReport): string {
             `\`client\` is end-to-end including transfer. \`server\` is the API's own handler time. ` +
                 `\`auth\`/\`validate\`/\`couch\` are traced phases; \`db\` counts CouchDB round trips per request. ` +
                 `\`examined\` is CouchDB's \`total_docs_examined\`. \`wire\` is the Brotli-compressed ` +
-                `body (what the client downloads); \`decoded\` is what it parses.`,
+                `body estimated locally (not measured wire traffic); \`decoded\` is what it parses.`,
         );
         out.push("");
 
@@ -572,9 +598,9 @@ function renderMarkdown(report: AuditReport): string {
     if (report.concurrency?.length) {
         out.push(`## Latency under load`);
         out.push(
-            `\`queue ms\` is client time minus server handler time — how long a request waited before ` +
-                `the API handled it. It growing faster than \`server p95\` points at the Node event loop ` +
-                `rather than CouchDB.`,
+            `\`queue ms\` is client time minus server handler time. It includes network, proxy, transfer ` +
+                `and client overhead as well as potential server queueing; it does not isolate the Node event loop. ` +
+                `Without tracing, queue/server/DB values are unavailable.`,
         );
         out.push("");
         out.push(

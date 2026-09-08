@@ -1,0 +1,41 @@
+# ID-list query — CouchDB _explain + execution_stats
+# DB: luminary-perf-pr1818-20260908 (replica of luminary-local, 6356 docs)
+# 2026-09-08T11:31:24Z
+
+25 ids, memberOf groups seen: ["group-super-admins","acd56710-34d9-418b-8347-ff8e07a3a2a6","group-private-content","group-public-content","fcc13c89-9d23-4107-896a-06025ad35194"]
+
+A. {_id:$in} only
+  chosen index : _all_docs (special)
+  fields covered: [{"_id":"asc"}]
+  docs returned : 25   examined: 6356   keys: 6356   time: 366.9ms
+  WARNING: No matching index found, create an index to optimize query time.
+The number of documents examined is high in proportion to the number of results returned. Consider adding a more specific index to improve this.
+
+B. {type, _id:$in}
+  chosen index : type-index (json)
+  fields covered: [{"type":"asc"}]
+  docs returned : 25   examined: 2423   keys: 2423   time: 214.2ms
+  WARNING: The number of documents examined is high in proportion to the number of results returned. Consider adding a more specific index to improve this.
+
+C. {type, _id:$in, memberOf:$elemMatch} (permission-injected)
+  chosen index : type-index (json)
+  fields covered: [{"type":"asc"}]
+  docs returned : 25   examined: 2423   keys: 2423   time: 204.3ms
+  WARNING: The number of documents examined is high in proportion to the number of results returned. Consider adding a more specific index to improve this.
+
+D. C + use_index _all_docs (special)
+  chosen index : type-index (json)
+  fields covered: [{"type":"asc"}]
+  docs returned : 25   examined: 2423   keys: 2423   time: 229.9ms
+  WARNING: _design/_all_docs was not used because it does not contain a valid index for this query.
+The number of documents examined is high in proportion to the number of results returned. Consider adding a more specific index to improve this.
+
+E. C + sort updatedTimeUtc + use_index sync-post-content-index
+  chosen index : sync-post-content-index (json)
+  fields covered: [{"updatedTimeUtc":"desc"}]
+  docs returned : 25   examined: 1927   keys: 1927   time: 193.9ms
+  WARNING: The number of documents examined is high in proportion to the number of results returned. Consider adding a more specific index to improve this.
+
+=== _all_docs?keys vs Mango scan ===
+_all_docs?keys (25 keys): 25 docs in 2.9ms  (rows examined = 25, not the partition)
+_find {type,_id:$in}       : 25 docs in 205.5ms  examined 2423
