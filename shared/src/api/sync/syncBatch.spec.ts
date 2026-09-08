@@ -74,8 +74,30 @@ describe("syncBatch", () => {
             ),
         ).toEqual(languages);
         expect(body.identifier).toBe("sync");
-        // Content uses the de-partitioned single index regardless of parentType.
+        // Post content uses the generic content index.
         expect(body.use_index).toBe("sync-content-index");
+    });
+
+    it("pins tag content sync to the tag-partial index", async () => {
+        const docs = makeDocs(5, 5000, 10);
+        const capturedBodies: any[] = [];
+        const http = {
+            post: vi.fn(async (_path: string, body: any) => {
+                capturedBodies.push(body);
+                return { docs };
+            }),
+        };
+        await syncBatch({
+            type: DocType.Content,
+            subType: DocType.Tag,
+            memberOf: ["g1"],
+            limit: 10,
+            initialSync: true,
+            languages: ["en"],
+            httpService: http as any,
+        });
+        expect(capturedBodies[0].selector.parentType).toBe(DocType.Tag);
+        expect(capturedBodies[0].use_index).toBe("sync-tag-content-index");
     });
 
     it("uses a flat language $in for CMS content sync (no fallback keep)", async () => {

@@ -74,12 +74,19 @@ export async function syncBatch(options: SyncOptions) {
         use_index:
             options.type === DocType.Content && options.alwaysOffline
                 ? "sync-content-alwaysOffline-index"
-                : options.type === DocType.Content
-                  ? "sync-content-index"
-                  : "sync-" +
-                    (options.subType ? options.subType + "-" : "") +
-                    options.type +
-                    "-index",
+                : // Tag content is a small slice of the content partition. The generic
+                  // sync-content-index walks the whole updatedTimeUtc range (mostly post
+                  // content) before filtering parentType; the tag-partial index skips that.
+                  // Post content stays on the generic index — measured no faster on its own
+                  // index and still scans under a publishDate filter.
+                  options.type === DocType.Content && options.subType === DocType.Tag
+                  ? "sync-tag-content-index"
+                  : options.type === DocType.Content
+                    ? "sync-content-index"
+                    : "sync-" +
+                      (options.subType ? options.subType + "-" : "") +
+                      options.type +
+                      "-index",
         cms: options.cms,
         identifier: "sync", // Identifier for the API query validation template
     };

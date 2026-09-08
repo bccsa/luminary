@@ -46,6 +46,12 @@ measured *slower* for initial post sync and still scans on publishDate filtering
 it's already in the pinnable-index registry; no shared-side sync validator restricts
 `use_index`.
 
+**Status — done on this branch.** `syncBatch.ts` now pins `sync-tag-content-index`
+for `type=Content, subType=Tag`. Branch check against the local replica, tag initial
+sync (100 docs): **142 ms / 2 164 examined / scan 15/15 → 16 ms / 275 examined /
+0 warnings**, identical result set. (Local ratio ~9×; production A/B was 5×.) The
+publishDate-cutoff / multi-page validation above is still worth doing before prod.
+
 ---
 
 ## 2. ID-list lookup does a full partition scan — 208 ms → 3 ms
@@ -76,6 +82,14 @@ by-key fetch the `/fts` endpoint already does for its top-K. ~60× on this shape
 
 **Risk:** low. It's a narrow special-case; the permission filter still runs in JS on
 the fetched docs (same as the sync/HybridQuery paths do today). Not touched by #1818.
+
+**Status — done on this branch.** Implemented as a **per-id `_id: {$eq}` fan-out**
+(`api/src/util/queryIdFanout.ts`) rather than `_all_docs?keys`: fanning out lets
+CouchDB apply the whole permission-injected selector per sub-query, so nothing has to
+be re-evaluated in JS. Bounded at 100 ids / 20 concurrent; above the cap it falls
+back to the single query. Mirrors the #1818 parentId fan-out shape. Branch check
+against the local replica, `_id:{$in}` × 25: **229 ms / 2 423 examined / scan 20/20
+→ 9.5 ms / 25 examined / 0 warnings**, identical result set (~24× local).
 
 ---
 
@@ -152,8 +166,8 @@ matching write. Two of them (`sync-tag-content-index`, `sync-post-content-index`
 
 | # | Change | Effort | Payoff | Where |
 |---|---|---|---|---|
-| 1 | Tag sync → `sync-tag-content-index` | 1 line + validation | 5× on tag sync | `syncBatch.ts` — new PR |
-| 2 | ID-list → `_all_docs?keys` path | small API change | 60× on id-diff supplement | `query.service.ts` — new PR |
+| 1 | Tag sync → `sync-tag-content-index` | 1 line + validation | 5× on tag sync | ✅ done on this branch (`syncBatch.ts`) |
+| 2 | ID-list → per-id `$eq` fan-out | small API change | ~24× local on id-diff supplement | ✅ done on this branch (`queryIdFanout.ts`) |
 | 3 | #1818 no-sort fan-out gap | small | avoids a regression | on #1818 |
 | 4 | Land + measure #1719 | review | largest real-world gain | #1719 |
 | 5 | Post-sync page size | measure per env | modest | `syncBatch.ts` |

@@ -11,6 +11,7 @@ import { LanguageDto } from "../dto/LanguageDto";
 import { expandMangoSelector } from "../util/expandMangoQuery";
 import { isExpiredContent, stripExpiredContent } from "../util/stripExpiredContent";
 import { mark, span } from "../util/perfTrace";
+import { findIdInList, MAX_ID_FANOUT, runIdListFanout } from "../util/queryIdFanout";
 
 @Injectable()
 export class QueryService {
@@ -271,7 +272,15 @@ export class QueryService {
         // languages / search callers of that method are unaffected.
         (query as any).execution_stats = true;
         mark("permissionFilter", performance.now() - filterStart);
-        const result = await span("couch", () => this.db.executeFindQuery(query));
+
+        // Mango can't seek the primary index for `_id: { $in: [...] }` — it scans the
+        // whole partition. Fan a bounded id-list out to per-id lookups instead.
+        const idHit = findIdInList(query.selector.$and);
+        const result = await span("couch", () =>
+            idHit && idHit.ids.length <= MAX_ID_FANOUT
+                ? runIdListFanout(query, idHit, (q) => this.db.executeFindQuery(q))
+                : this.db.executeFindQuery(query),
+        );
         const postStart = performance.now();
 
         // Data minimization (covers both sync and HybridQuery — both POST /query): a non-CMS

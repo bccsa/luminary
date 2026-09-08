@@ -954,4 +954,69 @@ describe("QueryService", () => {
             expect(res.docs[0]).toHaveProperty("title", "secret title");
         });
     });
+
+    describe("_id list fan-out", () => {
+        beforeEach(() => {
+            const access = {
+                [DocType.Post]: ["gp1"],
+                [DocType.Tag]: ["gt1"],
+                [DocType.Language]: ["lang-g1"],
+            } as any;
+            (permissions.PermissionSystem.accessMapToGroups as jest.Mock).mockReturnValue(access);
+            (service as any).languages = [{ _id: "lang-eng", memberOf: ["lang-g1"] }];
+        });
+
+        it("splits `_id: { $in }` into one equality query per id", async () => {
+            dbService.executeFindQuery.mockImplementation(async (q: any) => {
+                const eq = q.selector.$and.find((c: any) => c._id?.$eq)?._id.$eq;
+                return { docs: [{ _id: eq, type: DocType.Content, updatedTimeUtc: 1 }] };
+            });
+
+            const query = makeQuery((s) => {
+                (s as any).type = DocType.Content;
+                (s as any).parentType = DocType.Post;
+                (s as any)._id = { $in: ["a", "b", "c"] };
+            });
+
+            const res = await service.query(query, mockUser);
+
+            expect(dbService.executeFindQuery).toHaveBeenCalledTimes(3);
+            for (const call of dbService.executeFindQuery.mock.calls) {
+                const idClause = call[0].selector.$and.find((c: any) => c._id);
+                expect(idClause._id).toHaveProperty("$eq");
+                expect(idClause._id.$in).toBeUndefined();
+            }
+            expect(res.docs.map((d: any) => d._id).sort()).toEqual(["a", "b", "c"]);
+        });
+
+        it("dedupes ids and re-applies the original limit to the merged set", async () => {
+            dbService.executeFindQuery.mockImplementation(async (q: any) => {
+                const eq = q.selector.$and.find((c: any) => c._id?.$eq)?._id.$eq;
+                return { docs: [{ _id: eq, type: DocType.Content, updatedTimeUtc: 1 }] };
+            });
+
+            const query = makeQuery((s) => {
+                (s as any).type = DocType.Content;
+                (s as any).parentType = DocType.Post;
+                (s as any)._id = { $in: ["a", "a", "b", "c"] };
+            });
+            query.limit = 2;
+
+            const res = await service.query(query, mockUser);
+
+            expect(dbService.executeFindQuery).toHaveBeenCalledTimes(3);
+            expect(res.docs).toHaveLength(2);
+        });
+
+        it("does not fan out a normal (non id-list) content query", async () => {
+            const query = makeQuery((s) => {
+                (s as any).type = DocType.Content;
+                (s as any).parentType = DocType.Post;
+            });
+
+            await service.query(query, mockUser);
+
+            expect(dbService.executeFindQuery).toHaveBeenCalledTimes(1);
+        });
+    });
 });
