@@ -2,6 +2,16 @@
     @apply !bg-transparent;
 }
 
+/* The tapped player takes focus and WebKit draws its focus ring around it —
+   clipped by the full-width layout to a bare line above and below the video.
+   The player communicates focus through its own control styling instead. */
+.video-player .video-js:focus,
+.video-player .video-js:focus-visible,
+.video-player .vjs-tech:focus,
+.video-player .vjs-tech:focus-visible {
+    outline: none !important;
+}
+
 .video-player {
     @apply aspect-video !bg-transparent;
 }
