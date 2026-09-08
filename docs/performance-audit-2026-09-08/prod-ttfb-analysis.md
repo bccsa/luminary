@@ -1,10 +1,16 @@
-# Production TTFB — `api.app.bcc.africa`, 8 Sept 2026
+# Deployed-environment TTFB — production + staging, 8 Sept 2026
 
 Anonymous, sequential, from a single client. `ttfb` = request → response headers;
-production has no `X-Perf-Trace`, so there's no server phase breakdown — but TTFB is
-measurable, and for these shapes the body is small enough that **TTFB ≈ the API
-waiting on CouchDB**. Full run: `prod-run-2026-09-08T12-05.md`. Focused A/B:
-`prod-focused.cjs`.
+neither deployed API runs `X-Perf-Trace`, so there's no server phase breakdown — but
+TTFB is measurable, and for these shapes the body is small enough that **TTFB ≈ the
+API waiting on CouchDB**.
+
+- Production `api.app.bcc.africa` — `prod-run-2026-09-08T12-05.md`, `prod-focused.cjs`
+- Staging `api.staging.app.bcc.africa` — `staging-run-2026-09-08T12-12.md`, `staging-focused.cjs`
+
+Staging and production auto-deploy from the same `main` (ADR 0003) and share the data
+volume, so the scan costs match. Once this branch merges, **staging is where to
+re-run and watch the scans collapse**.
 
 ## The floor
 
@@ -70,3 +76,29 @@ scan removes the tail — §1 A/B: p95 **2 219 ms → 461 ms**.
   half is real (unlike local). §4.
 - **Auth**: this run is anonymous (13 ms floor). A logged-in request adds provider +
   JWKS + user lookups + `lastLogin` write on top — #1719.
+
+## Staging vs production
+
+Same code, same data volume. TTFB p50:
+
+| Shape | production | staging | note |
+| --- | ---: | ---: | --- |
+| `protected` (floor) | 13 ms | 12 ms | same network path |
+| slug lookup | 22 ms | 40 ms | staging colder |
+| single-parent | 26 ms | 45 ms | staging colder |
+| `hybrid-pinned` | 58 ms (p95 257) | 18 ms | prod view lag during the run |
+| `hybrid-by-tagType` | 106 ms | 37 ms | prod view lag |
+| **tag sync — generic index** | **450 ms** | **447 ms** | 🔴 identical scan |
+| tag sync — tag index | 107 ms | 129 ms | ✅ §1, both ~3.5–4× |
+| **`_id:{$in}` scan** | **~490 ms** | **~430 ms** | 🔴 identical scan |
+| multi-parent `$in` unsorted | 127 ms | 312 ms | 🔴 scan, both |
+| multi-parent `$in` **sorted** | **HTTP 500** | **HTTP 500** | 🔴 broken on both |
+| post sync ×100 | 197 + 103 ms | 202 + 83 ms | same |
+| FTS (various) | 276–592 ms | 254–801 ms | 🔴 slow + noisy on both |
+
+**The scan costs are the same on both** — they're driven by data volume and query
+shape, not environment or load. The environment-sensitive numbers (indexed queries,
+FTS, view-index freshness) bounce around but aren't the problem. §1 holds on staging:
+**447 → 129 ms**, p95 1 779 → 501, identical result set. The sorted multi-parent
+500 reproduces on staging too — it's a live defect in the deployed code, not a
+production-only quirk.
