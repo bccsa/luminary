@@ -12,10 +12,15 @@ import { MongoSelectorDto } from "../dto/MongoSelectorDto";
  */
 
 /** Above this the request storm outweighs the saved scan — fall back to the single query. */
-export const MAX_ID_FANOUT = 100;
+export const MAX_ID_FANOUT = 50;
 
-/** Cap concurrent CouchDB round trips so one request can't open one socket per id. */
-export const ID_FANOUT_CONCURRENCY = 20;
+/**
+ * Concurrent CouchDB round trips per fan-out. Kept low on purpose: a page load fires
+ * many /query requests at once, and each id-list here multiplies into this many more —
+ * a high cap starves the connection pool and drags every concurrent query down. Each
+ * sub-query is a ~1-doc primary-index lookup, so a small pipeline is plenty.
+ */
+export const ID_FANOUT_CONCURRENCY = 4;
 
 /**
  * Locate a top-level `{ _id: { $in: [...strings] } }` clause in an expanded `$and`.
