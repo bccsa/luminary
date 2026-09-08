@@ -39,7 +39,7 @@ export type PerfContext = {
     anonymous: boolean;
 };
 
-export async function discoverContext(api: ApiClient, couch: CouchClient): Promise<PerfContext> {
+export async function discoverContext(api: ApiClient, couch?: CouchClient): Promise<PerfContext> {
     const languages = await sample(api, { type: "language" }, 50);
     const groups = await sample(api, { type: "group" }, 200);
     const posts = await sample(api, { type: "post" }, 100);
@@ -60,7 +60,7 @@ export async function discoverContext(api: ApiClient, couch: CouchClient): Promi
     const contentGroups = unique(content.flatMap((d) => d.memberOf ?? []));
     const terms = pickTerms(content.map((d) => d.title ?? ""));
 
-    const dbInfo = await couch.dbInfo().catch(() => ({ sizes: { file: 0 } }));
+    const dbInfo = couch ? await couch.dbInfo().catch(() => ({ sizes: { file: 0 } })) : undefined;
     const counts: Record<string, number> = {};
     for (const type of [
         "content",
@@ -72,7 +72,7 @@ export async function discoverContext(api: ApiClient, couch: CouchClient): Promi
         "redirect",
         "deleteCmd",
     ]) {
-        counts[type] = await couch.countByType(type).catch(() => -1);
+        counts[type] = couch ? await couch.countByType(type).catch(() => -1) : -1;
     }
 
     return {

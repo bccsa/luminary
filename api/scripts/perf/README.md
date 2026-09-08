@@ -22,6 +22,7 @@ Reports land in `api/perf-reports/` as a Markdown summary plus the raw JSON behi
 | Flag | Default | Meaning |
 | :--- | :--- | :--- |
 | `--url=` | `http://localhost:$PORT` | API base URL |
+| `--api-only` | off | Skip all direct CouchDB access; defaults to latency, fts and socket suites |
 | `--db=` | `$DB_DATABASE` | CouchDB database to inspect for plans and index state |
 | `--couch=` | `$DB_CONNECTION_STRING` | CouchDB root URL |
 | `--suites=` | all | `indexes,explain,latency,fts,concurrency,socket` |
@@ -37,6 +38,17 @@ a provider-less `AutoGroupMappings` document granting some groups. With a token 
 authenticated auth path, which does substantially more work per request — worth measuring both.
 
 ## What each suite answers
+
+For a remote production API, start with a sequential anonymous run:
+
+```sh
+npm run perf:audit -- --url=https://api.app.bcc.africa --api-only --suites=latency,fts,socket --samples=5 --warmup=1
+```
+
+This avoids mixing the local `.env` database into remote results. Database counts and plans
+remain unavailable, and phase timings require tracing on the target API. Compare successful
+requests with equivalent identities, data and payload sizes; localhost timings exclude the
+production network path. Add the concurrency suite explicitly when measuring offered load.
 
 - **indexes** — which declared indexes are deployed, what they cost on disk, how far their views
   lag the database, and which ones nothing references any more. Every index is updated on every

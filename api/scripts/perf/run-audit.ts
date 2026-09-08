@@ -14,10 +14,14 @@ import { runSocketSuite } from "./suites/socket";
 async function main() {
     const config = loadConfig(process.argv.slice(2));
     const api = new ApiClient(config);
-    const couch = new CouchClient(config);
+    const couch = config.apiOnly ? undefined : new CouchClient(config);
 
     log(`Target        ${config.baseUrl}`);
-    log(`CouchDB       ${config.couchUrl.replace(/\/\/[^@]*@/, "//***@")}/${config.couchDb}`);
+    log(
+        config.apiOnly
+            ? "CouchDB       skipped (API-only mode)"
+            : `CouchDB       ${config.couchUrl.replace(/\/\/[^@]*@/, "//***@")}/${config.couchDb}`,
+    );
     log(`Suites        ${config.suites.join(", ")}`);
     log(`Identity      ${config.token ? "authenticated (token supplied)" : "anonymous"}`);
     log("");
@@ -28,7 +32,9 @@ async function main() {
     log("Discovering corpus…");
     const context = await discoverContext(api, couch);
     const catalogue = buildCatalogue(context);
-    log(`  ${catalogue.length} request shapes built from ${context.counts.content} content docs`);
+    log(
+        `  ${catalogue.length} request shapes built from ${context.content.length} sampled content docs`,
+    );
     log("");
 
     const report: AuditReport = {
