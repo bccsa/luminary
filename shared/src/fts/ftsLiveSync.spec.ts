@@ -21,6 +21,7 @@ const mocks = vi.hoisted(() => {
             for (const h of [...socketDataHandlers]) h({ docs });
         },
         validateDeleteCommandMock: vi.fn(() => true),
+        isSocketConfiguredMock: vi.fn(() => true),
         whereAnyOf: vi.fn(() => ({ toArray: vi.fn(async () => []) })),
         liveRefs,
         useDexieLiveQueryMock: vi.fn((querier: any, options: any) => {
@@ -34,6 +35,7 @@ const mocks = vi.hoisted(() => {
 vi.mock("../socket/socketio", () => ({
     isConnected: mocks.isConnected,
     getSocket: mocks.getSocketMock,
+    isSocketConfigured: mocks.isSocketConfiguredMock,
 }));
 
 vi.mock("../db/database", () => ({
@@ -60,6 +62,7 @@ describe("attachFtsLiveSync", () => {
         mocks.liveRefs.length = 0;
         mocks.isConnected.value = true;
         mocks.validateDeleteCommandMock.mockReturnValue(true);
+        mocks.isSocketConfiguredMock.mockReturnValue(true);
     });
 
     it("removes a result when a matching DeleteCmd arrives on the socket", () => {
@@ -246,6 +249,54 @@ describe("attachFtsLiveSync", () => {
         ]);
 
         expect(stale.value).toBe(false);
+        scope.stop();
+    });
+
+    it("attaches nothing when no socket is configured", () => {
+        mocks.isSocketConfiguredMock.mockReturnValue(false);
+        const scope = effectScope();
+        const results = ref([{ _id: "u1", name: "Ada" }]);
+
+        expect(() =>
+            scope.run(() =>
+                attachFtsLiveSync(
+                    results,
+                    { getId: (d) => d._id, patch: (d, live) => ({ ...d, ...live }) },
+                    { docType: DocType.User },
+                ),
+            ),
+        ).not.toThrow();
+
+        expect(mocks.getSocketMock).not.toHaveBeenCalled();
+
+        expect(() => scope.stop()).not.toThrow();
+        expect(mocks.getSocketMock).not.toHaveBeenCalled();
+    });
+
+    it("attaches once a socket becomes available", async () => {
+        mocks.isSocketConfiguredMock.mockReturnValue(false);
+        const scope = effectScope();
+        const results = ref([{ _id: "u1", name: "Ada" }]);
+
+        scope.run(() =>
+            attachFtsLiveSync(
+                results,
+                { getId: (d) => d._id, patch: (d, live) => ({ ...d, ...live }) },
+                { docType: DocType.User },
+            ),
+        );
+
+        mocks.isSocketConfiguredMock.mockReturnValue(true);
+        mocks.isConnected.value = false;
+        await nextTick();
+        mocks.isConnected.value = true;
+        await nextTick();
+
+        mocks.emitSocket([
+            { _id: "del-1", type: DocType.DeleteCmd, docType: DocType.User, docId: "u1" },
+        ]);
+
+        expect(results.value).toEqual([]);
         scope.stop();
     });
 });

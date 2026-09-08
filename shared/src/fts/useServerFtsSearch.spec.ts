@@ -10,6 +10,7 @@ vi.mock("../socket/socketio", () => ({
         on: vi.fn(),
         off: vi.fn(),
     }),
+    isSocketConfigured: () => true,
 }));
 
 import { useServerFtsSearch } from "./useServerFtsSearch";

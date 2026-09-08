@@ -255,6 +255,9 @@ const deleteQueueEntryPath = (id: string) => join(deleteQueueDir(), `${id}.json`
 const lockPath = () => join(process.cwd(), OUT_DIR, ".ssg-building");
 const ssgBuildLock = (): Plugin => ({
     name: "ssg-build-lock",
+    // Builds only: a dev server or an enumerate-only run writes no output, and its lock would
+    // never be cleared — nothing calls `onFinished` there.
+    apply: "build",
     buildStart() {
         mkdirSync(join(process.cwd(), OUT_DIR), { recursive: true });
         writeFileSync(lockPath(), String(Date.now()));
@@ -625,7 +628,11 @@ const config: UserConfig & { ssgOptions: ViteSSGOptions } = {
         // Full build wipes the dir; a scoped rebuild MUST preserve untouched pages.
         emptyOutDir: !IS_SCOPED,
         target: "es2015",
-        sourcemap: true,
+        // Off: nothing consumes the maps (no Sentry release step uploads them), the deploy
+        // publishes them alongside the bundle, and retaining per-module mappings through
+        // minification is the largest single cost in this build's peak memory. A release that
+        // wants them should generate and upload them in its own step.
+        sourcemap: false,
         minify: env.VITE_BYPASS_MINIFY !== "true" && process.env.VITE_BYPASS_MINIFY !== "true",
         // NOTE: no manualChunks here — vite-ssg externalizes pinia/vue in the SSR
         // pass, and naming an external in manualChunks is a rollup error.

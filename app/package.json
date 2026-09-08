@@ -6,7 +6,7 @@
         "dev": "vite --host --config vite.config.ts",
         "dev:web": "VITE_BUILD_TARGET=web vite --host --config vite.config.web.ts",
         "build": "run-p type-check \"build-only {@}\" --",
-        "build:web": "NODE_OPTIONS=--max-old-space-size=8192 VITE_BUILD_TARGET=web vite-ssg build --config vite.config.web.ts",
+        "build:web": "VITE_BUILD_TARGET=web vite-ssg build --config vite.config.web.ts",
         "enumerate:web": "VITE_BUILD_TARGET=web node scripts/enumerate-routes.mjs",
         "preview": "vite preview",
         "preview:web": "vite preview --outDir dist-web --port 4174",
