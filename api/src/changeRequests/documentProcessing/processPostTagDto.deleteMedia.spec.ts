@@ -130,6 +130,24 @@ describe("processPostTagDto — deleting media files from storage", () => {
         expect(warnings).toEqual([]);
     });
 
+    it("does not leave the answer on the document", async () => {
+        // Stored, it is copied onto every child's parentMedia, and the next delete
+        // reads an opt-in the editor never gave.
+        const doc = deleteRequest(true);
+
+        await processPostTagDto(doc, saved(), stubDb());
+
+        expect(doc.media).not.toHaveProperty("deleteFiles");
+    });
+
+    it("does not leave an unticked answer on the document either", async () => {
+        const doc = deleteRequest(false);
+
+        await processPostTagDto(doc, saved(), stubDb());
+
+        expect(doc.media).not.toHaveProperty("deleteFiles");
+    });
+
     it("still cascades the delete to the child content documents", async () => {
         // The media work must not displace what the delete path is actually for.
         const db = stubDb();

@@ -33,6 +33,11 @@ export async function processMedia(
 ): Promise<string[]> {
     const warnings: string[] = [];
 
+    // Only ever read on the delete request that carries it, so it is dropped here
+    // like `hlsKey` below. Stored, it is copied onto every child's `parentMedia`
+    // and a later delete inherits an intent nobody expressed.
+    delete media.deleteFiles;
+
     // Stored relative to the bucket the document already names, so the two
     // cannot disagree later. External URLs are left alone — see mediaUrl.ts.
     if (media.hlsUrl && parent.mediaBucketId) {

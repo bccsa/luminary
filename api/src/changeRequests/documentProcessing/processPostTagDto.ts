@@ -53,7 +53,11 @@ export default async function processPostTagDto(
 
         // Opt-in from the delete confirmation: irreversible, and the collection may be
         // referenced somewhere this API cannot see. prevDoc knows where the files are.
-        if (doc.media?.deleteFiles) {
+        // Read once and dropped, so the answer cannot outlive the request that gave it.
+        const deleteFiles = doc.media?.deleteFiles;
+        if (doc.media) delete doc.media.deleteFiles;
+
+        if (deleteFiles) {
             warnings.push(
                 ...(await deleteMediaCollection(prevDoc?.media, prevDoc?.mediaBucketId, db)),
             );
