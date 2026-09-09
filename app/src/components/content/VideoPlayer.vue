@@ -152,12 +152,13 @@ const playerWrapper = ref<HTMLElement | null>(null);
  * Hands the video to Matomo's Media Analytics once it is in the DOM.
  *
  * The scan reads `data-matomo-title` off the `<video>` itself, which is the
- * player's element rather than ours, so the title is set here at the same moment.
- * Re-run per source: video.js replaces the element when it swaps techs.
+ * player's element rather than ours, so the title is set here rather than bound.
+ * Watched rather than done once: video.js replaces the element when it swaps
+ * techs, and a title the CMS edits while the same video plays has to follow.
  */
 watch(
-    source,
-    async (current) => {
+    [source, () => props.content.title],
+    async ([current]) => {
         if (!current) return;
         await nextTick();
 

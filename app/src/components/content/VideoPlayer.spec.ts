@@ -127,6 +127,20 @@ describe("VideoPlayer", () => {
             );
         });
 
+        it("follows a title edited while the same video is playing", async () => {
+            // main bound the attribute on its own <video>, so a synced title change
+            // reapplied itself. The element is the player's now, so this has to.
+            (window as any)._paq = [];
+            const wrapper = await mountPlayer();
+
+            await wrapper.setProps({ content: content({ title: "Renamed in the CMS" }) });
+            await new Promise((resolve) => setTimeout(resolve, 0));
+
+            expect(wrapper.find("video").attributes("data-matomo-title")).toBe(
+                "Renamed in the CMS",
+            );
+        });
+
         it("says nothing when there is no video to report on", async () => {
             const paq: unknown[][] = [];
             (window as any)._paq = paq;
