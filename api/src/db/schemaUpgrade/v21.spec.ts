@@ -2,7 +2,11 @@ import v21 from "./v21";
 import { DocType } from "../../enums";
 
 describe("v21 — legacy video field moved to media.hlsUrl", () => {
-    function mockDb(version: number, docsByType: Record<string, any[]>, contentByParent: Record<string, any[]>) {
+    function mockDb(
+        version: number,
+        docsByType: Record<string, any[]>,
+        contentByParent: Record<string, any[]>,
+    ) {
         const upserted: any[] = [];
         const db = {
             getSchemaVersion: jest.fn().mockResolvedValue(version),
@@ -28,15 +32,20 @@ describe("v21 — legacy video field moved to media.hlsUrl", () => {
         return { _id: id, type: DocType.Content, parentId, ...(video ? { video } : {}) };
     }
 
-    it("copies the child's video onto the parent's media.hlsUrl and clears it from the child", async () => {
+    it("copies the child's video onto the parent's media.hlsUrl, leaving the child's own", async () => {
         const p = post("post-1");
         const c = content("content-1", "post-1", "https://example.com/master.m3u8");
-        const { db, upserted } = mockDb(20, { [DocType.Post]: [p], [DocType.Tag]: [] }, { "post-1": [c] });
+        const { db, upserted } = mockDb(
+            20,
+            { [DocType.Post]: [p], [DocType.Tag]: [] },
+            { "post-1": [c] },
+        );
 
         await v21(db);
 
         expect(p.media).toEqual({ fileCollections: [], hlsUrl: "https://example.com/master.m3u8" });
-        expect(c.video).toBeUndefined();
+        // Left in place for app builds that gate the player on it (ADR 0005).
+        expect(c.video).toBe("https://example.com/master.m3u8");
         expect(c.parentMedia).toEqual(p.media);
         expect(upserted).toContain(p);
         expect(upserted).toContain(c);
@@ -47,9 +56,13 @@ describe("v21 — legacy video field moved to media.hlsUrl", () => {
         const p = post("post-1");
         const withVideo = content("content-en", "post-1", "https://example.com/a.m3u8");
         const without = content("content-fr", "post-1");
-        const { db, upserted } = mockDb(20, { [DocType.Post]: [p], [DocType.Tag]: [] }, {
-            "post-1": [withVideo, without],
-        });
+        const { db, upserted } = mockDb(
+            20,
+            { [DocType.Post]: [p], [DocType.Tag]: [] },
+            {
+                "post-1": [withVideo, without],
+            },
+        );
 
         await v21(db);
 
@@ -57,39 +70,56 @@ describe("v21 — legacy video field moved to media.hlsUrl", () => {
         expect(upserted).toContain(without);
     });
 
-    it("leaves an existing parent hlsUrl untouched but still clears the child's video", async () => {
-        const p = post("post-1", { fileCollections: [], hlsUrl: "https://example.com/existing.m3u8" });
+    it("writes nothing at all when the parent already has a collection", async () => {
+        const p = post("post-1", {
+            fileCollections: [],
+            hlsUrl: "https://example.com/existing.m3u8",
+        });
         const c = content("content-1", "post-1", "https://example.com/stale.m3u8");
-        const { db, upserted } = mockDb(20, { [DocType.Post]: [p], [DocType.Tag]: [] }, { "post-1": [c] });
+        const { db, upserted } = mockDb(
+            20,
+            { [DocType.Post]: [p], [DocType.Tag]: [] },
+            { "post-1": [c] },
+        );
 
         await v21(db);
 
         expect(p.media.hlsUrl).toBe("https://example.com/existing.m3u8");
-        expect(c.video).toBeUndefined();
+        expect(c.video).toBe("https://example.com/stale.m3u8");
         expect(c.parentMedia).toBeUndefined();
+        // Nothing to change, so nothing is written — a rewritten document goes to the
+        // front of every client's sync queue for no gain.
         expect(upserted).not.toContain(p);
-        expect(upserted).toContain(c);
+        expect(upserted).not.toContain(c);
     });
 
     it("keeps the first distinct video value across languages and drops the rest", async () => {
         const p = post("post-1");
         const c1 = content("content-1", "post-1", "https://example.com/a.m3u8");
         const c2 = content("content-2", "post-1", "https://example.com/b.m3u8");
-        const { db } = mockDb(20, { [DocType.Post]: [p], [DocType.Tag]: [] }, {
-            "post-1": [c1, c2],
-        });
+        const { db } = mockDb(
+            20,
+            { [DocType.Post]: [p], [DocType.Tag]: [] },
+            {
+                "post-1": [c1, c2],
+            },
+        );
 
         await v21(db);
 
         expect(p.media.hlsUrl).toBe("https://example.com/a.m3u8");
-        expect(c1.video).toBeUndefined();
-        expect(c2.video).toBeUndefined();
+        expect(c1.video).toBe("https://example.com/a.m3u8");
+        expect(c2.video).toBe("https://example.com/b.m3u8");
     });
 
     it("skips parents with no video anywhere among their content", async () => {
         const p = post("post-1");
         const c = content("content-1", "post-1");
-        const { db, upserted } = mockDb(20, { [DocType.Post]: [p], [DocType.Tag]: [] }, { "post-1": [c] });
+        const { db, upserted } = mockDb(
+            20,
+            { [DocType.Post]: [p], [DocType.Tag]: [] },
+            { "post-1": [c] },
+        );
 
         await v21(db);
 
@@ -100,7 +130,11 @@ describe("v21 — legacy video field moved to media.hlsUrl", () => {
     it("is a no-op when the schema version is not 20", async () => {
         const p = post("post-1");
         const c = content("content-1", "post-1", "https://example.com/a.m3u8");
-        const { db, upserted } = mockDb(18, { [DocType.Post]: [p], [DocType.Tag]: [] }, { "post-1": [c] });
+        const { db, upserted } = mockDb(
+            18,
+            { [DocType.Post]: [p], [DocType.Tag]: [] },
+            { "post-1": [c] },
+        );
 
         await v21(db);
 

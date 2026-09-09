@@ -79,9 +79,11 @@ against the real buckets, and until it is, this stays open.
 - **Edit mode.** `existingMedia { hlsUrl, hlsKey }` is accepted by the encoder and ignored, so
   every encode produces a new collection in its own folder. Adding one audio language means
   re-encoding everything.
-- **Stale collections.** Nothing deletes a superseded collection, and deleting a document leaves
-  its collection in the bucket — the encoder writes it and nothing here tracks which objects
-  belong to it.
+- **Stale collections.** Nothing deletes a superseded collection: re-encoding leaves the previous
+  one in the bucket, because the encoder writes it and nothing here tracks which objects belong to
+  it. Deleting a document can now take its collection with it — the delete confirmation offers it,
+  and `media.deleteFiles` carries the answer — but that is opt-in and covers only the collection
+  the document currently points at.
 - **Uploading media through the CMS is gone.** The API no longer processes `uploadData`, so
   documents keep and play existing audio `fileCollections` but nothing can add more.
 
