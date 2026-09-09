@@ -137,7 +137,7 @@ onUnmounted(() => {
                  the reader scrolls down, returning on the first scroll up. -->
             <div
                 ref="topBarWrap"
-                class="absolute inset-x-0 top-0 z-30 transition-transform duration-300 ease-out lg:hidden"
+                class="absolute inset-x-0 top-0 z-30 transition-transform duration-500 ease-out lg:hidden"
                 :class="mobileChrome.hidden.value ? '-translate-y-full' : 'translate-y-0'"
             >
                 <TopBar
@@ -227,7 +227,7 @@ onUnmounted(() => {
                      transition tracks the top bar's slide. -->
                 <div
                     v-if="desktopTopBar && $slots.topBarCenter"
-                    class="pointer-events-none sticky top-[max(0px,calc(env(safe-area-inset-top)-0.75rem))] z-20 -mx-2 -mb-14 flex h-16 items-start justify-center px-2 pt-2 transition-[top] duration-300 ease-out md:-mx-4 md:px-4 lg:hidden"
+                    class="pointer-events-none sticky top-[max(0px,calc(env(safe-area-inset-top)-0.75rem))] z-20 -mx-2 -mb-14 flex h-16 items-start justify-center px-2 pt-2 transition-[top] duration-500 ease-out md:-mx-4 md:px-4 lg:hidden"
                     :style="pillPinnedStyle"
                 >
                     <div
