@@ -10,6 +10,8 @@ type Props = {
     noDivider?: boolean;
     largeModal?: boolean;
     stickToEdges?: boolean;
+    // Fills the viewport on all screen sizes, not only on mobile.
+    fullscreen?: boolean;
     noPadding?: boolean;
     transparentHeader?: boolean;
     showClosingButton?: boolean;
@@ -19,6 +21,7 @@ type Props = {
 };
 const props = withDefaults(defineProps<Props>(), {
     largeModal: false,
+    fullscreen: false,
     noDivider: false,
     noPadding: false,
     transparentHeader: false,
@@ -50,13 +53,13 @@ watch(modalRef, (el) => {
 const breakpoints = useBreakpoints(breakpointsTailwind);
 const isMobileScreen = breakpoints.smaller("sm");
 
-const isFullscreen = computed(() => {
-    if (props.stickToEdges || !props.stickToEdges) {
+const sizeClasses = computed(() => {
+    if (props.fullscreen || (isMobileScreen.value && props.stickToEdges)) {
         return "h-[100dvh] w-[100vw] max-w-none rounded-none";
     } else if (props.largeModal) {
-        return "h-[90dvh] w-full max-w-5xl lg:h-[80dvh]";
+        return "rounded-lg h-[90dvh] w-full max-w-5xl lg:h-[80dvh]";
     } else {
-        return "max-h-[90dvh] w-full max-w-md";
+        return "rounded-lg max-h-[90dvh] w-full max-w-md";
     }
 });
 </script>
@@ -79,8 +82,8 @@ const isFullscreen = computed(() => {
                 ref="modalRef"
                 data-test="modal-content"
                 :class="[
-                    'relative z-50 flex flex-col rounded-lg bg-white/90 p-5 shadow-xl focus:outline-none',
-                    isFullscreen,
+                    'relative z-50 flex flex-col bg-white/90 p-5 shadow-xl focus:outline-none',
+                    sizeClasses,
                 ]"
             >
                 <div
