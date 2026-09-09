@@ -5,6 +5,9 @@ import { setActivePinia, createPinia } from "pinia";
 import type { ContentDto } from "luminary-shared";
 import ShareMenu from "./ShareMenu.vue";
 import { mockEnglishContentDto } from "@/tests/mockdata";
+import { publicUrl } from "@/seo/publicSite";
+
+const expectedShareUrl = publicUrl(`/${mockEnglishContentDto.slug}`) ?? window.location.href;
 
 // The image bucket resolves from a live query the component tree doesn't own here; set
 // `bucket.url` before mounting to give the share an image to attach.
@@ -85,7 +88,7 @@ describe("ShareMenu", () => {
         expect(share).toHaveBeenCalledTimes(1);
         expect(share.mock.calls[0][0]).toMatchObject({
             title: mockEnglishContentDto.title,
-            url: window.location.href,
+            url: expectedShareUrl,
         });
         expect(share.mock.calls[0][0].text).toContain(mockEnglishContentDto.title);
         expect(wrapper.find('[data-test="shareTelegram"]').exists()).toBe(false);
@@ -133,6 +136,7 @@ describe("ShareMenu", () => {
         expect(window.open).toHaveBeenCalledWith(
             expect.stringContaining("t.me/share/url"),
             "_blank",
+            "noopener,noreferrer",
         );
     });
 
@@ -144,7 +148,7 @@ describe("ShareMenu", () => {
         await wrapper.find('[data-test="shareTelegram"]').trigger("click");
 
         const opened = new URL(vi.mocked(window.open).mock.calls[0][0] as string);
-        expect(opened.searchParams.get("url")).toBe(window.location.href);
+        expect(opened.searchParams.get("url")).toBe(expectedShareUrl);
         expect(opened.searchParams.get("text")).toContain(mockEnglishContentDto.title);
     });
 

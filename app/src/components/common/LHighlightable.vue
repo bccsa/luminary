@@ -7,6 +7,7 @@ import {
     ChevronLeftIcon,
     ShareIcon,
 } from "@heroicons/vue/24/outline";
+import { useI18n } from "vue-i18n";
 import { db } from "luminary-shared";
 import { getHighlightHtml, type SavedHighlight } from "@/recommendation/highlightStore";
 import TelegramIcon from "@/components/icons/TelegramIcon.vue";
@@ -29,6 +30,8 @@ const props = defineProps<{ contentId: string; title: string; copyright?: string
 // emitted only after IndexedDB reflects the active markup, so other local consumers
 // can safely re-read it without coupling this generic component to recommendations.
 const emit = defineEmits<{ highlighted: []; highlightRemoved: []; highlightsChanged: [] }>();
+
+const { t } = useI18n();
 
 const content = ref<HTMLElement | undefined>(undefined);
 const actionsMenu = ref<HTMLElement | undefined>(undefined);
@@ -329,7 +332,9 @@ function removeHighlight() {
 function copyText() {
     const sel = window.getSelection();
     if (sel) {
-        navigator.clipboard.writeText(shareMessage(sel.toString(), { withUrl: true }));
+        navigator.clipboard
+            .writeText(shareMessage(sel.toString(), { withUrl: true }))
+            .catch((e) => console.error("Failed to copy highlight text to clipboard:", e));
         showActions.value = false;
         sel.removeAllRanges();
     }
@@ -368,34 +373,56 @@ function shareHighlightText(options: { withUrl?: boolean } = {}): string {
 }
 
 function shareHighlightToTelegram() {
-    window.open(buildTelegramShareUrl(shareHighlightText(), window.location.href), "_blank");
+    window.open(
+        buildTelegramShareUrl(shareHighlightText(), window.location.href),
+        "_blank",
+        "noopener,noreferrer",
+    );
     finalizeShare();
 }
 
 function shareHighlightToWhatsApp() {
-    window.open(buildWhatsAppShareUrl(shareHighlightText({ withUrl: true })), "_blank");
+    const isCoarsePointer = window.matchMedia("(pointer: coarse)").matches;
+    window.open(
+        buildWhatsAppShareUrl(shareHighlightText({ withUrl: true }), isCoarsePointer),
+        "_blank",
+        "noopener,noreferrer",
+    );
     finalizeShare();
 }
 
 function shareHighlightToX() {
-    window.open(buildXShareUrl(shareHighlightText(), window.location.href), "_blank");
+    window.open(
+        buildXShareUrl(shareHighlightText(), window.location.href),
+        "_blank",
+        "noopener,noreferrer",
+    );
     finalizeShare();
 }
 
 function shareHighlightToReddit() {
-    window.open(buildRedditShareUrl(props.title, window.location.href), "_blank");
+    window.open(
+        buildRedditShareUrl(props.title, window.location.href),
+        "_blank",
+        "noopener,noreferrer",
+    );
     finalizeShare();
 }
 
 // Instagram has no web share-URL API for posts/links, so the closest one-click
 // equivalent is copying the text + link for the user to paste into a DM, Story or bio.
 async function shareHighlightToInstagram() {
-    await navigator.clipboard.writeText(shareHighlightText({ withUrl: true }));
+    try {
+        await navigator.clipboard.writeText(shareHighlightText({ withUrl: true }));
+    } catch (e) {
+        console.error("Failed to copy share text to clipboard:", e);
+        finalizeShare();
+        return;
+    }
     useNotificationStore().addNotification({
         id: "share-link-copied",
-        title: "Link copied",
-        description:
-            "Instagram doesn't support sharing links directly — paste it into a DM, Story or bio.",
+        title: t("singlecontent.shareInstagramCopiedTitle"),
+        description: t("singlecontent.shareInstagramCopiedDescription"),
         state: "success",
         type: "toast",
         timeout: 5000,

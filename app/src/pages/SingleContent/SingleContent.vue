@@ -171,7 +171,7 @@ const liveUrl = () => {
 
 const openCmsEditor = () => {
     if (liveUrl()) {
-        window.open(liveUrl(), "_blank");
+        window.open(liveUrl(), "_blank", "noopener,noreferrer");
     }
 };
 

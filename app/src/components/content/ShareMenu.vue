@@ -17,6 +17,7 @@ import {
 import { useBucketInfo } from "@/composables/useBucketInfo";
 import { isDataSaverEnabled, userDataSaverEnabled } from "@/globalConfig";
 import { isSlowConnection } from "@/composables/useNetworkSpeedEstimator";
+import { publicUrl } from "@/seo/publicSite";
 import TelegramIcon from "@/components/icons/TelegramIcon.vue";
 import WhatsAppIcon from "@/components/icons/WhatsAppIcon.vue";
 import XIcon from "@/components/icons/XIcon.vue";
@@ -33,9 +34,9 @@ const props = defineProps<{
 const { t } = useI18n();
 const open = ref(false);
 
-// `window.location.href` (not a build-time canonical URL) so the shared link is always
-// the URL actually open in the browser — this only ever runs client-side, after a click.
-const shareUrl = () => window.location.href;
+// The public site origin, not the current one — an installed PWA runs on its own origin,
+// and a link back to that origin wouldn't resolve for a recipient without the app.
+const shareUrl = () => publicUrl(`/${props.content.slug}`) ?? window.location.href;
 
 const shareMessage = (options: { withUrl?: boolean } = {}) =>
     formatShareMessage({
@@ -51,9 +52,12 @@ const shareMessage = (options: { withUrl?: boolean } = {}) =>
 // prerendered HTML has no `navigator`, and rendering the menu on both sides keeps
 // hydration matched.
 const nativeShareAvailable = ref(false);
+// Tracked independently of `nativeShareAvailable`: the curated WhatsApp target still needs
+// to know phone/tablet vs. desktop even when the reader has no native share sheet.
+const isCoarsePointer = ref(false);
 onMounted(() => {
-    nativeShareAvailable.value =
-        typeof navigator?.share === "function" && window.matchMedia("(pointer: coarse)").matches;
+    isCoarsePointer.value = window.matchMedia("(pointer: coarse)").matches;
+    nativeShareAvailable.value = typeof navigator?.share === "function" && isCoarsePointer.value;
 });
 
 const { bucketBaseUrl } = useBucketInfo(computed(() => props.content.parentImageBucketId));
@@ -114,29 +118,43 @@ const itemClass =
     "flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 active:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-600 dark:active:bg-slate-500";
 
 function shareToTelegram() {
-    window.open(buildTelegramShareUrl(shareMessage(), shareUrl()), "_blank");
+    window.open(buildTelegramShareUrl(shareMessage(), shareUrl()), "_blank", "noopener,noreferrer");
     open.value = false;
 }
 
 function shareToWhatsApp() {
-    window.open(buildWhatsAppShareUrl(shareMessage({ withUrl: true })), "_blank");
+    window.open(
+        buildWhatsAppShareUrl(shareMessage({ withUrl: true }), isCoarsePointer.value),
+        "_blank",
+        "noopener,noreferrer",
+    );
     open.value = false;
 }
 
 function shareToX() {
-    window.open(buildXShareUrl(shareMessage(), shareUrl()), "_blank");
+    window.open(buildXShareUrl(shareMessage(), shareUrl()), "_blank", "noopener,noreferrer");
     open.value = false;
 }
 
 function shareToReddit() {
-    window.open(buildRedditShareUrl(props.content.title, shareUrl()), "_blank");
+    window.open(
+        buildRedditShareUrl(props.content.title, shareUrl()),
+        "_blank",
+        "noopener,noreferrer",
+    );
     open.value = false;
 }
 
 // Instagram has no web share-URL API for posts/links, so the closest one-click equivalent
 // is copying the text + link for the user to paste into a DM, Story or bio.
 async function shareToInstagram() {
-    await navigator.clipboard.writeText(shareMessage({ withUrl: true }));
+    try {
+        await navigator.clipboard.writeText(shareMessage({ withUrl: true }));
+    } catch (e) {
+        console.error("Failed to copy share text to clipboard:", e);
+        open.value = false;
+        return;
+    }
     useNotificationStore().addNotification({
         id: "share-link-copied",
         title: t("singlecontent.shareInstagramCopiedTitle"),
