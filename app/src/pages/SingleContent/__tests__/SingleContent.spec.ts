@@ -402,6 +402,15 @@ describe("SingleContent", () => {
                 ...mockTopicContentDto,
                 parentTaggedDocs: [mockEnglishContentDto.parentId],
             } as ContentDto,
+            // The API mirrors a tag relationship onto both docs, so the tagged post carries
+            // the topic in `parentTags` too — that is the side the feed reads.
+            {
+                ...mockEnglishContentDto,
+                parentTags: [
+                    ...mockEnglishContentDto.parentTags,
+                    mockTopicContentDto.parentId,
+                ],
+            } as ContentDto,
         ]);
 
         wrapper = mount(SingleContent, {

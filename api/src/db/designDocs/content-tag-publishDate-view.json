@@ -1,0 +1,8 @@
+{
+    "_id": "_design/content-tag-publishDate",
+    "views": {
+        "content-tag-publishDate": {
+            "map": "function (doc) {\n  if (doc.type !== \"content\") return;\n  if (doc.status !== \"published\") return;\n  if (typeof doc.publishDate !== \"number\") return;\n  var tags = doc.parentTags;\n  if (!tags || !tags.length) return;\n  for (var i = 0; i < tags.length; i++) {\n    if (tags[i]) emit([tags[i], doc.publishDate], null);\n  }\n}"
+        }
+    }
+}
