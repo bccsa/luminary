@@ -24,13 +24,24 @@ export function isBucketRelative(url: string | undefined): boolean {
  * URL is not inside it, so calling this on an external URL is safe and calling
  * it twice does nothing the second time.
  */
+/**
+ * Trailing slashes off, by index rather than with `/\/+$/`. The regex backtracks
+ * quadratically over a long run of slashes (CodeQL js/polynomial-redos), and
+ * `shared` dropped it for the same reason.
+ */
+export function withoutTrailingSlashes(url: string): string {
+    let end = url.length;
+    while (end > 0 && url.charCodeAt(end - 1) === 47) end--;
+    return url.slice(0, end);
+}
+
 export function toStoredMediaUrl(
     hlsUrl: string | undefined,
     publicUrl: string | undefined,
 ): string | undefined {
     if (!hlsUrl || isBucketRelative(hlsUrl) || !publicUrl) return hlsUrl;
 
-    const base = publicUrl.replace(/\/+$/, "");
+    const base = withoutTrailingSlashes(publicUrl);
     // The separator is part of the match, or a bucket published at
     // `https://cdn/media` would claim `https://cdn/media-archive/...`.
     if (!hlsUrl.startsWith(`${base}/`)) return hlsUrl;
@@ -51,7 +62,7 @@ export function toAbsoluteMediaUrl(
 ): string | undefined {
     if (!stored || !isBucketRelative(stored)) return stored;
     if (!publicUrl) return undefined;
-    return `${publicUrl.replace(/\/+$/, "")}${stored}`;
+    return `${withoutTrailingSlashes(publicUrl)}${stored}`;
 }
 
 /**
@@ -80,7 +91,7 @@ export function isInOurStorage(
 
     return publicUrls.some((publicUrl) => {
         if (!publicUrl) return false;
-        const base = publicUrl.replace(/\/+$/, "");
+        const base = withoutTrailingSlashes(publicUrl);
         return hlsUrl.startsWith(`${base}/`);
     });
 }
