@@ -21,12 +21,11 @@ export type RateLimiterConfig = {
  * another's.
  */
 export class RateLimiterService {
-    private readonly enabled: boolean;
+    // Its presence is the switch: there is no limiter when the config says off.
     private readonly limiter?: StrikeLimiter;
 
     constructor(cfg: RateLimiterConfig | undefined) {
-        this.enabled = !!cfg?.enabled;
-        if (this.enabled) {
+        if (cfg?.enabled) {
             this.limiter = new StrikeLimiter({
                 freeStrikes: cfg.freeStrikes,
                 baseBackoffMs: cfg.baseBackoffMs,
@@ -38,12 +37,11 @@ export class RateLimiterService {
 
     /** Pre-execution gate. Allows everything when disabled. */
     check(key: string): { allowed: boolean; retryAfterMs: number } {
-        if (!this.enabled || !this.limiter) return { allowed: true, retryAfterMs: 0 };
-        return this.limiter.check(key);
+        return this.limiter?.check(key) ?? { allowed: true, retryAfterMs: 0 };
     }
 
     /** Post-execution strike. No-op when disabled. */
     recordStrike(key: string): void {
-        if (this.enabled && this.limiter) this.limiter.recordStrike(key);
+        this.limiter?.recordStrike(key);
     }
 }
