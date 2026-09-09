@@ -21,6 +21,19 @@ describe("unmaskKeyHex", () => {
         expect(await unmaskKeyHex(seed, once)).toBe(keyHex);
     });
 
+    it("names the cause when Web Crypto is missing, rather than throwing a TypeError", async () => {
+        // `crypto.subtle` is undefined outside a secure context — an http LAN origin
+        // used for phone testing, for instance.
+        const actual = globalThis.crypto;
+        Object.defineProperty(globalThis, "crypto", { value: {}, configurable: true });
+
+        try {
+            await expect(unmaskKeyHex("seed", "00")).rejects.toThrow(/secure context/i);
+        } finally {
+            Object.defineProperty(globalThis, "crypto", { value: actual, configurable: true });
+        }
+    });
+
     it("produces a different result for a different seed", async () => {
         const masked = "0f0e0d0c0b0a09080706050403020100";
 

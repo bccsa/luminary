@@ -7,6 +7,15 @@
  * client cannot import server code. Keep the two algorithms identical.
  */
 export async function unmaskKeyHex(seed: string, maskedKeyHex: string): Promise<string> {
+    // Web Crypto is absent outside a secure context, where the bare property access
+    // throws a TypeError that says nothing about the cause.
+    if (!globalThis.crypto?.subtle) {
+        throw new Error(
+            "Web Crypto is unavailable, so an encrypted stream cannot be decrypted. " +
+                "This needs a secure context: https, or localhost.",
+        );
+    }
+
     const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(seed));
     const mask = new Uint8Array(digest).subarray(0, 16);
 

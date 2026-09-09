@@ -7,7 +7,7 @@
  * URL to play, where the decryption key comes from, resume position, and the
  * engagement signals a finished video sends.
  */
-import { computed, ref, watch } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 import { LuminaryPlayer, type PlayerSource } from "@luminary-media-converter/player-web-legacy";
 import { type ContentDto, fetchHlsKey } from "luminary-shared";
 import LImage from "../images/LImage.vue";
@@ -16,7 +16,7 @@ import { getMediaProgress, removeMediaProgress, setMediaProgress } from "@/conte
 import { recordAffinity } from "@/recommendation/affinityStore";
 import { affinityConfig } from "@/recommendation/defaultAffinityStore";
 import { markSeen } from "@/recommendation/seenStore";
-import { resolveVideoSource } from "@/util/videoSource";
+import { resolveVideoSource, videoSourceFor } from "@/util/videoSource";
 import { useBucketInfo } from "@/composables/useBucketInfo";
 import { createMediaWatchTracker } from "@/recommendation/mediaWatchTracker";
 
@@ -35,6 +35,13 @@ const mediaBucketIdRef = computed(() => props.content?.parentMediaBucketId);
 const { bucketBaseUrl: mediaBucketBaseUrl } = useBucketInfo(mediaBucketIdRef);
 
 const videoSource = computed(() => resolveVideoSource(props.content, mediaBucketBaseUrl.value));
+
+/**
+ * What the progress store calls this video. The stored URL rather than the resolved
+ * one, because ContentTile knows only the stored form, and a bucket re-pointed or
+ * renamed must not lose the viewer's position.
+ */
+const mediaId = computed(() => videoSourceFor(props.content));
 
 const autoPlay = queryParams.get("autoplay") === "true";
 const autoFullscreen = queryParams.get("autofullscreen") === "true";
@@ -89,11 +96,20 @@ watch(
     async () => {
         keyHex.value = undefined;
         keyResolved.value = false;
-        const parentId = props.content?.parentId;
-        if (parentId && props.content?.parentMedia?.hlsKey_id) {
-            keyHex.value = await fetchHlsKey(parentId);
+        try {
+            const parentId = props.content?.parentId;
+            if (parentId && props.content?.parentMedia?.hlsKey_id) {
+                keyHex.value = await fetchHlsKey(parentId);
+            }
+        } catch (error) {
+            // A key that cannot be had is the same as no key, as above: the player is
+            // given the source and reports its own failure.
+            console.error("Could not fetch the HLS decryption key", error);
+        } finally {
+            // A question that cannot be answered is still answered: leaving this false
+            // holds `source` at null, and the viewer gets a poster and no player at all.
+            keyResolved.value = true;
         }
-        keyResolved.value = true;
     },
     { immediate: true },
 );
@@ -130,16 +146,50 @@ function applyCompletion() {
 
 /** Below this, a position is not worth resuming and is not recorded. */
 const MIN_RESUME_SECONDS = 60;
+const playerWrapper = ref<HTMLElement | null>(null);
+
+/**
+ * Hands the video to Matomo's Media Analytics once it is in the DOM.
+ *
+ * The scan reads `data-matomo-title` off the `<video>` itself, which is the
+ * player's element rather than ours, so the title is set here rather than bound.
+ * Watched rather than done once: video.js replaces the element when it swaps
+ * techs, and a title the CMS edits while the same video plays has to follow.
+ */
+watch(
+    [source, () => props.content.title],
+    async ([current]) => {
+        if (!current) return;
+        await nextTick();
+
+        // Best effort: the element belongs to the player, and video.js has not always
+        // put one in place by now.
+        playerWrapper.value
+            ?.querySelector("video")
+            ?.setAttribute("data-matomo-title", props.content.title);
+
+        // @ts-expect-error window is a native browser api, and matomo is attaching _paq to window
+        if (window._paq) {
+            // @ts-expect-error window is a native browser api, and matomo is attaching _paq to window
+            window._paq.push(
+                ["MediaAnalytics::enableMediaAnalytics"],
+                ["MediaAnalytics::scanForMedia", window.document],
+            );
+        }
+    },
+    { immediate: true },
+);
+
 /** Resuming lands slightly before where the viewer left, to re-establish context. */
 const RESUME_REWIND_SECONDS = 30;
 
 function onLoadedMetadata() {
     completed = false;
     watchTracker.reset();
-    const url = videoSource.value;
-    if (!url) return;
+    const id = mediaId.value;
+    if (!id) return;
 
-    const progress = getMediaProgress(url, props.content._id);
+    const progress = getMediaProgress(id, props.content._id);
     if (progress > MIN_RESUME_SECONDS) player.value?.seek(progress - RESUME_REWIND_SECONDS);
 
     if (autoPlay) void player.value?.play();
@@ -149,17 +199,14 @@ function onLoadedMetadata() {
 function onTimeUpdate(currentTime: number, duration: number) {
     watchTracker.track(currentTime);
     if (
-        watchTracker.claimCompletionIfWatched(
-            duration,
-            affinityConfig.value.mediaCompletionPercent,
-        )
+        watchTracker.claimCompletionIfWatched(duration, affinityConfig.value.mediaCompletionPercent)
     ) {
         // The saved progress deliberately stays put — there is still a tail to resume.
         applyCompletion();
     }
 
-    const url = videoSource.value;
-    if (!url || duration === Infinity || currentTime < MIN_RESUME_SECONDS) return;
+    const id = mediaId.value;
+    if (!id || duration === Infinity || currentTime < MIN_RESUME_SECONDS) return;
 
     // A fallback for an `ended` that never arrives, which is the normal case on
     // YouTube. One second short of the duration is as close as a `timeupdate`
@@ -169,15 +216,15 @@ function onTimeUpdate(currentTime: number, duration: number) {
         return;
     }
 
-    setMediaProgress(url, props.content._id, currentTime, duration);
+    setMediaProgress(id, props.content._id, currentTime, duration);
 }
 
 function onEnded() {
-    const url = videoSource.value;
-    if (!url || completed) return;
+    const id = mediaId.value;
+    if (!id || completed) return;
     completed = true;
 
-    removeMediaProgress(url, props.content._id);
+    removeMediaProgress(id, props.content._id);
 
     // Nothing to score if the watched fraction already claimed it.
     if (watchTracker.claimCompletion()) applyCompletion();
@@ -196,14 +243,16 @@ function onEnded() {
             :parent-image-bucket-id="content.parentImageBucketId"
         />
 
-        <div class="video-player absolute bottom-0 left-0 right-0 top-0">
+        <div
+            ref="playerWrapper"
+            class="video-player absolute bottom-0 left-0 right-0 top-0"
+        >
             <LuminaryPlayer
                 v-if="source"
                 ref="player"
                 :source="source"
                 :preferred-language="preferredLanguage"
                 :controls="controls"
-                :data-matomo-title="content.title"
                 @loadedmetadata="onLoadedMetadata"
                 @timeupdate="onTimeUpdate"
                 @ended="onEnded"
