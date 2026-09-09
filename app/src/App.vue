@@ -2,14 +2,7 @@
 import { RouterView } from "vue-router";
 import { computed, onErrorCaptured, onMounted, watch } from "vue";
 import { isConnected } from "luminary-shared";
-import {
-    appName,
-    isAppLoading,
-    userPreferencesAsRef,
-    mediaQueue,
-    localCacheVersion,
-} from "./globalConfig";
-import LoadingBar from "@/components/LoadingBar.vue";
+import { isAppLoading, userPreferencesAsRef, mediaQueue, localCacheVersion } from "./globalConfig";
 import { useNotificationStore } from "./stores/notification";
 import { ArrowLeftEndOnRectangleIcon, SignalSlashIcon } from "@heroicons/vue/20/solid";
 import * as Sentry from "@sentry/vue";
@@ -18,20 +11,19 @@ import PrivacyPolicyModal from "@/components/navigation/PrivacyPolicyModal.vue";
 import SearchModal from "@/components/navigation/SearchModal.vue";
 import AudioPlayer from "@/components/content/AudioPlayer.vue";
 import MobileMenu from "@/components/navigation/MobileMenu.vue";
+import { useMobileChromeAutoHide } from "@/composables/useMobileChromeAutoHide";
 import AffinityDebugOverlay from "@/components/debug/AffinityDebugOverlay.vue";
 import { affinityDebugEnabled, applyAffinityDebugQuery } from "@/recommendation/affinityDebug";
 import { useAuthWithPrivacyPolicy } from "@/composables/useAuthWithPrivacyPolicy";
 import { showProviderSelectionModal } from "@/auth";
 import AuthProviderSelectionModal from "@/components/authProvider/AuthProviderSelectionModal.vue";
 import { useI18n } from "vue-i18n";
-import defaultLogo from "@/assets/logo.svg?url";
 import { usePwaUpdate } from "@/composables/usePwaUpdate";
 import { useHydrated } from "@/composables/useHydrated";
 
-const LOGO = import.meta.env.VITE_LOGO || defaultLogo;
-
 const { t } = useI18n();
 const { needRefresh, reload } = usePwaUpdate();
+const mobileChrome = useMobileChromeAutoHide();
 
 const router = useRouter();
 
@@ -183,22 +175,11 @@ onErrorCaptured((err) => {
 </script>
 
 <template>
+    <!-- The startup splash is plain HTML in index.html, so it can paint before this
+         component (or any module) exists. This gate only withholds the app until
+         startup finishes; index.html's copy is what covers the wait. -->
     <div
-        v-if="isAppLoading"
-        class="absolute flex h-full w-full items-center justify-center"
-    >
-        <div class="flex flex-col items-center gap-4">
-            <img
-                class="w-72"
-                :src="LOGO"
-                :alt="appName"
-            />
-            <LoadingBar />
-        </div>
-    </div>
-
-    <div
-        v-else
+        v-if="!isAppLoading"
         class="absolute bottom-0 left-0 right-0 top-0 flex w-full flex-col overflow-hidden"
     >
         <div class="flex-1 overflow-y-scroll scrollbar-hide">
@@ -227,9 +208,19 @@ onErrorCaptured((err) => {
 
         <!-- Mobile Navigation (mobile only) -->
         <!-- <MobileMenu class="w-full lg:hidden z-10" /> -->
-        <MobileMenu
-            class="z-50 w-full border-t-2 border-t-zinc-100/25 dark:border-t-slate-700/50 lg:hidden"
-        />
+        <!-- Collapses via grid rows while a reading page scrolls down; see useMobileChromeAutoHide. -->
+        <div
+            class="z-50 grid w-full transition-[grid-template-rows] duration-300 ease-out lg:hidden"
+            :class="
+                mobileChrome.hidden.value ? '[grid-template-rows:0fr]' : '[grid-template-rows:1fr]'
+            "
+        >
+            <div class="min-h-0 overflow-hidden">
+                <MobileMenu
+                    class="w-full border-t-2 border-t-zinc-100/25 dark:border-t-slate-700/50"
+                />
+            </div>
+        </div>
 
         <!-- Privacy Policy Modal for authentication flow -->
         <PrivacyPolicyModal

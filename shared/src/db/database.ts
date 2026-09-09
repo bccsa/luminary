@@ -15,7 +15,7 @@ import {
     Uuid,
 } from "../types";
 import { scheduleCorpusStatsRecompute } from "../fts/ftsIndexer";
-import { toRaw, watch } from "vue";
+import { ref, toRaw, watch } from "vue";
 import { DateTime } from "luxon";
 import { v4 as uuidv4 } from "uuid";
 import { filterAsync, someAsync } from "../util/asyncArray";
@@ -874,29 +874,45 @@ class Database extends Dexie {
 
 export let db: Database;
 
+/**
+ * Raised when another tab holds an older version of the database open and this one is
+ * waiting to upgrade. The wait resolves on its own once that tab closes its connection,
+ * so this is a state to surface, not an error — the app binds a notification to it.
+ */
+export const dbUpgradeBlocked = ref(false);
+
 export async function initDatabase() {
     const _v: number = await getDbVersion();
     db = new Database(_v, config.docsIndex);
 
-    // Open the database and wait for it to be ready
-    await new Promise<void>((resolve) => {
-        if (db.isOpen()) {
-            resolve();
-            return;
-        }
-
-        db.on("ready", () => {
-            resolve();
-        });
-
-        if (!db.isOpen()) {
-            db.open();
-        }
-    });
-
+    // Registered before open(): a blocked upgrade is raised during the open, not after it.
+    // This is a waiting state — the other connection closing unblocks it and `open()` then
+    // resolves on its own — so it is surfaced rather than treated as a failure.
     db.on("blocked", () => {
-        console.error("Database blocked");
+        dbUpgradeBlocked.value = true;
     });
+
+    // Dexie's own `versionchange` default closes this connection so the other tab's upgrade
+    // can proceed, and it has to: holding on would block that tab for as long as this one
+    // lives. Subscribers run before the default, so this adds to it rather than replacing it.
+    //
+    // Closing is enough for a hidden tab, which reopens on next use. A visible one is running
+    // code built for the old schema, so it reloads onto the new version instead of carrying
+    // on against a database it can no longer use. Reloading only the visible tab keeps this
+    // to the page someone is actually looking at.
+    db.on("versionchange", () => {
+        if (typeof document === "undefined" || typeof window === "undefined") return;
+        if (document.visibilityState !== "visible") return;
+        window.location.reload();
+    });
+
+    // Awaiting open() rather than the "ready" event means a rejected open is raised as a
+    // boot error instead of leaving this promise unsettled. A blocked open is not rejected:
+    // it stays pending until the blocking connection closes, which is what we want.
+    if (!db.isOpen()) {
+        await db.open();
+    }
+    dbUpgradeBlocked.value = false;
 
     // Compute FTS corpus stats on startup.
     // Uses setTimeout(0) to avoid Dexie PSD zone deadlocks during initialization.
@@ -979,27 +995,32 @@ async function resetGroupSyncListForRecovery() {
 }
 
 /**
- * Get IndexDB version before DB class is initialized
+ * Get IndexDB version before DB class is initialized. Rejects on error rather than only
+ * logging, because this runs before the app is mounted and a promise that never settles
+ * here strands the user on the boot screen with nothing reported.
  * @returns IndexDB Version
  */
-export const getDbVersion = async () => {
-    const request = indexedDB.open(dbName);
-    return new Promise((resolve) => {
+export const getDbVersion = () =>
+    new Promise<number>((resolve, reject) => {
+        const request = indexedDB.open(dbName);
+
         request.onsuccess = (event: any) => {
             const db = event.target.result;
             const version: number = (db && db.version) || 0;
             db.addEventListener("close", () => {});
             db.close();
+            dbUpgradeBlocked.value = false;
             resolve(version);
         };
+        // Not an error: another connection holds an older version open. The request stays
+        // pending and fires `onsuccess` once that connection closes.
         request.onblocked = () => {
-            console.error("Database blocked");
+            dbUpgradeBlocked.value = true;
         };
         request.onerror = () => {
-            console.error("Database error");
+            reject(new Error("Database error while reading the database version"));
         };
-    }) as unknown as Promise<number>;
-};
+    });
 
 /**
  * Concatenate Shared Library index with the external index, to avoid having duplicate indexes

@@ -5,7 +5,7 @@ defineOptions({ inheritAttrs: false });
 
 const props = withDefaults(
     defineProps<{
-        placement?: "bottom-end" | "bottom-start" | "top-start" | "top-end";
+        placement?: "bottom-end" | "bottom-start" | "bottom-center" | "top-start" | "top-end";
         panelClass?: string;
     }>(),
     { placement: "bottom-end" },
@@ -53,11 +53,13 @@ onUnmounted(() => {
 const placementClasses =
     props.placement === "bottom-start"
         ? "left-0 origin-top-left"
-        : props.placement === "top-start"
-          ? "bottom-full mb-2 left-0 origin-bottom-left"
-          : props.placement === "top-end"
-            ? "bottom-full mb-2 right-0 origin-bottom-right"
-            : "right-0 origin-top-right";
+        : props.placement === "bottom-center"
+          ? "left-1/2 -translate-x-1/2 origin-top"
+          : props.placement === "top-start"
+            ? "bottom-full mb-2 left-0 origin-bottom-left"
+            : props.placement === "top-end"
+              ? "bottom-full mb-2 right-0 origin-bottom-right"
+              : "right-0 origin-top-right";
 </script>
 
 <template>

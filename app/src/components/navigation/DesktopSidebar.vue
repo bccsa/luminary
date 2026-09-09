@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted } from "vue";
+import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { getNavigationItems } from "./navigationItems";
 import { useSearchOverlay } from "@/composables/useSearchOverlay";
@@ -29,7 +29,10 @@ import LDialog from "../common/LDialog.vue";
 import LToggle from "../form/LToggle.vue";
 import { cmsLanguages } from "@/globalConfig";
 import { useDisplayLanguageIds } from "@/ssg/renderLanguage";
-import { showPrivacyPolicyModal, useAuthWithPrivacyPolicy } from "@/composables/useAuthWithPrivacyPolicy";
+import {
+    showPrivacyPolicyModal,
+    useAuthWithPrivacyPolicy,
+} from "@/composables/useAuthWithPrivacyPolicy";
 import { isConnected } from "luminary-shared";
 import { useNotificationStore, type Notification } from "@/stores/notification";
 import { useHydrated } from "@/composables/useHydrated";
@@ -124,32 +127,6 @@ const confirmLogout = async () => {
     forceReauthOnNextLogin.value = false;
 };
 
-// Publish rendered width as --desktop-sidebar-w so fixed overlays (e.g. ContinueReadingPrompt)
-// can center in the content column instead of the full viewport.
-const rootRef = ref<HTMLElement | null>(null);
-let resizeObserver: ResizeObserver | null = null;
-
-const publishWidth = (width: number) => {
-    document.documentElement.style.setProperty("--desktop-sidebar-w", `${width}px`);
-};
-
-onMounted(() => {
-    if (!rootRef.value) return;
-    const measure = () => {
-        if (rootRef.value) publishWidth(rootRef.value.getBoundingClientRect().width);
-    };
-    measure();
-    if (typeof ResizeObserver !== "undefined") {
-        resizeObserver = new ResizeObserver(measure);
-        resizeObserver.observe(rootRef.value);
-    }
-});
-
-onUnmounted(() => {
-    resizeObserver?.disconnect();
-    document.documentElement.style.removeProperty("--desktop-sidebar-w");
-});
-
 const handleLogin = () => {
     if (isConnected.value) {
         loginWithRedirect();
@@ -167,7 +144,6 @@ const handleLogin = () => {
 
 <template>
     <nav
-        ref="rootRef"
         class="relative hidden flex-shrink-0 flex-col border-r border-zinc-200 bg-zinc-100 transition-[width] duration-200 ease-out dark:border-slate-700 dark:bg-slate-800 lg:flex"
         :class="collapsed ? 'w-[4.5rem]' : 'w-64'"
     >
@@ -250,7 +226,8 @@ const handleLogin = () => {
                     <span
                         v-if="!collapsed"
                         :class="navLabelClass"
-                    >{{ item.name }}</span>
+                        >{{ item.name }}</span
+                    >
                 </a>
             </RouterLink>
 
@@ -271,7 +248,8 @@ const handleLogin = () => {
                 <span
                     v-if="!collapsed"
                     :class="navLabelClass"
-                >{{ t("menu.search") }}</span>
+                    >{{ t("menu.search") }}</span
+                >
             </span>
 
             <RouterLink
@@ -293,7 +271,8 @@ const handleLogin = () => {
                     <span
                         v-if="!collapsed"
                         :class="navLabelClass"
-                    >{{ t("profile_menu.bookmarks") }}</span>
+                        >{{ t("profile_menu.bookmarks") }}</span
+                    >
                 </a>
             </RouterLink>
 
@@ -313,7 +292,8 @@ const handleLogin = () => {
                     <span
                         v-if="!collapsed"
                         :class="navLabelClass"
-                    >{{ t("profile_menu.theme") }}</span>
+                        >{{ t("profile_menu.theme") }}</span
+                    >
                 </span>
 
                 <span
@@ -327,13 +307,14 @@ const handleLogin = () => {
                     />
                     <div
                         v-if="!collapsed"
-                        class="min-w-0 flex flex-col leading-none"
+                        class="flex min-w-0 flex-col leading-none"
                     >
                         <span :class="navLabelClass">{{ t("profile_menu.language") }}</span>
                         <span
                             v-if="renderLanguage?.name"
                             :class="navMetaClass"
-                        >{{ renderLanguage.name }}</span>
+                            >{{ renderLanguage.name }}</span
+                        >
                     </div>
                 </span>
 
@@ -356,7 +337,8 @@ const handleLogin = () => {
                         <span
                             v-if="!collapsed"
                             :class="navLabelClass"
-                        >{{ t("profile_menu.settings") }}</span>
+                            >{{ t("profile_menu.settings") }}</span
+                        >
                     </a>
                 </RouterLink>
             </div>
@@ -380,7 +362,8 @@ const handleLogin = () => {
                 <span
                     v-if="!collapsed"
                     :class="navLabelClass"
-                >{{ t("profile_menu.privacy_policy") }}</span>
+                    >{{ t("profile_menu.privacy_policy") }}</span
+                >
             </button>
 
             <button
@@ -390,7 +373,9 @@ const handleLogin = () => {
                 @click="isAuthenticated ? handleLogout() : handleLogin()"
             >
                 <component
-                    :is="isAuthenticated ? ArrowRightEndOnRectangleIcon : ArrowLeftEndOnRectangleIcon"
+                    :is="
+                        isAuthenticated ? ArrowRightEndOnRectangleIcon : ArrowLeftEndOnRectangleIcon
+                    "
                     :class="navIconClass"
                     aria-hidden="true"
                 />
@@ -406,7 +391,7 @@ const handleLogin = () => {
                 v-if="isAuthenticated"
                 :class="[
                     'flex items-center rounded-md',
-                    collapsed ? 'justify-center px-0 py-1' : 'gap-3 pl-1.5 py-1.5',
+                    collapsed ? 'justify-center px-0 py-1' : 'gap-3 py-1.5 pl-1.5',
                 ]"
                 :title="profileTooltip"
             >
