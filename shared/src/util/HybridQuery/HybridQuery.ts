@@ -549,10 +549,9 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
      * even then, since that case never recomputes.
      *
      * A pure `$limit` GROWTH additionally keeps the local + remote contributions
-     * themselves ({@link _isLimitGrowth}), so the list only ever gains rows: without it
-     * an API-supplemented feed drops back to its local-only subset for the length of the
-     * new supplement's round trip, which collapses the scroll height under an infinite
-     * scroller.
+     * themselves ({@link _isLimitGrowth}), so the list only ever gains rows rather than
+     * momentarily shrinking to its local-only subset while the widened supplement is
+     * in flight.
      */
     private _rebuild(query: MangoQuery): void {
         if (this._disposed) return;

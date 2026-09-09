@@ -131,15 +131,17 @@ const searchIsStale = search.isStale;
 
 const contentDocs = computed(() => (searchActive.value ? search.docs.value : browse.docs.value));
 
-// Every rendered row needs its parent's other translations for the language badges. An
-// unbounded per-parent Content query always hits the API supplement, so asking per card
-// costs one request per row; one `$in` query for the whole page collapses that (and the
-// per-row Dexie subscriptions) into a single source.
+// Every rendered row needs its parent's other translations for the language badges. A
+// single `$in` query for the whole page collapses the per-row Content lookups (and Dexie
+// subscriptions) into one HybridQuery instance; the API may still fan the `$in` out into
+// one POST per parent up to FANOUT_MAX_PARENTS.
 const rowTranslations = useHybridQuery<ContentDto>(
     () => ({
         selector: {
             type: DocType.Content,
-            parentId: { $in: [...new Set(contentDocs.value.map((d) => d.parentId))] },
+            // Sorted so a pure reorder of contentDocs (e.g. a socket-driven update) doesn't
+            // change the query identity and trigger a refetch of every parent's translations.
+            parentId: { $in: [...new Set(contentDocs.value.map((d) => d.parentId))].sort() },
         },
     }),
     {
