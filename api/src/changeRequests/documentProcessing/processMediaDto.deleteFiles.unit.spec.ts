@@ -1,6 +1,5 @@
 import processPostTagDto from "./processPostTagDto";
 import { processMedia } from "./processMediaDto";
-import { migrateMediaCollection } from "./migrateMediaCollection";
 import { deleteMediaCollection } from "./deleteMediaCollection";
 import { processImage } from "./processImageDto";
 import { DbService } from "../../db/db.service";
