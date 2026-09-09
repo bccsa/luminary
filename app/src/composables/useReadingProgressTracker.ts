@@ -1,6 +1,7 @@
 import { computed, nextTick, onUnmounted, ref, watch, type Ref } from "vue";
 import { useEventListener, useIntersectionObserver, type MaybeElement } from "@vueuse/core";
 import { getReadingProgress, removeReadingProgress, setReadingProgress } from "@/contentProgress";
+import { isPrerender } from "@/ssg/isPrerender";
 import {
     READING_MIN_SCROLL_SAMPLE_MS,
     computeBlockDwellMs,
@@ -377,7 +378,15 @@ export function useReadingProgressTracker(options: {
         });
     }
 
-    useEventListener(options.scrollContainer, "scroll", scheduleProgressUpdate, { passive: true });
+    // Not during the prerender: `useEventListener` removes on scope dispose, and SSR never
+    // unmounts, so the listener would stay on the mock window and pin this whole component —
+    // its article included — for the rest of the build. Guarded on `isPrerender` rather than a
+    // `window` check, since vite-ssg's mock makes `window` exist in Node too.
+    if (!isPrerender()) {
+        useEventListener(options.scrollContainer, "scroll", scheduleProgressUpdate, {
+            passive: true,
+        });
+    }
 
     const observerRoot = computed(() =>
         options.scrollContainer.value === window
@@ -754,7 +763,9 @@ export function useReadingProgressTracker(options: {
         threshold: [0, READING_INTERSECTION_RATIO, 1],
     });
 
-    useEventListener(options.scrollContainer, "scroll", onScroll, { passive: true });
+    if (!isPrerender()) {
+        useEventListener(options.scrollContainer, "scroll", onScroll, { passive: true });
+    }
 
     function teardownResizeObserver() {
         resizeObserver?.disconnect();
