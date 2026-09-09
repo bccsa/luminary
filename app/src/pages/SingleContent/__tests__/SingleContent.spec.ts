@@ -27,6 +27,7 @@ import {
     type ContentDto,
     type LanguageDto,
 } from "luminary-shared";
+import * as luminaryShared from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import {
     appLanguageIdsAsRef,
@@ -53,6 +54,7 @@ import ImageModal from "@/components/images/ImageModal.vue";
 import { resolveNotificationText, useNotificationStore } from "@/stores/notification";
 import { articleJsonLd, languageCodeForContent } from "@/seo/contentHead";
 import LHighlightable from "@/components/common/LHighlightable.vue";
+import ShareMenu from "@/components/content/ShareMenu.vue";
 import { highlightVersion } from "@/recommendation/highlightStore";
 
 const routeReplaceMock = vi.hoisted(() => vi.fn());
@@ -570,6 +572,39 @@ describe("SingleContent", () => {
 
         expect(highlightVersion.value).toBe(before + 1);
         wrapper.unmount();
+    });
+
+    it("hides the share controls when the user lacks the Share ACL permission", async () => {
+        // accessMap has no entry for mockEnglishContentDto.memberOf, so Share is denied by default.
+        wrapper = mount(SingleContent, {
+            props: { slug: mockEnglishContentDto.slug },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper!.findComponent(LHighlightable).exists()).toBe(true);
+        });
+
+        expect(wrapper!.findComponent(ShareMenu).exists()).toBe(false);
+        expect(wrapper!.findComponent(LHighlightable).props("canShare")).toBe(false);
+    });
+
+    it("shows the share controls when the user has the Share ACL permission", async () => {
+        const verifyAccessSpy = vi
+            .spyOn(luminaryShared, "verifyAccess")
+            .mockReturnValue(true);
+
+        wrapper = mount(SingleContent, {
+            props: { slug: mockEnglishContentDto.slug },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper!.findComponent(LHighlightable).exists()).toBe(true);
+        });
+
+        expect(wrapper!.findComponent(ShareMenu).exists()).toBe(true);
+        expect(wrapper!.findComponent(LHighlightable).props("canShare")).toBe(true);
+
+        verifyAccessSpy.mockRestore();
     });
 
     it("displays the author", async () => {

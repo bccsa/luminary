@@ -24,7 +24,16 @@ import {
 } from "@/composables/useSocialShare";
 import { useNotificationStore } from "@/stores/notification";
 
-const props = defineProps<{ contentId: string; title: string; copyright?: string }>();
+const props = withDefaults(
+    defineProps<{
+        contentId: string;
+        title: string;
+        copyright?: string;
+        /** Gates the share targets on the ACL Share permission; defaults open for callers that don't check it. */
+        canShare?: boolean;
+    }>(),
+    { canShare: true },
+);
 // Fired when a highlight is created or genuinely removed. The parent (which knows
 // the content's tags) decides what to do with these events. `highlightsChanged` is
 // emitted only after IndexedDB reflects the active markup, so other local consumers
@@ -345,6 +354,7 @@ function copyText() {
 // Captured on open, not read lazily by each platform button — the selection can
 // collapse once the user starts interacting with the popup.
 function openShareMenu() {
+    if (!props.canShare) return;
     const sel = window.getSelection();
     selectedTextForShare.value = sel ? sel.toString() : "";
     showShareMenu.value = true;
@@ -627,17 +637,19 @@ onUnmounted(() => {
                         Copy
                     </button>
 
-                    <div class="mx-0.5 h-4 w-px bg-zinc-200 dark:bg-slate-500"></div>
+                    <template v-if="canShare">
+                        <div class="mx-0.5 h-4 w-px bg-zinc-200 dark:bg-slate-500"></div>
 
-                    <!-- Share -->
-                    <button
-                        @click="openShareMenu"
-                        data-test="highlightShareTrigger"
-                        class="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 active:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-600 dark:active:bg-slate-500"
-                    >
-                        <ShareIcon class="size-4" />
-                        Share
-                    </button>
+                        <!-- Share -->
+                        <button
+                            @click="openShareMenu"
+                            data-test="highlightShareTrigger"
+                            class="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 active:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-600 dark:active:bg-slate-500"
+                        >
+                            <ShareIcon class="size-4" />
+                            Share
+                        </button>
+                    </template>
                 </div>
 
                 <!-- Color Picker -->
