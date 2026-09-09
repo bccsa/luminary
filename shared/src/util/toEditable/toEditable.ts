@@ -13,7 +13,7 @@ import { LFormData } from "../LFormData";
 import { isSyncableDoc } from "../../db/isSyncable";
 import { touchRetention } from "../../db/retention";
 import { getContentPublishDateCutoff } from "../../config";
-import _ from "lodash";
+import { cloneDeepWith, isEqualWith } from "lodash-es";
 
 export type ToEditableOptions<T> = {
     /**
@@ -472,7 +472,7 @@ export function toEditable<T extends BaseDocumentDto>(
 }
 
 /**
- * `_.isEqualWith` customizer for `ArrayBuffer`s. Documents can carry binary upload payloads
+ * `isEqualWith` customizer for `ArrayBuffer`s. Documents can carry binary upload payloads
  * (`imageData`/`media` `uploadData[].fileData: ArrayBuffer`); lodash compares those via
  * `equalByTag`, whose `byteLength` access throws ("incompatible receiver") when the buffer is
  * reached through a Vue reactive proxy. We compare by byte length instead — a genuine change to a
@@ -499,7 +499,7 @@ function cloneDeepCustomizer(value: unknown): unknown | undefined {
 }
 
 function cloneDeep<T>(value: T): T {
-    return _.cloneDeepWith(value, cloneDeepCustomizer) as T;
+    return cloneDeepWith(value, cloneDeepCustomizer) as T;
 }
 
 function arrayBufferCustomizer(x: unknown, y: unknown): boolean | undefined {
@@ -522,7 +522,7 @@ function arrayBufferCustomizer(x: unknown, y: unknown): boolean | undefined {
 }
 
 function isEqualBase<T>(obj1: T, obj2: T): boolean {
-    return _.isEqualWith(
+    return isEqualWith(
         { ...obj1, _rev: "", updatedTimeUtc: 0, updatedBy: "" },
         { ...obj2, _rev: "", updatedTimeUtc: 0, updatedBy: "" },
         arrayBufferCustomizer,
@@ -530,7 +530,7 @@ function isEqualBase<T>(obj1: T, obj2: T): boolean {
 }
 
 function backPatchFieldEqual(a: unknown, b: unknown): boolean {
-    return _.isEqualWith(a, b, arrayBufferCustomizer);
+    return isEqualWith(a, b, arrayBufferCustomizer);
 }
 
 /**
