@@ -195,6 +195,9 @@ export function useMediaEncoder() {
                 sessionId: session.sessionId,
                 readToken: session.readToken,
                 eventsUrl: session.eventsUrl,
+                // Carried on the handle so a resumed session, whose status says
+                // nothing about encryption, can still tell a missing key from none.
+                encryptionRequired: config.encryption?.required,
             };
             // Stored before the first event, so a reload during the encode can
             // find it again — and so a page that has since moved on can resume it.
@@ -209,21 +212,45 @@ export function useMediaEncoder() {
         }
     }
 
-    /** Hand the caller the playback URL and, when the session has one, its key. */
+    /**
+     * Hand the caller the playback URL and, when the session has one, its key.
+     *
+     * Resolves to whether the media was published, so a failed attempt can be made
+     * again on the next event rather than leaving the encode with nothing written.
+     * Nothing is handed over without the key the collection needs: the document
+     * keeps whichever `hlsKey_id` it already had, and that key does not open this
+     * collection.
+     */
     async function publish(
         handle: EncoderSessionHandle,
         documentId: string,
         hlsUrl: string,
         onMediaReady: MediaReadyHandler,
-    ): Promise<void> {
-        // An unencrypted session has no key, which the encoder answers with a 404
-        // and this reports as undefined.
-        const hlsKey = await fetchEncoderSessionKey(handle.sessionId, handle.readToken).catch(
-            () => undefined,
-        );
+    ): Promise<boolean> {
+        let hlsKey: string | undefined;
+        try {
+            // Undefined here means the encoder answered 404: the session is
+            // unencrypted. Anything else throws.
+            hlsKey = await fetchEncoderSessionKey(handle.sessionId, handle.readToken);
+        } catch (err: any) {
+            if (disposed) return false;
+            error.value = `Could not read the encryption key for this encode: ${
+                err?.message ?? String(err)
+            } The media was not written to the document.`;
+            return false;
+        }
 
-        if (disposed) return;
+        if (disposed) return false;
+
+        if (!hlsKey && handle.encryptionRequired) {
+            error.value =
+                "This bucket requires encrypted media, but the encoder reported no key " +
+                "for this encode. The media was not written to the document.";
+            return false;
+        }
+
         onMediaReady({ hlsUrl, hlsKey }, documentId);
+        return true;
     }
 
     /**
@@ -254,9 +281,13 @@ export function useMediaEncoder() {
                 if (isFinished(event.status)) forgetEncoderSession(documentId);
 
                 if (saved || !event.hlsUrl) return;
+                // Set before awaiting so two events in flight cannot both publish,
+                // and released again when the attempt did not write anything.
                 saved = true;
 
-                void publish(handle, documentId, event.hlsUrl, onMediaReady);
+                void publish(handle, documentId, event.hlsUrl, onMediaReady).then((published) => {
+                    if (!published) saved = false;
+                });
             },
             onError: () => {
                 // The stream drops when the encoder quits or the session ends.
