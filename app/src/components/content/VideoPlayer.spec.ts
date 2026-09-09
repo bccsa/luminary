@@ -42,7 +42,8 @@ vi.mock("@luminary-media-converter/player-web-legacy", async () => {
                     enterFullscreen: enterFullscreenMock,
                     exitFullscreen: exitFullscreenMock,
                 });
-                return () => h("div", { class: "luminary-player-stub" });
+                // A real `<video>`, so the Matomo scan has something to title.
+                return () => h("div", { class: "luminary-player-stub" }, [h("video")]);
             },
         }),
     };
@@ -105,6 +106,37 @@ beforeEach(() => {
 });
 
 describe("VideoPlayer", () => {
+    describe("media analytics", () => {
+        it("hands the video to Matomo once the player has rendered", async () => {
+            const paq: unknown[][] = [];
+            (window as any)._paq = paq;
+
+            await mountPlayer();
+
+            expect(paq).toContainEqual(["MediaAnalytics::enableMediaAnalytics"]);
+            expect(paq.some((c) => c[0] === "MediaAnalytics::scanForMedia")).toBe(true);
+        });
+
+        it("titles the video element itself, which is what the scan reads", async () => {
+            (window as any)._paq = [];
+
+            const wrapper = await mountPlayer();
+
+            expect(wrapper.find("video").attributes("data-matomo-title")).toBe(
+                mockEnglishContentDto.title,
+            );
+        });
+
+        it("says nothing when there is no video to report on", async () => {
+            const paq: unknown[][] = [];
+            (window as any)._paq = paq;
+
+            await mountPlayer({ parentMedia: undefined });
+
+            expect(paq).toHaveLength(0);
+        });
+    });
+
     it("resolves a bucket-relative URL to a fetchable one", async () => {
         const wrapper = await mountPlayer();
 
@@ -161,6 +193,19 @@ describe("VideoPlayer", () => {
             expect(fetchHlsKeyMock).not.toHaveBeenCalled();
         });
 
+        it("still renders a player when the key request throws", async () => {
+            // `crypto.subtle` is undefined outside a secure context, so this is what
+            // LAN testing on http hits. Leaving the key unresolved shows only a poster.
+            fetchHlsKeyMock.mockRejectedValue(new Error("Web Crypto is unavailable"));
+
+            const wrapper = await mountPlayer({
+                parentMedia: { hlsUrl: RELATIVE, hlsKey_id: "sidecar-1" },
+            });
+
+            expect(stub(wrapper).exists()).toBe(true);
+            expect(stub(wrapper).props("source").masterUrl).toBe(ABSOLUTE);
+        });
+
         it("still plays when the key cannot be had", async () => {
             // "Not encrypted" and "not yours to have" are the same answer here:
             // play what the playlists give, and let playback fail if it must.
@@ -181,8 +226,10 @@ describe("VideoPlayer", () => {
 
             stub(wrapper).vm.$emit("timeupdate", 90, 600);
 
+            // The stored URL, not the resolved one: ContentTile reads progress under
+            // exactly this and never resolves a bucket.
             expect(setMediaProgressMock).toHaveBeenCalledWith(
-                ABSOLUTE,
+                RELATIVE,
                 mockEnglishContentDto._id,
                 90,
                 600,
@@ -230,7 +277,10 @@ describe("VideoPlayer", () => {
 
             stub(wrapper).vm.$emit("ended");
 
-            expect(removeMediaProgressMock).toHaveBeenCalledWith(ABSOLUTE, mockEnglishContentDto._id);
+            expect(removeMediaProgressMock).toHaveBeenCalledWith(
+                RELATIVE,
+                mockEnglishContentDto._id,
+            );
             expect(recordAffinityMock).toHaveBeenCalledWith(mockEnglishContentDto.parentTags, 5);
             expect(markSeenMock).toHaveBeenCalledWith(mockEnglishContentDto._id);
             expect(exitFullscreenMock).toHaveBeenCalled();
