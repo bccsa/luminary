@@ -7,15 +7,31 @@ import { isBucketRelative, isInOurStorage } from "./mediaUrl";
 /** The S3 API's own ceiling on keys per delete call. */
 const DELETE_BATCH = 1000;
 
+export type MediaMigrationResult = {
+    failed: boolean;
+    warnings: string[];
+    /**
+     * Deletes the objects left behind in the old bucket. Run once the document has
+     * been written, never before: its failure costs storage, running it early costs
+     * the collection.
+     */
+    removeSource?: () => Promise<string[]>;
+};
+
 /**
  * Move a media collection from one bucket to another, then point the document at
  * its new home.
  *
  * Ordering is the whole design. Copy everything, prove every object arrived, only
- * then rewrite `hlsUrl`, and only then delete the source. A collection is not a set
- * of independent files — a master playlist without its segments is a broken video —
- * so this deliberately does not follow the per-file "upload then delete" of
- * `migrateImagesBetweenBuckets`, where a partial result costs one thumbnail.
+ * then rewrite `hlsUrl`. A collection is not a set of independent files — a master
+ * playlist without its segments is a broken video — so this deliberately does not
+ * follow the per-file "upload then delete" of `migrateImagesBetweenBuckets`, where
+ * a partial result costs one thumbnail.
+ *
+ * Removing the source is handed back as `removeSource` rather than done here: until
+ * the document is written, the old bucket is still the only place `hlsUrl` resolves,
+ * so a failure between here and the write must leave the files where the stored
+ * document says they are.
  *
  * On any failure the caller reverts `mediaBucketId`, which is what keeps the
  * document honest: `mediaBucketId` and `hlsUrl` must always name the same bucket,
@@ -27,15 +43,25 @@ export async function migrateMediaCollection(
     oldBucketId: string,
     newBucketId: string,
     db: DbService,
-): Promise<{ failed: boolean; warnings: string[] }> {
+): Promise<MediaMigrationResult> {
     const warnings: string[] = [];
 
     if (!previousHlsUrl) return { failed: false, warnings };
 
+    // Clearing the URL is the editor removing the media, and the move would write a
+    // new one straight back over that.
+    if (!media.hlsUrl) {
+        warnings.push(
+            "The media URL was cleared in the same save as the storage bucket, so no " +
+                "files were moved.",
+        );
+        return { failed: false, warnings };
+    }
+
     // A URL edited in the same save as a bucket change is the user repointing the
     // document by hand, not asking for a move. Moving files then overwriting their
     // edit would undo a deliberate action.
-    if (media.hlsUrl && media.hlsUrl !== previousHlsUrl) {
+    if (media.hlsUrl !== previousHlsUrl) {
         warnings.push(
             "The media URL and the storage bucket were changed together, so no files were " +
                 "moved. Change the bucket on its own if you want the existing files migrated.",
@@ -118,31 +144,33 @@ export async function migrateMediaCollection(
             media.hlsUrl = `${newBucket.publicUrl.replace(/\/+$/, "")}/${prefix}${MASTER}`;
         }
 
-        // Last, and its failure is not the migration's failure: the files are in
-        // the new bucket and the document points at them. Leftovers in the old
-        // bucket cost storage, not playback.
-        try {
-            console.log(
-                `Moved ${keys.length} media object(s) under ${prefix}/ from ` +
-                    `${oldBucket.name ?? oldBucketId} to ${newBucket.name ?? newBucketId}; ` +
-                    "removing the originals",
-            );
-            for (let i = 0; i < keys.length; i += DELETE_BATCH) {
-                await source.removeObjects(keys.slice(i, i + DELETE_BATCH));
+        // Handed to the caller instead of run here: its failure is not the migration's
+        // failure, and leftovers in the old bucket cost storage, not playback.
+        const removeSource = async (): Promise<string[]> => {
+            try {
+                console.log(
+                    `Moved ${keys.length} media object(s) under ${prefix}/ from ` +
+                        `${oldBucket.name ?? oldBucketId} to ${newBucket.name ?? newBucketId}; ` +
+                        "removing the originals",
+                );
+                for (let i = 0; i < keys.length; i += DELETE_BATCH) {
+                    await source.removeObjects(keys.slice(i, i + DELETE_BATCH));
+                }
+                return [];
+            } catch (error) {
+                return [
+                    `Media files were copied to ${newBucket.name ?? newBucketId} but the originals ` +
+                        `could not be removed from ${oldBucket.name ?? oldBucketId}: ${error.message}. ` +
+                        "Please remove them on the storage provider.",
+                ];
             }
-        } catch (error) {
-            warnings.push(
-                `Media files were copied to ${newBucket.name ?? newBucketId} but the originals ` +
-                    `could not be removed from ${oldBucket.name ?? oldBucketId}: ${error.message}. ` +
-                    "Please remove them on the storage provider.",
-            );
-        }
+        };
 
         warnings.push(
             `Successfully moved ${keys.length} media file(s) from ` +
                 `${oldBucket.name ?? oldBucketId} to ${newBucket.name ?? newBucketId}.`,
         );
-        return { failed: false, warnings };
+        return { failed: false, warnings, removeSource };
     } catch (error) {
         // Nothing was deleted and the URL was not rewritten. Copies already made are
         // left: a retry overwrites them, and deleting on the way out risks objects we

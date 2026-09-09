@@ -16,17 +16,24 @@ import {
 } from "../../sidecar/sidecar.service";
 
 /**
+ * Work that must not run until the document has been written. Storage the document
+ * still points at cannot be touched before the pointer moves.
+ */
+export type AfterCommitTask = () => Promise<string[]>;
+
+/**
  * Process Post / Tag DTO
  * @param doc
  * @param prevDoc
  * @param db
- * @param s3
+ * @param afterCommit collects work for the caller to run once the document is written
  * @returns warnings from image processing
  */
 export default async function processPostTagDto(
     doc: PostDto | TagDto,
     prevDoc: PostDto | TagDto | undefined,
     db: DbService,
+    afterCommit: AfterCommitTask[] = [],
 ): Promise<string[]> {
     const warnings: string[] = [];
 
@@ -150,6 +157,8 @@ export default async function processPostTagDto(
                 warnings.push(
                     "Media migration failed. Reverted to previous bucket configuration to ensure files remain accessible.",
                 );
+            } else if (migration.removeSource) {
+                afterCommit.push(migration.removeSource);
             }
         }
 

@@ -91,6 +91,10 @@ describe("migrateMediaCollection", () => {
         expect(result.failed).toBe(false);
         expect(destination.putStream).toHaveBeenCalledTimes(KEYS.length);
         expect(m.hlsUrl).toBe(`${NEW_BASE}/${SESSION}/master.m3u8`);
+
+        // The old bucket is still where the stored document points until it is written.
+        expect(source.removeObjects).not.toHaveBeenCalled();
+        await result.removeSource!();
         expect(source.removeObjects).toHaveBeenCalledWith(KEYS);
     });
 
@@ -155,7 +159,7 @@ describe("migrateMediaCollection", () => {
 
         expect(result.failed).toBe(false);
         expect(m.hlsUrl).toBe(`${NEW_BASE}/${SESSION}/master.m3u8`);
-        expect(result.warnings.join(" ")).toContain("could not be removed");
+        expect((await result.removeSource!()).join(" ")).toContain("could not be removed");
     });
 
     it("refuses a URL it cannot prove the encoder wrote", async () => {
@@ -236,13 +240,7 @@ describe("migrateMediaCollection", () => {
         const yt = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
         const m = { hlsUrl: yt } as MediaDto;
 
-        const result = await migrateMediaCollection(
-            m,
-            yt,
-            "bucket-old",
-            "bucket-new",
-            defaultDb(),
-        );
+        const result = await migrateMediaCollection(m, yt, "bucket-old", "bucket-new", defaultDb());
 
         expect(result.failed).toBe(false);
         expect(result.warnings).toEqual([]);
@@ -258,7 +256,22 @@ describe("migrateMediaCollection", () => {
         const result = await migrate(m, defaultDb());
 
         expect(result.failed).toBe(false);
+        await result.removeSource!();
         expect(source.removeObjects).toHaveBeenCalled();
+    });
+
+    it("does not move files when the URL was cleared in the same save", async () => {
+        // Clearing the URL removes the media; migrating would write a new one back.
+        const { source, destination } = stubS3();
+        const m = { hlsUrl: "" } as MediaDto;
+
+        const result = await migrate(m, defaultDb());
+
+        expect(result.failed).toBe(false);
+        expect(m.hlsUrl).toBe("");
+        expect(destination.putStream).not.toHaveBeenCalled();
+        expect(source.removeObjects).not.toHaveBeenCalled();
+        expect(result.warnings.join(" ")).toContain("cleared");
     });
 
     it("does nothing for a document that never had media", async () => {
