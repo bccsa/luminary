@@ -76,13 +76,39 @@ describe("MediaBucketSelect", () => {
         expect(parent.mediaBucketId).toBeUndefined();
     });
 
-    it("clears a bucket that no longer exists", async () => {
-        parent.mediaBucketId = "bucket-that-was-deleted";
+    it("keeps a bucket it cannot see, and says why", async () => {
+        // Absence from the list is not deletion: the bucket can be one this account
+        // has no permission for. Clearing it strands the document.
+        parent.mediaBucketId = "bucket-not-visible-to-me";
 
-        mountSelect();
+        const wrapper = mountSelect();
         await new Promise((r) => setTimeout(r, 0));
 
-        expect(parent.mediaBucketId).toBeUndefined();
+        expect(parent.mediaBucketId).toBe("bucket-not-visible-to-me");
+        expect(wrapper.find('[data-test="bucket-problem"]').text()).toContain(
+            "not available to you",
+        );
+    });
+
+    it("leaves the bucket alone when the section is read-only", async () => {
+        parent.mediaBucketId = "bucket-not-visible-to-me";
+
+        mount(MediaBucketSelect, { props: { parent, disabled: true } });
+        await new Promise((r) => setTimeout(r, 0));
+
+        expect(parent.mediaBucketId).toBe("bucket-not-visible-to-me");
+    });
+
+    it("says nothing about a bucket while none have loaded yet", async () => {
+        mockMediaBuckets.value = [];
+        parent.mediaBucketId = "bucket-media";
+
+        const wrapper = mountSelect();
+        await new Promise((r) => setTimeout(r, 0));
+
+        expect(wrapper.find('[data-test="bucket-problem"]').text()).toContain(
+            "No storage buckets are configured",
+        );
     });
 
     it("warns when several buckets exist and none is chosen", async () => {

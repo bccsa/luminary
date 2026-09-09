@@ -129,8 +129,13 @@ export default async function processPostTagDto(
         }
 
         // A bucket change takes the files with it: `mediaBucketId` and `hlsUrl` must
-        // name the same bucket, or a later delete cannot find the collection.
-        if (prevDoc?.mediaBucketId && prevDoc.mediaBucketId !== doc.mediaBucketId) {
+        // name the same bucket, or a later delete cannot find the collection. A document
+        // that names no bucket has nowhere to move to, so it is not a bucket change.
+        if (
+            prevDoc?.mediaBucketId &&
+            doc.mediaBucketId &&
+            prevDoc.mediaBucketId !== doc.mediaBucketId
+        ) {
             const migration = await migrateMediaCollection(
                 doc.media,
                 prevDoc.media?.hlsUrl,

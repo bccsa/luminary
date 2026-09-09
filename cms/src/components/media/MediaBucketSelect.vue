@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, watchEffect } from "vue";
+import { computed } from "vue";
 import { type ContentParentDto } from "luminary-shared";
 import LSelect from "../forms/LSelect.vue";
 import MediaNotice from "./MediaNotice.vue";
@@ -47,25 +47,26 @@ const handleBucketChange = (bucketId: string) => {
 const NO_BUCKETS =
     "No storage buckets are configured. Add an S3 bucket in Storage settings before encoding media.";
 const NO_SELECTION = "Choose a storage bucket before encoding media.";
+const UNKNOWN_BUCKET =
+    "This document's storage bucket is not available to you. It may have been removed, or your account may not have access to it. The setting is left as it is — choosing another bucket moves the files.";
+
+// A bucket missing from the list is not proof that it was deleted: it is equally
+// a bucket this account cannot see. Reported rather than cleared, because clearing
+// leaves the document holding a relative URL the API has no bucket to resolve.
+const namesUnknownBucket = computed(() => {
+    const named = parent.value?.mediaBucketId;
+    if (!named || bucketSelection.mediaBuckets.value.length == 0) return false;
+    return !bucketSelection.mediaBuckets.value.some((b) => b._id === named);
+});
 
 // Surface bucket problems as soon as they exist rather than when an encode is
 // attempted: the encoder cannot be told where to write without one.
 const problem = computed(() => {
+    if (namesUnknownBucket.value) return UNKNOWN_BUCKET;
     if (!bucketSelection.hasMediaBuckets.value) return NO_BUCKETS;
     if (!effectiveMediaBucketId.value && bucketSelection.mediaBuckets.value.length > 1)
         return NO_SELECTION;
     return undefined;
-});
-
-// A bucket that no longer exists is not a selection. Checked only once buckets have
-// loaded, or a slow IndexedDB read would clear a perfectly good one.
-watchEffect(() => {
-    if (!parent.value?.mediaBucketId || bucketSelection.mediaBuckets.value.length == 0) return;
-
-    const stillExists = bucketSelection.mediaBuckets.value.some(
-        (b) => b._id === parent.value?.mediaBucketId,
-    );
-    if (!stillExists) parent.value.mediaBucketId = undefined;
 });
 </script>
 
