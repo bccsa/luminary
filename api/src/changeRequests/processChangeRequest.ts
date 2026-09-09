@@ -110,20 +110,6 @@ export async function processChangeRequest(
     // Insert / update the document in the database
     const upsertResult = await db.upsertDoc(doc);
 
-    if (upsertResult.ok) {
-        for (const task of afterCommit) {
-            // A task that throws has already lost nothing the document depends on, so
-            // it is reported rather than allowed to fail a write that has landed.
-            const taskWarnings = await task().catch((error) => [
-                `Media cleanup after saving failed: ${error.message}.`,
-            ]);
-            if (taskWarnings.length > 0) {
-                if (!validationResult.warnings) validationResult.warnings = [];
-                validationResult.warnings.push(...taskWarnings);
-            }
-        }
-    }
-
     const res: ProcessChangeRequestResult = {
         result: upsertResult,
     };
@@ -182,6 +168,23 @@ export async function processChangeRequest(
                 prevDoc as ContentDto,
                 (prevDoc as ContentDto).slug,
             );
+        }
+    }
+
+    // Last, after every path that can still restore the previous revision: work
+    // deferred to here touches storage the document no longer points at, and a
+    // rollback would make it point back.
+    if (upsertResult.ok) {
+        for (const task of afterCommit) {
+            // A task that throws has already lost nothing the document depends on, so
+            // it is reported rather than allowed to fail a write that has landed.
+            const taskWarnings = await task().catch((error) => [
+                `Media cleanup after saving failed: ${error.message}.`,
+            ]);
+            if (taskWarnings.length > 0) {
+                if (!validationResult.warnings) validationResult.warnings = [];
+                validationResult.warnings.push(...taskWarnings);
+            }
         }
     }
 
