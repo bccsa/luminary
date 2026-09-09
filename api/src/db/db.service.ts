@@ -147,6 +147,18 @@ const FTS_STALE_READ = { stable: true, update: "lazy" as const };
 export const MAX_TAG_FEED_TAGS = 20;
 
 /**
+ * Read the tag-feed view without waiting for indexing to catch up. The default
+ * (`update: true`) rebuilds the index against every document written since the last read
+ * before answering, which on a write-heavy database makes each query pay for other
+ * traffic's writes.
+ *
+ * Safe here because the view only supplies a `publishDate` floor with an open upper end:
+ * a lagging index can widen the scan slightly, but can never hide a document. Callers must
+ * treat "no rows" as "no floor available", not as "no matching content".
+ */
+const TAG_FEED_STALE_READ = { stable: true, update: "lazy" as const };
+
+/**
  * Database service for interacting with CouchDB.
  * Provides methods for CRUD operations, document synchronization, and query execution.
  *
@@ -1028,6 +1040,9 @@ export class DbService extends EventEmitter {
      * visibility rules are never duplicated here. The view holds published docs only;
      * expiry, language and group filtering still happen downstream.
      *
+     * Read stale (see {@link TAG_FEED_STALE_READ}), so an empty result means "no floor
+     * available" — a cold or lagging index — and NOT "these tags have no content".
+     *
      * @param tagIds - Tag parent ids to seek. Deduped; capped at {@link MAX_TAG_FEED_TAGS}.
      * @param perTagLimit - Rows to take per tag before merging (the caller over-fetches to
      *   absorb documents the downstream filter removes).
@@ -1044,6 +1059,7 @@ export class DbService extends EventEmitter {
         const results = await Promise.all(
             tags.map((tag) =>
                 this.db.view("content-tag-publishDate", "content-tag-publishDate", {
+                    ...TAG_FEED_STALE_READ,
                     // Descending needs the HIGH key first. `{}` sorts after any number in
                     // CouchDB collation, and the shorter `[tag]` sorts before `[tag, n]`,
                     // so this brackets exactly one tag's entries, newest first.

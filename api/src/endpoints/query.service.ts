@@ -280,9 +280,9 @@ export class QueryService {
             const tagFeed = planTagFeed(query);
             if (tagFeed) {
                 const candidates = await this.db.getContentIdsByTags(tagFeed.tagIds, tagFeed.limit);
-                // No candidates ⇒ no published content carries these tags.
-                if (!candidates.length) return { docs: [], blockStart: 0, blockEnd: 0 };
                 const floor = candidateFloor(candidates, tagFeed.limit);
+                // No floor means the view is cold or lagging, not that these tags have no
+                // content — fall through to the unbounded query, which is slower but right.
                 if (floor !== undefined) applyTagFeedFloor(query, floor);
             }
         }
