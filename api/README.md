@@ -142,6 +142,21 @@ $ npx ts-node load_tester --help
 - [docs/socket-io-messages.md](docs/socket-io-messages.md) — Socket.io message reference (API ↔ clients)
 - [docs/s3-multi-bucket/README.md](docs/s3-multi-bucket/README.md) — S3 multi-bucket storage architecture
 
+## HLS decryption keys and the `/sidecar` rate limiters
+
+Encryption keys for HLS media are stored as `Sidecar` documents, which are never
+replicated to clients; `GET /sidecar` is their only read path (ADR 0019).
+
+That endpoint is guarded by two rate limiters that, unlike the expensive-query
+limiter, **default ON**: `SIDECAR_RATE_LIMIT_READ_*` bounds successful key fetches
+and `SIDECAR_RATE_LIMIT_PROBE_*` bounds repeated 403/404s at a lower ceiling. See
+`.env.example` for the full set and their defaults.
+
+Worth knowing when diagnosing playback: a blocked caller gets HTTP 429, and the
+shared http layer swallows it, so the app and CMS players report the media as
+needing a key rather than as rate limited. Check these limits before chasing a
+decryption fault.
+
 ## CMS view permission (`CmsView`) and CMS-scoped live updates
 
 The CMS sees more than the app — drafts, scheduled, and expired Content — and that extra

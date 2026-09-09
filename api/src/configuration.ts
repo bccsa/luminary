@@ -45,19 +45,13 @@ export type QueryConfig = {
 
 export type SidecarRateLimitConfig = {
     /**
-     * Bounds successful key fetches — the harvesting-mitigation limiter described in
-     * ADR 0019 (docs/adr/0019-hls-encryption-keys-as-non-replicated-sidecars.md). Unlike the query
-     * limiter, this defaults ON: /sidecar hands out decryption keys, and the absence of a
-     * batch/listing parameter is only meaningful if a caller can't substitute a fast loop of single
-     * requests.
-     * Environment variable: SIDECAR_RATE_LIMIT_READ_ENABLED (default true).
+     * Bounds successful key fetches (ADR 0019). Defaults ON.
+     * Environment variable: SIDECAR_RATE_LIMIT_READ_ENABLED.
      */
     read: RateLimiterConfig;
     /**
-     * Bounds repeated 403/404 responses (parent-id / permission probing). Lower ceiling than
-     * `read` since the endpoint's 404-for-both rule already makes probing uninformative (ADR 0019)
-     * — this limiter is a backstop, not the primary defense. Defaults ON.
-     * Environment variable: SIDECAR_RATE_LIMIT_PROBE_ENABLED (default true).
+     * Bounds repeated 403/404 responses (ADR 0019). Defaults ON.
+     * Environment variable: SIDECAR_RATE_LIMIT_PROBE_ENABLED.
      */
     probe: RateLimiterConfig;
 };
@@ -128,6 +122,25 @@ export type Configuration = {
     auth?: AuthConfig;
 };
 
+/**
+ * One `<PREFIX>_*` group of rate-limiter settings. The three groups differ only in
+ * their prefix and defaults, including which way `ENABLED` defaults: only the
+ * explicit opposite of the default switches it.
+ */
+function rateLimitFromEnv(prefix: string, defaults: RateLimiterConfig): RateLimiterConfig {
+    const enabled = process.env[`${prefix}_ENABLED`];
+    const ms = (name: string, fallback: number) =>
+        parseInt(process.env[`${prefix}_${name}`], 10) || fallback;
+
+    return {
+        enabled: defaults.enabled ? enabled !== "false" : enabled === "true",
+        freeStrikes: ms("FREE_STRIKES", defaults.freeStrikes),
+        baseBackoffMs: ms("BASE_BACKOFF_MS", defaults.baseBackoffMs),
+        maxBackoffMs: ms("MAX_BACKOFF_MS", defaults.maxBackoffMs),
+        strikeDecayMs: ms("STRIKE_DECAY_MS", defaults.strikeDecayMs),
+    };
+}
+
 export default () =>
     ({
         database: {
@@ -143,38 +156,30 @@ export default () =>
             maxLanguages: parseInt(process.env.QUERY_MAX_LANGUAGES, 10) || 4,
             expensiveDocsExamined: parseInt(process.env.QUERY_EXPENSIVE_DOCS_EXAMINED, 10) || 1000,
             expensiveExaminedRatio: parseInt(process.env.QUERY_EXPENSIVE_EXAMINED_RATIO, 10) || 10,
-            rateLimit: {
-                enabled: process.env.QUERY_RATE_LIMIT_ENABLED === "true",
-                freeStrikes: parseInt(process.env.QUERY_RATE_LIMIT_FREE_STRIKES, 10) || 3,
-                baseBackoffMs: parseInt(process.env.QUERY_RATE_LIMIT_BASE_BACKOFF_MS, 10) || 5000,
-                maxBackoffMs: parseInt(process.env.QUERY_RATE_LIMIT_MAX_BACKOFF_MS, 10) || 300000,
-                strikeDecayMs: parseInt(process.env.QUERY_RATE_LIMIT_STRIKE_DECAY_MS, 10) || 600000,
-            },
+            rateLimit: rateLimitFromEnv("QUERY_RATE_LIMIT", {
+                enabled: false,
+                freeStrikes: 3,
+                baseBackoffMs: 5000,
+                maxBackoffMs: 300000,
+                strikeDecayMs: 600000,
+            }),
         } as QueryConfig,
         sidecar: {
             rateLimit: {
-                read: {
-                    enabled: process.env.SIDECAR_RATE_LIMIT_READ_ENABLED !== "false",
-                    freeStrikes:
-                        parseInt(process.env.SIDECAR_RATE_LIMIT_READ_FREE_STRIKES, 10) || 30,
-                    baseBackoffMs:
-                        parseInt(process.env.SIDECAR_RATE_LIMIT_READ_BASE_BACKOFF_MS, 10) || 2000,
-                    maxBackoffMs:
-                        parseInt(process.env.SIDECAR_RATE_LIMIT_READ_MAX_BACKOFF_MS, 10) || 60000,
-                    strikeDecayMs:
-                        parseInt(process.env.SIDECAR_RATE_LIMIT_READ_STRIKE_DECAY_MS, 10) || 2000,
-                },
-                probe: {
-                    enabled: process.env.SIDECAR_RATE_LIMIT_PROBE_ENABLED !== "false",
-                    freeStrikes:
-                        parseInt(process.env.SIDECAR_RATE_LIMIT_PROBE_FREE_STRIKES, 10) || 10,
-                    baseBackoffMs:
-                        parseInt(process.env.SIDECAR_RATE_LIMIT_PROBE_BASE_BACKOFF_MS, 10) || 5000,
-                    maxBackoffMs:
-                        parseInt(process.env.SIDECAR_RATE_LIMIT_PROBE_MAX_BACKOFF_MS, 10) || 300000,
-                    strikeDecayMs:
-                        parseInt(process.env.SIDECAR_RATE_LIMIT_PROBE_STRIKE_DECAY_MS, 10) || 60000,
-                },
+                read: rateLimitFromEnv("SIDECAR_RATE_LIMIT_READ", {
+                    enabled: true,
+                    freeStrikes: 30,
+                    baseBackoffMs: 2000,
+                    maxBackoffMs: 60000,
+                    strikeDecayMs: 2000,
+                }),
+                probe: rateLimitFromEnv("SIDECAR_RATE_LIMIT_PROBE", {
+                    enabled: true,
+                    freeStrikes: 10,
+                    baseBackoffMs: 5000,
+                    maxBackoffMs: 300000,
+                    strikeDecayMs: 60000,
+                }),
             },
         } as SidecarConfig,
         imageProcessing: {
