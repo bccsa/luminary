@@ -318,17 +318,23 @@ export async function setupAuth(app: App<Element>, router: Router): Promise<void
         return;
     }
 
+    // The packaged app is backgrounded for the whole round trip and can be
+    // killed before the provider returns, which leaves the response with no
+    // in-flight signin to resolve. Redeemed here instead, on the next start.
+    const strandedCallback = (await getAuthFlow().consumePendingCallback?.()) ?? null;
+    const callbackUrl = isCallback ? url.href : strandedCallback;
+
     const manager = installManager(provider);
     isLoading.value = true;
     try {
-        if (isCallback) {
+        if (callbackUrl) {
             // setupAuth runs before app.use(router), so router.replace() treats
             // this as a duplicate of its uninitialised `/` route and leaves the
             // real browser URL unchanged. Capture the callback URL for the OIDC
             // client, then remove its one-time credentials directly from history.
-            stripAuthCallbackParams();
+            if (isCallback) stripAuthCallbackParams();
             try {
-                oidcUser.value = await manager.signinRedirectCallback(url.href);
+                oidcUser.value = await manager.signinRedirectCallback(callbackUrl);
                 const returnTo = sanitizeReturnTo(
                     (oidcUser.value.state as SigninState | undefined)?.returnTo,
                 );

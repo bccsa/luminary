@@ -24,4 +24,13 @@ export type AuthFlowService = {
 
     /** Interactive signout against the provider's end-session endpoint. */
     signout(manager: UserManager, args: SignoutRedirectArgs): Promise<void>;
+
+    /**
+     * A completed redirect that arrived with nothing waiting for it, returned
+     * once and then forgotten. The packaged app sits in the background for the
+     * whole round trip and can be killed before the provider returns, which
+     * leaves the response with no in-flight {@link signin} to resolve.
+     * Undefined where the platform cannot strand a redirect.
+     */
+    consumePendingCallback?(): Promise<string | null>;
 };
