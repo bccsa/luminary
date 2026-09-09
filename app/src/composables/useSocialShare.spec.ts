@@ -1,10 +1,32 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import type { ContentDto, ImageFileCollectionDto } from "luminary-shared";
 
-import { fetchShareImageFile, formatShareMessage, shareImageUrl } from "./useSocialShare";
+import {
+    buildWhatsAppShareUrl,
+    fetchShareImageFile,
+    formatShareMessage,
+    shareImageUrl,
+} from "./useSocialShare";
 
 const contentWith = (fileCollections: ImageFileCollectionDto[]) =>
     ({ parentImageData: { fileCollections } }) as ContentDto;
+
+describe("buildWhatsAppShareUrl", () => {
+    // On a phone/tablet, api.whatsapp.com is a supported OS-level Universal Link that hands
+    // off to the native app with the text intact.
+    it("targets api.whatsapp.com on a coarse pointer (phone/tablet)", () => {
+        const url = new URL(buildWhatsAppShareUrl("hello", true));
+        expect(url.host).toBe("api.whatsapp.com");
+        expect(url.searchParams.get("text")).toBe("hello");
+    });
+
+    // On desktop there's no such handoff, so web.whatsapp.com is used directly instead.
+    it("targets web.whatsapp.com on a fine pointer (desktop)", () => {
+        const url = new URL(buildWhatsAppShareUrl("hello", false));
+        expect(url.host).toBe("web.whatsapp.com");
+        expect(url.searchParams.get("text")).toBe("hello");
+    });
+});
 
 describe("formatShareMessage", () => {
     it("marks the copyright line with ©", () => {

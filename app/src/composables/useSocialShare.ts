@@ -10,13 +10,15 @@ export function buildTelegramShareUrl(text: string, url: string): string {
     return shareUrl.toString();
 }
 
-// web.whatsapp.com, not wa.me / api.whatsapp.com — both of those are registered as
-// OS-level Universal Links, so the click is handed straight to the native desktop app
-// before the page (or the `text` param) is involved, and the app's own handler drops
-// everything but the trailing URL. web.whatsapp.com isn't a Universal Link target, so
-// it opens as a normal page and keeps the full pre-filled text intact.
-export function buildWhatsAppShareUrl(text: string): string {
-    const shareUrl = new URL("https://web.whatsapp.com/send");
+// api.whatsapp.com is registered as an OS-level Universal Link on phones/tablets, so a tap
+// hands off straight to the native app with `text` intact — the supported mobile path.
+// Desktop has no such handoff and mostly has no native client registered for it either, so
+// the same link there is a dead end; web.whatsapp.com opens as a normal page and keeps the
+// pre-filled text for a browser with an active WhatsApp Web session instead.
+export function buildWhatsAppShareUrl(text: string, isMobile: boolean): string {
+    const shareUrl = new URL(
+        isMobile ? "https://api.whatsapp.com/send" : "https://web.whatsapp.com/send",
+    );
     shareUrl.searchParams.set("text", text);
     return shareUrl.toString();
 }
