@@ -260,6 +260,19 @@ describe("migrateMediaCollection", () => {
         expect(source.removeObjects).toHaveBeenCalled();
     });
 
+    it("hands the whole key list to minio, which batches it", async () => {
+        // minio splits at 1000 per DeleteMultipleObjects call and runs the batches in
+        // parallel, so a loop here only serialises what it already does.
+        const keys = Array.from({ length: 2500 }, (_, i) => `${SESSION}/media/v0_${i}.m4s`);
+        const { source } = stubS3({ keys, sizes: Object.fromEntries(keys.map((k) => [k, 1])) });
+
+        const result = await migrate(media(), defaultDb());
+        await result.removeSource!();
+
+        expect(source.removeObjects).toHaveBeenCalledTimes(1);
+        expect(source.removeObjects).toHaveBeenCalledWith(keys);
+    });
+
     it("does not move files when the URL was cleared in the same save", async () => {
         // Clearing the URL removes the media; migrating would write a new one back.
         const { source, destination } = stubS3();

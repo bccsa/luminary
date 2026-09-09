@@ -6,7 +6,7 @@ import { SidecarType } from "../../enums";
 import { maskKeyHex } from "../../util/maskKey";
 import { sidecarId } from "../../sidecar/sidecar.service";
 import { HlsEncryptionKeyData, upsertHlsKeySidecar } from "../../sidecar/hlsEncryptionKey";
-import { toStoredMediaUrl } from "./mediaUrl";
+import { isBucketRelative, toStoredMediaUrl } from "./mediaUrl";
 
 /**
  * Processes the media object on a content parent document.
@@ -40,7 +40,9 @@ export async function processMedia(
 
     // Stored relative to the bucket the document already names, so the two
     // cannot disagree later. External URLs are left alone — see mediaUrl.ts.
-    if (media.hlsUrl && parent.mediaBucketId) {
+    // An already-relative URL has nothing to convert, so it does not pay for the
+    // bucket read: every ordinary save of an encoded document lands here.
+    if (media.hlsUrl && !isBucketRelative(media.hlsUrl) && parent.mediaBucketId) {
         try {
             const result = await db.getDoc(parent.mediaBucketId);
             const publicUrl = result.docs?.[0]?.publicUrl;

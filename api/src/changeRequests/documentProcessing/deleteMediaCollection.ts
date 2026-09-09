@@ -1,7 +1,7 @@
 import { MediaDto } from "../../dto/MediaDto";
 import { DbService } from "../../db/db.service";
 import { S3Service } from "../../s3/s3.service";
-import { isBucketRelative, isInOurStorage } from "./mediaUrl";
+import { isBucketRelative, isInOurStorage, withoutTrailingSlashes } from "./mediaUrl";
 
 /**
  * Where a collection lives in its bucket, or why we will not touch it.
@@ -68,7 +68,7 @@ export function resolveCollectionPrefix(
         if (!publicUrl) {
             return { refusal: "the bucket has no public URL configured" };
         }
-        const base = publicUrl.replace(/\/+$/, "");
+        const base = withoutTrailingSlashes(publicUrl);
         // The separator has to be part of the match, or a bucket published at
         // `https://cdn/media` would claim URLs belonging to `https://cdn/media-archive`.
         if (!url.startsWith(`${base}/`)) {
@@ -177,11 +177,7 @@ export async function deleteMediaCollection(
                 `in bucket ${bucket.name ?? bucketId}: ${keys.join(", ")}`,
         );
 
-        // Batched: removeObjects takes a list, and a collection can run to
-        // hundreds of objects. 1000 is the S3 API's own limit per call.
-        for (let i = 0; i < keys.length; i += 1000) {
-            await s3.removeObjects(keys.slice(i, i + 1000));
-        }
+        await s3.removeObjects(keys);
     } catch (error) {
         warnings.push(
             `Some media files could not be deleted from storage: ${error.message}. ` +

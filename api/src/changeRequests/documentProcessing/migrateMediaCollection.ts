@@ -2,10 +2,7 @@ import { MediaDto } from "../../dto/MediaDto";
 import { DbService } from "../../db/db.service";
 import { S3Service } from "../../s3/s3.service";
 import { MASTER, loadBucket, resolveCollectionPrefix } from "./deleteMediaCollection";
-import { isBucketRelative, isInOurStorage } from "./mediaUrl";
-
-/** The S3 API's own ceiling on keys per delete call. */
-const DELETE_BATCH = 1000;
+import { isBucketRelative, isInOurStorage, withoutTrailingSlashes } from "./mediaUrl";
 
 export type MediaMigrationResult = {
     failed: boolean;
@@ -141,7 +138,7 @@ export async function migrateMediaCollection(
         // Only now is the new location real. A relative URL already names a path inside
         // whichever bucket the document points at; only the legacy absolute form moves.
         if (!isBucketRelative(media.hlsUrl)) {
-            media.hlsUrl = `${newBucket.publicUrl.replace(/\/+$/, "")}/${prefix}${MASTER}`;
+            media.hlsUrl = `${withoutTrailingSlashes(newBucket.publicUrl)}/${prefix}${MASTER}`;
         }
 
         // Handed to the caller instead of run here: its failure is not the migration's
@@ -153,9 +150,7 @@ export async function migrateMediaCollection(
                         `${oldBucket.name ?? oldBucketId} to ${newBucket.name ?? newBucketId}; ` +
                         "removing the originals",
                 );
-                for (let i = 0; i < keys.length; i += DELETE_BATCH) {
-                    await source.removeObjects(keys.slice(i, i + DELETE_BATCH));
-                }
+                await source.removeObjects(keys);
                 return [];
             } catch (error) {
                 return [
