@@ -134,6 +134,92 @@ describe("useMediaEncoder resume", () => {
             sessionId: "s1",
             readToken: "r1",
             eventsUrl: EVENTS_URL,
+            // A resumed session's status says nothing about encryption, so the
+            // requirement is kept where a reload can still find it.
+            encryptionRequired: true,
+        });
+    });
+
+    describe("publishing the encoded media", () => {
+        /** Starts an encode and hands back the event callback the session subscribed with. */
+        const startAndCapture = async (onMediaReady = vi.fn()) => {
+            const encoder = useMediaEncoder();
+            await encoder.start({
+                documentId: "post-1",
+                title: "Episode 1",
+                mediaBucketId: "bucket-1",
+                onMediaReady,
+            });
+            const handlers = (subscribeMock.mock.calls[0] as any[])[1];
+            return { encoder, onMediaReady, emit: handlers.onEvent };
+        };
+
+        const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+        it("hands over the URL with the key the collection needs", async () => {
+            const { onMediaReady, emit } = await startAndCapture();
+
+            emit({ status: "encoding", hlsUrl: "https://cdn/master.m3u8" });
+            await settle();
+
+            expect(onMediaReady).toHaveBeenCalledWith(
+                { hlsUrl: "https://cdn/master.m3u8", hlsKey: "aabbccddeeff00112233445566778899" },
+                "post-1",
+            );
+        });
+
+        it("writes nothing when the key cannot be read, and says so", async () => {
+            // Saved without it, the URL is paired with whichever key id the document
+            // already carries, and that key does not open this collection.
+            fetchEncoderSessionKeyMock.mockRejectedValue(new Error("the encoder answered 500"));
+            const { encoder, onMediaReady, emit } = await startAndCapture();
+
+            emit({ status: "encoding", hlsUrl: "https://cdn/master.m3u8" });
+            await settle();
+
+            expect(onMediaReady).not.toHaveBeenCalled();
+            expect(encoder.error.value).toContain("500");
+        });
+
+        it("tries again on the next event rather than losing the encode", async () => {
+            fetchEncoderSessionKeyMock.mockRejectedValueOnce(new Error("connection refused"));
+            const { onMediaReady, emit } = await startAndCapture();
+
+            emit({ status: "encoding", hlsUrl: "https://cdn/master.m3u8" });
+            await settle();
+            emit({ status: "encoding", hlsUrl: "https://cdn/master.m3u8", progress: 10 });
+            await settle();
+
+            expect(onMediaReady).toHaveBeenCalledTimes(1);
+        });
+
+        it("writes nothing when the bucket demands encryption and no key exists", async () => {
+            fetchEncoderSessionKeyMock.mockResolvedValue(undefined);
+            const { encoder, onMediaReady, emit } = await startAndCapture();
+
+            emit({ status: "encoding", hlsUrl: "https://cdn/master.m3u8" });
+            await settle();
+
+            expect(onMediaReady).not.toHaveBeenCalled();
+            expect(encoder.error.value).toContain("requires encrypted media");
+        });
+
+        it("publishes without a key when the bucket does not ask for one", async () => {
+            getEncoderConfigMock.mockResolvedValue({
+                s3: { endPoint: "s3.example.com", bucket: "media" },
+                publicBaseUrl: "https://cdn.example.com/media",
+                encryption: { required: false },
+            });
+            fetchEncoderSessionKeyMock.mockResolvedValue(undefined);
+            const { onMediaReady, emit } = await startAndCapture();
+
+            emit({ status: "encoding", hlsUrl: "https://cdn/master.m3u8" });
+            await settle();
+
+            expect(onMediaReady).toHaveBeenCalledWith(
+                { hlsUrl: "https://cdn/master.m3u8", hlsKey: undefined },
+                "post-1",
+            );
         });
     });
 

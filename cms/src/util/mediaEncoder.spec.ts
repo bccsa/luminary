@@ -134,6 +134,26 @@ describe("fetchEncoderSessionKey", () => {
 
         expect(await fetchEncoderSessionKey("s1", "read_1")).toBeUndefined();
     });
+
+    it("throws on any other refusal, which is not the same as having no key", async () => {
+        // Reported as "unencrypted", the URL is saved against whichever key id the
+        // document already holds — and that key does not open this collection.
+        vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 500 }));
+
+        await expect(fetchEncoderSessionKey("s1", "read_1")).rejects.toThrow("500");
+    });
+
+    it("throws when the answer carries no key at all", async () => {
+        vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) }));
+
+        await expect(fetchEncoderSessionKey("s1", "read_1")).rejects.toThrow(/no key/i);
+    });
+
+    it("lets a network failure through rather than reading it as unencrypted", async () => {
+        vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("connection refused")));
+
+        await expect(fetchEncoderSessionKey("s1", "read_1")).rejects.toThrow("connection refused");
+    });
 });
 
 describe("browserCanReachEncoder", () => {

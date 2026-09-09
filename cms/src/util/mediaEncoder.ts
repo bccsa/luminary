@@ -254,8 +254,12 @@ export async function fetchEncoderSessionStatus(
 
 /**
  * Fetch the session's AES-128 key, unmasked. The encoder serves it masked with
- * SHA-256(sessionId) from its own endpoint — obscurity, not DRM. Undefined when
- * the session is unencrypted (404).
+ * SHA-256(sessionId) from its own endpoint — obscurity, not DRM.
+ *
+ * Undefined means the session is unencrypted, which the encoder says with a 404
+ * and nothing else does. Every other failure throws: a key that cannot be read is
+ * not a collection without one, and saving the URL as though it were pairs it with
+ * whichever key id the document already carries.
  */
 export async function fetchEncoderSessionKey(
     sessionId: string,
@@ -266,10 +270,15 @@ export async function fetchEncoderSessionKey(
         `${baseUrl}/api/sessions/${encodeURIComponent(sessionId)}/key` +
             `?token=${encodeURIComponent(readToken)}`,
     );
-    if (!res.ok) return undefined;
+    if (res.status == 404) return undefined;
+    if (!res.ok) {
+        throw new Error(`The encoder answered ${res.status} for this session's key.`);
+    }
 
     const body = (await res.json()) as { maskedKeyHex?: string };
-    if (!body.maskedKeyHex) return undefined;
+    if (!body.maskedKeyHex) {
+        throw new Error("The encoder returned no key for this session.");
+    }
 
     return await unmaskKeyHex(sessionId, body.maskedKeyHex);
 }
@@ -286,6 +295,8 @@ export type EncoderSessionHandle = {
     sessionId: string;
     readToken: string;
     eventsUrl: string;
+    /** Whether the bucket demanded encryption, so a session with no key is wrong. */
+    encryptionRequired?: boolean;
 };
 
 const SESSION_HANDLE_PREFIX = "cms_encoderSession_";

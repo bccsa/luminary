@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
-import { type ContentParentDto, type MediaDto } from "luminary-shared";
+import { type ContentParentDto, type MediaDto, toAbsoluteMediaUrl } from "luminary-shared";
 import { FilmIcon, QuestionMarkCircleIcon } from "@heroicons/vue/24/outline";
 import LCard from "../common/LCard.vue";
 import EncodeMediaButton from "../media/EncodeMediaButton.vue";
@@ -63,6 +63,14 @@ const handleEncodedMedia = (media: Pick<MediaDto, "hlsUrl" | "hlsKey">, document
     // The editor may have moved to another document while the encoder was slow to
     // answer; that document must not receive this one's collection.
     if (!parent.value || parent.value._id !== documentId) return;
+
+    // A resumed session offers the URL it started with, absolute, while the API
+    // stores it relative to the bucket. Writing it back says the same thing in a
+    // different shape: it marks an untouched document edited, and in a save that
+    // also changes the bucket the API reads the pair as a hand edit and moves no
+    // files.
+    const bucket = bucketSelection.getBucketById(effectiveBucketId.value ?? null);
+    if (toAbsoluteMediaUrl(parent.value.media?.hlsUrl, bucket?.publicUrl) === media.hlsUrl) return;
 
     parent.value.media = {
         ...(parent.value.media ?? { fileCollections: [] }),

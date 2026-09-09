@@ -29,7 +29,10 @@ vi.mock("@/composables/storageSelection", () => ({
         effectiveMediaBucketId: (persisted?: string) => persisted ?? "bucket-1",
         mediaBuckets: ref([{ _id: "bucket-1", name: "media" }]),
         hasMediaBuckets: ref(true),
-        getBucketById: () => undefined,
+        getBucketById: (id: string | null) =>
+            id == "bucket-1"
+                ? { _id: "bucket-1", name: "media", publicUrl: "https://cdn.example.com/media" }
+                : undefined,
     }),
 }));
 
@@ -125,7 +128,10 @@ describe("EditContentMedia", () => {
         await wrapper.find('[data-test="encode-media-button"]').trigger("click");
 
         const { onMediaReady } = encoder.start.mock.calls[0][0];
-        onMediaReady({ hlsUrl: "https://cdn/master.m3u8", hlsKey: "abc" }, mockData.mockPostDto._id);
+        onMediaReady(
+            { hlsUrl: "https://cdn/master.m3u8", hlsKey: "abc" },
+            mockData.mockPostDto._id,
+        );
         await settle();
 
         expect(wrapper.props("parent")!.media?.hlsUrl).toBe("https://cdn/master.m3u8");
@@ -140,8 +146,13 @@ describe("EditContentMedia", () => {
         await wrapper.find('[data-test="encode-media-button"]').trigger("click");
         const { onMediaReady } = encoder.start.mock.calls[0][0];
 
-        await wrapper.setProps({ parent: { ...parent(), _id: "post-2", media: undefined } as PostDto });
-        onMediaReady({ hlsUrl: "https://cdn/master.m3u8", hlsKey: "abc" }, mockData.mockPostDto._id);
+        await wrapper.setProps({
+            parent: { ...parent(), _id: "post-2", media: undefined } as PostDto,
+        });
+        onMediaReady(
+            { hlsUrl: "https://cdn/master.m3u8", hlsKey: "abc" },
+            mockData.mockPostDto._id,
+        );
         await settle();
 
         expect(wrapper.props("parent")!.media).toBeUndefined();
@@ -184,6 +195,29 @@ describe("EditContentMedia resume", () => {
         expect(encoder.resume).toHaveBeenCalledWith(
             expect.objectContaining({ documentId: "post-2" }),
         );
+    });
+
+    it("leaves the document alone when a resumed session offers what it already has", async () => {
+        // The API stores the URL relative to the bucket; the encoder offers it
+        // absolute. Writing it back marks an untouched document edited, and in a save
+        // that also changes the bucket the API reads the pair as a hand edit.
+        encoder.resume.mockImplementation(async ({ documentId, onMediaReady }: any) => {
+            onMediaReady(
+                { hlsUrl: "https://cdn.example.com/media/abc/master.m3u8", hlsKey: "abc" },
+                documentId,
+            );
+            return true;
+        });
+        const stored = {
+            ...parent(),
+            mediaBucketId: "bucket-1",
+            media: { hlsUrl: "/abc/master.m3u8" },
+        } as PostDto;
+
+        const wrapper = mountSection({ parent: stored });
+        await settle();
+
+        expect(wrapper.props("parent")!.media).toEqual({ hlsUrl: "/abc/master.m3u8" });
     });
 
     it("writes back a URL recovered from a resumed session", async () => {
