@@ -120,6 +120,36 @@ describe("processPostTagDto — migrating media between buckets", () => {
         expect(warnings.some((w) => w.includes("Reverted to previous bucket"))).toBe(false);
     });
 
+    it("hands the source deletion to the caller instead of running it", async () => {
+        // The old bucket is where the stored document still points until it is written.
+        const removeSource = jest.fn().mockResolvedValue([]);
+        (migrateMediaCollection as jest.Mock).mockResolvedValue({
+            failed: false,
+            warnings: [],
+            removeSource,
+        });
+        const afterCommit: (() => Promise<string[]>)[] = [];
+
+        await processPostTagDto(post("bucket-new"), post("bucket-old"), stubDb(), afterCommit);
+
+        expect(afterCommit).toEqual([removeSource]);
+        expect(removeSource).not.toHaveBeenCalled();
+    });
+
+    it("does not delete the source when the migration failed", async () => {
+        const removeSource = jest.fn().mockResolvedValue([]);
+        (migrateMediaCollection as jest.Mock).mockResolvedValue({
+            failed: true,
+            warnings: [],
+            removeSource,
+        });
+        const afterCommit: (() => Promise<string[]>)[] = [];
+
+        await processPostTagDto(post("bucket-new"), post("bucket-old"), stubDb(), afterCommit);
+
+        expect(afterCommit).toHaveLength(0);
+    });
+
     it("does not migrate on a delete request", async () => {
         // A delete removes files; it does not move them somewhere first.
         const incoming = post("bucket-new");
