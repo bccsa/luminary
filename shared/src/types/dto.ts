@@ -7,7 +7,6 @@ import type {
     DeleteReason,
     StorageType,
     MediaType,
-    MediaPreset,
     AclPermission,
     AckStatus,
     SidecarType,
@@ -279,8 +278,7 @@ export type MediaDto = {
     hlsKey?: string;
     /** Write-only: delete the files in storage along with the document. */
     deleteFiles?: boolean;
-    fileCollections: MediaFileDto[];
-    uploadData?: MediaUploadDataDto[];
+    fileCollections?: MediaFileDto[];
 };
 
 export type MediaFileDto = {
@@ -289,13 +287,6 @@ export type MediaFileDto = {
     bitrate: number;
     mediaType: MediaType;
     processingProgress?: number;
-};
-
-export type MediaUploadDataDto = {
-    fileData: ArrayBuffer;
-    mediaType: MediaType;
-    preset?: MediaPreset;
-    languageId?: string;
 };
 
 export type ChangeReqDto = {

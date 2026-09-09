@@ -150,12 +150,3 @@ export enum MediaType {
     Audio = "audio",
     Video = "video",
 }
-
-/**
- * Media encoding presets
- */
-export enum MediaPreset {
-    Speech = "speech",
-    Music = "music",
-    Default = "default",
-}
