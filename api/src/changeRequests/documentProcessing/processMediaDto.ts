@@ -9,22 +9,10 @@ import { HlsEncryptionKeyData, upsertHlsKeySidecar } from "../../sidecar/hlsEncr
 import { isBucketRelative, toStoredMediaUrl } from "./mediaUrl";
 
 /**
- * Processes the media object on a content parent document.
- *
- * Media is an HLS collection produced by the Luminary Media Convert desktop app.
- * That app writes to the storage bucket itself, so there is nothing to upload here —
- * the document carries a URL to a collection this API never handles the bytes of on
- * the way in.
- *
- * What does need handling is the decryption key. It arrives once, on the change
- * request that first saves the collection, and is stored as a masked sidecar so
- * the raw key never rests on the content document or in a log line. The sidecar
- * carries the parent's `memberOf` so the permission system gates it. See ADR 0019
- * (docs/adr/0019-hls-encryption-keys-as-non-replicated-sidecars.md).
- *
- * Moving and removing the collection are the caller's, in `processPostTagDto`:
- * `migrateMediaCollection` on a bucket change and `deleteMediaCollection` when the
- * document is deleted and the user asked for the files to go with it.
+ * Processes the media object on a content parent: stores the URL relative to its
+ * bucket, and turns a submitted `hlsKey` into a masked sidecar so the raw key never
+ * rests on the document (ADR 0019). Moving and removing the collection belong to
+ * the caller, in `processPostTagDto`.
  */
 export async function processMedia(
     media: MediaDto,

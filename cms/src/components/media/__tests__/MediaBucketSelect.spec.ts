@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import { nextTick } from "vue";
 import * as mockData from "@/tests/mockdata";
-import MediaBucketSelect from "./MediaBucketSelect.vue";
+import MediaBucketSelect from "../MediaBucketSelect.vue";
 import { type ContentParentDto } from "luminary-shared";
 
 const mockMediaBuckets = vi.hoisted(() => {

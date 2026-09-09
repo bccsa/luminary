@@ -1,28 +1,14 @@
 /**
- * Client for the Luminary Media Convert desktop encoder.
- *
- * The encoder is a local application listening on loopback, not a service we host.
- * The browser talks to it directly: nothing is uploaded through the CMS, and the
- * encoder writes to S3 itself with credentials this page forwards to it.
- *
- * Two consequences shape everything below:
- *
- * 1. It may simply not be running, which is an ordinary state rather than an error.
- *    Every entry point starts with a health check, and the fallback is a
- *    `luminary-convert://` link that launches the installed app.
- * 2. Reaching 127.0.0.1 from a public origin is a private-network request. Chrome
- *    sends a Local Network Access preflight and the encoder answers it, then asks
- *    the user to trust this origin the first time. Firefox and Safari do not
- *    implement the grant, so this is Chrome-only at time of writing.
+ * Client for the Luminary Media Convert desktop encoder, a local application on
+ * loopback rather than a service we host. It may not be running, which is an
+ * ordinary state here, and reaching it needs a browser that implements the Local
+ * Network Access grant. See docs/guides/media-encoder-integration.md.
  */
 import { unmaskKeyHex } from "luminary-shared";
 
 /**
- * Where the encoder listens.
- *
- * 31711 is the port the desktop app binds (DEFAULT_PORT in the encoder's
- * bootstrap.ts) and is the only value that matters in production — the address is
- * fixed by the installed application, not configured by whoever deploys the CMS.
+ * Where the encoder listens. Fixed by the installed application rather than
+ * configured, so the override exists for local development only.
  * VITE_ENCODER_URL exists for running the encoder's API standalone in development,
  * where it defaults to 3000 instead.
  */

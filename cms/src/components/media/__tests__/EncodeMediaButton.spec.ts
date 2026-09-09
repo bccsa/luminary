@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { mount } from "@vue/test-utils";
-import EncodeMediaButton from "./EncodeMediaButton.vue";
+import EncodeMediaButton from "../EncodeMediaButton.vue";
 
 const mountButton = (props = {}) =>
     mount(EncodeMediaButton, {

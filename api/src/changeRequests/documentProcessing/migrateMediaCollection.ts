@@ -16,23 +16,11 @@ export type MediaMigrationResult = {
 };
 
 /**
- * Move a media collection from one bucket to another, then point the document at
- * its new home.
- *
- * Ordering is the whole design. Copy everything, prove every object arrived, only
- * then rewrite `hlsUrl`. A collection is not a set of independent files — a master
- * playlist without its segments is a broken video — so this deliberately does not
- * follow the per-file "upload then delete" of `migrateImagesBetweenBuckets`, where
- * a partial result costs one thumbnail.
- *
- * Removing the source is handed back as `removeSource` rather than done here: until
- * the document is written, the old bucket is still the only place `hlsUrl` resolves,
- * so a failure between here and the write must leave the files where the stored
- * document says they are.
- *
- * On any failure the caller reverts `mediaBucketId`, which is what keeps the
- * document honest: `mediaBucketId` and `hlsUrl` must always name the same bucket,
- * or a later delete cannot resolve the collection and the files leak.
+ * Moves a media collection between buckets and repoints the document at it. Copies
+ * the whole collection before rewriting `hlsUrl`, and hands the source deletion
+ * back as `removeSource` for the caller to run after the write. On failure the
+ * caller reverts `mediaBucketId`, which must always name the same bucket as
+ * `hlsUrl`.
  */
 export async function migrateMediaCollection(
     media: MediaDto,

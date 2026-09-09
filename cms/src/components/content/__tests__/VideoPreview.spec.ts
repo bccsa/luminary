@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import waitForExpect from "wait-for-expect";
-import VideoPreview from "./VideoPreview.vue";
+import VideoPreview from "../VideoPreview.vue";
 
 const fetchHlsKeyMock = vi.hoisted(() => vi.fn());
 const retryMock = vi.hoisted(() => vi.fn());
