@@ -17,6 +17,7 @@ const stubDb = () =>
         upsertDoc: jest.fn().mockResolvedValue({ id: "x" }),
         getDocs: jest.fn().mockResolvedValue({ docs: [] }),
         getDoc: jest.fn().mockResolvedValue({ docs: [] }),
+        getDocsByType: jest.fn().mockResolvedValue({ docs: [] }),
     }) as unknown as DbService;
 
 const HLS = "http://old.example.com/media/c5829f07-4ba8-42ed-a449-80d83e6c0b53/master.m3u8";
@@ -106,6 +107,17 @@ describe("processPostTagDto — migrating media between buckets", () => {
             expect.objectContaining({ _id: "post-1", mediaBucketId: "bucket-new" }),
             expect.anything(),
         );
+    });
+
+    it("does not migrate when the incoming document names no bucket", async () => {
+        // Nowhere to move to: migrating to `undefined` only fails and reverts, which
+        // reports a bucket problem the editor never caused.
+        const incoming = post(undefined as unknown as string);
+
+        const warnings = await processPostTagDto(incoming, post("bucket-old"), stubDb());
+
+        expect(migrateMediaCollection).not.toHaveBeenCalled();
+        expect(warnings.some((w) => w.includes("Reverted to previous bucket"))).toBe(false);
     });
 
     it("does not migrate on a delete request", async () => {
