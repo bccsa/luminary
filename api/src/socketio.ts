@@ -50,7 +50,6 @@ type ClientRoomReq = {
  */
 type ClientConfig = {
     maxUploadFileSize: number;
-    maxMediaUploadFileSize?: number;
     accessMap?: AccessMap;
 };
 
@@ -282,7 +281,6 @@ export class Socketio implements OnGatewayInit {
         // Send client configuration data and access map
         const clientConfig = {
             maxUploadFileSize: this.config.socketIo.maxHttpBufferSize,
-            maxMediaUploadFileSize: this.config.socketIo.maxMediaUploadFileSize || 0,
             accessMap: socket.data.userDetails.accessMap,
         } as ClientConfig;
         socket.emit("clientConfig", clientConfig);

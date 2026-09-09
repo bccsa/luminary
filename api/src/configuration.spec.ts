@@ -16,7 +16,6 @@ describe("configuration", () => {
         delete process.env.DB_MAX_SOCKETS;
         delete process.env.S3_IMG_QUALITY;
         delete process.env.MAX_HTTP_BUFFER_SIZE;
-        delete process.env.MAX_MEDIA_UPLOAD_FILE_SIZE;
 
         const config = configuration();
 
@@ -24,7 +23,6 @@ describe("configuration", () => {
         expect(config.database.maxSockets).toBe(512);
         expect(config.imageProcessing.imageQuality).toBe(80);
         expect(config.socketIo.maxHttpBufferSize).toBe(1e7);
-        expect(config.socketIo.maxMediaUploadFileSize).toBe(1.5e7);
     });
 
     it("should use env vars when set", () => {
