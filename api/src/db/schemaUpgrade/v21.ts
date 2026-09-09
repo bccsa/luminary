@@ -7,8 +7,9 @@ import { ContentDto } from "../../dto/ContentDto";
  * `ContentDto.video` URL moves onto the parent's `media.hlsUrl`.
  *
  * A parent holds one collection, so the first child's value wins and any other
- * distinct value is logged and dropped. `video` is then cleared from every child,
- * and `parentMedia` stamped on them as a change request would.
+ * distinct value is logged and dropped. `parentMedia` is stamped on every child as
+ * a change request would, and `video` is copied rather than moved: it stays on the
+ * children for app builds that still read it (ADR 0005).
  */
 export default async function (db: DbService) {
     try {
@@ -25,7 +26,7 @@ export default async function (db: DbService) {
         const stats = {
             parentsScanned: 0,
             parentsUpdated: 0,
-            childrenCleared: 0,
+            childrenStamped: 0,
             valuesDropped: 0,
         };
 
@@ -59,27 +60,28 @@ export default async function (db: DbService) {
                     parentUpdated = true;
                 }
 
+                if (!parentUpdated) continue;
+
                 // `parentMedia` is only ever stamped by a change request, so a migrated
                 // parent's children must get it here or the app shows no video until
                 // the parent is next saved.
+                //
+                // `video` stays where it is. App builds from before the field moved
+                // gate the player on it, and ADR 0005 is written for installs that
+                // update rarely: taking it away costs them a video they play today,
+                // while a newer build prefers `parentMedia.hlsUrl` and ignores it.
                 for (const child of children) {
-                    const hadVideo = Boolean(child.video);
-                    if (!hadVideo && !parentUpdated) continue;
-
-                    delete child.video;
-                    if (parentUpdated) {
-                        child.parentMedia = parent.media;
-                        child.parentMediaBucketId = parent.mediaBucketId;
-                    }
+                    child.parentMedia = parent.media;
+                    child.parentMediaBucketId = parent.mediaBucketId;
                     child.updatedTimeUtc = Date.now();
                     await db.upsertDoc(child);
-                    if (hadVideo) stats.childrenCleared++;
+                    stats.childrenStamped++;
                 }
             }
         }
 
         console.info(
-            `Video-field migration: scanned ${stats.parentsScanned} parent(s); moved a value onto ${stats.parentsUpdated} parent(s)' media.hlsUrl; cleared the legacy video field on ${stats.childrenCleared} content doc(s); ${stats.valuesDropped} distinct value(s) dropped (a parent can only hold one hlsUrl).`,
+            `Video-field migration: scanned ${stats.parentsScanned} parent(s); moved a value onto ${stats.parentsUpdated} parent(s)' media.hlsUrl; stamped parentMedia on ${stats.childrenStamped} content doc(s); ${stats.valuesDropped} distinct value(s) dropped (a parent can only hold one hlsUrl). The legacy video field is left in place for app builds that still read it.`,
         );
 
         await db.setSchemaVersion(21);
