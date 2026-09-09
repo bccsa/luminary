@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { syncBatch } from "./syncBatch";
 import { setCancelSync } from "./sync";
-import { syncList } from "./state";
+import { syncList, syncTolerance } from "./state";
 import { DocType, BaseDocumentDto } from "../../types";
 import { OPEN_MAX, OPEN_MIN } from "./utils";
 
@@ -1227,6 +1227,71 @@ describe("syncBatch", () => {
             });
             expect(syncList.value).toHaveLength(1);
             expect(syncList.value[0].chunkType).toBe("content:post:alwaysOffline");
+        });
+    });
+
+    describe("degenerate floor column (both-zero range — #1815)", () => {
+        // calcChunk returns {blockStart: 0, blockEnd: 0} when a column's only stored chunk has
+        // blockEnd === 0 (already at the epoch floor) on the initialSync:false continuation path.
+        // That yields the degenerate updatedTimeUtc $lte:0,$gte:0 selector that walked the whole
+        // CouchDB index returning no docs.
+
+        it("skips /query and seals the column eof for an already-floored column", async () => {
+            syncList.value = [
+                {
+                    chunkType: "redirect",
+                    memberOf: ["g1"],
+                    blockStart: 5000,
+                    blockEnd: 0,
+                    eof: false,
+                } as any,
+            ];
+            const http = { post: vi.fn(async () => ({ docs: [] })) };
+            const result = await syncBatch({
+                type: DocType.Redirect,
+                memberOf: ["g1"],
+                limit: 100,
+                initialSync: false,
+                httpService: http as any,
+            });
+            expect(http.post).not.toHaveBeenCalled();
+            expect(result?.eof).toBe(true);
+            expect(syncList.value[0].eof).toBe(true);
+        });
+
+        it("still polls /query for a healthy eof column's catch-up window (initialSync:true)", async () => {
+            // A healthy eof column must still be polled for new docs: initialSync:true gives
+            // blockStart = MAX_SAFE_INTEGER, blockEnd = frontier.blockStart - syncTolerance — a
+            // bounded catch-up window, NOT the both-zero floor range. The new guard must not
+            // suppress it.
+            syncList.value = [
+                {
+                    chunkType: "redirect",
+                    memberOf: ["g1"],
+                    blockStart: 5000,
+                    blockEnd: 0,
+                    eof: true,
+                } as any,
+            ];
+            const capturedBodies: any[] = [];
+            const http = {
+                post: vi.fn(async (_path: string, body: any) => {
+                    capturedBodies.push(body);
+                    return { docs: [] };
+                }),
+            };
+            await syncBatch({
+                type: DocType.Redirect,
+                memberOf: ["g1"],
+                limit: 100,
+                initialSync: true,
+                httpService: http as any,
+            });
+            expect(http.post).toHaveBeenCalledTimes(1);
+            expect(capturedBodies[0].selector.updatedTimeUtc.$lte).toBe(
+                Number.MAX_SAFE_INTEGER,
+            );
+            expect(capturedBodies[0].selector.updatedTimeUtc.$gte).toBe(5000 - syncTolerance);
         });
     });
 });

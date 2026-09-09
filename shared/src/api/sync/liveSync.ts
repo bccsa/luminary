@@ -4,7 +4,7 @@ import { db } from "../../db/database";
 import { isSyncableDoc } from "../../db/isSyncable";
 import { getSocket } from "../../socket/socketio";
 import { setBaseRooms } from "../../socket/roomSubscriptions";
-import { getContentPublishDateCutoff } from "../../config";
+import { getContentPublishDateCutoff, isWindowedContentSubType } from "../../config";
 import { syncList } from "./state";
 import { splitChunkTypeString } from "./utils";
 
@@ -39,13 +39,14 @@ function roomDocTypesFromSyncList(): DocType[] {
  * `isSyncableDoc` (the sync-`syncList`-derived gate), and the result is written
  * via `db.bulkPut` (which resolves `DeleteCmd`s with its own stale-delete guard).
  *
- * Below-cutoff Content is written through ONLY if we're already keeping it offline
- * (a `retention` row exists) — so a live edit to an offline-cached older article
- * stays fresh, while a below-cutoff doc we aren't caching is not persisted (it
- * would otherwise be written here and evicted on the next sync). DeleteCmds and
- * above-cutoff / non-Content docs are unaffected; the gate is inert when no cutoff
- * is configured (CMS). Exported so the persistence decision can be unit-tested
- * without a live socket.
+ * Below-cutoff content of a windowed subtype (currently: Post — see
+ * isWindowedContentSubType) is written through ONLY if we're already keeping it
+ * offline (a `retention` row exists) — so a live edit to an offline-cached older
+ * article stays fresh, while a below-cutoff doc we aren't caching is not persisted
+ * (it would otherwise be written here and evicted on the next sync). DeleteCmds,
+ * non-windowed subtypes (Tag), and above-cutoff / non-Content docs are unaffected;
+ * the gate is inert when no cutoff is configured (CMS). Exported so the persistence
+ * decision can be unit-tested without a live socket.
  */
 export async function applyLiveData(data: ApiDataResponseDto): Promise<void> {
     // Docs the client is allowed to store in IndexedDB (shared gate with
@@ -56,6 +57,7 @@ export async function applyLiveData(data: ApiDataResponseDto): Promise<void> {
     const isBelowCutoffContent = (d: BaseDocumentDto): boolean => {
         if (d.type !== DocType.Content) return false;
         const content = d as ContentDto;
+        if (!isWindowedContentSubType(content.parentType)) return false;
         if (content.parentAlwaysOffline === true) return false;
         const pd = content.publishDate;
         return pd !== undefined && pd < cutoff;

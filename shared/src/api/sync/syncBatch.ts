@@ -42,6 +42,21 @@ export async function syncBatch(options: SyncOptions) {
     // that this is the first sync for this type and memberOf groups.
     const firstSync = chunk.blockEnd === 0;
 
+    // A column whose frontier is already at the epoch floor (blockStart === 0 && blockEnd === 0)
+    // has no valid updatedTimeUtc window to query — $lte:0,$gte:0 can only match docs at exactly
+    // the epoch, which real content never carries, yet CouchDB still walks the chosen index before
+    // returning empty (the #1815 full-table scan). Seal the column eof and skip the /query call
+    // entirely; the API's both-zero 400 guard (query.controller.ts) is the server-side backstop for
+    // any cursor corruption that still reaches it. A healthy eof column's catch-up poll
+    // (blockStart = MAX_SAFE_INTEGER, blockEnd = frontier.blockStart - syncTolerance) is left intact
+    // so new-doc detection still works.
+    if (chunk.blockStart === 0 && chunk.blockEnd === 0) {
+        const mergeResult = merge(options);
+        mergeResult.eof = true;
+        markColumnEof(options);
+        return { ...mergeResult, firstSync };
+    }
+
     // If the calculated range is inverted (blockStart < blockEnd) AND the inversion is within
     // `syncTolerance`, treat it as the intended sub-tolerance boundary gap — stop iteration and
     // seal the frontier to avoid infinite recursion on identical chunks.

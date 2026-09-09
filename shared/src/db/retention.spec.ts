@@ -23,7 +23,14 @@ import { DocType, type BaseDocumentDto } from "../types";
 const CUTOFF = 1000;
 
 const content = (_id: string, publishDate: number): BaseDocumentDto =>
-    ({ _id, type: DocType.Content, publishDate, updatedTimeUtc: 1, memberOf: [] }) as unknown as BaseDocumentDto;
+    ({
+        _id,
+        type: DocType.Content,
+        parentType: DocType.Post,
+        publishDate,
+        updatedTimeUtc: 1,
+        memberOf: [],
+    }) as unknown as BaseDocumentDto;
 
 describe("retention", () => {
     beforeAll(async () => {
@@ -214,6 +221,19 @@ describe("retention", () => {
             await evictStaleBelowCutoff();
 
             expect(await db.docs.get("always-offline")).toBeDefined();
+        });
+
+        it("does not evict Tag content below the Post cutoff", async () => {
+            await db.docs.bulkPut([
+                {
+                    ...(content("tag-content", 400) as object),
+                    parentType: DocType.Tag,
+                } as BaseDocumentDto,
+            ]);
+
+            await evictStaleBelowCutoff();
+
+            expect(await db.docs.get("tag-content")).toBeDefined();
         });
 
         it("leaves a Content doc that has no publishDate (absent from the publishDate index)", async () => {
