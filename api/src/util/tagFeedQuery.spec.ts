@@ -121,7 +121,9 @@ describe("tagFeedQuery", () => {
             expect(candidateFloor(c(50, 30), 10)).toBe(30);
         });
 
-        it("returns undefined with no candidates", () => {
+        it("returns undefined with no candidates, so the caller can skip the floor", () => {
+            // A cold or lagging view returns no rows. That must not be read as "no content
+            // for these tags" — the caller falls through to the unbounded query instead.
             expect(candidateFloor([], 10)).toBeUndefined();
         });
 
