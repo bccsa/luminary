@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { mount } from "@vue/test-utils";
-import EncodeStatus from "./EncodeStatus.vue";
+import EncodeStatus from "../EncodeStatus.vue";
 
 const mountStatus = (props = {}) =>
     mount(EncodeStatus, {

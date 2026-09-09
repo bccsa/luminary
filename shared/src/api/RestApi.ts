@@ -164,17 +164,9 @@ class RestApi {
     }
 
     /**
-     * A sidecar payload for one parent document, one sidecar type at a time (no
-     * batching — see the API's `SidecarController`).
-     *
-     * Sidecars carry data that must never replicate to every client, such as an
-     * HLS decryption key: documents hold only an id (`hlsKey_id`), and the payload
-     * is fetched from here instead. The server hands it to anyone who may view the
-     * parent and to nobody else; `cms: true` asks under `CmsView` instead of
-     * `View`, for an editor previewing a parent that has no live content yet.
-     *
-     * `undefined` covers "no such sidecar" and "you may not see it" alike — both
-     * are simply "there is nothing to use" from the caller's side.
+     * Fetches one parent's sidecar payload — data that must never replicate, such as
+     * an HLS decryption key. `cms: true` asks under `CmsView`. `undefined` covers
+     * both "no such sidecar" and "not yours to see". See ADR 0019.
      */
     async getSidecar(
         parentId: string,

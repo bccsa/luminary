@@ -12,7 +12,7 @@ vi.mock("luminary-shared", async (importOriginal) => ({
         ]),
 }));
 
-import MediaAudioList from "./MediaAudioList.vue";
+import MediaAudioList from "../MediaAudioList.vue";
 
 const parentWith = (collections: unknown[]) =>
     ({ _id: "post-1", media: { fileCollections: collections } }) as any;
