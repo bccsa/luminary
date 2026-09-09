@@ -338,6 +338,24 @@ export function useReadingProgressTracker(options: {
     const scrollProgressPercent = ref(0);
     let progressRafPending = false;
 
+    // Nothing below this means anything without a viewport, and a server render disposes no
+    // scope: listeners, observers and frame callbacks registered here would stay on the mock
+    // window and hold the page — article text included — for the rest of the build. Guarded on
+    // isPrerender rather than a `window` check, since vite-ssg's mock makes it exist in Node.
+    if (isPrerender()) {
+        return {
+            segments,
+            sourceElements,
+            isRestoring,
+            savedProgressPercent,
+            hasResumableProgress,
+            readingProgressPercent,
+            scrollProgressPercent,
+            restoreScrollPosition,
+            setup,
+        };
+    }
+
     function computeScrollProgress() {
         const el = options.progressRoot?.value ?? options.articleRoot.value;
         if (!el) {
@@ -378,15 +396,7 @@ export function useReadingProgressTracker(options: {
         });
     }
 
-    // Not during the prerender: `useEventListener` removes on scope dispose, and SSR never
-    // unmounts, so the listener would stay on the mock window and pin this whole component —
-    // its article included — for the rest of the build. Guarded on `isPrerender` rather than a
-    // `window` check, since vite-ssg's mock makes `window` exist in Node too.
-    if (!isPrerender()) {
-        useEventListener(options.scrollContainer, "scroll", scheduleProgressUpdate, {
-            passive: true,
-        });
-    }
+    useEventListener(options.scrollContainer, "scroll", scheduleProgressUpdate, { passive: true });
 
     const observerRoot = computed(() =>
         options.scrollContainer.value === window
@@ -763,9 +773,7 @@ export function useReadingProgressTracker(options: {
         threshold: [0, READING_INTERSECTION_RATIO, 1],
     });
 
-    if (!isPrerender()) {
-        useEventListener(options.scrollContainer, "scroll", onScroll, { passive: true });
-    }
+    useEventListener(options.scrollContainer, "scroll", onScroll, { passive: true });
 
     function teardownResizeObserver() {
         resizeObserver?.disconnect();

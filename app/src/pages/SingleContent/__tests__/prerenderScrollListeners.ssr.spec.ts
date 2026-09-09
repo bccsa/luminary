@@ -45,10 +45,17 @@ describe("prerender scroll listeners", () => {
         (import.meta.env as { SSR: boolean }).SSR = false;
     });
 
-    it("useReadingProgressTracker registers none", async () => {
+    it("useReadingProgressTracker registers nothing at all", async () => {
+        // Broader than scroll: without a viewport none of the tracker's work means anything, so
+        // it should leave no listener, observer or frame callback behind on the shared globals.
+        const listeners = vi.spyOn(window, "addEventListener");
+        const docListeners = vi.spyOn(document, "addEventListener");
+        const frames = vi.spyOn(window, "requestAnimationFrame");
+        let result: ReturnType<typeof useReadingProgressTracker> | undefined;
+
         const Host = defineComponent({
             setup() {
-                useReadingProgressTracker({
+                result = useReadingProgressTracker({
                     contentId: ref("content-1"),
                     articleRoot: ref(null),
                     progressRoot: ref(null),
@@ -60,9 +67,14 @@ describe("prerender scroll listeners", () => {
             },
         });
 
-        const binds = await countScrollBinds(() => renderToString(createApp(Host)));
+        await renderToString(createApp(Host));
 
-        expect(binds).toHaveLength(0);
+        expect(listeners).not.toHaveBeenCalled();
+        expect(docListeners).not.toHaveBeenCalled();
+        expect(frames).not.toHaveBeenCalled();
+        // Still usable: the page destructures these, so an inert shape has to be a real one.
+        expect(result?.readingProgressPercent.value).toBe(0);
+        expect(typeof result?.restoreScrollPosition).toBe("function");
     });
 
     it("ArticleOutline registers none", async () => {
