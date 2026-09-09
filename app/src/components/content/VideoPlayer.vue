@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, watch } from "vue";
 import AudioVideoToggle from "../form/AudioVideoToggle.vue";
-import "videojs-mobile-ui";
 import type Player from "video.js/dist/types/player";
 import { type ContentDto } from "luminary-shared";
 import px from "./px.png";
@@ -152,6 +151,10 @@ onMounted(async () => {
     await new Promise((resolve) => requestAnimationFrame(resolve));
 
     const videojs = (await import("video.js")).default;
+    // Loaded with the player rather than alongside the page: this plugin depends
+    // on video.js, so importing it at module scope pulls the whole player into
+    // the chunk of any page that can show one — including text-only articles.
+    await import("videojs-mobile-ui");
 
     // Lazy load videojs-youtube only if we're playing a YouTube video
     if (isYouTube.value) {
