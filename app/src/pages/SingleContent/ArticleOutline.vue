@@ -224,9 +224,20 @@ function onResume() {
 </script>
 
 <template>
+    <!-- The pill pops in mid-read (scroll past the title) and swaps between its
+         resume/title/dropdown forms; a bare v-if insertion reads as a jump, so
+         every branch enters and leaves through the same fade-and-drop. -->
+    <Transition
+        enter-active-class="transition duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]"
+        enter-from-class="-translate-y-2 opacity-0"
+        enter-to-class="translate-y-0 opacity-100"
+        leave-active-class="transition duration-200 ease-in"
+        leave-from-class="translate-y-0 opacity-100"
+        leave-to-class="-translate-y-2 opacity-0"
+    >
     <span
         v-if="showResumeOffer"
-        class="relative flex max-w-full items-center rounded-lg bg-zinc-100/70 shadow-md ring-1 ring-zinc-900/10 dark:bg-slate-700/70 dark:ring-white/10"
+        class="relative flex max-w-full items-center rounded-lg bg-zinc-100/95 shadow-md ring-1 ring-zinc-900/10 dark:bg-slate-700/95 dark:ring-white/10"
         data-test="articleOutlineResume"
     >
         <button
@@ -263,7 +274,7 @@ function onResume() {
     </span>
     <span
         v-else-if="visible && !headings.length"
-        class="relative flex max-w-full items-center overflow-hidden rounded-lg bg-zinc-100/70 px-3.5 pb-2.5 pt-1.5 text-sm text-zinc-800 shadow-md ring-1 ring-zinc-900/10 dark:bg-slate-700/70 dark:text-slate-50 dark:ring-white/10"
+        class="relative flex max-w-full items-center overflow-hidden rounded-lg bg-zinc-100/95 px-3.5 pb-2.5 pt-1.5 text-sm text-zinc-800 shadow-md ring-1 ring-zinc-900/10 dark:bg-slate-700/95 dark:text-slate-50 dark:ring-white/10"
         data-test="articleOutlineTitle"
     >
         <span class="truncate">{{ title }}</span>
@@ -289,7 +300,7 @@ function onResume() {
     >
         <template #trigger>
             <span
-                class="relative flex max-w-full items-center gap-1.5 overflow-hidden rounded-lg bg-zinc-100/70 px-3.5 pb-2.5 pt-1.5 text-sm text-zinc-800 shadow-md ring-1 ring-zinc-900/10 hover:bg-zinc-200 dark:bg-slate-700/70 dark:text-slate-50 dark:ring-white/10 dark:hover:bg-slate-600"
+                class="relative flex max-w-full items-center gap-1.5 overflow-hidden rounded-lg bg-zinc-100/95 px-3.5 pb-2.5 pt-1.5 text-sm text-zinc-800 shadow-md ring-1 ring-zinc-900/10 hover:bg-zinc-200 dark:bg-slate-700/95 dark:text-slate-50 dark:ring-white/10 dark:hover:bg-slate-600"
                 :aria-label="activeHeading ? `Current section: ${activeHeading.text}` : title"
                 data-test="articleOutlineTrigger"
             >
@@ -370,4 +381,5 @@ function onResume() {
             />
         </button>
     </DropdownMenu>
+    </Transition>
 </template>

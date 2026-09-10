@@ -32,3 +32,25 @@ declare module "virtual:demo-banner" {
         options?: { bannerComponent?: Component },
     ): void;
 }
+
+declare module "virtual:platform-chrome" {
+    import type { App } from "vue";
+    import type { InjectionKey } from "vue";
+    import type { PlatformChromeService } from "@/build-time/contracts/platform-chrome/contract";
+
+    export const PlatformChromeKey: InjectionKey<PlatformChromeService>;
+    export function installPlatformChrome(app: App): void;
+}
+
+declare module "virtual:auth-flow" {
+    import type { App } from "vue";
+    import type { InjectionKey } from "vue";
+    import type { AuthFlowService } from "@/build-time/contracts/auth-flow/contract";
+
+    export const AuthFlowKey: InjectionKey<AuthFlowService>;
+    export function installAuthFlow(app: App): void;
+}
+
+declare module "virtual:app-lifecycle" {
+    export function notifyUiReady(): void;
+}

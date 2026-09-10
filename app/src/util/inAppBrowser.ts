@@ -10,6 +10,18 @@ declare global {
 }
 
 /**
+ * Whether this bundle is the packaged native app's build target.
+ *
+ * The packaged app's webview trips inapp-spy's generic markers, but it is the
+ * app itself — there is no external browser to send the user to — so the
+ * in-app interstitial must not fire there. Decided at build time: the packaged
+ * app ships its own build flavour rather than the browser bundle.
+ */
+export function isNativeApp(): boolean {
+    return import.meta.env.VITE_BUILD_TARGET === "native";
+}
+
+/**
  * Whether the page is running inside Telegram's in-app browser.
  *
  * Kept alongside inapp-spy because it checks a different set of signals: inapp-spy has no
@@ -35,6 +47,10 @@ export function isTelegramBrowser(userAgent?: string): boolean {
  * using it read as ordinary browsers unless they expose a bridge the way Telegram does.
  */
 export function isInAppBrowser(userAgent?: string): boolean {
+    // The packaged app's own webview is not an in-app browser. Only trust this for
+    // the live runtime, never during SSG prerender or UA-only tests.
+    if (!userAgent && isNativeApp()) return false;
+
     if (isTelegramBrowser(userAgent)) return true;
 
     // inapp-spy reads navigator when given no user agent, so skip it during SSG prerender.

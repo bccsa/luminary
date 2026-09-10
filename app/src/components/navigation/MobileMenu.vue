@@ -70,7 +70,7 @@ onUnmounted(() => {
 <template>
     <div
         ref="rootRef"
-        class="flex flex-row justify-center gap-3 bg-zinc-100 py-3 dark:bg-slate-800"
+        class="flex flex-row justify-center gap-3 bg-zinc-100 pb-[max(0.75rem,calc(env(safe-area-inset-bottom)-0.625rem))] pt-3 dark:bg-slate-800"
     >
         <!-- Navigation items in order: Home, Explore, Watch, Search -->
         <RouterLink

@@ -12,9 +12,6 @@ export async function initSentry(app: App) {
             dsn: import.meta.env.VITE_SENTRY_DSN,
             integrations: [Sentry.captureConsoleIntegration({ levels: ["error"] })],
         });
-
-        // TEMPORARY: confirm Sentry is initialised and ingest is working. Remove once verified.
-        Sentry.captureMessage("Sentry initialised", "info");
     } catch (e) {
         console.error("Failed to initialize Sentry:", e);
     }

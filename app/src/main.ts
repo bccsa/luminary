@@ -22,6 +22,7 @@ import { initDefaultAffinitySync } from "@/recommendation/defaultAffinityStore";
 import { APP_DOCS_INDEX } from "./docsIndex";
 import { initSentry, Sentry } from "@/util/initSentry";
 import { markAppReady, markAppError } from "@/util/renderState";
+import { notifyUiReady } from "virtual:app-lifecycle";
 import { initLivePublishClock } from "@/util/livePublishClock";
 import { BOOT_SPLASH_ID } from "./bootSplash";
 
@@ -85,6 +86,10 @@ async function Startup() {
     // sync is missed until some later, unrelated change re-triggers it.
     initAuthLangSync();
 
+    // Provide the build-target services before setupAuth(), which resolves the
+    // platform auth-flow strategy from the app.
+    app.use(appPluginsManager);
+
     await setupAuth(app, router);
     socket.connect(); // ensure socket connects for public users (no-op if auth already called reconnect())
 
@@ -123,8 +128,10 @@ async function Startup() {
 
     app.use(router);
     app.use(i18n);
-    app.use(appPluginsManager);
     app.mount("#app");
+    // The web loading UI is rendering from here on — the build target may have
+    // launch chrome of its own to hand over from.
+    notifyUiReady();
 
     await initLanguage();
     initSync();
@@ -147,4 +154,6 @@ Startup().catch((err) => {
     console.error(err);
     Sentry?.captureException(err);
     markAppError();
+    // The error state is UI too — don't strand any launch chrome over it.
+    notifyUiReady();
 });

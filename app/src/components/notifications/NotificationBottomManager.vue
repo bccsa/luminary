@@ -23,10 +23,12 @@ const firstBanner = computed(() => {
                 name="bottom-banner"
                 mode="out-in"
             >
+                <!-- pb: stays above the overlaying mobile menu; only occupies that
+                     space while a banner is actually showing. -->
                 <div
                     v-if="firstBanner"
                     :key="firstBanner.id"
-                    class="bottom-banner-grid"
+                    class="bottom-banner-grid pb-[var(--mobile-menu-h,0px)] lg:pb-0"
                 >
                     <div class="bottom-banner-grid-content">
                         <NotificationBottom :notification="firstBanner" />
