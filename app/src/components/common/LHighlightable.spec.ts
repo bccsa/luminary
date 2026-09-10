@@ -19,9 +19,10 @@ const mountHighlightable = (
     contentId = "test-content-1",
     title = "Test Article",
     copyright?: string,
+    canShare?: boolean,
 ) =>
     mount(LHighlightable, {
-        props: { contentId, title, copyright },
+        props: { contentId, title, copyright, canShare },
         slots: { default: "<p>Some highlighted text content</p>" },
         attachTo: document.body,
     });
@@ -624,6 +625,48 @@ describe("LHighlightable", () => {
                 window.location.href,
             ].join("\n"),
         );
+
+        wrapper.unmount();
+    });
+
+    it("hides the share trigger and ignores openShareMenu when canShare is false", async () => {
+        const wrapper = mountHighlightable("no-share-test", "Test Article", undefined, false);
+        await vi.advanceTimersByTimeAsync(50);
+        const prose = wrapper.find(".prose");
+
+        const textNode = prose.element.querySelector("p")!.firstChild!;
+        const range = document.createRange();
+        range.setStart(textNode, 0);
+        range.setEnd(textNode, 4);
+        range.getBoundingClientRect = vi.fn(() => ({
+            left: 100,
+            top: 100,
+            right: 200,
+            bottom: 120,
+            width: 100,
+            height: 20,
+            x: 100,
+            y: 100,
+            toJSON: () => {},
+        }));
+
+        vi.spyOn(window, "getSelection").mockReturnValue({
+            isCollapsed: false,
+            rangeCount: 1,
+            getRangeAt: vi.fn(() => range),
+            toString: () => "Some",
+            removeAllRanges: vi.fn(),
+            anchorNode: textNode,
+        } as any);
+
+        document.dispatchEvent(new Event("selectionchange"));
+        vi.advanceTimersByTime(300);
+        await wrapper.vm.$nextTick();
+
+        expect(document.body.querySelector('[data-test="highlightShareTrigger"]')).toBeNull();
+
+        // Highlight/Copy stay available — only the Share entry point is gated.
+        expect(document.body.querySelector('[data-test="highlightCopy"]')).not.toBeNull();
 
         wrapper.unmount();
     });

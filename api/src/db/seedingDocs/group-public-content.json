@@ -7,12 +7,12 @@
         {
             "type": "post",
             "groupId": "group-public-users",
-            "permission": ["view"]
+            "permission": ["view", "share"]
         },
         {
             "type": "tag",
             "groupId": "group-public-users",
-            "permission": ["view"]
+            "permission": ["view", "share"]
         },
         {
             "type": "language",
@@ -37,12 +37,12 @@
         {
             "type": "post",
             "groupId": "group-public-editors",
-            "permission": ["view", "edit", "translate", "publish", "cmsView"]
+            "permission": ["view", "share", "edit", "translate", "publish", "cmsView"]
         },
         {
             "type": "tag",
             "groupId": "group-public-editors",
-            "permission": ["view", "translate", "assign", "cmsView"]
+            "permission": ["view", "share", "translate", "assign", "cmsView"]
         },
         {
             "type": "group",
@@ -62,12 +62,12 @@
         {
             "type": "post",
             "groupId": "group-private-users",
-            "permission": ["view"]
+            "permission": ["view", "share"]
         },
         {
             "type": "tag",
             "groupId": "group-private-users",
-            "permission": ["view"]
+            "permission": ["view", "share"]
         },
         {
             "type": "language",

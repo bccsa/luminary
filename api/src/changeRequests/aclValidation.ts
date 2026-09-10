@@ -26,6 +26,7 @@ const availablePermissionsPerDocType = {
         AclPermission.Delete,
         AclPermission.Translate,
         AclPermission.Publish,
+        AclPermission.Share,
         AclPermission.CmsView,
     ],
     [DocType.Tag]: [
@@ -35,6 +36,7 @@ const availablePermissionsPerDocType = {
         AclPermission.Assign,
         AclPermission.Translate,
         AclPermission.Publish,
+        AclPermission.Share,
         AclPermission.CmsView,
     ],
     [DocType.User]: [

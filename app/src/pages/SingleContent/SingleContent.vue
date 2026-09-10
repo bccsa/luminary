@@ -181,6 +181,12 @@ const canEdit = () => {
     return verifyAccess(content.value.memberOf, content.value.parentType!, AclPermission.Edit);
 };
 
+const canShare = () => {
+    if (!content.value) return false;
+    if (content.value.memberOf.length === 0) return true;
+    return verifyAccess(content.value.memberOf, content.value.parentType!, AclPermission.Share);
+};
+
 // Redirect resolution: a redirect takes precedence over content, and the server guarantees a slug carries one or the other, so the local check and the content bind never contend. Server-only redirects are caught by queryRemote in the not-found resolver, so normal pages pay no redirect API call.
 function routeRedirect(redirect: RedirectDto): boolean {
     if (!redirect?.toSlug) return false;
@@ -955,6 +961,7 @@ watch([isLoading, content, is404], async () => {
                             </button>
 
                             <ShareMenu
+                                v-if="canShare()"
                                 :content="content"
                                 :copyright="shareCopyright"
                             />
@@ -985,6 +992,7 @@ watch([isLoading, content, is404], async () => {
                         :content-id="content._id"
                         :title="content.title"
                         :copyright="shareCopyright"
+                        :can-share="canShare()"
                         @highlighted="
                             recordAffinity(
                                 content?.parentTags,
