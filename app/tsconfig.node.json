@@ -3,6 +3,7 @@
     "include": [
         "vite-plugins/**/*.ts",
         "src/ssg/queryDrain.ts",
+        "src/ssg/routeEnumeration.ts",
         "vite.config.*",
         "vitest.config.*",
         "src/authStorage.ts",

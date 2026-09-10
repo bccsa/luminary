@@ -1,6 +1,7 @@
 import { computed, nextTick, onUnmounted, ref, watch, type Ref } from "vue";
 import { useEventListener, useIntersectionObserver, type MaybeElement } from "@vueuse/core";
 import { getReadingProgress, removeReadingProgress, setReadingProgress } from "@/contentProgress";
+import { isPrerender } from "@/ssg/isPrerender";
 import {
     READING_MIN_SCROLL_SAMPLE_MS,
     computeBlockDwellMs,
@@ -336,6 +337,24 @@ export function useReadingProgressTracker(options: {
     // from the dwell-gated reading progress above: this follows the viewport frame by frame.
     const scrollProgressPercent = ref(0);
     let progressRafPending = false;
+
+    // Nothing below this means anything without a viewport, and a server render disposes no
+    // scope: listeners, observers and frame callbacks registered here would stay on the mock
+    // window and hold the page — article text included — for the rest of the build. Guarded on
+    // isPrerender rather than a `window` check, since vite-ssg's mock makes it exist in Node.
+    if (isPrerender()) {
+        return {
+            segments,
+            sourceElements,
+            isRestoring,
+            savedProgressPercent,
+            hasResumableProgress,
+            readingProgressPercent,
+            scrollProgressPercent,
+            restoreScrollPosition,
+            setup,
+        };
+    }
 
     function computeScrollProgress() {
         const el = options.progressRoot?.value ?? options.articleRoot.value;

@@ -27,6 +27,21 @@ interface CacheEntry {
 /** Single shared cache for all Mango query operations */
 const sharedCache = new Map<string, CacheEntry>();
 
+/**
+ * Schedule an entry's expiry. The timer is unref'd where the runtime supports it (Node): a
+ * ref'd timer holds the event loop open, so in a server-side render every compiled template
+ * would keep the process alive for the whole expiry window. Browsers hand back a plain numeric
+ * handle with no `unref`.
+ */
+function scheduleExpiry(key: string): ReturnType<typeof setTimeout> {
+    const timer = setTimeout(() => {
+        sharedCache.delete(key);
+    }, CACHE_EXPIRY_MS);
+    const handle = timer as unknown as { unref?: () => void };
+    if (typeof handle?.unref === "function") handle.unref();
+    return timer;
+}
+
 // ============================================================================
 // Cache Operations
 // ============================================================================
@@ -43,9 +58,7 @@ export function cacheGet<T>(key: string): T | undefined {
     if (entry) {
         // Reset expiry timer on access
         clearTimeout(entry.timer);
-        entry.timer = setTimeout(() => {
-            sharedCache.delete(key);
-        }, CACHE_EXPIRY_MS);
+        entry.timer = scheduleExpiry(key);
         return entry.value as T;
     }
     return undefined;
@@ -65,11 +78,7 @@ export function cacheSet(key: string, value: unknown): void {
     }
 
     // Create new entry with expiry timer
-    const timer = setTimeout(() => {
-        sharedCache.delete(key);
-    }, CACHE_EXPIRY_MS);
-
-    sharedCache.set(key, { value, timer });
+    sharedCache.set(key, { value, timer: scheduleExpiry(key) });
 }
 
 /**
@@ -169,12 +178,22 @@ function hasLocalStorage(): boolean {
 }
 
 /**
+ * Whether templates may be persisted at all. Persistence is a browser concern: a server-side
+ * render can be given a `localStorage` shim purely so this library imports, and writing there
+ * only serialises templates into memory that dies with the process. Gates reads as well as
+ * writes so warm-up never expects entries this environment refuses to store.
+ */
+function canPersistTemplates(): boolean {
+    return import.meta.env?.SSR !== true && hasLocalStorage();
+}
+
+/**
  * Read all persisted template entries from localStorage.
  */
 function readPersistedEntries(): Map<string, object> {
     const result = new Map<string, object>();
 
-    if (!hasLocalStorage()) return result;
+    if (!canPersistTemplates()) return result;
 
     try {
         const raw = localStorage.getItem(STORAGE_KEY);
@@ -240,7 +259,7 @@ function flushPendingTemplates(): void {
  * @param template - The normalized template object (must be JSON-serializable)
  */
 export function scheduleTemplatePersist(cacheKey: string, template: object): void {
-    if (_isWarming || !hasLocalStorage()) return;
+    if (_isWarming || !canPersistTemplates()) return;
 
     if (!_pendingTemplates) _pendingTemplates = [];
     _pendingTemplates.push([cacheKey, template]);

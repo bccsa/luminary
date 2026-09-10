@@ -5,6 +5,7 @@ import { useI18n } from "vue-i18n";
 import { ArrowUturnLeftIcon, CheckCircleIcon, ChevronDownIcon } from "@heroicons/vue/24/outline";
 import { XMarkIcon } from "@heroicons/vue/20/solid";
 import DropdownMenu from "@/components/common/DropdownMenu.vue";
+import { isPrerender } from "@/ssg/isPrerender";
 
 const props = defineProps<{
     articleRoot: HTMLElement | null;
@@ -176,7 +177,11 @@ function scheduleUpdate() {
     });
 }
 
-useEventListener(() => props.scrollContainer, "scroll", scheduleUpdate, { passive: true });
+// Skipped during the prerender: the listener is removed on scope dispose, which SSR never
+// reaches, so it would stay on the mock window and pin this component for the whole build.
+if (!isPrerender()) {
+    useEventListener(() => props.scrollContainer, "scroll", scheduleUpdate, { passive: true });
+}
 watch(headings, () =>
     nextTick(() => {
         updateActiveHeading();

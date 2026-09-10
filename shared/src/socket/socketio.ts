@@ -197,6 +197,16 @@ class SocketIO {
 let socket: SocketIO;
 
 /**
+ * Whether {@link getSocket} can return a socket instead of throwing. Callers that attach live
+ * listeners opportunistically (rather than as part of an initialized app) use this so an
+ * environment with no socket configured — a server-side render, a bare test harness — is a
+ * no-op rather than an error.
+ */
+export function isSocketConfigured(): boolean {
+    return !!socket || !!config?.apiUrl;
+}
+
+/**
  * Returns a singleton instance of the SocketIO client class.
  * @param options - Socket connection options
  */
