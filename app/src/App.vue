@@ -234,7 +234,7 @@ onErrorCaptured((err) => {
              animation reads as the text jumping. Content clears the bar through
              --mobile-menu-h padding. -->
         <div
-            class="absolute inset-x-0 bottom-0 z-50 transition-transform duration-500 ease-out lg:hidden"
+            class="absolute inset-x-0 bottom-0 z-50 transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform lg:hidden"
             :class="mobileChrome.hidden.value ? 'translate-y-full' : 'translate-y-0'"
         >
             <MobileMenu class="w-full border-t-2 border-t-zinc-100/25 dark:border-t-slate-700/50" />

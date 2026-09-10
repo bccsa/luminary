@@ -53,10 +53,17 @@ let topBarResizeObserver: ResizeObserver | undefined;
 const publishTopBarHeight = (height: number) =>
     document.documentElement.style.setProperty("--top-bar-h", `${height}px`);
 
-// While the top bar is visible the pill pins just below it; the tucked
-// safe-area position (see the pill's class) applies once it has stepped aside.
+// The pill's sticky top stays constant at the tucked position; while the top
+// bar is visible the pill is *translated* down below it instead. A transform
+// animates on the compositor like the bar's own slide, so the two track each
+// other frame-for-frame even while the main thread is busy scrolling —
+// animating `top` (layout) here visibly stutters. Gated on `scrolled` so the
+// transform never displaces the container while it is still in flow.
+const PILL_TUCKED_TOP = "max(0px, calc(env(safe-area-inset-top) - 0.75rem))";
 const pillPinnedStyle = computed(() =>
-    mobileChrome.hidden.value ? undefined : { top: "var(--top-bar-h, 74px)" },
+    !mobileChrome.hidden.value && scrolled.value
+        ? { transform: `translateY(calc(var(--top-bar-h, 74px) - ${PILL_TUCKED_TOP}))` }
+        : undefined,
 );
 
 // The fade under the pinned chrome only makes sense once body content has scrolled beneath
@@ -137,7 +144,7 @@ onUnmounted(() => {
                  the reader scrolls down, returning on the first scroll up. -->
             <div
                 ref="topBarWrap"
-                class="absolute inset-x-0 top-0 z-30 transition-transform duration-500 ease-out lg:hidden"
+                class="absolute inset-x-0 top-0 z-30 transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform lg:hidden"
                 :class="mobileChrome.hidden.value ? '-translate-y-full' : 'translate-y-0'"
             >
                 <TopBar
@@ -219,15 +226,15 @@ onUnmounted(() => {
                 </div>
 
                 <!-- Mobile counterpart of the centre slot: pinned at the top of the scrolling area
-                     with the same collapsed flow height, so it floats over the content. Pins below
-                     the top bar while that is visible (pillPinnedStyle); once the bar steps aside
-                     the class's tucked position applies — slightly into the safe-area inset, since
-                     the status bar is hidden then and only the sensor housing needs clearing
-                     (clamped for devices whose inset collapses once the status bar is gone). The
-                     transition tracks the top bar's slide. -->
+                     with the same collapsed flow height, so it floats over the content. The sticky
+                     top is the tucked position — slightly into the safe-area inset, since the
+                     status bar is hidden then and only the sensor housing needs clearing (clamped
+                     for devices whose inset collapses once the status bar is gone). While the top
+                     bar is visible the pill is translated down below it (pillPinnedStyle), riding
+                     the same compositor timeline as the bar's slide. -->
                 <div
                     v-if="desktopTopBar && $slots.topBarCenter"
-                    class="pointer-events-none sticky top-[max(0px,calc(env(safe-area-inset-top)-0.75rem))] z-20 -mx-2 -mb-14 flex h-16 items-start justify-center px-2 pt-2 transition-[top] duration-500 ease-out md:-mx-4 md:px-4 lg:hidden"
+                    class="pointer-events-none sticky top-[max(0px,calc(env(safe-area-inset-top)-0.75rem))] z-20 -mx-2 -mb-14 flex h-16 items-start justify-center px-2 pt-2 transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform md:-mx-4 md:px-4 lg:hidden"
                     :style="pillPinnedStyle"
                 >
                     <div
