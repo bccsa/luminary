@@ -5,7 +5,7 @@ import { PermissionSystem } from "../../permissions/permissions.service";
 import { processChangeRequest } from "../processChangeRequest";
 import { changeRequest_content, changeRequest_post } from "../../test/changeRequestDocuments";
 import { ChangeReqDto } from "../../dto/ChangeReqDto";
-import { DocType, MediaType } from "../../enums";
+import { DocType } from "../../enums";
 import { deleteImage, processImage } from "./processImageDto";
 import { processMedia } from "./processMediaDto";
 
@@ -27,13 +27,25 @@ describe("processPostTagDto", () => {
         const testingModule = await createTestingModule("process-post-tag-dto");
         db = testingModule.dbService;
         PermissionSystem.upsertGroups((await db.getGroups()).docs);
+
+        // Whether a media URL needs a bucket named is answered against the
+        // configured buckets, so the tests below need one to be under.
+        await db.upsertDoc({
+            _id: "media-bucket",
+            type: DocType.Storage,
+            memberOf: ["group-super-admins"],
+            name: "Media",
+            storageType: "media",
+            publicUrl: "http://test.com/media",
+            updatedTimeUtc: Date.now(),
+        } as any);
     });
 
     beforeEach(() => {
         jest.clearAllMocks();
         (deleteImage as jest.Mock).mockResolvedValue([]);
         (processImage as jest.Mock).mockResolvedValue({ warnings: [] });
-        (processMedia as jest.Mock).mockResolvedValue({ warnings: [] });
+        (processMedia as jest.Mock).mockResolvedValue([]);
     });
 
     it("should cascade Post/Tag delete request to content documents", async () => {
@@ -95,7 +107,6 @@ describe("processPostTagDto", () => {
         await processChangeRequest("test-user", postCr, ["group-super-admins"], db);
         await processChangeRequest("test-user", contentCr, ["group-super-admins"], db);
 
-       
         let contentRes = await db.getDoc(contentCr.doc._id);
         expect(contentRes.docs[0].parentAlwaysOffline).toBeUndefined();
 
@@ -316,14 +327,7 @@ describe("processPostTagDto", () => {
         changeRequest.doc._id = "post-blog6";
         (changeRequest.doc as PostDto).mediaBucketId = "test-bucket-id";
         (changeRequest.doc as PostDto).media = {
-            fileCollections: [
-                {
-                    languageId: "lang-eng",
-                    fileUrl: "http://test.com/test-audio.mp3",
-                    bitrate: 128,
-                    mediaType: MediaType.Audio,
-                },
-            ],
+            hlsUrl: "http://test.com/media/post-blog6/master.m3u8",
         };
 
         // This should not throw an error even though prevDoc is undefined
@@ -343,14 +347,7 @@ describe("processPostTagDto", () => {
         changeRequest.doc.deleteReq = 1;
         (changeRequest.doc as PostDto).mediaBucketId = "test-bucket-id";
         (changeRequest.doc as PostDto).media = {
-            fileCollections: [
-                {
-                    languageId: "lang-eng",
-                    fileUrl: "test-audio.mp3",
-                    bitrate: 128,
-                    mediaType: MediaType.Audio,
-                },
-            ],
+            hlsUrl: "http://test.com/media/post-blog7/master.m3u8",
         };
 
         // This should not throw an error even though prevDoc is undefined
@@ -389,20 +386,16 @@ describe("processPostTagDto", () => {
         expect(result.warnings).toContain("Image cleanup warning");
     });
 
-    it("warns when media processing returns warnings during deletion", async () => {
-        (processMedia as jest.Mock).mockResolvedValueOnce({
-            warnings: ["Media cleanup warning"],
-        });
-
+    it("does not process media when a document is deleted", async () => {
         const changeRequest = changeRequest_post();
         changeRequest.doc._id = "post-delete-med-warn";
         (changeRequest.doc as PostDto).mediaBucketId = "test-bucket";
         (changeRequest.doc as PostDto).media = {
-            fileCollections: [
-                { languageId: "en", fileUrl: "test.mp3", bitrate: 128, mediaType: MediaType.Audio },
-            ],
+            hlsUrl: "http://test.com/media/post-delete-med-warn/master.m3u8",
         };
         changeRequest.doc.deleteReq = 1;
+
+        (processMedia as jest.Mock).mockClear();
 
         const result = await processChangeRequest(
             "test-user",
@@ -411,7 +404,10 @@ describe("processPostTagDto", () => {
             db,
         );
 
-        expect(result.warnings).toContain("Media cleanup warning");
+        // The collection is written by the encoder, not by this API, and nothing
+        // here knows which objects belong to it — so deletion leaves it alone.
+        expect(processMedia).not.toHaveBeenCalled();
+        expect(result.result.ok).toBe(true);
     });
 
     it("calls processImage without bucketId when imageBucketId is not specified", async () => {
@@ -502,13 +498,14 @@ describe("processPostTagDto", () => {
         );
     });
 
-    it("throws when mediaBucketId is not specified for non-deletion", async () => {
+    it("throws when a collection in our own storage does not name its bucket", async () => {
+        // Under a configured bucket's public URL, so it is ours: saved without
+        // naming the bucket it would be stored un-relative, and would break the
+        // moment that bucket was renamed or re-pointed.
         const changeRequest = changeRequest_post();
         changeRequest.doc._id = "post-no-med-bucket";
         (changeRequest.doc as PostDto).media = {
-            fileCollections: [
-                { languageId: "en", fileUrl: "test.mp3", bitrate: 128, mediaType: MediaType.Audio },
-            ],
+            hlsUrl: "http://test.com/media/post-no-med-bucket/master.m3u8",
         };
         delete (changeRequest.doc as PostDto).mediaBucketId;
 
@@ -517,61 +514,72 @@ describe("processPostTagDto", () => {
         ).rejects.toThrow("Bucket is not specified for media processing");
     });
 
-    it("reverts mediaBucketId when media migration fails", async () => {
-        // First create the post with old bucket
+    it("throws when a bucket-relative URL does not name its bucket", async () => {
+        // Nothing without one: the URL is a path and says nothing about where.
         const changeRequest = changeRequest_post();
-        changeRequest.doc._id = "post-med-migrate-fail";
-        (changeRequest.doc as PostDto).mediaBucketId = "old-media-bucket";
+        changeRequest.doc._id = "post-relative-no-bucket";
         (changeRequest.doc as PostDto).media = {
-            fileCollections: [
-                { languageId: "en", fileUrl: "test.mp3", bitrate: 128, mediaType: MediaType.Audio },
-            ],
+            hlsUrl: "/post-relative-no-bucket/master.m3u8",
         };
-        (processMedia as jest.Mock).mockResolvedValueOnce({ warnings: [] });
-        await processChangeRequest("test-user", changeRequest, ["group-super-admins"], db);
+        delete (changeRequest.doc as PostDto).mediaBucketId;
 
-        // Now update with new bucket that fails migration
-        (processMedia as jest.Mock).mockResolvedValueOnce({
-            warnings: [],
-            migrationFailed: true,
-        });
-        (changeRequest.doc as PostDto).mediaBucketId = "new-media-bucket";
-        const result = await processChangeRequest(
-            "test-user",
-            changeRequest,
-            ["group-super-admins"],
-            db,
-        );
-
-        expect(result.warnings.some((w) => w.includes("Media migration failed"))).toBe(true);
+        await expect(
+            processChangeRequest("test-user", changeRequest, ["group-super-admins"], db),
+        ).rejects.toThrow("Bucket is not specified for media processing");
     });
 
-    it("reverts mediaBucketId when processMedia throws an error", async () => {
-        // First create the post with old bucket
+    it("saves a YouTube link with no bucket, which is what the Video field is for", async () => {
+        // A YouTube link has no bucket to be relative to and nothing here to
+        // migrate or delete. Demanding one refused a URL an editor is meant to be
+        // able to type by hand.
+        const changeRequest = changeRequest_post();
+        changeRequest.doc._id = "post-youtube-no-bucket";
+        (changeRequest.doc as PostDto).media = {
+            hlsUrl: "https://www.youtube.com/watch?v=rExcQ5nm_yU",
+        };
+        delete (changeRequest.doc as PostDto).mediaBucketId;
+
+        await expect(
+            processChangeRequest("test-user", changeRequest, ["group-super-admins"], db),
+        ).resolves.not.toThrow();
+    });
+
+    it("saves an HLS master on someone else's CDN with no bucket", async () => {
+        const changeRequest = changeRequest_post();
+        changeRequest.doc._id = "post-external-hls";
+        (changeRequest.doc as PostDto).media = {
+            hlsUrl: "https://cdn.example.com/somebody-else/master.m3u8",
+        };
+        delete (changeRequest.doc as PostDto).mediaBucketId;
+
+        await expect(
+            processChangeRequest("test-user", changeRequest, ["group-super-admins"], db),
+        ).resolves.not.toThrow();
+    });
+
+    it("fails the change request when the key store throws (no silent key loss)", async () => {
         const changeRequest = changeRequest_post();
         changeRequest.doc._id = "post-med-throw";
-        (changeRequest.doc as PostDto).mediaBucketId = "old-media-bucket";
+        (changeRequest.doc as PostDto).mediaBucketId = "media-bucket";
         (changeRequest.doc as PostDto).media = {
-            fileCollections: [
-                { languageId: "en", fileUrl: "test.mp3", bitrate: 128, mediaType: MediaType.Audio },
-            ],
+            hlsUrl: "http://test.com/media/post-med-throw/master.m3u8",
+            hlsKey: "0123456789abcdef0123456789abcdef",
         };
-        (processMedia as jest.Mock).mockResolvedValueOnce({ warnings: [] });
-        await processChangeRequest("test-user", changeRequest, ["group-super-admins"], db);
 
-        // Now update with new bucket where processMedia throws
-        (processMedia as jest.Mock).mockRejectedValueOnce(new Error("Media processing failed"));
-        (changeRequest.doc as PostDto).mediaBucketId = "new-media-bucket";
-        const result = await processChangeRequest(
-            "test-user",
-            changeRequest,
-            ["group-super-admins"],
-            db,
-        );
+        (processMedia as jest.Mock).mockRejectedValueOnce(new Error("key store unavailable"));
 
-        expect(result.warnings.some((w) => w.includes("Bucket media processing failed"))).toBe(
-            true,
-        );
+        // A key that could not be stored must fail the change request, not become a
+        // warning: the plaintext key existed only for this request (processMedia has
+        // already dropped it), so saving the Post with an `hlsUrl` and no `hlsKey_id`
+        // would leave an unplayable, unrecoverable collection. The save fails so the
+        // editor still holds the key and can retry. See ADR 0019.
+        await expect(
+            processChangeRequest("test-user", changeRequest, ["group-super-admins"], db),
+        ).rejects.toThrow("key store unavailable");
+
+        // The Post was not saved.
+        const res = await db.getDoc("post-med-throw");
+        expect(res.docs).toHaveLength(0);
     });
 
     it("copies tag properties to content documents for Tag type", async () => {
@@ -609,33 +617,29 @@ describe("processPostTagDto", () => {
         }
     });
 
-    it("can remove media from S3 when a post/tag document is marked for deletion", async () => {
+    it("passes the media object, the parent doc, and the db to processMedia on save", async () => {
         const changeRequest = changeRequest_post();
         changeRequest.doc._id = "post-blog8";
         (changeRequest.doc as PostDto).mediaBucketId = "test-bucket-id";
         (changeRequest.doc as PostDto).media = {
-            fileCollections: [
-                {
-                    languageId: "lang-eng",
-                    fileUrl: "test-audio.mp3",
-                    bitrate: 128,
-                    mediaType: MediaType.Audio,
-                },
-            ],
+            hlsUrl: "http://test.com/media/post-blog8/master.m3u8",
+            hlsKey: "0123456789abcdef0123456789abcdef",
         };
+
+        (processMedia as jest.Mock).mockClear();
 
         await processChangeRequest("test-user", changeRequest, ["group-super-admins"], db);
 
-        // Mark the post document for deletion
-        const deleteRequest = JSON.parse(JSON.stringify(changeRequest)) as ChangeReqDto;
-        deleteRequest.doc.deleteReq = 1;
-        await processChangeRequest("test-user", deleteRequest, ["group-super-admins"], db);
-
+        // The parent passed in is the class-transformer-instantiated PostDto inside
+        // processPostTagDto, not the raw changeRequest.doc fixture, so match it by its
+        // identifying fields rather than by deep equality against the fixture.
         expect(processMedia).toHaveBeenCalledWith(
-            { fileCollections: [] }, // Empty fileCollections to remove the media from S3
             (changeRequest.doc as PostDto).media,
+            expect.objectContaining({
+                _id: "post-blog8",
+                type: DocType.Post,
+            }),
             db,
-            (changeRequest.doc as PostDto).mediaBucketId,
         );
     });
 });

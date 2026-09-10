@@ -61,9 +61,24 @@ These are the seams that bite when you change one side and forget the other:
 
 ## Comment style
 
-Comments explain **why** code is added, in ~1–3 small sentences — neat and quick to read. They must not describe domain-specific / Luminary-internal concepts in depth, describe a problem or bug, narrate how logic previously worked ("previously", "used to", "the old approach", "now"), reference issue/ticket/spec/phase numbers, or run into multi-paragraph rationale (that belongs in PR descriptions, ADRs, or commit messages). Apply this to inline `//`, block `/* */`, JSDoc `/** */`, and `<!-- -->` in `.vue`. Don't rewrite pre-existing comments unless asked; only apply it to comments you're adding or already changing.
+Comments capture *why* code exists or why it's written a certain way — not *what* it does (the code already says that) and not architecture or design rationale. A comment that reads like a paragraph of prose, enumerates everywhere a concept is "excluded," or reproduces a doc is a signal it belongs in an ADR (`docs/adr/`), the package docs, or the datamodel — not inline.
 
-Comments should stay relevant to the repo they're in — don't explain how something outside this repo (a separate packaging/deploy pipeline, another service, an external tool) consumes or wraps the code. This repo has one source of truth for its own behavior; what happens to the build afterward belongs in that other project's docs, not here.
+- **No comment when the *why* is obvious or the code is self-explanatory.** Comments don't have to be everywhere.
+- **Keep a comment to a tldr — one or two short lines of *why*.** If more is needed, the explanation goes in docs and the comment shrinks to a one-line pointer.
+- **Don't trim past clarity.** Brevity is not the goal; a readable *why* is. Keep the subject/referent — a dangling fragment like `// Never replicated` is useless because *replicated to what?* Say `// Sidecars are never replicated to clients`. If dropping a word loses what the comment is about, keep the word.
+- **Never reproduce documentation in a comment.** A pointer is fine; re-explaining the contents is not.
+- **Never point a code comment at a `temp_` doc** (see Development docs below) — those are scaffolding, not a source of truth the code should depend on. If the *why* needs to live in code, write it as JSDoc, not as a link to a temp doc.
+- **JSDoc on exported APIs:** a one-line *why/what-it-is*. Reserve longer treatment for the docs.
+- Don't rewrite pre-existing comments unless asked; match the surrounding file's convention.
+
+## Development docs
+
+Working/proposal docs that exist only to develop a feature — not to document the final product — are **temporary scaffolding**. Treat them as such:
+
+- **Prefix their filenames with `temp_`** (e.g. `docs/temp_sidecar-...md`) so they're trivially findable and removable once the feature lands.
+- **Never reference a `temp_` doc from code or tests.** Code comments and JSDoc must stand on their own; a `temp_` doc will be deleted, so linking to it rots immediately.
+- When the feature ships, either delete the `temp_` docs (if the substance now lives in code/ADRs) or promote the durable parts into a permanent doc/ADR and drop the `temp_` prefix.
+- Anything that genuinely needs to be documented *in code* uses **JSDoc** (`/** */`), neatly — not `//` prose paragraphs.
 
 ## When changes span multiple packages
 

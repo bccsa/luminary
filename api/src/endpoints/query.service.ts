@@ -97,14 +97,17 @@ export class QueryService {
         // Doc-type gate. `type`/`docType` are extracted post-expansion, so this catches
         // nested selectors, hybridQuery's unrestricted selector, AND the
         // BYPASS_TEMPLATE_VALIDATION escape hatch. Unknown types already fail closed
-        // (empty viewGroups → Forbidden); this just returns a clearer error. Crypto docs
-        // (encrypted S3 credentials) are strictly internal and never queryable.
+        // (empty viewGroups → Forbidden); this just returns a clearer error.
         if (!(Object.values(DocType) as string[]).includes(type))
             throw new HttpException(
                 `'${type}' is not a valid document type`,
                 HttpStatus.BAD_REQUEST,
             );
-        if (type === DocType.Crypto || docType === DocType.Crypto)
+        // Crypto + Sidecar are internal — never bulk-readable (Sidecar is served
+        // one-at-a-time via GET /sidecar). Check docType too: `type:"deleteCmd",
+        // docType:"sidecar"` would otherwise enumerate which parents have keys.
+        const internalTypes: string[] = [DocType.Crypto, DocType.Sidecar];
+        if (internalTypes.includes(type) || internalTypes.includes(docType))
             throw new HttpException("Forbidden", HttpStatus.FORBIDDEN);
         if (type === DocType.DeleteCmd && !docType)
             throw new HttpException(

@@ -65,6 +65,27 @@ export async function validateChangeRequest(
         };
     }
 
+    // Sidecars are server-side only; deny explicitly. DocType.Sidecar is a valid
+    // enum member so the type check above won't reject it, and class-validator's
+    // forbidUnknownValues could flip silently on a dependency bump.
+    if (changeRequest.doc.type === DocType.Sidecar) {
+        return {
+            validated: false,
+            error: `Submitted "${changeRequest.doc.type}" document validation failed:\nInvalid document type`,
+        };
+    }
+
+    // Sidecar _ids are deterministic (sidecar-<parentId>-<sidecarType>, sidecar.service.ts)
+    // and otherwise client-chosen on create. Without this guard a non-Sidecar doc could squat
+    // a victim's future sidecar id, permanently breaking that write with an opaque
+    // "Document type change not allowed" error pointing nowhere near the cause.
+    if (typeof changeRequest.doc._id === "string" && changeRequest.doc._id.startsWith("sidecar-")) {
+        return {
+            validated: false,
+            error: `Submitted "${changeRequest.doc.type}" document validation failed:\nDocument id may not use the reserved "sidecar-" prefix`,
+        };
+    }
+
     if (changeRequest.doc.type == DocType.Redirect) {
         const currentDoc = changeRequest.doc as RedirectDto;
         const slugIsUnique = await dbService.checkUniqueSlug(

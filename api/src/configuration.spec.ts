@@ -16,7 +16,6 @@ describe("configuration", () => {
         delete process.env.DB_MAX_SOCKETS;
         delete process.env.S3_IMG_QUALITY;
         delete process.env.MAX_HTTP_BUFFER_SIZE;
-        delete process.env.MAX_MEDIA_UPLOAD_FILE_SIZE;
 
         const config = configuration();
 
@@ -24,7 +23,6 @@ describe("configuration", () => {
         expect(config.database.maxSockets).toBe(512);
         expect(config.imageProcessing.imageQuality).toBe(80);
         expect(config.socketIo.maxHttpBufferSize).toBe(1e7);
-        expect(config.socketIo.maxMediaUploadFileSize).toBe(1.5e7);
     });
 
     it("should use env vars when set", () => {
@@ -120,5 +118,37 @@ describe("configuration", () => {
         expect(config.query.rateLimit.enabled).toBe(true);
         expect(config.query.rateLimit.freeStrikes).toBe(5);
         expect(config.query.expensiveDocsExamined).toBe(2000);
+    });
+
+    it("should default the sidecar rate-limit config to enabled", () => {
+        delete process.env.SIDECAR_RATE_LIMIT_READ_ENABLED;
+        delete process.env.SIDECAR_RATE_LIMIT_READ_FREE_STRIKES;
+        delete process.env.SIDECAR_RATE_LIMIT_PROBE_ENABLED;
+        delete process.env.SIDECAR_RATE_LIMIT_PROBE_FREE_STRIKES;
+
+        const config = configuration();
+        expect(config.sidecar.rateLimit.read).toEqual({
+            enabled: true,
+            freeStrikes: 30,
+            baseBackoffMs: 2000,
+            maxBackoffMs: 60000,
+            strikeDecayMs: 2000,
+        });
+        expect(config.sidecar.rateLimit.probe).toEqual({
+            enabled: true,
+            freeStrikes: 10,
+            baseBackoffMs: 5000,
+            maxBackoffMs: 300000,
+            strikeDecayMs: 60000,
+        });
+    });
+
+    it("should allow the sidecar rate limiters to be disabled and tuned via env vars", () => {
+        process.env.SIDECAR_RATE_LIMIT_READ_ENABLED = "false";
+        process.env.SIDECAR_RATE_LIMIT_PROBE_FREE_STRIKES = "3";
+
+        const config = configuration();
+        expect(config.sidecar.rateLimit.read.enabled).toBe(false);
+        expect(config.sidecar.rateLimit.probe.freeStrikes).toBe(3);
     });
 });

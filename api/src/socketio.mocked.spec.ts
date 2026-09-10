@@ -101,7 +101,6 @@ describe("Socketio (mocked)", () => {
             expect(mockDb.on).toHaveBeenCalledWith("update", expect.any(Function));
             // afterInit also sets this.config lazily.
             expect(gateway.config.socketIo.maxHttpBufferSize).toBe(1e7);
-            expect(gateway.config.socketIo.maxMediaUploadFileSize).toBe(1.5e7);
         });
 
         it("A1: token without providerId -> next(err) with provider_not_found, resolveOrDefault NOT called", async () => {
@@ -112,7 +111,9 @@ describe("Socketio (mocked)", () => {
             await authMiddleware(socket, next);
 
             expect(mockAuth.resolveOrDefault).not.toHaveBeenCalled();
-            expect(mockLogger.warn).toHaveBeenCalledWith("Socket handshake: token without providerId");
+            expect(mockLogger.warn).toHaveBeenCalledWith(
+                "Socket handshake: token without providerId",
+            );
             expect(next).toHaveBeenCalledTimes(1);
             const err = next.mock.calls[0][0];
             expect(err).toBeInstanceOf(Error);
@@ -195,9 +196,12 @@ describe("Socketio (mocked)", () => {
 
             await authMiddleware(socket, next);
 
-            expect(mockLogger.warn).toHaveBeenCalledWith("Socket auth failed for providerId=prov-1", {
-                error: "weird",
-            });
+            expect(mockLogger.warn).toHaveBeenCalledWith(
+                "Socket auth failed for providerId=prov-1",
+                {
+                    error: "weird",
+                },
+            );
             const err = next.mock.calls[0][0];
             expect(err).toBeInstanceOf(Error);
             expect(err.message).toBe("auth_failed");
@@ -520,7 +524,6 @@ describe("Socketio (mocked)", () => {
             // clientConfig emit
             expect(socket.emit).toHaveBeenCalledWith("clientConfig", {
                 maxUploadFileSize: 1e7,
-                maxMediaUploadFileSize: 1.5e7,
                 accessMap: socket.data.userDetails.accessMap,
             });
 
@@ -542,23 +545,6 @@ describe("Socketio (mocked)", () => {
 
             // total joins: 3 view rooms + 2 unique deleteCmd rooms
             expect(socket.join).toHaveBeenCalledTimes(5);
-        });
-
-        it("C2: maxMediaUploadFileSize falls back to 0 when config value falsy", () => {
-            // Override config so maxMediaUploadFileSize is falsy.
-            gateway.config = {
-                socketIo: { maxHttpBufferSize: 1e7, maxMediaUploadFileSize: 0 },
-            } as any;
-            accessMapToGroupsSpy.mockReturnValue({} as any);
-
-            const socket = makeSocket();
-            gateway.clientConfigReq({ docTypes: [] } as any, socket);
-
-            expect(socket.emit).toHaveBeenCalledWith("clientConfig", {
-                maxUploadFileSize: 1e7,
-                maxMediaUploadFileSize: 0,
-                accessMap: socket.data.userDetails.accessMap,
-            });
         });
 
         it("C3: empty deduped docTypes -> still emits clientConfig but joins nothing (accessMapToGroups not called)", () => {

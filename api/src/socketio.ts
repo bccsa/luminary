@@ -50,7 +50,6 @@ type ClientRoomReq = {
  */
 type ClientConfig = {
     maxUploadFileSize: number;
-    maxMediaUploadFileSize?: number;
     accessMap?: AccessMap;
 };
 
@@ -179,6 +178,11 @@ export class Socketio implements OnGatewayInit {
                 return;
             }
 
+            // Sidecars are never replicated to clients — return explicitly rather
+            // than rely on an empty room set, so a future ACL change can't quietly
+            // fan them out.
+            if (update.type === DocType.Sidecar) return;
+
             // We are using a socket.io room per document type per group. Change documents are broadcasted to the document-group rooms of the documents they reference.
             // Content documents are broadcasted to their parent document-group rooms.
             let refDoc = update;
@@ -277,7 +281,6 @@ export class Socketio implements OnGatewayInit {
         // Send client configuration data and access map
         const clientConfig = {
             maxUploadFileSize: this.config.socketIo.maxHttpBufferSize,
-            maxMediaUploadFileSize: this.config.socketIo.maxMediaUploadFileSize || 0,
             accessMap: socket.data.userDetails.accessMap,
         } as ClientConfig;
         socket.emit("clientConfig", clientConfig);

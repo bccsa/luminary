@@ -15,8 +15,11 @@ import { QueryController } from "./endpoints/query.controller";
 import { FtsSearchService } from "./endpoints/ftsSearch.service";
 import { FtsSearchController } from "./endpoints/ftsSearch.controller";
 import { StorageStatusController } from "./endpoints/storageStatus.controller";
+import { EncoderConfigController } from "./endpoints/encoderConfig.controller";
+import { SidecarController } from "./endpoints/sidecar.controller";
 import { AuthIdentityService } from "./auth/authIdentity.service";
 import { QueryRateLimiterService } from "./ratelimit/queryRateLimiter.service";
+import { SidecarRateLimiterService } from "./ratelimit/sidecarRateLimiter.service";
 
 let winstonTransport: winston.transport;
 if (!process.env.NODE_ENV || process.env.NODE_ENV === "development") {
@@ -57,6 +60,8 @@ if (!process.env.NODE_ENV || process.env.NODE_ENV === "development") {
         QueryController,
         FtsSearchController,
         StorageStatusController,
+        EncoderConfigController,
+        SidecarController,
     ],
     providers: [
         DbService,
@@ -64,6 +69,7 @@ if (!process.env.NODE_ENV || process.env.NODE_ENV === "development") {
         S3Service,
         QueryService,
         QueryRateLimiterService,
+        SidecarRateLimiterService,
         FtsSearchService,
         ChangeRequestService,
         AuthIdentityService,

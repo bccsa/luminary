@@ -152,4 +152,105 @@ describe("EditContent - Delete Operations", () => {
             });
         });
     });
+
+    describe("deleting the media files with the document", () => {
+        /** Open the post's delete dialog: dropdown → delete → dialog. */
+        const openDeleteDialog = async (wrapper: any) => {
+            let chevron: any;
+            await waitForExpect(() => {
+                chevron = wrapper.find('[data-test="dropdown-trigger"]');
+                expect(chevron.exists()).toBe(true);
+            });
+            await chevron!.trigger("click");
+
+            let deleteButton: any;
+            await waitForExpect(() => {
+                deleteButton = wrapper.find('[data-test="delete-button"]');
+                expect(deleteButton.exists()).toBe(true);
+            });
+            await deleteButton!.trigger("click");
+        };
+
+        const confirm = async (wrapper: any) => {
+            let primary: any;
+            await waitForExpect(() => {
+                primary = wrapper.find('[data-test="modal-primary-button"]');
+                expect(primary.exists()).toBe(true);
+            });
+            await primary!.trigger("click");
+        };
+
+        const queuedDelete = async () => {
+            const changes = await db.localChanges.where({ docId: mockPostDto._id }).toArray();
+            return changes.find((c: any) => c.doc?.deleteReq)?.doc as any;
+        };
+
+        it("offers the option, unticked, for a document with media", async () => {
+            const wrapper = mount(EditContent, {
+                props: {
+                    id: mockPostDto._id,
+                    languageCode: "eng",
+                    docType: DocType.Post,
+                    tagOrPostType: PostType.Blog,
+                },
+            });
+
+            await openDeleteDialog(wrapper);
+
+            await waitForExpect(() => {
+                const option = wrapper.find('[data-test="delete-media-files"]');
+                expect(option.exists()).toBe(true);
+                // Irreversible, so never pre-ticked.
+                expect((option.find("input").element as HTMLInputElement).checked).toBe(false);
+            });
+        });
+
+        it("does not ask the API to touch storage when the option is left alone", async () => {
+            const wrapper = mount(EditContent, {
+                props: {
+                    id: mockPostDto._id,
+                    languageCode: "eng",
+                    docType: DocType.Post,
+                    tagOrPostType: PostType.Blog,
+                },
+            });
+
+            await openDeleteDialog(wrapper);
+            await confirm(wrapper);
+
+            await waitForExpect(async () => {
+                const doc = await queuedDelete();
+                expect(doc).toBeTruthy();
+                expect(doc.media?.deleteFiles).toBeFalsy();
+            });
+        });
+
+        it("asks the API to delete the files when the option is ticked", async () => {
+            const wrapper = mount(EditContent, {
+                props: {
+                    id: mockPostDto._id,
+                    languageCode: "eng",
+                    docType: DocType.Post,
+                    tagOrPostType: PostType.Blog,
+                },
+            });
+
+            await openDeleteDialog(wrapper);
+
+            let option: any;
+            await waitForExpect(() => {
+                option = wrapper.find('[data-test="delete-media-files"]');
+                expect(option.exists()).toBe(true);
+            });
+            await option!.find("input").setValue(true);
+
+            await confirm(wrapper);
+
+            await waitForExpect(async () => {
+                const doc = await queuedDelete();
+                expect(doc).toBeTruthy();
+                expect(doc.media.deleteFiles).toBe(true);
+            });
+        });
+    });
 });
