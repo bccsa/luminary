@@ -6,6 +6,7 @@ import { accessMap, maxUploadFileSize, type ContentParentDto } from "luminary-sh
 import { mockPostDto, superAdminAccessMap } from "@/tests/mockdata";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
+import waitForExpect from "wait-for-expect";
 
 // Mock URL APIs
 global.URL.createObjectURL = vi.fn(() => "blob:mock-url");
@@ -237,7 +238,9 @@ describe("ImageEditor", () => {
         mockImageBuckets.value = origBuckets;
     });
 
-    it("keeps an imageBucketId the user cannot resolve, and reports it", async () => {
+    // The bucket doc is only needed to build preview URLs — the API resolves the bucket and
+    // holds the S3 credentials, so the editor must not treat an unlistable bucket as invalid.
+    it("keeps an imageBucketId that is absent from the bucket list", async () => {
         const parent: ContentParentDto = {
             ...JSON.parse(JSON.stringify(mockPostDto)),
             imageBucketId: "bucket-in-a-group-this-user-cannot-view",
@@ -250,10 +253,9 @@ describe("ImageEditor", () => {
 
         expect(parent.imageBucketId).toBe("bucket-in-a-group-this-user-cannot-view");
         expect(parent.imageData!.fileCollections.length).toBeGreaterThan(0);
-        expect(wrapper.text()).toContain("bucket you don't have access to");
     });
 
-    it("refuses an upload to an unresolved bucket without discarding the reference", async () => {
+    it("uploads to an imageBucketId that is absent from the bucket list", async () => {
         const parent: ContentParentDto = {
             ...JSON.parse(JSON.stringify(mockPostDto)),
             imageBucketId: "bucket-in-a-group-this-user-cannot-view",
@@ -264,6 +266,7 @@ describe("ImageEditor", () => {
         });
         const component = wrapper.vm as any;
         const mockFile = new File(["img"], "test.jpg", { type: "image/jpeg" });
+        Object.defineProperty(mockFile, "size", { value: 1024 });
         const fileList = {
             0: mockFile,
             length: 1,
@@ -271,11 +274,10 @@ describe("ImageEditor", () => {
         };
 
         component.handleFiles(fileList);
-        await wrapper.vm.$nextTick();
-
+        await waitForExpect(() => {
+            expect(parent.imageData!.uploadData?.length).toBe(1);
+        });
         expect(parent.imageBucketId).toBe("bucket-in-a-group-this-user-cannot-view");
-        expect(parent.imageData!.uploadData).toBeUndefined();
-        expect(wrapper.text()).toContain("bucket you don't have access to");
     });
 
     it("processFiles adds upload data to parent", async () => {
