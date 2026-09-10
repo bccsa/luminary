@@ -38,4 +38,12 @@ describe("MobileMenu.vue", () => {
 
         expect(homeMenu.props("to")).toEqual({ name: "home" });
     });
+
+    it("keeps the bottom navigation above a device safe area", () => {
+        const wrapper = mount(MobileMenu);
+
+        expect(wrapper.classes()).toContain(
+            "pb-[max(0.75rem,calc(env(safe-area-inset-bottom)-0.625rem))]",
+        );
+    });
 });
