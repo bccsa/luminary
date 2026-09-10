@@ -359,8 +359,13 @@ export async function setupAuth(app: App<Element>, router: Router): Promise<void
         } else {
             oidcUser.value = await manager.getUser();
         }
-        // Only place that pushes the token onto the header/socket — needed on both branches.
-        await refreshTokenSilently();
+        // Only place that pushes the token onto the header/socket — needed on both
+        // branches. Deliberately not awaited: with an expired access token this is
+        // a token-endpoint round trip, and boot must not block on the network. The
+        // cached user above already drives the UI; the refresh re-authenticates the
+        // socket when it lands — the same anonymous-then-authenticated hand-over an
+        // offline start goes through.
+        void refreshTokenSilently();
     } catch (error) {
         Sentry?.captureException(error);
     } finally {
