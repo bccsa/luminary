@@ -8,41 +8,31 @@ import {
 } from "luminary-shared";
 import * as _ from "lodash";
 
-/** What happened to the source image when building the duplicate. */
-export type DuplicateImageOutcome = "copied" | "skipped" | "none";
-
 /**
  * Build unsaved duplicate clones of a content parent and its translations: fresh ids,
  * stripped `_rev`, drafted + "(Copy)"/"-copy"-suffixed children. Returns new objects;
  * the inputs are not mutated.
  *
- * `duplicateImage` names the source on the clone so the API can copy its image across. The
- * source bucket and files are resolved server-side, so a stale or missing local bucket
- * reference cannot lose the image.
+ * `duplicateImage` flags the clone for a server-side image copy. The clone inherits the
+ * source's `imageBucketId` and file references, which is everything the API needs to copy
+ * the files across.
  */
 export function buildContentDuplicate(
     parent: ContentParentDto,
     content: ContentDto[],
     options: { duplicateImage: boolean },
-): { parent: ContentParentDto; content: ContentDto[]; imageOutcome: DuplicateImageOutcome } {
+): { parent: ContentParentDto; content: ContentDto[] } {
     const clonedParent = _.cloneDeep(parent);
     clonedParent._id = db.uuid();
     delete (clonedParent as any)._rev;
     if (clonedParent.type === DocType.Tag) (clonedParent as TagDto).taggedDocs = [];
 
-    let imageOutcome: DuplicateImageOutcome = "none";
-
     if (clonedParent.imageData) {
         const imageData = clonedParent.imageData;
         delete imageData.uploadData;
         delete imageData.duplicate;
-        delete imageData.duplicateFrom;
         if (imageData.fileCollections?.length > 0 && options.duplicateImage) {
-            imageData.duplicateFrom = parent._id;
-            imageOutcome = "copied";
-        } else if (imageData.fileCollections?.length > 0) {
-            imageData.fileCollections = [];
-            imageOutcome = "skipped";
+            imageData.duplicate = true;
         } else if (imageData.fileCollections) {
             imageData.fileCollections = [];
         }
@@ -63,5 +53,5 @@ export function buildContentDuplicate(
         return newContent;
     });
 
-    return { parent: clonedParent, content: clonedContent, imageOutcome };
+    return { parent: clonedParent, content: clonedContent };
 }
