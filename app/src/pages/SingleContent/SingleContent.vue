@@ -205,21 +205,26 @@ const isLoading = ref(isSSG && !isPrerender() ? contentArr.value.length === 0 : 
 // reporting; a genuinely slow (cold or offline) load still gets the bar.
 const LOADING_BAR_DELAY_MS = 200;
 const showLoadingBar = ref(false);
-let loadingBarTimer: ReturnType<typeof setTimeout> | undefined;
 
-watch(
-    () => isLoading.value && !content.value,
-    (waiting) => {
-        clearTimeout(loadingBarTimer);
-        if (!waiting) {
-            showLoadingBar.value = false;
-            return;
-        }
-        loadingBarTimer = setTimeout(() => (showLoadingBar.value = true), LOADING_BAR_DELAY_MS);
-    },
-    { immediate: true },
-);
-onUnmounted(() => clearTimeout(loadingBarTimer));
+// Client-only: the prerender renders with the document already in hand, so there is no
+// wait to report — and a timer per route is pending work the SSG build would carry on
+// every page it renders.
+if (!isPrerender()) {
+    let loadingBarTimer: ReturnType<typeof setTimeout> | undefined;
+    watch(
+        () => isLoading.value && !content.value,
+        (waiting) => {
+            clearTimeout(loadingBarTimer);
+            if (!waiting) {
+                showLoadingBar.value = false;
+                return;
+            }
+            loadingBarTimer = setTimeout(() => (showLoadingBar.value = true), LOADING_BAR_DELAY_MS);
+        },
+        { immediate: true },
+    );
+    onUnmounted(() => clearTimeout(loadingBarTimer));
+}
 
 // Slug this generation's not-found resolution belongs to — guards against a stale redirect probe resolving after the slug moves on, and against re-running the probe once this slug is already resolved.
 let notFoundSlug: string | undefined;
