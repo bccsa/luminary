@@ -472,12 +472,13 @@ describe("SingleContent", () => {
             },
         });
 
+        // Wait for the article itself: the loading bar is delayed now, so its absence no
+        // longer means the content has arrived.
         await waitForExpect(() => {
-            expect(wrapper!.text()).not.toContain("Loading...");
+            expect(wrapper!.find("button[data-test='bookmark']").exists()).toBe(true);
         });
 
         const bookmarkButton = wrapper!.find("button[data-test='bookmark']");
-        expect(bookmarkButton.exists()).toBe(true);
         await bookmarkButton.trigger("click");
 
         await waitForExpect(async () => {
