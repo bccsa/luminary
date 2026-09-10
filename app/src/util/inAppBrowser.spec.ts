@@ -1,5 +1,5 @@
-import { describe, it, expect, afterEach } from "vitest";
-import { isInAppBrowser, isTelegramBrowser } from "./inAppBrowser";
+import { describe, it, expect, afterEach, vi } from "vitest";
+import { isInAppBrowser, isNativeApp, isTelegramBrowser } from "./inAppBrowser";
 
 // Real shapes produced by Telegram's webview code: it strips the "; wv" marker, rewrites the
 // device to "K" and drops "Version/", leaving ordinary-looking Chrome/Safari user agents.
@@ -16,6 +16,17 @@ const GENERIC_ANDROID_WEBVIEW_UA =
 afterEach(() => {
     delete window.TelegramWebviewProxy;
     delete window.__tg__webview_set;
+    vi.unstubAllEnvs();
+});
+
+describe("isNativeApp", () => {
+    it("identifies the packaged app build target", () => {
+        vi.stubEnv("VITE_BUILD_TARGET", "native");
+        expect(isNativeApp()).toBe(true);
+
+        vi.stubEnv("VITE_BUILD_TARGET", "web");
+        expect(isNativeApp()).toBe(false);
+    });
 });
 
 describe("isTelegramBrowser", () => {
