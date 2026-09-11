@@ -164,7 +164,7 @@ Each search query:
 6. **Language pre-filter**: when a `languageId` is given, restricts the matched IDs to that language *before* loading (an index-only ID scan), so docs in other languages aren't read
 7. Loads the matched docs and parses TF from their `fts` arrays
 8. Computes BM25 score using TF, IDF, and document length normalization
-9. Adds the word-match bonus for full query words in high-boost fields — only for the **top-K by BM25** (`max(offset+limit, WORDMATCH_TOPK)`), to bound the HTML-stripping cost; docs below keep their BM25-only score
+9. Adds the word-match bonus for full query words in high-boost fields — only for the **top-K by BM25** (`wordMatchTopK`, default `max(offset+limit, WORDMATCH_TOPK)`), to bound the HTML-stripping cost; docs below keep their BM25-only score
 10. Sorts by combined score and paginates
 
 > Performance note: the local engine loads full docs to read `tf` for ranking, so doc loading + scoring dominate on large (full-sync) corpora. Also note IndexedDB serializes reads on a single object store, so the parallel scans above help less than the term-pruning. A future rewrite ranks from the `*fts` index directly (via Dexie `eachKey`) and loads only the top-K — see ADR 0011.
@@ -175,7 +175,7 @@ Corpus statistics (total token count, document count) are maintained for BM25's 
 
 - Recomputed after each `bulkPut` containing ContentDtos
 - Debounced recompute (10s) after document deletions
-- Recomputed on startup
+- Recomputed on startup when stale: only if the number of content docs differs from the count stored with the stats (a key-only count), since a recompute reads every content doc
 
 ### Deletion Handling
 
