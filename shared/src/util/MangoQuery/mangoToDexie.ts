@@ -43,13 +43,31 @@ interface AnalyzedTemplate {
     push: TemplatePushdown | undefined;
     residualTemplate: MangoSelector;
     residualPredicate: ParameterizedPredicate | null;
+    /** Top-level equality fields → value index (empty when a field has conflicting values). */
+    eqFields: Record<string, number>;
+    /** Top-level `$in` fields → value index. */
+    inFields: Record<string, number>;
+    /** The whole template compiled, built on first use by a key lookup plan. */
+    fullPredicate?: ParameterizedPredicate;
 }
+
+/**
+ * An exact key lookup chosen at run time from the table schema: direct primary-key reads, or
+ * `anyOf` on a compound index covering every equality field plus one `$in` field.
+ */
+type CompoundKeyLookup = { kind: "compound"; index: string; keys: unknown[][] };
+type KeyLookupPlan = { kind: "primaryKey"; keys: unknown[] } | CompoundKeyLookup;
+type EqualityLookup = { kind: "equality"; index: string; key: unknown };
+type IndexLookup = CompoundKeyLookup | EqualityLookup;
 
 // ============================================================================
 // Module-level Constants
 // ============================================================================
 
 const COMBINATION_OPERATORS = new Set(["$and", "$or", "$not", "$nor"]);
+
+/** A sorted, limited query reads an index lookup directly when it holds at most this many rows per result. */
+const LOOKUP_ROWS_PER_LIMIT = 4;
 
 // ============================================================================
 // Cache Management Exports
@@ -115,8 +133,27 @@ export function mangoToDexie<T = any>(table: Table, query: MangoQuery): Promise<
     // Fast path: bulkGet when $in targets the primary key.
     // Uses direct key lookups instead of cursor-based anyOf scan.
     if (analysis.push?.kind === "anyOf" && isPrimaryKeyField(table, analysis.push.field)) {
-        return executeBulkGet<T>(table, analysis, values, sort, limit);
+        const keys = values[analysis.push.valuesIdx] as unknown[];
+        return executeBulkGet<T>(table, keys, analysis.residualPredicate, values, sort, limit);
     }
+
+    // Equality fields win the template pushdown, so an id list next to them would otherwise
+    // scan the equality range and filter it. Look the ids up directly when the schema allows.
+    const keyPlan = planKeyLookup(table, analysis, values);
+    if (keyPlan?.kind === "primaryKey") {
+        return executeBulkGet<T>(
+            table,
+            keyPlan.keys,
+            fullPredicate(analysis, template),
+            values,
+            sort,
+            limit,
+        );
+    }
+    const keyedCollection = (plan: IndexLookup) => {
+        const predicate = fullPredicate(analysis, template);
+        return lookupRange(table, plan).filter((doc) => predicate(doc, values));
+    };
 
     // Apply sorting and limiting
     if (sort && sort.length > 0) {
@@ -129,32 +166,205 @@ export function mangoToDexie<T = any>(table: Table, query: MangoQuery): Promise<
             // index order and stops after enough matches, so it does NOT use the
             // index-pushdown collection (building it would only waste work and emit a
             // spurious "missing index" warning for a query that is index-ordered).
-            let ordered: Collection;
-            try {
-                ordered = table.orderBy(sortField);
-                if (desc) ordered = ordered.reverse();
-            } catch {
-                ordered = table.filter(() => true);
-            }
+            const walkSortIndex = () => {
+                let ordered: Collection;
+                try {
+                    ordered = table.orderBy(sortField);
+                    if (desc) ordered = ordered.reverse();
+                } catch {
+                    ordered = table.filter(() => true);
+                }
 
-            const pred = mangoCompile(selector) as (d: unknown) => boolean;
-            ordered = ordered.filter(pred);
-            return ordered.limit(Math.max(0, limit)).toArray() as Promise<T[]>;
+                const pred = mangoCompile(selector) as (d: unknown) => boolean;
+                ordered = ordered.filter(pred);
+                return ordered.limit(Math.max(0, limit)).toArray() as Promise<T[]>;
+            };
+            const lookup = keyPlan ?? planEqualityLookup(table, analysis, values);
+            if (!lookup) return walkSortIndex();
+
+            // The walk stops after `limit` matches but reads the whole table when matches are
+            // rare. It always reads at least `limit` rows, so a lookup of up to a few times that
+            // is the cheaper plan; a larger range is abandoned after reading only its keys.
+            const bound = Math.max(1, limit) * LOOKUP_ROWS_PER_LIMIT;
+            return lookupRange(table, lookup)
+                .limit(bound + 1)
+                .primaryKeys()
+                .then((keys) => {
+                    if (keys.length > bound) return walkSortIndex();
+                    const predicate = fullPredicate(analysis, template);
+                    return table.bulkGet(keys).then((docs) => {
+                        const matches = docs.filter(
+                            (doc) => doc !== undefined && predicate(doc, values),
+                        ) as T[];
+                        return sortLikeIndex(table, matches, sortField, desc).slice(
+                            0,
+                            Math.max(0, limit),
+                        );
+                    });
+                }) as Promise<T[]>;
         }
 
         // Sort + no limit: filter first using index pushdown, then sort in memory.
         // This is much faster than scanning the entire table via orderBy.
-        const col = buildFilteredCollection(table, selector, analysis, values);
+        const col = keyPlan
+            ? keyedCollection(keyPlan)
+            : buildFilteredCollection(table, selector, analysis, values);
         const result = col.sortBy(sortField) as Promise<T[]>;
         return desc ? result.then((arr) => arr.reverse()) : result;
     }
 
     // No sorting: build the index-pushdown collection and apply limit if specified.
-    const col = buildFilteredCollection(table, selector, analysis, values);
+    const col = keyPlan
+        ? keyedCollection(keyPlan)
+        : buildFilteredCollection(table, selector, analysis, values);
     if (typeof limit === "number") {
         return col.limit(Math.max(0, limit)).toArray() as Promise<T[]>;
     }
     return col.toArray() as Promise<T[]>;
+}
+
+/** The whole template as one predicate, compiled once per cached analysis. */
+function fullPredicate(
+    analysis: AnalyzedTemplate,
+    template: MangoSelector,
+): ParameterizedPredicate {
+    if (!analysis.fullPredicate) analysis.fullPredicate = compileTemplateSelector(template);
+    return analysis.fullPredicate;
+}
+
+const isIndexableKey = (value: unknown): boolean =>
+    typeof value === "string" ||
+    (typeof value === "number" && !Number.isNaN(value)) ||
+    value instanceof Date;
+
+/**
+ * Choose an exact key lookup for a top-level `$in`: the primary key, or a compound index whose
+ * fields are exactly the equality fields plus the `$in` field. A partial cover is not chosen,
+ * because the equality-only index it would replace can be the more selective one.
+ */
+function planKeyLookup(
+    table: Table,
+    analysis: AnalyzedTemplate,
+    values: unknown[],
+): KeyLookupPlan | undefined {
+    const inFields = Object.keys(analysis.inFields);
+    if (inFields.length === 0) return undefined;
+
+    let schema: Table["schema"];
+    try {
+        schema = table.schema;
+    } catch {
+        return undefined;
+    }
+    if (!schema) return undefined;
+
+    const pk = schema.primKey?.keyPath;
+    if (typeof pk === "string" && analysis.inFields[pk] !== undefined) {
+        const keys = values[analysis.inFields[pk]];
+        return Array.isArray(keys) ? { kind: "primaryKey", keys } : undefined;
+    }
+
+    const eqFields = Object.keys(analysis.eqFields);
+    if (eqFields.length === 0) return undefined;
+
+    for (const inField of inFields) {
+        if (analysis.eqFields[inField] !== undefined) continue;
+        const wanted = new Set([...eqFields, inField]);
+        const index = schema.indexes.find(
+            (idx) =>
+                Array.isArray(idx.keyPath) &&
+                !idx.multi &&
+                idx.keyPath.length === wanted.size &&
+                idx.keyPath.every((field) => wanted.has(field)),
+        );
+        if (!index) continue;
+
+        const inValues = values[analysis.inFields[inField]];
+        if (!Array.isArray(inValues) || !inValues.every(isIndexableKey)) continue;
+        const keyPath = index.keyPath as string[];
+        const fixed = keyPath.map((field) =>
+            field === inField ? undefined : values[analysis.eqFields[field]],
+        );
+        if (!fixed.every((value, i) => keyPath[i] === inField || isIndexableKey(value))) continue;
+
+        const keys = Array.from(new Set(inValues)).map((value) =>
+            keyPath.map((field, i) => (field === inField ? value : fixed[i])),
+        );
+        return { kind: "compound", index: indexName(keyPath), keys };
+    }
+    return undefined;
+}
+
+/**
+ * An index that holds exactly the equality fields, looked up by their values: the template
+ * pushdown's own range, sized and read directly when a sorted query has a limit.
+ */
+function planEqualityLookup(
+    table: Table,
+    analysis: AnalyzedTemplate,
+    values: unknown[],
+): EqualityLookup | undefined {
+    if (analysis.push?.kind !== "multiEq") return undefined;
+    const fields = Object.keys(analysis.push.fieldIndices);
+    const fieldIndices = analysis.push.fieldIndices;
+
+    let schema: Table["schema"];
+    try {
+        schema = table.schema;
+    } catch {
+        return undefined;
+    }
+    const index = schema?.indexes.find((idx) =>
+        fields.length === 1
+            ? idx.keyPath === fields[0] && !idx.multi
+            : Array.isArray(idx.keyPath) &&
+              !idx.multi &&
+              idx.keyPath.length === fields.length &&
+              idx.keyPath.every((field) => fieldIndices[field] !== undefined),
+    );
+    if (!index) return undefined;
+
+    const keyPath = Array.isArray(index.keyPath) ? index.keyPath : [index.keyPath as string];
+    const key = keyPath.map((field) => values[fieldIndices[field]]);
+    if (!key.every(isIndexableKey)) return undefined;
+    return {
+        kind: "equality",
+        index: indexName(keyPath),
+        key: Array.isArray(index.keyPath) ? key : key[0],
+    };
+}
+
+/** Dexie's name for an index: the field, or `[a+b]` for a compound key path. */
+const indexName = (keyPath: string[]): string =>
+    keyPath.length === 1 ? keyPath[0] : `[${keyPath.join("+")}]`;
+
+/** Rows whose index key matches the plan, before any filtering. */
+function lookupRange(table: Table, plan: IndexLookup): Collection {
+    const clause = (table.where as (index: string) => DexieWhereClause)(plan.index);
+    return plan.kind === "compound" ? clause.anyOf(plan.keys) : clause.equals(plan.key);
+}
+
+/**
+ * Sort rows the way a cursor over the sort field's index returns them: rows without a value
+ * are left out, and equal values keep primary-key order (reversed for descending).
+ */
+function sortLikeIndex<T>(table: Table, docs: T[], sortField: string, desc: boolean): T[] {
+    const pk = table.schema?.primKey?.keyPath;
+    const pkField = typeof pk === "string" ? pk : undefined;
+    const get = (doc: T, field: string) => (doc as Record<string, unknown>)[field] as any;
+    const sorted = docs
+        .filter((doc) => isIndexableKey(get(doc, sortField)))
+        .sort((a, b) => {
+            const av = get(a, sortField);
+            const bv = get(b, sortField);
+            if (av < bv) return -1;
+            if (av > bv) return 1;
+            if (!pkField) return 0;
+            const ak = get(a, pkField);
+            const bk = get(b, pkField);
+            return ak < bk ? -1 : ak > bk ? 1 : 0;
+        });
+    return desc ? sorted.reverse() : sorted;
 }
 
 /**
@@ -209,24 +419,22 @@ function isPrimaryKeyField(table: Table, field: string): boolean {
  */
 async function executeBulkGet<T>(
     table: Table,
-    analysis: AnalyzedTemplate,
+    keys: unknown[],
+    predicate: ParameterizedPredicate | null,
     values: unknown[],
     sort: Record<string, string>[] | undefined,
     limit: number | undefined,
 ): Promise<T[]> {
-    const push = analysis.push as { kind: "anyOf"; field: string; valuesIdx: number };
-    const keys = values[push.valuesIdx] as unknown[];
-
     // Direct primary key lookup
     const raw = await table.bulkGet(keys as any);
 
     // Filter out undefined (missing keys) and apply residual predicate
     let results: T[];
-    if (analysis.residualPredicate) {
+    if (predicate) {
         results = [];
         for (let i = 0; i < raw.length; i++) {
             const doc = raw[i];
-            if (doc !== undefined && analysis.residualPredicate(doc, values)) {
+            if (doc !== undefined && predicate(doc, values)) {
                 results.push(doc as T);
             }
         }
@@ -293,7 +501,7 @@ function analyzeTemplate(template: MangoSelector): AnalyzedTemplate {
     const andConditions = expanded.$and || [];
 
     // Extract pushdown strategy from template
-    const push = extractTemplatePushdown(andConditions);
+    const { push, eqFields, inFields } = extractTemplatePushdown(andConditions);
 
     // Build residual template (parts not handled by pushdown)
     let residualTemplate: MangoSelector;
@@ -313,6 +521,8 @@ function analyzeTemplate(template: MangoSelector): AnalyzedTemplate {
         push,
         residualTemplate,
         residualPredicate,
+        eqFields,
+        inFields,
     };
 
     cacheSet(cacheKey, result);
@@ -373,6 +583,8 @@ interface CollectedTemplatePushdownData {
     rangeMap: Record<string, { gteIdx?: number; lteIdx?: number; gtIdx?: number; ltIdx?: number }>;
     /** First $in found */
     anyOf: { field: string; valuesIdx: number } | null;
+    /** Every $in field with its values index (first occurrence per field) */
+    inMap: Record<string, number>;
     /** First single comparator found */
     singleComparator: TemplatePushdown | null;
 }
@@ -383,12 +595,17 @@ interface CollectedTemplatePushdownData {
  * Note: Static boolean values in templates are skipped for pushdown
  * (Dexie's where() doesn't work well with boolean indexes).
  */
-function extractTemplatePushdown(conditions: MangoSelector[]): TemplatePushdown | undefined {
+function extractTemplatePushdown(conditions: MangoSelector[]): {
+    push: TemplatePushdown | undefined;
+    eqFields: Record<string, number>;
+    inFields: Record<string, number>;
+} {
     const data: CollectedTemplatePushdownData = {
         eqMap: {},
         startsWith: null,
         rangeMap: {},
         anyOf: null,
+        inMap: {},
         singleComparator: null,
     };
 
@@ -480,8 +697,9 @@ function extractTemplatePushdown(conditions: MangoSelector[]): TemplatePushdown 
 
             // Check $in
             const inVal = critObj.$in;
-            if (!data.anyOf && isPlaceholder(inVal)) {
-                data.anyOf = { field, valuesIdx: inVal.$__idx };
+            if (isPlaceholder(inVal)) {
+                if (!data.anyOf) data.anyOf = { field, valuesIdx: inVal.$__idx };
+                if (data.inMap[field] === undefined) data.inMap[field] = inVal.$__idx;
             }
 
             // Check single comparators
@@ -505,6 +723,11 @@ function extractTemplatePushdown(conditions: MangoSelector[]): TemplatePushdown 
         }
     }
 
+    return { push: choosePushdown(data), eqFields: data.eqMap, inFields: data.inMap };
+}
+
+/** Pick one pushdown strategy from the collected conditions, by priority. */
+function choosePushdown(data: CollectedTemplatePushdownData): TemplatePushdown | undefined {
     // Priority 1: multiEq (compound index) - only when 2+ eq fields.
     // A single eq field should not take priority over anyOf, which is typically
     // more selective (e.g. $in on a foreign key vs eq on a status field).
