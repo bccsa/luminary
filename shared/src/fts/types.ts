@@ -90,6 +90,12 @@ export type FtsSearchOptions = {
     limit?: number;
     /** Offset for pagination */
     offset?: number;
+    /**
+     * How many of the top results by BM25 get the full-word match bonus, which strips and
+     * tokenises each doc's HTML body. Defaults to `max(offset + limit, 150)` so every result on
+     * the returned page is scored alike; lower it when `limit` is a large candidate pool.
+     */
+    wordMatchTopK?: number;
     /** Max percentage of total indexed docs a trigram can appear in before being skipped (default: 50) */
     maxTrigramDocPercent?: number;
     /** BM25 k1 parameter controlling term frequency saturation (default: 1.2) */
@@ -102,4 +108,8 @@ export type FtsSearchOptions = {
 export type FtsCorpusStats = {
     totalTokenCount: number;
     docCount: number;
+    /** Content docs scanned to compute these stats, including docs without FTS data. */
+    contentDocCount?: number;
+    /** Identifies the per-trigram document frequencies computed with these stats. */
+    docFrequencyVersion?: number;
 };
