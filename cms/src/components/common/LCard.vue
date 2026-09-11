@@ -84,7 +84,7 @@ function collapse() {
                     :is="icon"
                     class="h-5 w-5 text-zinc-700 dark:text-zinc-400"
                 />
-                <h3 class="text-sm font-medium leading-6 text-zinc-900 dark:text-yellow-400">
+                <h3 class="text-sm font-medium leading-6 dark:text-zinc-100">
                     {{ title }}
                 </h3>
             </div>

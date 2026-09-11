@@ -26,7 +26,7 @@ const maxContentCount = computed(() => {
 
 <template>
     <LCard :title="title" :icon="GlobeEuropeAfricaIcon">
-        <div v-if="cmsLanguages.length === 0" class="py-4 text-center text-sm text-zinc-400">
+        <div v-if="cmsLanguages.length === 0" class="py-4 text-center text-sm dark:text-zinc-100">
             No languages configured.
         </div>
         <ul v-else class="space-y-1.5 pl-0.5">

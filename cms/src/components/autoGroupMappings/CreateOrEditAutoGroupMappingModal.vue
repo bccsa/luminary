@@ -148,10 +148,7 @@ watch(
 );
 
 const canSave = computed(() => {
-    return (
-        (editable.value.groupIds ?? []).length > 0 &&
-        (editable.value.memberOf ?? []).length > 0
-    );
+    return (editable.value.groupIds ?? []).length > 0 && (editable.value.memberOf ?? []).length > 0;
 });
 
 // Inline validation hints surfaced immediately (once the user has interacted
@@ -341,8 +338,8 @@ function setConditionType(idx: number, type: AuthProviderCondition["type"]) {
                 {{ memberOfError }}
             </p>
             <p v-else class="mt-1 text-[11px] text-zinc-400">
-                Only members of these groups can view or edit this mapping document in the CMS.
-                Has no effect on which users are assigned groups on login.
+                Only members of these groups can view or edit this mapping document in the CMS. Has
+                no effect on which users are assigned groups on login.
             </p>
         </div>
 
@@ -362,15 +359,15 @@ function setConditionType(idx: number, type: AuthProviderCondition["type"]) {
                 {{ groupIdsError }}
             </p>
             <p v-else class="mt-1 text-[11px] text-zinc-400">
-                When a user matches this mapping, these groups are added to their session on
-                login — giving them the permissions those groups hold.
+                When a user matches this mapping, these groups are added to their session on login —
+                giving them the permissions those groups hold.
             </p>
         </div>
 
         <!-- Conditions -->
-        <div v-if="!isGlobal" class="rounded-md border border-zinc-200 bg-white p-2">
-            <label class="text-sm font-medium text-zinc-800">Conditions (AND)</label>
-            <p class="mt-0.5 text-[11px] text-zinc-400">
+        <div v-if="!isGlobal" class="rounded-md border p-2 dark:border-slate-800 dark:bg-slate-800">
+            <label class="text-sm font-medium dark:text-zinc-100">Conditions (AND)</label>
+            <p class="mt-0.5 text-[11px] dark:text-zinc-100">
                 Assign the selected groups when all conditions are true. If no conditions are set,
                 groups are assigned to all authenticated users.
             </p>
@@ -388,7 +385,7 @@ function setConditionType(idx: number, type: AuthProviderCondition["type"]) {
             <template v-for="(cond, cIdx) in editable.conditions ?? []" :key="cIdx">
                 <div
                     v-if="cond.type !== 'authenticated'"
-                    class="mt-2 rounded-md border border-zinc-200 bg-white"
+                    class="mt-2 rounded-md border dark:border-slate-800 dark:bg-slate-800"
                 >
                     <!-- Compact summary (click to expand) -->
                     <div

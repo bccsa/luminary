@@ -5,10 +5,12 @@ import { computed, toRefs } from "vue";
 type Props = {
     modelValue: boolean;
     disabled?: boolean;
+    dark?: boolean;
 };
 
 const props = withDefaults(defineProps<Props>(), {
     disabled: false,
+    dark: false,
 });
 
 const { modelValue } = toRefs(props);
@@ -30,13 +32,23 @@ const toggled = computed({
         v-model="toggled"
         :disabled="disabled"
         :class="[
-            'relative inline-flex h-4 w-8 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-2',
+            'relative inline-flex h-4 w-8 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2',
             {
                 'cursor-pointer': !disabled,
-                'bg-zinc-400': disabled && toggled,
-                'bg-zinc-100': disabled && !toggled,
-                'bg-zinc-500': !disabled && toggled,
-                'bg-zinc-200': !disabled && !toggled,
+
+                // Dark mode
+                'focus:ring-slate-400 focus:ring-offset-slate-950': dark,
+                'bg-slate-600': dark && disabled && toggled,
+                'bg-slate-800': dark && disabled && !toggled,
+                'bg-slate-700': dark && !disabled && toggled,
+                'bg-slate-500/40': dark && !disabled && !toggled,
+
+                // Light mode
+                'focus:ring-zinc-950 focus:ring-offset-white': !dark,
+                'bg-zinc-400': !dark && disabled && toggled,
+                'bg-zinc-100': !dark && disabled && !toggled,
+                'bg-zinc-500': !dark && !disabled && toggled,
+                'bg-zinc-200': !dark && !disabled && !toggled,
             },
         ]"
     >
@@ -44,7 +56,8 @@ const toggled = computed({
         <span
             :class="[
                 toggled ? 'translate-x-4' : 'translate-x-0',
-                'pointer-events-none relative inline-block h-3 w-3 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
+                'pointer-events-none relative inline-block h-3 w-3 transform rounded-full shadow ring-0 transition duration-200 ease-in-out',
+                dark ? 'bg-slate-100' : 'bg-white',
             ]"
         >
             <span
@@ -59,7 +72,15 @@ const toggled = computed({
                 <svg
                     fill="none"
                     viewBox="0 0 12 12"
-                    :class="['h-3 w-3 ', disabled ? 'text-zinc-300' : 'text-zinc-400']"
+                    :class="[
+                        'h-3 w-3',
+                        {
+                            'text-slate-400': dark && disabled,
+                            'text-slate-500': dark && !disabled,
+                            'text-zinc-300': !dark && disabled,
+                            'text-zinc-400': !dark && !disabled,
+                        },
+                    ]"
                 >
                     <path
                         d="M4 8l2-2m0 0l2-2M6 6L4 4m2 2l2 2"
@@ -79,7 +100,11 @@ const toggled = computed({
                 ]"
                 aria-hidden="true"
             >
-                <svg class="h-2.5 w-2.5 text-zinc-600" fill="currentColor" viewBox="0 0 12 12">
+                <svg
+                    :class="['h-2.5 w-2.5', dark ? 'text-slate-700' : 'text-zinc-600']"
+                    fill="currentColor"
+                    viewBox="0 0 12 12"
+                >
                     <path
                         d="M3.707 5.293a1 1 0 00-1.414 1.414l1.414-1.414zM5 8l-.707.707a1 1 0 001.414 0L5 8zm4.707-3.293a1 1 0 00-1.414-1.414l1.414 1.414zm-7.414 2l2 2 1.414-1.414-2-2-1.414 1.414zm3.414 2l4-4-1.414-1.414-4 4 1.414 1.414z"
                     />

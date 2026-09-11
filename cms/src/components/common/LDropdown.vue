@@ -232,7 +232,7 @@ defineExpose({ panelRef });
                 @keydown="onPanelKeydown"
                 :style="panelStyle"
             >
-                <div class="flex flex-col dark:text-zinc-300" :class="paddingClass">
+                <div class="flex flex-col dark:text-zinc-100" :class="paddingClass">
                     <slot />
                 </div>
             </div>

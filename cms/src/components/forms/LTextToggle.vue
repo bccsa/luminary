@@ -29,12 +29,12 @@ const updateValue = (newValue: string) => {
             :class="[
                 'rounded-full px-2 py-0.5 text-xs transition-all sm:px-3 sm:py-1 sm:text-sm',
                 {
-                    'bg-white text-zinc-900 shadow dark:bg-slate-700 dark:text-yellow-400 dark:shadow-none':
+                    'bg-white text-zinc-900 shadow dark:bg-slate-700 dark:text-zinc-100 dark:shadow-none':
                         modelValue == leftValue && !disabled,
                 },
                 { 'text-zinc-700 dark:text-zinc-400': modelValue != leftValue && !disabled },
                 { 'text-zinc-400 dark:text-zinc-600': disabled },
-                { 'text-zinc-900 dark:text-yellow-400': !disabled && modelValue == leftValue },
+                { 'text-zinc-900 dark:text-zinc-100': !disabled && modelValue == leftValue },
                 { 'text-zinc-700 dark:text-zinc-400': !disabled && modelValue != leftValue },
             ]"
             @click="updateValue(leftValue)"
@@ -47,7 +47,7 @@ const updateValue = (newValue: string) => {
             :class="[
                 'rounded-full px-2 py-0.5 text-xs transition-all sm:px-3 sm:py-1 sm:text-sm',
                 {
-                    'bg-white text-zinc-900 shadow dark:bg-slate-700 dark:text-yellow-400 dark:shadow-none':
+                    'bg-white text-zinc-900 shadow dark:bg-slate-700 dark:text-zinc-100 dark:shadow-none':
                         modelValue == rightValue && !disabled,
                 },
                 { 'text-zinc-700 dark:text-zinc-400': modelValue != rightValue && !disabled },

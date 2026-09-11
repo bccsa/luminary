@@ -16,26 +16,32 @@ const show = ref(true);
 <template>
     <div
         v-if="show"
-        class="pointer-events-auto w-full max-w-sm overflow-hidden rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5"
+        class="pointer-events-auto w-full max-w-sm overflow-hidden rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5 dark:bg-slate-800 dark:ring-slate-700"
     >
         <div class="p-4">
             <div class="flex items-start">
                 <div class="flex-shrink-0">
                     <CheckCircleIcon
-                        class="h-6 w-6 text-green-400"
+                        class="h-6 w-6 text-green-400 dark:text-green-500"
                         aria-hidden="true"
                         v-if="notification.state == 'success'"
                     />
                     <ExclamationCircleIcon
                         class="h-6 w-6"
                         aria-hidden="true"
-                        :class="notification.state == 'error' ? 'text-red-400' : 'text-yellow-400'"
+                        :class="
+                            notification.state == 'error'
+                                ? 'text-red-400 dark:text-red-500'
+                                : 'text-yellow-400 dark:text-yellow-500'
+                        "
                         v-if="notification.state == 'error' || notification.state == 'warning'"
                     />
                 </div>
                 <div class="ml-3 w-0 flex-1 pt-0.5">
-                    <p class="text-sm font-medium text-zinc-900">{{ notification.title }}</p>
-                    <p class="mt-1 text-sm text-zinc-500">
+                    <p class="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                        {{ notification.title }}
+                    </p>
+                    <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
                         {{ notification.description }}
                     </p>
                     <div class="mt-3" v-if="notification.action">
@@ -53,7 +59,7 @@ const show = ref(true);
                     <button
                         type="button"
                         @click="show = false"
-                        class="inline-flex rounded-md bg-white text-zinc-400 hover:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                        class="inline-flex rounded-md bg-white text-zinc-400 hover:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:bg-slate-800 dark:text-zinc-500 dark:hover:text-zinc-400 dark:focus:ring-indigo-400 dark:focus:ring-offset-slate-800"
                     >
                         <span class="sr-only">Close</span>
                         <XMarkIcon class="h-5 w-5" aria-hidden="true" />

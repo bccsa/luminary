@@ -381,7 +381,7 @@ defineExpose({
                     <div
                         v-for="c in parent.imageData.fileCollections"
                         :key="c.aspectRatio"
-                        class="flex shrink-0 items-center justify-center gap-0 rounded border-2 border-zinc-200 text-xs shadow scrollbar-hide dark:border-slate-700 dark:shadow-none"
+                        class="flex shrink-0 items-center justify-center gap-0 rounded border-2 text-xs shadow scrollbar-hide dark:border-slate-500 dark:shadow-none"
                     >
                         <ImageEditorThumbnail
                             :imageFileCollection="c"

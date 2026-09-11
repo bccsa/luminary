@@ -1,4 +1,3 @@
-.
 <script setup lang="ts">
 import {
     type GroupDto,
@@ -51,10 +50,18 @@ const handleEdit = () => {
 
 <template>
     <div
-        class="w-full cursor-pointer divide-y divide-zinc-100 border-y border-zinc-500 px-2 py-1 dark:bg-slate-800 sm:rounded-md sm:border"
+        class="w-full divide-y divide-zinc-100 border-y border-zinc-300 bg-white px-2 py-1 transition-all duration-200 dark:divide-slate-700 dark:border-slate-700 dark:bg-slate-800/70 dark:shadow-lg dark:hover:divide-slate-800/80 sm:rounded-md sm:border"
+        :class="[
+            {
+                'cursor-pointer hover:bg-zinc-50 dark:hover:bg-slate-800/50 dark:hover:shadow-none':
+                    canEdit,
+                'select-none divide-zinc-200 border-gray-200 bg-zinc-50/50 dark:border-slate-800 dark:bg-slate-900/40 dark:text-zinc-600':
+                    !canEdit,
+            },
+        ]"
         @click="handleEdit"
     >
-        <div class="relative flex cursor-pointer items-center justify-between py-1">
+        <div class="relative flex items-center justify-between py-1">
             <div
                 class="w-full"
                 :class="{

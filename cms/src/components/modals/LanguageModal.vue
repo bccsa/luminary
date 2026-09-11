@@ -23,15 +23,15 @@ const setLanguage = (id: string) => {
         heading="Select preferred content language"
         v-model:is-visible="isVisible"
     >
-        <div class="divide-y divide-zinc-200">
+        <div class="divide-y divide-zinc-200 dark:divide-slate-600 dark:text-zinc-100">
             <button
                 v-for="language in languages"
                 :key="language._id"
-                class="flex w-full cursor-pointer items-center p-3 hover:bg-zinc-300 dark:hover:bg-slate-700"
+                class="flex h-10 w-full cursor-pointer items-center p-3 hover:bg-zinc-100 dark:hover:bg-slate-600"
                 @click="setLanguage(language._id)"
                 data-test="switch-language-button"
             >
-                <span class="text-sm dark:text-zinc-100">{{ language.name }}</span>
+                <span class="text-sm">{{ language.name }}</span>
                 <CheckCircleIcon
                     v-if="cmsLanguageIdAsRef === language._id"
                     class="ml-auto h-6 w-6 text-yellow-500"
@@ -41,7 +41,7 @@ const setLanguage = (id: string) => {
         </div>
         <template #footer>
             <LButton
-                variant="primary"
+                variant="secondary"
                 size="lg"
                 rounding="less"
                 class="w-full"
