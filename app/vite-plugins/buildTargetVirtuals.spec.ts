@@ -35,6 +35,12 @@ describe("buildTargetVirtuals", () => {
         })).resolves.toContain(
             "/build-time/plugins/app-lifecycle/index.ts",
         );
+        await expect(resolveId.call({} as never, "virtual:screen-wake", undefined, {
+            attributes: {},
+            isEntry: false,
+        })).resolves.toContain(
+            "/build-time/plugins/screen-wake/index.ts",
+        );
     });
 
     it("uses external implementations and resolves their package imports from the app", async () => {

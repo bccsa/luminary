@@ -76,6 +76,7 @@ import {
 } from "@/composables/useReadingProgressTracker";
 import { useContentHead, type PublicTaxonomy } from "@/seo/contentHead";
 import { useTranslationSwitcher } from "@/composables/useTranslationSwitcher";
+import { useKeepScreenAwake } from "@/composables/useKeepScreenAwake";
 import { recoverSsrArticleText, takeSsrArticleTextSnapshot } from "@/util/ssrTextRecovery";
 import { isPrerender } from "@/ssg/isPrerender";
 
@@ -626,6 +627,9 @@ function onContinueReading() {
 onMounted(() => {
     setScrollContainer();
 });
+
+// Reading means long stretches without touching the screen.
+useKeepScreenAwake();
 
 watch([isLoading, text], () => {
     if (!isLoading.value && text.value) {
