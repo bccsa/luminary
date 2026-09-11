@@ -17,7 +17,7 @@ const firstBanner = computed(() => {
     <div
         aria-live="assertive"
         class="sticky inset-x-0 flex items-end sm:items-start"
-    >
+    ></div>
     <div
         aria-live="assertive"
         class="sticky inset-x-0 flex items-end sm:items-start"
