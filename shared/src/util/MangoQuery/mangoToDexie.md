@@ -60,6 +60,23 @@ The pushdown strategy is cached per template. At runtime, the cached strategy is
 
 Any remaining conditions are compiled into a parameterized residual predicate and applied via `.filter(...)`.
 
+### Key lookups for `$in` next to equalities
+
+Equality fields win the priority table above, so a top-level `$in` beside them would otherwise
+scan the whole equality range. At run time the table schema is checked for an exact key lookup:
+
+- `$in` on the primary key → `table.bulkGet(values)`, whatever else the selector holds.
+- A compound index whose fields are **exactly** the equality fields plus the `$in` field →
+  `where("[f1+f2+f3]").anyOf(tuples)`. A partial cover is not used, because the equality-only
+  index it would replace can be the more selective one.
+
+The whole selector is then applied as the filter. For `$sort` + `$limit`, the sort-index walk
+stops after `limit` matches but reads the whole table when matches are rare. So a key lookup,
+or the equality fields' own index when one holds exactly them, is read first as primary keys
+only, up to `4 × limit` of them. If the range holds more, the walk runs as before; otherwise
+those rows are fetched and sorted in memory the way the index would return them (rows without
+the sort field left out, ties in primary-key order).
+
 ### 3. In‑memory fallback
 
 The following operators are **always** evaluated in memory via `mangoCompile`:
