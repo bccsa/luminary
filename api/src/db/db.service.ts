@@ -141,6 +141,24 @@ export type AuxFtsCandidateRow<M> = {
 const FTS_STALE_READ = { stable: true, update: "lazy" as const };
 
 /**
+ * Upper bound on tags one tag-feed lookup will seek, so a caller can't turn a single
+ * request into an unbounded number of view range scans. Feeds ask for a handful of tags.
+ */
+export const MAX_TAG_FEED_TAGS = 20;
+
+/**
+ * Read the tag-feed view without waiting for indexing to catch up. The default
+ * (`update: true`) rebuilds the index against every document written since the last read
+ * before answering, which on a write-heavy database makes each query pay for other
+ * traffic's writes.
+ *
+ * Safe here because the view only supplies a `publishDate` floor with an open upper end:
+ * a lagging index can widen the scan slightly, but can never hide a document. Callers must
+ * treat "no rows" as "no floor available", not as "no matching content".
+ */
+const TAG_FEED_STALE_READ = { stable: true, update: "lazy" as const };
+
+/**
  * Database service for interacting with CouchDB.
  * Provides methods for CRUD operations, document synchronization, and query execution.
  *
@@ -1008,6 +1026,66 @@ export class DbService extends EventEmitter {
                     reject(err);
                 });
         });
+    }
+
+    /**
+     * Ordered candidate ids for a tag feed ("newest published content tagged with any of
+     * these tags"), served by the `content-tag-publishDate` view.
+     *
+     * Mango cannot sort by `publishDate` when the leading index field is an array, so a
+     * `parentTags` feed has no indexed Mango form. The view keys on `[tagId, publishDate]`,
+     * making each tag a bounded range scan whose cost tracks the tag rather than the corpus.
+     *
+     * Ids only — the caller re-runs the permission-filtered Mango query over them, so
+     * visibility rules are never duplicated here. The view holds published docs only;
+     * expiry, language and group filtering still happen downstream.
+     *
+     * Read stale (see {@link TAG_FEED_STALE_READ}), so an empty result means "no floor
+     * available" — a cold or lagging index — and NOT "these tags have no content".
+     *
+     * @param tagIds - Tag parent ids to seek. Deduped; capped at {@link MAX_TAG_FEED_TAGS}.
+     * @param perTagLimit - Rows to take per tag before merging (the caller over-fetches to
+     *   absorb documents the downstream filter removes).
+     * @returns Candidate ids newest-first, deduped across tags.
+     */
+    async getContentIdsByTags(
+        tagIds: Uuid[],
+        perTagLimit: number,
+    ): Promise<{ id: Uuid; publishDate: number }[]> {
+        await this.ensureConnected();
+        const tags = [...new Set(tagIds)].filter(Boolean).slice(0, MAX_TAG_FEED_TAGS);
+        if (!tags.length || perTagLimit < 1) return [];
+
+        const results = await Promise.all(
+            tags.map((tag) =>
+                this.db.view("content-tag-publishDate", "content-tag-publishDate", {
+                    ...TAG_FEED_STALE_READ,
+                    // Descending needs the HIGH key first. `{}` sorts after any number in
+                    // CouchDB collation, and the shorter `[tag]` sorts before `[tag, n]`,
+                    // so this brackets exactly one tag's entries, newest first.
+                    startkey: [tag, {}],
+                    endkey: [tag],
+                    descending: true,
+                    limit: perTagLimit,
+                    reduce: false,
+                }),
+            ),
+        );
+
+        // A document tagged with several of the requested tags appears once per tag.
+        const newestById = new Map<Uuid, number>();
+        for (const res of results) {
+            for (const row of res.rows || []) {
+                const publishDate = Array.isArray(row.key) ? row.key[1] : undefined;
+                if (typeof publishDate !== "number") continue;
+                const seen = newestById.get(row.id);
+                if (seen === undefined || publishDate > seen) newestById.set(row.id, publishDate);
+            }
+        }
+
+        return [...newestById.entries()]
+            .map(([id, publishDate]) => ({ id, publishDate }))
+            .sort((a, b) => b.publishDate - a.publishDate || a.id.localeCompare(b.id));
     }
 
     /**

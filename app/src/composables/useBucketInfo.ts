@@ -3,7 +3,9 @@ import { type StorageDto, useHybridQuery, type Uuid, queryRemote } from "luminar
 import { isPrerender } from "@/ssg/isPrerender";
 
 // Storage buckets use a fixed `cacheId` so this query's response-cache entry stays distinct from same-shaped queries. Storage docs aren't exempt from the ACL/auth-scoping every doc goes through — they're just always assigned public access in practice, which is what makes one shared cache entry safe for every viewer.
-const STORAGE_QUERY = { selector: { type: "storage" }, identifier: "ssgPrerender" };
+// No `identifier` here: the constant is shared with the client branch below, so tagging it
+// would label ordinary app traffic as build load. The prerender adds its own tag.
+const STORAGE_QUERY = { selector: { type: "storage" } };
 const STORAGE_CACHE_ID = "storage-buckets";
 
 // Storage buckets are public and identical for every prerendered page, so the whole SSG
@@ -14,7 +16,11 @@ const STORAGE_CACHE_ID = "storage-buckets";
 let bucketsPromise: Promise<StorageDto[]> | undefined;
 function fetchBucketsOnce(): Promise<StorageDto[]> {
     if (!bucketsPromise) {
-        bucketsPromise = queryRemote<StorageDto>(STORAGE_QUERY).catch((err) => {
+        bucketsPromise = queryRemote<StorageDto>({
+            ...STORAGE_QUERY,
+            // Separates prerender build load from normal app load in the API's expensive-query logs.
+            identifier: "ssgPrerender",
+        }).catch((err) => {
             // Don't let one transient failure poison the rest of the build — let the next page's render retry.
             bucketsPromise = undefined;
             throw err;
