@@ -363,13 +363,13 @@ const contentActions = computed(() => {
             name: "Preview",
             action: () => window.open(liveUrl.value, "_blank"),
             icon: ArrowTopRightOnSquareIcon,
-            iconClass: "h-5 w-5 flex-shrink-0 text-zinc-500",
+            iconClass: "h-5 w-5 flex-shrink-0 dark:text-zinc-100",
         },
         {
             name: "Duplicate",
             action: () => (showDuplicateModal.value = true),
             icon: DocumentDuplicateIcon,
-            iconClass: "h-5 w-5 flex-shrink-0 text-zinc-500",
+            iconClass: "h-5 w-5 flex-shrink-0 dark:text-zinc-100",
         },
     ];
     if (canDelete.value) {

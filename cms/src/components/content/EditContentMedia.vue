@@ -59,7 +59,7 @@ const handleFileChange = () => {
             :icon="FilmIcon"
             :collapsed="newDocument ? false : true"
             collapsible
-            class="bg-white dark:bg-slate-800"
+            class="bg-white dark:bg-slate-800 dark:text-zinc-100"
         >
             <template #actions>
                 <div>
@@ -111,8 +111,8 @@ const handleFileChange = () => {
         <div v-else>
             <div class="flex items-center justify-between gap-3">
                 <div class="flex items-center gap-2">
-                    <FilmIcon class="h-5 w-5 text-zinc-400 dark:text-zinc-500" />
-                    <h3 class="text-sm font-medium leading-6 text-zinc-900 dark:text-yellow-400">
+                    <FilmIcon class="h-5 w-5 text-zinc-400 dark:text-zinc-100" />
+                    <h3 class="text-sm font-medium leading-6 text-zinc-900 dark:text-zinc-100">
                         Media
                     </h3>
                 </div>

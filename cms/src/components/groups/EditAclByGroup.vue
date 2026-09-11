@@ -104,13 +104,13 @@ onMounted(() => {
     <DisplayCard
         :title="``"
         :updatedTimeUtc="0"
-        class="rounded-md border !px-0 !py-0"
+        class="rounded-md border !px-0 !py-0 dark:border-slate-700 dark:bg-slate-800"
         @click="isVisible = true"
     >
         <template #content>
             <div class="flex items-center justify-between">
                 <div
-                    class="flex-shrink-0 whitespace-nowrap pl-3 font-medium"
+                    class="flex-shrink-0 whitespace-nowrap pl-3 font-medium dark:text-zinc-200"
                     :class="isMobileScreen ? 'text-xs' : 'text-sm'"
                 >
                     {{ assignedGroup.name }}
@@ -139,7 +139,7 @@ onMounted(() => {
             <div v-if="typesWithActivePermissions.length > 0" class="group relative py-1">
                 <div
                     v-if="canScrollLeft"
-                    class="pointer-events-none absolute inset-y-0 left-0 z-10 flex w-12 items-center justify-start bg-gradient-to-r from-white to-transparent pl-1"
+                    class="pointer-events-none absolute inset-y-0 left-0 z-10 flex w-12 items-center justify-start bg-gradient-to-r from-white to-transparent pl-1 dark:from-slate-800"
                 >
                     <ChevronLeftIcon class="h-3 w-3 text-zinc-400" />
                 </div>
@@ -151,7 +151,7 @@ onMounted(() => {
                     <div
                         v-for="aclEntry in activeAclEntries"
                         :key="aclEntry.type"
-                        class="flex flex-shrink-0 items-baseline rounded-md bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600"
+                        class="flex flex-shrink-0 items-baseline rounded-md bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600 dark:bg-slate-700 dark:text-zinc-300"
                     >
                         <span>{{ capitaliseFirstLetter(aclEntry.type) }}</span>
                         <span class="ml-0.5 text-[9px]">
@@ -166,12 +166,12 @@ onMounted(() => {
                 </div>
                 <div
                     v-if="canScrollRight"
-                    class="pointer-events-none absolute inset-y-0 right-0 z-10 flex w-12 items-center justify-end bg-gradient-to-l from-white to-transparent pr-1"
+                    class="pointer-events-none absolute inset-y-0 right-0 z-10 flex w-12 items-center justify-end bg-gradient-to-l from-white to-transparent pr-1 dark:from-slate-800"
                 >
-                    <ChevronRightIcon class="h-3 w-3 text-zinc-500" />
+                    <ChevronRightIcon class="h-3 w-3 text-zinc-500 dark:text-zinc-400" />
                 </div>
             </div>
-            <div v-else class="px-2 py-1 text-center text-[11px] text-zinc-500">
+            <div v-else class="px-2 py-1 text-center text-[11px] text-zinc-500 dark:text-zinc-400">
                 No active permissions, click to add
             </div>
         </template>
@@ -179,10 +179,17 @@ onMounted(() => {
 
     <LModal v-model:isVisible="isVisible" :heading="assignedGroup.name" noDivider>
         <div class="flex min-h-72 flex-col">
-            <div v-if="typesWithActivePermissions.length > 0" class="mb-2 text-xs text-zinc-500">
-                <span class="font-semibold text-zinc-700">{{ assignedGroup.name }}</span>
+            <div
+                v-if="typesWithActivePermissions.length > 0"
+                class="mb-2 text-xs text-zinc-500 dark:text-zinc-400"
+            >
+                <span class="font-semibold text-zinc-700 dark:text-zinc-200">{{
+                    assignedGroup.name
+                }}</span>
                 has this access to
-                <span class="font-semibold text-zinc-700">{{ group?.name }}</span>
+                <span class="font-semibold text-zinc-700 dark:text-zinc-200">{{
+                    group?.name
+                }}</span>
             </div>
             <div
                 v-if="typesWithActivePermissions.length === 0"
@@ -213,7 +220,7 @@ onMounted(() => {
                         variant="secondary"
                         size="sm"
                         :class="isMobileScreen ? '!px-2 !py-2 text-xs' : ''"
-                        mainDynamicCss="text-zinc-600"
+                        mainDynamicCss="text-zinc-600 dark:text-zinc-300"
                     >
                         Add / Remove
                     </LButton>
@@ -222,13 +229,16 @@ onMounted(() => {
                     v-for="aclEntry in visibleAclEntries"
                     :key="aclEntry.type"
                     @click="toggleAclEntry(aclEntry)"
-                    class="flex items-center gap-1 rounded-md border-zinc-300 bg-white px-3 py-1 text-xs font-medium text-zinc-600 transition-colors"
+                    class="flex items-center gap-1 rounded-md border-zinc-300 bg-white px-3 py-1 text-xs font-medium text-zinc-600 transition-colors dark:border-slate-600 dark:bg-slate-700 dark:text-zinc-200"
                 >
                     <CheckCircleIcon
                         v-if="typesWithActivePermissions.includes(aclEntry.type)"
                         class="inline h-3 w-3"
                     />
-                    <div v-else class="h-2.5 w-2.5 rounded-md border border-zinc-400"></div>
+                    <div
+                        v-else
+                        class="h-2.5 w-2.5 rounded-md border border-zinc-400 dark:border-slate-500"
+                    ></div>
                     {{ capitaliseFirstLetter(aclEntry.type) }}
                 </button>
             </LDropdown>

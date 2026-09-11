@@ -203,7 +203,7 @@ const onEscape = (e: KeyboardEvent) => {
             <div class="flex items-center gap-1">
                 <component
                     :is="props.labelIcon"
-                    class="h-5 w-5 text-zinc-400 dark:text-zinc-500"
+                    class="h-5 w-5 text-zinc-400 dark:text-zinc-100"
                     v-if="props.labelIcon && props.showIcon"
                 />
                 <FormLabel v-if="label" class="dark:text-zinc-200">{{ label }}</FormLabel>

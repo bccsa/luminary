@@ -344,7 +344,7 @@ function handleDelete() {
                 <!-- S3 Credentials -->
                 <div v-if="shouldShowCredentialsSection" class="border-t pt-2">
                     <div class="mb-2 flex items-center justify-between">
-                        <h3 class="text-sm font-medium text-zinc-900">
+                        <h3 class="text-sm font-medium dark:text-zinc-100">
                             S3 Credentials
                             <span v-if="!isEditing" class="text-red-500">*</span>
                         </h3>
@@ -400,7 +400,7 @@ function handleDelete() {
                         <div>
                             <label
                                 for="endpoint"
-                                class="mb-1 block text-xs font-medium text-zinc-700"
+                                class="mb-1 block text-xs font-medium dark:text-zinc-100"
                             >
                                 S3 Endpoint
                                 <span v-if="!isEditing" class="text-red-500">*</span>
@@ -450,7 +450,7 @@ function handleDelete() {
                         <div>
                             <label
                                 for="bucketName"
-                                class="mb-1 block text-xs font-medium text-zinc-700"
+                                class="mb-1 block text-xs font-medium dark:text-zinc-100"
                             >
                                 Bucket Name
                                 <span v-if="!isEditing" class="text-red-500">*</span>
@@ -483,7 +483,7 @@ function handleDelete() {
                         <div>
                             <label
                                 for="accessKey"
-                                class="mb-1 block text-xs font-medium text-zinc-700"
+                                class="mb-1 block text-xs font-medium dark:text-zinc-100"
                             >
                                 Access Key
                                 <span v-if="!isEditing" class="text-red-500">*</span>
@@ -513,7 +513,7 @@ function handleDelete() {
                         <div>
                             <label
                                 for="secretKey"
-                                class="mb-1 block text-xs font-medium text-zinc-700"
+                                class="mb-1 block text-xs font-medium dark:text-zinc-100"
                             >
                                 Secret Key
                                 <span v-if="!isEditing" class="text-red-500">*</span>
