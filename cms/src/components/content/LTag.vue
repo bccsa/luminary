@@ -18,7 +18,7 @@ const emit = defineEmits(["remove"]);
 <template>
     <div
         :class="[
-            'mt-0.5 flex gap-2 rounded-md border border-zinc-200 bg-zinc-50 py-1 pl-2 text-sm text-zinc-900 shadow-sm',
+            'mt-0.5 flex gap-2 rounded-md border py-1 pl-2 text-sm shadow-sm dark:border-slate-700 dark:bg-slate-700 dark:text-zinc-100',
             disabled ? 'pr-2' : 'pr-1',
         ]"
     >
@@ -34,8 +34,16 @@ const emit = defineEmits(["remove"]);
         </div>
         <div class="flex items-center gap-2">
             <slot />
-            <button @click.stop="emit('remove')" data-test="removeTag" v-if="!disabled" type="button">
-                <XMarkIcon class="h-4 w-4 text-zinc-400 hover:text-zinc-800" title="Remove tag" />
+            <button
+                @click.stop="emit('remove')"
+                data-test="removeTag"
+                v-if="!disabled"
+                type="button"
+            >
+                <XMarkIcon
+                    class="h-4 w-4 hover:text-zinc-800 dark:text-zinc-100"
+                    title="Remove tag"
+                />
             </button>
         </div>
     </div>

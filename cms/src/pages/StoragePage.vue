@@ -24,21 +24,27 @@ const createNew = () => {
                 :icon="PlusIcon"
                 @click="createNew"
                 name="createBucketBtn"
+                class="w-auto shrink-0 whitespace-nowrap px-4 py-2 text-sm"
             >
                 Add Bucket
             </LButton>
         </template>
         <template #topBarActionsMobile>
-            <PlusIcon
+            <LButton
                 v-if="isSmallScreen && canEdit"
-                class="h-6 w-6 text-zinc-500"
+                variant="primary"
+                :icon="PlusIcon"
                 @click="createNew"
-            />
+                name="createBucketBtn"
+                class="w-auto shrink-0 whitespace-nowrap px-4 py-2 text-sm"
+            >
+                Add Bucket
+            </LButton>
         </template>
 
         <div class="space-y-1">
             <div>
-                <p class="text-zinc-600">
+                <p class="dark:text-zinc-100">
                     Manage S3 bucket configurations for file storage and uploads.
                 </p>
             </div>

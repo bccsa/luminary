@@ -167,3 +167,61 @@ export const isMac = computed(() => {
         ua.includes("ipad")
     );
 });
+
+const _theme = ref(localStorage.getItem("theme") || "system");
+
+/**
+ * The selected theme as Vue ref.
+ */
+export const theme = computed<"system" | "dark" | "light">({
+    get: () => {
+        if (_theme.value != "dark" && _theme.value != "light") return "system";
+        return _theme.value;
+    },
+    set: (value) => {
+        _theme.value = value;
+        localStorage.setItem("theme", value);
+    },
+});
+
+/**
+ * Returns true if the theme is dark, false if it is light. When the theme is set to "System", it returns true if the system's preferred color scheme is dark.
+ */
+export const isDarkTheme = ref(document.documentElement.classList.contains("dark"));
+
+// Live-syncs with OS `prefers-color-scheme` while theme === "system". The matchMedia check inside the watcher alone only runs on in-app theme changes — without this listener, a user flipping OS dark mode mid-session wouldn't update the app.
+const systemThemeQuery =
+    typeof window !== "undefined" && window.matchMedia
+        ? window.matchMedia("(prefers-color-scheme: dark)")
+        : ({ matches: false, addEventListener: () => {}, removeEventListener: () => {} } as any);
+
+const applySystemTheme = () => {
+    if (systemThemeQuery.matches) {
+        document.documentElement.classList.add("dark");
+    } else {
+        document.documentElement.classList.remove("dark");
+    }
+    isDarkTheme.value = document.documentElement.classList.contains("dark");
+};
+
+// Watch the theme and apply to the document's CSS classes
+watch(
+    theme,
+    (t) => {
+        // Remove any existing system theme listener before re-evaluating
+        systemThemeQuery.removeEventListener("change", applySystemTheme);
+
+        if (t === "system") {
+            applySystemTheme();
+            // Keep dark class in sync when the OS theme changes
+            systemThemeQuery.addEventListener("change", applySystemTheme);
+        } else if (t === "dark") {
+            document.documentElement.classList.add("dark");
+            isDarkTheme.value = true;
+        } else {
+            document.documentElement.classList.remove("dark");
+            isDarkTheme.value = false;
+        }
+    },
+    { immediate: true },
+);
