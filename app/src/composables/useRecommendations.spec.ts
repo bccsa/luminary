@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { effectScope, nextTick } from "vue";
+import { effectScope, nextTick, watch } from "vue";
 import waitForExpect from "wait-for-expect";
 import * as shared from "luminary-shared";
 import { DocType, PublishStatus, type ContentDto, type FtsSearchResult } from "luminary-shared";
@@ -305,6 +305,109 @@ describe("useRecommendations FTS retrieval", () => {
             await shared.db.setLuminaryInternals("highlights", previousHighlights);
         }
     });
+
+    it("only scans the newly added query when a tag title resolves after the first search", async () => {
+        const languageId = "lang-eng";
+        const tagId = "tag-late-title-fts";
+        const publishDate = Date.now() - 7 * 24 * 60 * 60 * 1000;
+        const tagTitleDoc = {
+            ...makeContent("content-tag-late-title-fts"),
+            parentType: DocType.Tag,
+            parentId: tagId,
+            title: "Late topic title",
+            publishDate,
+        } as ContentDto;
+        const previousLanguages = [...appLanguageIdsAsRef.value];
+        const previousSyncedLanguages = [...appSyncedLanguageIdsAsRef.value];
+        const previousProfile = affinityProfile.value;
+        const previousRecentSearches = localStorage.getItem("luminary-search-recent");
+        const ftsSearch = vi.spyOn(shared, "ftsSearch").mockResolvedValue([]);
+        const scope = effectScope();
+
+        try {
+            localStorage.setItem("luminary-search-recent", JSON.stringify(["forgiveness"]));
+            appLanguageIdsAsRef.value = [languageId];
+            appSyncedLanguageIdsAsRef.value = [languageId];
+            affinityProfile.value = { affinity: { [tagId]: 0.8 }, lastDecayUtc: Date.now() };
+            scope.run(() => useRecommendations());
+
+            // The recent search is available immediately; the tag's title only syncs in later.
+            await waitForExpect(() => expect(ftsSearch).toHaveBeenCalledTimes(1));
+            await shared.db.docs.put(tagTitleDoc);
+
+            await waitForExpect(() => expect(ftsSearch).toHaveBeenCalledTimes(2));
+            await new Promise((resolve) => setTimeout(resolve, 400));
+            expect(ftsSearch.mock.calls.map(([options]) => options.query)).toEqual([
+                "forgiveness",
+                "Late topic title",
+            ]);
+        } finally {
+            scope.stop();
+            ftsSearch.mockRestore();
+            affinityProfile.value = previousProfile;
+            appLanguageIdsAsRef.value = previousLanguages;
+            appSyncedLanguageIdsAsRef.value = previousSyncedLanguages;
+            if (previousRecentSearches === null) localStorage.removeItem("luminary-search-recent");
+            else localStorage.setItem("luminary-search-recent", previousRecentSearches);
+            await shared.db.docs.delete(tagTitleDoc._id);
+        }
+    });
+});
+
+describe("useRecommendations first paint", () => {
+    it("never paints a previous tag set's documents when the profile has moved on", async () => {
+        const languageId = "lang-eng";
+        const publishDate = Date.now() - 7 * 24 * 60 * 60 * 1000;
+        const oldMatch = makeContent("first-paint-old", ["tag-first-paint-old"], publishDate);
+        const newMatch = makeContent("first-paint-new", ["tag-first-paint-new"], publishDate);
+        const previousLanguages = [...appLanguageIdsAsRef.value];
+        const previousProfile = affinityProfile.value;
+        const ftsSearch = vi.spyOn(shared, "ftsSearch").mockResolvedValue([]);
+        const firstScope = effectScope();
+        const secondScope = effectScope();
+
+        try {
+            await shared.db.docs.bulkPut([oldMatch, newMatch]);
+            appLanguageIdsAsRef.value = [languageId];
+
+            affinityProfile.value = {
+                affinity: { "tag-first-paint-old": 0.8 },
+                lastDecayUtc: Date.now(),
+            };
+            const first = firstScope.run(() => useRecommendations({ useFts: false }));
+            if (!first) throw new Error("recommendation scope did not initialize");
+            await waitForExpect(() => {
+                expect(first.recommended.value.map((doc) => doc._id)).toEqual([oldMatch._id]);
+            });
+            firstScope.stop();
+
+            // A remount after the profile moved on — e.g. a page reload following a read.
+            affinityProfile.value = {
+                affinity: { "tag-first-paint-new": 0.8 },
+                lastDecayUtc: Date.now(),
+            };
+            const painted: string[][] = [];
+            secondScope.run(() => {
+                const second = useRecommendations({ useFts: false });
+                watch(second.recommended, (docs) => painted.push(docs.map((doc) => doc._id)), {
+                    immediate: true,
+                    flush: "sync",
+                });
+            });
+
+            await waitForExpect(() => {
+                expect(painted.at(-1)).toEqual([newMatch._id]);
+            });
+            expect(painted.flat()).not.toContain(oldMatch._id);
+        } finally {
+            firstScope.stop();
+            secondScope.stop();
+            ftsSearch.mockRestore();
+            affinityProfile.value = previousProfile;
+            appLanguageIdsAsRef.value = previousLanguages;
+            await shared.db.docs.bulkDelete([oldMatch._id, newMatch._id]);
+        }
+    });
 });
 
 describe("useRecommendations pinned content", () => {
@@ -572,7 +675,12 @@ describe("rank", () => {
             [sharesTwo, sharesOne],
             [],
             {}, // cold affinity — only relevance + recency
-            { now, referenceTagIds: new Set(["topic", "extra"]), referenceWeight: 1.0, maxPerDominantTag: 100 },
+            {
+                now,
+                referenceTagIds: new Set(["topic", "extra"]),
+                referenceWeight: 1.0,
+                maxPerDominantTag: 100,
+            },
         );
 
         // overlap 2 (~2.0) beats overlap 1 + recency (~1.025) despite being older.
