@@ -91,6 +91,11 @@ export const activeImageCollection = computed(() => (content: ContentDto) => {
 
     return index >= 0 ? index : 0; // Return 0 if no suitable collection is found
 });
+
+// Decoded ThumbHash previews by hash, shared by all instances: the same image appears in several
+// rows and on every remount, and each decode encodes a PNG in JS. Oldest entries go first.
+const THUMBHASH_CACHE_MAX = 300;
+const thumbHashCache = new Map<string, string | undefined>();
 </script>
 
 <script setup lang="ts">
@@ -253,12 +258,19 @@ const sizesAttr = computed(() => {
 // a preview of the *correct* photo appears instantly (and offline) until the real image paints over.
 const decodeThumbHash = (base64?: string): string | undefined => {
     if (!base64) return undefined;
+    if (thumbHashCache.has(base64)) return thumbHashCache.get(base64);
+    let url: string | undefined;
     try {
         const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
-        return thumbHashToDataURL(bytes);
+        url = thumbHashToDataURL(bytes);
     } catch {
-        return undefined;
+        url = undefined;
     }
+    if (thumbHashCache.size >= THUMBHASH_CACHE_MAX) {
+        thumbHashCache.delete(thumbHashCache.keys().next().value as string);
+    }
+    thumbHashCache.set(base64, url);
+    return url;
 };
 const thumbHashDataUrl = computed(() => decodeThumbHash(displayCollection.value?.thumbHash));
 const thumbHashStyle = computed(() =>

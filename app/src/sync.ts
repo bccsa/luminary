@@ -1,4 +1,4 @@
-import { ref, watch } from "vue";
+import { ref, toRaw, watch } from "vue";
 import {
     accessMap,
     AclPermission,
@@ -25,34 +25,32 @@ let appLanguageIdsPrev: string[];
 // Increment sync iterators when access map, connection status, or SYNCED languages change.
 // Note: this watches the synced subset, NOT the preferred display order — reordering preferred
 // languages (display-only) must not trigger a content re-sync; only changing what's downloaded does.
-watch(
-    [accessMap, isConnected, appSyncedLanguageIdsAsRef],
-    () => {
-        let accessMapChanged = false;
-        if (!isEqual(accessMapPrev, accessMap.value)) {
-            accessMapChanged = true;
-            accessMapPrev = cloneDeep(accessMap.value);
-        }
+// The access map is only ever replaced whole, so it is watched shallowly: a deep watch would walk
+// every group's permissions on each trigger. The language list is spread so in-place edits count.
+watch([accessMap, isConnected, () => [...appSyncedLanguageIdsAsRef.value]], () => {
+    let accessMapChanged = false;
+    const accessMapRaw = toRaw(accessMap.value);
+    if (!isEqual(accessMapPrev, accessMapRaw)) {
+        accessMapChanged = true;
+        accessMapPrev = cloneDeep(accessMapRaw);
+    }
 
-        let connectedChanged = false;
-        if (isConnectedPrev !== isConnected.value) {
-            connectedChanged = true;
-            isConnectedPrev = isConnected.value;
-        }
+    let connectedChanged = false;
+    if (isConnectedPrev !== isConnected.value) {
+        connectedChanged = true;
+        isConnectedPrev = isConnected.value;
+    }
 
-        let appLanguagesChanged = false;
-        const appLanguageIdsSorted = [...appSyncedLanguageIdsAsRef.value].sort();
-        if (!isEqual(appLanguageIdsPrev, appLanguageIdsSorted)) {
-            appLanguagesChanged = true;
-            appLanguageIdsPrev = appLanguageIdsSorted;
-        }
+    let appLanguagesChanged = false;
+    const appLanguageIdsSorted = [...appSyncedLanguageIdsAsRef.value].sort();
+    if (!isEqual(appLanguageIdsPrev, appLanguageIdsSorted)) {
+        appLanguagesChanged = true;
+        appLanguageIdsPrev = appLanguageIdsSorted;
+    }
 
-        if (accessMapChanged || connectedChanged) syncIterators.value.language++;
-        if (accessMapChanged || connectedChanged || appLanguagesChanged)
-            syncIterators.value.content++;
-    },
-    { deep: true },
-);
+    if (accessMapChanged || connectedChanged) syncIterators.value.language++;
+    if (accessMapChanged || connectedChanged || appLanguagesChanged) syncIterators.value.content++;
+});
 
 /**
  * Initialize the auth-provider and language document sync watcher.

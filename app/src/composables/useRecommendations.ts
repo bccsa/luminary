@@ -1,7 +1,7 @@
 import { computed, onScopeDispose, ref, watch } from "vue";
 import {
     decay,
-    ftsSearch,
+    ftsSearchMany,
     DocType,
     PublishStatus,
     type AffinityMap,
@@ -63,6 +63,9 @@ const DEFAULT_LIMIT = 20;
  *  pool of DEFAULT_LIMIT would mean affinity only reshuffles the 20 newest tagged docs instead of
  *  actually selecting from the tag neighbourhood. */
 const DEFAULT_RETRIEVAL_LIMIT = 1000;
+/** Word-match scoring strips each candidate's HTML body, so it is limited to the head of each FTS
+ *  leg: past this rank an RRF contribution is under a tenth of the top hit's. */
+const FTS_WORDMATCH_TOPK = 10 * (RRF_K + 1);
 const FTS_DEBOUNCE_MS = 300;
 
 /**
@@ -288,42 +291,46 @@ export function useRecommendations({
                 ftsDebounceTimer = setTimeout(async () => {
                     try {
                         const now = sessionNow();
-                        const ftsSearches = await Promise.all(
-                            queries.map(async ({ query, weight }) => {
-                                // Search only locally synced languages in the user's preferred
-                                // priority order: primary first, then downloaded fallbacks. The
-                                // display default may be fetched on demand, but it is not a
-                                // complete local FTS corpus and must not trigger a BM25 scan.
-                                const perLanguage = await Promise.all(
-                                    languageIds.map((languageId) =>
-                                        ftsSearch({
-                                            query,
-                                            languageId,
-                                            status: PublishStatus.Published,
-                                            publishedBefore: now,
-                                            limit: retrievalLimit,
-                                        }),
-                                    ),
-                                );
-                                const seenParentIds = new Set<Uuid>();
-                                const merged: FtsSearchResult[] = [];
-                                // Results remain parallel, but language-priority merge order is
-                                // deterministic and duplicate translations keep the first hit.
-                                for (const results of perLanguage) {
-                                    for (const r of results) {
-                                        if (seenParentIds.has(r.doc.parentId)) continue;
-                                        // ftsSearch has no expiry filter — drop expired content
-                                        // post-hoc (parity with the tag leg's mangoIsPublished).
-                                        if (r.doc.expiryDate && r.doc.expiryDate < now) continue;
-                                        seenParentIds.add(r.doc.parentId);
-                                        merged.push(r);
-                                        if (merged.length >= retrievalLimit) break;
-                                    }
+                        // Search only locally synced languages in the user's preferred priority
+                        // order: primary first, then downloaded fallbacks. The display default may
+                        // be fetched on demand, but it is not a complete local FTS corpus and must
+                        // not trigger a BM25 scan. One batch runs every query × language search,
+                        // so docs that several of them reach are loaded and tokenised once.
+                        const perSearch = await ftsSearchMany(
+                            queries.flatMap(({ query }) =>
+                                languageIds.map((languageId) => ({
+                                    query,
+                                    languageId,
+                                    status: PublishStatus.Published,
+                                    publishedBefore: now,
+                                    limit: retrievalLimit,
+                                    wordMatchTopK: FTS_WORDMATCH_TOPK,
+                                })),
+                            ),
+                        );
+                        const ftsSearches = queries.map(({ weight }, q) => {
+                            const perLanguage = perSearch.slice(
+                                q * languageIds.length,
+                                (q + 1) * languageIds.length,
+                            );
+                            const seenParentIds = new Set<Uuid>();
+                            const merged: FtsSearchResult[] = [];
+                            // Language-priority merge order is deterministic and duplicate
+                            // translations keep the first hit.
+                            for (const results of perLanguage) {
+                                for (const r of results) {
+                                    if (seenParentIds.has(r.doc.parentId)) continue;
+                                    // ftsSearch has no expiry filter — drop expired content
+                                    // post-hoc (parity with the tag leg's mangoIsPublished).
+                                    if (r.doc.expiryDate && r.doc.expiryDate < now) continue;
+                                    seenParentIds.add(r.doc.parentId);
+                                    merged.push(r);
                                     if (merged.length >= retrievalLimit) break;
                                 }
-                                return { weight, results: merged };
-                            }),
-                        );
+                                if (merged.length >= retrievalLimit) break;
+                            }
+                            return { weight, results: merged };
+                        });
                         if (runSeq !== ftsRunSeq) return;
                         ftsResults.value = fuseTagFts(ftsSearches);
                     } catch {
