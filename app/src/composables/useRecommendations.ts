@@ -19,7 +19,11 @@ import {
     loadHighlightQueries,
     type HighlightQuery,
 } from "@/recommendation/highlightStore";
-import { searchVersion, loadSearchQueries, type SearchQuery } from "@/recommendation/searchQueryStore";
+import {
+    searchVersion,
+    loadSearchQueries,
+    type SearchQuery,
+} from "@/recommendation/searchQueryStore";
 import { getSeenArticleIds, seenVersion } from "@/recommendation/seenStore";
 import { appSyncedDisplayLanguageIdsAsRef } from "@/globalConfig";
 import { sessionNow } from "@/util/sessionNow";
@@ -150,8 +154,10 @@ export function useRecommendations({
                 ? [{ parentTags: { $elemMatch: { $in: tagSet.value } } }]
                 : [{ _id: { $in: [] } }],
         // The tag set shifts as affinity updates — the same feed, re-narrowed, so keep it
-        // painted while the new candidate pool loads.
-        { cache: true, cacheId: "recommended", limit: retrievalLimit, keepPreviousResult: true },
+        // painted while the new candidate pool loads. No response cache: its key is a
+        // structural fingerprint that drops selector values, so every tag set would share one
+        // entry and seed first paint with another tag set's documents.
+        { limit: retrievalLimit, keepPreviousResult: true },
     );
 
     // Which of the candidates' `parentTags` are actually TagType.Topic (categories and
@@ -160,6 +166,10 @@ export function useRecommendations({
     // `undefined` means topic-tag resolution is still in flight, so rank across all
     // candidate tags rather than briefly treating every candidate as non-topical.
     const topicTagIds = ref<Set<Uuid> | undefined>(undefined);
+    // Whether a tag is a topic doesn't change while the feed is mounted, so each id is
+    // resolved once. Without this the candidate pool's every live update re-scanned the
+    // corpus and blanked the answer mid-flight, re-ranking the visible row a second time.
+    const isTopicTag = new Map<Uuid, boolean>();
     let topicTagIdsRunSeq = 0;
     watch(
         content,
@@ -167,20 +177,26 @@ export function useRecommendations({
             const runSeq = ++topicTagIdsRunSeq;
             const candidateTagIds = new Set<Uuid>();
             for (const doc of docs) for (const t of doc.parentTags ?? []) candidateTagIds.add(t);
-            const ids = [...candidateTagIds];
-            topicTagIds.value = undefined;
-            try {
-                const topicIds = await filterTopicTagIds(ids);
+            // Nothing to resolve: keep whatever is already published rather than replacing it
+            // with an empty set that would score every later candidate as non-topical.
+            if (!candidateTagIds.size) return;
+            const unresolved = [...candidateTagIds].filter((id) => !isTopicTag.has(id));
+            if (unresolved.length) {
+                let topicIds: Set<Uuid>;
+                try {
+                    topicIds = new Set(await filterTopicTagIds(unresolved));
+                } catch {
+                    // `filterTopicTagIds` handles database failures; retain this guard for
+                    // unexpected errors in the watcher itself. Fall back to treating them as
+                    // topics rather than incorrectly scoring every candidate as having none.
+                    topicIds = new Set(unresolved);
+                }
                 // `content` can change again before this resolves; only the most recent run
                 // may commit, otherwise an older, slower run can overwrite a newer result.
                 if (runSeq !== topicTagIdsRunSeq) return;
-                topicTagIds.value = new Set(topicIds);
-            } catch {
-                // `filterTopicTagIds` handles database failures; retain this guard for
-                // unexpected errors in the watcher itself. Fall back to all tags rather
-                // than incorrectly scoring every candidate as having no topic tags.
-                if (runSeq === topicTagIdsRunSeq) topicTagIds.value = undefined;
+                for (const id of unresolved) isTopicTag.set(id, topicIds.has(id));
             }
+            topicTagIds.value = new Set([...candidateTagIds].filter((id) => isTopicTag.get(id)));
         },
         { immediate: true },
     );
@@ -265,6 +281,12 @@ export function useRecommendations({
         let ftsRunSeq = 0;
         let ftsDebounceTimer: ReturnType<typeof setTimeout> | undefined;
         let lastFtsSignature: string | undefined;
+        // Per-query hit lists, keyed by query text. The query set is assembled from several
+        // independently-resolving sources (tag titles, saved highlights, recent searches), so
+        // without this each source landing re-scanned the corpus for every query already
+        // searched — the whole BM25 pass running two or three times on a cold start.
+        let ftsResultCache = new Map<string, FtsSearchResult[]>();
+        let ftsCacheLanguageKey: string | undefined;
         watch(
             // The language list is watched explicitly: it is only read inside the debounced
             // async callback below, which `watch` cannot track, so a display-language switch
@@ -288,8 +310,15 @@ export function useRecommendations({
                 ftsDebounceTimer = setTimeout(async () => {
                     try {
                         const now = sessionNow();
+                        const languageKey = JSON.stringify(languageIds);
+                        if (languageKey !== ftsCacheLanguageKey) {
+                            ftsResultCache = new Map();
+                            ftsCacheLanguageKey = languageKey;
+                        }
                         const ftsSearches = await Promise.all(
                             queries.map(async ({ query, weight }) => {
+                                const cached = ftsResultCache.get(query);
+                                if (cached) return { weight, results: cached };
                                 // Search only locally synced languages in the user's preferred
                                 // priority order: primary first, then downloaded fallbacks. The
                                 // display default may be fetched on demand, but it is not a
@@ -321,10 +350,16 @@ export function useRecommendations({
                                     }
                                     if (merged.length >= retrievalLimit) break;
                                 }
+                                ftsResultCache.set(query, merged);
                                 return { weight, results: merged };
                             }),
                         );
                         if (runSeq !== ftsRunSeq) return;
+                        // Bound the cache to the live query set so dropped highlights and
+                        // rotated-out tag titles don't accumulate for the session.
+                        const live = new Set(queries.map(({ query }) => query));
+                        for (const key of ftsResultCache.keys())
+                            if (!live.has(key)) ftsResultCache.delete(key);
                         ftsResults.value = fuseTagFts(ftsSearches);
                     } catch {
                         // Offline FTS is best-effort here — a failure just means text signals
@@ -378,7 +413,11 @@ export function useRecommendations({
  * `scoreScale` maps raw scores back to the nominal scale the leg weights were calibrated for
  * (see {@link NOMINAL_COMPLETION_WEIGHT}); defaults to 1 so existing callers/tests are unchanged.
  */
-export function computeRichness(decayedAffinity: AffinityMap, tags: Uuid[], scoreScale = 1): number {
+export function computeRichness(
+    decayedAffinity: AffinityMap,
+    tags: Uuid[],
+    scoreScale = 1,
+): number {
     if (!tags.length) return 0;
     const total = tags.reduce((sum, id) => sum + (decayedAffinity[id] ?? 0), 0);
     return Math.min(1, (total / tags.length) * scoreScale);
