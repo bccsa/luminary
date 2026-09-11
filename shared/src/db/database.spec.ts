@@ -1,5 +1,5 @@
 import "fake-indexeddb/auto";
-import { describe, it, afterEach, beforeEach, expect, beforeAll } from "vitest";
+import { describe, it, afterEach, beforeEach, expect, beforeAll, vi } from "vitest";
 import waitForExpect from "wait-for-expect";
 import {
     mockCategoryContentDto,
@@ -87,6 +87,70 @@ describe("Database", async () => {
             // Content: index fields retained (offline search needs them).
             expect(storedContent.fts).toEqual(["gar:3"]);
             expect(storedContent.ftsTokenCount).toBe(5);
+        });
+    });
+
+    describe("bulkPut unchanged docs", () => {
+        it("writes only the docs that differ from the stored copy", async () => {
+            const spy = vi.spyOn(db.docs, "bulkPut");
+            const changedPost = { ...mockPostDto, updatedTimeUtc: mockPostDto.updatedTimeUtc + 1 };
+            const newDoc = { ...mockEnglishContentDto, _id: "content-new" };
+
+            await db.bulkPut([{ ...mockEnglishContentDto }, changedPost, newDoc]);
+
+            expect(spy).toHaveBeenCalledTimes(1);
+            expect(spy.mock.calls[0][0].map((d: any) => d._id)).toEqual([
+                mockPostDto._id,
+                "content-new",
+            ]);
+            expect(await db.docs.get(mockPostDto._id)).toEqual(changedPost);
+            spy.mockRestore();
+        });
+
+        it("skips the write entirely when every doc is unchanged", async () => {
+            const spy = vi.spyOn(db.docs, "bulkPut");
+
+            await db.bulkPut([{ ...mockEnglishContentDto }, { ...mockPostDto }]);
+
+            expect(spy).not.toHaveBeenCalled();
+            spy.mockRestore();
+        });
+
+        describe("expired docs outside the CMS", () => {
+            beforeEach(() => {
+                config.cms = false;
+            });
+            afterEach(() => {
+                config.cms = true;
+            });
+
+            it("does not store an expired doc", async () => {
+                const expired = { ...mockEnglishContentDto, _id: "content-expired", expiryDate: 1 };
+
+                await db.bulkPut([expired]);
+
+                expect(await db.docs.get("content-expired")).toBeUndefined();
+            });
+
+            it("removes the stored copy when a doc arrives expired", async () => {
+                const expired = {
+                    ...mockEnglishContentDto,
+                    updatedTimeUtc: mockEnglishContentDto.updatedTimeUtc + 1,
+                    expiryDate: 1,
+                };
+
+                await db.bulkPut([expired]);
+
+                expect(await db.docs.get(mockEnglishContentDto._id)).toBeUndefined();
+            });
+        });
+
+        it("stores expired docs in the CMS", async () => {
+            const expired = { ...mockEnglishContentDto, _id: "content-expired-cms", expiryDate: 1 };
+
+            await db.bulkPut([expired]);
+
+            expect(await db.docs.get("content-expired-cms")).toEqual(expired);
         });
     });
 
@@ -1038,6 +1102,34 @@ describe("Database", async () => {
             syncList.value = [];
             await db.setSyncList();
             await db.docs.clear();
+            // Each test seeds syncList directly, so forget the map the previous test reconciled.
+            await db.purge();
+        });
+
+        it("skips the revoke scan when the map matches the one last reconciled", async () => {
+            const map = { "g-public": { [DocType.Post]: { view: true, cmsView: true } } };
+            const spy = vi.spyOn(db, "deleteRevoked");
+
+            accessMap.value = map;
+            await waitForExpect(async () => {
+                expect(await db.getLuminaryInternals("reconciledAccessMap")).toBe(
+                    JSON.stringify(map),
+                );
+            });
+            expect(spy).toHaveBeenCalledTimes(1);
+
+            // The server re-sends the same map on the next connect: a new object, same content.
+            accessMap.value = {};
+            accessMap.value = JSON.parse(JSON.stringify(map));
+            await new Promise((resolve) => setTimeout(resolve, 50));
+            expect(spy).toHaveBeenCalledTimes(1);
+
+            accessMap.value = {
+                ...map,
+                "g-private": { [DocType.Post]: { view: true, cmsView: true } },
+            };
+            await waitForExpect(() => expect(spy).toHaveBeenCalledTimes(2));
+            spy.mockRestore();
         });
 
         it("drops a column whose only group lost access (full loss → re-walk on re-grant)", async () => {

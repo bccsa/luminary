@@ -14,7 +14,10 @@ import {
     TagType,
     Uuid,
 } from "../types";
-import { scheduleCorpusStatsRecompute } from "../fts/ftsIndexer";
+import {
+    scheduleCorpusStatsRecompute,
+    scheduleCorpusStatsRecomputeIfStale,
+} from "../fts/ftsIndexer";
 import { ref, toRaw, watch } from "vue";
 import { DateTime } from "luxon";
 import { v4 as uuidv4 } from "uuid";
@@ -27,6 +30,19 @@ import { changeReqErrors, changeReqInfo, changeReqWarnings } from "../config";
 import { cloneDeep } from "lodash-es";
 
 const dbName: string = "luminary-db";
+
+/**
+ * Whether the stored copy already holds exactly this doc. Comparing serialisations is much cheaper
+ * than a deep compare for docs with large arrays; a key-order difference only costs a rewrite.
+ */
+const isSameDoc = (stored: BaseDocumentDto | undefined, doc: BaseDocumentDto): boolean =>
+    stored !== undefined &&
+    stored.updatedTimeUtc === doc.updatedTimeUtc &&
+    JSON.stringify(stored) === JSON.stringify(doc);
+
+/** The access map `deleteRevoked` last completed against, kept in luminaryInternals. */
+const RECONCILED_ACCESS_MAP_KEY = "reconciledAccessMap";
+let reconciledAccessMap: string | undefined;
 
 type LuminaryInternals = {
     id: string;
@@ -235,7 +251,8 @@ class Database extends Dexie {
 
     async setSyncList() {
         const { syncList } = await import("../api/sync/state");
-        return await this.setLuminaryInternals("syncList", cloneDeep(syncList.value));
+        // Clone the raw array: cloning through the reactive proxy is several times slower.
+        return await this.setLuminaryInternals("syncList", cloneDeep(toRaw(syncList.value)));
     }
 
     async setLuminaryInternals(key: string, value: any) {
@@ -299,14 +316,32 @@ class Database extends Dexie {
             const { fts, ftsTokenCount, ...rest } = d;
             return rest as BaseDocumentDto;
         });
-        const result = await this.docs.bulkPut(cleanedDocs);
 
-        // Update corpus stats if this batch contained ContentDtos
-        if (nonDeleteDocs.length > 0 && nonDeleteDocs[0].type === DocType.Content) {
+        // Skip docs identical to the stored copy: rewriting one changes nothing, yet it re-indexes
+        // the doc and re-runs every live query whose range covers it. Clients other than the CMS
+        // never keep expired docs (see deleteExpired), so an expired doc is not written either;
+        // a stored copy of it is removed instead.
+        const now = Date.now();
+        const { changed, expiredIds } = await this.transaction("rw", this.docs, async () => {
+            const stored = await this.docs.bulkGet(cleanedDocs.map((doc) => doc._id));
+            const changed: BaseDocumentDto[] = [];
+            const expiredIds: Uuid[] = [];
+            cleanedDocs.forEach((doc, i) => {
+                const expiryDate = (doc as { expiryDate?: number }).expiryDate;
+                if (!config.cms && typeof expiryDate === "number" && expiryDate <= now) {
+                    if (stored[i]) expiredIds.push(doc._id);
+                } else if (!isSameDoc(stored[i], doc)) {
+                    changed.push(doc);
+                }
+            });
+            if (expiredIds.length > 0) await this.docs.bulkDelete(expiredIds);
+            if (changed.length > 0) await this.docs.bulkPut(changed);
+            return { changed, expiredIds };
+        });
+
+        if (expiredIds.length > 0 || changed.some((doc) => doc.type === DocType.Content)) {
             scheduleCorpusStatsRecompute();
         }
-
-        return result;
     }
 
     /**
@@ -716,16 +751,16 @@ class Database extends Dexie {
      * Delete documents to which access has been revoked
      * @param options - changeDocs: If true, deletes change documents instead of regular documents
      */
-    deleteRevoked() {
+    deleteRevoked(): Promise<void> {
         // CMS visibility is gated by CmsView, the app's by View (GitHub #160). Choose explicitly
         // from the consumer mode — no hidden substitution.
         const groupsPerDocType = getAccessibleGroups(
             config.cms ? AclPermission.CmsView : AclPermission.View,
         );
 
-        Object.values(DocType)
+        const evictions = Object.values(DocType)
             .filter((t) => t !== DocType.Content) // Exclude content documents as they are deleted together with their parent's document type
-            .forEach(async (docType) => {
+            .map(async (docType) => {
                 let groups = groupsPerDocType[docType as DocType];
                 if (groups === undefined) groups = [];
 
@@ -751,9 +786,11 @@ class Database extends Dexie {
         // new-groups growth path never triggers), leaving only the ~1000ms head-tolerance re-fetch —
         // the "one post / one tag" partial-sync bug (#160). This is the symmetric half of the doc
         // eviction above and generalises the one-time Group-only `resetGroupSyncListForRecovery`.
-        this.reconcileSyncListToAccess(groupsPerDocType);
+        const reconciled = this.reconcileSyncListToAccess(groupsPerDocType);
 
         scheduleCorpusStatsRecompute();
+
+        return Promise.all([...evictions, reconciled]).then(() => undefined);
     }
 
     /**
@@ -861,6 +898,7 @@ class Database extends Dexie {
         // seed a stale first-paint window from the now-purged dataset.
         const { clearResponseCache } = await import("../util/HybridQuery/responseCache");
         clearResponseCache();
+        reconciledAccessMap = undefined;
         await Promise.all([
             this.docs.clear(),
             this.localChanges.clear(),
@@ -914,10 +952,11 @@ export async function initDatabase() {
     }
     dbUpgradeBlocked.value = false;
 
-    // Compute FTS corpus stats on startup.
+    // Bring FTS corpus stats up to date on startup. Every doc-mutation path schedules its own
+    // recompute, so the stored stats are normally current and the full scan is skipped.
     // Uses setTimeout(0) to avoid Dexie PSD zone deadlocks during initialization.
     setTimeout(() => {
-        scheduleCorpusStatsRecompute();
+        scheduleCorpusStatsRecomputeIfStale();
     }, 0);
 
     // Wait a little to give the app time to load before deleting expired content to help speed up the initial app loading time
@@ -929,13 +968,26 @@ export async function initDatabase() {
     // No `{ immediate: true }`: at init the persisted accessMap may be empty (not-loaded) or stale,
     // and purging against it can over-delete. The server-authoritative map arrives via the socket
     // `clientConfig` event shortly after init and triggers this watcher with real data.
+    reconciledAccessMap = await db.getLuminaryInternals(RECONCILED_ACCESS_MAP_KEY);
     watchValue(accessMap, (value) => {
         // An empty accessMap means "not loaded yet" (the useLocalStorage default), NOT "no access".
         // Purging on it would match every group with an `acl` field (and every doc with a
         // `memberOf`) and delete them all before the server's clientConfig socket event populates
         // the real map. Logout cleanup goes through purge(), not here.
         if (Object.keys(value).length === 0) return;
-        db.deleteRevoked();
+
+        // deleteRevoked scans every doc, so skip it when the map is the one it last completed
+        // against: nothing can have been revoked since. The check stays synchronous because
+        // deleteRevoked reads the map as it starts.
+        const signature = JSON.stringify(toRaw(value));
+        if (signature === reconciledAccessMap) return;
+        reconciledAccessMap = undefined;
+        void db.luminaryInternals.delete(RECONCILED_ACCESS_MAP_KEY);
+        void db.deleteRevoked().then(() => {
+            if (JSON.stringify(toRaw(accessMap.value)) !== signature) return;
+            reconciledAccessMap = signature;
+            return db.setLuminaryInternals(RECONCILED_ACCESS_MAP_KEY, signature);
+        });
     });
 
     // One-time recovery for clients hit by the historical `deleteRevoked()` over-purge bug:
