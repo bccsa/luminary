@@ -59,7 +59,7 @@ const handleFileChange = () => {
             :icon="FilmIcon"
             :collapsed="newDocument ? false : true"
             collapsible
-            class="bg-white"
+            class="bg-white dark:bg-slate-800"
         >
             <template #actions>
                 <div>
@@ -83,17 +83,17 @@ const handleFileChange = () => {
                     />
                 </div>
                 <button
-                    class="flex cursor-pointer items-center gap-1 rounded-md"
+                    class="flex cursor-pointer items-center gap-1 rounded-md text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-300"
                     @click.stop="showHelp = !showHelp"
                 >
                     <QuestionMarkCircleIcon class="h-5 w-5" />
                 </button>
             </template>
-            <div v-if="showHelp">
+            <div v-if="showHelp" class="text-zinc-600 dark:text-zinc-400">
                 <p class="mb-2 text-xs">
-                    You can upload multiple audio files, one per language. Each language can have only
-                    one audio file. Uploading a new file for a language that already has audio will
-                    replace the existing file.
+                    You can upload multiple audio files, one per language. Each language can have
+                    only one audio file. Uploading a new file for a language that already has audio
+                    will replace the existing file.
                 </p>
                 <p class="mb-2 text-xs">
                     Supported formats: MP3, AAC, Opus, WAV.
@@ -111,8 +111,10 @@ const handleFileChange = () => {
         <div v-else>
             <div class="flex items-center justify-between gap-3">
                 <div class="flex items-center gap-2">
-                    <FilmIcon class="h-5 w-5 text-zinc-400" />
-                    <h3 class="text-sm font-medium leading-6 text-zinc-900">Media</h3>
+                    <FilmIcon class="h-5 w-5 text-zinc-400 dark:text-zinc-500" />
+                    <h3 class="text-sm font-medium leading-6 text-zinc-900 dark:text-yellow-400">
+                        Media
+                    </h3>
                 </div>
                 <div class="flex items-center gap-2">
                     <LButton
@@ -126,7 +128,7 @@ const handleFileChange = () => {
                         <span class="hidden text-sm sm:inline">Upload</span>
                     </LButton>
                     <button
-                        class="flex cursor-pointer items-center gap-1 rounded-md"
+                        class="flex cursor-pointer items-center gap-1 rounded-md text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-300"
                         @click.stop="showHelp = !showHelp"
                         aria-label="Media help"
                         type="button"
@@ -144,11 +146,11 @@ const handleFileChange = () => {
                 @change="handleFileChange"
             />
 
-            <div v-if="showHelp" class="mt-2">
+            <div v-if="showHelp" class="mt-2 text-zinc-600 dark:text-zinc-400">
                 <p class="mb-2 text-xs">
-                    You can upload multiple audio files, one per language. Each language can have only
-                    one audio file. Uploading a new file for a language that already has audio will
-                    replace the existing file.
+                    You can upload multiple audio files, one per language. Each language can have
+                    only one audio file. Uploading a new file for a language that already has audio
+                    will replace the existing file.
                 </p>
                 <p class="mb-2 text-xs">
                     Supported formats: MP3, AAC, Opus, WAV.

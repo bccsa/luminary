@@ -219,7 +219,7 @@ const navigateTo = computed(() => {
                     </div>
                 </div>
                 <span class="flex w-1/2 items-center gap-1 text-xs text-zinc-400" v-else>
-                    <TagIcon class="h-4 w-4 text-zinc-300" />
+                    <TagIcon class="h-4 w-4 text-yellow-400" />
                     No tags set
                 </span>
             </div>

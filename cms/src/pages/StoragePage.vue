@@ -31,14 +31,14 @@ const createNew = () => {
         <template #topBarActionsMobile>
             <PlusIcon
                 v-if="isSmallScreen && canEdit"
-                class="h-6 w-6 text-zinc-500"
+                class="h-6 w-6 dark:bg-zinc-400 dark:text-zinc-100"
                 @click="createNew"
             />
         </template>
 
         <div class="space-y-1">
             <div>
-                <p class="text-zinc-600">
+                <p class="dark:text-zinc-100">
                     Manage S3 bucket configurations for file storage and uploads.
                 </p>
             </div>

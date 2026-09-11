@@ -130,7 +130,7 @@ function handleDelete() {
                         class="mb-1 flex items-center gap-2"
                     >
                         <XCircleIcon class="h-4 w-4 flex-shrink-0 text-red-400" />
-                        <p class="text-xs text-zinc-700">{{ error }}</p>
+                        <p class="text-xs dark:text-zinc-100">{{ error }}</p>
                     </div>
                 </div>
 
@@ -142,14 +142,16 @@ function handleDelete() {
                         class="mb-1 flex items-center gap-2"
                     >
                         <XCircleIcon class="h-4 w-4 flex-shrink-0 text-red-400" />
-                        <p class="text-xs text-zinc-700">{{ validation.message }}</p>
+                        <p class="text-xs dark:text-zinc-100">{{ validation.message }}</p>
                     </div>
                 </div>
             </div>
             <div class="space-y-2" v-if="bucket">
                 <!-- bucket name -->
                 <div>
-                    <label for="bucket-name" class="mb-1 block text-xs font-medium text-zinc-700"
+                    <label
+                        for="bucket-name"
+                        class="mb-1 block text-xs font-medium dark:text-zinc-100"
                         >Name</label
                     >
                     <LInput
@@ -183,7 +185,9 @@ function handleDelete() {
 
                 <!-- bucket public URL -->
                 <div>
-                    <label for="bucket-path" class="mb-1 block text-xs font-medium text-zinc-700"
+                    <label
+                        for="bucket-path"
+                        class="mb-1 block text-xs font-medium dark:text-zinc-100"
                         >Public URL</label
                     >
                     <LInput
@@ -213,7 +217,7 @@ function handleDelete() {
                             }
                         "
                     />
-                    <p v-if="!isEditing" class="mt-0.5 text-[11px] text-zinc-500">
+                    <p v-if="!isEditing" class="mt-0.5 text-[11px] dark:text-zinc-200">
                         Must be set manually including "http://" or "https://"
                     </p>
                 </div>
@@ -233,7 +237,7 @@ function handleDelete() {
 
                 <!-- Allowed File Types -->
                 <div>
-                    <label class="mb-1 block text-xs font-medium text-zinc-700">
+                    <label class="mb-1 block text-xs font-medium dark:text-zinc-100">
                         Allowed File Types
                     </label>
                     <div class="space-y-1.5">
@@ -275,7 +279,7 @@ function handleDelete() {
                             </LButton>
                         </div>
                     </div>
-                    <p class="mt-0.5 text-[11px] text-zinc-500">
+                    <p class="mt-0.5 text-[11px] dark:text-zinc-100">
                         e.g., "image/*", "video/mp4", "application/pdf"
                     </p>
                 </div>

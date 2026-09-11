@@ -200,7 +200,7 @@ const confirmLinkDates = () => {
         :collapsed="newDocument ? false : true"
         collapsible
         v-if="parent"
-        class="bg-white"
+        class="bg-white dark:bg-slate-800"
     >
         <template #persistent="{ collapsed }">
             <div class="flex flex-col px-2">
@@ -212,8 +212,10 @@ const confirmLinkDates = () => {
                         'pb-1.5': collapsed && parentIsValid,
                     }"
                 >
-                    <ExclamationCircleIcon class="size-[18px] min-w-[18px] shrink-0 text-yellow-400" />
-                    <p class="text-xs text-zinc-700">
+                    <ExclamationCircleIcon
+                        class="size-[18px] min-w-[18px] shrink-0 text-yellow-400"
+                    />
+                    <p class="text-xs text-zinc-700 dark:text-zinc-300">
                         Unsaved changes to {{ tagOrPostType }}'s settings.
                     </p>
                 </div>
@@ -226,7 +228,9 @@ const confirmLinkDates = () => {
                             :class="{ 'pb-1.5': collapsed && !parentIsValid }"
                         >
                             <XCircleIcon class="size-[18px] min-w-[18px] shrink-0 text-red-400" />
-                            <span class="text-xs text-zinc-700">{{ validation.message }}</span>
+                            <span class="text-xs text-zinc-700 dark:text-zinc-300">{{
+                                validation.message
+                            }}</span>
                         </div>
                     </div>
                 </div>
@@ -280,19 +284,21 @@ const confirmLinkDates = () => {
             </div>
 
             <div class="flex items-center justify-between gap-2">
-                <span class="text-sm text-zinc-700">Show publish date</span>
+                <span class="text-sm text-zinc-700 dark:text-zinc-300">Show publish date</span>
                 <LToggle v-model="parent.publishDateVisible" :disabled="disabled" />
             </div>
 
             <!-- Show as "Coming soon" when scheduled with a future publish date. -->
             <div class="flex items-center justify-between gap-2">
-                <span class="text-sm text-zinc-700">Show as Coming soon</span>
+                <span class="text-sm text-zinc-700 dark:text-zinc-300">Show as Coming soon</span>
                 <LToggle v-model="showComingSoon" :disabled="disabled" />
             </div>
 
             <!-- Force-sync to app clients regardless of publishDate cutoff -->
             <div class="flex items-center justify-between gap-2">
-                <span class="text-sm text-zinc-700">Always available offline</span>
+                <span class="text-sm text-zinc-700 dark:text-zinc-300"
+                    >Always available offline</span
+                >
                 <LToggle v-model="alwaysOffline" :disabled="disabled" />
             </div>
 
@@ -300,7 +306,7 @@ const confirmLinkDates = () => {
                 v-if="docType == DocType.Tag && parent && (parent as TagDto).pinned != undefined"
                 class="flex items-center justify-between gap-2"
             >
-                <span class="text-sm text-zinc-700">Pinned</span>
+                <span class="text-sm text-zinc-700 dark:text-zinc-300">Pinned</span>
                 <LToggle v-model="pinned" :disabled="disabled" />
             </div>
 
@@ -311,7 +317,7 @@ const confirmLinkDates = () => {
                 "
                 class="flex items-center justify-between gap-2"
             >
-                <span class="text-sm text-zinc-700">Vertical Tile</span>
+                <span class="text-sm text-zinc-700 dark:text-zinc-300">Vertical Tile</span>
                 <LToggle v-model="useVerticalTileLayout" :disabled="disabled" />
             </div>
 

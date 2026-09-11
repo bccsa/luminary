@@ -50,35 +50,37 @@ const handleClick = () => {
 <template>
     <div
         data-test="display-card"
-        class="w-full divide-y divide-zinc-100 border-y border-zinc-300 bg-white px-2 py-1 transition-colors sm:rounded-md sm:border"
+        class="w-full divide-y divide-zinc-100 border-y border-zinc-300 bg-white px-2 py-1 transition-all duration-200 sm:rounded-md sm:border dark:divide-slate-800/80 dark:border-slate-700 dark:bg-slate-800/50 dark:hover:divide-slate-700"
         :class="[
             {
-                'cursor-pointer': !disable,
-                'bg-slate-304 select-none divide-zinc-200 border-gray-300 bg-opacity-20': disable,
+                'cursor-pointer hover:bg-zinc-50 dark:hover:bg-slate-800/70 dark:hover:shadow-lg':
+                    !disable && canNavigate && navigateTo,
+                'select-none divide-zinc-200 border-gray-200 bg-zinc-50/50 dark:border-slate-800 dark:bg-slate-900/40 dark:text-zinc-600':
+                    disable,
             },
         ]"
         @click="handleClick"
     >
-        <!-- Header: Title and top badges -->
+        <!-- Header: Title -->
         <div v-if="title || isLocalChange" class="relative flex items-center justify-between py-1">
             <div
                 data-test="card-title"
                 class="w-full"
-                :class="{
-                    'flex justify-between': isSmallScreen,
-                }"
+                :class="{ 'flex justify-between': isSmallScreen }"
             >
                 <div class="flex items-center gap-0">
-                    <!-- eslint-disable-next-line vue/no-v-html (caller-escaped highlight HTML) -->
                     <div
                         v-if="titleHtml"
-                        class="mr-1 max-w-full truncate text-wrap text-sm font-medium [&_mark]:rounded [&_mark]:bg-amber-200 [&_mark]:px-0"
+                        class="mr-1 max-w-full truncate text-wrap text-sm font-medium dark:text-zinc-100 [&_mark]:rounded [&_mark]:bg-amber-200 [&_mark]:px-0"
                         v-html="titleHtml"
                     ></div>
-                    <div v-else class="mr-1 max-w-full truncate text-wrap text-sm font-medium">
+                    <div
+                        v-else
+                        class="mr-1 max-w-full truncate text-wrap text-sm font-medium dark:text-zinc-100"
+                    >
                         {{ title }}
                     </div>
-                    <div>
+                    <div class="dark:text-zinc-400">
                         <slot name="title-extension" />
                     </div>
                 </div>
@@ -106,16 +108,21 @@ const handleClick = () => {
         </div>
 
         <!-- Main content slot -->
-        <slot name="content" />
+        <div class="dark:text-zinc-300">
+            <slot name="content" />
+        </div>
 
         <!-- Footer: Bottom metadata -->
         <div
             v-if="isSmallScreen && $slots.mobileFooter"
-            class="flex flex-wrap items-center gap-1 py-1"
+            class="flex flex-wrap items-center gap-1 py-1 dark:text-zinc-500"
         >
             <slot name="mobileFooter" />
-            <div v-if="showDate" class="flex w-max items-start text-xs text-zinc-400">
-                <ClockIcon class="mr-[1px] h-4 w-4 text-zinc-400" />
+            <div
+                v-if="showDate"
+                class="flex w-max items-start text-xs text-zinc-400 dark:text-zinc-500"
+            >
+                <ClockIcon class="mr-[1px] h-4 w-4 text-zinc-400 dark:text-zinc-500" />
                 <span title="Last Updated">{{
                     renderDate("small", "Last Updated", updatedTimeUtc)
                 }}</span>
@@ -124,11 +131,14 @@ const handleClick = () => {
 
         <div
             v-if="!isSmallScreen && $slots.desktopFooter"
-            class="flex items-center justify-between pt-1 text-xs sm:gap-4"
+            class="flex items-center justify-between pt-1 text-xs sm:gap-4 dark:text-zinc-500"
         >
             <slot name="desktopFooter" />
-            <div v-if="showDate" class="flex items-center justify-end text-zinc-400">
-                <ClockIcon class="mr-[1px] h-4 w-4 text-zinc-400" />
+            <div
+                v-if="showDate"
+                class="flex items-center justify-end text-zinc-400 dark:text-zinc-500"
+            >
+                <ClockIcon class="mr-[1px] h-4 w-4 text-zinc-400 dark:text-zinc-500" />
                 <span title="Last Updated">{{
                     renderDate("default", "Last updated", updatedTimeUtc)
                 }}</span>

@@ -222,7 +222,7 @@ defineExpose({ panelRef });
                 v-if="show"
                 ref="panelRef"
                 :id="panelId"
-                class="fixed z-[9999] max-h-60 overflow-y-auto rounded-md bg-white shadow-lg ring-1 ring-black/5 scrollbar-hide focus:outline-none"
+                class="fixed z-[9999] max-h-60 overflow-y-auto rounded-md bg-white shadow-lg ring-1 ring-black/5 scrollbar-hide focus:outline-none dark:bg-slate-800 dark:shadow-2xl dark:ring-slate-700"
                 :class="[
                     props.placement?.startsWith('top') ? 'origin-bottom' : 'origin-top',
                     props.panelClass,
@@ -232,7 +232,7 @@ defineExpose({ panelRef });
                 @keydown="onPanelKeydown"
                 :style="panelStyle"
             >
-                <div class="flex flex-col" :class="paddingClass">
+                <div class="flex flex-col dark:text-zinc-300" :class="paddingClass">
                     <slot />
                 </div>
             </div>

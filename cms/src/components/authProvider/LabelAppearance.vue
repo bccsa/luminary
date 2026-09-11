@@ -10,13 +10,11 @@ const provider = defineModel<AuthProviderDto>("provider", { required: true });
 </script>
 
 <template>
-    <div class="rounded-md border border-zinc-200 bg-white p-2">
-        <h3 class="mb-2 text-sm font-medium text-zinc-900">Appearance</h3>
+    <div class="rounded-md border border-zinc-200 p-2 dark:bg-slate-800">
+        <h3 class="mb-2 text-sm font-medium dark:text-zinc-100">Appearance</h3>
         <div class="grid grid-cols-2 gap-4">
             <div>
-                <label class="mb-1 block text-xs font-medium text-zinc-700"
-                    >Text Color</label
-                >
+                <label class="mb-1 block text-xs font-medium dark:text-zinc-100">Text Color</label>
                 <div class="flex items-center gap-2">
                     <div
                         class="relative h-[38px] w-[38px] flex-shrink-0 overflow-hidden rounded-md border border-zinc-300"
@@ -47,7 +45,7 @@ const provider = defineModel<AuthProviderDto>("provider", { required: true });
                 </div>
             </div>
             <div>
-                <label class="mb-1 block text-xs font-medium text-zinc-700"
+                <label class="mb-1 block text-xs font-medium dark:text-zinc-100"
                     >Background Color</label
                 >
                 <div class="flex items-center gap-2">
@@ -57,7 +55,9 @@ const provider = defineModel<AuthProviderDto>("provider", { required: true });
                         <input
                             type="color"
                             :value="provider.backgroundColor || '#ffffff'"
-                            @input="provider.backgroundColor = ($event.target as HTMLInputElement).value"
+                            @input="
+                                provider.backgroundColor = ($event.target as HTMLInputElement).value
+                            "
                             class="absolute inset-0 h-full w-full cursor-pointer rounded-full opacity-0"
                             :disabled="disabled"
                         />

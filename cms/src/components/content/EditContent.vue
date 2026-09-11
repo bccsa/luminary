@@ -433,10 +433,10 @@ watch(isLgScreen, (isLg) => {
         class="relative"
     >
         <template #pageNav>
-            <h1 class="text-md font-semibold leading-7 lg:hidden">
+            <h1 class="text-md font-semibold leading-7 dark:text-zinc-100 lg:hidden">
                 {{ `Edit ${props.docType}` }}
             </h1>
-            <h1 class="text-md hidden font-semibold leading-7 lg:block">
+            <h1 class="text-md hidden font-semibold leading-7 dark:text-zinc-100 lg:block">
                 {{ selectedContent?.title }}
             </h1>
         </template>
@@ -455,7 +455,7 @@ watch(isLgScreen, (isLg) => {
                         <button
                             type="button"
                             data-test="quick-language-switch"
-                            class="flex items-center gap-1 rounded-md px-2 py-1 text-sm font-medium text-zinc-700 hover:bg-zinc-100"
+                            class="flex items-center gap-1 rounded-md px-2 py-1 text-sm font-medium text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-slate-700"
                         >
                             {{ selectedLanguage.languageCode.toUpperCase() }}
                             <ChevronDownIcon class="h-4 w-4 text-zinc-500" />
@@ -468,7 +468,7 @@ watch(isLgScreen, (isLg) => {
                             type="button"
                             role="menuitem"
                             data-test="quick-language-option"
-                            class="flex w-full items-center justify-between gap-3 whitespace-nowrap px-4 py-2 text-left text-sm text-zinc-800 hover:bg-zinc-50"
+                            class="flex w-full items-center justify-between gap-3 whitespace-nowrap px-4 py-2 text-left text-sm text-zinc-800 hover:bg-zinc-50 dark:bg-slate-800 dark:text-zinc-200 dark:hover:bg-slate-700"
                             @click="switchLanguage(lang)"
                         >
                             {{ lang.name }}
@@ -582,7 +582,7 @@ watch(isLgScreen, (isLg) => {
                         <!-- Translations + the per-translation fields, merged into a single
                              "Basic" card (each child renders `bare`). Video lives in the
                              settings card above. -->
-                        <LCard title="Basic" class="bg-white">
+                        <LCard title="Basic" class="bg-white dark:bg-slate-800">
                             <EditContentParentValidation
                                 bare
                                 :tag-or-post-type="props.tagOrPostType"
@@ -624,7 +624,7 @@ watch(isLgScreen, (isLg) => {
                 class="flex w-full min-w-0 flex-1 flex-col lg:h-full lg:min-h-0 lg:overflow-hidden"
             >
                 <div
-                    class="flex w-full flex-1 flex-col bg-white lg:min-h-0 lg:overflow-hidden lg:border-l lg:border-zinc-200 lg:pr-8"
+                    class="flex w-full flex-1 flex-col bg-white dark:border-slate-700 dark:bg-slate-800/30 lg:min-h-0 lg:overflow-hidden lg:border-l lg:border-zinc-200 lg:pr-8"
                 >
                     <EmptyState
                         v-if="!selectedContent"
@@ -721,7 +721,7 @@ watch(isLgScreen, (isLg) => {
         context="danger"
     >
         <label
-            class="mt-3 flex cursor-pointer select-none items-start gap-2 text-sm text-zinc-700"
+            class="mt-3 flex cursor-pointer select-none items-start gap-2 text-sm text-zinc-700 dark:text-zinc-300"
             data-test="duplicate-image-toggle"
         >
             <input v-model="duplicateImageOnCopy" type="checkbox" class="mt-0.5 h-4 w-4" />
