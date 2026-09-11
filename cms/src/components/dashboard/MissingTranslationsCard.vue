@@ -115,7 +115,7 @@ watch(missingTranslations, () => nextTick(update));
                             class="block w-full text-sm hover:text-yellow-600 dark:text-zinc-100"
                         >
                             <div class="ml-0 flex items-center justify-between gap-2 pl-0">
-                                <span v-if="parentRoute(item)" class="-ml-1.5 min-w-0 truncate">
+                                <span v-if="parentRoute(item)" class="ml-3 min-w-0 truncate">
                                     {{ item.title }}
                                 </span>
                                 <span v-else class="min-w-0 truncate text-sm dark:text-zinc-100">
