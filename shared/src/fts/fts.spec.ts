@@ -12,8 +12,10 @@ import {
     setCorpusStats,
     recomputeCorpusStats,
     scheduleCorpusStatsRecompute,
+    scheduleCorpusStatsRecomputeIfStale,
+    getDocFrequencies,
 } from "./ftsIndexer";
-import { ftsSearch, selectTrigramsWithinDfBudget } from "./ftsSearch";
+import { ftsSearch, ftsSearchMany, selectTrigramsWithinDfBudget } from "./ftsSearch";
 
 function makeContentDoc(overrides: Partial<ContentDto> & { _id: string }): ContentDto {
     return {
@@ -410,6 +412,30 @@ describe("FTS Indexer and Search", () => {
             expect(results.find((r) => r.docId === "exact")!.wordMatchScore).toBeGreaterThan(0);
             expect(results.find((r) => r.docId === "trigram-only")!.wordMatchScore).toBe(0);
         });
+
+        it("limits the word-match bonus to the top wordMatchTopK results by BM25", async () => {
+            // Both docs contain the full word; the higher term frequency ranks "strong" first on BM25.
+            const strong = generateSimpleFtsEntries("garden", 6.0);
+            await ingestDocWithFts(
+                makeContentDoc({ _id: "strong", title: "garden" }),
+                strong.entries,
+                strong.tokenCount,
+            );
+            const weak = generateSimpleFtsEntries("garden", 1.0);
+            await ingestDocWithFts(
+                makeContentDoc({ _id: "weak", title: "garden" }),
+                weak.entries,
+                weak.tokenCount,
+            );
+            await recomputeCorpusStats();
+
+            const capped = await ftsSearch({ query: "garden", limit: 1000, wordMatchTopK: 1 });
+            expect(capped.find((r) => r.docId === "strong")!.wordMatchScore).toBeGreaterThan(0);
+            expect(capped.find((r) => r.docId === "weak")!.wordMatchScore).toBe(0);
+
+            const uncapped = await ftsSearch({ query: "garden", limit: 1000 });
+            expect(uncapped.every((r) => r.wordMatchScore > 0)).toBe(true);
+        });
     });
 
     describe("ftsSearch local filters", () => {
@@ -644,6 +670,118 @@ describe("FTS Indexer and Search", () => {
             stats = await getCorpusStats();
             expect(stats.docCount).toBe(1);
             expect(stats.totalTokenCount).toBe(tokenCount);
+        }, 15_000);
+    });
+
+    describe("ftsSearchMany", () => {
+        it("returns what each search returns on its own, in order", async () => {
+            const words = ["garden", "gardenia", "harden", "pardon", "warden"];
+            for (const word of words) {
+                const e = generateSimpleFtsEntries(word);
+                await ingestDocWithFts(
+                    makeContentDoc({ _id: `many-${word}`, title: word, text: `<p>${word} path</p>` }),
+                    e.entries,
+                    e.tokenCount,
+                );
+            }
+            await recomputeCorpusStats();
+            const searches = [
+                { query: "garden", maxTrigramDocPercent: 100 },
+                { query: "warden path", maxTrigramDocPercent: 100, wordMatchTopK: 2 },
+                { query: "harden", maxTrigramDocPercent: 100, limit: 2, offset: 1 },
+            ];
+
+            const batched = await ftsSearchMany(searches);
+            const single = [];
+            for (const options of searches) single.push(await ftsSearch(options));
+
+            expect(batched).toEqual(single);
+            expect(batched[0].length).toBeGreaterThan(0);
+        });
+    });
+
+    describe("stored trigram document frequencies", () => {
+        it("are computed with the stats and match counting the index", async () => {
+            const a = generateSimpleFtsEntries("garden");
+            await ingestDocWithFts(makeContentDoc({ _id: "df-1", title: "garden" }), a.entries, a.tokenCount);
+            const b = generateSimpleFtsEntries("gardenia");
+            await ingestDocWithFts(makeContentDoc({ _id: "df-2", title: "gardenia" }), b.entries, b.tokenCount);
+            await recomputeCorpusStats();
+
+            const df = await getDocFrequencies(await getCorpusStats());
+            for (const token of ["gar", "den", "nia"]) {
+                const counted = await db.docs
+                    .where("fts")
+                    .between(token + ":", token + ";", true, false)
+                    .count();
+                expect(df!.get(token) ?? 0).toBe(counted);
+            }
+        });
+
+        it("are ignored when they belong to other stats", async () => {
+            const a = generateSimpleFtsEntries("garden");
+            await ingestDocWithFts(makeContentDoc({ _id: "df-3", title: "garden" }), a.entries, a.tokenCount);
+            await recomputeCorpusStats();
+            const stats = await getCorpusStats();
+
+            expect(await getDocFrequencies({ ...stats, docFrequencyVersion: -1 })).toBeUndefined();
+            expect(await getDocFrequencies({ totalTokenCount: 1, docCount: 1 })).toBeUndefined();
+        });
+
+        it("give the same search results as counting the index", async () => {
+            for (const [id, word] of [["s-1", "garden"], ["s-2", "gardenia"], ["s-3", "harden"]]) {
+                const e = generateSimpleFtsEntries(word);
+                await ingestDocWithFts(makeContentDoc({ _id: id, title: word }), e.entries, e.tokenCount);
+            }
+            await recomputeCorpusStats();
+            const stats = await getCorpusStats();
+            const stored = await ftsSearch({ query: "garden" });
+
+            // The same stats without frequencies: search counts the index per trigram.
+            await setCorpusStats({ ...stats, docFrequencyVersion: undefined });
+            const counted = await ftsSearch({ query: "garden" });
+
+            expect(stored.map((r) => [r.docId, r.score])).toEqual(counted.map((r) => [r.docId, r.score]));
+        });
+    });
+
+    describe("scheduleCorpusStatsRecomputeIfStale", () => {
+        // Seeded straight into the table: db.bulkPut would schedule a recompute of its own.
+        const seed = (id: string) => {
+            const { entries, tokenCount } = generateSimpleFtsEntries("quantum");
+            const doc = makeContentDoc({ _id: id, title: "quantum" });
+            return db.docs.put({ ...doc, fts: entries, ftsTokenCount: tokenCount }).then(() => tokenCount);
+        };
+
+        it("recomputes when the content doc count differs from the stored one", async () => {
+            const tokenCount = await seed("stale-1");
+            // Stats written before contentDocCount existed.
+            await setCorpusStats({ totalTokenCount: 0, docCount: 0 });
+
+            await scheduleCorpusStatsRecomputeIfStale();
+            await new Promise((r) => setTimeout(r, 11_000));
+
+            expect(await getCorpusStats()).toMatchObject({
+                totalTokenCount: tokenCount,
+                docCount: 1,
+                contentDocCount: 1,
+            });
+        }, 15_000);
+
+        it("keeps the stored stats when the content doc count matches", async () => {
+            await seed("fresh-1");
+            const stored = {
+                totalTokenCount: 999,
+                docCount: 1,
+                contentDocCount: 1,
+                docFrequencyVersion: 1,
+            };
+            await setCorpusStats(stored);
+
+            await scheduleCorpusStatsRecomputeIfStale();
+            await new Promise((r) => setTimeout(r, 11_000));
+
+            expect(await getCorpusStats()).toEqual(stored);
         }, 15_000);
     });
 });
