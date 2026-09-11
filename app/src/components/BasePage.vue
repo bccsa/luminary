@@ -243,7 +243,7 @@ onUnmounted(() => {
                         aria-hidden="true"
                     />
                     <div
-                        class="pointer-events-auto relative flex h-9 min-w-0 max-w-full items-center justify-center"
+                        class="pointer-events-auto relative flex min-h-9 min-w-0 max-w-full items-center justify-center"
                     >
                         <slot name="topBarCenter" />
                     </div>

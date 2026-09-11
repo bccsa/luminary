@@ -277,7 +277,7 @@ function onResume() {
         class="relative flex max-w-full items-center overflow-hidden rounded-lg bg-zinc-100/95 px-3.5 pb-2.5 pt-1.5 text-sm text-zinc-800 shadow-md ring-1 ring-zinc-900/10 dark:bg-slate-700/95 dark:text-slate-50 dark:ring-white/10"
         data-test="articleOutlineTitle"
     >
-        <span class="truncate">{{ title }}</span>
+        <span class="[overflow-wrap:anywhere]">{{ title }}</span>
         <span
             v-if="progress !== undefined"
             class="pointer-events-none absolute inset-x-0 bottom-0 h-1 bg-zinc-300 dark:bg-slate-600"
@@ -305,10 +305,12 @@ function onResume() {
                 data-test="articleOutlineTrigger"
             >
                 <!-- The title and every heading are stacked invisibly in the same grid cell, so the
-                     pill is sized to the longest label and stays put as its content changes. -->
+                     pill is sized to the longest label and stays put as its content changes.
+                     They are zero-height so only the visible label, wrapped when it doesn't
+                     fit, sets the pill's height. -->
                 <span class="grid min-w-0 flex-1 text-left">
                     <span
-                        class="invisible col-start-1 row-start-1 whitespace-nowrap"
+                        class="invisible col-start-1 row-start-1 h-0 [overflow-wrap:anywhere]"
                         aria-hidden="true"
                     >
                         {{ title }}
@@ -316,12 +318,14 @@ function onResume() {
                     <span
                         v-for="h in headings"
                         :key="h.id"
-                        class="invisible col-start-1 row-start-1 whitespace-nowrap"
+                        class="invisible col-start-1 row-start-1 h-0 [overflow-wrap:anywhere]"
                         aria-hidden="true"
                     >
                         {{ h.text }}
                     </span>
-                    <span class="col-start-1 row-start-1 truncate">{{ triggerLabel }}</span>
+                    <span class="col-start-1 row-start-1 [overflow-wrap:anywhere]">{{
+                        triggerLabel
+                    }}</span>
                 </span>
                 <ChevronDownIcon
                     class="h-4 w-4 flex-shrink-0 transition-transform"
