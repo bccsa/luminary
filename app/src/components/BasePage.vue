@@ -50,8 +50,12 @@ const main = ref<HTMLElement | undefined>(undefined);
 const topBarWrap = ref<HTMLElement | undefined>(undefined);
 let topBarResizeObserver: ResizeObserver | undefined;
 
-const publishTopBarHeight = (height: number) =>
-    document.documentElement.style.setProperty("--top-bar-h", `${height}px`);
+// Scoped to this page's root: cached pages keep their own observer, and a global
+// value would let whichever one reports last dictate every page's padding.
+const topBarHeight = ref<number>();
+const topBarHeightStyle = computed(() =>
+    topBarHeight.value ? { "--top-bar-h": `${topBarHeight.value}px` } : undefined,
+);
 
 // The pill's sticky top stays constant at the tucked position; while the top
 // bar is visible the pill is *translated* down below it instead. A transform
@@ -115,8 +119,9 @@ onMounted(() => {
     main.value?.addEventListener("scroll", onMainScroll, { passive: true });
     if (topBarWrap.value && typeof ResizeObserver !== "undefined") {
         const measure = () => {
-            if (topBarWrap.value)
-                publishTopBarHeight(topBarWrap.value.getBoundingClientRect().height);
+            // A cached page's DOM is detached while it is inactive and measures 0.
+            const height = topBarWrap.value?.getBoundingClientRect().height;
+            if (height) topBarHeight.value = height;
         };
         measure();
         topBarResizeObserver = new ResizeObserver(measure);
@@ -133,7 +138,10 @@ onUnmounted(() => {
 </script>
 
 <template>
-    <div class="flex h-full w-full scrollbar-hide">
+    <div
+        class="flex h-full w-full scrollbar-hide"
+        :style="topBarHeightStyle"
+    >
         <!-- Desktop left sidebar — prerendered on the SSG build too (public nav /
              logo; the auth/Dexie bits self-defer inside the component). -->
         <DesktopSidebar />

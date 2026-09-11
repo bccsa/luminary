@@ -77,6 +77,41 @@ describe("BasePage", () => {
         expect(removeEventSpy).toHaveBeenCalledWith("keydown", expect.any(Function));
     });
 
+    it("scopes the measured top-bar height to its own page and ignores detached readings", async () => {
+        const observed: Array<() => void> = [];
+        vi.stubGlobal(
+            "ResizeObserver",
+            class {
+                constructor(cb: () => void) {
+                    observed.push(cb);
+                }
+                observe() {}
+                disconnect() {}
+            },
+        );
+        let height = 90;
+        const rectSpy = vi
+            .spyOn(HTMLElement.prototype, "getBoundingClientRect")
+            .mockImplementation(() => ({ height }) as DOMRect);
+
+        const page = mount(BasePage, { global: { plugins: [createPinia()] } });
+        await nextTick();
+        const root = page.element as HTMLElement;
+
+        expect(root.style.getPropertyValue("--top-bar-h")).toBe("90px");
+        expect(document.documentElement.style.getPropertyValue("--top-bar-h")).toBe("");
+
+        // A cached page's bar measures 0 once its DOM is detached.
+        height = 0;
+        observed.at(-1)!();
+        await nextTick();
+        expect(root.style.getPropertyValue("--top-bar-h")).toBe("90px");
+
+        page.unmount();
+        rectSpy.mockRestore();
+        vi.unstubAllGlobals();
+    });
+
     it("shows whether notification is displayed and visible", async () => {
         const notificationStore = useNotificationStore();
 
