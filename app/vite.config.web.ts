@@ -6,6 +6,7 @@ import type { ViteSSGOptions } from "vite-ssg";
 import type { RouteRecordRaw } from "vue-router";
 import vue from "@vitejs/plugin-vue";
 import { buildTargetVirtuals } from "./vite-plugins/buildTargetVirtuals";
+import { deferEntryUntilPainted } from "./vite-plugins/deferEntryUntilPainted";
 import { buildDeleteQueue } from "./src/ssg/deleteQueue";
 import {
     drainQuery,
@@ -604,7 +605,13 @@ async function writeRedirectFiles(apiUrl: string): Promise<void> {
 }
 
 const config: UserConfig & { ssgOptions: ViteSSGOptions } = {
-    plugins: [ssgBuildLock(), buildTargetVirtuals(), vue(), rewriteWebEntry()],
+    plugins: [
+        ssgBuildLock(),
+        buildTargetVirtuals(),
+        vue(),
+        rewriteWebEntry(),
+        deferEntryUntilPainted(),
+    ],
     resolve: {
         alias: {
             "@": fileURLToPath(new URL("./src", import.meta.url)),
@@ -642,7 +649,9 @@ const config: UserConfig & { ssgOptions: ViteSSGOptions } = {
         entry: "src/main.web.ts",
         mock: true, // jsdom globals in Node so DOM-at-import code doesn't crash
         formatting: "minify",
-        script: "async",
+        // No `script` mode: `deferEntryUntilPainted` has already replaced the module entry
+        // with its own post-paint loader, so vite-ssg's async/defer rewrite has nothing to
+        // match. Entry loading is that plugin's to change, not this option's.
         // Every piece of per-render state is now keyed by route — the dependency keys and the
         // `hqcache:*` seed (`src/ssg/dependencyCapture.ts`) and the prefetch ordering chain
         // (`useContentQuery.ts`) — so raising this is safe. Adding another cross-render global
