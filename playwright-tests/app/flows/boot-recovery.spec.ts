@@ -56,7 +56,9 @@ test.describe("App boot recovery", () => {
       await page.goto("/");
 
       await expect(page.locator("#boot-splash")).toBeVisible();
-      await expect(page.locator("#boot-splash")).toContainText("Loading");
+      await expect(
+        page.locator("#boot-splash .boot-splash-slug"),
+      ).toBeVisible();
     });
   });
 
