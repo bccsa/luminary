@@ -35,13 +35,16 @@ export class SeedRetention {
     }
 
     /**
-     * Whether an empty authoritative local read must be held back. An empty
-     * authoritative local read must not collapse a seeded first paint while a
-     * remote supplement is still in flight; a non-empty read replaces wholesale so
-     * deletions still propagate.
+     * Whether an empty local read must be held back. It must not collapse a seeded first paint
+     * while the answer could still be incomplete — either a remote supplement is in flight, or
+     * the local corpus itself is still filling. A non-empty read replaces wholesale so deletions
+     * still propagate, and once neither condition holds an empty read publishes as empty.
+     *
+     * @param corpusSettled Whether an empty local read is authoritative. Defaults to `true`, so a
+     *   caller that doesn't track corpus completeness keeps the remote-pending rule alone.
      */
-    shouldRetainLocal(localCount: number, remotePending: boolean): boolean {
-        return localCount === 0 && this.seededLocal && remotePending;
+    shouldRetainLocal(localCount: number, remotePending: boolean, corpusSettled = true): boolean {
+        return localCount === 0 && this.seededLocal && (remotePending || !corpusSettled);
     }
 
     /** Mark the local contribution as no longer a seed. */

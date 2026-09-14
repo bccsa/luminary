@@ -38,6 +38,32 @@ describe("SeedRetention", () => {
             expect(r.shouldRetainLocal(5, true)).toBe(false);
         });
 
+        it("retains an empty local read while the local corpus is still filling", () => {
+            const r = new SeedRetention();
+            r.recordSeed(3, ["a", "b"]);
+            // No remote leg is owed, so the seed's only protection is the unsettled corpus.
+            expect(r.shouldRetainLocal(0, false, false)).toBe(true);
+        });
+
+        it("publishes an empty local read once the corpus has settled", () => {
+            const r = new SeedRetention();
+            r.recordSeed(3, ["a", "b"]);
+            expect(r.shouldRetainLocal(0, false, true)).toBe(false);
+        });
+
+        it("lets a non-empty read replace the seed even while the corpus fills", () => {
+            const r = new SeedRetention();
+            r.recordSeed(3, ["a", "b"]);
+            // Deletions must still propagate — retention only ever holds back an EMPTY read.
+            expect(r.shouldRetainLocal(5, false, false)).toBe(false);
+        });
+
+        it("treats the corpus as settled when the caller tracks no completeness", () => {
+            const r = new SeedRetention();
+            r.recordSeed(3, ["a", "b"]);
+            expect(r.shouldRetainLocal(0, false)).toBe(false);
+        });
+
         it("leaves remoteFromSeed false for an empty remoteIds array", () => {
             const r = new SeedRetention();
             r.recordSeed(3, []);

@@ -52,6 +52,15 @@ export type SharedConfig = {
      * Defaults to 30 days. Only meaningful when `contentPublishDateCutoff` is set.
      */
     offlineRetentionTtlMs?: number;
+    /**
+     * Whether the local document store is complete enough for an empty read to mean "there is
+     * nothing" rather than "sync hasn't delivered it yet". `HybridQuery` consults it before
+     * letting an empty local read retire a response-cache seed, so a first-paint window isn't
+     * collapsed by a database that sync is still filling. Omit for the default `true` — every empty
+     * read is authoritative, which is the right answer for a caller whose store is already
+     * populated when it queries.
+     */
+    localCorpusSettled?: Ref<boolean>;
 };
 
 /** Default offline-retention TTL: 30 days. */
@@ -81,6 +90,24 @@ export function getContentPublishDateCutoff(): number {
  */
 export function hasContentPublishDateCutoff(): boolean {
     return getContentPublishDateCutoff() !== OPEN_MIN;
+}
+
+/**
+ * The caller's local-corpus-settled ref, or `undefined` when it supplied none. `HybridQuery`
+ * watches it so a seed retained through an empty read is retired the moment the corpus settles
+ * — the corpus can finish filling without producing another emission for that query.
+ */
+export function localCorpusSettledRef(): Ref<boolean> | undefined {
+    return config?.localCorpusSettled;
+}
+
+/**
+ * Whether an empty local read may be treated as authoritative. `true` when no ref was supplied,
+ * so this only ever holds a seed for a caller that opted in. See
+ * {@link SharedConfig.localCorpusSettled}.
+ */
+export function isLocalCorpusSettled(): boolean {
+    return config?.localCorpusSettled?.value ?? true;
 }
 
 /**

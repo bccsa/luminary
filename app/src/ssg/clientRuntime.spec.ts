@@ -4,11 +4,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // verify the ORDER it calls them in (documented as load-bearing in the file's own
 // comments), not their individual behavior, which is covered by their own specs.
 
-vi.mock("luminary-shared", () => ({
-    getSocket: vi.fn(),
-    init: vi.fn(),
-    warmMangoCaches: vi.fn(),
-}));
+vi.mock("luminary-shared", async () => {
+    const { ref } = await import("vue");
+    return {
+        getSocket: vi.fn(),
+        init: vi.fn(),
+        warmMangoCaches: vi.fn(),
+        // Real ref: `initSyncReadiness` watches it to latch the corpus-settled signal.
+        syncActive: ref(false),
+    };
+});
 
 vi.mock("@/globalConfig", () => ({
     apiUrl: "http://localhost:12345",
@@ -30,6 +35,7 @@ const { getSocket, init, warmMangoCaches } = await import("luminary-shared");
 const { apiUrl, appLanguageIdsAsRef, initLanguage } = await import("@/globalConfig");
 const { APP_DOCS_INDEX } = await import("@/docsIndex");
 const { initAuthLangSync, initSync } = await import("@/sync");
+const { localCorpusSettled } = await import("@/syncReadiness");
 
 describe("clientRuntime.initSsgClient", () => {
     const connect = vi.fn();
@@ -65,6 +71,9 @@ describe("clientRuntime.initSsgClient", () => {
             docsIndex: APP_DOCS_INDEX,
             apiUrl,
             appLanguageIdsAsRef,
+            // Prerendered feeds seed from the page; this is what stops the first empty
+            // IndexedDB read retiring that seed before sync has delivered anything.
+            localCorpusSettled,
         });
     });
 
