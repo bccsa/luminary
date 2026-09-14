@@ -8,6 +8,7 @@ import { getSocket, init, warmMangoCaches } from "luminary-shared";
 import { apiUrl, appLanguageIdsAsRef, initLanguage } from "@/globalConfig";
 import { APP_DOCS_INDEX } from "@/docsIndex";
 import { initAuthLangSync, initSync } from "@/sync";
+import { initSyncReadiness, localCorpusSettled } from "@/syncReadiness";
 
 /**
  * Boots the shared data layer on the SSG client after hydration. Named to match
@@ -24,7 +25,12 @@ export async function initSsgClient(): Promise<void> {
         docsIndex: APP_DOCS_INDEX,
         apiUrl,
         appLanguageIdsAsRef,
+        // Prerendered feeds paint from their page's cache seed. Without this the first (empty)
+        // IndexedDB read would retire that seed and blank them until sync delivers the documents.
+        localCorpusSettled,
     });
+
+    initSyncReadiness();
 
     // Connect for anonymous/public users and start the content + language sync.
     // Not awaited — these resolve over the network after the page has mounted.

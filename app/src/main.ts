@@ -18,6 +18,7 @@ import { apiUrl } from "./globalConfig";
 import { initAppTitle, initI18n } from "./i18n";
 import { initAnalytics } from "./analytics";
 import { initSync, initAuthLangSync } from "./sync";
+import { initSyncReadiness, localCorpusSettled } from "./syncReadiness";
 import { initDefaultAffinitySync } from "@/recommendation/defaultAffinityStore";
 import { APP_DOCS_INDEX } from "./docsIndex";
 import { initSentry, Sentry } from "@/util/initSentry";
@@ -64,7 +65,11 @@ async function Startup() {
         contentPublishDateCutoff: installedStandalone
             ? undefined // no cutoff → full corpus
             : Date.now() - BROWSER_CONTENT_SYNC_WINDOW_MS,
+        localCorpusSettled,
     });
+
+    // Drive the ref passed above. Registered right after init so the first sync pass is observed.
+    initSyncReadiness();
 
     // Keep the CMS-managed default-affinity baseline/config in sync with the local
     // copy of the singleton doc, now that it's synced like any other doc type.

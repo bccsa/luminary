@@ -34,6 +34,9 @@ const mocks = vi.hoisted(() => {
             value: Array<{ chunkType: string }>;
         },
         cutoff: 1000,
+        // A REAL Vue ref: HybridQuery watches it to retire a seed held back by an
+        // unsettled corpus. `true` matches the default for a caller that supplies none.
+        corpusSettled: ref(true) as { value: boolean },
         liveRefs,
         useDexieLiveQueryMock: vi.fn((querier: any, options: any) => {
             const r = shallowRef(options?.initialValue);
@@ -91,6 +94,8 @@ vi.mock("../../api/sync/state", () => ({
 vi.mock("../../config", () => ({
     // Read mocks.cutoff at call time so tests can change it per case.
     getContentPublishDateCutoff: () => mocks.cutoff,
+    isLocalCorpusSettled: () => mocks.corpusSettled.value,
+    localCorpusSettledRef: () => mocks.corpusSettled,
     config: mocks.config,
     initConfig: () => {},
 }));
@@ -160,6 +165,7 @@ describe("HybridQuery", () => {
         mocks.isConnected.value = true;
         mocks.syncList.value = [];
         mocks.cutoff = 1000;
+        mocks.corpusSettled.value = true;
         mocks.config.appLanguageIdsAsRef.value = [];
         mocks.config.cms = false;
         mocks.useDexieLiveQueryMock.mockClear();
@@ -2017,6 +2023,60 @@ describe("HybridQuery", () => {
                 expect(q.isFetching.value).toBe(true); // still unsettled
             });
 
+            it("seeded window survives an empty local read while the corpus is still filling", async () => {
+                // Full-corpus sync: no supplement is owed, so `remotePending` cannot protect the
+                // seed. Only the caller's corpus-settled signal separates "sync hasn't delivered
+                // this yet" from "there is genuinely nothing", and a first-time visitor's Dexie is
+                // empty long after the query has settled.
+                mocks.cutoff = OPEN_MIN;
+                mocks.corpusSettled.value = false;
+                writeResponseCache(structuralCacheKey(contentQuery), { local: [L], remote: [] });
+                mocks.mangoToDexieMock.mockResolvedValueOnce([]);
+
+                const q = track(new HybridQuery(contentQuery, { cache: true }));
+                expect(q.output.value.map((d) => d._id)).toEqual(["L1"]); // synchronous seed
+
+                await flush();
+                expect(postHttpMock).not.toHaveBeenCalled();
+                expect(q.output.value.map((d) => d._id)).toEqual(["L1"]); // not collapsed
+            });
+
+            it("publishes the empty read once the caller reports the corpus settled", async () => {
+                // Nothing matched after sync finished, so the feed is genuinely empty and has to
+                // say so — the corpus can settle without another emission for this query.
+                mocks.cutoff = OPEN_MIN;
+                mocks.corpusSettled.value = false;
+                writeResponseCache(structuralCacheKey(contentQuery), { local: [L], remote: [] });
+                mocks.mangoToDexieMock.mockResolvedValueOnce([]);
+
+                const q = track(new HybridQuery(contentQuery, { cache: true }));
+                await flush();
+                expect(q.output.value.map((d) => d._id)).toEqual(["L1"]);
+
+                mocks.corpusSettled.value = true;
+                await flush();
+                expect(q.output.value).toEqual([]);
+            });
+
+            it("hands the retained seed over to the documents sync delivers", async () => {
+                // The whole point of holding the seed: the tiles the build rendered stay on screen
+                // until the real ones replace them, with no empty frame in between.
+                mocks.cutoff = OPEN_MIN;
+                mocks.corpusSettled.value = false;
+                writeResponseCache(structuralCacheKey(contentQuery), { local: [L], remote: [] });
+                mocks.mangoToDexieMock.mockResolvedValueOnce([]);
+
+                const q = track(new HybridQuery(contentQuery, { cache: true, live: true }));
+                await flush();
+                expect(q.output.value.map((d) => d._id)).toEqual(["L1"]);
+
+                // Sync writes the docs; the live Dexie read re-emits with them.
+                mocks.liveRefs[mocks.liveRefs.length - 1].ref.value = [{ ...L, text: "body" }];
+                await flush();
+                expect(q.output.value.map((d) => d._id)).toEqual(["L1"]);
+                expect(q.output.value[0]).toHaveProperty("text", "body");
+            });
+
             it("a non-empty local read still replaces the seeded local wholesale (deletions propagate)", async () => {
                 // Seed holds two local docs; the real read drops one (a deletion). The
                 // non-empty read must replace the seeded local wholesale so the deletion
@@ -2128,7 +2188,12 @@ describe("HybridQuery", () => {
                 // Live mode (SingleContent's actual query mode): seed the local side with a
                 // stripped doc — same id/updatedTimeUtc as the doc the live Dexie read
                 // returns, differing only by the field the SSR cache write omitted.
-                const Lstripped = { _id: "L1", updatedTimeUtc: 5, publishDate: 2000, type: "content" };
+                const Lstripped = {
+                    _id: "L1",
+                    updatedTimeUtc: 5,
+                    publishDate: 2000,
+                    type: "content",
+                };
                 writeResponseCache(
                     structuralCacheKey(contentQuery),
                     { local: [Lstripped], remote: [] },
@@ -2993,7 +3058,6 @@ describe("HybridQuery", () => {
             expect(q.isFetching.value).toBe(false);
         });
     });
-
 });
 
 describe("queryRemote", () => {

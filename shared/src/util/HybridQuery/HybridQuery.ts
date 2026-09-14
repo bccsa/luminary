@@ -45,7 +45,12 @@ import {
     writeResponseCache,
 } from "./responseCache";
 import { touchRetention } from "../../db/retention";
-import { config, getContentPublishDateCutoff } from "../../config";
+import {
+    config,
+    getContentPublishDateCutoff,
+    isLocalCorpusSettled,
+    localCorpusSettledRef,
+} from "../../config";
 import { OPEN_MIN } from "../../api/sync/utils";
 
 /**
@@ -437,6 +442,10 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
     private _remote: T[] = [];
     // Gates the one-shot API decision to the FIRST local result, in both modes.
     private _apiDecided = false;
+    // True while an empty local read is being held back because the local corpus is still
+    // filling. Nothing else would retire that seed: the corpus can finish without producing
+    // another emission for this query, so the settle watcher below needs to know one is owed.
+    private _retainedEmptyLocal = false;
     // Live mode only: docIds removed by a socket DeleteCmd → the delete's
     // updatedTimeUtc. `_recompute` suppresses an at-or-older copy that still
     // lingers in a source (e.g. a Dexie `liveQuery` re-emit that fires before the
@@ -528,6 +537,7 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
         if (!this._keepPreviousResult && this.output.value.length) this.output.value = [];
         this._seed.reset();
         this._apiDecided = false;
+        this._retainedEmptyLocal = false;
         this._tombstones.clear();
         // Re-enter loading for the new generation. _generation++ above has already
         // disarmed any stale callback (the gen guard), so these synchronous writes are
@@ -584,6 +594,25 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
             this._local = [];
             this._recompute(true);
         }
+    }
+
+    // Retire a seed held back by an unsettled corpus, once the caller reports it settled. The
+    // corpus can finish filling without another emission for this query (nothing it holds
+    // matched), so without this the held-back empty read would never publish. Registered only
+    // when a seed was applied, and only by a caller that supplied the ref.
+    private _watchCorpusSettled(gen: number): void {
+        const settled = localCorpusSettledRef();
+        if (!settled) return;
+        const stop = watch(settled, (isSettled) => {
+            if (!isSettled || gen !== this._generation || this._disposed) return;
+            if (!this._retainedEmptyLocal) return;
+            this._retainedEmptyLocal = false;
+            this._seed.releaseLocal();
+            this._local = [];
+            // Force the publish: the seeded docs carry real ids, so the window can look unchanged.
+            this._recompute(true);
+        });
+        this._generationDisposers.add(stop);
     }
 
     // Non-content branches only. Re-route this generation when `type`'s syncList
@@ -674,6 +703,7 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
                         this._remote.map((d) => d._id),
                     );
                     this._recompute();
+                    this._watchCorpusSettled(gen);
                 }
             }
 
@@ -1041,14 +1071,23 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
             });
             release.forEach((id) => this._tombstones.delete(id));
         }
-        // Retain a cache-seeded window while the remote leg is still in flight: a cold-start
-        // empty local read must not collapse the seeded first paint before the supplement
-        // lands. A non-empty read still replaces wholesale (deletions propagate); once the
-        // remote settles the flag is cleared and a genuine empty publishes as usual.
-        if (this._seed.shouldRetainLocal(local.length, this._remotePending.value)) {
+        // Retain a cache-seeded window while the answer could still be incomplete — the remote
+        // leg is in flight, or the local corpus is still filling. A cold-start empty local read
+        // must not collapse the seeded first paint before the data it is waiting for lands. A
+        // non-empty read still replaces wholesale (deletions propagate); once neither condition
+        // holds, a genuine empty publishes as usual.
+        if (
+            this._seed.shouldRetainLocal(
+                local.length,
+                this._remotePending.value,
+                isLocalCorpusSettled(),
+            )
+        ) {
+            this._retainedEmptyLocal = true;
             this._recompute();
             return;
         }
+        this._retainedEmptyLocal = false;
         // This read replaces a seeded local contribution, so force the publish.
         const retiringSeed = this._seed.holdsSeed();
         this._seed.releaseLocal();
