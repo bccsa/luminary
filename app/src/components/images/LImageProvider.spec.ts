@@ -25,6 +25,7 @@ vi.mock("@/composables/useNetworkSpeedEstimator", async () => {
 import { isDataSaverEnabled, userDataSaverEnabled } from "@/globalConfig";
 import { isSlowConnection } from "@/composables/useNetworkSpeedEstimator";
 import LImageProvider from "./LImageProvider.vue";
+import { ssgSlotUpgraded } from "./ssgImageSlot";
 
 // `isSlowConnection` is a real (mocked) ref here; treat it as writable in tests.
 const slow = isSlowConnection as unknown as { value: boolean };
@@ -53,6 +54,8 @@ describe("LImageProvider", () => {
         slow.value = false;
         userDataSaverEnabled.value = false;
         Object.defineProperty(window, "devicePixelRatio", { value: 1, configurable: true });
+        (import.meta.env as { SSR: boolean }).SSR = false;
+        ssgSlotUpgraded.value = true;
     });
 
     it("does not load fallback image if either main image loads successfully", async () => {
@@ -392,5 +395,69 @@ describe("LImageProvider", () => {
         expect(img1.attributes("sizes")).toBe("48px");
         // Full ladder retained.
         expect(img1.attributes("srcset")).toContain("video-1200.webp 1200w");
+    });
+
+    it("keeps the prerendered slot for the client's first frame, then upgrades", async () => {
+        const heroProps = {
+            parentId: "ssg-hero",
+            image: mockImageLarge,
+            aspectRatio: "video" as const,
+            size: "post" as const,
+            bucketPublicUrl: "https://bucket.example.com",
+        };
+
+        // The build renders in jsdom, where DPR is always 1.
+        Object.defineProperty(window, "devicePixelRatio", { value: 1, configurable: true });
+        ssgSlotUpgraded.value = false;
+        (import.meta.env as { SSR: boolean }).SSR = true;
+        const prerendered = mount(LImageProvider, { props: heroProps });
+        await prerendered.vm.$nextTick();
+        const prerenderedSizes = prerendered
+            .find('img[data-test="image-element1"]')
+            .attributes("sizes");
+
+        // Unchanged by the first-frame handling: the prerendered HTML still advertises the light
+        // reduced slot, so the pre-JS fetch stays small.
+        expect(prerenderedSizes).toBe("50vw");
+
+        // The same tile on a retina phone, after the client has replaced the prerendered DOM.
+        (import.meta.env as { SSR: boolean }).SSR = false;
+        Object.defineProperty(window, "devicePixelRatio", { value: 2, configurable: true });
+        ssgSlotUpgraded.value = false;
+        const hydrated = mount(LImageProvider, { props: heroProps });
+        await hydrated.vm.$nextTick();
+        const hydratedImg = hydrated.find('img[data-test="image-element1"]');
+
+        // Frame one has to resolve the rung the page already downloaded, or that download is wasted.
+        expect(hydratedImg.attributes("sizes")).toBe(prerenderedSizes);
+        expect(hydratedImg.attributes("srcset")).toBe(
+            prerendered.find('img[data-test="image-element1"]').attributes("srcset"),
+        );
+
+        // A frame later it upgrades; the browser keeps the loaded image on screen while it swaps.
+        await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
+        await hydrated.vm.$nextTick();
+        expect(hydratedImg.attributes("sizes")).toBe(
+            "(prefers-reduced-data: reduce) 25vw, (min-width: 1024px) 800px, 100vw",
+        );
+    });
+
+    it("skips the prerendered slot for images mounted after the first frame", async () => {
+        // Client-side navigation: nothing was prerendered for this tile, so it must fetch its full
+        // slot once rather than take the light-then-upgrade path.
+        Object.defineProperty(window, "devicePixelRatio", { value: 2, configurable: true });
+        const wrapper = mount(LImageProvider, {
+            props: {
+                parentId: "late-tile",
+                image: mockImageLarge,
+                aspectRatio: "video" as const,
+                size: "post" as const,
+                bucketPublicUrl: "https://bucket.example.com",
+            },
+        });
+        await wrapper.vm.$nextTick();
+        expect(wrapper.find('img[data-test="image-element1"]').attributes("sizes")).toBe(
+            "(prefers-reduced-data: reduce) 25vw, (min-width: 1024px) 800px, 100vw",
+        );
     });
 });
