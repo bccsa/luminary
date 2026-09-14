@@ -7,13 +7,15 @@ import { AclPermission, DocType } from "../../enums";
  */
 const SHAREABLE_DOC_TYPES = [DocType.Post, DocType.Tag];
 
+/** Group backfilled with Share, mirroring the seed default (`group-public-content.json`). */
+const SHARE_BACKFILL_GROUP_ID = "group-public-content";
+
 /**
  * Upgrade the database schema from version 21 to 22.
  *
- * Backfills the new `Share` ACL permission on every Post/Tag entry that already holds `View`, so
- * the audience that can read content in the app keeps being able to share it. Share is app-facing
- * and grants no additional read access, so a broad backfill is safe — unlike `CmsView` (v19/v20),
- * which had to stay narrow.
+ * Backfills the new `Share` ACL permission on `group-public-content`'s Post/Tag entries that
+ * already hold `View`, mirroring the seed default — sharing is enabled for public content only,
+ * for now.
  *
  * Idempotent: only pushes `Share` where missing, so re-running (e.g. `npm run seed` runs the
  * upgrade chain) is a no-op. Uses `insertDoc` to preserve `updatedTimeUtc`; the granted access
@@ -25,13 +27,12 @@ export default async function (db: DbService) {
         if (schemaVersion === 21) {
             console.info("Upgrading database schema from version 21 to 22");
 
-            let updatedCount = 0;
-            let skippedCount = 0;
+            let changed = false;
 
             await db.processAllDocs([DocType.Group], async (doc: any) => {
-                if (!doc || !Array.isArray(doc.acl)) return;
+                if (!doc || doc._id !== SHARE_BACKFILL_GROUP_ID || !Array.isArray(doc.acl)) return;
 
-                let changed = false;
+                let docChanged = false;
 
                 doc.acl.forEach((entry: any) => {
                     if (!Array.isArray(entry.permission)) return;
@@ -40,19 +41,19 @@ export default async function (db: DbService) {
                     if (!entry.permission.includes(AclPermission.View)) return;
 
                     entry.permission.push(AclPermission.Share);
-                    changed = true;
+                    docChanged = true;
                 });
 
-                if (changed) {
+                if (docChanged) {
                     await db.insertDoc(doc);
-                    updatedCount++;
-                } else {
-                    skippedCount++;
+                    changed = true;
                 }
             });
 
             console.info(
-                `Share backfill complete: ${updatedCount} groups updated, ${skippedCount} unchanged`,
+                changed
+                    ? `Share backfill complete: ${SHARE_BACKFILL_GROUP_ID} updated`
+                    : `Share backfill complete: ${SHARE_BACKFILL_GROUP_ID} unchanged`,
             );
 
             await db.setSchemaVersion(22);
