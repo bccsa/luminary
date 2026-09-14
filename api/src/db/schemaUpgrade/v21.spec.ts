@@ -41,7 +41,7 @@ describe("v21 — Share ACL backfill", () => {
     );
 
     it("leaves entries without View untouched", async () => {
-        const g = group("group-public-editors", [
+        const g = group("group-public-content", [
             entry(DocType.Post, [AclPermission.CmsView, AclPermission.Edit]),
         ]);
         const { db, inserted } = mockDb(20, [g]);
@@ -54,7 +54,7 @@ describe("v21 — Share ACL backfill", () => {
     });
 
     it("leaves non-shareable doc types untouched", async () => {
-        const g = group("group-public-users", [
+        const g = group("group-public-content", [
             entry(DocType.Language, [AclPermission.View]),
             entry(DocType.Redirect, [AclPermission.View]),
             entry(DocType.Storage, [AclPermission.View]),
@@ -68,7 +68,7 @@ describe("v21 — Share ACL backfill", () => {
     });
 
     it("backfills only the qualifying entries of a mixed group", async () => {
-        const g = group("group-private-content", [
+        const g = group("group-public-content", [
             entry(DocType.Post, [AclPermission.View, AclPermission.Publish]),
             entry(DocType.Language, [AclPermission.View]),
         ]);
@@ -83,6 +83,20 @@ describe("v21 — Share ACL backfill", () => {
         expect(language.permission).not.toContain(AclPermission.Share);
     });
 
+    it("leaves other groups' qualifying entries untouched", async () => {
+        const g = group("group-private-content", [
+            entry(DocType.Post, [AclPermission.View]),
+            entry(DocType.Tag, [AclPermission.View]),
+        ]);
+        const { db, inserted } = mockDb(20, [g]);
+
+        await v21(db);
+
+        expect(inserted).toHaveLength(0);
+        for (const e of g.acl) expect(e.permission).not.toContain(AclPermission.Share);
+        expect(db.setSchemaVersion).toHaveBeenCalledWith(21);
+    });
+
     it("is idempotent for entries that already hold Share", async () => {
         const g = group("group-public-content", [
             entry(DocType.Tag, [AclPermission.View, AclPermission.Share]),
@@ -95,10 +109,10 @@ describe("v21 — Share ACL backfill", () => {
         expect(g.acl[0].permission).toEqual([AclPermission.View, AclPermission.Share]);
     });
 
-    it("skips groups with a malformed acl", async () => {
+    it("skips a malformed acl on the target group", async () => {
         const { db, inserted } = mockDb(20, [
-            { _id: "no-acl", type: DocType.Group },
-            group("bad-permission", [{ type: DocType.Post, groupId: "g" }]),
+            { _id: "group-public-content", type: DocType.Group },
+            { _id: "group-public-content", type: DocType.Group, acl: [{ type: DocType.Post }] },
         ]);
 
         await v21(db);
