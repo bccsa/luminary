@@ -323,7 +323,7 @@ function useContentQueryState(
                         // Prerendering is always anonymous — see the client branch's
                         // `hybridOptions.cacheId` above for the `:auth` counterpart.
                         cacheKey,
-                        { local: docs, remote: [] },
+                        { local: stripDocs(docs, ["previousSlugs"]), remote: [] },
                         limit,
                         // ssrCacheStripFields (SSR-only) falls back to cacheStripFields so a
                         // caller that doesn't need the asymmetry can keep using one option.

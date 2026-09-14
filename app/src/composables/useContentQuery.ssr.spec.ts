@@ -199,7 +199,8 @@ describe("useContentQuery — SSR prerender path", () => {
             structuralCacheKey: structuralCacheKeyReal,
         } = await import("luminary-shared");
 
-        useContentQueryReal(() => [], {
+        queryRemoteMock.mockResolvedValue([{ ...fakeDoc, previousSlugs: ["old-slug"] }]);
+        const out = useContentQueryReal(() => [], {
             publishedFilter: false,
             languageFilter: false,
             cache: true,
@@ -216,7 +217,10 @@ describe("useContentQuery — SSR prerender path", () => {
         const key = structuralCacheKeyReal(expectedQuery, "e2e-slug:anon");
         const seed = readResponseCacheReal<ContentDto>(key);
         expect(seed?.local[0]).not.toHaveProperty("text");
+        expect(seed?.local[0]).not.toHaveProperty("previousSlugs");
         expect(seed?.local[0]).toMatchObject({ _id: "content-1", memberOf: ["group-1"] });
+        expect(out.value[0].previousSlugs).toEqual(["old-slug"]);
+        expect(out.value[0].text).toBe(fakeDoc.text);
 
         vi.resetModules();
     });
