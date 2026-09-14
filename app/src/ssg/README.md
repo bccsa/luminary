@@ -6,7 +6,9 @@ read.
 
 > **Status:** Built and working. The content seam is **`useContentQuery`** itself, and
 > the **web client uses the identical local-first hybrid query as the normal SPA** — there are
-> no `VITE_BUILD_TARGET` branches in the seam. No-flash hydration is achieved by reusing
+> no `VITE_BUILD_TARGET` branches in the data seam. (Image `sizes` is the one deliberate
+> exception, in `components/images/ssgImageSlot.ts` — see [§Image slots](#image-slots-ssgimageslotts).)
+> No-flash hydration is achieved by reusing
 > **shared's own response cache** (see [§No-flash hydration](#no-flash-hydration--shareds-response-cache)).
 > The bespoke snapshot layer that used to live here (`queryPublic`, `sliceKey`,
 > a `publicContent` Pinia store, a `publicContentApi` `/search` reader) was **deleted** —
@@ -209,6 +211,20 @@ Queries without a profile retain the existing exclusion policy, including articl
 body recovery and sibling-translation handling. Audit every consumer and dependent
 query before adding a profile or removing one of its fields.
 
+### Image slots (`ssgImageSlot.ts`)
+
+The prerender advertises the reduced `sizes` slot so the pre-JS fetch stays small, and the
+SSG client replaces that DOM with fresh elements rather than hydrating onto it. An image
+that advertised its full, DPR-capped slot on the client's first frame would therefore
+resolve a different `srcset` rung and throw away the download the page already made. So
+`ssgSlotUpgraded` holds the build's slot for one frame, then releases it; images mounted
+after that (client-side navigation) go straight to the full slot.
+
+This is the one deliberate `VITE_BUILD_TARGET === "web"` branch outside the data seam — the
+ref starts released in every other build, so the normal SPA and native paths are untouched.
+Keeping the two in agreement is what the branch is for: changing either the prerender's slot
+or the first frame's without the other reintroduces the double fetch.
+
 ### i18n SSR (`main.web.ts`)
 
 UI strings live in CouchDB Language docs. The prerender fetches languages via
@@ -356,7 +372,7 @@ prerender authenticates as **anonymous** (default group mappings) to read public
 | --- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | **Incremental regeneration** (facet-key manifest), not always-full-rebuild                                                                          | A full ~1934-route build is slow; ISR keeps edits near-instant.                                                                                                                                                                                                                                                                                   |
 | 2   | **No-flash hydration via shared's response cache**                                                                                                  | Clean hydration _without_ a bespoke snapshot. `useHybridQuery({cache:true})` already reads `hqcache:*` synchronously — so the prerender just primes it.                                                                                                                                                                                           |
-| 3   | **Web client == normal SPA path** (no `VITE_BUILD_TARGET` branches in the seam)                                                                     | One code path to reason about. The earlier web-specific branch was deleted.                                                                                                                                                                                                                                                                       |
+| 3   | **Web client == normal SPA path** (no `VITE_BUILD_TARGET` branches in the data seam)                                                                | One code path to reason about. The earlier web-specific branch was deleted. Image `sizes` is the one exception — the client's first frame has to reproduce a slot the build chose, which no shared data path can express.                                                                                                                          |
 | 4   | **Delete the bespoke snapshot layer** (`queryPublic`, `sliceKey`, `publicContent` Pinia store, `publicContentApi`)                                  | Superseded by shared's `queryRemote` / `structuralCacheKey` / `writeResponseCache`. Less code, one system.                                                                                                                                                                                                                                        |
 | 5   | **Derive dependency keys generically from the query selector**                                                                                      | Rearranging layout / adding a page needs **zero** key edits — only a new _data facet_ touches `facetKeys.ts`. Rejected: hardcoding keys per page.                                                                                                                                                                                                 |
 | 6   | **Expose ISR via polling `queryRemote`, NOT the socket**                                                                                            | A socket-based watch connects and receives `data`, but the change never renders (socket scopes by rooms/accessMap + Dexie live-sync — extra coupling). The public, anonymous `/query` path is polling-friendly with no such coupling.                                                                                                            |
