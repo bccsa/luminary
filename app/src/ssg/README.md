@@ -398,9 +398,14 @@ the default-language `404.html` is emitted (per-language `/<code>/404` deferred;
 **OOM:** root-caused and fixed (seed 105KB → 39KB). The remaining confirmation is a clean
 full `build:web` to completion across all ~1934 routes against a production-sized dataset.
 
-**Still the user's to run (browser-level):** `preview:web` in Incognito (a stale normal SPA SW
-will otherwise hijack localhost) — confirm no flash, no hydration warnings, language
-switch, 404, and nav links. Note `VITE_API_URL` (or `SSG_API_URL`) must point at a running API.
+**Browser-level coverage:** the `web` Playwright project
+(`playwright-tests/web/`) builds and serves `dist-web` on the local stack and asserts the
+artifact set, JS-off crawlability, and hydration (zero mismatch warnings, no flash with the
+API blocked, no service worker). It runs on every PR via `e2e-local-stack.yml`.
+
+**Still the user's to run:** `preview:web` in Incognito (a stale normal SPA SW will otherwise
+hijack localhost) for anything the suite doesn't cover, and a clean full build against a
+production-sized dataset. Note `VITE_API_URL` (or `SSG_API_URL`) must point at a running API.
 
 ---
 
