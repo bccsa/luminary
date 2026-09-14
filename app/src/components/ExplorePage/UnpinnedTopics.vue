@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { CONTENT_TILE_SEED_FIELDS, CATEGORY_ROW_SEED_FIELDS } from "@/ssg/contentSeed";
 import { TagType } from "luminary-shared";
 import { contentByTag } from "../contentByTag";
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
@@ -13,6 +14,7 @@ const topics = useContentQuery(
     () => [{ parentTagType: TagType.Topic }, { parentTaggedDocs: { $exists: true, $ne: [] } }],
     {
         cache: true,
+        ssrCacheFields: CONTENT_TILE_SEED_FIELDS,
         useIndex: "content-parentTagType-publishDate-index",
         sort: [{ publishDate: "desc" }],
     },
@@ -25,6 +27,7 @@ const categories = useContentQuery(
     ],
     {
         cache: true,
+        ssrCacheFields: CATEGORY_ROW_SEED_FIELDS,
         useIndex: "content-parentTagType-publishDate-index",
         sort: [{ publishDate: "desc" }],
     },

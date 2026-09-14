@@ -166,6 +166,19 @@ empty state during a prerender — a personalised feed with no user state, a tag
 tagged documents, a related-content lookup with nothing to relate. So a build with zero
 rejected queries succeeds regardless of how many provably-empty warnings it logged.
 
+### Overview cache seeds (`contentSeed.ts`)
+
+Overview queries on Home, Explore and Watch opt into `ssrCacheFields` profiles from
+`contentSeed.ts`: tile seeds keep display/navigation/media/grouping fields; category
+row seeds keep headings, layout, ordering and child-query IDs. Projection applies only
+to the embedded response-cache copy. Rendered/live results, offline documents, query
+keys and cache replay timing are unchanged. Identity/version, publish date and query
+sort fields are always retained. Image and media objects are kept intact; changing
+the serialized image object can remount `LImageProvider` when live data arrives.
+Queries without a profile retain the existing exclusion policy, including article
+body recovery and sibling-translation handling. Audit every consumer and dependent
+query before adding a profile or removing one of its fields.
+
 ### i18n SSR (`main.web.ts`)
 
 UI strings live in CouchDB Language docs. The prerender fetches languages via

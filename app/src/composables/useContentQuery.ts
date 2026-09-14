@@ -22,6 +22,7 @@ import { chainFor, queueOnChain } from "@/ssg/ssrChains";
 import { isPrerender } from "@/ssg/isPrerender";
 import { queryContentLocal } from "@/ssg/contentStore";
 import { reportRenderIssue } from "@/ssg/renderDiagnostics";
+import { projectContentSeed } from "@/ssg/contentSeed";
 
 /** Reads back one just-written response-cache entry so it can be attributed to its route. Takes the full `hqcache:`-prefixed storage key (matching shared's `STORAGE_PREFIX`). */
 function readCacheEntry(storageKey: string): string | null {
@@ -113,6 +114,12 @@ export type UseContentQueryOptions = HybridQueryOptions & {
      * Fields stripped only from the SSR-authored response-cache write, distinct from `cacheStripFields` (which also strips from the client's ongoing re-cache writes). Use this for a field the hydrating client can recover another way (e.g. from the rendered DOM) to avoid shipping it twice.
      */
     ssrCacheStripFields?: string[];
+    /**
+     * Opt-in fields for the embedded SSG seed only. Identity/version and sort fields
+     * are retained automatically. Audit all consumers (including dependent queries)
+     * before opting in. Live results and offline persistence are unaffected.
+     */
+    ssrCacheFields?: readonly (keyof ContentDto)[];
     /**
      * Marks this query as identical across the ENTIRE SSG build (e.g. a fixed-id
      * copyright lookup), so the SSR branch fetches it once for the whole build instead
@@ -216,6 +223,7 @@ function useContentQueryState(
         // edit-permission check (`memberOf`).
         stripFields = ["fts", "ftsTokenCount", "text", "memberOf", "_rev"],
         ssrCacheStripFields,
+        ssrCacheFields,
         buildOnce = false,
         ...rest
     } = options;
@@ -323,7 +331,7 @@ function useContentQueryState(
                         // Prerendering is always anonymous — see the client branch's
                         // `hybridOptions.cacheId` above for the `:auth` counterpart.
                         cacheKey,
-                        { local: stripDocs(docs, ["previousSlugs"]), remote: [] },
+                        { local: projectContentSeed(docs, ssrCacheFields, sort), remote: [] },
                         limit,
                         // ssrCacheStripFields (SSR-only) falls back to cacheStripFields so a
                         // caller that doesn't need the asymmetry can keep using one option.
