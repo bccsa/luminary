@@ -99,8 +99,8 @@ import { isSlowConnection } from "@/composables/useNetworkSpeedEstimator";
 import { type ImageDto, type ImageFileDto, type Uuid } from "luminary-shared";
 import Rand from "rand-seed";
 import { thumbHashToDataURL } from "thumbhash";
-import { ref } from "vue";
-import { isPrerender } from "@/ssg/isPrerender";
+import { onMounted, ref } from "vue";
+import { ssgSlotUpgraded, upgradeSsgSlotAfterFirstFrame } from "./ssgImageSlot";
 
 type Props = {
     image?: ImageDto;
@@ -136,14 +136,12 @@ const resolvedAlt = computed(() => {
 
 const baseUrl = computed(() => props.bucketPublicUrl);
 
-// "Reduced data" mode lowers image weight on any of four signals (slow connection, user toggle, OS Data Saver, SSG prerendering). Forced on during SSG so the prerendered HTML advertises the smallest slot, not the full-res `sizes` a real device's DPR would pull in.
+// "Reduced data" mode lowers image weight on any of three runtime signals: slow connection, user toggle, OS Data Saver. The prerender advertises the reduced slot too, but via `ssgSlotUpgraded` rather than this — it's a property of the render, not of the viewer's connection.
 const reducedData = computed(
-    () =>
-        isPrerender() ||
-        isSlowConnection.value ||
-        userDataSaverEnabled.value ||
-        isDataSaverEnabled(),
+    () => isSlowConnection.value || userDataSaverEnabled.value || isDataSaverEnabled(),
 );
+
+onMounted(upgradeSsgSlotAfterFirstFrame);
 
 // All collections for this image, unfiltered. We deliberately hand the browser the FULL srcset ladder
 // (never pre-filtering variants by width) plus a correct `sizes` attribute, so it can pick the variant
@@ -240,6 +238,9 @@ const sizesAttr = computed(() => {
     const baseInflated = inflateSizes(base, coverScaleFactor.value);
     const reduced = sizesReducedMap[props.size];
     if (!reduced) return baseInflated;
+    // The prerendered slot, and the client's first frame reproducing it — deliberately free of any
+    // DPR capping, since the build has no device to cap against and the two must agree exactly.
+    if (!ssgSlotUpgraded.value) return reduced;
     // Divide the reduced slot width by DPR (down to REDUCED_DPR_CAP) so the browser fetches a lower-
     // density image. DPR is known at render time, so this is also correct for the declarative branch.
     // Reduced mode is deliberately NOT cover-crop-inflated — lower quality is the accepted trade.
