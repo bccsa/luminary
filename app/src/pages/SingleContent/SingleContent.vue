@@ -198,6 +198,34 @@ function routeRedirect(redirect: RedirectDto): boolean {
 // NotFoundPage before the cold-start backstop resolves it.
 const isLoading = ref(isSSG && !isPrerender() ? contentArr.value.length === 0 : !isSSG);
 
+// The content query emits an empty result for a frame or two while it re-runs for a new
+// slug, and that gap is long enough to paint the loading bar and take it straight back
+// away — a flicker on every article-to-article navigation, even when the incoming
+// document is already local. Only report a wait once it lasts long enough to be worth
+// reporting; a genuinely slow (cold or offline) load still gets the bar.
+const LOADING_BAR_DELAY_MS = 200;
+const showLoadingBar = ref(false);
+
+// Client-only: the prerender renders with the document already in hand, so there is no
+// wait to report — and a timer per route is pending work the SSG build would carry on
+// every page it renders.
+if (!isPrerender()) {
+    let loadingBarTimer: ReturnType<typeof setTimeout> | undefined;
+    watch(
+        () => isLoading.value && !content.value,
+        (waiting) => {
+            clearTimeout(loadingBarTimer);
+            if (!waiting) {
+                showLoadingBar.value = false;
+                return;
+            }
+            loadingBarTimer = setTimeout(() => (showLoadingBar.value = true), LOADING_BAR_DELAY_MS);
+        },
+        { immediate: true },
+    );
+    onUnmounted(() => clearTimeout(loadingBarTimer));
+}
+
 // Slug this generation's not-found resolution belongs to — guards against a stale redirect probe resolving after the slug moves on, and against re-running the probe once this slug is already resolved.
 let notFoundSlug: string | undefined;
 
@@ -784,10 +812,10 @@ watch([isLoading, content, is404], async () => {
         >
             <div
                 class="flex flex-grow justify-center lg:grid lg:grid-cols-[1fr_minmax(0,48rem)_1fr] lg:gap-x-8"
-                :class="{ 'items-center': isLoading && !content }"
+                :class="{ 'items-center': showLoadingBar }"
             >
                 <LoadingBar
-                    v-if="isLoading && !content"
+                    v-if="showLoadingBar"
                     :label="t('singlecontent.loading')"
                     class="lg:col-start-2"
                 />

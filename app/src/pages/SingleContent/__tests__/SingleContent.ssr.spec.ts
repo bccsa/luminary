@@ -295,6 +295,20 @@ describe("SingleContent — server-render (prerender) regression", () => {
         expect(html).toContain("Other Post Title");
     });
 
+    it("schedules no short-lived timers during the prerender", async () => {
+        // The loading bar's delay is client-only: a timer per route is pending work the
+        // build would carry on every page it renders. The only timers the prerender may
+        // schedule are luminary-shared's 5-minute query-cache expiries, which unref
+        // themselves so they cannot hold the Node event loop open.
+        const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout");
+
+        await renderWith(["lang-eng"]);
+
+        const delays = setTimeoutSpy.mock.calls.map((call) => call[1]);
+        expect(delays.filter((delay) => (delay ?? 0) < 60_000)).toEqual([]);
+        setTimeoutSpy.mockRestore();
+    });
+
     it("reports a provably-empty render issue when no display language is provided", async () => {
         // Activate the render-diagnostics capture buffer the way renderDiagnostics
         // expects: a plain array on globalThis that reportRenderIssue pushes into.
