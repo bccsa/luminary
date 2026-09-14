@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, onMounted, onUnmounted, provide, ref } from "vue";
+import { computed, onMounted, onUnmounted, provide, ref } from "vue";
 import TopBar from "./navigation/TopBar.vue";
 import DesktopSidebar from "./navigation/DesktopSidebar.vue";
 import NotificationBannerManager from "./notifications/NotificationBannerManager.vue";
@@ -10,7 +10,6 @@ import type { ContentDto } from "luminary-shared";
 import { ChevronLeftIcon } from "@heroicons/vue/24/outline";
 import { useBackNavigation } from "@/composables/useBackNavigation";
 import { useMobileChromeAutoHide } from "@/composables/useMobileChromeAutoHide";
-import { PlatformChromeKey } from "@/build-time/contracts/platform-chrome/token";
 
 const showNotifications = !queryParams.has("supress-notifications");
 
@@ -30,14 +29,6 @@ const props = defineProps<{
 }>();
 
 const { onBackClick } = useBackNavigation();
-
-// Whether the fade behind the pinned mobile chrome renders is a platform
-// decision (see the platform-chrome contract). Defaults to the browser
-// behaviour when no service is provided (tests, isolated mounts).
-const platformChrome = inject(PlatformChromeKey, {
-    chromeFadeEnabled: true,
-    setStatusBarHidden: () => undefined,
-});
 
 const main = ref<HTMLElement | undefined>(undefined);
 
@@ -237,11 +228,6 @@ onUnmounted(() => {
                     class="pointer-events-none sticky top-[max(0px,calc(env(safe-area-inset-top)-0.75rem))] z-20 -mx-2 -mb-14 flex h-16 items-start justify-center px-2 pt-2 transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform md:-mx-4 md:px-4 lg:hidden"
                     :style="pillPinnedStyle"
                 >
-                    <div
-                        v-if="platformChrome.chromeFadeEnabled"
-                        :class="[topChromeFade, scrolled ? 'opacity-100' : 'opacity-0']"
-                        aria-hidden="true"
-                    />
                     <div
                         class="pointer-events-auto relative flex h-9 min-w-0 max-w-full items-center justify-center"
                     >
