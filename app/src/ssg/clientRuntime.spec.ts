@@ -18,6 +18,7 @@ vi.mock("luminary-shared", async () => {
 vi.mock("@/globalConfig", () => ({
     apiUrl: "http://localhost:12345",
     appLanguageIdsAsRef: { value: [] },
+    appSyncedLanguageIdsAsRef: { value: [] },
     initLanguage: vi.fn(),
 }));
 

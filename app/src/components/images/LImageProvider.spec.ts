@@ -446,15 +446,21 @@ describe("LImageProvider", () => {
         // Client-side navigation: nothing was prerendered for this tile, so it must fetch its full
         // slot once rather than take the light-then-upgrade path.
         Object.defineProperty(window, "devicePixelRatio", { value: 2, configurable: true });
-        const wrapper = mount(LImageProvider, {
-            props: {
-                parentId: "late-tile",
-                image: mockImageLarge,
-                aspectRatio: "video" as const,
-                size: "post" as const,
-                bucketPublicUrl: "https://bucket.example.com",
-            },
-        });
+        const props = {
+            image: mockImageLarge,
+            aspectRatio: "video" as const,
+            size: "post" as const,
+            bucketPublicUrl: "https://bucket.example.com",
+        };
+
+        // Start from the web build's real initial state and let its first frame pass, so the
+        // assertion below is about a released slot rather than the non-web default.
+        ssgSlotUpgraded.value = false;
+        mount(LImageProvider, { props: { ...props, parentId: "first-frame-tile" } });
+        await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
+        expect(ssgSlotUpgraded.value).toBe(true);
+
+        const wrapper = mount(LImageProvider, { props: { ...props, parentId: "late-tile" } });
         await wrapper.vm.$nextTick();
         expect(wrapper.find('img[data-test="image-element1"]').attributes("sizes")).toBe(
             "(prefers-reduced-data: reduce) 25vw, (min-width: 1024px) 800px, 100vw",
