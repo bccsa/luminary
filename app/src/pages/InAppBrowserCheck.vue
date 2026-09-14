@@ -6,10 +6,12 @@ import LDialog from "@/components/common/LDialog.vue";
 import { isInAppBrowser } from "@/util/inAppBrowser";
 import { appName } from "@/globalConfig";
 import { markPageReady } from "@/util/renderState";
+import { useBackNavigation } from "@/composables/useBackNavigation";
 
 const route = useRoute();
 const router = useRouter();
 const { t } = useI18n();
+const { canGoBack } = useBackNavigation();
 const open = ref(false);
 const isNavigatingAway = ref(false);
 
@@ -30,7 +32,7 @@ function cancel() {
     isNavigatingAway.value = true;
     sessionStorage.setItem("inapp_open_warning_ack", "1");
     open.value = false;
-    if (window.history.length > 1) router.back();
+    if (canGoBack()) router.back();
     else router.replace("/");
 }
 
@@ -67,4 +69,3 @@ watch(open, (v) => {
         />
     </div>
 </template>
-
