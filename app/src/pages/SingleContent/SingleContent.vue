@@ -628,7 +628,6 @@ onMounted(() => {
     setScrollContainer();
 });
 
-// Reading means long stretches without touching the screen.
 useKeepScreenAwake();
 
 watch([isLoading, text], () => {

@@ -9,11 +9,6 @@ export const KEEP_AWAKE_IDLE_MS = 2 * 60 * 1000;
 const ACTIVITY_EVENTS = ["pointerdown", "keydown", "wheel", "scroll", "touchmove"] as const;
 const LISTENER_OPTIONS = { capture: true, passive: true } as const;
 
-// Watching a video is activity without input.
-function isVideoPlaying(): boolean {
-    return Array.from(document.querySelectorAll("video")).some((v) => !v.paused && !v.ended);
-}
-
 /**
  * Holds the display on while the calling component is mounted, releasing it to the OS
  * once the user has been idle for `idleMs` and taking it back on the next interaction.
@@ -32,7 +27,6 @@ export function useKeepScreenAwake(idleMs = KEEP_AWAKE_IDLE_MS): void {
     }
 
     function checkIdle() {
-        if (isVideoPlaying()) lastActivity = Date.now();
         const idleFor = Date.now() - lastActivity;
         if (idleFor >= idleMs) {
             timer = undefined;

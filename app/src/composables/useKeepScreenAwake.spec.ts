@@ -83,16 +83,6 @@ describe("useKeepScreenAwake", () => {
         expect(setKeepAwake).toHaveBeenCalledTimes(1);
     });
 
-    it("keeps holding while a video plays", () => {
-        mountHost();
-        const video = document.body.appendChild(document.createElement("video"));
-        Object.defineProperty(video, "paused", { value: false });
-
-        vi.advanceTimersByTime(IDLE_MS * 3);
-
-        expect(setKeepAwake).not.toHaveBeenCalledWith(false);
-    });
-
     it("releases the screen and stops listening on unmount", () => {
         mountHost();
         wrapper!.unmount();
