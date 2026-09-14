@@ -54,3 +54,12 @@ declare module "virtual:auth-flow" {
 declare module "virtual:app-lifecycle" {
     export function notifyUiReady(): void;
 }
+
+declare module "virtual:screen-wake" {
+    import type { App } from "vue";
+    import type { InjectionKey } from "vue";
+    import type { ScreenWakeService } from "@/build-time/contracts/screen-wake/contract";
+
+    export const ScreenWakeKey: InjectionKey<ScreenWakeService>;
+    export function installScreenWake(app: App): void;
+}
