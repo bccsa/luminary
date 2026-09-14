@@ -41,8 +41,7 @@ vi.mock("vue-router", () => ({
         props: ["to"],
         setup(props, { slots }) {
             return () => {
-                const slug =
-                    (props.to as { params?: { slug?: string } })?.params?.slug ?? "";
+                const slug = (props.to as { params?: { slug?: string } })?.params?.slug ?? "";
                 return h("a", { href: `/${slug}` }, slots.default?.());
             };
         },
@@ -83,6 +82,8 @@ vi.mock("@/composables/useReadingProgressTracker", () => ({
     useReadingProgressTracker: () => ({
         hasResumableProgress: ref(false),
         savedProgressPercent: ref(0),
+        readingProgressPercent: ref(0),
+        scrollProgressPercent: ref(0),
         restoreScrollPosition: vi.fn(),
     }),
     resolveArticleScrollContainer: () => (typeof window !== "undefined" ? window : {}),
@@ -119,7 +120,10 @@ function passthrough(name: string) {
     return defineComponent({
         name,
         inheritAttrs: false,
-        setup: (_, { slots }) => () => h("div", slots.default?.()),
+        setup:
+            (_, { slots }) =>
+            () =>
+                h("div", slots.default?.()),
     });
 }
 
@@ -135,12 +139,18 @@ vi.mock("@/components/BasePage.vue", () => ({
     default: defineComponent({
         name: "BasePage",
         inheritAttrs: false,
-        setup: (_, { slots }) => () =>
-            h("div", [slots.quickControls?.(), slots.default?.()]),
+        setup:
+            (_, { slots }) =>
+            () =>
+                h("div", [slots.quickControls?.(), slots.default?.()]),
     }),
 }));
-vi.mock("@/components/IgnorePagePadding.vue", () => ({ default: passthrough("IgnorePagePadding") }));
-vi.mock("@/components/common/LHighlightable.vue", () => ({ default: passthrough("LHighlightable") }));
+vi.mock("@/components/IgnorePagePadding.vue", () => ({
+    default: passthrough("IgnorePagePadding"),
+}));
+vi.mock("@/components/common/LHighlightable.vue", () => ({
+    default: passthrough("LHighlightable"),
+}));
 vi.mock("@/components/common/DropdownMenu.vue", () => ({ default: passthrough("DropdownMenu") }));
 vi.mock("@/components/images/LImage.vue", () => ({ default: voidStub("LImage") }));
 vi.mock("@/components/images/ImageModal.vue", () => ({ default: voidStub("ImageModal") }));
@@ -148,12 +158,11 @@ vi.mock("@/components/images/LImageProvider.vue", () => ({
     activeImageCollection: () => 0,
 }));
 vi.mock("@/components/content/VideoPlayer.vue", () => ({ default: voidStub("VideoPlayer") }));
-vi.mock("@/components/content/CopyrightBanner.vue", () => ({ default: voidStub("CopyrightBanner") }));
+vi.mock("@/components/content/CopyrightBanner.vue", () => ({
+    default: voidStub("CopyrightBanner"),
+}));
 vi.mock("@/components/content/FallbackLanguageBadge.vue", () => ({
     default: voidStub("FallbackLanguageBadge"),
-}));
-vi.mock("@/components/content/ContinueReadingPrompt.vue", () => ({
-    default: voidStub("ContinueReadingPrompt"),
 }));
 vi.mock("@/components/form/LModal.vue", () => ({ default: passthrough("LModal") }));
 vi.mock("@/components/tags/VerticalTagViewer.vue", () => ({
@@ -256,9 +265,7 @@ describe("SingleContent — server-render (prerender) regression", () => {
         queryRemoteMock.mockReset().mockResolvedValue([]);
         writeResponseCacheMock.mockReset();
         (import.meta.env as { SSR: boolean }).SSR = true;
-        (
-            import.meta.env as { VITE_BUILD_TARGET?: string }
-        ).VITE_BUILD_TARGET = "web";
+        (import.meta.env as { VITE_BUILD_TARGET?: string }).VITE_BUILD_TARGET = "web";
     });
 
     afterEach(() => {
@@ -268,9 +275,7 @@ describe("SingleContent — server-render (prerender) regression", () => {
         // stale resolved promise can't interfere with a later test's chain ordering.
         releaseSsrChain(ROUTE_PATH);
         (import.meta.env as { SSR: boolean }).SSR = false;
-        (
-            import.meta.env as { VITE_BUILD_TARGET?: string }
-        ).VITE_BUILD_TARGET = undefined;
+        (import.meta.env as { VITE_BUILD_TARGET?: string }).VITE_BUILD_TARGET = undefined;
     });
 
     it("renders chips, the Read more heading, and a related card when the full chain resolves", async () => {
@@ -290,6 +295,20 @@ describe("SingleContent — server-render (prerender) regression", () => {
         // a RouterLink to its slug.
         expect(html).toContain('href="/other-post-slug"');
         expect(html).toContain("Other Post Title");
+    });
+
+    it("schedules no short-lived timers during the prerender", async () => {
+        // The loading bar's delay is client-only: a timer per route is pending work the
+        // build would carry on every page it renders. The only timers the prerender may
+        // schedule are luminary-shared's 5-minute query-cache expiries, which unref
+        // themselves so they cannot hold the Node event loop open.
+        const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout");
+
+        await renderWith(["lang-eng"]);
+
+        const delays = setTimeoutSpy.mock.calls.map((call) => call[1]);
+        expect(delays.filter((delay) => (delay ?? 0) < 60_000)).toEqual([]);
+        setTimeoutSpy.mockRestore();
     });
 
     it("reports a provably-empty render issue when no display language is provided", async () => {

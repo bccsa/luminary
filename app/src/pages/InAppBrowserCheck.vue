@@ -3,7 +3,7 @@ import { computed, nextTick, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import LDialog from "@/components/common/LDialog.vue";
-import { isTelegramBrowser } from "@/util/inAppBrowser";
+import { isInAppBrowser } from "@/util/inAppBrowser";
 import { appName } from "@/globalConfig";
 import { markPageReady } from "@/util/renderState";
 
@@ -21,14 +21,14 @@ const targetPath = computed(() => {
 
 function continueToApp() {
     isNavigatingAway.value = true;
-    sessionStorage.setItem("telegram_open_warning_ack", "1");
+    sessionStorage.setItem("inapp_open_warning_ack", "1");
     open.value = false;
     router.replace(targetPath.value);
 }
 
 function cancel() {
     isNavigatingAway.value = true;
-    sessionStorage.setItem("telegram_open_warning_ack", "1");
+    sessionStorage.setItem("inapp_open_warning_ack", "1");
     open.value = false;
     if (window.history.length > 1) router.back();
     else router.replace("/");
@@ -36,8 +36,8 @@ function cancel() {
 
 onMounted(async () => {
     // Prevent showing the warning when user navigates to /open manually
-    // or from a non-Telegram browser.
-    if (!isTelegramBrowser()) {
+    // or from an ordinary browser.
+    if (!isInAppBrowser()) {
         router.replace(targetPath.value);
         return;
     }

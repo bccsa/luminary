@@ -37,7 +37,7 @@ onMounted(() => {
 </script>
 
 <template>
-    <section class="bg-yellow-500/10 px-4 pt-2 dark:bg-yellow-500/5">
+    <section class="px-4 pt-2">
         <div class="mx-auto max-w-xl">
             <button
                 type="button"

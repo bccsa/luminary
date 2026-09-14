@@ -67,9 +67,9 @@ import { markLanguageSwitch } from "@/util/isLangSwitch";
 import LoadingBar from "@/components/LoadingBar.vue";
 import { activeImageCollection } from "@/components/images/LImageProvider.vue";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
-import ContinueReadingPrompt from "@/components/content/ContinueReadingPrompt.vue";
 import LHighlightable from "@/components/common/LHighlightable.vue";
 import DropdownMenu from "@/components/common/DropdownMenu.vue";
+import ArticleOutline from "./ArticleOutline.vue";
 import { markPageReady } from "@/util/renderState";
 import { computeEstimatedReadingMinutes, resolveReadingSpeedWpm } from "@/util/readingTime";
 import {
@@ -78,6 +78,7 @@ import {
 } from "@/composables/useReadingProgressTracker";
 import { useContentHead, type PublicTaxonomy } from "@/seo/contentHead";
 import { useTranslationSwitcher } from "@/composables/useTranslationSwitcher";
+import { useKeepScreenAwake } from "@/composables/useKeepScreenAwake";
 import { recoverSsrArticleText, takeSsrArticleTextSnapshot } from "@/util/ssrTextRecovery";
 import { isPrerender } from "@/ssg/isPrerender";
 
@@ -205,6 +206,34 @@ function routeRedirect(redirect: RedirectDto): boolean {
 // otherwise `is404` (below) would read the still-empty `content` as "not found" and flash
 // NotFoundPage before the cold-start backstop resolves it.
 const isLoading = ref(isSSG && !isPrerender() ? contentArr.value.length === 0 : !isSSG);
+
+// The content query emits an empty result for a frame or two while it re-runs for a new
+// slug, and that gap is long enough to paint the loading bar and take it straight back
+// away — a flicker on every article-to-article navigation, even when the incoming
+// document is already local. Only report a wait once it lasts long enough to be worth
+// reporting; a genuinely slow (cold or offline) load still gets the bar.
+const LOADING_BAR_DELAY_MS = 200;
+const showLoadingBar = ref(false);
+
+// Client-only: the prerender renders with the document already in hand, so there is no
+// wait to report — and a timer per route is pending work the SSG build would carry on
+// every page it renders.
+if (!isPrerender()) {
+    let loadingBarTimer: ReturnType<typeof setTimeout> | undefined;
+    watch(
+        () => isLoading.value && !content.value,
+        (waiting) => {
+            clearTimeout(loadingBarTimer);
+            if (!waiting) {
+                showLoadingBar.value = false;
+                return;
+            }
+            loadingBarTimer = setTimeout(() => (showLoadingBar.value = true), LOADING_BAR_DELAY_MS);
+        },
+        { immediate: true },
+    );
+    onUnmounted(() => clearTimeout(loadingBarTimer));
+}
 
 // Slug this generation's not-found resolution belongs to — guards against a stale redirect probe resolving after the slug moves on, and against re-running the probe once this slug is already resolved.
 let notFoundSlug: string | undefined;
@@ -406,6 +435,10 @@ if (!isSSG) {
     );
 }
 
+// Only translations whose Language doc is actually loaded get a dropdown entry — never
+// fabricate a languageCode from the language id. `cmsLanguages` (prerender) and the
+// `localLanguages` fetch (client) cover every referenced language, so an unloaded one is a
+// brief pre-load gap, not a permanent drop.
 // All known Language docs by id — `cmsLanguages` (global, prerender-seeded) plus
 // `localLanguages` (client supplement for a translation whose Language doc isn't in the
 // public set). Used both for the dropdown (below) and for looking up the current article's
@@ -414,10 +447,6 @@ const languagesById = computed(
     () => new Map([...cmsLanguages.value, ...localLanguages.value].map((l) => [l._id, l])),
 );
 
-// Only translations whose Language doc is actually loaded get a dropdown entry — never
-// fabricate a languageCode from the language id. `cmsLanguages` (prerender) and the
-// `localLanguages` fetch (client) cover every referenced language, so an unloaded one is a
-// brief pre-load gap, not a permanent drop.
 const languages = computed<LanguageDto[]>(() =>
     availableTranslations.value
         .map((t) => languagesById.value.get(t.language))
@@ -570,6 +599,9 @@ const selectedCategory = computed(() => {
 });
 
 const articleProseRef = ref<HTMLElement | null>(null);
+const articleRef = ref<HTMLElement | null>(null);
+const titleRef = ref<HTMLElement | null>(null);
+const heroTitleRef = ref<HTMLElement | null>(null);
 const scrollContainer = ref<HTMLElement | Window>(window);
 
 const readingTrackerEnabled = computed(() => !!content.value?._id && !!content.value?.text);
@@ -594,24 +626,30 @@ const readingTime = computed<number>(() =>
     computeEstimatedReadingMinutes(content.value?.wordCount ?? 0, averageReadingSpeed.value),
 );
 
-const { hasResumableProgress, savedProgressPercent, restoreScrollPosition } =
-    useReadingProgressTracker({
-        contentId,
-        articleRoot: articleProseRef,
-        scrollContainer,
-        enabled: readingTrackerEnabled,
-        averageReadingSpeed,
-        disableSaving: computed(() => readingTime.value <= 1),
-        onSessionEnd: (endedContentId, finalDepthPercent) => {
-            const endedTags = contentTagsById.get(endedContentId);
-            contentTagsById.delete(endedContentId);
-            const weight = readingDepthWeight(finalDepthPercent, affinityConfig.value);
-            if (weight > 0) recordAffinity(endedTags, weight);
-        },
-    });
+const {
+    hasResumableProgress,
+    readingProgressPercent,
+    scrollProgressPercent,
+    restoreScrollPosition,
+} = useReadingProgressTracker({
+    contentId,
+    articleRoot: articleProseRef,
+    progressRoot: articleRef,
+    scrollContainer,
+    enabled: readingTrackerEnabled,
+    averageReadingSpeed,
+    disableSaving: computed(() => readingTime.value <= 1),
+    onSessionEnd: (endedContentId, finalDepthPercent) => {
+        const endedTags = contentTagsById.get(endedContentId);
+        contentTagsById.delete(endedContentId);
+        const weight = readingDepthWeight(finalDepthPercent, affinityConfig.value);
+        if (weight > 0) recordAffinity(endedTags, weight);
+    },
+});
 
-/** Hide the resume prompt for this visit after the user continues or dismisses. */
+/** Hide the resume offer for this visit after the user continues, dismisses, or scrolls. */
 const continuePromptHandled = ref(false);
+const resumeOffered = computed(() => hasResumableProgress.value && !continuePromptHandled.value);
 
 watch(contentId, () => {
     continuePromptHandled.value = false;
@@ -625,6 +663,8 @@ function onContinueReading() {
 onMounted(() => {
     setScrollContainer();
 });
+
+useKeepScreenAwake();
 
 watch([isLoading, text], () => {
     if (!isLoading.value && text.value) {
@@ -694,7 +734,28 @@ watch([isLoading, content, is404], async () => {
     <BasePage
         :showBackButton="true"
         desktopTopBar
+        :reserveTopBarCenter="resumeOffered && readingProgressPercent < 99"
     >
+        <!-- Reading pill: offers to resume on open, then stands in for the title as a chapter
+             dropdown once it scrolls out of view. -->
+        <template
+            #topBarCenter
+            v-if="!is404 && content && readingTrackerEnabled"
+        >
+            <ArticleOutline
+                :articleRoot="articleProseRef"
+                :scrollContainer="scrollContainer"
+                :contentId="content._id"
+                :title="content.title"
+                :progress="scrollProgressPercent"
+                :savedProgress="readingProgressPercent"
+                :resumable="hasResumableProgress"
+                :offerResume="resumeOffered"
+                :titleEls="[titleRef, heroTitleRef]"
+                @resume="onContinueReading"
+                @dismiss="continuePromptHandled = true"
+            />
+        </template>
         <template
             #quickControls
             v-if="!is404"
@@ -772,259 +833,270 @@ watch([isLoading, content, is404], async () => {
             :class="{ 'mb-6': !tags.length }"
         >
             <div
-                class="flex flex-grow justify-center"
-                :class="{ 'items-center': isLoading && !content }"
+                class="flex flex-grow justify-center lg:grid lg:grid-cols-[1fr_minmax(0,48rem)_1fr] lg:gap-x-8"
+                :class="{ 'items-center': showLoadingBar }"
             >
                 <LoadingBar
-                    v-if="isLoading && !content"
+                    v-if="showLoadingBar"
                     :label="t('singlecontent.loading')"
+                    class="lg:col-start-2"
                 />
-                <article
-                    class="w-full lg:w-3/4 lg:max-w-3xl"
-                    v-else-if="content"
-                >
-                    <!-- Plain title header: used when there's no hero image to carry it (video,
-                         or a doc with neither image nor video) — the image case renders the
-                         title as an overlay on the media below instead. -->
-                    <div
-                        v-if="!hasHeroImage"
-                        class="mb-5 flex items-start justify-center gap-2 text-center lg:mb-2"
+                <template v-else-if="content">
+                    <article
+                        ref="articleRef"
+                        class="w-full lg:col-start-2"
                     >
-                        <h1
-                            class="text-xl font-semibold tracking-tight text-zinc-900 [text-wrap:balance] dark:text-slate-50 lg:text-2xl"
-                        >
-                            {{ content.title }}
-                        </h1>
-                        <button
-                            v-if="canEdit() && cmsUrl"
-                            @click="openCmsEditor"
-                            class="mt-1 flex flex-shrink-0 cursor-pointer items-center text-zinc-400 hover:text-yellow-500 dark:hover:text-yellow-400"
-                            data-test="editButton"
-                        >
-                            <PencilIcon class="h-5 w-5" />
-                        </button>
-                    </div>
-
-                    <IgnorePagePadding
-                        :mobileOnly="true"
-                        :ignoreTop="true"
-                    >
-                        <VideoPlayer
-                            v-if="content && content.video"
-                            :key="content._id"
-                            :content="content"
-                            :language="selectedLanguageCode"
-                        />
+                        <!-- Plain title header: used when there's no hero image to carry it (video,
+                             or a doc with neither image nor video) — the image case renders the
+                             title as an overlay on the media below instead. titleRef/heroTitleRef
+                             let the pinned reading pill know when the visible one scrolls out of view. -->
                         <div
-                            v-else-if="hasHeroImage"
-                            class="relative cursor-pointer overflow-hidden lg:rounded-xl"
-                            @click="
-                                () => {
-                                    if (content) currentImageIndex = activeImageCollection(content);
-                                    enableZoom = true;
-                                }
-                            "
+                            v-if="!hasHeroImage"
+                            ref="titleRef"
+                            class="mb-5 flex items-start justify-center gap-2 text-center lg:mb-2"
                         >
-                            <LImage
-                                :image="content.parentImageData"
-                                :content-parent-id="content.parentId"
-                                :parent-image-bucket-id="content.parentImageBucketId"
-                                aspectRatio="video"
-                                size="post"
+                            <h1
+                                class="text-xl font-semibold tracking-tight text-zinc-900 [text-wrap:balance] dark:text-slate-50 lg:text-2xl"
+                            >
+                                {{ content.title }}
+                            </h1>
+                            <button
+                                v-if="canEdit() && cmsUrl"
+                                @click="openCmsEditor"
+                                class="mt-1 flex flex-shrink-0 cursor-pointer items-center text-zinc-400 hover:text-yellow-500 dark:hover:text-yellow-400"
+                                data-test="editButton"
+                            >
+                                <PencilIcon class="h-5 w-5" />
+                            </button>
+                        </div>
+
+                        <IgnorePagePadding
+                            :mobileOnly="true"
+                            :ignoreTop="true"
+                        >
+                            <VideoPlayer
+                                v-if="content && content.video"
+                                :key="content._id"
+                                :content="content"
+                                :language="selectedLanguageCode"
                             />
                             <div
-                                v-if="(content.parentImageData?.fileCollections?.length ?? 0) > 1"
-                                class="absolute bottom-2 right-2 flex items-center gap-1"
-                            >
-                                <DocumentDuplicateIcon class="h-10 w-10 text-zinc-400" />
-                            </div>
-
-                            <!-- Small Play Audio Button (only show if content has audio but no video) -->
-                            <button
-                                v-if="hasAudioFiles"
-                                @click.stop="
-                                    (event) => {
-                                        playAudio();
-                                        // Prevent focus staying on button
-                                        (event.target as HTMLElement).blur();
+                                v-else-if="hasHeroImage"
+                                class="relative cursor-pointer overflow-hidden lg:rounded-xl"
+                                @click="
+                                    () => {
+                                        if (content) currentImageIndex = activeImageCollection(content);
+                                        enableZoom = true;
                                     }
                                 "
-                                class="absolute bottom-2.5 left-3.5 flex items-center justify-center gap-1.5 rounded-full bg-black/60 py-1 pl-2 pr-3.5 text-white shadow-lg backdrop-blur-sm transition-all duration-200 hover:scale-110 hover:bg-black/80 focus:outline-none focus:ring-2 focus:ring-yellow-400"
-                                title="Play Audio"
                             >
-                                <SpeakerWaveIcon class="h-5 w-5" />
-                                {{ t("singlecontent.listen") }}
-                            </button>
-
-                            <!-- Title + summary scrim: the gradient carries just the title/summary
-                                     zone, not the whole image, so the photo above it stays readable. -->
-                            <div
-                                class="pointer-events-none absolute inset-x-0 bottom-0 h-3/4 bg-gradient-to-t from-black/85 via-black/45 to-transparent"
-                            ></div>
-                            <div
-                                class="absolute inset-x-0 bottom-0 flex flex-col gap-1.5 p-4 lg:gap-2 lg:p-6"
-                                @click.stop
-                            >
-                                <div class="flex items-start gap-2">
-                                    <h1
-                                        class="text-xl font-semibold leading-tight text-white [text-wrap:balance] lg:text-3xl"
-                                    >
-                                        {{ content.title }}
-                                    </h1>
-                                    <button
-                                        v-if="canEdit() && cmsUrl"
-                                        @click="openCmsEditor"
-                                        class="mt-1 flex flex-shrink-0 cursor-pointer items-center text-white/70 hover:text-yellow-400"
-                                        data-test="editButton"
-                                    >
-                                        <PencilIcon class="h-5 w-5" />
-                                    </button>
-                                </div>
-                                <p
-                                    v-if="content.summary"
-                                    class="max-w-2xl text-sm leading-relaxed text-white/85 lg:text-base"
-                                >
-                                    {{ content.summary }}
-                                </p>
-                            </div>
-                        </div>
-                    </IgnorePagePadding>
-
-                    <div
-                        v-if="!hasHeroImage && content.summary"
-                        class="mt-6 flex justify-center"
-                    >
-                        <p
-                            class="max-w-2xl text-center text-lg leading-relaxed text-zinc-600 dark:text-slate-300"
-                        >
-                            {{ content.summary }}
-                        </p>
-                    </div>
-
-                    <div
-                        class="mt-4 flex flex-col items-center gap-2 px-4 text-sm text-zinc-500 dark:text-slate-400"
-                    >
-                        <div class="flex flex-wrap items-center justify-center gap-y-1">
-                            <!-- Author -->
-                            <div
-                                v-if="content.author"
-                                class="flex items-center after:px-2 after:font-normal after:text-zinc-300 after:content-['•'] last:after:hidden dark:after:text-slate-700"
-                            >
-                                By {{ content.author }}
-                            </div>
-
-                            <!-- Reading Time -->
-                            <div
-                                v-if="readingTime && readingTime > 1"
-                                class="flex items-center gap-1.5 after:px-2 after:text-zinc-300 after:content-['•'] last:after:hidden dark:after:text-slate-700"
-                            >
-                                <ClockIcon class="h-4 w-4 flex-shrink-0" />
-                                <span>{{ readingTime }} min</span>
-                            </div>
-
-                            <!-- Publish Date -->
-                            <div
-                                v-if="content.publishDate && content.parentPublishDateVisible"
-                                class="flex items-center text-center after:px-2 after:text-zinc-300 after:content-['•'] last:after:hidden dark:after:text-slate-700 sm:text-left"
-                            >
-                                {{ formatPublishDate(content.publishDate) }}
-                            </div>
-
-                            <!-- Fallback language: shown when the article isn't available in a
-                                 language the user chose (it fell through to the default / another).
-                                 Renders nothing for chosen-language content, so no stray separator. -->
-                            <FallbackLanguageBadge :content="content" />
-                        </div>
-
-                        <div class="flex items-center gap-3">
-                            <!-- Bookmark Button -->
-                            <button
-                                v-if="
-                                    !(
-                                        content.parentPostType &&
-                                        content.parentPostType == PostType.Page
-                                    )
-                                "
-                                @click="toggleBookmark"
-                                data-test="bookmark"
-                                class="flex items-center transition-colors"
-                            >
-                                <component
-                                    :is="isBookmarked ? BookmarkIconSolid : BookmarkIconOutline"
-                                    class="h-5 w-5"
-                                    :class="{
-                                        'text-yellow-500': isBookmarked,
-                                        'text-zinc-400 hover:text-zinc-600 dark:text-slate-500 dark:hover:text-slate-200':
-                                            !isBookmarked,
-                                    }"
+                                <LImage
+                                    :image="content.parentImageData"
+                                    :content-parent-id="content.parentId"
+                                    :parent-image-bucket-id="content.parentImageBucketId"
+                                    aspectRatio="video"
+                                    size="post"
                                 />
-                            </button>
+                                <div
+                                    v-if="(content.parentImageData?.fileCollections?.length ?? 0) > 1"
+                                    class="absolute bottom-2 right-2 flex items-center gap-1"
+                                >
+                                    <DocumentDuplicateIcon class="h-10 w-10 text-zinc-400" />
+                                </div>
 
-                            <ShareMenu
-                                v-if="canShare()"
-                                :content="content"
-                                :copyright="shareCopyright"
-                            />
-                        </div>
-                    </div>
+                                <!-- Small Play Audio Button (only show if content has audio but no video) -->
+                                <button
+                                    v-if="hasAudioFiles"
+                                    @click.stop="
+                                        (event) => {
+                                            playAudio();
+                                            // Prevent focus staying on button
+                                            (event.target as HTMLElement).blur();
+                                        }
+                                    "
+                                    class="absolute bottom-2.5 left-3.5 flex items-center justify-center gap-1.5 rounded-full bg-black/60 py-1 pl-2 pr-3.5 text-white shadow-lg backdrop-blur-sm transition-all duration-200 hover:scale-110 hover:bg-black/80 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                                    title="Play Audio"
+                                >
+                                    <SpeakerWaveIcon class="h-5 w-5" />
+                                    {{ t("singlecontent.listen") }}
+                                </button>
 
-                    <div
-                        class="mt-6 flex flex-wrap justify-center gap-2"
-                        v-if="categoryTags.length"
-                    >
-                        <span
-                            v-for="tag in categoryTags"
-                            :key="tag._id"
-                            @click="
-                                selectedCategoryId = tag.parentId;
-                                showCategoryModal = true;
-                            "
-                            class="flex cursor-pointer items-center justify-center rounded-lg border border-yellow-500/25 bg-yellow-500/10 py-1 pl-1 pr-2 text-sm hover:bg-yellow-100/25 dark:bg-slate-700 dark:hover:bg-yellow-100/25"
-                        >
-                            <TagIcon class="mr-2 h-5 w-5 text-yellow-500/75" />
-                            <span class="line-clamp-1">{{ tag.title }}</span>
-                        </span>
-                    </div>
+                                <!-- Title + summary scrim: the gradient carries just the title/summary
+                                     zone, not the whole image, so the photo above it stays readable. -->
+                                <div
+                                    class="pointer-events-none absolute inset-x-0 bottom-0 h-3/4 bg-gradient-to-t from-black/85 via-black/45 to-transparent"
+                                ></div>
+                                <div
+                                    class="absolute inset-x-0 bottom-0 flex flex-col gap-1.5 p-4 lg:gap-2 lg:p-6"
+                                    @click.stop
+                                >
+                                    <div
+                                        ref="heroTitleRef"
+                                        class="flex items-start gap-2"
+                                    >
+                                        <h1
+                                            class="text-xl font-semibold leading-tight text-white [text-wrap:balance] lg:text-3xl"
+                                        >
+                                            {{ content.title }}
+                                        </h1>
+                                        <button
+                                            v-if="canEdit() && cmsUrl"
+                                            @click="openCmsEditor"
+                                            class="mt-1 flex flex-shrink-0 cursor-pointer items-center text-white/70 hover:text-yellow-400"
+                                            data-test="editButton"
+                                        >
+                                            <PencilIcon class="h-5 w-5" />
+                                        </button>
+                                    </div>
+                                    <p
+                                        v-if="content.summary"
+                                        class="max-w-2xl text-sm leading-relaxed text-white/85 lg:text-base"
+                                    >
+                                        {{ content.summary }}
+                                    </p>
+                                </div>
+                            </div>
+                        </IgnorePagePadding>
 
-                    <!-- Render content with highlighting support -->
-                    <LHighlightable
-                        v-if="content.text"
-                        :content-id="content._id"
-                        :title="content.title"
-                        :copyright="shareCopyright"
-                        :can-share="canShare()"
-                        @highlighted="
-                            recordAffinity(
-                                content?.parentTags,
-                                affinityConfig.eventWeight.highlight,
-                            )
-                        "
-                        @highlight-removed="
-                            recordAffinity(
-                                content?.parentTags,
-                                affinityConfig.eventWeight.highlightRemoved,
-                            )
-                        "
-                        @highlights-changed="notifyHighlightsChanged"
-                    >
                         <div
-                            ref="articleProseRef"
-                            :data-ssr-article-text="isPrerender() ? true : undefined"
-                            v-html="text"
-                            class="prose prose-zinc mt-8 max-w-full dark:prose-invert lg:prose-lg prose-headings:font-bold prose-a:text-yellow-600 dark:prose-a:text-yellow-400"
-                            :class="{
-                                'border-t border-zinc-100 pt-4 dark:border-slate-800':
-                                    categoryTags.length == 0,
-                            }"
-                        ></div> </LHighlightable
-                    ><br />
-                    <div
-                        v-if="content.copyright"
-                        class="text-xs text-zinc-500 dark:text-slate-300"
-                    >
-                        {{ content.copyright }}
-                    </div>
-                </article>
+                            v-if="!hasHeroImage && content.summary"
+                            class="mt-6 flex justify-center"
+                        >
+                            <p
+                                class="max-w-2xl text-center text-lg leading-relaxed text-zinc-600 dark:text-slate-300"
+                            >
+                                {{ content.summary }}
+                            </p>
+                        </div>
+
+                        <div
+                            class="mt-4 flex flex-col items-center gap-2 px-4 text-sm text-zinc-500 dark:text-slate-400"
+                        >
+                            <div class="flex flex-wrap items-center justify-center gap-y-1">
+                                <!-- Author -->
+                                <div
+                                    v-if="content.author"
+                                    class="flex items-center after:px-2 after:font-normal after:text-zinc-300 after:content-['•'] last:after:hidden dark:after:text-slate-700"
+                                >
+                                    By {{ content.author }}
+                                </div>
+
+                                <!-- Reading Time -->
+                                <div
+                                    v-if="readingTime && readingTime > 1"
+                                    class="flex items-center gap-1.5 after:px-2 after:text-zinc-300 after:content-['•'] last:after:hidden dark:after:text-slate-700"
+                                >
+                                    <ClockIcon class="h-4 w-4 flex-shrink-0" />
+                                    <span>{{ readingTime }} min</span>
+                                </div>
+
+                                <!-- Publish Date -->
+                                <div
+                                    v-if="content.publishDate && content.parentPublishDateVisible"
+                                    class="flex items-center text-center after:px-2 after:text-zinc-300 after:content-['•'] last:after:hidden dark:after:text-slate-700 sm:text-left"
+                                >
+                                    {{ formatPublishDate(content.publishDate) }}
+                                </div>
+
+                                <!-- Fallback language: shown when the article isn't available in a
+                                     language the user chose (it fell through to the default / another).
+                                     Renders nothing for chosen-language content, so no stray separator. -->
+                                <FallbackLanguageBadge :content="content" />
+                            </div>
+
+                            <div class="flex items-center gap-3">
+                                <!-- Bookmark Button -->
+                                <button
+                                    v-if="
+                                        !(
+                                            content.parentPostType &&
+                                            content.parentPostType == PostType.Page
+                                        )
+                                    "
+                                    @click="toggleBookmark"
+                                    data-test="bookmark"
+                                    class="flex items-center transition-colors"
+                                >
+                                    <component
+                                        :is="isBookmarked ? BookmarkIconSolid : BookmarkIconOutline"
+                                        class="h-5 w-5"
+                                        :class="{
+                                            'text-yellow-500': isBookmarked,
+                                            'text-zinc-400 hover:text-zinc-600 dark:text-slate-500 dark:hover:text-slate-200':
+                                                !isBookmarked,
+                                        }"
+                                    />
+                                </button>
+
+                                <ShareMenu
+                                    v-if="canShare()"
+                                    :content="content"
+                                    :copyright="shareCopyright"
+                                />
+                            </div>
+                        </div>
+
+                        <div
+                            class="mt-6 flex flex-wrap justify-center gap-2"
+                            v-if="categoryTags.length"
+                        >
+                            <span
+                                v-for="tag in categoryTags"
+                                :key="tag._id"
+                                @click="
+                                    selectedCategoryId = tag.parentId;
+                                    showCategoryModal = true;
+                                "
+                                class="flex cursor-pointer items-center justify-center rounded-lg border border-yellow-500/25 bg-yellow-500/10 py-1 pl-1 pr-2 text-sm hover:bg-yellow-100/25 dark:bg-slate-700 dark:hover:bg-yellow-100/25"
+                            >
+                                <TagIcon class="mr-2 h-5 w-5 text-yellow-500/75" />
+                                <span class="line-clamp-1">{{ tag.title }}</span>
+                            </span>
+                        </div>
+
+                        <!-- Render content with highlighting support -->
+                        <LHighlightable
+                            v-if="content.text"
+                            :content-id="content._id"
+                            :title="content.title"
+                            :copyright="shareCopyright"
+                            :can-share="canShare()"
+                            @highlighted="
+                                recordAffinity(
+                                    content?.parentTags,
+                                    affinityConfig.eventWeight.highlight,
+                                )
+                            "
+                            @highlight-removed="
+                                recordAffinity(
+                                    content?.parentTags,
+                                    affinityConfig.eventWeight.highlightRemoved,
+                                )
+                            "
+                            @highlights-changed="notifyHighlightsChanged"
+                        >
+                            <div
+                                ref="articleProseRef"
+                                :data-ssr-article-text="isPrerender() ? true : undefined"
+                                v-html="text"
+                                class="prose prose-zinc mt-8 max-w-full dark:prose-invert lg:prose-lg prose-headings:font-bold prose-a:text-yellow-600 dark:prose-a:text-yellow-400"
+                                :class="{
+                                    'border-t border-zinc-100 pt-4 dark:border-slate-800':
+                                        categoryTags.length == 0,
+                                }"
+                            ></div> </LHighlightable
+                        ><br />
+                        <div
+                            v-if="content.copyright"
+                            class="text-xs text-zinc-500 dark:text-slate-300"
+                        >
+                            {{ content.copyright }}
+                        </div>
+                    </article>
+
+                    <!-- Right gutter: kept empty, mirrors the left one so the article stays centred. -->
+                    <div class="hidden lg:block" />
+                </template>
             </div>
 
             <IgnorePagePadding v-if="content && tags.length">
@@ -1041,14 +1113,6 @@ watch([isLoading, content, is404], async () => {
             <IgnorePagePadding ignoreBottom>
                 <CopyrightBanner />
             </IgnorePagePadding>
-
-            <ContinueReadingPrompt
-                v-if="readingTrackerEnabled"
-                :visible="hasResumableProgress && !continuePromptHandled"
-                :progress-percent="savedProgressPercent"
-                @continue="onContinueReading"
-                @dismiss="continuePromptHandled = true"
-            />
         </div>
     </BasePage>
 

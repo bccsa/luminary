@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import LTeleport from "../common/LTeleport.vue";
 import { XMarkIcon } from "@heroicons/vue/24/solid";
 import { breakpointsTailwind, useBreakpoints } from "@vueuse/core";
@@ -10,6 +10,8 @@ type Props = {
     noDivider?: boolean;
     largeModal?: boolean;
     stickToEdges?: boolean;
+    // Fills the viewport on all screen sizes, not only on mobile.
+    fullscreen?: boolean;
     noPadding?: boolean;
     transparentHeader?: boolean;
     showClosingButton?: boolean;
@@ -19,6 +21,7 @@ type Props = {
 };
 const props = withDefaults(defineProps<Props>(), {
     largeModal: false,
+    fullscreen: false,
     noDivider: false,
     noPadding: false,
     transparentHeader: false,
@@ -49,6 +52,16 @@ watch(modalRef, (el) => {
 
 const breakpoints = useBreakpoints(breakpointsTailwind);
 const isMobileScreen = breakpoints.smaller("sm");
+
+const sizeClasses = computed(() => {
+    if (props.fullscreen || (isMobileScreen.value && props.stickToEdges)) {
+        return "h-[100dvh] w-[100vw] max-w-none rounded-none";
+    } else if (props.largeModal) {
+        return "rounded-lg h-[90dvh] w-full max-w-5xl lg:h-[80dvh]";
+    } else {
+        return "rounded-lg max-h-[90dvh] w-full max-w-md";
+    }
+});
 </script>
 
 <template>
@@ -69,12 +82,8 @@ const isMobileScreen = breakpoints.smaller("sm");
                 ref="modalRef"
                 data-test="modal-content"
                 :class="[
-                    'relative z-50 flex flex-col rounded-lg bg-white/90 p-5 shadow-xl focus:outline-none',
-                    isMobileScreen && stickToEdges
-                        ? 'h-[100dvh] w-[100vw] max-w-none rounded-none'
-                        : largeModal
-                          ? 'h-[90dvh] w-full max-w-5xl lg:h-[80dvh]'
-                          : 'max-h-[90dvh] w-full max-w-md',
+                    'relative z-50 flex flex-col bg-white/90 p-5 shadow-xl focus:outline-none',
+                    sizeClasses,
                 ]"
             >
                 <div

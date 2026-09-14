@@ -12,7 +12,7 @@ import {
 import { appSyncedLanguageIdsAsRef } from "./globalConfig";
 import { Sentry } from "./util/initSentry";
 
-import _ from "lodash";
+import { cloneDeep, isEqual } from "lodash-es";
 
 export const syncIterators = ref<{ language: number; content: number }>({
     language: 0,
@@ -29,9 +29,9 @@ watch(
     [accessMap, isConnected, appSyncedLanguageIdsAsRef],
     () => {
         let accessMapChanged = false;
-        if (!_.isEqual(accessMapPrev, accessMap.value)) {
+        if (!isEqual(accessMapPrev, accessMap.value)) {
             accessMapChanged = true;
-            accessMapPrev = _.cloneDeep(accessMap.value);
+            accessMapPrev = cloneDeep(accessMap.value);
         }
 
         let connectedChanged = false;
@@ -42,7 +42,7 @@ watch(
 
         let appLanguagesChanged = false;
         const appLanguageIdsSorted = [...appSyncedLanguageIdsAsRef.value].sort();
-        if (!_.isEqual(appLanguageIdsPrev, appLanguageIdsSorted)) {
+        if (!isEqual(appLanguageIdsPrev, appLanguageIdsSorted)) {
             appLanguagesChanged = true;
             appLanguageIdsPrev = appLanguageIdsSorted;
         }

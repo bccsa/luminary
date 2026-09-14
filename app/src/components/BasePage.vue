@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, provide, ref } from "vue";
+import { computed, onMounted, onUnmounted, provide, ref } from "vue";
 import TopBar from "./navigation/TopBar.vue";
 import DesktopSidebar from "./navigation/DesktopSidebar.vue";
 import NotificationBannerManager from "./notifications/NotificationBannerManager.vue";
@@ -9,6 +9,7 @@ import { queryParams } from "@/globalConfig";
 import type { ContentDto } from "luminary-shared";
 import { ChevronLeftIcon } from "@heroicons/vue/24/outline";
 import { useBackNavigation } from "@/composables/useBackNavigation";
+import { useMobileChromeAutoHide } from "@/composables/useMobileChromeAutoHide";
 
 const showNotifications = !queryParams.has("supress-notifications");
 
@@ -19,15 +20,75 @@ const isSSG = import.meta.env.VITE_BUILD_TARGET === "web";
 const SSG_NOTIFICATION_DELAY_MS = 3000;
 const notificationsReady = ref(!isSSG);
 
-defineProps<{
+const props = defineProps<{
     content?: ContentDto;
     showBackButton?: boolean;
     desktopTopBar?: boolean;
+    /** The centre slot is occupied before any scrolling; keep the row below the chrome clear for it. */
+    reserveTopBarCenter?: boolean;
 }>();
 
 const { onBackClick } = useBackNavigation();
 
 const main = ref<HTMLElement | undefined>(undefined);
+
+// The mobile chrome overlays the scroller and steps aside via transform —
+// a layout animation would resize the page mid-scroll and read as the text
+// jumping. The scroller's content carries the bars' heights as padding
+// instead: --top-bar-h (published here, same pattern as --mobile-menu-h)
+// and --mobile-menu-h. The class fallbacks cover prerendered HTML before
+// any measurement runs, so hydration doesn't shift the page.
+const topBarWrap = ref<HTMLElement | undefined>(undefined);
+let topBarResizeObserver: ResizeObserver | undefined;
+
+const publishTopBarHeight = (height: number) =>
+    document.documentElement.style.setProperty("--top-bar-h", `${height}px`);
+
+// The pill's sticky top stays constant at the tucked position; while the top
+// bar is visible the pill is *translated* down below it instead. A transform
+// animates on the compositor like the bar's own slide, so the two track each
+// other frame-for-frame even while the main thread is busy scrolling —
+// animating `top` (layout) here visibly stutters. Gated on `scrolled` so the
+// transform never displaces the container while it is still in flow.
+const PILL_TUCKED_TOP = "max(0px, calc(env(safe-area-inset-top) - 0.75rem))";
+const pillPinnedStyle = computed(() =>
+    !mobileChrome.hidden.value && scrolled.value
+        ? { transform: `translateY(calc(var(--top-bar-h, 74px) - ${PILL_TUCKED_TOP}))` }
+        : undefined,
+);
+
+// The fade under the pinned chrome only makes sense once body content has scrolled beneath
+// it; until the strip's own height has gone by, what sits under it is still the page title.
+const TOP_CHROME_H = 56;
+const scrolled = ref(false);
+// Reading pages let the mobile top bar and bottom menu step aside while scrolling down.
+const mobileChrome = useMobileChromeAutoHide();
+const onMainScroll = () => {
+    const el = main.value;
+    const scrollTop = el?.scrollTop ?? 0;
+    scrolled.value = scrollTop >= TOP_CHROME_H;
+    if (props.desktopTopBar && el) {
+        mobileChrome.onScroll(scrollTop, el.scrollHeight - el.clientHeight - scrollTop);
+    }
+};
+// Shared so whatever a page puts in the centre slot can reveal itself in step with the fade.
+provide("topChromeScrolled", scrolled);
+// Rendered as an always-present layer whose opacity animates, so the fade eases in rather
+// than snapping on at the threshold. It overshoots the strip's top edge so browsers that
+// place the sticky strip a few pixels lower still get a fade that reaches the top bar.
+// Backing that lifts the pinned controls off whatever scrolls beneath them (hero images,
+// text); fades in with the chrome so nothing changes at rest.
+const controlBacking =
+    "transition-[background-color,box-shadow] duration-500 ease-out rounded-lg ring-1 ring-transparent";
+const controlBackingOn =
+    "bg-zinc-100 shadow-md !ring-zinc-900/10 dark:bg-slate-700 dark:!ring-white/10";
+// Same treatment applied to each quick control individually, so they read as separate pills.
+const quickControlBacking =
+    "[&>*]:rounded-lg [&>*]:ring-1 [&>*]:ring-transparent [&>*]:transition-[background-color,box-shadow] [&>*]:duration-500 [&>*]:ease-out";
+const quickControlBackingOn =
+    "[&>*]:bg-zinc-100 [&>*]:shadow-md [&>*]:!ring-zinc-900/10 dark:[&>*]:bg-slate-700 dark:[&>*]:!ring-white/10";
+const topChromeFade =
+    "pointer-events-none absolute inset-x-0 -top-4 bottom-6 bg-gradient-to-b from-white from-45% via-white/60 via-70% to-transparent transition-opacity duration-500 ease-out dark:from-slate-900 dark:via-slate-900/70";
 
 // Expose the scrolling <main> to descendants (e.g. SearchPanel in page mode) so they can drive
 // infinite scroll off the page's real scroll container instead of an internal one.
@@ -42,10 +103,23 @@ const handleArrowKeyFocus = (e: KeyboardEvent) => {
 onMounted(() => {
     if (isSSG) setTimeout(() => (notificationsReady.value = true), SSG_NOTIFICATION_DELAY_MS);
     document.addEventListener("keydown", handleArrowKeyFocus);
+    main.value?.addEventListener("scroll", onMainScroll, { passive: true });
+    if (topBarWrap.value && typeof ResizeObserver !== "undefined") {
+        const measure = () => {
+            if (topBarWrap.value)
+                publishTopBarHeight(topBarWrap.value.getBoundingClientRect().height);
+        };
+        measure();
+        topBarResizeObserver = new ResizeObserver(measure);
+        topBarResizeObserver.observe(topBarWrap.value);
+    }
 });
 
 onUnmounted(() => {
     document.removeEventListener("keydown", handleArrowKeyFocus);
+    main.value?.removeEventListener("scroll", onMainScroll);
+    topBarResizeObserver?.disconnect();
+    mobileChrome.reset();
 });
 </script>
 
@@ -56,14 +130,21 @@ onUnmounted(() => {
         <DesktopSidebar />
 
         <!-- Content column -->
-        <div class="flex min-w-0 flex-1 flex-col scrollbar-hide">
-            <!-- Mobile top bar -->
-            <TopBar
-                :showBackButton="showBackButton"
-                class="border-b-2 border-b-zinc-200/50 dark:border-b-slate-950/50 lg:hidden"
+        <div class="relative flex min-w-0 flex-1 flex-col scrollbar-hide">
+            <!-- Mobile top bar. Overlays the scroller and steps aside via transform while
+                 the reader scrolls down, returning on the first scroll up. -->
+            <div
+                ref="topBarWrap"
+                class="absolute inset-x-0 top-0 z-30 transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform lg:hidden"
+                :class="mobileChrome.hidden.value ? '-translate-y-full' : 'translate-y-0'"
             >
-                <template #quickControls><slot name="quickControls" /></template>
-            </TopBar>
+                <TopBar
+                    :showBackButton="showBackButton"
+                    class="border-b-2 border-b-zinc-200/50 dark:border-b-slate-950/50"
+                >
+                    <template #quickControls><slot name="quickControls" /></template>
+                </TopBar>
+            </div>
 
             <Teleport
                 v-if="notificationsReady"
@@ -73,38 +154,96 @@ onUnmounted(() => {
             </Teleport>
 
             <main
-                class="flex-1 overflow-y-scroll px-2 py-2 scrollbar-hide focus:outline-none dark:bg-slate-900 md:max-lg:px-4"
+                class="flex-1 overflow-y-scroll px-2 pb-2 scrollbar-hide focus:outline-none dark:bg-slate-900 md:max-lg:px-4"
+                :class="desktopTopBar ? 'pt-0' : 'pt-2'"
                 ref="main"
             >
+                <!-- Carries the overlaying mobile chrome's heights as scrollable padding,
+                     so content clears the bars at rest yet scrolls under them. The 74px
+                     fallback matches the bar's natural height for prerendered HTML. -->
+                <div
+                    class="pb-[var(--mobile-menu-h,0px)] pt-[var(--top-bar-h,74px)] lg:pb-0 lg:pt-0"
+                >
                 <!-- Desktop pinned chrome: back (left) + quick controls (right) stay fixed while scrolling.
                      Direct child of the scrolling <main> so `sticky` keeps it pinned the whole way.
-                     -mb-9 collapses its flow height so page content originates at the top of the page,
-                     sharing this row; pointer-events-none lets clicks fall through the empty centre. -->
+                     <main> drops its top padding on these pages so `top-0` lands on the scrollport edge in
+                     every engine; the strip's 8px of remaining flow height (h-16 minus -mb-14) stands in for
+                     that padding, so page content still originates where it always did, sharing this row.
+                     Negative side margins let it bleed over <main>'s horizontal padding; pointer-events-none
+                     lets clicks fall through the empty centre.
+                     The fade below the controls row lets content dissolve under the chrome. -->
                 <div
                     v-if="desktopTopBar"
-                    class="pointer-events-none sticky top-0 z-20 -mb-9 hidden h-9 items-center lg:flex"
+                    class="pointer-events-none sticky top-0 z-20 -mx-2 -mb-14 hidden h-16 items-start px-2 pt-2 lg:flex"
                 >
-                    <RouterLink
-                        v-if="showBackButton"
-                        :to="{ name: 'home' }"
-                        v-slot="{ href }"
-                        custom
-                    >
-                        <a
-                            :href="href"
-                            class="pointer-events-auto flex-shrink-0 rounded-md p-1 text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
-                            @click="onBackClick($event)"
-                            aria-label="Go back"
+                    <div
+                        :class="[topChromeFade, scrolled ? 'opacity-100' : 'opacity-0']"
+                        aria-hidden="true"
+                    />
+                    <div class="relative flex h-9 w-full items-center">
+                        <!-- Centred on the full row (= the content column's axis) rather than
+                             on the space left between the two asymmetric control groups.
+                             top-0.5 matches the 2px inset the centred back/quick controls get
+                             from being shorter than the row, so the pill's top edge lines up
+                             with theirs instead of sitting flush against the row top. -->
+                        <div class="pointer-events-none absolute inset-x-0 top-0.5 flex justify-center">
+                            <div class="pointer-events-auto flex min-w-0 max-w-[calc(100%-16rem)]">
+                                <slot name="topBarCenter" />
+                            </div>
+                        </div>
+                        <RouterLink
+                            v-if="showBackButton"
+                            :to="{ name: 'home' }"
+                            v-slot="{ href }"
+                            custom
                         >
-                            <ChevronLeftIcon class="h-5 w-5" />
-                        </a>
-                    </RouterLink>
-                    <div class="pointer-events-auto ml-auto flex items-center gap-2 pr-2">
-                        <slot name="quickControls" />
+                            <a
+                                :href="href"
+                                class="pointer-events-auto relative z-10 flex-shrink-0 p-1.5 text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-600"
+                                :class="[controlBacking, { [controlBackingOn]: scrolled }]"
+                                @click="onBackClick($event)"
+                                aria-label="Go back"
+                            >
+                                <ChevronLeftIcon class="h-5 w-5" />
+                            </a>
+                        </RouterLink>
+                        <div
+                            class="pointer-events-auto relative z-10 ml-auto flex items-center gap-2 pr-2"
+                            :class="[quickControlBacking, { [quickControlBackingOn]: scrolled }]"
+                        >
+                            <slot name="quickControls" />
+                        </div>
                     </div>
                 </div>
 
-                <!-- Desktop notification: normal flow below the pinned chrome; pushes article down when present. -->
+                <!-- Mobile counterpart of the centre slot: pinned at the top of the scrolling area
+                     with the same collapsed flow height, so it floats over the content. The sticky
+                     top is the tucked position — slightly into the safe-area inset, since the
+                     status bar is hidden then and only the sensor housing needs clearing (clamped
+                     for devices whose inset collapses once the status bar is gone). While the top
+                     bar is visible the pill is translated down below it (pillPinnedStyle), riding
+                     the same compositor timeline as the bar's slide. -->
+                <div
+                    v-if="desktopTopBar && $slots.topBarCenter"
+                    class="pointer-events-none sticky top-[max(0px,calc(env(safe-area-inset-top)-0.75rem))] z-20 -mx-2 -mb-14 flex h-16 items-start justify-center px-2 pt-2 transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform md:-mx-4 md:px-4 lg:hidden"
+                    :style="pillPinnedStyle"
+                >
+                    <div
+                        class="pointer-events-auto relative flex h-9 min-w-0 max-w-full items-center justify-center"
+                    >
+                        <slot name="topBarCenter" />
+                    </div>
+                </div>
+
+                <!-- Spacer that keeps in-flow content (banners, the page title) out from under a
+                     centre-slot control that is showing before the page has scrolled. -->
+                <div
+                    v-if="desktopTopBar && reserveTopBarCenter"
+                    class="h-11"
+                />
+
+                <!-- Desktop notification: normal flow below the pinned chrome; pushes article down when present.
+                     [&>div]:mb-2 trims the banner's default mb-4 so the gap above the title matches the page-top gap. -->
                 <div
                     v-if="desktopTopBar"
                     class="hidden justify-center lg:flex"
@@ -121,6 +260,7 @@ onUnmounted(() => {
                 />
 
                 <slot />
+                </div>
             </main>
 
             <div class="sticky bottom-0">

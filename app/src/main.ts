@@ -1,5 +1,5 @@
 import "./assets/main.css";
-import { createApp, watch } from "vue";
+import { createApp, nextTick, watch } from "vue";
 import { createPinia } from "pinia";
 import App from "./App.vue";
 import router from "./router";
@@ -22,7 +22,9 @@ import { initDefaultAffinitySync } from "@/recommendation/defaultAffinityStore";
 import { APP_DOCS_INDEX } from "./docsIndex";
 import { initSentry, Sentry } from "@/util/initSentry";
 import { markAppReady, markAppError } from "@/util/renderState";
+import { notifyUiReady } from "virtual:app-lifecycle";
 import { initLivePublishClock } from "@/util/livePublishClock";
+import { BOOT_SPLASH_ID } from "./bootSplash";
 
 export const app = createApp(App);
 
@@ -62,9 +64,6 @@ async function Startup() {
         contentPublishDateCutoff: installedStandalone
             ? undefined // no cutoff → full corpus
             : Date.now() - BROWSER_CONTENT_SYNC_WINDOW_MS,
-    }).catch((err) => {
-        console.error(err);
-        Sentry?.captureException(err);
     });
 
     // Keep the CMS-managed default-affinity baseline/config in sync with the local
@@ -87,6 +86,10 @@ async function Startup() {
     // sync is missed until some later, unrelated change re-triggers it.
     initAuthLangSync();
 
+    // Provide the build-target services before setupAuth(), which resolves the
+    // platform auth-flow strategy from the app.
+    app.use(appPluginsManager);
+
     await setupAuth(app, router);
     socket.connect(); // ensure socket connects for public users (no-op if auth already called reconnect())
 
@@ -100,7 +103,9 @@ async function Startup() {
     watch(serverError, (error) => {
         if (error) {
             serverError.value = null;
-            console.error(`Server error: ${error.status}${error.message ? ` ${error.message}` : ""}`);
+            console.error(
+                `Server error: ${error.status}${error.message ? ` ${error.message}` : ""}`,
+            );
             if (serverErrorTimeout) return;
             Sentry?.captureMessage(
                 `Server error: ${error.status}${error.message ? ` ${error.message}` : ""}`,
@@ -123,13 +128,23 @@ async function Startup() {
 
     app.use(router);
     app.use(i18n);
-    app.use(appPluginsManager);
     app.mount("#app");
+    // The web loading UI is rendering from here on — the build target may have
+    // launch chrome of its own to hand over from.
+    notifyUiReady();
 
     await initLanguage();
     initSync();
 
     isAppLoading.value = false;
+
+    // Drop the boot splash only after the flag above has been rendered, so the app is already
+    // painted underneath and uncovering it can't expose a blank frame. A failed startup never
+    // reaches this line, which is deliberate: markAppError() below leaves the splash up and
+    // switches it to its error panel rather than stranding the user on an animating bar.
+    await nextTick();
+    document.getElementById(BOOT_SPLASH_ID)?.remove();
+
     initAppTitle(i18n);
     initAnalytics();
     markAppReady();
@@ -139,4 +154,6 @@ Startup().catch((err) => {
     console.error(err);
     Sentry?.captureException(err);
     markAppError();
+    // The error state is UI too — don't strand any launch chrome over it.
+    notifyUiReady();
 });

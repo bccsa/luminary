@@ -96,7 +96,9 @@ const handleLogin = () => {
 
 <template>
     <header>
-        <div class="z-40 bg-zinc-100 dark:bg-slate-800">
+        <!-- pt-safe-area: the app root is absolutely positioned to the viewport, so the bar
+             extends its own background behind the status bar / notch (0 in regular browsers). -->
+        <div class="z-40 bg-zinc-100 pt-[env(safe-area-inset-top)] dark:bg-slate-800">
             <div class="flex items-center gap-2 py-5 pl-6 pr-4 lg:pr-5">
                 <div class="flex flex-1 items-center">
                     <div

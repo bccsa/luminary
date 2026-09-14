@@ -17,6 +17,7 @@ Run everything from `app/`:
 - `npm run build` — runs `type-check` and `build-only` in parallel
 - `npm run build:web` — full SSG prerender into `dist-web/`
 - `SSG_ONLY_ROUTES="/a,/b" npm run build:web` — scoped SSG rebuild for listed routes
+- `npm run enumerate:web` — print the public route set as JSON without rendering (`-- --out <file>` to write it)
 - `npm run preview:web` — preview `dist-web/` on port 4174
 - `npm run type-check` — `vue-tsc --build --force`
 - `npm run test` / `npm run test:unit` — Vitest (jsdom). Pass a path or `-t "name"` to run a subset, e.g. `npm run test -- src/pages/HomePage.spec.ts -t "renders"`.

@@ -29,7 +29,7 @@ const maxContentCount = computed(() => {
         <div v-if="cmsLanguages.length === 0" class="py-4 text-center text-sm text-zinc-400">
             No languages configured.
         </div>
-        <ul v-else class="space-y-1.5">
+        <ul v-else class="space-y-1.5 pl-0.5">
             <li v-for="lang in cmsLanguages" :key="lang._id">
                 <div class="flex items-center justify-between text-sm">
                     <span

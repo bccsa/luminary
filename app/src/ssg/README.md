@@ -57,6 +57,8 @@ Run from `app/`:
 | `npm run build:web`                         | **Full** prerender → `dist-web/` (every public route) + `ssg-deps.json` + `sitemap.xml` + `robots.txt` + `llms.txt`. |
 | `SSG_ONLY_ROUTES="/a,/b" npm run build:web` | **Scoped** rebuild of only those routes; preserves all other files; **merges** their entries into `ssg-deps.json`.   |
 | `SSG_EMIT_REDIRECTS=1 …` | Marks a **scoped** build as the pass that owns redirect artifacts, which scoped builds otherwise skip (the ISR watcher maintains the index between builds). For a driver that renders the site in several scoped passes and so never runs an unscoped build — without this, nothing in the run would emit them. |
+| `SSG_EMIT_DELETE_QUEUE=1 …` | Marks a **scoped** build as the pass that owns the full DeleteCmd drain, which scoped builds otherwise limit to `SSG_DELETE_CMD_IDS`. Same audience as `SSG_EMIT_REDIRECTS`: a driver rendering the whole site in several scoped passes cannot supply the ids, because discovering them is what the drain does. |
+| `npm run enumerate:web` | Prints the public route set as JSON (`{ generatedAt, counts, routes, groups }`) on stdout and renders nothing; `-- --out <file>` writes it to a file instead. For a driver that needs the route list up front to split the site into scoped passes — route eligibility otherwise only exists inside the build's own enumeration. |
 | `npm run preview:web`                       | Serve `dist-web/` locally (test in Incognito / unregister old service workers first).                                |
 
 The normal SPA build (`npm run build` → `dist/`, with its service worker) is
@@ -89,6 +91,8 @@ reachable. Unset `SSG_API_URL` and nothing changes.
 | `redirectIndex.ts`             | Pure redirect id → `{ slug, status }` sidecar helper, so redirect DeleteCmds can remove static redirect files and a downstream consumer can apply the right HTTP status.                                                                                                                                                                                                                                                                                                                                                | Node             |
 | `redirectHtml.ts`              | Pure static redirect renderer (`redirectHtml` + `redirectFile` + `redirectStatus`) shared by full builds and the watcher. Maps `redirectType` to a 301/302.                                                                                                                                                                                                                                                                                                                                                             | Node             |
 | `queryDrain.ts`                | Pure keyset-pagination helper (`drainQuery`, `enumeratePublicContent`, `enumerateDeleteCmds`) over anonymous `/query`, used by route/language/redirect/delete-cmd enumeration in `vite.config.web.ts`.                                                                                                                                                                                                                                                                                                                  | Node (build)     |
+| `routeEnumeration.ts`          | The public route set — static prerender routes, locale-prefixed variants, eligible content slugs — plus the `/query` fetch transport the build's drains use. Shared by `vite.config.web.ts` and `../../scripts/enumerate-routes.mjs`, so the enumerate-only entry point cannot drift from what the build renders.                                                                                                                                                                                            | Node (build)     |
+| `../../scripts/enumerate-routes.mjs` | Enumerate-only entry point (`npm run enumerate:web`): prints the route set as JSON and renders nothing. Loads the build's modules through Vite's SSR loader, so it needs no TypeScript runner of its own.                                                                                                                                                                                                                                                                                              | Node             |
 | `deleteQueue.ts`               | Pure DeleteCmd → durable pending-delete queue-entry resolver (`resolveContentDeleteQueueEntry` / `resolveRedirectDeleteQueueEntry` / `buildDeleteQueue`) for `ssg-delete-queue/`. Slug-first (new DeleteCmds self-describe their route); falls back to `routeIndex.ts`/`redirectIndex.ts`'s legacy sidecars only for slug-less DeleteCmds. Entries also carry the DeleteCmd's own `deleteReason`/`language`/`memberOf`/`newMemberOf` — this sidecar never leaves the server, so there's no size pressure to strip them. | Node             |
 
 **Naming convention:** identifiers that discriminate "which side of the prerender is
@@ -256,6 +260,12 @@ algorithm }` (`docFacetShards.ts`'s `docFacetsIndex()`); each doc's entry lives 
       `writeRouteIndex()`/`writeDocFacets()` do; the caller passes the triggering
       DeleteCmd ids explicitly instead. Empty (or unset) on a purely content-driven
       scoped rebuild skips the drain entirely.
+    - **Scoped pass that owns the queue** (`SSG_EMIT_DELETE_QUEUE=1`): drains every
+      DeleteCmd exactly as a full build does, for a driver that renders the whole site
+      in several scoped passes and so has no ids to pass. A full drain is a superset of
+      any explicit ids, so `SSG_DELETE_CMD_IDS` is redundant alongside it. The
+      `liveDocs`/`hasStaticFile` guards still apply, so the site's whole deletion
+      history is not replayed against the pages on disk.
     - Known asymmetry, not fixed here: `ssg-route-index/` is cumulative (entries
       persist across full builds), so its legacy fallback works indefinitely.
       `ssg-redirect-index.json` is fully overwritten every full build with only
@@ -269,7 +279,25 @@ algorithm }` (`docFacetShards.ts`'s `docFacetsIndex()`); each doc's entry lives 
   they are re-read from the API and rewritten wholesale, and between builds the ISR watcher owns
   that index — so a scoped pass re-reading the API could revert a change the watcher already
   applied. `SSG_EMIT_REDIRECTS=1` (above) hands ownership to a scoped pass for drivers that never
-  run an unscoped build.
+  run an unscoped build, and `SSG_EMIT_DELETE_QUEUE=1` does the same for the delete queue.
+
+### Rendering the whole site in batches
+
+A full build holds every rendered page's context (JSDOM nodes, Vue reactivity objects) for the
+length of the run, so peak memory grows with the corpus and a large enough site eventually cannot
+be built at all. Rendering the site as several scoped passes over one output directory bounds
+peak memory by batch size instead. The cost is one client recompile per pass.
+
+What a driver needs from this repo:
+
+1. `npm run enumerate:web` — the route list to batch, without building or rendering anything.
+2. `SSG_ONLY_ROUTES=...` per pass, over the same `dist-web/`.
+3. `SSG_EMIT_REDIRECTS=1` and `SSG_EMIT_DELETE_QUEUE=1` on exactly one of the passes: both
+   artifacts are rewritten wholesale from the API, so they need a single owning pass. Sitemap,
+   robots and `llms.txt` need no marker — they are written from the full route set on every pass.
+
+The driver itself — batch size, recovery from a failed pass, ordering against an in-flight
+incremental rebuild — belongs in the deployment repository.
 
 ### Build scope
 

@@ -398,6 +398,13 @@ const actionsWrapperProps = computed(() => ({
     isLocalChange: hasLocalChanges.value,
     actions: contentActions.value,
 }));
+
+import { useMediaQuery } from "@vueuse/core";
+
+const isLgScreen = useMediaQuery("(min-width: 1024px)");
+watch(isLgScreen, (isLg) => {
+    if (isLg) showQuickLang.value = false;
+});
 </script>
 
 <template>
@@ -439,7 +446,11 @@ const actionsWrapperProps = computed(() => ({
                 v-if="selectedLanguage && translationLanguages.length > 1"
                 class="flex px-1 lg:hidden"
             >
-                <LDropdown v-model:show="showQuickLang" placement="bottom-end">
+                <LDropdown
+                    v-model:show="showQuickLang"
+                    placement="bottom-start"
+                    panel-class="!w-40"
+                >
                     <template #trigger>
                         <button
                             type="button"

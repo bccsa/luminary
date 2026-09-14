@@ -3,6 +3,7 @@ import { createApp, type App } from "vue";
 import { createRouter, createWebHistory, type Router } from "vue-router";
 import { DocType, type AuthProviderDto } from "luminary-shared";
 import * as Sentry from "@sentry/vue";
+import { AuthFlowKey } from "@/build-time/contracts/auth-flow/token";
 
 const {
     mockUserManager,
@@ -1279,5 +1280,39 @@ describe("auth", () => {
         openProviderModal();
 
         expect(showProviderSelectionModal.value).toBe(true);
+    });
+
+    it("redeems a callback the packaged app persisted while it was backgrounded", async () => {
+        const consumePendingCallback = vi
+            .fn()
+            .mockResolvedValue("https://app.luminary.org/callback?code=abc&state=xyz");
+        const app = createApp({ render: () => null });
+        app.provide(AuthFlowKey, {
+            signoutNavigates: false,
+            redirectUri: () => "app://callback",
+            postLogoutRedirectUri: () => "app://callback",
+            signin: vi.fn(),
+            signout: vi.fn(),
+            consumePendingCallback,
+        });
+        const router = {
+            replace: vi.fn(() => Promise.resolve(undefined)),
+            isReady: vi.fn(() => Promise.resolve()),
+        } as unknown as Router;
+        const recoveredUser = {
+            access_token: "recovered-token",
+            expired: false,
+            profile: { sub: "user-1" },
+        };
+        persistActiveProvider(providerA);
+        mockSigninRedirectCallback.mockResolvedValue(recoveredUser);
+        mockGetUser.mockResolvedValue(recoveredUser);
+
+        await setupAuth(app, router);
+
+        expect(consumePendingCallback).toHaveBeenCalledTimes(1);
+        expect(mockSigninRedirectCallback).toHaveBeenCalledWith(
+            "https://app.luminary.org/callback?code=abc&state=xyz",
+        );
     });
 });

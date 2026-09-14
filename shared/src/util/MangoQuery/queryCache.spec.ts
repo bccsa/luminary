@@ -308,6 +308,40 @@ describe("queryCache", () => {
     });
 
     // ============================================
+    // Expiry timers must not hold a Node event loop open
+    // ============================================
+
+    describe("expiry timers", () => {
+        it("unrefs the timer when the runtime provides one", () => {
+            const unref = vi.fn();
+            const setTimeoutSpy = vi
+                .spyOn(globalThis, "setTimeout")
+                .mockReturnValue({ unref } as unknown as ReturnType<typeof setTimeout>);
+
+            cacheSet("test:unref", "value");
+            expect(unref).toHaveBeenCalledTimes(1);
+
+            cacheGet("test:unref");
+            expect(unref).toHaveBeenCalledTimes(2);
+
+            setTimeoutSpy.mockRestore();
+            clearAllMangoCache();
+        });
+
+        it("tolerates a runtime whose timer handle has no unref", () => {
+            const setTimeoutSpy = vi
+                .spyOn(globalThis, "setTimeout")
+                .mockReturnValue(42 as unknown as ReturnType<typeof setTimeout>);
+
+            expect(() => cacheSet("test:no-unref", "value")).not.toThrow();
+            expect(cacheGet("test:no-unref")).toBe("value");
+
+            setTimeoutSpy.mockRestore();
+            clearAllMangoCache();
+        });
+    });
+
+    // ============================================
     // Template persistence (localStorage)
     // ============================================
 
@@ -398,6 +432,36 @@ describe("queryCache", () => {
             expect(localStorage.getItem("mango_tpl_cache")).toBeNull();
 
             setWarmingFlag(false);
+        });
+
+        it("persists nothing during a server-side render", () => {
+            vi.useFakeTimers();
+            const env = import.meta.env as { SSR: boolean };
+            env.SSR = true;
+
+            try {
+                scheduleTemplatePersist("tp::ssr", { a: 1 });
+                vi.advanceTimersByTime(300);
+
+                expect(localStorage.getItem("mango_tpl_cache")).toBeNull();
+            } finally {
+                env.SSR = false;
+            }
+        });
+
+        it("reads nothing back during a server-side render", () => {
+            vi.useFakeTimers();
+            scheduleTemplatePersist("tp::warm", { a: 1 });
+            vi.advanceTimersByTime(300);
+            expect(getPersistedTemplates("tp:").size).toBe(1);
+
+            const env = import.meta.env as { SSR: boolean };
+            env.SSR = true;
+            try {
+                expect(getPersistedTemplates("tp:").size).toBe(0);
+            } finally {
+                env.SSR = false;
+            }
         });
 
         it("handles corrupt localStorage data gracefully", () => {

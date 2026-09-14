@@ -385,7 +385,7 @@ describe("ContentTile", () => {
         });
 
         expect(wrapper.html()).toContain('style="width: 45%');
-        // Reading progress uses the ContinueReadingPrompt bar style (yellow fill).
+        // Reading progress uses the shared progress-bar style (yellow fill).
         expect(wrapper.html()).toContain("bg-yellow-500");
     });
 
