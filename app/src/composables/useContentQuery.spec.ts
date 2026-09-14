@@ -64,9 +64,14 @@ describe("useContentQuery", () => {
     // to prove it never leaks into the client-side HybridQuery options, which would
     // otherwise strip it from the client's own ongoing re-cache writes too.
     it("does not forward ssrCacheStripFields to the client HybridQuery options", () => {
-        useContentQuery(() => [], { cache: true, ssrCacheStripFields: ["text"] });
+        useContentQuery(() => [], {
+            cache: true,
+            ssrCacheStripFields: ["text"],
+            ssrCacheFields: ["title"],
+        });
         const o = lastOptions();
         expect(o.ssrCacheStripFields).toBeUndefined();
+        expect(o.ssrCacheFields).toBeUndefined();
         expect(o.cacheStripFields).toBeUndefined();
     });
 
