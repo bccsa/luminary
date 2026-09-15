@@ -129,7 +129,15 @@ export const mockEnglishContentDto: ContentDto = {
     availableTranslations: ["lang-eng", "lang-fra"],
     parentMedia: {
         hlsUrl: "https://example.com/video.m3u8",
-    },
+        fileCollections: [
+            {
+                languageId: "lang-eng",
+                fileUrl: "https://example.com/audio.mp3",
+                bitrate: 128000,
+                mediaType: "audio",
+            },
+        ],
+    } as ContentDto["parentMedia"],
 };
 export const mockFrenchContentDto: ContentDto = {
     _id: "content-post1-fra",
@@ -166,7 +174,15 @@ export const mockFrenchContentDto: ContentDto = {
     availableTranslations: ["lang-eng", "lang-fra"],
     parentMedia: {
         hlsUrl: "",
-    },
+        fileCollections: [
+            {
+                languageId: "lang-fra",
+                fileUrl: "https://example.com/audio-fr.mp3",
+                bitrate: 128000,
+                mediaType: "audio",
+            },
+        ],
+    } as ContentDto["parentMedia"],
 };
 export const mockSwahiliContentDto: ContentDto = {
     _id: "content-post1-swa",
@@ -203,7 +219,15 @@ export const mockSwahiliContentDto: ContentDto = {
     parentPublishDateVisible: true,
     parentMedia: {
         hlsUrl: "",
-    },
+        fileCollections: [
+            {
+                languageId: "lang-swa",
+                fileUrl: "https://example.com/audio-swa.mp3",
+                bitrate: 128000,
+                mediaType: "audio",
+            },
+        ],
+    } as ContentDto["parentMedia"],
 };
 export const mockCategoryContentDto: ContentDto = {
     _id: "content-tag-category1",

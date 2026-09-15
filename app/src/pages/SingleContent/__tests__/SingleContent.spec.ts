@@ -590,7 +590,9 @@ describe("SingleContent", () => {
         // Create mock content without hlsUrl so the image div renders instead of video player
         const mockContentWithoutVideo = {
             ...mockEnglishContentDto,
-            parentMedia: {},
+            parentMedia: {
+                fileCollections: [],
+            },
         };
 
         // Update the database with modified content

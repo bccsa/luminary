@@ -2,13 +2,14 @@
 import { RouterView } from "vue-router";
 import { computed, onErrorCaptured, onMounted, watch } from "vue";
 import { isConnected } from "luminary-shared";
-import { isAppLoading, userPreferencesAsRef, localCacheVersion } from "./globalConfig";
+import { isAppLoading, userPreferencesAsRef, mediaQueue, localCacheVersion } from "./globalConfig";
 import { useNotificationStore } from "./stores/notification";
 import { ArrowLeftEndOnRectangleIcon, SignalSlashIcon } from "@heroicons/vue/20/solid";
 import * as Sentry from "@sentry/vue";
 import { useRouter } from "vue-router";
 import PrivacyPolicyModal from "@/components/navigation/PrivacyPolicyModal.vue";
 import SearchModal from "@/components/navigation/SearchModal.vue";
+import AudioPlayer from "@/components/content/AudioPlayer.vue";
 import MobileMenu from "@/components/navigation/MobileMenu.vue";
 import { useMobileChromeAutoHide } from "@/composables/useMobileChromeAutoHide";
 import AffinityDebugOverlay from "@/components/debug/AffinityDebugOverlay.vue";
@@ -199,6 +200,12 @@ onErrorCaptured((err) => {
 
         <!-- Bottom menu divider for mobile view -->
         <!-- <div class="w-full lg:hidden h-[2px] bg-zinc-100/25 dark:bg-slate-700/50"></div> -->
+        <!-- Global Audio Player for All Devices -->
+        <!-- AudioPlayer now uses fixed positioning internally, so no wrapper positioning needed -->
+        <div v-if="isMounted && mediaQueue.length > 0">
+            <AudioPlayer :content="mediaQueue[0]" />
+        </div>
+
         <!-- Mobile Navigation (mobile only) -->
         <!-- Overlays the content and steps aside via transform while a reading page
              scrolls down (see useMobileChromeAutoHide): a transform animates on the

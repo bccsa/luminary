@@ -74,6 +74,7 @@ vi.mock("@/globalConfig", () => ({
     cmsLanguages: ref([mockLanguageDtoEng]),
     cmsDefaultLanguage: computed(() => mockLanguageDtoEng),
     queryParams: { get: vi.fn() },
+    addToMediaQueue: vi.fn(),
     cmsUrl: ref(""),
     userPreferencesAsRef: ref({ bookmarks: [] }),
     appLanguageIdsAsRef: ref(["lang-eng"]),
