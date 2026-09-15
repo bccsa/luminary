@@ -37,8 +37,13 @@ describe("sidecar (pure unit)", () => {
             );
         });
 
-        it("rejects a hex string of the wrong length", () => {
-            expect(isHlsEncryptionKeyData({ maskedKeyHex: "0123456789abcdef" })).toBe(false);
+        it("accepts a key of any whole number of bytes", () => {
+            expect(isHlsEncryptionKeyData({ maskedKeyHex: "0123456789abcdef" })).toBe(true);
+            expect(isHlsEncryptionKeyData({ maskedKeyHex: "ab".repeat(32) })).toBe(true);
+        });
+
+        it("rejects an empty or odd-length hex string", () => {
+            expect(isHlsEncryptionKeyData({ maskedKeyHex: "" })).toBe(false);
             expect(isHlsEncryptionKeyData({ maskedKeyHex: "0".repeat(33) })).toBe(false);
         });
 

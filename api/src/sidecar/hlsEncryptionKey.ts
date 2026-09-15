@@ -4,19 +4,17 @@ import { TagDto } from "../dto/TagDto";
 import { SidecarType, Uuid } from "../enums";
 import { getSidecar, upsertSidecar } from "./sidecar.service";
 
-/** Masked AES-128 HLS key. Stored XOR-masked with SHA-256(sidecar _id)[0..15]
+/** Masked HLS key. Stored XOR-masked with SHA-256(sidecar _id)[0..15]
  *  so the stored form is not the raw key; the client re-derives the mask. */
 export type HlsEncryptionKeyData = {
-    /** AES-128 key, hex, masked. */
+    /** HLS key, hex, masked. */
     maskedKeyHex: string;
 };
 
-/** Type guard for a DB-read payload: 32 lowercase hex chars = 16-byte AES-128 key. */
+/** Type guard for a DB-read payload: whole bytes of lowercase hex, of any length. */
 export function isHlsEncryptionKeyData(data: unknown): data is HlsEncryptionKeyData {
     const d = data as HlsEncryptionKeyData;
-    return (
-        typeof d?.maskedKeyHex === "string" && /^[0-9a-f]{32}$/.test(d.maskedKeyHex)
-    );
+    return typeof d?.maskedKeyHex === "string" && /^(?:[0-9a-f]{2})+$/.test(d.maskedKeyHex);
 }
 
 /** Write (or replace) the masked HLS key sidecar for a Post/Tag. */

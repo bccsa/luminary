@@ -32,4 +32,21 @@ describe("maskKeyHex", () => {
 
         expect(maskKeyHex("s", keyHex)).toHaveLength(32);
     });
+
+    it("masks a key of any length, repeating the mask past 16 bytes", () => {
+        const short = "0011223344556677";
+        const long = "00112233445566778899aabbccddeeff".repeat(2);
+
+        expect(maskKeyHex("s", maskKeyHex("s", short))).toBe(short);
+        expect(maskKeyHex("s", maskKeyHex("s", long))).toBe(long);
+        // Both halves of the long key use the same mask bytes.
+        const masked = maskKeyHex("s", long);
+        expect(masked.slice(32)).toBe(masked.slice(0, 32));
+    });
+
+    it("rejects input that is not whole bytes of hex, rather than storing a different key", () => {
+        expect(() => maskKeyHex("s", "abc")).toThrow(/hex/);
+        expect(() => maskKeyHex("s", "zz".repeat(16))).toThrow(/hex/);
+        expect(() => maskKeyHex("s", "")).toThrow(/hex/);
+    });
 });
