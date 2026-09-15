@@ -27,6 +27,14 @@ export enum DocType {
     // CMS-editable global baseline affinity profile (singleton). Delivered at
     // login to seed a client-local recommendation profile (cold start).
     DefaultAffinity = "defaultAffinity",
+    Sidecar = "sidecar",
+}
+
+/**
+ * Discriminator for the SidecarDto `data` payload shape.
+ */
+export enum SidecarType {
+    HlsEncryptionKey = "hlsEncryptionKey",
 }
 
 /**
@@ -133,21 +141,4 @@ export enum DeleteReason {
 export enum StorageType {
     Image = "image",
     Media = "media",
-}
-
-/**
- * Media types
- */
-export enum MediaType {
-    Audio = "audio",
-    Video = "video",
-}
-
-/**
- * Media encoding presets
- */
-export enum MediaPreset {
-    Speech = "speech",
-    Music = "music",
-    Default = "default",
 }

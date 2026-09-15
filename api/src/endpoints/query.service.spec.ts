@@ -954,4 +954,39 @@ describe("QueryService", () => {
             expect(res.docs[0]).toHaveProperty("title", "secret title");
         });
     });
+
+    // Internal doc types must never be bulk-extractable via /query; the gate sits
+    // after selector expansion so nesting can't evade it.
+    describe("internal doc-type gate", () => {
+        it("rejects type: sidecar with 403", async () => {
+            const query = makeQuery((s) => {
+                (s as any).type = DocType.Sidecar;
+            });
+
+            await expect(service.query(query, mockUser)).rejects.toEqual(
+                new HttpException("Forbidden", HttpStatus.FORBIDDEN),
+            );
+        });
+
+        it("rejects type: deleteCmd with docType: sidecar with 403 (enumeration prevention)", async () => {
+            const query = makeQuery((s) => {
+                (s as any).type = DocType.DeleteCmd;
+                (s as any).docType = DocType.Sidecar;
+            });
+
+            await expect(service.query(query, mockUser)).rejects.toEqual(
+                new HttpException("Forbidden", HttpStatus.FORBIDDEN),
+            );
+        });
+
+        it("rejects a nested $and-wrapped type: sidecar with 403 (post-expansion placement)", async () => {
+            const query = makeQuery((s) => {
+                (s as any).$and = [{ type: DocType.Sidecar }];
+            });
+
+            await expect(service.query(query, mockUser)).rejects.toEqual(
+                new HttpException("Forbidden", HttpStatus.FORBIDDEN),
+            );
+        });
+    });
 });

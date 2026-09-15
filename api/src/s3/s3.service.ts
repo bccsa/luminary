@@ -1,4 +1,5 @@
 import * as Minio from "minio";
+import { Readable } from "stream";
 import { S3CredentialDto } from "../dto/S3CredentialDto";
 import { DbService } from "../db/db.service";
 import { retrieveCryptoData, decryptObject } from "../util/encryption";
@@ -284,6 +285,30 @@ export class S3Service {
     }
 
     /**
+     * Uploads a stream of a known length, without holding the object in memory.
+     *
+     * `uploadFile` above takes a Buffer, which is right for an image and wrong for
+     * media: a byte-range chunk chain is capped at 500 MB by default, so buffering
+     * one to copy it would trade a bounded stream for an unbounded heap. The size is
+     * required because S3 needs either a length or a multipart upload, and the
+     * source's own `statObject` already knows it.
+     */
+    public async putStream(key: string, stream: Readable, size: number, mimetype: string) {
+        this.touch();
+        return this.client.putObject(this.bucketName, key, stream, size, {
+            "Content-Type": mimetype,
+        });
+    }
+
+    /**
+     * Size and metadata of a single object, without fetching its body.
+     */
+    public async statObject(key: string): Promise<Minio.BucketItemStat> {
+        this.touch();
+        return this.client.statObject(this.bucketName, key);
+    }
+
+    /**
      * Removes objects from a bucket
      */
     public async removeObjects(keys: string[]) {
@@ -329,6 +354,27 @@ export class S3Service {
     public async listObjects() {
         this.touch();
         return this.client.listObjects(this.bucketName);
+    }
+
+    /**
+     * Every object key under a prefix, recursively.
+     *
+     * `listObjects` above returns the whole bucket as a stream, which cannot answer
+     * "what belongs to this collection" — and a caller that means to delete needs
+     * an exact list, not a stream it might abandon half-read. Pass the prefix with
+     * its trailing slash: `foo` would also match `foo-archive/…`.
+     */
+    public async listObjectsUnder(prefix: string): Promise<string[]> {
+        this.touch();
+        return new Promise((resolve, reject) => {
+            const keys: string[] = [];
+            const stream = this.client.listObjectsV2(this.bucketName, prefix, true);
+            stream.on("data", (item) => {
+                if (item.name) keys.push(item.name);
+            });
+            stream.on("end", () => resolve(keys));
+            stream.on("error", reject);
+        });
     }
 
     /**

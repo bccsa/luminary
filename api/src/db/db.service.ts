@@ -280,8 +280,9 @@ export class DbService extends EventEmitter {
         this.db.changesReader
             .start({ includeDocs: true, since: this.lastSeq })
             .on("change", (update) => {
-                // emit update event for all valid documents
-                if (update.doc && update.doc.type) {
+                // Sidecars are filtered at the source so no listener can pass one on to
+                // clients, whatever its own checks. They are only ever read by id.
+                if (update.doc && update.doc.type && update.doc.type !== DocType.Sidecar) {
                     // emit update event for all valid documents
                     this.emit("update", update.doc);
 
@@ -479,10 +480,14 @@ export class DbService extends EventEmitter {
 
             return await this.deleteDoc(doc._id);
         } else {
-            // Generate delete command if the document's memberOf field has changed
+            // Emit a DeleteCmd when memberOf changes so clients evict the old-group copy.
+            // Group carries its own ACL (no memberOf); Sidecar is never replicated to
+            // clients (nothing to evict), and a DeleteCmd would leak key-group membership
+            // into deleteCmd-* rooms.
             if (
                 existing &&
                 doc.type !== DocType.Group &&
+                doc.type !== DocType.Sidecar &&
                 (existing as _contentBaseDto).memberOf &&
                 doc.memberOf &&
                 !isDeepStrictEqual(

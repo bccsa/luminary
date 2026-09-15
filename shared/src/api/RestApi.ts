@@ -71,6 +71,39 @@ export type StorageStatusResponse = {
     message?: string;
 };
 
+/**
+ * The bucket's S3 credentials and public base URL, shaped for the local media
+ * encoder's session request so it can be forwarded without reshaping.
+ */
+export type EncoderConfigResponse = {
+    s3: {
+        endPoint: string;
+        port: number;
+        useSSL: boolean;
+        bucket: string;
+        accessKey: string;
+        secretKey: string;
+    };
+    publicBaseUrl: string;
+    /** Mirrors the encoder's session-body fields, so callers forward them unchanged. */
+    encryption: { required: boolean };
+    byteRange?: boolean;
+    byteRangeMaxFileSizeMB?: number;
+    audioByteRangeMaxFileSizeMB?: number;
+};
+
+/**
+ * A sidecar payload for one (parent, sidecarType) pair. `data`'s shape depends on
+ * `sidecarType` — for `"hlsEncryptionKey"` it is `{ maskedKeyHex: string }`, masked
+ * against `sidecarId` (self-inverse XOR, see `unmaskKeyHex`).
+ */
+export type SidecarResponse = {
+    sidecarId: string;
+    parentId: string;
+    sidecarType: string;
+    data: unknown;
+};
+
 class RestApi {
     private http: HttpReq<any>;
     private scope: EffectScope;
@@ -125,6 +158,35 @@ class RestApi {
 
     async getStorageStatus(bucketId: string): Promise<StorageStatusResponse | undefined> {
         return await this.http.getWithQueryParams("storage/storagestatus", {
+            bucketId,
+            apiVersion: "0.0.0",
+        });
+    }
+
+    /**
+     * Fetches one parent's sidecar payload — data that must never replicate, such as
+     * an HLS decryption key. `cms: true` asks under `CmsView`. `undefined` covers
+     * both "no such sidecar" and "not yours to see". See ADR 0019.
+     */
+    async getSidecar(
+        parentId: string,
+        sidecarType: string,
+        opts: { cms?: boolean } = {},
+    ): Promise<SidecarResponse | undefined> {
+        return await this.http.getWithQueryParams("sidecar", {
+            parentId,
+            sidecarType,
+            ...(opts.cms ? { cms: "true" } : {}),
+            apiVersion: "0.0.0",
+        });
+    }
+
+    /**
+     * Fetch the encode destination for a media bucket. Requires Assign permission on
+     * the bucket, since the response carries credentials that can write to it.
+     */
+    async getEncoderConfig(bucketId: string): Promise<EncoderConfigResponse | undefined> {
+        return await this.http.getWithQueryParams("storage/encoderconfig", {
             bucketId,
             apiVersion: "0.0.0",
         });
