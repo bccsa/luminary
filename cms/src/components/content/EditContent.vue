@@ -16,7 +16,10 @@ import {
     type Uuid,
     verifyAccess,
     PostType,
+    isBucketRelative,
+    toAbsoluteMediaUrl,
 } from "luminary-shared";
+import { storageSelection } from "@/composables/storageSelection";
 import { useEditContentSource } from "./composables/useEditContentSource";
 import { useContentLanguage } from "./composables/useContentLanguage";
 import { useContentPermissions } from "./composables/useContentPermissions";
@@ -105,6 +108,24 @@ const showDeleteModal = ref(false);
 const deleteMediaFiles = ref(false);
 watch(showDeleteModal, (open) => {
     if (open) deleteMediaFiles.value = false;
+});
+
+const { getBucketById } = storageSelection();
+const showReplaceMediaModal = ref(false);
+
+/**
+ * True when saving drops a saved video in one of our buckets. The API then deletes its
+ * files from storage, so the editor confirms before the save goes through.
+ */
+const replacesStoredMedia = computed(() => {
+    const saved = existingParent.value;
+    const savedUrl = saved?.media?.hlsUrl;
+    if (!savedUrl || !saved?.mediaBucketId) return false;
+    if (savedUrl === editableParent.value?.media?.hlsUrl) return false;
+    if (isBucketRelative(savedUrl)) return true;
+
+    const bucketRoot = toAbsoluteMediaUrl("/", getBucketById(saved.mediaBucketId)?.publicUrl);
+    return !!bucketRoot && savedUrl.startsWith(bucketRoot);
 });
 
 // Concurrent-edit conflict UI: banner + read-only diff modal (ticket #932). Detection is driven by
@@ -229,6 +250,14 @@ const saveChanges = async () => {
         return;
     }
 
+    if (replacesStoredMedia.value) {
+        showReplaceMediaModal.value = true;
+        return;
+    }
+    await persistChanges();
+};
+
+const persistChanges = async () => {
     isSaving.value = true;
     try {
         await source.save();
@@ -714,6 +743,26 @@ watch(isLgScreen, (isLg) => {
                 </span>
             </span>
         </label>
+    </LDialog>
+    <LDialog
+        v-model:open="showReplaceMediaModal"
+        title="Replace the video?"
+        description="Saving deletes the current video's files from storage, unless another document still uses them. This cannot be undone."
+        :primaryAction="
+            async () => {
+                showReplaceMediaModal = false;
+                await persistChanges();
+            }
+        "
+        :secondaryAction="() => (showReplaceMediaModal = false)"
+        primaryButtonText="Save and delete files"
+        secondaryButtonText="Cancel"
+        context="danger"
+        :showClosingButton="false"
+    >
+        <p class="mt-3 break-all font-mono text-xs text-zinc-500" data-test="replace-media-url">
+            {{ existingParent?.media?.hlsUrl }}
+        </p>
     </LDialog>
     <LDialog
         v-model:open="showDuplicateModal"
