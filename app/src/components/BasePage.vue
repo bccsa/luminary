@@ -249,10 +249,7 @@ onUnmounted(() => {
                     class="hidden justify-center lg:flex"
                 >
                     <div class="w-full lg:w-3/4 lg:max-w-3xl">
-                        <NotificationBannerManager
-                            v-if="showNotifications && notificationsReady"
-                            class="[&>div]:mb-2"
-                        />
+                        <NotificationBannerManager v-if="showNotifications && notificationsReady" />
                     </div>
                 </div>
 

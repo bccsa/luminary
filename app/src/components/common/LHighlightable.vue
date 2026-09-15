@@ -5,16 +5,42 @@ import {
     PencilSquareIcon,
     TrashIcon,
     ChevronLeftIcon,
+    ShareIcon,
 } from "@heroicons/vue/24/outline";
+import { useI18n } from "vue-i18n";
 import { db } from "luminary-shared";
 import { getHighlightHtml, type SavedHighlight } from "@/recommendation/highlightStore";
+import TelegramIcon from "@/components/icons/TelegramIcon.vue";
+import WhatsAppIcon from "@/components/icons/WhatsAppIcon.vue";
+import XIcon from "@/components/icons/XIcon.vue";
+import RedditIcon from "@/components/icons/RedditIcon.vue";
+import InstagramIcon from "@/components/icons/InstagramIcon.vue";
+import {
+    buildTelegramShareUrl,
+    buildWhatsAppShareUrl,
+    buildXShareUrl,
+    buildRedditShareUrl,
+    formatShareMessage,
+} from "@/composables/useSocialShare";
+import { useNotificationStore } from "@/stores/notification";
 
-const props = defineProps<{ contentId: string }>();
+const props = withDefaults(
+    defineProps<{
+        contentId: string;
+        title: string;
+        copyright?: string;
+        /** Gates the share targets on the ACL Share permission; defaults open for callers that don't check it. */
+        canShare?: boolean;
+    }>(),
+    { canShare: true },
+);
 // Fired when a highlight is created or genuinely removed. The parent (which knows
 // the content's tags) decides what to do with these events. `highlightsChanged` is
 // emitted only after IndexedDB reflects the active markup, so other local consumers
 // can safely re-read it without coupling this generic component to recommendations.
 const emit = defineEmits<{ highlighted: []; highlightRemoved: []; highlightsChanged: [] }>();
+
+const { t } = useI18n();
 
 const content = ref<HTMLElement | undefined>(undefined);
 const actionsMenu = ref<HTMLElement | undefined>(undefined);
@@ -22,6 +48,8 @@ const showActions = ref(false);
 const menuPos = ref({ x: 0, y: 0 });
 const isHighlighted = ref(false);
 const showColorPicker = ref(false);
+const showShareMenu = ref(false);
+const selectedTextForShare = ref("");
 
 let debounceTimeout: ReturnType<typeof setTimeout> | undefined;
 
@@ -51,6 +79,7 @@ function onSelectionChange() {
     // Hide menu immediately when selection starts changing to prevent jitter
     showActions.value = false;
     showColorPicker.value = false;
+    showShareMenu.value = false;
 
     clearTimeout(debounceTimeout);
     debounceTimeout = setTimeout(() => {
@@ -307,13 +336,108 @@ function removeHighlight() {
     finalizeHighlight();
 }
 
+// Copied text carries its attribution and a link back, so a pasted quote can always be
+// traced to the article it came from.
 function copyText() {
     const sel = window.getSelection();
     if (sel) {
-        navigator.clipboard.writeText(sel.toString());
+        navigator.clipboard
+            .writeText(shareMessage(sel.toString(), { withUrl: true }))
+            .catch((e) => console.error("Failed to copy highlight text to clipboard:", e));
         showActions.value = false;
         sel.removeAllRanges();
     }
+}
+
+// Sharing
+
+// Captured on open, not read lazily by each platform button — the selection can
+// collapse once the user starts interacting with the popup.
+function openShareMenu() {
+    if (!props.canShare) return;
+    const sel = window.getSelection();
+    selectedTextForShare.value = sel ? sel.toString() : "";
+    showShareMenu.value = true;
+}
+
+function closeShareMenu() {
+    showShareMenu.value = false;
+}
+
+function finalizeShare() {
+    showActions.value = false;
+    showShareMenu.value = false;
+}
+
+function shareMessage(quote: string, options: { withUrl?: boolean } = {}): string {
+    return formatShareMessage({
+        quote,
+        title: props.title,
+        copyright: props.copyright,
+        url: options.withUrl ? window.location.href : undefined,
+    });
+}
+
+function shareHighlightText(options: { withUrl?: boolean } = {}): string {
+    return shareMessage(selectedTextForShare.value, options);
+}
+
+function shareHighlightToTelegram() {
+    window.open(
+        buildTelegramShareUrl(shareHighlightText(), window.location.href),
+        "_blank",
+        "noopener,noreferrer",
+    );
+    finalizeShare();
+}
+
+function shareHighlightToWhatsApp() {
+    const isCoarsePointer = window.matchMedia("(pointer: coarse)").matches;
+    window.open(
+        buildWhatsAppShareUrl(shareHighlightText({ withUrl: true }), isCoarsePointer),
+        "_blank",
+        "noopener,noreferrer",
+    );
+    finalizeShare();
+}
+
+function shareHighlightToX() {
+    window.open(
+        buildXShareUrl(shareHighlightText(), window.location.href),
+        "_blank",
+        "noopener,noreferrer",
+    );
+    finalizeShare();
+}
+
+function shareHighlightToReddit() {
+    window.open(
+        buildRedditShareUrl(props.title, window.location.href),
+        "_blank",
+        "noopener,noreferrer",
+    );
+    finalizeShare();
+}
+
+// Instagram has no web share-URL API for posts/links, so the closest one-click
+// equivalent is copying the text + link for the user to paste into a DM, Story or bio.
+async function shareHighlightToInstagram() {
+    try {
+        await navigator.clipboard.writeText(shareHighlightText({ withUrl: true }));
+    } catch (e) {
+        console.error("Failed to copy share text to clipboard:", e);
+        finalizeShare();
+        return;
+    }
+    useNotificationStore().addNotification({
+        id: "share-link-copied",
+        title: t("singlecontent.shareInstagramCopiedTitle"),
+        description: t("singlecontent.shareInstagramCopiedDescription"),
+        state: "success",
+        type: "toast",
+        timeout: 5000,
+    });
+    finalizeShare();
 }
 
 // Persistence
@@ -333,7 +457,9 @@ async function saveHighlights(): Promise<boolean> {
         // Get existing highlights data from IndexedDB
         const existingData = (await db.getLuminaryInternals("highlights")) || {};
         const data: Record<string, unknown> =
-            typeof existingData === "object" && existingData !== null && !Array.isArray(existingData)
+            typeof existingData === "object" &&
+            existingData !== null &&
+            !Array.isArray(existingData)
                 ? { ...existingData }
                 : {};
 
@@ -483,7 +609,10 @@ onUnmounted(() => {
                 @mousedown.stop.prevent
             >
                 <!-- Main Menu -->
-                <div v-if="!showColorPicker" class="flex items-center gap-1">
+                <div
+                    v-if="!showColorPicker && !showShareMenu"
+                    class="flex items-center gap-1"
+                >
                     <!-- Highlight Toggle -->
                     <button
                         @click="isHighlighted ? removeHighlight() : (showColorPicker = true)"
@@ -501,15 +630,33 @@ onUnmounted(() => {
                     <!-- Copy -->
                     <button
                         @click="copyText"
+                        data-test="highlightCopy"
                         class="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 active:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-600 dark:active:bg-slate-500"
                     >
                         <DocumentDuplicateIcon class="size-4" />
                         Copy
                     </button>
+
+                    <template v-if="canShare">
+                        <div class="mx-0.5 h-4 w-px bg-zinc-200 dark:bg-slate-500"></div>
+
+                        <!-- Share -->
+                        <button
+                            @click="openShareMenu"
+                            data-test="highlightShareTrigger"
+                            class="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 active:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-600 dark:active:bg-slate-500"
+                        >
+                            <ShareIcon class="size-4" />
+                            Share
+                        </button>
+                    </template>
                 </div>
 
                 <!-- Color Picker -->
-                <div v-else class="flex items-center gap-2 p-1">
+                <div
+                    v-else-if="showColorPicker"
+                    class="flex items-center gap-2 p-1"
+                >
                     <button
                         @click="showColorPicker = false"
                         class="rounded-full p-1 text-zinc-500 hover:bg-zinc-100 dark:text-slate-300 dark:hover:bg-slate-600"
@@ -525,6 +672,63 @@ onUnmounted(() => {
                             :style="{ backgroundColor: color }"
                             @click="applyColor(color)"
                         ></button>
+                    </div>
+                </div>
+
+                <!-- Share Targets -->
+                <div
+                    v-else
+                    class="flex items-center gap-1 p-1"
+                >
+                    <button
+                        @click="closeShareMenu"
+                        data-test="highlightShareBack"
+                        class="rounded-full p-1 text-zinc-500 hover:bg-zinc-100 dark:text-slate-300 dark:hover:bg-slate-600"
+                    >
+                        <ChevronLeftIcon class="size-5" />
+                    </button>
+
+                    <div class="flex gap-1">
+                        <button
+                            @click="shareHighlightToTelegram"
+                            data-test="highlightShareTelegram"
+                            aria-label="Share on Telegram"
+                            class="rounded-full p-1.5 text-zinc-700 transition-colors hover:bg-zinc-100 dark:text-slate-100 dark:hover:bg-slate-600"
+                        >
+                            <TelegramIcon class="size-5" />
+                        </button>
+                        <button
+                            @click="shareHighlightToWhatsApp"
+                            data-test="highlightShareWhatsApp"
+                            aria-label="Share on WhatsApp"
+                            class="rounded-full p-1.5 text-zinc-700 transition-colors hover:bg-zinc-100 dark:text-slate-100 dark:hover:bg-slate-600"
+                        >
+                            <WhatsAppIcon class="size-5" />
+                        </button>
+                        <button
+                            @click="shareHighlightToX"
+                            data-test="highlightShareX"
+                            aria-label="Share on X"
+                            class="rounded-full p-1.5 text-zinc-700 transition-colors hover:bg-zinc-100 dark:text-slate-100 dark:hover:bg-slate-600"
+                        >
+                            <XIcon class="size-5" />
+                        </button>
+                        <button
+                            @click="shareHighlightToReddit"
+                            data-test="highlightShareReddit"
+                            aria-label="Share on Reddit"
+                            class="rounded-full p-1.5 text-zinc-700 transition-colors hover:bg-zinc-100 dark:text-slate-100 dark:hover:bg-slate-600"
+                        >
+                            <RedditIcon class="size-5" />
+                        </button>
+                        <button
+                            @click="shareHighlightToInstagram"
+                            data-test="highlightShareInstagram"
+                            aria-label="Share on Instagram"
+                            class="rounded-full p-1.5 text-zinc-700 transition-colors hover:bg-zinc-100 dark:text-slate-100 dark:hover:bg-slate-600"
+                        >
+                            <InstagramIcon class="size-5" />
+                        </button>
                     </div>
                 </div>
 

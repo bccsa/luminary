@@ -137,6 +137,45 @@ describe("validateAcl", () => {
         expect(result[0].permission).toContain(AclPermission.View);
     });
 
+    // Share is app-facing and assignable on the content-bearing doc types only.
+    it.each([DocType.Post, DocType.Tag])("should accept Share on doc type %s", (docType) => {
+        const acl = [createEntry(docType, "g1", [AclPermission.View, AclPermission.Share])];
+        const result = validateAcl(acl);
+
+        expect(result[0].permission).toContain(AclPermission.Share);
+        expect(result[0].permission).toContain(AclPermission.View);
+    });
+
+    it.each([
+        DocType.Group,
+        DocType.Language,
+        DocType.User,
+        DocType.Redirect,
+        DocType.Storage,
+        DocType.AuthProvider,
+        DocType.AutoGroupMappings,
+    ])("should strip Share from doc type %s", (docType) => {
+        const acl = [createEntry(docType, "g1", [AclPermission.View, AclPermission.Share])];
+        const result = validateAcl(acl);
+
+        expect(result[0].permission).not.toContain(AclPermission.Share);
+        expect(result[0].permission).toContain(AclPermission.View);
+    });
+
+    it("should not auto-add CmsView for Share", () => {
+        const acl = [createEntry(DocType.Post, "g1", [AclPermission.View, AclPermission.Share])];
+        const result = validateAcl(acl);
+
+        expect(result[0].permission).not.toContain(AclPermission.CmsView);
+    });
+
+    it("should remove a Share-only entry", () => {
+        const acl = [createEntry(DocType.Post, "g1", [AclPermission.Share])];
+        const result = validateAcl(acl);
+
+        expect(result).toHaveLength(0);
+    });
+
     it("should strip CmsView from a doc type not in availablePermissionsPerDocType", () => {
         // Crypto is an internal doc type with no ACL config → all permissions stripped, entry removed.
         const acl = [
