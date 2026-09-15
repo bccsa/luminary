@@ -3,11 +3,7 @@ import { ConfigService } from "@nestjs/config";
 import { SidecarRateLimitConfig } from "../configuration";
 import { RateLimiterService } from "./rateLimiter.service";
 
-/**
- * Two independently-bucketed limiters for GET /sidecar: `read` for successful key
- * fetches, `probe` for repeated 403/404s, at a lower ceiling. Both default ON,
- * unlike the query limiter, because /sidecar hands out secrets. See ADR 0019.
- */
+/** The `read` and `probe` limiters for GET /sidecar, configured under `sidecar.rateLimit`. */
 @Injectable()
 export class SidecarRateLimiterService {
     private readonly read: RateLimiterService;

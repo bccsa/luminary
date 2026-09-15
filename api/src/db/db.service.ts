@@ -280,8 +280,9 @@ export class DbService extends EventEmitter {
         this.db.changesReader
             .start({ includeDocs: true, since: this.lastSeq })
             .on("change", (update) => {
-                // emit update event for all valid documents
-                if (update.doc && update.doc.type) {
+                // Sidecars are filtered at the source so no listener can pass one on to
+                // clients, whatever its own checks. They are only ever read by id.
+                if (update.doc && update.doc.type && update.doc.type !== DocType.Sidecar) {
                     // emit update event for all valid documents
                     this.emit("update", update.doc);
 
