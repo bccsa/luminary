@@ -1,7 +1,7 @@
 import { MediaDto } from "../../dto/MediaDto";
 import { DbService } from "../../db/db.service";
 import { S3Service } from "../../s3/s3.service";
-import { MASTER, loadBucket, resolveCollectionPrefix } from "./deleteMediaCollection";
+import { loadBucket, resolveCollectionPrefix } from "./deleteMediaCollection";
 import { isBucketRelative, isInOurStorage, withoutTrailingSlashes } from "./mediaUrl";
 
 export type MediaMigrationResult = {
@@ -87,7 +87,7 @@ export async function migrateMediaCollection(
         warnings.push(`Media files were not moved because ${resolved.refusal}.`);
         return { failed: true, warnings };
     }
-    const prefix = resolved.prefix;
+    const { prefix, playlist } = resolved;
 
     try {
         const source = await S3Service.create(oldBucketId, db);
@@ -126,7 +126,7 @@ export async function migrateMediaCollection(
         // Only now is the new location real. A relative URL already names a path inside
         // whichever bucket the document points at; only the legacy absolute form moves.
         if (!isBucketRelative(media.hlsUrl)) {
-            media.hlsUrl = `${withoutTrailingSlashes(newBucket.publicUrl)}/${prefix}${MASTER}`;
+            media.hlsUrl = `${withoutTrailingSlashes(newBucket.publicUrl)}/${prefix}/${playlist}`;
         }
 
         // Handed to the caller instead of run here: its failure is not the migration's

@@ -37,7 +37,7 @@ const saved = () =>
         publishDateVisible: true,
         postType: "blog",
         mediaBucketId: "bucket-media",
-        media: { hlsUrl: HLS, fileCollections: [] },
+        media: { hlsUrl: HLS },
     }) as unknown as PostDto;
 
 /** The delete request, carrying the user's answer from the confirmation. */
@@ -154,5 +154,100 @@ describe("processPostTagDto — deleting media files from storage", () => {
         await processPostTagDto(deleteRequest(true), saved(), db);
 
         expect(db.getContentByParentId).toHaveBeenCalledWith("post-1");
+    });
+});
+
+describe("processPostTagDto — replacing or clearing the media URL", () => {
+    const PUBLIC = "http://localhost:9000/media";
+    const RELATIVE = "/c5829f07-4ba8-42ed-a449-80d83e6c0b53/master.m3u8";
+
+    const dbWithBucket = (publicUrl: string | undefined = PUBLIC) => {
+        const db = stubDb();
+        (db.getDoc as jest.Mock).mockImplementation(async (id: string) =>
+            id === "bucket-media" ? { docs: [{ _id: id, publicUrl }] } : { docs: [] },
+        );
+        return db;
+    };
+
+    /** Runs the deferred work the way processChangeRequest does after the write. */
+    const save = async (doc: PostDto, prev: PostDto, db: DbService) => {
+        const afterCommit = [];
+        await processPostTagDto(doc, prev, db, afterCommit);
+        expect(deleteMediaCollection).not.toHaveBeenCalled();
+        for (const task of afterCommit) await task();
+    };
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        (deleteMediaCollection as jest.Mock).mockResolvedValue([]);
+        (processMedia as jest.Mock).mockResolvedValue([]);
+    });
+
+    it("deletes the old collection after the write when the URL changes", async () => {
+        const db = dbWithBucket();
+        const doc = saved();
+        doc.media!.hlsUrl = `${PUBLIC}/0b2d7c1e-9a41-4d3f-8c55-2f6e1a9b7d10/master.m3u8`;
+
+        await save(doc, saved(), db);
+
+        expect(deleteMediaCollection).toHaveBeenCalledWith(
+            expect.objectContaining({ hlsUrl: HLS }),
+            "bucket-media",
+            db,
+        );
+    });
+
+    it("deletes the old collection when the URL is cleared", async () => {
+        const doc = saved();
+        doc.media!.hlsUrl = "";
+
+        await save(doc, saved(), dbWithBucket());
+
+        expect(deleteMediaCollection).toHaveBeenCalledTimes(1);
+    });
+
+    it("deletes the old collection when the whole media object is removed", async () => {
+        const doc = saved();
+        delete doc.media;
+
+        await save(doc, saved(), dbWithBucket());
+
+        expect(deleteMediaCollection).toHaveBeenCalledTimes(1);
+    });
+
+    it("keeps the files when the URL is unchanged", async () => {
+        await save(saved(), saved(), dbWithBucket());
+
+        expect(deleteMediaCollection).not.toHaveBeenCalled();
+    });
+
+    it("keeps the files when the same collection is written relative to the bucket", async () => {
+        const prev = saved();
+        prev.media!.hlsUrl = RELATIVE;
+
+        await save(saved(), prev, dbWithBucket());
+
+        expect(deleteMediaCollection).not.toHaveBeenCalled();
+    });
+
+    it("keeps the files when the bucket cannot be read to compare the URLs", async () => {
+        const db = stubDb();
+        (db.getDoc as jest.Mock).mockImplementation(async (id: string) => {
+            if (id === "bucket-media") throw new Error("unreachable");
+            return { docs: [] };
+        });
+        const prev = saved();
+        prev.media!.hlsUrl = RELATIVE;
+
+        await save(saved(), prev, db);
+
+        expect(deleteMediaCollection).not.toHaveBeenCalled();
+    });
+
+    it("does nothing on a first save", async () => {
+        const afterCommit = [];
+        await processPostTagDto(saved(), undefined, dbWithBucket(), afterCommit);
+
+        expect(afterCommit).toHaveLength(0);
     });
 });

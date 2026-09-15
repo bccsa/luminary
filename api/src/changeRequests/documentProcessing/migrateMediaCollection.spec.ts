@@ -98,6 +98,16 @@ describe("migrateMediaCollection", () => {
         expect(source.removeObjects).toHaveBeenCalledWith(KEYS);
     });
 
+    it("keeps the playlist filename the saved URL used", async () => {
+        stubS3();
+        const url = `${OLD_BASE}/${SESSION}/index.m3u8`;
+        const m = { hlsUrl: url } as MediaDto;
+
+        await migrateMediaCollection(m, url, "bucket-old", "bucket-new", defaultDb());
+
+        expect(m.hlsUrl).toBe(`${NEW_BASE}/${SESSION}/index.m3u8`);
+    });
+
     it("preserves each object's key, so the playlists' relative paths still resolve", async () => {
         // Media playlists reference segments as `../media/<chain>_<n>.m4s`. Renaming
         // anything on the way across would break playback silently.

@@ -7,7 +7,7 @@ import { deleteImage, processImage } from "./processImageDto";
 import { processMedia } from "./processMediaDto";
 import { deleteMediaCollection } from "./deleteMediaCollection";
 import { migrateMediaCollection } from "./migrateMediaCollection";
-import { isInOurStorage } from "./mediaUrl";
+import { isInOurStorage, toAbsoluteMediaUrl } from "./mediaUrl";
 import { StorageDto } from "../../dto/StorageDto";
 import {
     deleteSidecar,
@@ -20,6 +20,29 @@ import {
  * still points at cannot be touched before the pointer moves.
  */
 export type AfterCommitTask = () => Promise<string[]>;
+
+/**
+ * Whether two stored media URLs name the same collection, one possibly relative to the
+ * bucket. When the bucket cannot be read the answer is yes, so no files are deleted.
+ */
+async function isSameMediaUrl(
+    previous: string,
+    next: string | undefined,
+    bucketId: string | undefined,
+    db: DbService,
+): Promise<boolean> {
+    if (previous === next) return true;
+    if (!next) return false;
+    if (!bucketId) return false;
+
+    try {
+        const publicUrl = (await db.getDoc(bucketId)).docs?.[0]?.publicUrl;
+        if (!publicUrl) return true;
+        return toAbsoluteMediaUrl(previous, publicUrl) === toAbsoluteMediaUrl(next, publicUrl);
+    } catch {
+        return true;
+    }
+}
 
 /**
  * Process Post / Tag DTO
@@ -127,6 +150,8 @@ export default async function processPostTagDto(
         delete (doc as any).image; // Remove the legacy image field
     }
 
+    let collectionMoved = false;
+
     if (doc.media) {
         // A collection in our own storage must name its bucket: that is how the URL is
         // stored relative, migrated and deleted. External media has no bucket to name.
@@ -162,6 +187,7 @@ export default async function processPostTagDto(
                     "Media migration failed. Reverted to previous bucket configuration to ensure files remain accessible.",
                 );
             } else if (migration.removeSource) {
+                collectionMoved = true;
                 afterCommit.push(migration.removeSource);
             }
         }
@@ -177,6 +203,18 @@ export default async function processPostTagDto(
     // stored at the same sidecar id (ADR 0019).
     if (prevDoc?.media?.hlsKey_id && !doc.media?.hlsKey_id && !doc.media?.hlsKey) {
         await deleteSidecar(db, doc._id, SidecarType.HlsEncryptionKey);
+    }
+
+    // A replaced or cleared URL leaves its collection unreachable, so the files go once
+    // the document no longer points at them. A bucket move already cleans up after itself.
+    const prevMedia = prevDoc?.media;
+    const prevMediaBucketId = prevDoc?.mediaBucketId;
+    if (
+        prevMedia?.hlsUrl &&
+        !collectionMoved &&
+        !(await isSameMediaUrl(prevMedia.hlsUrl, doc.media?.hlsUrl, prevMediaBucketId, db))
+    ) {
+        afterCommit.push(() => deleteMediaCollection(prevMedia, prevMediaBucketId, db));
     }
 
     // Get content documents that are children of the Post / Tag document

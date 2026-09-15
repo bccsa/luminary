@@ -56,6 +56,12 @@ describe("resolveCollectionPrefix", () => {
             expect(prefixOf(resolveCollectionPrefix(`${HLS}#top`, PUBLIC))).toBe(SESSION);
         });
 
+        it("takes the playlist filename from the URL rather than assuming one", () => {
+            const r = resolveCollectionPrefix(`${PUBLIC}/${SESSION}/index.M3U8`, PUBLIC);
+            expect(prefixOf(r)).toBe(SESSION);
+            expect("playlist" in r && r.playlist).toBe("index.M3U8");
+        });
+
         it("handles a bucket published at a bare host", () => {
             const base = "https://cdn.example.com";
             expect(
@@ -78,14 +84,21 @@ describe("resolveCollectionPrefix", () => {
             expect(refusalOf(resolveCollectionPrefix(url, PUBLIC))).toMatch(/not in this bucket/);
         });
 
-        it("refuses a URL that is not a master playlist", () => {
+        it("refuses a URL that is not an HLS playlist", () => {
             expect(refusalOf(resolveCollectionPrefix(`${PUBLIC}/${SESSION}/`, PUBLIC)))
-                .toMatch(/master playlist/);
+                .toMatch(/HLS playlist/);
+            expect(refusalOf(resolveCollectionPrefix(`${PUBLIC}/${SESSION}/.m3u8`, PUBLIC)))
+                .toMatch(/HLS playlist/);
+            expect(refusalOf(resolveCollectionPrefix(`${PUBLIC}/${SESSION}/video.mp4`, PUBLIC)))
+                .toMatch(/HLS playlist/);
+        });
+
+        it("refuses a rendition playlist, whose folder is not the collection", () => {
             expect(
                 refusalOf(
                     resolveCollectionPrefix(`${PUBLIC}/${SESSION}/stream/playlist.m3u8`, PUBLIC),
                 ),
-            ).toMatch(/master playlist/);
+            ).toMatch(/not a session id/);
         });
 
         it("refuses the bucket root", () => {

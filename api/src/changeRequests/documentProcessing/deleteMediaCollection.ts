@@ -9,7 +9,7 @@ import { isBucketRelative, isInOurStorage, withoutTrailingSlashes } from "./medi
  * A refusal is not an error: it is the safe answer for a URL we cannot prove we
  * wrote, and the caller reports it as a warning rather than failing the request.
  */
-export type PrefixResolution = { prefix: string } | { refusal: string };
+export type PrefixResolution = { prefix: string; playlist: string } | { refusal: string };
 
 /**
  * The encoder names every collection prefix after its session id.
@@ -21,8 +21,7 @@ export type PrefixResolution = { prefix: string } | { refusal: string };
  */
 const SESSION_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** What the encoder publishes at the root of a collection. */
-export const MASTER = "/master.m3u8";
+const PLAYLIST_EXTENSION = ".m3u8";
 
 /** Where a bucket publishes its objects, and what to call it in a warning. */
 export type Bucket = { publicUrl?: string; name?: string };
@@ -79,18 +78,21 @@ export function resolveCollectionPrefix(
         key = url.slice(base.length + 1);
     }
 
-    // Named before the suffix check below, which would otherwise report a master
-    // at the bucket root as "not a master playlist" — true but unhelpful for the
-    // one input where being clear matters most.
-    if (key === MASTER.slice(1)) return { refusal: "the media URL names the bucket root" };
+    // The playlist is whatever file the URL names, so the encoder is free to choose
+    // its filename; only the folder holding it matters.
+    const lastSlash = key.lastIndexOf("/");
+    const playlist = key.slice(lastSlash + 1);
+    const prefix = lastSlash > 0 ? key.slice(0, lastSlash) : "";
 
-    if (!key.endsWith(MASTER)) {
+    if (
+        !playlist.toLowerCase().endsWith(PLAYLIST_EXTENSION) ||
+        playlist.length === PLAYLIST_EXTENSION.length
+    ) {
         return {
-            refusal: `the media URL does not name a master playlist (expected it to end with ${MASTER})`,
+            refusal: `the media URL does not name an HLS playlist (expected it to end with ${PLAYLIST_EXTENSION})`,
         };
     }
 
-    const prefix = key.slice(0, -MASTER.length);
     if (!prefix) return { refusal: "the media URL names the bucket root" };
 
     // A traversal cannot reach outside the bucket, but it can certainly reach a
@@ -109,7 +111,7 @@ export function resolveCollectionPrefix(
         };
     }
 
-    return { prefix };
+    return { prefix, playlist };
 }
 
 /**
