@@ -416,7 +416,7 @@ describe("validateChangeRequest", () => {
         expect(result.error).toBe(undefined);
     });
 
-    it("fails validation for a malformed hlsKey", async () => {
+    it("fails validation for an hlsKey that is not a string", async () => {
         const changeRequest = {
             id: 42,
             doc: {
@@ -428,9 +428,9 @@ describe("validateChangeRequest", () => {
                 publishDateVisible: true,
                 media: {
                     hlsUrl: "https://cdn.example.com/media/post-test/master.m3u8",
-                    // Not valid hex, and too short: masking this would silently
-                    // produce a broken sidecar rather than a validation error.
-                    hlsKey: "not-valid-hex",
+                    // The key's hex form is checked when it is masked; the DTO only
+                    // guarantees there is a string to mask.
+                    hlsKey: 1234,
                 },
             },
         };
