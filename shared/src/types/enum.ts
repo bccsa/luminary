@@ -88,8 +88,3 @@ export enum AclPermission {
     // Gates all CMS-scoped (cms:true) reads/sync; the app uses plain View (published only).
     CmsView = "cmsView",
 }
-
-export enum MediaType {
-    Audio = "audio",
-    Video = "video",
-}

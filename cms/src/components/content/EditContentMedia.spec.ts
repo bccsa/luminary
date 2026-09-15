@@ -46,7 +46,6 @@ const mountSection = (props = {}) =>
         global: {
             stubs: {
                 EditContentVideo: { template: "<div data-test='video-stub' />" },
-                MediaAudioList: { template: "<div data-test='audio-stub' />" },
                 MediaBucketSelect: { template: "<div data-test='bucket-stub' />" },
             },
         },
@@ -73,7 +72,6 @@ describe("EditContentMedia", () => {
 
         expect(wrapper.find('[data-test="encode-media-button"]').exists()).toBe(true);
         expect(wrapper.find('[data-test="bucket-stub"]').exists()).toBe(true);
-        expect(wrapper.find('[data-test="audio-stub"]').exists()).toBe(true);
     });
 
     it("names where to get the app in the help text", async () => {
@@ -156,21 +154,6 @@ describe("EditContentMedia", () => {
         await settle();
 
         expect(wrapper.props("parent")!.media).toBeUndefined();
-    });
-
-    it("keeps the audio already on the document when the encoder writes a video", async () => {
-        const wrapper = mountSection();
-        await settle();
-        await wrapper.find('[data-test="encode-media-button"]').trigger("click");
-
-        const before = wrapper.props("parent")!.media?.fileCollections;
-        encoder.start.mock.calls[0][0].onMediaReady(
-            { hlsUrl: "https://cdn/master.m3u8" },
-            mockData.mockPostDto._id,
-        );
-        await settle();
-
-        expect(wrapper.props("parent")!.media?.fileCollections).toEqual(before);
     });
 });
 

@@ -30,7 +30,7 @@ const hasInitialized = ref(false);
 /** Writes go through `media`, which may not exist yet on an untouched document. */
 function media() {
     if (!parent.value) return undefined;
-    if (!parent.value.media) parent.value.media = { fileCollections: [] };
+    if (!parent.value.media) parent.value.media = {};
     return parent.value.media;
 }
 

@@ -156,7 +156,7 @@ endpoint when the local corpus is incomplete.
 The single client-side source of truth for document shapes and enums (the API
 mirrors them). Exports all DTOs (`BaseDocumentDto`, `ContentDto`, `PostDto`,
 `TagDto`, `LanguageDto`, `UserDto`, `DeleteCmdDto`, …) and enums (`DocType`,
-`PublishStatus`, `TagType`, `PostType`, `AclPermission`, `MediaType`, …).
+`PublishStatus`, `TagType`, `PostType`, `AclPermission`, …).
 
 ### Small utilities — `src/util/`
 

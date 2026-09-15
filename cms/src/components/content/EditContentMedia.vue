@@ -6,7 +6,6 @@ import LCard from "../common/LCard.vue";
 import EncodeMediaButton from "../media/EncodeMediaButton.vue";
 import EncodeStatus from "../media/EncodeStatus.vue";
 import MediaBucketSelect from "../media/MediaBucketSelect.vue";
-import MediaAudioList from "../media/MediaAudioList.vue";
 import EditContentVideo from "./EditContentVideo.vue";
 import { useMediaEncoder } from "@/composables/useMediaEncoder";
 import { ENCODER_DOWNLOAD_URL } from "@/util/mediaEncoder";
@@ -14,7 +13,7 @@ import { storageSelection } from "@/composables/storageSelection";
 
 /**
  * Everything about this document's media, in the order the job is done: where it
- * goes, how it gets there, what arrived, and what was already here.
+ * goes, how it gets there, and what arrived.
  *
  * The encode and its result used to sit in separate cards, so an editor clicked in
  * one and watched the other. They are the same fields on `media`, so they are one
@@ -73,7 +72,7 @@ const handleEncodedMedia = (media: Pick<MediaDto, "hlsUrl" | "hlsKey">, document
     if (toAbsoluteMediaUrl(parent.value.media?.hlsUrl, bucket?.publicUrl) === media.hlsUrl) return;
 
     parent.value.media = {
-        ...(parent.value.media ?? { fileCollections: [] }),
+        ...parent.value.media,
         hlsUrl: media.hlsUrl,
         hlsKey: media.hlsKey,
     };
@@ -182,8 +181,6 @@ watch(
             />
 
             <EditContentVideo v-if="showVideo" bare :disabled="disabled" v-model:parent="parent" />
-
-            <MediaAudioList :parent="parent" />
         </div>
     </LCard>
 </template>

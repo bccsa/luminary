@@ -404,26 +404,26 @@ describe("BucketFormModal media settings", () => {
         ).toBe("true");
     });
 
-    it("writes a change as one mediaSettings object on the bucket", async () => {
+    it("writes a change as one mediaEncoderSettings object on the bucket", async () => {
         const wrapper = mount(StorageFormModal, { props: propsFor(mediaBucket) });
 
         await wrapper.find('[data-test="media-encrypted-toggle"]').trigger("click");
 
         const emitted = wrapper.emitted("update:bucket");
         expect(emitted).toBeTruthy();
-        expect((emitted![0][0] as StorageDto).mediaSettings).toEqual({ encrypted: false });
+        expect((emitted![0][0] as StorageDto).mediaEncoderSettings).toEqual({ encrypted: false });
     });
 
     it("records the chunk size in the same object", async () => {
         const wrapper = mount(StorageFormModal, {
-            props: propsFor({ ...mediaBucket, mediaSettings: { byteRange: true } }),
+            props: propsFor({ ...mediaBucket, mediaEncoderSettings: { byteRange: true } }),
         });
 
         await wrapper.find('input[name="mediaChunkSizeMB"]').setValue("100");
 
         const emitted = wrapper.emitted("update:bucket");
         expect(emitted).toBeTruthy();
-        expect((emitted!.at(-1)![0] as StorageDto).mediaSettings).toEqual({
+        expect((emitted!.at(-1)![0] as StorageDto).mediaEncoderSettings).toEqual({
             byteRange: true,
             chunkSizeMB: 100,
         });
@@ -431,7 +431,7 @@ describe("BucketFormModal media settings", () => {
 
     it("keeps an unencrypted choice visible when the modal reopens", () => {
         const wrapper = mount(StorageFormModal, {
-            props: propsFor({ ...mediaBucket, mediaSettings: { encrypted: false } }),
+            props: propsFor({ ...mediaBucket, mediaEncoderSettings: { encrypted: false } }),
         });
 
         expect(

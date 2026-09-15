@@ -132,7 +132,7 @@ export class EncoderConfigController {
         // defaults to on — that was the behaviour before it became a setting — and
         // the byte-range fields are omitted when unset, leaving the encoder's
         // defaults in charge. One chunk size covers video and audio.
-        const settings = bucket.mediaSettings ?? {};
+        const settings = bucket.mediaEncoderSettings ?? {};
 
         return {
             s3: {

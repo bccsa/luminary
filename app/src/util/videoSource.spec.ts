@@ -5,7 +5,7 @@ import type { ContentDto } from "luminary-shared";
 const content = (video?: string, hlsUrl?: string) =>
     ({
         video,
-        parentMedia: hlsUrl ? { hlsUrl, fileCollections: [] } : undefined,
+        parentMedia: hlsUrl ? { hlsUrl } : undefined,
     }) as unknown as ContentDto;
 
 describe("videoSourceFor", () => {

@@ -6,7 +6,6 @@ import type {
     RedirectType,
     DeleteReason,
     StorageType,
-    MediaType,
     AclPermission,
     AckStatus,
     SidecarType,
@@ -242,7 +241,7 @@ export type StorageDto = ContentBaseDto & {
     credential?: S3CredentialDto;
     credential_id?: string;
     /** Only meaningful on media buckets. */
-    mediaSettings?: MediaEncodeSettingsDto;
+    mediaEncoderSettings?: MediaEncodeSettingsDto;
 };
 
 export type CryptoDto = BaseDocumentDto & {
@@ -278,15 +277,6 @@ export type MediaDto = {
     hlsKey?: string;
     /** Write-only: delete the files in storage along with the document. */
     deleteFiles?: boolean;
-    fileCollections?: MediaFileDto[];
-};
-
-export type MediaFileDto = {
-    languageId: string;
-    fileUrl: string;
-    bitrate: number;
-    mediaType: MediaType;
-    processingProgress?: number;
 };
 
 export type ChangeReqDto = {

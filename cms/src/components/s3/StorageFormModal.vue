@@ -72,22 +72,22 @@ function patchMediaSettings(patch: Partial<MediaEncodeSettingsDto>) {
     if (!props.bucket) return;
     emit("update:bucket", {
         ...props.bucket,
-        mediaSettings: { ...(props.bucket.mediaSettings ?? {}), ...patch },
+        mediaEncoderSettings: { ...(props.bucket.mediaEncoderSettings ?? {}), ...patch },
     } as StorageDto);
 }
 
 const mediaEncrypted = computed({
-    get: () => props.bucket?.mediaSettings?.encrypted !== false,
+    get: () => props.bucket?.mediaEncoderSettings?.encrypted !== false,
     set: (value: boolean) => patchMediaSettings({ encrypted: value }),
 });
 
 const mediaByteRange = computed({
-    get: () => props.bucket?.mediaSettings?.byteRange !== false,
+    get: () => props.bucket?.mediaEncoderSettings?.byteRange !== false,
     set: (value: boolean) => patchMediaSettings({ byteRange: value }),
 });
 
 const mediaChunkSizeMB = computed({
-    get: () => props.bucket?.mediaSettings?.chunkSizeMB ?? null,
+    get: () => props.bucket?.mediaEncoderSettings?.chunkSizeMB ?? null,
     set: (value: string | number | null) =>
         patchMediaSettings({
             chunkSizeMB: value === null || value === "" ? undefined : Number(value),

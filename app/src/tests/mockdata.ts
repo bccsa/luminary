@@ -13,7 +13,6 @@ import {
     PostType,
     type RedirectDto,
     RedirectType,
-    MediaType,
 } from "luminary-shared";
 
 export const mockCategoryDto: TagDto = {
@@ -130,14 +129,6 @@ export const mockEnglishContentDto: ContentDto = {
     availableTranslations: ["lang-eng", "lang-fra"],
     parentMedia: {
         hlsUrl: "https://example.com/video.m3u8",
-        fileCollections: [
-            {
-                languageId: "lang-eng",
-                fileUrl: "https://example.com/audio.mp3",
-                bitrate: 128000,
-                mediaType: MediaType.Audio,
-            },
-        ],
     },
 };
 export const mockFrenchContentDto: ContentDto = {
@@ -175,14 +166,6 @@ export const mockFrenchContentDto: ContentDto = {
     availableTranslations: ["lang-eng", "lang-fra"],
     parentMedia: {
         hlsUrl: "",
-        fileCollections: [
-            {
-                languageId: "lang-fra",
-                fileUrl: "https://example.com/audio-fr.mp3",
-                bitrate: 128000,
-                mediaType: MediaType.Audio,
-            },
-        ],
     },
 };
 export const mockSwahiliContentDto: ContentDto = {
@@ -220,14 +203,6 @@ export const mockSwahiliContentDto: ContentDto = {
     parentPublishDateVisible: true,
     parentMedia: {
         hlsUrl: "",
-        fileCollections: [
-            {
-                languageId: "lang-swa",
-                fileUrl: "https://example.com/audio-swa.mp3",
-                bitrate: 128000,
-                mediaType: MediaType.Audio,
-            },
-        ],
     },
 };
 export const mockCategoryContentDto: ContentDto = {

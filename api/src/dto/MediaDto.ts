@@ -1,7 +1,6 @@
 import "reflect-metadata"; // https://stackoverflow.com/questions/72009995/typeerror-reflect-getmetadata-is-not-a-function
-import { IsArray, IsBoolean, IsOptional, IsString, Matches, ValidateNested } from "class-validator";
-import { Expose, Type } from "class-transformer";
-import { MediaFileDto } from "./MediaFileDto";
+import { IsBoolean, IsOptional, IsString } from "class-validator";
+import { Expose } from "class-transformer";
 import { Uuid } from "../enums";
 
 /**
@@ -11,17 +10,6 @@ export class MediaDto {
     @IsString()
     @Expose()
     hlsUrl: string;
-
-    /**
-     * Per-language audio files. Declared so an existing collection survives a save:
-     * change-request whitelisting drops every field the DTO does not name.
-     */
-    @IsOptional()
-    @IsArray()
-    @ValidateNested({ each: true })
-    @Type(() => MediaFileDto)
-    @Expose()
-    fileCollections?: MediaFileDto[];
 
     /**
      * ID of the sidecar document holding this collection's (optional) decryption key.
@@ -38,7 +26,6 @@ export class MediaDto {
      */
     @IsOptional()
     @IsString()
-    @Matches(/^[0-9a-f]{32}$/i, { message: "hlsKey must be a 32-character hex string (AES-128)" })
     @Expose({ toClassOnly: true })
     hlsKey?: string;
 

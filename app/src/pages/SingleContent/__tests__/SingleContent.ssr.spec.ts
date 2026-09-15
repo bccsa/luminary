@@ -59,7 +59,6 @@ vi.mock("@/globalConfig", () => ({
     theme: ref("light"),
     cmsLanguages: ref([]),
     queryParams: { get: vi.fn() },
-    addToMediaQueue: vi.fn(),
     cmsUrl: ref(""),
     userPreferencesAsRef: ref({ bookmarks: [] }),
     appLanguageIdsAsRef: ref(["lang-eng"]),

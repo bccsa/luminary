@@ -6,8 +6,6 @@ import {
     IsNumber,
     IsOptional,
     IsString,
-    Max,
-    Min,
     ValidateNested,
 } from "class-validator";
 import { Expose, Type } from "class-transformer";
@@ -34,8 +32,6 @@ export class MediaEncodeSettingsDto {
 
     @IsOptional()
     @IsNumber()
-    @Min(1)
-    @Max(10240)
     @Expose()
     /** Max size of one byte-range chunk file in MB, video and audio alike. Absent = encoder default. */
     chunkSizeMB?: number;
@@ -87,5 +83,5 @@ export class StorageDto extends _contentBaseDto {
     @Type(() => MediaEncodeSettingsDto)
     @Expose()
     /** Only meaningful on media buckets. */
-    mediaSettings?: MediaEncodeSettingsDto;
+    mediaEncoderSettings?: MediaEncodeSettingsDto;
 }

@@ -142,11 +142,3 @@ export enum StorageType {
     Image = "image",
     Media = "media",
 }
-
-/**
- * Media types
- */
-export enum MediaType {
-    Audio = "audio",
-    Video = "video",
-}

@@ -28,7 +28,7 @@ describe("EncoderConfigController", () => {
     let app: INestApplication;
     const mockGetDoc = jest.fn();
 
-    const bucket = (mediaSettings?: object) => ({
+    const bucket = (mediaEncoderSettings?: object) => ({
         docs: [
             {
                 _id: "bucket-1",
@@ -36,7 +36,7 @@ describe("EncoderConfigController", () => {
                 memberOf: ["group-editors"],
                 publicUrl: "https://cdn.example.com/media",
                 credential_id: "cred-1",
-                ...(mediaSettings !== undefined && { mediaSettings }),
+                ...(mediaEncoderSettings !== undefined && { mediaEncoderSettings }),
             },
         ],
     });

@@ -43,8 +43,7 @@ export default async function (db: DbService) {
 
                 let parentUpdated = false;
                 if (!parent.media?.hlsUrl) {
-                    if (!parent.media) parent.media = { fileCollections: [] };
-                    parent.media.hlsUrl = withVideo[0].video;
+                    parent.media = { ...parent.media, hlsUrl: withVideo[0].video };
 
                     const distinctValues = new Set(withVideo.map((c) => c.video));
                     if (distinctValues.size > 1) {
