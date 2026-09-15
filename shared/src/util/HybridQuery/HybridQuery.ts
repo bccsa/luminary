@@ -442,10 +442,13 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
     private _remote: T[] = [];
     // Gates the one-shot API decision to the FIRST local result, in both modes.
     private _apiDecided = false;
-    // True while an empty local read is being held back because the local corpus is still
-    // filling. Nothing else would retire that seed: the corpus can finish without producing
-    // another emission for this query, so the settle watcher below needs to know one is owed.
-    private _retainedEmptyLocal = false;
+    // True while the cache seed is still contributing to `_local` because the corpus is still
+    // filling. Nothing else would retire it: the corpus can finish without producing another
+    // emission for this query, so the settle watcher below needs to know one is owed.
+    private _seedHeld = false;
+    // Ids still standing in for docs sync hasn't delivered, so the settle watcher can drop
+    // exactly those and keep what the local reads have since supplied.
+    private _seededLocalIds = new Set<string>();
     // Live mode only: docIds removed by a socket DeleteCmd → the delete's
     // updatedTimeUtc. `_recompute` suppresses an at-or-older copy that still
     // lingers in a source (e.g. a Dexie `liveQuery` re-emit that fires before the
@@ -537,7 +540,8 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
         if (!this._keepPreviousResult && this.output.value.length) this.output.value = [];
         this._seed.reset();
         this._apiDecided = false;
-        this._retainedEmptyLocal = false;
+        this._seedHeld = false;
+        this._seededLocalIds.clear();
         this._tombstones.clear();
         // Re-enter loading for the new generation. _generation++ above has already
         // disarmed any stale callback (the gen guard), so these synchronous writes are
@@ -605,10 +609,13 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
         if (!settled) return;
         const stop = watch(settled, (isSettled) => {
             if (!isSettled || gen !== this._generation || this._disposed) return;
-            if (!this._retainedEmptyLocal) return;
-            this._retainedEmptyLocal = false;
+            if (!this._seedHeld) return;
+            this._seedHeld = false;
             this._seed.releaseLocal();
-            this._local = [];
+            // Drop only the docs still standing in for ones sync never delivered; everything the
+            // local reads supplied along the way is authoritative and stays.
+            this._local = this._local.filter((d) => !this._seededLocalIds.has(d._id));
+            this._seededLocalIds.clear();
             // Force the publish: the seeded docs carry real ids, so the window can look unchanged.
             this._recompute(true);
         });
@@ -702,6 +709,7 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
                         this._local.length,
                         this._remote.map((d) => d._id),
                     );
+                    this._seededLocalIds = new Set(this._local.map((d) => d._id));
                     this._recompute();
                     this._watchCorpusSettled(gen);
                 }
@@ -1071,23 +1079,31 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
             });
             release.forEach((id) => this._tombstones.delete(id));
         }
-        // Retain a cache-seeded window while the answer could still be incomplete — the remote
-        // leg is in flight, or the local corpus is still filling. A cold-start empty local read
-        // must not collapse the seeded first paint before the data it is waiting for lands. A
-        // non-empty read still replaces wholesale (deletions propagate); once neither condition
-        // holds, a genuine empty publishes as usual.
-        if (
-            this._seed.shouldRetainLocal(
-                local.length,
-                this._remotePending.value,
-                isLocalCorpusSettled(),
-            )
-        ) {
-            this._retainedEmptyLocal = true;
+        const mode = this._seed.localReadMode(
+            local.length,
+            this._remotePending.value,
+            isLocalCorpusSettled(),
+        );
+        // Nothing to show yet: hold the seeded first paint rather than blanking it.
+        if (mode === "retain") {
+            this._seedHeld = true;
             this._recompute();
             return;
         }
-        this._retainedEmptyLocal = false;
+        // A read taken while the local store is still filling is incomplete by construction, so
+        // layer it over the seed: the freshly synced docs take over from their seeded stand-ins
+        // while the rest of the window stays on screen until sync catches up.
+        if (mode === "merge") {
+            this._seedHeld = true;
+            local.forEach((d) => this._seededLocalIds.delete(d._id));
+            this._local = mergeById(this._local, local);
+            // Seeded docs are field-stripped projections sharing `_id`+`updatedTimeUtc` with the
+            // real copy, so the window can look unchanged when it isn't — force the publish.
+            this._recompute(true);
+            return;
+        }
+        this._seedHeld = false;
+        this._seededLocalIds.clear();
         // This read replaces a seeded local contribution, so force the publish.
         const retiringSeed = this._seed.holdsSeed();
         this._seed.releaseLocal();
