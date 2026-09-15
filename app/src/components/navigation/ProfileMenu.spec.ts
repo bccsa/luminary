@@ -12,6 +12,7 @@ import { isConnected } from "luminary-shared";
 import { useI18n } from "vue-i18n";
 import { useNotificationStore } from "@/stores/notification";
 import { isAuthPluginInstalled } from "@/auth";
+import { AppUpdateKey } from "@/build-time/contracts/app-update/token";
 
 const routePushMock = vi.hoisted(() => vi.fn());
 vi.mock("vue-router", () => ({
@@ -196,5 +197,55 @@ describe("ProfileMenu", () => {
             expect(logout).not.toHaveBeenCalled();
             expect(notificationStore.addNotification).toHaveBeenCalled();
         });
+    });
+
+    it("offers a newer store version and opens the store", async () => {
+        (auth as any).useAuth.mockReturnValue({
+            isAuthenticated: ref(false),
+        });
+        const openStore = vi.fn();
+
+        const wrapper = mount(ProfileMenu, {
+            global: {
+                provide: {
+                    [AppUpdateKey as symbol]: {
+                        installedVersion: ref("1.9.4"),
+                        storeVersion: ref("2.0.0"),
+                        openStore,
+                    },
+                },
+            },
+        });
+
+        await wrapper.find("button").trigger("click");
+
+        const updateItem = wrapper.find("[data-test='menu-app-update']");
+        expect(updateItem.text()).toBe("Update available");
+        await updateItem.trigger("click");
+
+        expect(openStore).toHaveBeenCalledOnce();
+        expect(wrapper.find("[aria-label='Close menu']").exists()).toBe(false);
+    });
+
+    it("has no update entry when the app is up to date", async () => {
+        (auth as any).useAuth.mockReturnValue({
+            isAuthenticated: ref(false),
+        });
+
+        const wrapper = mount(ProfileMenu, {
+            global: {
+                provide: {
+                    [AppUpdateKey as symbol]: {
+                        installedVersion: ref("2.0.0"),
+                        storeVersion: ref("2.0.0"),
+                        openStore: vi.fn(),
+                    },
+                },
+            },
+        });
+
+        await wrapper.find("button").trigger("click");
+
+        expect(wrapper.find("[data-test='menu-app-update']").exists()).toBe(false);
     });
 });
