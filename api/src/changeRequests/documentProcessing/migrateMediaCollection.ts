@@ -48,8 +48,7 @@ export async function migrateMediaCollection(
     // edit would undo a deliberate action.
     if (media.hlsUrl !== previousHlsUrl) {
         warnings.push(
-            "The media URL and the storage bucket were changed together, so no files were " +
-                "moved. Change the bucket on its own if you want the existing files migrated.",
+            "The media URL and the storage bucket were changed together, so no files were moved.",
         );
         return { failed: false, warnings };
     }

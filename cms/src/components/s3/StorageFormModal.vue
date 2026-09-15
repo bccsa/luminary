@@ -88,10 +88,11 @@ const mediaByteRange = computed({
 
 const mediaChunkSizeMB = computed({
     get: () => props.bucket?.mediaEncoderSettings?.chunkSizeMB ?? null,
-    set: (value: string | number | null) =>
-        patchMediaSettings({
-            chunkSizeMB: value === null || value === "" ? undefined : Number(value),
-        }),
+    set: (value: string | number | null) => {
+        const size = value === null || value === "" ? NaN : Number(value);
+        // Nothing below one megabyte is a usable chunk, so the encoder default applies.
+        patchMediaSettings({ chunkSizeMB: size >= 1 ? size : undefined });
+    },
 });
 
 // Determine if we should show credentials section
@@ -309,6 +310,7 @@ function handleDelete() {
                             name="mediaChunkSizeMB"
                             label="Chunk size (MB)"
                             type="number"
+                            min="1"
                             placeholder="Encoder default (500)"
                             :disabled="isLoading"
                             data-test="media-chunk-size"

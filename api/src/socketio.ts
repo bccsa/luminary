@@ -178,9 +178,8 @@ export class Socketio implements OnGatewayInit {
                 return;
             }
 
-            // Sidecars are never replicated to clients — return explicitly rather
-            // than rely on an empty room set, so a future ACL change can't quietly
-            // fan them out.
+            // Sidecars are already filtered out of the change feed; this second check keeps
+            // them off client sockets if that filter ever changes.
             if (update.type === DocType.Sidecar) return;
 
             // We are using a socket.io room per document type per group. Change documents are broadcasted to the document-group rooms of the documents they reference.

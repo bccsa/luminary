@@ -414,6 +414,23 @@ describe("BucketFormModal media settings", () => {
         expect((emitted![0][0] as StorageDto).mediaEncoderSettings).toEqual({ encrypted: false });
     });
 
+    it.each([["0"], ["-5"], ["0.5"]])(
+        "falls back to the encoder default for a chunk size below 1 MB (%s)",
+        async (value) => {
+            const wrapper = mount(StorageFormModal, {
+                props: propsFor({ ...mediaBucket, mediaEncoderSettings: { chunkSizeMB: 100 } }),
+            });
+
+            await wrapper.find('input[name="mediaChunkSizeMB"]').setValue(value);
+
+            const emitted = wrapper.emitted("update:bucket");
+            expect(emitted).toBeTruthy();
+            expect(
+                (emitted!.at(-1)![0] as StorageDto).mediaEncoderSettings?.chunkSizeMB,
+            ).toBeUndefined();
+        },
+    );
+
     it("records the chunk size in the same object", async () => {
         const wrapper = mount(StorageFormModal, {
             props: propsFor({ ...mediaBucket, mediaEncoderSettings: { byteRange: true } }),

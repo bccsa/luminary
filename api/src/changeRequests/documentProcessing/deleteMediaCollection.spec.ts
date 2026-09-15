@@ -1,4 +1,9 @@
-import { resolveCollectionPrefix } from "./deleteMediaCollection";
+import { deleteMediaCollection, resolveCollectionPrefix } from "./deleteMediaCollection";
+import { S3Service } from "../../s3/s3.service";
+import { DbService } from "../../db/db.service";
+import { MediaDto } from "../../dto/MediaDto";
+
+jest.mock("../../s3/s3.service", () => ({ S3Service: { create: jest.fn() } }));
 
 /** A real collection URL: MinIO, where the bucket name is part of the public path. */
 const PUBLIC = "http://localhost:9000/media";
@@ -130,5 +135,98 @@ describe("resolveCollectionPrefix", () => {
         const prefix = prefixOf(resolveCollectionPrefix(HLS, PUBLIC))!;
         expect(prefix.startsWith("/")).toBe(false);
         expect(prefix.endsWith("/")).toBe(false);
+    });
+});
+
+describe("deleteMediaCollection", () => {
+    const BUCKET = "bucket-media";
+    const RELATIVE = `/${SESSION}/master.m3u8`;
+    const KEYS = [`${SESSION}/master.m3u8`, `${SESSION}/media/v0_0.m4s`];
+    const s3 = { listObjectsUnder: jest.fn(), removeObjects: jest.fn() };
+
+    /** A bucket, plus the Posts and Tags a referrer query would find in it. */
+    const stubDb = (documents: object[] = []) =>
+        ({
+            getDoc: jest.fn().mockResolvedValue({
+                docs: [{ _id: BUCKET, publicUrl: PUBLIC, name: "media" }],
+            }),
+            executeFindQuery: jest.fn().mockResolvedValue({ docs: documents }),
+        }) as unknown as DbService;
+
+    const run = (db: DbService, replacedBy?: string, hlsUrl = HLS) =>
+        deleteMediaCollection({ hlsUrl } as MediaDto, BUCKET, db, {
+            ownerId: "post-1",
+            replacedBy,
+        });
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        jest.spyOn(console, "log").mockImplementation(() => {});
+        s3.listObjectsUnder.mockResolvedValue(KEYS);
+        s3.removeObjects.mockResolvedValue(undefined);
+        (S3Service.create as jest.Mock).mockResolvedValue(s3);
+    });
+
+    it("removes a collection no other document uses", async () => {
+        const warnings = await run(stubDb());
+
+        expect(warnings).toEqual([]);
+        expect(s3.removeObjects).toHaveBeenCalledWith(KEYS);
+    });
+
+    it("removes the collection when the URL is cleared", async () => {
+        await run(stubDb(), "");
+
+        expect(s3.removeObjects).toHaveBeenCalledWith(KEYS);
+    });
+
+    it.each([
+        ["another playlist in the same folder", `/${SESSION}/index.m3u8`],
+        ["the same playlist with a query string", `${HLS}?v=2`],
+        ["the relative form of the same URL", RELATIVE],
+    ])("keeps the files when the new URL is %s", async (_, replacedBy) => {
+        const warnings = await run(stubDb(), replacedBy);
+
+        expect(warnings).toEqual([]);
+        expect(s3.removeObjects).not.toHaveBeenCalled();
+    });
+
+    it("keeps the files another document still uses", async () => {
+        // A duplicated document carries the same media as its source.
+        const db = stubDb([{ _id: "post-2", media: { hlsUrl: RELATIVE } }]);
+
+        const warnings = await run(db, `${PUBLIC}/0b2d7c1e-9a41-4d3f-8c55-2f6e1a9b7d10/master.m3u8`);
+
+        expect(warnings.join(" ")).toMatch(/kept because 1 other document/);
+        expect(s3.removeObjects).not.toHaveBeenCalled();
+    });
+
+    it("does not count the owner, or documents in other folders, as users", async () => {
+        const db = stubDb([
+            { _id: "post-1", media: { hlsUrl: HLS } },
+            { _id: "post-3", media: { hlsUrl: "/0b2d7c1e-9a41-4d3f-8c55-2f6e1a9b7d10/master.m3u8" } },
+            { _id: "tag-1" },
+        ]);
+
+        await run(db);
+
+        expect(s3.removeObjects).toHaveBeenCalledWith(KEYS);
+    });
+
+    it("keeps the files when it cannot check for other users", async () => {
+        const db = stubDb();
+        (db.executeFindQuery as jest.Mock).mockRejectedValue(new Error("database unavailable"));
+
+        const warnings = await run(db);
+
+        expect(warnings.join(" ")).toMatch(/could not check whether other documents use them/);
+        expect(s3.removeObjects).not.toHaveBeenCalled();
+    });
+
+    it("says nothing about media hosted elsewhere", async () => {
+        const warnings = await run(stubDb(), undefined, "https://www.youtube.com/watch?v=abc");
+
+        expect(warnings).toEqual([]);
+        expect(S3Service.create).not.toHaveBeenCalled();
     });
 });

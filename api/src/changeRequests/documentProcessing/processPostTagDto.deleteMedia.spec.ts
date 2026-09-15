@@ -1,4 +1,4 @@
-import processPostTagDto from "./processPostTagDto";
+import processPostTagDto, { AfterCommitTask } from "./processPostTagDto";
 import { deleteMediaCollection } from "./deleteMediaCollection";
 import { deleteImage, processImage } from "./processImageDto";
 import { processMedia } from "./processMediaDto";
@@ -21,6 +21,7 @@ const stubDb = () =>
         upsertDoc: jest.fn().mockResolvedValue({ id: "x" }),
         getDocs: jest.fn().mockResolvedValue({ docs: [] }),
         getDoc: jest.fn().mockResolvedValue({ docs: [] }),
+        getDocsByType: jest.fn().mockResolvedValue({ docs: [] }),
         // The delete path also drops the document's sidecars (ADR 0019).
         deleteDoc: jest.fn().mockResolvedValue(undefined),
     }) as unknown as DbService;
@@ -79,6 +80,7 @@ describe("processPostTagDto — deleting media files from storage", () => {
             expect.objectContaining({ hlsUrl: HLS }),
             "bucket-media",
             db,
+            { ownerId: "post-1" },
         );
     });
 
@@ -95,6 +97,7 @@ describe("processPostTagDto — deleting media files from storage", () => {
             expect.objectContaining({ hlsUrl: HLS }),
             "bucket-media",
             expect.anything(),
+            { ownerId: "post-1" },
         );
     });
 
@@ -158,23 +161,15 @@ describe("processPostTagDto — deleting media files from storage", () => {
 });
 
 describe("processPostTagDto — replacing or clearing the media URL", () => {
-    const PUBLIC = "http://localhost:9000/media";
-    const RELATIVE = "/c5829f07-4ba8-42ed-a449-80d83e6c0b53/master.m3u8";
-
-    const dbWithBucket = (publicUrl: string | undefined = PUBLIC) => {
-        const db = stubDb();
-        (db.getDoc as jest.Mock).mockImplementation(async (id: string) =>
-            id === "bucket-media" ? { docs: [{ _id: id, publicUrl }] } : { docs: [] },
-        );
-        return db;
-    };
+    const OTHER = "http://localhost:9000/media/0b2d7c1e-9a41-4d3f-8c55-2f6e1a9b7d10/master.m3u8";
 
     /** Runs the deferred work the way processChangeRequest does after the write. */
-    const save = async (doc: PostDto, prev: PostDto, db: DbService) => {
-        const afterCommit = [];
+    const save = async (doc: PostDto, prev: PostDto | undefined, db = stubDb()) => {
+        const afterCommit: AfterCommitTask[] = [];
         await processPostTagDto(doc, prev, db, afterCommit);
         expect(deleteMediaCollection).not.toHaveBeenCalled();
         for (const task of afterCommit) await task();
+        return afterCommit;
     };
 
     beforeEach(() => {
@@ -183,10 +178,10 @@ describe("processPostTagDto — replacing or clearing the media URL", () => {
         (processMedia as jest.Mock).mockResolvedValue([]);
     });
 
-    it("deletes the old collection after the write when the URL changes", async () => {
-        const db = dbWithBucket();
+    it("hands the old collection and the new URL over after the write", async () => {
+        const db = stubDb();
         const doc = saved();
-        doc.media!.hlsUrl = `${PUBLIC}/0b2d7c1e-9a41-4d3f-8c55-2f6e1a9b7d10/master.m3u8`;
+        doc.media!.hlsUrl = OTHER;
 
         await save(doc, saved(), db);
 
@@ -194,60 +189,71 @@ describe("processPostTagDto — replacing or clearing the media URL", () => {
             expect.objectContaining({ hlsUrl: HLS }),
             "bucket-media",
             db,
+            { ownerId: "post-1", replacedBy: OTHER },
         );
     });
 
-    it("deletes the old collection when the URL is cleared", async () => {
+    it("passes the cleared URL along", async () => {
         const doc = saved();
         doc.media!.hlsUrl = "";
 
-        await save(doc, saved(), dbWithBucket());
+        await save(doc, saved());
 
-        expect(deleteMediaCollection).toHaveBeenCalledTimes(1);
+        expect(deleteMediaCollection).toHaveBeenCalledWith(
+            expect.anything(),
+            "bucket-media",
+            expect.anything(),
+            { ownerId: "post-1", replacedBy: "" },
+        );
     });
 
-    it("deletes the old collection when the whole media object is removed", async () => {
+    it("passes no replacement when the whole media object is removed", async () => {
         const doc = saved();
         delete doc.media;
 
-        await save(doc, saved(), dbWithBucket());
+        await save(doc, saved());
 
-        expect(deleteMediaCollection).toHaveBeenCalledTimes(1);
+        expect(deleteMediaCollection).toHaveBeenCalledWith(
+            expect.anything(),
+            "bucket-media",
+            expect.anything(),
+            { ownerId: "post-1", replacedBy: undefined },
+        );
     });
 
-    it("keeps the files when the URL is unchanged", async () => {
-        await save(saved(), saved(), dbWithBucket());
+    it("does nothing when the URL is unchanged", async () => {
+        const afterCommit = await save(saved(), saved());
 
-        expect(deleteMediaCollection).not.toHaveBeenCalled();
+        expect(afterCommit).toHaveLength(0);
     });
 
-    it("keeps the files when the same collection is written relative to the bucket", async () => {
+    it("does nothing for external media, which has no bucket", async () => {
         const prev = saved();
-        prev.media!.hlsUrl = RELATIVE;
+        delete prev.mediaBucketId;
+        prev.media!.hlsUrl = "https://www.youtube.com/watch?v=abc";
+        const doc = saved();
+        delete doc.mediaBucketId;
+        doc.media!.hlsUrl = "https://www.youtube.com/watch?v=xyz";
 
-        await save(saved(), prev, dbWithBucket());
+        const afterCommit = await save(doc, prev);
 
-        expect(deleteMediaCollection).not.toHaveBeenCalled();
-    });
-
-    it("keeps the files when the bucket cannot be read to compare the URLs", async () => {
-        const db = stubDb();
-        (db.getDoc as jest.Mock).mockImplementation(async (id: string) => {
-            if (id === "bucket-media") throw new Error("unreachable");
-            return { docs: [] };
-        });
-        const prev = saved();
-        prev.media!.hlsUrl = RELATIVE;
-
-        await save(saved(), prev, db);
-
-        expect(deleteMediaCollection).not.toHaveBeenCalled();
+        expect(afterCommit).toHaveLength(0);
     });
 
     it("does nothing on a first save", async () => {
-        const afterCommit = [];
-        await processPostTagDto(saved(), undefined, dbWithBucket(), afterCommit);
+        const afterCommit = await save(saved(), undefined);
 
         expect(afterCommit).toHaveLength(0);
+    });
+
+    it("rejects a malformed key before any storage work", async () => {
+        const doc = saved();
+        doc.imageData = { fileCollections: [] } as PostDto["imageData"];
+        doc.imageBucketId = "bucket-images";
+        doc.media!.hlsKey = "not-valid-hex";
+
+        await expect(processPostTagDto(doc, saved(), stubDb())).rejects.toThrow(/hex string/);
+        expect(processImage).not.toHaveBeenCalled();
+        expect(processMedia).not.toHaveBeenCalled();
     });
 });
