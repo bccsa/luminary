@@ -97,6 +97,116 @@ describe("validateChangeRequest", () => {
         expect(result.error).toContain("Invalid document type");
     });
 
+    // An explicit deny is the only barrier between a client-authored sidecar and
+    // CouchDB — the type check no longer rejects it once Sidecar is a valid enum member.
+    describe("sidecar change requests are rejected", () => {
+        const sidecarId = "sidecar-post-sidecar-test-hlsEncryptionKey";
+
+        afterEach(async () => {
+            // Clean up any sidecar that leaked through a regression.
+            await db.deleteDoc(sidecarId).catch(() => {});
+            await db.deleteDoc("post-sidecar-test").catch(() => {});
+        });
+
+        it("rejects doc.type: 'sidecar' as an invalid document type", async () => {
+            const changeRequest = {
+                doc: {
+                    _id: sidecarId,
+                    type: "sidecar",
+                    memberOf: ["group-test"],
+                    parentId: "post-sidecar-test",
+                    parentType: "post",
+                    sidecarType: "hlsEncryptionKey",
+                    data: { maskedKeyHex: "0".repeat(32) },
+                },
+            };
+
+            const result = await validateChangeRequest(changeRequest, ["group-test"], db);
+
+            expect(result.validated).toBe(false);
+            expect(result.error).toContain("Invalid document type");
+        });
+
+        it("rejects a well-formed sidecar body and writes no document", async () => {
+            // Assert the doc is absent, not just the error — the risk is db.upsertDoc
+            // running after a validation pass.
+            const changeRequest = {
+                doc: {
+                    _id: sidecarId,
+                    type: "sidecar",
+                    memberOf: ["group-test"],
+                    parentId: "post-sidecar-test",
+                    parentType: "post",
+                    sidecarType: "hlsEncryptionKey",
+                    data: { maskedKeyHex: "0".repeat(32) },
+                },
+            };
+
+            const result = await validateChangeRequest(changeRequest, ["group-test"], db);
+
+            expect(result.validated).toBe(false);
+            const stored = await db.getDoc(sidecarId);
+            expect(stored.docs).toHaveLength(0);
+        });
+
+        it("rejects a deleteReq naming a sidecar and leaves the sidecar intact", async () => {
+            // Create a real sidecar via the server-side path, then attempt a
+            // client deleteReq against it.
+            const { upsertSidecar } = await import("../sidecar/sidecar.service");
+            await db.upsertDoc({
+                _id: "post-sidecar-test",
+                type: "post",
+                memberOf: ["group-test"],
+                postType: "blog",
+            } as any);
+            await upsertSidecar(
+                db,
+                {
+                    _id: "post-sidecar-test",
+                    type: DocType.Post,
+                    memberOf: ["group-test"],
+                    updatedBy: "user-test",
+                } as any,
+                "hlsEncryptionKey" as any,
+                { maskedKeyHex: "0".repeat(32) },
+            );
+            const before = await db.getDoc(sidecarId);
+            expect(before.docs).toHaveLength(1);
+
+            const changeRequest = {
+                doc: {
+                    _id: sidecarId,
+                    type: "sidecar",
+                    deleteReq: 1,
+                },
+            };
+
+            const result = await validateChangeRequest(changeRequest, ["group-test"], db);
+
+            expect(result.validated).toBe(false);
+            const after = await db.getDoc(sidecarId);
+            expect(after.docs).toHaveLength(1); // survived
+        });
+
+        it("rejects a non-Sidecar doc squatting on the reserved 'sidecar-' _id prefix", async () => {
+            const changeRequest = {
+                doc: {
+                    _id: sidecarId, // real DocType.Sidecar id, submitted as a Post
+                    type: "post",
+                    memberOf: ["group-test"],
+                    postType: "blog",
+                },
+            };
+
+            const result = await validateChangeRequest(changeRequest, ["group-test"], db);
+
+            expect(result.validated).toBe(false);
+            expect(result.error).toContain("reserved");
+            const stored = await db.getDoc(sidecarId);
+            expect(stored.docs).toHaveLength(0);
+        });
+    });
+
     it("fails validation for invalid document data", async () => {
         const changeRequest = {
             doc: {
@@ -283,9 +393,7 @@ describe("validateChangeRequest", () => {
         expect(result.validatedData.acl[0].groupId).toBe("group-public-content");
     });
 
-    it("validates a post with valid audio upload data for multiple languages", async () => {
-        const audioFile = fs.readFileSync(path.resolve(__dirname + "/../test/" + "silence.wav"));
-
+    it("validates a post with an HLS media collection", async () => {
         const changeRequest = {
             id: 42,
             doc: {
@@ -296,27 +404,8 @@ describe("validateChangeRequest", () => {
                 tags: [],
                 publishDateVisible: true,
                 media: {
-                    fileCollections: [],
-                    uploadData: [
-                        {
-                            fileData: audioFile,
-                            preset: "default",
-                            mediaType: "audio",
-                            languageId: "lang-eng",
-                        },
-                        {
-                            fileData: audioFile,
-                            preset: "default",
-                            mediaType: "audio",
-                            languageId: "lang-spa",
-                        },
-                        {
-                            fileData: audioFile,
-                            preset: "default",
-                            mediaType: "audio",
-                            languageId: "lang-fra",
-                        },
-                    ],
+                    hlsUrl: "https://cdn.example.com/media/post-test/master.m3u8",
+                    hlsKey: "0123456789abcdef0123456789abcdef",
                 },
             },
         };
@@ -327,7 +416,7 @@ describe("validateChangeRequest", () => {
         expect(result.error).toBe(undefined);
     });
 
-    it("fails validation for post with invalid audio upload data", async () => {
+    it("fails validation for a malformed hlsKey", async () => {
         const changeRequest = {
             id: 42,
             doc: {
@@ -338,15 +427,10 @@ describe("validateChangeRequest", () => {
                 tags: [],
                 publishDateVisible: true,
                 media: {
-                    fileCollections: [],
-                    uploadData: [
-                        {
-                            fileData: Buffer.from("not an audio file"),
-                            preset: "default",
-                            mediaType: "audio",
-                            languageId: "lang-eng",
-                        },
-                    ],
+                    hlsUrl: "https://cdn.example.com/media/post-test/master.m3u8",
+                    // Not valid hex, and too short: masking this would silently
+                    // produce a broken sidecar rather than a validation error.
+                    hlsKey: "not-valid-hex",
                 },
             },
         };
@@ -354,7 +438,28 @@ describe("validateChangeRequest", () => {
         const result = await validateChangeRequest(changeRequest, ["group-super-admins"], db);
 
         expect(result.validated).toBe(false);
-        expect(result.error).toContain("isAudio");
+        expect(result.error).toContain("hlsKey");
+    });
+
+    it("fails validation for media with no playlist URL", async () => {
+        const changeRequest = {
+            id: 42,
+            doc: {
+                _id: "post-test",
+                type: "post",
+                memberOf: ["group-super-admins"],
+                postType: "blog",
+                tags: [],
+                publishDateVisible: true,
+                // A key with nothing to decrypt is not a media object.
+                media: { hlsKey: "0123456789abcdef0123456789abcdef" },
+            },
+        };
+
+        const result = await validateChangeRequest(changeRequest, ["group-super-admins"], db);
+
+        expect(result.validated).toBe(false);
+        expect(result.error).toContain("hlsUrl");
     });
 
     it("rejects a redirect whose slug has published content", async () => {

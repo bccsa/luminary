@@ -479,10 +479,14 @@ export class DbService extends EventEmitter {
 
             return await this.deleteDoc(doc._id);
         } else {
-            // Generate delete command if the document's memberOf field has changed
+            // Emit a DeleteCmd when memberOf changes so clients evict the old-group copy.
+            // Group carries its own ACL (no memberOf); Sidecar is never replicated to
+            // clients (nothing to evict), and a DeleteCmd would leak key-group membership
+            // into deleteCmd-* rooms.
             if (
                 existing &&
                 doc.type !== DocType.Group &&
+                doc.type !== DocType.Sidecar &&
                 (existing as _contentBaseDto).memberOf &&
                 doc.memberOf &&
                 !isDeepStrictEqual(

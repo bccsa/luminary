@@ -9,7 +9,7 @@ import { LanguageDto } from "../dto/LanguageDto";
 import { StorageDto } from "../dto/StorageDto";
 import { isEqualDoc } from "../util/isEqualDoc";
 import { _baseDto } from "src/dto/_baseDto";
-import processPostTagDto from "./documentProcessing/processPostTagDto";
+import processPostTagDto, { type AfterCommitTask } from "./documentProcessing/processPostTagDto";
 import processContentDto from "./documentProcessing/processContentDto";
 import processLanguageDto from "./documentProcessing/processLanguageDto";
 import processGroupDto from "./documentProcessing/processGroupDto";
@@ -39,11 +39,7 @@ export async function processChangeRequest(
     db: DbService,
 ): Promise<ProcessChangeRequestResult> {
     // Validate change request
-    const validationResult = await validateChangeRequest(
-        changeRequest,
-        groupMembership,
-        db,
-    );
+    const validationResult = await validateChangeRequest(changeRequest, groupMembership, db);
 
     if (!validationResult.validated) {
         throw new Error(validationResult.error);
@@ -78,9 +74,13 @@ export async function processChangeRequest(
               )
             : undefined;
 
+    // Storage the stored document still points at cannot be touched before the write.
+    const afterCommit: AfterCommitTask[] = [];
+
     const docProcessMap = {
-        [DocType.Post]: () => processPostTagDto(doc as PostDto, prevDoc as PostDto, db),
-        [DocType.Tag]: () => processPostTagDto(doc as TagDto, prevDoc as TagDto, db),
+        [DocType.Post]: () =>
+            processPostTagDto(doc as PostDto, prevDoc as PostDto, db, afterCommit),
+        [DocType.Tag]: () => processPostTagDto(doc as TagDto, prevDoc as TagDto, db, afterCommit),
         [DocType.Content]: () =>
             processContentDto(
                 doc as ContentDto,
@@ -168,6 +168,23 @@ export async function processChangeRequest(
                 prevDoc as ContentDto,
                 (prevDoc as ContentDto).slug,
             );
+        }
+    }
+
+    // Last, after every path that can still restore the previous revision: work
+    // deferred to here touches storage the document no longer points at, and a
+    // rollback would make it point back.
+    if (upsertResult.ok) {
+        for (const task of afterCommit) {
+            // A task that throws has already lost nothing the document depends on, so
+            // it is reported rather than allowed to fail a write that has landed.
+            const taskWarnings = await task().catch((error) => [
+                `Media cleanup after saving failed: ${error.message}.`,
+            ]);
+            if (taskWarnings.length > 0) {
+                if (!validationResult.warnings) validationResult.warnings = [];
+                validationResult.warnings.push(...taskWarnings);
+            }
         }
     }
 
