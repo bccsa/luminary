@@ -334,6 +334,7 @@ export const mockLanguageDtoEng: LanguageDto = {
         "profile_menu.language": "Language",
         "profile_menu.bookmarks": "Bookmarks",
         "profile_menu.privacy_policy": "Privacy Policy",
+        "profile_menu.update_available": "Update available",
         "profile_menu.login": "Login",
         "profile_menu.login.offline_notification":
             "Oops! We could not log you in. Please connect to the internet before logging in.",
@@ -347,6 +348,10 @@ export const mockLanguageDtoEng: LanguageDto = {
             "Most data is saved locally on your device. If you experience problems, try deleting all local data. Depending on the amount of available data on the server, it can take some time before all data is available again.",
         "settings.local_cache.button": "Delete local cache",
         "settings.local_cache.button_clearing": "Clearing local cache...",
+        "settings.app_version.title": "App version",
+        "settings.app_version.installed": "Installed",
+        "settings.app_version.update_available": "Version {version} is available.",
+        "settings.app_version.up_to_date": "You have the latest version.",
         "settings.data_saver.title": "Data saver",
         "settings.data_saver.description":
             "Reduce image quality to use less data. This also turns on automatically on slow connections or when your device's Data Saver is enabled.",
@@ -354,6 +359,11 @@ export const mockLanguageDtoEng: LanguageDto = {
             "Your browser's Data Saver is on, so reduced data use is controlled by your browser.",
         "settings.data_saver.slow_connection_note":
             "Your connection seems slow, so reduced data use will be applied automatically.",
+        "app_update.title": "A new version is available",
+        "app_update.description":
+            "Update the app to get the latest improvements. You can keep using this version.",
+        "app_update.button_update": "Update",
+        "app_update.button_later": "Later",
         "home.title": "Home",
         "explore.title": "Explore",
         "home.newest": "Newest",

@@ -63,3 +63,12 @@ declare module "virtual:screen-wake" {
     export const ScreenWakeKey: InjectionKey<ScreenWakeService>;
     export function installScreenWake(app: App): void;
 }
+
+declare module "virtual:app-update" {
+    import type { App } from "vue";
+    import type { InjectionKey } from "vue";
+    import type { AppUpdateService } from "@/build-time/contracts/app-update/contract";
+
+    export const AppUpdateKey: InjectionKey<AppUpdateService>;
+    export function installAppUpdate(app: App): void;
+}
