@@ -979,6 +979,98 @@ describe("EditContent.vue", () => {
         );
     });
 
+    describe("replacing a saved video", () => {
+        const SAVED_URL = "/c5829f07-4ba8-42ed-a449-80d83e6c0b53/master.m3u8";
+        const NEW_URL = "/0b2d7c1e-9a41-4d3f-8c55-2f6e1a9b7d10/master.m3u8";
+
+        const seedPost = async (hlsUrl = SAVED_URL) => {
+            await db.docs.bulkPut([
+                {
+                    ...mockData.mockPostDto,
+                    media: { hlsUrl },
+                    mediaBucketId: mockData.mockStorageDtoWithEncryptedCredentials._id,
+                } as PostDto,
+                mockData.mockStorageDtoWithEncryptedCredentials,
+            ]);
+        };
+
+        /** Opens the post, types a new video URL and presses Save. */
+        const editAndSave = async (newUrl: string) => {
+            const wrapper = mount(EditContent, {
+                props: {
+                    docType: DocType.Post,
+                    id: mockData.mockPostDto._id,
+                    languageCode: "eng",
+                    tagOrPostType: PostType.Blog,
+                },
+            });
+
+            await waitForExpect(() => {
+                expect(wrapper.find('[data-test="video-url-input"]').exists()).toBe(true);
+            });
+            await wrapper.find('[data-test="video-url-input"]').setValue(newUrl);
+            await wrapper.find('[data-test="save-button"]').trigger("click");
+            return wrapper;
+        };
+
+        const savedPostChanges = () =>
+            db.localChanges.where({ docId: mockData.mockPostDto._id }).toArray();
+
+        it("asks before saving a replaced URL, showing the video that will go", async () => {
+            await seedPost();
+
+            const wrapper = await editAndSave(NEW_URL);
+
+            await waitForExpect(() => {
+                expect(wrapper.find('[data-test="replace-media-url"]').text()).toBe(SAVED_URL);
+            });
+            expect(wrapper.text()).toContain("Replace the video?");
+            expect(await savedPostChanges()).toHaveLength(0);
+        });
+
+        it("saves the new URL once the editor confirms", async () => {
+            await seedPost();
+            const wrapper = await editAndSave(NEW_URL);
+
+            await waitForExpect(() => {
+                expect(wrapper.find('[data-test="replace-media-url"]').exists()).toBe(true);
+            });
+            await wrapper.find('[data-test="modal-primary-button"]').trigger("click");
+
+            await waitForExpect(async () => {
+                const changes = await savedPostChanges();
+                expect(changes).toHaveLength(1);
+                expect((changes[0].doc as PostDto).media?.hlsUrl).toBe(NEW_URL);
+            });
+        });
+
+        it("does not save when the editor cancels", async () => {
+            await seedPost();
+            const wrapper = await editAndSave("");
+
+            await waitForExpect(() => {
+                expect(wrapper.find('[data-test="replace-media-url"]').exists()).toBe(true);
+            });
+            await wrapper.find('[data-test="modal-secondary-button"]').trigger("click");
+
+            await waitForExpect(() => {
+                expect(wrapper.find('[data-test="replace-media-url"]').exists()).toBe(false);
+            });
+            expect(await savedPostChanges()).toHaveLength(0);
+        });
+
+        it("saves external media without asking, as its files are not in our storage", async () => {
+            await seedPost("https://www.youtube.com/watch?v=abc");
+
+            const wrapper = await editAndSave("https://www.youtube.com/watch?v=xyz");
+
+            await waitForExpect(async () => {
+                expect(await savedPostChanges()).toHaveLength(1);
+            });
+            expect(wrapper.find('[data-test="replace-media-url"]').exists()).toBe(false);
+        });
+    });
+
     describe("Image bucket validation", () => {
         it("should allow saving when bucket is selected and images exist", async () => {
             const notificationStore = useNotificationStore();

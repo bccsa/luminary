@@ -159,4 +159,40 @@ describe("processPostTagDto — migrating media between buckets", () => {
 
         expect(migrateMediaCollection).not.toHaveBeenCalled();
     });
+
+    it("removes the old bucket's collection when the URL changed with the bucket", async () => {
+        // The migration declines to move files under a hand-edited URL, so the old
+        // collection is replaced rather than moved. Same-folder checks do not apply
+        // across buckets, hence no replacement URL.
+        const incoming = post(
+            "bucket-new",
+            "http://new.example.com/media/0b2d7c1e-9a41-4d3f-8c55-2f6e1a9b7d10/master.m3u8",
+        );
+        const afterCommit: (() => Promise<string[]>)[] = [];
+
+        await processPostTagDto(incoming, post("bucket-old"), stubDb(), afterCommit);
+        for (const task of afterCommit) await task();
+
+        expect(deleteMediaCollection).toHaveBeenCalledWith(
+            expect.objectContaining({ hlsUrl: HLS }),
+            "bucket-old",
+            expect.anything(),
+            { ownerId: "post-1", replacedBy: undefined },
+        );
+    });
+
+    it("does not also delete a collection the migration moved", async () => {
+        const removeSource = jest.fn().mockResolvedValue([]);
+        (migrateMediaCollection as jest.Mock).mockResolvedValue({
+            failed: false,
+            warnings: [],
+            removeSource,
+        });
+        const afterCommit: (() => Promise<string[]>)[] = [];
+
+        await processPostTagDto(post("bucket-new"), post("bucket-old"), stubDb(), afterCommit);
+        for (const task of afterCommit) await task();
+
+        expect(deleteMediaCollection).not.toHaveBeenCalled();
+    });
 });

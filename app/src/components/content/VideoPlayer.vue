@@ -265,9 +265,7 @@ function onEnded() {
 /* A tapped player takes focus, and the full-width layout clips the browser's focus
    ring to a bare line above and below the video. The controls show focus themselves. */
 .video-player :deep(.video-js:focus),
-.video-player :deep(.video-js:focus-visible),
-.video-player :deep(.vjs-tech:focus),
-.video-player :deep(.vjs-tech:focus-visible) {
-    outline: none !important;
+.video-player :deep(.vjs-tech:focus) {
+    outline: none;
 }
 </style>

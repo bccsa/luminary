@@ -7,8 +7,9 @@ import { deleteImage, processImage } from "./processImageDto";
 import { processMedia } from "./processMediaDto";
 import { deleteMediaCollection } from "./deleteMediaCollection";
 import { migrateMediaCollection } from "./migrateMediaCollection";
-import { isInOurStorage, toAbsoluteMediaUrl } from "./mediaUrl";
+import { isInOurStorage } from "./mediaUrl";
 import { StorageDto } from "../../dto/StorageDto";
+import { assertHexKey } from "../../util/maskKey";
 import {
     deleteSidecar,
     deleteSidecarsForParent,
@@ -20,29 +21,6 @@ import {
  * still points at cannot be touched before the pointer moves.
  */
 export type AfterCommitTask = () => Promise<string[]>;
-
-/**
- * Whether two stored media URLs name the same collection, one possibly relative to the
- * bucket. When the bucket cannot be read the answer is yes, so no files are deleted.
- */
-async function isSameMediaUrl(
-    previous: string,
-    next: string | undefined,
-    bucketId: string | undefined,
-    db: DbService,
-): Promise<boolean> {
-    if (previous === next) return true;
-    if (!next) return false;
-    if (!bucketId) return false;
-
-    try {
-        const publicUrl = (await db.getDoc(bucketId)).docs?.[0]?.publicUrl;
-        if (!publicUrl) return true;
-        return toAbsoluteMediaUrl(previous, publicUrl) === toAbsoluteMediaUrl(next, publicUrl);
-    } catch {
-        return true;
-    }
-}
 
 /**
  * Process Post / Tag DTO
@@ -82,7 +60,9 @@ export default async function processPostTagDto(
 
         if (deleteFiles) {
             warnings.push(
-                ...(await deleteMediaCollection(prevDoc?.media, prevDoc?.mediaBucketId, db)),
+                ...(await deleteMediaCollection(prevDoc?.media, prevDoc?.mediaBucketId, db, {
+                    ownerId: doc._id,
+                })),
             );
         }
 
@@ -96,6 +76,9 @@ export default async function processPostTagDto(
 
         return warnings; // no need to process further
     }
+
+    // Checked before any storage work, so a malformed key fails before uploads or copies.
+    if (doc.media?.hlsKey) assertHexKey(doc.media.hlsKey);
 
     // Process image uploads
     if (doc.imageData) {
@@ -205,16 +188,21 @@ export default async function processPostTagDto(
         await deleteSidecar(db, doc._id, SidecarType.HlsEncryptionKey);
     }
 
-    // A replaced or cleared URL leaves its collection unreachable, so the files go once
-    // the document no longer points at them. A bucket move already cleans up after itself.
+    // A replaced or cleared URL may leave its collection unused, so the files go once the
+    // document no longer points at them. A bucket move already cleans up after itself, and
+    // a document without a bucket holds no files of ours.
     const prevMedia = prevDoc?.media;
-    const prevMediaBucketId = prevDoc?.mediaBucketId;
+    const prevBucketId = prevDoc?.mediaBucketId;
     if (
         prevMedia?.hlsUrl &&
+        prevBucketId &&
         !collectionMoved &&
-        !(await isSameMediaUrl(prevMedia.hlsUrl, doc.media?.hlsUrl, prevMediaBucketId, db))
+        prevMedia.hlsUrl !== doc.media?.hlsUrl
     ) {
-        afterCommit.push(() => deleteMediaCollection(prevMedia, prevMediaBucketId, db));
+        const replacedBy = doc.mediaBucketId === prevBucketId ? doc.media?.hlsUrl : undefined;
+        afterCommit.push(() =>
+            deleteMediaCollection(prevMedia, prevBucketId, db, { ownerId: doc._id, replacedBy }),
+        );
     }
 
     // Get content documents that are children of the Post / Tag document

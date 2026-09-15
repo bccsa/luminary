@@ -1,5 +1,6 @@
 import { MediaDto } from "../../dto/MediaDto";
 import { DbService } from "../../db/db.service";
+import { DocType } from "../../enums";
 import { S3Service } from "../../s3/s3.service";
 import { isBucketRelative, isInOurStorage, withoutTrailingSlashes } from "./mediaUrl";
 
@@ -114,8 +115,49 @@ export function resolveCollectionPrefix(
     return { prefix, playlist };
 }
 
+/** Whose collection is being deleted, and what replaces it on that document. */
+export type DeleteMediaOptions = {
+    /** The document the collection belonged to; it never counts as another user. */
+    ownerId: string;
+    /** The owner's new URL in the same bucket, if its media was replaced rather than removed. */
+    replacedBy?: string;
+};
+
 /**
- * Delete the collection a document points at, if we can prove we wrote it.
+ * The other Posts and Tags in this bucket whose media lives in the same folder.
+ *
+ * Duplicating a document copies its media, so a collection can belong to several
+ * documents and must outlive any one of them.
+ */
+async function findOtherUsers(
+    bucketId: string,
+    publicUrl: string | undefined,
+    prefix: string,
+    ownerId: string,
+    db: DbService,
+): Promise<{ ids: string[] } | { error: string }> {
+    try {
+        const result = await db.executeFindQuery({
+            selector: { type: { $in: [DocType.Post, DocType.Tag] }, mediaBucketId: bucketId },
+            fields: ["_id", "media", "updatedTimeUtc"],
+            limit: Number.MAX_SAFE_INTEGER,
+        });
+        const ids = result.docs
+            .filter((doc) => doc._id !== ownerId && doc.media?.hlsUrl)
+            .filter((doc) => {
+                const other = resolveCollectionPrefix(doc.media.hlsUrl, publicUrl);
+                return "prefix" in other && other.prefix === prefix;
+            })
+            .map((doc) => doc._id);
+        return { ids };
+    } catch (error) {
+        return { error: error.message };
+    }
+}
+
+/**
+ * Delete the collection a document points at, if we can prove we wrote it and no
+ * other document still uses it.
  *
  * Best-effort by design, matching how images are handled: the caller is deleting a
  * document, and refusing to do that because a bucket was unreachable would be
@@ -127,6 +169,7 @@ export async function deleteMediaCollection(
     media: MediaDto | undefined,
     bucketId: string | undefined,
     db: DbService,
+    options: DeleteMediaOptions,
 ): Promise<string[]> {
     const warnings: string[] = [];
 
@@ -158,6 +201,32 @@ export async function deleteMediaCollection(
         warnings.push(
             `Media files were not deleted because ${resolved.refusal}. ` +
                 "Please remove them on the storage provider if they are no longer needed.",
+        );
+        return warnings;
+    }
+
+    // Deletion is by folder, so a new URL in the same folder still needs every file in it.
+    if (options.replacedBy) {
+        const next = resolveCollectionPrefix(options.replacedBy, bucket.publicUrl);
+        if ("prefix" in next && next.prefix === resolved.prefix) return warnings;
+    }
+
+    const users = await findOtherUsers(
+        bucketId,
+        bucket.publicUrl,
+        resolved.prefix,
+        options.ownerId,
+        db,
+    );
+    if ("error" in users) {
+        warnings.push(
+            `Media files were not deleted: could not check whether other documents use them (${users.error}).`,
+        );
+        return warnings;
+    }
+    if (users.ids.length > 0) {
+        warnings.push(
+            `Media files were kept because ${users.ids.length} other document(s) still use them.`,
         );
         return warnings;
     }
