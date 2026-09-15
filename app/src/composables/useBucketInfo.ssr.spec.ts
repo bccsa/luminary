@@ -16,7 +16,22 @@ vi.mock("vue", async (importOriginal) => {
     };
 });
 
+let renderRoute = "/eng/an-article";
+vi.mock("vue-router", () => ({ useRoute: () => ({ path: renderRoute }) }));
+
 const queryRemoteMock = vi.fn();
+
+type Capture = {
+    manifest: Record<string, Set<string>>;
+    cache: Record<string, Record<string, string>>;
+};
+
+/** Stand in for the collector `vite.config.web.ts` installs for the prerender. */
+function installCapture(): Capture {
+    const state: Capture = { manifest: {}, cache: {} };
+    (globalThis as Record<string, unknown>).__SSG_DEPS__ = state;
+    return state;
+}
 
 vi.mock("luminary-shared", async (importOriginal) => {
     const actual = await importOriginal<typeof import("luminary-shared")>();
@@ -45,11 +60,14 @@ describe("useBucketInfo — SSR prerender path", () => {
     beforeEach(() => {
         prefetchCallbacks.length = 0;
         queryRemoteMock.mockReset().mockResolvedValue([fakeBucket]);
+        renderRoute = "/eng/an-article";
+        localStorage.clear();
         (import.meta.env as { SSR: boolean }).SSR = true;
     });
 
     afterEach(() => {
         (import.meta.env as { SSR: boolean }).SSR = false;
+        delete (globalThis as Record<string, unknown>).__SSG_DEPS__;
     });
 
     it("fetches the storage buckets exactly once across multiple calls in the same build", async () => {
@@ -61,6 +79,52 @@ describe("useBucketInfo — SSR prerender path", () => {
         expect(queryRemoteMock).toHaveBeenCalledTimes(1);
         expect(first.bucketBaseUrl.value).toBe("https://cdn.example.com");
         expect(second.bucketBaseUrl.value).toBe("https://cdn.example.com");
+    });
+
+    it("seeds the fetched buckets into the rendering page's response cache", async () => {
+        const capture = installCapture();
+        const useBucketInfo = await loadSubject();
+        useBucketInfo(ref<string | undefined>("storage-bucket-1"));
+        await Promise.all(prefetchCallbacks.map((cb) => cb()));
+
+        const entries = capture.cache[renderRoute] ?? {};
+        const keys = Object.keys(entries);
+        expect(keys).toHaveLength(1);
+        expect(keys[0]).toMatch(/^hqcache:/);
+        expect(JSON.parse(entries[keys[0]])).toEqual({ local: [fakeBucket], remote: [] });
+        // Captured from the same shared store the client reads, under the same key.
+        expect(localStorage.getItem(keys[0])).toBe(entries[keys[0]]);
+    });
+
+    it("seeds once per rendered page, not once per call site", async () => {
+        const capture = installCapture();
+        const useBucketInfo = await loadSubject();
+        useBucketInfo(ref<string | undefined>("storage-bucket-1"));
+        useBucketInfo(ref<string | undefined>("storage-bucket-1"));
+        useBucketInfo(ref<string | undefined>("storage-bucket-1"));
+        await Promise.all(prefetchCallbacks.map((cb) => cb()));
+        const firstRouteKey = Object.keys(capture.cache[renderRoute])[0];
+
+        // A page's entries are dropped from the shared store once it finishes rendering,
+        // so the next page must write its own copy rather than assume one is there.
+        localStorage.removeItem(firstRouteKey);
+        prefetchCallbacks.length = 0;
+        renderRoute = "/eng/another-article";
+        useBucketInfo(ref<string | undefined>("storage-bucket-1"));
+        await Promise.all(prefetchCallbacks.map((cb) => cb()));
+
+        expect(Object.keys(capture.cache["/eng/an-article"])).toHaveLength(1);
+        expect(Object.keys(capture.cache["/eng/another-article"])).toHaveLength(1);
+    });
+
+    it("skips the seed when the build fetched no buckets", async () => {
+        const capture = installCapture();
+        queryRemoteMock.mockReset().mockResolvedValue([]);
+        const useBucketInfo = await loadSubject();
+        useBucketInfo(ref<string | undefined>("storage-bucket-1"));
+        await Promise.all(prefetchCallbacks.map((cb) => cb()));
+
+        expect(capture.cache[renderRoute]).toBeUndefined();
     });
 
     it("retries on the next call after a rejected fetch instead of caching the failure", async () => {

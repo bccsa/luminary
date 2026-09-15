@@ -6,7 +6,7 @@ describe("SeedRetention", () => {
     describe("initial state", () => {
         it("reports no retention, no retirement, no deferred drop, no remote drop", () => {
             const r = new SeedRetention();
-            expect(r.shouldRetainLocal(0, true)).toBe(false);
+            expect(r.localReadMode(0, true)).toBe("replace");
             expect(r.shouldRetireLocal()).toBe(false);
             expect(r.takeDeferredRemoteDrop()).toBe(false);
             expect(r.takeRemoteDrop()).toBeUndefined();
@@ -17,25 +17,58 @@ describe("SeedRetention", () => {
         it("retains an empty local read while remote is pending", () => {
             const r = new SeedRetention();
             r.recordSeed(3, ["a", "b"]);
-            expect(r.shouldRetainLocal(0, true)).toBe(true);
+            expect(r.localReadMode(0, true)).toBe("retain");
         });
 
         it("does not retain when the local read is itself empty and unseeded", () => {
             const r = new SeedRetention();
             r.recordSeed(0, ["a", "b"]);
-            expect(r.shouldRetainLocal(0, true)).toBe(false);
+            expect(r.localReadMode(0, true)).toBe("replace");
         });
 
         it("does not retain when the remote leg has already settled", () => {
             const r = new SeedRetention();
             r.recordSeed(3, ["a", "b"]);
-            expect(r.shouldRetainLocal(0, false)).toBe(false);
+            expect(r.localReadMode(0, false)).toBe("replace");
         });
 
         it("does not retain when the authoritative local read is non-empty", () => {
             const r = new SeedRetention();
             r.recordSeed(3, ["a", "b"]);
-            expect(r.shouldRetainLocal(5, true)).toBe(false);
+            expect(r.localReadMode(5, true)).toBe("replace");
+        });
+
+        it("retains an empty local read while the local corpus is still filling", () => {
+            const r = new SeedRetention();
+            r.recordSeed(3, ["a", "b"]);
+            // No remote leg is owed, so the seed's only protection is the unsettled corpus.
+            expect(r.localReadMode(0, false, false)).toBe("retain");
+        });
+
+        it("publishes an empty local read once the corpus has settled", () => {
+            const r = new SeedRetention();
+            r.recordSeed(3, ["a", "b"]);
+            expect(r.localReadMode(0, false, true)).toBe("replace");
+        });
+
+        it("merges a partial read over the seed while the corpus is still filling", () => {
+            const r = new SeedRetention();
+            r.recordSeed(3, ["a", "b"]);
+            // Sync fills the local store one batch at a time; replacing the seeded window with
+            // the first batch is exactly the collapse the seed exists to prevent.
+            expect(r.localReadMode(5, false, false)).toBe("merge");
+        });
+
+        it("replaces wholesale once the corpus has settled, so deletions propagate", () => {
+            const r = new SeedRetention();
+            r.recordSeed(3, ["a", "b"]);
+            expect(r.localReadMode(5, false, true)).toBe("replace");
+        });
+
+        it("treats the corpus as settled when the caller tracks no completeness", () => {
+            const r = new SeedRetention();
+            r.recordSeed(3, ["a", "b"]);
+            expect(r.localReadMode(0, false)).toBe("replace");
         });
 
         it("leaves remoteFromSeed false for an empty remoteIds array", () => {
@@ -47,12 +80,12 @@ describe("SeedRetention", () => {
     });
 
     describe("releaseLocal", () => {
-        it("clears the local seed so shouldRetainLocal is false afterwards", () => {
+        it("clears the local seed so a later read replaces wholesale", () => {
             const r = new SeedRetention();
             r.recordSeed(3, ["a"]);
-            expect(r.shouldRetainLocal(0, true)).toBe(true);
+            expect(r.localReadMode(0, true)).toBe("retain");
             r.releaseLocal();
-            expect(r.shouldRetainLocal(0, true)).toBe(false);
+            expect(r.localReadMode(0, true)).toBe("replace");
         });
     });
 
@@ -97,7 +130,7 @@ describe("SeedRetention", () => {
             const dropped = r.takeRemoteDrop();
             expect(Array.from(dropped!).sort()).toEqual(["a", "b"]);
             // The local seed is cleared alongside the remote drop.
-            expect(r.shouldRetainLocal(0, true)).toBe(false);
+            expect(r.localReadMode(0, true)).toBe("replace");
             expect(r.takeRemoteDrop()).toBeUndefined();
         });
 
@@ -106,7 +139,7 @@ describe("SeedRetention", () => {
             r.recordSeed(2, []); // no seeded remote, but a seeded local
             expect(r.takeRemoteDrop()).toBeUndefined();
             // The early return must not touch the local flag.
-            expect(r.shouldRetainLocal(0, true)).toBe(true);
+            expect(r.localReadMode(0, true)).toBe("retain");
         });
     });
 
@@ -157,7 +190,7 @@ describe("SeedRetention", () => {
 
             r.reset();
 
-            expect(r.shouldRetainLocal(0, true)).toBe(false);
+            expect(r.localReadMode(0, true)).toBe("replace");
             expect(r.shouldRetireLocal()).toBe(false);
             expect(r.takeDeferredRemoteDrop()).toBe(false);
             expect(r.takeRemoteDrop()).toBeUndefined();

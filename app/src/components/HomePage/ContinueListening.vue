@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { CONTENT_TILE_SEED_FIELDS } from "@/ssg/contentSeed";
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
 import { PostType, TagType } from "luminary-shared";
 import { computed } from "vue";
@@ -32,7 +33,12 @@ const content = useContentQuery(
     // entry and seed from each other on first paint.
     // Listening progress changes the id set while the row is on screen; it stays the same
     // list, so don't blank it.
-    { cache: true, cacheId: "continue-listening", keepPreviousResult: true },
+    {
+        cache: true,
+        ssrCacheFields: CONTENT_TILE_SEED_FIELDS,
+        cacheId: "continue-listening",
+        keepPreviousResult: true,
+    },
 );
 
 // Re-sort to match the listened order, then keep only audio content (has audio

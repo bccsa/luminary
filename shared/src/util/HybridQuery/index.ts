@@ -15,5 +15,6 @@ export {
     useSharedHybridQuery,
     useSharedHybridQueryWithState,
     sharedHybridQueryCount,
+    _resetSharedHybridQueryForTests,
 } from "./sharedHybridQuery";
 export { readResponseCache, structuralCacheKey, writeResponseCache } from "./responseCache";
