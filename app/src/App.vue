@@ -16,6 +16,7 @@ import { affinityDebugEnabled, applyAffinityDebugQuery } from "@/recommendation/
 import { useAuthWithPrivacyPolicy } from "@/composables/useAuthWithPrivacyPolicy";
 import { showProviderSelectionModal } from "@/auth";
 import AuthProviderSelectionModal from "@/components/authProvider/AuthProviderSelectionModal.vue";
+import AppUpdateDialog from "@/components/appUpdate/AppUpdateDialog.vue";
 import { useI18n } from "vue-i18n";
 import { usePwaUpdate } from "@/composables/usePwaUpdate";
 import { useHydrated } from "@/composables/useHydrated";
@@ -225,5 +226,6 @@ onErrorCaptured((err) => {
     <template v-if="!isAppLoading && isMounted">
         <SearchModal />
         <AuthProviderSelectionModal v-model:isVisible="showProviderSelectionModal" />
+        <AppUpdateDialog />
     </template>
 </template>
