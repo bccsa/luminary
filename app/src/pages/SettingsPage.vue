@@ -15,6 +15,7 @@ import {
 } from "@/globalConfig";
 import { useNetworkSpeedEstimator } from "@/composables/useNetworkSpeedEstimator";
 import BasePage from "@/components/BasePage.vue";
+import AppVersionCard from "@/components/appUpdate/AppVersionCard.vue";
 import { triggerSync } from "@/sync";
 import { markPageReady } from "@/util/renderState";
 
@@ -96,6 +97,7 @@ const deleteLocalData = async () => {
                     }}
                 </LButton>
             </LCard>
+            <AppVersionCard />
             <LCard :title="t('settings.device_info.title')">
                 <div class="mb-4 text-sm text-zinc-600 dark:text-slate-100">
                     {{ t("settings.device_info.description") }}
