@@ -64,8 +64,6 @@ vi.mock("@/globalConfig", () => ({
     appLanguageIdsAsRef: ref(["lang-eng"]),
     appLanguageAsRef: ref(undefined),
     initLanguage: vi.fn(),
-    userDataSaverEnabled: ref(false),
-    isDataSaverEnabled: () => false,
 }));
 
 vi.mock("@/seo/contentHead", () => ({ useContentHead: () => {} }));
@@ -107,6 +105,7 @@ vi.mock("@/composables/useBucketInfo", () => ({
     useBucketInfo: () => ({ bucketBaseUrl: computed(() => "") }),
 }));
 
+
 // Stub every presentational child that is not part of the query chain under test.
 // RelatedContent and ReadMore stay real — their queries and rendered output are the
 // things this spec asserts against.
@@ -120,9 +119,7 @@ function passthrough(name: string) {
         setup:
             (_, { slots }) =>
             () =>
-                // Empty props object, not no arguments: a scoped-slot consumer (ShareMenu
-                // reads DropdownMenu's) destructures what it is handed.
-                h("div", slots.default?.({})),
+                h("div", slots.default?.()),
     });
 }
 
@@ -156,7 +153,7 @@ vi.mock("@/components/images/ImageModal.vue", () => ({ default: voidStub("ImageM
 vi.mock("@/components/images/LImageProvider.vue", () => ({
     activeImageCollection: () => 0,
 }));
-vi.mock("@/media-player/MediaPlayerWrapper.vue", () => ({ default: voidStub("MediaPlayerWrapper") }));
+vi.mock("@/components/content/VideoPlayer.vue", () => ({ default: voidStub("VideoPlayer") }));
 vi.mock("@/components/content/CopyrightBanner.vue", () => ({
     default: voidStub("CopyrightBanner"),
 }));

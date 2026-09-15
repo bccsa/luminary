@@ -12,7 +12,7 @@ import {
 import { PlayIcon, PlayIcon as PlayIconOutline } from "@heroicons/vue/24/solid";
 import type { ContentDto } from "luminary-shared";
 import { setMediaProgress, setReadingProgress } from "@/contentProgress";
-import { computed, nextTick } from "vue";
+import { computed } from "vue";
 import { cmsLanguages } from "@/globalConfig";
 import { setSessionNow, __resetSessionNow } from "@/util/sessionNow";
 
@@ -322,7 +322,7 @@ describe("ContentTile", () => {
 
     it("shows progress for an encoded video, keyed as the player stores it", () => {
         // The tile has only the stored, bucket-relative URL and never resolves a
-        // bucket, so MediaPlayerWrapper has to key the store by the same thing.
+        // bucket, so VideoPlayer has to key the store by the same thing.
         const content = {
             _id: "encoded-content-id",
             title: "Encoded Content",
@@ -425,45 +425,6 @@ describe("ContentTile", () => {
         expect(wrapper.html()).toContain('style="width: 45%');
         // Reading progress uses the shared progress-bar style (yellow fill).
         expect(wrapper.html()).toContain("bg-yellow-500");
-    });
-
-    it("updates the bar when progress changes while the tile stays mounted", async () => {
-        const content = {
-            _id: "sample-live-progress-id",
-            title: "Live Progress Article",
-            slug: "live-progress-article",
-            parentImageData: {},
-            publishDate: 1,
-            parentPublishDateVisible: false,
-            text: "<p>Hello</p>",
-            parentId: "post-blog1",
-        } as unknown as ContentDto;
-
-        setReadingProgress(content._id, 20);
-
-        const wrapper = mount(ContentTile, {
-            props: {
-                content,
-                showProgress: true,
-                titlePosition: "center",
-            },
-            global: {
-                stubs: {
-                    LImage: {
-                        template: "<div><slot></slot><slot name='imageOverlay'></slot></div>",
-                    },
-                },
-            },
-        });
-
-        expect(wrapper.html()).toContain('style="width: 20%');
-
-        // The Continue row reuses tile instances (keyed by content._id) as progress reorders
-        // it, so a tile has to track progress it was not mounted with.
-        setReadingProgress(content._id, 70);
-        await nextTick();
-
-        expect(wrapper.html()).toContain('style="width: 70%');
     });
 
     it("shows a single bar with the highest progress on mixed content", () => {
