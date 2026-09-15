@@ -9,7 +9,7 @@ import {
     AclPermission,
     verifyAccess,
     type GroupDto,
-    useHybridQueryWithState,
+    useHasLocalChanges,
 } from "luminary-shared";
 import { computed, ref, watch } from "vue";
 import LBadge from "../common/LBadge.vue";
@@ -36,6 +36,12 @@ type Props = {
      * suppress it. (Related/fuzzy search leaves it on.)
      */
     hideBodySnippet?: boolean;
+    /**
+     * Every translation of this card's parent, supplied by the list. Sourced once for
+     * the whole list rather than per card: an unbounded per-parent Content query always
+     * hits the API supplement, so a per-card one costs one request per rendered row.
+     */
+    translations: ContentDto[];
 };
 
 const props = defineProps<Props>();
@@ -46,19 +52,7 @@ const highlight = computed(() =>
         : undefined,
 );
 
-// All translations of this card's parent (no language filter), Dexie-first via HybridQuery. The
-// top-level `type` is required — without it HybridQuery.readType returns undefined and routes
-// API-only. `parentId` alone scopes to the parent (parentType is redundant given the unique
-// parentId), and `{ type, parentId }` matches the `[type+parentId]` index — no full-table-scan warning.
-const { output: contentDocs, hasLocalChanges } = useHybridQueryWithState<ContentDto>(
-    () => ({
-        selector: {
-            type: DocType.Content,
-            parentId: props.contentDoc.parentId,
-        },
-    }),
-    { live: true },
-);
+const hasLocalChanges = useHasLocalChanges();
 const isLocalChange = computed(() => hasLocalChanges.value(props.contentDoc._id));
 
 const tagsContent = ref<ContentDto[]>([]);
@@ -70,11 +64,10 @@ const accessibleLanguages = computed(() =>
 );
 
 watch(
-    contentDocs,
+    () => [props.contentDoc.parentTags, props.languageId] as const,
     async () => {
-        if (!contentDocs.value || contentDocs.value.length === 0) return;
         tagsContent.value = await db.whereParent(
-            contentDocs.value[0].parentTags,
+            props.contentDoc.parentTags,
             DocType.Tag,
             props.languageId,
         );
@@ -152,10 +145,10 @@ const navigateTo = computed(() => {
                 <LBadge
                     type="language"
                     withIcon
-                    :variant="translationStatus(contentDocs, language)"
+                    :variant="translationStatus(translations, language)"
                     :class="{
                         'z-20 cursor-pointer hover:opacity-65':
-                            translationStatus(contentDocs, language) !== 'default',
+                            translationStatus(translations, language) !== 'default',
                     }"
                 >
                     {{ language.languageCode }}
@@ -173,10 +166,10 @@ const navigateTo = computed(() => {
                 <LBadge
                     type="language"
                     withIcon
-                    :variant="translationStatus(contentDocs, language)"
+                    :variant="translationStatus(translations, language)"
                     :class="{
                         'cursor-pointer hover:opacity-65':
-                            translationStatus(contentDocs, language) !== 'default',
+                            translationStatus(translations, language) !== 'default',
                     }"
                 >
                     {{ language.languageCode }}
