@@ -1,0 +1,12 @@
+[
+    {
+        "relation": ["delegate_permission/common.handle_all_urls"],
+        "target": {
+            "namespace": "android_app",
+            "package_name": "africa.activechristianity.app",
+            "sha256_cert_fingerprints": [
+                "22:20:EC:76:26:6A:5A:79:8A:44:8C:15:0A:A4:DA:87:58:AF:BC:60:83:14:8E:72:18:B2:E3:D7:A5:1E:99:C0"
+            ]
+        }
+    }
+]
