@@ -113,7 +113,7 @@ Offline fuzzy search using **trigram indexing + BM25**. Read `src/fts/README.md`
 
 ### Types — `src/types/`
 
-`dto.ts` defines all document DTOs (`BaseDocumentDto`, `ContentDto`, `PostDto`, `TagDto`, `LanguageDto`, `UserDto`, `DeleteCmdDto`, etc.). `enum.ts` defines `DocType`, `PublishStatus`, `TagType`, `PostType`, `AclPermission`, `MediaType`, etc. These are the single source of truth — the API mirrors them, but this package owns the client-side shape.
+`dto.ts` defines all document DTOs (`BaseDocumentDto`, `ContentDto`, `PostDto`, `TagDto`, `LanguageDto`, `UserDto`, `DeleteCmdDto`, etc.). `enum.ts` defines `DocType`, `PublishStatus`, `TagType`, `PostType`, `AclPermission`, etc. These are the single source of truth — the API mirrors them, but this package owns the client-side shape.
 
 ## Test setup
 

@@ -2,12 +2,19 @@
 import { ref, computed, watch } from "vue";
 import { PlusIcon, ExclamationTriangleIcon, XMarkIcon } from "@heroicons/vue/24/outline";
 import LButton from "../button/LButton.vue";
-import { type StorageDto, type S3CredentialDto, type GroupDto, StorageType } from "luminary-shared";
+import {
+    type StorageDto,
+    type S3CredentialDto,
+    type GroupDto,
+    type MediaEncodeSettingsDto,
+    StorageType,
+} from "luminary-shared";
 import LModal from "../modals/LModal.vue";
 import LInput from "../forms/LInput.vue";
 import LCombobox from "../forms/LCombobox.vue";
 import { XCircleIcon } from "@heroicons/vue/20/solid";
 import LSelect from "../forms/LSelect.vue";
+import LToggle from "../forms/LToggle.vue";
 import { capitaliseFirstLetter } from "@/util/string";
 
 const props = defineProps<{
@@ -51,6 +58,40 @@ const storageTypeValue = computed({
                 storageType: value,
             } as StorageDto);
         }
+    },
+});
+
+const isMediaBucket = computed(() => storageTypeValue.value === StorageType.Media);
+
+/**
+ * The bucket's encode settings, patched as one object. Absent fields mean the
+ * encoder's defaults, so the toggles read absent as their default value rather
+ * than forcing every bucket to spell the defaults out.
+ */
+function patchMediaSettings(patch: Partial<MediaEncodeSettingsDto>) {
+    if (!props.bucket) return;
+    emit("update:bucket", {
+        ...props.bucket,
+        mediaEncoderSettings: { ...(props.bucket.mediaEncoderSettings ?? {}), ...patch },
+    } as StorageDto);
+}
+
+const mediaEncrypted = computed({
+    get: () => props.bucket?.mediaEncoderSettings?.encrypted !== false,
+    set: (value: boolean) => patchMediaSettings({ encrypted: value }),
+});
+
+const mediaByteRange = computed({
+    get: () => props.bucket?.mediaEncoderSettings?.byteRange !== false,
+    set: (value: boolean) => patchMediaSettings({ byteRange: value }),
+});
+
+const mediaChunkSizeMB = computed({
+    get: () => props.bucket?.mediaEncoderSettings?.chunkSizeMB ?? null,
+    set: (value: string | number | null) => {
+        const size = value === null || value === "" ? NaN : Number(value);
+        // Nothing below one megabyte is a usable chunk, so the encoder default applies.
+        patchMediaSettings({ chunkSizeMB: size >= 1 ? size : undefined });
     },
 });
 
@@ -230,6 +271,55 @@ function handleDelete() {
                     "
                     :disabled="isLoading"
                 />
+
+                <!-- Media encoding (media buckets only) -->
+                <div v-if="isMediaBucket" class="space-y-3" data-test="media-encode-settings">
+                    <label class="block text-xs font-medium text-zinc-700">Media encoding</label>
+
+                    <div class="flex items-center justify-between pr-2">
+                        <div>
+                            <p class="text-sm text-zinc-800">Encrypt media</p>
+                            <p class="text-[11px] text-zinc-500">
+                                AES-128 encryption for every encode written to this bucket.
+                            </p>
+                        </div>
+                        <LToggle
+                            v-model="mediaEncrypted"
+                            :disabled="isLoading"
+                            data-test="media-encrypted-toggle"
+                        />
+                    </div>
+
+                    <div class="flex items-center justify-between pr-2">
+                        <div>
+                            <p class="text-sm text-zinc-800">Byte-range segments</p>
+                            <p class="text-[11px] text-zinc-500">
+                                One chunk file per rendition instead of many small segment files.
+                            </p>
+                        </div>
+                        <LToggle
+                            v-model="mediaByteRange"
+                            :disabled="isLoading"
+                            data-test="media-byterange-toggle"
+                        />
+                    </div>
+
+                    <div v-if="mediaByteRange">
+                        <LInput
+                            v-model="mediaChunkSizeMB"
+                            name="mediaChunkSizeMB"
+                            label="Chunk size (MB)"
+                            type="number"
+                            min="1"
+                            placeholder="Encoder default (500)"
+                            :disabled="isLoading"
+                            data-test="media-chunk-size"
+                        />
+                        <p class="mt-0.5 text-[11px] text-zinc-500">
+                            Largest size of one chunk file. Leave empty for the encoder's default.
+                        </p>
+                    </div>
+                </div>
 
                 <!-- Allowed File Types -->
                 <div>

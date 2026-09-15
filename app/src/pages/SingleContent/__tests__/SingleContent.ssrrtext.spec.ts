@@ -74,7 +74,6 @@ vi.mock("@/globalConfig", () => ({
     cmsLanguages: ref([mockLanguageDtoEng]),
     cmsDefaultLanguage: computed(() => mockLanguageDtoEng),
     queryParams: { get: vi.fn() },
-    addToMediaQueue: vi.fn(),
     cmsUrl: ref(""),
     userPreferencesAsRef: ref({ bookmarks: [] }),
     appLanguageIdsAsRef: ref(["lang-eng"]),
@@ -109,7 +108,6 @@ vi.mock("@/router", () => ({
     markInternalNavigation: vi.fn(),
 }));
 
-vi.mock("video.js", () => ({ default: vi.fn() }));
 
 function passthrough(name: string) {
     return defineComponent({

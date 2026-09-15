@@ -320,6 +320,44 @@ describe("ContentTile", () => {
         expect(wrapper.html()).not.toContain("5:00");
     });
 
+    it("shows progress for an encoded video, keyed as the player stores it", () => {
+        // The tile has only the stored, bucket-relative URL and never resolves a
+        // bucket, so VideoPlayer has to key the store by the same thing.
+        const content = {
+            _id: "encoded-content-id",
+            title: "Encoded Content",
+            slug: "encoded-content",
+            parentImageData: {},
+            publishDate: 1,
+            parentPublishDateVisible: false,
+            parentMedia: { hlsUrl: "/media/abc/master.m3u8" },
+            parentMediaBucketId: "bucket-1",
+            parentId: "post-blog1",
+        } as unknown as ContentDto;
+
+        setMediaProgress("/media/abc/master.m3u8", content._id, 120, 300);
+
+        const wrapper = mount(ContentTile, {
+            props: {
+                content,
+                showProgress: true,
+                showPublishDate: true,
+                titlePosition: "center",
+            },
+            global: {
+                stubs: {
+                    LImage: {
+                        template: "<div><slot></slot><slot name='imageOverlay'></slot></div>",
+                    },
+                    PlayIcon,
+                    PlayIconOutline,
+                },
+            },
+        });
+
+        expect(wrapper.html()).toContain('style="width: 40%');
+    });
+
     it("does not show media progress when showProgress is false", () => {
         const content = {
             _id: "sample-content-id-hidden",

@@ -1,3 +1,5 @@
+import { RateLimiterConfig } from "./ratelimit/rateLimiter.service";
+
 export type DatabaseConfig = {
     connectionString: string;
     database: string;
@@ -6,23 +8,6 @@ export type DatabaseConfig = {
 
 export type SyncConfig = {
     tolerance: number;
-};
-
-export type QueryRateLimitConfig = {
-    /**
-     * Master switch for the per-identity expensive-query rate limiter. Ships OFF —
-     * enable per environment only after the expensive-query logs show sane thresholds.
-     * Environment variable: QUERY_RATE_LIMIT_ENABLED (default false).
-     */
-    enabled: boolean;
-    /** Expensive-query strikes tolerated before the first block. QUERY_RATE_LIMIT_FREE_STRIKES (default 3). */
-    freeStrikes: number;
-    /** First block duration in ms; doubles per extra strike. QUERY_RATE_LIMIT_BASE_BACKOFF_MS (default 5000). */
-    baseBackoffMs: number;
-    /** Cap on a single block window in ms. QUERY_RATE_LIMIT_MAX_BACKOFF_MS (default 300000). */
-    maxBackoffMs: number;
-    /** One strike forgiven per this many ms. QUERY_RATE_LIMIT_STRIKE_DECAY_MS (default 600000). */
-    strikeDecayMs: number;
 };
 
 export type QueryConfig = {
@@ -55,7 +40,24 @@ export type QueryConfig = {
      */
     expensiveExaminedRatio: number;
     /** Per-identity expensive-query rate limiter (default off). */
-    rateLimit: QueryRateLimitConfig;
+    rateLimit: RateLimiterConfig;
+};
+
+export type SidecarRateLimitConfig = {
+    /**
+     * Bounds successful key fetches (ADR 0019). Defaults ON.
+     * Environment variable: SIDECAR_RATE_LIMIT_READ_ENABLED.
+     */
+    read: RateLimiterConfig;
+    /**
+     * Bounds repeated 403/404 responses (ADR 0019). Defaults ON.
+     * Environment variable: SIDECAR_RATE_LIMIT_PROBE_ENABLED.
+     */
+    probe: RateLimiterConfig;
+};
+
+export type SidecarConfig = {
+    rateLimit: SidecarRateLimitConfig;
 };
 
 export type ValidationConfig = {
@@ -105,7 +107,6 @@ export type AudioS3Config = {
 
 export type SocketIoConfig = {
     maxHttpBufferSize: number;
-    maxMediaUploadFileSize?: number; // Optional for media uploads
 };
 
 export type Configuration = {
@@ -114,11 +115,31 @@ export type Configuration = {
     database?: DatabaseConfig;
     sync?: SyncConfig;
     query?: QueryConfig;
+    sidecar?: SidecarConfig;
     imageProcessing?: ImageProcessingConfig;
     socketIo?: SocketIoConfig;
     validation?: ValidationConfig;
     auth?: AuthConfig;
 };
+
+/**
+ * One `<PREFIX>_*` group of rate-limiter settings. The three groups differ only in
+ * their prefix and defaults, including which way `ENABLED` defaults: only the
+ * explicit opposite of the default switches it.
+ */
+function rateLimitFromEnv(prefix: string, defaults: RateLimiterConfig): RateLimiterConfig {
+    const enabled = process.env[`${prefix}_ENABLED`];
+    const ms = (name: string, fallback: number) =>
+        parseInt(process.env[`${prefix}_${name}`], 10) || fallback;
+
+    return {
+        enabled: defaults.enabled ? enabled !== "false" : enabled === "true",
+        freeStrikes: ms("FREE_STRIKES", defaults.freeStrikes),
+        baseBackoffMs: ms("BASE_BACKOFF_MS", defaults.baseBackoffMs),
+        maxBackoffMs: ms("MAX_BACKOFF_MS", defaults.maxBackoffMs),
+        strikeDecayMs: ms("STRIKE_DECAY_MS", defaults.strikeDecayMs),
+    };
+}
 
 export default () =>
     ({
@@ -135,14 +156,32 @@ export default () =>
             maxLanguages: parseInt(process.env.QUERY_MAX_LANGUAGES, 10) || 4,
             expensiveDocsExamined: parseInt(process.env.QUERY_EXPENSIVE_DOCS_EXAMINED, 10) || 1000,
             expensiveExaminedRatio: parseInt(process.env.QUERY_EXPENSIVE_EXAMINED_RATIO, 10) || 10,
-            rateLimit: {
-                enabled: process.env.QUERY_RATE_LIMIT_ENABLED === "true",
-                freeStrikes: parseInt(process.env.QUERY_RATE_LIMIT_FREE_STRIKES, 10) || 3,
-                baseBackoffMs: parseInt(process.env.QUERY_RATE_LIMIT_BASE_BACKOFF_MS, 10) || 5000,
-                maxBackoffMs: parseInt(process.env.QUERY_RATE_LIMIT_MAX_BACKOFF_MS, 10) || 300000,
-                strikeDecayMs: parseInt(process.env.QUERY_RATE_LIMIT_STRIKE_DECAY_MS, 10) || 600000,
-            },
+            rateLimit: rateLimitFromEnv("QUERY_RATE_LIMIT", {
+                enabled: false,
+                freeStrikes: 3,
+                baseBackoffMs: 5000,
+                maxBackoffMs: 300000,
+                strikeDecayMs: 600000,
+            }),
         } as QueryConfig,
+        sidecar: {
+            rateLimit: {
+                read: rateLimitFromEnv("SIDECAR_RATE_LIMIT_READ", {
+                    enabled: true,
+                    freeStrikes: 30,
+                    baseBackoffMs: 2000,
+                    maxBackoffMs: 60000,
+                    strikeDecayMs: 2000,
+                }),
+                probe: rateLimitFromEnv("SIDECAR_RATE_LIMIT_PROBE", {
+                    enabled: true,
+                    freeStrikes: 10,
+                    baseBackoffMs: 5000,
+                    maxBackoffMs: 300000,
+                    strikeDecayMs: 60000,
+                }),
+            },
+        } as SidecarConfig,
         imageProcessing: {
             imageQuality: parseInt(process.env.S3_IMG_QUALITY, 10) || 80,
         } as ImageProcessingConfig,
@@ -156,7 +195,6 @@ export default () =>
         } as AudioS3Config,
         socketIo: {
             maxHttpBufferSize: parseInt(process.env.MAX_HTTP_BUFFER_SIZE, 10) || 1e7,
-            maxMediaUploadFileSize: parseInt(process.env.MAX_MEDIA_UPLOAD_FILE_SIZE, 10) || 1.5e7, // Default to 15MB
         } as SocketIoConfig,
         validation: {
             bypassTemplateValidation: process.env.BYPASS_TEMPLATE_VALIDATION === "true",

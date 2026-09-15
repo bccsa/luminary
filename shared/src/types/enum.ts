@@ -14,6 +14,15 @@ export enum DocType {
     // CMS-editable global baseline affinity profile (singleton). Delivered at
     // login to seed a client-local recommendation profile (cold start).
     DefaultAffinity = "defaultAffinity",
+    // Server-only payload; mirrored here only so Record<DocType> fixtures type-check.
+    Sidecar = "sidecar",
+}
+
+/**
+ * Discriminator for the SidecarDto `data` payload shape (mirrored from the API).
+ */
+export enum SidecarType {
+    HlsEncryptionKey = "hlsEncryptionKey",
 }
 
 export enum PublishStatus {
@@ -78,15 +87,4 @@ export enum AclPermission {
     // Access to view documents in the CMS, including drafts and expired content.
     // Gates all CMS-scoped (cms:true) reads/sync; the app uses plain View (published only).
     CmsView = "cmsView",
-}
-
-export enum MediaType {
-    Audio = "audio",
-    Video = "video",
-}
-
-export enum MediaPreset {
-    Speech = "speech",
-    Music = "music",
-    Default = "default",
 }
