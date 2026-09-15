@@ -2077,6 +2077,53 @@ describe("HybridQuery", () => {
                 expect(q.output.value[0]).toHaveProperty("text", "body");
             });
 
+            it("a partial local read layers over the seed instead of collapsing the window", async () => {
+                // Sync fills IndexedDB one batch at a time, so a cold-start read is routinely
+                // non-empty AND incomplete. Replacing the seeded window with the first batch is
+                // the collapse the seed exists to prevent — the row would shrink to whatever
+                // sync happened to have written, then refill.
+                const L2 = { _id: "L2", updatedTimeUtc: 4, publishDate: 1900, type: "content" };
+                const L3 = { _id: "L3", updatedTimeUtc: 3, publishDate: 1800, type: "content" };
+                mocks.cutoff = OPEN_MIN;
+                mocks.corpusSettled.value = false;
+                writeResponseCache(structuralCacheKey(contentQuery), {
+                    local: [L, L2, L3],
+                    remote: [],
+                });
+                // Sync has written exactly one of the three so far.
+                mocks.mangoToDexieMock.mockResolvedValueOnce([{ ...L, text: "body" }]);
+
+                const q = track(new HybridQuery(contentQuery, { cache: true }));
+                expect(q.output.value.map((d) => d._id)).toEqual(["L1", "L2", "L3"]);
+
+                await flush();
+                expect(q.output.value.map((d) => d._id)).toEqual(["L1", "L2", "L3"]);
+                // The delivered doc takes over from its seeded stand-in, fields and all.
+                expect(q.output.value[0]).toHaveProperty("text", "body");
+            });
+
+            it("settling drops only the seeded docs sync never delivered", async () => {
+                // L2 arrived during the fill and is authoritative; L3 never did, so it was only
+                // ever a stand-in and must go when the corpus is declared complete.
+                const L2 = { _id: "L2", updatedTimeUtc: 4, publishDate: 1900, type: "content" };
+                const L3 = { _id: "L3", updatedTimeUtc: 3, publishDate: 1800, type: "content" };
+                mocks.cutoff = OPEN_MIN;
+                mocks.corpusSettled.value = false;
+                writeResponseCache(structuralCacheKey(contentQuery), {
+                    local: [L, L2, L3],
+                    remote: [],
+                });
+                mocks.mangoToDexieMock.mockResolvedValueOnce([L, L2]);
+
+                const q = track(new HybridQuery(contentQuery, { cache: true }));
+                await flush();
+                expect(q.output.value.map((d) => d._id)).toEqual(["L1", "L2", "L3"]);
+
+                mocks.corpusSettled.value = true;
+                await flush();
+                expect(q.output.value.map((d) => d._id)).toEqual(["L1", "L2"]);
+            });
+
             it("a non-empty local read still replaces the seeded local wholesale (deletions propagate)", async () => {
                 // Seed holds two local docs; the real read drops one (a deletion). The
                 // non-empty read must replace the seeded local wholesale so the deletion
