@@ -38,6 +38,7 @@ import {
 } from "@/contentProgress";
 import { computeEstimatedReadingMinutes } from "@/util/readingTime";
 import { ref, computed } from "vue";
+import VideoPlayer from "@/components/content/VideoPlayer.vue";
 import RelatedContent from "@/components/content/RelatedContent.vue";
 import ReadMore from "@/components/content/ReadMore.vue";
 import * as auth from "@/auth";
@@ -201,15 +202,23 @@ describe("SingleContent", () => {
         isConnected.value = false;
     });
 
-    it("renders the content page shell when the content is available", async () => {
+    it("displays the video player when defined", async () => {
+        await db.docs.update(mockEnglishContentDto._id, {
+            parentImage: "",
+            video: "test-video.mp4",
+        } as any);
+
         wrapper = shallowMount(SingleContent, {
             props: {
                 slug: mockEnglishContentDto.slug,
             },
         });
 
-        expect(wrapper!.exists()).toBe(true);
-        expect(wrapper!.html().length).toBeGreaterThan(0);
+        const videoPlayer = wrapper!.findComponent(VideoPlayer);
+
+        await waitForExpect(() => {
+            expect(videoPlayer).toBeDefined();
+        });
     });
 
     it("displays the content image", async () => {
