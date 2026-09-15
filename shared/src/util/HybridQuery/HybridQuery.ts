@@ -2,7 +2,6 @@ import {
     computed,
     getCurrentScope,
     onScopeDispose,
-    ref,
     shallowRef,
     watch,
     type ComputedRef,
@@ -11,6 +10,7 @@ import {
 } from "vue";
 import type { BaseDocumentDto, Uuid } from "../../types";
 import type { MangoQuery } from "../MangoQuery/MangoTypes";
+import type { QueryActivity } from "./contracts";
 import { useHasLocalChanges } from "../useHasLocalChange";
 import type { HybridQueryOptions } from "./options";
 import { QuerySession } from "./querySession";
@@ -118,28 +118,40 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
     public readonly output: ShallowRef<T[]>;
     /** Initial local/remote work is pending; offline deferral counts as settled. */
     public readonly isFetching: ComputedRef<boolean>;
+    /** A {@link loadMore} append is in flight. Always `false` without `pageSize`. */
+    public readonly isLoadingMore: ComputedRef<boolean>;
+    /** A further page may exist. Always `false` without `pageSize`. */
+    public readonly hasMore: ComputedRef<boolean>;
     /** Last exposed error for this generation; reset on query rebuild. */
     public readonly error: ShallowRef<unknown | undefined>;
     /** Existing application-lifetime pending-edit lookup. */
     public readonly hasLocalChanges: ComputedRef<(id: Uuid) => boolean>;
-    private readonly session: Pick<QuerySession<T>, "rebuild" | "dispose">;
+    private readonly session: Pick<QuerySession<T>, "rebuild" | "extend" | "dispose">;
     private stopQueryWatch?: WatchStopHandle;
 
     constructor(query: MangoQuery | (() => MangoQuery), options: HybridQueryOptions = {}) {
         const queryFn = typeof query === "function" ? query : () => query;
-        const localPending = ref(false);
-        const remotePending = ref(false);
+        const activity = shallowRef<QueryActivity>({
+            local: false,
+            remote: false,
+            kind: "initial",
+            more: false,
+        });
+        const working = computed(() => activity.value.local || activity.value.remote);
         this.output = shallowRef<T[]>([]);
         this.error = shallowRef<unknown | undefined>(undefined);
-        this.isFetching = computed(() => localPending.value || remotePending.value);
+        // An append keeps `isFetching` false: a list already showing rows wants a footer
+        // spinner, not the empty/loading state its first paint uses.
+        this.isFetching = computed(() => activity.value.kind === "initial" && working.value);
+        this.isLoadingMore = computed(() => activity.value.kind === "extend" && working.value);
+        this.hasMore = computed(() => activity.value.more);
         this.hasLocalChanges = useHasLocalChanges();
         this.session = new QuerySession(queryFn, options, createBrowserCapabilities<T>(options), {
             publish: (docs) => {
                 this.output.value = docs;
             },
-            pending: ({ local, remote }) => {
-                localPending.value = local;
-                remotePending.value = remote;
+            pending: (next) => {
+                activity.value = next;
             },
             error: (error) => {
                 this.error.value = error;
@@ -156,6 +168,15 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
         } else {
             this.session.rebuild(queryFn());
         }
+    }
+
+    /**
+     * Append the next page to `output`. Safe to call unguarded from a scroll observer:
+     * it is a no-op without `pageSize`, while a page is in flight, and once `hasMore`
+     * is false.
+     */
+    loadMore(): void {
+        this.session.extend();
     }
 
     dispose(): void {

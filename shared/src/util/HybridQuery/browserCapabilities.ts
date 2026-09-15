@@ -12,6 +12,7 @@ import { useDexieLiveQuery } from "../useDexieLiveQuery/useDexieLiveQuery";
 import { typeIsInSyncList, typeInSyncListRef } from "./queryIntrospection";
 import { toDeleteSelector } from "./queryPlanner";
 import { planBrowserQuery } from "./browserPlanner";
+import { paginateByLimit } from "./pagination";
 import { queryLocal, queryRemote } from "./querySources";
 import { readResponseCache, structuralCacheKey, writeResponseCache } from "./responseCache";
 import type { HybridQueryOptions } from "./options";
@@ -28,6 +29,7 @@ export function createBrowserCapabilities<T extends BaseDocumentDto>(
     };
     return {
         plan: (query) => planBrowserQuery<T>(query, coverage),
+        pagination: options.pageSize ? paginateByLimit<T>(options.pageSize) : undefined,
         sources: {
             // Dexie holds every doc the browser routes locally, so a read is always covered.
             readLocal: async (query) => ({ docs: await queryLocal<T>(query), covered: true }),
