@@ -85,19 +85,32 @@ export function useInfiniteScrollList<T>(
  */
 export function useInfiniteScrollLoadMore(options: UseInfiniteScrollLoadMoreOptions) {
     const sentinel = ref<HTMLElement | null>(null);
+    const onScreen = ref(false);
+
+    const attempt = () => {
+        if (!onScreen.value) return;
+        if (!toValue(options.hasMore) || toValue(options.isLoading ?? false)) return;
+        options.onLoadMore();
+    };
 
     useIntersectionObserver(
         sentinel,
         ([entry]) => {
-            if (
-                entry?.isIntersecting &&
-                toValue(options.hasMore) &&
-                !toValue(options.isLoading ?? false)
-            ) {
-                options.onLoadMore();
-            }
+            onScreen.value = !!entry?.isIntersecting;
+            attempt();
         },
         { rootMargin: options.rootMargin ?? "200px" },
+    );
+
+    // An IntersectionObserver only reports threshold CROSSINGS, so a page that lands
+    // without pushing the sentinel off screen produces no further callback and the
+    // scroll stalls. Re-attempt when a load finishes, which also fills a viewport that
+    // one page is too short for.
+    watch(
+        () => toValue(options.isLoading ?? false),
+        (loading, wasLoading) => {
+            if (wasLoading && !loading) attempt();
+        },
     );
 
     return { sentinel };

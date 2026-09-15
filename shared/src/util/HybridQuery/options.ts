@@ -20,6 +20,23 @@ export type HybridQueryOptions = {
     live?: boolean;
 
     /**
+     * When set, the query is **pageable**: `loadMore()` grows the window by this many
+     * rows without rebuilding, so the existing documents, the Dexie subscription, the
+     * socket listener and the joined rooms all survive an append. Off by default, in
+     * which case `loadMore()` is inert and `hasMore` is always `false`.
+     *
+     * The query's own `$limit` is the first page — a pageable query must have one.
+     * Growing `$limit` in the query thunk instead restarts the query from scratch:
+     * every document is re-read, the subscriptions are torn down and re-established,
+     * and `isFetching` re-enters its initial-load state. Prefer this option for any
+     * "load more" / infinite-scroll list.
+     *
+     * A genuine query change (a filter, a sort, a mutated id set) still rebuilds and
+     * returns the window to the first page, which is what a re-filtered list wants.
+     */
+    pageSize?: number;
+
+    /**
      * When `true`, **response caching** is on: each (re)build seeds the local +
      * remote contributions synchronously from the last persisted window for this
      * query's *shape* (so a remount paints the merged result instantly, before the

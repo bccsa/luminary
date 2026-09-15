@@ -161,7 +161,10 @@ const q = new HybridQuery<ContentDto>({
 | Member                                    | Description                                                                                                                                                                                                                                                                                                         |
 | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `output: ShallowRef<T[]>`                 | The reactive merged set. Bind your template to `q.output.value`. In one-shot mode, mutated **once** for the Dexie-only and API-only non-content branches; **twice** for the content branch (local read, then merged remote). In **live mode** it additionally re-emits on every local IndexedDB change (see below). |
-| `isFetching: ComputedRef<boolean>`        | `true` from (re)build until the generation's **complete** first result settles. See [Loading & error state](#loading--error-state).                                                                                                                                                                                 |
+| `isFetching: ComputedRef<boolean>`        | `true` from (re)build until the generation's **complete** first result settles. Stays `false` during a `loadMore()` append. See [Loading & error state](#loading--error-state).                                                                                                                                     |
+| `isLoadingMore: ComputedRef<boolean>`     | A `loadMore()` append is in flight. Always `false` without `pageSize`. See [Paging](#paging-opt-in).                                                                                                                                                                                                                |
+| `hasMore: ComputedRef<boolean>`           | A further page may exist. `false` until the first result settles, and always `false` without `pageSize`.                                                                                                                                                                                                            |
+| `loadMore(): void`                        | Append the next page to `output`. A no-op without `pageSize`, while a page is in flight, and once `hasMore` is false — safe to call unguarded from a scroll observer.                                                                                                                                               |
 | `error: ShallowRef<unknown \| undefined>` | The last routing / remote / local-read error for the current generation, or `undefined`. Cleared on every rebuild. See [Loading & error state](#loading--error-state).                                                                                                                                              |
 | `dispose(): void`                         | Stop the reconnect watcher and (in live mode) the Dexie live-query subscription. Idempotent. Called automatically when the owning Vue scope disposes.                                                                                                                                                               |
 
@@ -391,6 +394,34 @@ offline.
   a sync/socket doc-rewrite can't clobber a stamp.
 - **Limitations.** There is no hard size cap (TTL + eviction is the bound); a
   `QuotaExceededError` on persist is swallowed, degrading to the no-persistence behaviour.
+
+### Paging (opt-in)
+
+```ts
+const { output, hasMore, isLoadingMore, loadMore } = useHybridQueryWithState<ContentDto>(
+    () => ({ selector, $sort, $limit: 20 }),
+    { live: true, pageSize: 20, keepPreviousResult: true },
+);
+```
+
+`pageSize` makes the query pageable: the query's own `$limit` is page one, and each
+`loadMore()` appends another `pageSize` rows **in place**. The documents already loaded,
+the Dexie subscription, the socket listener and the joined rooms all survive the append,
+and the API supplement from an earlier page is never re-merged from empty.
+
+`loadMore()` is a no-op without `pageSize`, while a page is in flight, and once `hasMore`
+is false, so a scroll observer can call it unguarded. `isFetching` stays **false**
+throughout an append — a list that already shows rows wants a footer spinner, and
+`isLoadingMore` is the flag for it.
+
+A genuine query change (a filter, a sort, a mutated id set) rebuilds and returns the
+window to page one, which is what a re-filtered list wants. Growing `$limit` inside the
+query thunk does **not** page: it restarts the query, re-reading every document and
+re-establishing every subscription.
+
+> An infinite-scroll sentinel driven by an `IntersectionObserver` must re-check after a
+> page settles, not only on an intersection change: a page that lands without pushing the
+> sentinel off screen produces no further observer callback, and the scroll stalls.
 
 ### Keeping the previous result across a rebuild (opt-in)
 
