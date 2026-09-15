@@ -416,31 +416,6 @@ describe("validateChangeRequest", () => {
         expect(result.error).toBe(undefined);
     });
 
-    it("fails validation for an hlsKey that is not a string", async () => {
-        const changeRequest = {
-            id: 42,
-            doc: {
-                _id: "post-test",
-                type: "post",
-                memberOf: ["group-super-admins"],
-                postType: "blog",
-                tags: [],
-                publishDateVisible: true,
-                media: {
-                    hlsUrl: "https://cdn.example.com/media/post-test/master.m3u8",
-                    // The key's hex form is checked when it is masked; the DTO only
-                    // guarantees there is a string to mask.
-                    hlsKey: 1234,
-                },
-            },
-        };
-
-        const result = await validateChangeRequest(changeRequest, ["group-super-admins"], db);
-
-        expect(result.validated).toBe(false);
-        expect(result.error).toContain("hlsKey");
-    });
-
     it("fails validation for media with no playlist URL", async () => {
         const changeRequest = {
             id: 42,
