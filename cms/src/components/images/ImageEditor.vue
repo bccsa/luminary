@@ -112,26 +112,8 @@ const dragCounter = ref(0);
 const showFailureMessage = ref(false);
 const failureMessage = ref<string | undefined>(undefined);
 
-// Validate that selected bucket still exists and auto-select if only one available
+// Surface bucket configuration issues on load rather than only on upload.
 watchEffect(() => {
-    // Check if the currently selected bucket still exists in the database
-    if (parent.value?.imageBucketId) {
-        // Only validate if buckets have loaded (array is not empty)
-        // This prevents clearing imageBucketId while buckets are still loading from IndexedDB
-        if (bucketSelection.imageBuckets.value.length > 0) {
-            const currentBucketExists = bucketSelection.imageBuckets.value.some(
-                (b) => b._id === parent.value?.imageBucketId,
-            );
-
-            // If the bucket no longer exists, clear it
-            if (!currentBucketExists) {
-                parent.value.imageBucketId = undefined;
-            }
-        }
-    }
-
-    // Proactively show error messages for bucket configuration issues
-    // This ensures users see the error immediately, not just when they try to upload
     if (!bucketSelection.hasImageBuckets.value) {
         // No buckets configured at all
         failureMessage.value =
@@ -147,7 +129,6 @@ watchEffect(() => {
         const bucketRelatedErrors = [
             "No storage buckets configured. Please configure at least one S3 bucket in the Storage settings before uploading images.",
             "Please select a storage bucket before uploading images.",
-            "The selected storage bucket no longer exists. Please select another bucket.",
         ];
         if (failureMessage.value && bucketRelatedErrors.includes(failureMessage.value)) {
             failureMessage.value = undefined;
@@ -172,19 +153,6 @@ const handleFiles = (files: FileList | null) => {
     if (parent.value && !parent.value.imageBucketId) {
         parent.value.imageBucketId = effectiveImageBucketId.value;
         emit("bucketSelected", effectiveImageBucketId.value);
-    }
-
-    // Check if the currently selected bucket still exists in the database
-    const currentBucketExists = bucketSelection.imageBuckets.value.some(
-        (b) => b._id === parent.value?.imageBucketId,
-    );
-
-    if (!currentBucketExists) {
-        if (parent.value) parent.value.imageBucketId = undefined;
-        failureMessage.value =
-            "The selected storage bucket no longer exists. Please select another bucket.";
-        showFailureMessage.value = true;
-        return;
     }
 
     // Check if buckets are configured

@@ -1,7 +1,15 @@
 import { describe, it, afterEach, beforeEach, expect, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
-import { db, DocType, accessMap, PostType, TagType, type TagDto, PublishStatus } from "luminary-shared";
+import {
+    db,
+    DocType,
+    accessMap,
+    PostType,
+    TagType,
+    type TagDto,
+    PublishStatus,
+} from "luminary-shared";
 import * as mockData from "@/tests/mockdata";
 import { setActivePinia } from "pinia";
 import EditContent from "./EditContent.vue";
@@ -508,7 +516,61 @@ describe("EditContent.vue - Duplication", () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const vm: any = wrapper.vm;
 
-        // Image fileCollections should be preserved by default and duplicate intent should be set
+        // The clone carries the file references and the bucket they live in, which is what the
+        // API copies from.
+        expect(vm.editableParent.imageData.fileCollections.length).toBeGreaterThan(0);
+        expect(vm.editableParent.imageData.duplicate).toBe(true);
+        expect(vm.editableParent.imageBucketId).toBe("storage-image-bucket");
+    }, 15000);
+
+    it("carries a storage bucket the editor cannot resolve onto the clone", async () => {
+        // The bucket is absent from the user's synced Storage list. The reference must still
+        // survive onto the clone, otherwise the API has nothing to copy the image from.
+        await db.docs.put({
+            ...mockData.mockPostDto,
+            imageBucketId: "bucket-in-a-group-this-user-cannot-view",
+        } as any);
+
+        const wrapper = mount(EditContent, {
+            props: {
+                docType: DocType.Post,
+                id: mockData.mockPostDto._id,
+                languageCode: "eng",
+                tagOrPostType: PostType.Blog,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain("English");
+        });
+
+        await waitForExpect(() => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const vm: any = wrapper.vm;
+            expect(vm.editableParent.imageBucketId).toBe("bucket-in-a-group-this-user-cannot-view");
+        });
+
+        const dropdownTrigger = wrapper.find('[data-test="dropdown-trigger"]');
+        await dropdownTrigger.trigger("click");
+        await nextTick();
+
+        let duplicateBtn;
+        await waitForExpect(() => {
+            duplicateBtn = wrapper.find("[data-test='duplicate-button']");
+            expect(duplicateBtn.exists()).toBe(true);
+        });
+
+        let confirmBtn;
+        await waitForExpect(async () => {
+            duplicateBtn!.trigger("click");
+            confirmBtn = wrapper.find('[data-test="modal-primary-button"]');
+            expect(confirmBtn.exists()).toBe(true);
+        });
+        await confirmBtn!.trigger("click");
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const vm: any = wrapper.vm;
+        expect(vm.editableParent.imageBucketId).toBe("bucket-in-a-group-this-user-cannot-view");
         expect(vm.editableParent.imageData.fileCollections.length).toBeGreaterThan(0);
         expect(vm.editableParent.imageData.duplicate).toBe(true);
     }, 15000);
