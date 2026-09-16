@@ -168,6 +168,6 @@
         "singlecontent.shareReddit": "Share on Reddit",
         "singlecontent.shareInstagram": "Share on Instagram",
         "singlecontent.shareInstagramCopiedTitle": "Link copied",
-        "singlecontent.shareInstagramCopiedDescription": "Instagram doesn't support sharing links directly — paste it into a DM, Story or bio."
+        "singlecontent.shareInstagramCopiedDescription": "Instagram doesn't support sharing links directly — paste it into a Story or bio."
     }
 }
