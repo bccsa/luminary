@@ -279,14 +279,20 @@ async function searchInBatch(
         if (typeSet && !typeSet.has(doc.parentType as unknown as string)) return;
         if (tagSet && !(doc.parentTags ?? []).some((t) => tagSet.has(t))) return;
         if (status !== undefined && doc.status !== status) return;
-        if (publishedAfter !== undefined && !(doc.publishDate != null && doc.publishDate >= publishedAfter))
+        if (
+            publishedAfter !== undefined &&
+            !(doc.publishDate != null && doc.publishDate >= publishedAfter)
+        )
             return;
         if (
             publishedBefore !== undefined &&
             !(doc.publishDate != null && doc.publishDate <= publishedBefore)
         )
             return;
-        if (expiresAfter !== undefined && !(doc.expiryDate != null && doc.expiryDate >= expiresAfter))
+        if (
+            expiresAfter !== undefined &&
+            !(doc.expiryDate != null && doc.expiryDate >= expiresAfter)
+        )
             return;
         if (
             expiresBefore !== undefined &&
