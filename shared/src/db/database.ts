@@ -14,10 +14,7 @@ import {
     TagType,
     Uuid,
 } from "../types";
-import {
-    scheduleCorpusStatsRecompute,
-    scheduleCorpusStatsRecomputeIfStale,
-} from "../fts/ftsIndexer";
+import { scheduleCorpusStatsRecompute } from "../fts/ftsIndexer";
 import { ref, toRaw, watch } from "vue";
 import { DateTime } from "luxon";
 import { v4 as uuidv4 } from "uuid";
@@ -339,7 +336,11 @@ class Database extends Dexie {
             return { changed, expiredIds };
         });
 
-        if (expiredIds.length > 0 || changed.some((doc) => doc.type === DocType.Content)) {
+        if (
+            toDeleteIds.length > 0 ||
+            expiredIds.length > 0 ||
+            changed.some((doc) => doc.type === DocType.Content)
+        ) {
             scheduleCorpusStatsRecompute();
         }
     }
@@ -952,11 +953,10 @@ export async function initDatabase() {
     }
     dbUpgradeBlocked.value = false;
 
-    // Bring FTS corpus stats up to date on startup. Every doc-mutation path schedules its own
-    // recompute, so the stored stats are normally current and the full scan is skipped.
+    // Compute FTS corpus stats on startup.
     // Uses setTimeout(0) to avoid Dexie PSD zone deadlocks during initialization.
     setTimeout(() => {
-        scheduleCorpusStatsRecomputeIfStale();
+        scheduleCorpusStatsRecompute();
     }, 0);
 
     // Wait a little to give the app time to load before deleting expired content to help speed up the initial app loading time

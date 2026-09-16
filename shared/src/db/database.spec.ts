@@ -30,6 +30,15 @@ import { isConnected } from "../socket/socketio";
 import { DateTime } from "luxon";
 import { initConfig } from "../config";
 import { config, changeReqErrors, changeReqInfo } from "../config";
+import { scheduleCorpusStatsRecompute } from "../fts/ftsIndexer";
+
+vi.mock("../fts/ftsIndexer", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("../fts/ftsIndexer")>();
+    return {
+        ...actual,
+        scheduleCorpusStatsRecompute: vi.fn(actual.scheduleCorpusStatsRecompute),
+    };
+});
 
 describe("Database", async () => {
     beforeAll(async () => {
@@ -1309,6 +1318,24 @@ describe("Database", async () => {
     });
 
     describe("document deletion", () => {
+        it("schedules a corpus stats recompute for a batch of only delete commands", async () => {
+            await db.docs.bulkPut([mockEnglishContentDto]);
+            vi.mocked(scheduleCorpusStatsRecompute).mockClear();
+
+            await db.bulkPut([
+                {
+                    _id: "delete-cmd-only",
+                    type: DocType.DeleteCmd,
+                    docId: mockEnglishContentDto._id,
+                    deleteReason: "deleted",
+                    updatedTimeUtc: mockEnglishContentDto.updatedTimeUtc + 1,
+                } as DeleteCmdDto,
+            ]);
+
+            expect(await db.get<ContentDto>(mockEnglishContentDto._id)).toBeUndefined();
+            expect(scheduleCorpusStatsRecompute).toHaveBeenCalled();
+        });
+
         it("can delete a document when receiving a delete request with reason 'deleted'", async () => {
             await db.docs.bulkPut([mockEnglishContentDto]);
 
