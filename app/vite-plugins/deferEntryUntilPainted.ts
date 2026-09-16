@@ -1,7 +1,7 @@
 import type { Plugin } from "vite";
 
 const ATTRIBUTE = /([a-zA-Z_:][-\w:.]*)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/g;
-const EMPTY_SCRIPT = /<script\b([^>]*)>\s*<\/script\s*>/gi;
+const EMPTY_SCRIPT = /<script\b([^>]*)>\s*<\/script[^>]*>/gi;
 
 type Attributes = Record<string, string>;
 
