@@ -13,6 +13,7 @@ import v18 from "./schemaUpgrade/v18";
 import v19 from "./schemaUpgrade/v19";
 import v20 from "./schemaUpgrade/v20";
 import v21 from "./schemaUpgrade/v21";
+import v22 from "./schemaUpgrade/v22";
 
 // Re-exported for convenience so callers can read the fresh-DB baseline version from this module.
 export { FRESH_DB_SCHEMA_VERSION } from "./schemaUpgrade/freshDbSchemaVersion";
@@ -39,6 +40,7 @@ export async function upgradeDbSchema(db: DbService) {
         await v19(db);
         await v20(db);
         await v21(db);
+        await v22(db);
     } catch (error) {
         console.error("Database schema upgrade failed:", error);
         throw error; // Re-throw to prevent schema version from being updated
