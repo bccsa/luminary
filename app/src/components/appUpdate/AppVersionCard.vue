@@ -5,7 +5,7 @@ import LCard from "@/components/common/LCard.vue";
 import { useAppUpdate } from "@/composables/useAppUpdate";
 
 const { t } = useI18n();
-const { installedVersion, storeVersion, isUpdateAvailable, openStore } = useAppUpdate();
+const { installedVersion, available, checkedAt, applyUpdate } = useAppUpdate();
 </script>
 
 <template>
@@ -18,23 +18,23 @@ const { installedVersion, storeVersion, isUpdateAvailable, openStore } = useAppU
             <span class="font-semibold">{{ t("settings.app_version.installed") }}:</span>
             {{ installedVersion }}
         </div>
-        <template v-if="isUpdateAvailable">
+        <template v-if="available">
             <div
                 class="mb-4 mt-2 text-sm text-zinc-600 dark:text-slate-100"
                 data-test="appVersionUpdateAvailable"
             >
-                {{ t("settings.app_version.update_available", { version: storeVersion }) }}
+                {{ t("settings.app_version.update_available", { version: available.version }) }}
             </div>
             <LButton
                 variant="primary"
                 data-test="appVersionUpdateButton"
-                @click="openStore"
+                @click="applyUpdate"
             >
                 {{ t("app_update.button_update") }}
             </LButton>
         </template>
         <div
-            v-else-if="storeVersion"
+            v-else-if="checkedAt"
             class="mt-2 text-sm text-zinc-600 dark:text-slate-100"
             data-test="appVersionUpToDate"
         >

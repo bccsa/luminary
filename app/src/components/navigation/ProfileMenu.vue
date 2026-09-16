@@ -67,7 +67,7 @@ const menuLabel = computed(() => t("profile_menu.title"));
 
 const navigationItems = computed(() => getNavigationItems(t));
 const { isSearchOpen, openSearch } = useSearchOverlay();
-const { isUpdateAvailable, openStore } = useAppUpdate();
+const { isUpdateAvailable, applyUpdate } = useAppUpdate();
 const isItemActive = (routeActive: boolean) => routeActive && !isSearchOpen.value;
 
 const showOfflineNotification = () => {
@@ -130,7 +130,7 @@ const commonNavigation: ComputedRef<NavigationItems[]> = computed(() => {
               {
                   name: t("profile_menu.update_available"),
                   icon: ArrowDownTrayIcon,
-                  action: openStore,
+                  action: applyUpdate,
               },
           ]
         : [];
@@ -451,7 +451,7 @@ const sidebarNavigation = computed(() =>
                         class="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-yellow-700 hover:bg-zinc-200 dark:text-yellow-400 dark:hover:bg-slate-700"
                         data-test="menu-app-update"
                         @click="
-                            openStore();
+                            applyUpdate();
                             close();
                         "
                     >

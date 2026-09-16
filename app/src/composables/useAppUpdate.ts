@@ -1,29 +1,20 @@
 import { computed, inject } from "vue";
 import { AppUpdateKey } from "@/build-time/contracts/app-update/token";
-import { isNewerVersion } from "@/util/appVersion";
 
-/**
- * The installed app version and the newer store version, when there is one.
- * Versions stay `undefined` where the app isn't installed from a store.
- */
+/** The installed app version and the newer version the user can update to, if any. */
 export function useAppUpdate() {
     const service = inject(AppUpdateKey, undefined);
 
     const installedVersion = computed(() => service?.installedVersion.value);
-    const storeVersion = computed(() => service?.storeVersion.value);
-    const storeCheckedAt = computed(() => service?.storeCheckedAt.value);
-    const isUpdateAvailable = computed(
-        () =>
-            !!installedVersion.value &&
-            !!storeVersion.value &&
-            isNewerVersion(storeVersion.value, installedVersion.value),
-    );
+    const available = computed(() => service?.available.value);
+    const checkedAt = computed(() => service?.checkedAt.value);
+    const isUpdateAvailable = computed(() => !!available.value);
 
     return {
         installedVersion,
-        storeVersion,
-        storeCheckedAt,
+        available,
+        checkedAt,
         isUpdateAvailable,
-        openStore: () => service?.openStore(),
+        applyUpdate: () => service?.applyUpdate(),
     };
 }

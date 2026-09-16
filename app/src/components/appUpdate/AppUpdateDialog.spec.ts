@@ -6,6 +6,8 @@ import LDialog from "@/components/common/LDialog.vue";
 import { AppUpdateKey } from "@/build-time/contracts/app-update/token";
 import { userPreferencesAsRef } from "@/globalConfig";
 import { mockLanguageDtoEng } from "@/tests/mockdata";
+import { isNewerVersion } from "@/util/appVersion";
+import type { AvailableUpdate } from "@/build-time/contracts/app-update/contract";
 
 vi.mock("vue-i18n", () => ({
     useI18n: () => ({
@@ -33,9 +35,11 @@ const T0 = Date.UTC(2026, 8, 1);
 function mountDialog(installed = "1.9.4", store = "2.0.0") {
     const service = {
         installedVersion: ref<string | undefined>(installed),
-        storeVersion: ref<string | undefined>(store),
-        storeCheckedAt: ref<number | undefined>(Date.now()),
-        openStore: vi.fn(),
+        available: ref<AvailableUpdate | undefined>(
+            isNewerVersion(store, installed) ? { kind: "store", version: store } : undefined,
+        ),
+        checkedAt: ref<number | undefined>(Date.now()),
+        applyUpdate: vi.fn(),
     };
     const wrapper = mount(AppUpdateDialog, {
         global: { provide: { [AppUpdateKey as symbol]: service } },
@@ -101,7 +105,7 @@ describe("AppUpdateDialog", () => {
 
         // The app returns to the foreground a day later and checks the store again.
         vi.setSystemTime(T0 + 3 * DAY_MS);
-        service.storeCheckedAt.value = T0 + 3 * DAY_MS;
+        service.checkedAt.value = T0 + 3 * DAY_MS;
         await nextTick();
 
         expect(dialog().props("open")).toBe(true);
@@ -114,7 +118,7 @@ describe("AppUpdateDialog", () => {
         (dialog().props("primaryAction") as () => void)();
         await nextTick();
 
-        expect(service.openStore).toHaveBeenCalledOnce();
+        expect(service.applyUpdate).toHaveBeenCalledOnce();
         expect(dialog().props("open")).toBe(false);
     });
 
@@ -125,7 +129,7 @@ describe("AppUpdateDialog", () => {
         (dialog().props("secondaryAction") as () => void)();
         await nextTick();
 
-        expect(service.openStore).not.toHaveBeenCalled();
+        expect(service.applyUpdate).not.toHaveBeenCalled();
         expect(dialog().props("open")).toBe(false);
     });
 
@@ -163,5 +167,19 @@ describe("AppUpdateDialog", () => {
 
         const due = await launchAt(T0 + 23 * DAY_MS, "1.9.4", "2.1.0");
         expect(due.dialog().props("open")).toBe(true);
+    });
+
+    it("leaves a reload update to the update banner", async () => {
+        const buildId = "2026-09-16T00:00:00.000Z";
+        localStorage.setItem(
+            "appUpdateReminder",
+            JSON.stringify({ version: buildId, firstSeenAt: T0, shownCount: 0 }),
+        );
+        const { dialog, service } = await launchAt(T0 + 30 * DAY_MS, "2.0.0", "2.0.0");
+
+        service.available.value = { kind: "reload", version: buildId };
+        await nextTick();
+
+        expect(dialog().props("open")).toBe(false);
     });
 });
