@@ -1,11 +1,19 @@
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+// Test builds shorten the schedule by counting in something smaller than a day, so a
+// reminder can be seen in a session instead of over a week.
+const REMINDER_UNIT_MS = Number(import.meta.env.VITE_APP_UPDATE_REMINDER_UNIT_MS) || DAY_MS;
+
 /**
  * Wait before each reminder about one store version: the first counts from when the
  * update was first seen, the next ones from the previous reminder. After the last
  * one, the update is only offered where the user looks for it.
  */
-export const REMINDER_WAITS_MS: readonly number[] = [3 * DAY_MS, 3 * DAY_MS, 7 * DAY_MS];
+export const REMINDER_WAITS_MS: readonly number[] = [
+    3 * REMINDER_UNIT_MS,
+    3 * REMINDER_UNIT_MS,
+    7 * REMINDER_UNIT_MS,
+];
 
 /** Reminder progress for one store version, kept across app launches. */
 export type AppUpdateReminder = {
