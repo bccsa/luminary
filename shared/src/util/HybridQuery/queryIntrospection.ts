@@ -63,6 +63,7 @@ export function typeInSyncListRef(type: DocType): ComputedRef<boolean> {
 export function decideContentApiQuery<T extends BaseDocumentDto>(
     query: MangoQuery,
     localDocs: readonly T[],
+    held: readonly T[] = [],
 ): MangoQuery | undefined {
-    return planContent(query, localDocs, getContentPublishDateCutoff());
+    return planContent(query, localDocs, getContentPublishDateCutoff(), held);
 }

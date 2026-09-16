@@ -15,6 +15,7 @@ import type { MangoQuery } from "../MangoQuery/MangoTypes";
 import { QuerySession } from "./querySession";
 import { ResultWindow } from "./resultWindow";
 import { planRemoteContentQueries, decideContentApiQuery } from "./queryPlanner";
+import { mangoCompile } from "../MangoQuery/mangoCompile";
 
 const doc = (id: string, publishDate: number, time = 1) =>
     ({ _id: id, updatedTimeUtc: time, type: "content", publishDate }) as BaseDocumentDto;
@@ -313,7 +314,42 @@ describe("PROBE 4 — can a plan narrow past what the window already holds?", ()
         expect(seen[1]).toEqual([doc("r1", 900)]);
     });
 
-    it("the browser plan does not use it yet, so the API tail is re-requested", async () => {
+    it("keeps advancing when every row ties on the sort field", async () => {
+        // The failure this guards: a bare `$lt` past the boundary drops every tying row,
+        // and a `$lte` re-requests the same page forever. Either way the window stops
+        // growing and paging dies — on data as ordinary as a day's worth of publishing.
+        const h = harness();
+        vi.mocked(h.capabilities.sources.readLocal).mockResolvedValue(covered([]));
+        vi.mocked(h.capabilities.sources.readRemote).mockResolvedValue([
+            doc("r1", 900),
+            doc("r2", 900),
+        ]);
+        h.session.rebuild(page1);
+        await flush();
+        expect(h.publish).toHaveBeenLastCalledWith([doc("r1", 900), doc("r2", 900)]);
+
+        vi.mocked(h.capabilities.sources.readRemote).mockResolvedValue([
+            doc("r3", 900),
+            doc("r4", 900),
+        ]);
+        h.session.extend();
+        await flush();
+
+        const second = vi.mocked(h.capabilities.sources.readRemote).mock.calls[1][0];
+        const admits = mangoCompile(second.selector);
+        expect(admits({ type: "content", _id: "r1", publishDate: 900 })).toBe(false); // held
+        expect(admits({ type: "content", _id: "r3", publishDate: 900 })).toBe(true); // unseen
+        expect(second.$limit).toBe(2); // 4 requested − 2 held
+
+        expect(h.publish).toHaveBeenLastCalledWith([
+            doc("r1", 900),
+            doc("r2", 900),
+            doc("r3", 900),
+            doc("r4", 900),
+        ]);
+    });
+
+    it("the browser plan uses it, so a later page asks only for rows past the boundary", async () => {
         const h = harness();
         vi.mocked(h.capabilities.sources.readLocal).mockResolvedValue(covered([doc("a", 3000)]));
         vi.mocked(h.capabilities.sources.readRemote).mockResolvedValue([doc("r1", 900)]);
@@ -328,11 +364,12 @@ describe("PROBE 4 — can a plan narrow past what the window already holds?", ()
         await flush();
         const second = vi.mocked(h.capabilities.sources.readRemote).mock.calls[1][0];
 
-        // Both start from the same cutoff: the second re-fetches the first slice's
-        // tail. Harmless (mergeById dedups) but wasteful — fixing it belongs in
-        // decideContentApiQuery, which now has `held` available to it.
+        // Page 1 has nothing held, so it starts from the cutoff and asks for its shortfall.
         expect(first.$limit).toBe(1); // 2 requested - 1 local
-        expect(second.$limit).toBe(2); // 4 requested - 2 local
-        expect(JSON.stringify(first.selector)).toEqual(JSON.stringify(second.selector));
+        // Page 2 holds r1, so it asks only for what the window still lacks (a+b+r1 of 4)…
+        expect(second.$limit).toBe(1);
+        // …and narrows past r1's publishDate rather than restarting from the cutoff.
+        expect(JSON.stringify(second.selector)).not.toEqual(JSON.stringify(first.selector));
+        expect(JSON.stringify(second.selector)).toContain('"$lt":900');
     });
 });

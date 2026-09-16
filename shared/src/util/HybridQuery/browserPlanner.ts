@@ -22,7 +22,8 @@ export function planBrowserQuery<T extends BaseDocumentDto>(
         return {
             useLocal: true,
             type: DocType.Content,
-            remote: (local) => decideContentApiQuery(query, local, coverage.cutoff()),
+            remote: (local, _covered, held) =>
+                decideContentApiQuery(query, local, coverage.cutoff(), held),
         };
     }
 

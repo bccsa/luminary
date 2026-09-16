@@ -4,6 +4,8 @@ import {
     planRemoteContentQueries,
     FANOUT_MAX_PARENTS,
 } from "./queryIntrospection";
+import { MAX_TIE_EXCLUSIONS } from "./queryPlanner";
+import { mangoCompile } from "../MangoQuery/mangoCompile";
 import { initConfig, config } from "../../config";
 import { OPEN_MIN } from "../../api/sync/utils";
 import type { MangoQuery, MangoSelector } from "../MangoQuery/MangoTypes";
@@ -168,9 +170,9 @@ describe("decideContentApiQuery — older-tail supplement", () => {
 
     it("appends the below-cutoff/always-offline tail to the supplement selector", () => {
         const out = decideContentApiQuery(feed(), []);
-        expect(
-            (out!.selector as { $and: MangoSelector[] }).$and,
-        ).toContainEqual(publishDateTail(1000));
+        expect((out!.selector as { $and: MangoSelector[] }).$and).toContainEqual(
+            publishDateTail(1000),
+        );
     });
 
     it("fetches only the shortfall (limit − local) when the local page is partial", () => {
@@ -187,5 +189,138 @@ describe("decideContentApiQuery — older-tail supplement", () => {
         config.contentPublishDateCutoff = OPEN_MIN;
         expect(decideContentApiQuery(feed(), [])).toBeUndefined();
         config.contentPublishDateCutoff = 1000;
+    });
+
+    describe("paging past the rows already held", () => {
+        const tail = (count: number, publishDate: (i: number) => number, prefix = "r") =>
+            Array.from({ length: count }, (_v, i) => ({
+                _id: `${prefix}${i}`,
+                publishDate: publishDate(i),
+            })) as any[];
+
+        it("narrows past the oldest held row and asks only for the shortfall", () => {
+            const local = tail(5, () => 5000, "l");
+            const held = tail(10, (i) => 900 - i);
+            const out = decideContentApiQuery(feed(), local, held)!;
+
+            expect(out.$limit).toBe(5); // 20 requested − 15 distinct already held
+            // Assert the clause's SHAPE, not its spelling: a boundary ANDed instead of
+            // ORed with its tie group would still contain both fragments as substrings.
+            expect((out.selector as any).$and).toContainEqual({
+                $or: [
+                    { publishDate: { $lt: 891 } },
+                    { $and: [{ publishDate: 891 }, { _id: { $nin: ["r9"] } }] },
+                ],
+            });
+        });
+
+        // The selector is only as good as what it actually admits, so compile it and
+        // check membership. Spelling assertions above can't catch an inverted operator.
+        describe("the narrowed selector admits exactly the unseen rows", () => {
+            const held = [
+                { _id: "r0", publishDate: 900 },
+                { _id: "r1", publishDate: 891 },
+                { _id: "r2", publishDate: 891 },
+            ] as any[];
+            const matches = (doc: Record<string, unknown>) =>
+                mangoCompile(decideContentApiQuery(feed(), [], held)!.selector)({
+                    type: "content",
+                    status: "published",
+                    ...doc,
+                });
+
+            it("excludes a held row sitting on the boundary", () => {
+                expect(matches({ _id: "r2", publishDate: 891 })).toBe(false);
+            });
+
+            it("ADMITS an unseen row sharing the boundary value", () => {
+                // The whole reason ties are excluded by id: a bare `$lt` would drop this
+                // row forever, silently losing every doc published at the same instant.
+                expect(matches({ _id: "unseen", publishDate: 891 })).toBe(true);
+            });
+
+            it("admits a row past the boundary", () => {
+                expect(matches({ _id: "older", publishDate: 500 })).toBe(true);
+            });
+
+            it("excludes a row above the boundary, already covered by an earlier page", () => {
+                expect(matches({ _id: "newer", publishDate: 950 })).toBe(false);
+            });
+
+            it("still excludes rows above the cutoff", () => {
+                expect(matches({ _id: "fresh", publishDate: 5000 })).toBe(false);
+            });
+        });
+
+        it("counts a doc supplied by BOTH sources once against the limit", () => {
+            const shared = [{ _id: "dup", publishDate: 900 }] as any[];
+            const out = decideContentApiQuery(feed(), shared, shared)!;
+            // Union is one doc, not two — a double count would under-fetch and strand paging.
+            expect(out.$limit).toBe(19);
+        });
+
+        it("returns undefined once the union of both sources fills the page", () => {
+            const local = tail(12, () => 5000, "l");
+            const held = tail(8, (i) => 900 - i);
+            expect(decideContentApiQuery(feed(), local, held)).toBeUndefined();
+        });
+
+        it("walks the sort field, not publishDate, when they differ", () => {
+            const query = feed({ $sort: [{ title: "asc" }] });
+            const held = [{ _id: "r0", title: "alpha" }] as any[];
+            expect(JSON.stringify(decideContentApiQuery(query, [], held)!.selector)).toContain(
+                '"$gt":"alpha"',
+            );
+        });
+
+        it("falls back to the un-narrowed tail when the tie group is too large", () => {
+            const held = tail(MAX_TIE_EXCLUSIONS + 1, () => 900);
+            const out = decideContentApiQuery(feed({ $limit: 100 }), [], held)!;
+            expect(JSON.stringify(out.selector)).not.toContain("$nin");
+            // Un-narrowed it re-supplies the held rows, so they must fit under the limit.
+            expect(out.$limit).toBe(100);
+        });
+
+        it("falls back when the sort has no single comparable key", () => {
+            for (const $sort of [undefined, [{ a: "asc" }, { b: "asc" }]]) {
+                const held = tail(1, () => 900);
+                const out = decideContentApiQuery(
+                    feed({ $sort } as Partial<MangoQuery>),
+                    [],
+                    held,
+                )!;
+                expect(JSON.stringify(out.selector)).not.toContain("$nin");
+            }
+        });
+
+        it("falls back when any held row has no comparable value for the sort field", () => {
+            // Both orderings: a missing value AFTER the boundary is caught by the type
+            // compare, but one BEFORE it would otherwise seed a boundary that silently
+            // ignores that row. Non-comparable types have no ordering at all.
+            const unusable = [
+                [{ _id: "r0", publishDate: 900 }, { _id: "r1" }],
+                [{ _id: "r0" }, { _id: "r1", publishDate: 900 }],
+                [{ _id: "r0", publishDate: true }],
+                [{ _id: "r0", publishDate: null }],
+                [{ _id: "r0", publishDate: { nested: 1 } }],
+            ] as any[][];
+            for (const held of unusable) {
+                expect(
+                    JSON.stringify(decideContentApiQuery(feed(), [], held)!.selector),
+                ).not.toContain("$nin");
+            }
+        });
+
+        it("is the plain below-cutoff tail on the first page, where nothing is held yet", () => {
+            const local = tail(5, () => 5000, "l");
+            expect(decideContentApiQuery(feed(), local, [])).toEqual({
+                selector: {
+                    $and: [{ type: "content" }, { status: "published" }, publishDateTail(1000)],
+                },
+                $sort: [{ publishDate: "desc" }],
+                $limit: 15,
+                use_index: "content-publishDate-index",
+            });
+        });
     });
 });
