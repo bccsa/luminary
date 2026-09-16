@@ -268,6 +268,99 @@ describe("RelatedContent", () => {
         });
     });
 
+    describe("stability while an article is open", () => {
+        // The article page writes the same signals this list ranks on (dwell marks content
+        // seen, reading progress/highlights/bookmarks record affinity), so reading them live
+        // reshuffled the cards under the reader. The snapshot is per article, not per mount.
+
+        const seedTwoPosts = async () => {
+            const now = Date.now();
+            const day = 1000 * 60 * 60 * 24;
+            await db.docs.bulkPut([
+                {
+                    ...mockEnglishContentDto,
+                    parentId: "post-stableA",
+                    _id: "content-stableA-eng",
+                    title: "Stable A",
+                    parentTags: [mockTopicContentDto.parentId],
+                    publishDate: now - day,
+                } as ContentDto,
+                {
+                    ...mockEnglishContentDto,
+                    parentId: "post-stableB",
+                    _id: "content-stableB-eng",
+                    title: "Stable B",
+                    parentTags: [mockTopicContentDto.parentId],
+                    publishDate: now - 100 * day,
+                } as ContentDto,
+            ]);
+        };
+
+        const mountForArticle = (parentId: string) =>
+            mount(RelatedContent, {
+                props: {
+                    tags: [
+                        {
+                            ...mockTopicContentDto,
+                            parentTaggedDocs: ["post-stableA", "post-stableB"],
+                        },
+                    ],
+                    selectedContent: {
+                        ...mockEnglishContentDto,
+                        parentId,
+                        _id: `content-${parentId}-eng`,
+                        title: "Reading",
+                    } as ContentDto,
+                },
+            });
+
+        const titlesOf = (wrapper: ReturnType<typeof mountForArticle>) =>
+            (wrapper.findComponent(ReadMore).props("items") as ContentDto[]).map((i) => i.title);
+
+        it("does not re-rank when affinity and seen state change mid-read", async () => {
+            await seedTwoPosts();
+            const wrapper = mountForArticle("post-reading1");
+
+            await waitForExpect(() => {
+                expect(titlesOf(wrapper)).toEqual(["Stable A", "Stable B"]);
+            });
+
+            seenStoreMock.seenIds = ["content-stableA-eng"];
+            seenStoreMock.seenVersion.value++;
+            affinityStoreMock.affinityProfile.value = {
+                affinity: { [mockTopicContentDto.parentId]: 0.05 },
+                lastDecayUtc: undefined,
+            };
+            await wrapper.vm.$nextTick();
+
+            expect(titlesOf(wrapper)).toEqual(["Stable A", "Stable B"]);
+        });
+
+        it("re-snapshots personalization when the reader moves to another article", async () => {
+            await seedTwoPosts();
+            const wrapper = mountForArticle("post-reading1");
+
+            await waitForExpect(() => {
+                expect(titlesOf(wrapper)).toEqual(["Stable A", "Stable B"]);
+            });
+
+            seenStoreMock.seenIds = ["content-stableA-eng"];
+            seenStoreMock.seenVersion.value++;
+            await wrapper.setProps({
+                selectedContent: {
+                    ...mockEnglishContentDto,
+                    parentId: "post-reading2",
+                    _id: "content-post-reading2-eng",
+                    title: "Reading",
+                } as ContentDto,
+            });
+
+            await waitForExpect(() => {
+                expect(titlesOf(wrapper)).toEqual(["Stable B"]);
+            });
+        });
+    });
+
     it("excludes another translation of the current article from Read more", async () => {
         // English is the preferred display language, but the user is reading the French
         // translation of "Shared Article". The Read-more query returns the English translation
@@ -552,7 +645,7 @@ describe("RelatedContent", () => {
             });
         });
 
-        it("caps a topic page's Read more collection at 12 items", async () => {
+        it("caps a topic page's Read more collection at 10 items", async () => {
             const posts = Array.from({ length: 15 }, (_, i) => ({
                 ...mockEnglishContentDto,
                 parentId: `post-topicCap${i}`,
@@ -576,13 +669,13 @@ describe("RelatedContent", () => {
 
             await waitForExpect(() => {
                 const items = wrapper.findComponent(ReadMore).props("items") as ContentDto[];
-                expect(items).toHaveLength(12);
+                expect(items).toHaveLength(10);
             });
         });
     });
 
-    it("caps the Read more collection at 12 items", async () => {
-        // Seed more related posts than the cap; only the top 12 (by recency, the cold-profile
+    it("caps the Read more collection at 10 items", async () => {
+        // Seed more related posts than the cap; only the top 10 (by recency, the cold-profile
         // fallback) should reach ReadMore regardless of how many the query returns.
         const posts = Array.from({ length: 15 }, (_, i) => ({
             ...mockEnglishContentDto,
@@ -611,7 +704,7 @@ describe("RelatedContent", () => {
 
         await waitForExpect(() => {
             const items = wrapper.findComponent(ReadMore).props("items") as ContentDto[];
-            expect(items).toHaveLength(12);
+            expect(items).toHaveLength(10);
         });
     });
 });

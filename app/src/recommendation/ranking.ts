@@ -9,7 +9,12 @@
  * them. `useRecommendations.ts` re-exports these for back-compat. Type-only shared imports
  * keep this module's runtime footprint minimal.
  */
-import { type AffinityMap, type ContentDto, type FtsSearchResult, type Uuid } from "luminary-shared";
+import {
+    type AffinityMap,
+    type ContentDto,
+    type FtsSearchResult,
+    type Uuid,
+} from "luminary-shared";
 
 /**
  * The score scale the leg-weight constants below were calibrated against — i.e. the
@@ -36,6 +41,10 @@ export const DAY_MS = 24 * 60 * 60 * 1000;
  *  ranked list before the rest of that tag's matches get pushed down. Overridable per call
  *  (e.g. Read more relaxes it so relevance ordering isn't overridden by diversity capping). */
 export const MAX_PER_DOMINANT_TAG = 3;
+/** Hard ceiling on how many documents any recommendation surface emits. Enforced inside
+ *  {@link rank} rather than at each call site so every surface — and every future one — is
+ *  bounded identically and no caller can widen it. */
+export const MAX_RECOMMENDATIONS = 10;
 
 /**
  * Map raw affinity scores back to the nominal scale the ranking constants were calibrated for,
@@ -60,7 +69,8 @@ export type RankOptions = {
      *  calibrated for (see {@link NOMINAL_COMPLETION_WEIGHT}). Defaults to 1 (no rescale) so
      *  unit tests are unchanged. */
     scoreScale?: number;
-    /** Stop diversity work once this many selected documents are determined. */
+    /** Stop diversity work once this many selected documents are determined. Clamped to
+     *  {@link MAX_RECOMMENDATIONS}, which also applies when this is omitted. */
     limit?: number;
     /** Tag ids of a "reference" article (the one being read). When set with `referenceWeight`,
      *  candidates sharing more of these tags score higher — a relevance-to-the-current-article
@@ -90,7 +100,8 @@ export type RankOptions = {
  * (which shrinks raw scores) leaves ranking balance invariant. A mild recency prior breaks ties
  * between equally-tagged docs, an optional reference-tag relevance leg promotes content
  * closely related to a given article, and an MMR-lite cap keeps a single dominant tag from
- * filling the whole list. Exported for unit testing.
+ * filling the whole list. Output is always capped at {@link MAX_RECOMMENDATIONS}.
+ * Exported for unit testing.
  */
 export function rank(
     tagCandidates: ContentDto[],
@@ -111,6 +122,8 @@ export function rank(
         boostDocIds,
         boostWeight = 0,
     } = options;
+    // The engine owns its output size, so a caller can only ask for fewer than the ceiling.
+    const outputLimit = Math.min(limit ?? MAX_RECOMMENDATIONS, MAX_RECOMMENDATIONS);
 
     const docs = new Map<Uuid, ContentDto>();
     const score = new Map<Uuid, number>();
@@ -143,10 +156,7 @@ export function rank(
             // `scoreScale` maps the raw affinity score back to the nominal 0-1 scale the
             // `tagWeight` constants were calibrated for, so a config weight rescale (which
             // shrinks raw scores) doesn't deflate the tag leg relative to the FTS leg.
-            score.set(
-                doc._id,
-                (score.get(doc._id) ?? 0) + tagWeight * affinityScore * scoreScale,
-            );
+            score.set(doc._id, (score.get(doc._id) ?? 0) + tagWeight * affinityScore * scoreScale);
         score.set(
             doc._id,
             (score.get(doc._id) ?? 0) + RECENCY_WEIGHT * (recencyFactor(doc, now) - 0.5),
@@ -158,7 +168,8 @@ export function rank(
         if (referenceTagIds && referenceWeight > 0) {
             let overlap = 0;
             for (const tag of doc.parentTags ?? []) if (referenceTagIds.has(tag)) overlap++;
-            if (overlap > 0) score.set(doc._id, (score.get(doc._id) ?? 0) + referenceWeight * overlap);
+            if (overlap > 0)
+                score.set(doc._id, (score.get(doc._id) ?? 0) + referenceWeight * overlap);
         }
         if (boostDocIds?.has(doc._id) && boostWeight)
             score.set(doc._id, (score.get(doc._id) ?? 0) + boostWeight);
@@ -194,13 +205,12 @@ export function rank(
             perTagCount.set(dominant, count + 1);
         }
         selected.push(doc);
-        if (limit !== undefined && selected.length >= limit) break;
+        if (selected.length >= outputLimit) break;
     }
-    // The early break above only stops filling `selected` once `limit` is reached — it doesn't
+    // The early break above only stops filling `selected` once the limit is reached — it doesn't
     // discard whatever diversity capping already pushed into `overflow` before that point, so
-    // `overflow` must still be truncated here. `slice(0, undefined)` is a no-op, so the no-limit
-    // call path is unaffected.
-    return [...selected, ...overflow].slice(0, limit);
+    // `overflow` must still be truncated here.
+    return [...selected, ...overflow].slice(0, outputLimit);
 }
 
 /** Compute tag affinity and the diversity key in one allocation-free pass. */
