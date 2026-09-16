@@ -13,7 +13,7 @@ import {
 } from "@/util/appUpdateReminder";
 
 const { t } = useI18n();
-const { storeVersion, storeCheckedAt, isUpdateAvailable, openStore } = useAppUpdate();
+const { available, checkedAt, applyUpdate } = useAppUpdate();
 
 const reminder = useLocalStorage<AppUpdateReminder | null>("appUpdateReminder", null, {
     serializer: StorageSerializers.object,
@@ -21,10 +21,11 @@ const reminder = useLocalStorage<AppUpdateReminder | null>("appUpdateReminder", 
 const open = ref(false);
 
 function remindIfDue() {
-    if (open.value || !isUpdateAvailable.value || !storeVersion.value) return;
+    // A reload update is offered by the update banner instead.
+    if (open.value || available.value?.kind !== "store") return;
 
     const now = Date.now();
-    const current = reminderForVersion(reminder.value, storeVersion.value, now);
+    const current = reminderForVersion(reminder.value, available.value.version, now);
     reminder.value = current;
 
     // A new user answers the privacy notice first; the reminder waits for a later opening.
@@ -37,7 +38,7 @@ function remindIfDue() {
 
 function update() {
     open.value = false;
-    openStore();
+    applyUpdate();
 }
 
 function later() {
@@ -46,7 +47,7 @@ function later() {
 
 // The store is checked when the app opens and each time it returns to the foreground,
 // which is when a reminder may have become due.
-watch([storeVersion, isUpdateAvailable, storeCheckedAt], remindIfDue, { immediate: true });
+watch([available, checkedAt], remindIfDue, { immediate: true });
 </script>
 
 <template>

@@ -199,19 +199,20 @@ describe("ProfileMenu", () => {
         });
     });
 
-    it("offers a newer store version and opens the store", async () => {
+    it("offers an available update and applies it", async () => {
         (auth as any).useAuth.mockReturnValue({
             isAuthenticated: ref(false),
         });
-        const openStore = vi.fn();
+        const applyUpdate = vi.fn();
 
         const wrapper = mount(ProfileMenu, {
             global: {
                 provide: {
                     [AppUpdateKey as symbol]: {
                         installedVersion: ref("1.9.4"),
-                        storeVersion: ref("2.0.0"),
-                        openStore,
+                        available: ref({ kind: "store", version: "2.0.0" }),
+                        checkedAt: ref(Date.now()),
+                        applyUpdate,
                     },
                 },
             },
@@ -223,7 +224,7 @@ describe("ProfileMenu", () => {
         expect(updateItem.text()).toBe("Update available");
         await updateItem.trigger("click");
 
-        expect(openStore).toHaveBeenCalledOnce();
+        expect(applyUpdate).toHaveBeenCalledOnce();
         expect(wrapper.find("[aria-label='Close menu']").exists()).toBe(false);
     });
 
@@ -237,8 +238,9 @@ describe("ProfileMenu", () => {
                 provide: {
                     [AppUpdateKey as symbol]: {
                         installedVersion: ref("2.0.0"),
-                        storeVersion: ref("2.0.0"),
-                        openStore: vi.fn(),
+                        available: ref(undefined),
+                        checkedAt: ref(Date.now()),
+                        applyUpdate: vi.fn(),
                     },
                 },
             },
