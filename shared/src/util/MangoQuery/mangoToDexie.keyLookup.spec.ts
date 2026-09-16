@@ -36,7 +36,9 @@ function expected(docs: Doc[], query: MangoQuery): string[] {
         const [field, dir] = Object.entries(sort)[0] as [keyof Doc, string];
         out = out
             .filter((d) => d[field] != null)
-            .sort((a, b) => ((a[field] as number) - (b[field] as number)) || (a._id < b._id ? -1 : 1));
+            .sort(
+                (a, b) => (a[field] as number) - (b[field] as number) || (a._id < b._id ? -1 : 1),
+            );
         if (dir === "desc") out.reverse();
     }
     if (typeof query.$limit === "number") out = out.slice(0, query.$limit);
@@ -82,6 +84,26 @@ describe("mangoToDexie key lookups", () => {
         expect(bulkGet).toHaveBeenCalledWith(["c001", "c010", "c011", "missing"]);
         expect(where).not.toHaveBeenCalled();
         expect(res.map((d) => d._id).sort()).toEqual(expected(docs, query).sort());
+    });
+
+    it("orders a sorted, limited primary-key $in next to equality fields like an index walk", async () => {
+        const orderBy = vi.spyOn(db.docs, "orderBy");
+        const query: MangoQuery = {
+            selector: {
+                type: "content",
+                status: "published",
+                _id: { $in: ["c-undated", "c051", "c001", "c101", "c002"] },
+            },
+            $sort: [{ publishDate: "asc" }],
+            $limit: 3,
+        };
+
+        const res = (await mangoToDexie(db.docs, query)) as Doc[];
+
+        expect(orderBy).not.toHaveBeenCalled();
+        // Undated row left out, publishDate ties in primary-key order.
+        expect(res.map((d) => d._id)).toEqual(expected(docs, query));
+        expect(res.map((d) => d._id)).toEqual(["c001", "c051", "c101"]);
     });
 
     it("walks a compound index covering the equality fields and the $in field", async () => {

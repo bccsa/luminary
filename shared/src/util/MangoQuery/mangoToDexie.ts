@@ -140,6 +140,19 @@ export function mangoToDexie<T = any>(table: Table, query: MangoQuery): Promise<
     // Equality fields win the template pushdown, so an id list next to them would otherwise
     // scan the equality range and filter it. Look the ids up directly when the schema allows.
     const keyPlan = planKeyLookup(table, analysis, values);
+    if (keyPlan?.kind === "primaryKey" && sort?.length && typeof limit === "number") {
+        // This query shape used to walk the sort index, so its rows keep that order.
+        const entry = sort[0];
+        const sortField = Object.keys(entry)[0];
+        const desc = (entry as Record<string, string>)[sortField] === "desc";
+        const predicate = fullPredicate(analysis, template);
+        return table.bulkGet(keyPlan.keys as any).then((docs) => {
+            const matches = docs.filter(
+                (doc) => doc !== undefined && predicate(doc, values),
+            ) as T[];
+            return sortLikeIndex(table, matches, sortField, desc).slice(0, Math.max(0, limit));
+        }) as Promise<T[]>;
+    }
     if (keyPlan?.kind === "primaryKey") {
         return executeBulkGet<T>(
             table,
@@ -808,11 +821,7 @@ function extractQueriedFields(selector: MangoSelector): string[] {
  * indexed on the target table. Returns false if any field is missing from
  * the schema, which would cause Dexie to throw a SchemaError at query time.
  */
-function isPushdownValid(
-    table: Table,
-    push: TemplatePushdown,
-    selector: MangoSelector,
-): boolean {
+function isPushdownValid(table: Table, push: TemplatePushdown, selector: MangoSelector): boolean {
     try {
         const schema = table.schema;
 
