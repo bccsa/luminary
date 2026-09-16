@@ -33,7 +33,7 @@ const BUILT_HTML =
  * only observable by driving those callbacks by hand.
  */
 function runLoader(html: string, visibilityState = "visible", body: boolean = true) {
-    const inline = html.match(/<script>([\s\S]*?)<\/script>/);
+    const inline = html.match(/<script\b[^>]*>([\s\S]*?)<\/script\s*>/i);
     if (!inline) throw new Error("Expected an inline loader script");
 
     const appended: { attributes: Record<string, string> }[] = [];
