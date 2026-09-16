@@ -5,6 +5,7 @@ import { defineComponent, nextTick, onMounted, onUnmounted, ref } from "vue";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
 import SingleContent from "../SingleContent.vue";
+import LoadingBar from "@/components/LoadingBar.vue";
 import {
     mockPostDto,
     mockEnglishContentDto,
@@ -187,6 +188,38 @@ describe("SingleContent navigation between posts", () => {
             expect(wrapper.text()).toContain("Post B");
         });
         expect(wrapper.text()).not.toContain("Post A");
+
+        wrapper.unmount();
+    });
+
+    it("does not flash the loading bar when navigating to an already-local post", async () => {
+        const wrapper = mount(SingleContent, { props: { slug: "post-a" } });
+
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain("Post A");
+        });
+
+        // The query re-runs for the new slug and emits an empty result for a tick or two
+        // on the way. Sample right through that window: a document the client already
+        // holds must never be reported as a wait.
+        let sawLoadingBar = false;
+        const sample = () => {
+            if (wrapper.findComponent(LoadingBar).exists()) sawLoadingBar = true;
+        };
+
+        await wrapper.setProps({ slug: "post-b" });
+        sample();
+        for (let i = 0; i < 10; i++) {
+            await flushPromises();
+            await nextTick();
+            sample();
+        }
+        await waitForExpect(() => {
+            sample();
+            expect(wrapper.text()).toContain("Post B");
+        });
+
+        expect(sawLoadingBar).toBe(false);
 
         wrapper.unmount();
     });

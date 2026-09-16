@@ -18,6 +18,7 @@ Contributor and workflow documentation spanning more than one package:
 |-------|-------------|
 | [setup-vue-app.md](guides/setup-vue-app.md) | VS Code setup, env, running app and CMS locally |
 | [translations.md](guides/translations.md) | i18n keys, CouchDB language docs, interpolation |
+| [media-encoder-integration.md](guides/media-encoder-integration.md) | Luminary Media Convert flow, what is temporary and must be removed, testing on dev |
 
 Repo-wide local dev environment setup (CouchDB/MinIO/env files) is the [setup wizard in `scripts/`](../scripts/README.md).
 

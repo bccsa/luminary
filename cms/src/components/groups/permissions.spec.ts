@@ -328,3 +328,57 @@ describe("Group editor permissions (permissions.ts)", () => {
         });
     });
 });
+
+describe("Share permission", () => {
+    it.each([DocType.Post, DocType.Tag])("is available on %s", (docType) => {
+        expect(isPermissionAvailable.value(docType, AclPermission.Share)).toBe(true);
+    });
+
+    it.each([
+        DocType.Group,
+        DocType.Language,
+        DocType.User,
+        DocType.Redirect,
+        DocType.Storage,
+        DocType.AuthProvider,
+        DocType.AutoGroupMappings,
+    ])("is not available on %s", (docType) => {
+        expect(isPermissionAvailable.value(docType, AclPermission.Share)).toBe(false);
+    });
+
+    it("does not imply CmsView", () => {
+        const aclEntry: GroupAclEntryDto = {
+            groupId: "group-public-users",
+            type: DocType.Post,
+            permission: [AclPermission.View, AclPermission.Share],
+        };
+
+        const prevAclEntry: GroupAclEntryDto = {
+            groupId: "group-public-users",
+            type: DocType.Post,
+            permission: [AclPermission.View],
+        };
+
+        validateAclEntry(aclEntry, prevAclEntry);
+
+        expect(aclEntry.permission).toEqual([AclPermission.View, AclPermission.Share]);
+    });
+
+    it("is cleared when no visibility permission remains", () => {
+        const aclEntry: GroupAclEntryDto = {
+            groupId: "group-public-users",
+            type: DocType.Post,
+            permission: [AclPermission.Share],
+        };
+
+        const prevAclEntry: GroupAclEntryDto = {
+            groupId: "group-public-users",
+            type: DocType.Post,
+            permission: [AclPermission.View, AclPermission.Share],
+        };
+
+        validateAclEntry(aclEntry, prevAclEntry);
+
+        expect(aclEntry.permission).toEqual([]);
+    });
+});

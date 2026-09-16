@@ -59,12 +59,13 @@ vi.mock("@/globalConfig", () => ({
     theme: ref("light"),
     cmsLanguages: ref([]),
     queryParams: { get: vi.fn() },
-    addToMediaQueue: vi.fn(),
     cmsUrl: ref(""),
     userPreferencesAsRef: ref({ bookmarks: [] }),
     appLanguageIdsAsRef: ref(["lang-eng"]),
     appLanguageAsRef: ref(undefined),
     initLanguage: vi.fn(),
+    userDataSaverEnabled: ref(false),
+    isDataSaverEnabled: () => false,
 }));
 
 vi.mock("@/seo/contentHead", () => ({ useContentHead: () => {} }));
@@ -106,7 +107,6 @@ vi.mock("@/composables/useBucketInfo", () => ({
     useBucketInfo: () => ({ bucketBaseUrl: computed(() => "") }),
 }));
 
-vi.mock("video.js", () => ({ default: vi.fn() }));
 
 // Stub every presentational child that is not part of the query chain under test.
 // RelatedContent and ReadMore stay real — their queries and rendered output are the
@@ -293,6 +293,20 @@ describe("SingleContent — server-render (prerender) regression", () => {
         // a RouterLink to its slug.
         expect(html).toContain('href="/other-post-slug"');
         expect(html).toContain("Other Post Title");
+    });
+
+    it("schedules no short-lived timers during the prerender", async () => {
+        // The loading bar's delay is client-only: a timer per route is pending work the
+        // build would carry on every page it renders. The only timers the prerender may
+        // schedule are luminary-shared's 5-minute query-cache expiries, which unref
+        // themselves so they cannot hold the Node event loop open.
+        const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout");
+
+        await renderWith(["lang-eng"]);
+
+        const delays = setTimeoutSpy.mock.calls.map((call) => call[1]);
+        expect(delays.filter((delay) => (delay ?? 0) < 60_000)).toEqual([]);
+        setTimeoutSpy.mockRestore();
     });
 
     it("reports a provably-empty render issue when no display language is provided", async () => {

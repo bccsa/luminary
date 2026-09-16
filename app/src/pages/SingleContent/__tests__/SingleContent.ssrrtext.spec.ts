@@ -74,12 +74,13 @@ vi.mock("@/globalConfig", () => ({
     cmsLanguages: ref([mockLanguageDtoEng]),
     cmsDefaultLanguage: computed(() => mockLanguageDtoEng),
     queryParams: { get: vi.fn() },
-    addToMediaQueue: vi.fn(),
     cmsUrl: ref(""),
     userPreferencesAsRef: ref({ bookmarks: [] }),
     appLanguageIdsAsRef: ref(["lang-eng"]),
     appLanguageAsRef: ref(undefined),
     initLanguage: vi.fn(),
+    userDataSaverEnabled: ref(false),
+    isDataSaverEnabled: () => false,
 }));
 
 vi.mock("@/seo/contentHead", () => ({ useContentHead: () => {} }));
@@ -109,7 +110,6 @@ vi.mock("@/router", () => ({
     markInternalNavigation: vi.fn(),
 }));
 
-vi.mock("video.js", () => ({ default: vi.fn() }));
 
 function passthrough(name: string) {
     return defineComponent({

@@ -26,6 +26,7 @@ const availablePermissionsPerDocType = {
         AclPermission.Delete,
         AclPermission.Translate,
         AclPermission.Publish,
+        AclPermission.Share,
         AclPermission.CmsView,
     ],
     [DocType.Tag]: [
@@ -35,6 +36,7 @@ const availablePermissionsPerDocType = {
         AclPermission.Assign,
         AclPermission.Translate,
         AclPermission.Publish,
+        AclPermission.Share,
         AclPermission.CmsView,
     ],
     [DocType.User]: [
@@ -72,7 +74,9 @@ const availablePermissionsPerDocType = {
     ],
 };
 
-// Valid DocTypes that can be used for ACL assignments
+// Derived from the map keys, NOT the DocType enum — so omitting Crypto/Sidecar
+// here is load-bearing: no ACL can grant view on them, so no client joins a
+// crypto-*/sidecar-* room.
 const validDocTypes = Object.keys(availablePermissionsPerDocType) as DocType[];
 
 /**

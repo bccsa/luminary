@@ -26,6 +26,7 @@ import {
 import LImage from "@/components/images/LImage.vue";
 import { DateTime } from "luxon";
 import { clearMediaQueue, cmsLanguages, isMobileScreen, mediaQueue } from "@/globalConfig";
+import { audioFilesOf } from "@/util/audioFiles";
 import { getMediaProgress, removeMediaProgress, setMediaProgress } from "@/contentProgress";
 import LDialog from "@/components/common/LDialog.vue";
 
@@ -99,11 +100,10 @@ const isLanguageSwitching = ref(false);
 
 // Available languages for this content (from the shared CMS languages list)
 const availableAudioLanguages = computed(() => {
-    if (!currentContent.value?.parentMedia?.fileCollections) return [];
+    const audioFiles = audioFilesOf(currentContent.value);
+    if (!audioFiles) return [];
 
-    const audioLanguageIds = currentContent.value.parentMedia.fileCollections.map(
-        (fc) => fc.languageId,
-    );
+    const audioLanguageIds = audioFiles.map((fc) => fc.languageId);
     return cmsLanguages.value.filter((lang) => audioLanguageIds.includes(lang._id));
 });
 
@@ -529,7 +529,7 @@ const switchLanguage = (languageId: string) => {
     if (!audioElement.value || selectedLanguageId.value === languageId) return;
 
     // Validate that the target language has audio
-    const targetAudioFile = currentContent.value.parentMedia?.fileCollections?.find(
+    const targetAudioFile = audioFilesOf(currentContent.value)?.find(
         (file) => file.languageId === languageId,
     );
     if (!targetAudioFile) {
@@ -948,17 +948,12 @@ const onPointerLeave = () => {
 
 // write a computed function that will assign the file url of the file collection where the languageId matches the selected language
 const matchAudioFileUrl = computed(() => {
-    if (
-        currentContent.value.parentMedia &&
-        currentContent.value.parentMedia.fileCollections &&
-        selectedLanguageId.value
-    ) {
-        const matchedFile = currentContent.value.parentMedia.fileCollections.find(
-            (file) => file.languageId === selectedLanguageId.value,
-        );
+    const audioFiles = audioFilesOf(currentContent.value);
+    if (audioFiles && selectedLanguageId.value) {
+        const matchedFile = audioFiles.find((file) => file.languageId === selectedLanguageId.value);
         return matchedFile?.fileUrl;
     }
-    return currentContent.value.parentMedia?.fileCollections?.[0]?.fileUrl;
+    return audioFiles?.[0]?.fileUrl;
 });
 
 // Also watch for audio URL changes and auto-play (but not during manual language switching)

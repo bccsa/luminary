@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, onMounted, onUnmounted, provide, ref } from "vue";
+import { computed, onMounted, onUnmounted, provide, ref } from "vue";
 import TopBar from "./navigation/TopBar.vue";
 import DesktopSidebar from "./navigation/DesktopSidebar.vue";
 import NotificationBannerManager from "./notifications/NotificationBannerManager.vue";
@@ -10,7 +10,6 @@ import type { ContentDto } from "luminary-shared";
 import { ChevronLeftIcon } from "@heroicons/vue/24/outline";
 import { useBackNavigation } from "@/composables/useBackNavigation";
 import { useMobileChromeAutoHide } from "@/composables/useMobileChromeAutoHide";
-import { PlatformChromeKey } from "@/build-time/contracts/platform-chrome/token";
 
 const showNotifications = !queryParams.has("supress-notifications");
 
@@ -30,14 +29,6 @@ const props = defineProps<{
 }>();
 
 const { onBackClick } = useBackNavigation();
-
-// Whether the fade behind the pinned mobile chrome renders is a platform
-// decision (see the platform-chrome contract). Defaults to the browser
-// behaviour when no service is provided (tests, isolated mounts).
-const platformChrome = inject(PlatformChromeKey, {
-    chromeFadeEnabled: true,
-    setStatusBarHidden: () => undefined,
-});
 
 const main = ref<HTMLElement | undefined>(undefined);
 
@@ -238,12 +229,7 @@ onUnmounted(() => {
                     :style="pillPinnedStyle"
                 >
                     <div
-                        v-if="platformChrome.chromeFadeEnabled"
-                        :class="[topChromeFade, scrolled ? 'opacity-100' : 'opacity-0']"
-                        aria-hidden="true"
-                    />
-                    <div
-                        class="pointer-events-auto relative flex min-h-9 min-w-0 max-w-full items-center justify-center"
+                        class="pointer-events-auto relative flex h-9 min-w-0 max-w-full items-center justify-center"
                     >
                         <slot name="topBarCenter" />
                     </div>
@@ -256,17 +242,13 @@ onUnmounted(() => {
                     class="h-11"
                 />
 
-                <!-- Desktop notification: normal flow below the pinned chrome; pushes article down when present.
-                     [&>div]:mb-2 trims the banner's default mb-4 so the gap above the title matches the page-top gap. -->
+                <!-- Desktop notification: normal flow below the pinned chrome; pushes article down when present. -->
                 <div
                     v-if="desktopTopBar"
                     class="hidden justify-center lg:flex"
                 >
                     <div class="w-full lg:w-3/4 lg:max-w-3xl">
-                        <NotificationBannerManager
-                            v-if="showNotifications && notificationsReady"
-                            class="[&>div]:mb-2"
-                        />
+                        <NotificationBannerManager v-if="showNotifications && notificationsReady" />
                     </div>
                 </div>
 

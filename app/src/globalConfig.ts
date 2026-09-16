@@ -10,6 +10,7 @@ import {
 } from "luminary-shared";
 import { computed, ref, watch, watchEffect, type WatchStopHandle } from "vue";
 import { loadFallbackImageUrls } from "./util/loadFallbackImages";
+import { audioFilesOf } from "./util/audioFiles";
 
 export const appName = import.meta.env.VITE_APP_NAME;
 export const apiUrl = import.meta.env.VITE_API_URL;
@@ -416,7 +417,7 @@ export const mediaQueue = ref<ContentDto[]>([]);
  */
 export const addToMediaQueue = (content: ContentDto) => {
     // Check if content has audio files
-    if (!content.parentMedia?.fileCollections?.length) {
+    if (!audioFilesOf(content)?.length) {
         console.warn("Content has no audio files to play");
         return;
     }

@@ -3,12 +3,13 @@ import { type ContentDto } from "luminary-shared";
 import { DateTime } from "luxon";
 import LImage from "../images/LImage.vue";
 import { type AspectRatio, type ImageSize } from "../images/LImageProvider.vue";
-import { PlayIcon, SpeakerWaveIcon } from "@heroicons/vue/24/solid";
+import { PlayIcon } from "@heroicons/vue/24/solid";
 import { getMediaDuration, getMediaProgress, getReadingProgress } from "@/contentProgress";
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import { cmsLanguages, cmsDefaultLanguage } from "@/globalConfig";
 import { sessionNow } from "@/util/sessionNow";
+import { hasVideoSource, videoSourceFor } from "@/util/videoSource";
 
 const { t } = useI18n();
 
@@ -53,10 +54,7 @@ const publishDateText = computed(() => {
     ).toLocaleString(DateTime.DATETIME_MED);
 });
 
-const hasVideo = computed(() => Boolean(props.content.video));
-const hasAudio = computed(
-    () => !props.content.video && Boolean(props.content.parentMedia?.fileCollections?.length),
-);
+const hasVideo = computed(() => hasVideoSource(props.content));
 
 const mediaIconClass = computed(() =>
     props.titlePosition === "overlay"
@@ -81,19 +79,12 @@ const isComingSoon = computed(() => {
 const mediaProgress = computed(() => {
     if (!props.showProgress) return 0;
 
-    const mediaIds = props.content.video
-        ? [props.content.video]
-        : (props.content.parentMedia?.fileCollections ?? []).map((f) => f.fileUrl);
+    const videoSource = videoSourceFor(props.content);
+    if (!videoSource) return 0;
 
-    for (const mediaId of mediaIds) {
-        const progress = getMediaProgress(mediaId, props.content._id);
-        const duration = getMediaDuration(mediaId, props.content._id);
-
-        if (progress > 0 && duration > 0) {
-            return Math.min(100, (progress / duration) * 100);
-        }
-    }
-    return 0;
+    const progress = getMediaProgress(videoSource, props.content._id);
+    const duration = getMediaDuration(videoSource, props.content._id);
+    return progress > 0 && duration > 0 ? Math.min(100, (progress / duration) * 100) : 0;
 });
 
 const readingProgress = computed(() =>
@@ -177,24 +168,6 @@ const displayProgress = computed(() => Math.max(mediaProgress.value, readingProg
                                 class="absolute inset-0 z-20 flex items-center justify-center rounded-lg"
                             >
                                 <PlayIcon :class="mediaIconClass" />
-                            </div>
-                            <div
-                                v-if="hasAudio"
-                                class="absolute inset-0 z-20 flex items-center justify-center rounded-lg"
-                            >
-                                <SpeakerWaveIcon
-                                    :class="[
-                                        mediaIconClass,
-                                        'text-black',
-                                        titlePosition === 'overlay' ? ' blur-[1.5px]' : 'blur-sm',
-                                    ]"
-                                />
-                            </div>
-                            <div
-                                v-if="hasAudio"
-                                class="absolute inset-0 z-20 flex items-center justify-center rounded-lg"
-                            >
-                                <SpeakerWaveIcon :class="mediaIconClass" />
                             </div>
                         </div>
                         <div
