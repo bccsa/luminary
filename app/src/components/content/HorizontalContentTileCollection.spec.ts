@@ -209,40 +209,49 @@ describe("HorizontalContentTileCollection", () => {
         expect(wrapper.find("h2").exists()).toBe(false);
     });
 
-    it("scrolls left when left arrow container is clicked", async () => {
+    it("smoothly scrolls left by most of the visible row when the left arrow is clicked", async () => {
         const wrapper = mount(HorizontalContentTileCollection, {
             props: { contentDocs: [mockEnglishContentDto] },
         });
 
         const scrollElement = wrapper.find(".overflow-x-scroll");
-        // Mock scrollLeft as a property
-        Object.defineProperty(scrollElement.element, "scrollLeft", {
-            value: 100,
-            writable: true,
+        const scrollBy = vi.fn();
+        Object.defineProperty(scrollElement.element, "clientWidth", {
+            value: 500,
+            configurable: true,
+        });
+        Object.defineProperty(scrollElement.element, "scrollBy", {
+            value: scrollBy,
+            configurable: true,
         });
 
         // Click the left arrow container
         const leftArrowContainer = wrapper.findAll(".group.absolute")[0];
         await leftArrowContainer.trigger("click");
 
-        expect(scrollElement.element.scrollLeft).toBe(0);
+        expect(scrollBy).toHaveBeenCalledWith({ left: -400, behavior: "smooth" });
     });
 
-    it("scrolls right when right arrow container is clicked", async () => {
+    it("smoothly scrolls right by most of the visible row when the right arrow is clicked", async () => {
         const wrapper = mount(HorizontalContentTileCollection, {
             props: { contentDocs: [mockEnglishContentDto] },
         });
 
         const scrollElement = wrapper.find(".overflow-x-scroll");
-        Object.defineProperty(scrollElement.element, "scrollLeft", {
-            value: 0,
-            writable: true,
+        const scrollBy = vi.fn();
+        Object.defineProperty(scrollElement.element, "clientWidth", {
+            value: 500,
+            configurable: true,
+        });
+        Object.defineProperty(scrollElement.element, "scrollBy", {
+            value: scrollBy,
+            configurable: true,
         });
 
         const rightArrowContainer = wrapper.findAll(".group.absolute")[1];
         await rightArrowContainer.trigger("click");
 
-        expect(scrollElement.element.scrollLeft).toBe(100);
+        expect(scrollBy).toHaveBeenCalledWith({ left: 400, behavior: "smooth" });
     });
 
     it("shows right spin button when content overflows", async () => {

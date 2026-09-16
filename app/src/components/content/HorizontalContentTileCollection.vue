@@ -37,11 +37,20 @@ const computedTitlePosition = computed(() => {
     return props.contentTitlePosition;
 });
 
+const spinByVisibleWidth = (direction: 1 | -1) => {
+    if (!scrollElement.value) return;
+
+    scrollElement.value.scrollBy({
+        left: scrollElement.value.clientWidth * 0.8 * direction,
+        behavior: "smooth",
+    });
+};
+
 const spinLeft = () => {
-    if (scrollElement.value) scrollElement.value.scrollLeft -= 100;
+    spinByVisibleWidth(-1);
 };
 const spinRight = () => {
-    if (scrollElement.value) scrollElement.value.scrollLeft += 100;
+    spinByVisibleWidth(1);
 };
 
 const showLeftSpin = ref(false);
