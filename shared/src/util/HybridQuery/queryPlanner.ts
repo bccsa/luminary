@@ -63,15 +63,81 @@ export function withPublishDate(selector: MangoSelector, cutoff: number): MangoS
 }
 
 /**
+ * Cap on ids excluded to break a sort-value tie. Past this the boundary isn't
+ * narrowing much (most of the page shares one value), so paging falls back to
+ * re-requesting the tail rather than shipping a large exclusion list.
+ */
+export const MAX_TIE_EXCLUSIONS = 50;
+
+/** The single sort key a keyset boundary can walk, or `undefined` if there isn't one. */
+function readSortKey(sort: MangoQuery["$sort"]): { field: string; desc: boolean } | undefined {
+    if (!Array.isArray(sort) || sort.length !== 1) return undefined;
+    const entry = sort[0] as Record<string, unknown> | undefined;
+    if (!entry || typeof entry !== "object") return undefined;
+    const fields = Object.keys(entry);
+    if (fields.length !== 1) return undefined;
+    const direction = entry[fields[0]];
+    if (direction !== "asc" && direction !== "desc") return undefined;
+    return { field: fields[0], desc: direction === "desc" };
+}
+
+/**
+ * Narrow a supplement past the rows the remote contribution already holds, so a later
+ * page fetches only rows beyond the last one seen in sort order. Ties on the boundary
+ * value are excluded by id, since a bare `$lt`/`$gt` would skip them and a `$lte`/`$gte`
+ * would re-fetch them forever without advancing.
+ *
+ * Returns `undefined` when no safe boundary exists — nothing held yet, a missing or
+ * multi-key sort, a held doc with no comparable value for the sort field, or a tie group
+ * over {@link MAX_TIE_EXCLUSIONS}. The caller then keeps the un-narrowed selector.
+ */
+function withKeysetBoundary<T extends BaseDocumentDto>(
+    selector: MangoSelector,
+    held: readonly T[],
+    sort: MangoQuery["$sort"],
+): MangoSelector | undefined {
+    if (!held.length) return undefined;
+    const key = readSortKey(sort);
+    if (!key) return undefined;
+
+    let boundary: number | string | undefined;
+    for (const doc of held) {
+        const value = (doc as unknown as Record<string, unknown>)[key.field];
+        if (typeof value !== "number" && typeof value !== "string") return undefined;
+        if (boundary === undefined) boundary = value;
+        else if (typeof value !== typeof boundary) return undefined;
+        else if (key.desc ? value < boundary : value > boundary) boundary = value;
+    }
+    if (boundary === undefined) return undefined;
+
+    const ties = held.filter(
+        (doc) => (doc as unknown as Record<string, unknown>)[key.field] === boundary,
+    );
+    if (ties.length > MAX_TIE_EXCLUSIONS) return undefined;
+
+    const expanded = expandMangoSelector(selector);
+    const past: MangoSelector = {
+        [key.field]: key.desc ? { $lt: boundary } : { $gt: boundary },
+    } as MangoSelector;
+    const atBoundary: MangoSelector = {
+        $and: [
+            { [key.field]: boundary } as MangoSelector,
+            { _id: { $nin: ties.map((doc) => doc._id) } } as MangoSelector,
+        ],
+    };
+    return { $and: [...(expanded.$and ?? []), { $or: [past, atBoundary] }] };
+}
+
+/**
  * Decide what (if anything) `HybridQuery` should POST to the API after running
  * the local Dexie read. Pure — no Vue / no I/O.
  *
  * Three sub-branches, first match wins (per the routing flowchart):
  *
- * 1. `$limit` present and `localDocs.length === $limit` → local is sufficient
- *    (returns `undefined`). Otherwise POST with `publishDate <= cutoff` and
- *    `$limit = $limit - localDocs.length` (fetch only the shortfall of older docs).
- * 2. Top-level `_id: { $in: [...] }` and every requested id is local → done. Else
+ * 1. `$limit` present and the window is already full → local is sufficient (returns
+ *    `undefined`). Otherwise POST with `publishDate <= cutoff` and a `$limit` covering
+ *    only the shortfall of older docs.
+ * 2. Top-level `_id: { $in: [...] }` and every requested id is already held → done. Else
  *    POST with `_id ∈ (missing ids)` AND `publishDate <= cutoff`, no sort/limit.
  *    The cutoff clause on an id-list is correct under the core invariant: a
  *    missing id must be older than the cutoff because the newest content is
@@ -89,18 +155,31 @@ export function decideContentApiQuery<T extends BaseDocumentDto>(
     query: MangoQuery,
     localDocs: readonly T[],
     cutoff: number,
+    held: readonly T[] = [],
 ): MangoQuery | undefined {
     // No cutoff ⇒ sync has all synced-language content, so the API has nothing to supply — skip.
     if (cutoff === Number.MIN_SAFE_INTEGER) return undefined;
 
+    // Distinct ids across both contributions: the visible window is their union, so a
+    // doc supplied by both must not be counted twice against the limit.
+    const have = new Set(localDocs.map((d) => d._id));
+    for (const doc of held) have.add(doc._id);
+
     // 1. limit-shortfall
     if (typeof query.$limit === "number") {
-        // A full local page means the API has nothing older to add → skip.
-        if (localDocs.length >= query.$limit) return undefined;
+        // A full page means the API has nothing more to add → skip.
+        if (have.size >= query.$limit) return undefined;
+        const base = withPublishDate(query.selector, cutoff);
+        const narrowed = withKeysetBoundary(base, held, query.$sort);
         return {
-            selector: withPublishDate(query.selector, cutoff),
+            selector: narrowed ?? base,
             $sort: query.$sort,
-            $limit: Math.max(0, query.$limit - localDocs.length),
+            // Narrowed, the supplement returns only rows the window lacks, so ask for the
+            // shortfall. Un-narrowed it restarts from the cutoff, so the rows it will
+            // re-supply have to fit under the limit as well.
+            $limit: narrowed
+                ? Math.max(0, query.$limit - have.size)
+                : Math.max(0, query.$limit - localDocs.length),
             use_index: query.use_index,
         };
     }
@@ -112,8 +191,6 @@ export function decideContentApiQuery<T extends BaseDocumentDto>(
     //    oriented use_index here; it'd be wrong for the shape.
     const idHit = findIdInList(conditions);
     if (idHit) {
-        if (localDocs.length === idHit.ids.length) return undefined;
-        const have = new Set(localDocs.map((d) => d._id));
         const missing = idHit.ids.filter((id) => !have.has(id));
         if (missing.length === 0) return undefined;
         const narrowed = conditions.map((c, i) =>

@@ -93,13 +93,24 @@ govern an implementation:
 
 Narrowing past already-fetched rows is the **remote** side's job: the remote
 contribution accumulates, and `QueryPlan.remote` receives it as its `held` argument.
-`planBrowserQuery` does not use `held` yet, so an extended content query re-requests
-its API tail — wasteful but correct, since the union merge dedups it.
+`decideContentApiQuery` uses it to walk a keyset boundary on the query's sort field —
+rows past the oldest held one, with that value's tie group excluded by `_id` so a bare
+`$lt` can't skip ties and a `$lte` can't re-fetch them without advancing. The supplement
+then asks only for the rows the window still lacks, counting the two contributions as a
+union so a doc supplied by both isn't double-counted.
+
+The boundary needs a single comparable sort key, a value on every held row, and a tie
+group within `MAX_TIE_EXCLUSIONS`. Failing any of those it falls back to re-requesting
+the tail from the cutoff — wasteful but correct, since the union merge dedups it.
 
 `SessionObserver.pending` carries `kind` (`"initial"` / `"extend"`) so a consumer can
 render a footer spinner for an append and a full-page one for a first load, and `more`,
 recomputed whenever a slice settles. The response cache is still written at the
 generation's **first** `$limit`, so paging deep does not inflate `localStorage`.
+
+Each supplement stays within the remote cap (`DEFAULT_REMOTE_QUERY_LIMIT`) because it
+requests a page rather than the whole tail, so a paged window keeps growing past that
+cap. A query that falls back to the un-narrowed tail does not.
 
 No cursor format, retry behavior or cache migration is added. The current remote cap,
 ordering, offline settlement and partial-failure behavior remain in force. Changes to
