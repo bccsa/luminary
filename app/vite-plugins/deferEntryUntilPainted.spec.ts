@@ -155,6 +155,13 @@ describe("deferEntryUntilPainted", () => {
         expect(html).not.toContain(ENTRY);
     });
 
+    it("leaves a module script that carries its own body alone", () => {
+        const html =
+            '<html><head></head><body><script type="module" src="/assets/index-abc123.js">boot()</script></body></html>';
+
+        expect(transform(html)).toBe(html);
+    });
+
     it("does not run on the dev server", () => {
         expect(deferEntryUntilPainted().apply).toBe("build");
     });

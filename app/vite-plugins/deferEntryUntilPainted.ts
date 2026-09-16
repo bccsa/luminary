@@ -1,7 +1,9 @@
 import type { Plugin } from "vite";
 
 const ATTRIBUTE = /([a-zA-Z_:][-\w:.]*)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/g;
-const EMPTY_SCRIPT = /<script\b([^>]*)>\s*<\/script[^>]*>/gi;
+// Matches any script element — the body is narrowed to "empty" in the handler rather than in
+// the pattern, so the end tag stays as permissive as a browser's (`</script foo="bar">` too).
+const SCRIPT = /<script\b([^>]*)>([\s\S]*?)<\/script[^>]*>/gi;
 
 type Attributes = Record<string, string>;
 
@@ -62,7 +64,8 @@ export function deferEntryUntilPainted(): Plugin {
             order: "post",
             handler(html) {
                 const preloads: string[] = [];
-                const deferred = html.replace(EMPTY_SCRIPT, (tag, raw: string) => {
+                const deferred = html.replace(SCRIPT, (tag, raw: string, body: string) => {
+                    if (body.trim()) return tag;
                     const attributes = parseAttributes(raw);
                     if (attributes.type !== "module" || !attributes.src) return tag;
                     preloads.push(preloadLink(attributes));
