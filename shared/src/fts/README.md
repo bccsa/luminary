@@ -157,7 +157,7 @@ This finds all documents containing a given trigram. The TF value is parsed from
 Each search query:
 
 1. Generates search trigrams from the query
-2. Counts docs per trigram (in parallel) and filters out over-represented trigrams (appearing in >`maxTrigramDocPercent`% of docs, default 50%)
+2. Gets the doc count per trigram (from the stored frequencies — see Corpus Stats) and filters out over-represented trigrams (appearing in >`maxTrigramDocPercent`% of docs, default 50%)
 3. **High-df pruning**: keeps only the most discriminative (lowest-df) trigrams within a df budget — common trigrams add many matches but little ranking signal
 4. Computes IDF for each kept trigram
 5. Collects matching doc IDs (in parallel) across the kept trigrams
@@ -175,7 +175,9 @@ Corpus statistics (total token count, document count) are maintained for BM25's 
 
 - Recomputed after each `bulkPut` containing ContentDtos
 - Debounced recompute (10s) after document deletions
-- Recomputed on startup when stale: only if the number of content docs differs from the count stored with the stats (a key-only count), since a recompute reads every content doc
+- Recomputed on startup
+
+Each recompute also stores every trigram's document frequency (df), in the same transaction as the stats; searches read these instead of counting the `*fts` index, falling back to counting when none are stored. Between a write and the debounced recompute, pruning and IDF therefore use the last recompute's frequencies rather than live counts: a trigram new to the corpus has df 0, so it is always kept and gets the maximum IDF.
 
 ### Deletion Handling
 

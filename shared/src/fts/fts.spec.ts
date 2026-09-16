@@ -1,5 +1,5 @@
 import "fake-indexeddb/auto";
-import { describe, it, expect, beforeAll, beforeEach } from "vitest";
+import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
 import { db, initDatabase } from "../db/database";
 import { initConfig } from "../config";
 import {
@@ -12,7 +12,6 @@ import {
     setCorpusStats,
     recomputeCorpusStats,
     scheduleCorpusStatsRecompute,
-    scheduleCorpusStatsRecomputeIfStale,
     getDocFrequencies,
 } from "./ftsIndexer";
 import { ftsSearch, ftsSearchMany, selectTrigramsWithinDfBudget } from "./ftsSearch";
@@ -204,6 +203,30 @@ describe("FTS Indexer and Search", () => {
             const stats = await getCorpusStats();
             expect(stats.docCount).toBe(1);
             expect(stats.totalTokenCount).toBe(tc2);
+        });
+
+        it("keeps the previous frequencies and stats together when the write fails", async () => {
+            const { entries, tokenCount } = generateSimpleFtsEntries("quantum");
+            await ingestDocWithFts(makeContentDoc({ _id: "atomic-1", title: "quantum" }), entries, tokenCount);
+            await recomputeCorpusStats();
+            const before = await getCorpusStats();
+
+            const put = db.luminaryInternals.put.bind(db.luminaryInternals);
+            const spy = vi
+                .spyOn(db.luminaryInternals, "put")
+                .mockImplementation((item: any, key?: any) =>
+                    item.id === "corpusStats" ? Promise.reject(new Error("interrupted")) : put(item, key),
+                );
+            await new Promise((r) => setTimeout(r, 1)); // a new frequencies version
+            try {
+                await expect(recomputeCorpusStats()).rejects.toThrow("interrupted");
+            } finally {
+                spy.mockRestore();
+            }
+
+            expect(await getCorpusStats()).toEqual(before);
+            const frequencies = await db.luminaryInternals.get("ftsDocFrequency");
+            expect(frequencies?.value.version).toBe(before.docFrequencyVersion);
         });
 
         it("returns zeros when no Content docs exist", async () => {
@@ -691,11 +714,14 @@ describe("FTS Indexer and Search", () => {
                 { query: "harden", maxTrigramDocPercent: 100, limit: 2, offset: 1 },
             ];
 
+            // A batch of several searches shares each doc's trigram entries; a single search
+            // reads only the trigrams it kept.
             const batched = await ftsSearchMany(searches);
             const single = [];
             for (const options of searches) single.push(await ftsSearch(options));
 
             expect(batched).toEqual(single);
+            expect(await ftsSearchMany([searches[1]])).toEqual([single[1]]);
             expect(batched[0].length).toBeGreaterThan(0);
         });
     });
@@ -743,45 +769,5 @@ describe("FTS Indexer and Search", () => {
 
             expect(stored.map((r) => [r.docId, r.score])).toEqual(counted.map((r) => [r.docId, r.score]));
         });
-    });
-
-    describe("scheduleCorpusStatsRecomputeIfStale", () => {
-        // Seeded straight into the table: db.bulkPut would schedule a recompute of its own.
-        const seed = (id: string) => {
-            const { entries, tokenCount } = generateSimpleFtsEntries("quantum");
-            const doc = makeContentDoc({ _id: id, title: "quantum" });
-            return db.docs.put({ ...doc, fts: entries, ftsTokenCount: tokenCount }).then(() => tokenCount);
-        };
-
-        it("recomputes when the content doc count differs from the stored one", async () => {
-            const tokenCount = await seed("stale-1");
-            // Stats written before contentDocCount existed.
-            await setCorpusStats({ totalTokenCount: 0, docCount: 0 });
-
-            await scheduleCorpusStatsRecomputeIfStale();
-            await new Promise((r) => setTimeout(r, 11_000));
-
-            expect(await getCorpusStats()).toMatchObject({
-                totalTokenCount: tokenCount,
-                docCount: 1,
-                contentDocCount: 1,
-            });
-        }, 15_000);
-
-        it("keeps the stored stats when the content doc count matches", async () => {
-            await seed("fresh-1");
-            const stored = {
-                totalTokenCount: 999,
-                docCount: 1,
-                contentDocCount: 1,
-                docFrequencyVersion: 1,
-            };
-            await setCorpusStats(stored);
-
-            await scheduleCorpusStatsRecomputeIfStale();
-            await new Promise((r) => setTimeout(r, 11_000));
-
-            expect(await getCorpusStats()).toEqual(stored);
-        }, 15_000);
     });
 });

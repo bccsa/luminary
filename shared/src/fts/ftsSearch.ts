@@ -70,13 +70,19 @@ const FTS_FIELDS: FtsFieldConfig[] = [
  */
 type SearchBatch = {
     docs: Map<string, ContentDto>;
-    /** docId → trigram → its `"trigram:tf"` entry */
-    ftsEntries: Map<string, Map<string, string>>;
-    /** `docId:field` → the field's normalised words */
-    fieldWords: Map<string, Set<string>>;
+    /**
+     * docId → trigram → its `"trigram:tf"` entry. Absent for a batch of one search: no other
+     * search would reuse it, and holding every entry of every candidate doc costs time and memory.
+     */
+    ftsEntries?: Map<string, Map<string, string>>;
+    /** `docId:field` → the field's normalised words. Absent for a batch of one search. */
+    fieldWords?: Map<string, Set<string>>;
 };
 
-const newBatch = (): SearchBatch => ({ docs: new Map(), ftsEntries: new Map(), fieldWords: new Map() });
+const newBatch = (searchCount: number): SearchBatch =>
+    searchCount > 1
+        ? { docs: new Map(), ftsEntries: new Map(), fieldWords: new Map() }
+        : { docs: new Map() };
 
 /** Docs by id, in id order, reading from IndexedDB only those the batch has not loaded yet. */
 async function loadDocs(batch: SearchBatch, ids: string[]): Promise<ContentDto[]> {
@@ -91,28 +97,34 @@ async function loadDocs(batch: SearchBatch, ids: string[]): Promise<ContentDto[]
         .flatMap((id) => batch.docs.get(id) ?? []);
 }
 
-function ftsEntries(batch: SearchBatch, doc: ContentDto): Map<string, string> {
-    let entries = batch.ftsEntries.get(doc._id);
+/** The doc's `"trigram:tf"` entries by trigram; only the `wanted` ones unless the batch shares them. */
+function ftsEntries(
+    batch: SearchBatch,
+    doc: ContentDto,
+    wanted: Map<string, unknown>,
+): Map<string, string> {
+    let entries = batch.ftsEntries?.get(doc._id);
     if (!entries) {
         entries = new Map();
         for (const entry of doc.fts ?? []) {
-            entries.set(entry.substring(0, entry.indexOf(":", 3)), entry); // token is always 3 chars
+            const token = entry.substring(0, entry.indexOf(":", 3)); // token is always 3 chars
+            if (batch.ftsEntries || wanted.has(token)) entries.set(token, entry);
         }
-        batch.ftsEntries.set(doc._id, entries);
+        batch.ftsEntries?.set(doc._id, entries);
     }
     return entries;
 }
 
 function fieldWords(batch: SearchBatch, doc: Record<string, any>, field: FtsFieldConfig) {
     const key = `${doc._id}:${field.name}`;
-    let words = batch.fieldWords.get(key);
+    let words = batch.fieldWords?.get(key);
     if (!words) {
         const value = doc[field.name];
         words =
             typeof value === "string" && value
                 ? new Set(normalizeText(field.isHtml ? stripHtml(value) : value).split(" "))
                 : new Set<string>();
-        batch.fieldWords.set(key, words);
+        batch.fieldWords?.set(key, words);
     }
     return words;
 }
@@ -147,7 +159,7 @@ function computeFieldWordMatchScore(
  * Trigram lookups use `between(trigram + ":", trigram + ";")` on the `*fts` index.
  */
 export function ftsSearch(options: FtsSearchOptions): Promise<FtsSearchResult[]> {
-    return searchInBatch(options, newBatch());
+    return searchInBatch(options, newBatch(1));
 }
 
 /**
@@ -156,7 +168,7 @@ export function ftsSearch(options: FtsSearchOptions): Promise<FtsSearchResult[]>
  * each exactly what {@link ftsSearch} returns for those options.
  */
 export async function ftsSearchMany(searches: FtsSearchOptions[]): Promise<FtsSearchResult[][]> {
-    const batch = newBatch();
+    const batch = newBatch(searches.length);
     const results: FtsSearchResult[][] = [];
     for (const options of searches) results.push(await searchInBatch(options, batch));
     return results;
@@ -282,7 +294,7 @@ async function searchInBatch(
         )
             return;
 
-        const entries = ftsEntries(batch, doc);
+        const entries = ftsEntries(batch, doc, idfMap);
 
         const dl = doc.ftsTokenCount || 1;
         let score = 0;

@@ -54,13 +54,11 @@ const RECOMPUTE_DEBOUNCE_MS = 10_000;
 export async function recomputeCorpusStats(): Promise<void> {
     let totalTokenCount = 0;
     let docCount = 0;
-    let contentDocCount = 0;
     const df: Record<string, number> = {};
     await db.docs
         .where("type")
         .equals(DocType.Content)
         .each((doc) => {
-            contentDocCount++;
             const { ftsTokenCount, fts } = doc as ContentDto;
             if (ftsTokenCount && ftsTokenCount > 0) {
                 totalTokenCount += ftsTokenCount;
@@ -74,26 +72,14 @@ export async function recomputeCorpusStats(): Promise<void> {
         });
 
     const docFrequencyVersion = Date.now();
-    await db.luminaryInternals.put({
-        id: DOC_FREQUENCY_KEY,
-        value: { version: docFrequencyVersion, df } satisfies StoredDocFrequency,
+    // Frequencies that don't match the stats' version are ignored, so write both or neither.
+    await db.transaction("rw", db.luminaryInternals, async () => {
+        await db.luminaryInternals.put({
+            id: DOC_FREQUENCY_KEY,
+            value: { version: docFrequencyVersion, df } satisfies StoredDocFrequency,
+        });
+        await setCorpusStats({ totalTokenCount, docCount, docFrequencyVersion });
     });
-    await setCorpusStats({ totalTokenCount, docCount, contentDocCount, docFrequencyVersion });
-}
-
-/**
- * Schedule a recompute only when the stored stats lack document frequencies or were computed
- * over a different number of content docs than are stored now. Counting reads index keys only,
- * while a recompute reads every content doc.
- */
-export async function scheduleCorpusStatsRecomputeIfStale(): Promise<void> {
-    const [stats, contentDocCount] = await Promise.all([
-        getCorpusStats(),
-        db.docs.where("type").equals(DocType.Content).count(),
-    ]);
-    if (stats.docFrequencyVersion === undefined || stats.contentDocCount !== contentDocCount) {
-        scheduleCorpusStatsRecompute();
-    }
 }
 
 /**
