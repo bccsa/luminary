@@ -81,6 +81,7 @@ reachable. Unset `SSG_API_URL` and nothing changes.
 | `../main.web.ts`               | Web entry (`ViteSSG`). Prerender: `initHybridQuery(HttpReq)` so `queryRemote` works in Node, set render language + fill `cmsLanguages` before i18n, add locale-prefixed static routes, serialize render/default langs via `initialState`. Client: restore those + boot the data layer (`clientRuntime`), minus the service worker. Branches only on `import.meta.env.SSR`.                                                                                                                                              | Node + browser   |
 | `../router/localizedRoutes.ts` | Pure route helper for locale-prefixed public static routes (`/<code>`, `/<code>/explore`, `/<code>/watch`). Imported by the web entry only; normal SPA routes stay unchanged.                                                                                                                                                                                                                                                                                                                                           | Node + browser   |
 | `../../vite.config.web.ts`     | Web build config: route enumeration, `concurrency:1`, dependency-capture hooks, **per-page `hqcache:*` → inline-script serialization**, writes `ssg-deps.json` / `ssg-route-index/` / `ssg-redirect-index.json` / `ssg-doc-facets/` / `ssg-delete-queue/` / sitemap / robots / static redirect HTML, scoped-rebuild mode.                                                                                                                                                                                               | Node (build)     |
+| `../../vite-plugins/deferEntryUntilPainted.ts` | Swaps the built module entry for an inline post-paint loader plus a `modulepreload` link, so a prerendered page paints before it hydrates. Web build only; the SPA build has nothing to paint first. | Node (build)     |
 | `polyfills.ts`                 | Node shims jsdom lacks (localStorage/sessionStorage/matchMedia). Imported first in `main.web.ts`. The `localStorage` shim also backs `writeResponseCache` during the prerender.                                                                                                                                                                                                                                                                                                                                         | Node (prerender) |
 | `clientRuntime.ts`             | `initSsgClient()` boots the data layer on the **browser client** after hydration (`init()` + sync + language). Dynamically imported (never in the prerender).                                                                                                                                                                                                                                                                                                                                                           | browser          |
 | `facetKeys.ts`                 | **Pure** key vocabulary. `docKey` + `facetsFromSelector` / `facetsFromDoc` (`facet:<field>:<value>:<lang>`). No Vue/DOM/Vite deps.                                                                                                                                                                                                                                                                                                                                                                                        | anywhere         |
@@ -134,7 +135,8 @@ store**:
   `writeResponseCache(structuralCacheKey(query, cacheId), { local: docs, remote: [] }, limit, cacheStripFields)`.
 - `vite.config.web.ts` reads the polyfilled `localStorage` `hqcache:*` entries the render
   produced and injects them as an inline classic `<script>localStorage.setItem(...)` in
-  `<head>` — which runs _before_ the deferred ES-module entry.
+  `<head>` — which runs during head parse, well before the post-paint ES-module entry
+  (see [§Paint-before-hydrate](#paint-before-hydrate--the-deferred-entry)).
 - On the client, `useHybridQuery({ cache: true })` reads that cache **synchronously in
   its constructor** → the first client render shows the prerendered docs immediately.
 - `structuralCacheKey` (shared; was the app-side `sliceKey`) normalizes the selector and
@@ -152,6 +154,34 @@ the rendered article `<div>` before first render, so hydration still matches the
 output. A plain client-side navigation has no such DOM to recover from, so
 `cacheStripFields` (which affects both writers) is left untouched — only the SSR write is
 stripped.
+
+### Paint-before-hydrate — the deferred entry
+
+`vite-plugins/deferEntryUntilPainted.ts` (a `post` `transformIndexHtml` hook on the web
+build only) replaces the built `<script type="module" src="/assets/index-*.js">` with a
+tiny inline loader that re-creates that exact tag from
+`requestAnimationFrame(() => setTimeout(…))` — i.e. one frame **after** the browser has
+painted. So the visitor sees the prerendered HTML first and hydration follows, instead of
+the module entry evaluating in the same pass that would otherwise have produced the first
+paint.
+
+Only _execution_ moves. The plugin adds a `<link rel="modulepreload">` for the entry in
+`<head>`, so the bytes are fetched as early as before (earlier, in fact — the preload
+scanner now sees it during head parse). The re-created tag carries the original tag's
+attributes verbatim, `crossorigin` included, which is what lets the browser reuse the
+preloaded module rather than fetch it twice.
+
+A hidden tab never paints, and its frame callback may never run, so the loader boots
+immediately there rather than stalling hydration until someone looks at the tab.
+
+Vite hoists the entry into `<head>`, so the loader tag sits there too — ahead of the
+theme / auth-gate / `hqcache:*` scripts `onPageRendered` appends at `</head>`. Those still
+run first: the loader only _schedules_ during head parse, and boot is a frame away.
+
+This is also why `ssgOptions` sets no `script` mode: vite-ssg's async/defer rewrite matches
+a literal `<script type="module" `, which the loader no longer emits. Entry loading is the
+plugin's to own. The SPA build (`vite.config.ts`) does **not** use this plugin — its `#app`
+is empty until the entry runs, so there is nothing to paint first.
 
 ### Fail-loud prerender — render diagnostics
 
