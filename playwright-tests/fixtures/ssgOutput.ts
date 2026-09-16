@@ -112,6 +112,14 @@ export const SEED_REDIRECT = {
     status: 301,
 };
 
+/**
+ * The watch feed filters on a `video` field, which no doc in `api/src/db/seedingDocs/`
+ * sets — so it prerenders an empty feed.
+ * TODO: flip to true once the seed corpus carries video content, which reactivates the
+ * `/watch` assertion in `web/crawlability.spec.ts`.
+ */
+export const SEED_HAS_VIDEO = false;
+
 /** A published article with body text, used for the JS-off and recovery assertions. */
 export const SEED_ARTICLE = {
     slug: "blog1-eng",

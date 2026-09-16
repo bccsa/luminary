@@ -1,5 +1,10 @@
 import { test, expect } from "@playwright/test";
-import { SEEDED, SEED_ARTICLE, SEED_SECOND_LANG_CODE } from "../fixtures/ssgOutput";
+import {
+    SEEDED,
+    SEED_ARTICLE,
+    SEED_HAS_VIDEO,
+    SEED_SECOND_LANG_CODE,
+} from "../fixtures/ssgOutput";
 
 // A crawler that runs no JavaScript is the whole reason the web tier exists, so
 // these assert against the static HTML alone.
@@ -60,13 +65,21 @@ test.describe("Crawlable without JavaScript", () => {
     });
 
     test("renders the overview feeds", async ({ page }) => {
-        for (const route of ["/", "/explore", "/watch"]) {
+        for (const route of ["/", "/explore"]) {
             await page.goto(route, { waitUntil: "domcontentloaded" });
             await expect(page.getByRole("main")).toBeVisible();
             // The feed must carry real content, not an empty shell a crawler would index
             // as a blank page.
             await expect(page.getByRole("main").getByRole("link").first()).toBeVisible();
         }
+    });
+
+    test("renders the watch feed", async ({ page }) => {
+        test.skip(!SEED_HAS_VIDEO, "The seed corpus carries no video content.");
+
+        await page.goto("/watch", { waitUntil: "domcontentloaded" });
+        await expect(page.getByRole("main")).toBeVisible();
+        await expect(page.getByRole("main").getByRole("link").first()).toBeVisible();
     });
 
     test("navigates through real anchors", async ({ page }) => {

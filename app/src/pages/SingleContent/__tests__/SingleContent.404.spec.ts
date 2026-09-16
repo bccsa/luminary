@@ -21,7 +21,7 @@ import {
 import { db, isConnected, config, DocType, type ContentDto } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import { appLanguageIdsAsRef, cmsLanguages } from "@/globalConfig";
-import NotFoundPage from "../../NotFoundPage.vue";
+import NotFoundContent from "../../NotFoundContent.vue";
 import { ref } from "vue";
 import * as auth from "@/auth";
 
@@ -175,7 +175,7 @@ describe("SingleContent 404 Page", () => {
         });
 
         await waitForExpect(() => {
-            expect(wrapper.findComponent(NotFoundPage).exists()).toBe(true);
+            expect(wrapper.findComponent(NotFoundContent).exists()).toBe(true);
             expect(wrapper.find("article").exists()).toBe(false);
         });
     });
@@ -194,7 +194,7 @@ describe("SingleContent 404 Page", () => {
         });
 
         await waitForExpect(() => {
-            expect(wrapper.findComponent(NotFoundPage).exists()).toBe(true);
+            expect(wrapper.findComponent(NotFoundContent).exists()).toBe(true);
             expect(wrapper.find("article").exists()).toBe(false);
         });
     });
@@ -211,7 +211,7 @@ describe("SingleContent 404 Page", () => {
         });
 
         await waitForExpect(() => {
-            expect(wrapper.findComponent(NotFoundPage).exists()).toBe(true);
+            expect(wrapper.findComponent(NotFoundContent).exists()).toBe(true);
             expect(wrapper.find("article").exists()).toBe(false);
         });
     });
@@ -224,7 +224,7 @@ describe("SingleContent 404 Page", () => {
         });
 
         await waitForExpect(() => {
-            expect(wrapper.findComponent(NotFoundPage).exists()).toBe(true);
+            expect(wrapper.findComponent(NotFoundContent).exists()).toBe(true);
             expect(wrapper.find("article").exists()).toBe(false);
         });
     });
@@ -238,7 +238,7 @@ describe("SingleContent 404 Page", () => {
 
         // Wait for 404 state to render
         await waitForExpect(() => {
-            expect(wrapper.findComponent(NotFoundPage).exists()).toBe(true);
+            expect(wrapper.findComponent(NotFoundContent).exists()).toBe(true);
             expect(wrapper.find("article").exists()).toBe(false);
         });
 
@@ -270,13 +270,13 @@ describe("SingleContent 404 Page", () => {
         // Wait for initial content to load
         await waitForExpect(() => {
             expect(wrapper.text()).toContain(mockEnglishContentDto.title);
-            expect(wrapper.findComponent(NotFoundPage).exists()).toBe(false);
+            expect(wrapper.findComponent(NotFoundContent).exists()).toBe(false);
         });
 
         // Track if 404 page appears at any point
         let notFoundPageAppeared = false;
         const unwatch = wrapper.vm.$watch(
-            () => wrapper.findComponent(NotFoundPage).exists(),
+            () => wrapper.findComponent(NotFoundContent).exists(),
             (exists) => {
                 if (exists) notFoundPageAppeared = true;
             },
@@ -292,7 +292,7 @@ describe("SingleContent 404 Page", () => {
             // Wait for French content to load
             await waitForExpect(() => {
                 expect(wrapper.text()).toContain(mockFrenchContentDto.title);
-                expect(wrapper.findComponent(NotFoundPage).exists()).toBe(false);
+                expect(wrapper.findComponent(NotFoundContent).exists()).toBe(false);
             });
 
             // Now switch back to English
@@ -300,7 +300,7 @@ describe("SingleContent 404 Page", () => {
 
             await waitForExpect(() => {
                 expect(wrapper.text()).toContain(mockEnglishContentDto.title);
-                expect(wrapper.findComponent(NotFoundPage).exists()).toBe(false);
+                expect(wrapper.findComponent(NotFoundContent).exists()).toBe(false);
             });
         } finally {
             unwatch();
@@ -325,14 +325,14 @@ describe("SingleContent 404 Page", () => {
         // Wait until initial content (English) is rendered
         await waitForExpect(() => {
             expect(wrapper.text()).toContain(mockEnglishContentDto.title);
-            expect(wrapper.findComponent(NotFoundPage).exists()).toBe(false);
+            expect(wrapper.findComponent(NotFoundContent).exists()).toBe(false);
         });
         await flushPromises();
 
         // Track if 404 page appears at any point during language switch
         let notFoundPageAppeared = false;
         const unwatch = wrapper.vm.$watch(
-            () => wrapper.findComponent(NotFoundPage).exists(),
+            () => wrapper.findComponent(NotFoundContent).exists(),
             (exists) => {
                 if (exists) notFoundPageAppeared = true;
             },
@@ -358,7 +358,7 @@ describe("SingleContent 404 Page", () => {
         // Wait for French content to be shown
         await waitForExpect(() => {
             expect(wrapper.text()).toContain(mockFrenchContentDto.title);
-            expect(wrapper.findComponent(NotFoundPage).exists()).toBe(false);
+            expect(wrapper.findComponent(NotFoundContent).exists()).toBe(false);
         });
 
         // Cleanup watcher
@@ -408,7 +408,7 @@ describe("SingleContent 404 Page", () => {
         // socket never connects during this test.
         await waitForExpect(() => {
             expect(wrapper.text()).toContain(mockEnglishContentDto.title);
-            expect(wrapper.findComponent(NotFoundPage).exists()).toBe(false);
+            expect(wrapper.findComponent(NotFoundContent).exists()).toBe(false);
         });
     });
 });

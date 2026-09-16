@@ -45,7 +45,7 @@ import {
     cmsUrl,
 } from "@/globalConfig";
 import { useNotificationStore } from "@/stores/notification";
-import NotFoundPage from "@/pages/NotFoundPage.vue";
+import NotFoundContent from "@/pages/NotFoundContent.vue";
 import RelatedContent from "@/components/content/RelatedContent.vue";
 import VerticalTagViewer from "@/components/tags/VerticalTagViewer.vue";
 
@@ -206,7 +206,7 @@ function routeRedirect(redirect: RedirectDto): boolean {
 // loading-state flash. When it hasn't (a logged-in `:auth` client, or cleared/quota-hit
 // localStorage), the prerender seeded nothing for this session, so start loading instead:
 // otherwise `is404` (below) would read the still-empty `content` as "not found" and flash
-// NotFoundPage before the cold-start backstop resolves it.
+// NotFoundContent before the cold-start backstop resolves it.
 const isLoading = ref(isSSG && !isPrerender() ? contentArr.value.length === 0 : !isSSG);
 
 // The content query emits an empty result for a frame or two while it re-runs for a new
@@ -828,7 +828,7 @@ watch([isLoading, content, is404], async () => {
             </button>
         </template>
 
-        <NotFoundPage v-if="is404" />
+        <NotFoundContent v-if="is404" />
 
         <div
             v-else

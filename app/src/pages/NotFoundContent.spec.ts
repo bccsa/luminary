@@ -1,7 +1,7 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mount } from "@vue/test-utils";
-import NotFoundPage from "./NotFoundPage.vue";
+import NotFoundContent from "./NotFoundContent.vue";
 import { ref } from "vue";
 
 const isAuthenticatedRef = ref(false);
@@ -29,14 +29,14 @@ vi.mock("vue-router", async (importOriginal) => {
     };
 });
 
-describe("NotFoundPage", () => {
+describe("NotFoundContent", () => {
     beforeEach(() => {
         isAuthenticatedRef.value = false;
         loginWithRedirectMock.mockClear();
     });
 
     it("shows unauthenticated title and description when not authenticated", () => {
-        const wrapper = mount(NotFoundPage);
+        const wrapper = mount(NotFoundContent);
 
         expect(wrapper.text()).toContain("notfoundpage.unauthenticated.title");
         expect(wrapper.text()).toContain("notfoundpage.unauthenticated.description");
@@ -45,7 +45,7 @@ describe("NotFoundPage", () => {
     it("shows authenticated title, description, and home link when authenticated", async () => {
         isAuthenticatedRef.value = true;
 
-        const wrapper = mount(NotFoundPage);
+        const wrapper = mount(NotFoundContent);
 
         expect(wrapper.text()).toContain("notfoundpage.authenticated.title");
         expect(wrapper.text()).toContain("notfoundpage.authenticated.description");
@@ -53,7 +53,7 @@ describe("NotFoundPage", () => {
     });
 
     it("calls loginWithRedirect when login link is clicked", async () => {
-        const wrapper = mount(NotFoundPage);
+        const wrapper = mount(NotFoundContent);
 
         const loginLink = wrapper.find("span.cursor-pointer");
         await loginLink.trigger("click");
@@ -64,7 +64,7 @@ describe("NotFoundPage", () => {
     it("shows RouterLink to home when authenticated", () => {
         isAuthenticatedRef.value = true;
 
-        const wrapper = mount(NotFoundPage);
+        const wrapper = mount(NotFoundContent);
 
         const link = wrapper.find("a");
         expect(link.exists()).toBe(true);

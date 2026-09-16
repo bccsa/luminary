@@ -89,6 +89,19 @@ jobs:
           DB_CONNECTION_STRING: ${{ env.E2E_COUCHDB_URL }}
           DB_DATABASE: ${{ env.E2E_COUCHDB_DATABASE }}
 
+      # Guest identities get their groups from a provider-less AutoGroupMappings doc,
+      # which the API's seeding docs don't ship. The web prerender queries /query as a
+      # guest, so the doc has to exist well before Playwright's global setup writes it.
+      # Written pre-startup so the API's default-groups cache never sees the empty set.
+      - name: Seed the guest group mapping
+        run: |
+          doc="$(jq --argjson t "$(date +%s)000" '. + {updatedTimeUtc: $t}' \
+            playwright-tests/fixtures/idp/guestGroupMapping.json)"
+          curl -fsS -X PUT \
+            "${{ env.E2E_COUCHDB_URL }}/${{ env.E2E_COUCHDB_DATABASE }}/$(jq -r '._id' \
+              playwright-tests/fixtures/idp/guestGroupMapping.json)" \
+            -H 'content-type: application/json' -d "$doc"
+
       - name: Start API
         run: |
           node dist/src/main > api.log 2>&1 &
