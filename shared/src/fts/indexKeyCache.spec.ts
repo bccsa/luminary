@@ -1,5 +1,6 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
+import Dexie, { RangeSet } from "dexie";
 import { db, initDatabase } from "../db/database";
 import { initConfig } from "../config";
 import { DocType, PublishStatus, type ContentDto } from "../types";
@@ -44,6 +45,19 @@ describe("cachedPrimaryKeys", () => {
 
         await db.docs.put(content("c2", ["abc"]));
         expect((await cachedPrimaryKeys("test:lang", read)).sort()).toEqual(["c1", "c2"]);
+        expect(read).toHaveBeenCalledTimes(2);
+    });
+
+    it("rereads after a change reported for the whole database", async () => {
+        const read = vi.fn().mockResolvedValueOnce(["c1"]).mockResolvedValueOnce(["c1", "c2"]);
+
+        expect(await cachedPrimaryKeys("test:all", read)).toEqual(["c1"]);
+        expect(await cachedPrimaryKeys("test:all", read)).toEqual(["c1"]);
+
+        // What Dexie reports when the page is restored from the back-forward cache.
+        Dexie.on("storagemutated").fire({ all: new RangeSet(-Infinity, [[]]) });
+
+        expect(await cachedPrimaryKeys("test:all", read)).toEqual(["c1", "c2"]);
         expect(read).toHaveBeenCalledTimes(2);
     });
 

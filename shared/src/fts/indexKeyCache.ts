@@ -20,7 +20,10 @@ export function cachedPrimaryKeys(
         // Fires for writes from this tab and from other tabs of the same origin.
         Dexie.on("storagemutated", (parts) => {
             const prefix = `idb://${db.name}/docs/`;
-            if (Object.keys(parts).some((part) => part.startsWith(prefix))) cache = new Map();
+            // A back-forward cache restore reports its possible changes under the single part "all".
+            if ("all" in parts || Object.keys(parts).some((part) => part.startsWith(prefix))) {
+                cache = new Map();
+            }
         });
     }
 

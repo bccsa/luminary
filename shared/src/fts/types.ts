@@ -108,8 +108,6 @@ export type FtsSearchOptions = {
 export type FtsCorpusStats = {
     totalTokenCount: number;
     docCount: number;
-    /** Content docs scanned to compute these stats, including docs without FTS data. */
-    contentDocCount?: number;
     /** Identifies the per-trigram document frequencies computed with these stats. */
     docFrequencyVersion?: number;
 };
