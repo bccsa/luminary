@@ -194,6 +194,31 @@ describe("SearchPanel (page mode — /search)", () => {
         expect(closeBtn).toBeUndefined();
     });
 
+    it("stops at the first result on ArrowUp instead of wrapping to the last", async () => {
+        // Wrapping jumped to the bottom of the list, which loaded the next page.
+        const results = ["a", "b", "c"].map(
+            (id) =>
+                ({
+                    docId: id,
+                    score: 1,
+                    wordMatchScore: 0,
+                    doc: { _id: id, title: `Title ${id}`, slug: id, language: "lang-eng" },
+                }) as unknown as FtsSearchResult,
+        );
+        setupFts({ results, lastSearchedQuery: "title" });
+        mountPage();
+        await flushPromises();
+
+        const input = wrapper!.find("input");
+        await input.trigger("keydown", { key: "ArrowDown" });
+        await input.trigger("keydown", { key: "ArrowUp" });
+        await input.trigger("keydown", { key: "ArrowUp" });
+
+        const selected = wrapper!.findAll('[aria-selected="true"]');
+        expect(selected).toHaveLength(1);
+        expect(selected[0].attributes("id")).toBe("search-result-0");
+    });
+
     it("clears the query on Escape instead of closing an overlay", async () => {
         mountPage();
         await wrapper!.find("input").setValue("hello");
