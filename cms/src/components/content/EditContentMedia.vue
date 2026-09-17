@@ -27,10 +27,10 @@ type Props = {
     /** The video fields need a translation selected, as they always have. */
     showVideo?: boolean;
     /**
-     * The document has never been saved. An encode for it would outlive an editor who
-     * leaves without saving, publishing media that no document points to.
+     * Set while the document has never been saved; resolves to whether it saved. An
+     * encode outlives an editor who leaves without saving, leaving media nothing points to.
      */
-    unsaved?: boolean;
+    saveBeforeEncode?: () => Promise<boolean>;
 };
 const props = defineProps<Props>();
 
@@ -91,12 +91,18 @@ const handleBucketSelected = (bucketId: string) => {
 };
 
 const encode = () => {
+    if (props.saveBeforeEncode) showSaveFirstModal.value = true;
+    else startEncode();
+};
+
+const saveAndEncode = async () => {
+    showSaveFirstModal.value = false;
+    if (await props.saveBeforeEncode?.()) startEncode();
+};
+
+const startEncode = () => {
     const bucketId = effectiveBucketId.value;
     if (!parent.value?._id || !bucketId) return;
-    if (props.unsaved) {
-        showSaveFirstModal.value = true;
-        return;
-    }
 
     // Starting an encode is the user choosing this bucket, so the document records
     // it — the collection has to be findable later, and an auto-selected bucket that
@@ -198,8 +204,10 @@ watch(
     <LDialog
         v-model:open="showSaveFirstModal"
         title="Save before encoding"
-        description="Save this document before encoding media for it. An encode keeps running after you leave the page, so media encoded for a document that was never saved has nothing to attach to."
-        primaryButtonText="OK"
-        :primaryAction="() => (showSaveFirstModal = false)"
+        description="The encoded media is attached to this document, so it needs to be saved first."
+        primaryButtonText="Save now"
+        :primaryAction="saveAndEncode"
+        secondaryButtonText="Cancel"
+        :secondaryAction="() => (showSaveFirstModal = false)"
     />
 </template>

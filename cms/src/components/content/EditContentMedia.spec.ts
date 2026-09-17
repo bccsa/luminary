@@ -110,20 +110,40 @@ describe("EditContentMedia", () => {
         );
     });
 
-    it("asks the editor to save a document that has never been saved before encoding", async () => {
+    describe("on a document that has never been saved", () => {
         // Leaving an unsaved post discards it, but the encode would run on and
         // publish media no document points to.
-        const wrapper = mountSection({ unsaved: true });
-        await settle();
+        const clickEncode = async (saveBeforeEncode: () => Promise<boolean>) => {
+            const wrapper = mountSection({ saveBeforeEncode });
+            await settle();
+            await wrapper.find('[data-test="encode-media-button"]').trigger("click");
+            return wrapper.findComponent(LDialog);
+        };
 
-        const dialog = () => wrapper.findComponent(LDialog);
-        expect(dialog().props("open")).toBeFalsy();
+        it("asks the editor to save before encoding", async () => {
+            const dialog = await clickEncode(vi.fn());
 
-        await wrapper.find('[data-test="encode-media-button"]').trigger("click");
+            expect(dialog.props("open")).toBe(true);
+            expect(encoder.start).not.toHaveBeenCalled();
+        });
 
-        expect(dialog().props("open")).toBe(true);
-        expect(dialog().props("title")).toBe("Save before encoding");
-        expect(encoder.start).not.toHaveBeenCalled();
+        it("saves and then encodes on Save now", async () => {
+            const save = vi.fn().mockResolvedValue(true);
+            const dialog = await clickEncode(save);
+
+            await dialog.props("primaryAction")();
+
+            expect(save).toHaveBeenCalled();
+            expect(encoder.start).toHaveBeenCalled();
+        });
+
+        it("does not encode when the save did not go through", async () => {
+            const dialog = await clickEncode(vi.fn().mockResolvedValue(false));
+
+            await dialog.props("primaryAction")();
+
+            expect(encoder.start).not.toHaveBeenCalled();
+        });
     });
 
     it("records the auto-selected bucket on the document when an encode starts", async () => {
