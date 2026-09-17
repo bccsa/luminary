@@ -33,6 +33,10 @@ export class QuerySession<T extends BaseDocumentDto> {
     private cacheLimit: number | undefined;
     private apiDecided = false;
     private firstSlice = true;
+    /** Whether a live remote subscription has been started this generation — see `runSlice`. */
+    private liveStarted = false;
+    /** Whether the most recent page fetch failed outright, so `extend` should retry it. */
+    private lastPageFailed = false;
     private activityKind: ActivityKind = "initial";
     private more = false;
     private published: T[] = [];
@@ -102,6 +106,9 @@ export class QuerySession<T extends BaseDocumentDto> {
         });
     }
     private canExtend(): boolean {
+        // A failed fetch must stay retryable rather than reading as exhaustion: the
+        // published window is under-filled precisely because the fetch never landed.
+        if (this.lastPageFailed) return true;
         const pagination = this.capabilities.pagination;
         if (!pagination || this.disposed || !this.query) return false;
         try {
@@ -137,6 +144,8 @@ export class QuerySession<T extends BaseDocumentDto> {
         this.window.reset(query, this.options.keepPreviousResult ?? false);
         this.apiDecided = false;
         this.firstSlice = true;
+        this.liveStarted = false;
+        this.lastPageFailed = false;
         this.activityKind = "initial";
         this.more = false;
         this.observer.error(undefined);
@@ -162,10 +171,16 @@ export class QuerySession<T extends BaseDocumentDto> {
         const pagination = this.capabilities.pagination;
         if (!pagination) return;
         let next: MangoQuery | undefined;
-        try {
-            next = pagination.next(this.query, this.published);
-        } catch (error) {
-            console.error("[HybridQuery] pagination failed:", error);
+        if (this.lastPageFailed) {
+            // The published window under-filled because the fetch failed, not because
+            // the source ran out — retry the same slice instead of advancing past it.
+            next = this.query;
+        } else {
+            try {
+                next = pagination.next(this.query, this.published);
+            } catch (error) {
+                console.error("[HybridQuery] pagination failed:", error);
+            }
         }
         if (!next) {
             this.more = false;
@@ -238,10 +253,12 @@ export class QuerySession<T extends BaseDocumentDto> {
     /**
      * Rows earlier slices of this generation fetched. A response-cache seed also sits
      * in the remote contribution but is a stale first paint, not a fetch — counting it
-     * would suppress the very supplement that supersedes it.
+     * would suppress the very supplement that supersedes it. A live socket upsert can
+     * likewise add a doc to the remote contribution with no relation to any fetched
+     * page, so `fetchedRemoteDocs` (not `remoteDocs`) is the boundary a plan narrows past.
      */
     private get held(): readonly T[] {
-        return this.firstSlice ? [] : this.window.remoteDocs;
+        return this.firstSlice ? [] : this.window.fetchedRemoteDocs;
     }
 
     private runSlice(plan: QueryPlan<T>, gen: number): void {
@@ -256,7 +273,8 @@ export class QuerySession<T extends BaseDocumentDto> {
                 return;
             }
             void this.runApiWhenOnline([api], gen);
-            if (this.options.live && this.firstSlice) {
+            if (this.options.live && !this.liveStarted) {
+                this.liveStarted = true;
                 const joinRooms = this.capabilities.sources.joinRooms;
                 if (plan.joinRooms && plan.type && joinRooms) this.own(joinRooms(plan.type));
                 this.startRemoteLive(api, plan.type, gen);
@@ -275,8 +293,10 @@ export class QuerySession<T extends BaseDocumentDto> {
                     if (api) {
                         this.remotePending = true;
                         void this.runApiWhenOnline([api], gen);
-                        if (this.options.live && this.firstSlice)
+                        if (this.options.live && !this.liveStarted) {
+                            this.liveStarted = true;
                             this.startRemoteLive(api, plan.type, gen);
+                        }
                     } else if (plan.remote) {
                         this.window.deferRemoteDrop();
                     }
@@ -360,14 +380,23 @@ export class QuerySession<T extends BaseDocumentDto> {
                     `[HybridQuery] ${settled.length - fulfilled.length}/${settled.length} remote query(ies) failed:`,
                     firstError?.reason,
                 );
-                if (fulfilled.length === 0) this.observer.error(firstError?.reason);
+                // Any sub-query failing (not just all of them) is reported: a caller
+                // that must not act on a partial fan-out result needs to know.
+                this.observer.error(firstError?.reason);
             }
-            if (fulfilled.length === 0) return;
+            if (fulfilled.length === 0) {
+                this.lastPageFailed = true;
+                return;
+            }
             const remote = fulfilled.reduce<T[]>((acc, s) => mergeById(acc, s.value), []);
             this.window.setRemote(remote);
             this.capabilities.persistence?.persistRemote?.(remote);
+            this.lastPageFailed = false;
         } catch (error) {
-            if (this.active(gen)) this.observer.error(error);
+            if (this.active(gen)) {
+                this.lastPageFailed = true;
+                this.observer.error(error);
+            }
             console.error("[HybridQuery] remote query failed:", error);
         } finally {
             this.settleRemote(gen);

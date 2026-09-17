@@ -19,25 +19,11 @@ export {
 export { readResponseCache, structuralCacheKey, writeResponseCache } from "./responseCache";
 
 // --- Composition API -------------------------------------------------------
-// Capability contracts plus the pieces needed to compose a query for an
-// environment the default browser adapters do not serve.
-export type {
-    ActivityKind,
-    Dispose,
-    LocalRead,
-    OwnSubscription,
-    QueryActivity,
-    QueryCapabilities,
-    QueryCoverage,
-    QueryPagination,
-    QueryPlan,
-    QuerySources,
-    RemoteChanges,
-    ResponseCache,
-    SessionObserver,
-} from "./contracts";
-export { QuerySession } from "./querySession";
-export { planBrowserQuery } from "./browserPlanner";
+// The capability contract plus the pieces needed to compose a query for an
+// environment the default browser adapters do not serve. `QuerySession` and
+// `planBrowserQuery` stay internal — no consumer builds its own session or
+// reuses the browser's local-first planning rule outside this module.
+export type { QueryCapabilities } from "./contracts";
 export { paginateByLimit } from "./pagination";
 export { planCoveredQuery, resolveQueryOnce } from "./renderQuery";
 export { STORAGE_PREFIX, omitFields, type CachedWindow } from "./cacheCodec";

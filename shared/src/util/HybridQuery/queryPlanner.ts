@@ -130,6 +130,21 @@ function withKeysetBoundary<T extends BaseDocumentDto>(
 }
 
 /**
+ * Whether {@link planRemoteContentQueries} will fan this selector into more than one
+ * per-parent query. Mirrors its own gate (Content type, a top-level `parentId: {$in}`
+ * within {@link FANOUT_MAX_PARENTS}) but only cares about the multi-parent case, since a
+ * single parent pages exactly like an un-fanned query.
+ */
+function willFanOutAcrossParents(selector: MangoSelector): boolean {
+    if (readType({ selector } as MangoQuery) !== DocType.Content) return false;
+    const conditions = expandMangoSelector(selector).$and ?? [];
+    const hit = findInList(conditions, "parentId");
+    if (!hit) return false;
+    const uniqueCount = new Set(hit.ids).size;
+    return uniqueCount > 1 && uniqueCount <= FANOUT_MAX_PARENTS;
+}
+
+/**
  * Decide what (if anything) `HybridQuery` should POST to the API after running
  * the local Dexie read. Pure — no Vue / no I/O.
  *
@@ -171,7 +186,14 @@ export function decideContentApiQuery<T extends BaseDocumentDto>(
         // A full page means the API has nothing more to add → skip.
         if (have.size >= query.$limit) return undefined;
         const base = withPublishDate(query.selector, cutoff);
-        const narrowed = withKeysetBoundary(base, held, query.$sort);
+        // A multi-parent fan-out pages each parent independently (see `planRemoteContentQueries`),
+        // so one boundary derived across ALL parents' held rows doesn't bound any single
+        // parent's own page — it can sit well past rows that parent never fetched, and the
+        // exclusion would skip them. Un-narrowed re-fetches from the cutoff instead, which is
+        // always safe.
+        const narrowed = willFanOutAcrossParents(query.selector)
+            ? undefined
+            : withKeysetBoundary(base, held, query.$sort);
         return {
             selector: narrowed ?? base,
             $sort: query.$sort,

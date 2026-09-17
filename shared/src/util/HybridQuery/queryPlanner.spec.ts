@@ -311,6 +311,35 @@ describe("decideContentApiQuery — older-tail supplement", () => {
             }
         });
 
+        it("does not narrow a multi-parent fan-out — one parent's held rows can't bound another's page", () => {
+            // Each parent pages independently once fanned out (planRemoteContentQueries),
+            // so a boundary derived across all of them could sit past rows a given
+            // parent's own page never fetched, and the exclusion would skip them.
+            const query = feed({
+                selector: { $and: [{ type: "content" }, { parentId: { $in: ["p1", "p2"] } }] },
+            });
+            const held = tail(2, (i) => 900 - i);
+            const out = decideContentApiQuery(query, [], held)!;
+            expect(out.selector).toEqual({
+                $and: [
+                    { type: "content" },
+                    { parentId: { $in: ["p1", "p2"] } },
+                    publishDateTail(1000),
+                ],
+            });
+            // Un-narrowed re-fetch: shortfall is against local docs only, not the held union.
+            expect(out.$limit).toBe(20);
+        });
+
+        it("still narrows a single-parent supplement — no cross-parent skew possible", () => {
+            const query = feed({
+                selector: { $and: [{ type: "content" }, { parentId: { $in: ["p1"] } }] },
+            });
+            const held = tail(2, (i) => 900 - i);
+            const out = decideContentApiQuery(query, [], held)!;
+            expect(JSON.stringify(out.selector)).toContain("$nin");
+        });
+
         it("is the plain below-cutoff tail on the first page, where nothing is held yet", () => {
             const local = tail(5, () => 5000, "l");
             expect(decideContentApiQuery(feed(), local, [])).toEqual({
