@@ -305,8 +305,10 @@ function onResume() {
                 data-test="articleOutlineTrigger"
             >
                 <!-- The title and every heading are stacked invisibly in the same grid cell, so the
-                     pill is sized to the longest label and stays put as its content changes. -->
-                <span class="grid min-w-0 flex-1 text-left">
+                     pill is sized to the longest label and stays put as its content changes. The
+                     column may shrink below that width, so a label that doesn't fit truncates
+                     before the chevron instead of running under it. -->
+                <span class="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)] text-left">
                     <span
                         class="invisible col-start-1 row-start-1 whitespace-nowrap"
                         aria-hidden="true"
