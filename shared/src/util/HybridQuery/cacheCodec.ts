@@ -4,6 +4,13 @@ import type { MangoQuery } from "../MangoQuery/MangoTypes";
 import type { BaseDocumentDto } from "../../types";
 
 export const STORAGE_PREFIX = "hqcache:";
+/**
+ * Cap on docs stored per entry (across both buckets), bounding it against
+ * localStorage's ~5MB origin budget. Callers pass the query's `$limit`; this is the
+ * fallback for unlimited queries — set generously so the seed holds the full window
+ * for realistic feeds (heavy fields are stripped, so each doc is small). Past this
+ * backstop, or on quota overflow, the entry degrades to no seed.
+ */
 export const DEFAULT_MAX_DOCS = 500;
 export interface CachedWindow<T extends BaseDocumentDto> {
     local: T[];

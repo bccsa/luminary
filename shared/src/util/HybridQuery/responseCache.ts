@@ -20,6 +20,11 @@ export function writeResponseCache<T extends BaseDocumentDto>(
 ): void {
     cache.write(key, window, maxDocs, stripFields);
 }
+/**
+ * Remove ALL persisted response-cache windows. Called when the local cache is cleared
+ * (`db.purge`) so a later mount cannot seed a stale window from a now-purged dataset.
+ * Best-effort; tolerates an unavailable storage provider.
+ */
 export function clearResponseCache(): void {
     cache.clear();
 }

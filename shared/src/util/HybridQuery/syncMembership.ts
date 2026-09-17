@@ -1,20 +1,8 @@
-/** Sync-aware compatibility helpers; pure planning lives in queryPlanner. */
+/** Reactive and imperative reads of a doc type's syncList membership. */
 import { computed, type ComputedRef } from "vue";
-import type { BaseDocumentDto } from "../../types";
 import { DocType } from "../../types";
 import { syncList } from "../../api/sync/state";
 import { splitChunkTypeString } from "../../api/sync/utils";
-import { getContentPublishDateCutoff } from "../../config";
-import type { MangoQuery } from "../MangoQuery/MangoTypes";
-import { decideContentApiQuery as planContent } from "./queryPlanner";
-export {
-    readType,
-    findIdInList,
-    withPublishDate,
-    FANOUT_MAX_PARENTS,
-    planRemoteContentQueries,
-    toDeleteSelector,
-} from "./queryPlanner";
 
 /**
  * True iff at least one syncList entry currently tracks the given doc type
@@ -56,14 +44,4 @@ export function typeInSyncListRef(type: DocType): ComputedRef<boolean> {
         _membershipRefs.set(type, r);
     }
     return r;
-}
-
-/** Compatibility wrapper supplying the configured cutoff to the pure planner. */
-
-export function decideContentApiQuery<T extends BaseDocumentDto>(
-    query: MangoQuery,
-    localDocs: readonly T[],
-    held: readonly T[] = [],
-): MangoQuery | undefined {
-    return planContent(query, localDocs, getContentPublishDateCutoff(), held);
 }

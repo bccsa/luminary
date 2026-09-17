@@ -146,7 +146,13 @@ describe("responseCache", () => {
 
         it("strips the listed fields from each cached doc, both buckets", () => {
             const heavy = (id: string) =>
-                ({ _id: id, updatedTimeUtc: 1, title: `t-${id}`, fts: ["aaa:1"], text: "body" }) as any;
+                ({
+                    _id: id,
+                    updatedTimeUtc: 1,
+                    title: `t-${id}`,
+                    fts: ["aaa:1"],
+                    text: "body",
+                }) as any;
             writeResponseCache("k", win([heavy("L0")], [heavy("R0")]), undefined, ["fts", "text"]);
 
             const read = readResponseCache("k");

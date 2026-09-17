@@ -235,9 +235,18 @@ export class QuerySession<T extends BaseDocumentDto> {
      * Run one slice against a plan. Re-planned per slice because a plan closes over
      * the query it was built for, which a wider slice replaces.
      */
+    /**
+     * Rows earlier slices of this generation fetched. A response-cache seed also sits
+     * in the remote contribution but is a stale first paint, not a fetch — counting it
+     * would suppress the very supplement that supersedes it.
+     */
+    private get held(): readonly T[] {
+        return this.firstSlice ? [] : this.window.remoteDocs;
+    }
+
     private runSlice(plan: QueryPlan<T>, gen: number): void {
         if (!plan.useLocal) {
-            const api = plan.remote?.([], false, this.window.remoteDocs);
+            const api = plan.remote?.([], false, this.held);
             // Order matters: raising the remote flag first means the observer never
             // sees a transient fully-settled state between the two writes.
             if (api) this.remotePending = true;
@@ -262,7 +271,7 @@ export class QuerySession<T extends BaseDocumentDto> {
                 // whether an empty local read is still awaiting a supplement.
                 if (!this.apiDecided) {
                     this.apiDecided = true;
-                    const api = plan.remote?.(local, covered, this.window.remoteDocs);
+                    const api = plan.remote?.(local, covered, this.held);
                     if (api) {
                         this.remotePending = true;
                         void this.runApiWhenOnline([api], gen);
