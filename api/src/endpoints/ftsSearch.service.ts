@@ -70,15 +70,15 @@ type StrictMeta = {
 };
 
 /**
- * Minimum number of candidate documents fetched and exact-scored per query. The
- * effective cap is `max(FTS_TOP_K_MIN, offset + limit)` so deep pages still work.
- * Candidates are pre-ranked by `Σ idf·tf` (length-norm-free, strongly correlated with
- * final BM25) and capped before the full BM25 + word-match pass; filtering happens
- * before the cap, so it only ever drops the lowest-scoring accessible candidates.
- * Kept modest because each fetched doc carries its large `fts` array (stripped before
- * returning) — a smaller K means a much smaller `_all_docs` fetch.
+ * Size of the blocks candidates are exact-scored in. Candidates are pre-ranked by
+ * `Σ idf·tf` (length-norm-free, strongly correlated with final BM25), split into
+ * fixed blocks of this size, and each block is re-ranked by the full BM25 + word-match
+ * score. A page fetches only the blocks it overlaps, so a result's position never
+ * depends on which page was asked for — growing the exact-scored set with the offset
+ * re-ranked earlier pages and repeated their results on later ones. Kept modest
+ * because each fetched doc carries its large `fts` array (stripped before returning).
  */
-const FTS_TOP_K_MIN = 150;
+const FTS_TOP_K = 150;
 
 /**
  * High-df trigram pruning. After dropping over-common trigrams (`maxTrigramDocPercent`),
@@ -435,15 +435,10 @@ export class FtsSearchService {
             }
             prelim.push({ docId, proxy });
         }
-        prelim.sort((a, b2) => b2.proxy - a.proxy);
-        // Effective cap honors pagination depth but stays small otherwise, since each
-        // fetched doc drags its large `fts` array.
-        const topKCap = Math.max(FTS_TOP_K_MIN, offset + limit);
-        let topK = prelim;
-        if (prelim.length > topKCap) {
-            topK = prelim.slice(0, topKCap);
-        }
-        const topKIds = topK.map((c) => c.docId);
+        prelim.sort((a, b2) => b2.proxy - a.proxy || compareIds(a.docId, b2.docId));
+        const blockStart = Math.floor(offset / FTS_TOP_K) * FTS_TOP_K;
+        const blockEnd = Math.ceil((offset + limit) / FTS_TOP_K) * FTS_TOP_K;
+        const topKIds = prelim.slice(blockStart, blockEnd).map((c) => c.docId);
         stats.topK = topKIds.length;
 
         // Step 7: fetch the top-K docs for the full BM25 + word-match pass and the
@@ -459,28 +454,34 @@ export class FtsSearchService {
         );
         const words = queryWords(req.queryString);
 
-        const scored: Array<{
+        // Ranked a block at a time: the score tolerance is not transitive, so sorting two
+        // blocks together could order the first differently from sorting it alone.
+        const ranked: Array<{
             docId: string;
             score: number;
             wordMatchScore: number;
             doc: ContentDto;
         }> = [];
-        for (const docId of topKIds) {
-            const doc = docMap.get(docId);
-            if (!doc) continue;
-            const tfMap = perDocTf.get(docId)!;
-            const wm = wordMatchScore(words, doc as Record<string, any>);
-            const score = bm25Score(tfMap, doc.ftsTokenCount || 1, idfMap, avgdl, k1, b) + wm;
-            scored.push({ docId, score, wordMatchScore: wm, doc });
+        for (let i = 0; i < topKIds.length; i += FTS_TOP_K) {
+            const block: typeof ranked = [];
+            for (const docId of topKIds.slice(i, i + FTS_TOP_K)) {
+                const doc = docMap.get(docId);
+                if (!doc) continue;
+                const tfMap = perDocTf.get(docId)!;
+                const wm = wordMatchScore(words, doc as Record<string, any>);
+                const score = bm25Score(tfMap, doc.ftsTokenCount || 1, idfMap, avgdl, k1, b) + wm;
+                block.push({ docId, score, wordMatchScore: wm, doc });
+            }
+            block.sort((a, b2) => {
+                if (Math.abs(b2.score - a.score) > 0.001) return b2.score - a.score;
+                return b2.wordMatchScore - a.wordMatchScore;
+            });
+            ranked.push(...block);
         }
 
-        scored.sort((a, b2) => {
-            if (Math.abs(b2.score - a.score) > 0.001) return b2.score - a.score;
-            return b2.wordMatchScore - a.wordMatchScore;
-        });
-
         // Step 8: paginate and trim the FTS index fields before returning
-        const results = scored.slice(offset, offset + limit).map((r) => ({
+        const pageStart = offset - blockStart;
+        const results = ranked.slice(pageStart, pageStart + limit).map((r) => ({
             docId: r.docId,
             score: r.score,
             wordMatchScore: r.wordMatchScore,
@@ -629,6 +630,8 @@ function stripAuxFtsFields(doc: Record<string, any>): Record<string, any> {
     const { fts, ...rest } = doc;
     return rest;
 }
+
+const compareIds = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 
 /**
  * Order strict-mode matches in place by a metadata field (Content or aux doctype). Missing/

@@ -337,19 +337,47 @@ describe("FtsSearchService", () => {
         });
     });
 
-    it("caps the exact-scored set at max(150, offset + limit)", async () => {
-        const rows = Array.from({ length: 200 }, (_, i) => row(`d${i}`, "gar", value()));
+    it("exact-scores only the fixed blocks of 150 a page overlaps", async () => {
+        const rows = Array.from({ length: 400 }, (_, i) => row(`d${i}`, "gar", value()));
         dbService.ftsTrigramCandidates.mockResolvedValue(rows);
         dbService.getDocs.mockResolvedValue({ docs: [] });
 
-        // Default page (limit 20) → cap of 150.
         await service.search(makeReq(), mockUser);
         expect(dbService.getDocs.mock.calls[0][0]).toHaveLength(150);
 
-        // Deep page (offset 140 + limit 20 = 160) → cap grows to 160.
+        // Offset 140 + limit 20 spans the first two blocks.
         dbService.getDocs.mockClear();
         await service.search(makeReq({ offset: 140, limit: 20 }), mockUser);
-        expect(dbService.getDocs.mock.calls[0][0]).toHaveLength(160);
+        expect(dbService.getDocs.mock.calls[0][0]).toHaveLength(300);
+
+        dbService.getDocs.mockClear();
+        await service.search(makeReq({ offset: 160, limit: 20 }), mockUser);
+        expect(dbService.getDocs.mock.calls[0][0]).toHaveLength(150);
+    });
+
+    it("never repeats a result across pages", async () => {
+        // Word-match bonuses deep in the candidate list used to re-rank earlier pages
+        // once a later page grew the exact-scored set.
+        const rows = Array.from({ length: 400 }, (_, i) =>
+            row(`d${String(i).padStart(3, "0")}`, "gar", value({ tf: 400 - i })),
+        );
+        dbService.ftsTrigramCandidates.mockResolvedValue(rows);
+        dbService.getDocs.mockImplementation((ids: string[]) => ({
+            docs: ids.map((id) => ({
+                _id: id,
+                title: Number(id.slice(1)) % 7 === 0 ? "garden" : "other",
+                ftsTokenCount: 10,
+            })),
+        }));
+
+        const seen: string[] = [];
+        for (let offset = 0; offset < 400; offset += 40) {
+            const page = await service.search(makeReq({ offset, limit: 40 }), mockUser);
+            seen.push(...page.map((r) => r.docId));
+        }
+
+        expect(seen).toHaveLength(400);
+        expect(new Set(seen).size).toBe(400);
     });
 
     describe("strict mode (matchAllWords + sort)", () => {
