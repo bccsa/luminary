@@ -30,10 +30,19 @@ async function main() {
     await assertTracingEnabled(api);
 
     log("Discovering corpus…");
-    const context = await discoverContext(api, couch);
+    const context = await discoverContext(api, couch, {
+        common: config.ftsTerm,
+        rare: config.ftsRareTerm,
+    });
     const catalogue = buildCatalogue(context);
     log(
         `  ${catalogue.length} request shapes built from ${context.content.length} sampled content docs`,
+    );
+    log(
+        `  FTS terms: "${context.ftsCommonTerm}" (frequent), "${context.ftsRareTerm}" (rare) — ` +
+            (context.ftsTermsPinned
+                ? "pinned"
+                : "discovered; pass --fts-term/--fts-rare-term to compare across corpus sizes"),
     );
     log("");
 
@@ -63,8 +72,10 @@ async function main() {
     }
 
     if (config.suites.includes("fts")) {
-        log("Suite: full-text search pipeline");
-        report.fts = await runFtsSuite(api, catalogue);
+        log(
+            `Suite: full-text search pipeline (${config.samples} samples + ${config.warmup} warm-up per search)`,
+        );
+        report.fts = await runFtsSuite(api, catalogue, config);
     }
 
     if (config.suites.includes("concurrency")) {

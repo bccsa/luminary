@@ -30,6 +30,8 @@ export type PerfContext = {
     ftsCommonTerm: string;
     ftsRareTerm: string;
     ftsMissTerm: string;
+    /** Terms came from the caller, not from discovery — the run is comparable to other pinned runs. */
+    ftsTermsPinned: boolean;
     userTerm?: string;
     redirectTerm?: string;
     /** A Storage doc id, so the bucket probe can be timed rather than rejected on a missing param. */
@@ -39,7 +41,11 @@ export type PerfContext = {
     anonymous: boolean;
 };
 
-export async function discoverContext(api: ApiClient, couch?: CouchClient): Promise<PerfContext> {
+export async function discoverContext(
+    api: ApiClient,
+    couch?: CouchClient,
+    pinned?: { common?: string; rare?: string },
+): Promise<PerfContext> {
     const languages = await sample(api, { type: "language" }, 50);
     const groups = await sample(api, { type: "group" }, 200);
     const posts = await sample(api, { type: "post" }, 100);
@@ -58,7 +64,7 @@ export async function discoverContext(api: ApiClient, couch?: CouchClient): Prom
     }
 
     const contentGroups = unique(content.flatMap((d) => d.memberOf ?? []));
-    const terms = pickTerms(content.map((d) => d.title ?? ""));
+    const discovered = pickTerms(content.map((d) => d.title ?? ""));
 
     const dbInfo = couch ? await couch.dbInfo().catch(() => ({ sizes: { file: 0 } })) : undefined;
     const counts: Record<string, number> = {};
@@ -84,9 +90,10 @@ export async function discoverContext(api: ApiClient, couch?: CouchClient): Prom
         content,
         slugs: unique(content.map((d) => d.slug).filter(Boolean) as string[]),
         parentIds: unique(content.map((d) => d.parentId).filter(Boolean) as string[]),
-        ftsCommonTerm: terms.common,
-        ftsRareTerm: terms.rare,
+        ftsCommonTerm: pinned?.common ?? discovered.common,
+        ftsRareTerm: pinned?.rare ?? discovered.rare,
         ftsMissTerm: "zzqxvwmpk",
+        ftsTermsPinned: !!(pinned?.common && pinned?.rare),
         userTerm: firstTerm(users.map((d: any) => d.name ?? d.email ?? "")),
         redirectTerm: firstTerm(redirects.map((d: any) => d.slug ?? "")),
         storageBucketId: storage[0]?._id,
@@ -121,6 +128,10 @@ const STOP_WORDS = new Set([
     "not",
 ]);
 
+/**
+ * Rank the sampled titles by word frequency. The sample differs per corpus, so these terms are
+ * only meaningful within one run — a comparison across corpus sizes must pin them instead.
+ */
 function pickTerms(titles: string[]): { common: string; rare: string } {
     const freq = new Map<string, number>();
     for (const title of titles) {
