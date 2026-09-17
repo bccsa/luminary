@@ -23,7 +23,11 @@ import type { ContentDto, FtsSearchResult } from "luminary-shared";
 import { useI18n } from "vue-i18n";
 import { recordAffinity } from "@/recommendation/affinityStore";
 import { affinityConfig } from "@/recommendation/defaultAffinityStore";
-import { recordSearchQuery, loadRecentSearches, searchVersion } from "@/recommendation/searchQueryStore";
+import {
+    recordSearchQuery,
+    loadRecentSearches,
+    searchVersion,
+} from "@/recommendation/searchQueryStore";
 
 /**
  * The shared search surface, embedded two ways:
@@ -408,22 +412,22 @@ watch(
     { immediate: true },
 );
 
-// The search page is kept alive; while another page is showing, the URL is not its to read or write.
-const isActive = ref(true);
+// Kept alive: while another page is showing, the URL is not this page's to read or write.
+let isActive = true;
+onDeactivated(() => (isActive = false));
 
-// A kept-alive page's scroller resets when it is detached, so the position is read before
-// leaving (it already reads 0 by the time onDeactivated runs) and put back on return.
+// A kept-alive page's scroller is detached (and reads 0) by onDeactivated, so the
+// position is taken in the route guard instead. Page mode only: the modal sits outside
+// <RouterView>, where route guards cannot register.
 let savedScrollTop = 0;
-// Page mode only: the modal lives outside <RouterView>, where route guards cannot register.
-if (props.mode === "page") {
+if (isPage.value) {
     onBeforeRouteLeave(() => {
         savedScrollTop = mainScrollEl.value?.scrollTop ?? 0;
     });
 }
 
-onDeactivated(() => (isActive.value = false));
 onActivated(() => {
-    isActive.value = true;
+    isActive = true;
     if (!isPage.value) return;
     nextTick(() => {
         if (mainScrollEl.value) mainScrollEl.value.scrollTop = savedScrollTop;
@@ -438,7 +442,7 @@ onActivated(() => {
 // route opens and executes the FTS search. We also write `q` back (replace, no history
 // spam) after a search runs so the page is shareable and back/forward keeps the query.
 function applyRouteQuery(value: unknown) {
-    if (!isPage.value || !isActive.value || typeof value !== "string") return;
+    if (!isPage.value || !isActive || typeof value !== "string") return;
     const query = value.trim();
     if (query === searchQuery.value.trim()) return; // avoid sync loop
     // A different search starts at the top, not where the previous one was left.
@@ -449,7 +453,7 @@ function applyRouteQuery(value: unknown) {
 }
 
 function syncUrl(q: string) {
-    if (!isPage.value || !isActive.value) return;
+    if (!isPage.value || !isActive) return;
     const current = typeof route.query.q === "string" ? route.query.q : "";
     if (current === q) return;
     void router.replace({ query: q ? { q } : {} });
