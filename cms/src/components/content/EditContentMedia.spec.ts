@@ -37,6 +37,7 @@ vi.mock("@/composables/storageSelection", () => ({
 }));
 
 import EditContentMedia from "./EditContentMedia.vue";
+import LDialog from "../common/LDialog.vue";
 
 const parent = () => ({ ...mockData.mockPostDto }) as PostDto;
 
@@ -107,6 +108,22 @@ describe("EditContentMedia", () => {
                 mediaBucketId: "bucket-1",
             }),
         );
+    });
+
+    it("asks the editor to save a document that has never been saved before encoding", async () => {
+        // Leaving an unsaved post discards it, but the encode would run on and
+        // publish media no document points to.
+        const wrapper = mountSection({ unsaved: true });
+        await settle();
+
+        const dialog = () => wrapper.findComponent(LDialog);
+        expect(dialog().props("open")).toBeFalsy();
+
+        await wrapper.find('[data-test="encode-media-button"]').trigger("click");
+
+        expect(dialog().props("open")).toBe(true);
+        expect(dialog().props("title")).toBe("Save before encoding");
+        expect(encoder.start).not.toHaveBeenCalled();
     });
 
     it("records the auto-selected bucket on the document when an encode starts", async () => {

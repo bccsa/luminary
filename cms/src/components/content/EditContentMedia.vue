@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from "vue";
 import { type ContentParentDto, type MediaDto, toAbsoluteMediaUrl } from "luminary-shared";
 import { FilmIcon, QuestionMarkCircleIcon } from "@heroicons/vue/24/outline";
 import LCard from "../common/LCard.vue";
+import LDialog from "../common/LDialog.vue";
 import EncodeMediaButton from "../media/EncodeMediaButton.vue";
 import EncodeStatus from "../media/EncodeStatus.vue";
 import MediaBucketSelect from "../media/MediaBucketSelect.vue";
@@ -25,12 +26,18 @@ type Props = {
     title?: string;
     /** The video fields need a translation selected, as they always have. */
     showVideo?: boolean;
+    /**
+     * The document has never been saved. An encode for it would outlive an editor who
+     * leaves without saving, publishing media that no document points to.
+     */
+    unsaved?: boolean;
 };
 const props = defineProps<Props>();
 
 const parent = defineModel<ContentParentDto>("parent");
 
 const showHelp = ref(false);
+const showSaveFirstModal = ref(false);
 const bucketSelection = storageSelection();
 
 const {
@@ -86,6 +93,10 @@ const handleBucketSelected = (bucketId: string) => {
 const encode = () => {
     const bucketId = effectiveBucketId.value;
     if (!parent.value?._id || !bucketId) return;
+    if (props.unsaved) {
+        showSaveFirstModal.value = true;
+        return;
+    }
 
     // Starting an encode is the user choosing this bucket, so the document records
     // it — the collection has to be findable later, and an auto-selected bucket that
@@ -183,4 +194,12 @@ watch(
             <EditContentVideo v-if="showVideo" bare :disabled="disabled" v-model:parent="parent" />
         </div>
     </LCard>
+
+    <LDialog
+        v-model:open="showSaveFirstModal"
+        title="Save before encoding"
+        description="Save this document before encoding media for it. An encode keeps running after you leave the page, so media encoded for a document that was never saved has nothing to attach to."
+        primaryButtonText="OK"
+        :primaryAction="() => (showSaveFirstModal = false)"
+    />
 </template>

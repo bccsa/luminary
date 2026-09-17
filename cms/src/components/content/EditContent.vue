@@ -593,6 +593,7 @@ watch(isLgScreen, (isLg) => {
                                             :disabled="!canEditParent"
                                             :title="editableContent?.[0]?.title"
                                             :showVideo="Boolean(selectedContent)"
+                                            :unsaved="!existingParent"
                                             v-model:parent="editableParent"
                                         />
                                     </div>
