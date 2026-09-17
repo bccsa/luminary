@@ -11,6 +11,14 @@ import { appSyncedLanguageIdsAsRef } from "./globalConfig";
 export const localCorpusSettled = ref(false);
 
 /**
+ * Safety net for a content sync pass that starts but never reports completion (a stalled or
+ * errored runner leaves `syncActive` stuck true). Without it the seed is held for the session,
+ * which also suppresses local deletions in every seeded query. Generous on purpose: latching
+ * early re-introduces the very flash this ref exists to prevent.
+ */
+const SYNC_SETTLE_FALLBACK_MS = 60_000;
+
+/**
  * Latch it once a sync pass that covered content has run to completion. `syncActive` alone can't
  * answer this: it is false both before the first pass starts and after it ends, and on a cold start
  * the feeds query IndexedDB well before sync begins. It stays latched for the session — later
@@ -27,17 +35,33 @@ export const localCorpusSettled = ref(false);
 export function initSyncReadiness(): void {
     if (localCorpusSettled.value) return;
     let sawContentSyncRun = false;
-    const stop = watch(
+    let fallback: ReturnType<typeof setTimeout> | undefined;
+    // Starts as a no-op so `latch` can call it from the watcher's immediate run, which fires
+    // before `watch` has returned the real one. The trailing `if (latched)` covers that case.
+    let stop: () => void = () => {};
+    let latched = false;
+
+    const latch = () => {
+        latched = true;
+        localCorpusSettled.value = true;
+        if (fallback) clearTimeout(fallback);
+        stop();
+    };
+
+    stop = watch(
         syncActive,
         (active) => {
             if (active) {
-                if (appSyncedLanguageIdsAsRef.value.length) sawContentSyncRun = true;
+                if (appSyncedLanguageIdsAsRef.value.length) {
+                    sawContentSyncRun = true;
+                    fallback ??= setTimeout(latch, SYNC_SETTLE_FALLBACK_MS);
+                }
                 return;
             }
             if (!sawContentSyncRun) return;
-            localCorpusSettled.value = true;
-            stop();
+            latch();
         },
         { immediate: true },
     );
+    if (latched) stop();
 }

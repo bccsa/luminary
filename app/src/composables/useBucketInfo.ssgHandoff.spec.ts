@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { ref } from "vue";
 import { db, DocType, type StorageDto, _resetSharedHybridQueryForTests } from "luminary-shared";
 import { useBucketInfo } from "./useBucketInfo";
+import { OIDC_USER_PREFIX } from "@/authStorage";
 
 // Both halves of the handoff run against ONE module instance (no `vi.resetModules`) so the
 // client half reads the same initialized data layer a real browser has, and the cache key it
@@ -72,6 +73,16 @@ async function settleLocalRead(): Promise<void> {
     await new Promise((resolve) => setTimeout(resolve, 20));
 }
 
+/** Enumerate by index — jsdom's Storage doesn't expose its entries to `Object.keys`. */
+function hqcacheKeys(): string[] {
+    const keys: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key?.startsWith("hqcache:")) keys.push(key);
+    }
+    return keys;
+}
+
 /** Replay the page's inline seed script into a browser that has nothing else stored. */
 function loadPageInFreshBrowser(inlined: Record<string, string>): void {
     localStorage.clear();
@@ -115,5 +126,17 @@ describe("useBucketInfo — SSG prerender → client handoff", () => {
 
         await settleLocalRead();
         expect(bucketBaseUrl.value).toBe("https://cdn.example.com");
+    });
+
+    it("keeps the anonymous seed out of a signed-in viewer's scope", async () => {
+        loadPageInFreshBrowser(await prerenderPage());
+        expect(hqcacheKeys()).toHaveLength(1);
+
+        // Buckets are group-scoped, so the two scopes must not share an entry — whichever
+        // viewer came second would otherwise paint from a window assembled for the other.
+        localStorage.setItem(`${OIDC_USER_PREFIX}provider-1`, "{}");
+        _resetSharedHybridQueryForTests();
+        const { bucketBaseUrl } = useBucketInfo(ref<string | undefined>("storage-bucket-1"));
+        expect(bucketBaseUrl.value).toBeUndefined();
     });
 });

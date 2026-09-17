@@ -86,4 +86,41 @@ describe("syncReadiness", () => {
         await nextTick();
         expect(localCorpusSettled.value).toBe(true);
     });
+
+    it("settles anyway when a started content sync pass never reports completion", async () => {
+        vi.useFakeTimers();
+        try {
+            const { localCorpusSettled, initSyncReadiness } = await loadSubject();
+            initSyncReadiness();
+
+            // A stalled or errored runner leaves `syncActive` stuck true. Holding the seed for the
+            // whole session would also stop local deletions reaching every seeded query.
+            syncActive.value = true;
+            await nextTick();
+            expect(localCorpusSettled.value).toBe(false);
+
+            vi.advanceTimersByTime(60_000);
+            expect(localCorpusSettled.value).toBe(true);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it("does not arm the stall fallback while no language is selected for sync", async () => {
+        vi.useFakeTimers();
+        try {
+            appSyncedLanguageIdsAsRef.value = [];
+            const { localCorpusSettled, initSyncReadiness } = await loadSubject();
+            initSyncReadiness();
+
+            // This pass can't be filling the content corpus, so its duration says nothing about
+            // whether an empty read is authoritative.
+            syncActive.value = true;
+            await nextTick();
+            vi.advanceTimersByTime(60_000);
+            expect(localCorpusSettled.value).toBe(false);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
 });

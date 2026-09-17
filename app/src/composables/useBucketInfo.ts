@@ -10,10 +10,19 @@ import {
 import { useRoute } from "vue-router";
 import { isPrerender } from "@/ssg/isPrerender";
 import { captureCacheEntry } from "@/ssg/dependencyCapture";
+import { hasPersistedSession } from "@/auth";
 
 // Storage buckets use a fixed `cacheId` so this query's response-cache entry stays distinct from same-shaped queries. Storage docs are ACL-scoped like every other doc, so the entry holds whatever the current viewer can see; the build's copy is fetched anonymously, which is what keeps a non-public bucket out of the inlined page seed.
 const STORAGE_QUERY = { selector: { type: "storage" }, identifier: "ssgPrerender" };
 const STORAGE_CACHE_ID = "storage-buckets";
+
+// Buckets are group-scoped, so a signed-in viewer's window can hold one an anonymous viewer
+// must not see. Scope the entry by auth state (same `:auth`/`:anon` split `useContentQuery`
+// applies) so the two never share a key in one browser. The prerender is always anonymous.
+function storageCacheId(): string {
+    return `${STORAGE_CACHE_ID}:${hasPersistedSession() ? "auth" : "anon"}`;
+}
+const STORAGE_CACHE_ID_ANON = `${STORAGE_CACHE_ID}:anon`;
 
 // Storage buckets are public and identical for every prerendered page, so the whole SSG
 // build fetches them once. A PROMISE cache (not a resolved-value cache guarded by
@@ -44,7 +53,7 @@ function seedBucketCache(route: string, buckets: StorageDto[]): void {
     seededRoutes.add(route);
     // No field stripping: bucket docs are small, and a stripped seed can outlive the live
     // read for the session when the window looks unchanged and the republish is suppressed.
-    const cacheKey = structuralCacheKey(STORAGE_QUERY, STORAGE_CACHE_ID);
+    const cacheKey = structuralCacheKey(STORAGE_QUERY, STORAGE_CACHE_ID_ANON);
     writeResponseCache<StorageDto>(cacheKey, { local: buckets, remote: [] });
     captureCacheEntry(route, cacheKey);
 }
@@ -71,7 +80,7 @@ export function useBucketInfo(bucketId: Ref<Uuid | undefined>) {
         allBuckets = useSharedHybridQuery<StorageDto>(STORAGE_QUERY, {
             live: true,
             cache: true,
-            cacheId: STORAGE_CACHE_ID,
+            cacheId: storageCacheId(),
         });
     }
 
