@@ -42,6 +42,12 @@ export class ResultWindow<T extends BaseDocumentDto> {
     private readonly _seed = new SeedRetention();
     /** Delete time by doc id — set when a socket delete hits a local copy, released in `setLocal`. */
     private readonly _tombstones = new Map<string, number>();
+    /**
+     * Ids a page fetch actually returned, as opposed to ones a live socket upsert merged
+     * into `_remote` afterward. A socket-pushed doc can carry any sort-value at all, so it
+     * must not anchor a keyset boundary meant to mark where the last fetched page ended.
+     */
+    private readonly _fetchedIds = new Set<string>();
 
     /**
      * @param effects Injected side effects — see `WindowEffects`.
@@ -64,6 +70,7 @@ export class ResultWindow<T extends BaseDocumentDto> {
         if (!keepPrevious) this.clearOutput();
         this._seed.reset();
         this._tombstones.clear();
+        this._fetchedIds.clear();
         this._sort = query.$sort;
         this._limit = query.$limit;
     }
@@ -85,6 +92,17 @@ export class ResultWindow<T extends BaseDocumentDto> {
      */
     get remoteDocs(): readonly T[] {
         return this._remote;
+    }
+
+    /**
+     * The subset of `_remote` an actual page fetch returned, excluding docs a live socket
+     * upsert added since — a plan narrowing a keyset boundary past "already held" rows
+     * must anchor on these, not on a socket-pushed doc with an unrelated sort-value.
+     */
+    get fetchedRemoteDocs(): readonly T[] {
+        return this._fetchedIds.size
+            ? this._remote.filter((d) => this._fetchedIds.has(d._id))
+            : [];
     }
 
     /** Publish an empty window, only when something is currently visible. */
@@ -258,6 +276,7 @@ export class ResultWindow<T extends BaseDocumentDto> {
         // Strip here (not at the call site) so the caller's pre-strip array can
         // still be written to IndexedDB by `persistOffline` with all fields intact.
         remote = this._strip(remote);
+        for (const doc of remote) this._fetchedIds.add(doc._id);
         const seeded = this._seed.recordRemoteAnswer();
         if (seeded) {
             const keep = this._remote.filter((d) => !seeded.has(d._id));

@@ -30,9 +30,9 @@ const STRIP_FIELDS = ["fts", "ftsTokenCount", "text", "_rev"];
 
 /**
  * Browse-mode content query for the CMS overview. Wraps {@link useHybridQuery} (local-first
- * Dexie; the API supplement is skipped for the CMS since it fully syncs the selected
- * languages). Filters are pushed into the Mango selector; paging is the query's own, so
- * `loadMore()` appends to the window instead of re-running the query at a bigger limit.
+ * Dexie, supplemented from the API for content older than the CMS's own sync window).
+ * Filters are pushed into the Mango selector; paging is the query's own, so `loadMore()`
+ * appends to the window instead of re-running the query at a bigger limit.
  *
  * @param opts     reactive getter for the current filter/sort state
  * @param pageSize rows per page, and the size of the first window

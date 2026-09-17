@@ -3021,7 +3021,7 @@ describe("HybridQuery", () => {
             errSpy.mockRestore();
         });
 
-        it("a partial fan-out failure does NOT set error (some results returned)", async () => {
+        it("a partial fan-out failure still publishes the successful branch, but surfaces the error", async () => {
             const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
             mocks.mangoToDexieMock.mockResolvedValueOnce([]);
             postHttpMock.mockRejectedValueOnce(new Error("boom")).mockResolvedValueOnce({
@@ -3042,7 +3042,9 @@ describe("HybridQuery", () => {
             });
             await flush();
 
-            expect(q.error.value).toBeUndefined(); // partial success ⇒ no error surfaced
+            // A caller that must not act on a partial fan-out result needs to see the
+            // failure even though the other branch's rows still reach `output`.
+            expect(q.error.value).toBeInstanceOf(Error);
             expect(q.output.value.map((d) => d._id)).toEqual(["c2"]);
             expect(q.isFetching.value).toBe(false);
             errSpy.mockRestore();

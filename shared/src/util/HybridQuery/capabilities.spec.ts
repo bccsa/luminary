@@ -167,20 +167,24 @@ describe("query session contracts", () => {
         h.session.dispose();
     });
 
-    it("preserves successful fan-out branches without changing the legacy partial-error surface", async () => {
+    it("preserves successful fan-out branches, but still reports the failed one", async () => {
         const h = harness();
         vi.spyOn(console, "error").mockImplementation(() => {});
+        const secondParentFailure = new Error("second parent failed");
         vi.mocked(h.capabilities.sources.readRemote)
             .mockResolvedValueOnce([doc("success")])
-            .mockRejectedValueOnce(new Error("second parent failed"));
+            .mockRejectedValueOnce(secondParentFailure);
         h.session.rebuild({
             selector: { $and: [{ type: "content" }, { parentId: { $in: ["a", "b"] } }] },
         });
         await flush();
         expect(h.capabilities.sources.readRemote).toHaveBeenCalledTimes(2);
+        // The successful branch still publishes…
         expect(h.publish).toHaveBeenLastCalledWith([doc("success")]);
-        expect(h.error).toHaveBeenCalledTimes(1);
-        expect(h.error).toHaveBeenLastCalledWith(undefined);
+        // …but the caller is told a branch failed — a caller that must not act on a
+        // partial fan-out result (e.g. an SSG one-shot read) needs to see this.
+        expect(h.error).toHaveBeenCalledTimes(2); // rebuild's initial clear, then the failure
+        expect(h.error).toHaveBeenLastCalledWith(secondParentFailure);
         h.session.dispose();
     });
 });

@@ -1,9 +1,8 @@
 /**
- * Probe: does a page-append path survive the contracts?
- *
- * Exercises only the public surface of ResultWindow / QuerySession. Each test pins
- * one pagination requirement to the seam that serves it, so a change that quietly
- * breaks appending fails here rather than in a consumer.
+ * QuerySession: execution lifetime, slice extension and the activity signal a
+ * paged consumer reads. Exercises only the public surface (QuerySession +
+ * QueryCapabilities), so a change that quietly breaks appending fails here
+ * rather than in a consumer.
  */
 import { describe, expect, it, vi } from "vitest";
 import type { BaseDocumentDto } from "../../types";
@@ -13,8 +12,6 @@ import { paginateByLimit } from "./pagination";
 import type { HybridQueryOptions } from "./options";
 import type { MangoQuery } from "../MangoQuery/MangoTypes";
 import { QuerySession } from "./querySession";
-import { ResultWindow } from "./resultWindow";
-import { planRemoteContentQueries, decideContentApiQuery } from "./queryPlanner";
 import { mangoCompile } from "../MangoQuery/mangoCompile";
 
 const doc = (id: string, publishDate: number, time = 1) =>
@@ -25,7 +22,6 @@ const page1 = {
     $sort: [{ publishDate: "desc" }],
     $limit: 2,
 } as MangoQuery;
-const page2 = { ...page1, $limit: 4 } as MangoQuery;
 
 const covered = (docs: BaseDocumentDto[]): LocalRead<BaseDocumentDto> => ({
     docs,
@@ -83,54 +79,7 @@ function harness(options: HybridQueryOptions = {}, paged = true) {
 const lastActivity = (pending: ReturnType<typeof vi.fn>) =>
     pending.mock.calls[pending.mock.calls.length - 1][0];
 
-describe("PROBE 1 — ResultWindow: widening keeps the contributions", () => {
-    const window = () => {
-        const publish = vi.fn();
-        return {
-            publish,
-            window: new ResultWindow<BaseDocumentDto>({
-                publish,
-                touchLocal: vi.fn(),
-                validateDelete: () => true,
-            }),
-        };
-    };
-
-    it("widen() adopts the new limit and re-publishes from the contributions it already holds", () => {
-        const { window: w, publish } = window();
-        w.reset(page1, false);
-        w.setLocal([doc("a", 300), doc("b", 200)], false);
-        w.setRemote([doc("c", 100)]);
-        expect(publish).toHaveBeenLastCalledWith([doc("a", 300), doc("b", 200)]);
-
-        w.widen(page2);
-        // No source was re-read: the third doc was already held, just outside the limit.
-        expect(publish).toHaveBeenLastCalledWith([doc("a", 300), doc("b", 200), doc("c", 100)]);
-    });
-
-    it("reset() remains all-or-nothing, so the two are not interchangeable", () => {
-        const { window: w, publish } = window();
-        w.reset(page1, false);
-        w.setLocal([doc("a", 300)], false);
-        w.setRemote([doc("c", 100)]);
-
-        w.reset(page2, /* keepPrevious */ true);
-        w.setLocal([], false);
-        expect(publish).toHaveBeenLastCalledWith([]);
-    });
-
-    it("setRemote accumulates across slices — page-over-page union", () => {
-        const { window: w, publish } = window();
-        w.reset({ ...page1, $limit: 10 } as MangoQuery, false);
-        w.setLocal([doc("a", 300)], false);
-        w.setRemote([doc("b", 200)]);
-        w.setRemote([doc("c", 100)]);
-        expect(publish).toHaveBeenLastCalledWith([doc("a", 300), doc("b", 200), doc("c", 100)]);
-        expect(w.remoteDocs).toEqual([doc("b", 200), doc("c", 100)]);
-    });
-});
-
-describe("PROBE 2 — QuerySession.extend(): appending without a rebuild", () => {
+describe("QuerySession.extend(): appending without a rebuild", () => {
     it("keeps the earlier slice's remote docs instead of restarting from empty", async () => {
         const h = harness();
         vi.mocked(h.capabilities.sources.readLocal).mockResolvedValue(covered([doc("a", 3000)]));
@@ -177,6 +126,37 @@ describe("PROBE 2 — QuerySession.extend(): appending without a rebuild", () =>
         expect(h.capabilities.sources.observeRemote).toHaveBeenCalledTimes(1);
     });
 
+    it("starts the live subscription on the slice that first needs a remote call, not only the first", async () => {
+        const h = harness({ live: true });
+        // First slice is fully covered locally — no remote call, so no live subscription yet.
+        vi.mocked(h.capabilities.sources.readLocal).mockResolvedValue(
+            covered([doc("a", 3000), doc("b", 2000)]),
+        );
+        h.session.rebuild(page1);
+        h.emissions[0]([doc("a", 3000), doc("b", 2000)]);
+        await flush();
+        expect(h.capabilities.sources.observeRemote).not.toHaveBeenCalled();
+
+        // The second slice needs the API supplement to fill the wider window — the live
+        // subscription must start here instead of never starting at all. It returns
+        // enough rows to fill the $limit:4 window so a further slice remains reachable.
+        vi.mocked(h.capabilities.sources.readRemote).mockResolvedValue([
+            doc("r1", 900),
+            doc("r2", 800),
+        ]);
+        h.session.extend();
+        h.emissions[1]([doc("a", 3000), doc("b", 2000)]);
+        await flush();
+        expect(h.capabilities.sources.observeRemote).toHaveBeenCalledTimes(1);
+
+        // A further slice must not start a second, redundant subscription.
+        vi.mocked(h.capabilities.sources.readRemote).mockResolvedValue([doc("r3", 700)]);
+        h.session.extend();
+        h.emissions[2]([doc("a", 3000), doc("b", 2000)]);
+        await flush();
+        expect(h.capabilities.sources.observeRemote).toHaveBeenCalledTimes(1);
+    });
+
     it("re-decides the API supplement per slice rather than once per generation", async () => {
         const h = harness();
         vi.mocked(h.capabilities.sources.readLocal).mockResolvedValue(covered([doc("a", 3000)]));
@@ -212,9 +192,43 @@ describe("PROBE 2 — QuerySession.extend(): appending without a rebuild", () =>
         await flush();
         expect(h.capabilities.sources.readLocal).toHaveBeenCalledTimes(1);
     });
+
+    it("retries the same slice, and reports it as still extendable, after a page fetch fails outright", async () => {
+        const h = harness();
+        vi.mocked(h.capabilities.sources.readLocal).mockResolvedValue(
+            covered([doc("a", 3000), doc("b", 2000)]),
+        );
+        h.session.rebuild(page1);
+        await flush();
+
+        vi.mocked(h.capabilities.sources.readLocal).mockResolvedValue(
+            covered([doc("a", 3000), doc("b", 2000)]),
+        );
+        vi.mocked(h.capabilities.sources.readRemote).mockRejectedValueOnce(new Error("HTTP 500"));
+        h.session.extend();
+        await flush();
+
+        // The window under-filled because the fetch failed, not because the source is
+        // exhausted — `more` must stay true so a consumer's retry affordance survives.
+        expect(lastActivity(h.pending).more).toBe(true);
+        expect(h.error).toHaveBeenCalled();
+
+        vi.mocked(h.capabilities.sources.readRemote).mockResolvedValue([doc("r1", 900)]);
+        h.session.extend();
+        await flush();
+
+        // The retry re-ran the SAME slice (limit unchanged at 4), not a further-advanced one.
+        const secondCall = vi.mocked(h.capabilities.sources.readRemote).mock.calls[1][0];
+        expect(secondCall.$limit).toBe(2);
+        expect(h.publish).toHaveBeenLastCalledWith([
+            doc("a", 3000),
+            doc("b", 2000),
+            doc("r1", 900),
+        ]);
+    });
 });
 
-describe("PROBE 3 — does the activity signal carry what a paged consumer needs?", () => {
+describe("QuerySession: the activity signal a paged consumer needs", () => {
     it("distinguishes an initial load from an append", async () => {
         const h = harness();
         vi.mocked(h.capabilities.sources.readLocal).mockResolvedValue(
@@ -247,43 +261,9 @@ describe("PROBE 3 — does the activity signal carry what a paged consumer needs
         await flush();
         expect(lastActivity(short.pending).more).toBe(false);
     });
-
-    it("readRemote(): Promise<T[]> survives — exhaustion stays derivable, even under fan-out", async () => {
-        const api = decideContentApiQuery(
-            {
-                selector: { type: "content", parentId: { $in: ["p1", "p2", "p3"] } },
-                $sort: [{ publishDate: "desc" }],
-                $limit: 10,
-            } as MangoQuery,
-            [],
-            1000,
-        )!;
-        const posts = planRemoteContentQueries(api);
-        expect(posts).toHaveLength(3);
-        expect(posts.map((p) => p.$limit)).toEqual([10, 10, 10]);
-
-        // The session holds each sub-query alongside its own result array BEFORE the
-        // merge, so per-source exhaustion is (requested > returned) and global
-        // exhaustion is the AND across sub-queries. No richer return type is needed.
-        const answers = [Array(10).fill(doc("x", 1)), [doc("y", 2)], []];
-        const exhausted = posts.every((q, i) => answers[i].length < (q.$limit ?? Infinity));
-        expect(exhausted).toBe(false); // p1 filled its page → more may remain
-
-        const allShort = [[doc("y", 2)], [], []];
-        expect(posts.every((q, i) => allShort[i].length < (q.$limit ?? Infinity))).toBe(true);
-    });
-
-    it("…and failure stays distinguishable from empty: rejection vs []", async () => {
-        const settled = await Promise.allSettled([
-            Promise.resolve([] as BaseDocumentDto[]),
-            Promise.reject(new Error("HTTP 500")),
-        ]);
-        expect(settled[0]).toMatchObject({ status: "fulfilled", value: [] });
-        expect(settled[1].status).toBe("rejected");
-    });
 });
 
-describe("PROBE 4 — can a plan narrow past what the window already holds?", () => {
+describe("QuerySession: can a plan narrow past what the window already holds?", () => {
     it("hands the accumulated remote contribution to the next slice's plan", async () => {
         const seen: Array<readonly BaseDocumentDto[]> = [];
         const capabilities: QueryCapabilities<BaseDocumentDto> = {
@@ -346,6 +326,46 @@ describe("PROBE 4 — can a plan narrow past what the window already holds?", ()
         expect(capabilities.sources.readRemote).toHaveBeenCalledTimes(1);
     });
 
+    it("does not let a live socket upsert anchor the keyset boundary for the next slice", async () => {
+        const seen: Array<readonly BaseDocumentDto[]> = [];
+        let socketPush: ((data: any, matches: any, matchesDelete: any) => void) | undefined;
+        const matchesAll = () => true;
+        const capabilities: QueryCapabilities<BaseDocumentDto> = {
+            plan: (query): QueryPlan<BaseDocumentDto> => ({
+                useLocal: false,
+                remote: (_local, _covered, held) => {
+                    seen.push(held);
+                    return query;
+                },
+            }),
+            pagination: paginateByLimit(2),
+            sources: {
+                readLocal: vi.fn().mockResolvedValue(covered([])),
+                readRemote: vi.fn().mockResolvedValue([doc("r1", 900)]),
+                observeRemote: vi.fn((_q, _t, onChanges) => {
+                    socketPush = onChanges;
+                }),
+            },
+        };
+        const session = new QuerySession(() => page1, { live: true }, capabilities, {
+            publish: vi.fn(),
+            pending: vi.fn(),
+            error: vi.fn(),
+        });
+        session.rebuild(page1);
+        await flush();
+
+        // A socket upsert adds a doc to the remote contribution that was never fetched by
+        // a page POST — an old edited doc, say, with an extreme sort value.
+        socketPush?.({ docs: [doc("socket-pushed", 1)] } as any, matchesAll, () => false);
+
+        session.extend();
+        await flush();
+
+        // The next slice's plan must see only the fetched doc, never the socket-pushed one.
+        expect(seen[1]).toEqual([doc("r1", 900)]);
+    });
+
     it("keeps advancing when every row ties on the sort field", async () => {
         // The failure this guards: a bare `$lt` past the boundary drops every tying row,
         // and a `$lte` re-requests the same page forever. Either way the window stops
@@ -403,5 +423,41 @@ describe("PROBE 4 — can a plan narrow past what the window already holds?", ()
         // …and narrows past r1's publishDate rather than restarting from the cutoff.
         expect(JSON.stringify(second.selector)).not.toEqual(JSON.stringify(first.selector));
         expect(JSON.stringify(second.selector)).toContain('"$lt":900');
+    });
+});
+
+describe("QuerySession: partial remote fan-out failure", () => {
+    it("reports an error even when some — not all — fanned-out sub-queries succeed", async () => {
+        const capabilities: QueryCapabilities<BaseDocumentDto> = {
+            plan: () => ({
+                useLocal: false,
+                remote: () => ({
+                    selector: { $and: [{ type: "content" }, { parentId: { $in: ["p1", "p2"] } }] },
+                    $sort: [{ publishDate: "desc" }],
+                } as MangoQuery),
+            }),
+            sources: {
+                readLocal: vi.fn().mockResolvedValue(covered([])),
+                readRemote: vi
+                    .fn()
+                    .mockImplementationOnce(() => Promise.resolve([doc("p1-doc", 900)]))
+                    .mockImplementationOnce(() => Promise.reject(new Error("HTTP 500"))),
+            },
+        };
+        const publish = vi.fn();
+        const error = vi.fn();
+        const session = new QuerySession(() => page1, {}, capabilities, {
+            publish,
+            pending: vi.fn(),
+            error,
+        });
+        session.rebuild(page1);
+        await flush();
+
+        // The one successful branch still publishes…
+        expect(publish).toHaveBeenLastCalledWith([doc("p1-doc", 900)]);
+        // …but the caller is told a sub-query failed, matching the pre-fan-out contract
+        // where any single query failure was reported.
+        expect(error).toHaveBeenCalled();
     });
 });
