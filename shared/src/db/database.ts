@@ -29,8 +29,8 @@ import { cloneDeep } from "lodash-es";
 const dbName: string = "luminary-db";
 
 /**
- * Whether the stored copy already holds exactly this doc. Comparing serialisations is much cheaper
- * than a deep compare for docs with large arrays; a key-order difference only costs a rewrite.
+ * Whether the stored copy already holds this doc version. The API sets a new `updatedTimeUtc` on
+ * every write, so an equal timestamp means an identical doc.
  */
 const isSameDoc = (stored: BaseDocumentDto | undefined, doc: BaseDocumentDto): boolean =>
     stored !== undefined &&

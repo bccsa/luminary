@@ -142,7 +142,11 @@ describe("FTS Indexer and Search", () => {
             await ingestDocWithFts(doc1, entries1, tc1);
 
             const { entries: entries2, tokenCount: tc2 } = generateSimpleFtsEntries("updated");
-            const doc2 = makeContentDoc({ _id: "doc-reindex", title: "updated" });
+            const doc2 = makeContentDoc({
+                _id: "doc-reindex",
+                title: "updated",
+                updatedTimeUtc: 1704114000001,
+            });
             await ingestDocWithFts(doc2, entries2, tc2);
 
             const storedDoc = await db.docs.get("doc-reindex") as ContentDto;
@@ -194,7 +198,11 @@ describe("FTS Indexer and Search", () => {
             await ingestDocWithFts(doc1, e1, tc1);
 
             const { entries: e2, tokenCount: tc2 } = generateSimpleFtsEntries("updated");
-            const doc2 = makeContentDoc({ _id: "recomp-reindex", title: "updated" });
+            const doc2 = makeContentDoc({
+                _id: "recomp-reindex",
+                title: "updated",
+                updatedTimeUtc: 1704114000001,
+            });
             await ingestDocWithFts(doc2, e2, tc2);
 
             await recomputeCorpusStats();
