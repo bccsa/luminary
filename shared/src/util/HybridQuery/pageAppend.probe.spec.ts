@@ -314,6 +314,38 @@ describe("PROBE 4 — can a plan narrow past what the window already holds?", ()
         expect(seen[1]).toEqual([doc("r1", 900)]);
     });
 
+    it("does not count a response-cache seed as already fetched", async () => {
+        const capabilities: QueryCapabilities<BaseDocumentDto> = {
+            plan: (query) => planBrowserQuery(query, capabilities.coverage!),
+            sources: {
+                readLocal: vi.fn().mockResolvedValue(covered([doc("a", 3000)])),
+                readRemote: vi.fn().mockResolvedValue([doc("fresh", 900)]),
+            },
+            coverage: {
+                cutoff: () => 1000,
+                isSynced: () => false,
+                watchMembership: vi.fn(() => vi.fn()),
+            },
+            cache: {
+                key: () => "k",
+                // A seeded full page: one local doc plus one remote doc, against $limit 2.
+                read: () => ({ local: [doc("a", 3000)], remote: [doc("stale", 800)] }) as any,
+                write: vi.fn(),
+            },
+        };
+        const session = new QuerySession(() => page1, {}, capabilities, {
+            publish: vi.fn(),
+            pending: vi.fn(),
+            error: vi.fn(),
+        });
+        session.rebuild(page1);
+        await flush();
+
+        // The seed is a stale first paint, not a fetch. Counting it as held would fill
+        // the window on paper and suppress the very supplement that supersedes it.
+        expect(capabilities.sources.readRemote).toHaveBeenCalledTimes(1);
+    });
+
     it("keeps advancing when every row ties on the sort field", async () => {
         // The failure this guards: a bare `$lt` past the boundary drops every tying row,
         // and a `$lte` re-requests the same page forever. Either way the window stops

@@ -9,7 +9,7 @@ import { subscribeRooms } from "../../socket/roomSubscriptions";
 import { DocType, type BaseDocumentDto } from "../../types";
 import { mangoCompile } from "../MangoQuery/mangoCompile";
 import { useDexieLiveQuery } from "../useDexieLiveQuery/useDexieLiveQuery";
-import { typeIsInSyncList, typeInSyncListRef } from "./queryIntrospection";
+import { typeIsInSyncList, typeInSyncListRef } from "./syncMembership";
 import { toDeleteSelector } from "./queryPlanner";
 import { planBrowserQuery } from "./browserPlanner";
 import { paginateByLimit } from "./pagination";

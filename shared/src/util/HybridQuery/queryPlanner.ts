@@ -1,6 +1,7 @@
 /** Pure planning rules. Coverage values are supplied by the environment adapter. */
 import type { BaseDocumentDto } from "../../types";
 import { DocType } from "../../types";
+import { OPEN_MIN } from "../../api/sync/bounds";
 import { expandMangoSelector } from "../MangoQuery/expandMangoQuery";
 import type { MangoQuery, MangoSelector } from "../MangoQuery/MangoTypes";
 
@@ -158,7 +159,7 @@ export function decideContentApiQuery<T extends BaseDocumentDto>(
     held: readonly T[] = [],
 ): MangoQuery | undefined {
     // No cutoff ⇒ sync has all synced-language content, so the API has nothing to supply — skip.
-    if (cutoff === Number.MIN_SAFE_INTEGER) return undefined;
+    if (cutoff === OPEN_MIN) return undefined;
 
     // Distinct ids across both contributions: the visible window is their union, so a
     // doc supplied by both must not be counted twice against the limit.

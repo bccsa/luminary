@@ -1,12 +1,11 @@
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect } from "vitest";
 import {
-    decideContentApiQuery,
+    decideContentApiQuery as planContent,
     planRemoteContentQueries,
     FANOUT_MAX_PARENTS,
-} from "./queryIntrospection";
-import { MAX_TIE_EXCLUSIONS } from "./queryPlanner";
+    MAX_TIE_EXCLUSIONS,
+} from "./queryPlanner";
 import { mangoCompile } from "../MangoQuery/mangoCompile";
-import { initConfig, config } from "../../config";
 import { OPEN_MIN } from "../../api/sync/utils";
 import type { MangoQuery, MangoSelector } from "../MangoQuery/MangoTypes";
 
@@ -155,9 +154,10 @@ describe("planRemoteContentQueries — parentId fan-out", () => {
 });
 
 describe("decideContentApiQuery — older-tail supplement", () => {
-    beforeAll(() =>
-        initConfig({ cms: false, docsIndex: "", apiUrl: "", contentPublishDateCutoff: 1000 }),
-    );
+    let cutoff = 1000;
+    /** The planner is pure: the cutoff is passed in, not read from config. */
+    const decideContentApiQuery = (query: MangoQuery, local: any[], held: any[] = []) =>
+        planContent(query, local, cutoff, held);
 
     const feed = (over: Partial<MangoQuery> = {}): MangoQuery =>
         ({
@@ -186,9 +186,9 @@ describe("decideContentApiQuery — older-tail supplement", () => {
     });
 
     it("returns undefined at OPEN_MIN (full-corpus sync — nothing to supplement)", () => {
-        config.contentPublishDateCutoff = OPEN_MIN;
+        cutoff = OPEN_MIN;
         expect(decideContentApiQuery(feed(), [])).toBeUndefined();
-        config.contentPublishDateCutoff = 1000;
+        cutoff = 1000;
     });
 
     describe("paging past the rows already held", () => {
