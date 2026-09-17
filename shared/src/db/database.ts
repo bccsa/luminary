@@ -34,8 +34,7 @@ const dbName: string = "luminary-db";
  */
 const isSameDoc = (stored: BaseDocumentDto | undefined, doc: BaseDocumentDto): boolean =>
     stored !== undefined &&
-    stored.updatedTimeUtc === doc.updatedTimeUtc &&
-    JSON.stringify(stored) === JSON.stringify(doc);
+    stored.updatedTimeUtc === doc.updatedTimeUtc;
 
 /** The access map `deleteRevoked` last completed against, kept in luminaryInternals. */
 const RECONCILED_ACCESS_MAP_KEY = "reconciledAccessMap";
