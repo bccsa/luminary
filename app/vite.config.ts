@@ -109,8 +109,7 @@ export default defineConfig({
         __APP_BUILD_ID__: JSON.stringify(buildId),
     },
     server: {
-        // Env-driven so parallel worktrees can each serve on their own port.
-        port: Number(env.VITE_APP_PORT) || 4174,
+        port: 4174,
         strictPort: true,
         // Allow Vite to serve the sibling shared/ source (outside this package root).
         fs: { allow: [".."] },

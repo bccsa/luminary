@@ -62,8 +62,7 @@ export default defineConfig({
         dedupe: ["vue", "dexie", "@vueuse/core"],
     },
     server: {
-        // Env-driven so parallel worktrees can each serve on their own port.
-        port: Number(env.VITE_CMS_PORT) || 4175,
+        port: 4175,
         strictPort: true,
         // Allow Vite to serve the sibling shared/ source (outside this package root).
         fs: { allow: [".."] },
