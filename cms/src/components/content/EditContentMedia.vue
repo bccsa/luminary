@@ -30,7 +30,7 @@ type Props = {
      * Set while the document has never been saved; resolves to whether it saved. An
      * encode outlives an editor who leaves without saving, leaving media nothing points to.
      */
-    saveBeforeEncode?: () => Promise<boolean>;
+    saveBeforeEncode?: () => Promise<boolean | undefined>;
 };
 const props = defineProps<Props>();
 

@@ -212,11 +212,11 @@ const isValid = ref(true);
 // Guards against a rapid second save re-entering while the first is still queuing changes.
 const isSaving = ref(false);
 
-const saveChanges = async (): Promise<boolean> => {
-    if (isSaving.value) return false;
+const saveChanges = async () => {
+    if (isSaving.value) return;
     if (!isValid.value) {
         notify("error", "Changes not saved", "There are validation errors that prevent saving");
-        return false;
+        return;
     }
     const prevContentDoc = existingContent.value?.find(
         (d) => d.language === selectedLanguageId.value,
@@ -231,7 +231,7 @@ const saveChanges = async (): Promise<boolean> => {
             "Insufficient Permissions",
             "You cannot modify a published document without publish access.",
         );
-        return false;
+        return;
     }
     if (!canTranslate.value) {
         notify(
@@ -239,7 +239,7 @@ const saveChanges = async (): Promise<boolean> => {
             "Insufficient Permissions",
             "You need translate access to save this content.",
         );
-        return false;
+        return;
     }
     if (editableParent.value?.linkDates && !hasAccessToAllTranslations.value) {
         notify(
@@ -247,12 +247,12 @@ const saveChanges = async (): Promise<boolean> => {
             "Insufficient Permissions",
             "You need translate access to every translation of this content to save changes while dates are linked.",
         );
-        return false;
+        return;
     }
 
     if (replacesStoredMedia.value) {
         showReplaceMediaModal.value = true;
-        return false;
+        return;
     }
     await persistChanges();
     return true;
