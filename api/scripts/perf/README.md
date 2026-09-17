@@ -26,8 +26,9 @@ Reports land in `api/perf-reports/` as a Markdown summary plus the raw JSON behi
 | `--db=` | `$DB_DATABASE` | CouchDB database to inspect for plans and index state |
 | `--couch=` | `$DB_CONNECTION_STRING` | CouchDB root URL |
 | `--suites=` | all | `indexes,explain,latency,fts,concurrency,socket` |
-| `--samples=` | `15` | Timed repetitions per request |
-| `--warmup=` | `3` | Discarded repetitions before timing |
+| `--samples=` | `15` | Timed repetitions per request (latency and fts suites) |
+| `--warmup=` | `3` | Discarded repetitions before timing (latency and fts suites) |
+| `--fts-term=`, `--fts-rare-term=` | discovered | Pin the `/fts` search terms instead of picking them from sampled titles — required to compare runs across corpora |
 | `--concurrency=` | `1,5,25,50` | Load levels |
 | `--requests=` | `100` | Requests per load level |
 | `--token=`, `--provider=` | — | Run as an authenticated identity instead of anonymous |
@@ -62,7 +63,9 @@ production network path. Add the concurrency suite explicitly when measuring off
   `total_docs_examined`, and response size.
 - **fts** — `/fts` broken into its stages: trigrams generated, trigrams kept after pruning,
   candidate rows scanned, survivors after filtering, top-K fetched. Search cost is driven by the
-  query text, so this is where a slow search is explained.
+  query text, so this is where a slow search is explained. Timings are sampled like the latency
+  suite's (`--samples`/`--warmup`, reported as p50 and p95); the stage counts come from the last
+  sample, since they depend on the query and the corpus rather than on the run.
 - **concurrency** — latency against offered load. `queue ms` (client time minus server handler
   time) growing faster than server time points at the Node event loop rather than CouchDB.
 - **socket** — connect and handshake timing, and the size of the access map sent to every client
@@ -99,18 +102,67 @@ global one.
 
 ## Corpus scaling
 
-To see which requests degrade linearly and which fall off a cliff, seed a throwaway database and
-re-run the audit against it at several sizes:
+To see which requests degrade linearly and which fall off a cliff, seed throwaway databases at
+several sizes and re-run the audit against each. One database per size, so any point can be
+re-run without rebuilding the others:
 
 ```sh
-npm run perf:seed -- --db=luminary-perf --posts=2000 --recreate
-DB_DATABASE=luminary-perf PERF_TRACE=true npm run start:dev
-npm run perf:audit -- --db=luminary-perf
+npm run perf:seed -- --db=luminary-perf-3k  --posts=1000  --languages=3 --tags=50 --groups=5 --recreate
+npm run perf:seed -- --db=luminary-perf-15k --posts=5000  --languages=3 --tags=50 --groups=5 --recreate
+npm run perf:seed -- --db=luminary-perf-60k --posts=20000 --languages=3 --tags=50 --groups=5 --recreate
+
+DB_DATABASE=luminary-perf-3k PERF_TRACE=true npm run start
+npm run perf:audit -- --db=luminary-perf-3k --suites=fts --fts-term=content --fts-rare-term=rhythm
 ```
 
 The seeder refuses any database name that doesn't contain `perf`, `test` or `bench`, and refuses
 to overwrite an existing one without `--recreate`. It generates real trigram FTS data using the
-API's own `computeFtsData`, so `/fts` behaves as it would in production.
+API's own `computeFtsData`, so `/fts` behaves as it would in production. Stop the API (or point it
+at another database) while seeding — its changes feed would otherwise process every seeded
+document for nothing.
+
+### Seeder flags
+
+| Flag | Default | Meaning |
+| :--- | :--- | :--- |
+| `--db=` | `luminary-perf` | Target database; the name must contain `perf`, `test` or `bench` |
+| `--couch=` | `$DB_CONNECTION_STRING` | CouchDB root URL |
+| `--posts=` | `2000` | Posts to generate; each yields one content document per language |
+| `--languages=` | `3` | Languages — and therefore content documents per post |
+| `--tags=` | `50` | Tags |
+| `--groups=` | `5` | Groups; content is spread across them round-robin |
+| `--recreate` | off | Drop and rebuild the database if it already exists |
+
+### Getting a comparable series
+
+- **Count content documents, not posts.** `/fts` indexes content only — one view row per trigram
+  per content document — and `--posts=N --languages=L` produces `N × L` of them.
+- **Hold `--languages`, `--tags` and `--groups` constant.** `groups` in particular decides how
+  content is spread across permissions, which changes how many candidates survive filtering.
+- **Pin the search terms.** Left to discovery, the audit samples 200 titles and takes the most
+  and least frequent words — a different pair at every corpus size, so the series would measure
+  term variance rather than scaling. Pick terms from the seeder's own word list. The seeder draws
+  words uniformly, so "frequent" and "rare" only differ by how common their _trigrams_ are:
+  `content` (widely shared trigrams) against `rhythm` (unusual ones). The run log states the
+  terms in use and whether they were pinned.
+- **Wait for the view build before auditing.** The seeder pre-warms `fts-trigram-index` and
+  `fts-corpus-stats`, but Node's `fetch` gives up after five minutes and the seeder swallows the
+  error — on a large corpus it prints `Seeded` while CouchDB is still indexing. Confirm
+  `GET /<db>/_design/fts-trigram-index/_info` reports `updater_running: false` first.
+- **Check disk between sizes.** Every trigram view row carries the document's filter metadata,
+  so the view grows far faster than the database. Run `--suites=indexes` after each seed and
+  read its size before seeding the next.
+
+### What to look for
+
+Two constants shape the curve on purpose. `FTS_MAX_TRIGRAM_DOC_PERCENT` prunes trigrams by their
+share of the corpus, so which ones survive shifts with size. `FTS_CANDIDATE_ROW_BUDGET` caps the
+candidate scan: once it binds (`budgetBound` in the report), latency stops growing while ranking
+works from a truncated set — a flat curve there is a quality loss, not a win. The size at which
+the budget starts binding is the finding.
+
+The seeded documents are all the same length, so the series measures cost against size. It says
+nothing about ranking quality, which depends on length variance the synthetic corpus does not have.
 
 ## The tracing flag
 
