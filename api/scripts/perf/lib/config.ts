@@ -14,6 +14,12 @@ export type PerfConfig = {
     /** Optional bearer token + provider id. Without these the audit runs as the anonymous identity. */
     token?: string;
     providerId?: string;
+    /**
+     * Search terms for the `/fts` entries. Unset, they are picked from whatever titles discovery
+     * happens to sample, which differs per corpus — pin them to compare runs against each other.
+     */
+    ftsTerm?: string;
+    ftsRareTerm?: string;
     /** Repetitions per catalogue entry in the latency suite. */
     samples: number;
     /** Discarded warm-up repetitions before sampling (CouchDB view/index warm-up). */
@@ -72,6 +78,10 @@ export function loadConfig(argv: string[]): PerfConfig {
         ).toString(),
         token: (flags.token ?? process.env.PERF_AUTH_TOKEN) as string | undefined,
         providerId: (flags.provider ?? process.env.PERF_AUTH_PROVIDER_ID) as string | undefined,
+        ftsTerm: (flags["fts-term"] ?? process.env.PERF_FTS_TERM) as string | undefined,
+        ftsRareTerm: (flags["fts-rare-term"] ?? process.env.PERF_FTS_RARE_TERM) as
+            | string
+            | undefined,
         samples: num(flags.samples, 15),
         warmup: num(flags.warmup, 3),
         concurrency: flags.concurrency
