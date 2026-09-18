@@ -135,6 +135,15 @@ function findContentProgressEntry(contentId: Uuid): ContentProgressEntry | undef
     return _contentProgress.find((entry) => entry.contentId === contentId);
 }
 
+/**
+ * Entry lookup for the getters below. Reads through the ref rather than the plain array so a
+ * computed that calls a getter re-evaluates when progress changes — a tile stays mounted while
+ * the continue row reorders around it, so it has to track progress it was not mounted with.
+ */
+function findTrackedContentProgressEntry(contentId: Uuid): ContentProgressEntry | undefined {
+    return contentProgressAsRef.value.find((entry) => entry.contentId === contentId);
+}
+
 function touchContentProgressEntry(contentId: Uuid): ContentProgressEntry {
     const index = _contentProgress.findIndex((entry) => entry.contentId === contentId);
     const entry: ContentProgressEntry =
@@ -182,7 +191,7 @@ export function watchContentProgressStorage(): () => void {
  * @returns - Playback progress in seconds
  */
 export const getMediaProgress = (mediaId: string, contentId: Uuid) => {
-    const watching = findContentProgressEntry(contentId)?.watching;
+    const watching = findTrackedContentProgressEntry(contentId)?.watching;
     if (!watching || watching.mediaId !== mediaId) return 0;
     return watching.progress;
 };
@@ -194,7 +203,7 @@ export const getMediaProgress = (mediaId: string, contentId: Uuid) => {
  * @returns - Duration time in seconds
  */
 export const getMediaDuration = (mediaId: string, contentId: Uuid): number => {
-    const watching = findContentProgressEntry(contentId)?.watching;
+    const watching = findTrackedContentProgressEntry(contentId)?.watching;
     if (!watching || watching.mediaId !== mediaId) return 0;
     return watching.duration;
 };
@@ -241,7 +250,7 @@ export const removeMediaProgress = (mediaId: string, contentId: Uuid) => {
  * @returns - Reading progress in percentage (0–100)
  */
 export const getReadingProgress = (contentId: Uuid): number => {
-    return findContentProgressEntry(contentId)?.reading?.progress ?? 0;
+    return findTrackedContentProgressEntry(contentId)?.reading?.progress ?? 0;
 };
 
 /**
