@@ -1,7 +1,7 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { mount, flushPromises } from "@vue/test-utils";
-import { ref, nextTick } from "vue";
+import { ref, nextTick, defineComponent, h, KeepAlive } from "vue";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
 import SearchPanel from "./SearchPanel.vue";
@@ -26,6 +26,7 @@ const runSearchMock = vi.hoisted(() => vi.fn());
 vi.mock("vue-router", () => ({
     useRouter: vi.fn().mockImplementation(() => ({ push: routePushMock, replace: routeReplaceMock })),
     useRoute: vi.fn().mockImplementation(() => routeMock),
+    onBeforeRouteLeave: vi.fn(),
 }));
 
 vi.mock("vue-i18n", () => ({
@@ -205,5 +206,57 @@ describe("SearchPanel (page mode — /search)", () => {
         expect((wrapper!.find("input").element as HTMLInputElement).value).toBe("");
         // The search overlay must NOT have been toggled by Escape in page mode.
         expect(wrapper!.find("input").exists()).toBe(true);
+    });
+});
+
+describe("SearchPanel (page mode, kept alive)", () => {
+    // Mirrors App.vue: the search page stays cached while another page is showing.
+    const KeptAlive = defineComponent({
+        props: { show: Boolean },
+        setup(props) {
+            return () =>
+                h(KeepAlive, null, [
+                    props.show ? h(SearchPanel, { mode: "page", key: "search" }) : h("div"),
+                ]);
+        },
+    });
+
+    async function searchThenLeave() {
+        routeMock.query = { q: "faith" };
+        const { lastSearchedQueryRef } = setupFts({ lastSearchedQuery: "faith" });
+        wrapper = mount(KeptAlive, {
+            props: { show: true },
+            global: { stubs: { LImage: { template: "<div />" } } },
+        });
+        await flushPromises();
+        await wrapper.setProps({ show: false });
+        await flushPromises();
+        return { lastSearchedQueryRef };
+    }
+
+    it("keeps the search and puts its query back in the URL when returning to a bare /search", async () => {
+        await searchThenLeave();
+        routeMock.query = {};
+        routeReplaceMock.mockClear();
+        runSearchMock.mockClear();
+
+        await wrapper!.setProps({ show: true });
+        await flushPromises();
+
+        expect((wrapper!.find("input").element as HTMLInputElement).value).toBe("faith");
+        expect(routeReplaceMock).toHaveBeenCalledWith({ query: { q: "faith" } });
+        expect(runSearchMock).not.toHaveBeenCalled();
+    });
+
+    it("runs the new search when returning with a different query", async () => {
+        await searchThenLeave();
+        routeMock.query = { q: "hope" };
+        runSearchMock.mockClear();
+
+        await wrapper!.setProps({ show: true });
+        await flushPromises();
+
+        expect((wrapper!.find("input").element as HTMLInputElement).value).toBe("hope");
+        expect(runSearchMock).toHaveBeenCalled();
     });
 });
