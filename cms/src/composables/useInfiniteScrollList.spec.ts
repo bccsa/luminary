@@ -35,6 +35,7 @@ function captureObserver() {
     });
     return {
         intersect: () => observerCallback?.([{ isIntersecting: true }]),
+        leave: () => observerCallback?.([{ isIntersecting: false }]),
     };
 }
 
@@ -221,6 +222,61 @@ describe("useInfiniteScrollLoadMore", () => {
         isLoading.value = false;
         hasMore.value = false;
         observer.intersect();
+        expect(onLoadMore).not.toHaveBeenCalled();
+    });
+
+    it("loads again when a page settles while the sentinel is still on screen", async () => {
+        const onLoadMore = vi.fn();
+        const observer = captureObserver();
+        const isLoading = ref(false);
+
+        const Host = defineComponent({
+            setup() {
+                useInfiniteScrollLoadMore({
+                    hasMore: true,
+                    isLoading: () => isLoading.value,
+                    onLoadMore,
+                });
+                return () => null;
+            },
+        });
+
+        mount(Host);
+
+        observer.intersect();
+        expect(onLoadMore).toHaveBeenCalledOnce();
+
+        // The page lands without pushing the sentinel off screen, so no further
+        // intersection callback arrives — only the settle can re-arm the scroll.
+        isLoading.value = true;
+        await nextTick();
+        isLoading.value = false;
+        await nextTick();
+        expect(onLoadMore).toHaveBeenCalledTimes(2);
+    });
+
+    it("stays idle after a settle once the sentinel has left the screen", async () => {
+        const onLoadMore = vi.fn();
+        const observer = captureObserver();
+        const isLoading = ref(true);
+
+        const Host = defineComponent({
+            setup() {
+                useInfiniteScrollLoadMore({
+                    hasMore: true,
+                    isLoading: () => isLoading.value,
+                    onLoadMore,
+                });
+                return () => null;
+            },
+        });
+
+        mount(Host);
+
+        observer.intersect();
+        observer.leave();
+        isLoading.value = false;
+        await nextTick();
         expect(onLoadMore).not.toHaveBeenCalled();
     });
 });

@@ -1,6 +1,6 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, beforeEach } from "vitest";
-import { effectScope, nextTick, ref, type Ref } from "vue";
+import { effectScope, nextTick, watch } from "vue";
 import { db, DocType, PostType, PublishStatus, type ContentDto } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import { sessionNow } from "@/util/sessionNow";
@@ -44,11 +44,11 @@ function baseOptions(over: Partial<ContentOverviewQueryOptions> = {}): ContentOv
     };
 }
 
-async function run(options: ContentOverviewQueryOptions, limit: Ref<number> = ref(20)) {
+async function run(options: ContentOverviewQueryOptions, pageSize = 20) {
     const scope = effectScope();
     let api!: ReturnType<typeof useContentBrowseQuery>;
     scope.run(() => {
-        api = useContentBrowseQuery(() => options, limit);
+        api = useContentBrowseQuery(() => options, pageSize);
     });
     await nextTick();
     return { api, scope };
@@ -296,7 +296,9 @@ describe("useContentBrowseQuery", () => {
                 contentDoc({ _id: "mid", updatedTimeUtc: 200 }),
             ]);
 
-            const asc = await run(baseOptions({ orderBy: "updatedTimeUtc", orderDirection: "asc" }));
+            const asc = await run(
+                baseOptions({ orderBy: "updatedTimeUtc", orderDirection: "asc" }),
+            );
             await waitForExpect(() => {
                 expect(asc.api.docs.value.map((d) => d._id)).toEqual(["old", "mid", "new"]);
             });
@@ -351,7 +353,7 @@ describe("useContentBrowseQuery", () => {
                 ),
             );
 
-            const { api, scope } = await run(baseOptions(), ref(3));
+            const { api, scope } = await run(baseOptions(), 3);
             await waitForExpect(() => {
                 expect(api.docs.value.length).toBe(3);
                 expect(api.hasMore.value).toBe(true);
@@ -366,7 +368,7 @@ describe("useContentBrowseQuery", () => {
                 ),
             );
 
-            const { api, scope } = await run(baseOptions(), ref(5));
+            const { api, scope } = await run(baseOptions(), 5);
             await waitForExpect(() => {
                 expect(api.docs.value.length).toBe(2);
                 expect(api.hasMore.value).toBe(false);
@@ -374,28 +376,55 @@ describe("useContentBrowseQuery", () => {
             scope.stop();
         });
 
-        it("growing the limit ref (load more) returns more docs from the same query", async () => {
+        it("loadMore() appends the next page", async () => {
             await db.bulkPut(
                 Array.from({ length: 5 }, (_, i) =>
                     contentDoc({ _id: `doc-${i}`, updatedTimeUtc: i }),
                 ),
             );
 
-            const limit = ref(2);
-            const { api, scope } = await run(baseOptions(), limit);
+            const { api, scope } = await run(baseOptions(), 2);
             await waitForExpect(() => {
                 expect(api.docs.value.length).toBe(2);
                 expect(api.hasMore.value).toBe(true);
             });
 
+            api.loadMore();
+            await waitForExpect(() => expect(api.docs.value.length).toBe(4));
+
             // A window that exactly matches the doc count still reads as "may be more" (a full
             // window implies there could be more — same convention as useFtsSearch.hasMore); only
             // a window that exceeds the available docs proves there's nothing left to load.
-            limit.value = 10;
+            api.loadMore();
             await waitForExpect(() => {
                 expect(api.docs.value.length).toBe(5);
                 expect(api.hasMore.value).toBe(false);
             });
+            scope.stop();
+        });
+
+        it("does not blank the list while a page is appending", async () => {
+            await db.bulkPut(
+                Array.from({ length: 5 }, (_, i) =>
+                    contentDoc({ _id: `doc-${i}`, updatedTimeUtc: i }),
+                ),
+            );
+
+            const { api, scope } = await run(baseOptions(), 2);
+            await waitForExpect(() => expect(api.docs.value.length).toBe(2));
+
+            const seen: number[] = [];
+            const stop = watch(
+                () => api.docs.value.length,
+                (len) => seen.push(len),
+            );
+            api.loadMore();
+            // An append keeps the initial-load flag down, so the page shows its rows
+            // plus a footer spinner rather than re-entering its loading state.
+            expect(api.isLoading.value).toBe(false);
+            await waitForExpect(() => expect(api.docs.value.length).toBe(4));
+            expect(seen).not.toContain(0);
+            stop();
             scope.stop();
         });
     });

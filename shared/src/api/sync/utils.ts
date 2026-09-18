@@ -2,13 +2,9 @@ import { DocType } from "../../types";
 import { syncList, syncTolerance } from "./state";
 import type { SyncBaseOptions, SyncListEntry } from "./types";
 
-/**
- * Sentinel values for "open" / unset publishDate bounds.
- * Use Number.MIN_SAFE_INTEGER / Number.MAX_SAFE_INTEGER (NOT -Infinity / +Infinity)
- * so the values survive JSON serialization through CouchDB and the POST /query selector.
- */
-export const OPEN_MIN = Number.MIN_SAFE_INTEGER;
-export const OPEN_MAX = Number.MAX_SAFE_INTEGER;
+import { OPEN_MIN, OPEN_MAX } from "./bounds";
+// Re-exported so the existing `api/sync/utils` import path keeps working.
+export { OPEN_MIN, OPEN_MAX };
 
 /**
  * A resolved inclusive numeric range.
@@ -245,9 +241,7 @@ export function getLanguages(): string[] {
  * to different publishDate windows are treated as separate columns.
  */
 export const filterByTypeMemberOf = (options: SyncBaseOptions) => (entry: SyncListEntry) => {
-    const { type, subType, alwaysOffline: entryOffline } = splitChunkTypeString(
-        entry.chunkType,
-    );
+    const { type, subType, alwaysOffline: entryOffline } = splitChunkTypeString(entry.chunkType);
     if ((entryOffline ?? false) !== (options.alwaysOffline ?? false)) return false;
 
     if (type !== options.type) return false;
