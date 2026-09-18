@@ -16,10 +16,10 @@ const greeting = computed(() => {
 </script>
 
 <template>
-    <div class="flex flex-wrap items-center justify-between gap-3">
+    <div class="flex flex-wrap items-center justify-between gap-3 px-4 lg:px-0">
         <div class="flex flex-col lg:flex-row lg:items-baseline lg:gap-2">
             <h1 class="pl-0 text-lg font-semibold text-zinc-900">{{ greeting }}, {{ userName }}</h1>
-            <p class="pl-4 text-xs text-zinc-500">Here's what's happening today</p>
+            <p class="pl-0 text-xs text-zinc-500">Here's what's happening today</p>
         </div>
         <div class="flex items-center gap-2">
             <!-- Sync indicator -->
