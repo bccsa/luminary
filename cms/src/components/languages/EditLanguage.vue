@@ -427,54 +427,62 @@ const contentActions = computed(() => {
                 <LBadge v-if="!hasGroupsSelected" variant="error" class="mr-2"
                     >No groups selected</LBadge
                 >
-                <div class="flex gap-1">
-                    <LBadge v-if="isDirty" variant="warning" class="mr-2">Unsaved changes</LBadge>
-                </div>
             </div>
         </template>
 
         <template #topBarActionsMobile>
-            <EditContentActionsWrapper
-                :revert="revertChanges"
-                :save="save"
-                :delete="
-                    () => {
-                        showDeleteModal = true;
-                    }
-                "
-                :duplicate="() => {}"
-                :mobile="true"
-                :isDirty="isDirty"
-                :isLocalChange="isLocalChange"
-                :actions="contentActions"
-                :newDocument="isNew"
-                :liveUrl="''"
-                :isPublished="false"
-                :parentId="editable._id"
-            />
-        </template>
-        <!-- desktop actions -->
-        <template #topBarActionsDesktop>
-            <EditContentActionsWrapper
-                :revert="revertChanges"
-                :save="save"
-                :delete="
-                    () => {
-                        showDeleteModal = true;
-                    }
-                "
-                :duplicate="() => {}"
-                :parentId="editable._id"
-                :liveUrl="''"
-                :isPublished="false"
-                :mobile="false"
-                :newDocument="isNew"
-                :isDirty="isDirty"
-                :isLocalChange="isLocalChange"
-                :actions="contentActions"
-            />
+            <div class="flex items-center gap-2">
+                <LBadge v-if="isDirty" variant="warning" class="lg:hidden">Unsaved changes</LBadge>
+                <EditContentActionsWrapper
+                    :revert="revertChanges"
+                    :save="save"
+                    :delete="
+                        () => {
+                            showDeleteModal = true;
+                        }
+                    "
+                    :duplicate="() => {}"
+                    :mobile="true"
+                    :isDirty="isDirty"
+                    :isLocalChange="isLocalChange"
+                    :actions="contentActions"
+                    :newDocument="isNew"
+                    :liveUrl="''"
+                    :isPublished="false"
+                    :parentId="editable._id"
+                />
+            </div>
         </template>
 
+        <!-- desktop actions -->
+        <template #topBarActionsDesktop>
+            <div class="flex items-center gap-2">
+                <LBadge
+                    v-if="isDirty"
+                    variant="warning"
+                    class="hidden rounded bg-yellow-100 px-4 py-2.5 text-yellow-800 lg:inline-flex"
+                    >Unsaved changes</LBadge
+                >
+                <EditContentActionsWrapper
+                    :revert="revertChanges"
+                    :save="save"
+                    :delete="
+                        () => {
+                            showDeleteModal = true;
+                        }
+                    "
+                    :duplicate="() => {}"
+                    :parentId="editable._id"
+                    :liveUrl="''"
+                    :isPublished="false"
+                    :mobile="false"
+                    :newDocument="isNew"
+                    :isDirty="isDirty"
+                    :isLocalChange="isLocalChange"
+                    :actions="contentActions"
+                />
+            </div>
+        </template>
         <div class="space-y-2">
             <LCard class="rounded-lg bg-white shadow-lg">
                 <LInput
