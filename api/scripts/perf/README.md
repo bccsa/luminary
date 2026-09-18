@@ -149,9 +149,16 @@ document for nothing.
   `fts-corpus-stats`, but Node's `fetch` gives up after five minutes and the seeder swallows the
   error — on a large corpus it prints `Seeded` while CouchDB is still indexing. Confirm
   `GET /<db>/_design/fts-trigram-index/_info` reports `updater_running: false` first.
+- **Compact the view after each seed.** CouchDB's B-tree is append-only, so a freshly built view
+  carries 25–30% dead space, and the share differs from one build to the next — left alone it
+  would leak into the series as a second variable. `POST /<db>/_compact/fts-trigram-index`, wait
+  for `compact_running: false` in `_info`, and `sizes.file` drops to about `sizes.active`. It
+  also keeps the auto-compactor from starting on its own in the middle of a run on a large
+  corpus. Record in the run context that views were compacted; production's are probably not.
 - **Check disk between sizes.** Every trigram view row carries the document's filter metadata,
   so the view grows far faster than the database. Run `--suites=indexes` after each seed and
-  read its size before seeding the next.
+  read `sizes.file` before seeding the next. Fauxton's "Data size on disk" is `sizes.external`
+  (the uncompressed size), not the file size.
 
 ### What to look for
 
