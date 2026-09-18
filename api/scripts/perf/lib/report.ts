@@ -572,10 +572,17 @@ function renderMarkdown(report: AuditReport): string {
         );
         out.push("");
         out.push(
+            `Timings are per-sample medians; the stage counts come from the last sample, since they ` +
+                `depend on the query and the corpus rather than on the sample.`,
+        );
+        out.push("");
+        out.push(
             table(
                 [
                     "Search",
-                    "total ms",
+                    "n",
+                    "p50 ms",
+                    "p95 ms",
                     "db ms",
                     "views",
                     "trigrams",
@@ -587,7 +594,9 @@ function renderMarkdown(report: AuditReport): string {
                 ],
                 report.fts.map((row) => [
                     `\`${row.id}\``,
+                    row.samples,
                     row.totalMs,
+                    row.total.p95,
                     row.dbMs,
                     row.viewCalls,
                     row.trigrams,
@@ -597,7 +606,7 @@ function renderMarkdown(report: AuditReport): string {
                     row.topK,
                     row.results,
                 ]),
-                [false, true, true, true, true, true, true, true, true, true],
+                [false, true, true, true, true, true, true, true, true, true, true, true],
             ),
         );
         out.push("");
