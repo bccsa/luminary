@@ -112,6 +112,10 @@ export default async function processPostTagDto(
             );
             imageWarnings = result.warnings;
 
+            // The files are in the new bucket; the old copies go once the document points
+            // at the new one.
+            if (result.removeSource) afterCommit.push(result.removeSource);
+
             // If migration failed, revert to the old bucket ID to keep files accessible
             if (result.migrationFailed && prevDoc?.imageBucketId) {
                 doc.imageBucketId = prevDoc.imageBucketId;
