@@ -130,27 +130,25 @@ watch(
 </script>
 
 <template>
-    <div v-if="parent">
-        <LCard
-            v-if="!props.embedded"
-            title="Media"
-            :icon="FilmIcon"
-            :collapsed="newDocument ? false : true"
-            collapsible
-            class="bg-white dark:bg-slate-800"
-        >
-            <template #actions>
-                <div>
-                    <LButton
-                        :icon="ArrowUpOnSquareIcon"
-                        size="base"
-                        :disabled="disabled"
-                        @click.stop="triggerFilePicker"
-                        data-test="upload-button"
-                    >
-                        <span class="block sm:hidden">Upload Audio</span>
-                        <span class="hidden text-sm sm:inline">Upload</span>
-                    </LButton>
+    <LCard v-if="parent" bare title="Media" :icon="FilmIcon" data-test="media-section">
+        <template #actions>
+            <EncodeMediaButton
+                :availability="availability"
+                :busy="busy"
+                :documentId="parent._id"
+                :hasBucket="Boolean(effectiveBucketId)"
+                :disabled="disabled"
+                @encode="encode"
+            />
+            <button
+                class="flex cursor-pointer items-center gap-1 rounded-md"
+                type="button"
+                aria-label="Media help"
+                @click.stop="showHelp = !showHelp"
+            >
+                <QuestionMarkCircleIcon class="h-5 w-5" />
+            </button>
+        </template>
 
         <div class="flex flex-col gap-3">
             <p v-if="showHelp" class="text-xs text-zinc-500 dark:text-zinc-400">
@@ -170,59 +168,17 @@ watch(
             <MediaBucketSelect
                 :disabled="disabled"
                 v-model:parent="parent"
-                class="scrollbar-hide"
-            />
-        </LCard>
-
-        <div v-else>
-            <div class="flex items-center justify-between gap-3">
-                <div class="flex items-center gap-2">
-                    <FilmIcon class="h-5 w-5 text-zinc-400 dark:text-zinc-500" />
-                    <h3 class="text-sm font-medium leading-6 text-zinc-900 dark:text-yellow-400">
-                        Media
-                    </h3>
-                </div>
-                <div class="flex items-center gap-2">
-                    <LButton
-                        :icon="ArrowUpOnSquareIcon"
-                        size="base"
-                        :disabled="disabled"
-                        @click.stop="triggerFilePicker"
-                        data-test="upload-button"
-                    >
-                        <span class="block sm:hidden">Upload Audio</span>
-                        <span class="hidden text-sm sm:inline">Upload</span>
-                    </LButton>
-                    <button
-                        class="flex cursor-pointer items-center gap-1 rounded-md text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-300"
-                        @click.stop="showHelp = !showHelp"
-                        aria-label="Media help"
-                        type="button"
-                    >
-                        <QuestionMarkCircleIcon class="h-5 w-5" />
-                    </button>
-                </div>
-            </div>
-
-            <input
-                ref="uploadInput"
-                type="file"
-                class="hidden"
-                accept="audio/aac, audio/mp3, audio/opus, audio/wav, audio/x-wav"
-                @change="handleFileChange"
+                @bucket-selected="handleBucketSelected"
             />
 
-            <div v-if="showHelp" class="mt-2 text-zinc-600 dark:text-zinc-400">
-                <p class="mb-2 text-xs">
-                    You can upload multiple audio files, one per language. Each language can have
-                    only one audio file. Uploading a new file for a language that already has audio
-                    will replace the existing file.
-                </p>
-                <p class="mb-2 text-xs">
-                    Supported formats: MP3, AAC, Opus, WAV.
-                    <br />Maximum file size: {{ maxMediaUploadFileSizeMb }}MB.
-                </p>
-            </div>
+            <EncodeStatus
+                :availability="availability"
+                :outdated="outdated"
+                :status="status"
+                :progress="progress"
+                :pipelineProgress="pipelineProgress"
+                :error="error"
+            />
 
             <EditContentVideo v-if="showVideo" bare :disabled="disabled" v-model:parent="parent" />
         </div>

@@ -19,7 +19,6 @@ import {
 } from "@heroicons/vue/20/solid";
 
 import { SunIcon } from "@heroicons/vue/24/outline";
-import { SunIcon } from "@heroicons/vue/24/outline";
 import {
     appName,
     cmsLanguageIdAsRef,
@@ -46,7 +45,6 @@ import OnlineIndicator from "../OnlineIndicator.vue";
 import LanguageModal from "../modals/LanguageModal.vue";
 import LDialog from "../common/LDialog.vue";
 import LToggle from "../forms/LToggle.vue";
-import ThemeSelectorModal from "../modals/ThemeSelectorModal.vue";
 import ThemeSelectorModal from "../modals/ThemeSelectorModal.vue";
 
 type NavigationEntry = {
@@ -348,18 +346,6 @@ const navItemClass = computed(() => [
                     <LanguageIcon :class="navIconClass" aria-hidden="true" />
                     <span v-if="!isCollapsed" class="flex min-w-0 flex-col leading-none">
                         <span>{{ currentLanguageName }}</span>
-                    </span>
-                </button>
-
-                <button
-                    type="button"
-                    :class="[navItemClass, 'w-full text-left']"
-                    title="theme"
-                    @click="showThemeModal = true"
-                >
-                    <SunIcon :class="navIconClass" aria-hidden="true" />
-                    <span v-if="!isCollapsed" class="flex min-w-0 flex-col leading-none">
-                        <span>Theme</span>
                     </span>
                 </button>
 
