@@ -97,12 +97,10 @@ function collapse() {
                     <ChevronDownIcon
                         v-if="collapsed"
                         class="h-5 w-5 text-zinc-600 dark:text-zinc-400"
-                        class="h-5 w-5 text-zinc-600 dark:text-zinc-400"
                         title="Open card content"
                     />
                     <ChevronUpIcon
                         v-if="!collapsed"
-                        class="h-5 w-5 text-zinc-600 dark:text-zinc-400"
                         class="h-5 w-5 text-zinc-600 dark:text-zinc-400"
                         title="Collapse card content"
                     />
