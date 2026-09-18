@@ -84,23 +84,33 @@ const imageSizes = [180, 360, 640, 1280, 2560];
 const defaultImageQuality = configuration().imageProcessing.imageQuality || 80; // Default image quality for webp conversion
 
 /**
- * Migrates all image files from one bucket to another
- * Supports migration between different S3 systems (e.g., MinIO to AWS S3, or different MinIO instances)
- * Each bucket uses its own credentials and endpoint, enabling cross-system transfers
- * Only deletes from old bucket if migration is successful
+ * The source-bucket cleanup a completed migration leaves for the caller. Run it once
+ * the document has been written, never before: its failure costs storage, running it
+ * early costs the files.
+ */
+export type ImageMigrationCleanup = () => Promise<string[]>;
+
+/**
+ * Moves all image files of a collection from one bucket to another. Each bucket uses its
+ * own credentials and endpoint, so this works across S3 systems (MinIO → AWS S3, or
+ * between MinIO instances).
+ *
+ * Copies the whole collection before anything is removed, and hands the source deletion
+ * back as `removeSource` for the caller to run after the document is written. A copy that
+ * fails leaves every file where it is, so the caller can revert `imageBucketId` to a bucket
+ * that still holds them.
  *
  * @param image - The image DTO containing file collections to migrate
  * @param oldBucketId - The ID of the source bucket
  * @param newBucketId - The ID of the destination bucket
  * @param db - Database service to retrieve bucket configurations
- * @returns Object with migration failure status and warnings
  */
 async function migrateImagesBetweenBuckets(
     image: ImageDto,
     oldBucketId: string,
     newBucketId: string,
     db: DbService,
-): Promise<{ failed: boolean; warnings: string[] }> {
+): Promise<{ failed: boolean; warnings: string[]; removeSource?: ImageMigrationCleanup }> {
     const warnings: string[] = [];
 
     try {
@@ -119,10 +129,11 @@ async function migrateImagesBetweenBuckets(
         const oldBucketName = oldS3Service.getBucketName();
         const newBucketName = newS3Service.getBucketName();
 
-        let successfulMigrations = 0;
-        let failedMigrations = 0;
+        const copied: string[] = [];
 
-        // Migrate each file
+        // Copy first, whole collection. A partial move is the one outcome there is no
+        // recovery from: the caller reverts the bucket on failure, and a bucket missing
+        // half its files is a reverted document with broken images.
         for (const file of allFiles) {
             try {
                 // Download from old bucket
@@ -142,41 +153,56 @@ async function migrateImagesBetweenBuckets(
                 const stat = await oldS3Service
                     .getClient()
                     .statObject(oldBucketName, file.filename);
-                const metadata = stat.metaData || { "Content-Type": "image/webp" };
+                const metadata = stat.metaData || {};
 
-                // Upload to new bucket
+                // Upload to new bucket. S3 lowercases stored metadata keys.
                 await newS3Service.uploadFile(
                     file.filename,
                     fileBuffer,
-                    metadata["Content-Type"] || "image/webp",
+                    metadata["content-type"] || metadata["Content-Type"] || "image/webp",
                 );
 
-                // Delete from old bucket only after successful upload
-                await oldS3Service.getClient().removeObject(oldBucketName, file.filename);
-
-                successfulMigrations++;
+                copied.push(file.filename);
             } catch (error) {
-                failedMigrations++;
                 warnings.push(
                     `Failed to migrate ${file.filename} from bucket ${oldBucketName} to ${newBucketName}: ${error.message}`,
                 );
+                warnings.push(
+                    `Image migration stopped after ${copied.length} of ${allFiles.length} file(s). ` +
+                        `All files remain in bucket ${oldBucketName}.`,
+                );
+
+                // Copies already made are left behind: a retry overwrites them, and deleting
+                // on the way out risks objects we did not put there.
+                return { failed: true, warnings };
             }
         }
 
-        if (successfulMigrations > 0) {
-            warnings.push(
-                `Successfully migrated ${successfulMigrations} image file(s) from bucket ${oldBucketName} to ${newBucketName}`,
-            );
-        }
+        // Handed to the caller instead of run here: its failure is not the migration's
+        // failure, and leftovers in the old bucket cost storage, not a broken image.
+        const removeSource: ImageMigrationCleanup = async () => {
+            const cleanupWarnings: string[] = [];
 
-        if (failedMigrations > 0) {
-            warnings.push(
-                `Failed to migrate ${failedMigrations} image file(s). These files remain in the old bucket.`,
-            );
-        }
+            for (const filename of copied) {
+                try {
+                    await oldS3Service.getClient().removeObject(oldBucketName, filename);
+                } catch (error) {
+                    cleanupWarnings.push(
+                        `${filename} was copied to bucket ${newBucketName} but could not be removed ` +
+                            `from bucket ${oldBucketName}: ${error.message}. Please remove it on the ` +
+                            "storage provider.",
+                    );
+                }
+            }
 
-        // Migration is considered failed if ANY files failed to migrate
-        return { failed: failedMigrations > 0, warnings };
+            return cleanupWarnings;
+        };
+
+        warnings.push(
+            `Successfully migrated ${copied.length} image file(s) from bucket ${oldBucketName} to ${newBucketName}`,
+        );
+
+        return { failed: false, warnings, removeSource };
     } catch (error) {
         warnings.push(`Image migration failed: ${error.message}`);
         return { failed: true, warnings };
@@ -187,7 +213,9 @@ async function migrateImagesBetweenBuckets(
  * Processes an embedded image upload by resizing the image and uploading to S3
  * Requires bucket-specific credentials configured at the post/tag level
  * Bucket ID is passed from the parent post/tag document for consistency
- * Returns object with migration failure status and warnings
+ *
+ * Returns the migration failure status, any warnings, and — when a bucket change moved the
+ * files — the `removeSource` cleanup the caller must run after the document is written.
  */
 export async function processImage(
     image: ImageDto,
@@ -195,10 +223,15 @@ export async function processImage(
     db: DbService,
     parentBucketId?: string,
     prevParentBucketId?: string,
-): Promise<{ migrationFailed: boolean; warnings: string[] }> {
+): Promise<{
+    migrationFailed: boolean;
+    warnings: string[];
+    removeSource?: ImageMigrationCleanup;
+}> {
     const warnings: string[] = [];
     let migrationFailed = false;
     let duplicatedNow = false;
+    let removeSource: ImageMigrationCleanup | undefined;
 
     try {
         if (image.duplicate && image.fileCollections.length > 0) {
@@ -211,7 +244,7 @@ export async function processImage(
             } else {
                 if (!parentBucketId) {
                     warnings.push("Parent bucket ID is required for duplicated image copy.");
-                    return { migrationFailed, warnings };
+                    return { migrationFailed, warnings, removeSource };
                 }
 
                 const duplicateResult = await duplicateImageFilesWithoutReencoding(
@@ -226,7 +259,7 @@ export async function processImage(
                     // Avoid persisting stale source filenames when copy fails.
                     image.fileCollections = [];
                     delete image.duplicate;
-                    return { migrationFailed, warnings };
+                    return { migrationFailed, warnings, removeSource };
                 }
                 duplicatedNow = true;
             }
@@ -248,6 +281,7 @@ export async function processImage(
             );
             warnings.push(...migrationResult.warnings);
             migrationFailed = migrationResult.failed;
+            removeSource = migrationResult.removeSource;
         }
 
         // Skipped when the duplicate copy just authored the collections (a retry after a
@@ -287,12 +321,12 @@ export async function processImage(
         if (image.uploadData) {
             if (!db) {
                 warnings.push("Unable to upload images - system configuration error.");
-                return { migrationFailed, warnings };
+                return { migrationFailed, warnings, removeSource };
             }
 
             if (!parentBucketId) {
                 warnings.push("Parent bucket ID is required for image uploads.");
-                return { migrationFailed, warnings };
+                return { migrationFailed, warnings, removeSource };
             }
 
             const promises: Promise<{ success: boolean; warnings: string[] }>[] = [];
@@ -327,7 +361,7 @@ export async function processImage(
         warnings.push(`Image processing failed: ${error.message}`);
     }
 
-    return { migrationFailed, warnings };
+    return { migrationFailed, warnings, removeSource };
 }
 
 async function duplicateImageFilesWithoutReencoding(

@@ -1,14 +1,18 @@
 import { AuthProviderDto } from "../../dto/AuthProviderDto";
 import { DbService } from "../../db/db.service";
 import { deleteImage, processImage } from "./processImageDto";
+import { type AfterCommitTask } from "./processPostTagDto";
 
 /**
  * Process AuthProvider DTO — handles image uploads for provider icons.
+ *
+ * @param afterCommit collects work for the caller to run once the document is written
  */
 export default async function processAuthProviderDto(
     doc: AuthProviderDto,
     prevDoc: AuthProviderDto | undefined,
     db: DbService,
+    afterCommit: AfterCommitTask[] = [],
 ): Promise<string[]> {
     const warnings: string[] = [];
 
@@ -38,6 +42,10 @@ export default async function processAuthProviderDto(
                 prevDoc?.imageBucketId,
             );
             imageWarnings = result.warnings;
+
+            // The files are in the new bucket; the old copies go once the document points
+            // at the new one.
+            if (result.removeSource) afterCommit.push(result.removeSource);
 
             if (result.migrationFailed && prevDoc?.imageBucketId) {
                 doc.imageBucketId = prevDoc.imageBucketId;
