@@ -963,6 +963,14 @@ export async function initDatabase() {
         db.deleteExpired();
     }, 5000);
 
+    // Expiry passing produces no doc change, so nothing is pushed or re-synced — without
+    // this, the startup sweep above is the only eviction a long-lived session ever gets and
+    // an expired doc lingers (still passing the read filter's page-load `sessionNow` bound)
+    // until a restart. Indexed `expiryDate` seek, so each pass is cheap.
+    setInterval(() => {
+        db.deleteExpired();
+    }, 5 * 60 * 1000);
+
     // Listen for changes to the access map and delete documents that the user no longer has access to.
     // No `{ immediate: true }`: at init the persisted accessMap may be empty (not-loaded) or stale,
     // and purging against it can over-delete. The server-authoritative map arrives via the socket
