@@ -18,9 +18,20 @@ vi.mock("vue", async (importOriginal) => {
 
 const queryRemoteMock = vi.fn();
 
+// The SPA branch builds its query through a thunk; capture it so a test can inspect
+// exactly what that branch would send.
+let capturedSpaQuery: (() => Record<string, unknown>) | undefined;
+
 vi.mock("luminary-shared", async (importOriginal) => {
     const actual = await importOriginal<typeof import("luminary-shared")>();
-    return { ...actual, queryRemote: (...args: unknown[]) => queryRemoteMock(...args) };
+    return {
+        ...actual,
+        queryRemote: (...args: unknown[]) => queryRemoteMock(...args),
+        useHybridQuery: (query: () => Record<string, unknown>) => {
+            capturedSpaQuery = query;
+            return ref([]);
+        },
+    };
 });
 
 const fakeBucket = {
@@ -78,5 +89,37 @@ describe("useBucketInfo — SSR prerender path", () => {
 
         expect(queryRemoteMock).toHaveBeenCalledTimes(2);
         expect(retried.bucketBaseUrl.value).toBe("https://cdn.example.com");
+    });
+});
+
+describe("useBucketInfo — prerender tagging", () => {
+    beforeEach(() => {
+        prefetchCallbacks.length = 0;
+        queryRemoteMock.mockReset().mockResolvedValue([fakeBucket]);
+        capturedSpaQuery = undefined;
+    });
+
+    afterEach(() => {
+        (import.meta.env as { SSR: boolean }).SSR = false;
+    });
+
+    it("tags the prerender fetch so the API can separate build load from app load", async () => {
+        (import.meta.env as { SSR: boolean }).SSR = true;
+        const useBucketInfo = await loadSubject();
+        useBucketInfo(ref<string | undefined>("storage-bucket-1"));
+        await Promise.all(prefetchCallbacks.map((cb) => cb()));
+
+        expect(queryRemoteMock).toHaveBeenCalledWith(
+            expect.objectContaining({ identifier: "ssgPrerender" }),
+        );
+    });
+
+    it("leaves the SPA query untagged — it is ordinary app traffic, not build load", async () => {
+        (import.meta.env as { SSR: boolean }).SSR = false;
+        const useBucketInfo = await loadSubject();
+        useBucketInfo(ref<string | undefined>("storage-bucket-1"));
+
+        expect(capturedSpaQuery).toBeDefined();
+        expect(capturedSpaQuery!()).not.toHaveProperty("identifier");
     });
 });

@@ -239,7 +239,9 @@ const otherPost: ContentDto = {
     parentType: DocType.Post,
     updatedTimeUtc: 1000,
     memberOf: [],
-    parentTags: ["tag-cat1"],
+    // Carries the topic in `parentTags` — the mirror of the topic tag's `parentTaggedDocs`
+    // below, which the API maintains on both docs. The related feed reads this side.
+    parentTags: ["tag-cat1", "tag-topic1"],
     language: "lang-eng",
     status: PublishStatus.Published,
     slug: "other-post-slug",
