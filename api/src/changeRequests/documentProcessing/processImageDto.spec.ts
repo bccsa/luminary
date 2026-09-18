@@ -481,6 +481,18 @@ describe("S3ImageHandler - Bucket Migration", () => {
             expect(existsInTarget).toBe(true);
         }
 
+        // The source copies stay until the caller runs the cleanup: the document that
+        // points at them has not been written yet.
+        for (const file of uploadedFiles) {
+            const stillInSource = await sourceService
+                .getObject(file.filename)
+                .then(() => true)
+                .catch(() => false);
+            expect(stillInSource).toBe(true);
+        }
+
+        expect(await migrationWarnings.removeSource()).toEqual([]);
+
         // Verify files were deleted from source bucket
         for (const file of uploadedFiles) {
             const existsInSource = await sourceService
