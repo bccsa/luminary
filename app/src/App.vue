@@ -16,12 +16,13 @@ import { affinityDebugEnabled, applyAffinityDebugQuery } from "@/recommendation/
 import { useAuthWithPrivacyPolicy } from "@/composables/useAuthWithPrivacyPolicy";
 import { showProviderSelectionModal } from "@/auth";
 import AuthProviderSelectionModal from "@/components/authProvider/AuthProviderSelectionModal.vue";
+import AppUpdateDialog from "@/components/appUpdate/AppUpdateDialog.vue";
 import { useI18n } from "vue-i18n";
-import { usePwaUpdate } from "@/composables/usePwaUpdate";
+import { useAppUpdate } from "@/composables/useAppUpdate";
 import { useHydrated } from "@/composables/useHydrated";
 
 const { t } = useI18n();
-const { needRefresh, reload } = usePwaUpdate();
+const { available: availableUpdate, applyUpdate } = useAppUpdate();
 const mobileChrome = useMobileChromeAutoHide();
 
 const router = useRouter();
@@ -54,15 +55,16 @@ const handleModalClose = () => {
     cancelPendingLogin();
 };
 
-watch(needRefresh, (refreshNeeded) => {
-    if (!refreshNeeded) return;
+// Store updates are suggested by AppUpdateDialog instead.
+watch(availableUpdate, (update) => {
+    if (update?.kind !== "reload") return;
     useNotificationStore().addNotification({
         id: "updateBanner",
         title: () => t("notification.update_available.title"),
         description: () => t("notification.update_available.description"),
         state: "info",
         type: "banner",
-        link: reload,
+        link: applyUpdate,
         closable: false,
         priority: 0,
     });
@@ -225,5 +227,6 @@ onErrorCaptured((err) => {
     <template v-if="!isAppLoading && isMounted">
         <SearchModal />
         <AuthProviderSelectionModal v-model:isVisible="showProviderSelectionModal" />
+        <AppUpdateDialog />
     </template>
 </template>
