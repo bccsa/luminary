@@ -103,7 +103,9 @@ async function handleSave(doc: AutoGroupMappingsDto) {
             title: existing ? "Failed to save" : "Failed to create",
             description:
                 res.message ||
-                (existing ? "The server rejected the update." : "The server rejected the creation."),
+                (existing
+                    ? "The server rejected the update."
+                    : "The server rejected the creation."),
             state: "error",
         });
         return;
@@ -172,7 +174,7 @@ const hasAnyContent = computed(() => autoGroupMappings.mappings.length > 0);
         <template #topBarActionsMobile>
             <PlusIcon
                 v-if="autoGroupMappings.canEdit && hasAnyContent && isSmallScreen"
-                class="h-8 w-8 cursor-pointer rounded bg-zinc-100 p-1 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-700"
+                class="h-8 w-8 cursor-pointer rounded p-1 hover:text-zinc-700 dark:bg-yellow-200 dark:text-zinc-800 dark:hover:bg-yellow-100"
                 @click="openCreate"
             />
         </template>

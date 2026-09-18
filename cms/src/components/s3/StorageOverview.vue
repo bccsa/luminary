@@ -375,19 +375,19 @@ const saveBucket = async () => {
         />
 
         <div v-else class="flex flex-col gap-[3px] overflow-y-auto scrollbar-hide">
-                <!-- Add bottom margin to last card so it doesn't overlap with basepage footer -->
-                <BucketDisplayCard
-                    v-for="(bucket, i) in bucketsWithStatus"
-                    :key="bucket._id || bucket.name"
-                    :bucket="bucket"
-                    :groups="groups"
-                    :class="{
-                        'mb-4': i === bucketsWithStatus.length - 1,
-                    }"
-                    @edit="editBucket"
-                    @testConnection="handleTestConnection"
-                />
-            </div>
+            <!-- Add bottom margin to last card so it doesn't overlap with basepage footer -->
+            <BucketDisplayCard
+                v-for="(bucket, i) in bucketsWithStatus"
+                :key="bucket._id || bucket.name"
+                :bucket="bucket"
+                :groups="groups"
+                :class="{
+                    'mb-4': i === bucketsWithStatus.length - 1,
+                }"
+                @edit="editBucket"
+                @testConnection="handleTestConnection"
+            />
+        </div>
     </div>
 
     <!-- Create/Edit Bucket Modal -->

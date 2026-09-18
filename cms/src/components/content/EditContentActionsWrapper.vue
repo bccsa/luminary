@@ -106,7 +106,7 @@ const segmentedButtonMobile = ref<{ rootEl: HTMLElement | null } | null>(null);
                                 :class="action.iconClass"
                                 aria-hidden="true"
                             />
-                            <div class="flex flex-col text-nowrap leading-none text-zinc-600">
+                            <div class="flex flex-col text-nowrap leading-none text-zinc-100">
                                 {{ action.name }}
                             </div>
                         </li>
@@ -136,13 +136,13 @@ const segmentedButtonMobile = ref<{ rootEl: HTMLElement | null } | null>(null);
         >
             <template v-if="isDirty && !newDocument" #left>
                 <span data-test="revert-changes-button" class="flex items-center gap-1">
-                    <ArrowUturnLeftIcon class="size-5" />
+                    <ArrowUturnLeftIcon class="size-5 dark:text-zinc-900" />
                     Revert
                 </span>
             </template>
 
             <span data-test="save-button" class="flex items-center gap-1">
-                <CloudArrowUpIcon class="size-5" />
+                <CloudArrowUpIcon class="size-5 dark:text-zinc-800" />
                 Save
             </span>
 
@@ -175,14 +175,14 @@ const segmentedButtonMobile = ref<{ rootEl: HTMLElement | null } | null>(null);
                                     ? 'duplicate-button'
                                     : action.name.toLowerCase() + '-button'
                             "
-                            class="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm leading-6 text-zinc-400 hover:bg-zinc-50 focus:bg-zinc-100 focus:outline-none"
+                            class="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm leading-6 text-zinc-400 hover:bg-slate-700 focus:bg-zinc-100 focus:outline-none"
                         >
                             <component
                                 :is="action.icon"
                                 :class="action.iconClass"
                                 aria-hidden="true"
                             />
-                            <div class="flex flex-col text-nowrap leading-none text-zinc-600">
+                            <div class="flex flex-col text-nowrap leading-none dark:text-zinc-100">
                                 {{ action.name }}
                             </div>
                         </li>
