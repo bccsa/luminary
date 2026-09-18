@@ -9,10 +9,13 @@
         "test:debug": "playwright test --debug",
         "test:app": "playwright test --project=app",
         "test:cms": "playwright test --project=cms",
+        "test:web": "playwright test --project=web",
         "test:app:ui": "playwright test --project=app --ui",
         "test:cms:ui": "playwright test --project=cms --ui",
+        "test:web:ui": "playwright test --project=web --ui",
         "test:app:headed": "playwright test --project=app --headed",
         "test:cms:headed": "playwright test --project=cms --headed",
+        "test:web:headed": "playwright test --project=web --headed",
         "report": "playwright show-report",
         "codegen:app": "playwright codegen $APP_BASE_URL",
         "codegen:cms": "playwright codegen $CMS_BASE_URL"

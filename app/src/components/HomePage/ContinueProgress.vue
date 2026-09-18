@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { CONTENT_TILE_SEED_FIELDS } from "@/ssg/contentSeed";
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
 import { PostType, TagType } from "luminary-shared";
 import { computed, onMounted, onUnmounted } from "vue";
@@ -46,7 +47,12 @@ const content = useContentQuery(
     // so they never seed from each other on first paint.
     // Reading progress changes the id set while the row is on screen; it stays the same
     // list, so don't blank it.
-    { cache: true, cacheId: "continue-progress", keepPreviousResult: true },
+    {
+        cache: true,
+        ssrCacheFields: CONTENT_TILE_SEED_FIELDS,
+        cacheId: "continue-progress",
+        keepPreviousResult: true,
+    },
 );
 
 // Re-sort to match the progress recency order.

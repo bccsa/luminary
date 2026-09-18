@@ -42,6 +42,8 @@ const hasPersistedSessionMock = vi.fn(() => false);
 vi.mock("@/auth", () => ({ hasPersistedSession: () => hasPersistedSessionMock() }));
 
 import { useContentQuery } from "@/composables/useContentQuery";
+import { CONTENT_TILE_SEED_FIELDS } from "./contentSeed";
+import waitForExpect from "wait-for-expect";
 
 const fakeDoc = {
     _id: "content-1",
@@ -100,6 +102,46 @@ const sharedOptions = {
  * reintroducing a hydration flash in a production build.
  */
 describe("SSG hydration contract", () => {
+    it("paints a lightweight seed synchronously and restores omitted fields from the same-version live doc", async () => {
+        const doc = {
+            ...fakeDoc,
+            publishDate: 1000,
+            slug: "article",
+            summary: "Live summary",
+            seoTitle: "SEO title",
+        };
+        queryRemoteMock.mockResolvedValue([doc]);
+        const capture = installCapture();
+        const options = { ...sharedOptions, ssrCacheFields: CONTENT_TILE_SEED_FIELDS };
+        const rendered = useContentQuery(() => [], options);
+        await flushPromises();
+        expect(rendered.value[0].summary).toBe(doc.summary);
+
+        const entries = capture.cache[routeMock.path];
+        expect(Object.keys(entries).length).toBeGreaterThan(0);
+        localStorage.clear();
+        for (const [key, value] of Object.entries(entries)) localStorage.setItem(key, value);
+        await db.docs.bulkPut([doc]);
+        (import.meta.env as { SSR: boolean }).SSR = false;
+        const scope = effectScope();
+        try {
+            const output = scope.run(() => useContentQuery(() => [], options))!;
+            // Deliberately before any await: a seed miss would show an empty first paint.
+            expect(output.value[0]).toMatchObject({
+                _id: doc._id,
+                title: doc.title,
+                slug: doc.slug,
+            });
+            expect(output.value[0]).not.toHaveProperty("summary");
+            expect(output.value[0]).not.toHaveProperty("seoTitle");
+            await waitForExpect(() => expect(output.value[0]?.summary).toBe(doc.summary));
+            expect(output.value[0].updatedTimeUtc).toBe(doc.updatedTimeUtc);
+            expect(await db.docs.get(doc._id)).toMatchObject({ text: doc.text });
+        } finally {
+            scope.stop();
+        }
+    });
+
     beforeEach(async () => {
         queryRemoteMock.mockReset().mockResolvedValue([{ ...fakeDoc }]);
         hasPersistedSessionMock.mockReset().mockReturnValue(false);

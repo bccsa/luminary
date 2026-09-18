@@ -17,7 +17,7 @@ import {
 import { db, type ContentDto } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import SingleContent from "../SingleContent.vue";
-import NotFoundPage from "../../NotFoundPage.vue";
+import NotFoundContent from "../../NotFoundContent.vue";
 
 const routeReplaceMock = vi.hoisted(() => vi.fn());
 vi.mock("vue-router", async (importOriginal) => {
@@ -128,11 +128,11 @@ describe("SingleContent cold-start backstop", () => {
         });
 
         // The backstop probe resolves the doc via queryRemote; the article should
-        // appear without NotFoundPage ever rendering (the 404 flash this guards
+        // appear without NotFoundContent ever rendering (the 404 flash this guards
         // against used to show before sync populated Dexie).
         let notFoundAppeared = false;
         const unwatch = wrapper.vm.$watch(
-            () => wrapper.findComponent(NotFoundPage).exists(),
+            () => wrapper.findComponent(NotFoundContent).exists(),
             (exists) => {
                 if (exists) notFoundAppeared = true;
             },
@@ -142,7 +142,7 @@ describe("SingleContent cold-start backstop", () => {
         try {
             await waitForExpect(() => {
                 expect(wrapper.text()).toContain(mockEnglishContentDto.title);
-                expect(wrapper.findComponent(NotFoundPage).exists()).toBe(false);
+                expect(wrapper.findComponent(NotFoundContent).exists()).toBe(false);
             });
         } finally {
             unwatch();
@@ -158,7 +158,7 @@ describe("SingleContent cold-start backstop", () => {
         });
 
         await waitForExpect(() => {
-            expect(wrapper.findComponent(NotFoundPage).exists()).toBe(true);
+            expect(wrapper.findComponent(NotFoundContent).exists()).toBe(true);
             expect(wrapper.find("article").exists()).toBe(false);
         });
     });

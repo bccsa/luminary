@@ -23,6 +23,7 @@ env:
   # here instead of localhost would be rejected by the API's CORS check.
   APP_BASE_URL: http://localhost:4174
   CMS_BASE_URL: http://localhost:4175
+  WEB_BASE_URL: http://localhost:4176
   E2E_API_URL: http://localhost:3000
   E2E_COUCHDB_URL: http://admin:password@127.0.0.1:5984
   E2E_COUCHDB_DATABASE: luminary-e2e
@@ -88,6 +89,19 @@ jobs:
           DB_CONNECTION_STRING: ${{ env.E2E_COUCHDB_URL }}
           DB_DATABASE: ${{ env.E2E_COUCHDB_DATABASE }}
 
+      # Guest identities get their groups from a provider-less AutoGroupMappings doc,
+      # which the API's seeding docs don't ship. The web prerender queries /query as a
+      # guest, so the doc has to exist well before Playwright's global setup writes it.
+      # Written pre-startup so the API's default-groups cache never sees the empty set.
+      - name: Seed the guest group mapping
+        run: |
+          doc="$(jq --argjson t "$(date +%s)000" '. + {updatedTimeUtc: $t}' \
+            playwright-tests/fixtures/idp/guestGroupMapping.json)"
+          curl -fsS -X PUT \
+            "${{ env.E2E_COUCHDB_URL }}/${{ env.E2E_COUCHDB_DATABASE }}/$(jq -r '._id' \
+              playwright-tests/fixtures/idp/guestGroupMapping.json)" \
+            -H 'content-type: application/json' -d "$doc"
+
       - name: Start API
         run: |
           node dist/src/main > api.log 2>&1 &
@@ -130,6 +144,28 @@ jobs:
           done
           echo "CMS failed to start:" && cat preview.log && exit 1
         working-directory: cms
+
+      # Reuses the App's install and .env from the step above. The prerender reads
+      # public content anonymously over /query, so the API has to be serving already.
+      - name: Prerender the web build
+        run: npm run build:web
+        working-directory: app
+        env:
+          # Absolute canonical/hreflang/sitemap URLs point at the origin the web
+          # build is served from, so the specs can assert them.
+          VITE_WEB_ORIGIN: ${{ env.WEB_BASE_URL }}
+
+      # The web config, not the native one: the native config's PWA plugin would serve
+      # a service worker in preview, which is exactly what this tier must not ship.
+      - name: Serve the web build
+        run: |
+          npx vite preview --config vite.config.web.ts --port 4176 --strictPort > preview-web.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -sS -o /dev/null "${{ env.WEB_BASE_URL }}" && exit 0
+            sleep 1
+          done
+          echo "Web build failed to start:" && cat preview-web.log && exit 1
+        working-directory: app
 
       - name: Install Playwright dependencies
         run: npm ci

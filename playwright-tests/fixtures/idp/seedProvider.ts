@@ -4,9 +4,22 @@
  * the product, so they deliberately do not live in `api/src/db/seedingDocs/`.
  */
 
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { couchFetch, type CouchConfig } from "./couch";
 
-export const E2E_DEFAULT_MAPPING_ID = "auto-group-mappings-e2e-default";
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+/**
+ * Kept in JSON so the CI step that seeds this doc ahead of the web prerender —
+ * long before Playwright starts — can write it without transpiling TypeScript.
+ */
+const guestGroupMapping = JSON.parse(
+    fs.readFileSync(path.join(__dirname, "guestGroupMapping.json"), "utf8"),
+) as Record<string, unknown> & { _id: string };
+
+export const E2E_DEFAULT_MAPPING_ID = guestGroupMapping._id;
 
 /**
  * A User doc owned by the E2E suite. Provider scoping stamps a user with the
@@ -18,8 +31,6 @@ export const E2E_SCOPED_USER_EMAIL = "provider-scope@users.test";
 
 /** Mirrors the groups `api/scripts/add-auth-provider.ts` assigns. */
 const PROVIDER_MEMBER_OF = ["group-super-admins", "group-public-users"];
-
-const DEFAULT_GROUPS = ["group-public-users"];
 
 export type SeedProviderOptions = {
     couch: CouchConfig;
@@ -108,14 +119,7 @@ export async function seedAuthProvider(options: SeedProviderOptions): Promise<st
 /** Applied to every identity including guests, so anonymous app sync has groups. */
 export async function seedDefaultGroupMapping(couch: CouchConfig): Promise<void> {
     // No providerId — the API reads provider-less mappings as global defaults.
-    await putDoc(couch, {
-        _id: E2E_DEFAULT_MAPPING_ID,
-        type: "autoGroupMappings",
-        groupIds: DEFAULT_GROUPS,
-        conditions: [{ type: "authenticated" }],
-        memberOf: PROVIDER_MEMBER_OF,
-        updatedTimeUtc: Date.now(),
-    });
+    await putDoc(couch, { ...guestGroupMapping, updatedTimeUtc: Date.now() });
 }
 
 /**
