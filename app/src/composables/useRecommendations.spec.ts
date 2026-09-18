@@ -5,7 +5,13 @@ import * as shared from "luminary-shared";
 import { DocType, PublishStatus, type ContentDto, type FtsSearchResult } from "luminary-shared";
 import { appLanguageIdsAsRef, appSyncedLanguageIdsAsRef } from "@/globalConfig";
 import { affinityProfile } from "@/recommendation/affinityStore";
-import { computeRichness, fuseTagFts, rank, useRecommendations } from "./useRecommendations";
+import {
+    computeRichness,
+    fuseTagFts,
+    rank,
+    useRecommendations,
+    MAX_RECOMMENDATIONS,
+} from "./useRecommendations";
 
 function makeContent(
     id: string,
@@ -472,6 +478,64 @@ describe("useRecommendations pinned content", () => {
     });
 });
 
+describe("useRecommendations output cap", () => {
+    // `rank` enforces the ceiling (see its own specs); these cover the wired-up feed.
+    const withFeed = async (
+        options: Parameters<typeof useRecommendations>[0],
+        assert: (recommended: ContentDto[]) => void,
+    ) => {
+        const languageId = "lang-eng";
+        const tagId = "tag-output-cap";
+        const publishDate = Date.now() - 7 * 24 * 60 * 60 * 1000;
+        // Distinct tags so diversity capping isn't what bounds the list.
+        const docs = Array.from({ length: 3 * MAX_RECOMMENDATIONS }, (_, i) =>
+            makeContent(`cap-doc-${i}`, [tagId, `tag-cap-${i}`], publishDate - i),
+        );
+        const previousLanguages = [...appLanguageIdsAsRef.value];
+        const previousSyncedLanguages = [...appSyncedLanguageIdsAsRef.value];
+        const previousProfile = affinityProfile.value;
+        const scope = effectScope();
+
+        try {
+            await shared.db.docs.bulkPut(docs);
+            appLanguageIdsAsRef.value = [languageId];
+            appSyncedLanguageIdsAsRef.value = [languageId];
+            affinityProfile.value = { affinity: { [tagId]: 0.8 }, lastDecayUtc: Date.now() };
+            const result = scope.run(() => useRecommendations({ ...options, useFts: false }));
+            if (!result) throw new Error("recommendation scope did not initialize");
+
+            await waitForExpect(() => {
+                expect(result.recommended.value.length).toBeGreaterThan(0);
+            });
+            assert(result.recommended.value);
+        } finally {
+            scope.stop();
+            affinityProfile.value = previousProfile;
+            appLanguageIdsAsRef.value = previousLanguages;
+            appSyncedLanguageIdsAsRef.value = previousSyncedLanguages;
+            await shared.db.docs.bulkDelete(docs.map((doc) => doc._id));
+        }
+    };
+
+    it("caps the feed at MAX_RECOMMENDATIONS when no limit is requested", async () => {
+        await withFeed({}, (recommended) => {
+            expect(recommended).toHaveLength(MAX_RECOMMENDATIONS);
+        });
+    });
+
+    it("clamps a caller asking for more than MAX_RECOMMENDATIONS", async () => {
+        await withFeed({ limit: 25 }, (recommended) => {
+            expect(recommended).toHaveLength(MAX_RECOMMENDATIONS);
+        });
+    });
+
+    it("honours a caller asking for fewer than MAX_RECOMMENDATIONS", async () => {
+        await withFeed({ limit: 3 }, (recommended) => {
+            expect(recommended).toHaveLength(3);
+        });
+    });
+});
+
 describe("rank", () => {
     it("ranks a doc found in both legs above one found in only one leg", () => {
         const both = makeContent("both", ["tag-a"]);
@@ -622,6 +686,19 @@ describe("rank", () => {
         expect(rank([categoryMatch], [], { category: 0.8 }, { now: 0 })[0]._id).toBe(
             "category-match",
         );
+    });
+
+    it("caps output at MAX_RECOMMENDATIONS when no limit is requested", () => {
+        // Distinct tags so diversity capping can't be what bounds the list.
+        const docs = Array.from({ length: 40 }, (_, i) => makeContent(`doc-${i}`, [`tag-${i}`]));
+
+        expect(rank(docs, [], {}, { now: 0 })).toHaveLength(MAX_RECOMMENDATIONS);
+    });
+
+    it("clamps a caller asking for more than MAX_RECOMMENDATIONS", () => {
+        const docs = Array.from({ length: 40 }, (_, i) => makeContent(`doc-${i}`, [`tag-${i}`]));
+
+        expect(rank(docs, [], {}, { now: 0, limit: 25 })).toHaveLength(MAX_RECOMMENDATIONS);
     });
 
     it("stops diversity selection once the requested output limit is filled", () => {

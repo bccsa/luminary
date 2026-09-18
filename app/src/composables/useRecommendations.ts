@@ -34,6 +34,7 @@ import {
     RRF_K,
     TAG_LEG_WEIGHT,
     FTS_LEG_WEIGHT,
+    MAX_RECOMMENDATIONS,
 } from "@/recommendation/ranking";
 // Re-export the pure ranking API (now in `ranking.ts`) so existing imports from
 // `useRecommendations` — specs and `RecommendedForYou.vue` — keep working unchanged.
@@ -49,6 +50,7 @@ export {
     RECENCY_HALFLIFE_DAYS,
     DAY_MS,
     MAX_PER_DOMINANT_TAG,
+    MAX_RECOMMENDATIONS,
 } from "@/recommendation/ranking";
 
 const TOP_N_TAGS = 12;
@@ -61,10 +63,10 @@ const HIGHLIGHT_FTS_TOTAL_WEIGHT = 0.3;
  * the user typed into the search modal. Parity with highlights: supplementary, kept below one
  * strongest topic-title query. */
 const SEARCH_FTS_TOTAL_WEIGHT = 0.3;
-/** Output cap on the fused feed. */
-const DEFAULT_LIMIT = 20;
+/** Output cap on the fused feed — the engine-wide ceiling, not a feed-local choice. */
+const DEFAULT_LIMIT = MAX_RECOMMENDATIONS;
 /** Candidate pool per leg. Must be >> DEFAULT_LIMIT: `useContentQuery` sorts by publishDate, so a
- *  pool of DEFAULT_LIMIT would mean affinity only reshuffles the 20 newest tagged docs instead of
+ *  pool of DEFAULT_LIMIT would mean affinity only reshuffles the newest tagged docs instead of
  *  actually selecting from the tag neighbourhood. */
 const DEFAULT_RETRIEVAL_LIMIT = 1000;
 const FTS_DEBOUNCE_MS = 300;
@@ -89,7 +91,8 @@ const FTS_DEBOUNCE_MS = 300;
  * affinity nor active saved highlight text produces candidates.
  */
 export type UseRecommendationsOptions = {
-    /** Maximum number of unseen, fused recommendations to expose. Defaults to 20. */
+    /** Maximum number of unseen, fused recommendations to expose. Defaults to — and is clamped
+     *  by — the engine-wide {@link MAX_RECOMMENDATIONS} ceiling. */
     limit?: number;
     /**
      * Candidate pool fetched independently for each retrieval leg. It should be larger
@@ -395,6 +398,9 @@ export function useRecommendations({
             ftsWeight: FTS_LEG_WEIGHT * (1 - 0.5 * richness.value),
             scoreScale: scoreScale.value,
             limit,
+            // The session clock, so a recompute triggered by anything else can't shift the
+            // recency prior underneath an already-painted feed.
+            now: sessionNow(),
         });
     });
 

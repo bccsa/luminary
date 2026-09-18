@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { decay, type ContentDto } from "luminary-shared";
-import { computed } from "vue";
+import { decay, type AffinityMap, type ContentDto, type Uuid } from "luminary-shared";
+import { computed, shallowRef, watch } from "vue";
 import { useContentQuery } from "@/composables/useContentQuery";
 import { rank, affinityScoreScale } from "@/recommendation/ranking";
 import { affinityProfile } from "@/recommendation/affinityStore";
 import { affinityConfig } from "@/recommendation/defaultAffinityStore";
-import { getSeenArticleIds, seenVersion } from "@/recommendation/seenStore";
+import { getSeenArticleIds } from "@/recommendation/seenStore";
 import { sessionNow } from "@/util/sessionNow";
 import { useI18n } from "vue-i18n";
 import ReadMore from "./ReadMore.vue";
@@ -44,9 +44,9 @@ const relatedContent = computed(() =>
 // already-seen articles. Retrieval stays purely topical (the query above); `rank` only tilts
 // order, primarily by tag overlap with the current article (`referenceTagIds`), with recency
 // as a secondary order and affinity a mild tie-break (see `READ_MORE_AFFINITY_WEIGHT`). A cold
-// profile or single-topic article falls back to recency order (newest first), matching the
-// previous publishDate-desc behaviour. No `limit` and a relaxed MMR cap ⇒ rank itself drops
-// nothing; the 12-item cap is applied after, so the top-ranked cards survive.
+// profile or single-topic article falls back to recency order (newest first). The relaxed MMR
+// cap keeps diversity from demoting relevance order; `rank` applies the engine-wide output
+// ceiling itself, so the section stays a handful of cards without a local cap.
 const topicTagIds = computed(() => new Set(props.tags.map((tag) => tag.parentId)));
 const referenceTagIds = computed(() => new Set(props.selectedContent.parentTags ?? []));
 // Tempered from the default TAG_LEG_WEIGHT (1.5): the affinity term is
@@ -55,33 +55,42 @@ const referenceTagIds = computed(() => new Set(props.selectedContent.parentTags 
 // recency prior's 0.05 span. Affinity thus only breaks near-ties within a recency band instead
 // of dominating the order. Tunable.
 const READ_MORE_AFFINITY_WEIGHT = 0.01;
-// Read more is a focused topical sidebar, not an endless feed — cap the section so it never
-// grows past a handful of cards.
-const READ_MORE_MAX_ITEMS = 12;
-const decayedAffinity = computed(
-    () => decay(affinityProfile.value, sessionNow(), affinityConfig.value).affinity,
-);
 const scoreScale = affinityScoreScale(affinityConfig.value.eventWeight.completion);
-const seenIds = computed(() => {
-    // Track seenVersion so the list updates if markSeen fires mid-session.
-    seenVersion.value;
-    return new Set(getSeenArticleIds());
-});
+
+// The page this list sits on writes the very signals the list ranks on: dwell marks the
+// article seen, reading progress, highlights, bookmarks and shares all record affinity. Read
+// live, each of those writes re-ranks the cards while the user is looking at them. So take one
+// snapshot per article and rank against that — re-taken only when the reader moves to another
+// article, which is also when a fresh set of recommendations is wanted.
+const rankingAffinity = shallowRef<AffinityMap>({});
+const rankingSeenIds = shallowRef<Set<Uuid>>(new Set());
+watch(
+    () => props.selectedContent.parentId,
+    () => {
+        rankingAffinity.value = decay(
+            affinityProfile.value,
+            sessionNow(),
+            affinityConfig.value,
+        ).affinity;
+        rankingSeenIds.value = new Set(getSeenArticleIds());
+    },
+    { immediate: true },
+);
 
 const readMoreItems = computed(() => {
     // The grid shows related articles only — the dedicated topic cards (props.tags) are no
     // longer mixed in, since the section is already topical. Already-seen articles are still
     // excluded (that filter is for read articles, not topic cards).
-    const candidates = relatedContent.value.filter((item) => !seenIds.value.has(item._id));
-    const ranked = rank(candidates, [], decayedAffinity.value, {
+    const candidates = relatedContent.value.filter((item) => !rankingSeenIds.value.has(item._id));
+    return rank(candidates, [], rankingAffinity.value, {
         topicTagIds: topicTagIds.value,
         scoreScale,
         tagWeight: READ_MORE_AFFINITY_WEIGHT,
         referenceTagIds: referenceTagIds.value,
         referenceWeight: 1.0,
         maxPerDominantTag: 100,
+        now: sessionNow(),
     });
-    return ranked.slice(0, READ_MORE_MAX_ITEMS);
 });
 </script>
 
