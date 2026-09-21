@@ -4,7 +4,7 @@ import { getCorpusStats } from "./ftsIndexer";
 import type { FtsFieldConfig, FtsSearchOptions, FtsSearchResult } from "./types";
 import type { ContentDto } from "../types";
 
-const DEFAULT_LIMIT = 20;
+const DEFAULT_LIMIT = 10;
 const DEFAULT_MAX_TRIGRAM_DOC_PERCENT = 50;
 const DEFAULT_K1 = 1.2;
 const DEFAULT_B = 0.75;
@@ -154,7 +154,10 @@ export async function ftsSearch(options: FtsSearchOptions): Promise<FtsSearchRes
     // Step 4: Collect matching doc IDs across the kept trigrams (in parallel)
     const idArrays = await Promise.all(
         keptTrigrams.map(({ token }) =>
-            db.docs.where("fts").between(token + ":", token + ";", true, false).primaryKeys(),
+            db.docs
+                .where("fts")
+                .between(token + ":", token + ";", true, false)
+                .primaryKeys(),
         ),
     );
     const matchedDocIds = new Set<string>();
@@ -184,14 +187,20 @@ export async function ftsSearch(options: FtsSearchOptions): Promise<FtsSearchRes
         if (typeSet && !typeSet.has(doc.parentType as unknown as string)) return;
         if (tagSet && !(doc.parentTags ?? []).some((t) => tagSet.has(t))) return;
         if (status !== undefined && doc.status !== status) return;
-        if (publishedAfter !== undefined && !(doc.publishDate != null && doc.publishDate >= publishedAfter))
+        if (
+            publishedAfter !== undefined &&
+            !(doc.publishDate != null && doc.publishDate >= publishedAfter)
+        )
             return;
         if (
             publishedBefore !== undefined &&
             !(doc.publishDate != null && doc.publishDate <= publishedBefore)
         )
             return;
-        if (expiresAfter !== undefined && !(doc.expiryDate != null && doc.expiryDate >= expiresAfter))
+        if (
+            expiresAfter !== undefined &&
+            !(doc.expiryDate != null && doc.expiryDate >= expiresAfter)
+        )
             return;
         if (
             expiresBefore !== undefined &&

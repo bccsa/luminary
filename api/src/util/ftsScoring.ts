@@ -18,7 +18,7 @@
 import { FTS_FIELDS, FtsFieldConfig, normalizeText, stripHtml } from "./ftsIndexing";
 
 /** Default number of results returned per page. */
-export const FTS_DEFAULT_LIMIT = 20;
+export const FTS_DEFAULT_LIMIT = 10;
 
 /**
  * Trigrams appearing in more than this percentage of the (accessible) corpus are
