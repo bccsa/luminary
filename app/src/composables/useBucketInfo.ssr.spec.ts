@@ -18,16 +18,15 @@ vi.mock("vue", async (importOriginal) => {
 
 const queryRemoteMock = vi.fn();
 
-// The SPA branch builds its query through a thunk; capture it so a test can inspect
-// exactly what that branch would send.
-let capturedSpaQuery: (() => Record<string, unknown>) | undefined;
+// Capture the SPA branch's query so a test can inspect exactly what that branch sends.
+let capturedSpaQuery: Record<string, unknown> | undefined;
 
 vi.mock("luminary-shared", async (importOriginal) => {
     const actual = await importOriginal<typeof import("luminary-shared")>();
     return {
         ...actual,
         queryRemote: (...args: unknown[]) => queryRemoteMock(...args),
-        useHybridQuery: (query: () => Record<string, unknown>) => {
+        useSharedHybridQuery: (query: Record<string, unknown>) => {
             capturedSpaQuery = query;
             return ref([]);
         },
@@ -120,6 +119,6 @@ describe("useBucketInfo — prerender tagging", () => {
         useBucketInfo(ref<string | undefined>("storage-bucket-1"));
 
         expect(capturedSpaQuery).toBeDefined();
-        expect(capturedSpaQuery!()).not.toHaveProperty("identifier");
+        expect(capturedSpaQuery).not.toHaveProperty("identifier");
     });
 });
