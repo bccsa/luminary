@@ -48,6 +48,22 @@ const mockImage = {
     ],
 };
 
+const thumbHashProps = (parentId: string) => ({
+    parentId,
+    aspectRatio: "video" as const,
+    bucketPublicUrl: "https://bucket.example.com",
+    image: {
+        fileCollections: [
+            {
+                aspectRatio: 1.78,
+                // Canonical valid ThumbHash example (evanw/thumbhash), so decoding succeeds.
+                thumbHash: "1QcSHQRnh493V4dIh4eXh1h4kJUI",
+                imageFiles: [{ filename: "video-300.webp", width: 300, height: 169 }],
+            },
+        ],
+    } as any,
+});
+
 describe("LImageProvider", () => {
     afterEach(() => {
         slow.value = false;
@@ -227,6 +243,40 @@ describe("LImageProvider", () => {
         expect(img1.exists()).toBe(true);
         expect(img1.attributes("style")).toContain("background-image");
         expect(img1.attributes("style")).toContain("data:image/png");
+    });
+
+    it("drops the ThumbHash preview once the display image has loaded", async () => {
+        const wrapper = mount(LImageProvider, { props: thumbHashProps("test-id-thumbhash-load") });
+        await wrapper.vm.$nextTick();
+        const img1 = wrapper.find('img[data-test="image-element1"]');
+        expect(img1.attributes("style")).toContain("background-image");
+
+        await img1.trigger("load");
+
+        expect(img1.attributes("style")).toBeUndefined();
+    });
+
+    it("does not decode the ThumbHash when the display image is already cached", async () => {
+        const complete = vi
+            .spyOn(HTMLImageElement.prototype, "complete", "get")
+            .mockReturnValue(true);
+        const naturalWidth = vi
+            .spyOn(HTMLImageElement.prototype, "naturalWidth", "get")
+            .mockReturnValue(300);
+
+        try {
+            const wrapper = mount(LImageProvider, {
+                props: thumbHashProps("test-id-thumbhash-cached"),
+            });
+            await wrapper.vm.$nextTick();
+
+            const img1 = wrapper.find('img[data-test="image-element1"]');
+            expect(img1.exists()).toBe(true);
+            expect(img1.attributes("style")).toBeUndefined();
+        } finally {
+            complete.mockRestore();
+            naturalWidth.mockRestore();
+        }
     });
 
     it("does not filter out higher quality images when isModal is true", async () => {
