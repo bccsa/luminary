@@ -82,7 +82,7 @@ The sync system is documented in detail in `src/api/sync/README.md`. Read it bef
 
 ### Socket.io live updates — `src/socket/socketio.ts`
 
-The socket emits `clientConfigReq` on connect (the connect handshake — declares the `cms` mode and any connect-time `docTypes`), then pushes `data` events. Incoming docs are filtered against `syncList` and `appLanguageIdsAsRef` before being bulk-put into Dexie. `accessMap` and `maxUploadFileSize` are received via a `clientConfig` event. Auth failures (`err.message === "auth_failed"`) disable reconnection so a stale token doesn't loop. (`clientConfigReq` was formerly named `joinSocketGroups`, which the server still accepts as a deprecated alias — ADR 0005. The whole Socket.io live-update transport is slated to migrate to Server-Sent Events (SSE) when SSE is implemented.)
+The socket emits `clientConfigReq` on connect (the connect handshake — declares the `cms` mode and any connect-time `docTypes`), then pushes `data` events. Incoming docs are filtered against `syncList` and `appLanguageIdsAsRef` before being bulk-put into Dexie. `accessMap`, `maxUploadFileSize` and `maxQueryLanguages` are received via a `clientConfig` event. Auth failures (`err.message === "auth_failed"`) disable reconnection so a stale token doesn't loop. (`clientConfigReq` was formerly named `joinSocketGroups`, which the server still accepts as a deprecated alias — ADR 0005. The whole Socket.io live-update transport is slated to migrate to Server-Sent Events (SSE) when SSE is implemented.)
 
 `isConnected` is a Vue ref that drives `HybridQuery`'s online/offline behavior.
 

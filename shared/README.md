@@ -111,14 +111,15 @@ CMS-mode consumer receives CMS-scoped documents (including drafts and expired co
 default consumer receives only published documents (expired content arriving as a body-less cleanup
 signal). The mode is purely a request — the server enforces the corresponding permission.
 
-| Export                                                    | Description                                                              |
-| --------------------------------------------------------- | ------------------------------------------------------------------------ |
-| `getSocket()`                                             | The Socket.io client singleton (change-feed transport + `clientConfig`). |
-| `isConnected`                                             | Reactive online/offline ref driving deferred API calls.                  |
-| `maxUploadFileSize`                                       | Server-provided upload limit (reactive).                                 |
-| `subscribeRooms`, `setBaseRooms`, `initRoomSubscriptions` | Manage Socket.io room membership for synced and on-demand doc types.     |
-| `getRest()`                                               | The REST client singleton (sync pulls + local-change pushes).            |
-| `HttpReq`, `setCustomHeader`, `removeCustomHeader`        | HTTP service class and custom-header controls (e.g. auth).               |
+| Export                                                    | Description                                                                 |
+| --------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `getSocket()`                                             | The Socket.io client singleton (change-feed transport + `clientConfig`).    |
+| `isConnected`                                             | Reactive online/offline ref driving deferred API calls.                     |
+| `maxUploadFileSize`                                       | Server-provided upload limit (reactive).                                    |
+| `maxQueryLanguages`                                       | Server-provided cap on languages per non-CMS query (reactive; 0 = unknown). |
+| `subscribeRooms`, `setBaseRooms`, `initRoomSubscriptions` | Manage Socket.io room membership for synced and on-demand doc types.        |
+| `getRest()`                                               | The REST client singleton (sync pulls + local-change pushes).               |
+| `HttpReq`, `setCustomHeader`, `removeCustomHeader`        | HTTP service class and custom-header controls (e.g. auth).                  |
 
 ### Permissions — `src/permissions/`
 
