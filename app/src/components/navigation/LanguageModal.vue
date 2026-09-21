@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import {
     DocType,
+    type HybridQueryOptions,
     isConnected,
     type LanguageDto,
+    type MangoQuery,
     pruneUnsyncedLanguageContent,
-    useHybridQuery,
+    useSharedHybridQuery,
 } from "luminary-shared";
 import LButton from "../button/LButton.vue";
 import {
@@ -24,6 +26,16 @@ import { useDragReorder } from "@/composables/useDragReorder";
 
 import { computed, ref, watch, type ShallowRef } from "vue";
 import { useI18n } from "vue-i18n";
+
+// Module-level so BOTH mount sites (the desktop sidebar and the profile menu) land on the
+// same key in the shared registry — one subscription and one cold-start `/query` for the
+// modal, instead of one per mount. The registry keys on the query value AND these options,
+// so they must not be rebuilt per instance.
+const LANGUAGES_QUERY: MangoQuery = { selector: { type: DocType.Language } };
+const LANGUAGES_OPTIONS: HybridQueryOptions = {
+    live: true,
+    stripFields: ["translations", "_rev"],
+};
 
 type Props = {
     isVisible: boolean;
@@ -53,15 +65,12 @@ const notifyClearBlocked = () =>
         type: "toast",
     });
 
-// Language is a fully-synced type, so HybridQuery reads from IndexedDB only.
+// Language is a fully-synced type, so this reads from IndexedDB only.
 // Only the i18n singleton in globalConfig needs `translations`; the modal reads
 // just id/name/default, so drop the heavy strings map to keep it off the heap.
-const languages: ShallowRef<LanguageDto[]> = useHybridQuery<LanguageDto>(
-    () => ({ selector: { type: DocType.Language } }),
-    {
-        live: true,
-        stripFields: ["translations", "_rev"],
-    },
+const languages: ShallowRef<LanguageDto[]> = useSharedHybridQuery<LanguageDto>(
+    LANGUAGES_QUERY,
+    LANGUAGES_OPTIONS,
 );
 
 const emit = defineEmits(["close"]);
