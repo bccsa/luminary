@@ -8,6 +8,8 @@ on:
     paths:
       - app/**
       - .github/workflows/app-deploy-staging.yml
+      # A submodule bump changes the gitlink path itself, not files under it.
+      - luminary-media-convert
       - shared/**
   workflow_dispatch:
 
