@@ -10,7 +10,6 @@ import { MongoComparisonCriteria, MongoSelectorDto } from "../dto/MongoSelectorD
 import { LanguageDto } from "../dto/LanguageDto";
 import { expandMangoSelector } from "../util/expandMangoQuery";
 import { isExpiredContent, stripExpiredContent } from "../util/stripExpiredContent";
-import { applyTagFeedFloor, candidateFloor, planTagFeed } from "../util/tagFeedQuery";
 
 @Injectable()
 export class QueryService {
@@ -273,23 +272,9 @@ export class QueryService {
         // languages / search callers of that method are unaffected.
         (query as any).execution_stats = true;
 
-        // A `parentTags` feed has no indexed Mango form: an index led by the tags array
-        // cannot serve a publishDate sort, so the query otherwise walks the whole content
-        // partition. The `content-tag-publishDate` view supplies a publishDate floor that
-        // bounds that walk. It is purely an optimisation — the selector, and therefore every
-        // permission and visibility rule, is unchanged. Gated on non-CMS because the view
-        // indexes published documents only.
-        if (type === DocType.Content && !isCms) {
-            const tagFeed = planTagFeed(query);
-            if (tagFeed) {
-                const candidates = await this.db.getContentIdsByTags(tagFeed.tagIds, tagFeed.limit);
-                const floor = candidateFloor(candidates, tagFeed.limit);
-                // No floor means the view is cold or lagging, not that these tags have no
-                // content — fall through to the unbounded query, which is slower but right.
-                if (floor !== undefined) applyTagFeedFloor(query, floor);
-            }
-        }
-
+        // A `parentTags` feed is deliberately left unbounded: a publishDate floor derived from
+        // a tag's newest documents can hide older ones the caller is entitled to, because the
+        // language/access/expiry filters and hybrid older-tail requests both reach past it.
         const result = await this.db.executeFindQuery(query);
 
         // Data minimization (covers both sync and HybridQuery — both POST /query): a non-CMS
