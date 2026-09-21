@@ -177,6 +177,19 @@ export function initSync() {
                     Sentry?.captureException(err);
                 });
             }
+
+            // Sync the server-aggregated global affinity singleton (what the audience as a
+            // whole engages with), which feeds the community feed.
+            if (access[DocType.GlobalAffinity] && access[DocType.GlobalAffinity].length) {
+                sync({
+                    type: DocType.GlobalAffinity,
+                    memberOf: access[DocType.GlobalAffinity],
+                    limit: 1,
+                    cms: false,
+                }).catch((err) => {
+                    Sentry?.captureException(err);
+                });
+            }
         },
         { immediate: true },
     );

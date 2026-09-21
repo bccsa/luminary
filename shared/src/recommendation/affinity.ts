@@ -15,6 +15,12 @@ import type { AffinityMap, Uuid } from "../types";
  */
 export const DEFAULT_AFFINITY_ID = "default-affinity";
 
+/**
+ * Fixed `_id` of the singleton `GlobalAffinityDto` (the server-aggregated,
+ * audience-wide profile). Mirrored on the API side.
+ */
+export const GLOBAL_AFFINITY_ID = "global-affinity";
+
 export type AffinityProfile = {
     affinity: AffinityMap;
     /** epoch ms of the last decay application. */
@@ -99,6 +105,34 @@ export type AffinityConfig = {
          */
         impression: number;
     };
+    /** Tuning for the audience-wide profile — see {@link GlobalAffinityConfig}. */
+    global: GlobalAffinityConfig;
+};
+
+/**
+ * Tuning for the audience-wide (global) affinity profile. Kept separate from the
+ * per-user knobs above because the two answer different questions: the personal
+ * profile should track one reader quickly, the global one should move slowly and
+ * resist any single reader.
+ *
+ * Each client's contribution is normalized to unit L1 before it is sent, so
+ * {@link learningRate} reads directly as "fraction of a tag's remaining headroom that
+ * one user's entire vote can close" — a calibration that holds regardless of how
+ * large the audience is or how heavily any individual uses the app.
+ */
+export type GlobalAffinityConfig = {
+    /** Days for a global score to halve. Much longer than the personal half-life. */
+    halfLifeDays: number;
+    /** Fraction of the remaining headroom one client's whole vote closes. */
+    learningRate: number;
+    /** Global scores below this are pruned as negligible. */
+    minScore: number;
+    /** Cap on tags kept in the global profile. */
+    maxTags: number;
+    /** Client: minimum recorded events before a contribution is worth sending. */
+    minEvents: number;
+    /** Client: minimum hours between contributions from one client. */
+    intervalHours: number;
 };
 
 /**
@@ -128,6 +162,14 @@ export const DEFAULT_AFFINITY_CONFIG: AffinityConfig = {
         searchClick: 0.0004,
         impression: -0.0002,
     },
+    global: {
+        halfLifeDays: 180,
+        learningRate: 0.002,
+        minScore: 0.0005,
+        maxTags: 200,
+        minEvents: 20,
+        intervalHours: 24,
+    },
 };
 
 /**
@@ -139,6 +181,7 @@ export function resolveAffinityConfig(config?: Partial<AffinityConfig>): Affinit
         ...DEFAULT_AFFINITY_CONFIG,
         ...config,
         eventWeight: { ...DEFAULT_AFFINITY_CONFIG.eventWeight, ...config?.eventWeight },
+        global: { ...DEFAULT_AFFINITY_CONFIG.global, ...config?.global },
     };
 }
 
@@ -292,6 +335,26 @@ export function readingDepthWeight(
     if (depthPercent < config.readFloorPercent) return 0;
     const t = Math.min(1, (depthPercent - config.readFloorPercent) / (100 - config.readFloorPercent));
     return config.hitWeight + t * (config.eventWeight.readCompletion - config.hitWeight);
+}
+
+/**
+ * Scale a raw contribution vector to unit L1 (its absolute values sum to 1), so one
+ * client contributes exactly one vote to the global profile however heavily they use
+ * the app. Signs are preserved, so a scroll-past still pulls its tag down.
+ *
+ * Returns an empty map for an empty/degenerate input; entries that aren't finite
+ * numbers are dropped. Mirrored server-side, which re-normalizes defensively.
+ */
+export function normalizeContribution(contribution: AffinityMap): AffinityMap {
+    let total = 0;
+    const finite: [Uuid, number][] = [];
+    for (const [tag, value] of Object.entries(contribution ?? {})) {
+        if (!tag || typeof value !== "number" || !Number.isFinite(value) || value === 0) continue;
+        finite.push([tag, value]);
+        total += Math.abs(value);
+    }
+    if (!total) return {};
+    return Object.fromEntries(finite.map(([tag, value]) => [tag, value / total]));
 }
 
 /** Top-`n` tag ids from an affinity map that has already been decayed by the caller. */

@@ -79,6 +79,24 @@ export type DefaultAffinityDto = ContentBaseDto & {
     config?: AffinityConfig;
 };
 
+/**
+ * Audience-wide affinity profile (singleton, fixed `_id` — see `GLOBAL_AFFINITY_ID`),
+ * aggregated server-side from many clients' contributions.
+ *
+ * `affinity` is server-owned: clients read it (to rank a community feed) but may only
+ * ever send `contribution`, a one-vote-per-client delta the server folds in and discards.
+ * Writing it takes `AclPermission.Contribute`, which is granted to no group by default.
+ */
+export type GlobalAffinityDto = ContentBaseDto & {
+    type: DocType.GlobalAffinity;
+    affinity: AffinityMap;
+    /** Client-sent contribution vector, normalized to unit L1. Never persisted. */
+    contribution?: AffinityMap;
+    /** epoch ms of the last decay application. */
+    lastDecayUtc?: number;
+    contributionCount?: number;
+};
+
 export type LanguageDto = ContentBaseDto & {
     type: DocType.Language;
     languageCode: string;

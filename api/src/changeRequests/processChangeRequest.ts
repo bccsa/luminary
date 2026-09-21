@@ -25,6 +25,9 @@ import { createSlugChangeRedirect, findSlugReversionRedirect } from "./createSlu
 import { isTrackableSlugChange } from "./computePreviousSlugs";
 import processDefaultAffinityDto from "./documentProcessing/processDefaultAffinityDto";
 import { DefaultAffinityDto } from "../dto/DefaultAffinityDto";
+import processGlobalAffinityDto from "./documentProcessing/processGlobalAffinityDto";
+import { GlobalAffinityDto } from "../dto/GlobalAffinityDto";
+import { getGlobalAffinityService } from "../globalAffinity/globalAffinity.service";
 
 type ProcessChangeRequestResult = {
     result: DbUpsertResult;
@@ -51,8 +54,10 @@ export async function processChangeRequest(
         ? prevDocQuery.docs[0]
         : undefined;
 
-    // Check if the document has changed
-    if (isEqualDoc(doc, prevDoc)) {
+    // Check if the document has changed. A GlobalAffinity change request is a contribution
+    // delta, not a desired end state, so comparing it against the stored aggregate is
+    // meaningless — and an unlucky match would silently swallow a contribution.
+    if (doc.type !== DocType.GlobalAffinity && isEqualDoc(doc, prevDoc)) {
         return {
             result: {
                 ok: true,
@@ -96,6 +101,7 @@ export async function processChangeRequest(
         [DocType.User]: () => processUserDto(doc as UserDto),
         [DocType.Redirect]: () => processRedirectDto(doc as RedirectDto),
         [DocType.DefaultAffinity]: () => processDefaultAffinityDto(doc as DefaultAffinityDto),
+        [DocType.GlobalAffinity]: () => processGlobalAffinityDto(doc as GlobalAffinityDto),
         [DocType.AutoGroupMappings]: () => {}, // No extra processing required, but needed to be part of the process map for access validation,
     };
 
@@ -105,6 +111,16 @@ export async function processChangeRequest(
             if (!validationResult.warnings) validationResult.warnings = [];
             validationResult.warnings.push(...processingWarnings);
         }
+    }
+
+    // Contributions are folded into an in-memory accumulator and flushed on a timer: a write
+    // per request would put every contributing client on one document's revision chain, where
+    // upsertDoc's last-write-wins conflict retry would drop most of them.
+    if (doc.type === DocType.GlobalAffinity) {
+        getGlobalAffinityService(db).contribute((doc as GlobalAffinityDto).contribution);
+        return {
+            result: { ok: true, message: "Contribution accepted" } as DbUpsertResult,
+        };
     }
 
     // Insert / update the document in the database

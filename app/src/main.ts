@@ -19,6 +19,8 @@ import { initAppTitle, initI18n } from "./i18n";
 import { initAnalytics } from "./analytics";
 import { initSync, initAuthLangSync } from "./sync";
 import { initDefaultAffinitySync } from "@/recommendation/defaultAffinityStore";
+import { initGlobalAffinitySync } from "@/recommendation/globalAffinityStore";
+import { initGlobalAffinityContribution } from "@/recommendation/globalContributionStore";
 import { APP_DOCS_INDEX } from "./docsIndex";
 import { initSentry, Sentry } from "@/util/initSentry";
 import { markAppReady, markAppError } from "@/util/renderState";
@@ -69,6 +71,12 @@ async function Startup() {
     // Keep the CMS-managed default-affinity baseline/config in sync with the local
     // copy of the singleton doc, now that it's synced like any other doc type.
     initDefaultAffinitySync();
+
+    // Read side of the audience-wide profile (the community feed), and the write side that
+    // hands the server one anonymous summary on reconnect. Both no-op until an administrator
+    // grants a group access to the GlobalAffinity singleton.
+    initGlobalAffinitySync();
+    initGlobalAffinityContribution();
 
     const socket = getSocket();
 

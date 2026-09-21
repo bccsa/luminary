@@ -134,7 +134,7 @@ Schema upgrades can be safely removed when:
 ### Current Baseline
 
 
-**Current Schema Version**: 22 (as of 2026-09-04)
+**Current Schema Version**: 23 (as of 2026-09-21)
 
 All production databases are expected to be at version 10 or higher. Historical upgrades v1-v9 have been removed as they are no longer needed.
 
@@ -195,4 +195,12 @@ Moves the legacy per-language `ContentDto.video` URL onto the parent's `media.hl
 
 Backfills the new `Share` ACL permission on `group-public-content`'s Post/Tag ACL entries that already hold `View`, mirroring the seed default — sharing is enabled for public content only, for now. `Share` is assignable on Post and Tag only (`changeRequests/aclValidation.ts` and its CMS mirror `cms/src/components/groups/permissions.ts`). Idempotent (only pushes `Share` where missing), safe to re-run including on fresh DBs and via `npm run seed` — the seeded `group-public-content` fixture already carries `Share`, making it a no-op there. Uses `insertDoc` to preserve `updatedTimeUtc`: the granted access takes effect via the server-recomputed AccessMap delivered on connect.
 
-The CMS-managed "default affinity" recommendation feature (`DocType.DefaultAffinity`) followed the same ACL-administration path instead of an upgrade script: `group-super-admins`/`group-public-content` get the `DefaultAffinity` ACL entries directly in their seed fixtures (fresh DBs only — existing deployed DBs need it granted via ACL administration), and the singleton doc (`api/src/util/defaultAffinity.ts`) is created lazily by the CMS on first save rather than backfilled (`cms/src/composables/useDefaultAffinity.ts`'s `saveDoc`).
+The CMS-managed "default affinity" recommendation feature (`DocType.DefaultAffinity`) followed the same ACL-administration path instead of an upgrade script: `group-super-admins`/`group-public-content` get the `DefaultAffinity` ACL entries directly in their seed fixtures (fresh DBs only — existing deployed DBs need it granted via ACL administration), and the singleton doc (`api/src/util/defaultAffinity.ts`) is created lazily by the CMS on first save rather than backfilled (`cms/src/composables/useDefaultAffinity.ts`'s `saveDoc`). v23 closes that gap.
+
+### v23 — Affinity ACL backfill (2026-09-21)
+
+Grants read access to the new `globalAffinity` singleton (the audience-wide profile aggregated from client contributions) on `group-public-content` and `group-super-admins`, and repairs the `defaultAffinity` entries that #1803 shipped in seeding only — a database installed before it has no affinity ACL at all and cannot sync either singleton.
+
+`Contribute`, the write permission for the aggregate, is deliberately **never** granted here: following v19's precedent a new permission stays real and narrowable, so an existing deployment opts groups in explicitly via the CMS rather than having every client start feeding the global profile on deploy. The same reason the seed fixtures ship `view` only.
+
+Idempotent — an entry is added only when that `(type, groupId)` pair is absent, so an entry an administrator has since narrowed keeps its permissions, and re-running (including via `npm run seed`) is a no-op. Uses `insertDoc` to preserve `updatedTimeUtc`; the granted access reaches clients via the server-recomputed AccessMap on their next connect.

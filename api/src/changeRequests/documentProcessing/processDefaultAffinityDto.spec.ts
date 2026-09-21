@@ -108,6 +108,14 @@ describe("processDefaultAffinityDto", () => {
                     searchClick: 0.0005,
                     impression: -0.01,
                 },
+                global: {
+                    halfLifeDays: 200,
+                    learningRate: 0.001,
+                    minScore: 0.001,
+                    maxTags: 150,
+                    minEvents: 30,
+                    intervalHours: 12,
+                },
             };
             const doc = makeDoc({}, DEFAULT_AFFINITY_ID, custom);
             processDefaultAffinityDto(doc);
