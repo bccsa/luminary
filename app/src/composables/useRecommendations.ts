@@ -1,7 +1,6 @@
 import { computed, onScopeDispose, ref, watch } from "vue";
 import {
     decay,
-    ftsSearch,
     DocType,
     PublishStatus,
     type AffinityMap,
@@ -27,6 +26,7 @@ import {
 import { getSeenArticleIds, seenVersion } from "@/recommendation/seenStore";
 import { appSyncedDisplayLanguageIdsAsRef } from "@/globalConfig";
 import { sessionNow } from "@/util/sessionNow";
+import { ftsSearchInWorker } from "@/recommendation/ftsWorkerClient";
 import { filterTopicTagIds } from "@/recommendation/topicTags";
 import {
     rank,
@@ -328,7 +328,7 @@ export function useRecommendations({
                                 // complete local FTS corpus and must not trigger a BM25 scan.
                                 const perLanguage = await Promise.all(
                                     languageIds.map((languageId) =>
-                                        ftsSearch({
+                                        ftsSearchInWorker({
                                             query,
                                             languageId,
                                             status: PublishStatus.Published,
