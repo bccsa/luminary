@@ -13,6 +13,7 @@ import {
     MAX_PREFERRED_LANGUAGES,
     normalizePreferredLanguages,
     normalizeSyncedLanguages,
+    resumeLanguagePersistence,
 } from "@/globalConfig";
 import LModal from "../form/LModal.vue";
 import DragHandleIcon from "../icons/DragHandleIcon.vue";
@@ -190,6 +191,9 @@ const orderEquals = (a: string[], b: string[]) =>
 
 const save = () => {
     if (draftOrder.value.length === 0) return;
+    // This is the visitor choosing, so the web build starts persisting language again — its
+    // hydration seed suspends persistence (see ssg/hydrationLanguage.ts). A no-op in the SPA.
+    resumeLanguagePersistence();
     // Cap the preferred order defensively (the UI already blocks going over) before committing.
     const nextOrder = normalizePreferredLanguages(draftOrder.value);
     const orderChanged = !orderEquals(nextOrder, appLanguageIdsAsRef.value);
