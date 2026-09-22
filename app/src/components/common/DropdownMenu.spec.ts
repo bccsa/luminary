@@ -1,9 +1,24 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import DropdownMenu from "./DropdownMenu.vue";
 import { nextTick } from "vue";
 
+type Rect = { left: number; right: number; width: number; top: number; bottom: number };
+
+/** jsdom lays nothing out, so the panel/trigger geometry the positioning reads is stubbed. */
+const stubRect = (el: HTMLElement, rect: Rect) => {
+    el.getBoundingClientRect = () =>
+        ({ ...rect, height: rect.bottom - rect.top, x: rect.left, y: rect.top }) as DOMRect;
+};
+
+const left = (el: HTMLElement) => Number.parseFloat(el.style.left);
+
 describe("DropdownMenu", () => {
+    beforeEach(() => {
+        window.innerWidth = 360;
+        window.innerHeight = 800;
+    });
+
     afterEach(() => {
         vi.restoreAllMocks();
     });
@@ -106,18 +121,74 @@ describe("DropdownMenu", () => {
         expect(closeEmits.length).toBe(0);
     });
 
-    it("applies bottom-start placement classes", () => {
+    it("applies bottom-start placement origin", () => {
         const wrapper = mountMenu({ open: true, placement: "bottom-start" });
         const panel = wrapper.find("[role='menu']");
-        expect(panel.classes()).toContain("left-0");
         expect(panel.classes()).toContain("origin-top-left");
     });
 
-    it("applies bottom-end placement classes by default", () => {
+    it("applies bottom-end placement origin by default", () => {
         const wrapper = mountMenu({ open: true });
         const panel = wrapper.find("[role='menu']");
-        expect(panel.classes()).toContain("right-0");
         expect(panel.classes()).toContain("origin-top-right");
+    });
+
+    it("positions the panel as viewport-fixed rather than trigger-absolute", () => {
+        const wrapper = mountMenu({ open: true, placement: "bottom-start" });
+        const panel = wrapper.find("[role='menu']");
+        expect(panel.classes()).toContain("fixed");
+        expect(panel.classes()).not.toContain("absolute");
+        expect(panel.attributes("style")).toContain("left:");
+    });
+
+    it("keeps a wide panel inside the viewport when the trigger sits near the edge", async () => {
+        const wrapper = mountMenu({ open: true, placement: "top-start" });
+        const panel = wrapper.find("[role='menu']").element as HTMLElement;
+
+        stubRect(wrapper.find("[role='button']").element as HTMLElement, {
+            left: 340,
+            right: 360,
+            width: 20,
+            top: 400,
+            bottom: 420,
+        });
+        stubRect(panel, { left: 340, right: 580, width: 240, top: 160, bottom: 400 });
+        window.dispatchEvent(new Event("resize"));
+        await nextTick();
+
+        // 360px viewport, 240px panel, 8px inset — anchoring to the trigger would put the
+        // panel's left edge at 340 and hang 228px off the screen.
+        expect(left(panel)).toBe(360 - 240 - 8);
+    });
+
+    it("exposes the trigger offset so an arrow can follow a clamped panel", async () => {
+        const wrapper = mount(DropdownMenu, {
+            props: { open: true, placement: "top-start" },
+            slots: {
+                trigger: "<span>Toggle</span>",
+                default: '<template #default="p"><i>{{ p.triggerOffsetX }}</i></template>',
+            },
+        });
+
+        stubRect(wrapper.find("[role='button']").element as HTMLElement, {
+            left: 340,
+            right: 360,
+            width: 20,
+            top: 400,
+            bottom: 420,
+        });
+        stubRect(wrapper.find("[role='menu']").element as HTMLElement, {
+            left: 112,
+            right: 352,
+            width: 240,
+            top: 160,
+            bottom: 400,
+        });
+        window.dispatchEvent(new Event("resize"));
+        await nextTick();
+
+        // Trigger centre 350, clamped panel left 112 → the arrow belongs 238px in.
+        expect(wrapper.find("i").text()).toBe("238");
     });
 
     it("sets aria-expanded attribute", () => {
