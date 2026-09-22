@@ -913,11 +913,12 @@ class Database extends Dexie {
 export let db: Database;
 
 /**
- * Opens the existing database so full-text search can run in a Web Worker, where
- * {@link initDatabase} cannot run (it reads the schema version from localStorage). Search only
- * reads `docs` and `luminaryInternals`, so the schema is taken from the database as it is.
+ * Opens the existing database for use in a Web Worker, where {@link initDatabase} cannot run
+ * (it reads the schema version from localStorage). The schema is taken from the database as it
+ * is; only the tables are exposed, so a worker task that reaches for a `Database` method still
+ * fails — worker tasks are meant to be reads.
  */
-export async function openDatabaseForFtsWorker(): Promise<void> {
+export async function openDatabaseInWorker(): Promise<void> {
     // Opening a missing database would create an empty one ahead of the app's own schema.
     if (!(await Dexie.exists(dbName))) throw new Error(`${dbName} does not exist yet`);
     const connection = new Dexie(dbName);
@@ -925,7 +926,9 @@ export async function openDatabaseForFtsWorker(): Promise<void> {
     db = {
         name: connection.name,
         docs: connection.table("docs"),
+        localChanges: connection.table("localChanges"),
         luminaryInternals: connection.table("luminaryInternals"),
+        retention: connection.table("retention"),
     } as unknown as Database;
 }
 

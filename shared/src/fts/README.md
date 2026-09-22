@@ -69,6 +69,29 @@ These filters apply identically on the local and server (`/fts`) paths, so a sea
 
 **Strict vs relevance.** With no `sort`/`matchAllWords`, search ranks by fuzzy BM25 relevance over all fields (the default). With `matchAllWords` + `sort`, it becomes a strict, field-ordered lookup: every query word must appear as a substring of `title`/`author`, and the full match set is ordered by the chosen field before pagination. Because matching is scoped to `title`/`author` (carried in the server's trigram-index metadata), it is **exact on both the local and server paths**; the sort comparator (nulls last, case-insensitive strings, `_id` tie-break) is mirrored too, so a partially-synced client gets the same order whether a search runs locally or against `/fts`.
 
+### Off the main thread — `ftsSearchInWorker` / `ftsSearchManyInWorker`
+
+```typescript
+import { ftsSearchInWorker, ftsSearchManyInWorker } from "luminary-shared";
+
+const results = await ftsSearchInWorker({ query, languageId, limit: 20 });
+
+// Several searches at once: one message instead of one per search, and a doc that several of
+// them reach is loaded and tokenised once. Results are in `searches` order.
+const pages = await ftsSearchManyInWorker(searches);
+```
+
+Same options and same results as `ftsSearch`/`ftsSearchMany`, run in a Web Worker so a burst of
+searches doesn't block scrolling or taps. Falls back to the main thread wherever a worker can't
+run. Two caveats:
+
+- Results come back **trimmed** — `doc.fts` and `doc.ftsTokenCount` are stripped, since they are
+  the largest fields on a `ContentDto` and nothing reads them. Like server-side results, a trimmed
+  doc must never be `bulkPut`: it would drop out of the offline `*fts` index.
+- The worker attaches to the database as it already is and only reads it.
+
+See `../worker/README.md` for the worker layer itself.
+
 ### Server-only strict search for other doctypes — `useServerFtsSearch`
 
 `useFtsSearch` / `ftsSearch` above are Content-specific (BM25 relevance over title/summary/text/author, backed by the offline index). Some **non-Content doctypes** also carry a server-computed `fts` index — currently `UserDto` (name + email) and `RedirectDto` (slug + toSlug). For those, `useServerFtsSearch` runs a **server-only strict** search via `/fts`: substring-AND over the doctype's searchable fields, a field sort, and optional filters, with debouncing and infinite-scroll paging.
@@ -216,3 +239,5 @@ Non-Content doctypes use their own server-only field configs (`USER_FTS_FIELDS`,
 - **Text truncation at 5000 chars**: Caps trigram generation on long documents
 - **Search-time frequency filtering**: Skips common trigrams to keep search fast
 - **MultiEntry index**: Leverages IndexedDB's native B-tree for trigram lookups without separate index tables
+- **Worker offload**: `ftsSearchInWorker` moves BM25 scoring onto a spare core so a slow search costs responsiveness, not interaction — see `../worker/README.md`
+- **Batched searches**: `ftsSearchMany` shares per-doc loading, HTML-stripping and tokenising across a group of searches, and over a worker it is also one structured clone instead of one per search

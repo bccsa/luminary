@@ -14,7 +14,8 @@ export {
     generateTrigramCounts,
     generateSearchTrigrams,
 } from "./trigram";
-export { ftsSearch, ftsSearchMany } from "./ftsSearch";
+export { ftsSearch, ftsSearchMany, trimFtsResults } from "./ftsSearch";
+export { ftsSearchInWorker, ftsSearchManyInWorker } from "./ftsSearchInWorker";
 export { ftsSearchApi, shouldUseApiFts } from "./ftsSearchApi";
 export { attachFtsLiveSync, markFtsStale } from "./ftsLiveSync";
 export { ftsMightMatchQuery } from "./ftsMightMatchQuery";

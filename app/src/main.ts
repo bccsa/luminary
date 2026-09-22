@@ -7,7 +7,7 @@ import { setupAuth } from "@/auth";
 import { registerAuthFailureHandler } from "@/authFailure";
 import { useNotificationStore } from "./stores/notification";
 import { appPluginsManager } from "@/build-time/contracts/plugin-registry";
-import { getSocket, init, warmMangoCaches, serverError } from "luminary-shared";
+import { getSocket, init, warmMangoCaches, warmWorkers, serverError } from "luminary-shared";
 import {
     appSyncedLanguageIdsAsRef,
     initLanguage,
@@ -148,6 +148,10 @@ async function Startup() {
     initAppTitle(i18n);
     initAnalytics();
     markAppReady();
+
+    // Start the search worker during idle time, so the first recommendation search doesn't pay
+    // for spawning it and opening its database connection.
+    warmWorkers();
 }
 
 Startup().catch((err) => {
