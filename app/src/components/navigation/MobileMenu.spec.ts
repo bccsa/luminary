@@ -39,11 +39,11 @@ describe("MobileMenu.vue", () => {
         expect(homeMenu.props("to")).toEqual({ name: "home" });
     });
 
-    it("keeps the bottom navigation above a device safe area", () => {
+    it("keeps the bottom navigation above a device safe area or the native navigation bar", () => {
         const wrapper = mount(MobileMenu);
 
         expect(wrapper.classes()).toContain(
-            "pb-[max(0.75rem,calc(env(safe-area-inset-bottom)-0.625rem))]",
+            "pb-[max(0.75rem,calc(env(safe-area-inset-bottom)-0.625rem),calc(var(--native-inset-bottom,0px)+0.5rem))]",
         );
     });
 });
