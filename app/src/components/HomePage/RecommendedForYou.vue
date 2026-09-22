@@ -14,12 +14,16 @@ const { root, onContainerClick } = useImpressionTracking(recommended, {
 </script>
 
 <template>
-    <div ref="root" @click="onContainerClick">
+    <div
+        ref="root"
+        @click="onContainerClick"
+    >
         <HorizontalContentTileCollection
             v-if="recommended.length > 0"
             :contentDocs="recommended"
             :title="t('home.recommended')"
             :showPublishDate="false"
+            useVerticalTileLayout
             class="pb-1 pt-4"
         />
     </div>
