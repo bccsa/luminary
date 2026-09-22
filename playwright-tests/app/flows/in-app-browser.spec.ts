@@ -145,7 +145,8 @@ test.describe("In-app browser warning", () => {
             await page.locator(CANCEL).click();
 
             await expect(page.locator(MODAL)).toBeHidden();
-            expect(new URL(page.url()).pathname).not.toBe("/open");
+            await page.waitForURL((url) => url.pathname !== "/open");
+            await expect(page.getByRole("main")).toBeVisible();
         });
     });
 });
