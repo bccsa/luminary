@@ -182,6 +182,21 @@ export async function ftsSearchMany(searches: FtsSearchOptions[]): Promise<FtsSe
     return results;
 }
 
+/**
+ * Drops `fts`/`ftsTokenCount` from each result's doc. They are the largest fields on a
+ * `ContentDto` and no caller reads them, so carrying them across a worker's structured clone is
+ * pure cost. Trimmed results must never be persisted — a doc written back without its trigrams
+ * would fall out of the offline `*fts` index (the same rule as server-side results, ADR 0011).
+ */
+export function trimFtsResults(results: FtsSearchResult[]): FtsSearchResult[] {
+    return results.map((result) => {
+        const doc = { ...result.doc };
+        delete doc.fts;
+        delete doc.ftsTokenCount;
+        return { ...result, doc };
+    });
+}
+
 async function searchInBatch(
     options: FtsSearchOptions,
     batch: SearchBatch,

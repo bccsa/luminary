@@ -38,6 +38,22 @@ function makeFtsResult(doc: ContentDto, score: number): FtsSearchResult {
     return { docId: doc._id, score, wordMatchScore: 0, doc };
 }
 
+/**
+ * The composable batches every (query × language) pair into one `ftsSearchManyInWorker` call,
+ * so `searches()` presents those calls as the individual searches they stand for and assertions
+ * can stay per-search.
+ */
+function spyOnFtsSearch(results: FtsSearchResult[] = []) {
+    const spy = vi
+        .spyOn(shared, "ftsSearchManyInWorker")
+        .mockImplementation(async (searches) => searches.map(() => results));
+    return {
+        searches: () => spy.mock.calls.flatMap(([batch]) => batch),
+        clear: () => spy.mockClear(),
+        restore: () => spy.mockRestore(),
+    };
+}
+
 describe("computeRichness", () => {
     it("returns zero for an empty tag list", () => {
         expect(computeRichness({}, [])).toBe(0);
@@ -113,13 +129,13 @@ describe("fuseTagFts", () => {
 });
 
 describe("useRecommendations useFts option", () => {
-    it("never calls ftsSearch and still ranks from the tag-membership leg alone when useFts is false", async () => {
+    it("never searches and still ranks from the tag-membership leg alone when useFts is false", async () => {
         const languageId = "lang-eng";
         const tagId = "tag-no-fts";
         const tagMatch = makeContent("tag-match", [tagId], Date.now() - 1_000);
         const previousLanguages = [...appLanguageIdsAsRef.value];
         const previousProfile = affinityProfile.value;
-        const ftsSearch = vi.spyOn(shared, "ftsSearch").mockResolvedValue([]);
+        const fts = spyOnFtsSearch();
         const scope = effectScope();
 
         try {
@@ -133,10 +149,10 @@ describe("useRecommendations useFts option", () => {
                 expect(result.recommended.value.map((doc) => doc._id)).toContain(tagMatch._id);
             });
             await new Promise((resolve) => setTimeout(resolve, 400));
-            expect(ftsSearch).not.toHaveBeenCalled();
+            expect(fts.searches()).toEqual([]);
         } finally {
             scope.stop();
-            ftsSearch.mockRestore();
+            fts.restore();
             affinityProfile.value = previousProfile;
             appLanguageIdsAsRef.value = previousLanguages;
             await shared.db.docs.delete(tagMatch._id);
@@ -158,7 +174,7 @@ describe("useRecommendations FTS retrieval", () => {
         const previousLanguages = [...appLanguageIdsAsRef.value];
         const previousSyncedLanguages = [...appSyncedLanguageIdsAsRef.value];
         const previousProfile = affinityProfile.value;
-        const ftsSearch = vi.spyOn(shared, "ftsSearch").mockResolvedValue([]);
+        const fts = spyOnFtsSearch();
         const scope = effectScope();
 
         try {
@@ -171,19 +187,19 @@ describe("useRecommendations FTS retrieval", () => {
             };
             scope.run(() => useRecommendations());
 
-            await waitForExpect(() => expect(ftsSearch).toHaveBeenCalledTimes(1));
+            await waitForExpect(() => expect(fts.searches()).toHaveLength(1));
             await new Promise((resolve) => setTimeout(resolve, 400));
-            expect(ftsSearch).toHaveBeenCalledTimes(1);
-            ftsSearch.mockClear();
+            expect(fts.searches()).toHaveLength(1);
+            fts.clear();
 
             affinityProfile.value = { ...affinityProfile.value };
             await nextTick();
             await new Promise((resolve) => setTimeout(resolve, 400));
 
-            expect(ftsSearch).not.toHaveBeenCalled();
+            expect(fts.searches()).toEqual([]);
         } finally {
             scope.stop();
-            ftsSearch.mockRestore();
+            fts.restore();
             affinityProfile.value = previousProfile;
             appLanguageIdsAsRef.value = previousLanguages;
             appSyncedLanguageIdsAsRef.value = previousSyncedLanguages;
@@ -218,7 +234,7 @@ describe("useRecommendations FTS retrieval", () => {
         const previousLanguages = [...appLanguageIdsAsRef.value];
         const previousSyncedLanguages = [...appSyncedLanguageIdsAsRef.value];
         const previousProfile = affinityProfile.value;
-        const ftsSearch = vi.spyOn(shared, "ftsSearch").mockResolvedValue([]);
+        const fts = spyOnFtsSearch();
         const scope = effectScope();
 
         try {
@@ -232,33 +248,33 @@ describe("useRecommendations FTS retrieval", () => {
             scope.run(() => useRecommendations());
 
             await waitForExpect(() =>
-                expect(ftsSearch).toHaveBeenCalledWith(
+                expect(fts.searches()).toContainEqual(
                     expect.objectContaining({
                         query: tagTitle,
                         languageId: "lang-eng",
                     }),
                 ),
             );
-            ftsSearch.mockClear();
+            fts.clear();
 
             appLanguageIdsAsRef.value = ["lang-fra"];
             appSyncedLanguageIdsAsRef.value = ["lang-fra"];
             await nextTick();
 
             await waitForExpect(() =>
-                expect(ftsSearch).toHaveBeenCalledWith(
+                expect(fts.searches()).toContainEqual(
                     expect.objectContaining({
                         query: tagTitle,
                         languageId: "lang-fra",
                     }),
                 ),
             );
-            expect(ftsSearch).not.toHaveBeenCalledWith(
+            expect(fts.searches()).not.toContainEqual(
                 expect.objectContaining({ languageId: "lang-eng" }),
             );
         } finally {
             scope.stop();
-            ftsSearch.mockRestore();
+            fts.restore();
             affinityProfile.value = previousProfile;
             appLanguageIdsAsRef.value = previousLanguages;
             appSyncedLanguageIdsAsRef.value = previousSyncedLanguages;
@@ -273,9 +289,7 @@ describe("useRecommendations FTS retrieval", () => {
         const previousSyncedLanguages = [...appSyncedLanguageIdsAsRef.value];
         const previousProfile = affinityProfile.value;
         const previousHighlights = await shared.db.getLuminaryInternals("highlights");
-        const ftsSearch = vi
-            .spyOn(shared, "ftsSearch")
-            .mockResolvedValue([makeFtsResult(highlightedMatch, 10)]);
+        const fts = spyOnFtsSearch([makeFtsResult(highlightedMatch, 10)]);
         const scope = effectScope();
 
         try {
@@ -292,7 +306,7 @@ describe("useRecommendations FTS retrieval", () => {
             if (!result) throw new Error("recommendation scope did not initialize");
 
             await waitForExpect(() => {
-                expect(ftsSearch).toHaveBeenCalledWith(
+                expect(fts.searches()).toContainEqual(
                     expect.objectContaining({
                         query: "Specific highlighted vocabulary",
                         languageId,
@@ -304,7 +318,7 @@ describe("useRecommendations FTS retrieval", () => {
             });
         } finally {
             scope.stop();
-            ftsSearch.mockRestore();
+            fts.restore();
             affinityProfile.value = previousProfile;
             appLanguageIdsAsRef.value = previousLanguages;
             appSyncedLanguageIdsAsRef.value = previousSyncedLanguages;
@@ -327,7 +341,7 @@ describe("useRecommendations FTS retrieval", () => {
         const previousSyncedLanguages = [...appSyncedLanguageIdsAsRef.value];
         const previousProfile = affinityProfile.value;
         const previousRecentSearches = localStorage.getItem("luminary-search-recent");
-        const ftsSearch = vi.spyOn(shared, "ftsSearch").mockResolvedValue([]);
+        const fts = spyOnFtsSearch();
         const scope = effectScope();
 
         try {
@@ -338,18 +352,18 @@ describe("useRecommendations FTS retrieval", () => {
             scope.run(() => useRecommendations());
 
             // The recent search is available immediately; the tag's title only syncs in later.
-            await waitForExpect(() => expect(ftsSearch).toHaveBeenCalledTimes(1));
+            await waitForExpect(() => expect(fts.searches()).toHaveLength(1));
             await shared.db.docs.put(tagTitleDoc);
 
-            await waitForExpect(() => expect(ftsSearch).toHaveBeenCalledTimes(2));
+            await waitForExpect(() => expect(fts.searches()).toHaveLength(2));
             await new Promise((resolve) => setTimeout(resolve, 400));
-            expect(ftsSearch.mock.calls.map(([options]) => options.query)).toEqual([
+            expect(fts.searches().map((search) => search.query)).toEqual([
                 "forgiveness",
                 "Late topic title",
             ]);
         } finally {
             scope.stop();
-            ftsSearch.mockRestore();
+            fts.restore();
             affinityProfile.value = previousProfile;
             appLanguageIdsAsRef.value = previousLanguages;
             appSyncedLanguageIdsAsRef.value = previousSyncedLanguages;
@@ -368,7 +382,7 @@ describe("useRecommendations first paint", () => {
         const newMatch = makeContent("first-paint-new", ["tag-first-paint-new"], publishDate);
         const previousLanguages = [...appLanguageIdsAsRef.value];
         const previousProfile = affinityProfile.value;
-        const ftsSearch = vi.spyOn(shared, "ftsSearch").mockResolvedValue([]);
+        const fts = spyOnFtsSearch();
         const firstScope = effectScope();
         const secondScope = effectScope();
 
@@ -408,7 +422,7 @@ describe("useRecommendations first paint", () => {
         } finally {
             firstScope.stop();
             secondScope.stop();
-            ftsSearch.mockRestore();
+            fts.restore();
             affinityProfile.value = previousProfile;
             appLanguageIdsAsRef.value = previousLanguages;
             await shared.db.docs.bulkDelete([oldMatch._id, newMatch._id]);
@@ -440,9 +454,10 @@ describe("useRecommendations pinned content", () => {
         const previousLanguages = [...appLanguageIdsAsRef.value];
         const previousSyncedLanguages = [...appSyncedLanguageIdsAsRef.value];
         const previousProfile = affinityProfile.value;
-        const ftsSearch = vi
-            .spyOn(shared, "ftsSearch")
-            .mockResolvedValue([makeFtsResult(pinnedFtsHit, 10), makeFtsResult(unpinnedFtsHit, 9)]);
+        const fts = spyOnFtsSearch([
+            makeFtsResult(pinnedFtsHit, 10),
+            makeFtsResult(unpinnedFtsHit, 9),
+        ]);
         const scope = effectScope();
 
         try {
@@ -465,7 +480,7 @@ describe("useRecommendations pinned content", () => {
             expect(ids).not.toContain(pinnedFtsHit._id);
         } finally {
             scope.stop();
-            ftsSearch.mockRestore();
+            fts.restore();
             affinityProfile.value = previousProfile;
             appLanguageIdsAsRef.value = previousLanguages;
             appSyncedLanguageIdsAsRef.value = previousSyncedLanguages;

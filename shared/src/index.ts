@@ -13,6 +13,7 @@ export * from "./api/sync";
 export * from "./s3/s3Utils";
 export * from "./config";
 export * from "./fts";
+export * from "./worker";
 export * from "./api/http";
 export * from "./ssg";
 export * from "./recommendation/affinity";

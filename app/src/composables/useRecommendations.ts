@@ -2,6 +2,7 @@ import { computed, onScopeDispose, ref, watch } from "vue";
 import {
     decay,
     DocType,
+    ftsSearchManyInWorker,
     PublishStatus,
     type AffinityMap,
     type ContentDto,
@@ -26,7 +27,6 @@ import {
 import { getSeenArticleIds, seenVersion } from "@/recommendation/seenStore";
 import { appSyncedDisplayLanguageIdsAsRef } from "@/globalConfig";
 import { sessionNow } from "@/util/sessionNow";
-import { ftsSearchInWorker } from "@/recommendation/ftsWorkerClient";
 import { filterTopicTagIds } from "@/recommendation/topicTags";
 import {
     rank,
@@ -318,45 +318,59 @@ export function useRecommendations({
                             ftsResultCache = new Map();
                             ftsCacheLanguageKey = languageKey;
                         }
-                        const ftsSearches = await Promise.all(
-                            queries.map(async ({ query, weight }) => {
-                                const cached = ftsResultCache.get(query);
-                                if (cached) return { weight, results: cached };
-                                // Search only locally synced languages in the user's preferred
-                                // priority order: primary first, then downloaded fallbacks. The
-                                // display default may be fetched on demand, but it is not a
-                                // complete local FTS corpus and must not trigger a BM25 scan.
-                                const perLanguage = await Promise.all(
-                                    languageIds.map((languageId) =>
-                                        ftsSearchInWorker({
-                                            query,
-                                            languageId,
-                                            status: PublishStatus.Published,
-                                            publishedBefore: now,
-                                            limit: retrievalLimit,
-                                        }),
-                                    ),
-                                );
-                                const seenParentIds = new Set<Uuid>();
-                                const merged: FtsSearchResult[] = [];
-                                // Results remain parallel, but language-priority merge order is
-                                // deterministic and duplicate translations keep the first hit.
-                                for (const results of perLanguage) {
-                                    for (const r of results) {
-                                        if (seenParentIds.has(r.doc.parentId)) continue;
-                                        // ftsSearch has no expiry filter — drop expired content
-                                        // post-hoc (parity with the tag leg's mangoIsPublished).
-                                        if (r.doc.expiryDate && r.doc.expiryDate < now) continue;
-                                        seenParentIds.add(r.doc.parentId);
-                                        merged.push(r);
-                                        if (merged.length >= retrievalLimit) break;
-                                    }
+                        // Search only locally synced languages in the user's preferred priority
+                        // order: primary first, then downloaded fallbacks. The display default
+                        // may be fetched on demand, but it is not a complete local FTS corpus
+                        // and must not trigger a BM25 scan.
+                        //
+                        // Every (query × language) pair goes over in one call: one structured
+                        // clone instead of one per pair, and a doc several of them reach is
+                        // loaded and tokenised once.
+                        const misses = [...new Set(queries.map(({ query }) => query))].filter(
+                            (query) => !ftsResultCache.has(query),
+                        );
+                        const pages = misses.length
+                            ? await ftsSearchManyInWorker(
+                                  misses.flatMap((query) =>
+                                      languageIds.map((languageId) => ({
+                                          query,
+                                          languageId,
+                                          status: PublishStatus.Published,
+                                          publishedBefore: now,
+                                          limit: retrievalLimit,
+                                      })),
+                                  ),
+                              )
+                            : [];
+                        const pagesByQuery = new Map(
+                            misses.map((query, i) => [
+                                query,
+                                pages.slice(i * languageIds.length, (i + 1) * languageIds.length),
+                            ]),
+                        );
+
+                        const ftsSearches = queries.map(({ query, weight }) => {
+                            const cached = ftsResultCache.get(query);
+                            if (cached) return { weight, results: cached };
+                            const seenParentIds = new Set<Uuid>();
+                            const merged: FtsSearchResult[] = [];
+                            // Language-priority merge order is deterministic and duplicate
+                            // translations keep the first hit.
+                            for (const results of pagesByQuery.get(query) ?? []) {
+                                for (const r of results) {
+                                    if (seenParentIds.has(r.doc.parentId)) continue;
+                                    // ftsSearch has no expiry filter — drop expired content
+                                    // post-hoc (parity with the tag leg's mangoIsPublished).
+                                    if (r.doc.expiryDate && r.doc.expiryDate < now) continue;
+                                    seenParentIds.add(r.doc.parentId);
+                                    merged.push(r);
                                     if (merged.length >= retrievalLimit) break;
                                 }
-                                ftsResultCache.set(query, merged);
-                                return { weight, results: merged };
-                            }),
-                        );
+                                if (merged.length >= retrievalLimit) break;
+                            }
+                            ftsResultCache.set(query, merged);
+                            return { weight, results: merged };
+                        });
                         if (runSeq !== ftsRunSeq) return;
                         // Bound the cache to the live query set so dropped highlights and
                         // rotated-out tag titles don't accumulate for the session.

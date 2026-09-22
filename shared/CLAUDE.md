@@ -109,7 +109,16 @@ Offline fuzzy search using **trigram indexing + BM25**. Read `src/fts/README.md`
 - The field config (title=3.0, summary=1.5, text=1.0, author=1.0) and BM25 params are **hard-coded identically** in `api/src/util/ftsIndexing.ts`, `api/src/util/ftsScoring.ts`, and `shared/src/fts/ftsSearch.ts` — if you change one, change all (ADR 0009/0010).
 - **Routing (ADR 0011):** `useFtsSearch` routes each search to local (offline, or no `publishDate` cutoff — full sync, incl. the CMS) or the server-side `/fts` endpoint (online + a `publishDate` cutoff is set) via `shouldUseApiFts()` + `ftsSearchApi`. Single source per search (no merge); falls back to local on API failure and exposes `source` / `isPartial`. **Server results are trimmed (`fts`/`ftsTokenCount` stripped) and must never be `bulkPut`/persisted** — they'd break the `*fts` offline index.
 - Local search optimizations (perf): high-df trigram pruning, a language pre-filter before loading docs, and top-K-only word-match. See `README.md`.
-- Consumer surface is `useFtsSearch(query, options)` (Vue composable, debounced, paginated) or `ftsSearch(opts)` / `ftsSearchApi(opts)` (direct calls).
+- Consumer surface is `useFtsSearch(query, options)` (Vue composable, debounced, paginated) or `ftsSearch(opts)` / `ftsSearchApi(opts)` (direct calls). `ftsSearchInWorker` / `ftsSearchManyInWorker` are the off-main-thread equivalents — see below. Their results are trimmed (`fts`/`ftsTokenCount` stripped) and, like server results, must never be `bulkPut`.
+
+### Off-main-thread tasks — `src/worker/`
+
+A typed RPC over one reusable Web Worker. Read `src/worker/README.md` before changing it. Key points:
+
+- Registering an entry in `src/worker/tasks.ts` is the whole of "run this off the main thread"; `runInWorker(name, payload)` and `useWorkerTask` are the surfaces. The registry's `run` is also the main-thread fallback, so no task may depend on being in a worker.
+- The worker is a separate realm: **no Vue/Dexie reactivity crosses it**, payloads are structured-cloned plain data, and config arrives as a one-off snapshot. It attaches to the database via `openDatabaseInWorker` (`initDatabase` can't run there — it reads the schema version from `localStorage`), so tasks are reads.
+- The low-end-device policy lives in the layer, not the callers: workers are reused and capped at two, results are shrunk via a task's `trim` before being cloned back, and superseded requests are dropped from the worker's serial queue.
+- Every failure path degrades to the main thread rather than surfacing an error.
 
 ### Types — `src/types/`
 
