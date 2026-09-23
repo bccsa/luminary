@@ -3,21 +3,17 @@ import { createApp, nextTick, watch } from "vue";
 import { createPinia } from "pinia";
 import App from "./App.vue";
 import router from "./router";
-import { setupAuth } from "@/auth";
+import { isAuthenticated, setupAuth } from "@/auth";
 import { registerAuthFailureHandler } from "@/authFailure";
 import { useNotificationStore } from "./stores/notification";
 import { appPluginsManager } from "@/build-time/contracts/plugin-registry";
 import { getSocket, init, warmMangoCaches, serverError } from "luminary-shared";
-import {
-    appSyncedLanguageIdsAsRef,
-    initLanguage,
-    isAppLoading,
-    isInstalledStandalone,
-} from "./globalConfig";
+import { appSyncedLanguageIdsAsRef, initLanguage, isAppLoading } from "./globalConfig";
 import { apiUrl } from "./globalConfig";
 import { initAppTitle, initI18n } from "./i18n";
 import { initAnalytics } from "./analytics";
 import { initSync, initAuthLangSync } from "./sync";
+import { applyContentSyncPolicy } from "./contentSyncPolicy";
 import { initDefaultAffinitySync } from "@/recommendation/defaultAffinityStore";
 import { APP_DOCS_INDEX } from "./docsIndex";
 import { initSentry, Sentry } from "@/util/initSentry";
@@ -34,24 +30,11 @@ app.use(createPinia());
 
 initSentry(app);
 
-/**
- * Content sync window. Installed (standalone) sessions sync the full corpus (no
- * cutoff). Browser-tab sessions sync only the last ~1 month; content with
- * `publishDate` older than `Date.now() - BROWSER_CONTENT_SYNC_WINDOW_MS` is not
- * synced into IndexedDB and is fetched on demand by `HybridQuery`. The tier is
- * decided once per launch — installing takes effect on the next app open.
- */
-const BROWSER_CONTENT_SYNC_WINDOW_MS = 30 * 24 * 60 * 60 * 1000; // ~1 month
-
 async function Startup() {
     // Pre-warm Mango query caches from localStorage before any queries run.
     // On the first visit this is a no-op; on subsequent loads it eliminates
     // cold-start compilation latency for IndexedDB queries.
     warmMangoCaches();
-
-    // Installed (standalone) users sync the full corpus; browser-tab users get a
-    // rolling ~1 month window (older content is fetched on demand by HybridQuery).
-    const installedStandalone = isInstalledStandalone();
 
     await init({
         cms: false,
@@ -61,9 +44,6 @@ async function Startup() {
         // the full preferred display order — so only chosen languages download, while preferred-
         // but-unsynced languages are fetched on demand.
         appLanguageIdsAsRef: appSyncedLanguageIdsAsRef,
-        contentPublishDateCutoff: installedStandalone
-            ? undefined // no cutoff → full corpus
-            : Date.now() - BROWSER_CONTENT_SYNC_WINDOW_MS,
     });
 
     // Keep the CMS-managed default-affinity baseline/config in sync with the local
@@ -91,6 +71,8 @@ async function Startup() {
     app.use(appPluginsManager);
 
     await setupAuth(app, router);
+    // Needs the resolved auth state, and must precede any content sync or query.
+    await applyContentSyncPolicy(isAuthenticated.value);
     socket.connect(); // ensure socket connects for public users (no-op if auth already called reconnect())
 
     // Install all plugins before mounting — components rendered during the

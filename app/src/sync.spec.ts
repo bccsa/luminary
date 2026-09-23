@@ -28,7 +28,12 @@ vi.mock("./globalConfig", async () => {
     };
 });
 
+vi.mock("./contentSyncPolicy", () => ({
+    contentSyncMode: vi.fn(() => "full"),
+}));
+
 // Import after mocks are set up
+const { contentSyncMode } = await import("./contentSyncPolicy");
 const { initAuthLangSync, initSync, triggerSync, syncIterators } = await import("./sync");
 
 const { accessMap, getAccessibleGroups, isConnected, setCancelSync, sync } = await import(
@@ -554,6 +559,50 @@ describe("sync.ts", () => {
                     cms: false,
                 });
             });
+        });
+    });
+
+    describe("initSync with content sync mode none", () => {
+        it("skips post/tag content but still syncs the bootstrap doc types", async () => {
+            vi.mocked(contentSyncMode).mockReturnValue("none");
+            vi.mocked(getAccessibleGroups).mockReturnValue({
+                [DocType.Content]: [],
+                [DocType.Group]: [],
+                [DocType.Language]: [],
+                [DocType.Redirect]: ["group1"],
+                [DocType.Post]: ["group1"],
+                [DocType.Tag]: ["group1"],
+                [DocType.User]: [],
+                [DocType.DeleteCmd]: [],
+                [DocType.Storage]: ["group1"],
+                [DocType.Crypto]: [],
+                [DocType.AuthProvider]: [],
+                [DocType.AutoGroupMappings]: [],
+                [DocType.DefaultAffinity]: ["group1"],
+                [DocType.Sidecar]: [],
+            });
+
+            initSync();
+            isConnected.value = true;
+            appSyncedLanguageIdsAsRef.value = ["en"];
+            syncIterators.value.content++;
+            await nextTick();
+
+            await waitForExpect(() => {
+                const types = vi.mocked(sync).mock.calls.map(([o]) => o.type);
+                expect(types).toEqual(
+                    expect.arrayContaining([
+                        DocType.Redirect,
+                        DocType.Storage,
+                        DocType.DefaultAffinity,
+                    ]),
+                );
+            });
+            expect(sync).not.toHaveBeenCalledWith(
+                expect.objectContaining({ type: DocType.Content }),
+            );
+
+            vi.mocked(contentSyncMode).mockReturnValue("full");
         });
     });
 

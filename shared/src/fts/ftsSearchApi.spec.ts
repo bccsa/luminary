@@ -4,9 +4,10 @@ vi.mock("../api/RestApi", () => ({
     getRest: vi.fn(),
 }));
 
-import { ftsSearchApi } from "./ftsSearchApi";
+import { ftsSearchApi, shouldUseApiFts } from "./ftsSearchApi";
 import { getRest } from "../api/RestApi";
 import { initConfig } from "../config";
+import { isConnected } from "../socket/socketio";
 import type { ApiFtsResult } from "./types";
 
 const ftsMock = vi.fn();
@@ -94,7 +95,12 @@ describe("ftsSearchApi", () => {
 
     it("normalizes results and tags them source: 'api'", async () => {
         const apiResults: ApiFtsResult[] = [
-            { docId: "d1", score: 5, wordMatchScore: 2, doc: { _id: "d1", title: "garden" } as any },
+            {
+                docId: "d1",
+                score: 5,
+                wordMatchScore: 2,
+                doc: { _id: "d1", title: "garden" } as any,
+            },
         ];
         ftsMock.mockResolvedValue(apiResults);
         const res = await ftsSearchApi({ query: "garden" });
@@ -112,5 +118,27 @@ describe("ftsSearchApi", () => {
     it("throws when the API request fails (undefined response)", async () => {
         ftsMock.mockResolvedValue(undefined);
         await expect(ftsSearchApi({ query: "garden" })).rejects.toThrow("FTS API request failed");
+    });
+});
+
+describe("shouldUseApiFts", () => {
+    beforeEach(() => {
+        isConnected.value = true;
+    });
+
+    it("searches locally under a full content sync (no cutoff)", () => {
+        initConfig({ cms: false, docsIndex: "", apiUrl: "http://x" });
+        expect(shouldUseApiFts()).toBe(false);
+    });
+
+    it("searches the server when content sync is disabled, even without a cutoff", () => {
+        initConfig({ cms: false, docsIndex: "", apiUrl: "http://x", contentSync: false });
+        expect(shouldUseApiFts()).toBe(true);
+    });
+
+    it("searches locally while offline even when content sync is disabled", () => {
+        initConfig({ cms: false, docsIndex: "", apiUrl: "http://x", contentSync: false });
+        isConnected.value = false;
+        expect(shouldUseApiFts()).toBe(false);
     });
 });

@@ -1,5 +1,5 @@
 import { getRest } from "../api/RestApi";
-import { config, getContentPublishDateCutoff } from "../config";
+import { config, getContentPublishDateCutoff, isContentSyncEnabled } from "../config";
 import { isConnected } from "../socket/socketio";
 import { OPEN_MIN } from "../api/sync/utils";
 import type { ContentDto } from "../types";
@@ -20,13 +20,16 @@ import type { FtsSearchOptions, FtsSearchResult } from "./types";
  *   sets a cutoff) and for an app that has fully synced. It mirrors `HybridQuery`'s
  *   content routing, which likewise skips the API supplement when there is no cutoff
  *   (`decideContentApiQuery` returns `undefined`).
+ * - Online + content sync disabled → API: nothing is held locally.
  *
  * Note: the CMS does NOT force the API path. With no cutoff it searches its full local
  * index (drafts/expired included — visibility is the caller's concern via the `status`
  * filter), keeping search consistent with its local-only browse.
  */
 export function shouldUseApiFts(): boolean {
-    return isConnected.value && getContentPublishDateCutoff() !== OPEN_MIN;
+    return (
+        isConnected.value && (getContentPublishDateCutoff() !== OPEN_MIN || !isContentSyncEnabled())
+    );
 }
 
 /**

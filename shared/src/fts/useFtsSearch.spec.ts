@@ -429,7 +429,9 @@ describe("useFtsSearch", () => {
         // Stale first search resolves; must be discarded.
         resolveFirst([makeResult("stale")]);
         await vi.advanceTimersByTimeAsync(10);
-        expect(result.results.value).not.toContainEqual(expect.objectContaining({ docId: "stale" }));
+        expect(result.results.value).not.toContainEqual(
+            expect.objectContaining({ docId: "stale" }),
+        );
 
         // New debounced search proceeds normally.
         await vi.advanceTimersByTimeAsync(60);
@@ -512,6 +514,31 @@ describe("useFtsSearch", () => {
         expect(mockFtsSearch).not.toHaveBeenCalled();
         expect(result.source.value).toBe("api");
         expect(result.isPartial.value).toBe(false);
+        scope.stop();
+    });
+
+    it("content sync disabled routes online searches to the API", async () => {
+        isConnected.value = true;
+        initConfig({ ...NO_CUTOFF, contentSync: false } as any);
+        mockFtsSearchApi.mockResolvedValue([makeResult("a1")]);
+        const { result, scope } = await runOnce(() =>
+            useFtsSearch(ref("garden plants"), { debounceMs: 50 }),
+        );
+        expect(mockFtsSearchApi).toHaveBeenCalled();
+        expect(mockFtsSearch).not.toHaveBeenCalled();
+        expect(result.source.value).toBe("api");
+        scope.stop();
+    });
+
+    it("content sync disabled flags an offline local search as partial", async () => {
+        isConnected.value = false;
+        initConfig({ ...NO_CUTOFF, contentSync: false } as any);
+        mockFtsSearch.mockResolvedValue([]);
+        const { result, scope } = await runOnce(() =>
+            useFtsSearch(ref("garden plants"), { debounceMs: 50 }),
+        );
+        expect(result.source.value).toBe("local");
+        expect(result.isPartial.value).toBe(true);
         scope.stop();
     });
 

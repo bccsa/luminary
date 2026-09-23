@@ -27,7 +27,8 @@ import { DateTime } from "luxon";
 import { db, type RetentionEntry } from "./database";
 import { config, getContentPublishDateCutoff, getOfflineRetentionTtl } from "../config";
 import { DocType, type ContentDto } from "../types";
-import { OPEN_MIN } from "../api/sync/utils";
+import { OPEN_MIN, splitChunkTypeString } from "../api/sync/utils";
+import { syncList } from "../api/sync/state";
 import { scheduleCorpusStatsRecompute } from "../fts/ftsIndexer";
 
 /** How often the pending batch is written to the `retention` table. */
@@ -169,6 +170,27 @@ export async function pruneUnsyncedLanguageContent(languageIds: readonly string[
         deletedAny = true;
     }
     if (deletedAny) scheduleCorpusStatsRecompute();
+}
+
+/**
+ * Drop all synced Content (docs, retention rows and Content `syncList` entries) — for a client
+ * that no longer syncs Content, so stale local docs don't linger. No-op when nothing was synced.
+ */
+export async function purgeSyncedContent(): Promise<void> {
+    if (config.cms) return;
+    await db.getSyncList();
+    const isContentEntry = (chunkType: string) =>
+        splitChunkTypeString(chunkType).type === DocType.Content;
+    if (!syncList.value.some((e) => isContentEntry(e.chunkType))) return;
+
+    // Remove the entries first so liveSync stops persisting Content while the docs are deleted.
+    syncList.value = syncList.value.filter((e) => !isContentEntry(e.chunkType));
+    await db.setSyncList();
+
+    const ids = (await db.docs.where("type").equals(DocType.Content).primaryKeys()) as string[];
+    await db.docs.bulkDelete(ids);
+    await db.retention.clear();
+    scheduleCorpusStatsRecompute();
 }
 
 /** Best-effort flush of pending stamps when the page is hidden / unloaded. Registered once. */
