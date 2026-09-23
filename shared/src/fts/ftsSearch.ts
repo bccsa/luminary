@@ -353,8 +353,9 @@ async function searchInBatch(
     for (let i = blockStart; i < Math.min(blockEnd, out.length); i += WORDMATCH_BLOCK) {
         const block = out.slice(i, i + WORDMATCH_BLOCK);
         if (queryWords.length > 0) {
-            for (const [j, result] of block.entries()) {
-                if (i + j >= wordMatchCap) break;
+            const scored = Math.min(block.length, wordMatchCap - i);
+            for (let j = 0; j < scored; j++) {
+                const result = block[j];
                 result.wordMatchScore = computeFieldWordMatchScore(
                     queryWords,
                     result.doc as Record<string, any>,
