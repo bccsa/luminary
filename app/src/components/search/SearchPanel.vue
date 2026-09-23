@@ -1,19 +1,33 @@
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted, computed, inject, nextTick } from "vue";
+import {
+    ref,
+    watch,
+    onMounted,
+    onUnmounted,
+    onActivated,
+    onDeactivated,
+    computed,
+    inject,
+    nextTick,
+} from "vue";
 import { MagnifyingGlassIcon, XMarkIcon, ArrowRightIcon } from "@heroicons/vue/24/outline";
 import { ArrowUturnLeftIcon } from "@heroicons/vue/20/solid";
 import { useInfiniteScroll } from "@vueuse/core";
 import { useSearchOverlay } from "@/composables/useSearchOverlay";
 import { cmsLanguages, isMac, isMobileScreen } from "@/globalConfig";
 import { useDisplayLanguageIds } from "@/ssg/renderLanguage";
-import { useRoute, useRouter } from "vue-router";
+import { onBeforeRouteLeave, useRoute, useRouter } from "vue-router";
 import LImage from "@/components/images/LImage.vue";
 import { useFtsSearch, stripHtml } from "luminary-shared";
 import type { ContentDto, FtsSearchResult } from "luminary-shared";
 import { useI18n } from "vue-i18n";
 import { recordAffinity } from "@/recommendation/affinityStore";
 import { affinityConfig } from "@/recommendation/defaultAffinityStore";
-import { recordSearchQuery, loadRecentSearches, searchVersion } from "@/recommendation/searchQueryStore";
+import {
+    recordSearchQuery,
+    loadRecentSearches,
+    searchVersion,
+} from "@/recommendation/searchQueryStore";
 
 /**
  * The shared search surface, embedded two ways:
@@ -398,21 +412,48 @@ watch(
     { immediate: true },
 );
 
+// Kept alive: while another page is showing, the URL is not this page's to read or write.
+let isActive = true;
+onDeactivated(() => (isActive = false));
+
+// A kept-alive page's scroller is detached (and reads 0) by onDeactivated, so the
+// position is taken in the route guard instead. Page mode only: the modal sits outside
+// <RouterView>, where route guards cannot register.
+let savedScrollTop = 0;
+if (isPage.value) {
+    onBeforeRouteLeave(() => {
+        savedScrollTop = mainScrollEl.value?.scrollTop ?? 0;
+    });
+}
+
+onActivated(() => {
+    isActive = true;
+    if (!isPage.value) return;
+    nextTick(() => {
+        if (mainScrollEl.value) mainScrollEl.value.scrollTop = savedScrollTop;
+    });
+    // The Search tab opens a bare /search: keep the search and put its query back in the URL.
+    if (typeof route.query.q === "string") applyRouteQuery(route.query.q);
+    else syncUrl(lastSearchedQuery.value);
+});
+
 // ── Page mode: the URL is the source of truth for the query ──────────────────
 // Public structured-data contract: /search?q=<URL-encoded query>. The dedicated search
 // route opens and executes the FTS search. We also write `q` back (replace, no history
 // spam) after a search runs so the page is shareable and back/forward keeps the query.
 function applyRouteQuery(value: unknown) {
-    if (!isPage.value || typeof value !== "string") return;
+    if (!isPage.value || !isActive || typeof value !== "string") return;
     const query = value.trim();
     if (query === searchQuery.value.trim()) return; // avoid sync loop
+    // A different search starts at the top, not where the previous one was left.
+    savedScrollTop = 0;
     searchQuery.value = query;
     if (query.length >= 3 && lastSearchedQuery.value !== query) runSearch();
     else if (!query) resetSearch();
 }
 
 function syncUrl(q: string) {
-    if (!isPage.value) return;
+    if (!isPage.value || !isActive) return;
     const current = typeof route.query.q === "string" ? route.query.q : "";
     if (current === q) return;
     void router.replace({ query: q ? { q } : {} });
