@@ -49,7 +49,7 @@ When routing to the server, local results are **not** merged in. The `/fts` corp
 Profiling the local engine on a full-sync corpus drove several optimizations in `shared/src/fts/ftsSearch.ts` (~1.45s → ~700ms):
 
 - **Language pre-filter before load** (biggest, no recall change): intersect matched IDs with `where("language").equals(languageId).primaryKeys()` (an index-only ID scan) before loading docs, so we don't read+deserialize the large `fts` array of docs the language filter would discard.
-- **Top-K word-match**: the HTML-stripping word-match bonus runs only on the top `max(offset+limit, WORDMATCH_TOPK)` by BM25; docs below keep their BM25-only score.
+- **Block word-match**: results are BM25-ranked, then the HTML-stripping word-match bonus is applied and re-ranked within fixed blocks of `WORDMATCH_BLOCK` (150), only for the blocks a page overlaps — mirroring the server's `FTS_TOP_K`, so pages never repeat results.
 - **High-df pruning** (mirrors the server): keep the most discriminative trigrams within a df budget. Note this helped less locally than on the server — the load is already bounded by the language filter, so pruning mostly trims the cheap union scan, not the doc load.
 - **Parallelized index scans** via `Promise.all`. Note: IndexedDB serializes reads on one object store, so this gave little for the `.count()` pass; document it so it isn't relied upon.
 

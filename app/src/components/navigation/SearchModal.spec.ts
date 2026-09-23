@@ -791,11 +791,24 @@ describe("SearchButton", () => {
             const wrapper = await setupWithTwoResults();
 
             await wrapper.find("input").trigger("keydown", { key: "ArrowDown" });
+            await wrapper.find("input").trigger("keydown", { key: "ArrowDown" });
             await wrapper.find("input").trigger("keydown", { key: "ArrowUp" });
             await nextTick();
 
             const items = wrapper.findAll("[role='option']");
-            expect(items[1].attributes("aria-selected")).toBe("true");
+            expect(items[0].attributes("aria-selected")).toBe("true");
+        });
+
+        it("stays on the first result on ArrowUp instead of wrapping to the last", async () => {
+            const wrapper = await setupWithTwoResults();
+
+            await wrapper.find("input").trigger("keydown", { key: "ArrowDown" });
+            await wrapper.find("input").trigger("keydown", { key: "ArrowUp" });
+            await nextTick();
+
+            const items = wrapper.findAll("[role='option']");
+            expect(items[0].attributes("aria-selected")).toBe("true");
+            expect(items[1].attributes("aria-selected")).toBe("false");
         });
 
         it("navigates to the selected result on Enter", async () => {

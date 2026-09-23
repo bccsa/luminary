@@ -154,6 +154,29 @@ describe("useFtsSearch", () => {
         scope.stop();
     });
 
+    it("loadMore skips results already shown", async () => {
+        const scope = effectScope();
+        let result: any;
+        scope.run(() => {
+            const queryRef = ref("quantum physics test");
+            mockFtsSearch.mockResolvedValue([makeResult("doc-0"), makeResult("doc-1")]);
+            result = useFtsSearch(queryRef, { debounceMs: 50, pageSize: 2 });
+        });
+        await vi.advanceTimersByTimeAsync(110);
+
+        mockFtsSearch.mockResolvedValue([makeResult("doc-1"), makeResult("doc-2")]);
+        result.loadMore();
+        await vi.advanceTimersByTimeAsync(10);
+
+        expect(result.results.value.map((r: FtsSearchResult) => r.docId)).toEqual([
+            "doc-0",
+            "doc-1",
+            "doc-2",
+        ]);
+        expect(result.totalLoaded.value).toBe(4);
+        scope.stop();
+    });
+
     it("loadMore does nothing while searching", async () => {
         const scope = effectScope();
         let result: any;
