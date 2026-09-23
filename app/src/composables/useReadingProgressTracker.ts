@@ -40,6 +40,9 @@ export const READING_RESTORE_GUARD_MS = 400;
 /** Subpixel tolerance when comparing block bottom to viewport bottom. */
 export const READING_BLOCK_END_TOLERANCE_PX = 4;
 
+/** Fractional scroll positions and zoom mean the end rarely lands on an exact integer. */
+export const READING_SCROLL_END_TOLERANCE_PX = 2;
+
 /**
  * Debounce for the ResizeObserver → re-collect pass. On Android the URL bar
  * collapsing/expanding resizes the viewport during normal scrolling; without a
@@ -130,10 +133,38 @@ export function segmentWordCount(segment: ReadingSegment, elementHeightPx?: numb
     return Math.round((segmentHeight / totalHeight) * totalWords);
 }
 
+/**
+ * True when the container scrolls and is resting at its end. A container that cannot scroll
+ * is not "at the end": everything already fits, so gate 1b needs no relief — and one that has
+ * not been laid out yet reports zeroes, which would otherwise read as the end of the article.
+ */
+export function isScrollAtEnd(
+    container: HTMLElement | Window,
+    tolerancePx = READING_SCROLL_END_TOLERANCE_PX,
+): boolean {
+    const { offset, visible, total } =
+        container === window
+            ? {
+                  offset: window.scrollY,
+                  visible: window.innerHeight,
+                  total: document.documentElement?.scrollHeight ?? 0,
+              }
+            : {
+                  offset: (container as HTMLElement).scrollTop,
+                  visible: (container as HTMLElement).clientHeight,
+                  total: (container as HTMLElement).scrollHeight,
+              };
+
+    if (total <= visible) return false;
+
+    return offset + visible >= total - tolerancePx;
+}
+
 export function isSegmentEligible(
     segment: ReadingSegment,
     elementRect: Pick<DOMRectReadOnly, "top">,
     viewport: ViewportBounds,
+    atScrollEnd = false,
 ): boolean {
     const segmentTop = elementRect.top + segment.topPx;
     const segmentBottom = elementRect.top + segment.bottomPx;
@@ -146,6 +177,12 @@ export function isSegmentEligible(
     const visibleHeight = Math.max(0, visibleBottom - visibleTop);
 
     if (visibleHeight / segmentHeight < READING_INTERSECTION_RATIO) return false;
+
+    // Gate 1b asks that the reader scrolled through the segment rather than glimpsing its
+    // top. At the end of the scroll there is nothing left to scroll, so a trailing segment
+    // whose bottom never clears the viewport would otherwise be unreachable — and with it
+    // 100%. The dwell and skim gates still have to pass.
+    if (atScrollEnd) return true;
 
     return isBlockEndInViewport(segmentBottom, viewport);
 }
@@ -510,6 +547,7 @@ export function useReadingProgressTracker(options: {
         el: Element,
         entry?: IntersectionObserverEntry,
         viewportArg?: ViewportBounds,
+        atScrollEndArg?: boolean,
     ) {
         const elSegments = segmentsByElement.get(el);
         if (!elSegments) return;
@@ -523,11 +561,12 @@ export function useReadingProgressTracker(options: {
         }
 
         const viewport = viewportArg ?? getViewportBounds(entry);
+        const atScrollEnd = atScrollEndArg ?? isScrollAtEnd(options.scrollContainer.value);
         const rect = entry?.boundingClientRect ?? el.getBoundingClientRect();
         let startedDwell = false;
 
         for (const segment of elSegments) {
-            if (isSegmentEligible(segment, rect, viewport)) {
+            if (isSegmentEligible(segment, rect, viewport, atScrollEnd)) {
                 visibleSegments.add(segment.id);
                 startedDwell = true;
             } else {
@@ -548,8 +587,9 @@ export function useReadingProgressTracker(options: {
     /** Full pass over every block — rare paths only (setup, restore, resize). */
     function refreshAllSegmentVisibility() {
         const viewport = getViewportBounds();
+        const atScrollEnd = isScrollAtEnd(options.scrollContainer.value);
         for (const el of segmentsByElement.keys()) {
-            updateVisibilityForElement(el, undefined, viewport);
+            updateVisibilityForElement(el, undefined, viewport, atScrollEnd);
         }
     }
 
@@ -560,8 +600,9 @@ export function useReadingProgressTracker(options: {
     function refreshIntersectingSegmentVisibility() {
         if (intersectingElements.size === 0) return;
         const viewport = getViewportBounds();
+        const atScrollEnd = isScrollAtEnd(options.scrollContainer.value);
         for (const el of intersectingElements) {
-            updateVisibilityForElement(el, undefined, viewport);
+            updateVisibilityForElement(el, undefined, viewport, atScrollEnd);
         }
     }
 
@@ -760,11 +801,12 @@ export function useReadingProgressTracker(options: {
     }
 
     function handleIntersection(entries: IntersectionObserverEntry[]) {
+        const atScrollEnd = isScrollAtEnd(options.scrollContainer.value);
         for (const entry of entries) {
             const el = entry.target as Element;
             if (entry.isIntersecting) intersectingElements.add(el);
             else intersectingElements.delete(el);
-            updateVisibilityForElement(el, entry);
+            updateVisibilityForElement(el, entry, undefined, atScrollEnd);
         }
     }
 

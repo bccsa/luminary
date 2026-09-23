@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from "vue";
 import { type ContentParentDto, type MediaDto, toAbsoluteMediaUrl } from "luminary-shared";
 import { FilmIcon, QuestionMarkCircleIcon } from "@heroicons/vue/24/outline";
 import LCard from "../common/LCard.vue";
+import LDialog from "../common/LDialog.vue";
 import EncodeMediaButton from "../media/EncodeMediaButton.vue";
 import EncodeStatus from "../media/EncodeStatus.vue";
 import MediaBucketSelect from "../media/MediaBucketSelect.vue";
@@ -25,12 +26,18 @@ type Props = {
     title?: string;
     /** The video fields need a translation selected, as they always have. */
     showVideo?: boolean;
+    /**
+     * Set while the document has never been saved; resolves to whether it saved. An
+     * encode outlives an editor who leaves without saving, leaving media nothing points to.
+     */
+    saveBeforeEncode?: () => Promise<boolean | undefined>;
 };
 const props = defineProps<Props>();
 
 const parent = defineModel<ContentParentDto>("parent");
 
 const showHelp = ref(false);
+const showSaveFirstModal = ref(false);
 const bucketSelection = storageSelection();
 
 const {
@@ -84,6 +91,16 @@ const handleBucketSelected = (bucketId: string) => {
 };
 
 const encode = () => {
+    if (props.saveBeforeEncode) showSaveFirstModal.value = true;
+    else startEncode();
+};
+
+const saveAndEncode = async () => {
+    showSaveFirstModal.value = false;
+    if (await props.saveBeforeEncode?.()) startEncode();
+};
+
+const startEncode = () => {
     const bucketId = effectiveBucketId.value;
     if (!parent.value?._id || !bucketId) return;
 
@@ -183,4 +200,14 @@ watch(
             <EditContentVideo v-if="showVideo" bare :disabled="disabled" v-model:parent="parent" />
         </div>
     </LCard>
+
+    <LDialog
+        v-model:open="showSaveFirstModal"
+        title="Save before encoding"
+        description="The encoded media is attached to this document, so it needs to be saved first."
+        primaryButtonText="Save now"
+        :primaryAction="saveAndEncode"
+        secondaryButtonText="Cancel"
+        :secondaryAction="() => (showSaveFirstModal = false)"
+    />
 </template>

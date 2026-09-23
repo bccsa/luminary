@@ -10,6 +10,8 @@ on:
     paths:
       - app/**
       - .github/workflows/app-unit-tests.yml
+      # A submodule bump changes the gitlink path itself, not files under it.
+      - luminary-media-convert
   workflow_call:
 
 env:

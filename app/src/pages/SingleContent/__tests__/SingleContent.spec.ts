@@ -46,6 +46,7 @@ import {
 import { computeEstimatedReadingMinutes } from "@/util/readingTime";
 import { ref, computed } from "vue";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
+import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
 import RelatedContent from "@/components/content/RelatedContent.vue";
 import ReadMore from "@/components/content/ReadMore.vue";
 import * as auth from "@/auth";
@@ -238,6 +239,42 @@ describe("SingleContent", () => {
 
         await waitForExpect(() => {
             expect(wrapper!.html()).toContain("test-image.webp");
+        });
+    });
+
+    it("sits a hero image flush under the mobile top bar", async () => {
+        await db.docs.update(mockEnglishContentDto._id, {
+            parentMedia: undefined,
+            video: undefined,
+        } as any);
+
+        wrapper = mount(SingleContent, {
+            props: {
+                slug: mockEnglishContentDto.slug,
+            },
+        });
+
+        await waitForExpect(() => {
+            const media = wrapper!.findComponent(IgnorePagePadding).element.parentElement!;
+            expect(media.className).toBe("lg:mt-2");
+        });
+    });
+
+    it("keeps the gap below the title when a video replaces the hero image", async () => {
+        await db.docs.update(mockEnglishContentDto._id, {
+            parentImage: "",
+            video: "test-video.mp4",
+        } as any);
+
+        wrapper = mount(SingleContent, {
+            props: {
+                slug: mockEnglishContentDto.slug,
+            },
+        });
+
+        await waitForExpect(() => {
+            const media = wrapper!.findComponent(IgnorePagePadding).element.parentElement!;
+            expect(media.className).toBe("mt-5 lg:mt-2");
         });
     });
 
@@ -576,9 +613,7 @@ describe("SingleContent", () => {
     });
 
     it("shows the share controls when the user has the Share ACL permission", async () => {
-        const verifyAccessSpy = vi
-            .spyOn(luminaryShared, "verifyAccess")
-            .mockReturnValue(true);
+        const verifyAccessSpy = vi.spyOn(luminaryShared, "verifyAccess").mockReturnValue(true);
 
         wrapper = mount(SingleContent, {
             props: { slug: mockEnglishContentDto.slug },

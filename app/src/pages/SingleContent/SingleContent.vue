@@ -896,7 +896,8 @@ watch([isLoading, content, is404], async () => {
                             </div>
                         </div>
 
-                        <div class="mt-5 lg:mt-2">
+                        <!-- The hero overlay carries the title, so there is no title above to leave room for. -->
+                        <div :class="hasHeroImage ? 'lg:mt-2' : 'mt-5 lg:mt-2'">
                             <IgnorePagePadding
                                 :mobileOnly="true"
                                 :ignoreTop="true"
