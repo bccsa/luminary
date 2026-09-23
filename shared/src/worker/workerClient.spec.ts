@@ -30,7 +30,11 @@ class FakeWorker {
 }
 
 const options: FtsSearchOptions = { query: "grace", languageId: "lang-eng" };
-const mainThreadResults = [{ score: 1 }] as unknown as FtsSearchResult[];
+const mainThreadResults = [
+    { score: 1, doc: { _id: "a", fts: ["gra:1"], ftsTokenCount: 3 } },
+] as unknown as FtsSearchResult[];
+/** What a caller sees from the fallback: the task's `trim` applies on both paths. */
+const trimmedMainThreadResults = [{ score: 1, doc: { _id: "a" } }];
 const workerResults = [{ score: 2 }] as unknown as FtsSearchResult[];
 
 async function loadClient() {
@@ -55,8 +59,17 @@ describe("runInWorker", () => {
         vi.stubGlobal("Worker", undefined);
         const { runInWorker } = await loadClient();
 
-        expect(await runInWorker("ftsSearch", options)).toBe(mainThreadResults);
+        expect(await runInWorker("ftsSearch", options)).toEqual(trimmedMainThreadResults);
         expect(ftsSearch).toHaveBeenCalledWith(options);
+    });
+
+    it("trims on the main-thread fallback too, so neither path leaks fts fields", async () => {
+        vi.stubGlobal("Worker", undefined);
+        const { runInWorker } = await loadClient();
+
+        const [result] = await runInWorker("ftsSearch", options);
+        expect(result.doc).not.toHaveProperty("fts");
+        expect(result.doc).not.toHaveProperty("ftsTokenCount");
     });
 
     it("returns the worker's result without running on the main thread", async () => {
@@ -185,7 +198,7 @@ describe("runInWorker", () => {
         const search = runInWorker("ftsSearch", options);
         FakeWorker.instances[0].reply({ id: 1, ok: false, error: "DatabaseClosedError" });
 
-        expect(await search).toBe(mainThreadResults);
+        expect(await search).toEqual(trimmedMainThreadResults);
         expect(ftsSearch).toHaveBeenCalledWith(options);
     });
 
@@ -197,7 +210,7 @@ describe("runInWorker", () => {
         const [worker] = FakeWorker.instances;
         worker.onerror?.({} as ErrorEvent);
 
-        expect(await search).toBe(mainThreadResults);
+        expect(await search).toEqual(trimmedMainThreadResults);
         expect(worker.terminate).toHaveBeenCalled();
 
         await runInWorker("ftsSearch", options);
@@ -212,7 +225,7 @@ describe("runInWorker", () => {
         const search = runInWorker("ftsSearch", options);
         releaseWorkers();
 
-        expect(await search).toBe(mainThreadResults);
+        expect(await search).toEqual(trimmedMainThreadResults);
         expect(FakeWorker.instances[0].terminate).toHaveBeenCalled();
 
         runInWorker("ftsSearch", options);

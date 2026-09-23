@@ -95,8 +95,16 @@ function acquire(): PooledWorker | null {
     return best ?? null;
 }
 
+/**
+ * Run a task on this thread, applying the same `trim` the worker path applies. Both paths must
+ * return one shape: FTS results carry `fts`/`ftsTokenCount` that callers are forbidden to
+ * persist, and whether they are present must not depend on a worker being available.
+ */
 function runHere(task: WorkerTaskName, payload: unknown): Promise<unknown> {
-    return (workerTasks[task] as WorkerTask<unknown, unknown>).run(payload);
+    const entry = workerTasks[task] as WorkerTask<unknown, unknown>;
+    return Promise.resolve(entry.run(payload)).then((result) =>
+        entry.trim ? entry.trim(result) : result,
+    );
 }
 
 function onReply(pooled: PooledWorker, response: WorkerResponse) {
