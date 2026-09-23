@@ -52,6 +52,11 @@ export type SharedConfig = {
      * Defaults to 30 days. Only meaningful when `contentPublishDateCutoff` is set.
      */
     offlineRetentionTtlMs?: number;
+    /**
+     * Whether Content is synced into IndexedDB at all. When `false`, `HybridQuery` serves
+     * Content from the API only and FTS searches the server. Defaults to `true`.
+     */
+    contentSync?: boolean;
 };
 
 /** Default offline-retention TTL: 30 days. */
@@ -81,6 +86,20 @@ export function getContentPublishDateCutoff(): number {
  */
 export function hasContentPublishDateCutoff(): boolean {
     return getContentPublishDateCutoff() !== OPEN_MIN;
+}
+
+/** Whether Content is synced locally; `false` routes Content reads to the API only. */
+export function isContentSyncEnabled(): boolean {
+    return config?.contentSync ?? true;
+}
+
+/**
+ * Set the content sync policy after `init()` — consumers may only know it once auth has
+ * resolved. Must run before the first content `sync()` or Content `HybridQuery`.
+ */
+export function setContentSyncPolicy(policy: { enabled: boolean; publishDateCutoff?: number }) {
+    config.contentSync = policy.enabled;
+    config.contentPublishDateCutoff = policy.publishDateCutoff;
 }
 
 /**

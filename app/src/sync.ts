@@ -10,6 +10,7 @@ import {
     type AccessMap,
 } from "luminary-shared";
 import { appSyncedLanguageIdsAsRef } from "./globalConfig";
+import { contentSyncMode } from "./contentSyncPolicy";
 import { Sentry } from "./util/initSentry";
 
 import { cloneDeep, isEqual } from "lodash-es";
@@ -112,9 +113,11 @@ export function initSync() {
             if (!appSyncedLanguageIdsAsRef.value.length) return;
 
             const access = getAccessibleGroups(AclPermission.View);
+            // Public browser tabs read Content from the API instead (see contentSyncPolicy.ts).
+            const syncContent = contentSyncMode() !== "none";
 
             // Sync post content docs
-            if (access[DocType.Post] && access[DocType.Post].length) {
+            if (syncContent && access[DocType.Post] && access[DocType.Post].length) {
                 sync({
                     type: DocType.Content,
                     subType: DocType.Post,
@@ -128,7 +131,7 @@ export function initSync() {
             }
 
             // Sync tag content docs
-            if (access[DocType.Tag] && access[DocType.Tag].length) {
+            if (syncContent && access[DocType.Tag] && access[DocType.Tag].length) {
                 sync({
                     type: DocType.Content,
                     subType: DocType.Tag,

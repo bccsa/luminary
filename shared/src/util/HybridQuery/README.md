@@ -513,6 +513,12 @@ discarded by a generation guard.
 Content is the only **partially synced** type — sync only pulls content with
 `publishDate >= cutoff`.
 
+**Content sync disabled** (`isContentSyncEnabled() === false`, set by the consumer via
+`setContentSyncPolicy` — the app does this for public browser tabs, ADR 0020): nothing is
+local, so Content takes the Branch B "API only" arm instead — no Dexie read, the whole
+query is POSTed, and live mode joins the `post`/`tag` rooms Content is broadcast to.
+`persistOffline` writes nothing in this mode.
+
 1. Run Dexie via `mangoToDexie`, merge the result into `output` (instant render).
 2. `decideContentApiQuery(query, local)` chooses one of: - **No cutoff configured** (`getContentPublishDateCutoff() === OPEN_MIN`) →
    done, no API, for **every** branch below. sync syncs all content, so the

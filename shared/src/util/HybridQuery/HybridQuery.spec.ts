@@ -34,6 +34,7 @@ const mocks = vi.hoisted(() => {
             value: Array<{ chunkType: string }>;
         },
         cutoff: 1000,
+        contentSync: true,
         liveRefs,
         useDexieLiveQueryMock: vi.fn((querier: any, options: any) => {
             const r = shallowRef(options?.initialValue);
@@ -91,6 +92,7 @@ vi.mock("../../api/sync/state", () => ({
 vi.mock("../../config", () => ({
     // Read mocks.cutoff at call time so tests can change it per case.
     getContentPublishDateCutoff: () => mocks.cutoff,
+    isContentSyncEnabled: () => mocks.contentSync,
     config: mocks.config,
     initConfig: () => {},
 }));
@@ -160,6 +162,7 @@ describe("HybridQuery", () => {
         mocks.isConnected.value = true;
         mocks.syncList.value = [];
         mocks.cutoff = 1000;
+        mocks.contentSync = true;
         mocks.config.appLanguageIdsAsRef.value = [];
         mocks.config.cms = false;
         mocks.useDexieLiveQueryMock.mockClear();
@@ -580,6 +583,52 @@ describe("HybridQuery", () => {
                 limit: DEFAULT_REMOTE_QUERY_LIMIT,
             });
             expect(q.output.value.map((d) => d._id)).toEqual(["r1"]);
+        });
+    });
+
+    describe("content routing with content sync disabled", () => {
+        beforeEach(() => {
+            mocks.contentSync = false;
+        });
+
+        it("serves Content from the API only: no Dexie read, whole query POSTed", async () => {
+            // A leftover content syncList entry must not pull the read back to Dexie.
+            mocks.syncList.value = [{ chunkType: "content:post" }];
+            postHttpMock.mockResolvedValueOnce({
+                docs: [{ _id: "c1", updatedTimeUtc: 1, publishDate: 5000, type: "content" }],
+            });
+
+            const q = new HybridQuery({ selector: { type: "content" }, $limit: 5 });
+            await flush();
+
+            expect(mocks.mangoToDexieMock).not.toHaveBeenCalled();
+            expect(postHttpMock).toHaveBeenCalledTimes(1);
+            // No publishDate tail: nothing is local, so the whole query goes to the API.
+            expect(postHttpMock.mock.calls[0][1].selector).toEqual({ type: "content" });
+            expect(q.output.value.map((d) => d._id)).toEqual(["c1"]);
+        });
+
+        it("live: subscribes to the post and tag rooms Content is broadcast to", async () => {
+            postHttpMock.mockResolvedValueOnce({ docs: [] });
+
+            track(new HybridQuery({ selector: { type: "content" } }, { live: true }));
+            await flush();
+
+            expect(mocks.useDexieLiveQueryMock).not.toHaveBeenCalled();
+            expect(mocks.subscribeRooms).toHaveBeenCalledWith([DocType.Post, DocType.Tag]);
+            expect(mocks.socketDataHandlers.size).toBe(1);
+        });
+
+        it("persistOffline writes nothing to IndexedDB", async () => {
+            postHttpMock.mockResolvedValueOnce({
+                docs: [{ _id: "c1", updatedTimeUtc: 1, publishDate: 5000, type: "content" }],
+            });
+
+            new HybridQuery({ selector: { type: "content" } }, { persistOffline: true });
+            await flush();
+
+            expect(mocks.bulkPut).not.toHaveBeenCalled();
+            expect(mocks.touchRetention).not.toHaveBeenCalled();
         });
     });
 
@@ -2128,7 +2177,12 @@ describe("HybridQuery", () => {
                 // Live mode (SingleContent's actual query mode): seed the local side with a
                 // stripped doc — same id/updatedTimeUtc as the doc the live Dexie read
                 // returns, differing only by the field the SSR cache write omitted.
-                const Lstripped = { _id: "L1", updatedTimeUtc: 5, publishDate: 2000, type: "content" };
+                const Lstripped = {
+                    _id: "L1",
+                    updatedTimeUtc: 5,
+                    publishDate: 2000,
+                    type: "content",
+                };
                 writeResponseCache(
                     structuralCacheKey(contentQuery),
                     { local: [Lstripped], remote: [] },
@@ -2993,7 +3047,6 @@ describe("HybridQuery", () => {
             expect(q.isFetching.value).toBe(false);
         });
     });
-
 });
 
 describe("queryRemote", () => {

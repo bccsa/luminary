@@ -113,6 +113,8 @@ permitted docs — i.e. whether a `publishDate` sync cutoff is in effect:
   mirrors `HybridQuery`'s content routing (which also skips the API supplement with no cutoff).
 - **Online + a `publishDate` cutoff is set** (selective sync) → server `/fts`, since local
   holds only the recent subset above the cutoff.
+- **Online + content sync disabled** (`isContentSyncEnabled() === false`) → server `/fts`,
+  since local holds no content. Offline results in this mode are flagged `isPartial`.
 
 Properties of the routing:
 

@@ -1,7 +1,15 @@
-import { ref, watch, type Ref, getCurrentScope, onScopeDispose, isRef, type WatchStopHandle } from "vue";
+import {
+    ref,
+    watch,
+    type Ref,
+    getCurrentScope,
+    onScopeDispose,
+    isRef,
+    type WatchStopHandle,
+} from "vue";
 import { ftsSearch } from "./ftsSearch";
 import { ftsSearchApi, shouldUseApiFts } from "./ftsSearchApi";
-import { getContentPublishDateCutoff } from "../config";
+import { getContentPublishDateCutoff, isContentSyncEnabled } from "../config";
 import { isConnected } from "../socket/socketio";
 import { OPEN_MIN } from "../api/sync/utils";
 import type { FtsSearchOptions, FtsSearchResult, FtsSort } from "./types";
@@ -100,7 +108,9 @@ export function useFtsSearch(
      *  dedupe against a same-query search already started by the debounce or a prior runSearch. */
     let inFlightFreshQuery: string | null = null;
 
-    const cutoffSet = () => getContentPublishDateCutoff() !== OPEN_MIN;
+    // The local index lacks permitted docs under a cutoff, or holds none without content sync.
+    const localIncomplete = () =>
+        getContentPublishDateCutoff() !== OPEN_MIN || !isContentSyncEnabled();
 
     /**
      * Run one page against the chosen engine. On the initial search (offset 0) an API failure
@@ -184,7 +194,7 @@ export function useFtsSearch(
             hasMore.value = searchResults.length === pageSize;
             source.value = usedLocal ? "local" : "api";
             // Local results are an incomplete view only when a sync cutoff is in effect.
-            isPartial.value = usedLocal && cutoffSet();
+            isPartial.value = usedLocal && localIncomplete();
             if (!append) isStale.value = false;
         } catch (e) {
             console.error("FTS search error:", e);
@@ -265,9 +275,12 @@ export function useFtsSearch(
                 searchGeneration++;
                 currentQuery = newQuery;
                 const d = getDebounce();
-                debounceTimer = setTimeout(() => {
-                    doSearch(newQuery, 0, false);
-                }, typeof d === "number" ? d : 0);
+                debounceTimer = setTimeout(
+                    () => {
+                        doSearch(newQuery, 0, false);
+                    },
+                    typeof d === "number" ? d : 0,
+                );
             },
             { immediate: true },
         );

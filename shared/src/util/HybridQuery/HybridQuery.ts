@@ -45,7 +45,7 @@ import {
     writeResponseCache,
 } from "./responseCache";
 import { touchRetention } from "../../db/retention";
-import { config, getContentPublishDateCutoff } from "../../config";
+import { config, getContentPublishDateCutoff, isContentSyncEnabled } from "../../config";
 import { OPEN_MIN } from "../../api/sync/utils";
 
 /**
@@ -679,6 +679,13 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
 
             const type = readType(this._query);
 
+            // Content sync disabled (e.g. a public browser tab): nothing is local, so
+            // Content is served like any other non-synced type.
+            if (type === DocType.Content && !isContentSyncEnabled()) {
+                this._runApiOnly(type, gen);
+                return;
+            }
+
             if (type === DocType.Content) {
                 // Local read merges instantly; the FIRST local result also drives
                 // the (one-shot) API-supplement decision. Later live emissions
@@ -748,20 +755,7 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
             }
 
             // Non-content type not in syncList → fetch from API only, no Dexie read.
-            // No local leg: settle local now, the remote POST owns loading from here.
-            this._localPending.value = false;
-            this._remotePending.value = true;
-            void this._runApiWhenOnline([this._query], gen);
-            // Live mode: these docs never flow through Dexie (sync doesn't sync this
-            // type), so the socket listener is their only live path.
-            if (this._live) {
-                // Subscribe to the type's rooms on demand so the server starts pushing
-                // live updates for this non-synced type. Ref-counted and released with
-                // this generation (rebuild/dispose) — the room is left only once the
-                // last HybridQuery using it disposes. Skipped for a typeless query.
-                if (type) this._generationDisposers.add(subscribeRooms([type]));
-                this._startRemoteLive(this._query, type, gen);
-            }
+            this._runApiOnly(type, gen);
             // COLD-START RE-ROUTE: when sync first registers this type (membership
             // false→true), flip to Dexie-only. Independent of `live`. Typeless queries
             // (readType → undefined) get no membership watch — they intentionally stay
@@ -772,6 +766,28 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
             // reconnect-watcher setup, an unexpected throw in queryIntrospection
             // helpers, …) is logged here.
             console.error("[HybridQuery] routing failed:", err);
+        }
+    }
+
+    /** Serve the query from the API only (no Dexie leg), live off the socket when `live`. */
+    private _runApiOnly(type: DocType | undefined, gen: number): void {
+        // No local leg: settle local now, the remote POST owns loading from here.
+        this._localPending.value = false;
+        this._remotePending.value = true;
+        void this._runApiWhenOnline([this._query], gen);
+        // Live mode: these docs never flow through Dexie, so the socket listener is
+        // their only live path.
+        if (this._live) {
+            // Subscribe to the type's rooms on demand so the server starts pushing
+            // live updates for this non-synced type. Ref-counted and released with
+            // this generation (rebuild/dispose) — the room is left only once the
+            // last HybridQuery using it disposes. Skipped for a typeless query.
+            // Content is broadcast to its parent type's rooms, not a `content` room.
+            if (type)
+                this._generationDisposers.add(
+                    subscribeRooms(type === DocType.Content ? [DocType.Post, DocType.Tag] : [type]),
+                );
+            this._startRemoteLive(this._query, type, gen);
         }
     }
 
@@ -906,7 +922,8 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
             // explicitly fetched for display, and the API has already permission-scoped it, so the
             // type check is the correct floor (it still excludes non-content types like the CMS
             // `user`, which must never touch IndexedDB).
-            if (this._persistOffline) {
+            // Without content sync nothing reads these docs back from IndexedDB.
+            if (this._persistOffline && isContentSyncEnabled()) {
                 const toPersist = remote.filter((d) => d.type === DocType.Content);
                 if (toPersist.length) {
                     void db

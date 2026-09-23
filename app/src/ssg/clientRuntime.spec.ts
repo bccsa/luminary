@@ -25,7 +25,12 @@ vi.mock("@/sync", () => ({
     initSync: vi.fn(),
 }));
 
-const { initSsgClient } = await import("./clientRuntime");
+vi.mock("@/contentSyncPolicy", () => ({
+    applyContentSyncPolicy: vi.fn(),
+}));
+
+const { initSsgClient, startSsgContentSync } = await import("./clientRuntime");
+const { applyContentSyncPolicy } = await import("@/contentSyncPolicy");
 const { getSocket, init, warmMangoCaches } = await import("luminary-shared");
 const { apiUrl, appLanguageIdsAsRef, initLanguage } = await import("@/globalConfig");
 const { APP_DOCS_INDEX } = await import("@/docsIndex");
@@ -68,7 +73,7 @@ describe("clientRuntime.initSsgClient", () => {
         });
     });
 
-    it("connects the socket and starts language/content sync only AFTER init() resolves", async () => {
+    it("connects the socket and starts language sync only AFTER init() resolves", async () => {
         const order: string[] = [];
         vi.mocked(init).mockImplementation(async () => {
             order.push("init");
@@ -79,7 +84,9 @@ describe("clientRuntime.initSsgClient", () => {
 
         await initSsgClient();
 
-        expect(order).toEqual(["init", "connect", "initAuthLangSync", "initSync"]);
+        expect(order).toEqual(["init", "connect", "initAuthLangSync"]);
+        // Content sync waits for the auth state (startSsgContentSync).
+        expect(initSync).not.toHaveBeenCalled();
     });
 
     it("resolves without waiting on initLanguage() so hydration is never network-blocked", async () => {
@@ -87,5 +94,25 @@ describe("clientRuntime.initSsgClient", () => {
 
         await expect(initSsgClient()).resolves.toBeUndefined();
         expect(initLanguage).toHaveBeenCalled();
+    });
+});
+
+describe("clientRuntime.startSsgContentSync", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it("applies the content sync policy for the auth state before starting sync", async () => {
+        const order: string[] = [];
+        vi.mocked(applyContentSyncPolicy).mockImplementation(async () => {
+            order.push("applyContentSyncPolicy");
+            return "none";
+        });
+        vi.mocked(initSync).mockImplementation(() => order.push("initSync"));
+
+        await startSsgContentSync(false);
+
+        expect(applyContentSyncPolicy).toHaveBeenCalledWith(false);
+        expect(order).toEqual(["applyContentSyncPolicy", "initSync"]);
     });
 });

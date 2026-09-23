@@ -8,6 +8,7 @@ import { getSocket, init, warmMangoCaches } from "luminary-shared";
 import { apiUrl, appLanguageIdsAsRef, initLanguage } from "@/globalConfig";
 import { APP_DOCS_INDEX } from "@/docsIndex";
 import { initAuthLangSync, initSync } from "@/sync";
+import { applyContentSyncPolicy } from "@/contentSyncPolicy";
 
 /**
  * Boots the shared data layer on the SSG client after hydration. Named to match
@@ -26,10 +27,18 @@ export async function initSsgClient(): Promise<void> {
         appLanguageIdsAsRef,
     });
 
-    // Connect for anonymous/public users and start the content + language sync.
+    // Connect for anonymous/public users and start the language sync.
     // Not awaited — these resolve over the network after the page has mounted.
     getSocket().connect();
     initAuthLangSync();
     void initLanguage();
+}
+
+/**
+ * Start content sync once auth has resolved — a public visitor syncs no Content, so the
+ * policy needs the auth state. Must run even when auth setup failed (treat as public).
+ */
+export async function startSsgContentSync(authenticated: boolean): Promise<void> {
+    await applyContentSyncPolicy(authenticated);
     initSync();
 }

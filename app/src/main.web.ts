@@ -126,12 +126,17 @@ export const createApp = ViteSSG(
 
             // Boot the data layer before mount so the app hydrates into a live SPA. Dynamically imported so none of it loads during the Node prerender; a failure must not block mount since the prerendered content is still shown.
             try {
-                const { initSsgClient } = await import("./ssg/clientRuntime");
+                const { initSsgClient, startSsgContentSync } = await import("./ssg/clientRuntime");
                 await initSsgClient();
-                const { setupAuth } = await import("./auth");
-                await setupAuth(app, router);
+                const { setupAuth, isAuthenticated } = await import("./auth");
+                try {
+                    await setupAuth(app, router);
+                } catch (err) {
+                    console.error("[ssg] auth init failed", err);
+                }
+                await startSsgContentSync(isAuthenticated.value);
             } catch (err) {
-                console.error("[ssg] client runtime/auth init failed", err);
+                console.error("[ssg] client runtime init failed", err);
             }
         }
     },
