@@ -7,6 +7,7 @@ import { initLiveSync } from "./api/sync/liveSync";
 import { getSocket } from "./socket/socketio";
 import { initRoomSubscriptions } from "./socket/roomSubscriptions";
 import { initHybridQuery } from "./util/HybridQuery";
+import { warmWorkers } from "./worker/workerClient";
 
 /**
  * Initialize the Luminary database
@@ -17,6 +18,10 @@ export async function init(config: SharedConfig) {
 
     // Initialize the IndexedDB database
     await initDatabase();
+
+    // Warmed here rather than by each consumer: the database exists by this point, so the
+    // worker's own connection can't lose the race against it being created.
+    if (config.useWorkers !== false) warmWorkers();
 
     // Initialize the SocketIO connection (initialized on first call)
     getSocket();

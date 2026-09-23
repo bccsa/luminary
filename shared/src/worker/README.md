@@ -48,9 +48,10 @@ These rules decide whether a worker helps or hurts on a low-end device, so they 
 than in each caller:
 
 - **Workers are reused, never spawned per call.** Startup is ~40ms plus an IndexedDB open, and a
-  warm worker keeps its module caches (the FTS index-key and document-frequency caches). Call
-  `warmWorkers()` once the application has painted to pay that cost during idle time; there is
-  deliberately no idle timeout, because respawning costs more than an idle worker does.
+  warm worker keeps its module caches (the FTS index-key and document-frequency caches). `init()`
+  warms the pool during idle time once the database is open (set `SharedConfig.useWorkers` to
+  `false` to opt out, or call `warmWorkers()` yourself); there is deliberately no idle timeout,
+  because respawning costs more than an idle worker does.
 - **The pool is capped at two, and below the core count.** Budget devices report many weak cores,
   so the constant is the real protection. A second worker appears only when the first is busy.
 - **Payload size is a first-class concern.** Structured cloning is the one cost a worker adds and

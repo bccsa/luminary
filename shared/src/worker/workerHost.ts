@@ -18,8 +18,8 @@ export function createWorkerHost(post: (response: WorkerResponse) => void) {
 
     function openDb(): Promise<void> {
         dbReady ??= openDatabaseInWorker().catch((error) => {
-            // Retry on the next task rather than wedging the worker — the app may not have
-            // created the database yet when this worker was warmed up.
+            // Retry on the next task rather than wedging the worker — the database may not
+            // exist yet when a caller warms this worker itself, ahead of `init()`.
             dbReady = undefined;
             throw error;
         });
@@ -39,8 +39,8 @@ export function createWorkerHost(post: (response: WorkerResponse) => void) {
                 try {
                     await openDb();
                 } catch {
-                    // Worth exactly one retry: a worker warmed up at startup can open before the
-                    // app has created the database, and that failure must not poison this task.
+                    // Worth exactly one retry: a connection dropped by a schema upgrade, or a
+                    // warm-up that ran before the database existed, must not poison this task.
                     await openDb();
                 }
             }
