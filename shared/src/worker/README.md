@@ -8,6 +8,19 @@ it can't, with the same implementation either way.
 const results = await runInWorker("ftsSearch", { query, languageId });
 ```
 
+## What already routes
+
+Callers do not opt in — the library routes at its own boundary, so these are off the main thread
+with no change at the call site:
+
+| Work                 | Entry point                                                 | Task                         |
+| -------------------- | ----------------------------------------------------------- | ---------------------------- |
+| Full-text search     | `ftsSearch`, `ftsSearchMany`, and so `useFtsSearch`         | `ftsSearch`, `ftsSearchMany` |
+| Corpus-stats scan    | `recomputeCorpusStats` (the write stays on the main thread) | `corpusScan`                 |
+| One-shot local reads | `queryLocal`, `HybridQuery` without `live`                  | `mangoQuery`                 |
+
+Live `HybridQuery` is deliberately not in this list — see "What a task may do".
+
 ## Adding a task
 
 One entry in `tasks.ts` is the whole of it:
@@ -37,7 +50,15 @@ no DOM.
   `accessMap`, `isConnected` are main-thread only. Tasks are one-shot request/response.
 - **Reads, not writes.** `openDatabaseInWorker` (`../db/database.ts`) attaches to the database as
   it already is, because `initDatabase` reads the schema version from `localStorage` and so
-  cannot run here. Writing would mean solving schema-version negotiation first.
+  cannot run here. Writing would mean solving schema-version negotiation first. A task that
+  produces something to store returns it and lets the caller write — `corpusScan` does this.
+- **Nothing a task reaches may import the worker client.** `tasks.ts` is the root of the worker
+  bundle, so an implementation that imports `workerClient` pulls the pool into the worker it is
+  meant to drive. Where a module on that path needs to route work out (`ftsIndexer`), it takes
+  an injected runner instead; `luminary.ts` supplies the worker-backed one.
+- **Live Dexie queries cannot move here.** `liveQuery` re-runs by observing what the querier
+  touched in Dexie's zone on the calling thread. A query awaited from a worker touches nothing
+  there, so the subscription emits once and then goes silently stale. Only one-shot reads route.
 - **Payloads are structured-cloned**, so they must be plain data. Refs, class instances and
   functions do not survive.
 - **Config is a snapshot**, sent once when the worker starts. `appLanguageIdsAsRef` is not in it.

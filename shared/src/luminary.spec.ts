@@ -8,6 +8,8 @@ const mockInitSync = vi.fn();
 const mockInitLiveSync = vi.fn();
 const mockInitRoomSubscriptions = vi.fn();
 const mockWarmWorkers = vi.fn();
+const mockRunInWorker = vi.fn();
+const mockSetCorpusScanner = vi.fn();
 
 vi.mock("./config", () => ({
     initConfig: (...args: any[]) => mockInitConfig(...args),
@@ -43,6 +45,11 @@ vi.mock("./socket/roomSubscriptions", () => ({
 
 vi.mock("./worker/workerClient", () => ({
     warmWorkers: () => mockWarmWorkers(),
+    runInWorker: (...args: any[]) => mockRunInWorker(...args),
+}));
+
+vi.mock("./fts/ftsIndexer", () => ({
+    setCorpusScanner: (...args: any[]) => mockSetCorpusScanner(...args),
 }));
 
 import { init } from "./luminary";
@@ -101,6 +108,17 @@ describe("init", () => {
         await init({ cms: false, docsIndex: "type", apiUrl: "https://api.example.com" });
 
         expect(order.indexOf("db")).toBeLessThan(order.indexOf("workers"));
+    });
+
+    it("routes the corpus scan through the worker", async () => {
+        mockSetCorpusScanner.mockClear();
+        mockRunInWorker.mockClear();
+
+        await init({ cms: false, docsIndex: "type", apiUrl: "https://api.example.com" });
+
+        const [scanner] = mockSetCorpusScanner.mock.calls[0];
+        scanner();
+        expect(mockRunInWorker).toHaveBeenCalledWith("corpusScan", undefined);
     });
 
     it("skips the worker pool when useWorkers is false", async () => {
