@@ -1,6 +1,7 @@
 import { db } from "../db/database";
 import { DocType, type ContentDto } from "../types";
 import type { FtsCorpusStats } from "./types";
+import { TRIGRAM_LENGTH } from "./trigram";
 
 const DOC_FREQUENCY_KEY = "ftsDocFrequency";
 
@@ -64,9 +65,9 @@ export async function recomputeCorpusStats(): Promise<void> {
                 totalTokenCount += ftsTokenCount;
                 docCount++;
             }
-            // Entries are "trigram:tf", one per trigram per doc (trigrams are 3 chars).
+            // Entries are "trigram:tf", one per trigram per doc.
             for (const entry of fts ?? []) {
-                const token = entry.substring(0, entry.indexOf(":", 3));
+                const token = entry.substring(0, TRIGRAM_LENGTH);
                 df[token] = (df[token] ?? 0) + 1;
             }
         });

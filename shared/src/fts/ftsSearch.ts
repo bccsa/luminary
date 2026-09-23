@@ -1,5 +1,5 @@
 import { db } from "../db/database";
-import { generateSearchTrigrams, normalizeText, stripHtml } from "./trigram";
+import { TRIGRAM_LENGTH, generateSearchTrigrams, normalizeText, stripHtml } from "./trigram";
 import { getCorpusStats, getDocFrequencies } from "./ftsIndexer";
 import { cachedPrimaryKeys } from "./indexKeyCache";
 import type { FtsFieldConfig, FtsSearchOptions, FtsSearchResult } from "./types";
@@ -76,7 +76,7 @@ type SearchBatch = {
      */
     ftsEntries?: Map<string, Map<string, string>>;
     /** `docId:field` → the field's normalised words. Absent for a batch of one search. */
-    fieldWords?: Map<string, Set<string>>;
+    fieldWords?: Map<string, ReadonlySet<string>>;
 };
 
 const newBatch = (searchCount: number): SearchBatch =>
@@ -107,7 +107,7 @@ function ftsEntries(
     if (!entries) {
         entries = new Map();
         for (const entry of doc.fts ?? []) {
-            const token = entry.substring(0, entry.indexOf(":", 3)); // token is always 3 chars
+            const token = entry.substring(0, TRIGRAM_LENGTH);
             if (batch.ftsEntries || wanted.has(token)) entries.set(token, entry);
         }
         batch.ftsEntries?.set(doc._id, entries);
@@ -115,16 +115,24 @@ function ftsEntries(
     return entries;
 }
 
-function fieldWords(batch: SearchBatch, doc: Record<string, any>, field: FtsFieldConfig) {
-    const key = `${doc._id}:${field.name}`;
-    let words = batch.fieldWords?.get(key);
+/** Shared by every field with no text, instead of a new empty set per doc and field. */
+const NO_WORDS: ReadonlySet<string> = new Set();
+
+function fieldWords(
+    batch: SearchBatch,
+    doc: Record<string, any>,
+    field: FtsFieldConfig,
+): ReadonlySet<string> {
+    // The key is only built when a batch shares the words; a single search never reads it back.
+    const key = batch.fieldWords ? `${doc._id}:${field.name}` : undefined;
+    let words = key ? batch.fieldWords?.get(key) : undefined;
     if (!words) {
         const value = doc[field.name];
         words =
             typeof value === "string" && value
                 ? new Set(normalizeText(field.isHtml ? stripHtml(value) : value).split(" "))
-                : new Set<string>();
-        batch.fieldWords?.set(key, words);
+                : NO_WORDS;
+        if (key) batch.fieldWords?.set(key, words);
     }
     return words;
 }
@@ -306,7 +314,7 @@ async function searchInBatch(
         let score = 0;
         for (const { token } of keptTrigrams) {
             const entry = entries.get(token);
-            const tf = entry ? parseFloat(entry.substring(entry.indexOf(":", 3) + 1)) || 0 : 0;
+            const tf = entry ? parseFloat(entry.substring(TRIGRAM_LENGTH + 1)) || 0 : 0;
             if (tf === 0) continue;
             const idf = idfMap.get(token)!;
             score +=
