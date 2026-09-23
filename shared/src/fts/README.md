@@ -157,14 +157,14 @@ This finds all documents containing a given trigram. The TF value is parsed from
 Each search query:
 
 1. Generates search trigrams from the query
-2. Counts docs per trigram (in parallel) and filters out over-represented trigrams (appearing in >`maxTrigramDocPercent`% of docs, default 50%)
+2. Gets the doc count per trigram (from the stored frequencies — see Corpus Stats) and filters out over-represented trigrams (appearing in >`maxTrigramDocPercent`% of docs, default 50%)
 3. **High-df pruning**: keeps only the most discriminative (lowest-df) trigrams within a df budget — common trigrams add many matches but little ranking signal
 4. Computes IDF for each kept trigram
 5. Collects matching doc IDs (in parallel) across the kept trigrams
 6. **Language pre-filter**: when a `languageId` is given, restricts the matched IDs to that language *before* loading (an index-only ID scan), so docs in other languages aren't read
 7. Loads the matched docs and parses TF from their `fts` arrays
 8. Computes BM25 score using TF, IDF, and document length normalization
-9. Adds the word-match bonus for full query words in high-boost fields — only for the **top-K by BM25** (`max(offset+limit, WORDMATCH_TOPK)`), to bound the HTML-stripping cost; docs below keep their BM25-only score
+9. Adds the word-match bonus for full query words in high-boost fields — only for the **top-K by BM25** (`wordMatchTopK`, default `max(offset+limit, WORDMATCH_TOPK)`), to bound the HTML-stripping cost; docs below keep their BM25-only score
 10. Sorts by combined score and paginates
 
 > Performance note: the local engine loads full docs to read `tf` for ranking, so doc loading + scoring dominate on large (full-sync) corpora. Also note IndexedDB serializes reads on a single object store, so the parallel scans above help less than the term-pruning. A future rewrite ranks from the `*fts` index directly (via Dexie `eachKey`) and loads only the top-K — see ADR 0011.
@@ -176,6 +176,8 @@ Corpus statistics (total token count, document count) are maintained for BM25's 
 - Recomputed after each `bulkPut` containing ContentDtos
 - Debounced recompute (10s) after document deletions
 - Recomputed on startup
+
+Each recompute also stores every trigram's document frequency (df), in the same transaction as the stats; searches read these instead of counting the `*fts` index, falling back to counting when none are stored. Between a write and the debounced recompute, pruning and IDF therefore use the last recompute's frequencies rather than live counts: a trigram new to the corpus has df 0, so it is always kept and gets the maximum IDF.
 
 ### Deletion Handling
 

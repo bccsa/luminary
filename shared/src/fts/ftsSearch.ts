@@ -1,6 +1,7 @@
 import { db } from "../db/database";
-import { generateSearchTrigrams, normalizeText, stripHtml } from "./trigram";
-import { getCorpusStats } from "./ftsIndexer";
+import { TRIGRAM_LENGTH, generateSearchTrigrams, normalizeText, stripHtml } from "./trigram";
+import { getCorpusStats, getDocFrequencies } from "./ftsIndexer";
+import { cachedPrimaryKeys } from "./indexKeyCache";
 import type { FtsFieldConfig, FtsSearchOptions, FtsSearchResult } from "./types";
 import type { ContentDto } from "../types";
 
@@ -12,7 +13,8 @@ const DEFAULT_B = 0.75;
  * Compute the (HTML-stripping) word-match bonus only for the top-K documents by BM25.
  * Docs below this rank keep their BM25-only score — they're below the returned page
  * anyway, so the bonus wouldn't change what the user sees but would cost a `stripHtml`
- * per doc. The effective cap is `max(offset + limit, WORDMATCH_TOPK)`.
+ * per doc. The default cap is `max(offset + limit, WORDMATCH_TOPK)`; callers can set their own
+ * with `wordMatchTopK`.
  */
 const WORDMATCH_TOPK = 150;
 /**
@@ -63,6 +65,79 @@ const FTS_FIELDS: FtsFieldConfig[] = [
 ];
 
 /**
+ * Per-doc work shared by the searches of one batch: each doc is read, its `fts` array split and
+ * its fields tokenised once, however many of the batch's searches reach it.
+ */
+type SearchBatch = {
+    docs: Map<string, ContentDto>;
+    /**
+     * docId → trigram → its `"trigram:tf"` entry. Absent for a batch of one search: no other
+     * search would reuse it, and holding every entry of every candidate doc costs time and memory.
+     */
+    ftsEntries?: Map<string, Map<string, string>>;
+    /** `docId:field` → the field's normalised words. Absent for a batch of one search. */
+    fieldWords?: Map<string, ReadonlySet<string>>;
+};
+
+const newBatch = (searchCount: number): SearchBatch =>
+    searchCount > 1
+        ? { docs: new Map(), ftsEntries: new Map(), fieldWords: new Map() }
+        : { docs: new Map() };
+
+/** Docs by id, in id order, reading from IndexedDB only those the batch has not loaded yet. */
+async function loadDocs(batch: SearchBatch, ids: string[]): Promise<ContentDto[]> {
+    const missing = ids.filter((id) => !batch.docs.has(id));
+    if (missing.length > 0) {
+        const loaded = await db.docs.where("_id").anyOf(missing).toArray();
+        for (const doc of loaded) batch.docs.set(doc._id, doc as ContentDto);
+    }
+    return ids
+        .slice()
+        .sort()
+        .flatMap((id) => batch.docs.get(id) ?? []);
+}
+
+/** The doc's `"trigram:tf"` entries by trigram; only the `wanted` ones unless the batch shares them. */
+function ftsEntries(
+    batch: SearchBatch,
+    doc: ContentDto,
+    wanted: Map<string, unknown>,
+): Map<string, string> {
+    let entries = batch.ftsEntries?.get(doc._id);
+    if (!entries) {
+        entries = new Map();
+        for (const entry of doc.fts ?? []) {
+            const token = entry.substring(0, TRIGRAM_LENGTH);
+            if (batch.ftsEntries || wanted.has(token)) entries.set(token, entry);
+        }
+        batch.ftsEntries?.set(doc._id, entries);
+    }
+    return entries;
+}
+
+/** Shared by every field with no text, instead of a new empty set per doc and field. */
+const NO_WORDS: ReadonlySet<string> = new Set();
+
+function fieldWords(
+    batch: SearchBatch,
+    doc: Record<string, any>,
+    field: FtsFieldConfig,
+): ReadonlySet<string> {
+    // The key is only built when a batch shares the words; a single search never reads it back.
+    const key = batch.fieldWords ? `${doc._id}:${field.name}` : undefined;
+    let words = key ? batch.fieldWords?.get(key) : undefined;
+    if (!words) {
+        const value = doc[field.name];
+        words =
+            typeof value === "string" && value
+                ? new Set(normalizeText(field.isHtml ? stripHtml(value) : value).split(" "))
+                : NO_WORDS;
+        if (key) batch.fieldWords?.set(key, words);
+    }
+    return words;
+}
+
+/**
  * Compute a boost-weighted word match score across fields.
  * For each field, counts how many query words appear as full words,
  * multiplied by the field's boost. Returns the sum across all fields.
@@ -71,13 +146,11 @@ function computeFieldWordMatchScore(
     queryWords: string[],
     doc: Record<string, any>,
     fields: FtsFieldConfig[],
+    batch: SearchBatch,
 ): number {
     let totalScore = 0;
     for (const field of fields) {
-        const value = doc[field.name];
-        if (typeof value !== "string" || !value) continue;
-        const text = normalizeText(field.isHtml ? stripHtml(value) : value);
-        const docWords = new Set(text.split(" "));
+        const docWords = fieldWords(batch, doc, field);
         let matches = 0;
         for (const word of queryWords) {
             if (docWords.has(word)) matches++;
@@ -93,7 +166,26 @@ function computeFieldWordMatchScore(
  * Perform a full-text search using BM25 scoring via the MultiEntry index on docs.
  * Trigram lookups use `between(trigram + ":", trigram + ";")` on the `*fts` index.
  */
-export async function ftsSearch(options: FtsSearchOptions): Promise<FtsSearchResult[]> {
+export function ftsSearch(options: FtsSearchOptions): Promise<FtsSearchResult[]> {
+    return searchInBatch(options, newBatch(1));
+}
+
+/**
+ * Run several searches, one after another, sharing the per-doc work between them: a doc that
+ * several searches reach is loaded, split and tokenised once. Results are in `searches` order,
+ * each exactly what {@link ftsSearch} returns for those options.
+ */
+export async function ftsSearchMany(searches: FtsSearchOptions[]): Promise<FtsSearchResult[][]> {
+    const batch = newBatch(searches.length);
+    const results: FtsSearchResult[][] = [];
+    for (const options of searches) results.push(await searchInBatch(options, batch));
+    return results;
+}
+
+async function searchInBatch(
+    options: FtsSearchOptions,
+    batch: SearchBatch,
+): Promise<FtsSearchResult[]> {
     const {
         query,
         languageId,
@@ -108,6 +200,7 @@ export async function ftsSearch(options: FtsSearchOptions): Promise<FtsSearchRes
         sort,
         limit = DEFAULT_LIMIT,
         offset = 0,
+        wordMatchTopK,
         maxTrigramDocPercent = DEFAULT_MAX_TRIGRAM_DOC_PERCENT,
         bm25k1 = DEFAULT_K1,
         bm25b = DEFAULT_B,
@@ -129,16 +222,20 @@ export async function ftsSearch(options: FtsSearchOptions): Promise<FtsSearchRes
 
     const maxDocCount = Math.max(1, Math.floor((N * maxTrigramDocPercent) / 100));
 
-    // Step 1: Count docs per trigram (in parallel), drop over-common ones.
-    const counts = await Promise.all(
-        trigrams.map(async (token) => ({
-            token,
-            df: await db.docs
-                .where("fts")
-                .between(token + ":", token + ";", true, false)
-                .count(),
-        })),
-    );
+    // Step 1: Docs per trigram, from the frequencies stored with the corpus stats when present
+    // (counting the index walks every matching entry), then drop over-common ones.
+    const docFrequencies = await getDocFrequencies(corpusStats);
+    const counts = docFrequencies
+        ? trigrams.map((token) => ({ token, df: docFrequencies.get(token) ?? 0 }))
+        : await Promise.all(
+              trigrams.map(async (token) => ({
+                  token,
+                  df: await db.docs
+                      .where("fts")
+                      .between(token + ":", token + ";", true, false)
+                      .count(),
+              })),
+          );
     const usableTrigrams = counts.filter((c) => c.df <= maxDocCount);
     if (usableTrigrams.length === 0) return [];
 
@@ -154,7 +251,12 @@ export async function ftsSearch(options: FtsSearchOptions): Promise<FtsSearchRes
     // Step 4: Collect matching doc IDs across the kept trigrams (in parallel)
     const idArrays = await Promise.all(
         keptTrigrams.map(({ token }) =>
-            db.docs.where("fts").between(token + ":", token + ";", true, false).primaryKeys(),
+            cachedPrimaryKeys(`fts:${token}`, () =>
+                db.docs
+                    .where("fts")
+                    .between(token + ":", token + ";", true, false)
+                    .primaryKeys(),
+            ),
         ),
     );
     const matchedDocIds = new Set<string>();
@@ -166,15 +268,16 @@ export async function ftsSearch(options: FtsSearchOptions): Promise<FtsSearchRes
     let candidateIds = Array.from(matchedDocIds);
     if (languageId) {
         const languageIds = new Set<string>(
-            (await db.docs.where("language").equals(languageId).primaryKeys()) as string[],
+            await cachedPrimaryKeys(`language:${languageId}`, () =>
+                db.docs.where("language").equals(languageId).primaryKeys(),
+            ),
         );
         candidateIds = candidateIds.filter((id) => languageIds.has(id));
     }
-    const loadedDocs = await db.docs.where("_id").anyOf(candidateIds).toArray();
-    const docMap = new Map(loadedDocs.map((d) => [d._id, d as ContentDto]));
+    const loadedDocs = await loadDocs(batch, candidateIds);
+    const docMap = new Map(loadedDocs.map((d) => [d._id, d]));
 
-    // Step 6: Build per-doc trigram→tf map from fts array, compute BM25
-    const usableTokens = new Set(keptTrigrams.map((t) => t.token));
+    // Step 6: Read each kept trigram's tf from the doc's fts entries, compute BM25
     const results: FtsSearchResult[] = [];
 
     docMap.forEach((doc, docId) => {
@@ -184,14 +287,20 @@ export async function ftsSearch(options: FtsSearchOptions): Promise<FtsSearchRes
         if (typeSet && !typeSet.has(doc.parentType as unknown as string)) return;
         if (tagSet && !(doc.parentTags ?? []).some((t) => tagSet.has(t))) return;
         if (status !== undefined && doc.status !== status) return;
-        if (publishedAfter !== undefined && !(doc.publishDate != null && doc.publishDate >= publishedAfter))
+        if (
+            publishedAfter !== undefined &&
+            !(doc.publishDate != null && doc.publishDate >= publishedAfter)
+        )
             return;
         if (
             publishedBefore !== undefined &&
             !(doc.publishDate != null && doc.publishDate <= publishedBefore)
         )
             return;
-        if (expiresAfter !== undefined && !(doc.expiryDate != null && doc.expiryDate >= expiresAfter))
+        if (
+            expiresAfter !== undefined &&
+            !(doc.expiryDate != null && doc.expiryDate >= expiresAfter)
+        )
             return;
         if (
             expiresBefore !== undefined &&
@@ -199,21 +308,13 @@ export async function ftsSearch(options: FtsSearchOptions): Promise<FtsSearchRes
         )
             return;
 
-        const tfMap = new Map<string, number>();
-        if (doc.fts) {
-            for (const entry of doc.fts) {
-                const colonIdx = entry.indexOf(":", 3); // token is always 3 chars
-                const token = entry.substring(0, colonIdx);
-                if (usableTokens.has(token)) {
-                    tfMap.set(token, parseFloat(entry.substring(colonIdx + 1)));
-                }
-            }
-        }
+        const entries = ftsEntries(batch, doc, idfMap);
 
         const dl = doc.ftsTokenCount || 1;
         let score = 0;
         for (const { token } of keptTrigrams) {
-            const tf = tfMap.get(token) || 0;
+            const entry = entries.get(token);
+            const tf = entry ? parseFloat(entry.substring(TRIGRAM_LENGTH + 1)) || 0 : 0;
             if (tf === 0) continue;
             const idf = idfMap.get(token)!;
             score +=
@@ -245,13 +346,14 @@ export async function ftsSearch(options: FtsSearchOptions): Promise<FtsSearchRes
     // bound the per-doc HTML-stripping cost. Docs below the cap keep their BM25-only score.
     if (queryWords.length > 0 && out.length > 0) {
         out.sort((a, b) => b.score - a.score); // pre-rank by BM25 to pick the top-K
-        const wmLimit = Math.max(offset + limit, WORDMATCH_TOPK);
+        const wmLimit = wordMatchTopK ?? Math.max(offset + limit, WORDMATCH_TOPK);
         const topForWm = out.length > wmLimit ? out.slice(0, wmLimit) : out;
         for (const result of topForWm) {
             const wordMatchBonus = computeFieldWordMatchScore(
                 queryWords,
                 result.doc as Record<string, any>,
                 FTS_FIELDS,
+                batch,
             );
             result.wordMatchScore = wordMatchBonus;
             result.score += wordMatchBonus;
