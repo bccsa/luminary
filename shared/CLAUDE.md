@@ -50,9 +50,9 @@ in that consumer's own docs, not here.)
 
 ### Entry point and initialization
 
-`src/luminary.ts` exposes a single `init(config)` that, in order, sets the shared config, opens Dexie (`initDatabase`), creates the Socket.io connection (`getSocket`), and starts the REST sync (`getRest` + `initSync`). Calling code does this once at app startup. The exported surface area for consumers is everything in `src/index.ts`.
+`src/luminary.ts` exposes a single `init(config)` that, in order, sets the shared config, opens Dexie (`initDatabase`), warms the worker pool (`warmWorkers`, unless `useWorkers` is `false`), creates the Socket.io connection (`getSocket`), and starts the REST sync (`getRest` + `initSync`). Calling code does this once at app startup. The exported surface area for consumers is everything in `src/index.ts`.
 
-`SharedConfig` (`src/config.ts`) is the single configuration object: `cms` flag, app-specific `docsIndex` string appended to the shared Dexie index, `apiUrl`, and a `Ref<Uuid[]>` of active language IDs (used by Socket.io and FTS filtering). What gets synced is owned by the sync engine (the consumer's `sync()` calls), not declared in config.
+`SharedConfig` (`src/config.ts`) is the single configuration object: `cms` flag, app-specific `docsIndex` string appended to the shared Dexie index, `apiUrl`, a `Ref<Uuid[]>` of active language IDs (used by Socket.io and FTS filtering), and `useWorkers` (default `true`) to keep a consumer single-threaded. What gets synced is owned by the sync engine (the consumer's `sync()` calls), not declared in config.
 
 ### Data layer — `src/db/database.ts`
 
@@ -116,7 +116,7 @@ Offline fuzzy search using **trigram indexing + BM25**. Read `src/fts/README.md`
 A typed RPC over one reusable Web Worker. Read `src/worker/README.md` before changing it. Key points:
 
 - Registering an entry in `src/worker/tasks.ts` is the whole of "run this off the main thread"; `runInWorker(name, payload)` and `useWorkerTask` are the surfaces. The registry's `run` is also the main-thread fallback, so no task may depend on being in a worker.
-- The worker is a separate realm: **no Vue/Dexie reactivity crosses it**, payloads are structured-cloned plain data, and config arrives as a one-off snapshot. It attaches to the database via `openDatabaseInWorker` (`initDatabase` can't run there — it reads the schema version from `localStorage`), so tasks are reads.
+- The worker is a separate realm: **no Vue/Dexie reactivity crosses it**, payloads are structured-cloned plain data, and config arrives as a one-off snapshot. It attaches to the database via `openDatabaseInWorker` (`initDatabase` can't run there — it reads the schema version from `localStorage`), so tasks are reads. `init()` warms the pool after the database is open, so the worker's connection never races the database into existence.
 - The low-end-device policy lives in the layer, not the callers: workers are reused and capped at two, results are shrunk via a task's `trim` before being cloned back, and superseded requests are dropped from the worker's serial queue.
 - Every failure path degrades to the main thread rather than surfacing an error.
 
