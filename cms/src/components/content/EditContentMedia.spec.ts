@@ -37,6 +37,7 @@ vi.mock("@/composables/storageSelection", () => ({
 }));
 
 import EditContentMedia from "./EditContentMedia.vue";
+import LDialog from "../common/LDialog.vue";
 
 const parent = () => ({ ...mockData.mockPostDto }) as PostDto;
 
@@ -107,6 +108,42 @@ describe("EditContentMedia", () => {
                 mediaBucketId: "bucket-1",
             }),
         );
+    });
+
+    describe("on a document that has never been saved", () => {
+        // Leaving an unsaved post discards it, but the encode would run on and
+        // publish media no document points to.
+        const clickEncode = async (saveBeforeEncode: () => Promise<boolean>) => {
+            const wrapper = mountSection({ saveBeforeEncode });
+            await settle();
+            await wrapper.find('[data-test="encode-media-button"]').trigger("click");
+            return wrapper.findComponent(LDialog);
+        };
+
+        it("asks the editor to save before encoding", async () => {
+            const dialog = await clickEncode(vi.fn());
+
+            expect(dialog.props("open")).toBe(true);
+            expect(encoder.start).not.toHaveBeenCalled();
+        });
+
+        it("saves and then encodes on Save now", async () => {
+            const save = vi.fn().mockResolvedValue(true);
+            const dialog = await clickEncode(save);
+
+            await dialog.props("primaryAction")();
+
+            expect(save).toHaveBeenCalled();
+            expect(encoder.start).toHaveBeenCalled();
+        });
+
+        it("does not encode when the save did not go through", async () => {
+            const dialog = await clickEncode(vi.fn().mockResolvedValue(false));
+
+            await dialog.props("primaryAction")();
+
+            expect(encoder.start).not.toHaveBeenCalled();
+        });
     });
 
     it("records the auto-selected bucket on the document when an encode starts", async () => {
