@@ -52,6 +52,11 @@ export type SharedConfig = {
      * Defaults to 30 days. Only meaningful when `contentPublishDateCutoff` is set.
      */
     offlineRetentionTtlMs?: number;
+    /**
+     * Whether `init()` starts the background worker pool. Defaults to true; set false to keep a
+     * consumer single-threaded (SSG prerender, tests).
+     */
+    useWorkers?: boolean;
 };
 
 /** Default offline-retention TTL: 30 days. */

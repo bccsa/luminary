@@ -1,5 +1,5 @@
 import { ref, watch, type Ref, getCurrentScope, onScopeDispose, isRef, type WatchStopHandle } from "vue";
-import { ftsSearch } from "./ftsSearch";
+import { ftsSearch } from "./ftsSearchRouted";
 import { ftsSearchApi, shouldUseApiFts } from "./ftsSearchApi";
 import { getContentPublishDateCutoff } from "../config";
 import { isConnected } from "../socket/socketio";

@@ -50,9 +50,9 @@ in that consumer's own docs, not here.)
 
 ### Entry point and initialization
 
-`src/luminary.ts` exposes a single `init(config)` that, in order, sets the shared config, opens Dexie (`initDatabase`), creates the Socket.io connection (`getSocket`), and starts the REST sync (`getRest` + `initSync`). Calling code does this once at app startup. The exported surface area for consumers is everything in `src/index.ts`.
+`src/luminary.ts` exposes a single `init(config)` that, in order, sets the shared config, opens Dexie (`initDatabase`), warms the worker pool (`warmWorkers`, unless `useWorkers` is `false`), creates the Socket.io connection (`getSocket`), and starts the REST sync (`getRest` + `initSync`). Calling code does this once at app startup. The exported surface area for consumers is everything in `src/index.ts`.
 
-`SharedConfig` (`src/config.ts`) is the single configuration object: `cms` flag, app-specific `docsIndex` string appended to the shared Dexie index, `apiUrl`, and a `Ref<Uuid[]>` of active language IDs (used by Socket.io and FTS filtering). What gets synced is owned by the sync engine (the consumer's `sync()` calls), not declared in config.
+`SharedConfig` (`src/config.ts`) is the single configuration object: `cms` flag, app-specific `docsIndex` string appended to the shared Dexie index, `apiUrl`, a `Ref<Uuid[]>` of active language IDs (used by Socket.io and FTS filtering), and `useWorkers` (default `true`) to keep a consumer single-threaded. What gets synced is owned by the sync engine (the consumer's `sync()` calls), not declared in config.
 
 ### Data layer — `src/db/database.ts`
 
@@ -109,7 +109,17 @@ Offline fuzzy search using **trigram indexing + BM25**. Read `src/fts/README.md`
 - The field config (title=3.0, summary=1.5, text=1.0, author=1.0) and BM25 params are **hard-coded identically** in `api/src/util/ftsIndexing.ts`, `api/src/util/ftsScoring.ts`, and `shared/src/fts/ftsSearch.ts` — if you change one, change all (ADR 0009/0010).
 - **Routing (ADR 0011):** `useFtsSearch` routes each search to local (offline, or no `publishDate` cutoff — full sync, incl. the CMS) or the server-side `/fts` endpoint (online + a `publishDate` cutoff is set) via `shouldUseApiFts()` + `ftsSearchApi`. Single source per search (no merge); falls back to local on API failure and exposes `source` / `isPartial`. **Server results are trimmed (`fts`/`ftsTokenCount` stripped) and must never be `bulkPut`/persisted** — they'd break the `*fts` offline index.
 - Local search optimizations (perf): high-df trigram pruning, a language pre-filter before loading docs, and top-K-only word-match. See `README.md`.
-- Consumer surface is `useFtsSearch(query, options)` (Vue composable, debounced, paginated) or `ftsSearch(opts)` / `ftsSearchApi(opts)` (direct calls).
+- Consumer surface is `useFtsSearch(query, options)` (Vue composable, debounced, paginated) or `ftsSearch(opts)` / `ftsSearchApi(opts)` (direct calls). `ftsSearch` / `ftsSearchMany` (`ftsSearchRouted.ts`) route to a worker and fall back to this thread; `ftsSearchLocal` / `ftsSearchManyLocal` (`ftsSearch.ts`) are the implementations, which the worker and the fallback both run. `ftsSearchInWorker` / `ftsSearchManyInWorker` are deprecated aliases of the routed pair. Their results are trimmed (`fts`/`ftsTokenCount` stripped) and, like server results, must never be `bulkPut`.
+
+### Off-main-thread tasks — `src/worker/`
+
+A typed RPC over one reusable Web Worker. Read `src/worker/README.md` before changing it. Key points:
+
+- Registering an entry in `src/worker/tasks.ts` is the whole of "run this off the main thread"; `runInWorker(name, payload)` and `useWorkerTask` are the surfaces. The registry's `run` is also the main-thread fallback, so no task may depend on being in a worker.
+- The worker is a separate realm: **no Vue/Dexie reactivity crosses it**, payloads are structured-cloned plain data, and config arrives as a one-off snapshot. It attaches to the database via `openDatabaseInWorker` (`initDatabase` can't run there — it reads the schema version from `localStorage`), so tasks are reads. `init()` warms the pool after the database is open, so the worker's connection never races the database into existence.
+- Routing is the library's job, not the caller's: `ftsSearch`/`ftsSearchMany`, the corpus-stats scan (`corpusScan`, written back on the main thread) and one-shot local reads (`queryLocal`, `HybridQuery` in non-live mode) already go through it, so no consumer call site opts in. Live `HybridQuery` stays on the main thread — `liveQuery` observes the calling thread's Dexie zone, and a worker-awaited query would emit once and go silently stale.
+- The low-end-device policy lives in the layer, not the callers: workers are reused and capped at two, results are shrunk via a task's `trim` before being cloned back, and superseded requests are dropped from the worker's serial queue.
+- Every failure path degrades to the main thread rather than surfacing an error.
 
 ### Types — `src/types/`
 
