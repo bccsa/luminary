@@ -2,7 +2,7 @@ import { computed, onScopeDispose, ref, watch } from "vue";
 import {
     decay,
     DocType,
-    ftsSearchManyInWorker,
+    ftsSearchMany,
     PublishStatus,
     type AffinityMap,
     type ContentDto,
@@ -330,7 +330,7 @@ export function useRecommendations({
                             (query) => !ftsResultCache.has(query),
                         );
                         const pages = misses.length
-                            ? await ftsSearchManyInWorker(
+                            ? await ftsSearchMany(
                                   misses.flatMap((query) =>
                                       languageIds.map((languageId) => ({
                                           query,

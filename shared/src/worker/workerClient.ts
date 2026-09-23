@@ -158,7 +158,15 @@ export function runInWorker<K extends WorkerTaskName>(
             },
             { once: true },
         );
-        post(pooled, { kind: "run", id, task, payload });
+        try {
+            post(pooled, { kind: "run", id, task, payload });
+        } catch {
+            // A payload that won't structured-clone would otherwise reject the call. Run it
+            // here instead: every other worker failure degrades this way too.
+            pending.delete(id);
+            pooled.inFlight.delete(id);
+            resolve(runHere(task, payload) as Promise<Result>);
+        }
     });
 }
 

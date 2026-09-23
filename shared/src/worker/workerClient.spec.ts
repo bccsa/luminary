@@ -5,7 +5,7 @@ import type { WorkerMessage, WorkerResponse } from "./types";
 const ftsSearch = vi.fn();
 vi.mock("../fts/ftsSearch", async (importOriginal) => ({
     ...(await importOriginal<typeof import("../fts/ftsSearch")>()),
-    ftsSearch: (options: FtsSearchOptions) => ftsSearch(options),
+    ftsSearchLocal: (options: FtsSearchOptions) => ftsSearch(options),
 }));
 
 class FakeWorker {

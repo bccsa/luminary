@@ -5,7 +5,7 @@ import { db, initDatabase, openDatabaseInWorker } from "./database";
 import { initConfig } from "../config";
 import { DocType, PublishStatus, type ContentDto } from "../types";
 import { recomputeCorpusStats } from "../fts/ftsIndexer";
-import { ftsSearch } from "../fts/ftsSearch";
+import { ftsSearchLocal as ftsSearch } from "../fts/ftsSearch";
 
 function makeDoc(_id: string, title: string): ContentDto {
     const fts: string[] = [];

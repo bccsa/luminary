@@ -8,12 +8,14 @@ const openDatabaseInWorker = vi.fn();
 const initConfig = vi.fn();
 
 vi.mock("../fts/ftsSearch", () => ({
-    ftsSearch: (options: unknown) => ftsSearch(options),
-    ftsSearchMany: (searches: unknown) => ftsSearchMany(searches),
+    ftsSearchLocal: (options: unknown) => ftsSearch(options),
+    ftsSearchManyLocal: (searches: unknown) => ftsSearchMany(searches),
     trimFtsResults: (results: unknown) => trimFtsResults(results),
 }));
 vi.mock("../db/database", () => ({
     openDatabaseInWorker: () => openDatabaseInWorker(),
+    // The task registry reaches for `db` too; no test here exercises a db-backed task.
+    db: {},
 }));
 vi.mock("../config", () => ({
     initConfig: (config: unknown) => initConfig(config),

@@ -14,8 +14,13 @@ export {
     generateTrigramCounts,
     generateSearchTrigrams,
 } from "./trigram";
-export { ftsSearch, ftsSearchMany, trimFtsResults } from "./ftsSearch";
-export { ftsSearchInWorker, ftsSearchManyInWorker } from "./ftsSearchInWorker";
+export { ftsSearchLocal, ftsSearchManyLocal, trimFtsResults } from "./ftsSearch";
+export {
+    ftsSearch,
+    ftsSearchMany,
+    ftsSearchInWorker,
+    ftsSearchManyInWorker,
+} from "./ftsSearchRouted";
 export { ftsSearchApi, shouldUseApiFts } from "./ftsSearchApi";
 export { attachFtsLiveSync, markFtsStale } from "./ftsLiveSync";
 export { ftsMightMatchQuery } from "./ftsMightMatchQuery";
@@ -34,4 +39,7 @@ export {
     setCorpusStats,
     recomputeCorpusStats,
     scheduleCorpusStatsRecompute,
+    setCorpusScanner,
 } from "./ftsIndexer";
+export { scanCorpus } from "./corpusScan";
+export type { CorpusScanResult } from "./corpusScan";

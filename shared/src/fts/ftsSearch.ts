@@ -166,16 +166,18 @@ function computeFieldWordMatchScore(
  * Perform a full-text search using BM25 scoring via the MultiEntry index on docs.
  * Trigram lookups use `between(trigram + ":", trigram + ";")` on the `*fts` index.
  */
-export function ftsSearch(options: FtsSearchOptions): Promise<FtsSearchResult[]> {
+export function ftsSearchLocal(options: FtsSearchOptions): Promise<FtsSearchResult[]> {
     return searchInBatch(options, newBatch(1));
 }
 
 /**
  * Run several searches, one after another, sharing the per-doc work between them: a doc that
  * several searches reach is loaded, split and tokenised once. Results are in `searches` order,
- * each exactly what {@link ftsSearch} returns for those options.
+ * each exactly what {@link ftsSearchLocal} returns for those options.
  */
-export async function ftsSearchMany(searches: FtsSearchOptions[]): Promise<FtsSearchResult[][]> {
+export async function ftsSearchManyLocal(
+    searches: FtsSearchOptions[],
+): Promise<FtsSearchResult[][]> {
     const batch = newBatch(searches.length);
     const results: FtsSearchResult[][] = [];
     for (const options of searches) results.push(await searchInBatch(options, batch));

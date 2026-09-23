@@ -39,13 +39,13 @@ function makeFtsResult(doc: ContentDto, score: number): FtsSearchResult {
 }
 
 /**
- * The composable batches every (query × language) pair into one `ftsSearchManyInWorker` call,
+ * The composable batches every (query × language) pair into one `ftsSearchMany` call,
  * so `searches()` presents those calls as the individual searches they stand for and assertions
  * can stay per-search.
  */
 function spyOnFtsSearch(results: FtsSearchResult[] = []) {
     const spy = vi
-        .spyOn(shared, "ftsSearchManyInWorker")
+        .spyOn(shared, "ftsSearchMany")
         .mockImplementation(async (searches) => searches.map(() => results));
     return {
         searches: () => spy.mock.calls.flatMap(([batch]) => batch),
