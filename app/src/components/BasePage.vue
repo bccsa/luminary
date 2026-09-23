@@ -38,12 +38,15 @@ const main = ref<HTMLElement | undefined>(undefined);
 // instead: --top-bar-h (published here, same pattern as --mobile-menu-h)
 // and --mobile-menu-h. The class fallbacks cover prerendered HTML before
 // any measurement runs, so hydration doesn't shift the page.
-const topBarWrap = ref<HTMLElement | undefined>(undefined);
+const pageRoot = ref<HTMLElement | undefined>();
+const topBarWrap = ref<HTMLElement | undefined>();
 let topBarResizeObserver: ResizeObserver | undefined;
 
-const publishTopBarHeight = (height: number) =>
-    document.documentElement.style.setProperty("--top-bar-h", `${height}px`);
-
+const publishTopBarHeight = (height: number) => {
+    if (height > 0) {
+        pageRoot.value?.style.setProperty("--top-bar-h", `${height}px`);
+    }
+};
 // The pill's sticky top stays constant at the tucked position; while the top
 // bar is visible the pill is *translated* down below it instead. A transform
 // animates on the compositor like the bar's own slide, so the two track each
@@ -104,12 +107,15 @@ onMounted(() => {
     if (isSSG) setTimeout(() => (notificationsReady.value = true), SSG_NOTIFICATION_DELAY_MS);
     document.addEventListener("keydown", handleArrowKeyFocus);
     main.value?.addEventListener("scroll", onMainScroll, { passive: true });
+
     if (topBarWrap.value && typeof ResizeObserver !== "undefined") {
         const measure = () => {
-            if (topBarWrap.value)
-                publishTopBarHeight(topBarWrap.value.getBoundingClientRect().height);
+            const height = topBarWrap.value?.getBoundingClientRect().height ?? 0;
+            publishTopBarHeight(height);
         };
+
         measure();
+
         topBarResizeObserver = new ResizeObserver(measure);
         topBarResizeObserver.observe(topBarWrap.value);
     }
@@ -124,7 +130,10 @@ onUnmounted(() => {
 </script>
 
 <template>
-    <div class="flex h-full w-full scrollbar-hide">
+    <div
+        ref="pageRoot"
+        class="flex h-full w-full scrollbar-hide"
+    >
         <!-- Desktop left sidebar — prerendered on the SSG build too (public nav /
              logo; the auth/Dexie bits self-defer inside the component). -->
         <DesktopSidebar />
