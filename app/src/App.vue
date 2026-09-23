@@ -19,10 +19,12 @@ import AuthProviderSelectionModal from "@/components/authProvider/AuthProviderSe
 import AppUpdateDialog from "@/components/appUpdate/AppUpdateDialog.vue";
 import { useI18n } from "vue-i18n";
 import { useAppUpdate } from "@/composables/useAppUpdate";
+import { useCanPrompt } from "@/composables/useCanPrompt";
 import { useHydrated } from "@/composables/useHydrated";
 
 const { t } = useI18n();
 const { available: availableUpdate, applyUpdate } = useAppUpdate();
+const canPrompt = useCanPrompt();
 const mobileChrome = useMobileChromeAutoHide();
 
 const router = useRouter();
@@ -227,6 +229,6 @@ onErrorCaptured((err) => {
     <template v-if="!isAppLoading && isMounted">
         <SearchModal />
         <AuthProviderSelectionModal v-model:isVisible="showProviderSelectionModal" />
-        <AppUpdateDialog />
+        <AppUpdateDialog :can-prompt="canPrompt" />
     </template>
 </template>

@@ -4,7 +4,6 @@ import { nextTick, ref } from "vue";
 import AppUpdateDialog from "./AppUpdateDialog.vue";
 import LDialog from "@/components/common/LDialog.vue";
 import { AppUpdateKey } from "@/build-time/contracts/app-update/token";
-import { userPreferencesAsRef } from "@/globalConfig";
 import { mockLanguageDtoEng } from "@/tests/mockdata";
 import { isNewerVersion } from "@/util/appVersion";
 import type { AvailableUpdate } from "@/build-time/contracts/app-update/contract";
@@ -15,14 +14,6 @@ vi.mock("vue-i18n", () => ({
     }),
 }));
 
-vi.mock("@/globalConfig", async () => {
-    const { ref } = await import("vue");
-    return {
-        isTestEnviroment: true,
-        userPreferencesAsRef: ref<{ privacyPolicy?: { status: string; ts: number } }>({}),
-    };
-});
-
 // @ts-expect-error
 global.ResizeObserver = class FakeResizeObserver {
     observe() {}
@@ -32,7 +23,7 @@ global.ResizeObserver = class FakeResizeObserver {
 const DAY_MS = 24 * 60 * 60 * 1000;
 const T0 = Date.UTC(2026, 8, 1);
 
-function mountDialog(installed = "1.9.4", store = "2.0.0") {
+function mountDialog(installed = "1.9.4", store = "2.0.0", canPrompt = true) {
     const service = {
         installedVersion: ref<string | undefined>(installed),
         available: ref<AvailableUpdate | undefined>(
@@ -42,15 +33,16 @@ function mountDialog(installed = "1.9.4", store = "2.0.0") {
         applyUpdate: vi.fn(),
     };
     const wrapper = mount(AppUpdateDialog, {
+        props: { canPrompt },
         global: { provide: { [AppUpdateKey as symbol]: service } },
     });
     return { wrapper, service, dialog: () => wrapper.findComponent(LDialog) };
 }
 
 /** Opens the app again at `time`, the way a later launch would. */
-async function launchAt(time: number, installed?: string, store?: string) {
+async function launchAt(time: number, installed?: string, store?: string, canPrompt?: boolean) {
     vi.setSystemTime(time);
-    const mounted = mountDialog(installed, store);
+    const mounted = mountDialog(installed, store, canPrompt);
     await nextTick();
     return mounted;
 }
@@ -59,7 +51,6 @@ describe("AppUpdateDialog", () => {
     beforeEach(() => {
         vi.useFakeTimers({ toFake: ["Date"] });
         localStorage.clear();
-        userPreferencesAsRef.value = { privacyPolicy: { status: "accepted", ts: 0 } } as never;
     });
 
     afterEach(() => {
@@ -133,17 +124,15 @@ describe("AppUpdateDialog", () => {
         expect(dialog().props("open")).toBe(false);
     });
 
-    it("waits until the privacy notice has been answered", async () => {
-        userPreferencesAsRef.value = {} as never;
-        (await launchAt(T0)).wrapper.unmount();
+    it("waits while the app may not prompt, keeping the reminder for later", async () => {
+        (await launchAt(T0, undefined, undefined, false)).wrapper.unmount();
 
-        const unanswered = await launchAt(T0 + 3 * DAY_MS);
-        expect(unanswered.dialog().props("open")).toBe(false);
-        unanswered.wrapper.unmount();
+        const blocked = await launchAt(T0 + 3 * DAY_MS, undefined, undefined, false);
+        expect(blocked.dialog().props("open")).toBe(false);
+        blocked.wrapper.unmount();
 
-        userPreferencesAsRef.value = { privacyPolicy: { status: "necessaryOnly", ts: 0 } } as never;
-        const answered = await launchAt(T0 + 3 * DAY_MS + 1);
-        expect(answered.dialog().props("open")).toBe(true);
+        const allowed = await launchAt(T0 + 3 * DAY_MS + 1);
+        expect(allowed.dialog().props("open")).toBe(true);
     });
 
     it("stays closed when the app is up to date", async () => {

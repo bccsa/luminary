@@ -1,58 +1,21 @@
 <script setup lang="ts">
-import { ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import { StorageSerializers, useLocalStorage } from "@vueuse/core";
 import LDialog from "@/components/common/LDialog.vue";
-import { useAppUpdate } from "@/composables/useAppUpdate";
-import { userPreferencesAsRef } from "@/globalConfig";
-import {
-    isReminderDue,
-    markReminderShown,
-    reminderForVersion,
-    type AppUpdateReminder,
-} from "@/util/appUpdateReminder";
+import { useStoreUpdateReminder } from "@/composables/useStoreUpdateReminder";
+
+type Props = {
+    /** Whether the app may interrupt the user now; decided by the app, not the dialog. */
+    canPrompt: boolean;
+};
+const props = defineProps<Props>();
 
 const { t } = useI18n();
-const { available, checkedAt, applyUpdate } = useAppUpdate();
-
-const reminder = useLocalStorage<AppUpdateReminder | null>("appUpdateReminder", null, {
-    serializer: StorageSerializers.object,
-});
-const open = ref(false);
-
-function remindIfDue() {
-    // A reload update is offered by the update banner instead.
-    if (open.value || available.value?.kind !== "store") return;
-
-    const now = Date.now();
-    const current = reminderForVersion(reminder.value, available.value.version, now);
-    reminder.value = current;
-
-    // A new user answers the privacy notice first; the reminder waits for a later opening.
-    if (!userPreferencesAsRef.value.privacyPolicy?.status) return;
-    if (!isReminderDue(current, now)) return;
-
-    reminder.value = markReminderShown(current, now);
-    open.value = true;
-}
-
-function update() {
-    open.value = false;
-    applyUpdate();
-}
-
-function later() {
-    open.value = false;
-}
-
-// The store is checked when the app opens and each time it returns to the foreground,
-// which is when a reminder may have become due.
-watch([available, checkedAt], remindIfDue, { immediate: true });
+const { isOpen, update, later } = useStoreUpdateReminder(() => props.canPrompt);
 </script>
 
 <template>
     <LDialog
-        v-model:open="open"
+        v-model:open="isOpen"
         :title="t('app_update.title')"
         :description="t('app_update.description')"
         :primary-action="update"
