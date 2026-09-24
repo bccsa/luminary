@@ -363,6 +363,36 @@ describe("FTS Indexer and Search", () => {
             expect(page1[0].docId).not.toBe(page2[0].docId);
         });
 
+        it("never repeats a result across pages", async () => {
+            // Word-match bonuses deep in the result list used to re-rank earlier pages
+            // once a later page widened the set they were computed for.
+            const docs = Array.from({ length: 400 }, (_, i) => {
+                const id = `page-${String(i).padStart(3, "0")}`;
+                return makeContentDoc({
+                    _id: id,
+                    title: i % 7 === 0 ? "garden" : "other",
+                    fts: ["gar:" + (400 - i), "ard:" + (400 - i), "rde:" + (400 - i)],
+                    ftsTokenCount: 10,
+                });
+            });
+            await db.bulkPut(docs);
+            await recomputeCorpusStats();
+
+            const seen: string[] = [];
+            for (let offset = 0; offset < 400; offset += 40) {
+                const page = await ftsSearch({
+                    query: "garden",
+                    limit: 40,
+                    offset,
+                    maxTrigramDocPercent: 100,
+                });
+                seen.push(...page.map((r) => r.docId));
+            }
+
+            expect(seen).toHaveLength(400);
+            expect(new Set(seen).size).toBe(400);
+        });
+
         it("returns empty array for short queries", async () => {
             const results = await ftsSearch({ query: "ab" });
             expect(results).toEqual([]);

@@ -10,13 +10,13 @@ const DEFAULT_MAX_TRIGRAM_DOC_PERCENT = 50;
 const DEFAULT_K1 = 1.2;
 const DEFAULT_B = 0.75;
 /**
- * Compute the (HTML-stripping) word-match bonus only for the top-K documents by BM25.
- * Docs below this rank keep their BM25-only score — they're below the returned page
- * anyway, so the bonus wouldn't change what the user sees but would cost a `stripHtml`
- * per doc. The default cap is `max(offset + limit, WORDMATCH_TOPK)`; callers can set their own
- * with `wordMatchTopK`.
+ * Size of the BM25-ranked blocks the (HTML-stripping) word-match bonus is applied and
+ * re-ranked within. Only the blocks a page overlaps are scored, which bounds the
+ * `stripHtml` cost and keeps a result's position independent of the requested page.
+ * Mirrors the server's `FTS_TOP_K`. `wordMatchTopK` narrows the bonus further, to the top K by
+ * BM25 overall.
  */
-const WORDMATCH_TOPK = 150;
+const WORDMATCH_BLOCK = 150;
 /**
  * High-df trigram pruning. After dropping over-common trigrams (`maxTrigramDocPercent`),
  * keep only the most discriminative (lowest-df) remaining trigrams within a df budget
@@ -342,29 +342,35 @@ async function searchInBatch(
         return out.slice(offset, offset + limit);
     }
 
-    // Relevance (default): boost-weighted full-word match — only for the top-K by BM25, to
-    // bound the per-doc HTML-stripping cost. Docs below the cap keep their BM25-only score.
-    if (queryWords.length > 0 && out.length > 0) {
-        out.sort((a, b) => b.score - a.score); // pre-rank by BM25 to pick the top-K
-        const wmLimit = wordMatchTopK ?? Math.max(offset + limit, WORDMATCH_TOPK);
-        const topForWm = out.length > wmLimit ? out.slice(0, wmLimit) : out;
-        for (const result of topForWm) {
-            const wordMatchBonus = computeFieldWordMatchScore(
-                queryWords,
-                result.doc as Record<string, any>,
-                FTS_FIELDS,
-                batch,
-            );
-            result.wordMatchScore = wordMatchBonus;
-            result.score += wordMatchBonus;
+    // Relevance (default): pre-rank by BM25, then add the boost-weighted full-word match and
+    // re-rank a block at a time. The score tolerance is not transitive, so each block is
+    // sorted on its own to order it the same whichever page asked for it.
+    out.sort((a, b) => b.score - a.score || (a.docId < b.docId ? -1 : a.docId > b.docId ? 1 : 0));
+    const blockStart = Math.floor(offset / WORDMATCH_BLOCK) * WORDMATCH_BLOCK;
+    const blockEnd = Math.ceil((offset + limit) / WORDMATCH_BLOCK) * WORDMATCH_BLOCK;
+    // A fixed rank cutoff, so it doesn't make a result's score depend on the page either.
+    const wordMatchCap = wordMatchTopK ?? Infinity;
+    for (let i = blockStart; i < Math.min(blockEnd, out.length); i += WORDMATCH_BLOCK) {
+        const block = out.slice(i, i + WORDMATCH_BLOCK);
+        if (queryWords.length > 0) {
+            const scored = Math.min(block.length, wordMatchCap - i);
+            for (let j = 0; j < scored; j++) {
+                const result = block[j];
+                result.wordMatchScore = computeFieldWordMatchScore(
+                    queryWords,
+                    result.doc as Record<string, any>,
+                    FTS_FIELDS,
+                    batch,
+                );
+                result.score += result.wordMatchScore;
+            }
         }
+        block.sort((a, b) => {
+            if (Math.abs(b.score - a.score) > 0.001) return b.score - a.score;
+            return b.wordMatchScore - a.wordMatchScore;
+        });
+        out.splice(i, block.length, ...block);
     }
-
-    // Sort by combined score desc, then word match desc
-    out.sort((a, b) => {
-        if (Math.abs(b.score - a.score) > 0.001) return b.score - a.score;
-        return b.wordMatchScore - a.wordMatchScore;
-    });
 
     return out.slice(offset, offset + limit);
 }

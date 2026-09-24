@@ -92,8 +92,8 @@ export type FtsSearchOptions = {
     offset?: number;
     /**
      * How many of the top results by BM25 get the full-word match bonus, which strips and
-     * tokenises each doc's HTML body. Defaults to `max(offset + limit, 150)` so every result on
-     * the returned page is scored alike; lower it when `limit` is a large candidate pool.
+     * tokenises each doc's HTML body. By default every result in the 150-result blocks the page
+     * overlaps gets it; lower it when `limit` is a large candidate pool.
      */
     wordMatchTopK?: number;
     /** Max percentage of total indexed docs a trigram can appear in before being skipped (default: 50) */

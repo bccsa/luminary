@@ -486,6 +486,14 @@ watch(selectedIndex, (index) => {
     });
 });
 
+// Up stops at the first result rather than wrapping: wrapping jumps to the bottom, which
+// loads the next page, so the list never runs out.
+const moveSelection = (key: "ArrowUp" | "ArrowDown") => {
+    const last = results.value.length - 1;
+    if (key === "ArrowUp") selectedIndex.value = Math.max(0, selectedIndex.value - 1);
+    else selectedIndex.value = Math.min(last, selectedIndex.value + 1);
+};
+
 const handleKeydown = (event: KeyboardEvent) => {
     if ((event.metaKey || event.ctrlKey) && event.key === "k") {
         if (isPage.value) return;
@@ -507,14 +515,9 @@ const handleKeydown = (event: KeyboardEvent) => {
         return;
     }
     if (results.value.length > 0) {
-        if (event.key === "ArrowUp") {
+        if (event.key === "ArrowUp" || event.key === "ArrowDown") {
             event.preventDefault();
-            if (selectedIndex.value <= 0) selectedIndex.value = results.value.length - 1;
-            else selectedIndex.value = selectedIndex.value - 1;
-        } else if (event.key === "ArrowDown") {
-            event.preventDefault();
-            if (selectedIndex.value < 0) selectedIndex.value = 0;
-            else selectedIndex.value = Math.min(results.value.length - 1, selectedIndex.value + 1);
+            moveSelection(event.key);
         } else if (event.key === "Enter") {
             event.preventDefault();
             if (selectedIndex.value >= 0) goToResult(results.value[selectedIndex.value]);
@@ -554,18 +557,10 @@ const handleInputKeydown = (event: KeyboardEvent) => {
         }
         return;
     }
-    if (results.value.length > 0) {
-        if (event.key === "ArrowUp") {
-            event.preventDefault();
-            event.stopPropagation();
-            if (selectedIndex.value <= 0) selectedIndex.value = results.value.length - 1;
-            else selectedIndex.value = selectedIndex.value - 1;
-        } else if (event.key === "ArrowDown") {
-            event.preventDefault();
-            event.stopPropagation();
-            if (selectedIndex.value < 0) selectedIndex.value = 0;
-            else selectedIndex.value = Math.min(results.value.length - 1, selectedIndex.value + 1);
-        }
+    if (results.value.length > 0 && (event.key === "ArrowUp" || event.key === "ArrowDown")) {
+        event.preventDefault();
+        event.stopPropagation();
+        moveSelection(event.key);
     }
 };
 
@@ -628,11 +623,17 @@ defineExpose({
 
 <template>
     <div
-        :class="isPage ? '' : 'flex h-full w-full flex-col'"
+        :class="isPage ? '' : 'flex h-full min-h-0 w-full flex-col'"
         @keydown="handleKeydown"
     >
+        <!-- Page mode on mobile: pinned under the top bar. The sticky offset is measured inside
+             <main>'s 0.5rem top padding, hence the subtraction. -->
         <div
             class="flex min-w-0 items-center gap-3 border-b border-zinc-200 px-3 py-4 dark:border-slate-700 md:p-4"
+            :class="
+                isPage &&
+                'bg-white dark:bg-slate-900 max-lg:sticky max-lg:top-[calc(var(--top-bar-h,74px)-0.5rem)] max-lg:z-20'
+            "
         >
             <MagnifyingGlassIcon class="h-5 w-5 flex-shrink-0 text-zinc-400 md:h-6 md:w-6" />
 
@@ -689,7 +690,7 @@ defineExpose({
 
         <div
             ref="searchResultsContainerRef"
-            :class="isPage ? '' : 'flex-1 overflow-y-auto scrollbar-hide'"
+            :class="isPage ? '' : 'min-h-0 flex-1 overflow-y-auto scrollbar-hide'"
         >
             <div
                 v-if="showPartialHint"
