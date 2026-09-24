@@ -41,6 +41,12 @@ describe("buildTargetVirtuals", () => {
         })).resolves.toContain(
             "/build-time/plugins/screen-wake/index.ts",
         );
+        await expect(resolveId.call({} as never, "virtual:app-update", undefined, {
+            attributes: {},
+            isEntry: false,
+        })).resolves.toContain(
+            "/build-time/plugins/app-update/index.ts",
+        );
     });
 
     it("uses external implementations and resolves their package imports from the app", async () => {
@@ -54,6 +60,12 @@ describe("buildTargetVirtuals", () => {
             isEntry: false,
         })).resolves.toBe(
             path.join("/tmp/luminary-native", "auth-flow.ts"),
+        );
+        await expect(resolveId.call(context as never, "virtual:app-update", undefined, {
+            attributes: {},
+            isEntry: false,
+        })).resolves.toBe(
+            path.join("/tmp/luminary-native", "app-update.ts"),
         );
         await expect(
             resolveId.call(context as never, "vue", "/tmp/luminary-native/auth-flow.ts", {
