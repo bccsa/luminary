@@ -412,8 +412,14 @@ export const mockLanguageDtoEng: LanguageDto = {
         "bookmarks.empty_page":
             "You should try this! Click on this icon on any post to bookmark it.",
         "bookmarks.notification.title": "Bookmark added",
-        "bookmarks.notification.description":
-            "This content has been added to your bookmarks.",
+        "bookmarks.notification.description": "This content has been added to your bookmarks.",
+        "library.title": "Library",
+        "library.filter.viewed": "Viewed",
+        "library.filter.liked": "Liked",
+        "library.filter.highlighted": "Highlighted",
+        "library.viewed.empty_page": "Posts you read or watch will show up here.",
+        "library.liked.empty_page": "Posts you like will show up here.",
+        "library.highlighted.empty_page": "Posts where you highlight text will show up here.",
         "language.modal.title": "Select Language",
         "language.modal.close": "Close",
         "singlecontent.loading": "Loading...",

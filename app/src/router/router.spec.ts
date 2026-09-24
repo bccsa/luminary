@@ -5,7 +5,7 @@ import { flushPromises } from "@vue/test-utils";
 describe("Router", () => {
     describe("Router Configuration", () => {
         it("should have the correct number of routes", () => {
-            expect(router.getRoutes()).toHaveLength(10);
+            expect(router.getRoutes()).toHaveLength(11);
         });
 
         it("should have home route configured correctly", () => {
@@ -29,6 +29,21 @@ describe("Router", () => {
             expect(searchRoute?.path).toBe("/search");
             expect(searchRoute?.meta.title).toBe("title.search");
             expect(searchRoute?.meta.prerender).toBe(true);
+        });
+
+        it("should have library route configured correctly", () => {
+            const libraryRoute = router.getRoutes().find((route) => route.name === "library");
+            expect(libraryRoute).toBeDefined();
+            expect(libraryRoute?.path).toBe("/library");
+            expect(libraryRoute?.meta.title).toBe("title.library");
+        });
+
+        it("should redirect the old bookmarks path to the library", () => {
+            const bookmarksRoute = router.getRoutes().find((route) => route.path === "/bookmarks");
+            expect(bookmarksRoute?.redirect).toEqual({
+                name: "library",
+                query: { filter: "liked" },
+            });
         });
 
         it("should have 404 route as catch-all", () => {
