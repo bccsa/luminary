@@ -86,7 +86,7 @@ const redirectGroups = computed(() =>
 
         <template #desktopFooter>
             <div class="flex w-full flex-1 flex-wrap items-center gap-1">
-                <UserGroupIcon class="size-4 text-zinc-400" />
+                <UserGroupIcon class="size-4 dark:text-zinc-400" />
                 <LBadge
                     v-for="group in redirectGroups"
                     :key="group._id"
