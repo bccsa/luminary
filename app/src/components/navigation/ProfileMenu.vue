@@ -144,7 +144,7 @@ const commonNavigation: ComputedRef<NavigationItems[]> = computed(() => {
         {
             name: t("profile_menu.bookmarks"),
             icon: BookmarkIcon,
-            action: () => router.push({ name: "bookmarks" }),
+            action: () => router.push({ name: "library" }),
         },
     ];
 });
@@ -405,7 +405,7 @@ const sidebarNavigation = computed(() =>
 
                 <!-- Bookmarks -->
                 <RouterLink
-                    :to="{ name: 'bookmarks' }"
+                    :to="{ name: 'library' }"
                     v-slot="{ isActive, navigate }"
                     custom
                 >
