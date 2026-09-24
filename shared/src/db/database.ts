@@ -989,13 +989,6 @@ export async function initDatabase() {
         });
     });
 
-    // One-time recovery for clients hit by the historical `deleteRevoked()` over-purge bug:
-    // their Group docs were deleted from `docs` while the Group `syncList` block stayed at `eof`,
-    // so sync never re-fetched them. Drop the Group block(s) so the next sync starts fresh and
-    // re-fetches all accessible groups. Gated by a localStorage flag so it runs at most once.
-    // Remove after 2026-09-01 — see bccsa/luminary#1730.
-    await resetGroupSyncListForRecovery();
-
     // Watch syncList for changes and persist to IndexedDB
     import("../api/sync/state").then(({ syncList }) => {
         watch(
@@ -1006,43 +999,6 @@ export async function initDatabase() {
             { deep: true },
         );
     });
-}
-
-/**
- * One-time recovery: reset the Group `syncList` block(s) so clients previously purged by the
- * `deleteRevoked()` over-purge bug re-fetch their groups on next sync. Idempotent via a
- * localStorage flag. Temporary — remove after 2026-09-01 (bccsa/luminary#1730).
- *
- * Note: the general access-loss reconciliation in `deleteRevoked()` now keeps `syncList` in step
- * with evicted docs for every doc type, so this is no longer the mechanism that prevents the bug —
- * it only un-sticks any client that was already stuck (Group block at `eof` after a purge) and that
- * has not since undergone an access-loss event to self-heal. Not re-bumped for the CmsView rollout:
- * that feature is unreleased, so no client is stuck from it.
- */
-async function resetGroupSyncListForRecovery() {
-    const RECOVERY_FLAG = "groupSyncListReset_v1";
-    if (localStorage.getItem(RECOVERY_FLAG)) return;
-
-    const [{ syncList }, { splitChunkTypeString }] = await Promise.all([
-        import("../api/sync/state"),
-        import("../api/sync/utils"),
-    ]);
-
-    // Load the persisted syncList into the in-memory ref before mutating it.
-    await db.getSyncList();
-
-    const hadGroupBlock = syncList.value.some(
-        (entry) => splitChunkTypeString(entry.chunkType).type === DocType.Group,
-    );
-
-    if (hadGroupBlock) {
-        syncList.value = syncList.value.filter(
-            (entry) => splitChunkTypeString(entry.chunkType).type !== DocType.Group,
-        );
-        await db.setSyncList();
-    }
-
-    localStorage.setItem(RECOVERY_FLAG, "1");
 }
 
 /**
