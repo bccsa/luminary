@@ -10,7 +10,7 @@ import LButton from "../button/LButton.vue";
 import {
     appLanguageIdsAsRef,
     appSyncedLanguageIdsAsRef,
-    MAX_PREFERRED_LANGUAGES,
+    maxPreferredLanguages,
     normalizePreferredLanguages,
     normalizeSyncedLanguages,
 } from "@/globalConfig";
@@ -100,13 +100,13 @@ const availableLanguages = computed(() =>
         .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0)),
 );
 
-// A user may prefer at most MAX_PREFERRED_LANGUAGES; the add list is hidden once at the cap.
-const canAddMore = computed(() => draftOrder.value.length < MAX_PREFERRED_LANGUAGES);
+// A user may prefer at most maxPreferredLanguages; the add list is hidden once at the cap.
+const canAddMore = computed(() => draftOrder.value.length < maxPreferredLanguages.value);
 
 // ── Draft mutations: order ──
 const addLanguage = (id: string) => {
     if (draftOrder.value.includes(id)) return;
-    if (draftOrder.value.length >= MAX_PREFERRED_LANGUAGES) return; // cap the preferred set
+    if (draftOrder.value.length >= maxPreferredLanguages.value) return; // cap the preferred set
     draftOrder.value.push(id);
     if (!isConnected.value) notifyAddDeferred(); // its content can only download once online
 };

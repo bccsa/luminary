@@ -2,6 +2,7 @@ import {
     DocType,
     HybridQuery,
     isConnected,
+    maxQueryLanguages,
     queryLocal,
     syncActive,
     type LanguageDto,
@@ -130,22 +131,28 @@ watch(
     { deep: true },
 );
 
+/** Preferred-language cap until the API has sent its query language cap (older APIs never do). */
+export const DEFAULT_MAX_PREFERRED_LANGUAGES = 3;
+
 /**
- * Product cap on how many languages a user may prefer / sync. Enforced authoritatively by the API
- * (`QUERY_MAX_LANGUAGES`); these client-side caps keep the UI within it and give good UX. The
- * display default (English) is auto-appended in `appDisplayLanguageIdsAsRef` and is NOT counted
- * against the preferred cap, so a content query references at most cap + 1 languages.
+ * How many languages a user may prefer: the API's query language cap (`maxQueryLanguages`, sent in
+ * `clientConfig`) minus one, because the display default (English) is auto-appended in
+ * `appDisplayLanguageIdsAsRef` and also counts against the API's cap.
  */
-export const MAX_PREFERRED_LANGUAGES = 3;
+export const maxPreferredLanguages = computed(() =>
+    maxQueryLanguages.value > 1 ? maxQueryLanguages.value - 1 : DEFAULT_MAX_PREFERRED_LANGUAGES,
+);
+
+/** Product cap on how many languages a user may sync (download for offline). */
 export const MAX_SYNCED_LANGUAGES = 3;
 
 /**
- * Normalize the preferred order: drop null/duplicate ids and cap to MAX_PREFERRED_LANGUAGES. Applied
+ * Normalize the preferred order: drop null/duplicate ids and cap to `maxPreferredLanguages`. Applied
  * on load (`initLanguage` + a module watcher, to normalize an over-cap persisted set) and on the
  * LanguageModal Save commit.
  */
 export const normalizePreferredLanguages = (order: string[]): string[] =>
-    [...new Set(order.filter((id) => id != null))].slice(0, MAX_PREFERRED_LANGUAGES);
+    [...new Set(order.filter((id) => id != null))].slice(0, maxPreferredLanguages.value);
 
 /**
  * Normalize a synced-language set against the preferred order: drop ids that are no longer preferred
@@ -161,13 +168,14 @@ export const normalizeSyncedLanguages = (synced: string[], order: string[]): str
     return next.slice(0, MAX_SYNCED_LANGUAGES);
 };
 
-// Cap the preferred set to MAX_PREFERRED_LANGUAGES. Self-normalizing: idempotent, so the change-guard
-// stops it re-firing after one convergence tick. `immediate` also normalizes an over-cap persisted set
-// on load (before content sync runs), so downstream reads never see more than the cap. Declared before
-// the synced ref/watcher so the preferred set is capped before the synced set is normalized against it.
+// Cap the preferred set to maxPreferredLanguages, again whenever the API lowers its cap. Self-
+// normalizing: idempotent, so the change-guard stops it re-firing after one convergence tick.
+// `immediate` also normalizes an over-cap persisted set on load (before content sync runs), so
+// downstream reads never see more than the cap. Declared before the synced ref/watcher so the
+// preferred set is capped before the synced set is normalized against it.
 watch(
-    appLanguageIdsAsRef,
-    (order) => {
+    [appLanguageIdsAsRef, maxPreferredLanguages],
+    ([order]) => {
         const normalized = normalizePreferredLanguages(order);
         const changed =
             normalized.length !== order.length || normalized.some((id, i) => id !== order[i]);

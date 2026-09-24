@@ -23,8 +23,8 @@ export type QueryConfig = {
     /**
      * Maximum distinct languages a NON-CMS query may reference (via `language` field constraints).
      * Requests above this are rejected with 400. Guards query cost; CMS queries are exempt (they
-     * sync all languages). Keep in step with the client's preferred-language cap (cap + 1 for the
-     * auto-appended default). Environment variable: QUERY_MAX_LANGUAGES (default 4).
+     * sync all languages). Sent to clients in `clientConfig`, which cap preferred languages at this
+     * − 1 for the auto-appended default. Environment variable: QUERY_MAX_LANGUAGES (default 4).
      */
     maxLanguages: number;
     /**
