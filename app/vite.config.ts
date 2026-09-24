@@ -90,6 +90,9 @@ export default defineConfig({
                 // No image runtimeCaching: content images rely on browser HTTP
                 // caching. Only identity assets are precached by the PWA worker.
                 globPatterns: ["**/*.{ico,png,svg}"],
+                // index.html is not precached, so Workbox must not bind its navigation
+                // fallback to it — doing so throws a non-precached-url error at SW startup.
+                navigateFallback: null,
             },
         }),
         versionManifest(),
