@@ -7,7 +7,7 @@ import { mockEnglishContentDto, mockLanguageDtoEng } from "@/tests/mockdata";
 import { db } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import { appLanguageIdsAsRef, userPreferencesAsRef } from "@/globalConfig";
-import BookmarksPage from "./BookmarksPage.vue";
+import LibraryLiked from "../LibraryLiked.vue";
 
 vi.mock("vue-router");
 vi.mock("@/router", () => ({
@@ -18,11 +18,11 @@ vi.mock("@/router", () => ({
 }));
 vi.mock("vue-i18n", () => ({
     useI18n: () => ({
-        t: (key: string) => mockLanguageDtoEng.translations[key] || key,
+        t: (key: string) => (mockLanguageDtoEng.translations as Record<string, string>)[key] || key,
     }),
 }));
 
-describe("BookmarksPage", () => {
+describe("LibraryLiked", () => {
     beforeEach(async () => {
         // Clearing the database before populating it helps prevent some sequencing issues causing the first to fail.
         await db.docs.clear();
@@ -39,22 +39,22 @@ describe("BookmarksPage", () => {
         await db.docs.clear();
     });
 
-    it("displays bookmarked content", async () => {
+    it("displays liked content", async () => {
         userPreferencesAsRef.value.bookmarks = [
             { id: mockEnglishContentDto.parentId, ts: Date.now() },
         ];
 
-        const wrapper = mount(BookmarksPage);
+        const wrapper = mount(LibraryLiked);
 
         await waitForExpect(() => {
             expect(wrapper.text()).toContain(mockEnglishContentDto.title);
         });
     });
 
-    it("displays a message when there are no bookmarks", async () => {
+    it("displays a message when nothing is liked", async () => {
         userPreferencesAsRef.value.bookmarks = [];
-        const wrapper = mount(BookmarksPage);
+        const wrapper = mount(LibraryLiked);
 
-        expect(wrapper.text()).toContain("You should try this");
+        expect(wrapper.text()).toContain("Posts you like will show up here.");
     });
 });
