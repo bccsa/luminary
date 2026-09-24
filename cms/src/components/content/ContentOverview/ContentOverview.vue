@@ -112,17 +112,10 @@ watch(
     },
 );
 
-/** Browse window size. Bumped by infinite scroll; reset whenever a browse filter changes. */
-const browseLimit = ref(PAGE_SIZE);
-watch(
-    // Reset the window on any change except the search box (search has its own paging).
-    () => JSON.stringify({ ...queryOptions.value, search: "" }),
-    () => {
-        browseLimit.value = PAGE_SIZE;
-    },
-);
-
-const browse = useContentBrowseQuery(() => queryOptions.value, browseLimit);
+// The query owns its window, so a filter change rebuilds it back to page one with no
+// separate reset. The search box never enters the browse selector, so typing in it
+// cannot reset the browse window either.
+const browse = useContentBrowseQuery(() => queryOptions.value, PAGE_SIZE);
 const search = useContentSearchQuery(
     () => queryOptions.value,
     () => showRelated.value,
@@ -135,36 +128,45 @@ const isLoading = computed(() =>
 );
 const hasMore = computed(() => (searchActive.value ? search.hasMore.value : browse.hasMore.value));
 
-const { output: anyContentOfType, isFetching: isCheckingForContent } = useHybridQueryWithState<ContentDto>(
-    () => ({
-        selector: {
-            $and: [
-                { type: DocType.Content },
-                { parentType: props.docType },
-                props.docType === DocType.Tag
-                    ? { parentTagType: props.tagOrPostType }
-                    : { parentPostType: props.tagOrPostType },
-            ],
+const { output: anyContentOfType, isFetching: isCheckingForContent } =
+    useHybridQueryWithState<ContentDto>(
+        () => ({
+            selector: {
+                $and: [
+                    { type: DocType.Content },
+                    { parentType: props.docType },
+                    props.docType === DocType.Tag
+                        ? { parentTagType: props.tagOrPostType }
+                        : { parentPostType: props.tagOrPostType },
+                ],
+            },
+            $sort: [{ updatedTimeUtc: "desc" }],
+            $limit: 1,
+            use_index: "updatedTimeUtc-type-id-index",
+        }),
+        {
+            live: true,
+            persistOffline: false,
+            cache: false,
+            stripFields: ["fts", "ftsTokenCount", "text", "_rev"],
         },
-        $sort: [{ updatedTimeUtc: "desc" }],
-        $limit: 1,
-        use_index: "updatedTimeUtc-type-id-index",
-    }),
-    { live: true, persistOffline: false, cache: false, stripFields: ["fts", "ftsTokenCount", "text", "_rev"] },
-);
+    );
 const hasAnyContent = computed(() => (anyContentOfType.value?.length ?? 0) > 0);
 
 const onLoadMore = () => {
-    if (searchActive.value) {
-        search.loadMore();
-    } else {
-        browseLimit.value += PAGE_SIZE;
-    }
+    if (searchActive.value) search.loadMore();
+    else browse.loadMore();
 };
+
+// Gate on the APPEND being in flight, not the initial load: `isLoading` is false during
+// a browse append, so using it here would let the sentinel re-fire into the same page.
+const isLoadingMore = computed(() =>
+    searchActive.value ? search.isLoading.value : browse.isLoadingMore.value,
+);
 
 const { sentinel: loadMoreSentinel } = useInfiniteScrollLoadMore({
     hasMore: () => hasMore.value,
-    isLoading: () => isLoading.value,
+    isLoading: () => isLoading.value || isLoadingMore.value,
     onLoadMore,
 });
 

@@ -42,7 +42,12 @@ describe("queryLocal — awaitable local-only IndexedDB read", () => {
     it("resolves an empty array when nothing matches — the case the change-gated reactive output can't signal", async () => {
         // Store has docs, but none of the requested type.
         await db.docs.bulkPut([
-            { _id: "lang", type: DocType.Language, memberOf: [], updatedTimeUtc: 1 } as BaseDocumentDto,
+            {
+                _id: "lang",
+                type: DocType.Language,
+                memberOf: [],
+                updatedTimeUtc: 1,
+            } as BaseDocumentDto,
         ]);
 
         const res = await queryLocal<AuthProviderDto>({ selector: { type: DocType.AuthProvider } });
