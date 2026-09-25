@@ -17,6 +17,7 @@ import { initI18n } from "./i18n";
 import { DocType, HttpReq, initHybridQuery, queryRemote, type LanguageDto } from "luminary-shared";
 import { apiUrl, appLanguageIdsAsRef, cmsLanguages, isAppLoading } from "./globalConfig";
 import { SSG_DISPLAY_LANGUAGES, ssgDisplayLanguages } from "./ssg/renderLanguage";
+import { applyServedLanguage } from "./ssg/hydrationLanguage";
 import { isPrerender } from "./ssg/isPrerender";
 import { captureSsrArticleTextSnapshot } from "./util/ssrTextRecovery";
 
@@ -93,10 +94,9 @@ export const createApp = ViteSSG(
             captureSsrArticleTextSnapshot();
 
             // Client: take the render language from the serialized state so the first
-            // render's UI strings + content match the prerendered HTML. (The web build
-            // is per-URL-language; the user can still switch via the language modal.)
-            const lang = (initialState.renderLang as string) || "";
-            appLanguageIdsAsRef.value = lang ? [lang] : [];
+            // render's UI strings + content match the prerendered HTML. An explicit stored
+            // preference is left intact and re-applied after hydration.
+            applyServedLanguage((initialState.renderLang as string) || "");
             langs = (initialState.languages as LanguageDto[] | undefined) ?? [];
             if (langs.length) cmsLanguages.value = langs;
         }

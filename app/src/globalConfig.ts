@@ -117,6 +117,15 @@ export const appLanguageIdsAsRef = ref<string[]>(
     JSON.parse(localStorage.getItem("languages") || "[]") as string[],
 );
 
+/**
+ * Whether language changes are written to local storage. The web build hydrates in the language the
+ * edge picked for the URL, which is not a choice the visitor made, so it suspends persistence for
+ * that seed (see `ssg/hydrationLanguage.ts`) until the language modal commits a real selection.
+ */
+let languagePersistenceSuspended = false;
+export const suspendLanguagePersistence = () => (languagePersistenceSuspended = true);
+export const resumeLanguagePersistence = () => (languagePersistenceSuspended = false);
+
 // Save the preferred languages to local storage
 // Note: We could have used useLocalStorage from VueUse, but it seems to be difficult
 // to test as mocking localStorage is not working very well. For this reason
@@ -125,6 +134,7 @@ export const appLanguageIdsAsRef = ref<string[]>(
 watch(
     appLanguageIdsAsRef,
     (newVal) => {
+        if (languagePersistenceSuspended) return;
         localStorage.setItem("languages", JSON.stringify(newVal.filter((id) => id != null)));
     },
     { deep: true },
@@ -196,6 +206,9 @@ export const appSyncedLanguageIdsAsRef = ref<string[]>(
 watch(
     appSyncedLanguageIdsAsRef,
     (newVal) => {
+        // Also gated: the synced set is derived from the preferred order by the watcher below, so an
+        // unpersisted seed would otherwise still reach local storage through that cascade.
+        if (languagePersistenceSuspended) return;
         localStorage.setItem("syncedLanguages", JSON.stringify(newVal.filter((id) => id != null)));
     },
     { deep: true },
