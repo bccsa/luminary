@@ -13,14 +13,49 @@ Permissions cannot be tested meaningfully against a shared deployed environment 
 
 ## What this suite covers
 
-Two Playwright projects, each pointed at its own base URL:
+Three Playwright projects, each pointed at its own base URL:
 
 | Project | Base URL env var | Auth                                             | Purpose                                                                       |
 | ------- | ---------------- | ------------------------------------------------ | ----------------------------------------------------------------------------- |
 | `app`   | `APP_BASE_URL`   | Guest, or a persona                              | Public app behavior: home page, IndexedDB sync, navigation, content rendering |
 | `cms`   | `CMS_BASE_URL`   | UI login once (deployed) or a persona (fake IdP) | Authenticated CMS behavior: content editing, publishing flows, permissions    |
+| `web`   | `WEB_BASE_URL`   | Anonymous                                        | The prerendered web tier: build artifacts, JS-off crawlability, hydration     |
 
-Both projects are discovered and executed by a single `npx playwright test` invocation.
+All projects are discovered and executed by a single `npx playwright test` invocation. The
+`web` project is registered only when `WEB_BASE_URL` is set, so a run without a served
+`dist-web/` behaves exactly as before.
+
+### The `web` project
+
+Covers what unit tests structurally cannot reach — the prerender's output as files, the
+HTML a crawler sees with JavaScript off, and the handover from prerendered HTML to the live
+client:
+
+- **`artifacts.spec.ts`** — the build output on disk. Cross-checks `sitemap.xml`,
+  `ssg-deps.json` and the emitted HTML against each other, asserts the build lock was
+  cleared, and asserts no service worker shipped.
+- **`crawlability.spec.ts`** — runs with `javaScriptEnabled: false`. Article body, SEO
+  metadata, reciprocal hreflang, real `<a href>` navigation, and i18n on locale-prefixed
+  pages.
+- **`hydration.spec.ts`** — zero hydration-mismatch warnings, and first-paint content that
+  survives hydration with the API blocked (the only thing that can carry it then is the
+  inline `hqcache:` seed).
+
+The route-level expectations come from the checked-in seed corpus
+(`api/src/db/seedingDocs/`), so they skip unless `E2E_COUCHDB_URL` marks a local stack. The
+artifact cross-checks hold against any build.
+
+Running it locally:
+
+```bash
+cd app
+npm run build:web                                    # needs the API running
+npx vite preview --config vite.config.web.ts --port 4176 --strictPort
+```
+
+Use `vite.config.web.ts`, not the default config — the native config's PWA plugin serves a
+service worker in preview, which is the one thing this tier must not have. Then set
+`WEB_BASE_URL=http://localhost:4176` and run `npm run test:web`.
 
 ## Requirements
 
@@ -43,6 +78,8 @@ cp .env.example .env
 | ---------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | `APP_BASE_URL`         | yes           | Base URL of the deployed App (e.g. a dev/staging environment)                                                               |
 | `CMS_BASE_URL`         | yes           | Base URL of the deployed CMS                                                                                                |
+| `WEB_BASE_URL`         | no            | Origin serving the prerendered `app/dist-web`. Unset, the `web` project is not registered                                   |
+| `SSG_DIST_DIR`         | no            | Where the prerendered output lives, for the `web` artifact assertions (default `../app/dist-web`)                           |
 | `E2E_USER_EMAIL`       | deployed mode | Test user email for CMS login                                                                                               |
 | `E2E_USER_PASSWORD`    | deployed mode | Test user password for CMS login                                                                                            |
 | `E2E_COUCHDB_URL`      | fake-IdP mode | CouchDB of the stack under test, credentials included. Setting this switches the suite into [fake IdP mode](#fake-idp-mode) |
@@ -59,6 +96,7 @@ No URLs are hard-coded anywhere in this package. If `APP_BASE_URL` / `CMS_BASE_U
 npm test                  # run everything
 npm run test:app          # only the App project
 npm run test:cms          # only the CMS project
+npm run test:web          # only the web/SSG project (needs WEB_BASE_URL)
 
 npm run test:ui           # Playwright UI mode (recommended while authoring)
 npm run test:headed       # run with a visible browser
@@ -66,8 +104,10 @@ npm run test:debug        # step through with the Playwright Inspector
 
 npm run test:app:ui       # UI mode, scoped to one project
 npm run test:cms:ui
+npm run test:web:ui
 npm run test:app:headed
 npm run test:cms:headed
+npm run test:web:headed
 
 npm run report            # open the last HTML report
 ```
@@ -266,6 +306,7 @@ playwright-tests/
 │   ├── global-setup.ts
 │   ├── test.ts              # deployed-mode fixtures (cmsTest / appTest)
 │   ├── persona.ts           # fake-IdP fixtures (cmsPersonaTest / appPersonaTest)
+│   ├── ssgOutput.ts         # dist-web readers + the seed corpus the web specs expect
 │   └── idp/                 # the fake OIDC issuer
 │       ├── fakeIdp.ts       # discovery, JWKS, /authorize, /oauth/token
 │       ├── mint.ts          # RS256 token minting (no server needed)
@@ -278,13 +319,20 @@ playwright-tests/
 │   │   └── home-page.spec.ts
 │   ├── components/          # cross-page UI components (header, profile menu, language switcher, …)
 │   └── flows/               # optional: multi-page user journeys (e.g. "switch language then read a post")
-└── cms/                     # testDir for the "cms" Playwright project
-    ├── authentication/      # sign-in, sign-out, session handling
-    │   └── authenticated-access.spec.ts
-    ├── pages/               # per-route CMS screens (dashboard, content list, editor, settings, …)
-    ├── components/          # cross-page CMS components (sidebar, top bar, modals, …)
-    └── flows/               # optional: end-to-end editorial journeys (draft → publish → verify in App)
+├── cms/                     # testDir for the "cms" Playwright project
+│   ├── authentication/      # sign-in, sign-out, session handling
+│   │   └── authenticated-access.spec.ts
+│   ├── pages/               # per-route CMS screens (dashboard, content list, editor, settings, …)
+│   ├── components/          # cross-page CMS components (sidebar, top bar, modals, …)
+│   └── flows/               # optional: end-to-end editorial journeys (draft → publish → verify in App)
+└── web/                     # testDir for the "web" Playwright project
+    ├── artifacts.spec.ts    # the build output as files — no browser involved
+    ├── crawlability.spec.ts # what a crawler sees with JavaScript off
+    └── hydration.spec.ts    # prerendered HTML → live client handover
 ```
+
+The `web/` project is flat: it has one page tier, not a page/component/flow split, so each
+spec is named after the property it asserts rather than a route.
 
 ### Folder guidelines
 
@@ -307,12 +355,13 @@ Two workflows, one per mode:
 
 ### Fake IdP — [e2e-local-stack.yml](../.github/workflows/e2e-local-stack.yml)
 
-Runs on pull requests touching `api/`, `app/`, `cms/`, `shared/` or `playwright-tests/`, and on `workflow_dispatch`. It stands the whole stack up on the runner — CouchDB, MinIO, a seeded API, and production builds of the App and CMS — then runs the suite against it. **No secrets or repo variables required**, so it works on forks and needs no deployed environment to be healthy.
+Runs on pull requests touching `api/`, `app/`, `cms/`, `shared/` or `playwright-tests/`, and on `workflow_dispatch`. It stands the whole stack up on the runner — CouchDB, MinIO, a seeded API, production builds of the App and CMS, and the prerendered web build — then runs the suite against it. **No secrets or repo variables required**, so it works on forks and needs no deployed environment to be healthy.
 
 Notes on why it is shaped the way it is:
 
 - The API is started with `AUTH_ALLOW_INSECURE_PROVIDER_DOMAIN=true`; without it every persona token is rejected.
-- `APP_BASE_URL` / `CMS_BASE_URL` use `localhost`, not `127.0.0.1` — the API's `CORS_ORIGIN` allowlist names `localhost`, and the two are different origins to a browser.
+- `APP_BASE_URL` / `CMS_BASE_URL` / `WEB_BASE_URL` use `localhost`, not `127.0.0.1` — the API's `CORS_ORIGIN` allowlist names `localhost`, and the two are different origins to a browser.
+- The prerender runs after the API is up, because it reads public content anonymously over `/query`. It is served from `vite.config.web.ts`, not the default config, whose PWA plugin would put a service worker in front of a tier that must ship none.
 - Clients are built with `build-only`, skipping `vue-tsc`; type checking belongs to the per-package unit-test workflows.
 - Seeding runs `node dist/src/main seed` against the already-built output rather than `npm run seed`, which would compile a second time.
 - npm caches key off all five lockfiles; Playwright browsers are cached separately, with `install-deps` still run on a cache hit so a fresh runner gets the system libraries.

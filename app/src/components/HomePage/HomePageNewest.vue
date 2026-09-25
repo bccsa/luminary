@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { CONTENT_TILE_SEED_FIELDS } from "@/ssg/contentSeed";
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
 import { PostType, TagType } from "luminary-shared";
 import { useContentQuery } from "@/composables/useContentQuery";
@@ -22,7 +23,12 @@ const newest10Content = useContentQuery(
         },
         { parentPublishDateVisible: true },
     ],
-    { sort: [{ publishDate: "desc" }], limit: 10, cache: true },
+    {
+        sort: [{ publishDate: "desc" }],
+        limit: 10,
+        cache: true,
+        ssrCacheFields: CONTENT_TILE_SEED_FIELDS,
+    },
 );
 </script>
 

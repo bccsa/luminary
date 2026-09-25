@@ -15,6 +15,8 @@ import { setMediaProgress, setReadingProgress } from "@/contentProgress";
 import { computed, nextTick } from "vue";
 import { cmsLanguages } from "@/globalConfig";
 import { setSessionNow, __resetSessionNow } from "@/util/sessionNow";
+import { CONTENT_TILE_SEED_FIELDS, projectContentSeed } from "@/ssg/contentSeed";
+import LImageProvider from "../images/LImageProvider.vue";
 
 vi.mock("@/composables/useBucketInfo", () => ({
     useBucketInfo: () => ({
@@ -65,6 +67,31 @@ const RouterLinkStub = {
 cmsLanguages.value = [mockLanguageDtoEng, mockLanguageDtoFra];
 
 describe("ContentTile", () => {
+    it.each([
+        ["audio", {}],
+        ["video", { video: "video-1" }],
+        ["French date", { language: mockFrenchContentDto.language }],
+        ["coming soon", { publishDate: 2_000_000_000_000, parentShowComingSoon: true }],
+        ["no image or media", { parentImageData: undefined, parentMedia: undefined }],
+    ] as const)(
+        "renders an identical %s tile from a seed and keeps its image on live replacement",
+        async (_, overrides) => {
+            setSessionNow(1_800_000_000_000);
+            const full = { ...mockEnglishContentDto, ...overrides };
+            // JSON round-trip represents the embedded payload, not shared object references.
+            const seed = JSON.parse(
+                JSON.stringify(projectContentSeed([full], CONTENT_TILE_SEED_FIELDS)),
+            )[0];
+            const live = mount(ContentTile, { props: { content: full } });
+            const wrapper = mount(ContentTile, { props: { content: seed } });
+            expect(wrapper.html()).toBe(live.html());
+            const imageProvider = wrapper.findComponent(LImageProvider).vm.$;
+            await wrapper.setProps({ content: full });
+            expect(wrapper.html()).toBe(live.html());
+            expect(wrapper.findComponent(LImageProvider).vm.$).toBe(imageProvider);
+        },
+    );
+
     // Each test that mounts a coming-soon tile freezes sessionNow on first read;
     // reset between tests so a pin from one test can't leak into the next.
     afterEach(() => {

@@ -1,0 +1,7 @@
+{
+    "_id": "auto-group-mappings-e2e-default",
+    "type": "autoGroupMappings",
+    "groupIds": ["group-public-users"],
+    "conditions": [{ "type": "authenticated" }],
+    "memberOf": ["group-super-admins", "group-public-users"]
+}

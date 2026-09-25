@@ -9,6 +9,8 @@ dotenv.config({ path: path.resolve(__dirname, ".env") });
 
 const APP_BASE_URL = process.env.APP_BASE_URL;
 const CMS_BASE_URL = process.env.CMS_BASE_URL;
+/** The prerendered web build (`dist-web/`). Unset, the `web` project is not registered. */
+const WEB_BASE_URL = process.env.WEB_BASE_URL;
 
 if (!APP_BASE_URL || !CMS_BASE_URL) {
     throw new Error(
@@ -74,5 +76,16 @@ export default defineConfig({
                 storageState: LOCAL_STACK ? undefined : "./.auth/cms.json",
             },
         },
+        // The web tier is anonymous and prerendered, so it needs neither a stored
+        // session nor the personas. Registered only when a build is being served.
+        ...(WEB_BASE_URL
+            ? [
+                  {
+                      name: "web",
+                      testDir: "./web",
+                      use: { ...devices["Desktop Chrome"], baseURL: WEB_BASE_URL },
+                  },
+              ]
+            : []),
     ],
 });

@@ -48,3 +48,25 @@ export function reportCacheEntry(route: string, key: string, value: string): voi
     if (!state) return;
     (state.cache[route] ??= {})[key] = value;
 }
+
+/** Storage prefix shared's response cache writes under (its `STORAGE_PREFIX`). */
+const CACHE_STORAGE_PREFIX = "hqcache:";
+
+/**
+ * Attribute a just-written response-cache entry to `route`, reading it back under the same
+ * `hqcache:`-prefixed key shared writes and the hydrating client reads. Call it immediately
+ * after the `writeResponseCache` that produced it, so the value is captured before another
+ * render's cleanup can touch the shared store. No-op on a miss (a quota-failed write) or
+ * outside a capture.
+ */
+export function captureCacheEntry(route: string, cacheKey: string): void {
+    if (!capture()) return;
+    const storageKey = CACHE_STORAGE_PREFIX + cacheKey;
+    let value: string | null = null;
+    try {
+        value = globalThis.localStorage?.getItem(storageKey) ?? null;
+    } catch {
+        return;
+    }
+    if (value !== null) reportCacheEntry(route, storageKey, value);
+}

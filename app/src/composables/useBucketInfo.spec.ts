@@ -1,7 +1,12 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, afterEach } from "vitest";
 import { ref } from "vue";
-import { db, DocType } from "luminary-shared";
+import {
+    db,
+    DocType,
+    sharedHybridQueryCount,
+    _resetSharedHybridQueryForTests,
+} from "luminary-shared";
 import { useBucketInfo } from "./useBucketInfo";
 import waitForExpect from "wait-for-expect";
 
@@ -29,6 +34,9 @@ const storageBucket2 = {
 
 describe("useBucketInfo", () => {
     afterEach(async () => {
+        // The bucket query is a shared, never-disposed instance — drop it so its live
+        // subscription and settled output can't carry into the next test.
+        _resetSharedHybridQueryForTests();
         await db.docs.clear();
         // The query is cached (`cache: true`), so it writes to localStorage; clear it
         // between tests to keep the synchronous seed from leaking across cases.
@@ -77,10 +85,29 @@ describe("useBucketInfo", () => {
             expect(first.bucketBaseUrl.value).toBe("https://cdn.example.com");
         });
 
+        // Drop the shared instance so the call below is genuinely a fresh mount rather
+        // than a second subscriber to the already-settled one.
+        _resetSharedHybridQueryForTests();
+
         // A fresh mount must resolve the URL on the synchronous first frame from the
         // seed — no awaiting. This is what stops <LImage> painting a fallback and then
         // swapping to the real image (the reload flash).
         const second = useBucketInfo(ref<string | undefined>("storage-bucket-1"));
         expect(second.bucketBaseUrl.value).toBe("https://cdn.example.com");
+    });
+
+    it("shares one query instance across call sites", async () => {
+        await db.docs.bulkPut([storageBucket1]);
+
+        // Every <LImage> on a page calls this; N instances would mean N Dexie
+        // subscriptions and N cold-start POSTs of the same query.
+        const first = useBucketInfo(ref<string | undefined>("storage-bucket-1"));
+        const second = useBucketInfo(ref<string | undefined>("storage-bucket-2"));
+
+        expect(sharedHybridQueryCount()).toBe(1);
+        await waitForExpect(() => {
+            expect(first.bucketBaseUrl.value).toBe("https://cdn.example.com");
+        });
+        expect(second.bucket.value).toBeNull();
     });
 });

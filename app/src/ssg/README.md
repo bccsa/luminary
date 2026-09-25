@@ -6,7 +6,9 @@ read.
 
 > **Status:** Built and working. The content seam is **`useContentQuery`** itself, and
 > the **web client uses the identical local-first hybrid query as the normal SPA** — there are
-> no `VITE_BUILD_TARGET` branches in the seam. No-flash hydration is achieved by reusing
+> no `VITE_BUILD_TARGET` branches in the data seam. (Image `sizes` is the one deliberate
+> exception, in `components/images/ssgImageSlot.ts` — see [§Image slots](#image-slots-ssgimageslotts).)
+> No-flash hydration is achieved by reusing
 > **shared's own response cache** (see [§No-flash hydration](#no-flash-hydration--shareds-response-cache)).
 > The bespoke snapshot layer that used to live here (`queryPublic`, `sliceKey`,
 > a `publicContent` Pinia store, a `publicContentApi` `/search` reader) was **deleted** —
@@ -196,6 +198,33 @@ empty state during a prerender — a personalised feed with no user state, a tag
 tagged documents, a related-content lookup with nothing to relate. So a build with zero
 rejected queries succeeds regardless of how many provably-empty warnings it logged.
 
+### Overview cache seeds (`contentSeed.ts`)
+
+Overview queries on Home, Explore and Watch opt into `ssrCacheFields` profiles from
+`contentSeed.ts`: tile seeds keep display/navigation/media/grouping fields; category
+row seeds keep headings, layout, ordering and child-query IDs. Projection applies only
+to the embedded response-cache copy. Rendered/live results, offline documents, query
+keys and cache replay timing are unchanged. Identity/version, publish date and query
+sort fields are always retained. Image and media objects are kept intact; changing
+the serialized image object can remount `LImageProvider` when live data arrives.
+Queries without a profile retain the existing exclusion policy, including article
+body recovery and sibling-translation handling. Audit every consumer and dependent
+query before adding a profile or removing one of its fields.
+
+### Image slots (`ssgImageSlot.ts`)
+
+The prerender advertises the reduced `sizes` slot so the pre-JS fetch stays small, and the
+SSG client replaces that DOM with fresh elements rather than hydrating onto it. An image
+that advertised its full, DPR-capped slot on the client's first frame would therefore
+resolve a different `srcset` rung and throw away the download the page already made. So
+`ssgSlotUpgraded` holds the build's slot for one frame, then releases it; images mounted
+after that (client-side navigation) go straight to the full slot.
+
+This is the one deliberate `VITE_BUILD_TARGET === "web"` branch outside the data seam — the
+ref starts released in every other build, so the normal SPA and native paths are untouched.
+Keeping the two in agreement is what the branch is for: changing either the prerender's slot
+or the first frame's without the other reintroduces the double fetch.
+
 ### i18n SSR (`main.web.ts`)
 
 UI strings live in CouchDB Language docs. The prerender fetches languages via
@@ -203,8 +232,8 @@ UI strings live in CouchDB Language docs. The prerender fetches languages via
 (so the first render emits real strings, not `menu.*` keys), and serializes all language
 docs via vite-ssg's `initialState` — with `translations` stripped from all but the render
 and default language to bound page weight. The render language also rides `initialState`
-as `renderLang` (the language `_id`, often a UUID) plus a human-readable `renderLangName`
-companion for anyone inspecting the inlined state.
+as `renderLang` (the language `_id`, often a UUID). Language names and codes remain
+available in the language docs without separate diagnostic or lookup state.
 
 ### Incremental regeneration — facet keys + manifest + scoped rebuild
 
@@ -343,7 +372,7 @@ prerender authenticates as **anonymous** (default group mappings) to read public
 | --- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | **Incremental regeneration** (facet-key manifest), not always-full-rebuild                                                                          | A full ~1934-route build is slow; ISR keeps edits near-instant.                                                                                                                                                                                                                                                                                   |
 | 2   | **No-flash hydration via shared's response cache**                                                                                                  | Clean hydration _without_ a bespoke snapshot. `useHybridQuery({cache:true})` already reads `hqcache:*` synchronously — so the prerender just primes it.                                                                                                                                                                                           |
-| 3   | **Web client == normal SPA path** (no `VITE_BUILD_TARGET` branches in the seam)                                                                     | One code path to reason about. The earlier web-specific branch was deleted.                                                                                                                                                                                                                                                                       |
+| 3   | **Web client == normal SPA path** (no `VITE_BUILD_TARGET` branches in the data seam)                                                                | One code path to reason about. The earlier web-specific branch was deleted. Image `sizes` is the one exception — the client's first frame has to reproduce a slot the build chose, which no shared data path can express.                                                                                                                          |
 | 4   | **Delete the bespoke snapshot layer** (`queryPublic`, `sliceKey`, `publicContent` Pinia store, `publicContentApi`)                                  | Superseded by shared's `queryRemote` / `structuralCacheKey` / `writeResponseCache`. Less code, one system.                                                                                                                                                                                                                                        |
 | 5   | **Derive dependency keys generically from the query selector**                                                                                      | Rearranging layout / adding a page needs **zero** key edits — only a new _data facet_ touches `facetKeys.ts`. Rejected: hardcoding keys per page.                                                                                                                                                                                                 |
 | 6   | **Expose ISR via polling `queryRemote`, NOT the socket**                                                                                            | A socket-based watch connects and receives `data`, but the change never renders (socket scopes by rooms/accessMap + Dexie live-sync — extra coupling). The public, anonymous `/query` path is polling-friendly with no such coupling.                                                                                                            |
@@ -385,9 +414,14 @@ the default-language `404.html` is emitted (per-language `/<code>/404` deferred;
 **OOM:** root-caused and fixed (seed 105KB → 39KB). The remaining confirmation is a clean
 full `build:web` to completion across all ~1934 routes against a production-sized dataset.
 
-**Still the user's to run (browser-level):** `preview:web` in Incognito (a stale normal SPA SW
-will otherwise hijack localhost) — confirm no flash, no hydration warnings, language
-switch, 404, and nav links. Note `VITE_API_URL` (or `SSG_API_URL`) must point at a running API.
+**Browser-level coverage:** the `web` Playwright project
+(`playwright-tests/web/`) builds and serves `dist-web` on the local stack and asserts the
+artifact set, JS-off crawlability, and hydration (zero mismatch warnings, no flash with the
+API blocked, no service worker). It runs on every PR via `e2e-local-stack.yml`.
+
+**Still the user's to run:** `preview:web` in Incognito (a stale normal SPA SW will otherwise
+hijack localhost) for anything the suite doesn't cover, and a clean full build against a
+production-sized dataset. Note `VITE_API_URL` (or `SSG_API_URL`) must point at a running API.
 
 ---
 

@@ -17,20 +17,12 @@ import { useDisplayLanguageIds } from "@/ssg/renderLanguage";
 import { hasPersistedSession } from "@/auth";
 import { mangoIsPublished, publishedNowConditions } from "@/util/mangoIsPublished";
 import { useRoute } from "vue-router";
-import { reportCacheEntry, reportKeys } from "@/ssg/dependencyCapture";
+import { captureCacheEntry, reportKeys } from "@/ssg/dependencyCapture";
 import { chainFor, queueOnChain } from "@/ssg/ssrChains";
 import { isPrerender } from "@/ssg/isPrerender";
 import { queryContentLocal } from "@/ssg/contentStore";
 import { reportRenderIssue } from "@/ssg/renderDiagnostics";
-
-/** Reads back one just-written response-cache entry so it can be attributed to its route. Takes the full `hqcache:`-prefixed storage key (matching shared's `STORAGE_PREFIX`). */
-function readCacheEntry(storageKey: string): string | null {
-    try {
-        return globalThis.localStorage?.getItem(storageKey) ?? null;
-    } catch {
-        return null;
-    }
-}
+import { projectContentSeed } from "@/ssg/contentSeed";
 
 function stripDocs(docs: ContentDto[], stripFields: string[]): ContentDto[] {
     if (!stripFields.length) return docs;
@@ -113,6 +105,12 @@ export type UseContentQueryOptions = HybridQueryOptions & {
      * Fields stripped only from the SSR-authored response-cache write, distinct from `cacheStripFields` (which also strips from the client's ongoing re-cache writes). Use this for a field the hydrating client can recover another way (e.g. from the rendered DOM) to avoid shipping it twice.
      */
     ssrCacheStripFields?: string[];
+    /**
+     * Opt-in fields for the embedded SSG seed only. Identity/version and sort fields
+     * are retained automatically. Audit all consumers (including dependent queries)
+     * before opting in. Live results and offline persistence are unaffected.
+     */
+    ssrCacheFields?: readonly (keyof ContentDto)[];
     /**
      * Marks this query as identical across the ENTIRE SSG build (e.g. a fixed-id
      * copyright lookup), so the SSR branch fetches it once for the whole build instead
@@ -216,6 +214,7 @@ function useContentQueryState(
         // edit-permission check (`memberOf`).
         stripFields = ["fts", "ftsTokenCount", "text", "memberOf", "_rev"],
         ssrCacheStripFields,
+        ssrCacheFields,
         buildOnce = false,
         ...rest
     } = options;
@@ -323,7 +322,7 @@ function useContentQueryState(
                         // Prerendering is always anonymous — see the client branch's
                         // `hybridOptions.cacheId` above for the `:auth` counterpart.
                         cacheKey,
-                        { local: docs, remote: [] },
+                        { local: projectContentSeed(docs, ssrCacheFields, sort), remote: [] },
                         limit,
                         // ssrCacheStripFields (SSR-only) falls back to cacheStripFields so a
                         // caller that doesn't need the asymmetry can keep using one option.
@@ -331,13 +330,8 @@ function useContentQueryState(
                     );
                     // Attribute the entry to this route as it is written. `writeResponseCache`
                     // targets one shared store, so scraping it after the render would also
-                    // pick up whatever pages rendering alongside this one put there. Read back
-                    // under the same `hqcache:`-prefixed storage key shared writes (and the
-                    // client reads) — the prefix is the one shared's `STORAGE_PREFIX` uses, so
-                    // the inlined seed lands under the exact key the hydrating client reads.
-                    const storageKey = "hqcache:" + cacheKey;
-                    const cached = readCacheEntry(storageKey);
-                    if (cached !== null) reportCacheEntry(route, storageKey, cached);
+                    // pick up whatever pages rendering alongside this one put there.
+                    captureCacheEntry(route, cacheKey);
                 }
                 // Dependency-capture attribution is per-ROUTE regardless of whether the
                 // fetch itself was shared via `buildOnce` — this route still needs its own

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { CATEGORY_ROW_SEED_FIELDS, CONTENT_TILE_SEED_FIELDS } from "@/ssg/contentSeed";
 import { PostType, TagType } from "luminary-shared";
 import { contentByTag } from "../contentByTag";
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
@@ -7,6 +8,7 @@ import { computed } from "vue";
 
 const pinnedCategories = useContentQuery(() => [{ parentPinned: 1 }], {
     cache: true,
+    ssrCacheFields: CATEGORY_ROW_SEED_FIELDS,
     // Seek pinned category docs via the parentPinned-led index. Order is irrelevant
     // here (contentByTag re-sorts downstream), but the publishDate sort is required
     // for CouchDB to engage the index instead of full-scanning the content collection.
@@ -41,7 +43,13 @@ const pinnedCategoryContent = useContentQuery(
     // contentByTag re-sorts per category for display.
     // A pinned-category change re-narrows the same feed, so keep the tiles on screen
     // while the new window loads.
-    { cache: true, limit: 50, sort: [{ publishDate: "desc" }], keepPreviousResult: true },
+    {
+        cache: true,
+        ssrCacheFields: CONTENT_TILE_SEED_FIELDS,
+        limit: 50,
+        sort: [{ publishDate: "desc" }],
+        keepPreviousResult: true,
+    },
 );
 
 // sort pinned content by category

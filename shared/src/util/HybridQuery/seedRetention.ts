@@ -35,13 +35,26 @@ export class SeedRetention {
     }
 
     /**
-     * Whether an empty authoritative local read must be held back. An empty
-     * authoritative local read must not collapse a seeded first paint while a
-     * remote supplement is still in flight; a non-empty read replaces wholesale so
-     * deletions still propagate.
+     * How a local read should be applied to a cache-seeded window.
+     *
+     * - `replace` — the read is authoritative; take it wholesale so deletions propagate.
+     * - `retain` — it has nothing to show yet; keep the seeded window rather than blanking.
+     * - `merge` — it is real but incomplete, so layer it over the seed: sync fills the local
+     *   store one batch at a time, and each batch would otherwise replace the whole seeded
+     *   window with just the handful of docs written so far.
+     *
+     * @param corpusSettled Whether the local store is complete enough for a read to be
+     *   authoritative. Defaults to `true`, so a caller that doesn't track completeness keeps
+     *   the remote-pending rule alone.
      */
-    shouldRetainLocal(localCount: number, remotePending: boolean): boolean {
-        return localCount === 0 && this.seededLocal && remotePending;
+    localReadMode(
+        localCount: number,
+        remotePending: boolean,
+        corpusSettled = true,
+    ): "replace" | "retain" | "merge" {
+        if (!this.seededLocal) return "replace";
+        if (localCount === 0) return remotePending || !corpusSettled ? "retain" : "replace";
+        return corpusSettled ? "replace" : "merge";
     }
 
     /** Mark the local contribution as no longer a seed. */

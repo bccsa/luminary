@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { CATEGORY_ROW_SEED_FIELDS, CONTENT_TILE_SEED_FIELDS } from "@/ssg/contentSeed";
 import { DocType, TagType } from "luminary-shared";
 import HorizontalContentTileCollection from "@/components/content/HorizontalContentTileCollection.vue";
 import { contentByTag } from "../contentByTag";
@@ -8,6 +9,7 @@ const categories = useContentQuery(
     () => [{ parentPinned: 1 }, { parentTagType: TagType.Category }],
     {
         cache: true,
+        ssrCacheFields: CATEGORY_ROW_SEED_FIELDS,
         // Seek via the parentPinned-led index; publishDate sort required to engage it
         // (order is irrelevant — contentByTag re-sorts downstream).
         useIndex: "content-parentPinned-publishDate-index",
@@ -33,7 +35,13 @@ const topics = useContentQuery(
     // contentByTag re-sorts per category for display.
     // A pinned-category change re-narrows the same feed, so keep the topics on screen
     // while the new window loads.
-    { cache: true, limit: 50, sort: [{ publishDate: "desc" }], keepPreviousResult: true },
+    {
+        cache: true,
+        ssrCacheFields: CONTENT_TILE_SEED_FIELDS,
+        limit: 50,
+        sort: [{ publishDate: "desc" }],
+        keepPreviousResult: true,
+    },
 );
 
 // sort pinned content by category

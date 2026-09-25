@@ -167,7 +167,7 @@ vi.mock("@/components/tags/VerticalTagViewer.vue", () => ({
     default: voidStub("VerticalTagViewer"),
 }));
 vi.mock("@/components/LoadingBar.vue", () => ({ default: voidStub("LoadingBar") }));
-vi.mock("@/pages/NotFoundPage.vue", () => ({ default: voidStub("NotFoundPage") }));
+vi.mock("@/pages/NotFoundContent.vue", () => ({ default: voidStub("NotFoundContent") }));
 
 import SingleContent from "../SingleContent.vue";
 

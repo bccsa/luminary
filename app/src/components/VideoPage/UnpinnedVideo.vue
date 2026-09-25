@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { CONTENT_TILE_SEED_FIELDS, CATEGORY_ROW_SEED_FIELDS } from "@/ssg/contentSeed";
 import { computed } from "vue";
 import { DocType, PostType, TagType } from "luminary-shared";
 import { contentByTag } from "../contentByTag";
@@ -18,7 +19,12 @@ const newest100Content = useContentQuery(
         },
         { $or: [{ parentTagType: { $exists: false } }, { parentTagType: TagType.Topic }] },
     ],
-    { sort: [{ publishDate: "desc" }], limit: 100, cache: true },
+    {
+        sort: [{ publishDate: "desc" }],
+        limit: 100,
+        cache: true,
+        ssrCacheFields: CONTENT_TILE_SEED_FIELDS,
+    },
 );
 
 const categoryIds = computed(() =>
@@ -39,7 +45,7 @@ const categories = useContentQuery(
     ],
     // The category set grows with the content query above it — keep the rows already
     // rendered rather than blanking them on each widening.
-    { cache: true, keepPreviousResult: true },
+    { cache: true, ssrCacheFields: CATEGORY_ROW_SEED_FIELDS, keepPreviousResult: true },
 );
 
 const unpinnedNewestContentByCategory = contentByTag(newest100Content, categories);
