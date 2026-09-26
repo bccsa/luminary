@@ -66,8 +66,10 @@ The normal SPA build (`npm run build` → `dist/`, with its service worker) is
 the normal SPA is `app/vite.config.ts`.
 
 **Build-time API URL:** the build's own Node-side fetches (route/language/redirect/delete-cmd
-enumeration, the per-page `queryTransport` reads) resolve `SSG_API_URL`, falling back to
-`VITE_API_URL` when unset. This lets a deployer point the build at a colocated internal API
+enumeration and per-page `HttpReq` queries) resolve `SSG_API_URL`, falling back to
+`VITE_API_URL` when unset. The web config overrides `import.meta.env.VITE_API_URL` only for
+Vite's SSR build pass, so per-page queries use the same endpoint as enumeration.
+This lets a deployer point the build at a colocated internal API
 without touching what gets compiled into the client bundle — `VITE_API_URL` is still the only
 origin embedded in the shipped JS (via `src/globalConfig.ts`), so it must stay publicly
 reachable. Unset `SSG_API_URL` and nothing changes.

@@ -824,4 +824,12 @@ const config: UserConfig & { ssgOptions: ViteSSGOptions } = {
     },
 };
 
-export default defineConfig(config);
+export default defineConfig(({ isSsrBuild }) => ({
+    ...config,
+    define: {
+        ...config.define,
+        // Per-page HttpReq reads this through globalConfig.ts. Override only the SSR
+        // pass; never mutate the shared config or expose the internal URL to clients.
+        ...(isSsrBuild ? { "import.meta.env.VITE_API_URL": JSON.stringify(SSG_API_URL) } : {}),
+    },
+}));
