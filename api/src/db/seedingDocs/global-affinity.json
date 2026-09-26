@@ -1,0 +1,7 @@
+{
+    "_id": "global-affinity",
+    "type": "globalAffinity",
+    "memberOf": ["group-super-admins", "group-public-content"],
+    "affinity": {},
+    "contributionCount": 0
+}

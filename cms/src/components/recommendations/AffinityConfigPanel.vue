@@ -42,19 +42,31 @@ function cloneConfig(config: AffinityConfig): AffinityConfig {
         readFloorPercent: config.readFloorPercent,
         mediaCompletionPercent: config.mediaCompletionPercent,
         eventWeight: { ...config.eventWeight },
+        global: { ...config.global },
     };
 }
 
 const form = ref<AffinityConfig>(cloneConfig(savedConfig.value));
 
+/**
+ * What the form was last loaded from. Dirtiness is measured against this rather than against
+ * `savedConfig`: the panel mounts before the singleton has loaded, so the form starts on
+ * defaults, and comparing to the server would read that gap as unsaved user edits — which
+ * then blocks the very resync that would fix it, leaving the form stuck on defaults.
+ */
+const pristine = ref<string>(JSON.stringify(cloneConfig(savedConfig.value)));
+
 function resetForm() {
-    form.value = cloneConfig(savedConfig.value);
+    const next = cloneConfig(savedConfig.value);
+    form.value = next;
+    pristine.value = JSON.stringify(next);
 }
 
-// The panel is always mounted (no modal open/close lifecycle to gate this on), so only
-// resync from a remote config change while the form has no unsaved edits — otherwise a
-// second admin's save would silently wipe whatever's being typed here.
-const isDirty = computed(() => JSON.stringify(form.value) !== JSON.stringify(savedConfig.value));
+const isDirty = computed(() => JSON.stringify(cloneConfig(form.value)) !== pristine.value);
+
+// The panel is always mounted (no modal open/close lifecycle to gate this on), so only adopt a
+// remote change while the form has no unsaved edits — otherwise a second admin's save would
+// silently wipe whatever is being typed here.
 watch(savedConfig, () => {
     if (!isDirty.value) resetForm();
 });
@@ -107,6 +119,10 @@ const impressionPercent = percentField(
 const searchClickPercent = percentField(
     () => form.value.eventWeight.searchClick,
     (value) => (form.value.eventWeight.searchClick = value),
+);
+const globalLearningRatePercent = percentField(
+    () => form.value.global.learningRate,
+    (value) => (form.value.global.learningRate = value),
 );
 
 function clamp(value: number, min: number, max: number, fallback: number) {
@@ -176,6 +192,31 @@ function normalizedConfig(): AffinityConfig {
                 savedConfig.value.eventWeight.searchClick,
             ),
         },
+        global: {
+            halfLifeDays: clamp(
+                c.global.halfLifeDays,
+                1,
+                3650,
+                savedConfig.value.global.halfLifeDays,
+            ),
+            learningRate: clamp(
+                c.global.learningRate,
+                0,
+                0.1,
+                savedConfig.value.global.learningRate,
+            ),
+            minScore: clamp(c.global.minScore, 0.000001, 0.5, savedConfig.value.global.minScore),
+            maxTags: Math.round(clamp(c.global.maxTags, 1, 1000, savedConfig.value.global.maxTags)),
+            minEvents: Math.round(
+                clamp(c.global.minEvents, 1, 10000, savedConfig.value.global.minEvents),
+            ),
+            intervalHours: clamp(
+                c.global.intervalHours,
+                0,
+                8760,
+                savedConfig.value.global.intervalHours,
+            ),
+        },
     };
 }
 
@@ -197,7 +238,8 @@ async function save() {
 
     isSaving.value = true;
     try {
-        const res = await saveConfig(normalizedConfig(), memberOf);
+        const normalized = normalizedConfig();
+        const res = await saveConfig(normalized, memberOf);
         if (res && res.ack === AckStatus.Rejected) {
             addNotification({
                 title: "Can't save these settings",
@@ -206,6 +248,11 @@ async function save() {
             });
             return;
         }
+
+        // Adopt what was actually sent (clamping may have altered it), so the form reads clean
+        // straight away instead of waiting for the saved config to round-trip back.
+        form.value = cloneConfig(normalized);
+        pristine.value = JSON.stringify(cloneConfig(normalized));
         addNotification({
             title: "Settings saved",
             description: "These changes will apply the next time people open the app.",
@@ -224,11 +271,13 @@ async function save() {
 </script>
 
 <template>
+    <!-- Not `fill-height`: this card shares its column with the community card, and two
+         flex-1 cards each scroll their own body, burying the lower fieldsets behind an inner
+         scrollbar. Natural height lets the column scroll as one. -->
     <LCard
         title="Recommendation settings"
         :collapsible="isMobileScreen"
         v-model:collapsed="collapsed"
-        fill-height
     >
         <div class="space-y-3">
             <div class="text-sm text-zinc-600">
@@ -396,17 +445,78 @@ async function save() {
                     />
                 </div>
             </fieldset>
+
+            <fieldset class="space-y-1.5">
+                <legend class="text-sm font-semibold text-zinc-900">Community interest</legend>
+                <div class="text-xs text-zinc-500">
+                    Settings for the shared picture of what everyone is interested in. Each person
+                    counts once, so these decide how much that single count is worth.
+                </div>
+                <div class="grid grid-cols-2 items-end gap-x-3 gap-y-1.5 sm:grid-cols-3">
+                    <LInput
+                        name="global-learningRate"
+                        label="How much one person counts"
+                        type="number"
+                        step="0.01"
+                        size="sm"
+                        rightAddOn="%"
+                        v-model="globalLearningRatePercent"
+                        data-test="affinity-config-global-learningRate"
+                    />
+                    <LInput
+                        name="global-halfLifeDays"
+                        label="Days until it halves"
+                        type="number"
+                        step="1"
+                        size="sm"
+                        v-model="form.global.halfLifeDays"
+                        data-test="affinity-config-global-halfLifeDays"
+                    />
+                    <LInput
+                        name="global-maxTags"
+                        label="Most interests remembered"
+                        type="number"
+                        step="1"
+                        size="sm"
+                        v-model="form.global.maxTags"
+                        data-test="affinity-config-global-maxTags"
+                    />
+                    <LInput
+                        name="global-minEvents"
+                        label="Actions needed before someone counts"
+                        type="number"
+                        step="1"
+                        size="sm"
+                        v-model="form.global.minEvents"
+                        data-test="affinity-config-global-minEvents"
+                    />
+                    <LInput
+                        name="global-intervalHours"
+                        label="Hours before someone can count again"
+                        type="number"
+                        step="1"
+                        size="sm"
+                        v-model="form.global.intervalHours"
+                        data-test="affinity-config-global-intervalHours"
+                    />
+                </div>
+            </fieldset>
         </div>
 
         <template #footer>
             <div class="flex justify-end gap-2">
-                <LButton variant="secondary" @click="resetForm" data-test="affinity-config-cancel">
+                <LButton
+                    variant="secondary"
+                    :disabled="isSaving || !isDirty"
+                    @click="resetForm"
+                    data-test="affinity-config-cancel"
+                >
                     Reset
                 </LButton>
                 <LButton
                     variant="primary"
                     :icon="isSaving ? LoadingSpinner : undefined"
-                    :disabled="isSaving"
+                    :disabled="isSaving || !isDirty"
                     @click="save"
                     data-test="affinity-config-save"
                 >

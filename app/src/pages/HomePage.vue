@@ -5,6 +5,7 @@ import HomePageNewest from "@/components/HomePage/HomePageNewest.vue";
 import BasePage from "@/components/BasePage.vue";
 import ContinueProgress from "@/components/HomePage/ContinueProgress.vue";
 import RecommendedForYou from "@/components/HomePage/RecommendedForYou.vue";
+import OthersAreInterestedIn from "@/components/HomePage/OthersAreInterestedIn.vue";
 import HomePageSearch from "@/components/HomePage/HomePageSearch.vue";
 import { isMdScreen } from "@/globalConfig";
 import { nextTick, onActivated, ref } from "vue";
@@ -52,6 +53,7 @@ useLocalizedStaticHead("/");
             </Suspense>
 
             <RecommendedForYou />
+            <OthersAreInterestedIn />
             <ContinueProgress />
         </IgnorePagePadding>
     </BasePage>

@@ -24,6 +24,14 @@ const DEFAULT_AFFINITY_CONFIG = vi.hoisted(() => ({
         impression: -0.02,
         searchClick: 0.0004,
     },
+    global: {
+        halfLifeDays: 180,
+        learningRate: 0.002,
+        minScore: 0.0005,
+        maxTags: 200,
+        minEvents: 20,
+        intervalHours: 24,
+    },
 }));
 
 vi.mock("luminary-shared", async () => {
@@ -47,6 +55,7 @@ vi.mock("luminary-shared", async () => {
             ...DEFAULT_AFFINITY_CONFIG,
             ...config,
             eventWeight: { ...DEFAULT_AFFINITY_CONFIG.eventWeight, ...config?.eventWeight },
+            global: { ...DEFAULT_AFFINITY_CONFIG.global, ...config?.global },
         }),
         hasAnyPermission: vi.fn(() => true),
         useHybridQueryWithState: vi.fn(() => ({ output: ref([]), isFetching: ref(false) })),

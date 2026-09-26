@@ -27,6 +27,9 @@ export enum DocType {
     // CMS-editable global baseline affinity profile (singleton). Delivered at
     // login to seed a client-local recommendation profile (cold start).
     DefaultAffinity = "defaultAffinity",
+    // Audience-wide affinity profile (singleton), aggregated server-side from client
+    // contributions. Clients may only ever send a contribution delta, never the map.
+    GlobalAffinity = "globalAffinity",
     Sidecar = "sidecar",
 }
 
@@ -75,6 +78,13 @@ export enum AclPermission {
      * Access to share published content from the app (share sheet / social links)
      */
     Share = "share",
+
+    /**
+     * Access to contribute anonymous aggregate signal to a server-aggregated document.
+     * Deliberately kept out of `cmsOnlyPermissions`, so granting it does not imply CmsView —
+     * app users contribute without gaining any CMS-scoped visibility.
+     */
+    Contribute = "contribute",
 
     /**
      * Access to view documents in the CMS, including drafts and expired content.
