@@ -271,6 +271,10 @@ export class QueryService {
         // only knowable post-hoc). Set here, not in executeFindQuery, so the auth /
         // languages / search callers of that method are unaffected.
         (query as any).execution_stats = true;
+
+        // A `parentTags` feed is deliberately left unbounded: a publishDate floor derived from
+        // a tag's newest documents can hide older ones the caller is entitled to, because the
+        // language/access/expiry filters and hybrid older-tail requests both reach past it.
         const result = await this.db.executeFindQuery(query);
 
         // Data minimization (covers both sync and HybridQuery — both POST /query): a non-CMS

@@ -453,6 +453,11 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
     private readonly _generationDisposers = new Set<() => void>();
     private _stopQueryWatch?: WatchStopHandle;
     private _disposed = false;
+    // Supplement POSTs already issued by THIS instance, keyed by the serialized query.
+    // A dependent feed (`parentId: { $in: parent.value }`) rebuilds each time its parent
+    // query settles a leg, and the fan-out re-plans the whole parent set — so without this
+    // the widened set re-POSTs every parent it already fetched. See `_fetchRemoteOnce`.
+    private readonly _remoteFetches = new Map<string, Promise<T[]>>();
 
     constructor(query: MangoQuery | (() => MangoQuery), options: HybridQueryOptions = {}) {
         this._queryFn = typeof query === "function" ? query : () => query;
@@ -565,6 +570,8 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
         const ds = Array.from(this._generationDisposers);
         this._generationDisposers.clear();
         ds.forEach((fn) => fn());
+        // Release the fetched docs the supplement memo holds.
+        this._remoteFetches.clear();
     }
 
     // ── internals ────────────────────────────────────────────────────────────
@@ -856,6 +863,41 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
         this._settleRemote(gen);
     }
 
+    /**
+     * Cap on remembered supplement POSTs per instance, so a feed whose parent set churns
+     * can't accumulate fetched docs indefinitely. Comfortably above one fan-out
+     * (`FANOUT_MAX_PARENTS`) so the rebuild case this exists for always hits.
+     */
+    private static readonly REMOTE_FETCH_MEMO_MAX = 100;
+
+    /**
+     * POST a supplement query at most once per instance, reusing the in-flight or settled
+     * promise for an identical query. This is what stops a dependent feed's rebuild from
+     * re-fetching the parents its previous generation already fetched.
+     *
+     * Scoped to one instance (a shared/global memo would hand one component's
+     * permission-scoped result to another) and dropped on failure so a transient error
+     * still retries. Live mode keeps the supplement current off the socket, so reusing a
+     * settled result does not pin stale docs on screen.
+     */
+    private _fetchRemoteOnce(query: MangoQuery): Promise<T[]> {
+        const key = JSON.stringify(query, (_k, v) => (v === undefined ? " undef" : v));
+        const existing = this._remoteFetches.get(key);
+        if (existing) return existing;
+
+        const pending = queryRemote<T>(query).catch((err) => {
+            this._remoteFetches.delete(key);
+            throw err;
+        });
+        if (this._remoteFetches.size >= HybridQuery.REMOTE_FETCH_MEMO_MAX) {
+            // Insertion-ordered, so this drops the oldest entry.
+            const oldest = this._remoteFetches.keys().next().value;
+            if (oldest !== undefined) this._remoteFetches.delete(oldest);
+        }
+        this._remoteFetches.set(key, pending);
+        return pending;
+    }
+
     private async _postAndMerge(apis: MangoQuery[], gen: number): Promise<void> {
         try {
             // The older-tail supplement is expanded via planRemoteContentQueries: a multi-parent
@@ -867,7 +909,7 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
             // keep the queries that succeeded. If EVERY query fails we leave `_remote` untouched
             // (preserving any cache seed, healing on remount), matching the prior behaviour.
             const queries = apis.flatMap((api) => planRemoteContentQueries(api));
-            const settled = await Promise.allSettled(queries.map((q) => queryRemote<T>(q)));
+            const settled = await Promise.allSettled(queries.map((q) => this._fetchRemoteOnce(q)));
             // A rebuild (dep change) or dispose may have superseded this POST while
             // it was in flight — its result belongs to a dead generation.
             if (gen !== this._generation || this._disposed) return;
