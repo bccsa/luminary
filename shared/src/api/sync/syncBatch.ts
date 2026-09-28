@@ -149,7 +149,7 @@ export async function syncBatch(options: SyncOptions) {
         return;
     }
 
-    if (!res.docs || !Array.isArray(res.docs)) throw new Error("Invalid API response format");
+    if (!res || !res.docs || !Array.isArray(res.docs)) throw new Error("Invalid API response format");
 
     // Surface API warnings (e.g. CouchDB "documents examined is high") together with the exact
     // query + index that triggered them, so the offending sync column is identifiable.
