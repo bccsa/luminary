@@ -3,6 +3,7 @@ import router from "./router";
 import { isInstalledStandalone } from "./globalConfig";
 // @ts-expect-error Matomo does not have a typescript definition file
 import VueMatomo from "vue-matomo";
+import { reportError } from "luminary-shared";
 
 declare global {
     interface Window {
@@ -74,7 +75,7 @@ export const initAnalytics = () => {
             : new URL(swUrl, location.href).pathname.replace(/\/[^/]+$/, "/");
         navigator.serviceWorker
             .register(swUrl, { scope, type: "module" })
-            .catch((err) => console.error("Matomo SW registration failed:", err));
+            .catch((err) => reportError(err, { area: "analytics", op: "sw-register" }));
     } else {
         if ("serviceWorker" in navigator) {
             navigator.serviceWorker.getRegistrations().then((registrations) => {

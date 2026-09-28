@@ -26,6 +26,7 @@
 import { DateTime } from "luxon";
 import { db, type RetentionEntry } from "./database";
 import { config, getContentPublishDateCutoff, getOfflineRetentionTtl } from "../config";
+import { reportError } from "../diagnostics";
 import { DocType, type ContentDto } from "../types";
 import { OPEN_MIN } from "../api/sync/utils";
 import { scheduleCorpusStatsRecompute } from "../fts/ftsIndexer";
@@ -94,7 +95,7 @@ export async function flushRetention(): Promise<void> {
     try {
         await db.retention.bulkPut(entries);
     } catch (e) {
-        console.error("[retention] flush failed:", e);
+        reportError(e, { area: "retention", op: "flush", data: { entries: entries.length } });
     }
 }
 

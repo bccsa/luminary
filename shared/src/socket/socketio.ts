@@ -3,6 +3,7 @@ import { ref } from "vue";
 import { useLocalStorage } from "@vueuse/core";
 import { AccessMap, accessMap } from "../permissions/permissions";
 import { config, SharedConfig } from "../config";
+import { reportBreadcrumb } from "../diagnostics";
 
 /**
  * Client configuration type definition
@@ -54,12 +55,18 @@ class SocketIO {
             });
         });
 
-        this.socket.on("disconnect", () => {
+        this.socket.on("disconnect", (reason: string) => {
+            reportBreadcrumb(`Socket disconnected: ${reason}`, { area: "socket", op: "disconnect" });
             isConnected.value = false;
             this.stopForegroundReconnect();
         });
 
         this.socket.on("connect_error", (err: Error & { data?: { type?: string } }) => {
+            reportBreadcrumb(`Socket connect error: ${err.message}`, {
+                area: "socket",
+                op: "connect-error",
+                data: { type: err.data?.type },
+            });
             isConnected.value = false;
             this.stopForegroundReconnect();
             // When the server rejects credentials in its middleware, it passes
@@ -77,6 +84,7 @@ class SocketIO {
         this.socket.on("clientConfig", (c: ClientConfig) => {
             if (c.maxUploadFileSize) maxUploadFileSize.value = c.maxUploadFileSize;
             if (c.accessMap) accessMap.value = c.accessMap;
+            reportBreadcrumb("Socket connected and configured", { area: "socket", op: "connect" });
             isConnected.value = true; // Only set isConnected after configuration has been received from the API
             this.stopForegroundReconnect();
         });
