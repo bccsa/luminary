@@ -21,35 +21,21 @@ After successfully running CouchDB, create a local database via the CouchDB web 
 
 ### S3 storage (MinIO)
 
-For development purposes, MinIO can be installed as a docker for S3 compatible storage:
+For development purposes, MinIO can be run in Docker for S3 compatible storage. MinIO no longer publishes official images (`quay.io/minio/minio` and Docker Hub `minio/minio` are gone), so we use Chainguard's build of MinIO from source. `scripts/setup-dev.sh` and `api/scripts/start-minio-in-ci.sh` pin it by digest.
 
-This command will create an instance with a pre-configured access key / secret combination:
-
-```shell
-docker run -d -p 9000:9000 -p 9001:9001 --name luminary-storage -e "MINIO_ACCESS_KEY=minio" -e "MINIO_SECRET_KEY=minio123" quay.io/minio/minio server /data --console-address ":9001"
-```
+This command creates an instance whose root user / password double as the access key / secret in your `.env` file:
 
 ```shell
 docker run -d \
    -p 9000:9000 \
    -p 9001:9001 \
    --name luminary-storage \
-   -e "MINIO_ACCESS_KEY=minio" \
-   -e "MINIO_SECRET_KEY=minio123" \
-   quay.io/minio/minio server /data --console-address ":9001"
+   -e "MINIO_ROOT_USER=minio" \
+   -e "MINIO_ROOT_PASSWORD=minio123" \
+   cgr.dev/chainguard/minio server /data --console-address ":9001"
 ```
 
-If you need to log into the MinIO web console, the root user and password can be passed instead. Note that you manually will have to create an access key / secret combination and update your .env file accordingly. The web console is available on http://localhost:9001
-
-```shell
-docker run -d \
-   -p 9000:9000 \
-   -p 9001:9001 \
-   --name luminary-storage \
-   -e "MINIO_ROOT_USER=rootuser" \
-   -e "MINIO_ROOT_PASSWORD=password" \
-   quay.io/minio/minio server /data --console-address ":9001"
-```
+The web console is available on http://localhost:9001 using the same credentials.
 
 ## Installation
 
