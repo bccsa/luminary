@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# Block a commit that moves the luminary-media-convert pointer backwards (a stale checkout).
+exec "$(git rev-parse --show-toplevel)/scripts/check-submodule-pointer.sh" --staged
