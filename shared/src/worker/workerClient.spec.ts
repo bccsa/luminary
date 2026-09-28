@@ -1,3 +1,5 @@
+// Dexie's liveQuery never emits without an `indexedDB` global.
+import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { FtsSearchOptions, FtsSearchResult } from "../fts/types";
 import type { WorkerMessage, WorkerResponse } from "./types";
@@ -6,6 +8,16 @@ const ftsSearch = vi.fn();
 vi.mock("../fts/ftsSearch", async (importOriginal) => ({
     ...(await importOriginal<typeof import("../fts/ftsSearch")>()),
     ftsSearchLocal: (options: FtsSearchOptions) => ftsSearch(options),
+}));
+
+const mangoQuery = vi.fn();
+vi.mock("../util/MangoQuery/mangoToDexie", () => ({
+    mangoToDexie: () => mangoQuery(),
+}));
+// `mangoQuery` reads `db.docs` before the mock above sees it; no database is opened here.
+vi.mock("../db/database", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("../db/database")>()),
+    db: {},
 }));
 
 class FakeWorker {
@@ -230,6 +242,103 @@ describe("runInWorker", () => {
 
         runInWorker("ftsSearch", options);
         expect(FakeWorker.instances).toHaveLength(2);
+    });
+});
+
+describe("subscribeInWorker", () => {
+    const query = { selector: { type: "content" } };
+    const mainThreadDocs = [{ _id: "here" }];
+
+    beforeEach(() => {
+        vi.resetModules();
+        FakeWorker.instances = [];
+        mangoQuery.mockReset().mockResolvedValue(mainThreadDocs);
+        vi.stubGlobal("navigator", { hardwareConcurrency: 8 });
+    });
+
+    afterEach(() => {
+        vi.unstubAllGlobals();
+    });
+
+    it("keeps the query live in a worker and forwards each emission", async () => {
+        vi.stubGlobal("Worker", FakeWorker);
+        const { subscribeInWorker } = await loadClient();
+        const next = vi.fn();
+
+        subscribeInWorker("mangoQuery", query, { next });
+        const [worker] = FakeWorker.instances;
+        expect(worker.sent).toContainEqual({
+            kind: "subscribe",
+            id: 1,
+            task: "mangoQuery",
+            payload: query,
+        });
+        worker.reply({ id: 1, ok: true, result: [{ _id: "a" }] });
+        worker.reply({ id: 1, ok: true, result: [{ _id: "a" }, { _id: "b" }] });
+
+        expect(next).toHaveBeenCalledTimes(2);
+        expect(next).toHaveBeenLastCalledWith([{ _id: "a" }, { _id: "b" }]);
+        expect(mangoQuery).not.toHaveBeenCalled();
+    });
+
+    it("tells the worker to stop and ignores emissions after unsubscribing", async () => {
+        vi.stubGlobal("Worker", FakeWorker);
+        const { subscribeInWorker } = await loadClient();
+        const next = vi.fn();
+
+        const stop = subscribeInWorker("mangoQuery", query, { next });
+        stop();
+        const [worker] = FakeWorker.instances;
+        worker.reply({ id: 1, ok: true, result: [] });
+
+        expect(worker.sent).toContainEqual({ kind: "unsubscribe", id: 1 });
+        expect(next).not.toHaveBeenCalled();
+    });
+
+    it("does not hold the worker busy, so one-shot tasks still share it", async () => {
+        vi.stubGlobal("Worker", FakeWorker);
+        const { subscribeInWorker, runInWorker } = await loadClient();
+
+        subscribeInWorker("mangoQuery", query, { next: vi.fn() });
+        runInWorker("ftsSearch", options);
+
+        expect(FakeWorker.instances).toHaveLength(1);
+    });
+
+    it("moves to the main thread when the worker reports a failure, and stays live there", async () => {
+        vi.stubGlobal("Worker", FakeWorker);
+        const { subscribeInWorker } = await loadClient();
+        const next = vi.fn();
+
+        subscribeInWorker("mangoQuery", query, { next });
+        const [worker] = FakeWorker.instances;
+        worker.reply({ id: 1, ok: false, error: "DatabaseClosedError" });
+
+        await vi.waitFor(() => expect(next).toHaveBeenCalledWith(mainThreadDocs));
+        // A stray emission from the abandoned worker subscription must not reach the caller.
+        worker.reply({ id: 1, ok: true, result: [{ _id: "stale" }] });
+        expect(next).not.toHaveBeenCalledWith([{ _id: "stale" }]);
+    });
+
+    it("moves live subscriptions to the main thread when the worker crashes", async () => {
+        vi.stubGlobal("Worker", FakeWorker);
+        const { subscribeInWorker } = await loadClient();
+        const next = vi.fn();
+
+        subscribeInWorker("mangoQuery", query, { next });
+        FakeWorker.instances[0].onerror?.({} as ErrorEvent);
+
+        await vi.waitFor(() => expect(next).toHaveBeenCalledWith(mainThreadDocs));
+    });
+
+    it("runs on the main thread when Web Workers are unavailable", async () => {
+        vi.stubGlobal("Worker", undefined);
+        const { subscribeInWorker } = await loadClient();
+        const next = vi.fn();
+
+        subscribeInWorker("mangoQuery", query, { next });
+
+        await vi.waitFor(() => expect(next).toHaveBeenCalledWith(mainThreadDocs));
     });
 });
 

@@ -18,8 +18,10 @@ with no change at the call site:
 | Full-text search     | `ftsSearch`, `ftsSearchMany`, and so `useFtsSearch`         | `ftsSearch`, `ftsSearchMany` |
 | Corpus-stats scan    | `recomputeCorpusStats` (the write stays on the main thread) | `corpusScan`                 |
 | One-shot local reads | `queryLocal`, `HybridQuery` without `live`                  | `mangoQuery`                 |
+| Live local reads     | `HybridQuery` with `live`, when `liveQueriesInWorker` is on | `mangoQuery` (subscribed)    |
 
-Live `HybridQuery` is deliberately not in this list — see "What a task may do".
+`SharedConfig.liveQueriesInWorker` is off by default; until it is on, live `HybridQuery` reads run
+in a `liveQuery` on the main thread.
 
 ## Adding a task
 
@@ -41,6 +43,25 @@ main-thread fallback, so a task must not depend on being in a worker.
 Import implementations from their own module rather than from `../index`: the worker bundles
 whatever `tasks.ts` reaches, and the package barrel pulls in the socket, REST and Vue layers.
 
+## Live tasks
+
+A task marked `live: true` can also be kept live:
+
+```ts
+const stop = subscribeInWorker("mangoQuery", query, { next: (docs) => render(docs) });
+```
+
+The worker runs the task under its own `liveQuery`. Dexie broadcasts every committed write to
+the other realms on the origin over a `BroadcastChannel`, with the key ranges it touched, so a
+write from the main thread re-runs only the worker queries that it affects. No write path has to
+publish anything. Every emission is cloned back whole, so `trim` matters more here than for a
+one-shot task.
+
+Subscriptions sit outside the worker's serial queue and do not count as load when a worker is
+picked. If the worker fails, crashes or is released, the subscription moves to a `liveQuery` on
+the main thread and stays there for the rest of its life. `error` fires only for a failure on the
+main thread, which then retries after 100ms.
+
 ## What a task may do
 
 The worker is a separate realm. It has its own module instances, its own Dexie connection, and
@@ -56,9 +77,10 @@ no DOM.
   bundle, so an implementation that imports `workerClient` pulls the pool into the worker it is
   meant to drive. Where a module on that path needs to route work out (`ftsIndexer`), it takes
   an injected runner instead; `luminary.ts` supplies the worker-backed one.
-- **Live Dexie queries cannot move here.** `liveQuery` re-runs by observing what the querier
-  touched in Dexie's zone on the calling thread. A query awaited from a worker touches nothing
-  there, so the subscription emits once and then goes silently stale. Only one-shot reads route.
+- **A live query runs its `liveQuery` here, never on the caller's thread.** `liveQuery` re-runs by
+  observing what the querier touched in Dexie's zone on its own thread. Wrapping a worker call in
+  a main-thread `liveQuery` touches nothing there, so it emits once and then goes silently stale.
+  Use `subscribeInWorker` instead (see "Live tasks").
 - **Payloads are structured-cloned**, so they must be plain data. Refs, class instances and
   functions do not survive.
 - **Config is a snapshot**, sent once when the worker starts. `appLanguageIdsAsRef` is not in it.
@@ -78,6 +100,12 @@ than in each caller:
 - **Payload size is a first-class concern.** Structured cloning is the one cost a worker adds and
   it is paid on both threads. `trim` exists to drop anything the caller won't read before the
   result is cloned back.
+- **Measure before routing more.** `measureQueryCost(query)` times a read on the main thread
+  against the same read through the worker, plus the clone of its result, on the device that
+  matters. The main thread reads a worker result for about the cost of one deserialize of the
+  result. Reading it itself costs a deserialize of every record the index scan touched, plus the
+  filter. The worker loses only when those two are close: an index that already narrows the
+  scan to about the result, and a large result.
 - **Superseded work is dropped.** The worker drains a serial queue and skips requests cancelled
   before they were dequeued, so a burst where most calls are superseded costs one run. Pass an
   `AbortSignal` to `runInWorker`, or let `useWorkerTask` do it for you.

@@ -57,6 +57,12 @@ export type SharedConfig = {
      * consumer single-threaded (SSG prerender, tests).
      */
     useWorkers?: boolean;
+    /**
+     * Whether live `HybridQuery` reads run in the worker pool (via `subscribeInWorker`) instead
+     * of a `liveQuery` on the main thread. Defaults to false while it is verified on low-end
+     * devices.
+     */
+    liveQueriesInWorker?: boolean;
 };
 
 /** Default offline-retention TTL: 30 days. */

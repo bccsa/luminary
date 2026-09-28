@@ -36,8 +36,13 @@ export const workerTasks = {
     mangoQuery: {
         needsDb: true,
         run: (query: MangoQuery) => mangoToDexie<BaseDocumentDto>(db.docs, query),
+        live: true,
     } satisfies WorkerTask<MangoQuery, BaseDocumentDto[]>,
 };
 
 export type WorkerTasks = typeof workerTasks;
 export type WorkerTaskName = keyof WorkerTasks;
+/** Tasks that `subscribeInWorker` may keep live. */
+export type LiveWorkerTaskName = {
+    [K in WorkerTaskName]: WorkerTasks[K] extends { live: true } ? K : never;
+}[WorkerTaskName];

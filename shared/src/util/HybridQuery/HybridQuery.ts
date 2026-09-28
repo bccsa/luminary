@@ -26,7 +26,7 @@ import { isProvablyEmpty } from "../MangoQuery/isProvablyEmpty";
 import { sanitizeArrayOperators } from "../MangoQuery/sanitizeArrayOperators";
 import { mangoCompile } from "../MangoQuery/mangoCompile";
 import { mangoToDexie } from "../MangoQuery/mangoToDexie";
-import { runInWorker } from "../../worker/workerClient";
+import { runInWorker, subscribeInWorker } from "../../worker/workerClient";
 import type { MangoQuery } from "../MangoQuery/MangoTypes";
 import { useDexieLiveQuery } from "../useDexieLiveQuery/useDexieLiveQuery";
 import { applySortLimit, mergeById, sameWindow } from "./mergeDocs";
@@ -785,16 +785,31 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
      *   local set (preserves the original behaviour). The two-arg `.then` form
      *   ensures the reject handler only catches the Dexie read — never a throw
      *   from inside `onLocal`.
-     * - Live mode: subscribe via `useDexieLiveQuery`, re-invoking `onLocal` on
-     *   every IndexedDB change. This one stays on this thread: `liveQuery` re-runs by
-     *   observing what the querier touched in Dexie's zone here, and a query awaited
-     *   from a worker touches nothing, so the subscription would emit once and go
-     *   silently stale. The composable ties cleanup to the *current* Vue
-     *   scope and returns no stop handle, so we run it inside a detached
-     *   `effectScope` the class owns — `dispose()` → `scope.stop()` →
+     * - Live mode: re-invoke `onLocal` on every IndexedDB change. With
+     *   `liveQueriesInWorker` the `liveQuery` runs in a worker (`subscribeInWorker`);
+     *   otherwise it runs here via `useDexieLiveQuery`. A worker-awaited querier cannot
+     *   be wrapped in a `liveQuery` on this thread: it touches nothing in Dexie's zone
+     *   here, so the subscription would emit once and go silently stale. The composable
+     *   ties cleanup to the *current* Vue scope and returns no stop handle, so we run it
+     *   inside a detached `effectScope` the class owns — `dispose()` → `scope.stop()` →
      *   `useDexieLiveQuery`'s `onScopeDispose` → `liveQuery` unsubscribe.
      */
     private _startLocal(gen: number, onLocal: (docs: T[]) => void): void {
+        const onLiveError = (err: unknown) => {
+            if (gen === this._generation && !this._disposed) this.error.value = err;
+            console.error("[HybridQuery] live local read failed:", err);
+        };
+
+        if (this._live && config?.liveQueriesInWorker) {
+            this._generationDisposers.add(
+                subscribeInWorker("mangoQuery", this._query, {
+                    next: (docs) => onLocal(docs as T[]),
+                    error: onLiveError,
+                }),
+            );
+            return;
+        }
+
         if (!this._live) {
             void (runInWorker("mangoQuery", this._query) as Promise<T[]>).then(onLocal, (err) => {
                 if (gen === this._generation && !this._disposed) this.error.value = err;
@@ -815,10 +830,7 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
                 // A live read that errors and never emits keeps _localPending true (same
                 // silent risk as before this change); surface the error so consumers can
                 // at least react to it.
-                onError: (err) => {
-                    if (gen === this._generation && !this._disposed) this.error.value = err;
-                    console.error("[HybridQuery] live local read failed:", err);
-                },
+                onError: onLiveError,
             });
             // `immediate: true` fires synchronously with the ref's initial value
             // (`undefined`) — guarded out so we never pass `undefined` to

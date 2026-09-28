@@ -13,6 +13,11 @@ export type WorkerTask<P, R> = {
      * one cost a worker adds, and on a low-end device it is paid on both threads.
      */
     trim?: (result: R) => R;
+    /**
+     * `run` is a pure Dexie read, so it can be kept live with `subscribeInWorker`: the worker
+     * re-runs it under `liveQuery`, which Dexie re-triggers on writes from any realm.
+     */
+    live?: boolean;
 };
 
 export type WorkerTaskPayload<T> = T extends { run: (payload: infer P) => unknown } ? P : never;
@@ -32,8 +37,21 @@ export type WorkerConfigSnapshot = Pick<
 export type WorkerInitMessage = { kind: "init"; config?: WorkerConfigSnapshot };
 export type WorkerRunMessage = { kind: "run"; id: number; task: string; payload: unknown };
 export type WorkerCancelMessage = { kind: "cancel"; id: number };
-export type WorkerMessage = WorkerInitMessage | WorkerRunMessage | WorkerCancelMessage;
+export type WorkerSubscribeMessage = {
+    kind: "subscribe";
+    id: number;
+    task: string;
+    payload: unknown;
+};
+export type WorkerUnsubscribeMessage = { kind: "unsubscribe"; id: number };
+export type WorkerMessage =
+    | WorkerInitMessage
+    | WorkerRunMessage
+    | WorkerCancelMessage
+    | WorkerSubscribeMessage
+    | WorkerUnsubscribeMessage;
 
+/** A subscription's replies reuse its id: one per emission, and a failure ends it. */
 export type WorkerResponse =
     | { id: number; ok: true; result: unknown }
     | { id: number; ok: false; error: string };

@@ -1,3 +1,5 @@
+// Dexie's liveQuery never emits without an `indexedDB` global.
+import "fake-indexeddb/auto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { WorkerResponse } from "./types";
 
@@ -6,6 +8,7 @@ const ftsSearchMany = vi.fn();
 const trimFtsResults = vi.fn();
 const openDatabaseInWorker = vi.fn();
 const initConfig = vi.fn();
+const mangoQuery = vi.fn();
 
 vi.mock("../fts/ftsSearch", () => ({
     ftsSearchLocal: (options: unknown) => ftsSearch(options),
@@ -16,6 +19,9 @@ vi.mock("../db/database", () => ({
     openDatabaseInWorker: () => openDatabaseInWorker(),
     // The task registry reaches for `db` too; no test here exercises a db-backed task.
     db: {},
+}));
+vi.mock("../util/MangoQuery/mangoToDexie", () => ({
+    mangoToDexie: () => mangoQuery(),
 }));
 vi.mock("../config", () => ({
     initConfig: (config: unknown) => initConfig(config),
@@ -38,6 +44,7 @@ describe("createWorkerHost", () => {
         trimFtsResults.mockReset().mockImplementation((results) => results);
         openDatabaseInWorker.mockReset().mockResolvedValue(undefined);
         initConfig.mockReset();
+        mangoQuery.mockReset().mockResolvedValue([{ _id: "a" }]);
     });
 
     it("opens the database once and answers each request with its id", async () => {
@@ -148,5 +155,38 @@ describe("createWorkerHost", () => {
 
         expect(openDatabaseInWorker).toHaveBeenCalledTimes(2);
         expect(posted[0]).toEqual({ id: 1, ok: true, result: [] });
+    });
+
+    it("answers a subscription with its result, outside the serial queue", async () => {
+        const { handle, posted } = await newHost();
+        let release!: () => void;
+        ftsSearch.mockImplementation(() => new Promise((r) => (release = () => r([]))));
+
+        handle({ kind: "run", id: 1, task: "ftsSearch", payload: options });
+        handle({ kind: "subscribe", id: 2, task: "mangoQuery", payload: {} });
+        await vi.waitFor(() => expect(posted).toHaveLength(1));
+
+        // The one-shot request is still running; the subscription did not wait behind it.
+        expect(posted).toEqual([{ id: 2, ok: true, result: [{ _id: "a" }] }]);
+        release();
+    });
+
+    it("never starts a subscription that was cancelled while the database opened", async () => {
+        const { handle, posted } = await newHost();
+
+        handle({ kind: "subscribe", id: 1, task: "mangoQuery", payload: {} });
+        handle({ kind: "unsubscribe", id: 1 });
+        await new Promise((resolve) => setTimeout(resolve, 10));
+
+        expect(posted).toEqual([]);
+        expect(mangoQuery).not.toHaveBeenCalled();
+    });
+
+    it("refuses to keep a task live that is not marked live", async () => {
+        const { handle, posted } = await newHost();
+
+        handle({ kind: "subscribe", id: 1, task: "corpusScan", payload: undefined });
+
+        expect(posted).toEqual([{ id: 1, ok: false, error: "Not a live worker task: corpusScan" }]);
     });
 });

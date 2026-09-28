@@ -1,5 +1,11 @@
+import { liveQuery, type Subscription } from "dexie";
 import { config } from "../config";
-import { workerTasks, type WorkerTaskName, type WorkerTasks } from "./tasks";
+import {
+    workerTasks,
+    type LiveWorkerTaskName,
+    type WorkerTaskName,
+    type WorkerTasks,
+} from "./tasks";
 import type {
     WorkerConfigSnapshot,
     WorkerMessage,
@@ -26,6 +32,19 @@ type Pending = {
     settle: (result: unknown | Promise<unknown>) => void;
 };
 
+type LiveSubscriptionEntry = {
+    task: LiveWorkerTaskName;
+    payload: unknown;
+    next: (result: unknown) => void;
+    error?: (error: unknown) => void;
+    /** The worker serving it, or `undefined` once it runs on this thread. */
+    pooled?: PooledWorker;
+    stop: () => void;
+};
+
+/** Delay before a failed main-thread live read resubscribes, matching `useDexieLiveQuery`. */
+const LIVE_RETRY_MS = 100;
+
 /**
  * Hard ceiling on worker threads. Budget phones routinely report 8 weak cores, so the constant
  * — not the core count — is what keeps the device from thrashing; the core count only lowers it
@@ -35,6 +54,7 @@ const WORKER_LIMIT = 2;
 
 let pool: PooledWorker[] = [];
 let pending = new Map<number, Pending>();
+const subscriptions = new Map<number, LiveSubscriptionEntry>();
 let nextId = 0;
 /** A worker that cannot load stays off for the rest of the session. */
 let workersDisabled = false;
@@ -107,7 +127,39 @@ function runHere(task: WorkerTaskName, payload: unknown): Promise<unknown> {
     );
 }
 
+/** Keep a live task on this thread, resubscribing after an error as `useDexieLiveQuery` does. */
+function subscribeHere(sub: LiveSubscriptionEntry) {
+    const entry = workerTasks[sub.task] as WorkerTask<unknown, unknown>;
+    let subscription: Subscription | undefined;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    const start = () => {
+        subscription = liveQuery(async () => {
+            const result = await entry.run(sub.payload);
+            return entry.trim ? entry.trim(result) : result;
+        }).subscribe({
+            next: sub.next,
+            error: (error) => {
+                sub.error?.(error);
+                retryTimer = setTimeout(start, LIVE_RETRY_MS);
+            },
+        });
+    };
+    sub.pooled = undefined;
+    sub.stop = () => {
+        clearTimeout(retryTimer);
+        subscription?.unsubscribe();
+    };
+    start();
+}
+
 function onReply(pooled: PooledWorker, response: WorkerResponse) {
+    const sub = subscriptions.get(response.id);
+    if (sub) {
+        if (sub.pooled !== pooled) return; // a late emission from before it moved here
+        if (response.ok) sub.next(response.result);
+        else subscribeHere(sub);
+        return;
+    }
     pooled.inFlight.delete(response.id);
     const call = pending.get(response.id);
     if (!call) return; // cancelled while in flight
@@ -126,6 +178,7 @@ function rerunPendingHere() {
     const calls = Array.from(pending.values());
     pending = new Map();
     for (const call of calls) call.settle(runHere(call.task, call.payload));
+    subscriptions.forEach((sub) => sub.pooled && subscribeHere(sub));
 }
 
 /**
@@ -168,6 +221,50 @@ export function runInWorker<K extends WorkerTaskName>(
             resolve(runHere(task, payload) as Promise<Result>);
         }
     });
+}
+
+/**
+ * Keep a live task's result current from a worker: `next` receives the first result and one
+ * more after every committed write that could change it. Falls back to a `liveQuery` on this
+ * thread when no worker is available or the worker fails, so a subscription never goes stale.
+ * `error` fires only for a failure on this thread, which retries on its own. Returns the
+ * unsubscribe.
+ */
+export function subscribeInWorker<K extends LiveWorkerTaskName>(
+    task: K,
+    payload: WorkerTaskPayload<WorkerTasks[K]>,
+    handlers: {
+        next: (result: WorkerTaskResult<WorkerTasks[K]>) => void;
+        error?: (error: unknown) => void;
+    },
+): () => void {
+    const id = ++nextId;
+    const sub: LiveSubscriptionEntry = {
+        task,
+        payload,
+        next: handlers.next as (result: unknown) => void,
+        error: handlers.error,
+        stop: () => undefined,
+    };
+    subscriptions.set(id, sub);
+
+    const pooled = acquire();
+    if (pooled) {
+        try {
+            post(pooled, { kind: "subscribe", id, task, payload });
+            sub.pooled = pooled;
+            sub.stop = () => post(pooled, { kind: "unsubscribe", id });
+        } catch {
+            subscribeHere(sub);
+        }
+    } else {
+        subscribeHere(sub);
+    }
+
+    return () => {
+        if (!subscriptions.delete(id)) return;
+        sub.stop();
+    };
 }
 
 /**
