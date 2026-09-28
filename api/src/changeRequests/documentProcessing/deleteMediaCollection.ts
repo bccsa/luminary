@@ -129,7 +129,7 @@ export type DeleteMediaOptions = {
  * Duplicating a document copies its media, so a collection can belong to several
  * documents and must outlive any one of them.
  */
-async function findOtherUsers(
+export async function findOtherUsers(
     bucketId: string,
     publicUrl: string | undefined,
     prefix: string,

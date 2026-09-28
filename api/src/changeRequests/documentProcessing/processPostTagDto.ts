@@ -160,6 +160,7 @@ export default async function processPostTagDto(
                 prevDoc.media?.hlsUrl,
                 prevDoc.mediaBucketId,
                 doc.mediaBucketId,
+                doc._id,
                 db,
             );
             warnings.push(...migration.warnings);

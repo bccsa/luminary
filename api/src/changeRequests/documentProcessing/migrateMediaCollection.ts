@@ -1,7 +1,7 @@
 import { MediaDto } from "../../dto/MediaDto";
 import { DbService } from "../../db/db.service";
 import { S3Service } from "../../s3/s3.service";
-import { loadBucket, resolveCollectionPrefix } from "./deleteMediaCollection";
+import { findOtherUsers, loadBucket, resolveCollectionPrefix } from "./deleteMediaCollection";
 import { isBucketRelative, isInOurStorage, withoutTrailingSlashes } from "./mediaUrl";
 
 export type MediaMigrationResult = {
@@ -27,6 +27,7 @@ export async function migrateMediaCollection(
     previousHlsUrl: string | undefined,
     oldBucketId: string,
     newBucketId: string,
+    ownerId: string,
     db: DbService,
 ): Promise<MediaMigrationResult> {
     const warnings: string[] = [];
@@ -131,6 +132,27 @@ export async function migrateMediaCollection(
         // Handed to the caller instead of run here: its failure is not the migration's
         // failure, and leftovers in the old bucket cost storage, not playback.
         const removeSource = async (): Promise<string[]> => {
+            // A duplicated document can still play from the old bucket.
+            const users = await findOtherUsers(
+                oldBucketId,
+                oldBucket.publicUrl,
+                prefix,
+                ownerId,
+                db,
+            );
+            if ("error" in users) {
+                return [
+                    `Media files were copied to ${newBucket.name ?? newBucketId} but the originals ` +
+                        `were kept: could not check whether other documents use them (${users.error}).`,
+                ];
+            }
+            if (users.ids.length > 0) {
+                return [
+                    `Media files were copied to ${newBucket.name ?? newBucketId} but the originals ` +
+                        `were kept because ${users.ids.length} other document(s) still use them.`,
+                ];
+            }
+
             try {
                 console.log(
                     `Moved ${keys.length} media object(s) under ${prefix}/ from ` +

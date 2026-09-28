@@ -54,6 +54,7 @@ describe("processPostTagDto — migrating media between buckets", () => {
             HLS,
             "bucket-old",
             "bucket-new",
+            incoming._id,
             db,
         );
     });

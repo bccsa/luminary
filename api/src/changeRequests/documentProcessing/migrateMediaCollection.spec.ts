@@ -9,6 +9,7 @@ const SESSION = "c5829f07-4ba8-42ed-a449-80d83e6c0b53";
 const OLD_BASE = "http://old.example.com/media";
 const NEW_BASE = "http://new.example.com/media";
 const OLD_URL = `${OLD_BASE}/${SESSION}/master.m3u8`;
+const OWNER = "post-1";
 
 const KEYS = [
     `${SESSION}/master.m3u8`,
@@ -16,19 +17,26 @@ const KEYS = [
     `${SESSION}/media/v0_0.m4s`,
 ];
 
-/** Buckets keyed by id, as `db.getDoc` would return them. */
-const stubDb = (buckets: Record<string, { publicUrl?: string; name?: string }>) =>
+/** Buckets keyed by id, as `db.getDoc` would return them, and the Posts/Tags `executeFindQuery` finds. */
+const stubDb = (
+    buckets: Record<string, { publicUrl?: string; name?: string }>,
+    docs: Array<{ _id: string; media?: { hlsUrl: string } }> = [],
+) =>
     ({
         getDoc: jest.fn(async (id: string) =>
             buckets[id] ? { docs: [buckets[id]] } : { docs: [] },
         ),
+        executeFindQuery: jest.fn().mockResolvedValue({ docs }),
     }) as unknown as DbService;
 
-const defaultDb = () =>
-    stubDb({
-        "bucket-old": { publicUrl: OLD_BASE, name: "old-bucket" },
-        "bucket-new": { publicUrl: NEW_BASE, name: "new-bucket" },
-    });
+const defaultDb = (docs?: Array<{ _id: string; media?: { hlsUrl: string } }>) =>
+    stubDb(
+        {
+            "bucket-old": { publicUrl: OLD_BASE, name: "old-bucket" },
+            "bucket-new": { publicUrl: NEW_BASE, name: "new-bucket" },
+        },
+        docs,
+    );
 
 /**
  * A pair of fake buckets. Sizes are recorded per key so a truncated copy can be
@@ -77,7 +85,7 @@ const stubS3 = (
 const media = (): MediaDto => ({ hlsUrl: OLD_URL }) as MediaDto;
 
 const migrate = (m: MediaDto, db: DbService) =>
-    migrateMediaCollection(m, OLD_URL, "bucket-old", "bucket-new", db);
+    migrateMediaCollection(m, OLD_URL, "bucket-old", "bucket-new", OWNER, db);
 
 describe("migrateMediaCollection", () => {
     beforeEach(() => jest.clearAllMocks());
@@ -103,7 +111,7 @@ describe("migrateMediaCollection", () => {
         const url = `${OLD_BASE}/${SESSION}/index.m3u8`;
         const m = { hlsUrl: url } as MediaDto;
 
-        await migrateMediaCollection(m, url, "bucket-old", "bucket-new", defaultDb());
+        await migrateMediaCollection(m, url, "bucket-old", "bucket-new", OWNER, defaultDb());
 
         expect(m.hlsUrl).toBe(`${NEW_BASE}/${SESSION}/index.m3u8`);
     });
@@ -172,6 +180,32 @@ describe("migrateMediaCollection", () => {
         expect((await result.removeSource!()).join(" ")).toContain("could not be removed");
     });
 
+    it("keeps the originals while a duplicated document still uses them", async () => {
+        const { source } = stubS3();
+        const db = defaultDb([
+            { _id: OWNER, media: { hlsUrl: OLD_URL } },
+            { _id: "post-copy", media: { hlsUrl: `/${SESSION}/master.m3u8` } },
+        ]);
+
+        const result = await migrate(media(), db);
+        const warnings = await result.removeSource!();
+
+        expect(source.removeObjects).not.toHaveBeenCalled();
+        expect(warnings.join(" ")).toContain("1 other document(s) still use them");
+    });
+
+    it("keeps the originals when it cannot check for other users", async () => {
+        const { source } = stubS3();
+        const db = defaultDb();
+        (db.executeFindQuery as jest.Mock).mockRejectedValue(new Error("db unreachable"));
+
+        const result = await migrate(media(), db);
+        const warnings = await result.removeSource!();
+
+        expect(source.removeObjects).not.toHaveBeenCalled();
+        expect(warnings.join(" ")).toContain("db unreachable");
+    });
+
     it("refuses a URL it cannot prove the encoder wrote", async () => {
         stubS3();
         const m = { hlsUrl: `${OLD_BASE}/shared-folder/master.m3u8` } as MediaDto;
@@ -181,6 +215,7 @@ describe("migrateMediaCollection", () => {
             `${OLD_BASE}/shared-folder/master.m3u8`,
             "bucket-old",
             "bucket-new",
+            OWNER,
             defaultDb(),
         );
 
@@ -233,6 +268,7 @@ describe("migrateMediaCollection", () => {
             OLD_URL,
             "bucket-old",
             "bucket-new",
+            OWNER,
             defaultDb(),
         );
 
@@ -250,7 +286,14 @@ describe("migrateMediaCollection", () => {
         const yt = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
         const m = { hlsUrl: yt } as MediaDto;
 
-        const result = await migrateMediaCollection(m, yt, "bucket-old", "bucket-new", defaultDb());
+        const result = await migrateMediaCollection(
+            m,
+            yt,
+            "bucket-old",
+            "bucket-new",
+            OWNER,
+            defaultDb(),
+        );
 
         expect(result.failed).toBe(false);
         expect(result.warnings).toEqual([]);
@@ -305,6 +348,7 @@ describe("migrateMediaCollection", () => {
             undefined,
             "bucket-old",
             "bucket-new",
+            OWNER,
             defaultDb(),
         );
 

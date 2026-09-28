@@ -1,7 +1,17 @@
 import { describe, it, afterEach, beforeEach, expect, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
-import { db, DocType, accessMap, PostType, TagType, type TagDto, PublishStatus } from "luminary-shared";
+import {
+    db,
+    DocType,
+    accessMap,
+    PostType,
+    TagType,
+    type TagDto,
+    PublishStatus,
+    getRest,
+    unmaskKeyHex,
+} from "luminary-shared";
 import * as mockData from "@/tests/mockdata";
 import { setActivePinia } from "pinia";
 import EditContent from "./EditContent.vue";
@@ -754,4 +764,79 @@ describe("EditContent.vue - Duplication", () => {
         expect(vm.editableParent.media).toBeDefined();
         expect(vm.editableParent.media.hlsUrl).toBe(mockData.mockPostDto.media!.hlsUrl);
     }, 15000);
+
+    describe("encrypted media", () => {
+        const SIDECAR_ID = "sidecar-post1-key";
+        const MASKED = "00112233445566778899aabbccddeeff";
+
+        beforeEach(async () => {
+            await db.docs.put({
+                ...mockData.mockPostDto,
+                media: { hlsUrl: "test-hls-url.m3u8", hlsKey_id: SIDECAR_ID },
+            });
+        });
+
+        const mountAndDuplicate = async () => {
+            const wrapper = mount(EditContent, {
+                props: {
+                    docType: DocType.Post,
+                    id: mockData.mockPostDto._id,
+                    languageCode: "eng",
+                    tagOrPostType: PostType.Blog,
+                },
+            });
+            await waitForExpect(() => {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                expect((wrapper.vm as any).editableParent?.media?.hlsKey_id).toBeDefined();
+            });
+
+            await wrapper.find('[data-test="dropdown-trigger"]').trigger("click");
+            await nextTick();
+            let confirmBtn;
+            await waitForExpect(async () => {
+                await wrapper.find("[data-test='duplicate-button']").trigger("click");
+                confirmBtn = wrapper.find('[data-test="modal-primary-button"]');
+                expect(confirmBtn.exists()).toBe(true);
+            });
+            await confirmBtn!.trigger("click");
+            return wrapper;
+        };
+
+        it("sends the stored key so the copy gets a key of its own", async () => {
+            const getSidecar = vi.spyOn(getRest(), "getSidecar").mockResolvedValue({
+                sidecarId: SIDECAR_ID,
+                data: { maskedKeyHex: MASKED },
+            } as any);
+
+            const wrapper = await mountAndDuplicate();
+
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const vm: any = wrapper.vm;
+            await waitForExpect(() => {
+                expect(vm.editableParent._id).not.toBe(mockData.mockPostDto._id);
+            });
+            expect(getSidecar).toHaveBeenCalledWith(mockData.mockPostDto._id, expect.anything(), {
+                cms: true,
+            });
+            expect(vm.editableParent.media.hlsKey).toBe(await unmaskKeyHex(SIDECAR_ID, MASKED));
+            expect(vm.editableParent.media.hlsKey_id).toBeUndefined();
+        }, 15000);
+
+        it("does not duplicate when the stored key cannot be read", async () => {
+            vi.spyOn(getRest(), "getSidecar").mockResolvedValue(undefined as any);
+            const mockNotification = vi.fn();
+            useNotificationStore().addNotification = mockNotification;
+
+            const wrapper = await mountAndDuplicate();
+
+            await waitForExpect(() => {
+                expect(mockNotification).toHaveBeenCalledWith(
+                    expect.objectContaining({ state: "error", title: "Duplication failed" }),
+                );
+            });
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            expect((wrapper.vm as any).editableParent._id).toBe(mockData.mockPostDto._id);
+            expect(mockRouterReplace).not.toHaveBeenCalled();
+        }, 15000);
+    });
 });
