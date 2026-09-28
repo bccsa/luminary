@@ -57,7 +57,7 @@ These are the seams that bite when you change one side and forget the other:
 - **Branching:** single `main` branch for both staging and production (ADR 0003). Auto-deploys to staging; production is manual. Hide unfinished work behind feature flags rather than long-lived branches.
 - **ADRs:** in `docs/adr/`. Use `adr new <title>` (requires [adr-tools](https://github.com/npryce/adr-tools)) for new ones.
 - **E2E / Playwright runs are owned by the user — do not invoke them.** This applies to `playwright-tests/`, the `cms/` package's own Playwright e2e, and any DB/S3-dependent tests in `api/`. CI for E2E uses `scripts/start-couchdb-in-ci.sh` and `scripts/start-minio-in-ci.sh`.
-- **`luminary-media-convert` submodule:** never commit its pointer unless you mean to bump it forward. A stale checkout committed by accident reverts the encoder/player on merge. `scripts/git-hooks/` (enabled via `./scripts/setup-dev.sh install-hooks`) and the `submodule-pointer-check.yml` workflow reject a pointer behind `main`'s. See `scripts/README.md`.
+- **`luminary-media-convert` submodule:** never commit its pointer unless you mean to bump it forward. A stale checkout committed by accident reverts the encoder/player on merge. The `submodule-pointer-check.yml` workflow fails any PR whose pointer isn't the latest commit on `luminary-media-convert`'s `prod` branch.
 - **CI:** `.github/workflows/` has one unit-test workflow per package (`api-unit-tests.yml`, `shared-unit-tests.yml`, etc.) plus `e2e-tests.yml`. Each runs only on its own package's path changes.
 
 ## Comment style

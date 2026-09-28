@@ -285,23 +285,6 @@ docker run -d \
 - **MinIO Documentation**: [min.io/docs](https://min.io/docs/)
 - **Report Issues**: [github.com/bccsa/luminary/issues](https://github.com/bccsa/luminary/issues)
 
-## 🔗 Git hooks
-
-`./scripts/setup-dev.sh install-hooks` (also run by `setup`) points `core.hooksPath` at
-`scripts/git-hooks/`. The hooks guard the `luminary-media-convert` submodule pointer. Committing
-a stale submodule checkout would otherwise silently revert the encoder/player on merge:
-
-| Hook                          | What it does                                                                     |
-| ----------------------------- | -------------------------------------------------------------------------------- |
-| `pre-commit`                  | Blocks a staged pointer that is behind `HEAD`'s                                  |
-| `pre-push`                    | Blocks a branch whose pointer change is behind (or diverged from) `origin/main`'s |
-| `post-checkout`, `post-merge` | Moves a clean submodule checkout to the pointer the new `HEAD` records           |
-
-All three call `scripts/check-submodule-pointer.sh`, which the `Check submodule pointer` workflow
-also runs on every PR that touches the pointer. So `--no-verify` skips the local hooks but not
-CI. To bump the submodule on purpose, move it forward (`git -C luminary-media-convert pull`) and
-commit the new pointer.
-
 ## 💡 Tips
 
 - **Security First**: Never commit `.env` files to Git (they're already in `.gitignore`)
