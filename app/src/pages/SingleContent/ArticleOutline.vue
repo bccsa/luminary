@@ -294,7 +294,8 @@ function onResume() {
         v-else-if="visible"
         v-model:open="open"
         placement="bottom-center"
-        panel-class="max-h-[60vh] w-max min-w-full max-w-[calc(100vw-2rem)] overflow-y-auto py-1"
+        width="auto"
+        panel-class="max-h-[60vh] w-max overflow-y-auto py-1"
         class="min-w-0 max-w-full"
         data-test="articleOutline"
     >
