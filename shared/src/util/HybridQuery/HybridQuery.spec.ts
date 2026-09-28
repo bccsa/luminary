@@ -2128,7 +2128,12 @@ describe("HybridQuery", () => {
                 // Live mode (SingleContent's actual query mode): seed the local side with a
                 // stripped doc — same id/updatedTimeUtc as the doc the live Dexie read
                 // returns, differing only by the field the SSR cache write omitted.
-                const Lstripped = { _id: "L1", updatedTimeUtc: 5, publishDate: 2000, type: "content" };
+                const Lstripped = {
+                    _id: "L1",
+                    updatedTimeUtc: 5,
+                    publishDate: 2000,
+                    type: "content",
+                };
                 writeResponseCache(
                     structuralCacheKey(contentQuery),
                     { local: [Lstripped], remote: [] },
@@ -2714,6 +2719,148 @@ describe("HybridQuery", () => {
         });
     });
 
+    describe("paging (pageSize / loadMore)", () => {
+        const groups = Array.from({ length: 5 }, (_, i) => ({
+            _id: `g${i}`,
+            updatedTimeUtc: i,
+            type: "group",
+        }));
+        /** Synced type ⇒ Dexie-only, so the window is exactly what the read returns. */
+        const syncedGroups = () => {
+            mocks.syncList.value = [{ chunkType: "group" }];
+            mocks.mangoToDexieMock.mockImplementation(async (_table: any, query: any) =>
+                groups.slice(0, query.$limit),
+            );
+        };
+
+        it("without pageSize: hasMore is false and loadMore() is inert", async () => {
+            syncedGroups();
+            const q = new HybridQuery({ selector: { type: "group" }, $limit: 2 });
+            await flush();
+            expect(q.hasMore.value).toBe(false);
+
+            q.loadMore();
+            await flush();
+            expect(mocks.mangoToDexieMock).toHaveBeenCalledTimes(1);
+            expect(q.output.value).toHaveLength(2);
+        });
+
+        it("appends a page per loadMore() and reports hasMore off the settled window", async () => {
+            syncedGroups();
+            const q = new HybridQuery({ selector: { type: "group" }, $limit: 2 }, { pageSize: 2 });
+            await flush();
+            expect(q.output.value.map((d) => d._id)).toEqual(["g0", "g1"]);
+            expect(q.hasMore.value).toBe(true);
+
+            q.loadMore();
+            await flush();
+            expect(q.output.value.map((d) => d._id)).toEqual(["g0", "g1", "g2", "g3"]);
+
+            // A short page proves the source is exhausted.
+            q.loadMore();
+            await flush();
+            expect(q.output.value).toHaveLength(5);
+            expect(q.hasMore.value).toBe(false);
+        });
+
+        it("an append reports isLoadingMore, never isFetching, and never blanks output", async () => {
+            syncedGroups();
+            const q = new HybridQuery({ selector: { type: "group" }, $limit: 2 }, { pageSize: 2 });
+            await flush();
+
+            const widths: number[] = [];
+            const stop = watch(q.output, (docs) => widths.push(docs.length));
+            q.loadMore();
+            expect(q.isFetching.value).toBe(false);
+            expect(q.isLoadingMore.value).toBe(true);
+
+            await flush();
+            expect(q.isLoadingMore.value).toBe(false);
+            expect(widths).not.toContain(0);
+            stop();
+        });
+
+        it("content: an append keeps the earlier page's supplement instead of re-merging from empty", async () => {
+            mocks.mangoToDexieMock
+                .mockResolvedValueOnce([
+                    { _id: "a", updatedTimeUtc: 5, publishDate: 2000, type: "content" },
+                ])
+                .mockResolvedValueOnce([
+                    { _id: "a", updatedTimeUtc: 5, publishDate: 2000, type: "content" },
+                    { _id: "b", updatedTimeUtc: 6, publishDate: 1900, type: "content" },
+                ]);
+            postHttpMock
+                .mockResolvedValueOnce({
+                    docs: [{ _id: "old1", updatedTimeUtc: 1, publishDate: 100, type: "content" }],
+                })
+                .mockResolvedValueOnce({
+                    docs: [{ _id: "old2", updatedTimeUtc: 2, publishDate: 90, type: "content" }],
+                });
+
+            const q = new HybridQuery(
+                {
+                    selector: { type: "content" },
+                    $sort: [{ publishDate: "desc" as const }],
+                    $limit: 2,
+                },
+                { pageSize: 2 },
+            );
+            await flush();
+            expect(q.output.value.map((d) => d._id)).toEqual(["a", "old1"]);
+
+            q.loadMore();
+            await flush();
+            // old1 came from the first page's POST and was never re-fetched.
+            expect(q.output.value.map((d) => d._id)).toEqual(["a", "b", "old1", "old2"]);
+        });
+
+        it("live: an append re-subscribes Dexie but keeps the socket listener", async () => {
+            postHttpMock.mockResolvedValue({
+                docs: [{ _id: "old", updatedTimeUtc: 1, publishDate: 100, type: "content" }],
+            });
+            const q = track(
+                new HybridQuery(
+                    {
+                        selector: { type: "content" },
+                        $sort: [{ publishDate: "desc" as const }],
+                        $limit: 2,
+                    },
+                    { live: true, pageSize: 2 },
+                ),
+            );
+            mocks.liveRefs[0]!.ref.value = [
+                { _id: "a", updatedTimeUtc: 5, publishDate: 2000, type: "content" },
+            ];
+            await flush();
+            expect(mocks.socketDataHandlers.size).toBe(1);
+            const handler = [...mocks.socketDataHandlers][0];
+
+            q.loadMore();
+            await flush();
+            expect(mocks.liveRefs).toHaveLength(2); // a fresh Dexie subscription…
+            expect(mocks.socketDataHandlers.size).toBe(1); // …and the same socket listener
+            expect([...mocks.socketDataHandlers][0]).toBe(handler);
+        });
+
+        it("a query rebuild returns the window to the first page", async () => {
+            syncedGroups();
+            const filter = ref("g-1");
+            const q = new HybridQuery(
+                () => ({ selector: { type: "group", memberOf: filter.value }, $limit: 2 }),
+                { pageSize: 2 },
+            );
+            await flush();
+            q.loadMore();
+            await flush();
+            expect(q.output.value).toHaveLength(4);
+
+            filter.value = "g-2";
+            await flush();
+            expect(q.output.value).toHaveLength(2);
+            q.dispose();
+        });
+    });
+
     describe("isFetching / error", () => {
         it("content one-shot: isFetching true (output empty) before flush, false after local + POST settle", async () => {
             mocks.mangoToDexieMock.mockResolvedValueOnce([
@@ -2874,7 +3021,7 @@ describe("HybridQuery", () => {
             errSpy.mockRestore();
         });
 
-        it("a partial fan-out failure does NOT set error (some results returned)", async () => {
+        it("a partial fan-out failure still publishes the successful branch, but surfaces the error", async () => {
             const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
             mocks.mangoToDexieMock.mockResolvedValueOnce([]);
             postHttpMock.mockRejectedValueOnce(new Error("boom")).mockResolvedValueOnce({
@@ -2895,7 +3042,9 @@ describe("HybridQuery", () => {
             });
             await flush();
 
-            expect(q.error.value).toBeUndefined(); // partial success ⇒ no error surfaced
+            // A caller that must not act on a partial fan-out result needs to see the
+            // failure even though the other branch's rows still reach `output`.
+            expect(q.error.value).toBeInstanceOf(Error);
             expect(q.output.value.map((d) => d._id)).toEqual(["c2"]);
             expect(q.isFetching.value).toBe(false);
             errSpy.mockRestore();
@@ -2993,7 +3142,6 @@ describe("HybridQuery", () => {
             expect(q.isFetching.value).toBe(false);
         });
     });
-
 });
 
 describe("queryRemote", () => {

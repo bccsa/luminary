@@ -12,6 +12,13 @@ import { HybridQuery, type HybridQueryOptions } from "./HybridQuery";
  *   has settled (or, offline, once the fetch is parked on the reconnect watcher). A
  *   query rebuild (reactive thunk / live) re-enters loading. Use it to gate a spinner
  *   or to tell "still fetching" from "fetched, genuinely empty".
+ * - `isLoadingMore` — a `loadMore()` append is in flight. Distinct from `isFetching`,
+ *   which stays `false` during an append so a populated list shows a footer spinner
+ *   rather than re-entering its empty/loading state.
+ * - `hasMore` — a further page may exist. `false` until the first result settles, and
+ *   always `false` unless the query opted in with `{ pageSize }`.
+ * - `loadMore` — append the next page. A no-op without `pageSize`, while a page is in
+ *   flight, or once `hasMore` is false, so a scroll observer can call it unguarded.
  * - `error` — the last routing/remote/local-read error, or `undefined`; cleared on
  *   every rebuild. A partial multi-query failure (some results returned) does not set it.
  * - `hasLocalChanges` — a reactive queryable `(id) => boolean` reporting whether a document
@@ -22,6 +29,9 @@ import { HybridQuery, type HybridQueryOptions } from "./HybridQuery";
 export type UseHybridQueryState<T extends BaseDocumentDto> = {
     output: ShallowRef<T[]>;
     isFetching: ComputedRef<boolean>;
+    isLoadingMore: ComputedRef<boolean>;
+    hasMore: ComputedRef<boolean>;
+    loadMore: () => void;
     error: ShallowRef<unknown | undefined>;
     hasLocalChanges: ComputedRef<(id: Uuid) => boolean>;
 };
@@ -122,6 +132,9 @@ export function useHybridQueryWithState<T extends BaseDocumentDto = BaseDocument
     return {
         output: q.output,
         isFetching: q.isFetching,
+        isLoadingMore: q.isLoadingMore,
+        hasMore: q.hasMore,
+        loadMore: () => q.loadMore(),
         error: q.error,
         hasLocalChanges: q.hasLocalChanges,
     };

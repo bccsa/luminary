@@ -9,6 +9,10 @@ import {
     queryRemote,
     structuralCacheKey,
     writeResponseCache,
+    planCoveredQuery,
+    resolveQueryOnce,
+    STORAGE_PREFIX,
+    type QueryCapabilities,
     isProvablyEmpty,
     docKey,
     facetsFromSelector,
@@ -23,7 +27,7 @@ import { isPrerender } from "@/ssg/isPrerender";
 import { queryContentLocal } from "@/ssg/contentStore";
 import { reportRenderIssue } from "@/ssg/renderDiagnostics";
 
-/** Reads back one just-written response-cache entry so it can be attributed to its route. Takes the full `hqcache:`-prefixed storage key (matching shared's `STORAGE_PREFIX`). */
+/** Reads back one just-written response-cache entry so it can be attributed to its route. Takes the full `STORAGE_PREFIX`-prefixed storage key. */
 function readCacheEntry(storageKey: string): string | null {
     try {
         return globalThis.localStorage?.getItem(storageKey) ?? null;
@@ -32,31 +36,38 @@ function readCacheEntry(storageKey: string): string | null {
     }
 }
 
-function stripDocs(docs: ContentDto[], stripFields: string[]): ContentDto[] {
-    if (!stripFields.length) return docs;
-    return docs.map((d) => {
-        const copy = { ...d } as Record<string, unknown>;
-        for (const f of stripFields) delete copy[f];
-        return copy as ContentDto;
-    });
+/**
+ * Build-time capabilities for shared's query composition: the drained corpus as the
+ * local source, an anonymous POST as the remote one. No Dexie, sockets, connectivity
+ * or retention are involved.
+ *
+ * `local` is the caller's promise that the query is corpus-satisfiable — `publishedFilter`
+ * is set, so the selector bounds results to the published set the corpus holds. A
+ * `publishedFilter: false` lookup gates publish state itself and may match docs outside
+ * the corpus, so it is declared remote-only. `queryContentLocal` returns `null` only when
+ * no corpus was published; a corpus-present `[]` is reported as covered, which shared
+ * treats as authoritative and never supplements — a feed tile surfaced from the live API
+ * for a doc outside the drained corpus would link to a slug that was never prerendered.
+ */
+function renderCapabilities(local: boolean): QueryCapabilities<ContentDto> {
+    return {
+        plan: (q) => planCoveredQuery(q, local),
+        sources: {
+            readLocal: async (q) => {
+                const docs = queryContentLocal(q);
+                return docs === null ? { docs: [], covered: false } : { docs, covered: true };
+            },
+            readRemote: (q) => queryRemote<ContentDto>({ ...q, identifier: "ssgPrerender" }),
+        },
+    };
 }
 
-// Resolve a query from the build-time content corpus when `local` is set and a corpus
-// was published; otherwise POST as before. The `local` flag is the caller's promise that
-// the query is corpus-satisfiable — i.e. `publishedFilter` is set, so the selector bounds
-// results to the published set (status Published, publishDate <= now OR coming-soon) the
-// corpus holds. `queryContentLocal` returns `null` only when no corpus was published, so
-// a definite `[]` (corpus present, nothing matched) is AUTHORITATIVE and must NOT fall back
-// to the network: a feed tile surfaced from the live API for a doc not in the drained
-// corpus would link to a slug page that was never prerendered. Only a `publishedFilter:
-// false` lookup (which gates publish state itself and may match docs outside the corpus)
-// still POSTs.
-function resolveQuery(q: MangoQuery, local: boolean): Promise<ContentDto[]> {
-    if (!local) return queryRemote<ContentDto>({ ...q, identifier: "ssgPrerender" });
-    const localResult = queryContentLocal(q);
-    return localResult === null
-        ? queryRemote<ContentDto>({ ...q, identifier: "ssgPrerender" })
-        : Promise.resolve(localResult);
+function resolveQuery(
+    q: MangoQuery,
+    local: boolean,
+    stripFields: string[],
+): Promise<ContentDto[]> {
+    return resolveQueryOnce<ContentDto>(q, renderCapabilities(local), { stripFields });
 }
 
 // Backs `buildOnce`: a query that is genuinely identical on every route (see the option's
@@ -64,10 +75,15 @@ function resolveQuery(q: MangoQuery, local: boolean): Promise<ContentDto[]> {
 // firing again per page.
 const buildOnceFetches = new Map<string, Promise<ContentDto[]>>();
 
-function fetchBuildOnce(key: string, q: MangoQuery, local: boolean): Promise<ContentDto[]> {
+function fetchBuildOnce(
+    key: string,
+    q: MangoQuery,
+    local: boolean,
+    stripFields: string[],
+): Promise<ContentDto[]> {
     let p = buildOnceFetches.get(key);
     if (!p) {
-        p = resolveQuery(q, local).catch((err) => {
+        p = resolveQuery(q, local, stripFields).catch((err) => {
             // Don't let one transient failure poison the rest of the build — let the next page's render retry.
             buildOnceFetches.delete(key);
             throw err;
@@ -303,12 +319,9 @@ function useContentQueryState(
                 // — the corpus now carries coming-soon docs too, so a feed query that
                 // matches them is still served locally (as non-link "coming soon" tiles).
                 const local = publishedFilter;
-                const docs = stripDocs(
-                    buildOnce
-                        ? await fetchBuildOnce(structuralCacheKey(q, rest.cacheId), q, local)
-                        : await resolveQuery(q, local),
-                    stripFields,
-                );
+                const docs = buildOnce
+                    ? await fetchBuildOnce(structuralCacheKey(q, rest.cacheId), q, local, stripFields)
+                    : await resolveQuery(q, local, stripFields);
                 out.value = docs;
                 // Prime shared's response cache (same key the client computes) so the hydrating
                 // client shows these docs on first paint with no flash. vite-ssg serializes
@@ -333,9 +346,9 @@ function useContentQueryState(
                     // targets one shared store, so scraping it after the render would also
                     // pick up whatever pages rendering alongside this one put there. Read back
                     // under the same `hqcache:`-prefixed storage key shared writes (and the
-                    // client reads) — the prefix is the one shared's `STORAGE_PREFIX` uses, so
-                    // the inlined seed lands under the exact key the hydrating client reads.
-                    const storageKey = "hqcache:" + cacheKey;
+                    // client reads) — same prefix shared writes under, so the inlined seed
+                    // lands on the exact key the hydrating client reads.
+                    const storageKey = STORAGE_PREFIX + cacheKey;
                     const cached = readCacheEntry(storageKey);
                     if (cached !== null) reportCacheEntry(route, storageKey, cached);
                 }

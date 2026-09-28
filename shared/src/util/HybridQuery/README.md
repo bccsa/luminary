@@ -8,6 +8,114 @@ IndexedDB cache) with an API supplement, given a configured **content
 watcher, and its teardown; the consumer binds to a `ShallowRef<T[]>` and Vue's
 scope handles cleanup automatically on unmount.
 
+## Internal composition
+
+The public class, composables, options and imperative helpers retain their existing
+contracts. Internally the facade composes these independently testable capabilities:
+
+| Capability       | Owner                                       | Boundary                                                                                 |
+| ---------------- | ------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Vue bindings     | `HybridQuery.ts`                            | Query dependency watch, public refs and owning scope                                     |
+| Execution        | `querySession.ts`                           | One generation's source scheduling, pending/error notifications and subscription cleanup |
+| Routing          | `browserPlanner.ts`, `renderQuery.ts`       | Which sources a generation runs, as a `QueryPlan` the session executes                   |
+| Paging           | `pagination.ts`                             | How a window grows past its first slice, as a `QueryPagination` the session executes     |
+| Planning helpers | `queryPlanner.ts`                           | Pure supplement/fan-out rules; coverage is passed explicitly                             |
+| Environment      | `browserCapabilities.ts`, `querySources.ts` | Dexie/HTTP reads, live subscriptions, connectivity, coverage and persistence             |
+| Result window    | `resultWindow.ts`                           | Local/remote documents, merge order, tombstones, projection and visible window           |
+| Hydration policy | `seedRetention.ts`                          | Seed provenance and replacement decisions; owns metadata, not another document copy      |
+| Response cache   | `cacheCodec.ts`, `cacheStorage.ts`          | Pure key/encoding rules plus an injected synchronous storage adapter                     |
+
+`contracts.ts` describes plan, source, coverage, cache, persistence and observer
+interfaces. Sources report documents or changes; only the session accepts a
+generation's callbacks, and only the result window changes its document contributions.
+The facade publishes the accepted window through the original shallow ref. No event
+bus or global query-session registry is added.
+
+## Composing a query for another environment
+
+Routing is a capability, so an environment the browser adapters do not serve supplies
+its own `QueryPlan` rather than a branch inside the session. Only `readLocal` and
+`readRemote` are required; connectivity, live subscriptions, coverage and persistence
+are omitted where they do not apply, and the session skips the work they drive.
+
+```ts
+const docs = await resolveQueryOnce<ContentDto>(query, {
+    plan: (q) => planCoveredQuery(q, corpusCanAnswer),
+    sources: {
+        readLocal: async (q) => ({ docs: readCorpus(q), covered: haveCorpus }),
+        readRemote: (q) => queryRemote<ContentDto>(q),
+    },
+});
+```
+
+`planCoveredQuery` makes a covered local result authoritative: a covered **empty**
+answer is a real answer and is never supplemented remotely, while an uncovered read
+falls back. `resolveQueryOnce` rejects on a source failure instead of resolving an
+empty window, so a caller that must not publish a partial result can treat failure as
+failure. Both run through the same `QuerySession` as the reactive facade, so routing,
+merge order and cache writing cannot drift between environments.
+
+Planner, session, result window, seed policy and cache codec can be used in isolated
+tests without initializing Vue, IndexedDB, HTTP or sockets. Default adapters supply
+the existing environment. The pending-edit subscription and shared-reference-query
+registry deliberately retain their existing lifetimes.
+
+`responseCache.ts` remains the compatibility entry point for cache operations. Its
+storage provider resolves at operation time, so importing cache helpers does not
+require storage initialization. The wire contract is unchanged: `hqcache:` keys,
+structural fingerprints and `{ local, remote }` JSON, with the same cap/projection
+and best-effort storage failures. Seed decoding remains synchronous before either
+source starts; authoritative replacement still restores fields at unchanged revisions.
+
+## Growing a window (the append seam)
+
+A **generation** is one query; a **slice** is one window size within it. `rebuild`
+starts a generation from nothing; `QuerySession.extend()` grows the current one. Both
+contributions, the socket listener, the joined rooms and the membership watch survive
+an extend — only the query-bound local subscription is replaced.
+
+How a window grows is the `QueryPagination` capability, so the session never owns a
+paging rule:
+
+```ts
+const capabilities = { ...browserCapabilities, pagination: paginateByLimit(10) };
+```
+
+`next(query, loaded)` returns the query for the next slice, or `undefined` when the
+window cannot grow — which is also how the session answers "is there more". Two rules
+govern an implementation:
+
+- **It must be pure.** The session calls it to test for a further slice and discards
+  the result.
+- **Its query must select the window cumulatively**, not the delta. Each local read
+  replaces the local contribution wholesale (so deletions propagate), and a delta query
+  would drop the earlier slices. `paginateByLimit` satisfies this by widening `$limit`.
+
+Narrowing past already-fetched rows is the **remote** side's job: the remote
+contribution accumulates, and `QueryPlan.remote` receives it as its `held` argument.
+`decideContentApiQuery` uses it to walk a keyset boundary on the query's sort field —
+rows past the oldest held one, with that value's tie group excluded by `_id` so a bare
+`$lt` can't skip ties and a `$lte` can't re-fetch them without advancing. The supplement
+then asks only for the rows the window still lacks, counting the two contributions as a
+union so a doc supplied by both isn't double-counted.
+
+The boundary needs a single comparable sort key, a value on every held row, and a tie
+group within `MAX_TIE_EXCLUSIONS`. Failing any of those it falls back to re-requesting
+the tail from the cutoff — wasteful but correct, since the union merge dedups it.
+
+`SessionObserver.pending` carries `kind` (`"initial"` / `"extend"`) so a consumer can
+render a footer spinner for an append and a full-page one for a first load, and `more`,
+recomputed whenever a slice settles. The response cache is still written at the
+generation's **first** `$limit`, so paging deep does not inflate `localStorage`.
+
+Each supplement stays within the remote cap (`DEFAULT_REMOTE_QUERY_LIMIT`) because it
+requests a page rather than the whole tail, so a paged window keeps growing past that
+cap. A query that falls back to the un-narrowed tail does not.
+
+No cursor format, retry behavior or cache migration is added. The current remote cap,
+ordering, offline settlement and partial-failure behavior remain in force. Changes to
+those behaviors must be reviewed separately from this composition.
+
 ## Core invariant
 
 **The newest content is always present locally.** The sync engine maintains the
@@ -64,7 +172,10 @@ const q = new HybridQuery<ContentDto>({
 | Member                                    | Description                                                                                                                                                                                                                                                                                                         |
 | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `output: ShallowRef<T[]>`                 | The reactive merged set. Bind your template to `q.output.value`. In one-shot mode, mutated **once** for the Dexie-only and API-only non-content branches; **twice** for the content branch (local read, then merged remote). In **live mode** it additionally re-emits on every local IndexedDB change (see below). |
-| `isFetching: ComputedRef<boolean>`        | `true` from (re)build until the generation's **complete** first result settles. See [Loading & error state](#loading--error-state).                                                                                                                                                                                 |
+| `isFetching: ComputedRef<boolean>`        | `true` from (re)build until the generation's **complete** first result settles. Stays `false` during a `loadMore()` append. See [Loading & error state](#loading--error-state).                                                                                                                                     |
+| `isLoadingMore: ComputedRef<boolean>`     | A `loadMore()` append is in flight. Always `false` without `pageSize`. See [Paging](#paging-opt-in).                                                                                                                                                                                                                |
+| `hasMore: ComputedRef<boolean>`           | A further page may exist. `false` until the first result settles, and always `false` without `pageSize`.                                                                                                                                                                                                            |
+| `loadMore(): void`                        | Append the next page to `output`. A no-op without `pageSize`, while a page is in flight, and once `hasMore` is false — safe to call unguarded from a scroll observer.                                                                                                                                               |
 | `error: ShallowRef<unknown \| undefined>` | The last routing / remote / local-read error for the current generation, or `undefined`. Cleared on every rebuild. See [Loading & error state](#loading--error-state).                                                                                                                                              |
 | `dispose(): void`                         | Stop the reconnect watcher and (in live mode) the Dexie live-query subscription. Idempotent. Called automatically when the owning Vue scope disposes.                                                                                                                                                               |
 
@@ -129,7 +240,7 @@ merged into `output`.
 Internally the class keeps two contributions — `_local` (the Dexie result,
 replaced wholesale on each live emission) and `_remote` (the API supplement) — and
 recomputes `output = applySortLimit(mergeById(_local, _remote), $sort, $limit)`
-via the private `_recompute`. `_recompute` only reassigns the `output` ref when
+via `ResultWindow._recompute`. `_recompute` only reassigns the `output` ref when
 the windowed result actually changed (compared by `_id` + `updatedTimeUtc` per
 position via `sameWindow`), to avoid needless Vue re-renders.
 
@@ -173,7 +284,7 @@ update via the global `bulkPut → Dexie → liveQuery` path.
    (`ourCopy.updatedTimeUtc < cmd.updatedTimeUtc`).
 4. **Tombstone window.** Between a socket delete and Dexie catching up, a
    short-lived tombstone (per `docId`) suppresses the doc so an unrelated
-   `liveQuery` re-emit can't resurrect it; it's released in `_setLocal` once the
+   `liveQuery` re-emit can't resurrect it; it's released in `ResultWindow.setLocal` once the
    fresh Dexie read no longer holds a stale copy. A copy newer than the delete
    (republish-after-delete) supersedes the tombstone.
 5. **`_remote` is not persisted to Dexie by default.** Older-tail docs live in memory
@@ -206,7 +317,7 @@ caller would otherwise hand-roll into the query layer. Independent of `live`, an
 works for both static and thunk queries.
 
 - **Synchronous first paint.** The seed is read from **`localStorage`** (not
-  IndexedDB) inside `_run`, _before_ any local/remote read for the generation —
+  IndexedDB) inside `QuerySession.run`, _before_ any local/remote read for the generation —
   so a remount paints the cached window on the **first frame**, with no race and
   no race-gating. localStorage also avoids contending with sync on IndexedDB,
   which is busiest exactly at startup (when the seed matters most).
@@ -215,7 +326,7 @@ works for both static and thunk queries.
   docs seed `_local` and the older-tail `remote` docs seed `_remote`, then a
   `_recompute` paints the merged window. Because the seed flows _through_ the normal
   merge pipeline (not laid on top of `output`), the first real Dexie read —
-  `_setLocal`, which replaces `_local` wholesale — recomputes against the _still-seeded_
+  `ResultWindow.setLocal`, which replaces `_local` wholesale — recomputes against the _still-seeded_
   `_remote`, so the view doesn't shrink to local-only while the API supplement is in
   flight. The seeded remote is superseded when the POST resolves (`_setRemote` drops
   seeded docs the POST didn't re-supply, keeping any socket upserts) — or dropped if
@@ -294,6 +405,34 @@ offline.
   a sync/socket doc-rewrite can't clobber a stamp.
 - **Limitations.** There is no hard size cap (TTL + eviction is the bound); a
   `QuotaExceededError` on persist is swallowed, degrading to the no-persistence behaviour.
+
+### Paging (opt-in)
+
+```ts
+const { output, hasMore, isLoadingMore, loadMore } = useHybridQueryWithState<ContentDto>(
+    () => ({ selector, $sort, $limit: 20 }),
+    { live: true, pageSize: 20, keepPreviousResult: true },
+);
+```
+
+`pageSize` makes the query pageable: the query's own `$limit` is page one, and each
+`loadMore()` appends another `pageSize` rows **in place**. The documents already loaded,
+the Dexie subscription, the socket listener and the joined rooms all survive the append,
+and the API supplement from an earlier page is never re-merged from empty.
+
+`loadMore()` is a no-op without `pageSize`, while a page is in flight, and once `hasMore`
+is false, so a scroll observer can call it unguarded. `isFetching` stays **false**
+throughout an append — a list that already shows rows wants a footer spinner, and
+`isLoadingMore` is the flag for it.
+
+A genuine query change (a filter, a sort, a mutated id set) rebuilds and returns the
+window to page one, which is what a re-filtered list wants. Growing `$limit` inside the
+query thunk does **not** page: it restarts the query, re-reading every document and
+re-establishing every subscription.
+
+> An infinite-scroll sentinel driven by an `IntersectionObserver` must re-check after a
+> page settles, not only on an intersection change: a page that lands without pushing the
+> sentinel off screen produces no further observer callback, and the scroll stalls.
 
 ### Keeping the previous result across a rebuild (opt-in)
 

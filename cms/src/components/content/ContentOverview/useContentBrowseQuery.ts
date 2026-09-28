@@ -4,7 +4,7 @@ import {
     DocType,
     type MangoSelector,
 } from "luminary-shared";
-import { computed, type Ref } from "vue";
+import { computed } from "vue";
 import type { ContentOverviewQueryOptions } from "./types";
 import {
     translationStatusSelector,
@@ -30,14 +30,21 @@ const STRIP_FIELDS = ["fts", "ftsTokenCount", "text", "_rev"];
 
 /**
  * Browse-mode content query for the CMS overview. Wraps {@link useHybridQuery} (local-first
- * Dexie; the API supplement is skipped for the CMS since it fully syncs the selected
- * languages). Filters are pushed into the Mango selector; "load more" grows `limit`.
+ * Dexie, supplemented from the API for content older than the CMS's own sync window).
+ * Filters are pushed into the Mango selector; paging is the query's own, so `loadMore()`
+ * appends to the window instead of re-running the query at a bigger limit.
  *
- * @param opts  reactive getter for the current filter/sort state
- * @param limit reactive window size — bump it to load more
+ * @param opts     reactive getter for the current filter/sort state
+ * @param pageSize rows per page, and the size of the first window
  */
-export function useContentBrowseQuery(opts: () => ContentOverviewQueryOptions, limit: Ref<number>) {
-    const { output: raw, isFetching: isLoading } = useHybridQueryWithState<ContentDto>(
+export function useContentBrowseQuery(opts: () => ContentOverviewQueryOptions, pageSize: number) {
+    const {
+        output: raw,
+        isFetching: isLoading,
+        isLoadingMore,
+        hasMore,
+        loadMore,
+    } = useHybridQueryWithState<ContentDto>(
         () => {
             const o = opts();
             // Browse has no relevance (no query) — fall back to the default field.
@@ -73,18 +80,19 @@ export function useContentBrowseQuery(opts: () => ContentOverviewQueryOptions, l
             return {
                 selector: { $and: clauses },
                 $sort: [{ [orderBy]: orderDirection }],
-                $limit: limit.value,
+                $limit: pageSize,
                 use_index: USE_INDEX[orderBy],
             };
         },
-        // Every filter change and every "load more" (a grown `$limit`) rebuilds this query;
-        // it is the same list each time, and blanking it mid-scroll reads as a bug.
+        // A filter change rebuilds and returns the window to page one; it is the same
+        // list each time, and blanking it mid-scroll reads as a bug.
         {
             live: true,
             persistOffline: false,
             cache: false,
             stripFields: STRIP_FIELDS,
             keepPreviousResult: true,
+            pageSize,
         },
     );
 
@@ -96,11 +104,10 @@ export function useContentBrowseQuery(opts: () => ContentOverviewQueryOptions, l
         return raw.value.filter((d) => isUntranslatedRow(d, o.languageId));
     });
 
-    // A full window implies there may be more (same convention as useFtsSearch.hasMore).
-    // Based on the raw (pre-post-filter) count so the untranslated filter doesn't stall scroll.
-    const hasMore = computed(() => raw.value.length >= limit.value);
-
+    // `hasMore` reflects the raw (pre-post-filter) window, so the untranslated filter
+    // narrowing a page to nothing doesn't stall the scroll.
+    //
     // `isFetching` settles to false when the read completes even if the result is empty; a
     // fires-once watch on `raw` would hang on an empty browse (HybridQuery dedupes [] → []).
-    return { docs, isLoading, hasMore };
+    return { docs, isLoading, isLoadingMore, hasMore, loadMore };
 }

@@ -1,295 +1,38 @@
 import {
     computed,
-    effectScope,
     getCurrentScope,
     onScopeDispose,
-    ref,
     shallowRef,
     watch,
     type ComputedRef,
     type ShallowRef,
     type WatchStopHandle,
 } from "vue";
-import { db } from "../../db/database";
-import { HttpReq } from "../../api/http";
-import { getSocket, isConnected } from "../../socket/socketio";
-import { subscribeRooms } from "../../socket/roomSubscriptions";
-import {
-    type ApiDataResponseDto,
-    type BaseDocumentDto,
-    type DeleteCmdDto,
-    DocType,
-    type Uuid,
-} from "../../types";
-import { useHasLocalChanges } from "../useHasLocalChange";
-import { isProvablyEmpty } from "../MangoQuery/isProvablyEmpty";
-import { sanitizeArrayOperators } from "../MangoQuery/sanitizeArrayOperators";
-import { mangoCompile } from "../MangoQuery/mangoCompile";
-import { mangoToDexie } from "../MangoQuery/mangoToDexie";
+import type { BaseDocumentDto, Uuid } from "../../types";
 import type { MangoQuery } from "../MangoQuery/MangoTypes";
-import { useDexieLiveQuery } from "../useDexieLiveQuery/useDexieLiveQuery";
-import { applySortLimit, mergeById, sameWindow } from "./mergeDocs";
-import { SeedRetention } from "./seedRetention";
-import {
-    decideContentApiQuery,
-    planRemoteContentQueries,
-    readType,
-    toDeleteSelector,
-    typeInSyncListRef,
-    typeIsInSyncList,
-} from "./queryIntrospection";
-import {
-    omitFields,
-    readResponseCache,
-    structuralCacheKey,
-    writeResponseCache,
-} from "./responseCache";
-import { touchRetention } from "../../db/retention";
-import { config, getContentPublishDateCutoff } from "../../config";
-import { OPEN_MIN } from "../../api/sync/utils";
+import type { QueryActivity } from "./contracts";
+import { useHasLocalChanges } from "../useHasLocalChange";
+import type { HybridQueryOptions } from "./options";
+import { QuerySession } from "./querySession";
+import { createBrowserCapabilities } from "./browserCapabilities";
+import { resetQueryTransport } from "./querySources";
+export {
+    DEFAULT_REMOTE_QUERY_LIMIT,
+    initHybridQuery,
+    queryLocal,
+    queryRemote,
+} from "./querySources";
+export type { HybridQueryOptions } from "./options";
 
-/**
- * Hard cap on the `limit` sent to `/query`, applied whether or not the caller passes
- * `$limit`. Keeps an unbounded query from downloading and parsing tens of MB of JSON on
- * low-end devices or metered connections, and keeps every request inside the API's own
- * cap, which rejects anything larger outright.
- *
- * Paired with `query.maxLimit` in `api/src/configuration.ts` (env `QUERY_MAX_LIMIT`):
- * this value must not exceed it. Callers may ask for more — the remote leg is clamped
- * while the local Dexie read still honours the full `$limit`.
- */
-export const DEFAULT_REMOTE_QUERY_LIMIT = 500;
-
-let _httpService: HttpReq<any> | undefined;
-
-// Test-only registry of live instances, so `_resetHybridQueryForTests()` can dispose
-// any a test left undisposed (a non-content instance now holds a persistent syncList
-// membership watch — see `_watchMembership` — which would otherwise fire across tests
-// when the shared mock mutates `syncList`). Populated only in test mode, so production
-// (where instances are scope-disposed) carries no global instance set.
-const _testInstances = new Set<{ dispose: () => void }>();
-
-/**
- * Wire the HTTP service used by `HybridQuery` / `queryRemote` for the remote path.
- * Called once at app startup from `shared/src/luminary.ts`, alongside `initSync`.
- */
-export function initHybridQuery(httpService: HttpReq<any>): void {
-    _httpService = httpService;
-}
-
-/**
- * @internal Reset the configured HTTP service. Exposed for tests only — guarded
- * so a production bundle can't be coerced into nulling the HTTP service (which
- * would break the remote path). Not re-exported from the module index.
- */
+const testInstances = new Set<{ dispose(): void }>();
+/** @internal Preserves the existing test reset and production guard. */
 export function _resetHybridQueryForTests(): void {
-    if (import.meta.env?.MODE !== "test") {
+    if (import.meta.env?.MODE !== "test")
         throw new Error("_resetHybridQueryForTests is only available in test mode");
-    }
-    _httpService = undefined;
-    // Dispose any instance the previous test left alive so its membership/socket/Dexie
-    // watchers can't fire into the next test when the shared mocks are reset.
-    Array.from(_testInstances).forEach((q) => q.dispose());
-    _testInstances.clear();
+    resetQueryTransport();
+    Array.from(testInstances).forEach((query) => query.dispose());
+    testInstances.clear();
 }
-
-/**
- * One-shot read against the **remote API** (`POST /query`) — the remote counterpart
- * to {@link queryLocal}. Bare network call: no local read, no merging. Clamps the
- * requested limit to {@link DEFAULT_REMOTE_QUERY_LIMIT}, and applies it as the default
- * when the query omits `$limit`.
- * Throws if `initHybridQuery` has not wired an HTTP service — a programmer error, not
- * a runtime condition.
- *
- * `HybridQuery` is `queryLocal` merged with `queryRemote`, kept reactive.
- */
-export async function queryRemote<T = unknown>(query: MangoQuery): Promise<T[]> {
-    if (!_httpService) {
-        throw new Error(
-            "hybridQuery module not initialized with HTTP service. Call initHybridQuery(http) first.",
-        );
-    }
-
-    const payload: Record<string, unknown> = {
-        selector: query.selector,
-        // Callers outside the app's live queries override this so their load is separable in
-        // the API's expensive-query logs.
-        identifier: query.identifier ?? "hybridQuery",
-        limit: Math.min(
-            typeof query.$limit === "number" ? query.$limit : DEFAULT_REMOTE_QUERY_LIMIT,
-            DEFAULT_REMOTE_QUERY_LIMIT,
-        ),
-    };
-    // Match the consumer's scope: CMS reads (config.cms) are CmsView-gated server-side and include
-    // drafts/expired; app reads stay View-gated + published-only. The remote supplement otherwise
-    // defaulted to View while CMS sync used CmsView — an inconsistent window. No cms flag ⇒ cms:false,
-    // so omit it when false (wire payload unchanged for non-CMS consumers).
-    if (config?.cms === true) payload.cms = true;
-    if (Array.isArray(query.$sort)) payload.sort = query.$sort;
-    // Forward the client-chosen index hint to the API (validated against an
-    // allowlist there). Same pattern as sync/syncBatch.ts — index selection
-    // is a client concern.
-    if (typeof query.use_index === "string") payload.use_index = query.use_index;
-    // Opt-in only: without it the API filters expired Content out of the response, hiding
-    // exactly the docs a caller watching for expiry crossings needs to see.
-    if (query.includeExpired === true) payload.includeExpired = true;
-
-    const res = await _httpService.post("query", payload as any);
-    return (res?.docs ?? []) as T[];
-}
-
-/**
- * One-shot read against the **local IndexedDB document cache** (`db.docs`) — the local
- * counterpart to {@link queryRemote}. Resolves the matching documents (possibly empty)
- * and **never touches the API**: the imperative counterpart to the reactive
- * {@link useHybridQuery} / {@link HybridQuery}, for boot-time, event-handler, or other
- * non-Vue code where the reactive output (change-gated: an empty result never emits)
- * cannot be awaited.
- *
- * Local-only by design. Callers that need the below-cutoff API supplement should use
- * {@link queryRemote} (or a reactive HybridQuery).
- */
-export function queryLocal<T extends BaseDocumentDto = BaseDocumentDto>(
-    query: MangoQuery,
-): Promise<T[]> {
-    return mangoToDexie<T>(db.docs, query);
-}
-
-/** Options for {@link HybridQuery}. */
-export type HybridQueryOptions = {
-    /**
-     * When `true`, the local Dexie source is read **live** — the class subscribes
-     * via `useDexieLiveQuery` and re-emits `output` on every IndexedDB change,
-     * re-running the same dedup + sort/limit. When `false` (the default) the local
-     * source is read **once** (the original one-shot behaviour).
-     *
-     * The API supplement **POST** is **always one-shot** regardless of this flag
-     * (decided once from the first local result). In live mode the remote
-     * contribution is additionally kept live by a Socket.io listener; on reconnect
-     * that listener re-attaches but the supplement is **not** re-fetched (offline
-     * gaps heal on remount). See the module README for the shortcomings.
-     *
-     * **`live` is independent of dependency tracking.** A `() => MangoQuery` thunk
-     * is reactive in *both* modes — it rebuilds whenever a ref it reads changes;
-     * `live` only controls whether each rebuild reads Dexie continuously (liveQuery
-     * + socket) or one-shot. See the class docs for the full matrix.
-     */
-    live?: boolean;
-
-    /**
-     * When `true`, **response caching** is on: each (re)build seeds the local +
-     * remote contributions synchronously from the last persisted window for this
-     * query's *shape* (so a remount paints the merged result instantly, before the
-     * local read resolves — and without collapsing to local-only while the API
-     * supplement is in flight), and every visible change is persisted back. Off by
-     * default.
-     *
-     * The cache key is a **structural fingerprint** — runtime values (language /
-     * pinned id lists, …) are stripped, so queries that differ only in their values
-     * share one entry, keeping the key space small (no eviction needed). Persisted
-     * to `localStorage` (synchronous read, no IndexedDB contention). The seed is a
-     * first-paint accelerant only: live/remote data always supersedes it, and
-     * `sameWindow` skips the re-render when the fresh result matches the seed.
-     *
-     * Caveat: two different call sites with an identical query *shape* but a
-     * different constant collide on one entry — harmless beyond a first-paint flash
-     * that self-corrects. When the collision IS harmful (two simultaneously-mounted
-     * feeds that differ only by a stripped constant), pass {@link cacheId} to give
-     * them distinct entries. See {@link structuralCacheKey}.
-     */
-    cache?: boolean;
-
-    /**
-     * Optional discriminator folded into the response-cache fingerprint. Only
-     * meaningful with `cache: true`. The cache key is a structural fingerprint that
-     * strips runtime values, so two call sites whose queries differ only by a
-     * stripped constant (e.g. a `$ne` enum, an id list) share one entry. That is
-     * usually fine (a self-correcting first-paint flash), but for two feeds mounted
-     * at the same time it means they seed from each other. Pass a stable, unique
-     * `cacheId` per such call site to separate their fingerprints. No effect when
-     * `cache` is off.
-     */
-    cacheId?: string;
-
-    /**
-     * Field names omitted from each doc before it is persisted to the response
-     * cache. The seed aims to hold the FULL settled window (so first paint matches
-     * the live result, with no grow-in); stripping heavy fields (e.g. `fts`,
-     * `ftsTokenCount`, `text`) keeps that within `localStorage`'s budget.
-     *
-     * Only safe for fields the feed's rendered output never reads off the doc: once
-     * the seed equals the live window, `sameWindow` suppresses the `output`
-     * reassignment, so the stripped seed docs remain in `output` for the session.
-     * Defaults to `[]` (strip nothing). No effect when `cache` is off.
-     */
-    cacheStripFields?: string[];
-
-    /**
-     * Field names dropped from every doc **as it is ingested** into the query's
-     * `_local` / `_remote` contributions — from the local read, the API supplement,
-     * socket upserts, and the cache seed alike — so they never reach the live
-     * `output` array. Defaults to `[]` (strip nothing).
-     *
-     * **Purpose — reduce the in-memory (JS heap) footprint.** A live query holds its
-     * entire result window resident in `output` for as long as the consumer is
-     * mounted, and a `live` query re-materialises it on every change. When a doc type
-     * carries heavy fields the consumer never reads off a *result* doc — a full text
-     * / HTML body, a serialized search index, a large translations/strings map, a
-     * revision token — those fields can dominate the retained size of a big window.
-     * Listing them here keeps them out of the heap entirely: each doc is shallow-
-     * copied without them at ingest, so the originals are freed and only the slim
-     * copies are retained. The win scales with window size and field weight; for a
-     * doc whose listed fields are absent the copy is skipped, so a no-op costs
-     * nothing. Strip only fields the rendered output genuinely does not read — a
-     * stripped field is simply not present on `output` docs.
-     *
-     * **Relationship to the cache.** Because stripped docs are what `output` holds,
-     * they are also what the response cache persists — so `stripFields` shrinks the
-     * cache footprint too. {@link cacheStripFields} is the narrower tool: it removes
-     * *additional* fields from the cache **only**, leaving them in `output`.
-     *
-     * **Safety.** The merge / sort / dedup / live-update machinery reads only `_id`
-     * and `updatedTimeUtc`, so stripping any other field is correctness-neutral —
-     * but never strip those two. {@link persistOffline} is unaffected: the full,
-     * unstripped docs are written to IndexedDB before the strip is applied, so an
-     * offline read still sees every field.
-     */
-    stripFields?: string[];
-
-    /**
-     * When `true`, **offline document persistence** is on: the API supplement's
-     * older-tail docs are written to IndexedDB (via `db.bulkPut`) so a tile backed by
-     * them is openable offline (e.g. `SingleContent` reads `db.docs` by slug). Off by
-     * default.
-     *
-     * Distinct from {@link cache} (which keeps a localStorage *window* for first
-     * paint): this persists the *documents* themselves, durably. The two compose.
-     *
-     * Privacy / scope: only fetched **Content** is written (the type check is the floor) — the API
-     * has already permission-scoped what it returned, and a non-content type (e.g. the CMS's `user`)
-     * persists **nothing**, regardless of this flag. Deliberately NOT gated on `isSyncableDoc`: that
-     * needs a populated `syncList` content entry, which sync only creates after fetching a content
-     * doc — so when everything is below the sync cutoff (nothing to sync) it would persist nothing.
-     * Persisted docs are retention-managed and evicted once stale (see `db/retention.ts`).
-     */
-    persistOffline?: boolean;
-
-    /**
-     * When `true`, `output` **survives a query rebuild** (a reactive thunk dep change, a
-     * syncList membership flip): the previous window stands in for the incoming one, so a
-     * list that is merely re-narrowed — a changed filter, a grown `$limit`, a mutated id
-     * set — does not blank while its new result loads. Off by default.
-     *
-     * Leave it off whenever the query resolves an IDENTITY rather than narrowing a list —
-     * a lookup by slug or id, or a parent's children — where the previous result is a
-     * different entity and showing it is wrong rather than merely stale. The distinction
-     * cannot be made from the selector (both cases look like "the kept docs no longer
-     * match"), so it is the call site's to declare.
-     *
-     * A provably-empty new query clears `output` either way.
-     */
-    keepPreviousResult?: boolean;
-};
 
 /**
  * Local-first reactive query that merges Dexie (the local IndexedDB cache) with
@@ -343,16 +86,13 @@ export type HybridQueryOptions = {
  * );
  * ```
  *
- * **Core invariant:** the newest content is always present locally — sync
- * maintains the head of the timeline. The API is only ever needed to supply
- * data that is genuinely not local: older content (`publishDate <= cutoff`),
- * specific missing ids, or non-synced doc types. Every short-circuit in this
- * class (limit satisfied locally, all ids present locally) and the
- * `publishDate <= cutoff` clauses are correct because of this invariant.
+ * The compatibility facade composes an execution session, a result window,
+ * hydration policy and environment adapters. Routing and merge behavior remain
+ * centralized in those capabilities; Vue only binds their outputs and lifetime.
  *
  * **Routing:**
  * - `type === "content"` (partially synced): read Dexie, then decide whether to
- *   supplement from the API via {@link decideContentApiQuery}.
+ *   supplement from the API via the content query planner.
  * - Other types present in `syncList` (fully synced): Dexie only.
  * - Other types not in `syncList`: API only.
  *
@@ -376,813 +116,72 @@ export type HybridQueryOptions = {
  */
 export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
     public readonly output: ShallowRef<T[]>;
-    // `true` from (re)build until the generation's COMPLETE first result settles —
-    // the local Dexie read AND (where applicable) the remote supplement POST. Data
-    // may already be painted (local landed, or a cache seed) while this is still true
-    // (remote in flight): it tracks "still fetching", not "has no data". A query rebuild
-    // (reactive thunk / live) re-enters loading. Derived from two independent pending
-    // flags so the content branch's two phases compose without a bespoke state machine;
-    // offline settles the remote leg immediately (parked, not fetching).
+    /** Initial local/remote work is pending; offline deferral counts as settled. */
     public readonly isFetching: ComputedRef<boolean>;
-    // Last routing/remote/local-read error for the current generation, or undefined.
-    // Last-error-wins; cleared synchronously on every rebuild.
+    /** A {@link loadMore} append is in flight. Always `false` without `pageSize`. */
+    public readonly isLoadingMore: ComputedRef<boolean>;
+    /** A further page may exist. Always `false` without `pageSize`. */
+    public readonly hasMore: ComputedRef<boolean>;
+    /** Last exposed error for this generation; reset on query rebuild. */
     public readonly error: ShallowRef<unknown | undefined>;
-    // Reactive queryable `(id) => boolean`: does the document have a change queued locally
-    // (saved via `db.upsert`) but not yet acknowledged by the server? Independent of this
-    // query's result window — it reflects the global outgoing-change queue, so a consumer can
-    // flag the pending-offline state of any doc it renders (e.g. an overview row). Backed by a
-    // single process-wide subscription shared across all instances (see `useHasLocalChanges`).
+    /** Existing application-lifetime pending-edit lookup. */
     public readonly hasLocalChanges: ComputedRef<(id: Uuid) => boolean>;
-    // `isFetching = _localPending || _remotePending`. _localPending: the local read
-    // hasn't produced its first result. _remotePending: a supplement POST is owed and
-    // hasn't settled (resolved / rejected / dropped because no API is needed).
-    private readonly _localPending = ref(false);
-    private readonly _remotePending = ref(false);
-
-    // The query thunk. A plain MangoQuery is normalized to `() => query`. In live
-    // mode it is auto-tracked (re-evaluated when any ref it reads changes); in
-    // one-shot mode it is evaluated exactly once. See the constructor.
-    private readonly _queryFn: () => MangoQuery;
-    // Per-generation query snapshot (reassigned on each rebuild).
-    private _query!: MangoQuery;
-    private _limit?: number;
-    private _sort?: MangoQuery["$sort"];
-    private readonly _live: boolean;
-    // See {@link HybridQueryOptions.keepPreviousResult}.
-    private readonly _keepPreviousResult: boolean;
-    // Offline document persistence (opt-in). When true, the supplement's syncable
-    // older-tail docs are bulkPut to IndexedDB. See {@link HybridQueryOptions.persistOffline}.
-    private readonly _persistOffline: boolean;
-    // Response caching (opt-in). `_cacheKey` is the current generation's structural
-    // fingerprint; "" when caching is disabled. See {@link HybridQueryOptions.cache}.
-    private readonly _cache: boolean;
-    // Optional caller-supplied discriminator folded into `_cacheKey` so two
-    // structurally-identical queries can be given distinct cache entries.
-    private readonly _cacheId?: string;
-    // Fields stripped from each doc before persisting to the response cache (heavy,
-    // never-rendered fields), so the full window fits. See {@link HybridQueryOptions.cacheStripFields}.
-    private readonly _cacheStripFields: string[];
-    // Fields stripped from each doc as it enters `_local`/`_remote`, so they never
-    // reach the live `output` (heap). See {@link HybridQueryOptions.stripFields}.
-    private readonly _stripFields: string[];
-    private _cacheKey = "";
-    // Owns the response-cache seed bookkeeping: how long a seeded first-paint window
-    // survives before authoritative reads replace it. The seed-to-live transition
-    // table lives in the `SeedRetention` module.
-    private readonly _seed: SeedRetention = new SeedRetention();
-    // The two contributions to `output`, kept separate so live mode can replace
-    // the local set wholesale (reflecting deletions) while the one-shot remote
-    // supplement persists. `output = applySortLimit(mergeById(_local, _remote))`.
-    private _local: T[] = [];
-    private _remote: T[] = [];
-    // Gates the one-shot API decision to the FIRST local result, in both modes.
-    private _apiDecided = false;
-    // Live mode only: docIds removed by a socket DeleteCmd → the delete's
-    // updatedTimeUtc. `_recompute` suppresses an at-or-older copy that still
-    // lingers in a source (e.g. a Dexie `liveQuery` re-emit that fires before the
-    // global bulkPut has deleted the doc); the tombstone is released in `_setLocal`
-    // once the fresh Dexie read no longer holds a stale copy.
-    private readonly _tombstones = new Map<string, number>();
-    // Monotonic query-version counter. A rebuild (live, dep change) bumps it; any
-    // async work captured from an older generation is discarded by a generation
-    // guard so it can't mutate the new generation's state.
-    private _generation = 0;
-    // Teardown for the CURRENT generation's local/remote/socket subscriptions —
-    // cleared and re-populated on each rebuild. (The top-level query watch is a
-    // separate, instance-level handle: `_stopQueryWatch`.)
-    private readonly _generationDisposers = new Set<() => void>();
-    private _stopQueryWatch?: WatchStopHandle;
-    private _disposed = false;
+    private readonly session: Pick<QuerySession<T>, "rebuild" | "extend" | "dispose">;
+    private stopQueryWatch?: WatchStopHandle;
 
     constructor(query: MangoQuery | (() => MangoQuery), options: HybridQueryOptions = {}) {
-        this._queryFn = typeof query === "function" ? query : () => query;
-        this._live = options.live ?? false;
-        this._keepPreviousResult = options.keepPreviousResult ?? false;
-        this._persistOffline = options.persistOffline ?? false;
-        this._cache = options.cache ?? false;
-        this._cacheId = options.cacheId;
-        this._cacheStripFields = options.cacheStripFields ?? [];
-        this._stripFields = options.stripFields ?? [];
+        const queryFn = typeof query === "function" ? query : () => query;
+        const activity = shallowRef<QueryActivity>({
+            local: false,
+            remote: false,
+            kind: "initial",
+            more: false,
+        });
+        const working = computed(() => activity.value.local || activity.value.remote);
         this.output = shallowRef<T[]>([]);
         this.error = shallowRef<unknown | undefined>(undefined);
-        this.isFetching = computed(() => this._localPending.value || this._remotePending.value);
+        // An append keeps `isFetching` false: a list already showing rows wants a footer
+        // spinner, not the empty/loading state its first paint uses.
+        this.isFetching = computed(() => activity.value.kind === "initial" && working.value);
+        this.isLoadingMore = computed(() => activity.value.kind === "extend" && working.value);
+        this.hasMore = computed(() => activity.value.more);
         this.hasLocalChanges = useHasLocalChanges();
-
-        // Auto-teardown on unmount when constructed inside a Vue effect scope
-        // (e.g. <script setup>). Vue's withAsyncContext keeps the scope valid
-        // across top-level awaits, so this works even when `new HybridQuery(...)`
-        // sits after an `await` in the script. A non-component caller will see no
-        // active scope and must call `dispose()` manually.
+        this.session = new QuerySession(queryFn, options, createBrowserCapabilities<T>(options), {
+            publish: (docs) => {
+                this.output.value = docs;
+            },
+            pending: (next) => {
+                activity.value = next;
+            },
+            error: (error) => {
+                this.error.value = error;
+            },
+        });
         if (getCurrentScope()) onScopeDispose(() => this.dispose());
-
-        // Test-only: register for blanket teardown in `_resetHybridQueryForTests`.
-        if (import.meta.env?.MODE === "test") _testInstances.add(this);
-
+        if (import.meta.env?.MODE === "test") testInstances.add(this);
         if (typeof query === "function") {
-            // A query THUNK is reactive — independent of `live`. The getter runs the
-            // thunk in a reactive scope so every `ref.value` it reads is auto-tracked;
-            // serializing the result means we rebuild only when the query ACTUALLY
-            // changes (a ref reassigned to an equal-shaped value → no rebuild). The
-            // `immediate` run is generation 1. `live` independently controls whether
-            // each rebuild reads Dexie continuously (liveQuery + socket) or one-shot.
-            this._stopQueryWatch = watch(
-                // Serialize with a sentinel for `undefined` so an `undefined`-valued
-                // field (which JSON.stringify would DROP) can't collapse to the same
-                // key as an absent field — they mean different things to Mango
-                // (`{ x: undefined }` compiles to "x must be missing"), so they must
-                // not be treated as an equal query and skip a rebuild.
-                () =>
-                    JSON.stringify(this._queryFn(), (_k, v) =>
-                        v === undefined ? "\u0000undef" : v,
-                    ),
-                () => this._rebuild(this._queryFn()),
+            this.stopQueryWatch = watch(
+                () => JSON.stringify(queryFn(), (_k, v) => (v === undefined ? "\u0000undef" : v)),
+                () => this.session.rebuild(queryFn()),
                 { immediate: true },
             );
         } else {
-            // Static query → build once; nothing to track (no inert watch).
-            this._rebuild(this._queryFn());
+            this.session.rebuild(queryFn());
         }
     }
 
     /**
-     * (Re)build a generation: tear down the previous generation's subscriptions,
-     * snapshot the new query, reset per-generation state, and route. `output` is cleared
-     * unless the caller opted into `keepPreviousResult` — a re-narrowed list keeps the
-     * previous window so it doesn't blank; the provably-empty branch in `_run` clears it
-     * even then, since that case never recomputes.
+     * Append the next page to `output`. Safe to call unguarded from a scroll observer:
+     * it is a no-op without `pageSize`, while a page is in flight, and once `hasMore`
+     * is false.
      */
-    private _rebuild(query: MangoQuery): void {
-        if (this._disposed) return;
-
-        // Snapshot before running so a disposer that self-removes from the set
-        // (the reconnect watcher) can't mutate it mid-iteration.
-        const ds = Array.from(this._generationDisposers);
-        this._generationDisposers.clear();
-        ds.forEach((fn) => fn());
-
-        this._generation++;
-        this._local = [];
-        this._remote = [];
-        // Only a caller that declared its query a narrowing of the same list keeps the
-        // previous window. The length guard keeps the initial build a no-op.
-        if (!this._keepPreviousResult && this.output.value.length) this.output.value = [];
-        this._seed.reset();
-        this._apiDecided = false;
-        this._tombstones.clear();
-        // Re-enter loading for the new generation. _generation++ above has already
-        // disarmed any stale callback (the gen guard), so these synchronous writes are
-        // safe; _run adjusts _remotePending per route (and clears _localPending for the
-        // API-only branch, which reads no local).
-        this.error.value = undefined;
-        this._localPending.value = true;
-        this._remotePending.value = false;
-        // Strip null/undefined from any $in/$nin/$all BEFORE the selector forks into
-        // the local Dexie read and the remote API POST — a null member crashes
-        // CouchDB's _find (function_clause / 500). One choke point keeps both legs
-        // consistent; see sanitizeArrayOperators.
-        this._query = { ...query, selector: sanitizeArrayOperators(query.selector) };
-        this._limit = query.$limit;
-        this._sort = query.$sort;
-        if (this._cache) this._cacheKey = structuralCacheKey(query, this._cacheId);
-
-        this._run();
+    loadMore(): void {
+        this.session.extend();
     }
 
-    /**
-     * Tear down everything the instance owns: the reconnect watcher, and (in live
-     * mode) the Dexie `liveQuery` subscription and the Socket.io listener. Marks
-     * the instance dead so any in-flight POST or late socket batch that resolves
-     * later won't mutate `output`, and releases references. Idempotent. Called
-     * automatically when the owning Vue scope disposes.
-     */
     dispose(): void {
-        if (this._disposed) return;
-        this._disposed = true;
-        if (import.meta.env?.MODE === "test") _testInstances.delete(this);
-        // Stop the top-level query watch FIRST so a dep write racing teardown can't
-        // start a new generation after we've disposed.
-        this._stopQueryWatch?.();
-        const ds = Array.from(this._generationDisposers);
-        this._generationDisposers.clear();
-        ds.forEach((fn) => fn());
-    }
-
-    // ── internals ────────────────────────────────────────────────────────────
-
-    // Settle the remote pending flag for `gen`, but only if it is still the live
-    // generation — a superseded generation's late POST must never clear the current
-    // generation's loading state. (The local leg settles inline inside the onLocal
-    // callbacks, which already carry the same generation guard.)
-    private _settleRemote(gen: number): void {
-        if (gen !== this._generation || this._disposed) return;
-        this._remotePending.value = false;
-        // The remote leg has settled. If the local read was empty and the seeded local
-        // window is still bridging first paint, drop it now so the result reflects the
-        // real (empty) local contribution — a genuinely empty result publishes empty.
-        if (this._seed.shouldRetireLocal()) {
-            this._seed.releaseLocal();
-            this._local = [];
-            this._recompute(true);
-        }
-    }
-
-    // Non-content branches only. Re-route this generation when `type`'s syncList
-    // membership FLIPS — `false→true` when sync first registers the type (cold start:
-    // a query built before its type was synced re-routes from API-only to Dexie-only
-    // once both Dexie AND the syncList entry exist — db.bulkPut precedes the
-    // syncList.push, so the local read is already populated), and `true→false`
-    // on revoke (deleteRevoked trims the column and purges the Dexie docs, so we fall
-    // back to the API). The watched value is the per-type memoized membership BOOLEAN, so
-    // the callback fires once per genuine flip — never on the per-chunk block-range / eof
-    // churn that mutates `syncList` during a sync. Registered in `_generationDisposers`,
-    // so a query-thunk rebuild tears this down and `_run` installs a fresh watch for the
-    // new type (no stale-type tracking). `immediate: false` — the initial route was
-    // already decided synchronously by the `typeIsInSyncList(type)` read in `_run`.
-    private _watchMembership(type: DocType, gen: number): void {
-        const stop = watch(
-            typeInSyncListRef(type),
-            () => {
-                // The structural teardown (watch stop) already prevents a fired-after-stop
-                // callback; the gen/dispose guard is belt-and-braces against a flip racing
-                // a rebuild that has already bumped `_generation`.
-                if (gen !== this._generation || this._disposed) return;
-                // `_rebuild` bumps `_generation` (disarming this generation's in-flight
-                // POST / local read / socket cb via the gen guard) and re-runs `_run` —
-                // which now reads the flipped membership and takes the opposite branch.
-                // `keepPreviousResult` decides whether `output` bridges the re-route.
-                this._rebuild(this._queryFn());
-            },
-            { immediate: false },
-        );
-        this._generationDisposers.add(stop);
-    }
-
-    private _run(): void {
-        // Capture the generation so every async/event callback this method wires up
-        // can bail if a later rebuild (or dispose) has superseded it. Most teardown
-        // is structural (effectScope.stop / socket off / watch stop), but the
-        // un-cancellable one-shot `.then(onLocal)`, the awaited POST, and the
-        // synchronous socket fan-out can still fire post-rebuild — hence the guards.
-        const gen = this._generation;
-
-        // Outer try/catch guarantees the synchronous routing (readType,
-        // typeIsInSyncList, _startLocal / _runApiWhenOnline / _startRemoteLive
-        // setup) cannot surface an error to the caller. The per-result work
-        // (onLocal / _postAndMerge / the socket callback) carries its own handlers
-        // because it runs on a later tick, outside this try.
-        try {
-            // Unsatisfiable selector (e.g. an empty `$in`) → skip the Dexie read,
-            // the API supplement POST, and the socket listener. This branch never
-            // recomputes, so on a REBUILD we must clear any kept `output` here
-            // (judged from the SELECTOR — an empty local read alone looks the same
-            // as "nothing synced yet"). The length guard avoids a spurious set on
-            // the empty initial build.
-            if (isProvablyEmpty(this._query.selector)) {
-                if (this.output.value.length) this.output.value = [];
-                // This branch never recomputes, so settle loading here (synchronous,
-                // current generation) — otherwise isFetching would hang true forever.
-                this._localPending.value = false;
-                this._remotePending.value = false;
-                return;
-            }
-
-            // Response cache — first-paint seed. Restore the last persisted window's
-            // two CONTRIBUTIONS into `_local`/`_remote` and recompute, so the merged
-            // window paints synchronously, before any local/remote read for this
-            // generation. Seeding the contributions (not `output` directly) is what
-            // prevents a collapse to local-only when the Dexie read lands while the
-            // POST is still in flight: `_setLocal` replaces the seeded local wholesale
-            // (reflecting deletions), while the seeded remote persists until the POST
-            // supersedes it (`_setRemote`) or the local read needs no API
-            // (`_dropSeededRemote`). A miss leaves `_local`/`_remote`/`output`
-            // untouched (preserving the window kept across a reactive rebuild).
-            // Deliberately AFTER the provably-empty guard so an empty-`$in` query —
-            // which shares a structural key with its populated form — never repaints
-            // stale content.
-            // NB: do NOT settle loading here. The seed is a first-paint accelerant; the
-            // authoritative local read and remote POST are still in flight, so isFetching
-            // stays true (painted-from-cache is still "fetching", not "settled").
-            if (this._cache) {
-                const seed = readResponseCache<T>(this._cacheKey);
-                if (seed) {
-                    // Strip defensively: a cache written before `stripFields` grew
-                    // could still carry a now-stripped field — keep `output` uniform.
-                    this._local = this._strip(seed.local);
-                    this._remote = this._strip(seed.remote);
-                    this._seed.recordSeed(
-                        this._local.length,
-                        this._remote.map((d) => d._id),
-                    );
-                    this._recompute();
-                }
-            }
-
-            const type = readType(this._query);
-
-            if (type === DocType.Content) {
-                // Local read merges instantly; the FIRST local result also drives
-                // the (one-shot) API-supplement decision. Later live emissions
-                // update `_local` only — the `_apiDecided` gate keeps the API
-                // one-shot ("exclude live updates from the API").
-                this._startLocal(gen, (local) => {
-                    if (gen !== this._generation || this._disposed) return;
-                    try {
-                        // Decide the supplement off the FIRST local result BEFORE _setLocal so
-                        // _setLocal's seed-retention guard can observe whether a remote leg is
-                        // owed: a cold-start empty read must not collapse a seeded window while
-                        // the supplement is in flight, but a genuinely empty result (no supplement
-                        // owed) must publish empty. The gate keeps the supplement one-shot.
-                        if (!this._apiDecided) {
-                            this._apiDecided = true;
-                            // ONE supplement decided off the FIRST local result: the below-cutoff
-                            // older tail. Skipped entirely under a full-corpus sync (no cutoff),
-                            // where the local read is complete (see decideContentApiQuery).
-                            const api = decideContentApiQuery(this._query, local);
-                            if (api) {
-                                // A supplement is owed — keep loading true until the POST settles
-                                // (or offline-defers). _postAndMerge / _runApiWhenOnline own
-                                // clearing _remotePending.
-                                this._remotePending.value = true;
-                                void this._runApiWhenOnline([api], gen);
-                                // Live mode: keep the supplement live off the socket changefeed,
-                                // filtered by the supplement query.
-                                if (this._live) this._startRemoteLive(api, DocType.Content, gen);
-                            } else {
-                                // No supplement owed — no POST will arrive to supersede a seeded
-                                // remote. Drop it after _setLocal (below) so the guard sees
-                                // _remotePending=false and a genuinely empty result publishes empty.
-                                this._seed.deferRemoteDrop();
-                            }
-                        }
-                        this._setLocal(local);
-                        // Local has produced a result — settle the local leg. Idempotent
-                        // on later live re-emissions.
-                        this._localPending.value = false;
-                        // Flush a first-emission drop deferred from the no-supplement branch.
-                        if (this._seed.takeDeferredRemoteDrop()) {
-                            this._dropSeededRemote();
-                        }
-                    } catch (err) {
-                        console.error("[HybridQuery] local update failed:", err);
-                    }
-                });
-                return;
-            }
-
-            if (typeIsInSyncList(type)) {
-                // Fully-synced type → Dexie only, no API supplement.
-                this._startLocal(gen, (local) => {
-                    if (gen !== this._generation || this._disposed) return;
-                    try {
-                        this._setLocal(local);
-                        // Local only — loading settles on the first local result.
-                        this._localPending.value = false;
-                    } catch (err) {
-                        console.error("[HybridQuery] local update failed:", err);
-                    }
-                });
-                // Re-route to API-only if this type is later REVOKED (membership true→false).
-                // `type` is non-undefined here (it passed typeIsInSyncList).
-                this._watchMembership(type as DocType, gen);
-                return;
-            }
-
-            // Non-content type not in syncList → fetch from API only, no Dexie read.
-            // No local leg: settle local now, the remote POST owns loading from here.
-            this._localPending.value = false;
-            this._remotePending.value = true;
-            void this._runApiWhenOnline([this._query], gen);
-            // Live mode: these docs never flow through Dexie (sync doesn't sync this
-            // type), so the socket listener is their only live path.
-            if (this._live) {
-                // Subscribe to the type's rooms on demand so the server starts pushing
-                // live updates for this non-synced type. Ref-counted and released with
-                // this generation (rebuild/dispose) — the room is left only once the
-                // last HybridQuery using it disposes. Skipped for a typeless query.
-                if (type) this._generationDisposers.add(subscribeRooms([type]));
-                this._startRemoteLive(this._query, type, gen);
-            }
-            // COLD-START RE-ROUTE: when sync first registers this type (membership
-            // false→true), flip to Dexie-only. Independent of `live`. Typeless queries
-            // (readType → undefined) get no membership watch — they intentionally stay
-            // API-only (the "safe by default" arm).
-            if (type) this._watchMembership(type, gen);
-        } catch (err) {
-            // Belt-and-braces: anything that escaped the inner handlers (the
-            // reconnect-watcher setup, an unexpected throw in queryIntrospection
-            // helpers, …) is logged here.
-            console.error("[HybridQuery] routing failed:", err);
-        }
-    }
-
-    /**
-     * Source the local Dexie docs and hand each result to `onLocal`.
-     *
-     * - One-shot mode: a single `mangoToDexie` read; on failure, log and call
-     *   `onLocal([])` so the content branch still decides the API with an empty
-     *   local set (preserves the original behaviour). The two-arg `.then` form
-     *   ensures the reject handler only catches the Dexie read — never a throw
-     *   from inside `onLocal`.
-     * - Live mode: subscribe via `useDexieLiveQuery`, re-invoking `onLocal` on
-     *   every IndexedDB change. The composable ties cleanup to the *current* Vue
-     *   scope and returns no stop handle, so we run it inside a detached
-     *   `effectScope` the class owns — `dispose()` → `scope.stop()` →
-     *   `useDexieLiveQuery`'s `onScopeDispose` → `liveQuery` unsubscribe.
-     */
-    private _startLocal(gen: number, onLocal: (docs: T[]) => void): void {
-        if (!this._live) {
-            void mangoToDexie<T>(db.docs, this._query).then(onLocal, (err) => {
-                if (gen === this._generation && !this._disposed) this.error.value = err;
-                console.error("[HybridQuery] local read failed:", err);
-                // Route the empty set on so the local leg still settles and the content
-                // branch still makes its API decision (preserves the original behaviour).
-                onLocal([]);
-            });
-            return;
-        }
-
-        const scope = effectScope(true);
-        // Register teardown BEFORE running so a throw during setup is still
-        // covered by dispose() / the next rebuild.
-        this._generationDisposers.add(() => scope.stop());
-        scope.run(() => {
-            const source = useDexieLiveQuery<T[]>(() => mangoToDexie<T>(db.docs, this._query), {
-                // A live read that errors and never emits keeps _localPending true (same
-                // silent risk as before this change); surface the error so consumers can
-                // at least react to it.
-                onError: (err) => {
-                    if (gen === this._generation && !this._disposed) this.error.value = err;
-                    console.error("[HybridQuery] live local read failed:", err);
-                },
-            });
-            // `immediate: true` fires synchronously with the ref's initial value
-            // (`undefined`) — guarded out so we never pass `undefined` to
-            // `mergeById` and never decide the API off a synthetic empty snapshot.
-            // The first *real* emission is async and drives `onLocal`.
-            watch(
-                source,
-                (docs) => {
-                    if (docs === undefined) return;
-                    onLocal(docs);
-                },
-                { immediate: true },
-            );
-        });
-    }
-
-    private async _runApiWhenOnline(apis: MangoQuery[], gen: number): Promise<void> {
-        if (isConnected.value) {
-            await this._postAndMerge(apis, gen);
-            return;
-        }
-        // Offline — defer the POST until `isConnected` flips true. Run-once
-        // guard makes connection-flapping safe. Stored as a generation disposer so
-        // a rebuild or `dispose()` can cancel a still-pending watcher.
-        let ran = false;
-        const stop = watch(isConnected, (connected) => {
-            if (!connected || ran) return;
-            ran = true;
-            stop();
-            this._generationDisposers.delete(stop);
-            // The deferred POST runs in the background; it deliberately does NOT
-            // re-enter loading (data has already painted from local/cache, and
-            // flipping isFetching back to true on a late reconnect would surprise
-            // empty-state consumers). _postAndMerge's settle is then a no-op.
-            void this._postAndMerge(apis, gen);
-        });
-        this._generationDisposers.add(stop);
-        // Parked on the reconnect watcher — not actively fetching, so settle the remote
-        // leg now (offline settles the remote leg to false).
-        this._settleRemote(gen);
-    }
-
-    private async _postAndMerge(apis: MangoQuery[], gen: number): Promise<void> {
-        try {
-            // The older-tail supplement is expanded via planRemoteContentQueries: a multi-parent
-            // content supplement fans into per-parent POSTs so each seeks the parentId index instead
-            // of forcing one publishDate-window scan; non-fan-out queries return a single [api]. All
-            // resulting POSTs settle together here as ONE remote leg, and results are merged by id.
-            //
-            // allSettled (not all): one query's transient failure must not blank the whole batch —
-            // keep the queries that succeeded. If EVERY query fails we leave `_remote` untouched
-            // (preserving any cache seed, healing on remount), matching the prior behaviour.
-            const queries = apis.flatMap((api) => planRemoteContentQueries(api));
-            const settled = await Promise.allSettled(queries.map((q) => queryRemote<T>(q)));
-            // A rebuild (dep change) or dispose may have superseded this POST while
-            // it was in flight — its result belongs to a dead generation.
-            if (gen !== this._generation || this._disposed) return;
-
-            const fulfilled = settled.filter(
-                (s): s is PromiseFulfilledResult<T[]> => s.status === "fulfilled",
-            );
-            if (fulfilled.length < settled.length) {
-                const firstErr = settled.find((s) => s.status === "rejected") as
-                    | PromiseRejectedResult
-                    | undefined;
-                console.error(
-                    `[HybridQuery] ${settled.length - fulfilled.length}/${settled.length} remote query(ies) failed:`,
-                    firstErr?.reason,
-                );
-                // Surface the failure only when EVERY query failed (total failure below).
-                // A partial fan-out failure keeps the succeeded subset, so it must not
-                // raise `error` — that would be misleading.
-                if (fulfilled.length === 0) this.error.value = firstErr?.reason;
-            }
-            // Total failure: keep the current `_remote` (and its seed) and heal later.
-            if (fulfilled.length === 0) return;
-
-            const remote = fulfilled.reduce<T[]>((acc, s) => mergeById(acc, s.value), []);
-            this._setRemote(remote);
-
-            // Offline persistence (opt-in): write the fetched CONTENT to IndexedDB so these
-            // older-tail docs are openable offline, and stamp their retention.
-            // Fire-and-forget — the in-memory `_remote` already makes the list correct.
-            //
-            // Gate on `type === Content`, NOT `isSyncableDoc`: the latter requires a populated
-            // `syncList` content entry, which sync only creates once it has *fetched* a content
-            // doc (`syncBatch` pushes the entry under `if (fetchedDocs.length)`). When every doc is
-            // below the sync `publishDate` cutoff, sync fetches nothing → no entry → `isSyncableDoc`
-            // would reject everything and persist nothing. `persistOffline` caches what HybridQuery
-            // explicitly fetched for display, and the API has already permission-scoped it, so the
-            // type check is the correct floor (it still excludes non-content types like the CMS
-            // `user`, which must never touch IndexedDB).
-            if (this._persistOffline) {
-                const toPersist = remote.filter((d) => d.type === DocType.Content);
-                if (toPersist.length) {
-                    void db
-                        .bulkPut(toPersist)
-                        .catch((e) => console.error("[HybridQuery] offline persist failed:", e));
-                    touchRetention(toPersist.map((d) => d._id));
-                }
-            }
-        } catch (err) {
-            if (gen === this._generation && !this._disposed) this.error.value = err;
-            console.error("[HybridQuery] remote query failed:", err);
-        } finally {
-            // Settle the remote leg whether the POST resolved, failed, or bailed on a
-            // stale generation (the gen guard inside makes the stale case a no-op).
-            this._settleRemote(gen);
-        }
-    }
-
-    /**
-     * Live mode only: attach a Socket.io `"data"` listener that keeps the remote
-     * contribution live. Filters the global access-scoped changefeed with a
-     * predicate compiled from the supplement query: matching docs are upserted into
-     * `_remote`, and applicable deletes are removed from `_remote` (a local copy is
-     * suppressed via a tombstone instead — see {@link _applySocketData}). This is
-     * **listener lifecycle only** — the one-shot supplement POST stays owned by
-     * `_runApiWhenOnline`, and we deliberately do **not** re-POST on reconnect
-     * (offline gaps are healed on remount — see the README "Shortcomings").
-     */
-    private _startRemoteLive(api: MangoQuery, queryType: DocType | undefined, gen: number): void {
-        const matchP = mangoCompile(api.selector);
-        const deleteP = mangoCompile(toDeleteSelector(api.selector, queryType));
-        // Stable reference so off() always matches a prior on() (no dup listeners).
-        // The generation guard covers the synchronous-fan-out window where a "data"
-        // batch in flight could still call this cb after off() during a rebuild.
-        const cb = (data: ApiDataResponseDto) => {
-            if (gen !== this._generation || this._disposed) return;
-            this._applySocketData(data, matchP, deleteP);
-        };
-
-        const stop = watch(
-            isConnected,
-            (connected) => {
-                if (this._disposed) return;
-                // off() first is idempotent and guarantees a single registration.
-                getSocket().off("data", cb);
-                if (connected) getSocket().on("data", cb);
-            },
-            { immediate: true },
-        );
-
-        this._generationDisposers.add(stop);
-        this._generationDisposers.add(() => getSocket().off("data", cb));
-    }
-
-    /**
-     * Apply one socket `"data"` batch to the remote contribution. Normal docs that
-     * pass `matchP` are upserted into `_remote`; `DeleteCmd`s that pass
-     * `validateDeleteCommand` + `deleteP` and target a doc we currently hold (newer
-     * than our copy) are removed from `_remote` durably, and — if a local copy
-     * exists — tombstoned so `_recompute` suppresses it until Dexie catches up
-     * (`_local` is **not** filtered here). Recomputes only when the batch touched
-     * something.
-     */
-    private _applySocketData(
-        data: ApiDataResponseDto,
-        matchP: (doc: any) => boolean,
-        deleteP: (doc: any) => boolean,
-    ): void {
-        if (this._disposed) return;
-
-        const upserts: T[] = [];
-        const deleteIds = new Set<string>();
-
-        for (const doc of data.docs) {
-            if (doc.type === DocType.DeleteCmd) {
-                const cmd = doc as DeleteCmdDto;
-                if (!db.validateDeleteCommand(cmd)) continue; // reason / permission / CMS gate
-                if (!deleteP(cmd)) continue; // docType / id-list pre-filter
-                const cur = this._findById(cmd.docId); // membership = the real gate
-                if (!cur || cur.updatedTimeUtc >= cmd.updatedTimeUtc) continue; // stale guard
-                deleteIds.add(cmd.docId);
-                // A LOCAL copy will be re-emitted by Dexie until it catches up, so a
-                // tombstone suppresses the stale copy meanwhile (pruned in
-                // `_setLocal`). `_remote` has no external catch-up, so it's filtered
-                // durably below — a remote-only delete needs no tombstone.
-                if (this._local.some((d) => d._id === cmd.docId)) {
-                    this._tombstones.set(cmd.docId, cmd.updatedTimeUtc);
-                }
-            } else if (matchP(doc)) {
-                upserts.push(doc as T);
-            }
-        }
-
-        // Nothing relevant in this batch → skip the merge/sort/recompute entirely.
-        if (upserts.length === 0 && deleteIds.size === 0) return;
-
-        if (upserts.length) this._remote = mergeById(this._remote, this._strip(upserts));
-        // Durable removal from the remote contribution. Local copies are handled by
-        // the tombstone (don't filter `_local` here — a filter would let the next
-        // Dexie re-emit resurrect the doc with no tombstone left to suppress it).
-        if (deleteIds.size) this._remote = this._remote.filter((d) => !deleteIds.has(d._id));
-        this._recompute();
-    }
-
-    /** First copy of `id` across the remote then local contributions, if any. */
-    private _findById(id: string): T | undefined {
-        return this._remote.find((d) => d._id === id) ?? this._local.find((d) => d._id === id);
-    }
-
-    /**
-     * Drop `_stripFields` from each doc so they never reach `_local`/`_remote`/
-     * `output` (the heap). Returns the array unchanged when nothing is configured,
-     * and `omitFields` returns each doc unchanged when it has none of the fields —
-     * so a no-op strip allocates nothing.
-     */
-    private _strip(docs: T[]): T[] {
-        return this._stripFields.length ? docs.map((d) => omitFields(d, this._stripFields)) : docs;
-    }
-
-    /** Replace the local contribution (the live emission may have dropped docs). */
-    private _setLocal(local: T[]): void {
-        local = this._strip(local);
-        // Prune tombstones the fresh Dexie read has caught up on: the id is gone,
-        // or present with a copy NEWER than the delete (republished). A still-
-        // present at-or-older copy keeps its tombstone so `_recompute` suppresses
-        // it. This is where socket-delete tombstones are reliably released.
-        if (this._tombstones.size) {
-            const release: string[] = [];
-            this._tombstones.forEach((ts, id) => {
-                const staleStillPresent = local.some((d) => d._id === id && d.updatedTimeUtc <= ts);
-                if (!staleStillPresent) release.push(id);
-            });
-            release.forEach((id) => this._tombstones.delete(id));
-        }
-        // Retain a cache-seeded window while the remote leg is still in flight: a cold-start
-        // empty local read must not collapse the seeded first paint before the supplement
-        // lands. A non-empty read still replaces wholesale (deletions propagate); once the
-        // remote settles the flag is cleared and a genuine empty publishes as usual.
-        if (this._seed.shouldRetainLocal(local.length, this._remotePending.value)) {
-            this._recompute();
-            return;
-        }
-        // This read replaces a seeded local contribution, so force the publish.
-        const retiringSeed = this._seed.holdsSeed();
-        this._seed.releaseLocal();
-        this._local = local;
-        this._recompute(retiringSeed);
-    }
-
-    /**
-     * Merge the remote supplement into `_remote` (union by `_id`, newer wins).
-     * Merge — not replace — so a socket upsert that lands BEFORE the one-shot POST
-     * resolves is not wiped. One-shot behaviour is unchanged: `_remote` starts
-     * `[]`, so the first merge equals the POST result.
-     *
-     * Response-cache seed: when `_remote` was seeded from the cache, this first
-     * authoritative POST drops the seeded older-tail docs it did NOT re-supply (e.g.
-     * since-deleted), while keeping anything a socket upsert added after the seed —
-     * then unions in its own result.
-     */
-    private _setRemote(remote: T[]): void {
-        // Strip here (not at the call site) so the caller's pre-strip array can
-        // still be written to IndexedDB by `persistOffline` with all fields intact.
-        remote = this._strip(remote);
-        const seeded = this._seed.recordRemoteAnswer();
-        if (seeded) {
-            const keep = this._remote.filter((d) => !seeded.has(d._id));
-            this._remote = mergeById(keep, remote);
-        } else {
-            this._remote = mergeById(this._remote, remote);
-        }
-        // A seeded remote contribution has been superseded, so force the publish.
-        this._recompute(seeded !== undefined);
-    }
-
-    /**
-     * Drop response-cache-seeded remote docs once the local read has decided no API
-     * supplement is needed (so no POST will arrive to supersede them), keeping any
-     * socket upserts added since the seed. No-op when nothing was seeded.
-     */
-    private _dropSeededRemote(): void {
-        const seeded = this._seed.takeRemoteDrop();
-        if (seeded === undefined) return;
-        this._remote = this._remote.filter((d) => !seeded.has(d._id));
-        this._recompute(true);
-    }
-
-    /**
-     * @param force Publish even when the window looks unchanged — see the `sameWindow`
-     *   call below. Set by the paths that retire a cache seed.
-     */
-    private _recompute(force = false): void {
-        // After dispose(), a late POST or a late live emission must NOT mutate
-        // output — the consumer has unmounted and treats the ref as dead.
-        if (this._disposed) return;
-
-        // Refresh the keep-alive deadline for below-cutoff Content this query serves
-        // from IndexedDB (its `_local` set), so it isn't evicted while featured. This
-        // is UNCONDITIONAL — outside the `sameWindow` guard below — so a stable overview
-        // still re-stamps each session's initial population. The retention buffer
-        // throttles (≈once/day/doc) and batches, so it's cheap on every recompute. Not
-        // gated on `persistOffline`: any query serving a slid-out doc keeps it alive.
-        const cutoff = getContentPublishDateCutoff();
-        if (cutoff !== OPEN_MIN) {
-            const stampIds: string[] = [];
-            for (const d of this._local) {
-                const pd = (d as { publishDate?: number }).publishDate;
-                if (d.type === DocType.Content && pd !== undefined && pd < cutoff) {
-                    stampIds.push(d._id);
-                }
-            }
-            if (stampIds.length) touchRetention(stampIds);
-        }
-        // UNION (not replace) across sources — the remote query may fetch only the
-        // older tail (publishDate <= cutoff), so fresh local docs above the cutoff
-        // must be retained alongside it. Argument order is load-bearing: `_local`
-        // seeds and `_remote` layers on top, so the remote copy wins
-        // `updatedTimeUtc` ties (identical to the original local-then-remote merge
-        // sequence). Do NOT flip the args.
-        const merged = mergeById(this._local, this._remote);
-
-        let result = merged;
-        if (this._tombstones.size) {
-            // Suppress a doc a socket DeleteCmd removed while a stale copy still
-            // lingers in a source (e.g. Dexie not yet caught up). A copy NEWER than
-            // the delete (republish-after-delete) supersedes the tombstone. Stale
-            // tombstones are released in `_setLocal`, not here, so a delete survives
-            // recomputes triggered by unrelated changes until Dexie catches up.
-            result = merged.filter((d) => {
-                const ts = this._tombstones.get(d._id);
-                if (ts === undefined) return true;
-                if (d.updatedTimeUtc > ts) {
-                    this._tombstones.delete(d._id);
-                    return true;
-                }
-                return false;
-            });
-        }
-
-        const windowed = applySortLimit(result, this._sort, this._limit);
-        // Mutate the output ref only when the visible window actually changed —
-        // saves a Vue re-render for socket batches (and local emissions) that
-        // don't affect the sorted/limited view.
-        //
-        // `sameWindow` compares `_id` + `updatedTimeUtc`, which a cache seed shares with
-        // the doc it stands in for: a seed written with `cacheStripFields` is a
-        // field-stripped projection, so the authoritative copy carrying those fields back
-        // compares equal and would never publish. `force` covers the recompute that
-        // retires a seed, so the restored fields reach consumers.
-        if (force || !sameWindow(windowed, this.output.value)) {
-            this.output.value = windowed;
-            // Persist the window for the next mount's first-paint seed, SPLIT by
-            // source: docs backed by `_local` go to `local` (the next real read
-            // replaces them wholesale), the older-tail remainder to `remote` (which
-            // persists across that read so the seed never collapses to local-only).
-            // Bounded to real visible changes, and never reached from the
-            // provably-empty branch (it returns before `_recompute`).
-            if (this._cache) {
-                // Never persist a window that would destroy a still-unsettled seed: an empty
-                // mid-flight window is transient (the local read landed before the supplement),
-                // and persisting it would seed-miss the next mount. A non-empty window, or any
-                // window once the query has settled, still writes as usual.
-                const unsettled = this._localPending.value || this._remotePending.value;
-                if (!unsettled || windowed.length > 0) {
-                    const localIds = new Set(this._local.map((d) => d._id));
-                    writeResponseCache(
-                        this._cacheKey,
-                        {
-                            local: windowed.filter((d) => localIds.has(d._id)),
-                            remote: windowed.filter((d) => !localIds.has(d._id)),
-                        },
-                        this._limit,
-                        this._cacheStripFields,
-                    );
-                }
-            }
-        }
+        if (import.meta.env?.MODE === "test") testInstances.delete(this);
+        this.stopQueryWatch?.();
+        this.session.dispose();
     }
 }
