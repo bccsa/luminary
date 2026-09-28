@@ -1,0 +1,36 @@
+name: Check submodule pointer
+permissions:
+  contents: read
+
+# The enforced half of the git hooks in scripts/git-hooks, which --no-verify skips: a PR must not
+# move luminary-media-convert behind (or off the line of) main's pointer.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - main
+    paths:
+      - luminary-media-convert
+      - scripts/check-submodule-pointer.sh
+      - .github/workflows/submodule-pointer-check.yml
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          # The PR head and the base branch, with history for their merge base.
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Fetch submodule history
+        run: git submodule update --init luminary-media-convert
+
+      - name: Check luminary-media-convert pointer
+        run: |
+          scripts/check-submodule-pointer.sh \
+            --ref "${{ github.event.pull_request.head.sha }}" \
+            --base "origin/${{ github.base_ref }}"
