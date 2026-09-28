@@ -293,6 +293,31 @@ export type HybridQueryOptions = {
     keepPreviousResult?: boolean;
 };
 
+/** How long to wait before retrying a Dexie op that failed on a transient IndexedDB error. */
+const TRANSIENT_INDEXEDDB_RETRY_DELAY_MS = 100;
+
+/**
+ * WebKit aborts or closes an in-flight IndexedDB transaction when the tab is
+ * backgrounded or put under memory pressure, which Dexie surfaces as one of these
+ * names/messages rather than as data loss. They're transient — the transaction
+ * reopens once the tab is foregrounded again — so callers get one retry instead
+ * of treating the first failure as final.
+ */
+function isTransientIndexedDbError(err: unknown): boolean {
+    // Duck-typed, not `instanceof Error`: a real DOMException (AbortError,
+    // UnknownError) does NOT extend Error in browsers, only Dexie's own
+    // BulkError does.
+    if (!err || typeof err !== "object") return false;
+    const { name, message } = err as { name?: unknown; message?: unknown };
+    if (name === "AbortError") return true;
+    // Covers both a direct UnknownError and a Dexie BulkError, whose `.message`
+    // embeds the nested per-op error text.
+    return (
+        typeof message === "string" &&
+        /in-progress transaction|cursor that doesn't exist/i.test(message)
+    );
+}
+
 /**
  * Local-first reactive query that merges Dexie (the local IndexedDB cache) with
  * an API supplement, given a configured content publishDate cutoff.
@@ -793,7 +818,11 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
      *   `onLocal([])` so the content branch still decides the API with an empty
      *   local set (preserves the original behaviour). The two-arg `.then` form
      *   ensures the reject handler only catches the Dexie read — never a throw
-     *   from inside `onLocal`.
+     *   from inside `onLocal`. A transient IndexedDB error (see
+     *   `isTransientIndexedDbError`) gets one retry first: unlike live mode
+     *   (which self-heals via `useDexieLiveQuery`'s re-subscribe), a one-shot
+     *   read has no later chance to recover and would otherwise resolve to an
+     *   empty result for good.
      * - Live mode: subscribe via `useDexieLiveQuery`, re-invoking `onLocal` on
      *   every IndexedDB change. This one stays on this thread: `liveQuery` re-runs by
      *   observing what the querier touched in Dexie's zone here, and a query awaited
@@ -805,13 +834,20 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
      */
     private _startLocal(gen: number, onLocal: (docs: T[]) => void): void {
         if (!this._live) {
-            void (runInWorker("mangoQuery", this._query) as Promise<T[]>).then(onLocal, (err) => {
-                if (gen === this._generation && !this._disposed) this.error.value = err;
-                this._reportError("local-read", err);
-                // Route the empty set on so the local leg still settles and the content
-                // branch still makes its API decision (preserves the original behaviour).
-                onLocal([]);
-            });
+            const read = (isRetry: boolean): void => {
+                void (runInWorker("mangoQuery", this._query) as Promise<T[]>).then(onLocal, (err) => {
+                    if (!isRetry && isTransientIndexedDbError(err)) {
+                        setTimeout(() => read(true), TRANSIENT_INDEXEDDB_RETRY_DELAY_MS);
+                        return;
+                    }
+                    if (gen === this._generation && !this._disposed) this.error.value = err;
+                    this._reportError("local-read", err);
+                    // Route the empty set on so the local leg still settles and the content
+                    // branch still makes its API decision (preserves the original behaviour).
+                    onLocal([]);
+                });
+            };
+            read(false);
             return;
         }
 
@@ -923,8 +959,18 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
             if (this._persistOffline) {
                 const toPersist = remote.filter((d) => d.type === DocType.Content);
                 if (toPersist.length) {
+                    // One retry on a transient IndexedDB error (see isTransientIndexedDbError) —
+                    // the in-memory `_remote` is already correct either way, so a second failure
+                    // is only logged, never surfaced as `error`.
                     void db
                         .bulkPut(toPersist)
+                        .catch((e) =>
+                            isTransientIndexedDbError(e)
+                                ? new Promise((resolve) =>
+                                      setTimeout(resolve, TRANSIENT_INDEXEDDB_RETRY_DELAY_MS),
+                                  ).then(() => db.bulkPut(toPersist))
+                                : Promise.reject(e),
+                        )
                         .catch((e) =>
                             this._reportError("offline-persist", e, { docs: toPersist.length }),
                         );
