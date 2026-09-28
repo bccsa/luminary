@@ -2128,7 +2128,12 @@ describe("HybridQuery", () => {
                 // Live mode (SingleContent's actual query mode): seed the local side with a
                 // stripped doc — same id/updatedTimeUtc as the doc the live Dexie read
                 // returns, differing only by the field the SSR cache write omitted.
-                const Lstripped = { _id: "L1", updatedTimeUtc: 5, publishDate: 2000, type: "content" };
+                const Lstripped = {
+                    _id: "L1",
+                    updatedTimeUtc: 5,
+                    publishDate: 2000,
+                    type: "content",
+                };
                 writeResponseCache(
                     structuralCacheKey(contentQuery),
                     { local: [Lstripped], remote: [] },
@@ -2396,6 +2401,53 @@ describe("HybridQuery", () => {
             const stamped = mocks.touchRetention.mock.calls.flat(2);
             expect(stamped).toContain("below");
             expect(stamped).not.toContain("above");
+        });
+
+        it("retries once and succeeds silently when bulkPut fails on a transient WebKit IndexedDB error", async () => {
+            const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+            mocks.mangoToDexieMock.mockResolvedValueOnce([
+                { _id: "a", updatedTimeUtc: 5, publishDate: 2000, type: "content" },
+            ]);
+            postHttpMock.mockResolvedValueOnce({
+                docs: [{ _id: "old1", updatedTimeUtc: 1, publishDate: 500, type: "content" }],
+            });
+            mocks.bulkPut.mockReset();
+            const transient = new DOMException(
+                "Attempt to delete range from database without an in-progress transaction",
+                "UnknownError",
+            );
+            mocks.bulkPut.mockRejectedValueOnce(transient).mockResolvedValueOnce([]);
+
+            new HybridQuery(contentQuery, { persistOffline: true });
+            await flush();
+            await new Promise((r) => setTimeout(r, 150)); // past the retry delay
+
+            expect(mocks.bulkPut).toHaveBeenCalledTimes(2);
+            expect(errSpy).not.toHaveBeenCalled(); // the retry succeeded — nothing to log
+        });
+
+        it("retries once, then logs, when bulkPut fails on a transient error twice in a row", async () => {
+            const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+            mocks.mangoToDexieMock.mockResolvedValueOnce([
+                { _id: "a", updatedTimeUtc: 5, publishDate: 2000, type: "content" },
+            ]);
+            postHttpMock.mockResolvedValueOnce({
+                docs: [{ _id: "old1", updatedTimeUtc: 1, publishDate: 500, type: "content" }],
+            });
+            mocks.bulkPut.mockReset();
+            const transient = () =>
+                new DOMException("Attempt to iterate a cursor that doesn't exist", "UnknownError");
+            mocks.bulkPut.mockRejectedValueOnce(transient()).mockRejectedValueOnce(transient());
+
+            new HybridQuery(contentQuery, { persistOffline: true });
+            await flush();
+            await new Promise((r) => setTimeout(r, 150));
+
+            expect(mocks.bulkPut).toHaveBeenCalledTimes(2);
+            expect(errSpy).toHaveBeenCalledWith(
+                "[HybridQuery] offline persist failed:",
+                expect.objectContaining({ name: "UnknownError" }),
+            );
         });
 
         it("swallows a bulkPut rejection: no unhandled throw, output correct, retention STILL stamped", async () => {
@@ -2950,6 +3002,41 @@ describe("HybridQuery", () => {
             errSpy.mockRestore();
         });
 
+        it("one-shot local read: retries once and recovers on a transient WebKit IndexedDB error, never setting error", async () => {
+            const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+            const transient = new DOMException("Transaction aborted", "AbortError");
+            const local = [{ _id: "a", type: "content", updatedTimeUtc: 1, publishDate: 2000 }];
+            mocks.mangoToDexieMock.mockRejectedValueOnce(transient).mockResolvedValueOnce(local);
+            postHttpMock.mockResolvedValueOnce({ docs: [] });
+
+            const q = new HybridQuery({ selector: { type: "content" } });
+            await flush();
+            await new Promise((r) => setTimeout(r, 150)); // past the retry delay
+
+            expect(mocks.mangoToDexieMock).toHaveBeenCalledTimes(2);
+            expect(q.error.value).toBeUndefined();
+            expect(errSpy).not.toHaveBeenCalled();
+            errSpy.mockRestore();
+        });
+
+        it("one-shot local read: retries once, then falls back to empty + error, when the transient error persists", async () => {
+            const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+            const transient = () => new DOMException("Transaction aborted", "AbortError");
+            mocks.mangoToDexieMock
+                .mockRejectedValueOnce(transient())
+                .mockRejectedValueOnce(transient());
+            postHttpMock.mockResolvedValueOnce({ docs: [] });
+
+            const q = new HybridQuery({ selector: { type: "content" } });
+            await flush();
+            await new Promise((r) => setTimeout(r, 150));
+
+            expect(mocks.mangoToDexieMock).toHaveBeenCalledTimes(2);
+            expect(q.error.value).toEqual(expect.objectContaining({ name: "AbortError" }));
+            expect(q.output.value).toEqual([]);
+            errSpy.mockRestore();
+        });
+
         it("a superseded generation's late POST does not clear the new generation's isFetching", async () => {
             const cats = ref(["A"]);
             mocks.mangoToDexieMock.mockResolvedValue([
@@ -2993,7 +3080,6 @@ describe("HybridQuery", () => {
             expect(q.isFetching.value).toBe(false);
         });
     });
-
 });
 
 describe("queryRemote", () => {
