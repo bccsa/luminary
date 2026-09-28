@@ -1,9 +1,9 @@
-name: Check submodule pointer
+name: Check luminary-media-convert Submodule Pointer
 permissions:
   contents: read
 
-# The enforced half of the git hooks in scripts/git-hooks, which --no-verify skips: a PR must not
-# move luminary-media-convert behind (or off the line of) main's pointer.
+# A stale submodule checkout committed by accident silently reverts the encoder/player on merge,
+# so the pointer may only ever be the latest commit released to luminary-media-convert's prod branch.
 on:
   pull_request:
     types: [opened, synchronize, reopened]
@@ -11,8 +11,14 @@ on:
       - main
     paths:
       - luminary-media-convert
-      - scripts/check-submodule-pointer.sh
+      - .gitmodules
       - .github/workflows/submodule-pointer-check.yml
+  workflow_call:
+
+env:
+  SUBMODULE_PATH: luminary-media-convert
+  SUBMODULE_URL: https://github.com/bccsa/luminary-media-convert.git
+  RELEASE_BRANCH: prod
 
 jobs:
   check:
@@ -21,16 +27,21 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
-        with:
-          # The PR head and the base branch, with history for their merge base.
-          ref: ${{ github.event.pull_request.head.sha }}
-          fetch-depth: 0
 
-      - name: Fetch submodule history
-        run: git submodule update --init luminary-media-convert
-
-      - name: Check luminary-media-convert pointer
+      - name: Check pointer matches the latest prod commit
         run: |
-          scripts/check-submodule-pointer.sh \
-            --ref "${{ github.event.pull_request.head.sha }}" \
-            --base "origin/${{ github.base_ref }}"
+          pointer=$(git ls-tree HEAD "$SUBMODULE_PATH" | awk '{print $3}')
+          prod=$(git ls-remote "$SUBMODULE_URL" "refs/heads/$RELEASE_BRANCH" | awk '{print $1}')
+
+          if [ -z "$prod" ]; then
+            echo "::error::$SUBMODULE_PATH has no '$RELEASE_BRANCH' branch to check the pointer against."
+            exit 1
+          fi
+
+          if [ "$pointer" != "$prod" ]; then
+            echo "::error::$SUBMODULE_PATH points at $pointer, but the latest '$RELEASE_BRANCH' commit is $prod." \
+              "Update it with: git -C $SUBMODULE_PATH fetch && git -C $SUBMODULE_PATH checkout $prod && git add $SUBMODULE_PATH"
+            exit 1
+          fi
+
+          echo "$SUBMODULE_PATH points at the latest '$RELEASE_BRANCH' commit ($prod)."

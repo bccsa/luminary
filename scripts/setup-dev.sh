@@ -638,13 +638,6 @@ reset_database() {
 # HELP & USAGE
 # ============================================================
 
-install_hooks() {
-  # Versioned hooks: guard the luminary-media-convert submodule pointer (see scripts/git-hooks).
-  cd "$LUMINARY_ROOT"
-  git config core.hooksPath scripts/git-hooks
-  success "Git hooks enabled (core.hooksPath=scripts/git-hooks)"
-}
-
 usage() {
   cat <<EOF
 Luminary CLI - Setup & Management Tool
@@ -666,8 +659,6 @@ COMMANDS:
   
   reset-db            Delete, recreate, and reseed the CouchDB database
                       (requires CouchDB to be running)
-
-  install-hooks       Enable the repo's git hooks (submodule pointer guard)
 
 ENVIRONMENT VARIABLES (optional):
 
@@ -736,7 +727,6 @@ main() {
 
       setup_projects
       setup_auth
-      install_hooks
       
       success "Luminary setup complete!"
       info "Next steps:"
@@ -771,10 +761,6 @@ main() {
 
     reset-db)
       reset_database
-      ;;
-
-    install-hooks)
-      install_hooks
       ;;
 
     *)
