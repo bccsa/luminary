@@ -41,7 +41,8 @@ const main = ref<HTMLElement | undefined>(undefined);
 const pageRoot = ref<HTMLElement | undefined>();
 const topBarWrap = ref<HTMLElement | undefined>();
 let topBarResizeObserver: ResizeObserver | undefined;
-
+// Scoped to this page's root: cached pages keep their own observer, and a global
+// value would let whichever one reports last dictate every page's padding.
 const publishTopBarHeight = (height: number) => {
     if (height > 0) {
         pageRoot.value?.style.setProperty("--top-bar-h", `${height}px`);
@@ -110,6 +111,7 @@ onMounted(() => {
 
     if (topBarWrap.value && typeof ResizeObserver !== "undefined") {
         const measure = () => {
+            // A cached page's DOM is detached while it is inactive and measures 0.
             const height = topBarWrap.value?.getBoundingClientRect().height ?? 0;
             publishTopBarHeight(height);
         };
