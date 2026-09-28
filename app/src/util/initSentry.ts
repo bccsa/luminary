@@ -10,7 +10,12 @@ export async function initSentry(app: App) {
         Sentry.init({
             app,
             dsn: import.meta.env.VITE_SENTRY_DSN,
-            integrations: [Sentry.captureConsoleIntegration({ levels: ["error"] })],
+            integrations: [
+                Sentry.captureConsoleIntegration({ levels: ["error"] }),
+                Sentry.replayIntegration({ maskAllText: false }),
+            ],
+            replaysSessionSampleRate: 0,
+            replaysOnErrorSampleRate: 1.0,
         });
     } catch (e) {
         console.error("Failed to initialize Sentry:", e);
