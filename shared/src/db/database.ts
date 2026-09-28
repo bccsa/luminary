@@ -22,7 +22,8 @@ import { filterAsync, someAsync } from "../util/asyncArray";
 import { isDeleteCmdSuperseded } from "./deleteCmdStaleness";
 import { watchValue } from "../util/watchValue";
 import { accessMap, getAccessibleGroups, verifyAccess } from "../permissions/permissions";
-import { config } from "../config";
+import { config, getDeleteExpiredIntervalMs } from "../config";
+import { isConnected } from "../socket/socketio";
 import { changeReqErrors, changeReqInfo, changeReqWarnings } from "../config";
 import { cloneDeep } from "lodash-es";
 
@@ -919,6 +920,8 @@ export let db: Database;
  */
 export const dbUpgradeBlocked = ref(false);
 
+let deleteExpiredTimer: ReturnType<typeof setInterval> | undefined;
+
 export async function initDatabase() {
     const _v: number = await getDbVersion();
     db = new Database(_v, config.docsIndex);
@@ -967,9 +970,13 @@ export async function initDatabase() {
     // this, the startup sweep above is the only eviction a long-lived session ever gets and
     // an expired doc lingers (still passing the read filter's page-load `sessionNow` bound)
     // until a restart. Indexed `expiryDate` seek, so each pass is cheap.
-    setInterval(() => {
+    // Offline ticks are skipped so an offline reader isn't stripped of content mid-session.
+    // Cleared first so re-running initDatabase() doesn't stack sweeps.
+    clearInterval(deleteExpiredTimer);
+    deleteExpiredTimer = setInterval(() => {
+        if (!isConnected.value) return;
         db.deleteExpired();
-    }, 5 * 60 * 1000);
+    }, getDeleteExpiredIntervalMs());
 
     // Listen for changes to the access map and delete documents that the user no longer has access to.
     // No `{ immediate: true }`: at init the persisted accessMap may be empty (not-loaded) or stale,

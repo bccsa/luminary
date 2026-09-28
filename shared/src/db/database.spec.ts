@@ -1267,6 +1267,56 @@ describe("Database", async () => {
         config.cms = true;
     });
 
+    describe("periodic expired-document sweep", () => {
+        afterEach(async () => {
+            vi.useRealTimers();
+            isConnected.value = false;
+            initConfig({
+                cms: true,
+                docsIndex: "[type+postType]",
+                apiUrl: "http://localhost:12345",
+            });
+            await initDatabase();
+        });
+
+        it("evicts expired docs on the configured interval, but only while online", async () => {
+            vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+            initConfig({
+                cms: false,
+                docsIndex: "[type+postType]",
+                apiUrl: "http://localhost:12345",
+                deleteExpiredIntervalMs: 1000,
+            });
+            await initDatabase();
+            const deleteExpired = vi.spyOn(db, "deleteExpired");
+
+            isConnected.value = false;
+            await vi.advanceTimersByTimeAsync(1000);
+            expect(deleteExpired).not.toHaveBeenCalled();
+
+            isConnected.value = true;
+            await vi.advanceTimersByTimeAsync(1000);
+            expect(deleteExpired).toHaveBeenCalledTimes(1);
+        });
+
+        it("does not stack sweeps when initDatabase runs again", async () => {
+            vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+            initConfig({
+                cms: false,
+                docsIndex: "[type+postType]",
+                apiUrl: "http://localhost:12345",
+                deleteExpiredIntervalMs: 1000,
+            });
+            await initDatabase();
+            await initDatabase();
+            const deleteExpired = vi.spyOn(db, "deleteExpired");
+
+            isConnected.value = true;
+            await vi.advanceTimersByTimeAsync(1000);
+            expect(deleteExpired).toHaveBeenCalledTimes(1);
+        });
+    });
+
     it("upgrade indexdb version by changing the docs index", async () => {
         const _v1 = await getDbVersion();
 
