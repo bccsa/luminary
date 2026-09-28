@@ -20,6 +20,9 @@
         "postinstall": "patch-package"
     },
     "dependencies": {
+        "@fontsource-variable/lexend": "^5.3.0",
+        "@fontsource-variable/literata": "^5.3.0",
+        "@fontsource/atkinson-hyperlegible": "^5.3.0",
         "@headlessui/vue": "^1.7.19",
         "@luminary-media-converter/player-web-legacy": "file:../luminary-media-convert/player-web-legacy",
         "@sentry/vue": "^7.110.1",

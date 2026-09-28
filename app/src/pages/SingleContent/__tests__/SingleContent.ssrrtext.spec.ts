@@ -110,7 +110,6 @@ vi.mock("@/router", () => ({
     markInternalNavigation: vi.fn(),
 }));
 
-
 function passthrough(name: string) {
     return defineComponent({
         name,

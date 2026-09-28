@@ -116,6 +116,10 @@
         "select_theme.dark": "Sombre",
         "select_theme.system": "Système",
         "select_theme.close_button": "Fermer",
+        "select_theme.reading": "Lecture",
+        "select_theme.font": "Police",
+        "select_theme.preview_line_1": "Voici un aperçu du texte des articles.",
+        "select_theme.preview_line_2": "Vos articles s'afficheront ainsi.",
         "title.home": "Accueil",
         "title.explore": "Explore",
         "title.watch": "Regarde",
@@ -168,6 +172,10 @@
         "singlecontent.shareReddit": "Partager sur Reddit",
         "singlecontent.shareInstagram": "Partager sur Instagram",
         "singlecontent.shareInstagramCopiedTitle": "Lien copié",
-        "singlecontent.shareInstagramCopiedDescription": "Instagram ne permet pas de partager un lien directement — collez-le dans une story ou votre bio."
+        "singlecontent.shareInstagramCopiedDescription": "Instagram ne permet pas de partager un lien directement — collez-le dans une story ou votre bio.",
+        "singlecontent.textSize": "Taille du texte",
+        "singlecontent.lineHeight": "Interligne",
+        "singlecontent.smallerText": "Texte plus petit",
+        "singlecontent.largerText": "Texte plus grand"
     }
 }
