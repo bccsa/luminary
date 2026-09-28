@@ -8,6 +8,7 @@ import {
     PostType,
     TagType,
     type TagDto,
+    type PostDto,
     PublishStatus,
     getRest,
     unmaskKeyHex,
@@ -773,7 +774,7 @@ describe("EditContent.vue - Duplication", () => {
             await db.docs.put({
                 ...mockData.mockPostDto,
                 media: { hlsUrl: "test-hls-url.m3u8", hlsKey_id: SIDECAR_ID },
-            });
+            } as PostDto);
         });
 
         const mountAndDuplicate = async () => {
