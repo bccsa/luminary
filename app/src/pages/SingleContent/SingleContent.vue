@@ -23,9 +23,9 @@ import { affinityConfig } from "@/recommendation/defaultAffinityStore";
 import { notifyHighlightsChanged } from "@/recommendation/highlightStore";
 import { markSeen } from "@/recommendation/seenStore";
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
-import { BookmarkIcon as BookmarkIconSolid, TagIcon, SunIcon } from "@heroicons/vue/24/solid";
+import { HeartIcon as HeartIconSolid, TagIcon, SunIcon } from "@heroicons/vue/24/solid";
 import {
-    BookmarkIcon as BookmarkIconOutline,
+    HeartIcon as HeartIconOutline,
     MoonIcon,
     ClockIcon,
     PencilIcon,
@@ -1048,7 +1048,7 @@ watch([isLoading, content, is404], async () => {
                                     class="flex items-center transition-colors"
                                 >
                                     <component
-                                        :is="isBookmarked ? BookmarkIconSolid : BookmarkIconOutline"
+                                        :is="isBookmarked ? HeartIconSolid : HeartIconOutline"
                                         class="h-5 w-5"
                                         :class="{
                                             'text-yellow-500': isBookmarked,
