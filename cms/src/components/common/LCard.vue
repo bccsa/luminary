@@ -128,7 +128,7 @@ function collapse() {
             >
                 <slot />
             </div>
-            <!-- Footer ajusté pour le mode sombre -->
+
             <div v-if="$slots.footer" class="bg-zinc-50 px-2 py-3 dark:bg-slate-900/50">
                 <slot name="footer" />
             </div>
