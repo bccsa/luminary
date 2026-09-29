@@ -120,6 +120,12 @@ export function stripHtml(html: string): string {
 }
 
 /**
+ * Every trigram is exactly this many characters: normalizeText keeps only word characters, so
+ * a stored `"trigram:tf"` entry always has its ":" at this index.
+ */
+export const TRIGRAM_LENGTH = 3;
+
+/**
  * Normalize text for trigram generation.
  * Lowercases, strips diacritics, and collapses whitespace.
  */

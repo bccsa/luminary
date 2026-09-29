@@ -9,6 +9,7 @@ import {
     isBlockEndInViewport,
     isBlockEligibleForDwell,
     isSegmentEligible,
+    isScrollAtEnd,
     resolveActiveBlock,
     resolveActiveSegment,
     segmentWordCount,
@@ -322,6 +323,63 @@ describe("isSegmentEligible", () => {
         };
 
         expect(isSegmentEligible(segment, { top: 100 }, viewport)).toBe(false);
+    });
+
+    it("accepts a trailing segment whose bottom cannot clear the viewport once scrolling has ended", () => {
+        const el = document.createElement("p");
+        const segment: ReadingSegment = {
+            id: "test-0",
+            sourceEl: el,
+            segmentIndex: 0,
+            segmentCount: 1,
+            topPx: 0,
+            bottomPx: 1200,
+        };
+
+        expect(isSegmentEligible(segment, { top: 100 }, viewport, true)).toBe(true);
+    });
+
+    it("still requires half the segment to be visible at the end of the scroll", () => {
+        const el = document.createElement("p");
+        const segment: ReadingSegment = {
+            id: "test-0",
+            sourceEl: el,
+            segmentIndex: 0,
+            segmentCount: 1,
+            topPx: 0,
+            bottomPx: 1200,
+        };
+
+        // Only 100px of 1200 is on screen.
+        expect(isSegmentEligible(segment, { top: 700 }, viewport, true)).toBe(false);
+    });
+});
+
+describe("isScrollAtEnd", () => {
+    const container = (scrollTop: number, clientHeight: number, scrollHeight: number) => {
+        const el = document.createElement("div");
+        Object.defineProperty(el, "scrollTop", { value: scrollTop, configurable: true });
+        Object.defineProperty(el, "clientHeight", { value: clientHeight, configurable: true });
+        Object.defineProperty(el, "scrollHeight", { value: scrollHeight, configurable: true });
+        return el;
+    };
+
+    it("is true once the container is scrolled to its end", () => {
+        expect(isScrollAtEnd(container(1200, 800, 2000))).toBe(true);
+    });
+
+    it("is false mid-article", () => {
+        expect(isScrollAtEnd(container(400, 800, 2000))).toBe(false);
+    });
+
+    it("is false when the container does not scroll at all", () => {
+        expect(isScrollAtEnd(container(0, 800, 800))).toBe(false);
+        // An unlaid-out container reports zeroes.
+        expect(isScrollAtEnd(container(0, 0, 0))).toBe(false);
+    });
+
+    it("tolerates a fractional resting position", () => {
+        expect(isScrollAtEnd(container(1198.6, 800, 2000))).toBe(true);
     });
 });
 

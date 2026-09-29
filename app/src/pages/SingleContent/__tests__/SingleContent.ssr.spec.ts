@@ -107,7 +107,6 @@ vi.mock("@/composables/useBucketInfo", () => ({
     useBucketInfo: () => ({ bucketBaseUrl: computed(() => "") }),
 }));
 
-
 // Stub every presentational child that is not part of the query chain under test.
 // RelatedContent and ReadMore stay real — their queries and rendered output are the
 // things this spec asserts against.
@@ -121,7 +120,9 @@ function passthrough(name: string) {
         setup:
             (_, { slots }) =>
             () =>
-                h("div", slots.default?.()),
+                // Empty props object, not no arguments: a scoped-slot consumer (ShareMenu
+                // reads DropdownMenu's) destructures what it is handed.
+                h("div", slots.default?.({})),
     });
 }
 

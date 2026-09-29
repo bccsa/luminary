@@ -86,6 +86,11 @@ flowchart TD
 
 - The **bottom edge** of the segment band must be inside the visible scroll area.
 - This ensures the user has scrolled through the segment, not just glimpsed the top.
+- **Exception — end of the scroll.** Once the scroll container is resting at its end there is
+  nothing left to scroll, so this gate is waived: a trailing segment whose bottom never clears
+  the viewport bottom would otherwise be unreachable, and with it 100%. Gates 1, 2 and 3 still
+  apply, so reaching the bottom does not by itself complete the article. A container that
+  cannot scroll (or has not been laid out) does not count as being at the end.
 
 ### Gate 2 — Scroll speed (skim detection)
 

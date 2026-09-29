@@ -896,7 +896,8 @@ watch([isLoading, content, is404], async () => {
                             </div>
                         </div>
 
-                        <div class="mt-5 lg:mt-2">
+                        <!-- The hero overlay carries the title, so there is no title above to leave room for. -->
+                        <div :class="hasHeroImage ? 'lg:mt-2' : 'mt-5 lg:mt-2'">
                             <IgnorePagePadding
                                 :mobileOnly="true"
                                 :ignoreTop="true"
@@ -926,7 +927,10 @@ watch([isLoading, content, is404], async () => {
                                         size="post"
                                     />
                                     <div
-                                        v-if="(content.parentImageData?.fileCollections?.length ?? 0) > 1"
+                                        v-if="
+                                            (content.parentImageData?.fileCollections?.length ??
+                                                0) > 1
+                                        "
                                         class="absolute bottom-2 right-2 flex items-center gap-1"
                                     >
                                         <DocumentDuplicateIcon class="h-10 w-10 text-zinc-400" />

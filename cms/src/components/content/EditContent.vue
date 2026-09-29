@@ -255,6 +255,7 @@ const saveChanges = async () => {
         return;
     }
     await persistChanges();
+    return true;
 };
 
 const persistChanges = async () => {
@@ -593,6 +594,9 @@ watch(isLgScreen, (isLg) => {
                                             :disabled="!canEditParent"
                                             :title="editableContent?.[0]?.title"
                                             :showVideo="Boolean(selectedContent)"
+                                            :saveBeforeEncode="
+                                                existingParent ? undefined : saveChanges
+                                            "
                                             v-model:parent="editableParent"
                                         />
                                     </div>

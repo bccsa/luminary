@@ -33,6 +33,12 @@ class FakeCollection<T extends Record<string, any>> {
     toArray() {
         return Promise.resolve(this.items);
     }
+    count() {
+        return Promise.resolve(this.items.length);
+    }
+    primaryKeys() {
+        return Promise.resolve(this.items.map((d) => d.id));
+    }
     sortBy(field: string) {
         const sorted = [...this.items].sort((a, b) => {
             const av = a[field];
@@ -145,6 +151,10 @@ class FakeTable<T extends Record<string, any>> {
 
     filter(pred: (d: T) => boolean) {
         return new FakeCollection(this.data.filter(pred));
+    }
+
+    count() {
+        return Promise.resolve(this.data.length);
     }
 
     bulkGet(keys: any[]): Promise<(T | undefined)[]> {

@@ -54,7 +54,7 @@ const isItemActive = (routeActive: boolean) => routeActive && !isSearchOpen.valu
 const showThemeSelector = ref(false);
 const showLanguageModal = ref(false);
 const showLogoutDialog = ref(false);
-const forceReauthOnNextLogin = ref(false);
+const forceReauthOnNextLogin = ref(true);
 
 // The sidebar prerenders on the web/SSG build, but its interactive overlays (e.g. LanguageModal's Dexie-backed query) can't run during the Node prerender, so they mount client-side only.
 const isMounted = useHydrated();

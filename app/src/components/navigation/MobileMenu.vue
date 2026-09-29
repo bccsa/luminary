@@ -70,8 +70,10 @@ onUnmounted(() => {
 <template>
     <div
         ref="rootRef"
-        class="flex flex-row justify-center gap-3 bg-zinc-100 pb-[max(0.75rem,calc(env(safe-area-inset-bottom)-0.625rem))] pt-3 dark:bg-slate-800"
+        class="flex flex-row justify-center gap-3 bg-zinc-100 pb-[max(0.75rem,calc(env(safe-area-inset-bottom)-0.625rem),calc(var(--native-inset-bottom,0px)+0.5rem))] pt-3 dark:bg-slate-800"
     >
+        <!-- Older Android WebViews report a 0 bottom env() inset under 3-button navigation; the
+             Android build publishes the opaque bar's height as --native-inset-bottom. -->
         <!-- Navigation items in order: Home, Explore, Watch, Search -->
         <RouterLink
             v-for="item in navigationItems.slice(0, -1)"

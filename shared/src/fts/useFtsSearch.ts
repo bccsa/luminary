@@ -176,7 +176,12 @@ export function useFtsSearch(
             if (generation !== searchGeneration) return;
 
             if (append) {
-                results.value = [...results.value, ...searchResults];
+                // Content can shift between page loads, so a later page may repeat a result.
+                const shown = new Set(results.value.map((r) => r.docId));
+                results.value = [
+                    ...results.value,
+                    ...searchResults.filter((r) => !shown.has(r.docId)),
+                ];
             } else {
                 results.value = searchResults;
             }

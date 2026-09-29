@@ -154,7 +154,10 @@ const unwatchUserPref = watch(userPreferencesAsRef.value, () => {
 });
 
 const routeKey = computed(() => {
-    return router.currentRoute.value.fullPath;
+    const route = router.currentRoute.value;
+    // Search keeps one instance whatever its ?q, so the search survives leaving the page.
+    if (typeof route.name === "string" && /^search(-|$)/.test(route.name)) return route.path;
+    return route.fullPath;
 });
 
 onMounted(() => {
@@ -184,10 +187,10 @@ onErrorCaptured((err) => {
         <div class="flex-1 overflow-y-scroll scrollbar-hide">
             <RouterView v-slot="{ Component }">
                 <!-- :key on KeepAlive — bumping localCacheVersion (on clear-local-cache) discards the
-                     cached page instances so Home/Explore/Watch re-create from the purged cache. -->
+                     cached page instances so Home/Explore/Watch/Search re-create from the purged cache. -->
                 <KeepAlive
                     :key="localCacheVersion"
-                    include="HomePage,ExplorePage,VideoPage"
+                    include="HomePage,ExplorePage,VideoPage,SearchPage"
                 >
                     <component
                         :is="Component"
