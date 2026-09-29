@@ -272,6 +272,21 @@ const persistChanges = async () => {
     }
 };
 
+// Other unsaved edits are the editor's to save, so they are never saved on their behalf.
+const saveEncodedMedia = async (write: () => void) => {
+    const hadOtherEdits = isDirty.value;
+    write();
+    if (hadOtherEdits) {
+        notify(
+            "info",
+            "Save to show the video",
+            `The app shows this ${props.tagOrPostType}'s video as coming soon once it is saved.`,
+        );
+        return;
+    }
+    await saveChanges();
+};
+
 const revertChanges = () => {
     if (!isDirty.value) {
         notify("error", "No changes", "There were no changes to revert");
@@ -595,8 +610,9 @@ watch(isLgScreen, (isLg) => {
                                             :title="editableContent?.[0]?.title"
                                             :showVideo="Boolean(selectedContent)"
                                             :saveBeforeEncode="
-                                                existingParent ? undefined : saveChanges
+                                                existingParent && !isDirty ? undefined : saveChanges
                                             "
+                                            :saveEncodedMedia="saveEncodedMedia"
                                             v-model:parent="editableParent"
                                         />
                                     </div>

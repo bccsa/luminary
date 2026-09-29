@@ -25,6 +25,7 @@ import RichTextEditor from "../editor/RichTextEditor.vue";
 import EditContentText from "./EditContentText.vue";
 import LoadingBar from "../LoadingBar.vue";
 import EditContentVideo from "./EditContentVideo.vue";
+import EditContentMedia from "./EditContentMedia.vue";
 import IncomingChangesModal from "./IncomingChangesModal.vue";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -1068,6 +1069,65 @@ describe("EditContent.vue", () => {
                 expect(await savedPostChanges()).toHaveLength(1);
             });
             expect(wrapper.find('[data-test="replace-media-url"]').exists()).toBe(false);
+        });
+    });
+
+    describe("an encode's URL arriving", () => {
+        const ENCODED_URL = "/0b2d7c1e-9a41-4d3f-8c55-2f6e1a9b7d10/master.m3u8";
+
+        const openPost = async () => {
+            const wrapper = mount(EditContent, {
+                props: {
+                    docType: DocType.Post,
+                    id: mockData.mockPostDto._id,
+                    languageCode: "eng",
+                    tagOrPostType: PostType.Blog,
+                },
+            });
+            await waitForExpect(() => {
+                expect(
+                    (wrapper.find('input[name="title"]').element as HTMLInputElement).value,
+                ).toBe(mockData.mockEnglishContentDto.title);
+            });
+            return wrapper;
+        };
+
+        const deliver = (wrapper: Awaited<ReturnType<typeof openPost>>) => {
+            const vm = wrapper.vm as any;
+            return wrapper
+                .findComponent(EditContentMedia)
+                .props("saveEncodedMedia")!(() => {
+                vm.editableParent.media = { hlsUrl: ENCODED_URL };
+            });
+        };
+
+        const savedPostChanges = () =>
+            db.localChanges.where({ docId: mockData.mockPostDto._id }).toArray();
+
+        it("saves the post straight away, so the app can show the video as coming soon", async () => {
+            const wrapper = await openPost();
+
+            await deliver(wrapper);
+
+            await waitForExpect(async () => {
+                const changes = await savedPostChanges();
+                expect(changes).toHaveLength(1);
+                expect((changes[0].doc as PostDto).media?.hlsUrl).toBe(ENCODED_URL);
+            });
+        });
+
+        it("leaves other unsaved edits for the editor to save", async () => {
+            const notificationStore = useNotificationStore();
+            const wrapper = await openPost();
+            await wrapper.find('input[name="title"]').setValue("Half-written title");
+
+            await deliver(wrapper);
+
+            expect((wrapper.vm as any).editableParent.media?.hlsUrl).toBe(ENCODED_URL);
+            expect(await savedPostChanges()).toHaveLength(0);
+            expect(notificationStore.addNotification).toHaveBeenCalledWith(
+                expect.objectContaining({ title: "Save to show the video" }),
+            );
         });
     });
 
