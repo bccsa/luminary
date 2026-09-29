@@ -273,8 +273,9 @@ const persistChanges = async () => {
 };
 
 // Other unsaved edits are the editor's to save, so they are never saved on their behalf.
+// The encode writes the bucket it chose as well as the URL; both are its own.
 const saveEncodedMedia = async (write: () => void) => {
-    const hadOtherEdits = isDirty.value;
+    const hadOtherEdits = source.hasEditsBesides(["media", "mediaBucketId"]);
     write();
     if (hadOtherEdits) {
         notify(

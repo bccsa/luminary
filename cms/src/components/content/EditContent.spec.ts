@@ -1094,9 +1094,7 @@ describe("EditContent.vue", () => {
 
         const deliver = (wrapper: Awaited<ReturnType<typeof openPost>>) => {
             const vm = wrapper.vm as any;
-            return wrapper
-                .findComponent(EditContentMedia)
-                .props("saveEncodedMedia")!(() => {
+            return wrapper.findComponent(EditContentMedia).props("saveEncodedMedia")!(() => {
                 vm.editableParent.media = { hlsUrl: ENCODED_URL };
             });
         };
@@ -1112,6 +1110,23 @@ describe("EditContent.vue", () => {
             await waitForExpect(async () => {
                 const changes = await savedPostChanges();
                 expect(changes).toHaveLength(1);
+                expect((changes[0].doc as PostDto).media?.hlsUrl).toBe(ENCODED_URL);
+            });
+        });
+
+        it("saves the bucket the encode chose along with the URL", async () => {
+            const wrapper = await openPost();
+            // Starting an encode records an auto-selected bucket before the URL arrives.
+            (wrapper.vm as any).editableParent.mediaBucketId = "bucket-auto";
+            // The editor's dirty flag catches up a tick later, as it would in real use.
+            await waitForExpect(() => expect((wrapper.vm as any).isDirty).toBe(true));
+
+            await deliver(wrapper);
+
+            await waitForExpect(async () => {
+                const changes = await savedPostChanges();
+                expect(changes).toHaveLength(1);
+                expect((changes[0].doc as PostDto).mediaBucketId).toBe("bucket-auto");
                 expect((changes[0].doc as PostDto).media?.hlsUrl).toBe(ENCODED_URL);
             });
         });
