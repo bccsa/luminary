@@ -913,6 +913,26 @@ class Database extends Dexie {
 export let db: Database;
 
 /**
+ * Opens the existing database for use in a Web Worker, where {@link initDatabase} cannot run
+ * (it reads the schema version from localStorage). The schema is taken from the database as it
+ * is; only the tables are exposed, so a worker task that reaches for a `Database` method still
+ * fails — worker tasks are meant to be reads.
+ */
+export async function openDatabaseInWorker(): Promise<void> {
+    // Opening a missing database would create an empty one ahead of the app's own schema.
+    if (!(await Dexie.exists(dbName))) throw new Error(`${dbName} does not exist yet`);
+    const connection = new Dexie(dbName);
+    await connection.open();
+    db = {
+        name: connection.name,
+        docs: connection.table("docs"),
+        localChanges: connection.table("localChanges"),
+        luminaryInternals: connection.table("luminaryInternals"),
+        retention: connection.table("retention"),
+    } as unknown as Database;
+}
+
+/**
  * Raised when another tab holds an older version of the database open and this one is
  * waiting to upgrade. The wait resolves on its own once that tab closes its connection,
  * so this is a state to surface, not an error — the app binds a notification to it.

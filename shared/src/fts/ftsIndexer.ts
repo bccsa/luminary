@@ -1,7 +1,6 @@
 import { db } from "../db/database";
-import { DocType, type ContentDto } from "../types";
 import type { FtsCorpusStats } from "./types";
-import { TRIGRAM_LENGTH } from "./trigram";
+import { scanCorpus, type CorpusScanResult } from "./corpusScan";
 
 const DOC_FREQUENCY_KEY = "ftsDocFrequency";
 
@@ -48,29 +47,23 @@ let recomputeTimer: ReturnType<typeof setTimeout> | undefined;
 const RECOMPUTE_DEBOUNCE_MS = 10_000;
 
 /**
- * Recompute corpus stats from scratch by scanning all Content docs.
- * Uses the existing `type` index on the docs table for efficient filtering.
- * Streams docs via `.each()` to keep memory usage constant.
+ * How the scan half of {@link recomputeCorpusStats} is executed. Injected rather than imported
+ * so the scan can be moved to a worker without this module — which the worker itself loads —
+ * reaching back into the worker client.
+ */
+let runScan: () => Promise<CorpusScanResult> = scanCorpus;
+
+/** Route the corpus scan elsewhere, e.g. to a worker. Pass nothing to scan on this thread. */
+export function setCorpusScanner(scanner?: () => Promise<CorpusScanResult>): void {
+    runScan = scanner ?? scanCorpus;
+}
+
+/**
+ * Recompute corpus stats from scratch. The scan is delegated (see {@link setCorpusScanner});
+ * the write stays here, because the worker attaches to the database read-only.
  */
 export async function recomputeCorpusStats(): Promise<void> {
-    let totalTokenCount = 0;
-    let docCount = 0;
-    const df: Record<string, number> = {};
-    await db.docs
-        .where("type")
-        .equals(DocType.Content)
-        .each((doc) => {
-            const { ftsTokenCount, fts } = doc as ContentDto;
-            if (ftsTokenCount && ftsTokenCount > 0) {
-                totalTokenCount += ftsTokenCount;
-                docCount++;
-            }
-            // Entries are "trigram:tf", one per trigram per doc.
-            for (const entry of fts ?? []) {
-                const token = entry.substring(0, TRIGRAM_LENGTH);
-                df[token] = (df[token] ?? 0) + 1;
-            }
-        });
+    const { totalTokenCount, docCount, df } = await runScan();
 
     const docFrequencyVersion = Date.now();
     // Frequencies that don't match the stats' version are ignored, so write both or neither.

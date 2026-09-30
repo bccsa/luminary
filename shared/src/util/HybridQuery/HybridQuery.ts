@@ -26,6 +26,7 @@ import { isProvablyEmpty } from "../MangoQuery/isProvablyEmpty";
 import { sanitizeArrayOperators } from "../MangoQuery/sanitizeArrayOperators";
 import { mangoCompile } from "../MangoQuery/mangoCompile";
 import { mangoToDexie } from "../MangoQuery/mangoToDexie";
+import { runInWorker, subscribeInWorker } from "../../worker/workerClient";
 import type { MangoQuery } from "../MangoQuery/MangoTypes";
 import { useDexieLiveQuery } from "../useDexieLiveQuery/useDexieLiveQuery";
 import { applySortLimit, mergeById, sameWindow } from "./mergeDocs";
@@ -152,7 +153,7 @@ export async function queryRemote<T = unknown>(query: MangoQuery): Promise<T[]> 
 export function queryLocal<T extends BaseDocumentDto = BaseDocumentDto>(
     query: MangoQuery,
 ): Promise<T[]> {
-    return mangoToDexie<T>(db.docs, query);
+    return runInWorker("mangoQuery", query) as Promise<T[]>;
 }
 
 /** Options for {@link HybridQuery}. */
@@ -778,20 +779,39 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
     /**
      * Source the local Dexie docs and hand each result to `onLocal`.
      *
-     * - One-shot mode: a single `mangoToDexie` read; on failure, log and call
+     * - One-shot mode: a single read, routed to a worker when one is available; on
+     *   failure, log and call
      *   `onLocal([])` so the content branch still decides the API with an empty
      *   local set (preserves the original behaviour). The two-arg `.then` form
      *   ensures the reject handler only catches the Dexie read — never a throw
      *   from inside `onLocal`.
-     * - Live mode: subscribe via `useDexieLiveQuery`, re-invoking `onLocal` on
-     *   every IndexedDB change. The composable ties cleanup to the *current* Vue
-     *   scope and returns no stop handle, so we run it inside a detached
-     *   `effectScope` the class owns — `dispose()` → `scope.stop()` →
+     * - Live mode: re-invoke `onLocal` on every IndexedDB change. With
+     *   `liveQueriesInWorker` the `liveQuery` runs in a worker (`subscribeInWorker`);
+     *   otherwise it runs here via `useDexieLiveQuery`. A worker-awaited querier cannot
+     *   be wrapped in a `liveQuery` on this thread: it touches nothing in Dexie's zone
+     *   here, so the subscription would emit once and go silently stale. The composable
+     *   ties cleanup to the *current* Vue scope and returns no stop handle, so we run it
+     *   inside a detached `effectScope` the class owns — `dispose()` → `scope.stop()` →
      *   `useDexieLiveQuery`'s `onScopeDispose` → `liveQuery` unsubscribe.
      */
     private _startLocal(gen: number, onLocal: (docs: T[]) => void): void {
+        const onLiveError = (err: unknown) => {
+            if (gen === this._generation && !this._disposed) this.error.value = err;
+            console.error("[HybridQuery] live local read failed:", err);
+        };
+
+        if (this._live && config?.liveQueriesInWorker) {
+            this._generationDisposers.add(
+                subscribeInWorker("mangoQuery", this._query, {
+                    next: (docs) => onLocal(docs as T[]),
+                    error: onLiveError,
+                }),
+            );
+            return;
+        }
+
         if (!this._live) {
-            void mangoToDexie<T>(db.docs, this._query).then(onLocal, (err) => {
+            void (runInWorker("mangoQuery", this._query) as Promise<T[]>).then(onLocal, (err) => {
                 if (gen === this._generation && !this._disposed) this.error.value = err;
                 console.error("[HybridQuery] local read failed:", err);
                 // Route the empty set on so the local leg still settles and the content
@@ -810,10 +830,7 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
                 // A live read that errors and never emits keeps _localPending true (same
                 // silent risk as before this change); surface the error so consumers can
                 // at least react to it.
-                onError: (err) => {
-                    if (gen === this._generation && !this._disposed) this.error.value = err;
-                    console.error("[HybridQuery] live local read failed:", err);
-                },
+                onError: onLiveError,
             });
             // `immediate: true` fires synchronously with the ref's initial value
             // (`undefined`) — guarded out so we never pass `undefined` to

@@ -52,6 +52,17 @@ export type SharedConfig = {
      * Defaults to 30 days. Only meaningful when `contentPublishDateCutoff` is set.
      */
     offlineRetentionTtlMs?: number;
+    /**
+     * Whether `init()` starts the background worker pool. Defaults to true; set false to keep a
+     * consumer single-threaded (SSG prerender, tests).
+     */
+    useWorkers?: boolean;
+    /**
+     * Whether live `HybridQuery` reads run in the worker pool (via `subscribeInWorker`) instead
+     * of a `liveQuery` on the main thread. Defaults to false while it is verified on low-end
+     * devices.
+     */
+    liveQueriesInWorker?: boolean;
 };
 
 /** Default offline-retention TTL: 30 days. */
