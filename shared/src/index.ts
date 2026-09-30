@@ -12,6 +12,7 @@ export * from "./api/RestApi";
 export * from "./api/sync";
 export * from "./s3/s3Utils";
 export * from "./config";
+export * from "./diagnostics";
 export * from "./fts";
 export * from "./api/http";
 export * from "./ssg";

@@ -3,6 +3,7 @@ import {
     HybridQuery,
     isConnected,
     queryLocal,
+    reportError,
     syncActive,
     type LanguageDto,
     type Uuid,
@@ -324,7 +325,7 @@ export const initLanguage = () => {
                 if (cmsLanguages.value.length || !languages.length) return;
                 cmsLanguages.value.push(...languages);
             })
-            .catch((err) => console.error("[initLanguage] local language read failed:", err))
+            .catch((err) => reportError(err, { area: "language", op: "local-read" }))
             .finally(() => (localSeedSettled.value = true));
 
         // Torn down from whichever path resolves first: leaving it subscribed would keep this
