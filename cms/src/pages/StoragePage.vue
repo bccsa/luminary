@@ -36,6 +36,7 @@ const createNew = () => {
                 :icon="PlusIcon"
                 @click="createNew"
                 name="createBucketBtn"
+                class="w-auto shrink-0 whitespace-nowrap px-4 py-2 text-sm"
             >
                 Add Bucket
             </LButton>
