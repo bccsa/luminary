@@ -372,7 +372,7 @@ describe("LHighlightable", () => {
         await vi.advanceTimersByTimeAsync(100);
 
         expect(consoleSpy).toHaveBeenCalledWith(
-            expect.stringContaining("Failed to restore highlights"),
+            "[highlights] restore failed:",
             expect.any(Error),
         );
 

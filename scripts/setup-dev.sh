@@ -34,6 +34,10 @@ info "Detected platform: $PLATFORM"
 : "${LUMINARY_MINIO_ROOT_USER:=minio}"
 : "${LUMINARY_MINIO_ROOT_PASSWORD:=minio123}"
 
+# MinIO's official images were withdrawn upstream; Chainguard rebuilds it from source.
+# Keep this digest in step with api/scripts/start-minio-in-ci.sh.
+MINIO_IMAGE="cgr.dev/chainguard/minio@sha256:6a1d0b45c8669726bba580ced0bfa4cb9fdeed1ed636dfabd81d1577beb6937b"
+
 # ============================================================
 # PREREQUISITE CHECKS
 # ============================================================
@@ -340,7 +344,7 @@ setup_minio_docker() {
       --name luminary-storage \
       -e "MINIO_ROOT_USER=$LUMINARY_MINIO_ROOT_USER" \
       -e "MINIO_ROOT_PASSWORD=$LUMINARY_MINIO_ROOT_PASSWORD" \
-      quay.io/minio/minio:latest server /data --console-address ":9001"
+      "$MINIO_IMAGE" server /data --console-address ":9001"
   fi
   success "MinIO running at http://localhost:9001 (Console)"
 }
@@ -380,33 +384,26 @@ setup_couchdb_native() {
   success "CouchDB running at http://localhost:5984"
 }
 
-# Install MinIO from binaries (macOS) or system package manager (Linux).
-# MinIO is simpler than CouchDB to install natively.
+# Install MinIO natively via Homebrew (macOS, or Linux with Homebrew).
+# MinIO no longer publishes prebuilt binaries; Homebrew-core still ships bottles built from source.
 # Warning: Native MinIO is not persistent across restarts without additional setup.
 setup_minio_native() {
   info "Setting up MinIO via native installation..."
-  
-  if [[ "$PLATFORM" == "macos" ]]; then
-    if ! command -v minio &>/dev/null; then
-      info "Installing MinIO via Homebrew..."
-      HOMEBREW_NO_INSTALL_CLEANUP=1 HOMEBREW_NO_ENV_HINTS=1 brew install minio/stable/minio
-      success "MinIO installed"
-      warn "Start MinIO manually with: minio server --console-address :9001 /data"
-    else
-      info "MinIO already installed."
-      warn "Start MinIO manually with: minio server --console-address :9001 /data"
+
+  if ! command -v minio &>/dev/null; then
+    if ! command -v brew &>/dev/null; then
+      warn "MinIO no longer publishes prebuilt binaries, and Homebrew was not found."
+      warn "Install Docker and re-run the wizard, or build MinIO from source: https://github.com/minio/minio"
+      return
     fi
-  elif [[ "$PLATFORM" == "linux" ]]; then
-    info "Installing MinIO binary..."
-    local minio_path="/usr/local/bin/minio"
-    if [[ ! -f "$minio_path" ]]; then
-      curl -o "$minio_path" https://dl.min.io/server/minio/release/linux-amd64/minio
-      chmod +x "$minio_path"
-      success "MinIO binary installed to $minio_path"
-    fi
-    warn "Start MinIO manually with: minio server --console-address :9001 /data"
+    info "Installing MinIO via Homebrew..."
+    HOMEBREW_NO_INSTALL_CLEANUP=1 HOMEBREW_NO_ENV_HINTS=1 brew install minio
+    success "MinIO installed"
+  else
+    info "MinIO already installed."
   fi
-  
+  warn "Start MinIO manually with: MINIO_ROOT_USER=$LUMINARY_MINIO_ROOT_USER MINIO_ROOT_PASSWORD=<password> minio server --console-address :9001 <data-dir>"
+
   warn "NOTE: Native MinIO requires manual startup and may not persist across reboots."
   warn "Docker setup is strongly recommended for production-like environments."
 }
@@ -417,31 +414,15 @@ install_minio_client() {
     return
   fi
 
-  info "Installing MinIO client (mc)..."
-
-  if [[ "$PLATFORM" == "macos" ]] && command -v brew &>/dev/null; then
-    HOMEBREW_NO_INSTALL_CLEANUP=1 HOMEBREW_NO_ENV_HINTS=1 brew install minio/stable/mc
-    success "MinIO client installed via Homebrew."
+  if ! command -v brew &>/dev/null; then
+    warn "Skipping MinIO client (mc): MinIO no longer publishes prebuilt binaries and Homebrew was not found."
+    warn "It is optional; run it via Docker if needed: docker run --rm -it cgr.dev/chainguard/minio-client"
     return
   fi
 
-  local target_dir="/usr/local/bin"
-  if [[ ! -w "$target_dir" ]]; then
-    target_dir="$HOME/.local/bin"
-    mkdir -p "$target_dir"
-    warn "Installing mc to $target_dir. Ensure this is in your PATH."
-  fi
-
-  local arch="amd64"
-  local os="linux"
-  if [[ "$PLATFORM" == "macos" ]]; then
-    os="darwin"
-  fi
-
-  local target="$target_dir/mc"
-  curl -fsSL -o "$target" "https://dl.min.io/client/mc/release/${os}-${arch}/mc"
-  chmod +x "$target"
-  success "MinIO client installed at $target"
+  info "Installing MinIO client (mc) via Homebrew..."
+  HOMEBREW_NO_INSTALL_CLEANUP=1 HOMEBREW_NO_ENV_HINTS=1 brew install minio-mc
+  success "MinIO client installed via Homebrew."
 }
 
 get_docker_env_value() {
