@@ -353,8 +353,11 @@ export async function setupAuth(app: App<Element>, router: Router): Promise<void
                 // throws here. Fall back to whatever session that first,
                 // successful run already established instead of leaving the
                 // user logged out.
-                Sentry?.captureException(error);
                 oidcUser.value = await manager.getUser();
+                // The stale-callback replay above is expected and recovers via the
+                // fallback — only report when that fallback couldn't find a session
+                // either, i.e. this was a genuine failure, not a harmless replay.
+                if (!oidcUser.value) Sentry?.captureException(error);
             }
         } else {
             oidcUser.value = await manager.getUser();
