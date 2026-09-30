@@ -6,24 +6,19 @@ import { SunIcon, MoonIcon } from "@heroicons/vue/24/outline";
 import { ComputerDesktopIcon } from "@heroicons/vue/24/solid";
 import { theme } from "@/globalConfig";
 
-type Props = {
-    isVisible: boolean;
-};
-defineProps<Props>();
-
-const emit = defineEmits(["close"]);
+const isVisible = defineModel<boolean>("isVisible", { required: true });
 </script>
 
 <template>
-    <LModal heading="select_theme.title" :is-visible="isVisible" @close="emit('close')">
-        <div class="divide-y divide-zinc-200 dark:divide-slate-600">
+    <LModal heading="Select Theme" v-model:is-visible="isVisible">
+        <div class="divide-y divide-zinc-200 dark:divide-slate-600 dark:text-zinc-100">
             <button
                 class="flex h-10 w-full cursor-pointer items-center p-3 hover:bg-zinc-100 dark:hover:bg-slate-600"
                 @click="theme = 'light'"
                 data-test="switch-theme-button"
             >
                 <SunIcon class="mr-2 h-4 w-4" aria-hidden="true" />
-                <span class="text-sm">select_theme.light</span>
+                <span class="text-sm">Light</span>
                 <CheckCircleIcon
                     v-if="theme === 'light'"
                     class="ml-auto h-6 w-6 text-yellow-500"
@@ -36,7 +31,7 @@ const emit = defineEmits(["close"]);
                 data-test="switch-theme-button"
             >
                 <MoonIcon class="mr-2 h-4 w-4" aria-hidden="true" />
-                <span class="text-sm">select_theme.dark</span>
+                <span class="text-sm">Dark</span>
                 <CheckCircleIcon
                     v-if="theme === 'dark'"
                     class="ml-auto h-6 w-6 text-yellow-500"
@@ -49,7 +44,7 @@ const emit = defineEmits(["close"]);
                 data-test="switch-theme-button"
             >
                 <ComputerDesktopIcon class="mr-2 h-4 w-4" aria-hidden="true" />
-                <span class="text-sm">select_theme.system</span>
+                <span class="text-sm">System</span>
                 <CheckCircleIcon
                     v-if="theme === 'system'"
                     class="ml-auto h-6 w-6 text-yellow-500"
@@ -59,13 +54,13 @@ const emit = defineEmits(["close"]);
         </div>
         <template #footer>
             <LButton
-                variant="primary"
+                variant="secondary"
                 size="lg"
                 rounding="less"
                 class="w-full"
-                @click="emit('close')"
+                @click="isVisible = false"
             >
-                select_theme.close_button
+                Close
             </LButton>
         </template>
     </LModal>

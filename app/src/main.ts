@@ -20,7 +20,7 @@ import { initAnalytics } from "./analytics";
 import { initSync, initAuthLangSync } from "./sync";
 import { initDefaultAffinitySync } from "@/recommendation/defaultAffinityStore";
 import { APP_DOCS_INDEX } from "./docsIndex";
-import { initSentry, Sentry } from "@/util/initSentry";
+import { initSentry, Sentry, sentryDiagnostics } from "@/util/initSentry";
 import { markAppReady, markAppError } from "@/util/renderState";
 import { notifyUiReady } from "virtual:app-lifecycle";
 import { initLivePublishClock } from "@/util/livePublishClock";
@@ -64,6 +64,7 @@ async function Startup() {
         contentPublishDateCutoff: installedStandalone
             ? undefined // no cutoff → full corpus
             : Date.now() - BROWSER_CONTENT_SYNC_WINDOW_MS,
+        diagnostics: sentryDiagnostics,
     });
 
     // Keep the CMS-managed default-affinity baseline/config in sync with the local

@@ -54,11 +54,15 @@ const createNew = () => {
             </LButton>
         </template>
         <template #topBarActionsMobile>
-            <PlusIcon
+            <LButton
                 v-if="canCreateNew && hasAnyContent && isSmallScreen"
-                class="h-8 w-8 cursor-pointer rounded bg-zinc-100 p-1 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-700"
+                variant="primary"
+                :icon="PlusIcon"
                 @click="createNew"
-            />
+                name="createLanguageBtn"
+            >
+                Create language
+            </LButton>
         </template>
         <div class="flex flex-col gap-[3px]">
             <EmptyState
