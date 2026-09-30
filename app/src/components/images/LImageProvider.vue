@@ -99,7 +99,7 @@ import { isSlowConnection } from "@/composables/useNetworkSpeedEstimator";
 import { type ImageDto, type ImageFileDto, type Uuid } from "luminary-shared";
 import Rand from "rand-seed";
 import { thumbHashToDataURL } from "thumbhash";
-import { ref } from "vue";
+import { onMounted, ref } from "vue";
 import { isPrerender } from "@/ssg/isPrerender";
 
 type Props = {
@@ -260,7 +260,18 @@ const decodeThumbHash = (base64?: string): string | undefined => {
         return undefined;
     }
 };
-const thumbHashDataUrl = computed(() => decodeThumbHash(displayCollection.value?.thumbHash));
+
+// A decode encodes a PNG in JS, wasted on a cached image that paints over the preview unseen, so
+// decode only while the image is still loading. onMounted runs before first paint: no blank frame.
+const imageElement1 = ref<HTMLImageElement>();
+const showThumbHash = ref(isPrerender());
+onMounted(() => {
+    const img = imageElement1.value;
+    showThumbHash.value = !(img?.complete && img.naturalWidth > 0);
+});
+const thumbHashDataUrl = computed(() =>
+    showThumbHash.value ? decodeThumbHash(displayCollection.value?.thumbHash) : undefined,
+);
 const thumbHashStyle = computed(() =>
     thumbHashDataUrl.value ? { backgroundImage: `url("${thumbHashDataUrl.value}")` } : undefined,
 );
@@ -426,9 +437,11 @@ const modalSrcset = computed(() => {
     <!-- Non-modal mode (original logic with responsive srcset & aspect ratio handling) -->
     <img
         v-else-if="srcset1 && showImageElement1"
+        ref="imageElement1"
         :srcset="srcset1"
         :sizes="sizesAttr"
         :style="thumbHashStyle"
+        data-allow-mismatch="style"
         :class="[
             !isModal && aspectRatio && aspectRatiosCSS[aspectRatio],
             !isModal && sizes[size],
@@ -437,6 +450,7 @@ const modalSrcset = computed(() => {
         :alt="resolvedAlt"
         data-test="image-element1"
         loading="lazy"
+        @load="showThumbHash = false"
         @error="imageElement1Error = true"
         draggable="false"
     />
