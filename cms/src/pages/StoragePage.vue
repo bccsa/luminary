@@ -32,9 +32,11 @@ const createNew = () => {
         <template #topBarActionsMobile>
             <LButton
                 v-if="isSmallScreen && canEdit"
-                class="h-6 w-6 dark:bg-zinc-400 dark:text-zinc-100"
+                variant="primary"
+                :icon="PlusIcon"
                 @click="createNew"
                 name="createBucketBtn"
+                class="w-auto shrink-0 whitespace-nowrap px-4 py-2 text-sm"
             >
                 Add Bucket
             </LButton>

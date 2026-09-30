@@ -242,11 +242,16 @@ const createNew = () => {
             </LButton>
         </template>
         <template #topBarActionsMobile>
-            <PlusIcon
+            <!-- Same button as on large screens, so styling stays with the same styling and size when the page shrinks -->
+            <LButton
                 v-if="canCreateNew && hasAnyContent && isSmallScreen"
-                class="h-8 w-8 cursor-pointer rounded bg-zinc-100 p-1 text-zinc-500 hover:bg-zinc-600 hover:text-zinc-700 active:bg-zinc-100/70 dark:bg-slate-700 dark:text-zinc-100 dark:ring-slate-600 dark:hover:bg-slate-600 dark:active:bg-slate-500"
+                variant="primary"
+                :icon="PlusIcon"
+                data-test="create-button"
                 @click="createNew"
-            />
+            >
+                Create {{ docType }}
+            </LButton>
         </template>
 
         <template v-if="hasAnyContent" #internalPageHeader>
