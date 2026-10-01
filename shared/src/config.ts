@@ -53,6 +53,11 @@ export type SharedConfig = {
      */
     offlineRetentionTtlMs?: number;
     /**
+     * Whether `init()` starts the background worker pool. Defaults to true; set false to keep a
+     * consumer single-threaded (SSG prerender, tests).
+     */
+    useWorkers?: boolean;
+    /**
      * How often (ms) expired documents are swept from IndexedDB while online. Defaults to 3 hours.
      */
     deleteExpiredIntervalMs?: number;
