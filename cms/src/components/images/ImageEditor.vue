@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, toRaw, watchEffect } from "vue";
-import { ExclamationCircleIcon } from "@heroicons/vue/24/solid";
+import { ExclamationCircleIcon, ExclamationTriangleIcon } from "@heroicons/vue/24/solid";
 import ImageEditorThumbnail from "./ImageEditorThumbnail.vue";
 import LSelect from "../forms/LSelect.vue";
 import {
@@ -25,6 +25,25 @@ const emit = defineEmits<{
 
 const parent = defineModel<ContentParentDto>("parent");
 const maxUploadFileSizeMb = computed(() => maxUploadFileSize.value / 1000000);
+
+// Images below this width look soft in tall, cover-cropped tiles on high-density screens, and the
+// API discards the original after processing, so a small upload can never be improved later.
+const MIN_RECOMMENDED_IMAGE_WIDTH = 1280;
+const uploadWidths = ref<Record<string, number>>({});
+
+const hasSmallImage = computed(() => {
+    const imageData = parent.value?.imageData;
+    if (!imageData) return false;
+    const smallExisting = imageData.fileCollections.some(
+        (c) =>
+            c.imageFiles.length > 0 &&
+            Math.max(...c.imageFiles.map((f) => f.width)) < MIN_RECOMMENDED_IMAGE_WIDTH,
+    );
+    const smallUpload = (imageData.uploadData ?? []).some(
+        (u) => (uploadWidths.value[u.filename ?? ""] ?? Infinity) < MIN_RECOMMENDED_IMAGE_WIDTH,
+    );
+    return smallExisting || smallUpload;
+});
 
 // Bucket selection (simplified approach using existing database data)
 const bucketSelection = storageSelection();
@@ -229,6 +248,15 @@ const processFiles = (files: File[]) => {
             } as ImageUploadDto;
 
             parent.value.imageData.uploadData.push(uploadData);
+
+            if (typeof createImageBitmap === "function") {
+                createImageBitmap(new Blob([fileData]))
+                    .then((bitmap) => {
+                        uploadWidths.value[file.name] = bitmap.width;
+                        bitmap.close();
+                    })
+                    .catch(() => {});
+            }
         };
 
         reader.readAsArrayBuffer(file);
@@ -331,6 +359,16 @@ defineExpose({
                 </div>
             </div>
         </div>
+
+        <p
+            v-if="hasSmallImage"
+            class="my-2 flex items-start gap-1 text-xs text-amber-700"
+            data-test="small-image-warning"
+        >
+            <ExclamationTriangleIcon class="h-4 w-4 shrink-0" />
+            This image is quite small and may look blurry on some screens. For best results, use an
+            image at least {{ MIN_RECOMMENDED_IMAGE_WIDTH }} pixels wide.
+        </p>
 
         <!-- Full-width Drag and Drop Area -->
         <div
