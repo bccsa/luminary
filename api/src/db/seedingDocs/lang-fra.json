@@ -168,6 +168,15 @@
         "singlecontent.shareReddit": "Partager sur Reddit",
         "singlecontent.shareInstagram": "Partager sur Instagram",
         "singlecontent.shareInstagramCopiedTitle": "Lien copié",
-        "singlecontent.shareInstagramCopiedDescription": "Instagram ne permet pas de partager un lien directement — collez-le dans une story ou votre bio."
+        "singlecontent.shareInstagramCopiedDescription": "Instagram ne permet pas de partager un lien directement — collez-le dans une story ou votre bio.",
+        "singlecontent.removeHighlight": "Supprimer",
+        "singlecontent.highlight": "Surligner",
+        "singlecontent.copy": "Copier",
+        "singlecontent.back": "Retour",
+        "singlecontent.highlightColor.yellow": "Jaune",
+        "singlecontent.highlightColor.green": "Vert",
+        "singlecontent.highlightColor.blue": "Bleu",
+        "singlecontent.highlightColor.pink": "Rose",
+        "singlecontent.highlightColor.purple": "Violet"
     }
 }
