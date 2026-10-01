@@ -2,13 +2,13 @@
 /**
  * Video playback for a content document.
  *
- * The player itself is `LuminaryPlayer` from the encoder's `player-web-legacy`
+ * The player itself is `LuminaryPlayer` from the encoder's `player-web`
  * package. What lives here is what is Luminary's rather than the player's: which
  * URL to play, where the decryption key comes from, resume position, and the
  * engagement signals a finished video sends.
  */
 import { computed, nextTick, ref, watch } from "vue";
-import { LuminaryPlayer, type PlayerSource } from "@luminary-media-converter/player-web-legacy";
+import { LuminaryPlayer, type PlayerSource } from "@luminary-media-converter/player-web";
 import { type ContentDto, fetchHlsKey, reportError } from "luminary-shared";
 import LImage from "../images/LImage.vue";
 import { appLanguagesPreferredAsRef, queryParams } from "@/globalConfig";

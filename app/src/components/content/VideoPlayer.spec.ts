@@ -12,7 +12,7 @@ import { mockEnglishContentDto } from "@/tests/mockdata";
  *
  * The player itself — control bar, auto-hide, keep-alive, rotation, audio-track
  * selection, audio-only mode, the YouTube branch — belongs to
- * `player-web-legacy` and is tested there. Reaching through this component to
+ * `player-web` and is tested there. Reaching through this component to
  * assert on it would be testing someone else's library through a keyhole.
  */
 const seekMock = vi.hoisted(() => vi.fn());
@@ -24,7 +24,7 @@ const fetchHlsKeyMock = vi.hoisted(() => vi.fn());
 
 // Built inside the factory: vi.mock is hoisted above the imports, so a stub
 // defined at module scope is not there yet when the factory runs.
-vi.mock("@luminary-media-converter/player-web-legacy", async () => {
+vi.mock("@luminary-media-converter/player-web", async () => {
     const { defineComponent, h } = await import("vue");
     return {
         LuminaryPlayer: defineComponent({

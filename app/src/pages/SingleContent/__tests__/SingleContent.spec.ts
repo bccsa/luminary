@@ -119,7 +119,7 @@ vi.mock("@/router", () => ({
 vi.mock("@/auth", async () => (await import("@/tests/mockAuth")).createAuthMock());
 
 // The real player has no jsdom-compatible serving strategy; these tests aren't about playback.
-vi.mock("@luminary-media-converter/player-web-legacy", async () => {
+vi.mock("@luminary-media-converter/player-web", async () => {
     const { defineComponent, h } = await import("vue");
     return {
         LuminaryPlayer: defineComponent({
