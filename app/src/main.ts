@@ -14,7 +14,7 @@ import {
     isAppLoading,
     isInstalledStandalone,
 } from "./globalConfig";
-import { apiUrl } from "./globalConfig";
+import { apiUrl, deleteExpiredIntervalMs } from "./globalConfig";
 import { initAppTitle, initI18n } from "./i18n";
 import { initAnalytics } from "./analytics";
 import { initSync, initAuthLangSync } from "./sync";
@@ -65,6 +65,7 @@ async function Startup() {
             ? undefined // no cutoff → full corpus
             : Date.now() - BROWSER_CONTENT_SYNC_WINDOW_MS,
         diagnostics: sentryDiagnostics,
+        deleteExpiredIntervalMs,
     });
 
     // Keep the CMS-managed default-affinity baseline/config in sync with the local
