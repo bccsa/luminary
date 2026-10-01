@@ -1,7 +1,6 @@
 import { ref, Ref } from "vue";
 import { Uuid } from "./types";
 import { OPEN_MIN } from "./api/sync/utils";
-import type { DiagnosticsReporter } from "./diagnostics";
 
 export const changeReqWarnings = ref<string[]>([]);
 export const changeReqErrors = ref<string[]>([]);
@@ -53,11 +52,6 @@ export type SharedConfig = {
      * Defaults to 30 days. Only meaningful when `contentPublishDateCutoff` is set.
      */
     offlineRetentionTtlMs?: number;
-    /**
-     * Receives handled failures and flow breadcrumbs from the shared lib (e.g. to forward
-     * them to Sentry). Without it they are only logged to the console.
-     */
-    diagnostics?: DiagnosticsReporter;
     /**
      * How often (ms) expired documents are swept from IndexedDB while online. Defaults to 3 hours.
      */

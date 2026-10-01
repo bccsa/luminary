@@ -8,7 +8,7 @@ import {
     ShareIcon,
 } from "@heroicons/vue/24/outline";
 import { useI18n } from "vue-i18n";
-import { db, reportError } from "luminary-shared";
+import { db } from "luminary-shared";
 import { getHighlightHtml, type SavedHighlight } from "@/recommendation/highlightStore";
 import TelegramIcon from "@/components/icons/TelegramIcon.vue";
 import WhatsAppIcon from "@/components/icons/WhatsAppIcon.vue";
@@ -476,7 +476,7 @@ async function saveHighlights(): Promise<boolean> {
         await db.setLuminaryInternals("highlights", data);
         return true;
     } catch (error) {
-        reportError(error, { area: "highlights", op: "save" });
+        console.error("Failed to save highlights to IndexedDB:", error);
         return false;
     }
 }
@@ -498,7 +498,7 @@ async function restoreHighlights() {
             if (prose) prose.innerHTML = saved;
         }
     } catch (error) {
-        reportError(error, { area: "highlights", op: "restore" });
+        console.error("Failed to restore highlights from IndexedDB:", error);
     }
 }
 
