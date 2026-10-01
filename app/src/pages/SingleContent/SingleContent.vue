@@ -70,6 +70,7 @@ import VideoPlayer from "@/components/content/VideoPlayer.vue";
 import LHighlightable from "@/components/common/LHighlightable.vue";
 import DropdownMenu from "@/components/common/DropdownMenu.vue";
 import ArticleOutline from "./ArticleOutline.vue";
+import { useReaderSettings } from "@/composables/useReaderSettings";
 import { markPageReady } from "@/util/renderState";
 import { hasVideoSource } from "@/util/videoSource";
 import { audioFilesOf } from "@/util/audioFiles";
@@ -693,6 +694,8 @@ const quickLanguageSwitch = (languageId: string) => {
     showDropdown.value = false;
 };
 
+const { articleStyle } = useReaderSettings();
+
 // Check if the current content has audio files - fully reactive to data changes
 const hasAudioFiles = computed(() => {
     // Check the live query result first (most up-to-date), then fall back to content ref
@@ -847,7 +850,8 @@ watch([isLoading, content, is404], async () => {
                 <template v-else-if="content">
                     <article
                         ref="articleRef"
-                        class="w-full lg:col-start-2"
+                        :style="articleStyle"
+                        class="reader-font w-full lg:col-start-2"
                     >
                         <!-- Desktop: title row originates at the top of the page, level with the pinned
                          topbar chrome, and scrolls away with the content like normal. Suppressed when
@@ -1109,7 +1113,7 @@ watch([isLoading, content, is404], async () => {
                                 ref="articleProseRef"
                                 :data-ssr-article-text="isPrerender() ? true : undefined"
                                 v-html="text"
-                                class="prose prose-zinc mt-8 max-w-full dark:prose-invert lg:prose-lg prose-headings:font-bold prose-a:text-yellow-600 dark:prose-a:text-yellow-400"
+                                class="reader-text prose prose-zinc mt-8 max-w-full dark:prose-invert lg:prose-lg prose-headings:font-bold prose-a:text-yellow-600 dark:prose-a:text-yellow-400"
                                 :class="{
                                     'border-t border-zinc-100 pt-4 dark:border-slate-800':
                                         categoryTags.length == 0,

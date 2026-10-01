@@ -97,6 +97,20 @@ describe("ThemeSelectorModal.vue", () => {
         expect(localStorage.getItem("theme")).toBe("dark");
     });
 
+    it("shows the reading settings with a preview", async () => {
+        const wrapper = mount(ThemeSelectorModal, {
+            props: {
+                isVisible: true,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.find("[data-test='readerSettings']").text()).toContain("Reading");
+            expect(wrapper.find("[data-test='readerPreview']").exists()).toBe(true);
+            expect(wrapper.find("[data-test='fontSelect']").exists()).toBe(true);
+        });
+    });
+
     it("emits close event when close button is clicked", async () => {
         const wrapper = mount(ThemeSelectorModal, {
             props: {

@@ -408,12 +408,15 @@ export const mockLanguageDtoEng: LanguageDto = {
         "select_theme.dark": "Dark",
         "select_theme.system": "System",
         "select_theme.close_button": "Close",
+        "select_theme.reading": "Reading",
+        "select_theme.font": "Font",
+        "select_theme.preview_line_1": "The quick brown fox jumps over the lazy dog.",
+        "select_theme.preview_line_2": "This is how your articles will look.",
         "bookmarks.title": "Bookmarks",
         "bookmarks.empty_page":
             "You should try this! Click on this icon on any post to bookmark it.",
         "bookmarks.notification.title": "Bookmark added",
-        "bookmarks.notification.description":
-            "This content has been added to your bookmarks.",
+        "bookmarks.notification.description": "This content has been added to your bookmarks.",
         "language.modal.title": "Select Language",
         "language.modal.close": "Close",
         "singlecontent.loading": "Loading...",

@@ -12,7 +12,9 @@ describe("videoSourceFor", () => {
     it("prefers the encoded collection over a hand-entered URL", () => {
         // The case that matters: a post that once had a link and has since been
         // encoded. The link is a leftover the CMS no longer even lets you edit.
-        const source = videoSourceFor(content("https://youtube.com/watch?v=x", "https://cdn/m.m3u8"));
+        const source = videoSourceFor(
+            content("https://youtube.com/watch?v=x", "https://cdn/m.m3u8"),
+        );
 
         expect(source).toBe("https://cdn/m.m3u8");
     });
@@ -24,9 +26,7 @@ describe("videoSourceFor", () => {
     });
 
     it("uses the encoded collection when there is no typed URL", () => {
-        expect(videoSourceFor(content(undefined, "https://cdn/m.m3u8"))).toBe(
-            "https://cdn/m.m3u8",
-        );
+        expect(videoSourceFor(content(undefined, "https://cdn/m.m3u8"))).toBe("https://cdn/m.m3u8");
     });
 
     it("returns undefined when the post has no video at all", () => {
