@@ -1,6 +1,7 @@
 import { ref, Ref } from "vue";
 import { Uuid } from "./types";
 import { OPEN_MIN } from "./api/sync/utils";
+import type { DiagnosticsReporter } from "./diagnostics";
 
 export const changeReqWarnings = ref<string[]>([]);
 export const changeReqErrors = ref<string[]>([]);
@@ -57,10 +58,22 @@ export type SharedConfig = {
      * consumer single-threaded (SSG prerender, tests).
      */
     useWorkers?: boolean;
+    /**
+     * Receives handled failures and flow breadcrumbs from the shared lib (e.g. to forward
+     * them to Sentry). Without it they are only logged to the console.
+     */
+    diagnostics?: DiagnosticsReporter;
+    /**
+     * How often (ms) expired documents are swept from IndexedDB while online. Defaults to 3 hours.
+     */
+    deleteExpiredIntervalMs?: number;
 };
 
 /** Default offline-retention TTL: 30 days. */
 const DEFAULT_OFFLINE_RETENTION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+
+/** Default interval between expired-document sweeps: 3 hours. */
+const DEFAULT_DELETE_EXPIRED_INTERVAL_MS = 3 * 60 * 60 * 1000;
 
 export let config: SharedConfig;
 
@@ -94,4 +107,15 @@ export function hasContentPublishDateCutoff(): boolean {
  */
 export function getOfflineRetentionTtl(): number {
     return config?.offlineRetentionTtlMs ?? DEFAULT_OFFLINE_RETENTION_TTL_MS;
+}
+
+/**
+ * Interval (ms) between expired-document sweeps. Falls back to 3 hours when unset or not a
+ * positive number, so a bad env value can't turn into a tight loop.
+ */
+export function getDeleteExpiredIntervalMs(): number {
+    const ms = config?.deleteExpiredIntervalMs;
+    return typeof ms === "number" && Number.isFinite(ms) && ms > 0
+        ? ms
+        : DEFAULT_DELETE_EXPIRED_INTERVAL_MS;
 }

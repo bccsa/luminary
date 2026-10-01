@@ -5,6 +5,7 @@ import { merge } from "./merge";
 import { syncList, syncTolerance } from "./state";
 import { cancelSync } from "./sync";
 import { SyncOptions } from "./types";
+import { reportBreadcrumb } from "../../diagnostics";
 import {
     calcChunk,
     filterByTypeMemberOf,
@@ -167,6 +168,11 @@ export async function syncBatch(options: SyncOptions) {
         };
         for (const w of apiWarnings) {
             console.warn("[sync] API warning received:", w, queryDetails);
+            reportBreadcrumb(`Sync API warning: ${w}`, {
+                area: "sync",
+                op: "api-warning",
+                data: queryDetails,
+            });
         }
     }
 

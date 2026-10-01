@@ -2,6 +2,7 @@ import { ref, watch, type Ref, getCurrentScope, onScopeDispose, isRef, type Watc
 import { ftsSearch } from "./ftsSearchRouted";
 import { ftsSearchApi, shouldUseApiFts } from "./ftsSearchApi";
 import { getContentPublishDateCutoff } from "../config";
+import { reportBreadcrumb, reportError } from "../diagnostics";
 import { isConnected } from "../socket/socketio";
 import { OPEN_MIN } from "../api/sync/utils";
 import type { FtsSearchOptions, FtsSearchResult, FtsSort } from "./types";
@@ -128,9 +129,19 @@ export function useFtsSearch(
                 if (!allowFallback) {
                     // load-more API failure: stop paginating rather than mix in local results
                     console.warn("FTS API load-more failed:", e);
+                    reportBreadcrumb("FTS API load-more failed", {
+                        area: "fts",
+                        op: "api-load-more",
+                        data: { error: String(e) },
+                    });
                     return { results: [], usedLocal: false };
                 }
                 console.warn("FTS API search failed, falling back to local:", e);
+                reportBreadcrumb("FTS API search failed, fell back to local", {
+                    area: "fts",
+                    op: "api-search",
+                    data: { error: String(e) },
+                });
                 return { results: await ftsSearch(opts), usedLocal: true };
             }
         }
@@ -192,7 +203,7 @@ export function useFtsSearch(
             isPartial.value = usedLocal && cutoffSet();
             if (!append) isStale.value = false;
         } catch (e) {
-            console.error("FTS search error:", e);
+            reportError(e, { area: "fts", op: "search", data: { offset, append } });
         } finally {
             // Only clear searching state if this is still the active search
             if (generation === searchGeneration) {

@@ -4,6 +4,7 @@ import {
     config,
     getContentPublishDateCutoff,
     getOfflineRetentionTtl,
+    getDeleteExpiredIntervalMs,
 } from "./config";
 import type { SharedConfig } from "./config";
 import { OPEN_MIN } from "./api/sync/utils";
@@ -81,5 +82,19 @@ describe("getOfflineRetentionTtl", () => {
             offlineRetentionTtlMs: undefined,
         });
         expect(getOfflineRetentionTtl()).toBe(2_592_000_000);
+    });
+});
+
+describe("getDeleteExpiredIntervalMs", () => {
+    const base = { cms: false, docsIndex: "type", apiUrl: "https://api.example.com" };
+
+    it("returns the configured interval", () => {
+        initConfig({ ...base, deleteExpiredIntervalMs: 60_000 });
+        expect(getDeleteExpiredIntervalMs()).toBe(60_000);
+    });
+
+    it.each([undefined, 0, -1, NaN])("defaults to 3 hours for %s", (value) => {
+        initConfig({ ...base, deleteExpiredIntervalMs: value });
+        expect(getDeleteExpiredIntervalMs()).toBe(3 * 60 * 60 * 1000);
     });
 });
