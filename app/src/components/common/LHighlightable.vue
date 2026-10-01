@@ -151,7 +151,7 @@ function onScroll() {
     });
 }
 
-// The popup's width changes with its contents (colours, share targets).
+// The popup's width changes with what it shows (colours, share targets).
 const menuResizeObserver =
     typeof ResizeObserver !== "undefined"
         ? new ResizeObserver(() => (menuWidth.value = actionsMenu.value?.offsetWidth ?? 0))
