@@ -79,7 +79,7 @@ export async function deleteImage(
     return deleteImageFilesFromBucket(files, bucketId, db);
 }
 
-const imageSizes = [180, 360, 640, 1280, 2560];
+const imageSizes = [180, 360, 640, 960, 1280, 2560];
 
 const defaultImageQuality = configuration().imageProcessing.imageQuality || 80; // Default image quality for webp conversion
 

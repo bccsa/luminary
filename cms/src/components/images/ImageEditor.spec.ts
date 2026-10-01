@@ -1,5 +1,5 @@
 import "fake-indexeddb/auto";
-import { mount } from "@vue/test-utils";
+import { flushPromises, mount } from "@vue/test-utils";
 import ImageEditor from "./ImageEditor.vue";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { accessMap, maxUploadFileSize, type ContentParentDto } from "luminary-shared";
@@ -299,5 +299,54 @@ describe("ImageEditor", () => {
         await wrapper.vm.$nextTick();
 
         expect(parent.imageBucketId).toBe("bucket-images");
+    });
+
+    describe("small image warning", () => {
+        const uploadFile = async (width: number) => {
+            vi.stubGlobal(
+                "createImageBitmap",
+                vi.fn(async () => ({ width, height: width / 2, close: vi.fn() })),
+            );
+            const parent: ContentParentDto = {
+                ...mockPostDto,
+                imageBucketId: "bucket-images",
+                imageData: { fileCollections: [] },
+            };
+            const wrapper = mount(ImageEditor, { props: { parent, disabled: false } });
+            const file = new File(["image-data"], "photo.jpg", { type: "image/jpeg" });
+            (wrapper.vm as any).handleFiles({ 0: file, length: 1, item: () => file });
+            await flushPromises();
+            vi.unstubAllGlobals();
+            return wrapper;
+        };
+
+        it("warns when an uploaded image is narrower than 1280px", async () => {
+            const wrapper = await uploadFile(900);
+            expect(wrapper.find('[data-test="small-image-warning"]').exists()).toBe(true);
+        });
+
+        it("does not warn for an upload at least 1280px wide", async () => {
+            const wrapper = await uploadFile(1600);
+            expect(wrapper.find('[data-test="small-image-warning"]').exists()).toBe(false);
+        });
+
+        it("warns for an existing image whose largest rendition is under 1280px", () => {
+            const parent: ContentParentDto = {
+                ...mockPostDto,
+                imageData: {
+                    fileCollections: [
+                        {
+                            aspectRatio: 1.78,
+                            imageFiles: [
+                                { filename: "a.webp", width: 360, height: 203 },
+                                { filename: "b.webp", width: 640, height: 360 },
+                            ],
+                        },
+                    ],
+                },
+            };
+            const wrapper = mount(ImageEditor, { props: { parent, disabled: false } });
+            expect(wrapper.find('[data-test="small-image-warning"]').exists()).toBe(true);
+        });
     });
 });
