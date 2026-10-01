@@ -107,6 +107,26 @@ Writing an App spec?
 import { appTest as test, expect } from "../../fixtures/test";
 ```
 
+[App page-load safeguards](app/pages/page-loads.spec.ts) run as a guest in both modes.
+They check direct loads and reloads of `/`, `/explore`, `/watch`, `/search`,
+`/bookmarks`, and `/settings` at desktop and mobile widths, plus feed navigation
+and browser back/forward. They require successful HTML responses, completed
+`data-render-state`, a cleared boot splash, and visible page UI, and fail on
+uncaught JavaScript errors. Feed contents may be empty; these checks do not
+require particular content or media in the target environment.
+
+To run only these checks: `npm run test:app -- app/pages/page-loads.spec.ts`.
+
+[Page-load recovery](app/flows/page-load-recovery.spec.ts) adds desktop and mobile
+checks against the seeded local stack: article text on cold loads and reloads,
+query/hash preservation, missing slugs and nested URLs, private-content denial
+for guests, cached article reads during API failures, and navigation away from a
+delayed lookup. These use real seeded content and browser-level request
+interception; they do not change database documents. They skip in deployed mode.
+
+Run both sets with:
+`npm run test:app -- app/pages/page-loads.spec.ts app/flows/page-load-recovery.spec.ts`.
+
 Both fixtures also capture `API warning received:` console warnings from `syncBatch.ts` and fail the test if any are emitted — these indicate CouchDB queries running without a valid index.
 
 ## Fake IdP mode
