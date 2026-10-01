@@ -2,12 +2,13 @@
 /**
  * Video playback for a content document.
  *
- * The player itself is `LuminaryPlayer` from the encoder's `player-web`
- * package. What lives here is what is Luminary's rather than the player's: which
- * URL to play, where the decryption key comes from, resume position, and the
+ * The player itself comes from the build target's video-player service: the
+ * encoder's Video.js `LuminaryPlayer` in a browser, the native one in the packaged
+ * app. What lives here is what is Luminary's rather than the player's: which URL
+ * to play, where the decryption key comes from, resume position, and the
  * engagement signals a finished video sends.
  */
-import { computed, nextTick, ref, watch } from "vue";
+import { computed, inject, nextTick, ref, watch } from "vue";
 import { LuminaryPlayer, type PlayerSource } from "@luminary-media-converter/player-web";
 import { type ContentDto, fetchHlsKey, reportError } from "luminary-shared";
 import LImage from "../images/LImage.vue";
@@ -19,6 +20,12 @@ import { markSeen } from "@/recommendation/seenStore";
 import { resolveVideoSource, videoSourceFor } from "@/util/videoSource";
 import { useBucketInfo } from "@/composables/useBucketInfo";
 import { createMediaWatchTracker } from "@/recommendation/mediaWatchTracker";
+import { shareImageUrl } from "@/composables/useSocialShare";
+import { VideoPlayerKey } from "@/build-time/contracts/video-player/token";
+import type {
+    VideoNowPlaying,
+    VideoPlayerHandle,
+} from "@/build-time/contracts/video-player/contract";
 
 type Props = {
     content: ContentDto;
@@ -27,7 +34,9 @@ type Props = {
 
 const props = defineProps<Props>();
 
-const player = ref<InstanceType<typeof LuminaryPlayer> | null>(null);
+// The browser's player when no service is provided: a component mounted on its own.
+const videoPlayer = inject(VideoPlayerKey, { component: LuminaryPlayer, acceptsNowPlaying: false });
+const player = ref<VideoPlayerHandle | null>(null);
 
 // The media bucket, so a stored relative URL can be resolved to a fetchable
 // one — see resolveVideoSource.
@@ -35,6 +44,21 @@ const mediaBucketIdRef = computed(() => props.content?.parentMediaBucketId);
 const { bucketBaseUrl: mediaBucketBaseUrl } = useBucketInfo(mediaBucketIdRef);
 
 const videoSource = computed(() => resolveVideoSource(props.content, mediaBucketBaseUrl.value));
+
+const imageBucketIdRef = computed(() => props.content?.parentImageBucketId);
+const { bucketBaseUrl: imageBucketBaseUrl } = useBucketInfo(imageBucketIdRef);
+
+/**
+ * What the lock screen shows, for a player that shows one: the title, and the
+ * post's image, the one a share of it would carry.
+ */
+const nowPlaying = computed<VideoNowPlaying>(() => ({
+    title: props.content.title,
+    artworkUrl: shareImageUrl(props.content, imageBucketBaseUrl.value),
+}));
+const playerExtras = computed(() =>
+    videoPlayer.acceptsNowPlaying ? { nowPlaying: nowPlaying.value } : {},
+);
 
 /**
  * What the progress store calls this video. The stored URL rather than the resolved
@@ -251,12 +275,14 @@ function onEnded() {
             ref="playerWrapper"
             class="video-player absolute bottom-0 left-0 right-0 top-0"
         >
-            <LuminaryPlayer
+            <component
+                :is="videoPlayer.component"
                 v-if="source"
                 ref="player"
                 :source="source"
                 :preferred-language="preferredLanguage"
                 :controls="controls"
+                v-bind="playerExtras"
                 @loadedmetadata="onLoadedMetadata"
                 @timeupdate="onTimeUpdate"
                 @ended="onEnded"

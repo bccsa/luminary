@@ -1,10 +1,12 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mount } from "@vue/test-utils";
-import { computed } from "vue";
+import { computed, defineComponent, h } from "vue";
 import waitForExpect from "wait-for-expect";
 import VideoPlayer from "./VideoPlayer.vue";
 import { mockEnglishContentDto } from "@/tests/mockdata";
+import { VideoPlayerKey } from "@/build-time/contracts/video-player/token";
+import { shareImageUrl } from "@/composables/useSocialShare";
 
 /**
  * What is left to test here is Luminary's half of playback: which URL is played,
@@ -282,6 +284,83 @@ describe("VideoPlayer", () => {
             stub(wrapper).vm.$emit("loadedmetadata");
 
             expect(seekMock).not.toHaveBeenCalled();
+        });
+    });
+
+    describe("the build target's player", () => {
+        /** A player that takes lock-screen metadata, as the packaged app's does. */
+        const NativeStub = defineComponent({
+            name: "NativeStub",
+            props: {
+                source: { type: Object, required: true },
+                preferredLanguage: { type: String, default: undefined },
+                controls: { type: Object, default: undefined },
+                nowPlaying: { type: Object, default: undefined },
+            },
+            emits: ["loadedmetadata", "timeupdate", "ended"],
+            setup(_props, { expose }) {
+                expose({
+                    seek: seekMock,
+                    play: playMock,
+                    pause: pauseMock,
+                    enterFullscreen: enterFullscreenMock,
+                    exitFullscreen: exitFullscreenMock,
+                });
+                return () => h("div", { class: "native-stub" }, [h("video")]);
+            },
+        });
+
+        async function mountWithService(acceptsNowPlaying: boolean) {
+            const wrapper = mount(VideoPlayer, {
+                props: { content: content(), language: "en" },
+                global: {
+                    stubs: { LImage: true },
+                    provide: {
+                        [VideoPlayerKey as symbol]: { component: NativeStub, acceptsNowPlaying },
+                    },
+                },
+            });
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            return wrapper;
+        }
+
+        it("renders the provided player in place of the browser's", async () => {
+            const wrapper = await mountWithService(true);
+
+            expect(wrapper.findComponent(NativeStub).exists()).toBe(true);
+            expect(wrapper.findComponent({ name: "LuminaryPlayer" }).exists()).toBe(false);
+            expect(wrapper.findComponent(NativeStub).props("source")).toEqual({
+                masterUrl: ABSOLUTE,
+                keyHex: undefined,
+            });
+        });
+
+        it("drives the provided player the same way: resume and finish", async () => {
+            getMediaProgressMock.mockReturnValue(300);
+            const wrapper = await mountWithService(true);
+            const player = wrapper.findComponent(NativeStub);
+
+            player.vm.$emit("loadedmetadata");
+            player.vm.$emit("ended");
+
+            expect(seekMock).toHaveBeenCalledWith(270);
+            expect(exitFullscreenMock).toHaveBeenCalled();
+        });
+
+        it("hands a player that takes it the title and the post's image for the lock screen", async () => {
+            const wrapper = await mountWithService(true);
+
+            expect(wrapper.findComponent(NativeStub).props("nowPlaying")).toEqual({
+                title: mockEnglishContentDto.title,
+                artworkUrl: shareImageUrl(content(), "https://bucket.example.com"),
+            });
+        });
+
+        it("gives the browser's player no lock-screen metadata to render as an attribute", async () => {
+            const wrapper = await mountPlayer();
+
+            expect(stub(wrapper).attributes("nowplaying")).toBeUndefined();
+            expect(stub(wrapper).attributes("now-playing")).toBeUndefined();
         });
     });
 

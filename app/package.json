@@ -21,6 +21,7 @@
     },
     "dependencies": {
         "@headlessui/vue": "^1.7.19",
+        "@luminary-media-converter/player-native": "file:../luminary-media-convert/player-native",
         "@luminary-media-converter/player-web": "file:../luminary-media-convert/player-web",
         "@sentry/vue": "^7.110.1",
         "@vueuse/core": "^10.9.0",
