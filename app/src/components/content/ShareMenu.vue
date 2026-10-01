@@ -195,57 +195,63 @@ async function shareToInstagram() {
             </span>
         </template>
 
-        <div class="flex flex-col gap-0.5">
-            <button
-                type="button"
-                @click="shareToTelegram"
-                data-test="shareTelegram"
-                :class="itemClass"
-            >
-                <TelegramIcon class="size-4 flex-shrink-0" />
-                <span class="min-w-0 truncate">{{ t("singlecontent.shareTelegram") }}</span>
-            </button>
-            <button
-                type="button"
-                @click="shareToWhatsApp"
-                data-test="shareWhatsApp"
-                :class="itemClass"
-            >
-                <WhatsAppIcon class="size-4 flex-shrink-0" />
-                <span class="min-w-0 truncate">{{ t("singlecontent.shareWhatsApp") }}</span>
-            </button>
-            <button
-                type="button"
-                @click="shareToX"
-                data-test="shareX"
-                :class="itemClass"
-            >
-                <XIcon class="size-4 flex-shrink-0" />
-                <span class="min-w-0 truncate">{{ t("singlecontent.shareX") }}</span>
-            </button>
-            <button
-                type="button"
-                @click="shareToReddit"
-                data-test="shareReddit"
-                :class="itemClass"
-            >
-                <RedditIcon class="size-4 flex-shrink-0" />
-                <span class="min-w-0 truncate">{{ t("singlecontent.shareReddit") }}</span>
-            </button>
-            <button
-                type="button"
-                @click="shareToInstagram"
-                data-test="shareInstagram"
-                :class="itemClass"
-            >
-                <InstagramIcon class="size-4 flex-shrink-0" />
-                <span class="min-w-0 truncate">{{ t("singlecontent.shareInstagram") }}</span>
-            </button>
-        </div>
+        <template #default="{ triggerOffsetX = 0, above = true }">
+            <div class="flex flex-col gap-0.5">
+                <button
+                    type="button"
+                    @click="shareToTelegram"
+                    data-test="shareTelegram"
+                    :class="itemClass"
+                >
+                    <TelegramIcon class="size-4 flex-shrink-0" />
+                    <span class="min-w-0 truncate">{{ t("singlecontent.shareTelegram") }}</span>
+                </button>
+                <button
+                    type="button"
+                    @click="shareToWhatsApp"
+                    data-test="shareWhatsApp"
+                    :class="itemClass"
+                >
+                    <WhatsAppIcon class="size-4 flex-shrink-0" />
+                    <span class="min-w-0 truncate">{{ t("singlecontent.shareWhatsApp") }}</span>
+                </button>
+                <button
+                    type="button"
+                    @click="shareToX"
+                    data-test="shareX"
+                    :class="itemClass"
+                >
+                    <XIcon class="size-4 flex-shrink-0" />
+                    <span class="min-w-0 truncate">{{ t("singlecontent.shareX") }}</span>
+                </button>
+                <button
+                    type="button"
+                    @click="shareToReddit"
+                    data-test="shareReddit"
+                    :class="itemClass"
+                >
+                    <RedditIcon class="size-4 flex-shrink-0" />
+                    <span class="min-w-0 truncate">{{ t("singlecontent.shareReddit") }}</span>
+                </button>
+                <button
+                    type="button"
+                    @click="shareToInstagram"
+                    data-test="shareInstagram"
+                    :class="itemClass"
+                >
+                    <InstagramIcon class="size-4 flex-shrink-0" />
+                    <span class="min-w-0 truncate">{{ t("singlecontent.shareInstagram") }}</span>
+                </button>
+            </div>
 
-        <!-- Arrow, matching the highlight-selection popup's pointer -->
-        <div
-            class="absolute -bottom-1.5 left-4 h-3 w-3 -rotate-45 border-b border-l border-zinc-200 bg-white dark:border-slate-500 dark:bg-slate-700"
-        ></div>
+            <!-- Arrow, matching the highlight-selection popup's pointer. It tracks the
+                 trigger rather than the panel edge, so it still points at the share button
+                 when the panel has been clamped to the viewport. -->
+            <div
+                class="absolute h-3 w-3 -rotate-45 border-zinc-200 bg-white dark:border-slate-500 dark:bg-slate-700"
+                :class="above ? '-bottom-1.5 border-b border-l' : '-top-1.5 border-r border-t'"
+                :style="{ left: `${triggerOffsetX - 6}px` }"
+            ></div>
+        </template>
     </DropdownMenu>
 </template>
