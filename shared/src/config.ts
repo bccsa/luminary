@@ -54,6 +54,11 @@ export type SharedConfig = {
      */
     offlineRetentionTtlMs?: number;
     /**
+     * Whether `init()` starts the background worker pool. Defaults to true; set false to keep a
+     * consumer single-threaded (SSG prerender, tests).
+     */
+    useWorkers?: boolean;
+    /**
      * Receives handled failures and flow breadcrumbs from the shared lib (e.g. to forward
      * them to Sentry). Without it they are only logged to the console.
      */
