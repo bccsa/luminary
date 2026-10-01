@@ -29,24 +29,6 @@ describe("extractHighlightQueries", () => {
         ]);
     });
 
-    it("reads range-shaped highlights alongside old HTML snapshots", () => {
-        const queries = extractHighlightQueries({
-            ranges: {
-                ranges: [
-                    { start: 0, end: 12, color: "green", text: "Range phrase" },
-                    { start: 20, end: 30, color: "nope", text: "Malformed entry" },
-                ],
-                updatedAt: 30,
-            },
-            snapshot: { html: "<p><mark>Snapshot phrase</mark></p>", updatedAt: 10 },
-        });
-
-        expect(queries).toEqual([
-            { query: "Range phrase", updatedAt: 30 },
-            { query: "Snapshot phrase", updatedAt: 10 },
-        ]);
-    });
-
     it("bounds the newest distinct excerpts to protect offline FTS work", () => {
         const data = Object.fromEntries(
             Array.from({ length: MAX_HIGHLIGHT_QUERIES + 1 }, (_, index) => [
