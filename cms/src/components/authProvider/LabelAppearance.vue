@@ -42,7 +42,7 @@ const provider = defineModel<AuthProviderDto>("provider", { required: true });
                         type="text"
                         placeholder="#000000"
                         :disabled="disabled"
-                        @update:model-value="provider.textColor = $event"
+                        @update:model-value="provider.textColor = $event as string"
                     />
                 </div>
             </div>
@@ -75,7 +75,7 @@ const provider = defineModel<AuthProviderDto>("provider", { required: true });
                         type="text"
                         placeholder="#FFFFFF"
                         :disabled="disabled"
-                        @update:model-value="provider.backgroundColor = $event"
+                        @update:model-value="provider.backgroundColor = $event as string"
                     />
                 </div>
             </div>
