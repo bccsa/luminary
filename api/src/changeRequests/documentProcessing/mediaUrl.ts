@@ -95,3 +95,19 @@ export function isInOurStorage(
         return hlsUrl.startsWith(`${base}/`);
     });
 }
+
+/**
+ * Whether a saved media URL may be stored.
+ *
+ * Only a URL that changed is checked, so media pasted before the restriction was
+ * switched on stays editable; a URL that is unchanged was already accepted once.
+ */
+export function isMediaUrlAllowed(
+    hlsUrl: string | undefined,
+    previousHlsUrl: string | undefined,
+    publicUrls: (string | undefined)[],
+    allowExternal: boolean,
+): boolean {
+    if (allowExternal || !hlsUrl || hlsUrl === previousHlsUrl) return true;
+    return isInOurStorage(hlsUrl, publicUrls);
+}

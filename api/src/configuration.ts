@@ -105,6 +105,14 @@ export type AudioS3Config = {
     audioBucket: string;
 };
 
+export type MediaConfig = {
+    /**
+     * Whether a saved media URL may point outside the configured storage buckets (e.g. YouTube
+     * or another CDN). Defaults to true; set MEDIA_ALLOW_EXTERNAL_URLS=false to restrict.
+     */
+    allowExternalUrls: boolean;
+};
+
 export type SocketIoConfig = {
     maxHttpBufferSize: number;
 };
@@ -118,6 +126,7 @@ export type Configuration = {
     sidecar?: SidecarConfig;
     imageProcessing?: ImageProcessingConfig;
     socketIo?: SocketIoConfig;
+    media?: MediaConfig;
     validation?: ValidationConfig;
     auth?: AuthConfig;
 };
@@ -196,6 +205,9 @@ export default () =>
         socketIo: {
             maxHttpBufferSize: parseInt(process.env.MAX_HTTP_BUFFER_SIZE, 10) || 1e7,
         } as SocketIoConfig,
+        media: {
+            allowExternalUrls: process.env.MEDIA_ALLOW_EXTERNAL_URLS !== "false",
+        } as MediaConfig,
         validation: {
             bypassTemplateValidation: process.env.BYPASS_TEMPLATE_VALIDATION === "true",
         } as ValidationConfig,
