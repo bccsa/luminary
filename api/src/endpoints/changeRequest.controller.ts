@@ -5,6 +5,7 @@ import {
     Post,
     Req,
     Res,
+    UnauthorizedException,
     UseGuards,
     UsePipes,
 } from "@nestjs/common";
@@ -31,6 +32,11 @@ export class ChangeRequestController {
         @Req() request: FastifyRequest,
         @Res({ passthrough: true }) reply: FastifyReply,
     ) {
+        // Reject before parsing: multipart handling buffers every uploaded file in memory, which an anonymous caller must not be able to trigger
+        if (request.user?.anonymous) {
+            throw new UnauthorizedException("Authentication required");
+        }
+
         // Counted before parsing so a flood of oversized or malformed requests is limited too
         const identityKey = request.user?.userId ?? `ip:${request.ip}`;
         const gate = this.rateLimiter.check(identityKey);
