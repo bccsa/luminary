@@ -36,6 +36,15 @@ export async function bootstrap() {
         encodings: ["br", "gzip", "deflate"],
     });
 
+    if (
+        process.env.BYPASS_TEMPLATE_VALIDATION === "true" &&
+        process.env.NODE_ENV === "production"
+    ) {
+        console.error(
+            "BYPASS_TEMPLATE_VALIDATION=true is ignored in production; query validation stays on.",
+        );
+    }
+
     const dbService = app.get(DbService);
 
     // Create or update database design docs on api startup
