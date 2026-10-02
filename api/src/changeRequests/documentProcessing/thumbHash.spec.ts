@@ -1,5 +1,5 @@
 import { generateThumbHash, rgbaToThumbHash } from "./thumbHash";
-import * as sharp from "sharp";
+import sharp = require("sharp");
 
 describe("thumbHash", () => {
     it("rgbaToThumbHash produces a deterministic, non-empty hash", () => {
