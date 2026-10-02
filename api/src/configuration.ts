@@ -120,6 +120,15 @@ export type AudioS3Config = {
     audioBucket: string;
 };
 
+export type ChangeRequestConfig = {
+    /**
+     * Per-identity cap on POST /changerequest. Defaults ON with a generous burst/rate so normal
+     * editing and offline-queue replay are unaffected. Environment variable:
+     * CHANGEREQUEST_RATE_LIMIT_ENABLED (and the other CHANGEREQUEST_RATE_LIMIT_* settings).
+     */
+    rateLimit: RateLimiterConfig;
+};
+
 export type SocketIoConfig = {
     maxHttpBufferSize: number;
 };
@@ -131,6 +140,7 @@ export type Configuration = {
     sync?: SyncConfig;
     query?: QueryConfig;
     sidecar?: SidecarConfig;
+    changeRequest?: ChangeRequestConfig;
     imageProcessing?: ImageProcessingConfig;
     socketIo?: SocketIoConfig;
     validation?: ValidationConfig;
@@ -198,6 +208,16 @@ export default () =>
                 }),
             },
         } as SidecarConfig,
+        changeRequest: {
+            // Burst of 500 then ~10/s sustained: a blocked sync queue shows users an error, so stay generous
+            rateLimit: rateLimitFromEnv("CHANGEREQUEST_RATE_LIMIT", {
+                enabled: true,
+                freeStrikes: 500,
+                baseBackoffMs: 1000,
+                maxBackoffMs: 30000,
+                strikeDecayMs: 100,
+            }),
+        } as ChangeRequestConfig,
         imageProcessing: {
             imageQuality: parseInt(process.env.S3_IMG_QUALITY, 10) || 80,
         } as ImageProcessingConfig,
