@@ -13,7 +13,7 @@ vi.mock("luminary-shared", async (importOriginal) => {
     const actual = await importOriginal<typeof import("luminary-shared")>();
     return new Proxy(actual, {
         get(target, prop) {
-            if (prop === "getSocket") return () => mockSocket;
+            if (prop === "getLiveStream") return () => mockSocket;
             return Reflect.get(target, prop);
         },
     });
@@ -58,7 +58,7 @@ describe("authFailure", () => {
     it("registers before anything can connect, so the first failure isn't missed", () => {
         registerAuthFailureHandler();
 
-        expect(mockSocket.on).toHaveBeenCalledWith("connect_error", handleConnectError);
+        expect(mockSocket.on).toHaveBeenCalledWith("connectError", handleConnectError);
     });
 
     it("ignores connection errors that aren't authentication failures", async () => {

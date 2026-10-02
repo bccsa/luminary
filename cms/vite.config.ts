@@ -62,7 +62,7 @@ export default defineConfig({
         dedupe: ["vue", "dexie", "@vueuse/core"],
     },
     server: {
-        port: 4175,
+        port: 5173,
         strictPort: true,
         // Allow Vite to serve the sibling shared/ source (outside this package root).
         fs: { allow: [".."] },

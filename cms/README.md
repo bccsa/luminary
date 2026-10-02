@@ -56,7 +56,7 @@ cms/
 
 Refer to the [setup guide](../docs/guides/setup-vue-app.md).
 
-When running `npm run dev` the local reloading server of the app will start at http://localhost:4175.
+When running `npm run dev` the local reloading server of the app will start at http://localhost:5173.
 
 ## Build for production
 

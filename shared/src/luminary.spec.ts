@@ -6,7 +6,6 @@ const mockGetSocket = vi.fn();
 const mockGetRest = vi.fn();
 const mockInitSync = vi.fn();
 const mockInitLiveSync = vi.fn();
-const mockInitRoomSubscriptions = vi.fn();
 const mockWarmWorkers = vi.fn();
 const mockRunInWorker = vi.fn();
 const mockSetCorpusScanner = vi.fn();
@@ -35,12 +34,8 @@ vi.mock("./api/sync/liveSync", () => ({
     initLiveSync: () => mockInitLiveSync(),
 }));
 
-vi.mock("./socket/socketio", () => ({
-    getSocket: () => mockGetSocket(),
-}));
-
-vi.mock("./socket/roomSubscriptions", () => ({
-    initRoomSubscriptions: () => mockInitRoomSubscriptions(),
+vi.mock("./liveStream/liveStream", () => ({
+    getLiveStream: () => mockGetSocket(),
 }));
 
 vi.mock("./worker/workerClient", () => ({

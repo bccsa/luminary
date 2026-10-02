@@ -14,7 +14,7 @@ vi.mock("../../fts/ftsIndexer", async (importOriginal) => {
 import { db, initDatabase } from "../../db/database";
 import { flushRetention, resetRetentionBuffer } from "../../db/retention";
 import { initConfig, config } from "../../config";
-import { isConnected } from "../../socket/socketio";
+import { isConnected } from "../../liveStream/liveStream";
 import { syncList } from "../../api/sync/state";
 import { HybridQuery, initHybridQuery } from "./HybridQuery";
 import { DocType, type BaseDocumentDto, type ContentDto } from "../../types";

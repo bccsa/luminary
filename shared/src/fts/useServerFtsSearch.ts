@@ -2,7 +2,7 @@ import { ref, watch, getCurrentScope, onScopeDispose, type Ref } from "vue";
 import { getRest, type ApiFtsQuery } from "../api/RestApi";
 import { config } from "../config";
 import { reportBreadcrumb } from "../diagnostics";
-import { isConnected } from "../socket/socketio";
+import { isConnected } from "../liveStream/liveStream";
 import type { BaseDocumentDto, DocType } from "../types";
 import { attachFtsLiveSync, markFtsStale } from "./ftsLiveSync";
 
