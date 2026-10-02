@@ -79,7 +79,7 @@ export const routes: RouteRecordRaw[] = [
     },
     // Kept so links and installed shortcuts to the old page still land somewhere useful.
     {
-        path: "/bookmarks",
+        path: "/library",
         redirect: { name: "library", query: { filter: "liked" } },
     },
     // Note that this route should always come after all defined routes,
