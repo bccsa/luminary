@@ -7,6 +7,7 @@ import EmptyState from "@/components/EmptyState.vue";
 import StartingInterestCard from "@/components/recommendations/StartingInterestCard.vue";
 import StartingInterestModal from "@/components/recommendations/StartingInterestModal.vue";
 import AffinityConfigPanel from "@/components/recommendations/AffinityConfigPanel.vue";
+import GlobalAffinityCard from "@/components/recommendations/GlobalAffinityCard.vue";
 import { useDefaultAffinity } from "@/composables/useDefaultAffinity";
 import { useTopicTagOptions } from "@/composables/useTopicTagOptions";
 import { isSmallScreen } from "@/globalConfig";
@@ -17,6 +18,12 @@ const { current, isLoading } = useDefaultAffinity();
 const { tagLabel } = useTopicTagOptions();
 
 const canEdit = computed(() => hasAnyPermission(DocType.DefaultAffinity, AclPermission.Edit));
+const canViewGlobal = computed(() =>
+    hasAnyPermission(DocType.GlobalAffinity, AclPermission.CmsView),
+);
+/** Whether the right-hand column has anything in it — it drives the two-column layout, so
+ *  gating that on `canEdit` alone left a view-only admin with a full-width card underneath. */
+const hasSidePanel = computed(() => canEdit.value || canViewGlobal.value);
 
 const searchTerm = ref("");
 const showAddModal = ref(false);
@@ -68,11 +75,11 @@ const filteredEntries = computed(() => {
 
         <div
             class="grid grid-cols-1 gap-3"
-            :class="canEdit ? 'lg:h-full lg:min-h-0 lg:grid-cols-2' : ''"
+            :class="hasSidePanel ? 'lg:h-full lg:min-h-0 lg:grid-cols-2' : ''"
         >
             <div
                 class="flex flex-col gap-[3px]"
-                :class="canEdit ? 'lg:h-full lg:min-h-0 lg:overflow-y-auto lg:pr-1' : ''"
+                :class="hasSidePanel ? 'lg:h-full lg:min-h-0 lg:overflow-y-auto lg:pr-1' : ''"
             >
                 <p v-if="hasAnyContent" class="mb-2 px-2 py-1 text-sm text-zinc-500">
                     Topics new visitors are shown an interest in, before they've built up any
@@ -105,7 +112,14 @@ const filteredEntries = computed(() => {
                 />
             </div>
 
-            <AffinityConfigPanel v-if="canEdit" class="lg:h-full lg:min-h-0" />
+            <div
+                v-if="hasSidePanel"
+                class="flex flex-col gap-3"
+                :class="hasSidePanel ? 'lg:h-full lg:min-h-0 lg:overflow-y-auto lg:pr-1' : ''"
+            >
+                <AffinityConfigPanel v-if="canEdit" />
+                <GlobalAffinityCard v-if="canViewGlobal" />
+            </div>
         </div>
 
         <StartingInterestModal v-if="showAddModal" v-model:is-visible="showAddModal" />

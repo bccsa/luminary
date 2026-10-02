@@ -28,6 +28,22 @@ export type AffinityConfigDto = {
         searchClick: number;
         impression: number;
     };
+    global: GlobalAffinityConfigDto;
+};
+
+/**
+ * Tuning for the audience-wide profile (`GlobalAffinityDto`). Mirrors
+ * `GlobalAffinityConfig` in `shared/src/recommendation/affinity.ts` — keep both in sync.
+ * Lives on the DefaultAffinity singleton so there is one CMS-edited config doc and the
+ * GlobalAffinity doc stays purely server-written.
+ */
+export type GlobalAffinityConfigDto = {
+    halfLifeDays: number;
+    learningRate: number;
+    minScore: number;
+    maxTags: number;
+    minEvents: number;
+    intervalHours: number;
 };
 
 /**

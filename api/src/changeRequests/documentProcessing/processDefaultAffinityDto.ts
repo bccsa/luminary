@@ -1,4 +1,8 @@
-import { AffinityConfigDto, DefaultAffinityDto } from "../../dto/DefaultAffinityDto";
+import {
+    AffinityConfigDto,
+    DefaultAffinityDto,
+    GlobalAffinityConfigDto,
+} from "../../dto/DefaultAffinityDto";
 import { DEFAULT_AFFINITY_CONFIG, DEFAULT_AFFINITY_ID } from "../../util/defaultAffinity";
 
 /** Generous ceiling on the number of tags an editor can curate into the default profile. */
@@ -79,6 +83,28 @@ function normalizeConfig(config: Partial<AffinityConfigDto> | undefined): Affini
                 DEFAULT_AFFINITY_CONFIG.eventWeight.impression,
             ),
         },
+        global: normalizeGlobalConfig(c.global),
+    };
+}
+
+/**
+ * Clamp the audience-wide tuning knobs. `learningRate` is capped well below 1: it is the
+ * fraction of a tag's headroom one user's whole vote may close, and the point of the
+ * global profile is that no individual moves it much.
+ */
+function normalizeGlobalConfig(
+    config: Partial<GlobalAffinityConfigDto> | undefined,
+): GlobalAffinityConfigDto {
+    const c = config ?? {};
+    const d = DEFAULT_AFFINITY_CONFIG.global;
+
+    return {
+        halfLifeDays: clampNumber(c.halfLifeDays, 1, 3650, d.halfLifeDays),
+        learningRate: clampNumber(c.learningRate, 0, 0.1, d.learningRate),
+        minScore: clampNumber(c.minScore, 0.000001, 0.5, d.minScore),
+        maxTags: Math.round(clampNumber(c.maxTags, 1, 1000, d.maxTags)),
+        minEvents: Math.round(clampNumber(c.minEvents, 1, 10000, d.minEvents)),
+        intervalHours: clampNumber(c.intervalHours, 0, 8760, d.intervalHours),
     };
 }
 
@@ -103,7 +129,9 @@ export default function processDefaultAffinityDto(doc: DefaultAffinityDto): void
 
     const entries = Object.entries(clamped);
     doc.affinity =
-        entries.length <= MAX_DEFAULT_TAGS ? clamped : Object.fromEntries(entries.slice(0, MAX_DEFAULT_TAGS));
+        entries.length <= MAX_DEFAULT_TAGS
+            ? clamped
+            : Object.fromEntries(entries.slice(0, MAX_DEFAULT_TAGS));
 
     doc.config = normalizeConfig(doc.config);
 }
