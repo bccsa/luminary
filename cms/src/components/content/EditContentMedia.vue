@@ -168,7 +168,7 @@ watch(
         </template>
 
         <div class="flex flex-col gap-3">
-            <p v-if="showHelp" class="text-xs text-zinc-500">
+            <p v-if="showHelp" class="text-xs text-zinc-500 dark:text-zinc-400">
                 Video and audio are produced by Luminary Media Convert. Use Encode to open it, pick
                 a file, and the encoded playlist is saved back to this document. You need the app on
                 your own machine —
