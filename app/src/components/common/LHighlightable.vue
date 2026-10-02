@@ -45,6 +45,8 @@ import { useNotificationStore } from "@/stores/notification";
 const props = withDefaults(
     defineProps<{
         contentId: string;
+        /** The post the translation belongs to, stored with the highlights. */
+        parentId?: string;
         title: string;
         copyright?: string;
         /** Gates the share targets on the ACL Share permission; defaults open for callers that don't check it. */
@@ -382,6 +384,7 @@ async function saveHighlights(): Promise<boolean> {
             data[props.contentId] = {
                 ranges: highlights,
                 updatedAt: Date.now(),
+                parentId: props.parentId,
             } satisfies SavedHighlight;
         } else {
             delete data[props.contentId];
