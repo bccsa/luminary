@@ -18,6 +18,7 @@ import {
     PostType,
     isBucketRelative,
     toAbsoluteMediaUrl,
+    fetchHlsKey,
 } from "luminary-shared";
 import { storageSelection } from "@/composables/storageSelection";
 import { useEditContentSource } from "./composables/useEditContentSource";
@@ -341,10 +342,26 @@ watch(showDuplicateModal, (open) => {
 const duplicate = async () => {
     showDuplicateModal.value = false;
     if (!editableParent.value) return;
+
+    // An unsaved key is already on the media; only a stored one has to be fetched.
+    const media = editableParent.value.media;
+    let hlsKey: string | undefined;
+    if (media?.hlsKey_id && !media.hlsKey) {
+        hlsKey = await fetchHlsKey(editableParent.value._id, { cms: true }).catch(() => undefined);
+        if (!hlsKey) {
+            notify(
+                "error",
+                "Duplication failed",
+                "The video's encryption key could not be read. Please check your connection and try again.",
+            );
+            return;
+        }
+    }
+
     const { parent: clonedParent, content: clonedContent } = buildContentDuplicate(
         editableParent.value,
         editableContent.value,
-        { duplicateImage: duplicateImageOnCopy.value },
+        { duplicateImage: duplicateImageOnCopy.value, hlsKey },
     );
     source.installClones(clonedParent, clonedContent);
     if (import.meta.env.MODE !== "test") {

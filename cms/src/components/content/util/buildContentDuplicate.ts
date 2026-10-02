@@ -15,11 +15,14 @@ import * as _ from "lodash";
  *
  * `duplicateImage` carries over a copyable image collection — only possible when the
  * source actually has an image bucket; otherwise the collection is cleared.
+ *
+ * `hlsKey` is the source's stored video key. The copy sends it so the API stores a key
+ * of its own, as keys are looked up by parent id.
  */
 export function buildContentDuplicate(
     parent: ContentParentDto,
     content: ContentDto[],
-    options: { duplicateImage: boolean },
+    options: { duplicateImage: boolean; hlsKey?: string },
 ): { parent: ContentParentDto; content: ContentDto[] } {
     const clonedParent = _.cloneDeep(parent);
     clonedParent._id = db.uuid();
@@ -38,6 +41,11 @@ export function buildContentDuplicate(
         } else if (imageData.fileCollections) {
             imageData.fileCollections = [];
         }
+    }
+
+    if (clonedParent.media) {
+        delete clonedParent.media.hlsKey_id;
+        if (options.hlsKey) clonedParent.media.hlsKey = options.hlsKey;
     }
 
     const clonedContent = content.map((c) => {
