@@ -1,5 +1,5 @@
 /**
- * One-time move of activity that predates this database: bookmarks from `userPreferences`
+ * One-time move of activity that predates this database: likes from `userPreferences`
  * (localStorage) and highlights from the shared `luminaryInternals` store.
  *
  * Neither pass ever overwrites a row already present here: a recorded activity is the more
@@ -8,7 +8,8 @@
 
 import { db, type BaseDocumentDto } from "luminary-shared";
 import { userPreferencesAsRef } from "@/globalConfig";
-import { getHighlightHtml } from "@/recommendation/highlightStore";
+import { getHighlightRanges, getLegacyHighlightHtml } from "@/recommendation/highlightStore";
+import { rangesFromLegacyHtml, type HighlightRange } from "@/util/highlightRanges";
 import { userActivityDb, type UserActivityDoc } from "./db";
 import { userActivityId } from "./store";
 
@@ -24,23 +25,23 @@ async function addMissing(rows: UserActivityDoc[]): Promise<number> {
 }
 
 /**
- * Bookmarks already store the post id, so they convert directly. Clearing the source is what
+ * Likes already store the post id, so they convert directly. Clearing the source is what
  * makes this idempotent — a second run finds nothing to move.
  */
-export async function migrateBookmarksToUserActivity(): Promise<number> {
-    const bookmarks = userPreferencesAsRef.value.bookmarks;
-    if (!bookmarks?.length) return 0;
+export async function migrateLikesToUserActivity(): Promise<number> {
+    const likes = userPreferencesAsRef.value.likes;
+    if (!likes?.length) return 0;
 
     const added = await addMissing(
-        bookmarks.map((bookmark) => ({
-            _id: userActivityId({ type: "liked", parentId: bookmark.id }),
+        likes.map((like) => ({
+            _id: userActivityId({ type: "liked", parentId: like.id }),
             type: "liked",
-            parentId: bookmark.id,
-            updatedTimeUtc: bookmark.ts,
+            parentId: like.id,
+            updatedTimeUtc: like.ts,
         })),
     );
 
-    delete userPreferencesAsRef.value.bookmarks;
+    delete userPreferencesAsRef.value.likes;
 
     return added;
 }
@@ -61,10 +62,8 @@ export async function migrateHighlightsToUserActivity(): Promise<number> {
     if (!stored || typeof stored !== "object" || Array.isArray(stored)) return 0;
 
     const entries = Object.entries(stored as Record<string, unknown>)
-        .map(([contentId, value]) => ({ contentId, html: getHighlightHtml(value), value }))
-        .filter(
-            (entry): entry is { contentId: string; html: string; value: unknown } => !!entry.html,
-        );
+        .map(([contentId, value]) => ({ contentId, ranges: rangesOf(value), value }))
+        .filter((entry) => entry.ranges.length > 0);
 
     if (!entries.length) return 0;
 
@@ -78,9 +77,18 @@ export async function migrateHighlightsToUserActivity(): Promise<number> {
             parentId: (contentDocs[i] as BaseDocumentDto | undefined)?.parentId,
             // Entries predating timestamps sort last rather than claiming to be new.
             updatedTimeUtc: updatedAtOf(entry.value),
-            payload: { html: entry.html },
+            payload: { ranges: entry.ranges },
         })),
     );
+}
+
+/** Reads either stored shape, converting a legacy HTML snapshot to ranges over its own text. */
+function rangesOf(value: unknown): HighlightRange[] {
+    const ranges = getHighlightRanges(value);
+    if (ranges?.length) return ranges;
+
+    const html = getLegacyHighlightHtml(value);
+    return html ? rangesFromLegacyHtml(html) : [];
 }
 
 function updatedAtOf(value: unknown): number {
@@ -93,6 +101,6 @@ function updatedAtOf(value: unknown): number {
 
 /** Both passes, for the app to run once at startup. */
 export async function migrateToUserActivity(): Promise<void> {
-    await migrateBookmarksToUserActivity();
+    await migrateLikesToUserActivity();
     await migrateHighlightsToUserActivity();
 }
