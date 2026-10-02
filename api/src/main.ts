@@ -7,6 +7,7 @@ import { PermissionSystem } from "./permissions/permissions.service";
 import { upgradeDbSchema } from "./db/db.upgrade";
 import { ValidationPipe } from "@nestjs/common";
 import compress from "@fastify/compress";
+import { constants } from "zlib";
 import multipart from "@fastify/multipart";
 import { AllExceptionsFilter } from "./exceptions/allExceptions.filter";
 import { S3Service } from "./s3/s3.service";
@@ -31,9 +32,18 @@ export async function bootstrap() {
         },
     });
 
-    // Register compression plugin (Brotli/gzip) for the query endpoint
+    // Register compression plugin (Brotli/gzip) for the query endpoint. The plugin's own Brotli
+    // default is quality 4; 6 is the knee of the size/CPU curve on realistic /query bodies
+    // (~7% smaller for ~2ms more, where 11 costs ~200ms). Tune per deployment — the API shares
+    // CPU with change-request image processing.
     await app.register(compress, {
         encodings: ["br", "gzip", "deflate"],
+        brotliOptions: {
+            params: {
+                [constants.BROTLI_PARAM_QUALITY]:
+                    parseInt(process.env.COMPRESS_BROTLI_QUALITY, 10) || 6,
+            },
+        },
     });
 
     const dbService = app.get(DbService);
