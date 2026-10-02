@@ -75,7 +75,7 @@ vi.mock("@/globalConfig", () => ({
     cmsDefaultLanguage: computed(() => mockLanguageDtoEng),
     queryParams: { get: vi.fn() },
     cmsUrl: ref(""),
-    userPreferencesAsRef: ref({ bookmarks: [] }),
+    userPreferencesAsRef: ref({ likes: [] }),
     appLanguageIdsAsRef: ref(["lang-eng"]),
     appLanguageAsRef: ref(undefined),
     initLanguage: vi.fn(),
@@ -109,7 +109,6 @@ vi.mock("@/router", () => ({
     isExternalNavigation: () => false,
     markInternalNavigation: vi.fn(),
 }));
-
 
 function passthrough(name: string) {
     return defineComponent({

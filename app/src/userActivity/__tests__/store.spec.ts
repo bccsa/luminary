@@ -1,6 +1,7 @@
 import "fake-indexeddb/auto";
 import { describe, it, beforeEach, afterEach, expect, vi } from "vitest";
 
+import type { HighlightRange } from "@/util/highlightRanges";
 import { userActivityDb } from "../db";
 import {
     MAX_VIEWED,
@@ -23,6 +24,13 @@ describe("userActivity", () => {
         vi.restoreAllMocks();
     });
 
+    const range = (text: string): HighlightRange => ({
+        start: 0,
+        end: text.length,
+        color: "yellow",
+        text,
+    });
+
     // Dexie deadlocks under Vitest's fake timers (fake-indexeddb schedules its own work),
     // so time is controlled by stubbing the clock these helpers read.
     const at = (ms: number) => vi.spyOn(Date, "now").mockReturnValue(ms);
@@ -40,7 +48,7 @@ describe("userActivity", () => {
         it("keys highlights on the translation while keeping the post", async () => {
             await recordUserActivity(
                 { type: "highlighted", contentId: "content-1", parentId: "post-1" },
-                { html: "<p>hi</p>" },
+                { ranges: [range("hi")] },
             );
 
             const row = await userActivityDb.userActivity.get("highlighted:content-1");
@@ -49,7 +57,7 @@ describe("userActivity", () => {
                 contentId: "content-1",
                 parentId: "post-1",
             });
-            expect(row!.payload).toEqual({ html: "<p>hi</p>" });
+            expect(row!.payload).toEqual({ ranges: [range("hi")] });
         });
 
         it("keeps two translations of one post as separate highlights", async () => {
@@ -152,7 +160,7 @@ describe("userActivity", () => {
         it("drops the payload of a removed highlight", async () => {
             await recordUserActivity(
                 { type: "highlighted", contentId: "content-1", parentId: "post-1" },
-                { html: "<p>secret</p>" },
+                { ranges: [range("secret")] },
             );
             await removeUserActivity({ type: "highlighted", contentId: "content-1" });
 

@@ -38,7 +38,12 @@ export type EnumeratedSite<TContent extends EnumeratedContent = EnumeratedConten
 };
 
 /** Private / per-user routes — never prerendered. */
-export const EXCLUDED_ROUTES: ReadonlySet<string> = new Set(["/open", "/settings", "/library"]);
+export const EXCLUDED_ROUTES: ReadonlySet<string> = new Set([
+    "/open",
+    "/settings",
+    "/library",
+    "/bookmarks",
+]);
 
 /**
  * The 404 error page is prerendered only in the default language — a worker-served custom error

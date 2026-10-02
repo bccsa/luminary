@@ -6,6 +6,7 @@
 
 import Dexie, { type Table } from "dexie";
 import type { Uuid } from "luminary-shared";
+import type { HighlightRange } from "@/util/highlightRanges";
 
 /** Which user activity a {@link UserActivityDoc} records. */
 export type UserActivityType = "viewed" | "liked" | "highlighted";
@@ -29,8 +30,11 @@ export type UserActivityDoc = {
     updatedTimeUtc: number;
     /** Set instead of deleting the row, so an undone activity can propagate. */
     deleted?: boolean;
-    /** Type-specific payload; only `highlighted` carries one. */
-    payload?: { html: string };
+    /**
+     * Type-specific payload; only `highlighted` carries one. The ranges mirror what
+     * `LHighlightable` saves, and each carries its own text — the excerpt the Library shows.
+     */
+    payload?: { ranges: HighlightRange[] };
 };
 
 class UserActivityDatabase extends Dexie {
