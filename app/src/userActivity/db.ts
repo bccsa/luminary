@@ -20,11 +20,8 @@ export type UserActivityDoc = {
     /** `<type>:<contentId ?? parentId>` — the same activity yields the same key on every device. */
     _id: string;
     type: UserActivityType;
-    /**
-     * The post the activity belongs to. Optional only while unresolved: a highlight migrated
-     * from storage that only knew its translation has no parent until that document is local.
-     */
-    parentId?: Uuid;
+    /** The post the activity belongs to. */
+    parentId: Uuid;
     /** The translation. Set for `highlighted` only — likes and views are per post. */
     contentId?: Uuid;
     updatedTimeUtc: number;

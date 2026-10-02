@@ -1088,6 +1088,7 @@ watch([isLoading, content, is404], async () => {
                         <LHighlightable
                             v-if="content.text"
                             :content-id="content._id"
+                            :parent-id="content.parentId"
                             :title="content.title"
                             :revision="text"
                             :copyright="shareCopyright"

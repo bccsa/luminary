@@ -11,7 +11,7 @@
  */
 
 import Dexie from "dexie";
-import { db, type BaseDocumentDto, type Uuid } from "luminary-shared";
+import type { Uuid } from "luminary-shared";
 import { userActivityDb, type UserActivityDoc, type UserActivityType } from "./db";
 
 /** Bound `viewed` so a long-lived install can't grow it without limit. */
@@ -26,7 +26,7 @@ export const TOMBSTONE_TTL_MS = 90 * 24 * 60 * 60 * 1000;
  */
 export type ActivityRef =
     | { type: "liked" | "viewed"; parentId: Uuid }
-    | { type: "highlighted"; contentId: Uuid; parentId?: Uuid };
+    | { type: "highlighted"; contentId: Uuid; parentId: Uuid };
 
 /** The id that makes an activity unique, taken from its type rather than from what is set. */
 const identityOf = (ref: ActivityRef): Uuid =>
@@ -42,17 +42,10 @@ export async function recordUserActivity(
     ref: ActivityRef,
     payload?: UserActivityDoc["payload"],
 ): Promise<void> {
-    const _id = userActivityId(ref);
-
-    // A highlight can be recorded before its post is known. Carrying over an already-resolved
-    // parent keeps a later write from undoing that resolution.
-    const parentId =
-        ref.parentId ?? (await userActivityDb.userActivity.get(_id).then((row) => row?.parentId));
-
     await userActivityDb.userActivity.put({
-        _id,
+        _id: userActivityId(ref),
         type: ref.type,
-        parentId,
+        parentId: ref.parentId,
         contentId: ref.type === "highlighted" ? ref.contentId : undefined,
         updatedTimeUtc: Date.now(),
         payload,
@@ -127,29 +120,4 @@ export async function pruneUserActivityTombstones(now: number = Date.now()): Pro
         .primaryKeys();
 
     if (expired.length > 0) await userActivityDb.userActivity.bulkDelete(expired as string[]);
-}
-
-/**
- * Fill in the post of highlight rows migrated before their Content document was local.
- * Cheap to call on every Library load: only highlights are scanned (an unresolved row has no
- * `parentId` to index on), and a row is rewritten only when the lookup now succeeds.
- */
-export async function resolveUnresolvedParents(): Promise<number> {
-    const unresolved = await ofType("highlighted")
-        .filter((row) => row.parentId === undefined && !!row.contentId)
-        .toArray();
-    if (!unresolved.length) return 0;
-
-    const contentDocs = await db.docs.bulkGet(unresolved.map((row) => row.contentId as Uuid));
-
-    const resolved = unresolved
-        .map((row, i) => ({
-            row,
-            parentId: (contentDocs[i] as BaseDocumentDto | undefined)?.parentId,
-        }))
-        .filter((entry) => !!entry.parentId)
-        .map((entry) => ({ ...entry.row, parentId: entry.parentId }));
-
-    if (resolved.length) await userActivityDb.userActivity.bulkPut(resolved);
-    return resolved.length;
 }

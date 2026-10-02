@@ -99,29 +99,6 @@ describe("userActivity", () => {
         });
     });
 
-    describe("unresolved parents", () => {
-        it("records a highlight whose post is not known yet", async () => {
-            await recordUserActivity({ type: "highlighted", contentId: "content-1" });
-
-            const row = await userActivityDb.userActivity.get("highlighted:content-1");
-            expect(row!.contentId).toBe("content-1");
-            expect(row!.parentId).toBeUndefined();
-        });
-
-        it("does not erase a resolved post when re-recording without one", async () => {
-            await recordUserActivity({
-                type: "highlighted",
-                contentId: "content-1",
-                parentId: "post-1",
-            });
-            await recordUserActivity({ type: "highlighted", contentId: "content-1" });
-
-            expect((await userActivityDb.userActivity.get("highlighted:content-1"))!.parentId).toBe(
-                "post-1",
-            );
-        });
-    });
-
     describe("reading", () => {
         it("returns activities newest first", async () => {
             at(1000);
@@ -162,7 +139,11 @@ describe("userActivity", () => {
                 { type: "highlighted", contentId: "content-1", parentId: "post-1" },
                 { ranges: [range("secret")] },
             );
-            await removeUserActivity({ type: "highlighted", contentId: "content-1" });
+            await removeUserActivity({
+                type: "highlighted",
+                contentId: "content-1",
+                parentId: "post-1",
+            });
 
             expect(
                 (await userActivityDb.userActivity.get("highlighted:content-1"))!.payload,

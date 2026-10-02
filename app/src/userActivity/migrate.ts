@@ -6,7 +6,7 @@
  * recent truth, so a stale source entry must not revive something the user has since removed.
  */
 
-import { db, type BaseDocumentDto } from "luminary-shared";
+import { db, type BaseDocumentDto, type Uuid } from "luminary-shared";
 import { userPreferencesAsRef } from "@/globalConfig";
 import { getHighlightRanges, getLegacyHighlightHtml } from "@/recommendation/highlightStore";
 import { rangesFromLegacyHtml, type HighlightRange } from "@/util/highlightRanges";
@@ -47,15 +47,14 @@ export async function migrateLikesToUserActivity(): Promise<number> {
 }
 
 /**
- * Highlights are stored per translation and know nothing of their post, so each one's
- * `parentId` is read from its Content document. That document may not be local — an unsynced
- * language, or one dropped by retention — and the highlight is kept regardless: losing user
- * data to a failed lookup would be worse than a row that cannot be displayed yet.
- * `resolveUnresolvedParents` completes those rows once the document arrives.
+ * Highlights are stored per translation. Entries written since the post was stored with them
+ * carry it; older ones are matched to their Content document instead. An entry whose post
+ * cannot be found either way is skipped — its document is not local, so the Library could not
+ * render it anyway — and picked up by a later run once that document syncs.
  *
  * The source is deliberately left in place: `LHighlightable` still reads and writes it, so
- * clearing it would erase highlights from the article view. Re-running is safe because
- * existing rows are never overwritten.
+ * clearing it would erase highlights from the article view. That is also what makes skipping
+ * safe: nothing is lost, the entry is simply migrated later.
  */
 export async function migrateHighlightsToUserActivity(): Promise<number> {
     const stored = await db.getLuminaryInternals("highlights");
@@ -69,17 +68,25 @@ export async function migrateHighlightsToUserActivity(): Promise<number> {
 
     const contentDocs = await db.docs.bulkGet(entries.map((entry) => entry.contentId));
 
-    return addMissing(
-        entries.map((entry, i) => ({
-            _id: userActivityId({ type: "highlighted", contentId: entry.contentId }),
-            type: "highlighted",
+    const rows = entries
+        .map((entry, i) => ({
+            entry,
+            parentId:
+                parentIdOf(entry.value) ??
+                (contentDocs[i] as BaseDocumentDto | undefined)?.parentId,
+        }))
+        .filter((row): row is { entry: (typeof entries)[number]; parentId: Uuid } => !!row.parentId)
+        .map(({ entry, parentId }) => ({
+            _id: userActivityId({ type: "highlighted", contentId: entry.contentId, parentId }),
+            type: "highlighted" as const,
             contentId: entry.contentId,
-            parentId: (contentDocs[i] as BaseDocumentDto | undefined)?.parentId,
+            parentId,
             // Entries predating timestamps sort last rather than claiming to be new.
             updatedTimeUtc: updatedAtOf(entry.value),
             payload: { ranges: entry.ranges },
-        })),
-    );
+        }));
+
+    return addMissing(rows);
 }
 
 /** Reads either stored shape, converting a legacy HTML snapshot to ranges over its own text. */
@@ -89,6 +96,15 @@ function rangesOf(value: unknown): HighlightRange[] {
 
     const html = getLegacyHighlightHtml(value);
     return html ? rangesFromLegacyHtml(html) : [];
+}
+
+/** The post stored with the entry, for highlights written since it was carried. */
+function parentIdOf(value: unknown): Uuid | undefined {
+    if (value && typeof value === "object" && "parentId" in value) {
+        const parentId = (value as { parentId: unknown }).parentId;
+        if (typeof parentId === "string" && parentId) return parentId;
+    }
+    return undefined;
 }
 
 function updatedAtOf(value: unknown): number {
