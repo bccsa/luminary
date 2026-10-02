@@ -15,6 +15,12 @@ export class ChangeRequestService {
         changeRequest: ChangeReqDto,
         userDetails: JwtUserDetails,
     ): Promise<ChangeReqAckDto> {
+        // Hard rule independent of group ACLs: a misconfigured default group must never open writes to the public.
+        // Returns a bare ack (no upsertDocAck) so a rejected anonymous request cannot read documents back.
+        if (userDetails.anonymous) {
+            return { ack: AckStatus.Rejected, message: "Authentication required" };
+        }
+
         // Process change request
         return await processChangeRequest(
             userDetails.userId,
