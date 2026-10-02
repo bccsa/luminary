@@ -12,7 +12,7 @@ E2E tests live in `../playwright-tests/` — this package has none of its own. T
 
 Run from `cms/`:
 
-- `npm run dev` — Vite dev server on http://localhost:5173 (strict port)
+- `npm run dev` — Vite dev server on http://localhost:4175 (strict port)
 - `npm run build` — runs `type-check` and `build-only` in parallel
 - `npm run type-check` — `vue-tsc --build --force`
 - `npm run test` / `npm run test:unit` — Vitest (jsdom). Subset: `npm run test -- src/pages/Foo.spec.ts -t "name"`.
@@ -27,7 +27,7 @@ Order-sensitive — read `main.ts` before reordering:
 
 1. Pinia installed early so startup watchers (e.g. `useNotificationStore`) can resolve stores.
 2. `init()` from `luminary-shared` sets up IndexedDB, the socket, and the doc index. `init()` no longer takes a sync list — what gets synced (and what joins socket rooms) is owned by the sync engine in `src/sync.ts` (`AuthProvider`, `Language`, then `Tag`, `Post`, `Redirect`, `Group`, `Storage` + their `Content` children). The CMS's live-only types (`User`, `AutoGroupMappings`) are served by `useHybridQuery` in API-only mode (live over REST + on-demand socket rooms) and intentionally not mirrored into Dexie (see `useAutoGroupMappings` / `UserOverview` and the comment in `sync.ts`). The connect handshake (`clientConfigReq`) still runs to deliver the accessMap and declare CMS mode (`cms: true`).
-3. `registerAuthFailureHandler()` (`src/authFailure.ts`) attaches the socket `connectError` listener for `auth_failed` **before** `setupAuth()` — otherwise the first failure event is lost and the client loops. Handles `provider_not_found` (clear credentials, open the provider modal, then reconnect anonymously so `AuthProvider` docs can still sync into it) and silent refresh via `refreshTokenSilently({ ignoreCache: true })`.
+3. `registerAuthFailureHandler()` (`src/authFailure.ts`) attaches the socket `connect_error` listener for `auth_failed` **before** `setupAuth()` — otherwise the first failure event is lost and the client loops. Handles `provider_not_found` (clear credentials, open the provider modal, then reconnect anonymously so `AuthProvider` docs can still sync into it) and silent refresh via `refreshTokenSilently({ ignoreCache: true })`.
 4. `initAuthLangSync()` runs **before** `setupAuth()`, so the watcher is already listening when the first `isConnected`/`accessMap` transition lands — whether that comes from `setupAuth()` connecting or from the auth-failure handler's anonymous reconnect.
 5. After auth: a `serverError` watcher pushes debounced toast notifications (5s debounce). The CMS has no i18n layer — toast copy is hard-coded English here, not in shared.
 6. `changeReqWarnings` / `changeReqErrors` watchers surface change-request feedback as warning/error notifications.

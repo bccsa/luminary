@@ -4,7 +4,8 @@ import { HttpReq } from "./api/http";
 import { getRest } from "./api/RestApi";
 import { initSync } from "./api/sync/sync";
 import { initLiveSync } from "./api/sync/liveSync";
-import { getLiveStream } from "./liveStream/liveStream";
+import { getSocket } from "./socket/socketio";
+import { initRoomSubscriptions } from "./socket/roomSubscriptions";
 import { initHybridQuery } from "./util/HybridQuery";
 import { runInWorker, warmWorkers } from "./worker/workerClient";
 import { setCorpusScanner } from "./fts/ftsIndexer";
@@ -27,8 +28,8 @@ export async function init(config: SharedConfig) {
     // client itself. `runInWorker` falls back to this thread when no worker is available.
     setCorpusScanner(() => runInWorker("corpusScan", undefined));
 
-    // Initialize the LiveStream connection (initialized on first call)
-    getLiveStream();
+    // Initialize the SocketIO connection (initialized on first call)
+    getSocket();
 
     // Initialize the REST API connection (initialized on first call) to start syncing
     // Currently still needed to push local changes to the API
@@ -50,6 +51,7 @@ export async function init(config: SharedConfig) {
 
     // Start re-joining still-wanted socket rooms on (re)connect. sync drives the
     // rooms for synced types; HybridQuery drives them on demand for non-synced types.
+    initRoomSubscriptions();
 
     initHybridQuery(http);
 }

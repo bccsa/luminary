@@ -1,0 +1,234 @@
+import { io, Socket } from "socket.io-client";
+import { ref } from "vue";
+import { useLocalStorage } from "@vueuse/core";
+import { AccessMap, accessMap } from "../permissions/permissions";
+import { config, SharedConfig } from "../config";
+import { reportBreadcrumb } from "../diagnostics";
+
+/**
+ * Client configuration type definition
+ */
+type ClientConfig = {
+    maxUploadFileSize: number;
+    accessMap: AccessMap;
+};
+
+/**
+ * Connection status as a Vue ref
+ */
+export const isConnected = ref(false);
+
+/**
+ * Maximum file size for uploads in bytes as a Vue ref
+ */
+export const maxUploadFileSize = useLocalStorage("maxUploadFileSize", 0);
+
+class SocketIO {
+    private socket: Socket;
+    private foregroundReconnectInFlight = false;
+    private foregroundReconnectTimeout: ReturnType<typeof setTimeout> | undefined;
+
+    /**
+     * Create a new SocketIO instance
+     * @param {SharedConfig} config - Configuration object
+     */
+    constructor(config: SharedConfig) {
+        this.socket = io(config.apiUrl, { autoConnect: false });
+
+        this.socket.on("connect", () => {
+            // Connect handshake: request fresh config/access map and declare the connection
+            // mode; stay offline until the server responds. `cms` routes this socket to the
+            // right rooms — CMS (cms:true) → CmsView-scoped `-cms` rooms (drafts/expired, full);
+            // app (cms:false) → base rooms (published only; expired stripped; drafts withheld).
+            // No connect-time rooms are declared (`docTypes: []`): synced types are joined by
+            // sync (`setBaseRooms`), live-only types on demand by HybridQuery. The field is kept
+            // (empty) for the server's wire contract.
+            //
+            // The event was renamed `joinSocketGroups` → `clientConfigReq`; the server still
+            // accepts the old name as a deprecated alias (ADR 0005). FUTURE: migrate this whole
+            // Socket.io live-update transport to Server-Sent Events (SSE) when SSE lands — see
+            // bccsa/luminary#1740.
+            isConnected.value = false;
+            this.socket.emit("clientConfigReq", {
+                docTypes: [],
+                cms: config.cms === true,
+            });
+        });
+
+        this.socket.on("disconnect", (reason: string) => {
+            reportBreadcrumb(`Socket disconnected: ${reason}`, { area: "socket", op: "disconnect" });
+            isConnected.value = false;
+            this.stopForegroundReconnect();
+        });
+
+        this.socket.on("connect_error", (err: Error & { data?: { type?: string } }) => {
+            reportBreadcrumb(`Socket connect error: ${err.message}`, {
+                area: "socket",
+                op: "connect-error",
+                data: { type: err.data?.type },
+            });
+            isConnected.value = false;
+            this.stopForegroundReconnect();
+            // When the server rejects credentials in its middleware, it passes
+            // next(new Error("auth_failed")). Stop auto-reconnection so the
+            // client doesn't loop with the same stale token.
+            if (err.data?.type === "auth_failed" || err.message === "auth_failed") {
+                this.socket.io.opts.reconnection = false;
+            }
+        });
+
+        // NOTE: live document updates (the `"data"` event) are NOT handled here.
+        // Socket.io is a pure transport; the sync live persister subscribes to
+        // `"data"` and owns the persistence decision (see api/sync/liveSync.ts).
+
+        this.socket.on("clientConfig", (c: ClientConfig) => {
+            if (c.maxUploadFileSize) maxUploadFileSize.value = c.maxUploadFileSize;
+            if (c.accessMap) accessMap.value = c.accessMap;
+            reportBreadcrumb("Socket connected and configured", { area: "socket", op: "connect" });
+            isConnected.value = true; // Only set isConnected after configuration has been received from the API
+            this.stopForegroundReconnect();
+        });
+
+        // A tab foregrounded after sleep or a long idle can have a disconnected
+        // socket with auto-reconnection disabled following an auth failure. Retry
+        // once when it becomes visible; consumer auth-error handlers remain
+        // responsible for refreshing credentials if the retry is rejected.
+        if (typeof document !== "undefined") {
+            document.addEventListener("visibilitychange", this.reconnectOnVisibilityChange);
+        }
+    }
+
+    private stopForegroundReconnect() {
+        this.foregroundReconnectInFlight = false;
+        clearTimeout(this.foregroundReconnectTimeout);
+        this.foregroundReconnectTimeout = undefined;
+    }
+
+    private reconnectOnVisibilityChange = () => {
+        if (
+            document.visibilityState !== "visible" ||
+            isConnected.value ||
+            this.foregroundReconnectInFlight
+        ) {
+            return;
+        }
+
+        // Set this after reconnect(): its intentional disconnect synchronously
+        // emits `disconnect`, which clears a prior attempt's guard.
+        this.reconnect();
+        this.foregroundReconnectInFlight = true;
+        this.foregroundReconnectTimeout = setTimeout(() => {
+            this.foregroundReconnectInFlight = false;
+            this.foregroundReconnectTimeout = undefined;
+        }, 20_000);
+    };
+
+    /**
+     * Adds the listener function as an event listener for ev.
+     * @param event — Name of the event
+     * @param callback — Callback function
+     */
+    public on(event: string, callback: (...args: any[]) => void) {
+        // Expose socket events
+        this.socket.on(event, callback);
+    }
+
+    /**
+     * Removes the listener function as an event listener for ev.
+     * @param event - Name of the event
+     * @param callback - Callback function
+     */
+    public off(event: string, callback: (...args: any[]) => void) {
+        // Expose socket events
+        this.socket.off(event, callback);
+    }
+
+    /**
+     * Emit an event to the server. Thin transport passthrough used by the room
+     * subscription manager (`joinRooms`/`leaveRooms`) and any other service that
+     * needs to talk to the server over the socket.
+     * @param event - Name of the event
+     * @param args - Event payload
+     */
+    public emit(event: string, ...args: any[]) {
+        this.socket.emit(event, ...args);
+    }
+
+    /**
+     * Disconnect from the socket server
+     */
+    public disconnect() {
+        this.socket.disconnect();
+        // Force the connection status to false without waiting for the disconnect event
+        isConnected.value = false;
+    }
+
+    /**
+     * Disconnect and reconnect to the socket server
+     */
+    /**
+     * Update the authentication data sent in the socket.io handshake.
+     * @param token - JWT access token
+     * @param providerId - Active auth provider id (or null/undefined for guest)
+     */
+    public setAuth(token: string, providerId?: string | null) {
+        this.socket.auth = { token, providerId };
+    }
+
+    /**
+     * Connect to the socket server (no-op if already connected)
+     */
+    public connect() {
+        this.socket.io.opts.reconnection = true;
+        this.socket.connect();
+    }
+
+    /**
+     * Disconnect and reconnect to the socket server.
+     * Re-enables auto-reconnection so network drops are handled normally.
+     */
+    public reconnect() {
+        this.socket.io.opts.reconnection = true;
+        this.socket.disconnect();
+        isConnected.value = false;
+        this.socket.connect();
+    }
+}
+
+let socket: SocketIO;
+
+/**
+ * Whether {@link getSocket} can return a socket instead of throwing. Callers that attach live
+ * listeners opportunistically (rather than as part of an initialized app) use this so an
+ * environment with no socket configured — a server-side render, a bare test harness — is a
+ * no-op rather than an error.
+ */
+export function isSocketConfigured(): boolean {
+    return !!socket || !!config?.apiUrl;
+}
+
+/**
+ * Returns a singleton instance of the SocketIO client class.
+ * @param options - Socket connection options
+ */
+export function getSocket(
+    options: {
+        /**
+         * Force a reconnect to the server if the socket already exists
+         */
+        reconnect: boolean;
+    } = { reconnect: false },
+) {
+    if (!socket) {
+        if (!config) {
+            throw new Error("Shared config object not initialized");
+        }
+        if (!config.apiUrl) {
+            throw new Error("Socket connection requires an API URL");
+        }
+
+        socket = new SocketIO(config);
+    } else if (options.reconnect) socket.reconnect();
+
+    return socket;
+}

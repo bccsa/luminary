@@ -1,7 +1,7 @@
 import { UserManager, WebStorageStateStore, type User } from "oidc-client-ts";
 import { computed, ref } from "vue";
 import * as Sentry from "@sentry/vue";
-import { db, getLiveStream, removeCustomHeader, setCustomHeader } from "luminary-shared";
+import { db, getSocket, removeCustomHeader, setCustomHeader } from "luminary-shared";
 import type { AuthProviderDto } from "luminary-shared";
 
 const OIDC_STATE_PREFIX = "oidc.";
@@ -333,7 +333,7 @@ function hasJwtSigningKey(token: string): boolean {
  * always call `signinSilent()` so a server-rejected token cannot be replayed.
  *
  * Single-flighted: unlike the old Auth0 SDK, oidc-client-ts has no built-in
- * dedup, so two overlapping callers (e.g. a socket connectError handler
+ * dedup, so two overlapping callers (e.g. a socket connect_error handler
  * re-entering while a foreground/visibility-triggered reconnect is also
  * refreshing) would each POST the same refresh_token. With rotation enabled
  * server-side, one succeeds and the other gets invalid_grant — an
@@ -372,8 +372,8 @@ export async function refreshTokenWithOutcome(opts?: {
             // Re-assert the id: the API rejects a token that arrives without its
             // provider, and the header may have been cleared while in flight.
             setProviderIdHeader(providerId);
-            getLiveStream().setAuth(current.access_token, providerId);
-            getLiveStream().reconnect();
+            getSocket().setAuth(current.access_token, providerId);
+            getSocket().reconnect();
             return "refreshed";
         };
 
@@ -485,7 +485,7 @@ export function clearAuthCache(): void {
     // at boot (pre-connect), on provider_not_found (about to re-pick), and on
     // logout (about to redirect or reload) — none of those want an extra
     // connect cycle competing with refreshTokenSilently()'s own reconnect().
-    getLiveStream().setAuth("", null);
+    getSocket().setAuth("", null);
     // oidc-client-ts keeps both the user (`oidc.user:…`) and in-flight signin state
     // including the PKCE verifier (`oidc.<state-id>`) in localStorage, so the
     // `oidc.` sweep has to cover localStorage — `oidc.user:` alone leaves every

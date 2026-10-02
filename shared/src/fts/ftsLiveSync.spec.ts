@@ -15,13 +15,13 @@ const mocks = vi.hoisted(() => {
     const liveRefs: Array<{ ref: { value: any }; querier: any; options: any }> = [];
     return {
         isConnected: ref(true) as { value: boolean },
-        getLiveStreamMock: vi.fn(() => socketMock),
+        getSocketMock: vi.fn(() => socketMock),
         socketDataHandlers,
         emitSocket: (docs: any[]) => {
             for (const h of [...socketDataHandlers]) h({ docs });
         },
         validateDeleteCommandMock: vi.fn(() => true),
-        isLiveStreamConfiguredMock: vi.fn(() => true),
+        isSocketConfiguredMock: vi.fn(() => true),
         whereAnyOf: vi.fn(() => ({ toArray: vi.fn(async () => []) })),
         liveRefs,
         useDexieLiveQueryMock: vi.fn((querier: any, options: any) => {
@@ -32,10 +32,10 @@ const mocks = vi.hoisted(() => {
     };
 });
 
-vi.mock("../liveStream/liveStream", () => ({
+vi.mock("../socket/socketio", () => ({
     isConnected: mocks.isConnected,
-    getLiveStream: mocks.getLiveStreamMock,
-    isLiveStreamConfigured: mocks.isLiveStreamConfiguredMock,
+    getSocket: mocks.getSocketMock,
+    isSocketConfigured: mocks.isSocketConfiguredMock,
 }));
 
 vi.mock("../db/database", () => ({
@@ -62,7 +62,7 @@ describe("attachFtsLiveSync", () => {
         mocks.liveRefs.length = 0;
         mocks.isConnected.value = true;
         mocks.validateDeleteCommandMock.mockReturnValue(true);
-        mocks.isLiveStreamConfiguredMock.mockReturnValue(true);
+        mocks.isSocketConfiguredMock.mockReturnValue(true);
     });
 
     it("removes a result when a matching DeleteCmd arrives on the socket", () => {
@@ -253,7 +253,7 @@ describe("attachFtsLiveSync", () => {
     });
 
     it("attaches nothing when no socket is configured", () => {
-        mocks.isLiveStreamConfiguredMock.mockReturnValue(false);
+        mocks.isSocketConfiguredMock.mockReturnValue(false);
         const scope = effectScope();
         const results = ref([{ _id: "u1", name: "Ada" }]);
 
@@ -267,14 +267,14 @@ describe("attachFtsLiveSync", () => {
             ),
         ).not.toThrow();
 
-        expect(mocks.getLiveStreamMock).not.toHaveBeenCalled();
+        expect(mocks.getSocketMock).not.toHaveBeenCalled();
 
         expect(() => scope.stop()).not.toThrow();
-        expect(mocks.getLiveStreamMock).not.toHaveBeenCalled();
+        expect(mocks.getSocketMock).not.toHaveBeenCalled();
     });
 
     it("attaches once a socket becomes available", async () => {
-        mocks.isLiveStreamConfiguredMock.mockReturnValue(false);
+        mocks.isSocketConfiguredMock.mockReturnValue(false);
         const scope = effectScope();
         const results = ref([{ _id: "u1", name: "Ada" }]);
 
@@ -286,7 +286,7 @@ describe("attachFtsLiveSync", () => {
             ),
         );
 
-        mocks.isLiveStreamConfiguredMock.mockReturnValue(true);
+        mocks.isSocketConfiguredMock.mockReturnValue(true);
         mocks.isConnected.value = false;
         await nextTick();
         mocks.isConnected.value = true;

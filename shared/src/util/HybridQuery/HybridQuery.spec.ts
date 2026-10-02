@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => {
     // via `liveRefs[i].ref.value = [...]`. The real Vue `watch` inside HybridQuery
     // reacts to those assignments.
     const liveRefs: Array<{ ref: { value: any }; querier: any; options: any }> = [];
-    // Socket harness: getLiveStream() returns a stable wrapper whose on/off mutate a
+    // Socket harness: getSocket() returns a stable wrapper whose on/off mutate a
     // shared set of "data" handlers; emitSocket() invokes them with { docs }.
     const socketDataHandlers = new Set<(data: any) => void>();
     const socketMock = {
@@ -45,16 +45,23 @@ const mocks = vi.hoisted(() => {
         // fallback-language supplement; `cms` gates the queryRemote scope-forwarding. Mutated per test.
         config: { appLanguageIdsAsRef: ref<string[]>([]), cms: false },
         socketDataHandlers,
-        getLiveStreamMock: vi.fn(() => socketMock),
+        getSocketMock: vi.fn(() => socketMock),
+        // Room subscription manager: subscribeRooms returns a fresh disposer per call so a
+        // test can assert the non-synced live branch joins/leaves the type's rooms.
+        subscribeRooms: vi.fn(() => vi.fn()),
         emitSocket: (docs: any[]) => {
             for (const h of [...socketDataHandlers]) h({ docs });
         },
     };
 });
 
-vi.mock("../../liveStream/liveStream", () => ({
+vi.mock("../../socket/socketio", () => ({
     isConnected: mocks.isConnected,
-    getLiveStream: mocks.getLiveStreamMock,
+    getSocket: mocks.getSocketMock,
+}));
+
+vi.mock("../../socket/roomSubscriptions", () => ({
+    subscribeRooms: mocks.subscribeRooms,
 }));
 
 vi.mock("../MangoQuery/mangoToDexie", () => ({
@@ -164,8 +171,9 @@ describe("HybridQuery", () => {
         mocks.touchRetention.mockClear();
         mocks.isSyncableDoc.mockReset();
         mocks.isSyncableDoc.mockReturnValue(true);
-        mocks.getLiveStreamMock.mockClear();
+        mocks.getSocketMock.mockClear();
         mocks.socketDataHandlers.clear();
+        mocks.subscribeRooms.mockClear();
         localStorage.clear();
         postHttpMock = vi.fn();
         initHybridQuery({ post: postHttpMock } as any);
@@ -199,7 +207,7 @@ describe("HybridQuery", () => {
         expect(q.output.value).toEqual([]);
         expect(mocks.mangoToDexieMock).not.toHaveBeenCalled();
         expect(postHttpMock).not.toHaveBeenCalled();
-        expect(mocks.getLiveStreamMock).not.toHaveBeenCalled();
+        expect(mocks.getSocketMock).not.toHaveBeenCalled();
         expect(mocks.socketDataHandlers.size).toBe(0);
     });
 
@@ -1325,8 +1333,31 @@ describe("HybridQuery", () => {
             await flush();
 
             expect(mocks.socketDataHandlers.size).toBe(0);
-            expect(mocks.getLiveStreamMock).not.toHaveBeenCalled();
+            expect(mocks.getSocketMock).not.toHaveBeenCalled();
             expect(q.output.value.map((d) => d._id)).toEqual(["g1"]);
+        });
+
+        it("non-synced live type subscribes to its rooms and releases on dispose", async () => {
+            // syncList empty → "user" is not synced → non-synced live branch must join the
+            // type's rooms on demand (so the server starts pushing) and leave on dispose.
+            postHttpMock.mockResolvedValue({ docs: [] });
+            const q = track(new HybridQuery({ selector: { type: "user" } }, { live: true }));
+            await flush();
+
+            expect(mocks.subscribeRooms).toHaveBeenCalledWith(["user"]);
+            const dispose = mocks.subscribeRooms.mock.results[0]!.value as ReturnType<typeof vi.fn>;
+            expect(dispose).not.toHaveBeenCalled();
+
+            q.dispose();
+            expect(dispose).toHaveBeenCalled();
+        });
+
+        it("synced + content live types do NOT drive dynamic room subscriptions", async () => {
+            // Synced types (Dexie) and content (rooms joined by sync) must not subscribe.
+            mocks.syncList.value = [{ chunkType: "group" }];
+            track(new HybridQuery({ selector: { type: "group" } }, { live: true }));
+            await flush();
+            expect(mocks.subscribeRooms).not.toHaveBeenCalled();
         });
     });
 
@@ -2962,6 +2993,7 @@ describe("HybridQuery", () => {
             expect(q.isFetching.value).toBe(false);
         });
     });
+
 });
 
 describe("queryRemote", () => {

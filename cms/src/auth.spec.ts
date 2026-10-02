@@ -51,7 +51,7 @@ vi.mock("luminary-shared", async (importOriginal) => {
     // Proxy rather than a spread so the module's live bindings are preserved.
     return new Proxy(actual, {
         get(target, prop) {
-            if (prop === "getLiveStream") return () => socketStub;
+            if (prop === "getSocket") return () => socketStub;
             if (prop === "setCustomHeader") return mockSetCustomHeader;
             if (prop === "removeCustomHeader") return mockRemoveCustomHeader;
             return Reflect.get(target, prop);

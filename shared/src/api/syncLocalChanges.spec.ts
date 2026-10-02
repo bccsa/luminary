@@ -3,9 +3,9 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { ref, type Ref } from "vue";
 import { AckStatus, ChangeReqDto, DocType, LocalChangeDto } from "../types";
 import { db, initDatabase } from "../db/database";
-import { getLiveStream, isConnected } from "../liveStream/liveStream";
+import { getSocket, isConnected } from "../socket/socketio";
 import { changeReqErrors, initConfig } from "../config";
-import http from "node:http";
+import { Server } from "socket.io";
 import waitForExpect from "wait-for-expect";
 import * as RestApi from "../api/RestApi";
 import { useDexieLiveQuery } from "../util";
@@ -16,26 +16,11 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const changeRequestMock = vi.fn();
 
 describe("syncLocalChanges", () => {
-    // Answers the live stream with an empty clientConfig, which marks the client connected
-    const openResponses = new Set<http.ServerResponse>();
-    let serveConfig = false;
-    const sseServer = http.createServer((_req, res) => {
-        openResponses.add(res);
-        res.on("close", () => openResponses.delete(res));
-        if (!serveConfig) return;
-        res.writeHead(200, { "Content-Type": "text/event-stream" });
-        res.write(`event: clientConfig\ndata: {}\n\n`);
-    });
-    sseServer.listen(12344);
+    const socketServer = new Server(12344);
     let localChanges: Ref<LocalChangeDto[]>;
     let handle: SyncLocalChangesHandle;
 
     beforeAll(async () => {
-        // jsdom's AbortSignal is rejected by Node's native fetch
-        const nodeFetch = globalThis.fetch;
-        vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) =>
-            nodeFetch(input, { ...init, signal: undefined }),
-        );
         initConfig({
             cms: true,
             docsIndex: "parentId, language, [type+docType]",
@@ -45,7 +30,7 @@ describe("syncLocalChanges", () => {
 
         await initDatabase();
 
-        const socket = getLiveStream();
+        const socket = getSocket();
 
         vi.spyOn(RestApi, "getRest").mockReturnValue({
             changeRequest: changeRequestMock,
@@ -67,9 +52,8 @@ describe("syncLocalChanges", () => {
 
     afterEach(async () => {
         // Drop offline first so any in-flight drain bails at its next await boundary.
-        getLiveStream().disconnect();
-        serveConfig = false;
-        openResponses.forEach((r) => r.destroy());
+        getSocket().disconnect();
+        socketServer.removeAllListeners();
         await waitForExpect(() => expect(isConnected.value).toBe(false));
 
         // Deterministically join the in-flight drain and unsubscribe the watcher BEFORE
@@ -88,15 +72,15 @@ describe("syncLocalChanges", () => {
 
     afterAll(async () => {
         vi.restoreAllMocks();
-        vi.unstubAllGlobals();
-        sseServer.close();
         await db.docs.clear();
         await db.localChanges.clear();
     });
 
     const connect = () => {
-        serveConfig = true;
-        getLiveStream({ reconnect: true });
+        socketServer.on("connection", (socket) => {
+            socket.emit("clientConfig", {});
+        });
+        getSocket({ reconnect: true });
     };
 
     const ack = (id: number, status: AckStatus = AckStatus.Accepted) => ({ id, ack: status });
@@ -385,7 +369,7 @@ describe("syncLocalChanges", () => {
         expect(await db.localChanges.get(failing.id)).toBeDefined();
 
         // Disconnect then reconnect — the isConnected watcher should re-enter drain.
-        getLiveStream().disconnect();
+        getSocket().disconnect();
         await waitForExpect(() => expect(isConnected.value).toBe(false));
 
         changeRequestMock.mockResolvedValueOnce(ack(30));
@@ -462,7 +446,7 @@ describe("syncLocalChanges", () => {
         await waitForExpect(() => expect(changeRequestMock).toHaveBeenCalledTimes(1));
 
         // Disconnect before the first request resolves; ack still arrives.
-        getLiveStream().disconnect();
+        getSocket().disconnect();
         await waitForExpect(() => expect(isConnected.value).toBe(false));
 
         resolveFirst(ack(50));

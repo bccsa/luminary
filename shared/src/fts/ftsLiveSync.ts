@@ -6,7 +6,7 @@ import {
     watch,
     type Ref,
 } from "vue";
-import { getLiveStream, isConnected, isLiveStreamConfigured } from "../liveStream/liveStream";
+import { getSocket, isConnected, isSocketConfigured } from "../socket/socketio";
 import { db } from "../db/database";
 import {
     DocType,
@@ -141,18 +141,18 @@ export function attachFtsLiveSync<T>(
         isConnected,
         (online) => {
             // No socket configured (e.g. a server-side render) — nothing to listen to, and
-            // `getLiveStream()` would throw. The watcher stays, so a later connect still attaches.
-            if (!isLiveStreamConfigured()) return;
+            // `getSocket()` would throw. The watcher stays, so a later connect still attaches.
+            if (!isSocketConfigured()) return;
             // off-before-on: stable handler ref, no duplicate listeners on reconnect.
-            getLiveStream().off("data", onData);
-            if (online) getLiveStream().on("data", onData);
+            getSocket().off("data", onData);
+            if (online) getSocket().on("data", onData);
         },
         { immediate: true },
     );
 
     onScopeDispose(() => {
         stopSocketWatch();
-        if (isLiveStreamConfigured()) getLiveStream().off("data", onData);
+        if (isSocketConfigured()) getSocket().off("data", onData);
     });
 
     if (!watchDexie) return;

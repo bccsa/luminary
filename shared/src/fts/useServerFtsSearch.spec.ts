@@ -4,13 +4,13 @@ import { ref, effectScope } from "vue";
 vi.mock("../api/RestApi", () => ({
     getRest: vi.fn(),
 }));
-vi.mock("../liveStream/liveStream", () => ({
+vi.mock("../socket/socketio", () => ({
     isConnected: ref(true),
-    getLiveStream: () => ({
+    getSocket: () => ({
         on: vi.fn(),
         off: vi.fn(),
     }),
-    isLiveStreamConfigured: () => true,
+    isSocketConfigured: () => true,
 }));
 
 import { useServerFtsSearch } from "./useServerFtsSearch";
