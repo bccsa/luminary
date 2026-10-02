@@ -1,3 +1,4 @@
+import { LIVE_STREAM } from "../../fixtures/liveStream";
 import { appTest as test, expect } from "../../fixtures/test";
 import { waitForSynced } from "../../fixtures/readiness";
 import type { Page } from "@playwright/test";
@@ -8,7 +9,6 @@ import type { Page } from "@playwright/test";
  * waiting out the condition's own delay, and must not resurrect one the user closed.
  */
 
-const SOCKET_IO = /\/socket\.io\//;
 
 /** Covers App.vue's 5s grace period before the offline watcher first runs. */
 const BANNER_TIMEOUT = 25_000;
@@ -51,18 +51,14 @@ const waitForAppReady = (page: Page) =>
     );
 
 /**
- * Blocks socket.io on both transports so `isConnected` stays false, and hands
- * back a switch to let it through again. Routing has to be installed before the
- * first navigation, and WebSocket routes cannot be removed once added, so
- * connectivity is toggled from inside the handlers rather than by unrouting.
+ * Blocks the live stream so `isConnected` stays false, and hands back a switch
+ * to let it through again. Routing has to be installed before the first
+ * navigation, so connectivity is toggled from inside the handler rather than
+ * by unrouting.
  */
 async function interceptConnectivity(page: Page) {
     let online = true;
-    await page.routeWebSocket(SOCKET_IO, (ws) => {
-        if (online) ws.connectToServer();
-        else ws.close();
-    });
-    await page.route(SOCKET_IO, (route) =>
+    await page.route(LIVE_STREAM, (route) =>
         online ? route.continue() : route.abort("connectionfailed"),
     );
     return { setOnline: (value: boolean) => (online = value) };
@@ -142,7 +138,7 @@ test.describe("App notification persistence", () => {
         await expect(banner(page, "offlineBanner")).toBeVisible({ timeout: BANNER_TIMEOUT });
 
         // Reload back online without dismissing: the banner may be restored for an
-        // instant, but must go as soon as the socket is up rather than lingering for
+        // instant, but must go as soon as the stream is up rather than lingering for
         // the whole grace period.
         setOnline(true);
         await page.reload();

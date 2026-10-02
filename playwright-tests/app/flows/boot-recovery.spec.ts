@@ -1,3 +1,4 @@
+import { LIVE_STREAM } from "../../fixtures/liveStream";
 import type { Page } from "@playwright/test";
 import { appTest as test, expect } from "../../fixtures/test";
 
@@ -97,7 +98,7 @@ test.describe("App boot recovery", () => {
     // fully-synced type whose sync is gated on `isConnected`, so a client that
     // cannot open a socket never receives them, and `initLanguage()` is awaited
     // between mount and the splash being cleared.
-    await page.route("**/socket.io/**", (route) => route.abort());
+    await page.route(LIVE_STREAM, (route) => route.abort());
     await page.goto("/");
 
     // Mounted: the static splash is gone, so the boot path got past app.mount().
