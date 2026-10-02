@@ -65,7 +65,7 @@ export type ValidationConfig = {
      * When set to true, query template validation will log warnings instead of throwing exceptions.
      * This is useful during development for testing queries without strict validation.
      * Environment variable: BYPASS_TEMPLATE_VALIDATION=true
-     * WARNING: Never enable this in production!
+     * Ignored when NODE_ENV=production, so a copied dev `.env` cannot disable validation there.
      */
     bypassTemplateValidation: boolean;
 };
@@ -197,7 +197,9 @@ export default () =>
             maxHttpBufferSize: parseInt(process.env.MAX_HTTP_BUFFER_SIZE, 10) || 1e7,
         } as SocketIoConfig,
         validation: {
-            bypassTemplateValidation: process.env.BYPASS_TEMPLATE_VALIDATION === "true",
+            bypassTemplateValidation:
+                process.env.BYPASS_TEMPLATE_VALIDATION === "true" &&
+                process.env.NODE_ENV !== "production",
         } as ValidationConfig,
         auth: {
             allowInsecureProviderDomain: process.env.AUTH_ALLOW_INSECURE_PROVIDER_DOMAIN === "true",
