@@ -1,4 +1,4 @@
-import sharp = require("sharp");
+import * as sharp from "sharp";
 
 /**
  * Generate a base64-encoded ThumbHash (a ~25-byte blurred preview) for an image.

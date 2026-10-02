@@ -1,6 +1,6 @@
 import { ImageFileDto } from "../../dto/ImageFileDto";
 import { ImageDto } from "../../dto/ImageDto";
-import sharp = require("sharp");
+import * as sharp from "sharp";
 import { v4 as uuidv4 } from "uuid";
 import { S3Service } from "../../s3/s3.service";
 import { ImageUploadDto } from "../../dto/ImageUploadDto";

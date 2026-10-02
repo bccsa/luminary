@@ -1,5 +1,5 @@
 import { registerDecorator } from "class-validator";
-import sharp = require("sharp");
+import * as sharp from "sharp";
 
 export function IsImage() {
     return function (object: object, propertyName: string) {
