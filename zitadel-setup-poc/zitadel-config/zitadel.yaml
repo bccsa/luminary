@@ -1,0 +1,27 @@
+Log:
+  Level: info
+
+# The issuer Zitadel advertises is derived from these three values, so they
+# have to match the host the app and API actually reach it on.
+ExternalDomain: auth.luminary.local
+ExternalPort: 443
+ExternalSecure: true
+
+TLS:
+  Enabled: false
+
+Database:
+  postgres:
+    Host: postgres
+    Port: 5432
+    Database: zitadel
+    MaxOpenConns: 20
+    MaxIdleConns: 10
+    User:
+      Username: zitadel
+      Password: zitadel
+      SSLMode: disable
+    Admin:
+      Username: postgres
+      Password: postgres
+      SSLMode: disable
