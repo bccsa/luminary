@@ -46,6 +46,10 @@
         "vue": "^3.5.13",
         "vue-router": "^4.2.5"
     },
+    "overrides": {
+        "@typescript-eslint/typescript-estree": { "minimatch": "^9.0.9" },
+        "editorconfig": { "minimatch": "^9.0.9" }
+    },
     "devDependencies": {
         "@headlessui/vue": "^1.7.17",
         "@heroicons/vue": "^2.1.5",
