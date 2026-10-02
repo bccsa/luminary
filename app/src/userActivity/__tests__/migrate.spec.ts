@@ -10,12 +10,7 @@ import {
     migrateHighlightsToUserActivity,
     migrateToUserActivity,
 } from "../migrate";
-import {
-    getUserActivity,
-    recordUserActivity,
-    removeUserActivity,
-    resolveUnresolvedParents,
-} from "../store";
+import { getUserActivity, recordUserActivity, removeUserActivity } from "../store";
 
 const range = (text: string, start = 0): HighlightRange => ({
     start,
@@ -96,19 +91,36 @@ describe("migration to userActivity", () => {
             expect(row!.payload).toEqual({ ranges: [range("hi")] });
         });
 
-        it("keeps a highlight whose Content document is not local, with no parent", async () => {
+        it("takes the post stored with the entry without a lookup", async () => {
             await db.setLuminaryInternals("highlights", {
-                "content-unsynced": { ranges: [range("hi")], updatedAt: 1234 },
+                "content-1": { ranges: [range("hi")], updatedAt: 1234, parentId: "post-1" },
             });
 
             expect(await migrateHighlightsToUserActivity()).toBe(1);
 
-            const row = await userActivityDb.userActivity.get("highlighted:content-unsynced");
-            expect(row!.parentId).toBeUndefined();
-            expect(row!.payload).toEqual({ ranges: [range("hi")] });
+            expect((await userActivityDb.userActivity.get("highlighted:content-1"))!.parentId).toBe(
+                "post-1",
+            );
+        });
+
+        it("skips an entry whose post cannot be found, leaving it to a later run", async () => {
+            await db.setLuminaryInternals("highlights", {
+                "content-unsynced": { ranges: [range("hi")], updatedAt: 1234 },
+            });
+
+            expect(await migrateHighlightsToUserActivity()).toBe(0);
+            expect(await userActivityDb.userActivity.count()).toBe(0);
+
+            // The source is untouched, so the entry is picked up once its document syncs.
+            await db.docs.bulkPut([contentDoc("content-unsynced", "post-9")]);
+            expect(await migrateHighlightsToUserActivity()).toBe(1);
+            expect(
+                (await userActivityDb.userActivity.get("highlighted:content-unsynced"))!.parentId,
+            ).toBe("post-9");
         });
 
         it("converts a legacy HTML snapshot to ranges and sorts it last", async () => {
+            await db.docs.bulkPut([contentDoc("content-legacy", "post-legacy")]);
             await db.setLuminaryInternals("highlights", {
                 "content-legacy": "<p>before <mark>old</mark> after</p>",
             });
@@ -122,6 +134,7 @@ describe("migration to userActivity", () => {
         });
 
         it("leaves the source in place and stays safe to re-run", async () => {
+            await db.docs.bulkPut([contentDoc("content-1", "post-1")]);
             await db.setLuminaryInternals("highlights", {
                 "content-1": { ranges: [range("hi")], updatedAt: 1234 },
             });
@@ -137,42 +150,6 @@ describe("migration to userActivity", () => {
             await db.setLuminaryInternals("highlights", { "content-1": { updatedAt: 1 } });
 
             expect(await migrateHighlightsToUserActivity()).toBe(0);
-        });
-    });
-
-    describe("resolveUnresolvedParents", () => {
-        it("fills in the post once its document arrives", async () => {
-            await db.setLuminaryInternals("highlights", {
-                "content-1": { ranges: [range("hi")], updatedAt: 1234 },
-            });
-            await migrateHighlightsToUserActivity();
-
-            await db.docs.bulkPut([contentDoc("content-1", "post-1")]);
-            expect(await resolveUnresolvedParents()).toBe(1);
-
-            expect((await userActivityDb.userActivity.get("highlighted:content-1"))!.parentId).toBe(
-                "post-1",
-            );
-        });
-
-        it("does nothing while the document is still missing", async () => {
-            await db.setLuminaryInternals("highlights", {
-                "content-1": { ranges: [range("hi")], updatedAt: 1234 },
-            });
-            await migrateHighlightsToUserActivity();
-
-            expect(await resolveUnresolvedParents()).toBe(0);
-            expect(await userActivityDb.userActivity.count()).toBe(1);
-        });
-
-        it("leaves resolved rows alone", async () => {
-            await db.docs.bulkPut([contentDoc("content-1", "post-1")]);
-            await db.setLuminaryInternals("highlights", {
-                "content-1": { ranges: [range("hi")], updatedAt: 1234 },
-            });
-            await migrateHighlightsToUserActivity();
-
-            expect(await resolveUnresolvedParents()).toBe(0);
         });
     });
 

@@ -1,5 +1,5 @@
 import { ref } from "vue";
-import { db } from "luminary-shared";
+import { db, type Uuid } from "luminary-shared";
 import { parseSavedRanges, type HighlightRange } from "@/util/highlightRanges";
 
 const HIGHLIGHTS_STORAGE_KEY = "highlights";
@@ -15,6 +15,8 @@ export const MAX_HIGHLIGHT_QUERY_LENGTH = 160;
 export type SavedHighlight = {
     ranges: HighlightRange[];
     updatedAt: number;
+    /** The post this translation belongs to. Absent on entries written before it was stored. */
+    parentId?: Uuid;
 };
 
 export type HighlightQuery = {
