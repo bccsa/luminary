@@ -479,22 +479,26 @@ export const nextInMediaQueue = () => {
     }
 };
 
-type Bookmark = {
+type Like = {
     id: Uuid;
     ts: number;
 };
 
 export type UserPreferences = {
-    bookmarks?: Array<Bookmark>;
+    likes?: Array<Like>;
     privacyPolicy?: { status: "accepted" | "necessaryOnly"; ts: number };
 };
+
+/** Installs predating the rename hold the same entries under `bookmarks`. */
+function readUserPreferences(): UserPreferences {
+    const { bookmarks, ...stored } = JSON.parse(localStorage.getItem("userPreferences") || "{}");
+    return bookmarks && !stored.likes ? { ...stored, likes: bookmarks } : stored;
+}
 
 /**
  * The user preferences as Vue ref.
  */
-export const userPreferencesAsRef = ref(
-    JSON.parse(localStorage.getItem("userPreferences") || "{}") as UserPreferences,
-);
+export const userPreferencesAsRef = ref(readUserPreferences());
 watch(userPreferencesAsRef.value, (newVal) => {
     localStorage.setItem("userPreferences", JSON.stringify({ ...newVal }));
 });

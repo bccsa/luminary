@@ -5,7 +5,7 @@ import { getNavigationItems } from "./navigationItems";
 import { useSearchOverlay } from "@/composables/useSearchOverlay";
 import { useDesktopSidebar } from "@/composables/useDesktopSidebar";
 import {
-    BookmarkIcon,
+    BuildingLibraryIcon,
     Cog6ToothIcon,
     SunIcon,
     LanguageIcon,
@@ -14,7 +14,7 @@ import {
     ChevronRightIcon,
 } from "@heroicons/vue/24/outline";
 import {
-    BookmarkIcon as FilledBookmarkIcon,
+    BuildingLibraryIcon as FilledBuildingLibraryIcon,
     Cog6ToothIcon as FilledCog6ToothIcon,
     UserIcon,
     ArrowRightEndOnRectangleIcon,
@@ -253,25 +253,25 @@ const handleLogin = () => {
             </span>
 
             <RouterLink
-                :to="{ name: 'bookmarks' }"
+                :to="{ name: 'library' }"
                 v-slot="{ isActive, href, navigate }"
                 custom
             >
                 <a
                     :href="href"
                     :class="navItemClasses(isActive)"
-                    :title="t('profile_menu.bookmarks')"
+                    :title="t('profile_menu.library')"
                     @click="navigate"
                 >
                     <component
-                        :is="isActive ? FilledBookmarkIcon : BookmarkIcon"
+                        :is="isActive ? FilledBuildingLibraryIcon : BuildingLibraryIcon"
                         :class="navIconClass"
                         aria-hidden="true"
                     />
                     <span
                         v-if="!collapsed"
                         :class="navLabelClass"
-                        >{{ t("profile_menu.bookmarks") }}</span
+                        >{{ t("profile_menu.library") }}</span
                     >
                 </a>
             </RouterLink>

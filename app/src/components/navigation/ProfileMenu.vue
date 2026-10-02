@@ -5,7 +5,7 @@ import {
     UserIcon,
     ArrowRightEndOnRectangleIcon,
     ArrowLeftEndOnRectangleIcon,
-    BookmarkIcon as FilledBookmarkIcon,
+    BuildingLibraryIcon as FilledBuildingLibraryIcon,
     Cog6ToothIcon as FilledCog6ToothIcon,
 } from "@heroicons/vue/20/solid";
 import { Bars3Icon as Bars3IconSolid } from "@heroicons/vue/24/solid";
@@ -15,7 +15,7 @@ import { computed, onMounted, ref, type ComputedRef } from "vue";
 import {
     ArrowDownTrayIcon,
     ShieldCheckIcon,
-    BookmarkIcon,
+    BuildingLibraryIcon,
     Bars3Icon,
     Cog6ToothIcon,
     LanguageIcon,
@@ -156,9 +156,9 @@ const commonNavigation: ComputedRef<NavigationItems[]> = computed(() => {
             },
         },
         {
-            name: t("profile_menu.bookmarks"),
-            icon: BookmarkIcon,
-            action: () => router.push({ name: "bookmarks" }),
+            name: t("profile_menu.library"),
+            icon: BuildingLibraryIcon,
+            action: () => router.push({ name: "library" }),
         },
     ];
 });
@@ -208,7 +208,7 @@ const userNavigation = computed(() => {
 const sidebarNavigation = computed(() =>
     userNavigation.value.filter(
         (item) =>
-            item.name !== t("profile_menu.settings") && item.name !== t("profile_menu.bookmarks"),
+            item.name !== t("profile_menu.settings") && item.name !== t("profile_menu.library"),
     ),
 );
 </script>
@@ -417,9 +417,9 @@ const sidebarNavigation = computed(() =>
                     <span class="text-sm font-medium">{{ t("menu.search") }}</span>
                 </span>
 
-                <!-- Bookmarks -->
+                <!-- Library -->
                 <RouterLink
-                    :to="{ name: 'bookmarks' }"
+                    :to="{ name: 'library' }"
                     v-slot="{ isActive, navigate }"
                     custom
                 >
@@ -436,11 +436,11 @@ const sidebarNavigation = computed(() =>
                         "
                     >
                         <component
-                            :is="isActive ? FilledBookmarkIcon : BookmarkIcon"
+                            :is="isActive ? FilledBuildingLibraryIcon : BuildingLibraryIcon"
                             class="h-5 w-5 flex-shrink-0"
                             aria-hidden="true"
                         />
-                        <span class="text-sm font-medium">{{ t("profile_menu.bookmarks") }}</span>
+                        <span class="text-sm font-medium">{{ t("profile_menu.library") }}</span>
                     </span>
                 </RouterLink>
 

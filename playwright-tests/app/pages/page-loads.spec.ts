@@ -1,7 +1,7 @@
 import type { Page, Response } from "@playwright/test";
 import { appPageTest as test, expect, expectPageReady, viewports } from "../../fixtures/pageLoads";
 
-const routes = ["/", "/explore", "/watch", "/search", "/bookmarks", "/settings"] as const;
+const routes = ["/", "/explore", "/watch", "/search", "/library", "/settings"] as const;
 type AppRoute = (typeof routes)[number];
 
 function expectSuccessfulResponse(response: Response | null) {
@@ -21,7 +21,7 @@ async function expectPageLoaded(page: Page, route: AppRoute) {
             await expect(main.getByRole("combobox")).toBeVisible();
             await expect(main.getByRole("combobox")).toBeEditable();
             break;
-        case "/bookmarks":
+        case "/library":
             await expect(main.getByRole("heading", { level: 1 })).toBeVisible();
             break;
         case "/settings":
