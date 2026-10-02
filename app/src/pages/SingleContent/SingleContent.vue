@@ -525,15 +525,15 @@ const is404 = computed(() => {
     return !content.value;
 });
 
-// Function to toggle bookmark for the current content
-const toggleBookmark = () => {
-    if (!userPreferencesAsRef.value.bookmarks) {
-        userPreferencesAsRef.value.bookmarks = [];
+// Function to toggle the like for the current content
+const toggleLike = () => {
+    if (!userPreferencesAsRef.value.likes) {
+        userPreferencesAsRef.value.likes = [];
     }
 
-    if (isBookmarked.value) {
-        // Remove from bookmarks
-        userPreferencesAsRef.value.bookmarks = userPreferencesAsRef.value.bookmarks.filter(
+    if (isLiked.value) {
+        // Remove from likes
+        userPreferencesAsRef.value.likes = userPreferencesAsRef.value.likes.filter(
             (b) => b.id != content.value?.parentId,
         );
         if (content.value) {
@@ -543,15 +543,15 @@ const toggleBookmark = () => {
             );
         }
     } else {
-        // Add to bookmarks
+        // Add to likes
         if (!content.value) return;
-        userPreferencesAsRef.value.bookmarks.push({ id: content.value.parentId, ts: Date.now() });
-        // Bookmarking is explicit, unambiguous intent — weight it above a plain open.
+        userPreferencesAsRef.value.likes.push({ id: content.value.parentId, ts: Date.now() });
+        // Liking is explicit, unambiguous intent — weight it above a plain open.
         recordAffinity(content.value.parentTags, affinityConfig.value.eventWeight.bookmark);
         useNotificationStore().addNotification({
-            id: "bookmark-added",
-            title: t("bookmarks.notification.title"),
-            description: t("bookmarks.notification.description"),
+            id: "like-added",
+            title: t("like.notification.title"),
+            description: t("like.notification.description"),
             state: "success",
             type: "toast",
             timeout: 5000,
@@ -559,9 +559,9 @@ const toggleBookmark = () => {
     }
 };
 
-// Check if the current content is bookmarked
-const isBookmarked = computed(() => {
-    return userPreferencesAsRef.value.bookmarks?.some((b) => b.id == content.value?.parentId);
+// Check if the current content is liked
+const isLiked = computed(() => {
+    return userPreferencesAsRef.value.likes?.some((b) => b.id == content.value?.parentId);
 });
 
 // The normal SPA sets the tab/window title imperatively (it has no @unhead plugin). The web
@@ -1035,7 +1035,7 @@ watch([isLoading, content, is404], async () => {
                             </div>
 
                             <div class="flex items-center gap-3">
-                                <!-- Bookmark Button -->
+                                <!-- Like Button -->
                                 <button
                                     v-if="
                                         !(
@@ -1043,17 +1043,17 @@ watch([isLoading, content, is404], async () => {
                                             content.parentPostType == PostType.Page
                                         )
                                     "
-                                    @click="toggleBookmark"
-                                    data-test="bookmark"
+                                    @click="toggleLike"
+                                    data-test="like"
                                     class="flex items-center transition-colors"
                                 >
                                     <component
-                                        :is="isBookmarked ? HeartIconSolid : HeartIconOutline"
+                                        :is="isLiked ? HeartIconSolid : HeartIconOutline"
                                         class="h-5 w-5"
                                         :class="{
-                                            'text-yellow-500': isBookmarked,
+                                            'text-yellow-500': isLiked,
                                             'text-zinc-400 hover:text-zinc-600 dark:text-slate-500 dark:hover:text-slate-200':
-                                                !isBookmarked,
+                                                !isLiked,
                                         }"
                                     />
                                 </button>

@@ -39,8 +39,10 @@ describe("Router", () => {
         });
 
         it("should redirect the old bookmarks path to the library", () => {
-            const bookmarksRoute = router.getRoutes().find((route) => route.path === "/bookmarks");
-            expect(bookmarksRoute?.redirect).toEqual({
+            const legacyBookmarksRoute = router
+                .getRoutes()
+                .find((route) => route.path === "/bookmarks");
+            expect(legacyBookmarksRoute?.redirect).toEqual({
                 name: "library",
                 query: { filter: "liked" },
             });
