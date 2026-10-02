@@ -77,9 +77,9 @@ export const routes: RouteRecordRaw[] = [
             title: "title.library",
         },
     },
-    // Kept so links and installed shortcuts to the old page still land somewhere useful.
+    // The old path is kept only so existing links and installed shortcuts still land somewhere useful.
     {
-        path: "/library",
+        path: "/bookmarks",
         redirect: { name: "library", query: { filter: "liked" } },
     },
     // Note that this route should always come after all defined routes,

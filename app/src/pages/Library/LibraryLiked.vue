@@ -11,7 +11,7 @@ const { t } = useI18n();
 // Sorted on a copy: `sort` mutates in place, and the stored preferences are watched —
 // reordering them here would write localStorage on every re-evaluation.
 const liked = computed(() =>
-    [...(userPreferencesAsRef.value.bookmarks ?? [])].sort((a, b) => b.ts - a.ts).map((b) => b.id),
+    [...(userPreferencesAsRef.value.likes ?? [])].sort((a, b) => b.ts - a.ts).map((b) => b.id),
 );
 
 const content = useContentQuery(() => [{ parentId: { $in: liked.value } }], {

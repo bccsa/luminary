@@ -1,11 +1,12 @@
 import "fake-indexeddb/auto";
 import { describe, it, beforeEach, expect } from "vitest";
 import { db, DocType, type ContentDto } from "luminary-shared";
+import type { HighlightRange } from "@/util/highlightRanges";
 
 import { userPreferencesAsRef } from "@/globalConfig";
 import { userActivityDb } from "../db";
 import {
-    migrateBookmarksToUserActivity,
+    migrateLikesToUserActivity,
     migrateHighlightsToUserActivity,
     migrateToUserActivity,
 } from "../migrate";
@@ -15,6 +16,13 @@ import {
     removeUserActivity,
     resolveUnresolvedParents,
 } from "../store";
+
+const range = (text: string, start = 0): HighlightRange => ({
+    start,
+    end: start + text.length,
+    color: "yellow",
+    text,
+});
 
 const contentDoc = (_id: string, parentId: string) =>
     ({
@@ -30,17 +38,17 @@ describe("migration to userActivity", () => {
         await userActivityDb.userActivity.clear();
         await db.docs.clear();
         await db.setLuminaryInternals("highlights", undefined);
-        delete userPreferencesAsRef.value.bookmarks;
+        delete userPreferencesAsRef.value.likes;
     });
 
-    describe("bookmarks", () => {
-        it("moves bookmarks in as liked rows keyed on the post", async () => {
-            userPreferencesAsRef.value.bookmarks = [
+    describe("likes", () => {
+        it("moves stored likes in as liked rows keyed on the post", async () => {
+            userPreferencesAsRef.value.likes = [
                 { id: "post-1", ts: 1000 },
                 { id: "post-2", ts: 2000 },
             ];
 
-            expect(await migrateBookmarksToUserActivity()).toBe(2);
+            expect(await migrateLikesToUserActivity()).toBe(2);
 
             const liked = await getUserActivity("liked");
             expect(liked.map((row) => row.parentId)).toEqual(["post-2", "post-1"]);
@@ -49,21 +57,21 @@ describe("migration to userActivity", () => {
         });
 
         it("clears the source so a second run is a no-op", async () => {
-            userPreferencesAsRef.value.bookmarks = [{ id: "post-1", ts: 1000 }];
+            userPreferencesAsRef.value.likes = [{ id: "post-1", ts: 1000 }];
 
-            await migrateBookmarksToUserActivity();
+            await migrateLikesToUserActivity();
 
-            expect(userPreferencesAsRef.value.bookmarks).toBeUndefined();
-            expect(await migrateBookmarksToUserActivity()).toBe(0);
+            expect(userPreferencesAsRef.value.likes).toBeUndefined();
+            expect(await migrateLikesToUserActivity()).toBe(0);
             expect(await userActivityDb.userActivity.count()).toBe(1);
         });
 
         it("does not revive a like the user has since removed", async () => {
             await recordUserActivity({ type: "liked", parentId: "post-1" });
             await removeUserActivity({ type: "liked", parentId: "post-1" });
-            userPreferencesAsRef.value.bookmarks = [{ id: "post-1", ts: 1000 }];
+            userPreferencesAsRef.value.likes = [{ id: "post-1", ts: 1000 }];
 
-            await migrateBookmarksToUserActivity();
+            await migrateLikesToUserActivity();
 
             expect(await getUserActivity("liked")).toEqual([]);
         });
@@ -73,7 +81,7 @@ describe("migration to userActivity", () => {
         it("resolves the post from the Content document", async () => {
             await db.docs.bulkPut([contentDoc("content-1", "post-1")]);
             await db.setLuminaryInternals("highlights", {
-                "content-1": { html: "<mark>hi</mark>", updatedAt: 1234 },
+                "content-1": { ranges: [range("hi")], updatedAt: 1234 },
             });
 
             expect(await migrateHighlightsToUserActivity()).toBe(1);
@@ -85,36 +93,37 @@ describe("migration to userActivity", () => {
                 parentId: "post-1",
                 updatedTimeUtc: 1234,
             });
-            expect(row!.payload).toEqual({ html: "<mark>hi</mark>" });
+            expect(row!.payload).toEqual({ ranges: [range("hi")] });
         });
 
         it("keeps a highlight whose Content document is not local, with no parent", async () => {
             await db.setLuminaryInternals("highlights", {
-                "content-unsynced": { html: "<mark>hi</mark>", updatedAt: 1234 },
+                "content-unsynced": { ranges: [range("hi")], updatedAt: 1234 },
             });
 
             expect(await migrateHighlightsToUserActivity()).toBe(1);
 
             const row = await userActivityDb.userActivity.get("highlighted:content-unsynced");
             expect(row!.parentId).toBeUndefined();
-            expect(row!.payload).toEqual({ html: "<mark>hi</mark>" });
+            expect(row!.payload).toEqual({ ranges: [range("hi")] });
         });
 
-        it("reads the legacy string shape and sorts it last", async () => {
+        it("converts a legacy HTML snapshot to ranges and sorts it last", async () => {
             await db.setLuminaryInternals("highlights", {
-                "content-legacy": "<mark>old</mark>",
+                "content-legacy": "<p>before <mark>old</mark> after</p>",
             });
 
             await migrateHighlightsToUserActivity();
 
             const row = await userActivityDb.userActivity.get("highlighted:content-legacy");
             expect(row!.updatedTimeUtc).toBe(0);
-            expect(row!.payload).toEqual({ html: "<mark>old</mark>" });
+            expect(row!.payload!.ranges).toHaveLength(1);
+            expect(row!.payload!.ranges[0].text).toBe("old");
         });
 
         it("leaves the source in place and stays safe to re-run", async () => {
             await db.setLuminaryInternals("highlights", {
-                "content-1": { html: "<mark>hi</mark>", updatedAt: 1234 },
+                "content-1": { ranges: [range("hi")], updatedAt: 1234 },
             });
 
             await migrateHighlightsToUserActivity();
@@ -124,7 +133,7 @@ describe("migration to userActivity", () => {
             expect(await userActivityDb.userActivity.count()).toBe(1);
         });
 
-        it("ignores entries carrying no highlight html", async () => {
+        it("ignores entries carrying no highlight at all", async () => {
             await db.setLuminaryInternals("highlights", { "content-1": { updatedAt: 1 } });
 
             expect(await migrateHighlightsToUserActivity()).toBe(0);
@@ -134,7 +143,7 @@ describe("migration to userActivity", () => {
     describe("resolveUnresolvedParents", () => {
         it("fills in the post once its document arrives", async () => {
             await db.setLuminaryInternals("highlights", {
-                "content-1": { html: "<mark>hi</mark>", updatedAt: 1234 },
+                "content-1": { ranges: [range("hi")], updatedAt: 1234 },
             });
             await migrateHighlightsToUserActivity();
 
@@ -148,7 +157,7 @@ describe("migration to userActivity", () => {
 
         it("does nothing while the document is still missing", async () => {
             await db.setLuminaryInternals("highlights", {
-                "content-1": { html: "<mark>hi</mark>", updatedAt: 1234 },
+                "content-1": { ranges: [range("hi")], updatedAt: 1234 },
             });
             await migrateHighlightsToUserActivity();
 
@@ -159,7 +168,7 @@ describe("migration to userActivity", () => {
         it("leaves resolved rows alone", async () => {
             await db.docs.bulkPut([contentDoc("content-1", "post-1")]);
             await db.setLuminaryInternals("highlights", {
-                "content-1": { html: "<mark>hi</mark>", updatedAt: 1234 },
+                "content-1": { ranges: [range("hi")], updatedAt: 1234 },
             });
             await migrateHighlightsToUserActivity();
 
@@ -168,10 +177,10 @@ describe("migration to userActivity", () => {
     });
 
     it("runs both passes together", async () => {
-        userPreferencesAsRef.value.bookmarks = [{ id: "post-1", ts: 1000 }];
+        userPreferencesAsRef.value.likes = [{ id: "post-1", ts: 1000 }];
         await db.docs.bulkPut([contentDoc("content-1", "post-2")]);
         await db.setLuminaryInternals("highlights", {
-            "content-1": { html: "<mark>hi</mark>", updatedAt: 1234 },
+            "content-1": { ranges: [range("hi")], updatedAt: 1234 },
         });
 
         await migrateToUserActivity();

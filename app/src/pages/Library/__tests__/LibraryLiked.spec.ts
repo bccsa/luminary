@@ -40,9 +40,7 @@ describe("LibraryLiked", () => {
     });
 
     it("displays liked content", async () => {
-        userPreferencesAsRef.value.bookmarks = [
-            { id: mockEnglishContentDto.parentId, ts: Date.now() },
-        ];
+        userPreferencesAsRef.value.likes = [{ id: mockEnglishContentDto.parentId, ts: Date.now() }];
 
         const wrapper = mount(LibraryLiked);
 
@@ -52,7 +50,7 @@ describe("LibraryLiked", () => {
     });
 
     it("displays a message when nothing is liked", async () => {
-        userPreferencesAsRef.value.bookmarks = [];
+        userPreferencesAsRef.value.likes = [];
         const wrapper = mount(LibraryLiked);
 
         expect(wrapper.text()).toContain("Posts you like will show up here.");
