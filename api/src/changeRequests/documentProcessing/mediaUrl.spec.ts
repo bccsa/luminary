@@ -1,4 +1,10 @@
-import { isInOurStorage, isBucketRelative, toAbsoluteMediaUrl, toStoredMediaUrl } from "./mediaUrl";
+import {
+    isMediaUrlAllowed,
+    isInOurStorage,
+    isBucketRelative,
+    toAbsoluteMediaUrl,
+    toStoredMediaUrl,
+} from "./mediaUrl";
 
 const BASE = "https://cdn.example.com/media";
 const REL = "/c5829f07-4ba8-42ed-a449-80d83e6c0b53/master.m3u8";
@@ -101,5 +107,53 @@ describe("isInOurStorage", () => {
 
     it("is false for no URL at all", () => {
         expect(isInOurStorage(undefined, BUCKETS)).toBe(false);
+    });
+});
+
+describe("isMediaUrlAllowed", () => {
+    const publicUrls = ["https://cdn.example.com/media"];
+
+    it("allows anything when external URLs are allowed", () => {
+        expect(isMediaUrlAllowed("https://evil.example/x.m3u8", undefined, publicUrls, true)).toBe(
+            true,
+        );
+    });
+
+    it("rejects a new external URL when external URLs are not allowed", () => {
+        expect(isMediaUrlAllowed("https://evil.example/x.m3u8", undefined, publicUrls, false)).toBe(
+            false,
+        );
+    });
+
+    it("allows bucket-relative URLs and URLs under a configured bucket", () => {
+        expect(isMediaUrlAllowed("/a/master.m3u8", undefined, publicUrls, false)).toBe(true);
+        expect(
+            isMediaUrlAllowed(
+                "https://cdn.example.com/media/a/master.m3u8",
+                undefined,
+                publicUrls,
+                false,
+            ),
+        ).toBe(true);
+    });
+
+    it("does not let a look-alike host claim a bucket's prefix", () => {
+        expect(
+            isMediaUrlAllowed(
+                "https://cdn.example.com/media-archive/a.m3u8",
+                undefined,
+                publicUrls,
+                false,
+            ),
+        ).toBe(false);
+    });
+
+    it("keeps already-stored external media editable when its URL is unchanged", () => {
+        const url = "https://old.example/x.m3u8";
+        expect(isMediaUrlAllowed(url, url, publicUrls, false)).toBe(true);
+    });
+
+    it("treats an empty URL as allowed", () => {
+        expect(isMediaUrlAllowed(undefined, undefined, publicUrls, false)).toBe(true);
     });
 });
