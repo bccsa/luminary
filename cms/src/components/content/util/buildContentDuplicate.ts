@@ -13,8 +13,9 @@ import * as _ from "lodash";
  * stripped `_rev`, drafted + "(Copy)"/"-copy"-suffixed children. Returns new objects;
  * the inputs are not mutated.
  *
- * `duplicateImage` carries over a copyable image collection — only possible when the
- * source actually has an image bucket; otherwise the collection is cleared.
+ * `duplicateImage` flags the clone for a server-side image copy. The clone inherits the
+ * source's `imageBucketId` and file references, which is everything the API needs to copy
+ * the files across.
  */
 export function buildContentDuplicate(
     parent: ContentParentDto,
@@ -27,14 +28,11 @@ export function buildContentDuplicate(
     if (clonedParent.type === DocType.Tag) (clonedParent as TagDto).taggedDocs = [];
 
     if (clonedParent.imageData) {
-        const imageData = clonedParent.imageData as typeof clonedParent.imageData & {
-            duplicate?: boolean;
-        };
-        delete clonedParent.imageData.uploadData;
+        const imageData = clonedParent.imageData;
+        delete imageData.uploadData;
         delete imageData.duplicate;
-        if (options.duplicateImage && imageData.fileCollections?.length > 0) {
-            if (parent.imageBucketId) imageData.duplicate = true;
-            else imageData.fileCollections = [];
+        if (imageData.fileCollections?.length > 0 && options.duplicateImage) {
+            imageData.duplicate = true;
         } else if (imageData.fileCollections) {
             imageData.fileCollections = [];
         }
