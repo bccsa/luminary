@@ -1,10 +1,10 @@
 import { cmsPersonaTest as test, expect, providerConfig } from "../../fixtures/persona";
 import { readStoredSession } from "../../fixtures/idp";
 import { waitForAccessMap } from "../../fixtures/readiness";
-import type { WebSocketRoute } from "@playwright/test";
+import { useShortLivedLiveStream } from "../../fixtures/liveStream";
 
 /**
- * The token only turns bad on the wire at a socket *reconnect* — the client
+ * The token only turns bad on the wire at a live-stream *reconnect* — the client
  * never refreshes on its own while the tab sits open (`automaticSilentRenew`
  * is off). That is the situation the API's `token_invalid` rejection and the
  * client's `connect_error` recovery exist for, and this covers it live: stale
@@ -19,56 +19,42 @@ test.describe("CMS quiet token recovery", () => {
         const provider = providerConfig(idp.providers.primary);
         const persona = await loginAs("editor1", { expiresInSeconds: 12 });
 
-        // Pass socket traffic through untouched, but keep the server-side handle
-        // so the test can close the connection the way a network drop would.
-        let serverSide: WebSocketRoute | undefined;
-        await page.routeWebSocket(/\/socket\.io\//, (ws) => {
-            serverSide = ws.connectToServer();
-        });
+        // Live streams end shortly after opening, the way a network drop would
+        await useShortLivedLiveStream(page);
 
         await page.goto("/");
         const accessMap = await waitForAccessMap(page);
         expect(Object.keys(accessMap)).toEqual(expect.arrayContaining(persona.reaches));
 
-        // Wait out the token's life. Polled from Node so the epoch comparison
-        // uses one clock for both the stored expiry and the deadline.
-        const expiryDeadline = Date.now() + 30_000;
-        for (;;) {
-            const session = await readStoredSession(page, provider);
-            if (session && session.expiresAt * 1000 + 2_000 <= Date.now()) break;
-            if (Date.now() >= expiryDeadline) throw new Error("Token never reached its expiry");
-            await page.waitForTimeout(250);
-        }
         const stale = await readStoredSession(page, provider);
-        if (!serverSide || !stale) {
-            throw new Error("socket.io never opened a WebSocket; the drop cannot be simulated");
-        }
-        const dropEpochSeconds = Math.floor(Date.now() / 1000);
-
-        await serverSide.close();
+        if (!stale) throw new Error("No stored session to compare against");
 
         // The refresh itself is the proof of the chain: with automaticSilentRenew
         // off and the token still valid at boot, the connect_error handler is the
-        // only code path that can renew the session from here.
-        const recoveryDeadline = Date.now() + 20_000;
+        // only code path that can renew the session from here. Reconnects are
+        // ~1s apart, so the refresh can land right after expiry; the stale token
+        // is therefore not observable and the new one is polled for directly.
+        const recoveryDeadline = Date.now() + 45_000;
         let recovered: Awaited<ReturnType<typeof readStoredSession>> = null;
         for (;;) {
             recovered = await readStoredSession(page, provider);
             if (
                 recovered &&
                 recovered.accessToken !== stale.accessToken &&
-                recovered.expiresAt >= dropEpochSeconds + 60
+                recovered.expiresAt >= stale.expiresAt + 60
             ) {
                 break;
             }
             if (Date.now() >= recoveryDeadline) {
                 throw new Error(
                     "Session was not silently refreshed after the rejected reconnect " +
-                        `(stored expiry ${recovered?.expiresAt ?? "none"}, drop at ${dropEpochSeconds})`,
+                        `(stored expiry ${recovered?.expiresAt ?? "none"}, original ${stale.expiresAt})`,
                 );
             }
             await page.waitForTimeout(250);
         }
+        // Renewing before the original token expired would not exercise the rejection path
+        expect(Date.now()).toBeGreaterThanOrEqual(stale.expiresAt * 1000);
 
         // Quiet means the user keeps their session and never sees re-login UI:
         // the fresh handshake must have replaced the access map, not purged it,

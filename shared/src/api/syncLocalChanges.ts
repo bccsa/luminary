@@ -1,5 +1,5 @@
 import { watch, type Ref } from "vue";
-import { isConnected } from "../socket/socketio";
+import { isConnected } from "../liveStream/liveStream";
 import { getRest } from "./RestApi";
 import { ChangeReqAckDto, LocalChangeDto } from "../types";
 import { db } from "../db/database";

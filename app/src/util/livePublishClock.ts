@@ -1,7 +1,7 @@
 import {
     DocType,
     PublishStatus,
-    getSocket,
+    getLiveStream,
     type ApiDataResponseDto,
     type ContentDto,
 } from "luminary-shared";
@@ -23,7 +23,7 @@ import { bumpSessionNow, sessionNow } from "./sessionNow";
  * across reconnects, so a single registration is sufficient.
  */
 export function initLivePublishClock(): void {
-    getSocket().on("data", (data: ApiDataResponseDto) => {
+    getLiveStream().on("data", (data: ApiDataResponseDto) => {
         const now = Date.now();
         for (const doc of data.docs) {
             if (doc.type !== DocType.Content) continue;

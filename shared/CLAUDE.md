@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this package is
 
-`luminary-shared` is a Vue 3 frontend library that consumers (the Luminary APP and CMS) install to talk to the Luminary sync API. It owns: IndexedDB (Dexie) storage, REST + Socket.io transport, document syncing, an offline FTS search engine, permissions/ACL evaluation, and a set of Vue composables (`useDexieLiveQuery`, `useHybridQuery`, `toEditable`, …) that bridge IndexedDB ↔ Vue reactivity.
+`luminary-shared` is a Vue 3 frontend library that consumers (the Luminary APP and CMS) install to talk to the Luminary sync API. It owns: IndexedDB (Dexie) storage, REST + live-update (SSE) transport, document syncing, an offline FTS search engine, permissions/ACL evaluation, and a set of Vue composables (`useDexieLiveQuery`, `useHybridQuery`, `toEditable`, …) that bridge IndexedDB ↔ Vue reactivity.
 
 This is published to npm as `luminary-shared`. The bundle is the lib output from `src/index.ts`; everything callers can use is re-exported there.
 
@@ -50,9 +50,9 @@ in that consumer's own docs, not here.)
 
 ### Entry point and initialization
 
-`src/luminary.ts` exposes a single `init(config)` that, in order, sets the shared config, opens Dexie (`initDatabase`), warms the worker pool (`warmWorkers`, unless `useWorkers` is `false`), creates the Socket.io connection (`getSocket`), and starts the REST sync (`getRest` + `initSync`). Calling code does this once at app startup. The exported surface area for consumers is everything in `src/index.ts`.
+`src/luminary.ts` exposes a single `init(config)` that, in order, sets the shared config, opens Dexie (`initDatabase`), warms the worker pool (`warmWorkers`, unless `useWorkers` is `false`), creates the live update stream (`getLiveStream`), and starts the REST sync (`getRest` + `initSync`). Calling code does this once at app startup. The exported surface area for consumers is everything in `src/index.ts`.
 
-`SharedConfig` (`src/config.ts`) is the single configuration object: `cms` flag, app-specific `docsIndex` string appended to the shared Dexie index, `apiUrl`, a `Ref<Uuid[]>` of active language IDs (used by Socket.io and FTS filtering), and `useWorkers` (default `true`) to keep a consumer single-threaded. What gets synced is owned by the sync engine (the consumer's `sync()` calls), not declared in config.
+`SharedConfig` (`src/config.ts`) is the single configuration object: `cms` flag, app-specific `docsIndex` string appended to the shared Dexie index, `apiUrl`, a `Ref<Uuid[]>` of active language IDs (used by FTS filtering), and `useWorkers` (default `true`) to keep a consumer single-threaded. What gets synced is owned by the sync engine (the consumer's `sync()` calls), not declared in config.
 
 ### Data layer — `src/db/database.ts`
 
@@ -80,15 +80,15 @@ The sync system is documented in detail in `src/api/sync/README.md`. Read it bef
 
 `src/api/syncLocalChanges.ts` drains the `localChanges` table to the API and applies ack/reject responses via `db.applyLocalChangeAck`.
 
-### Socket.io live updates — `src/socket/socketio.ts`
+### Live updates (SSE) — `src/liveStream/liveStream.ts`
 
-The socket emits `clientConfigReq` on connect (the connect handshake — declares the `cms` mode and any connect-time `docTypes`), then pushes `data` events. Incoming docs are filtered against `syncList` and `appLanguageIdsAsRef` before being bulk-put into Dexie. `accessMap` and `maxUploadFileSize` are received via a `clientConfig` event. Auth failures (`err.message === "auth_failed"`) disable reconnection so a stale token doesn't loop. (`clientConfigReq` was formerly named `joinSocketGroups`, which the server still accepts as a deprecated alias — ADR 0005. The whole Socket.io live-update transport is slated to migrate to Server-Sent Events (SSE) when SSE is implemented.)
+Live updates arrive over one Server-Sent Events stream (`GET /live?cms=0|1`), read with `fetch` so the auth headers (`Authorization`, `x-auth-provider-id`) can be sent. The `cms` flag selects CmsView-scoped delivery (drafts/expired in full) versus published-only. The server pushes every doc type the user's accessMap permits; the first event is `clientConfig` (`accessMap`, `maxUploadFileSize`), after which `isConnected` becomes true, then `data` events follow. Incoming docs are filtered against `syncList` and `appLanguageIdsAsRef` before being bulk-put into Dexie. A 401 is surfaced as a `connectError` event carrying `{ type: "auth_failed", reason }` and stops retrying so a stale token doesn't loop; other failures retry with backoff.
 
 `isConnected` is a Vue ref that drives `HybridQuery`'s online/offline behavior.
 
 ### Permissions — `src/permissions/permissions.ts`
 
-`accessMap` is a `useLocalStorage` ref of `{ groupId: { docType: { permission: boolean } } }`. `verifyAccess(groups, docType, permission, "any"|"all")` is the lookup; `getAccessibleGroups(permission)` inverts it to per-docType group lists (used by `deleteRevoked`). The map is replaced wholesale by the server's `clientConfig` socket event.
+`accessMap` is a `useLocalStorage` ref of `{ groupId: { docType: { permission: boolean } } }`. `verifyAccess(groups, docType, permission, "any"|"all")` is the lookup; `getAccessibleGroups(permission)` inverts it to per-docType group lists (used by `deleteRevoked`). The map is replaced wholesale by the server's `clientConfig` event.
 
 ### Vue reactivity utilities — `src/util/`
 

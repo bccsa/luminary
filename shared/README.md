@@ -2,7 +2,7 @@
 
 `luminary-shared` contains the essential building blocks for building an
 offline-first front-end against the Luminary sync API. It owns IndexedDB
-(Dexie) storage, REST + Socket.io transport, document syncing, an offline
+(Dexie) storage, REST + live-update (SSE) transport, document syncing, an offline
 full-text search engine, permission/ACL evaluation, and a set of Vue 3
 composables that bridge IndexedDB ↔ Vue reactivity.
 
@@ -40,7 +40,7 @@ so a type/signature change is picked up after a rebuild; behavioural changes hot
 ## Getting started
 
 A consumer calls `init(config)` once at startup. It sets the shared config,
-opens the Dexie database, and brings up the Socket.io connection, REST sync, and
+opens the Dexie database, and brings up the live update stream, REST sync, and
 query layer.
 
 ```ts
@@ -56,7 +56,7 @@ await init({
 
 | Export                                                | Description                                                                                                              |
 | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `init(config)`                                        | One-shot startup: config → database → socket → REST sync → query layer.                                                  |
+| `init(config)`                                        | One-shot startup: config → database → live stream → REST sync → query layer.                                             |
 | `SharedConfig`                                        | The single configuration object (`cms` flag, `apiUrl`, `docsIndex`, active-language ref, content cutoff, retention TTL). |
 | `initConfig(config)`                                  | Set/replace the shared config (called by `init`).                                                                        |
 | `getContentPublishDateCutoff()`                       | The configured content `publishDate` cutoff — single source of truth bounding sync depth and query routing.              |
@@ -86,7 +86,7 @@ The preferred way to read data. Pick the layer by where the data lives:
 | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `db`                                                        | The Dexie database singleton (available after `initDatabase()`). Key methods: `db.upsert()` (write + queue for upload), `db.bulkPut()` (apply incoming docs incl. `DeleteCmd` resolution), `db.deleteRevoked()`, `db.deleteExpired()`, `db.purge()`, `db.validateDeleteCommand()`. |
 | `initDatabase()`, `getDbVersion()`                          | Open the database; read the current (auto-bumped) schema version.                                                                                                                                                                                                                  |
-| `isSyncableDoc(doc)`                                        | The single "may this doc touch IndexedDB?" gate, derived from `syncList`. Used by the socket feed and offline persistence.                                                                                                                                                         |
+| `isSyncableDoc(doc)`                                        | The single "may this doc touch IndexedDB?" gate, derived from `syncList`. Used by the live feed and offline persistence.                                                                                                                                                           |
 | `touchRetention`, `flushRetention`, `evictStaleBelowCutoff` | Retention bookkeeping for offline-persisted below-cutoff content (TTL-based keep-alive + eviction).                                                                                                                                                                                |
 
 ### Sync — `src/api/sync/`
@@ -102,23 +102,21 @@ Autonomous, incremental backwards-in-time sync per `(type, memberOf, languages)`
 
 → [Sync system docs](src/api/sync/README.md)
 
-### Transport — `src/socket/`, `src/api/`
+### Transport — `src/liveStream/`, `src/api/`
 
-The socket client reports the configured **`cms` mode** (`config.cms`) to the server in its
-`clientConfigReq` handshake (formerly `joinSocketGroups`, which the server still accepts as a
-deprecated alias). The server uses it to scope which live-update rooms the connection joins, so a
+The live stream client reports the configured **`cms` mode** (`config.cms`) to the server when it
+opens the stream (`GET /live?cms=0|1`). The server uses it to scope what the connection receives, so a
 CMS-mode consumer receives CMS-scoped documents (including drafts and expired content) while a
 default consumer receives only published documents (expired content arriving as a body-less cleanup
 signal). The mode is purely a request — the server enforces the corresponding permission.
 
-| Export                                                    | Description                                                              |
-| --------------------------------------------------------- | ------------------------------------------------------------------------ |
-| `getSocket()`                                             | The Socket.io client singleton (change-feed transport + `clientConfig`). |
-| `isConnected`                                             | Reactive online/offline ref driving deferred API calls.                  |
-| `maxUploadFileSize`                                       | Server-provided upload limit (reactive).                                 |
-| `subscribeRooms`, `setBaseRooms`, `initRoomSubscriptions` | Manage Socket.io room membership for synced and on-demand doc types.     |
-| `getRest()`                                               | The REST client singleton (sync pulls + local-change pushes).            |
-| `HttpReq`, `setCustomHeader`, `removeCustomHeader`        | HTTP service class and custom-header controls (e.g. auth).               |
+| Export                                             | Description                                                         |
+| -------------------------------------------------- | ------------------------------------------------------------------- |
+| `getLiveStream()`                                  | The live stream singleton (change-feed transport + `clientConfig`). |
+| `isConnected`                                      | Reactive online/offline ref driving deferred API calls.             |
+| `maxUploadFileSize`                                | Server-provided upload limit (reactive).                            |
+| `getRest()`                                        | The REST client singleton (sync pulls + local-change pushes).       |
+| `HttpReq`, `setCustomHeader`, `removeCustomHeader` | HTTP service class and custom-header controls (e.g. auth).          |
 
 ### Permissions — `src/permissions/`
 

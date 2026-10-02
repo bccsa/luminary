@@ -1,6 +1,6 @@
 import { getRest } from "../api/RestApi";
 import { config, getContentPublishDateCutoff } from "../config";
-import { isConnected } from "../socket/socketio";
+import { isConnected } from "../liveStream/liveStream";
 import { OPEN_MIN } from "../api/sync/utils";
 import type { ContentDto } from "../types";
 import type { FtsSearchOptions, FtsSearchResult } from "./types";

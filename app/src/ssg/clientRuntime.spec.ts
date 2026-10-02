@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // comments), not their individual behavior, which is covered by their own specs.
 
 vi.mock("luminary-shared", () => ({
-    getSocket: vi.fn(),
+    getLiveStream: vi.fn(),
     init: vi.fn(),
     warmMangoCaches: vi.fn(),
 }));
@@ -26,7 +26,7 @@ vi.mock("@/sync", () => ({
 }));
 
 const { initSsgClient } = await import("./clientRuntime");
-const { getSocket, init, warmMangoCaches } = await import("luminary-shared");
+const { getLiveStream, init, warmMangoCaches } = await import("luminary-shared");
 const { apiUrl, appLanguageIdsAsRef, initLanguage } = await import("@/globalConfig");
 const { APP_DOCS_INDEX } = await import("@/docsIndex");
 const { initAuthLangSync, initSync } = await import("@/sync");
@@ -36,9 +36,9 @@ describe("clientRuntime.initSsgClient", () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
-        vi.mocked(getSocket).mockReturnValue({
+        vi.mocked(getLiveStream).mockReturnValue({
             connect,
-        } as unknown as ReturnType<typeof getSocket>);
+        } as unknown as ReturnType<typeof getLiveStream>);
         vi.mocked(init).mockResolvedValue(undefined);
         vi.mocked(initLanguage).mockResolvedValue(undefined);
     });
