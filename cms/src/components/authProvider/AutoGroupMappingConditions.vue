@@ -428,7 +428,7 @@ function updateConditionValues(mappingIdx: number, conditionIdx: number, value: 
                                     :disabled="disabled"
                                     class="w-full min-w-0 sm:flex-1"
                                     @update:model-value="
-                                        updateConditionClaimPath(aIdx, cIdx, $event)
+                                        updateConditionClaimPath(aIdx, cIdx, $event as string)
                                     "
                                 />
                                 <span class="shrink-0 text-[11px] font-semibold text-zinc-400"
@@ -441,7 +441,7 @@ function updateConditionValues(mappingIdx: number, conditionIdx: number, value: 
                                     placeholder="required value"
                                     :disabled="disabled"
                                     class="w-full min-w-0 sm:flex-1"
-                                    @update:model-value="updateConditionValue(aIdx, cIdx, $event)"
+                                    @update:model-value="updateConditionValue(aIdx, cIdx, $event as string)"
                                 />
                             </template>
 
@@ -455,7 +455,7 @@ function updateConditionValues(mappingIdx: number, conditionIdx: number, value: 
                                         :disabled="disabled"
                                         class="min-w-0 flex-1"
                                         @update:model-value="
-                                            updateConditionClaimPath(aIdx, cIdx, $event)
+                                            updateConditionClaimPath(aIdx, cIdx, $event as string)
                                         "
                                     />
                                     <span class="shrink-0 text-[11px] font-semibold text-zinc-400"
@@ -469,7 +469,7 @@ function updateConditionValues(mappingIdx: number, conditionIdx: number, value: 
                                     placeholder="value1, value2"
                                     :disabled="disabled"
                                     class="w-full min-w-0 sm:flex-1"
-                                    @update:model-value="updateConditionValues(aIdx, cIdx, $event)"
+                                    @update:model-value="updateConditionValues(aIdx, cIdx, $event as string)"
                                 />
                             </template>
 

@@ -99,7 +99,7 @@ describe("GroupSelector", () => {
 
     it("Updates the passed array when selecting a group", async () => {
         const groups: string[] = [];
-        const wrapper = mount(GroupSelector, {
+        const wrapper: any = mount(GroupSelector, {
             props: {
                 groups,
                 "onUpdate:groups": (e: any) => wrapper.setProps({ groups: e }),
@@ -108,7 +108,6 @@ describe("GroupSelector", () => {
             global: { stubs: { Teleport: true } },
         });
 
-        //@ts-expect-error
         wrapper.vm.availableGroups = await db.docs.toArray();
 
         // open the edit group modal

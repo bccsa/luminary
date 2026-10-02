@@ -141,7 +141,7 @@ watch(
         <LInput
             name="hlsKey"
             :modelValue="hlsKey"
-            @update:modelValue="onKeyInput"
+            @update:modelValue="(v) => onKeyInput(v as string)"
             :icon="KeyIcon"
             :placeholder="hasStoredKey ? 'Enter new encryption key' : 'Encryption key (hex)'"
             :disabled="disabled"

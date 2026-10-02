@@ -300,7 +300,7 @@ defineExpose({
                 label="Storage"
                 placeholder="Select storage bucket"
                 :disabled="disabled"
-                @update:modelValue="handleBucketChange"
+                @update:modelValue="(v) => handleBucketChange(v as string)"
                 class="text-sm"
             />
             <p

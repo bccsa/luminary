@@ -237,7 +237,7 @@ const handleRevert = () => {
                         @update:model-value="
                             (v) => {
                                 if (!provider) return;
-                                const trimmed = (v ?? '').trim();
+                                const trimmed = String(v ?? '').trim();
                                 provider.sortIndex = trimmed === '' ? undefined : Number(trimmed);
                             }
                         "
