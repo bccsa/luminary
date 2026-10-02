@@ -147,10 +147,8 @@ describe("RelatedContent", () => {
         });
     });
 
-    // Guard: a tag's parentTaggedDocs is optional and may carry null/undefined ids.
-    // Those must be filtered out so the query never becomes { parentId: { $in: [null] } },
-    // which crashes CouchDB's _find (function_clause / 500).
-    it("filters null/undefined ids and still shows the valid related post", async () => {
+    // The feed reads parentTags on posts; malformed inverse lists on tags are irrelevant.
+    it("ignores null/undefined ids in the inverse list and shows the related post", async () => {
         await db.docs.bulkPut([
             {
                 ...mockEnglishContentDto,
@@ -183,7 +181,23 @@ describe("RelatedContent", () => {
         });
     });
 
-    it("renders without error when a tag has no parentTaggedDocs", async () => {
+    it("finds related posts by tag even when parentTaggedDocs is absent", async () => {
+        await db.docs.bulkPut([
+            {
+                ...mockEnglishContentDto,
+                parentId: "post-post2",
+                _id: "content-post2-eng",
+                title: "Post 2",
+                parentTags: [mockTopicContentDto.parentId],
+            } as ContentDto,
+            {
+                ...mockEnglishContentDto,
+                parentId: "post-post3",
+                _id: "content-post3-eng",
+                title: "Post 3",
+                parentTags: ["unrelated-topic"],
+            } as ContentDto,
+        ]);
         const wrapper = mount(RelatedContent, {
             props: {
                 tags: [{ ...mockTopicContentDto, parentTaggedDocs: undefined } as any],
@@ -192,7 +206,7 @@ describe("RelatedContent", () => {
         });
 
         await waitForExpect(() => {
-            expect(wrapper.html()).not.toContain("Post 2");
+            expect(wrapper.html()).toContain("Post 2");
             expect(wrapper.html()).not.toContain("Post 3");
         });
     });
