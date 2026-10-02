@@ -524,6 +524,7 @@ describe("Socketio (mocked)", () => {
             // clientConfig emit
             expect(socket.emit).toHaveBeenCalledWith("clientConfig", {
                 maxUploadFileSize: 1e7,
+                maxQueryLanguages: gateway.config.query.maxLanguages,
                 accessMap: socket.data.userDetails.accessMap,
             });
 

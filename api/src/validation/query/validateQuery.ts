@@ -25,7 +25,7 @@ export const DEFAULT_MAX_LIMIT = 500;
  * Fallback language cap when the caller doesn't supply one. The app lets a user pick at most 3
  * preferred languages, with the default (English) auto-appended for display — so a legitimate
  * non-CMS content query references at most 4 distinct languages (sync keep ≤3; display ≤4). Keep
- * this in step with the client's preferred-language cap (cap + 1 for the auto-appended default).
+ * in step with the `query.maxLanguages` default, which clients receive in `clientConfig`.
  */
 export const DEFAULT_MAX_LANGUAGES = 4;
 
