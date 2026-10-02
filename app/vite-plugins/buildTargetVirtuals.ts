@@ -19,12 +19,14 @@ export function buildTargetVirtuals(
         "virtual:auth-flow": `${root}/build-time/plugins/auth-flow/index.ts`,
         "virtual:app-lifecycle": `${root}/build-time/plugins/app-lifecycle/index.ts`,
         "virtual:screen-wake": `${root}/build-time/plugins/screen-wake/index.ts`,
+        "virtual:app-update": `${root}/build-time/plugins/app-update/index.ts`,
     };
     const platformSwappable = new Set([
         "platform-chrome",
         "auth-flow",
         "app-lifecycle",
         "screen-wake",
+        "app-update",
     ]);
     const nativeImplDir = process.env.VITE_NATIVE_IMPL_DIR
         ? path.resolve(process.env.VITE_NATIVE_IMPL_DIR)

@@ -3,7 +3,9 @@ import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import App from "./App.vue";
 import * as auth from "@/auth";
-import { ref } from "vue";
+import { nextTick, ref } from "vue";
+import { AppUpdateKey } from "@/build-time/contracts/app-update/token";
+import type { AvailableUpdate } from "@/build-time/contracts/app-update/contract";
 import waitForExpect from "wait-for-expect";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
@@ -139,6 +141,40 @@ describe("App", () => {
                 "Click here to create an account or log in",
             );
         }, 9000);
+
+        it("shows the update banner for a reload update only", async () => {
+            (auth as any).useAuth.mockReturnValue({
+                isLoading: ref(false),
+                isAuthenticated: ref(true),
+            });
+            const notificationStore = useNotificationStore();
+            const service = {
+                installedVersion: ref(undefined),
+                available: ref<AvailableUpdate | undefined>(undefined),
+                checkedAt: ref(undefined),
+                applyUpdate: vi.fn(),
+            };
+            const updateBannerCalls = () =>
+                vi
+                    .mocked(notificationStore.addNotification)
+                    .mock.calls.filter((call) => call[0].id === "updateBanner");
+
+            mount(App, {
+                shallow: true,
+                global: { provide: { [AppUpdateKey as symbol]: service } },
+            });
+
+            service.available.value = { kind: "store", version: "2.0.0" };
+            await nextTick();
+            expect(updateBannerCalls()).toHaveLength(0);
+
+            service.available.value = { kind: "reload", version: "build-2" };
+            await nextTick();
+            expect(updateBannerCalls()).toHaveLength(1);
+
+            (updateBannerCalls()[0][0].link as () => void)();
+            expect(service.applyUpdate).toHaveBeenCalledOnce();
+        });
     });
 
     describe("Theme config", () => {

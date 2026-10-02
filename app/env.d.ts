@@ -3,6 +3,9 @@
 interface ImportMetaEnv {
     readonly VITE_APP_NAME: string;
 
+    /** Days between store update reminders are counted in this unit; test builds shorten it. */
+    readonly VITE_APP_UPDATE_REMINDER_UNIT_MS?: string;
+
     readonly VITE_WEB_ORIGIN?: string;
 
     readonly VITE_PUBLIC_ORGANIZATION_NAME?: string;
@@ -62,4 +65,13 @@ declare module "virtual:screen-wake" {
 
     export const ScreenWakeKey: InjectionKey<ScreenWakeService>;
     export function installScreenWake(app: App): void;
+}
+
+declare module "virtual:app-update" {
+    import type { App } from "vue";
+    import type { InjectionKey } from "vue";
+    import type { AppUpdateService } from "@/build-time/contracts/app-update/contract";
+
+    export const AppUpdateKey: InjectionKey<AppUpdateService>;
+    export function installAppUpdate(app: App): void;
 }
