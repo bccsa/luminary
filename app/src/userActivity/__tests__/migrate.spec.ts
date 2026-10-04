@@ -10,7 +10,12 @@ import {
     migrateHighlightsToUserActivity,
     migrateToUserActivity,
 } from "../migrate";
-import { getUserActivity, recordUserActivity, removeUserActivity } from "../store";
+import {
+    clearUserActivity,
+    getUserActivity,
+    recordUserActivity,
+    removeUserActivity,
+} from "../store";
 
 const range = (text: string, start = 0): HighlightRange => ({
     start,
@@ -165,5 +170,20 @@ describe("migration to userActivity", () => {
         expect(await userActivityDb.userActivity.count()).toBe(2);
         expect(await getUserActivity("liked")).toHaveLength(1);
         expect(await getUserActivity("highlighted")).toHaveLength(1);
+    });
+
+    it("does not bring highlights back after the library is cleared", async () => {
+        await db.docs.bulkPut([contentDoc("content-1", "post-1")]);
+        await db.setLuminaryInternals("highlights", {
+            "content-1": { ranges: [range("hi")], updatedAt: 1234 },
+        });
+        await migrateHighlightsToUserActivity();
+        expect(await getUserActivity("highlighted")).toHaveLength(1);
+
+        await clearUserActivity();
+
+        // The next start runs the migration again; the source must be gone with the rows.
+        await migrateHighlightsToUserActivity();
+        expect(await getUserActivity("highlighted")).toEqual([]);
     });
 });

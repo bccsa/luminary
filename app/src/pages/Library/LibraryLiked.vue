@@ -3,16 +3,13 @@ import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import { type ContentDto } from "luminary-shared";
 import ContentTile from "@/components/content/ContentTile.vue";
-import { userPreferencesAsRef } from "@/globalConfig";
 import { useContentQuery } from "@/composables/useContentQuery";
+import { useUserActivity } from "@/userActivity/useUserActivity";
 
 const { t } = useI18n();
 
-// Sorted on a copy: `sort` mutates in place, and the stored preferences are watched —
-// reordering them here would write localStorage on every re-evaluation.
-const liked = computed(() =>
-    [...(userPreferencesAsRef.value.likes ?? [])].sort((a, b) => b.ts - a.ts).map((b) => b.id),
-);
+const likes = useUserActivity("liked");
+const liked = computed(() => likes.value.map((row) => row.parentId));
 
 const content = useContentQuery(() => [{ parentId: { $in: liked.value } }], {
     includeScheduled: false,
@@ -40,7 +37,7 @@ const sorted = computed(
             />
         </div>
         <div
-            v-if="!content.length"
+            v-if="!sorted.length"
             class="text-zinc-500 dark:text-slate-200"
         >
             {{ t("library.liked.empty_page") }}

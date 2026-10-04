@@ -9,7 +9,7 @@ import waitForExpect from "wait-for-expect";
 import { appLanguageIdsAsRef } from "@/globalConfig";
 import { userActivityDb } from "@/userActivity/db";
 import { recordUserActivity } from "@/userActivity/store";
-import LibraryLiked from "../LibraryLiked.vue";
+import LibraryHighlighted from "../LibraryHighlighted.vue";
 
 vi.mock("vue-router");
 vi.mock("@/router", () => ({
@@ -24,7 +24,7 @@ vi.mock("vue-i18n", () => ({
     }),
 }));
 
-describe("LibraryLiked", () => {
+describe("LibraryHighlighted", () => {
     beforeEach(async () => {
         // Clearing the database before populating it helps prevent some sequencing issues causing the first to fail.
         await db.docs.clear();
@@ -42,20 +42,51 @@ describe("LibraryLiked", () => {
         await db.docs.clear();
     });
 
-    it("displays liked content", async () => {
-        await recordUserActivity({ type: "liked", parentId: mockEnglishContentDto.parentId });
+    it("displays the translation a highlight belongs to", async () => {
+        await recordUserActivity({
+            type: "highlighted",
+            contentId: mockEnglishContentDto._id,
+            parentId: mockEnglishContentDto.parentId,
+        });
 
-        const wrapper = mount(LibraryLiked);
+        const wrapper = mount(LibraryHighlighted);
 
         await waitForExpect(() => {
             expect(wrapper.text()).toContain(mockEnglishContentDto.title);
         });
     });
 
-    it("displays a message when nothing is liked", async () => {
+    it("displays a message when nothing is highlighted", async () => {
         await userActivityDb.userActivity.clear();
-        const wrapper = mount(LibraryLiked);
+        const wrapper = mount(LibraryHighlighted);
 
-        expect(wrapper.text()).toContain("Posts you like will show up here.");
+        expect(wrapper.text()).toContain("Posts where you highlight text will show up here.");
+    });
+
+    it("shows one entry per highlighted translation of the same post", async () => {
+        const french = {
+            ...mockEnglishContentDto,
+            _id: "content-post1-fra",
+            language: "lang-fra",
+            title: "Poste 1",
+        };
+        await db.docs.bulkPut([french]);
+        await recordUserActivity({
+            type: "highlighted",
+            contentId: mockEnglishContentDto._id,
+            parentId: mockEnglishContentDto.parentId,
+        });
+        await recordUserActivity({
+            type: "highlighted",
+            contentId: french._id,
+            parentId: french.parentId,
+        });
+
+        const wrapper = mount(LibraryHighlighted);
+
+        await waitForExpect(() => {
+            expect(wrapper.text()).toContain(mockEnglishContentDto.title);
+            expect(wrapper.text()).toContain(french.title);
+        });
     });
 });

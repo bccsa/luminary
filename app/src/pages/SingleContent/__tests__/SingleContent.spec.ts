@@ -29,14 +29,9 @@ import {
 } from "luminary-shared";
 import * as luminaryShared from "luminary-shared";
 import waitForExpect from "wait-for-expect";
-import {
-    appLanguageIdsAsRef,
-    appName,
-    cmsLanguages,
-    initLanguage,
-    userPreferencesAsRef,
-    cmsUrl,
-} from "@/globalConfig";
+import { appLanguageIdsAsRef, appName, cmsLanguages, initLanguage, cmsUrl } from "@/globalConfig";
+import { userActivityDb } from "@/userActivity/db";
+import { hasUserActivity, recordUserActivity } from "@/userActivity/store";
 import {
     getReadingProgress,
     removeReadingProgress,
@@ -488,7 +483,7 @@ describe("SingleContent", () => {
     });
 
     it("can add and remove a like", async () => {
-        userPreferencesAsRef.value.likes = [];
+        await userActivityDb.userActivity.clear();
         const notificationStore = useNotificationStore();
 
         wrapper = mount(SingleContent, {
@@ -508,10 +503,10 @@ describe("SingleContent", () => {
 
         await waitForExpect(async () => {
             expect(
-                userPreferencesAsRef.value.likes &&
-                    userPreferencesAsRef.value.likes.some(
-                        (b) => b.id === mockEnglishContentDto.parentId,
-                    ),
+                await hasUserActivity({
+                    type: "liked",
+                    parentId: mockEnglishContentDto.parentId,
+                }),
             ).toBe(true);
             expect(notificationStore.addNotification).toHaveBeenCalledWith(
                 expect.objectContaining({
@@ -529,18 +524,36 @@ describe("SingleContent", () => {
 
         await waitForExpect(async () => {
             expect(
-                userPreferencesAsRef.value.likes &&
-                    userPreferencesAsRef.value.likes.some(
-                        (b) => b.id === mockEnglishContentDto.parentId,
-                    ),
+                await hasUserActivity({
+                    type: "liked",
+                    parentId: mockEnglishContentDto.parentId,
+                }),
             ).toBe(false);
         });
 
         expect(notificationStore.addNotification).toHaveBeenCalledTimes(1);
     });
 
+    it("records a view of the post when the content opens", async () => {
+        await userActivityDb.userActivity.clear();
+
+        wrapper = mount(SingleContent, {
+            props: { slug: mockEnglishContentDto.slug },
+        });
+
+        await waitForExpect(async () => {
+            expect(
+                await hasUserActivity({
+                    type: "viewed",
+                    parentId: mockEnglishContentDto.parentId,
+                }),
+            ).toBe(true);
+        });
+    });
+
     it("records like-removal affinity when unliking content", async () => {
-        userPreferencesAsRef.value.likes = [{ id: mockEnglishContentDto.parentId, ts: Date.now() }];
+        await userActivityDb.userActivity.clear();
+        await recordUserActivity({ type: "liked", parentId: mockEnglishContentDto.parentId });
         const wrapper = mount(SingleContent, {
             props: { slug: mockEnglishContentDto.slug },
         });
@@ -552,10 +565,13 @@ describe("SingleContent", () => {
 
         await wrapper.find("button[data-test='like']").trigger("click");
 
-        expect(recordAffinityMock).toHaveBeenCalledWith(
-            mockEnglishContentDto.parentTags,
-            EventWeight.BookmarkRemoved,
-        );
+        // The toggle reads the stored state before acting, so the affinity call lands a tick later.
+        await waitForExpect(() => {
+            expect(recordAffinityMock).toHaveBeenCalledWith(
+                mockEnglishContentDto.parentTags,
+                EventWeight.BookmarkRemoved,
+            );
+        });
         wrapper.unmount();
     });
 

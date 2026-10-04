@@ -11,7 +11,7 @@ import { userPreferencesAsRef } from "@/globalConfig";
 import { getHighlightRanges, getLegacyHighlightHtml } from "@/recommendation/highlightStore";
 import { rangesFromLegacyHtml, type HighlightRange } from "@/util/highlightRanges";
 import { userActivityDb, type UserActivityDoc } from "./db";
-import { userActivityId } from "./store";
+import { userActivityId, userActivityVersion } from "./store";
 
 /** Write the rows the database does not already hold, and report how many were added. */
 async function addMissing(rows: UserActivityDoc[]): Promise<number> {
@@ -20,7 +20,10 @@ async function addMissing(rows: UserActivityDoc[]): Promise<number> {
     const existing = await userActivityDb.userActivity.bulkGet(rows.map((row) => row._id));
     const missing = rows.filter((_, i) => existing[i] === undefined);
 
-    if (missing.length) await userActivityDb.userActivity.bulkPut(missing);
+    if (missing.length) {
+        await userActivityDb.userActivity.bulkPut(missing);
+        userActivityVersion.value++;
+    }
     return missing.length;
 }
 

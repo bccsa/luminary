@@ -10,9 +10,17 @@
  * future upload.
  */
 
+import { ref } from "vue";
 import Dexie from "dexie";
-import type { Uuid } from "luminary-shared";
+import { db, type Uuid } from "luminary-shared";
+import { notifyHighlightsChanged } from "@/recommendation/highlightStore";
 import { userActivityDb, type UserActivityDoc, type UserActivityType } from "./db";
+
+/**
+ * IndexedDB has no Vue reactivity. Every write bumps this, so views reading the table
+ * re-read when it changes — the same idiom as `seenVersion` and `highlightVersion`.
+ */
+export const userActivityVersion = ref(0);
 
 /** Bound `viewed` so a long-lived install can't grow it without limit. */
 export const MAX_VIEWED = 500;
@@ -52,6 +60,7 @@ export async function recordUserActivity(
     });
 
     if (ref.type === "viewed") await trimViewed();
+    userActivityVersion.value++;
 }
 
 /** Undo an activity. Keeps the row as a tombstone so the removal is itself a fact. */
@@ -66,6 +75,7 @@ export async function removeUserActivity(ref: ActivityRef): Promise<void> {
         deleted: true,
         payload: undefined,
     });
+    userActivityVersion.value++;
 }
 
 /** Every row of one type, oldest first, straight off the compound index. */
@@ -106,9 +116,18 @@ async function trimViewed(): Promise<void> {
     await userActivityDb.userActivity.bulkDelete(excess as string[]);
 }
 
-/** Forget every activity. Backs the user-facing "clear history" action. */
+/**
+ * Forget every activity. Backs the user-facing "clear library" action.
+ *
+ * The highlights' own store goes too. It is the source the migration re-reads on every start,
+ * so leaving it would bring every cleared highlight back on the next load — and it is what
+ * paints them into articles, so leaving it would also keep showing what the user just erased.
+ */
 export async function clearUserActivity(): Promise<void> {
     await userActivityDb.userActivity.clear();
+    await db.setLuminaryInternals("highlights", {});
+    notifyHighlightsChanged();
+    userActivityVersion.value++;
 }
 
 /** Drop tombstones old enough that nothing can still need to learn of the removal. */

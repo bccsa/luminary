@@ -22,6 +22,12 @@ import { recordAffinity } from "@/recommendation/affinityStore";
 import { affinityConfig } from "@/recommendation/defaultAffinityStore";
 import { notifyHighlightsChanged } from "@/recommendation/highlightStore";
 import { markSeen } from "@/recommendation/seenStore";
+import {
+    hasUserActivity,
+    recordUserActivity,
+    removeUserActivity,
+    userActivityVersion,
+} from "@/userActivity/store";
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { HeartIcon as HeartIconSolid, TagIcon, SunIcon } from "@heroicons/vue/24/solid";
 import {
@@ -52,7 +58,6 @@ import VerticalTagViewer from "@/components/tags/VerticalTagViewer.vue";
 import LImage from "@/components/images/LImage.vue";
 import ShareMenu from "@/components/content/ShareMenu.vue";
 
-import { userPreferencesAsRef } from "@/globalConfig";
 import IgnorePagePadding from "@/components/IgnorePagePadding.vue";
 import LModal from "@/components/form/LModal.vue";
 import CopyrightBanner from "@/components/content/CopyrightBanner.vue";
@@ -350,6 +355,11 @@ if (!isPrerender()) {
         clearTimeout(dwellTimer);
         if (c && c._id) {
             touchRetention([c._id]);
+            // Opening the post is the view; the dwell timer below is the recommendation
+            // signal and deliberately stays separate.
+            if (!isPrerender() && c.parentId) {
+                void recordUserActivity({ type: "viewed", parentId: c.parentId });
+            }
             const id = c._id;
             const tags = c.parentTags;
             const hasText = !!c.text;
@@ -526,28 +536,19 @@ const is404 = computed(() => {
 });
 
 // Function to toggle the like for the current content
-const toggleLike = () => {
-    if (!userPreferencesAsRef.value.likes) {
-        userPreferencesAsRef.value.likes = [];
-    }
+const toggleLike = async () => {
+    const parentId = content.value?.parentId;
+    if (!parentId) return;
 
-    if (isLiked.value) {
-        // Remove from likes
-        userPreferencesAsRef.value.likes = userPreferencesAsRef.value.likes.filter(
-            (b) => b.id != content.value?.parentId,
-        );
-        if (content.value) {
-            recordAffinity(
-                content.value.parentTags,
-                affinityConfig.value.eventWeight.bookmarkRemoved,
-            );
-        }
+    // Read the stored state rather than the displayed one: `isLiked` is refreshed
+    // asynchronously, so a quick second tap would otherwise act on a stale value.
+    if (await hasUserActivity({ type: "liked", parentId })) {
+        await removeUserActivity({ type: "liked", parentId });
+        recordAffinity(content.value?.parentTags, affinityConfig.value.eventWeight.bookmarkRemoved);
     } else {
-        // Add to likes
-        if (!content.value) return;
-        userPreferencesAsRef.value.likes.push({ id: content.value.parentId, ts: Date.now() });
+        await recordUserActivity({ type: "liked", parentId });
         // Liking is explicit, unambiguous intent — weight it above a plain open.
-        recordAffinity(content.value.parentTags, affinityConfig.value.eventWeight.bookmark);
+        recordAffinity(content.value?.parentTags, affinityConfig.value.eventWeight.bookmark);
         useNotificationStore().addNotification({
             id: "like-added",
             title: t("like.notification.title"),
@@ -559,10 +560,16 @@ const toggleLike = () => {
     }
 };
 
-// Check if the current content is liked
-const isLiked = computed(() => {
-    return userPreferencesAsRef.value.likes?.some((b) => b.id == content.value?.parentId);
-});
+// Whether the current content is liked. IndexedDB has no reactivity of its own, so this is
+// re-read whenever the content changes or any activity is written.
+const isLiked = ref(false);
+watch(
+    [() => content.value?.parentId, userActivityVersion],
+    async ([parentId]) => {
+        isLiked.value = parentId ? await hasUserActivity({ type: "liked", parentId }) : false;
+    },
+    { immediate: true },
+);
 
 // The normal SPA sets the tab/window title imperatively (it has no @unhead plugin). The web
 // build's `useContentHead` above owns the whole head there, including the meta

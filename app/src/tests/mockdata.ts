@@ -420,6 +420,18 @@ export const mockLanguageDtoEng: LanguageDto = {
         "select_theme.close_button": "Close",
         "like.notification.title": "Added to your likes",
         "like.notification.description": "This content has been added to your likes.",
+        "settings.clear_activity.title": "Library",
+        "settings.clear_activity.description":
+            "Erase everything your Library shows: what you viewed, what you liked and what you highlighted.",
+        "settings.clear_activity.button": "Clear library",
+        "settings.clear_activity.modal.title": "Clear your library?",
+        "settings.clear_activity.modal.description":
+            "This erases your history, your likes and your highlights on this device. It cannot be undone.",
+        "settings.clear_activity.modal.button_clear": "Clear library",
+        "settings.clear_activity.modal.button_cancel": "Cancel",
+        "settings.clear_activity.notification.title": "Library cleared",
+        "settings.clear_activity.notification.description":
+            "Your history, likes and highlights have been erased.",
         "library.title": "Library",
         "library.filter.viewed": "Viewed",
         "library.filter.liked": "Liked",

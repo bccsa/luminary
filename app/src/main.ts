@@ -18,6 +18,7 @@ import { apiUrl, deleteExpiredIntervalMs } from "./globalConfig";
 import { initAppTitle, initI18n } from "./i18n";
 import { initAnalytics } from "./analytics";
 import { initSync, initAuthLangSync } from "./sync";
+import { migrateToUserActivity } from "./userActivity/migrate";
 import { initDefaultAffinitySync } from "@/recommendation/defaultAffinityStore";
 import { APP_DOCS_INDEX } from "./docsIndex";
 import { initSentry, Sentry, sentryDiagnostics } from "@/util/initSentry";
@@ -137,6 +138,13 @@ async function Startup() {
 
     await initLanguage();
     initSync();
+
+    // Draining the old stores needs the shared database open, and its highlight pass reads
+    // Content docs — so it runs after sync has started, off the boot path. It re-runs on every
+    // start, which is how entries it could not resolve yet are picked up later.
+    void migrateToUserActivity().catch((err) =>
+        console.error("User activity migration failed:", err),
+    );
 
     isAppLoading.value = false;
 
