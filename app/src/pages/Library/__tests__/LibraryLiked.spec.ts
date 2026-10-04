@@ -6,7 +6,9 @@ import { createTestingPinia } from "@pinia/testing";
 import { mockEnglishContentDto, mockLanguageDtoEng } from "@/tests/mockdata";
 import { db } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
-import { appLanguageIdsAsRef, userPreferencesAsRef } from "@/globalConfig";
+import { appLanguageIdsAsRef } from "@/globalConfig";
+import { userActivityDb } from "@/userActivity/db";
+import { recordUserActivity } from "@/userActivity/store";
 import LibraryLiked from "../LibraryLiked.vue";
 
 vi.mock("vue-router");
@@ -31,6 +33,7 @@ describe("LibraryLiked", () => {
         appLanguageIdsAsRef.value.unshift(mockLanguageDtoEng._id);
 
         await db.docs.bulkPut([mockEnglishContentDto]);
+        await userActivityDb.userActivity.clear();
 
         setActivePinia(createTestingPinia());
     });
@@ -40,7 +43,7 @@ describe("LibraryLiked", () => {
     });
 
     it("displays liked content", async () => {
-        userPreferencesAsRef.value.likes = [{ id: mockEnglishContentDto.parentId, ts: Date.now() }];
+        await recordUserActivity({ type: "liked", parentId: mockEnglishContentDto.parentId });
 
         const wrapper = mount(LibraryLiked);
 
@@ -50,7 +53,7 @@ describe("LibraryLiked", () => {
     });
 
     it("displays a message when nothing is liked", async () => {
-        userPreferencesAsRef.value.likes = [];
+        await userActivityDb.userActivity.clear();
         const wrapper = mount(LibraryLiked);
 
         expect(wrapper.text()).toContain("Posts you like will show up here.");
