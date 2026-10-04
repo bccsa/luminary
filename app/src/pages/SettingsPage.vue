@@ -2,6 +2,7 @@
 import { computed, nextTick, onMounted, ref } from "vue";
 import LButton from "@/components/button/LButton.vue";
 import LCard from "@/components/common/LCard.vue";
+import LDialog from "@/components/common/LDialog.vue";
 import LToggle from "@/components/form/LToggle.vue";
 import LoadingSpinner from "@/components/LoadingSpinner.vue";
 import { db, isConnected } from "luminary-shared";
@@ -18,6 +19,7 @@ import BasePage from "@/components/BasePage.vue";
 import AppVersionCard from "@/components/appUpdate/AppVersionCard.vue";
 import { triggerSync } from "@/sync";
 import { markPageReady } from "@/util/renderState";
+import { clearUserActivity } from "@/userActivity/store";
 
 const { t } = useI18n();
 
@@ -46,6 +48,20 @@ const setUserDataSaverEnabled = (enabled: boolean) => {
 };
 
 const isClearing = ref(false);
+
+const showClearActivityDialog = ref(false);
+
+/** Erases everything the Library shows. Confirmed first: likes and highlights are the user's own. */
+const clearActivity = async () => {
+    showClearActivityDialog.value = false;
+    await clearUserActivity();
+    addNotification({
+        title: t("settings.clear_activity.notification.title"),
+        description: t("settings.clear_activity.notification.description"),
+        state: "success",
+        type: "toast",
+    });
+};
 
 const deleteLocalData = async () => {
     if (!isConnected.value) {
@@ -97,6 +113,17 @@ const deleteLocalData = async () => {
                     }}
                 </LButton>
             </LCard>
+            <LCard :title="t('settings.clear_activity.title')">
+                <div class="mb-4 text-sm text-zinc-600 dark:text-slate-100">
+                    {{ t("settings.clear_activity.description") }}
+                </div>
+                <LButton
+                    @click="showClearActivityDialog = true"
+                    data-test="clearUserActivity"
+                >
+                    {{ t("settings.clear_activity.button") }}
+                </LButton>
+            </LCard>
             <AppVersionCard />
             <LCard :title="t('settings.device_info.title')">
                 <div class="mb-4 text-sm text-zinc-600 dark:text-slate-100">
@@ -140,5 +167,15 @@ const deleteLocalData = async () => {
                 </div>
             </LCard>
         </div>
+        <LDialog
+            v-model:open="showClearActivityDialog"
+            :title="t('settings.clear_activity.modal.title')"
+            :description="t('settings.clear_activity.modal.description')"
+            :primaryAction="clearActivity"
+            :primaryButtonText="t('settings.clear_activity.modal.button_clear')"
+            :secondaryAction="() => (showClearActivityDialog = false)"
+            :secondaryButtonText="t('settings.clear_activity.modal.button_cancel')"
+            context="danger"
+        />
     </BasePage>
 </template>
