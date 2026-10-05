@@ -104,7 +104,7 @@ watch(defaultAffinity, (serverDefault) => {
  * completion are both real intent, not just "the page was open," and should move
  * the profile further per event.
  *
- * Deliberately called unconditionally from its (SingleContent/VideoPlayer/AudioPlayer/
+ * Deliberately called unconditionally from its (SingleContent/VideoPlayer/
  * LHighlightable) call sites to keep the affinity profile continuously updated.
  */
 export async function recordAffinity(
