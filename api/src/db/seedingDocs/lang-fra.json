@@ -189,6 +189,11 @@
         "media_player.skip_back": "Reculer de {seconds} secondes",
         "media_player.skip_forward": "Avancer de {seconds} secondes",
         "media_player.speed": "Vitesse de lecture",
-        "media_player.language": "Langue audio"
+        "media_player.language": "Langue audio",
+        "media_player.fullscreen": "Plein écran",
+        "media_player.subtitles": "Sous-titres",
+        "media_player.subtitles_off": "Désactivés",
+        "media_player.picture_in_picture": "Image dans l'image",
+        "media_player.mute": "Couper le son"
     }
 }

@@ -42,6 +42,7 @@ vi.mock("@/components/content/VideoPlayer.vue", async () => {
                     playing: true,
                     currentTime: 30,
                     duration: 120,
+                    bufferedEnd: 60,
                     playbackRate: 1,
                     isAudioOnly: false,
                     activeAngleId: "angle_0",
@@ -54,6 +55,10 @@ vi.mock("@/components/content/VideoPlayer.vue", async () => {
                         { id: "fr", lang: "fr", label: "Français" },
                     ],
                     activeAudioTrackId: "en",
+                    subtitleTracks: [
+                        { id: "sub-fr", lang: "fr", label: "Français", source: "master" },
+                    ],
+                    activeSubtitleTrackId: null,
                 });
                 engine.controller = {
                     setAngle: vi.fn(async (id: string) => {
@@ -62,6 +67,7 @@ vi.mock("@/components/content/VideoPlayer.vue", async () => {
                     }),
                     setPlaybackRate: vi.fn(),
                     setAudioTrack: vi.fn(),
+                    setSubtitleTrack: vi.fn(),
                 };
                 engine.handle = {
                     controller: engine.controller,
@@ -185,6 +191,24 @@ describe("MediaPlayer", () => {
             expect(engine.handle.seek).toHaveBeenCalledWith(90);
         });
 
+        it("shows how much is loaded under what has played", async () => {
+            const wrapper = await playing();
+            expect(find(wrapper, "mediaPlayerLoaded").attributes("style")).toContain("width: 50%");
+        });
+
+        it("opens full-screen from the picture's corner", async () => {
+            const wrapper = await playing();
+            await find(wrapper, "mediaPlayerFullscreen").trigger("click");
+            expect(engine.handle.enterFullscreen).toHaveBeenCalled();
+        });
+
+        it("offers no full-screen while there is no picture", async () => {
+            const wrapper = await playing();
+            await find(wrapper, "mediaPlayerAudio").trigger("click");
+            await flushPromises();
+            expect(find(wrapper, "mediaPlayerFullscreen").exists()).toBe(false);
+        });
+
         it("changes speed from the menu", async () => {
             const wrapper = await playing();
             await wrapper.find("button[aria-label='media_player.speed']").trigger("click");
@@ -203,6 +227,27 @@ describe("MediaPlayer", () => {
             await option!.trigger("click");
 
             expect(engine.controller.setAudioTrack).toHaveBeenCalledWith("fr");
+        });
+
+        it("turns subtitles on and off from the menu", async () => {
+            const wrapper = await playing();
+            await find(wrapper, "mediaPlayerSubtitles").trigger("click");
+            await wrapper
+                .findAll("li button")
+                .find((button) => button.text() === "Français")!
+                .trigger("click");
+            expect(engine.controller.setSubtitleTrack).toHaveBeenLastCalledWith("sub-fr");
+
+            await find(wrapper, "mediaPlayerSubtitles").trigger("click");
+            await wrapper.findAll("li button")[0]!.trigger("click");
+            expect(engine.controller.setSubtitleTrack).toHaveBeenLastCalledWith(null);
+        });
+
+        it("offers no subtitles the source does not have", async () => {
+            const wrapper = await playing();
+            engine.state.subtitleTracks = [];
+            await flushPromises();
+            expect(find(wrapper, "mediaPlayerSubtitles").attributes("disabled")).toBeDefined();
         });
 
         it("offers no language menu for a single track", async () => {

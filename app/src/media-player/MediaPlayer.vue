@@ -8,12 +8,14 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import {
+    ArrowsPointingOutIcon,
     ChevronDownIcon,
     FilmIcon,
     LanguageIcon,
     MusicalNoteIcon,
     PauseIcon,
     PlayIcon,
+    SpeakerWaveIcon,
     XMarkIcon,
 } from "@heroicons/vue/20/solid";
 import { AUDIO_ONLY_ANGLE_ID } from "@luminary-media-converter/player-web";
@@ -117,11 +119,14 @@ const playing = computed(() => state.value?.playing ?? false);
 const currentTime = computed(() => state.value?.currentTime ?? 0);
 const duration = computed(() => state.value?.duration ?? 0);
 const live = computed(() => duration.value === Infinity);
-const progress = computed(() =>
-    duration.value > 0 && Number.isFinite(duration.value)
-        ? Math.min(currentTime.value / duration.value, 1)
-        : 0,
-);
+/** `seconds` as a share of the duration, 0 while there is none. */
+function fraction(seconds: number): number {
+    return duration.value > 0 && Number.isFinite(duration.value)
+        ? Math.min(Math.max(seconds / duration.value, 0), 1)
+        : 0;
+}
+const progress = computed(() => fraction(currentTime.value));
+const loaded = computed(() => fraction(state.value?.bufferedEnd ?? 0));
 
 /** The last camera seen playing, where Video returns to. */
 let videoAngleId: string | null = null;
@@ -169,8 +174,8 @@ function seekTo(event: Event) {
     handle.value?.seek(Number((event.target as HTMLInputElement).value));
 }
 
-const openMenu = ref<"speed" | "language" | null>(null);
-function toggleMenu(menu: "speed" | "language") {
+const openMenu = ref<"speed" | "language" | "subtitles" | null>(null);
+function toggleMenu(menu: "speed" | "language" | "subtitles") {
     openMenu.value = openMenu.value === menu ? null : menu;
 }
 function pickRate(rate: number) {
@@ -179,6 +184,10 @@ function pickRate(rate: number) {
 }
 function pickTrack(id: string) {
     controller.value?.setAudioTrack(id);
+    openMenu.value = null;
+}
+function pickSubtitles(id: string | null) {
+    controller.value?.setSubtitleTrack(id);
     openMenu.value = null;
 }
 const rateLabel = (rate: number) => `${rate}x`;
@@ -319,6 +328,16 @@ function onKeydown(event: KeyboardEvent) {
                         :fullscreen-on-play="isNativeApp()"
                     />
                 </div>
+                <button
+                    v-if="state && !audioMode"
+                    type="button"
+                    class="absolute bottom-1 right-1 z-10 flex h-11 w-11 items-center justify-center rounded-full text-white hover:bg-white/10"
+                    :aria-label="t('media_player.fullscreen')"
+                    data-test="mediaPlayerFullscreen"
+                    @click="handle?.enterFullscreen()"
+                >
+                    <ArrowsPointingOutIcon class="h-6 w-6 drop-shadow" />
+                </button>
                 <div
                     v-if="audioMode"
                     class="absolute inset-0 flex items-center justify-center bg-amber-50 dark:bg-slate-800"
@@ -356,17 +375,35 @@ function onKeydown(event: KeyboardEvent) {
                     v-if="!live"
                     class="flex flex-col px-6 pt-6"
                 >
-                    <input
-                        type="range"
-                        min="0"
-                        :max="duration || 0"
-                        step="1"
-                        :value="currentTime"
-                        :aria-label="t('media_player.seek')"
-                        class="h-1.5 w-full cursor-pointer accent-yellow-500"
-                        data-test="mediaPlayerSeek"
-                        @change="seekTo"
-                    />
+                    <!-- The drawn bar shows what has played and what is loaded; the range on top of it
+                         is what takes the touch, with only its thumb showing. -->
+                    <div class="relative flex h-5 items-center">
+                        <div
+                            class="absolute inset-x-0 h-1.5 overflow-hidden rounded-full bg-zinc-300 dark:bg-slate-600"
+                            aria-hidden="true"
+                        >
+                            <div
+                                class="absolute inset-y-0 left-0 bg-zinc-400 dark:bg-slate-400"
+                                :style="{ width: `${loaded * 100}%` }"
+                                data-test="mediaPlayerLoaded"
+                            />
+                            <div
+                                class="absolute inset-y-0 left-0 bg-yellow-500"
+                                :style="{ width: `${progress * 100}%` }"
+                            />
+                        </div>
+                        <input
+                            type="range"
+                            min="0"
+                            :max="duration || 0"
+                            step="1"
+                            :value="currentTime"
+                            :aria-label="t('media_player.seek')"
+                            class="relative h-5 w-full cursor-pointer appearance-none bg-transparent [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-yellow-500 [&::-moz-range-track]:bg-transparent [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-yellow-500"
+                            data-test="mediaPlayerSeek"
+                            @change="seekTo"
+                        />
+                    </div>
                     <div class="mt-1 flex justify-between text-xs text-zinc-500 dark:text-zinc-300">
                         <span>{{ formatTime(currentTime) }}</span>
                         <span>{{ formatTime(duration) }}</span>
@@ -418,7 +455,9 @@ function onKeydown(event: KeyboardEvent) {
                     </button>
                 </div>
 
-                <div class="relative flex items-center justify-center gap-3 px-4 pb-6 pt-4">
+                <div
+                    class="relative flex flex-wrap items-center justify-center gap-3 px-4 pb-6 pt-4"
+                >
                     <button
                         v-if="!live"
                         type="button"
@@ -444,6 +483,78 @@ function onKeydown(event: KeyboardEvent) {
                             )?.label
                         }}
                     </button>
+                    <template v-if="!audioMode">
+                        <button
+                            type="button"
+                            class="flex h-11 w-11 items-center justify-center rounded-full border border-zinc-500/35 text-zinc-600 disabled:opacity-40 dark:text-slate-300"
+                            :class="{ 'bg-zinc-500/15': state.activeSubtitleTrackId }"
+                            :aria-label="t('media_player.subtitles')"
+                            :aria-expanded="openMenu === 'subtitles'"
+                            :disabled="state.subtitleTracks.length === 0"
+                            data-test="mediaPlayerSubtitles"
+                            @click="toggleMenu('subtitles')"
+                        >
+                            <svg
+                                class="h-5 w-5"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="1.8"
+                                stroke-linecap="round"
+                                aria-hidden="true"
+                            >
+                                <rect
+                                    x="2.5"
+                                    y="5"
+                                    width="19"
+                                    height="14"
+                                    rx="2.5"
+                                />
+                                <path d="M6 11h3M11 11h7M6 14.5h8M16 14.5h2" />
+                            </svg>
+                        </button>
+                        <!-- Picture-in-picture and mute wait on the player: neither has a call
+                             a page can make yet, so they are shown, not offered. -->
+                        <button
+                            type="button"
+                            class="flex h-11 w-11 items-center justify-center rounded-full border border-zinc-500/35 text-zinc-600 disabled:opacity-40 dark:text-slate-300"
+                            :aria-label="t('media_player.picture_in_picture')"
+                            disabled
+                        >
+                            <svg
+                                class="h-5 w-5"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="1.8"
+                                aria-hidden="true"
+                            >
+                                <rect
+                                    x="2.5"
+                                    y="4.5"
+                                    width="19"
+                                    height="15"
+                                    rx="1.5"
+                                />
+                                <rect
+                                    x="12"
+                                    y="11.5"
+                                    width="7"
+                                    height="5"
+                                    fill="currentColor"
+                                    stroke="none"
+                                />
+                            </svg>
+                        </button>
+                    </template>
+                    <button
+                        type="button"
+                        class="flex h-11 w-11 items-center justify-center rounded-full border border-zinc-500/35 text-zinc-600 disabled:opacity-40 dark:text-slate-300"
+                        :aria-label="t('media_player.mute')"
+                        disabled
+                    >
+                        <SpeakerWaveIcon class="h-5 w-5" />
+                    </button>
 
                     <ul
                         v-if="openMenu"
@@ -461,6 +572,33 @@ function onKeydown(event: KeyboardEvent) {
                                     @click="pickRate(rate)"
                                 >
                                     {{ rateLabel(rate) }}
+                                </button>
+                            </li>
+                        </template>
+                        <template v-else-if="openMenu === 'subtitles'">
+                            <li>
+                                <button
+                                    type="button"
+                                    class="block w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-slate-600"
+                                    :class="{ 'font-bold': !state.activeSubtitleTrackId }"
+                                    @click="pickSubtitles(null)"
+                                >
+                                    {{ t("media_player.subtitles_off") }}
+                                </button>
+                            </li>
+                            <li
+                                v-for="track in state.subtitleTracks"
+                                :key="track.id"
+                            >
+                                <button
+                                    type="button"
+                                    class="block w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-slate-600"
+                                    :class="{
+                                        'font-bold': track.id === state.activeSubtitleTrackId,
+                                    }"
+                                    @click="pickSubtitles(track.id)"
+                                >
+                                    {{ track.label }}
                                 </button>
                             </li>
                         </template>
