@@ -188,7 +188,7 @@ function onKeydown(event: KeyboardEvent) {
             <div class="flex items-center justify-between px-4 pb-3">
                 <button
                     type="button"
-                    class="flex h-11 w-11 items-center justify-center rounded-full hover:bg-black/10 dark:hover:bg-white/10"
+                    class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full hover:bg-black/10 dark:hover:bg-white/10"
                     :aria-label="t('media_player.minimise')"
                     data-test="mediaPlayerMinimise"
                     @click="minimiseMediaPlayer"
@@ -200,11 +200,11 @@ function onKeydown(event: KeyboardEvent) {
                     v-if="canSwitch"
                     role="group"
                     :aria-label="t('media_player.play_as')"
-                    class="flex rounded-full bg-zinc-500/15 p-1"
+                    class="flex min-w-0 rounded-full bg-zinc-500/15 p-1"
                 >
                     <button
                         type="button"
-                        class="flex h-9 items-center gap-1.5 rounded-full px-4 text-sm font-semibold"
+                        class="flex h-9 min-w-0 items-center gap-1.5 rounded-full px-4 text-sm font-semibold"
                         :class="
                             audioMode
                                 ? 'bg-zinc-700 text-white dark:bg-slate-200 dark:text-slate-900'
@@ -215,11 +215,11 @@ function onKeydown(event: KeyboardEvent) {
                         @click="showAudio"
                     >
                         <MusicalNoteIcon class="h-4 w-4" />
-                        {{ t("media_player.audio") }}
+                        <span class="truncate">{{ t("media_player.audio") }}</span>
                     </button>
                     <button
                         type="button"
-                        class="flex h-9 items-center gap-1.5 rounded-full px-4 text-sm font-semibold"
+                        class="flex h-9 min-w-0 items-center gap-1.5 rounded-full px-4 text-sm font-semibold"
                         :class="
                             !audioMode
                                 ? 'bg-zinc-700 text-white dark:bg-slate-200 dark:text-slate-900'
@@ -230,13 +230,13 @@ function onKeydown(event: KeyboardEvent) {
                         @click="showVideo"
                     >
                         <FilmIcon class="h-4 w-4" />
-                        {{ t("media_player.video") }}
+                        <span class="truncate">{{ t("media_player.video") }}</span>
                     </button>
                 </div>
 
                 <button
                     type="button"
-                    class="flex h-11 w-11 items-center justify-center rounded-full hover:bg-black/10 dark:hover:bg-white/10"
+                    class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full hover:bg-black/10 dark:hover:bg-white/10"
                     :aria-label="t('media_player.close')"
                     data-test="mediaPlayerClose"
                     @click="closeMediaPlayer"
