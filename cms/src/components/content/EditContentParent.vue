@@ -320,7 +320,7 @@ const confirmLinkDates = () => {
 
             <!-- When linked, saving any translation's publish/expiry date propagates it to every other translation sharing this parent. -->
             <div class="flex items-center justify-between gap-2">
-                <span class="text-sm text-zinc-700">Link publish &amp; expiry dates</span>
+                <span class="text-sm dark:text-zinc-200">Link publish &amp; expiry dates</span>
                 <LToggle v-model="linkDates" :disabled="disabled || !canManageLinkDates" />
             </div>
         </div>
