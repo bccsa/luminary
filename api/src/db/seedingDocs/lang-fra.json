@@ -49,7 +49,7 @@
         "settings.device_info.title": "Informations sur l'appareil",
         "settings.device_info.description": "Fournissez ces détails lors de la prise de contact avec le support",
         "settings.data_saver.title": "Économiseur de données",
-        "settings.data_saver.description": "Réduisez la qualité des images pour utiliser moins de données. Cette option s'active aussi automatiquement sur les connexions lentes ou lorsque l'économiseur de données de votre appareil est activé.",
+        "settings.data_saver.description": "Utilisez moins de données : images de qualité réduite, et les vidéos commencent par le son seul. Cette option s'active aussi automatiquement sur les connexions lentes ou lorsque l'économiseur de données de votre appareil est activé.",
         "settings.data_saver.browser_note": "L'économiseur de données de votre navigateur est activé. Votre navigateur contrôle donc l'utilisation réduite des données.",
         "settings.data_saver.slow_connection_note": "Votre connexion semble lente. L'utilisation réduite des données sera donc appliquée automatiquement.",
         "home.title": "Accueil",
@@ -177,6 +177,19 @@
         "singlecontent.highlightColor.green": "Vert",
         "singlecontent.highlightColor.blue": "Bleu",
         "singlecontent.highlightColor.pink": "Rose",
-        "singlecontent.highlightColor.purple": "Violet"
+        "singlecontent.highlightColor.purple": "Violet",
+        "media_player.play": "Lire",
+        "media_player.pause": "Pause",
+        "media_player.minimise": "Réduire le lecteur",
+        "media_player.expand": "Ouvrir le lecteur",
+        "media_player.close": "Fermer le lecteur",
+        "media_player.play_as": "Lire en",
+        "media_player.audio": "Audio",
+        "media_player.video": "Vidéo",
+        "media_player.seek": "Avancer ou reculer",
+        "media_player.skip_back": "Reculer de {seconds} secondes",
+        "media_player.skip_forward": "Avancer de {seconds} secondes",
+        "media_player.speed": "Vitesse de lecture",
+        "media_player.language": "Langue audio"
     }
 }

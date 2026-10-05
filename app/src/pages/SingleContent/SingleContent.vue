@@ -41,7 +41,6 @@ import {
     cmsLanguages,
     cmsDefaultLanguage,
     queryParams,
-    addToMediaQueue,
     cmsUrl,
 } from "@/globalConfig";
 import { useNotificationStore } from "@/stores/notification";
@@ -62,17 +61,15 @@ import { useI18n } from "vue-i18n";
 import ImageModal from "@/components/images/ImageModal.vue";
 import BasePage from "@/components/BasePage.vue";
 import { CheckCircleIcon, DocumentDuplicateIcon } from "@heroicons/vue/20/solid";
-import { SpeakerWaveIcon } from "@heroicons/vue/24/solid";
 import { markLanguageSwitch } from "@/util/isLangSwitch";
 import LoadingBar from "@/components/LoadingBar.vue";
 import { activeImageCollection } from "@/components/images/LImageProvider.vue";
-import VideoPlayer from "@/components/content/VideoPlayer.vue";
+import MediaPoster from "@/media-player/MediaPoster.vue";
 import LHighlightable from "@/components/common/LHighlightable.vue";
 import DropdownMenu from "@/components/common/DropdownMenu.vue";
 import ArticleOutline from "./ArticleOutline.vue";
 import { markPageReady } from "@/util/renderState";
 import { hasVideoSource } from "@/util/videoSource";
-import { audioFilesOf } from "@/util/audioFiles";
 import { computeEstimatedReadingMinutes, resolveReadingSpeedWpm } from "@/util/readingTime";
 import {
     resolveArticleScrollContainer,
@@ -693,20 +690,6 @@ const quickLanguageSwitch = (languageId: string) => {
     showDropdown.value = false;
 };
 
-// Check if the current content has audio files - fully reactive to data changes
-const hasAudioFiles = computed(() => {
-    // Check the live query result first (most up-to-date), then fall back to content ref
-    const dataSource = contentArr.value[0] || content.value;
-    return !!audioFilesOf(dataSource)?.length;
-});
-
-// Function to start playing audio
-const playAudio = () => {
-    if (content.value && hasAudioFiles.value) {
-        addToMediaQueue(content.value);
-    }
-};
-
 // Posts rarely carry their own copyright, so shared quotes fall back to the instance-wide
 // notice the page already shows in its copyright banner.
 const { copyrightText: globalCopyright } = useGlobalCopyright();
@@ -902,7 +885,7 @@ watch([isLoading, content, is404], async () => {
                                 :mobileOnly="true"
                                 :ignoreTop="true"
                             >
-                                <VideoPlayer
+                                <MediaPoster
                                     v-if="content && hasVideoSource(content)"
                                     :key="content._id"
                                     :content="content"
@@ -935,23 +918,6 @@ watch([isLoading, content, is404], async () => {
                                     >
                                         <DocumentDuplicateIcon class="h-10 w-10 text-zinc-400" />
                                     </div>
-
-                                    <!-- Small Play Audio Button (only show if content has audio but no video) -->
-                                    <button
-                                        v-if="hasAudioFiles"
-                                        @click.stop="
-                                            (event) => {
-                                                playAudio();
-                                                // Prevent focus staying on button
-                                                (event.target as HTMLElement).blur();
-                                            }
-                                        "
-                                        class="absolute bottom-2.5 left-3.5 flex items-center justify-center gap-1.5 rounded-full bg-black/60 py-1 pl-2 pr-3.5 text-white shadow-lg backdrop-blur-sm transition-all duration-200 hover:scale-110 hover:bg-black/80 focus:outline-none focus:ring-2 focus:ring-yellow-400"
-                                        title="Play Audio"
-                                    >
-                                        <SpeakerWaveIcon class="h-5 w-5" />
-                                        {{ t("singlecontent.listen") }}
-                                    </button>
 
                                     <!-- Title + summary scrim: the gradient carries just the title/summary
                                          zone, not the whole image, so the photo above it stays readable. -->

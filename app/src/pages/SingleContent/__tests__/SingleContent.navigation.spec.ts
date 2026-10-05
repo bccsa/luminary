@@ -94,9 +94,9 @@ vi.mock("vue-i18n", () => ({
 // (one that never re-ran its source setup for the new document) is visible to the test.
 const playerMounts: string[] = [];
 const playerUnmounts: string[] = [];
-vi.mock("@/components/content/VideoPlayer.vue", () => ({
+vi.mock("@/media-player/MediaPoster.vue", () => ({
     default: defineComponent({
-        name: "VideoPlayer",
+        name: "MediaPoster",
         props: { content: { type: Object, required: true }, language: { type: String } },
         setup(props) {
             const source = props.content.video as string;

@@ -29,11 +29,14 @@ const fetchHlsKeyMock = vi.hoisted(() => vi.fn());
 vi.mock("@luminary-media-converter/player-web", async () => {
     const { defineComponent, h } = await import("vue");
     return {
+        AUDIO_ONLY_ANGLE_ID: "__audio__",
+        isYouTubeUrl: (url: string | undefined) => !!url && url.includes("youtube.com"),
         LuminaryPlayer: defineComponent({
             name: "LuminaryPlayer",
             props: {
                 source: { type: Object, required: true },
                 preferredLanguage: { type: String, default: undefined },
+                controls: { type: Object, default: undefined },
             },
             emits: ["loadedmetadata", "timeupdate", "ended"],
             setup(_props, { expose }) {
@@ -90,9 +93,12 @@ function content(overrides: Record<string, unknown> = {}) {
     } as any;
 }
 
-async function mountPlayer(overrides: Record<string, unknown> = {}) {
+async function mountPlayer(
+    overrides: Record<string, unknown> = {},
+    props: Record<string, unknown> = {},
+) {
     const wrapper = mount(VideoPlayer, {
-        props: { content: content(overrides), language: "en" },
+        props: { content: content(overrides), language: "en", ...props },
         global: { stubs: { LImage: true } },
     });
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -169,6 +175,56 @@ describe("VideoPlayer", () => {
         const wrapper = await mountPlayer();
 
         expect(stub(wrapper).props("preferredLanguage")).toBe("en");
+    });
+
+    describe("in the media player", () => {
+        it("bares the frame: the media player draws the transport and the audio / video switch", async () => {
+            const wrapper = await mountPlayer();
+
+            expect(stub(wrapper).props("controls")).toEqual({
+                subtitlesMenu: false,
+                audioVideoToggle: false,
+                windowedControls: false,
+            });
+        });
+
+        it("starts on the sound alone when asked, so no video is fetched", async () => {
+            const wrapper = await mountPlayer({}, { startAudio: true });
+
+            expect(stub(wrapper).props("source").startAngleId).toBe("__audio__");
+        });
+
+        it("starts on the video otherwise", async () => {
+            const wrapper = await mountPlayer();
+
+            expect(stub(wrapper).props("source").startAngleId).toBeUndefined();
+        });
+
+        it("reads the start for the content it plays, so a later change does not reload it", async () => {
+            const wrapper = await mountPlayer({}, { startAudio: true });
+            await wrapper.setProps({ startAudio: false });
+
+            expect(stub(wrapper).props("source").startAngleId).toBe("__audio__");
+        });
+
+        it("plays once loaded, and goes full-screen for a video when the player shows it only there", async () => {
+            const wrapper = await mountPlayer({}, { autoplay: true, fullscreenOnPlay: true });
+            stub(wrapper).vm.$emit("loadedmetadata");
+
+            expect(playMock).toHaveBeenCalled();
+            expect(enterFullscreenMock).toHaveBeenCalled();
+        });
+
+        it("stays out of full-screen when it starts on the sound", async () => {
+            const wrapper = await mountPlayer(
+                {},
+                { autoplay: true, fullscreenOnPlay: true, startAudio: true },
+            );
+            stub(wrapper).vm.$emit("loadedmetadata");
+
+            expect(playMock).toHaveBeenCalled();
+            expect(enterFullscreenMock).not.toHaveBeenCalled();
+        });
     });
 
     describe("the decryption key", () => {

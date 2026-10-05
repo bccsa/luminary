@@ -9,7 +9,12 @@
  * engagement signals a finished video sends.
  */
 import { computed, inject, nextTick, ref, watch } from "vue";
-import { LuminaryPlayer, type PlayerSource } from "@luminary-media-converter/player-web";
+import {
+    AUDIO_ONLY_ANGLE_ID,
+    isYouTubeUrl,
+    LuminaryPlayer,
+    type PlayerSource,
+} from "@luminary-media-converter/player-web";
 import { type ContentDto, fetchHlsKey, reportError } from "luminary-shared";
 import LImage from "../images/LImage.vue";
 import { appLanguagesPreferredAsRef, queryParams } from "@/globalConfig";
@@ -30,6 +35,11 @@ import type {
 type Props = {
     content: ContentDto;
     language: string | null | undefined;
+    /** Start with the sound only, fetching no video; read when the content changes. */
+    startAudio?: boolean;
+    autoplay?: boolean;
+    /** Go full-screen when autoplay starts the video, for a player that shows video only there. */
+    fullscreenOnPlay?: boolean;
 };
 
 const props = defineProps<Props>();
@@ -95,12 +105,23 @@ const preferredLanguage = computed(
 /**
  * Which of the player's own controls this app offers.
  *
+ * The media player draws the transport and the audio / video switch itself, so the frame is
+ * bare; full-screen still shows the player's controls. A YouTube link keeps the embed's own,
+ * having no controller for the media player to drive.
+ *
  * The subtitles menu is off because the app's control bar has never had one, and
  * Luminary ships no sidecar subtitles: video.js would hide the button today
  * anyway, but the first stream carrying a caption track would otherwise put a
  * new control in front of every viewer without anyone deciding to.
  */
-const controls = { subtitlesMenu: false };
+const controls = computed(() =>
+    isYouTubeUrl(videoSource.value)
+        ? { subtitlesMenu: false, audioVideoToggle: false }
+        : { subtitlesMenu: false, audioVideoToggle: false, windowedControls: false },
+);
+
+/** The angle the load starts on, fixed per content so a later change of mind does not reload. */
+const startAngleId = ref<string | undefined>(undefined);
 
 /**
  * Whether the key question has been answered for this document. An encrypted
@@ -112,7 +133,7 @@ const keyResolved = ref(false);
 const source = computed<PlayerSource | null>(() => {
     const url = videoSource.value;
     if (!url || !keyResolved.value) return null;
-    return { masterUrl: url, keyHex: keyHex.value };
+    return { masterUrl: url, keyHex: keyHex.value, startAngleId: startAngleId.value };
 });
 
 watch(
@@ -120,6 +141,7 @@ watch(
     async () => {
         keyHex.value = undefined;
         keyResolved.value = false;
+        startAngleId.value = props.startAudio ? AUDIO_ONLY_ANGLE_ID : undefined;
         try {
             const parentId = props.content?.parentId;
             if (parentId && props.content?.parentMedia?.hlsKey_id) {
@@ -220,9 +242,13 @@ function onLoadedMetadata() {
     const progress = getMediaProgress(id, props.content._id);
     if (progress > MIN_RESUME_SECONDS) player.value?.seek(progress - RESUME_REWIND_SECONDS);
 
-    if (autoPlay) void player.value?.play();
-    if (autoFullscreen) void player.value?.enterFullscreen();
+    if (autoPlay || props.autoplay) void player.value?.play();
+    if (autoFullscreen || (props.autoplay && props.fullscreenOnPlay && !props.startAudio)) {
+        void player.value?.enterFullscreen();
+    }
 }
+
+defineExpose({ player });
 
 function onTimeUpdate(currentTime: number, duration: number) {
     watchTracker.track(currentTime);

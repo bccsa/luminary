@@ -1,4 +1,5 @@
 import type { Component } from "vue";
+import type { PlayerControllerApi, PlayerState } from "@luminary-media-converter/player-web";
 
 /** What the lock screen and the notification show for a video. */
 export type VideoNowPlaying = {
@@ -26,6 +27,9 @@ export type VideoPlayerService = {
 
 /** What a template ref to the player reaches. */
 export type VideoPlayerHandle = {
+    /** The player's controller; null for a YouTube link, which the embed plays on its own. */
+    readonly controller?: PlayerControllerApi | null;
+    readonly state?: Readonly<PlayerState>;
     play(): Promise<void> | undefined;
     pause(): void;
     seek(seconds: number): void;

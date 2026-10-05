@@ -49,7 +49,7 @@
         "settings.device_info.title": "Device info",
         "settings.device_info.description": "Provide these details when contacting support",
         "settings.data_saver.title": "Data saver",
-        "settings.data_saver.description": "Reduce image quality to use less data. This also turns on automatically on slow connections or when your device's Data Saver is enabled.",
+        "settings.data_saver.description": "Use less data: lower image quality, and videos start with the sound only. This also turns on automatically on slow connections or when your device's Data Saver is enabled.",
         "settings.data_saver.browser_note": "Your browser's Data Saver is on, so reduced data use is controlled by your browser.",
         "settings.data_saver.slow_connection_note": "Your connection seems slow, so reduced data use will be applied automatically.",
         "home.title": "Home",
@@ -177,6 +177,19 @@
         "singlecontent.highlightColor.green": "Green",
         "singlecontent.highlightColor.blue": "Blue",
         "singlecontent.highlightColor.pink": "Pink",
-        "singlecontent.highlightColor.purple": "Purple"
+        "singlecontent.highlightColor.purple": "Purple",
+        "media_player.play": "Play",
+        "media_player.pause": "Pause",
+        "media_player.minimise": "Minimise player",
+        "media_player.expand": "Open player",
+        "media_player.close": "Close player",
+        "media_player.play_as": "Play as",
+        "media_player.audio": "Audio",
+        "media_player.video": "Video",
+        "media_player.seek": "Seek",
+        "media_player.skip_back": "Skip back {seconds} seconds",
+        "media_player.skip_forward": "Skip forward {seconds} seconds",
+        "media_player.speed": "Playback speed",
+        "media_player.language": "Audio language"
     }
 }
