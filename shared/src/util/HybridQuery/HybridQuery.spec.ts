@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => {
     // via `liveRefs[i].ref.value = [...]`. The real Vue `watch` inside HybridQuery
     // reacts to those assignments.
     const liveRefs: Array<{ ref: { value: any }; querier: any; options: any }> = [];
-    // Socket harness: getLiveStream() returns a stable wrapper whose on/off mutate a
+    // Socket harness: getChangeFeed() returns a stable wrapper whose on/off mutate a
     // shared set of "data" handlers; emitSocket() invokes them with { docs }.
     const socketDataHandlers = new Set<(data: any) => void>();
     const socketMock = {
@@ -45,16 +45,16 @@ const mocks = vi.hoisted(() => {
         // fallback-language supplement; `cms` gates the queryRemote scope-forwarding. Mutated per test.
         config: { appLanguageIdsAsRef: ref<string[]>([]), cms: false },
         socketDataHandlers,
-        getLiveStreamMock: vi.fn(() => socketMock),
+        getChangeFeedMock: vi.fn(() => socketMock),
         emitSocket: (docs: any[]) => {
             for (const h of [...socketDataHandlers]) h({ docs });
         },
     };
 });
 
-vi.mock("../../liveStream/liveStream", () => ({
+vi.mock("../../changeFeed/changeFeed", () => ({
     isConnected: mocks.isConnected,
-    getLiveStream: mocks.getLiveStreamMock,
+    getChangeFeed: mocks.getChangeFeedMock,
 }));
 
 vi.mock("../MangoQuery/mangoToDexie", () => ({
@@ -164,7 +164,7 @@ describe("HybridQuery", () => {
         mocks.touchRetention.mockClear();
         mocks.isSyncableDoc.mockReset();
         mocks.isSyncableDoc.mockReturnValue(true);
-        mocks.getLiveStreamMock.mockClear();
+        mocks.getChangeFeedMock.mockClear();
         mocks.socketDataHandlers.clear();
         localStorage.clear();
         postHttpMock = vi.fn();
@@ -199,7 +199,7 @@ describe("HybridQuery", () => {
         expect(q.output.value).toEqual([]);
         expect(mocks.mangoToDexieMock).not.toHaveBeenCalled();
         expect(postHttpMock).not.toHaveBeenCalled();
-        expect(mocks.getLiveStreamMock).not.toHaveBeenCalled();
+        expect(mocks.getChangeFeedMock).not.toHaveBeenCalled();
         expect(mocks.socketDataHandlers.size).toBe(0);
     });
 
@@ -1325,7 +1325,7 @@ describe("HybridQuery", () => {
             await flush();
 
             expect(mocks.socketDataHandlers.size).toBe(0);
-            expect(mocks.getLiveStreamMock).not.toHaveBeenCalled();
+            expect(mocks.getChangeFeedMock).not.toHaveBeenCalled();
             expect(q.output.value.map((d) => d._id)).toEqual(["g1"]);
         });
     });

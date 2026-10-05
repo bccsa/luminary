@@ -8,7 +8,7 @@ import {
     changeReqErrors,
     changeReqInfo,
     changeReqWarnings,
-    getLiveStream,
+    getChangeFeed,
     init,
     serverError,
 } from "luminary-shared";
@@ -45,7 +45,7 @@ async function Startup() {
         Sentry.captureException(err);
     });
 
-    const socket = getLiveStream();
+    const socket = getChangeFeed();
 
     registerAuthFailureHandler();
 

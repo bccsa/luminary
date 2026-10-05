@@ -3,7 +3,7 @@ import { describe, it, expect, afterEach, vi, afterAll, beforeAll } from "vitest
 import waitForExpect from "wait-for-expect";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
-import { getLiveStream, isConnected, maxUploadFileSize } from "./liveStream";
+import { getChangeFeed, isConnected, maxUploadFileSize } from "./changeFeed";
 import { db, initDatabase } from "../db/database";
 import { DocType } from "../types";
 import { accessMap } from "../permissions/permissions";
@@ -13,7 +13,7 @@ import { ref } from "vue";
 type Handler = (req: http.IncomingMessage, res: http.ServerResponse) => void;
 
 /** Minimal SSE API: each test installs a handler for `GET /live`. */
-describe("liveStream (SSE)", () => {
+describe("changeFeed (SSE)", () => {
     let handler: Handler = () => {};
     let requests: http.IncomingMessage[] = [];
     const openResponses = new Set<http.ServerResponse>();
@@ -58,12 +58,12 @@ describe("liveStream (SSE)", () => {
         });
 
         await initDatabase();
-        getLiveStream().disconnect();
+        getChangeFeed().disconnect();
     });
 
     afterEach(async () => {
         vi.clearAllMocks();
-        getLiveStream().disconnect();
+        getChangeFeed().disconnect();
         openResponses.forEach((r) => r.destroy());
         requests = [];
         handler = () => {};
@@ -84,7 +84,7 @@ describe("liveStream (SSE)", () => {
         handler = (_req, res) => sse(res, "clientConfig", {});
 
         expect(isConnected.value).toEqual(false);
-        getLiveStream().connect();
+        getChangeFeed().connect();
 
         await waitForExpect(() => expect(isConnected.value).toEqual(true));
         expect(requests[0].url).toBe("/live?cms=1");
@@ -93,22 +93,22 @@ describe("liveStream (SSE)", () => {
     it("sends the credentials set with setAuth", async () => {
         handler = (_req, res) => sse(res, "clientConfig", {});
 
-        getLiveStream().setAuth("tok", "provider-1");
-        getLiveStream().connect();
+        getChangeFeed().setAuth("tok", "provider-1");
+        getChangeFeed().connect();
 
         await waitForExpect(() => expect(requests.length).toBeGreaterThan(0));
         expect(requests[0].headers.authorization).toBe("Bearer tok");
         expect(requests[0].headers["x-auth-provider-id"]).toBe("provider-1");
-        getLiveStream().setAuth("", null);
+        getChangeFeed().setAuth("", null);
     });
 
     it("can force reload the connection", async () => {
         handler = (_req, res) => sse(res, "clientConfig", {});
 
-        getLiveStream().connect();
+        getChangeFeed().connect();
         await waitForExpect(() => expect(isConnected.value).toEqual(true));
 
-        getLiveStream().reconnect();
+        getChangeFeed().reconnect();
         expect(isConnected.value).toEqual(false);
         await waitForExpect(() => {
             expect(requests.length).toEqual(2);
@@ -119,8 +119,8 @@ describe("liveStream (SSE)", () => {
     it("does not open a second stream when connect() is called while open", async () => {
         handler = (_req, res) => sse(res, "clientConfig", {});
 
-        getLiveStream().connect();
-        getLiveStream().connect();
+        getChangeFeed().connect();
+        getChangeFeed().connect();
         await waitForExpect(() => expect(isConnected.value).toEqual(true));
         expect(requests.length).toEqual(1);
     });
@@ -132,7 +132,7 @@ describe("liveStream (SSE)", () => {
         };
         handler = (_req, res) => sse(res, "clientConfig", clientConfig);
 
-        getLiveStream().connect();
+        getChangeFeed().connect();
 
         await waitForExpect(() => {
             expect(accessMap.value).toEqual(clientConfig.accessMap);
@@ -147,18 +147,58 @@ describe("liveStream (SSE)", () => {
             sse(res, "clientConfig", {});
         };
         const cb = vi.fn();
-        getLiveStream().on("data", cb);
+        getChangeFeed().on("data", cb);
 
-        getLiveStream().connect();
+        getChangeFeed().connect();
         await waitForExpect(() => expect(isConnected.value).toEqual(true));
 
         sse(live!, "data", { docs: [{ _id: "a" }] });
         await waitForExpect(() => expect(cb).toHaveBeenCalledWith({ docs: [{ _id: "a" }] }));
 
-        getLiveStream().off("data", cb);
+        getChangeFeed().off("data", cb);
         sse(live!, "data", { docs: [{ _id: "b" }] });
         await new Promise((resolve) => setTimeout(resolve, 50));
         expect(cb).toHaveBeenCalledTimes(1);
+    });
+
+    it("drops a malformed frame without reconnecting", async () => {
+        let live: http.ServerResponse | undefined;
+        handler = (_req, res) => {
+            live = res;
+            sse(res, "clientConfig", {});
+        };
+        const cb = vi.fn();
+        getChangeFeed().on("data", cb);
+        getChangeFeed().connect();
+        await waitForExpect(() => expect(isConnected.value).toEqual(true));
+
+        live!.write("event: data\ndata: {not json\n\n");
+        sse(live!, "data", { docs: [{ _id: "ok" }] });
+        await waitForExpect(() => expect(cb).toHaveBeenCalledWith({ docs: [{ _id: "ok" }] }));
+        expect(requests).toHaveLength(1);
+        getChangeFeed().off("data", cb);
+    });
+
+    it("keeps delivering to other listeners when one throws", async () => {
+        let live: http.ServerResponse | undefined;
+        handler = (_req, res) => {
+            live = res;
+            sse(res, "clientConfig", {});
+        };
+        const bad = vi.fn(() => {
+            throw new Error("boom");
+        });
+        const good = vi.fn();
+        getChangeFeed().on("data", bad);
+        getChangeFeed().on("data", good);
+        getChangeFeed().connect();
+        await waitForExpect(() => expect(isConnected.value).toEqual(true));
+
+        sse(live!, "data", { docs: [] });
+        await waitForExpect(() => expect(good).toHaveBeenCalledTimes(1));
+        expect(requests).toHaveLength(1);
+        getChangeFeed().off("data", bad);
+        getChangeFeed().off("data", good);
     });
 
     it("ignores heartbeat pings", async () => {
@@ -167,12 +207,12 @@ describe("liveStream (SSE)", () => {
             sse(res, "ping", "");
         };
         const cb = vi.fn();
-        getLiveStream().on("data", cb);
+        getChangeFeed().on("data", cb);
 
-        getLiveStream().connect();
+        getChangeFeed().connect();
         await waitForExpect(() => expect(isConnected.value).toEqual(true));
         expect(cb).not.toHaveBeenCalled();
-        getLiveStream().off("data", cb);
+        getChangeFeed().off("data", cb);
     });
 
     it("surfaces a 401 as a connectError carrying the reason, and stops retrying", async () => {
@@ -181,9 +221,9 @@ describe("liveStream (SSE)", () => {
             res.end(JSON.stringify({ type: "auth_failed", reason: "token_invalid" }));
         };
         const onError = vi.fn();
-        getLiveStream().on("connectError", onError);
+        getChangeFeed().on("connectError", onError);
 
-        getLiveStream().connect();
+        getChangeFeed().connect();
 
         await waitForExpect(() => expect(onError).toHaveBeenCalledTimes(1));
         const err = onError.mock.calls[0][0];
@@ -193,7 +233,7 @@ describe("liveStream (SSE)", () => {
 
         await new Promise((resolve) => setTimeout(resolve, 1300));
         expect(requests.length).toEqual(1);
-        getLiveStream().off("connectError", onError);
+        getChangeFeed().off("connectError", onError);
     });
 
     it("retries after the server closes the stream", async () => {
@@ -204,7 +244,7 @@ describe("liveStream (SSE)", () => {
             if (count === 1) setTimeout(() => res.end(), 20);
         };
 
-        getLiveStream().connect();
+        getChangeFeed().connect();
 
         await waitForExpect(() => expect(count).toEqual(2), 4000);
         await waitForExpect(() => expect(isConnected.value).toEqual(true));
@@ -216,13 +256,15 @@ describe("liveStream (SSE)", () => {
             live = res;
             sse(res, "clientConfig", {});
         };
-        getLiveStream().connect();
+        getChangeFeed().connect();
         await waitForExpect(() => expect(isConnected.value).toEqual(true));
 
         // Re-arm the idle timer under fake timers, then let it elapse
         vi.useFakeTimers({ toFake: ["setTimeout"] });
         sse(live!, "ping", "");
-        await new Promise((resolve) => setImmediate(resolve));
+        // setImmediate isn't tied to socket delivery, so give the frame real time to be parsed
+        const until = Date.now() + 150;
+        while (Date.now() < until) await new Promise((resolve) => setImmediate(resolve));
         vi.advanceTimersByTime(60_000);
         vi.useRealTimers();
 
@@ -232,7 +274,7 @@ describe("liveStream (SSE)", () => {
     it("reconnects when a disconnected tab becomes visible", async () => {
         handler = (_req, res) => sse(res, "clientConfig", {});
 
-        getLiveStream().disconnect();
+        getChangeFeed().disconnect();
         foregroundDocument();
 
         await waitForExpect(() => {
@@ -245,7 +287,7 @@ describe("liveStream (SSE)", () => {
         // Never answers, so the first attempt stays pending
         handler = () => {};
 
-        getLiveStream().disconnect();
+        getChangeFeed().disconnect();
         foregroundDocument();
         foregroundDocument();
 

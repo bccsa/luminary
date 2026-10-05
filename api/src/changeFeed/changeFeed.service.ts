@@ -9,7 +9,16 @@ import { isExpiredContent, stripExpiredContent } from "../util/stripExpiredConte
 import configuration from "../configuration";
 
 /** One routed database change: the doc to push and the doc type/groups that decide who may see it. */
-type LiveChange = { refType: string; refGroups: string[]; update: any; version?: number };
+type LiveChange = {
+    refType: string;
+    refGroups: string[];
+    update: any;
+    version?: number;
+    /** Event carrying the doc in full, built once and shared by every connection. */
+    full: LiveEvent;
+    /** Expired-content stub event, built on first use and shared by app connections. */
+    stripped?: LiveEvent;
+};
 
 type LiveEvent = { type: "clientConfig" | "data" | "ping"; data: string | object };
 
@@ -20,7 +29,7 @@ const HEARTBEAT_MS = 25_000;
  * a per-connection filter: each connection holds the groups its accessMap grants per doc type.
  */
 @Injectable()
-export class LiveService implements OnModuleInit {
+export class ChangeFeedService implements OnModuleInit {
     private readonly changes$ = new Subject<LiveChange>();
 
     constructor(
@@ -29,7 +38,11 @@ export class LiveService implements OnModuleInit {
     ) {}
 
     onModuleInit() {
-        this.db.on("update", (update: any) => this.route(update));
+        this.db.on("update", (update: any) =>
+            this.route(update).catch((e) =>
+                this.logger.error(`Live routing failed for ${update?._id}: ${e?.message}`),
+            ),
+        );
     }
 
     /**
@@ -44,6 +57,8 @@ export class LiveService implements OnModuleInit {
             Object.values(DocType),
         ) as unknown as Record<string, string[]>;
         const deleteCmdGroups = new Set(Object.values(groupsByType).flat());
+        const groupSetsByType = new Map<string, Set<string>>();
+        for (const type in groupsByType) groupSetsByType.set(type, new Set(groupsByType[type]));
 
         const clientConfig: LiveEvent = {
             type: "clientConfig",
@@ -58,13 +73,11 @@ export class LiveService implements OnModuleInit {
                 // DeleteCmd docs are shared by both modes: any accessible group qualifies.
                 const allowed =
                     change.refType === DocType.DeleteCmd
-                        ? [...deleteCmdGroups]
-                        : groupsByType[change.refType];
-                if (!allowed?.some((g) => change.refGroups.includes(g))) return undefined;
-                const docs = this.docsFor(change.update, cms);
-                return (
-                    docs && ({ type: "data", data: { docs, version: change.version } } as LiveEvent)
-                );
+                        ? deleteCmdGroups
+                        : groupSetsByType.get(change.refType);
+                if (!allowed) return undefined;
+                for (const g of change.refGroups) if (allowed.has(g)) return this.eventFor(change, cms);
+                return undefined;
             }),
             filter((e): e is LiveEvent => e !== undefined),
         );
@@ -77,18 +90,30 @@ export class LiveService implements OnModuleInit {
         );
     }
 
-    /** What a connection of the given mode may hold for this doc, or undefined to withhold it. */
-    private docsFor(update: any, cms: boolean): any[] | undefined {
-        if (cms || update.type !== DocType.Content) return [update];
+    /** What a connection of the given mode may hold for this change, or undefined to withhold it. */
+    private eventFor(change: LiveChange, cms: boolean): LiveEvent | undefined {
+        const update = change.update;
+        if (cms || update.type !== DocType.Content) return change.full;
         // App connections never receive drafts; the app is evicted via an app-only StatusChange DeleteCmd.
         if (update.status !== PublishStatus.Published) return undefined;
         // Expired content arrives as a stub so the app prunes its copy without the body on the wire.
-        return isExpiredContent(update, Date.now()) ? [stripExpiredContent(update)] : [update];
+        if (isExpiredContent(update, Date.now())) {
+            return (change.stripped ??= this.dataEvent([stripExpiredContent(update)], change.version));
+        }
+        return change.full;
+    }
+
+    private dataEvent(docs: any[], version?: number): LiveEvent {
+        return { type: "data", data: { docs, version } };
     }
 
     /** Resolve the doc a change belongs to (its type and groups) and publish it to connections. */
     private async route(update: any) {
-        if (!update.type || update.type === DocType.Sidecar) return;
+        if (!update.type) {
+            this.logger.warn(`Document type not found in database update object: ${update._id}`);
+            return;
+        }
+        if (update.type === DocType.Sidecar) return;
 
         let refDoc = update;
         if (refDoc.type == "change" && refDoc.changes) refDoc = update.changes;
@@ -106,11 +131,13 @@ export class LiveService implements OnModuleInit {
         const refGroups: string[] = refDoc.type == "group" ? [refDoc._id] : refDoc.memberOf || [];
         if (refGroups.length === 0) return;
 
+        const version = update.updatedTimeUtc ? update.updatedTimeUtc : undefined;
         this.changes$.next({
             refType: refDoc.type,
             refGroups,
             update,
-            version: update.updatedTimeUtc ? update.updatedTimeUtc : undefined,
+            version,
+            full: this.dataEvent([update], version),
         });
     }
 }

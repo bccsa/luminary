@@ -4,14 +4,14 @@ import type { Page } from "@playwright/test";
 export const LIVE_STREAM = /\/live(\?|$)/;
 
 /**
- * Makes every live stream short-lived: the first event (the `clientConfig`) is read from the real
+ * Makes every change feed short-lived: the first event (the `clientConfig`) is read from the real
  * API and replayed, then the stream ends. The client sees a dropped connection and reconnects with
  * whatever credentials it holds by then — the way a network blip would. Playwright cannot hold open
  * and later close a plain HTTP stream, so this stands in for closing a WebSocket.
  *
  * Install before the first navigation.
  */
-export async function useShortLivedLiveStream(page: Page): Promise<void> {
+export async function useShortLivedChangeFeed(page: Page): Promise<void> {
     await page.route(LIVE_STREAM, async (route) => {
         const request = route.request();
         const headers = { ...request.headers() };

@@ -133,10 +133,10 @@ via the private `_recompute`. `_recompute` only reassigns the `output` ref when
 the windowed result actually changed (compared by `_id` + `updatedTimeUtc` per
 position via `sameWindow`), to avoid needless Vue re-renders.
 
-### Live stream updates (live mode)
+### Change feed updates (live mode)
 
 In **live mode**, the remote contribution is also kept live. The class attaches a
-`getLiveStream().on("data", …)` listener to the **global access-scoped changefeed**
+`getChangeFeed().on("data", …)` listener to the **global access-scoped changefeed**
 and filters it client-side with a predicate compiled (`mangoCompile`) from the
 **API supplement query**. Matching docs are upserted into `_remote`; `DeleteCmd`s
 that pass `db.validateDeleteCommand` + a compiled delete predicate
@@ -144,11 +144,11 @@ that pass `db.validateDeleteCommand` + a compiled delete predicate
 removed — **whether sourced locally or remotely**. Everything feeds the same
 `_recompute` (dedup → sort → limit → minimal mutation).
 
-Live stream updates are applied via a `mangoCompile`-based predicate over the
+Change feed updates are applied via a `mangoCompile`-based predicate over the
 `/query` model.
 
 The feed carries **all** changes the user has access to (the server streams the
-CouchDB changefeed; it's the _global_ client handler in `liveStream.ts` that narrows
+CouchDB changefeed; it's the _global_ client handler in `changeFeed.ts` that narrows
 to `syncList` before writing Dexie), so older-tail / non-synced remote docs **do**
 receive live updates.
 

@@ -1,7 +1,7 @@
 import { UserManager, WebStorageStateStore, type User } from "oidc-client-ts";
 import { computed, ref } from "vue";
 import * as Sentry from "@sentry/vue";
-import { db, getLiveStream, removeCustomHeader, setCustomHeader } from "luminary-shared";
+import { db, getChangeFeed, removeCustomHeader, setCustomHeader } from "luminary-shared";
 import type { AuthProviderDto } from "luminary-shared";
 
 const OIDC_STATE_PREFIX = "oidc.";
@@ -372,8 +372,8 @@ export async function refreshTokenWithOutcome(opts?: {
             // Re-assert the id: the API rejects a token that arrives without its
             // provider, and the header may have been cleared while in flight.
             setProviderIdHeader(providerId);
-            getLiveStream().setAuth(current.access_token, providerId);
-            getLiveStream().reconnect();
+            getChangeFeed().setAuth(current.access_token, providerId);
+            getChangeFeed().reconnect();
             return "refreshed";
         };
 
@@ -485,7 +485,7 @@ export function clearAuthCache(): void {
     // at boot (pre-connect), on provider_not_found (about to re-pick), and on
     // logout (about to redirect or reload) — none of those want an extra
     // connect cycle competing with refreshTokenSilently()'s own reconnect().
-    getLiveStream().setAuth("", null);
+    getChangeFeed().setAuth("", null);
     // oidc-client-ts keeps both the user (`oidc.user:…`) and in-flight signin state
     // including the PKCE verifier (`oidc.<state-id>`) in localStorage, so the
     // `oidc.` sweep has to cover localStorage — `oidc.user:` alone leaves every

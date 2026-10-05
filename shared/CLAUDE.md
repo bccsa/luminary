@@ -50,7 +50,7 @@ in that consumer's own docs, not here.)
 
 ### Entry point and initialization
 
-`src/luminary.ts` exposes a single `init(config)` that, in order, sets the shared config, opens Dexie (`initDatabase`), warms the worker pool (`warmWorkers`, unless `useWorkers` is `false`), creates the live update stream (`getLiveStream`), and starts the REST sync (`getRest` + `initSync`). Calling code does this once at app startup. The exported surface area for consumers is everything in `src/index.ts`.
+`src/luminary.ts` exposes a single `init(config)` that, in order, sets the shared config, opens Dexie (`initDatabase`), warms the worker pool (`warmWorkers`, unless `useWorkers` is `false`), creates the live update stream (`getChangeFeed`), and starts the REST sync (`getRest` + `initSync`). Calling code does this once at app startup. The exported surface area for consumers is everything in `src/index.ts`.
 
 `SharedConfig` (`src/config.ts`) is the single configuration object: `cms` flag, app-specific `docsIndex` string appended to the shared Dexie index, `apiUrl`, a `Ref<Uuid[]>` of active language IDs (used by FTS filtering), and `useWorkers` (default `true`) to keep a consumer single-threaded. What gets synced is owned by the sync engine (the consumer's `sync()` calls), not declared in config.
 
@@ -80,7 +80,7 @@ The sync system is documented in detail in `src/api/sync/README.md`. Read it bef
 
 `src/api/syncLocalChanges.ts` drains the `localChanges` table to the API and applies ack/reject responses via `db.applyLocalChangeAck`.
 
-### Live updates (SSE) — `src/liveStream/liveStream.ts`
+### Live updates (SSE) — `src/changeFeed/changeFeed.ts`
 
 Live updates arrive over one Server-Sent Events stream (`GET /live?cms=0|1`), read with `fetch` so the auth headers (`Authorization`, `x-auth-provider-id`) can be sent. The `cms` flag selects CmsView-scoped delivery (drafts/expired in full) versus published-only. The server pushes every doc type the user's accessMap permits; the first event is `clientConfig` (`accessMap`, `maxUploadFileSize`), after which `isConnected` becomes true, then `data` events follow. Incoming docs are filtered against `syncList` and `appLanguageIdsAsRef` before being bulk-put into Dexie. A 401 is surfaced as a `connectError` event carrying `{ type: "auth_failed", reason }` and stops retrying so a stale token doesn't loop; other failures retry with backoff.
 

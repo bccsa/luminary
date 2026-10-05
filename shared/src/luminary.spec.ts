@@ -34,8 +34,8 @@ vi.mock("./api/sync/liveSync", () => ({
     initLiveSync: () => mockInitLiveSync(),
 }));
 
-vi.mock("./liveStream/liveStream", () => ({
-    getLiveStream: () => mockGetSocket(),
+vi.mock("./changeFeed/changeFeed", () => ({
+    getChangeFeed: () => mockGetSocket(),
 }));
 
 vi.mock("./worker/workerClient", () => ({

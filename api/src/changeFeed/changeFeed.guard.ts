@@ -12,7 +12,7 @@ import {
  * provider based on that code.
  */
 @Injectable()
-export class LiveAuthGuard implements CanActivate {
+export class ChangeFeedAuthGuard implements CanActivate {
     constructor(private authIdentityService: AuthIdentityService) {}
 
     async canActivate(context: ExecutionContext): Promise<boolean> {

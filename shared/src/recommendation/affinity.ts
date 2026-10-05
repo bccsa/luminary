@@ -28,7 +28,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  * previously a module-private constant; a `config` argument (defaulting to
  * {@link DEFAULT_AFFINITY_CONFIG}) is threaded through the functions below so they
  * stay pure — no reactive/global reads inside this file. Callers that need the
- * CMS-edited values read them from the `affinityConfig` ref (`liveStream/liveStream.ts`)
+ * CMS-edited values read them from the `affinityConfig` ref (`changeFeed/changeFeed.ts`)
  * and pass it in explicitly.
  */
 export type AffinityConfig = {
@@ -151,7 +151,7 @@ export function resolveAffinityConfig(config?: Partial<AffinityConfig>): Affinit
  *
  * These mirror {@link DEFAULT_AFFINITY_CONFIG} for callers that only need a static
  * default (e.g. tests). Call sites that should honour a CMS-edited config read
- * `affinityConfig.value.eventWeight.*` instead (see `liveStream/liveStream.ts`).
+ * `affinityConfig.value.eventWeight.*` instead (see `changeFeed/changeFeed.ts`).
  */
 export const EventWeight = {
     /** Content was opened/viewed. Weak signal — could be an immediate bounce. */

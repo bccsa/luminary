@@ -1,4 +1,4 @@
-import { LIVE_STREAM } from "../../fixtures/liveStream";
+import { LIVE_STREAM } from "../../fixtures/changeFeed";
 import { appTest as test, expect } from "../../fixtures/test";
 import { waitForSynced } from "../../fixtures/readiness";
 import type { Page } from "@playwright/test";
@@ -51,7 +51,7 @@ const waitForAppReady = (page: Page) =>
     );
 
 /**
- * Blocks the live stream so `isConnected` stays false, and hands back a switch
+ * Blocks the change feed so `isConnected` stays false, and hands back a switch
  * to let it through again. Routing has to be installed before the first
  * navigation, so connectivity is toggled from inside the handler rather than
  * by unrouting.

@@ -12,7 +12,7 @@ import {
 } from "vue";
 import { db } from "../../db/database";
 import { HttpReq } from "../../api/http";
-import { getLiveStream, isConnected } from "../../liveStream/liveStream";
+import { getChangeFeed, isConnected } from "../../changeFeed/changeFeed";
 import {
     type ApiDataResponseDto,
     type BaseDocumentDto,
@@ -961,14 +961,14 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
             (connected) => {
                 if (this._disposed) return;
                 // off() first is idempotent and guarantees a single registration.
-                getLiveStream().off("data", cb);
-                if (connected) getLiveStream().on("data", cb);
+                getChangeFeed().off("data", cb);
+                if (connected) getChangeFeed().on("data", cb);
             },
             { immediate: true },
         );
 
         this._generationDisposers.add(stop);
-        this._generationDisposers.add(() => getLiveStream().off("data", cb));
+        this._generationDisposers.add(() => getChangeFeed().off("data", cb));
     }
 
     /**

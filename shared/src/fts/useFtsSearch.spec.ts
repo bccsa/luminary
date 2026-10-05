@@ -5,13 +5,13 @@ vi.mock("./ftsSearchRouted", () => ({
     ftsSearch: vi.fn(),
 }));
 
-vi.mock("../liveStream/liveStream", () => ({
+vi.mock("../changeFeed/changeFeed", () => ({
     isConnected: ref(true),
-    getLiveStream: () => ({
+    getChangeFeed: () => ({
         on: vi.fn(),
         off: vi.fn(),
     }),
-    isLiveStreamConfigured: () => true,
+    isChangeFeedConfigured: () => true,
 }));
 
 vi.mock("../util/useDexieLiveQuery/useDexieLiveQuery", () => ({
@@ -35,7 +35,7 @@ vi.mock("./ftsSearchApi", async (importOriginal) => {
 import { useFtsSearch } from "./useFtsSearch";
 import { ftsSearch } from "./ftsSearchRouted";
 import { ftsSearchApi } from "./ftsSearchApi";
-import { isConnected } from "../liveStream/liveStream";
+import { isConnected } from "../changeFeed/changeFeed";
 import { initConfig } from "../config";
 import type { FtsSearchResult } from "./types";
 

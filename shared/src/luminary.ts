@@ -4,7 +4,7 @@ import { HttpReq } from "./api/http";
 import { getRest } from "./api/RestApi";
 import { initSync } from "./api/sync/sync";
 import { initLiveSync } from "./api/sync/liveSync";
-import { getLiveStream } from "./liveStream/liveStream";
+import { getChangeFeed } from "./changeFeed/changeFeed";
 import { initHybridQuery } from "./util/HybridQuery";
 import { runInWorker, warmWorkers } from "./worker/workerClient";
 import { setCorpusScanner } from "./fts/ftsIndexer";
@@ -27,8 +27,8 @@ export async function init(config: SharedConfig) {
     // client itself. `runInWorker` falls back to this thread when no worker is available.
     setCorpusScanner(() => runInWorker("corpusScan", undefined));
 
-    // Initialize the LiveStream connection (initialized on first call)
-    getLiveStream();
+    // Initialize the ChangeFeed connection (initialized on first call)
+    getChangeFeed();
 
     // Initialize the REST API connection (initialized on first call) to start syncing
     // Currently still needed to push local changes to the API
@@ -42,14 +42,11 @@ export async function init(config: SharedConfig) {
     // entries that re-introduce the broken shape.
     await initSync(http);
 
-    // Socket.io is a pure change-feed transport; the sync live persister owns the
+    // The change feed is a pure change-feed transport; the sync live persister owns the
     // decision of which live updates get written to IndexedDB (gated by isSyncableDoc,
-    // derived from sync's syncList). Registered once — the socket re-fires listeners
+    // derived from sync's syncList). Registered once — the stream re-fires listeners
     // across reconnects.
     initLiveSync();
-
-    // Start re-joining still-wanted socket rooms on (re)connect. sync drives the
-    // rooms for synced types; HybridQuery drives them on demand for non-synced types.
 
     initHybridQuery(http);
 }

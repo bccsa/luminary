@@ -1,7 +1,7 @@
 import { cmsPersonaTest as test, expect, providerConfig } from "../../fixtures/persona";
 import { readStoredSession } from "../../fixtures/idp";
 import { waitForAccessMap } from "../../fixtures/readiness";
-import { useShortLivedLiveStream } from "../../fixtures/liveStream";
+import { useShortLivedChangeFeed } from "../../fixtures/changeFeed";
 
 /**
  * The token only turns bad on the wire at a live-stream *reconnect* — the client
@@ -19,8 +19,8 @@ test.describe("CMS quiet token recovery", () => {
         const provider = providerConfig(idp.providers.primary);
         const persona = await loginAs("editor1", { expiresInSeconds: 12 });
 
-        // Live streams end shortly after opening, the way a network drop would
-        await useShortLivedLiveStream(page);
+        // Change feeds end shortly after opening, the way a network drop would
+        await useShortLivedChangeFeed(page);
 
         await page.goto("/");
         const accessMap = await waitForAccessMap(page);

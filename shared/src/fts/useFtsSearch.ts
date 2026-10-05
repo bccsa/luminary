@@ -3,7 +3,7 @@ import { ftsSearch } from "./ftsSearchRouted";
 import { ftsSearchApi, shouldUseApiFts } from "./ftsSearchApi";
 import { getContentPublishDateCutoff } from "../config";
 import { reportBreadcrumb, reportError } from "../diagnostics";
-import { isConnected } from "../liveStream/liveStream";
+import { isConnected } from "../changeFeed/changeFeed";
 import { OPEN_MIN } from "../api/sync/utils";
 import type { FtsSearchOptions, FtsSearchResult, FtsSort } from "./types";
 import { DocType, type ContentDto, type PublishStatus } from "../types";

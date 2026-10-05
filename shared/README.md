@@ -56,7 +56,7 @@ await init({
 
 | Export                                                | Description                                                                                                              |
 | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `init(config)`                                        | One-shot startup: config → database → live stream → REST sync → query layer.                                             |
+| `init(config)`                                        | One-shot startup: config → database → change feed → REST sync → query layer.                                             |
 | `SharedConfig`                                        | The single configuration object (`cms` flag, `apiUrl`, `docsIndex`, active-language ref, content cutoff, retention TTL). |
 | `initConfig(config)`                                  | Set/replace the shared config (called by `init`).                                                                        |
 | `getContentPublishDateCutoff()`                       | The configured content `publishDate` cutoff — single source of truth bounding sync depth and query routing.              |
@@ -102,9 +102,9 @@ Autonomous, incremental backwards-in-time sync per `(type, memberOf, languages)`
 
 → [Sync system docs](src/api/sync/README.md)
 
-### Transport — `src/liveStream/`, `src/api/`
+### Transport — `src/changeFeed/`, `src/api/`
 
-The live stream client reports the configured **`cms` mode** (`config.cms`) to the server when it
+The change feed client reports the configured **`cms` mode** (`config.cms`) to the server when it
 opens the stream (`GET /live?cms=0|1`). The server uses it to scope what the connection receives, so a
 CMS-mode consumer receives CMS-scoped documents (including drafts and expired content) while a
 default consumer receives only published documents (expired content arriving as a body-less cleanup
@@ -112,7 +112,7 @@ signal). The mode is purely a request — the server enforces the corresponding 
 
 | Export                                             | Description                                                         |
 | -------------------------------------------------- | ------------------------------------------------------------------- |
-| `getLiveStream()`                                  | The live stream singleton (change-feed transport + `clientConfig`). |
+| `getChangeFeed()`                                  | The change feed singleton (change-feed transport + `clientConfig`). |
 | `isConnected`                                      | Reactive online/offline ref driving deferred API calls.             |
 | `maxUploadFileSize`                                | Server-provided upload limit (reactive).                            |
 | `getRest()`                                        | The REST client singleton (sync pulls + local-change pushes).       |

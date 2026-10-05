@@ -23,7 +23,7 @@ import { isDeleteCmdSuperseded } from "./deleteCmdStaleness";
 import { watchValue } from "../util/watchValue";
 import { accessMap, getAccessibleGroups, verifyAccess } from "../permissions/permissions";
 import { config, getDeleteExpiredIntervalMs } from "../config";
-import { isConnected } from "../liveStream/liveStream";
+import { isConnected } from "../changeFeed/changeFeed";
 import { changeReqErrors, changeReqInfo, changeReqWarnings } from "../config";
 import { cloneDeep } from "lodash-es";
 

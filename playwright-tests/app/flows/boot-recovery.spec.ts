@@ -1,4 +1,4 @@
-import { LIVE_STREAM } from "../../fixtures/liveStream";
+import { LIVE_STREAM } from "../../fixtures/changeFeed";
 import type { Page } from "@playwright/test";
 import { appTest as test, expect } from "../../fixtures/test";
 

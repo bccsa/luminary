@@ -1,12 +1,13 @@
 import { firstValueFrom, take, toArray } from "rxjs";
-import { LiveService } from "./live.service";
+import { ChangeFeedService } from "./changeFeed.service";
 import { DocType, PublishStatus } from "../enums";
 
 /** Fully mocked: no CouchDB. The db "update" handler is captured and invoked directly. */
-describe("LiveService", () => {
-    let service: LiveService;
+describe("ChangeFeedService", () => {
+    let service: ChangeFeedService;
     let emitUpdate: (doc: any) => Promise<void>;
     let mockDb: any;
+    let mockLogger: any;
 
     const accessMap: any = {
         "group-A": {
@@ -17,7 +18,8 @@ describe("LiveService", () => {
 
     beforeEach(() => {
         mockDb = { on: jest.fn(), getDoc: jest.fn() };
-        service = new LiveService({ warn: jest.fn() } as any, mockDb);
+        mockLogger = { warn: jest.fn(), error: jest.fn() };
+        service = new ChangeFeedService(mockLogger, mockDb);
         service.onModuleInit();
         const handler = mockDb.on.mock.calls[0][1];
         emitUpdate = async (doc) => {
@@ -131,5 +133,41 @@ describe("LiveService", () => {
         const events = await p;
         jest.useRealTimers();
         expect(events.map((e) => e.type)).toEqual(["clientConfig", "ping"]);
+    });
+
+    it("warns about and drops docs without a type", async () => {
+        const events = await collect(false, () => emitUpdate({ _id: "x", memberOf: ["group-A"] }));
+        expect(events.filter((e) => e.type === "data")).toHaveLength(0);
+        expect(mockLogger.warn).toHaveBeenCalledWith(expect.stringContaining("x"));
+    });
+
+    it("logs instead of throwing when routing fails", async () => {
+        mockDb.getDoc.mockRejectedValue(new Error("db down"));
+        const handler = mockDb.on.mock.calls[0][1];
+        await handler({ _id: "c1", type: DocType.Content, parentId: "p1" });
+        await new Promise((r) => setImmediate(r));
+        expect(mockLogger.error).toHaveBeenCalledWith(expect.stringContaining("db down"));
+    });
+
+    it("stops the heartbeat and change subscription when the connection closes", async () => {
+        jest.useFakeTimers();
+        const events: any[] = [];
+        const sub = service.connect(accessMap, false).subscribe((e) => events.push(e));
+        sub.unsubscribe();
+        jest.advanceTimersByTime(100_000);
+        await emitUpdate({ _id: "p1", type: DocType.Post, memberOf: ["group-A"] });
+        jest.useRealTimers();
+        expect(events.map((e) => e.type)).toEqual(["clientConfig"]);
+    });
+
+    it("shares one event object between connections", async () => {
+        const a: any[] = [];
+        const b: any[] = [];
+        const s1 = service.connect(accessMap, false).subscribe((e) => a.push(e));
+        const s2 = service.connect(accessMap, false).subscribe((e) => b.push(e));
+        await emitUpdate({ _id: "p1", type: DocType.Post, memberOf: ["group-A"] });
+        s1.unsubscribe();
+        s2.unsubscribe();
+        expect(a[1]).toBe(b[1]);
     });
 });

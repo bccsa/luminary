@@ -39,7 +39,7 @@ type AuthConnectError = Error & { data?: { type?: string; reason?: string } };
  * Live update transport: one Server-Sent Events stream (`GET /live`). Keeps the former Socket.io
  * client's surface (`on`/`off`, `connectError`, `data`) so consumers are transport-agnostic.
  */
-class LiveStream {
+class ChangeFeed {
     private listeners = new Map<string, Set<(...args: any[]) => void>>();
     private abortController: AbortController | undefined;
     private auth: { token?: string; providerId?: string | null } = {};
@@ -47,7 +47,7 @@ class LiveStream {
     private idleTimer: ReturnType<typeof setTimeout> | undefined;
 
     /**
-     * Create a new LiveStream instance
+     * Create a new ChangeFeed instance
      * @param {SharedConfig} config - Configuration object
      */
     constructor(private readonly config: SharedConfig) {
@@ -61,8 +61,18 @@ class LiveStream {
         }
     }
 
-    private dispatch(event: string, ...args: any[]) {
-        this.listeners.get(event)?.forEach((cb) => cb(...args));
+    /** One throwing listener must not tear down the stream or starve the other listeners. */
+    private dispatch(event: string, payload: unknown) {
+        this.listeners.get(event)?.forEach((cb) => {
+            try {
+                cb(payload);
+            } catch (e) {
+                reportBreadcrumb(`Change feed listener failed: ${(e as Error)?.message}`, {
+                    area: "live",
+                    op: "listener-error",
+                });
+            }
+        });
     }
 
     private open() {
@@ -85,20 +95,32 @@ class LiveStream {
             onopen: async (res) => {
                 if (res.ok) return this.armIdleTimer();
                 if (res.status === 401) await this.rejectAuth(res);
-                throw new Error(`Live stream rejected: HTTP ${res.status}`);
+                throw new Error(`Change feed rejected: HTTP ${res.status}`);
             },
             onmessage: (ev) => {
                 this.armIdleTimer();
-                if (ev.event === "clientConfig") this.applyConfig(JSON.parse(ev.data));
-                else if (ev.event === "data") this.dispatch("data", JSON.parse(ev.data));
+                if (ev.event !== "clientConfig" && ev.event !== "data") return;
+                let payload;
+                try {
+                    payload = JSON.parse(ev.data);
+                } catch {
+                    // A malformed frame is dropped; throwing would reconnect and replay the same stream
+                    reportBreadcrumb("Change feed received malformed JSON", {
+                        area: "live",
+                        op: "parse-error",
+                    });
+                    return;
+                }
+                if (ev.event === "clientConfig") this.applyConfig(payload);
+                else this.dispatch("data", payload);
             },
             // A stream that ends cleanly is still a lost connection; throwing makes the library retry.
             onclose: () => {
-                throw new Error("Live stream closed");
+                throw new Error("Change feed closed");
             },
             onerror: (err) => {
                 if (err instanceof FatalStreamError) throw err;
-                reportBreadcrumb(`Live stream error: ${err?.message}`, {
+                reportBreadcrumb(`Change feed error: ${err?.message}`, {
                     area: "live",
                     op: "connect-error",
                 });
@@ -125,7 +147,7 @@ class LiveStream {
         const body = (await res.json().catch(() => ({}))) as { type?: string; reason?: string };
         const err: AuthConnectError = new Error("auth_failed");
         err.data = { type: "auth_failed", ...(body.reason ? { reason: body.reason } : {}) };
-        reportBreadcrumb(`Live stream auth failed: ${body.reason}`, {
+        reportBreadcrumb(`Change feed auth failed: ${body.reason}`, {
             area: "live",
             op: "connect-error",
             data: { type: err.data.type },
@@ -140,7 +162,7 @@ class LiveStream {
     private applyConfig(c: ClientConfig) {
         if (c.maxUploadFileSize) maxUploadFileSize.value = c.maxUploadFileSize;
         if (c.accessMap) accessMap.value = c.accessMap;
-        reportBreadcrumb("Live stream connected and configured", { area: "live", op: "connect" });
+        reportBreadcrumb("Change feed connected and configured", { area: "live", op: "connect" });
         this.retryDelay = RETRY_MIN_MS;
         isConnected.value = true; // Only set isConnected after configuration has been received from the API
     }
@@ -166,7 +188,7 @@ class LiveStream {
     }
 
     /**
-     * Close the live stream
+     * Close the change feed
      */
     public disconnect() {
         clearTimeout(this.idleTimer);
@@ -176,7 +198,7 @@ class LiveStream {
     }
 
     /**
-     * Update the credentials sent with the live stream request.
+     * Update the credentials sent with the change feed request.
      * @param token - JWT access token
      * @param providerId - Active auth provider id (or null/undefined for guest)
      */
@@ -185,7 +207,7 @@ class LiveStream {
     }
 
     /**
-     * Open the live stream (no-op if already open)
+     * Open the change feed (no-op if already open)
      */
     public connect() {
         if (this.abortController) return;
@@ -194,7 +216,7 @@ class LiveStream {
     }
 
     /**
-     * Close and reopen the live stream, e.g. after the credentials changed.
+     * Close and reopen the change feed, e.g. after the credentials changed.
      */
     public reconnect() {
         this.disconnect();
@@ -202,23 +224,23 @@ class LiveStream {
     }
 }
 
-let socket: LiveStream;
+let socket: ChangeFeed;
 
 /**
- * Whether {@link getLiveStream} can return a socket instead of throwing. Callers that attach live
+ * Whether {@link getChangeFeed} can return a socket instead of throwing. Callers that attach live
  * listeners opportunistically (rather than as part of an initialized app) use this so an
  * environment with no socket configured — a server-side render, a bare test harness — is a
  * no-op rather than an error.
  */
-export function isLiveStreamConfigured(): boolean {
+export function isChangeFeedConfigured(): boolean {
     return !!socket || !!config?.apiUrl;
 }
 
 /**
- * Returns a singleton instance of the LiveStream client class.
+ * Returns a singleton instance of the ChangeFeed client class.
  * @param options - Socket connection options
  */
-export function getLiveStream(
+export function getChangeFeed(
     options: {
         /**
          * Force a reconnect to the server if the socket already exists
@@ -234,7 +256,7 @@ export function getLiveStream(
             throw new Error("Socket connection requires an API URL");
         }
 
-        socket = new LiveStream(config);
+        socket = new ChangeFeed(config);
     } else if (options.reconnect) socket.reconnect();
 
     return socket;

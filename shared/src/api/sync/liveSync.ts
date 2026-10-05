@@ -1,7 +1,7 @@
 import { DocType, type ApiDataResponseDto, type BaseDocumentDto, type ContentDto } from "../../types";
 import { db } from "../../db/database";
 import { isSyncableDoc } from "../../db/isSyncable";
-import { getLiveStream } from "../../liveStream/liveStream";
+import { getChangeFeed } from "../../changeFeed/changeFeed";
 import { getContentPublishDateCutoff } from "../../config";
 
 let _initialized = false;
@@ -9,7 +9,7 @@ let _initialized = false;
 /**
  * Apply one live-stream `"data"` batch to IndexedDB.
  *
- * The live stream is a pure transport — it does not decide what to persist. This is
+ * The change feed is a pure transport — it does not decide what to persist. This is
  * where that decision lives: incoming live updates are filtered through
  * `isSyncableDoc` (the sync-`syncList`-derived gate), and the result is written
  * via `db.bulkPut` (which resolves `DeleteCmd`s with its own stale-delete guard).
@@ -56,5 +56,5 @@ export async function applyLiveData(data: ApiDataResponseDto): Promise<void> {
 export function initLiveSync(): void {
     if (_initialized) return;
     _initialized = true;
-    getLiveStream().on("data", applyLiveData);
+    getChangeFeed().on("data", applyLiveData);
 }

@@ -5,7 +5,7 @@ export * from "./db/isSyncable";
 export * from "./db/deleteCmdStaleness";
 export * from "./types";
 export * from "./permissions/permissions";
-export * from "./liveStream/liveStream";
+export * from "./changeFeed/changeFeed";
 export * from "./util";
 export * from "./api/RestApi";
 export * from "./api/sync";

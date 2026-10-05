@@ -1,7 +1,7 @@
 import { UnauthorizedException } from "@nestjs/common";
-import { LiveAuthGuard } from "./live.guard";
+import { ChangeFeedAuthGuard } from "./changeFeed.guard";
 
-describe("LiveAuthGuard", () => {
+describe("ChangeFeedAuthGuard", () => {
     function ctx(headers: Record<string, string>) {
         const request: any = { headers };
         return { request, context: { switchToHttp: () => ({ getRequest: () => request }) } as any };
@@ -12,7 +12,7 @@ describe("LiveAuthGuard", () => {
             resolveOrDefault: jest.fn().mockResolvedValue({ userDetails: { groups: [] } }),
         };
         const { request, context } = ctx({ authorization: "Bearer t", "x-auth-provider-id": "p" });
-        await expect(new LiveAuthGuard(auth).canActivate(context)).resolves.toBe(true);
+        await expect(new ChangeFeedAuthGuard(auth).canActivate(context)).resolves.toBe(true);
         expect(auth.resolveOrDefault).toHaveBeenCalledWith("t", "p");
         expect(request.user).toEqual({ groups: [] });
     });
@@ -22,13 +22,13 @@ describe("LiveAuthGuard", () => {
             resolveOrDefault: jest.fn().mockResolvedValue({ userDetails: { groups: ["g"] } }),
         };
         const { context } = ctx({});
-        await expect(new LiveAuthGuard(auth).canActivate(context)).resolves.toBe(true);
+        await expect(new ChangeFeedAuthGuard(auth).canActivate(context)).resolves.toBe(true);
     });
 
     it("rejects a token without a providerId as provider_not_found", async () => {
         const auth: any = { resolveOrDefault: jest.fn() };
         const { context } = ctx({ authorization: "Bearer t" });
-        const err: any = await new LiveAuthGuard(auth).canActivate(context).catch((e) => e);
+        const err: any = await new ChangeFeedAuthGuard(auth).canActivate(context).catch((e) => e);
         expect(err).toBeInstanceOf(UnauthorizedException);
         expect(err.getResponse()).toMatchObject({
             type: "auth_failed",
@@ -41,7 +41,7 @@ describe("LiveAuthGuard", () => {
         failure.reason = "token_invalid";
         const auth: any = { resolveOrDefault: jest.fn().mockRejectedValue(failure) };
         const { context } = ctx({ authorization: "Bearer t", "x-auth-provider-id": "p" });
-        const err: any = await new LiveAuthGuard(auth).canActivate(context).catch((e) => e);
+        const err: any = await new ChangeFeedAuthGuard(auth).canActivate(context).catch((e) => e);
         expect(err.getResponse()).toMatchObject({ type: "auth_failed", reason: "token_invalid" });
     });
 });

@@ -13,7 +13,7 @@ vi.mock("luminary-shared", async (importOriginal) => {
     const actual = await importOriginal<typeof import("luminary-shared")>();
     return new Proxy(actual, {
         get(target, prop) {
-            if (prop === "getLiveStream") return () => mockSocket;
+            if (prop === "getChangeFeed") return () => mockSocket;
             return Reflect.get(target, prop);
         },
     });

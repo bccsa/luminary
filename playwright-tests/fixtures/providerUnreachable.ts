@@ -1,5 +1,5 @@
 import { expect, type Page } from "@playwright/test";
-import { useShortLivedLiveStream } from "./liveStream";
+import { useShortLivedChangeFeed } from "./changeFeed";
 import { readStoredSession, type ClientTarget, type ProviderConfig } from "./idp";
 import { readActiveProviderId } from "./loginFlow";
 import { waitForAccessMap } from "./readiness";
@@ -45,7 +45,7 @@ export async function assertSessionSurvivesUnreachableProvider(
 
     // Streams end shortly after opening, the way a network blip would, forcing a
     // reconnect with the by-then stale token.
-    await useShortLivedLiveStream(page);
+    await useShortLivedChangeFeed(page);
 
     await page.goto("/");
     const accessMap = await waitForAccessMap(page);

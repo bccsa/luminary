@@ -3,7 +3,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { ref, type Ref } from "vue";
 import { AckStatus, ChangeReqDto, DocType, LocalChangeDto } from "../types";
 import { db, initDatabase } from "../db/database";
-import { getLiveStream, isConnected } from "../liveStream/liveStream";
+import { getChangeFeed, isConnected } from "../changeFeed/changeFeed";
 import { changeReqErrors, initConfig } from "../config";
 import http from "node:http";
 import waitForExpect from "wait-for-expect";
@@ -16,7 +16,7 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const changeRequestMock = vi.fn();
 
 describe("syncLocalChanges", () => {
-    // Answers the live stream with an empty clientConfig, which marks the client connected
+    // Answers the change feed with an empty clientConfig, which marks the client connected
     const openResponses = new Set<http.ServerResponse>();
     let serveConfig = false;
     const sseServer = http.createServer((_req, res) => {
@@ -45,7 +45,7 @@ describe("syncLocalChanges", () => {
 
         await initDatabase();
 
-        const socket = getLiveStream();
+        const socket = getChangeFeed();
 
         vi.spyOn(RestApi, "getRest").mockReturnValue({
             changeRequest: changeRequestMock,
@@ -67,7 +67,7 @@ describe("syncLocalChanges", () => {
 
     afterEach(async () => {
         // Drop offline first so any in-flight drain bails at its next await boundary.
-        getLiveStream().disconnect();
+        getChangeFeed().disconnect();
         serveConfig = false;
         openResponses.forEach((r) => r.destroy());
         await waitForExpect(() => expect(isConnected.value).toBe(false));
@@ -96,7 +96,7 @@ describe("syncLocalChanges", () => {
 
     const connect = () => {
         serveConfig = true;
-        getLiveStream({ reconnect: true });
+        getChangeFeed({ reconnect: true });
     };
 
     const ack = (id: number, status: AckStatus = AckStatus.Accepted) => ({ id, ack: status });
@@ -385,7 +385,7 @@ describe("syncLocalChanges", () => {
         expect(await db.localChanges.get(failing.id)).toBeDefined();
 
         // Disconnect then reconnect — the isConnected watcher should re-enter drain.
-        getLiveStream().disconnect();
+        getChangeFeed().disconnect();
         await waitForExpect(() => expect(isConnected.value).toBe(false));
 
         changeRequestMock.mockResolvedValueOnce(ack(30));
@@ -462,7 +462,7 @@ describe("syncLocalChanges", () => {
         await waitForExpect(() => expect(changeRequestMock).toHaveBeenCalledTimes(1));
 
         // Disconnect before the first request resolves; ack still arrives.
-        getLiveStream().disconnect();
+        getChangeFeed().disconnect();
         await waitForExpect(() => expect(isConnected.value).toBe(false));
 
         resolveFirst(ack(50));

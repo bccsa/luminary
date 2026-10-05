@@ -8,7 +8,7 @@ vi.mock("luminary-shared", async () => {
     const actual = await vi.importActual<typeof import("luminary-shared")>("luminary-shared");
     return {
         ...actual,
-        getLiveStream: () => ({
+        getChangeFeed: () => ({
             on: (_event: string, cb: (data: ApiDataResponseDto) => void) => {
                 onData = cb;
             },
