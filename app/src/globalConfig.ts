@@ -15,6 +15,9 @@ import { audioFilesOf } from "./util/audioFiles";
 
 export const appName = import.meta.env.VITE_APP_NAME;
 export const apiUrl = import.meta.env.VITE_API_URL;
+/** Interval between expired-document sweeps; shared falls back to 3 hours when unset/invalid. */
+export const deleteExpiredIntervalMs =
+    Number(import.meta.env.VITE_DELETE_EXPIRED_INTERVAL_MS) || undefined;
 export const isDevMode = import.meta.env.DEV;
 export const isTestEnviroment = import.meta.env.MODE === "test";
 export const cmsUrl = ref(import.meta.env.VITE_CLIENT_CMS_URL);
