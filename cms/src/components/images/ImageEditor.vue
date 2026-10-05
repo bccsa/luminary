@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, toRaw, watchEffect } from "vue";
+import { ref, computed, toRaw, shallowReactive, watchEffect } from "vue";
 import { ExclamationCircleIcon, ExclamationTriangleIcon } from "@heroicons/vue/24/solid";
 import ImageEditorThumbnail from "./ImageEditorThumbnail.vue";
 import LSelect from "../forms/LSelect.vue";
@@ -29,7 +29,8 @@ const maxUploadFileSizeMb = computed(() => maxUploadFileSize.value / 1000000);
 // Images below this width look soft in tall, cover-cropped tiles on high-density screens, and the
 // API discards the original after processing, so a small upload can never be improved later.
 const MIN_RECOMMENDED_IMAGE_WIDTH = 1280;
-const uploadWidths = ref<Record<string, number>>({});
+// Tracked per upload object (not filename) so same-named files don't share state.
+const smallUploads = shallowReactive(new Set<ImageUploadDto>());
 
 const hasSmallImage = computed(() => {
     const imageData = parent.value?.imageData;
@@ -39,9 +40,7 @@ const hasSmallImage = computed(() => {
             c.imageFiles.length > 0 &&
             Math.max(...c.imageFiles.map((f) => f.width)) < MIN_RECOMMENDED_IMAGE_WIDTH,
     );
-    const smallUpload = (imageData.uploadData ?? []).some(
-        (u) => (uploadWidths.value[u.filename ?? ""] ?? Infinity) < MIN_RECOMMENDED_IMAGE_WIDTH,
-    );
+    const smallUpload = (imageData.uploadData ?? []).some((u) => smallUploads.has(u));
     return smallExisting || smallUpload;
 });
 
@@ -250,9 +249,9 @@ const processFiles = (files: File[]) => {
             parent.value.imageData.uploadData.push(uploadData);
 
             if (typeof createImageBitmap === "function") {
-                createImageBitmap(new Blob([fileData]))
+                createImageBitmap(file)
                     .then((bitmap) => {
-                        uploadWidths.value[file.name] = bitmap.width;
+                        if (bitmap.width < MIN_RECOMMENDED_IMAGE_WIDTH) smallUploads.add(uploadData);
                         bitmap.close();
                     })
                     .catch(() => {});
@@ -278,6 +277,8 @@ const removeFileCollection = (collection: ImageFileCollectionDto) => {
 
 const removeFileUploadData = (uploadData: ImageUploadDto) => {
     if (!parent.value?.imageData?.uploadData) return;
+
+    smallUploads.delete(toRaw(uploadData));
 
     parent.value.imageData.uploadData = parent.value.imageData.uploadData
         .filter((f) => f !== uploadData)
