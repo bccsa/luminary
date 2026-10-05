@@ -302,10 +302,13 @@ describe("ImageEditor", () => {
     });
 
     describe("small image warning", () => {
-        const uploadFile = async (width: number) => {
+        const uploadFile = async (width: number | "reject") => {
             vi.stubGlobal(
                 "createImageBitmap",
-                vi.fn(async () => ({ width, height: width / 2, close: vi.fn() })),
+                vi.fn(async () => {
+                    if (width === "reject") throw new Error("decode failed");
+                    return { width, height: width / 2, close: vi.fn() };
+                }),
             );
             const parent: ContentParentDto = {
                 ...mockPostDto,
@@ -327,6 +330,19 @@ describe("ImageEditor", () => {
 
         it("does not warn for an upload at least 1280px wide", async () => {
             const wrapper = await uploadFile(1600);
+            expect(wrapper.find('[data-test="small-image-warning"]').exists()).toBe(false);
+        });
+
+        it("does not warn when the image cannot be decoded", async () => {
+            const wrapper = await uploadFile("reject");
+            expect(wrapper.find('[data-test="small-image-warning"]').exists()).toBe(false);
+        });
+
+        it("clears the warning when the small upload is removed", async () => {
+            const wrapper = await uploadFile(900);
+            const parent = wrapper.props("parent") as ContentParentDto;
+            (wrapper.vm as any).removeFileUploadData(parent.imageData!.uploadData![0]);
+            await flushPromises();
             expect(wrapper.find('[data-test="small-image-warning"]').exists()).toBe(false);
         });
 
