@@ -1,11 +1,11 @@
 <script setup lang="ts">
 /**
  * The app-wide media player: one player for audio and video, mounted once, that keeps playing
- * while the viewer browses. Full, it shows the picture or the cover with the transport; minimised,
- * a bar above the menu. `VideoPlayer` stays mounted in the picture area for as long as an item
+ * while the viewer browses. Full, it fills the space between the page's top bar and the mobile
+ * menu, showing the picture or the cover with the transport; minimised, a bar riding on the menu. `VideoPlayer` stays mounted in the picture area for as long as an item
  * plays, so minimising never restarts it.
  */
-import { computed, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import {
     ChevronDownIcon,
@@ -21,6 +21,7 @@ import { db } from "luminary-shared";
 import { DateTime } from "luxon";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
 import LImage from "@/components/images/LImage.vue";
+import { useMobileChromeAutoHide } from "@/composables/useMobileChromeAutoHide";
 import { isNativeApp } from "@/util/inAppBrowser";
 import {
     closeMediaPlayer,
@@ -48,6 +49,57 @@ const item = mediaPlayerItem;
 const expanded = computed(() => mediaPlayerView.value === "expanded");
 const content = computed(() => item.value?.content);
 
+// The full player leaves the chrome in view: it starts below the open page's top bar (each page
+// publishes that height on its own root, so it is measured here) and ends on the mobile menu.
+const mobileChrome = useMobileChromeAutoHide();
+const topBarHeight = ref(0);
+function measureTopBar() {
+    const topBar = document.querySelector<HTMLElement>("[data-top-bar]");
+    // Hidden from xl up, where the page has no mobile top bar.
+    const shown = !!topBar && getComputedStyle(topBar).display !== "none";
+    topBarHeight.value = shown ? topBar.getBoundingClientRect().height : 0;
+}
+watch(
+    expanded,
+    async (isExpanded) => {
+        if (!isExpanded || !item.value) return;
+        mobileChrome.hidden.value = false;
+        await nextTick();
+        measureTopBar();
+    },
+    { immediate: true },
+);
+watch(
+    () => item.value?.content._id,
+    async () => {
+        await nextTick();
+        measureTopBar();
+    },
+);
+
+// Pages keep their content clear of the bar through --media-bar-h, as they do for the menu.
+const bar = ref<HTMLElement | null>(null);
+let barObserver: ResizeObserver | null = null;
+function publishBarHeight() {
+    const height = bar.value?.getBoundingClientRect().height ?? 0;
+    if (height > 0) document.documentElement.style.setProperty("--media-bar-h", `${height}px`);
+    else document.documentElement.style.removeProperty("--media-bar-h");
+}
+watch(bar, (element, previous) => {
+    if (previous) barObserver?.unobserve(previous);
+    if (element) barObserver?.observe(element);
+    publishBarHeight();
+});
+onMounted(() => {
+    window.addEventListener("resize", measureTopBar);
+    if (typeof ResizeObserver !== "undefined") barObserver = new ResizeObserver(publishBarHeight);
+});
+onBeforeUnmount(() => {
+    window.removeEventListener("resize", measureTopBar);
+    barObserver?.disconnect();
+    document.documentElement.style.removeProperty("--media-bar-h");
+});
+
 // Read once per item: switching Data Saver mid-play changes the next item, not this one.
 const startAudio = ref(false);
 watch(
@@ -65,6 +117,11 @@ const playing = computed(() => state.value?.playing ?? false);
 const currentTime = computed(() => state.value?.currentTime ?? 0);
 const duration = computed(() => state.value?.duration ?? 0);
 const live = computed(() => duration.value === Infinity);
+const progress = computed(() =>
+    duration.value > 0 && Number.isFinite(duration.value)
+        ? Math.min(currentTime.value / duration.value, 1)
+        : 0,
+);
 
 /** The last camera seen playing, where Video returns to. */
 let videoAngleId: string | null = null;
@@ -168,13 +225,15 @@ function onKeydown(event: KeyboardEvent) {
             role="dialog"
             :aria-label="content.title"
             :aria-hidden="!expanded"
-            class="fixed inset-0 z-[60] flex flex-col overflow-y-auto bg-amber-50 transition-transform duration-300 ease-out dark:bg-slate-800 lg:inset-auto lg:bottom-5 lg:right-5 lg:max-h-[90vh] lg:w-96 lg:rounded-2xl lg:shadow-2xl lg:shadow-black/20"
-            :class="expanded ? 'translate-y-0' : 'pointer-events-none translate-y-[110%]'"
+            class="fixed inset-x-0 bottom-[var(--mobile-menu-h,0px)] top-[var(--media-player-top,0px)] z-40 flex flex-col overflow-y-auto bg-amber-50 transition-transform duration-300 ease-out dark:bg-slate-800 lg:inset-auto lg:bottom-5 lg:right-5 lg:max-h-[90vh] lg:w-96 lg:rounded-2xl lg:shadow-2xl lg:shadow-black/20"
+            :class="expanded ? 'translate-y-0' : 'pointer-events-none translate-y-[110vh]'"
+            :style="{ '--media-player-top': `${topBarHeight}px` }"
             data-test="mediaPlayer"
             @keydown="onKeydown"
         >
             <div
-                class="flex touch-none justify-center pb-1 pt-[max(env(safe-area-inset-top),0.75rem)] lg:hidden"
+                class="flex touch-none justify-center pb-1 lg:hidden"
+                :class="topBarHeight ? 'pt-3' : 'pt-[max(env(safe-area-inset-top),0.75rem)]'"
                 @pointerdown="onDragStart"
                 @pointermove="onDragMove"
                 @pointerup="onDragEnd"
@@ -425,11 +484,26 @@ function onKeydown(event: KeyboardEvent) {
             </template>
         </section>
 
+        <!-- Rides on the menu: it moves down with it when the menu steps aside on scroll,
+             stopping above the home indicator. -->
         <div
             v-if="!expanded"
-            class="fixed bottom-[76px] left-0 right-0 z-40 flex w-full items-center justify-between gap-2 bg-amber-50 p-2 dark:bg-slate-800 lg:bottom-5 lg:left-auto lg:right-5 lg:w-80 lg:rounded-lg lg:shadow-lg"
+            ref="bar"
+            class="fixed inset-x-0 bottom-[var(--mobile-menu-h,0px)] z-40 flex w-full items-center justify-between gap-2 border-t-2 border-t-zinc-200/50 bg-zinc-100 px-2 pb-2 pt-2.5 transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform dark:border-t-slate-700/50 dark:bg-slate-800 lg:bottom-5 lg:left-auto lg:right-5 lg:w-80 lg:translate-y-0 lg:overflow-hidden lg:rounded-lg lg:border-t-0 lg:shadow-lg"
+            :class="
+                mobileChrome.hidden.value
+                    ? 'translate-y-[calc(var(--mobile-menu-h,0px)-max(env(safe-area-inset-bottom),var(--native-inset-bottom,0px)))]'
+                    : 'translate-y-0'
+            "
             data-test="mediaPlayerBar"
         >
+            <div
+                v-if="!live"
+                class="absolute inset-x-0 top-0 h-0.5 bg-yellow-500"
+                :style="{ width: `${progress * 100}%` }"
+                aria-hidden="true"
+                data-test="mediaPlayerBarProgress"
+            />
             <button
                 type="button"
                 class="flex min-w-0 flex-1 items-center gap-2 text-left"

@@ -13,6 +13,7 @@ import MobileMenu from "@/components/navigation/MobileMenu.vue";
 import { useMobileChromeAutoHide } from "@/composables/useMobileChromeAutoHide";
 import AffinityDebugOverlay from "@/components/debug/AffinityDebugOverlay.vue";
 import MediaPlayer from "@/media-player/MediaPlayer.vue";
+import { minimiseMediaPlayer } from "@/media-player/mediaPlayer";
 import { affinityDebugEnabled, applyAffinityDebugQuery } from "@/recommendation/affinityDebug";
 import { useAuthWithPrivacyPolicy } from "@/composables/useAuthWithPrivacyPolicy";
 import { showProviderSelectionModal } from "@/auth";
@@ -160,6 +161,13 @@ const routeKey = computed(() => {
     if (typeof route.name === "string" && /^search(-|$)/.test(route.name)) return route.path;
     return route.fullPath;
 });
+
+// The full player sits between the top bar and the menu, which stay live: leaving the page
+// through either shows where the viewer went, with the player kept as the bar.
+watch(
+    () => router.currentRoute.value.fullPath,
+    () => minimiseMediaPlayer(),
+);
 
 onMounted(() => {
     // Reveal content hidden by vite.config.web.ts's pre-paint auth gate (see

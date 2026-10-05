@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { flushPromises, mount, type VueWrapper } from "@vue/test-utils";
 import { mockEnglishContentDto } from "@/tests/mockdata";
 import { userDataSaverEnabled } from "@/globalConfig";
+import { useMobileChromeAutoHide } from "@/composables/useMobileChromeAutoHide";
 import MediaPlayer from "../MediaPlayer.vue";
 import {
     closeMediaPlayer,
@@ -213,7 +214,60 @@ describe("MediaPlayer", () => {
         });
     });
 
+    describe("between the chrome", () => {
+        afterEach(() => document.querySelector("[data-top-bar]")?.remove());
+
+        it("starts below the open page's top bar", async () => {
+            const topBar = document.createElement("div");
+            topBar.setAttribute("data-top-bar", "");
+            topBar.getBoundingClientRect = () => ({ height: 90 }) as DOMRect;
+            document.body.appendChild(topBar);
+
+            const wrapper = await playing();
+
+            expect(find(wrapper, "mediaPlayer").attributes("style")).toContain(
+                "--media-player-top: 90px",
+            );
+        });
+
+        it("starts at the top where the page has no top bar", async () => {
+            const wrapper = await playing();
+            expect(find(wrapper, "mediaPlayer").attributes("style")).toContain(
+                "--media-player-top: 0px",
+            );
+        });
+
+        it("brings the chrome back that scrolling had put away", async () => {
+            const { hidden } = useMobileChromeAutoHide();
+            hidden.value = true;
+            await playing();
+            expect(hidden.value).toBe(false);
+        });
+    });
+
     describe("minimised", () => {
+        it("moves down with the menu when the menu steps aside", async () => {
+            const wrapper = await playing();
+            await find(wrapper, "mediaPlayerMinimise").trigger("click");
+            const { hidden } = useMobileChromeAutoHide();
+            hidden.value = true;
+            await flushPromises();
+
+            expect(find(wrapper, "mediaPlayerBar").classes().join(" ")).toContain(
+                "translate-y-[calc(var(--mobile-menu-h",
+            );
+            hidden.value = false;
+        });
+
+        it("shows how far the item has played", async () => {
+            const wrapper = await playing();
+            await find(wrapper, "mediaPlayerMinimise").trigger("click");
+
+            expect(find(wrapper, "mediaPlayerBarProgress").attributes("style")).toContain(
+                "width: 25%",
+            );
+        });
+
         it("becomes the bar, keeping the same playback", async () => {
             const wrapper = await playing();
             await find(wrapper, "mediaPlayerMinimise").trigger("click");
