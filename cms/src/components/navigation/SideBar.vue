@@ -466,10 +466,10 @@ const navItemClass = computed(() => [
                 data-test="shared-device-toggle"
             />
             <span class="text-sm">
-                <span class="block font-medium text-zinc-900">
+                <span class="block font-medium dark:text-zinc-200">
                     This is a shared or public device
                 </span>
-                <span class="mt-0.5 block text-zinc-500">
+                <span class="mt-0.5 block dark:text-zinc-200">
                     Require signing in again next time, so no one else can continue using your
                     account here.
                 </span>
