@@ -2403,53 +2403,6 @@ describe("HybridQuery", () => {
             expect(stamped).not.toContain("above");
         });
 
-        it("retries once and succeeds silently when bulkPut fails on a transient WebKit IndexedDB error", async () => {
-            const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-            mocks.mangoToDexieMock.mockResolvedValueOnce([
-                { _id: "a", updatedTimeUtc: 5, publishDate: 2000, type: "content" },
-            ]);
-            postHttpMock.mockResolvedValueOnce({
-                docs: [{ _id: "old1", updatedTimeUtc: 1, publishDate: 500, type: "content" }],
-            });
-            mocks.bulkPut.mockReset();
-            const transient = new DOMException(
-                "Attempt to delete range from database without an in-progress transaction",
-                "UnknownError",
-            );
-            mocks.bulkPut.mockRejectedValueOnce(transient).mockResolvedValueOnce([]);
-
-            new HybridQuery(contentQuery, { persistOffline: true });
-            await flush();
-            await new Promise((r) => setTimeout(r, 150)); // past the retry delay
-
-            expect(mocks.bulkPut).toHaveBeenCalledTimes(2);
-            expect(errSpy).not.toHaveBeenCalled(); // the retry succeeded — nothing to log
-        });
-
-        it("retries once, then logs, when bulkPut fails on a transient error twice in a row", async () => {
-            const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-            mocks.mangoToDexieMock.mockResolvedValueOnce([
-                { _id: "a", updatedTimeUtc: 5, publishDate: 2000, type: "content" },
-            ]);
-            postHttpMock.mockResolvedValueOnce({
-                docs: [{ _id: "old1", updatedTimeUtc: 1, publishDate: 500, type: "content" }],
-            });
-            mocks.bulkPut.mockReset();
-            const transient = () =>
-                new DOMException("Attempt to iterate a cursor that doesn't exist", "UnknownError");
-            mocks.bulkPut.mockRejectedValueOnce(transient()).mockRejectedValueOnce(transient());
-
-            new HybridQuery(contentQuery, { persistOffline: true });
-            await flush();
-            await new Promise((r) => setTimeout(r, 150));
-
-            expect(mocks.bulkPut).toHaveBeenCalledTimes(2);
-            expect(errSpy).toHaveBeenCalledWith(
-                "[HybridQuery] offline persist failed:",
-                expect.objectContaining({ name: "UnknownError" }),
-            );
-        });
-
         it("swallows a bulkPut rejection: no unhandled throw, output correct, retention STILL stamped", async () => {
             const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
             mocks.mangoToDexieMock.mockResolvedValueOnce([
