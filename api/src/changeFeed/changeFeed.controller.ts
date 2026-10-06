@@ -11,7 +11,15 @@ export class ChangeFeedController {
     /** Server-Sent Events feed of live document updates, scoped by the caller's accessMap. */
     @Sse("live")
     @UseGuards(ChangeFeedAuthGuard)
-    stream(@Req() request: FastifyRequest, @Query("cms") cms?: string): Observable<MessageEvent> {
-        return this.live.connect(request.user.accessMap, cms === "1" || cms === "true");
+    stream(
+        @Req() request: FastifyRequest,
+        @Query("cms") cms?: string,
+        @Query("types") types?: string,
+    ): Observable<MessageEvent> {
+        return this.live.connect(
+            request.user.accessMap,
+            cms === "1" || cms === "true",
+            types?.split(","),
+        );
     }
 }

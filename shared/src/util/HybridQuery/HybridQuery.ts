@@ -962,7 +962,7 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
                 if (this._disposed) return;
                 // off() first is idempotent and guarantees a single registration.
                 getChangeFeed().off("data", cb);
-                if (connected) getChangeFeed().on("data", cb);
+                if (connected) getChangeFeed().on("data", cb, queryType ? [queryType] : undefined);
             },
             { immediate: true },
         );

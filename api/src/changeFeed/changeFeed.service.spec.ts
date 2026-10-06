@@ -28,9 +28,14 @@ describe("ChangeFeedService", () => {
     });
 
     /** Collect the events a connection receives after the config event, while `fn` publishes. */
-    async function collect(cms: boolean, fn: () => Promise<void>, map = accessMap) {
+    async function collect(
+        cms: boolean,
+        fn: () => Promise<void>,
+        map = accessMap,
+        types?: string[],
+    ) {
         const events: any[] = [];
-        const sub = service.connect(map, cms).subscribe((e) => events.push(e));
+        const sub = service.connect(map, cms, types).subscribe((e) => events.push(e));
         await fn();
         sub.unsubscribe();
         return events;
@@ -51,6 +56,20 @@ describe("ChangeFeedService", () => {
         });
         const ids = events.filter((e) => e.type === "data").map((e) => e.data.docs[0]._id);
         expect(ids).toEqual(["p1"]);
+    });
+
+    it("only delivers the requested doc types and ignores unknown ones", async () => {
+        const events = await collect(
+            false,
+            async () => {
+                await emitUpdate({ _id: "p1", type: DocType.Post, memberOf: ["group-A"] });
+                await emitUpdate({ _id: "l1", type: DocType.Language, memberOf: ["group-A"] });
+            },
+            accessMap,
+            [DocType.Language, "bogus"],
+        );
+        const ids = events.filter((e) => e.type === "data").map((e) => e.data.docs[0]._id);
+        expect(ids).toEqual(["l1"]);
     });
 
     it("routes content by its parent's type and groups", async () => {

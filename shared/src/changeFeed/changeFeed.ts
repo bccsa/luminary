@@ -4,6 +4,7 @@ import { useLocalStorage } from "@vueuse/core";
 import { AccessMap, accessMap } from "../permissions/permissions";
 import { config, SharedConfig } from "../config";
 import { reportBreadcrumb } from "../diagnostics";
+import { DocType } from "../types";
 
 /**
  * Client configuration type definition
@@ -33,6 +34,9 @@ const IDLE_TIMEOUT_MS = 60_000;
 /** Thrown from the stream callbacks to stop fetch-event-source's own retry loop. */
 class FatalStreamError extends Error {}
 
+/** Doc types a `"data"` listener needs: a fixed list, a live getter, or undefined for every type. */
+export type DataTypes = DocType[] | (() => DocType[]);
+
 type AuthConnectError = Error & { data?: { type?: string; reason?: string } };
 
 /**
@@ -45,6 +49,13 @@ class ChangeFeed {
     private auth: { token?: string; providerId?: string | null } = {};
     private retryDelay = RETRY_MIN_MS;
     private idleTimer: ReturnType<typeof setTimeout> | undefined;
+    /** Set by connect(), cleared by an explicit disconnect(), so tab focus never undoes a deliberate close. */
+    private wanted = false;
+    /** Types declared by each `"data"` listener; an undefined entry means that listener needs everything. */
+    private dataTypes = new Map<(...args: any[]) => void, DataTypes | undefined>();
+    /** The `types` value the open stream was requested with (undefined = all). */
+    private openTypes: string | undefined;
+    private typesTimer: ReturnType<typeof setTimeout> | undefined;
 
     /**
      * Create a new ChangeFeed instance
@@ -56,7 +67,7 @@ class ChangeFeed {
         // the retry is rejected.
         if (typeof document !== "undefined") {
             document.addEventListener("visibilitychange", () => {
-                if (document.visibilityState === "visible") this.connect();
+                if (document.visibilityState === "visible" && this.wanted) this.connect();
             });
         }
     }
@@ -84,7 +95,9 @@ class ChangeFeed {
 
         // The CMS flag routes the stream to CmsView-scoped delivery (drafts/expired, full); the app
         // gets published-only content with expired content stripped.
-        const url = `${this.config.apiUrl}/live?cms=${this.config.cms === true ? 1 : 0}`;
+        this.openTypes = this.requestedTypes();
+        const types = this.openTypes ? `&types=${this.openTypes}` : "";
+        const url = `${this.config.apiUrl}/live?cms=${this.config.cms === true ? 1 : 0}${types}`;
 
         fetchEventSource(url, {
             headers,
@@ -168,11 +181,45 @@ class ChangeFeed {
     }
 
     /**
+     * Doc types to request from the server: the union of what every `"data"` listener declared
+     * (DeleteCmds always included), or undefined when any listener needs all types.
+     */
+    private requestedTypes(): string | undefined {
+        if (!this.dataTypes.size) return undefined;
+        const union = new Set<string>([DocType.DeleteCmd]);
+        for (const spec of this.dataTypes.values()) {
+            if (!spec) return undefined;
+            for (const t of typeof spec === "function" ? spec() : spec) union.add(t);
+        }
+        return [...union].sort().join(",");
+    }
+
+    /**
+     * Reopen the stream when a listener now needs a type the open stream isn't delivering. Narrowing
+     * is ignored: extra types are harmless and a reconnect would only risk missing events.
+     */
+    public refreshTypes() {
+        if (!this.abortController || this.openTypes === undefined) return;
+        const next = this.requestedTypes();
+        const open = new Set(this.openTypes.split(","));
+        if (next !== undefined && next.split(",").every((t) => open.has(t))) return;
+        // Debounced so a burst of listeners registering at startup costs one reconnect
+        clearTimeout(this.typesTimer);
+        this.typesTimer = setTimeout(() => this.reconnect(), 100);
+    }
+
+    /**
      * Adds the listener function as an event listener for ev.
      * @param event — Name of the event
      * @param callback — Callback function
+     * @param types — For `"data"` listeners: the doc types needed, so the server can skip the rest.
+     * Omit when the listener needs every type.
      */
-    public on(event: string, callback: (...args: any[]) => void) {
+    public on(event: string, callback: (...args: any[]) => void, types?: DataTypes) {
+        if (event === "data") {
+            this.dataTypes.set(callback, types);
+            this.refreshTypes();
+        }
         let set = this.listeners.get(event);
         if (!set) this.listeners.set(event, (set = new Set()));
         set.add(callback);
@@ -185,12 +232,15 @@ class ChangeFeed {
      */
     public off(event: string, callback: (...args: any[]) => void) {
         this.listeners.get(event)?.delete(callback);
+        if (event === "data" && !this.listeners.get(event)?.has(callback)) this.dataTypes.delete(callback);
     }
 
     /**
      * Close the change feed
      */
     public disconnect() {
+        this.wanted = false;
+        clearTimeout(this.typesTimer);
         clearTimeout(this.idleTimer);
         this.abortController?.abort();
         this.abortController = undefined;
@@ -210,6 +260,7 @@ class ChangeFeed {
      * Open the change feed (no-op if already open)
      */
     public connect() {
+        this.wanted = true;
         if (this.abortController) return;
         this.retryDelay = RETRY_MIN_MS;
         this.open();

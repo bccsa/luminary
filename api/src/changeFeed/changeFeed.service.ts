@@ -11,6 +11,8 @@ import configuration from "../configuration";
 /** One routed database change: the doc to push and the doc type/groups that decide who may see it. */
 type LiveChange = {
     refType: string;
+    /** Type of the doc as delivered (content for content docs, unlike refType which is its parent's). */
+    docType: string;
     refGroups: string[];
     update: any;
     version?: number;
@@ -48,8 +50,9 @@ export class ChangeFeedService implements OnModuleInit {
     /**
      * Open a connection for a user. `cms` selects CmsView-scoped delivery (drafts and expired
      * content in full); otherwise View-scoped (published only, expired content stripped).
+     * `types` optionally narrows delivery to those doc types (unknown values are ignored).
      */
-    connect(accessMap: AccessMap, cms: boolean): Observable<MessageEvent> {
+    connect(accessMap: AccessMap, cms: boolean, types?: string[]): Observable<MessageEvent> {
         const permission = cms ? AclPermission.CmsView : AclPermission.View;
         const groupsByType = PermissionSystem.accessMapToGroups(
             accessMap,
@@ -57,6 +60,8 @@ export class ChangeFeedService implements OnModuleInit {
             Object.values(DocType),
         ) as unknown as Record<string, string[]>;
         const deleteCmdGroups = new Set(Object.values(groupsByType).flat());
+        const requested = types?.filter((t) => (Object.values(DocType) as string[]).includes(t));
+        const wanted = (type: string) => !requested?.length || requested.includes(type);
         const groupSetsByType = new Map<string, Set<string>>();
         for (const type in groupsByType) groupSetsByType.set(type, new Set(groupsByType[type]));
 
@@ -75,7 +80,7 @@ export class ChangeFeedService implements OnModuleInit {
                     change.refType === DocType.DeleteCmd
                         ? deleteCmdGroups
                         : groupSetsByType.get(change.refType);
-                if (!allowed) return undefined;
+                if (!allowed || !wanted(change.docType)) return undefined;
                 for (const g of change.refGroups) if (allowed.has(g)) return this.eventFor(change, cms);
                 return undefined;
             }),
@@ -134,6 +139,7 @@ export class ChangeFeedService implements OnModuleInit {
         const version = update.updatedTimeUtc ? update.updatedTimeUtc : undefined;
         this.changes$.next({
             refType: refDoc.type,
+            docType: update.type === DocType.Content ? DocType.Content : refDoc.type,
             refGroups,
             update,
             version,

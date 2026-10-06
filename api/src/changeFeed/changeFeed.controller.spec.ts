@@ -13,7 +13,13 @@ describe("ChangeFeedController", () => {
     ])("cms=%s selects cms mode %s", (query, expected) => {
         const live: any = { connect: jest.fn().mockReturnValue("stream") };
         const result = new ChangeFeedController(live).stream(request, query);
-        expect(live.connect).toHaveBeenCalledWith(accessMap, expected);
+        expect(live.connect).toHaveBeenCalledWith(accessMap, expected, undefined);
         expect(result).toBe("stream");
+    });
+
+    it("passes the comma-separated types filter to the service", () => {
+        const live: any = { connect: jest.fn() };
+        new ChangeFeedController(live).stream(request, undefined, "post,tag");
+        expect(live.connect).toHaveBeenCalledWith(accessMap, false, ["post", "tag"]);
     });
 });

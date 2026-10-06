@@ -44,5 +44,5 @@ export function initLivePublishClock(): void {
                 return;
             }
         }
-    });
+    }, [DocType.Content]);
 }

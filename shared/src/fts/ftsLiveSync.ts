@@ -145,7 +145,7 @@ export function attachFtsLiveSync<T>(
             if (!isChangeFeedConfigured()) return;
             // off-before-on: stable handler ref, no duplicate listeners on reconnect.
             getChangeFeed().off("data", onData);
-            if (online) getChangeFeed().on("data", onData);
+            if (online) getChangeFeed().on("data", onData, [docType]);
         },
         { immediate: true },
     );

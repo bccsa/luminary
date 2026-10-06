@@ -90,6 +90,24 @@ describe("changeFeed (SSE)", () => {
         expect(requests[0].url).toBe("/live?cms=1");
     });
 
+    it("requests the union of the types the data listeners declared, and reopens when it grows", async () => {
+        handler = (_req, res) => sse(res, "clientConfig", {});
+        const feed = getChangeFeed();
+        const a = () => {};
+        const b = () => {};
+        feed.on("data", a, [DocType.Post]);
+        feed.connect();
+        await waitForExpect(() => expect(isConnected.value).toEqual(true));
+        expect(requests[0].url).toBe("/live?cms=1&types=deleteCmd,post");
+
+        feed.on("data", b, [DocType.Tag]);
+        await waitForExpect(() =>
+            expect(requests[1]?.url).toBe("/live?cms=1&types=deleteCmd,post,tag"),
+        );
+        feed.off("data", a);
+        feed.off("data", b);
+    });
+
     it("sends the credentials set with setAuth", async () => {
         handler = (_req, res) => sse(res, "clientConfig", {});
 

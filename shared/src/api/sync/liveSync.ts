@@ -1,8 +1,11 @@
+import { watch } from "vue";
 import { DocType, type ApiDataResponseDto, type BaseDocumentDto, type ContentDto } from "../../types";
 import { db } from "../../db/database";
 import { isSyncableDoc } from "../../db/isSyncable";
 import { getChangeFeed } from "../../changeFeed/changeFeed";
 import { getContentPublishDateCutoff } from "../../config";
+import { syncList } from "./state";
+import { splitChunkTypeString } from "./utils";
 
 let _initialized = false;
 
@@ -56,5 +59,9 @@ export async function applyLiveData(data: ApiDataResponseDto): Promise<void> {
 export function initLiveSync(): void {
     if (_initialized) return;
     _initialized = true;
-    getChangeFeed().on("data", applyLiveData);
+    // Only the types sync stores are requested; re-evaluated when sync registers a new type
+    getChangeFeed().on("data", applyLiveData, () =>
+        syncList.value.map((e) => splitChunkTypeString(e.chunkType).type),
+    );
+    watch(syncList, () => getChangeFeed().refreshTypes(), { deep: true });
 }
