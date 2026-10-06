@@ -32,8 +32,7 @@ const routeHistory = ref<string[]>([]);
 router.beforeEach((to) => {
     markPageLoading();
 
-    const inAppWarningAcknowledged =
-        sessionStorage.getItem("inapp_open_warning_ack") === "1";
+    const inAppWarningAcknowledged = sessionStorage.getItem("inapp_open_warning_ack") === "1";
 
     // Only show the interstitial on the first load inside an in-app browser.
     if (

@@ -4,7 +4,12 @@ import { appLanguageAsRef, appName, cmsDefaultLanguage, cmsLanguages } from "./g
 import router from "./router";
 import { isPrerender } from "@/ssg/isPrerender";
 
-type LanguageLike = { _id: string; languageCode: string; updatedTimeUtc?: number; translations?: Record<string, string> };
+type LanguageLike = {
+    _id: string;
+    languageCode: string;
+    updatedTimeUtc?: number;
+    translations?: Record<string, string>;
+};
 
 /**
  * A language's messages, with any key it doesn't define filled in from the default language.
@@ -45,7 +50,10 @@ function messagesFor(language: LanguageLike, defaultLang: LanguageLike): Record<
 export const initI18n = (renderLanguageId?: string): I18n<{}, {}, {}, string, false> => {
     const i18n = createI18n({ legacy: false });
 
-    const applyLanguage = (language: LanguageLike | undefined, defaultLang: LanguageLike | undefined) => {
+    const applyLanguage = (
+        language: LanguageLike | undefined,
+        defaultLang: LanguageLike | undefined,
+    ) => {
         if (!language || !defaultLang) return;
         i18n.global.setLocaleMessage(language.languageCode, messagesFor(language, defaultLang));
         i18n.global.locale.value = language.languageCode;

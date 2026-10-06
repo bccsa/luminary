@@ -60,7 +60,11 @@ const roundingClasses = {
         ]"
     >
         <template v-if="typeof icon === 'string'">
-            <img :src="icon" alt="Icon" class="order-2 h-5 w-5" />
+            <img
+                :src="icon"
+                alt="Icon"
+                class="order-2 h-5 w-5"
+            />
         </template>
         <component
             v-if="icon"
@@ -74,6 +78,10 @@ const roundingClasses = {
                 '-ml-0.5': !iconRight && $slots.default,
             }"
         />
-        <span v-if="$slots.default" :class="[iconRight ? 'order-1' : 'order-3']"><slot /></span>
+        <span
+            v-if="$slots.default"
+            :class="[iconRight ? 'order-1' : 'order-3']"
+            ><slot
+        /></span>
     </component>
 </template>

@@ -1,5 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { DocType, PublishStatus, type ContentDto, type MangoQuery, type MangoSelector } from "luminary-shared";
+import {
+    DocType,
+    PublishStatus,
+    type ContentDto,
+    type MangoQuery,
+    type MangoSelector,
+} from "luminary-shared";
 import { publishedNowConditions } from "@/util/mangoIsPublished";
 import { queryContentLocal } from "./contentStore";
 
@@ -22,7 +28,11 @@ function doc(over: Partial<ContentDto> & { _id: string }): ContentDto {
 function publishedSelector(...extra: MangoSelector[]): MangoQuery {
     return {
         selector: {
-            $and: [{ type: DocType.Content }, ...extra, ...publishedNowConditions({ includeScheduled: false })],
+            $and: [
+                { type: DocType.Content },
+                ...extra,
+                ...publishedNowConditions({ includeScheduled: false }),
+            ],
         },
     };
 }
@@ -68,7 +78,11 @@ describe("contentStore — queryContentLocal", () => {
             doc({ _id: "a", publishDate: PAST }), // ties with c; _id a < c → comes first
             doc({ _id: "b", publishDate: PAST + 1000 }), // newest → first overall
         ];
-        const out = queryContentLocal({ ...publishedSelector(), $sort: [{ publishDate: "desc" }], $limit: 2 });
+        const out = queryContentLocal({
+            ...publishedSelector(),
+            $sort: [{ publishDate: "desc" }],
+            $limit: 2,
+        });
         expect(out?.map((d) => d._id)).toEqual(["b", "a"]);
     });
 

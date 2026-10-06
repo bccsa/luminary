@@ -22,7 +22,9 @@ vi.mock("./LImage.vue", () => ({
 const singleImageProps: any = {
     image: {
         _id: "img-1",
-        fileCollections: [{ aspectRatio: 1.78, imageFiles: [{ filename: "test.jpg", width: 800, height: 450 }] }],
+        fileCollections: [
+            { aspectRatio: 1.78, imageFiles: [{ filename: "test.jpg", width: 800, height: 450 }] },
+        ],
     },
     contentParentId: "content-1",
 };

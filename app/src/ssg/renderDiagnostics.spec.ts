@@ -21,8 +21,16 @@ describe("renderDiagnostics", () => {
 
         const issues = takeRenderIssues();
         expect(issues).toHaveLength(2);
-        expect(issues[0]).toEqual({ route: "/x", kind: "query-failed", detail: "boom" } satisfies RenderIssue);
-        expect(issues[1]).toEqual({ route: "/y", kind: "provably-empty", detail: "{}" } satisfies RenderIssue);
+        expect(issues[0]).toEqual({
+            route: "/x",
+            kind: "query-failed",
+            detail: "boom",
+        } satisfies RenderIssue);
+        expect(issues[1]).toEqual({
+            route: "/y",
+            kind: "provably-empty",
+            detail: "{}",
+        } satisfies RenderIssue);
     });
 
     it("drains and clears the buffer", () => {

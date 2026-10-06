@@ -11,10 +11,7 @@ import {
     type ContentDto,
     type TagDto,
 } from "luminary-shared";
-import {
-    appLanguageIdsAsRef,
-    appSyncedLanguageIdsAsRef,
-} from "@/globalConfig";
+import { appLanguageIdsAsRef, appSyncedLanguageIdsAsRef } from "@/globalConfig";
 import { affinityProfile } from "@/recommendation/affinityStore";
 import { useRecommendations } from "./useRecommendations";
 
@@ -69,7 +66,8 @@ const CLUSTER_ARTICLES: Record<Cluster, ArticleCopy[]> = {
         },
         {
             title: "Understanding your local government",
-            summary: "Learn how councils, committees, and public meetings make political decisions.",
+            summary:
+                "Learn how councils, committees, and public meetings make political decisions.",
             text: "Residents can follow local government agendas, attend hearings, and ask officials how political choices affect their neighbourhoods.",
         },
         {
@@ -96,7 +94,8 @@ const CLUSTER_ARTICLES: Record<Cluster, ArticleCopy[]> = {
         },
         {
             title: "Managing blood pressure at home",
-            summary: "Use consistent measurements and healthy routines to understand blood pressure.",
+            summary:
+                "Use consistent measurements and healthy routines to understand blood pressure.",
             text: "Regular movement, less sodium, prescribed treatment, and a reliable cuff help people discuss blood pressure trends with a health professional.",
         },
         {
@@ -106,7 +105,8 @@ const CLUSTER_ARTICLES: Record<Cluster, ArticleCopy[]> = {
         },
         {
             title: "Practical stress management",
-            summary: "Reduce chronic stress with boundaries, breathing, and supportive relationships.",
+            summary:
+                "Reduce chronic stress with boundaries, breathing, and supportive relationships.",
             text: "Short recovery breaks, realistic planning, and conversations with trusted people can lower stress and support emotional health.",
         },
         {
@@ -139,9 +139,10 @@ function generateSimpleFtsEntries(
     return { entries, tokenCount };
 }
 
-function mergeFtsEntries(
-    ...fields: Array<{ entries: string[]; tokenCount: number }>
-): { entries: string[]; tokenCount: number } {
+function mergeFtsEntries(...fields: Array<{ entries: string[]; tokenCount: number }>): {
+    entries: string[];
+    tokenCount: number;
+} {
     const aggregated = new Map<string, number>();
     let tokenCount = 0;
 
@@ -269,7 +270,8 @@ function buildCorpus(): Array<TagDto | ContentDto> {
             [TAGS.prayer, TAGS.politics],
             {
                 title: "Prayer and politics in public service",
-                summary: "Reflective prayer can prepare citizens for patient political participation.",
+                summary:
+                    "Reflective prayer can prepare citizens for patient political participation.",
                 text: "Before contacting representatives or discussing elections, prayer can encourage humility, careful listening, and concern for neighbours.",
             },
             20 * 24 * 60 * 60 * 1000,
@@ -309,21 +311,18 @@ describe("useRecommendations offline relevance", () => {
         });
 
         try {
-            await waitForExpect(
-                () => {
-                    expect(result.recommended.value.length).toBeGreaterThanOrEqual(5);
-                    const topFive = result.recommended.value.slice(0, 5);
-                    expect(
-                        topFive.filter((doc) => doc.parentTags.includes(TAGS.prayer)).length,
-                    ).toBeGreaterThanOrEqual(3);
-                    // This doc cannot come from the Mango tag leg, so its presence proves
-                    // the tag-title content resolved and drove a real local BM25 search.
-                    expect(result.recommended.value.map((doc) => doc._id)).toContain(
-                        `content-untagged-prayer-vocabulary-${LANGUAGE_ID}`,
-                    );
-                },
-                WAIT_TIMEOUT_MS,
-            );
+            await waitForExpect(() => {
+                expect(result.recommended.value.length).toBeGreaterThanOrEqual(5);
+                const topFive = result.recommended.value.slice(0, 5);
+                expect(
+                    topFive.filter((doc) => doc.parentTags.includes(TAGS.prayer)).length,
+                ).toBeGreaterThanOrEqual(3);
+                // This doc cannot come from the Mango tag leg, so its presence proves
+                // the tag-title content resolved and drove a real local BM25 search.
+                expect(result.recommended.value.map((doc) => doc._id)).toContain(
+                    `content-untagged-prayer-vocabulary-${LANGUAGE_ID}`,
+                );
+            }, WAIT_TIMEOUT_MS);
         } finally {
             scope.stop();
         }
@@ -336,16 +335,13 @@ describe("useRecommendations offline relevance", () => {
         });
 
         try {
-            await waitForExpect(
-                () => {
-                    expect(result.recommended.value.length).toBeGreaterThanOrEqual(5);
-                    const topFive = result.recommended.value.slice(0, 5);
-                    expect(
-                        topFive.filter((doc) => doc.parentTags.includes(TAGS.politics)).length,
-                    ).toBeGreaterThanOrEqual(3);
-                },
-                WAIT_TIMEOUT_MS,
-            );
+            await waitForExpect(() => {
+                expect(result.recommended.value.length).toBeGreaterThanOrEqual(5);
+                const topFive = result.recommended.value.slice(0, 5);
+                expect(
+                    topFive.filter((doc) => doc.parentTags.includes(TAGS.politics)).length,
+                ).toBeGreaterThanOrEqual(3);
+            }, WAIT_TIMEOUT_MS);
         } finally {
             scope.stop();
         }
@@ -362,20 +358,17 @@ describe("useRecommendations offline relevance", () => {
         });
 
         try {
-            await waitForExpect(
-                () => {
-                    const representedClusters = new Set(
-                        (Object.keys(TAGS) as Cluster[]).filter((cluster) =>
-                            result.recommended.value.some((doc) =>
-                                doc.parentTags.includes(TAGS[cluster]),
-                            ),
+            await waitForExpect(() => {
+                const representedClusters = new Set(
+                    (Object.keys(TAGS) as Cluster[]).filter((cluster) =>
+                        result.recommended.value.some((doc) =>
+                            doc.parentTags.includes(TAGS[cluster]),
                         ),
-                    );
-                    expect(result.recommended.value).not.toHaveLength(0);
-                    expect(representedClusters.size).toBeGreaterThanOrEqual(2);
-                },
-                WAIT_TIMEOUT_MS,
-            );
+                    ),
+                );
+                expect(result.recommended.value).not.toHaveLength(0);
+                expect(representedClusters.size).toBeGreaterThanOrEqual(2);
+            }, WAIT_TIMEOUT_MS);
         } finally {
             scope.stop();
         }
@@ -388,12 +381,9 @@ describe("useRecommendations offline relevance", () => {
         });
 
         try {
-            await waitForExpect(
-                () => {
-                    expect(result.recommended.value).toEqual([]);
-                },
-                WAIT_TIMEOUT_MS,
-            );
+            await waitForExpect(() => {
+                expect(result.recommended.value).toEqual([]);
+            }, WAIT_TIMEOUT_MS);
         } finally {
             scope.stop();
         }

@@ -412,8 +412,7 @@ export const mockLanguageDtoEng: LanguageDto = {
         "bookmarks.empty_page":
             "You should try this! Click on this icon on any post to bookmark it.",
         "bookmarks.notification.title": "Bookmark added",
-        "bookmarks.notification.description":
-            "This content has been added to your bookmarks.",
+        "bookmarks.notification.description": "This content has been added to your bookmarks.",
         "language.modal.title": "Select Language",
         "language.modal.close": "Close",
         "singlecontent.loading": "Loading...",

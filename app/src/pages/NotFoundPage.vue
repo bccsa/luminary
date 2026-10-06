@@ -34,12 +34,21 @@ onMounted(async () => {
                         : t("notfoundpage.authenticated.description")
                 }}
             </p>
-            <div v-if="isAuthenticated" class="mt-10 flex items-center justify-center gap-x-6">
-                <RouterLink to="/" class="text-yellow-700 underline">
+            <div
+                v-if="isAuthenticated"
+                class="mt-10 flex items-center justify-center gap-x-6"
+            >
+                <RouterLink
+                    to="/"
+                    class="text-yellow-700 underline"
+                >
                     {{ t("notfoundpage.navigation.home") }}</RouterLink
                 >
             </div>
-            <div v-else class="mt-10 text-center text-base leading-7 text-zinc-600 dark:text-white">
+            <div
+                v-else
+                class="mt-10 text-center text-base leading-7 text-zinc-600 dark:text-white"
+            >
                 {{ t("notfoundpage.unauthenticated.loginPrompt.before") }}
                 <span
                     data-test="login-prompt"

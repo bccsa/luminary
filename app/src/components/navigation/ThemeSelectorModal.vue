@@ -29,7 +29,10 @@ const emit = defineEmits(["close"]);
                 @click="theme = 'light'"
                 data-test="switch-theme-button"
             >
-                <SunIcon class="mr-2 h-4 w-4" aria-hidden="true" />
+                <SunIcon
+                    class="mr-2 h-4 w-4"
+                    aria-hidden="true"
+                />
                 <span class="text-sm">{{ t("select_theme.light") }}</span>
                 <CheckCircleIcon
                     v-if="theme === 'light'"
@@ -42,7 +45,10 @@ const emit = defineEmits(["close"]);
                 @click="theme = 'dark'"
                 data-test="switch-theme-button"
             >
-                <MoonIcon class="mr-2 h-4 w-4" aria-hidden="true" />
+                <MoonIcon
+                    class="mr-2 h-4 w-4"
+                    aria-hidden="true"
+                />
                 <span class="text-sm">{{ t("select_theme.dark") }}</span>
                 <CheckCircleIcon
                     v-if="theme === 'dark'"
@@ -55,7 +61,10 @@ const emit = defineEmits(["close"]);
                 @click="theme = 'system'"
                 data-test="switch-theme-button"
             >
-                <ComputerDesktopIcon class="mr-2 h-4 w-4" aria-hidden="true" />
+                <ComputerDesktopIcon
+                    class="mr-2 h-4 w-4"
+                    aria-hidden="true"
+                />
                 <span class="text-sm">{{ t("select_theme.system") }}</span>
                 <CheckCircleIcon
                     v-if="theme === 'system'"

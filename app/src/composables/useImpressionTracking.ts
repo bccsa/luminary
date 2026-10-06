@@ -78,8 +78,7 @@ export function useImpressionTracking(
                 for (const entry of entries) {
                     if (!entry.isIntersecting) continue;
                     const contentId = (entry.target as HTMLElement).dataset.contentId as
-                        | Uuid
-                        | undefined;
+                        Uuid | undefined;
                     if (!contentId) continue;
                     const tags = docTags.get(contentId);
                     if (tags) pending.set(contentId, tags);

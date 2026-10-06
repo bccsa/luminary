@@ -24,7 +24,10 @@ export function queueOnChain(route: string, next: Promise<unknown>): void {
     // for every later query on the same route. The caller still awaits its own
     // original promise, so its own error surfaces; later queries sequence after
     // this tail and run regardless.
-    ssrChains.set(route, next.catch(() => {}));
+    ssrChains.set(
+        route,
+        next.catch(() => {}),
+    );
 }
 
 /** Frees a route's chain entry once its page has fully rendered. */

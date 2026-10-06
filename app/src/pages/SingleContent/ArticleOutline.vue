@@ -235,154 +235,156 @@ function onResume() {
         leave-from-class="translate-y-0 opacity-100"
         leave-to-class="-translate-y-2 opacity-0"
     >
-    <span
-        v-if="showResumeOffer"
-        class="relative flex max-w-full items-center rounded-lg bg-zinc-100/95 shadow-md ring-1 ring-zinc-900/10 dark:bg-slate-700/95 dark:ring-white/10"
-        data-test="articleOutlineResume"
-    >
-        <button
-            type="button"
-            class="flex min-w-0 flex-1 cursor-pointer items-center justify-center gap-1.5 overflow-hidden rounded-l-lg pb-2.5 pl-2.5 pr-1 pt-1.5 text-center text-sm text-zinc-800 hover:bg-zinc-200 dark:text-slate-50 dark:hover:bg-slate-600"
-            :aria-label="`${t('content.continueReading.action')} · ${savedProgress ?? 0}%`"
-            data-test="articleOutlineResumeButton"
-            @click="onResume"
-        >
-            <span class="truncate font-semibold">{{ t("content.continueReading.action") }}</span>
-            <span class="tabular-nums text-zinc-500 dark:text-slate-300">
-                {{ savedProgress ?? 0 }}%
-            </span>
-        </button>
-        <button
-            type="button"
-            class="mr-1 flex-shrink-0 cursor-pointer self-start rounded-md p-1.5 text-zinc-500 hover:bg-zinc-200 hover:text-zinc-800 dark:text-slate-300 dark:hover:bg-slate-600 dark:hover:text-slate-50"
-            :aria-label="t('content.continueReading.dismiss')"
-            data-test="articleOutlineDismiss"
-            @click="emit('dismiss')"
-        >
-            <XMarkIcon class="h-5 w-5" />
-        </button>
         <span
-            class="pointer-events-none absolute inset-x-0 bottom-0 h-1 overflow-hidden rounded-b-lg bg-zinc-300 dark:bg-slate-600"
-            aria-hidden="true"
-            data-test="articleOutlineProgress"
+            v-if="showResumeOffer"
+            class="relative flex max-w-full items-center rounded-lg bg-zinc-100/95 shadow-md ring-1 ring-zinc-900/10 dark:bg-slate-700/95 dark:ring-white/10"
+            data-test="articleOutlineResume"
         >
-            <span
-                class="block h-full bg-yellow-500 transition-[width] duration-300 dark:bg-yellow-400"
-                :style="{ width: `${savedProgress ?? 0}%` }"
-            />
-        </span>
-    </span>
-    <span
-        v-else-if="visible && !headings.length"
-        class="relative flex max-w-full items-center overflow-hidden rounded-lg bg-zinc-100/95 px-3.5 pb-2.5 pt-1.5 text-sm text-zinc-800 shadow-md ring-1 ring-zinc-900/10 dark:bg-slate-700/95 dark:text-slate-50 dark:ring-white/10"
-        data-test="articleOutlineTitle"
-    >
-        <span class="truncate">{{ title }}</span>
-        <span
-            v-if="progress !== undefined"
-            class="pointer-events-none absolute inset-x-0 bottom-0 h-1 bg-zinc-300 dark:bg-slate-600"
-            aria-hidden="true"
-            data-test="articleOutlineProgress"
-        >
-            <span
-                class="block h-full bg-yellow-500 transition-[width] duration-300 dark:bg-yellow-400"
-                :style="{ width: `${progress}%` }"
-            />
-        </span>
-    </span>
-    <DropdownMenu
-        v-else-if="visible"
-        v-model:open="open"
-        placement="bottom-center"
-        width="auto"
-        panel-class="max-h-[60vh] w-max overflow-y-auto py-1"
-        class="min-w-0 max-w-full"
-        data-test="articleOutline"
-    >
-        <template #trigger>
-            <span
-                class="relative flex max-w-full items-center gap-1.5 overflow-hidden rounded-lg bg-zinc-100/95 px-3.5 pb-2.5 pt-1.5 text-sm text-zinc-800 shadow-md ring-1 ring-zinc-900/10 hover:bg-zinc-200 dark:bg-slate-700/95 dark:text-slate-50 dark:ring-white/10 dark:hover:bg-slate-600"
-                :aria-label="activeHeading ? `Current section: ${activeHeading.text}` : title"
-                data-test="articleOutlineTrigger"
+            <button
+                type="button"
+                class="flex min-w-0 flex-1 cursor-pointer items-center justify-center gap-1.5 overflow-hidden rounded-l-lg pb-2.5 pl-2.5 pr-1 pt-1.5 text-center text-sm text-zinc-800 hover:bg-zinc-200 dark:text-slate-50 dark:hover:bg-slate-600"
+                :aria-label="`${t('content.continueReading.action')} · ${savedProgress ?? 0}%`"
+                data-test="articleOutlineResumeButton"
+                @click="onResume"
             >
-                <!-- The title and every heading are stacked invisibly in the same grid cell, so the
+                <span class="truncate font-semibold">{{
+                    t("content.continueReading.action")
+                }}</span>
+                <span class="tabular-nums text-zinc-500 dark:text-slate-300">
+                    {{ savedProgress ?? 0 }}%
+                </span>
+            </button>
+            <button
+                type="button"
+                class="mr-1 flex-shrink-0 cursor-pointer self-start rounded-md p-1.5 text-zinc-500 hover:bg-zinc-200 hover:text-zinc-800 dark:text-slate-300 dark:hover:bg-slate-600 dark:hover:text-slate-50"
+                :aria-label="t('content.continueReading.dismiss')"
+                data-test="articleOutlineDismiss"
+                @click="emit('dismiss')"
+            >
+                <XMarkIcon class="h-5 w-5" />
+            </button>
+            <span
+                class="pointer-events-none absolute inset-x-0 bottom-0 h-1 overflow-hidden rounded-b-lg bg-zinc-300 dark:bg-slate-600"
+                aria-hidden="true"
+                data-test="articleOutlineProgress"
+            >
+                <span
+                    class="block h-full bg-yellow-500 transition-[width] duration-300 dark:bg-yellow-400"
+                    :style="{ width: `${savedProgress ?? 0}%` }"
+                />
+            </span>
+        </span>
+        <span
+            v-else-if="visible && !headings.length"
+            class="relative flex max-w-full items-center overflow-hidden rounded-lg bg-zinc-100/95 px-3.5 pb-2.5 pt-1.5 text-sm text-zinc-800 shadow-md ring-1 ring-zinc-900/10 dark:bg-slate-700/95 dark:text-slate-50 dark:ring-white/10"
+            data-test="articleOutlineTitle"
+        >
+            <span class="truncate">{{ title }}</span>
+            <span
+                v-if="progress !== undefined"
+                class="pointer-events-none absolute inset-x-0 bottom-0 h-1 bg-zinc-300 dark:bg-slate-600"
+                aria-hidden="true"
+                data-test="articleOutlineProgress"
+            >
+                <span
+                    class="block h-full bg-yellow-500 transition-[width] duration-300 dark:bg-yellow-400"
+                    :style="{ width: `${progress}%` }"
+                />
+            </span>
+        </span>
+        <DropdownMenu
+            v-else-if="visible"
+            v-model:open="open"
+            placement="bottom-center"
+            width="auto"
+            panel-class="max-h-[60vh] w-max overflow-y-auto py-1"
+            class="min-w-0 max-w-full"
+            data-test="articleOutline"
+        >
+            <template #trigger>
+                <span
+                    class="relative flex max-w-full items-center gap-1.5 overflow-hidden rounded-lg bg-zinc-100/95 px-3.5 pb-2.5 pt-1.5 text-sm text-zinc-800 shadow-md ring-1 ring-zinc-900/10 hover:bg-zinc-200 dark:bg-slate-700/95 dark:text-slate-50 dark:ring-white/10 dark:hover:bg-slate-600"
+                    :aria-label="activeHeading ? `Current section: ${activeHeading.text}` : title"
+                    data-test="articleOutlineTrigger"
+                >
+                    <!-- The title and every heading are stacked invisibly in the same grid cell, so the
                      pill is sized to the longest label and stays put as its content changes. The
                      column may shrink below that width, so a label that doesn't fit truncates
                      before the chevron instead of running under it. -->
-                <span class="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)] text-left">
-                    <span
-                        class="invisible col-start-1 row-start-1 whitespace-nowrap"
-                        aria-hidden="true"
-                    >
-                        {{ title }}
+                    <span class="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)] text-left">
+                        <span
+                            class="invisible col-start-1 row-start-1 whitespace-nowrap"
+                            aria-hidden="true"
+                        >
+                            {{ title }}
+                        </span>
+                        <span
+                            v-for="h in headings"
+                            :key="h.id"
+                            class="invisible col-start-1 row-start-1 whitespace-nowrap"
+                            aria-hidden="true"
+                        >
+                            {{ h.text }}
+                        </span>
+                        <span class="col-start-1 row-start-1 truncate">{{ triggerLabel }}</span>
                     </span>
-                    <span
-                        v-for="h in headings"
-                        :key="h.id"
-                        class="invisible col-start-1 row-start-1 whitespace-nowrap"
+                    <ChevronDownIcon
+                        class="h-4 w-4 flex-shrink-0 transition-transform"
+                        :class="{ 'rotate-180': open }"
                         aria-hidden="true"
+                    />
+                    <span
+                        v-if="progress !== undefined"
+                        class="pointer-events-none absolute inset-x-0 bottom-0 h-1 bg-zinc-300 dark:bg-slate-600"
+                        aria-hidden="true"
+                        data-test="articleOutlineProgress"
                     >
-                        {{ h.text }}
+                        <span
+                            class="block h-full bg-yellow-500 transition-[width] duration-300 dark:bg-yellow-400"
+                            :style="{ width: `${progress}%` }"
+                        />
                     </span>
-                    <span class="col-start-1 row-start-1 truncate">{{ triggerLabel }}</span>
                 </span>
-                <ChevronDownIcon
-                    class="h-4 w-4 flex-shrink-0 transition-transform"
-                    :class="{ 'rotate-180': open }"
+            </template>
+            <button
+                v-if="showResumeOption"
+                type="button"
+                role="menuitem"
+                class="mb-1 flex w-full cursor-pointer select-none items-center gap-2 border-b border-zinc-900/10 py-2 pl-4 pr-3 text-left text-sm font-medium leading-5 text-yellow-600 hover:bg-zinc-50 dark:border-white/10 dark:text-yellow-400 dark:hover:bg-slate-600"
+                data-test="articleOutlineResumeOption"
+                @click="onResume"
+            >
+                <ArrowUturnLeftIcon
+                    class="h-4 w-4 flex-shrink-0"
                     aria-hidden="true"
                 />
-                <span
-                    v-if="progress !== undefined"
-                    class="pointer-events-none absolute inset-x-0 bottom-0 h-1 bg-zinc-300 dark:bg-slate-600"
-                    aria-hidden="true"
-                    data-test="articleOutlineProgress"
-                >
-                    <span
-                        class="block h-full bg-yellow-500 transition-[width] duration-300 dark:bg-yellow-400"
-                        :style="{ width: `${progress}%` }"
-                    />
+                <span class="flex-1">{{ t("content.continueReading.action") }}</span>
+                <span class="font-normal tabular-nums text-zinc-500 dark:text-slate-300">
+                    {{ savedProgress ?? 0 }}%
                 </span>
-            </span>
-        </template>
-        <button
-            v-if="showResumeOption"
-            type="button"
-            role="menuitem"
-            class="mb-1 flex w-full cursor-pointer select-none items-center gap-2 border-b border-zinc-900/10 py-2 pl-4 pr-3 text-left text-sm font-medium leading-5 text-yellow-600 hover:bg-zinc-50 dark:border-white/10 dark:text-yellow-400 dark:hover:bg-slate-600"
-            data-test="articleOutlineResumeOption"
-            @click="onResume"
-        >
-            <ArrowUturnLeftIcon
-                class="h-4 w-4 flex-shrink-0"
-                aria-hidden="true"
-            />
-            <span class="flex-1">{{ t("content.continueReading.action") }}</span>
-            <span class="font-normal tabular-nums text-zinc-500 dark:text-slate-300">
-                {{ savedProgress ?? 0 }}%
-            </span>
-        </button>
-        <button
-            v-for="h in headings"
-            :key="h.id"
-            type="button"
-            role="menuitem"
-            class="flex w-full cursor-pointer select-none items-center gap-2 py-2 pr-3 text-left text-sm leading-5 hover:bg-zinc-50 dark:hover:bg-slate-600"
-            :class="[
-                h.level === 3 ? 'pl-8' : 'pl-4',
-                activeId === h.id
-                    ? 'font-medium text-yellow-600 dark:text-yellow-400'
-                    : 'text-zinc-800 dark:text-white',
-            ]"
-            data-test="articleOutlineOption"
-            @click="goToHeading(h.id)"
-        >
-            <span class="flex-1">{{ h.text }}</span>
-            <CheckCircleIcon
-                v-if="activeId === h.id"
-                class="h-5 w-5 flex-shrink-0 text-yellow-500"
-                aria-hidden="true"
-            />
-        </button>
-    </DropdownMenu>
+            </button>
+            <button
+                v-for="h in headings"
+                :key="h.id"
+                type="button"
+                role="menuitem"
+                class="flex w-full cursor-pointer select-none items-center gap-2 py-2 pr-3 text-left text-sm leading-5 hover:bg-zinc-50 dark:hover:bg-slate-600"
+                :class="[
+                    h.level === 3 ? 'pl-8' : 'pl-4',
+                    activeId === h.id
+                        ? 'font-medium text-yellow-600 dark:text-yellow-400'
+                        : 'text-zinc-800 dark:text-white',
+                ]"
+                data-test="articleOutlineOption"
+                @click="goToHeading(h.id)"
+            >
+                <span class="flex-1">{{ h.text }}</span>
+                <CheckCircleIcon
+                    v-if="activeId === h.id"
+                    class="h-5 w-5 flex-shrink-0 text-yellow-500"
+                    aria-hidden="true"
+                />
+            </button>
+        </DropdownMenu>
     </Transition>
 </template>
