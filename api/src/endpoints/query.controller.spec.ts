@@ -93,9 +93,9 @@ describe("QueryController", () => {
 
         // Unknown top-level key — rejected by the universal validator.
         const body = { selector: { type: "content" }, bogusKey: 1 };
-        await expect(
-            controller.processPostReq(body, mockRequest(), mockReply()),
-        ).rejects.toThrow(BadRequestException);
+        await expect(controller.processPostReq(body, mockRequest(), mockReply())).rejects.toThrow(
+            BadRequestException,
+        );
         expect(queryService.query).not.toHaveBeenCalled();
     });
 

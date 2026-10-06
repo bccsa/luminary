@@ -384,7 +384,11 @@ describe("validateQuery", () => {
             const q: any = validHybridQuery();
             q.selector.$or = [
                 { language: "lang-eng" },
-                { $and: [{ $not: { availableTranslations: { $elemMatch: { $eq: "lang-eng" } } } }] },
+                {
+                    $and: [
+                        { $not: { availableTranslations: { $elemMatch: { $eq: "lang-eng" } } } },
+                    ],
+                },
             ];
             expect(validateQuery(q).valid).toBe(true);
         });

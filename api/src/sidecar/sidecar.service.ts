@@ -78,7 +78,11 @@ export async function deleteSidecarsForParent(db: DbService, parentId: Uuid): Pr
  * retrievable: the encrypted segments already sit at a public URL, so the key is the only
  * thing withholding them.
  */
-export async function isParentAvailable(db: DbService, parentId: Uuid, now: number): Promise<boolean> {
+export async function isParentAvailable(
+    db: DbService,
+    parentId: Uuid,
+    now: number,
+): Promise<boolean> {
     const { docs } = await db.getContentByParentId(parentId);
     return (docs as ContentDto[]).some(
         (c) =>
@@ -95,12 +99,7 @@ export async function syncSidecarMemberOf(db: DbService, parent: PostDto | TagDt
         const res = await db.getDoc(sidecarId(parent._id, type));
         if (!res.docs?.length) continue;
         const sidecar = res.docs[0] as SidecarDto;
-        if (
-            !isDeepStrictEqual(
-                [...sidecar.memberOf].sort(),
-                [...parent.memberOf].sort(),
-            )
-        ) {
+        if (!isDeepStrictEqual([...sidecar.memberOf].sort(), [...parent.memberOf].sort())) {
             sidecar.memberOf = parent.memberOf;
             await db.upsertDoc(sidecar);
         }

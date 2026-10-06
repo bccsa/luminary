@@ -25,7 +25,12 @@ function normalizeConfig(config: Partial<AffinityConfigDto> | undefined): Affini
         minScore: clampNumber(c.minScore, 0.0001, 0.5, DEFAULT_AFFINITY_CONFIG.minScore),
         maxTags: Math.round(clampNumber(c.maxTags, 1, 500, DEFAULT_AFFINITY_CONFIG.maxTags)),
         depthScale: clampNumber(c.depthScale, 1, 1000, DEFAULT_AFFINITY_CONFIG.depthScale),
-        readFloorPercent: clampNumber(c.readFloorPercent, 0, 100, DEFAULT_AFFINITY_CONFIG.readFloorPercent),
+        readFloorPercent: clampNumber(
+            c.readFloorPercent,
+            0,
+            100,
+            DEFAULT_AFFINITY_CONFIG.readFloorPercent,
+        ),
         // Floored at 1 so a fat-fingered 0 can't make every play count as a completion
         // the instant it starts.
         mediaCompletionPercent: clampNumber(
@@ -35,7 +40,12 @@ function normalizeConfig(config: Partial<AffinityConfigDto> | undefined): Affini
             DEFAULT_AFFINITY_CONFIG.mediaCompletionPercent,
         ),
         eventWeight: {
-            bookmark: clampNumber(c.eventWeight?.bookmark, -1, 1, DEFAULT_AFFINITY_CONFIG.eventWeight.bookmark),
+            bookmark: clampNumber(
+                c.eventWeight?.bookmark,
+                -1,
+                1,
+                DEFAULT_AFFINITY_CONFIG.eventWeight.bookmark,
+            ),
             bookmarkRemoved: clampNumber(
                 c.eventWeight?.bookmarkRemoved,
                 -1,
@@ -103,7 +113,9 @@ export default function processDefaultAffinityDto(doc: DefaultAffinityDto): void
 
     const entries = Object.entries(clamped);
     doc.affinity =
-        entries.length <= MAX_DEFAULT_TAGS ? clamped : Object.fromEntries(entries.slice(0, MAX_DEFAULT_TAGS));
+        entries.length <= MAX_DEFAULT_TAGS
+            ? clamped
+            : Object.fromEntries(entries.slice(0, MAX_DEFAULT_TAGS));
 
     doc.config = normalizeConfig(doc.config);
 }

@@ -140,13 +140,20 @@ export function rgbaToThumbHash(w: number, h: number, rgba: Uint8Array): Uint8Ar
         (round(63 * p_scale) << 3) |
         (round(63 * q_scale) << 9) |
         ((isLandscape ? 1 : 0) << 15);
-    const hash = [header24 & 255, (header24 >> 8) & 255, header24 >> 16, header16 & 255, header16 >> 8];
+    const hash = [
+        header24 & 255,
+        (header24 >> 8) & 255,
+        header24 >> 16,
+        header16 & 255,
+        header16 >> 8,
+    ];
     const ac_start = hasAlpha ? 6 : 5;
     let ac_index = 0;
     if (hasAlpha) hash.push(round(15 * a_dc) | (round(15 * a_scale) << 4));
 
     // Write the varying factors
     for (const ac of hasAlpha ? [l_ac, p_ac, q_ac, a_ac] : [l_ac, p_ac, q_ac])
-        for (const f of ac) hash[ac_start + (ac_index >> 1)] |= round(15 * f) << ((ac_index++ & 1) << 2);
+        for (const f of ac)
+            hash[ac_start + (ac_index >> 1)] |= round(15 * f) << ((ac_index++ & 1) << 2);
     return new Uint8Array(hash);
 }

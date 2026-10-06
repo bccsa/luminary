@@ -6,16 +6,25 @@ import { PublishStatus } from "../enums";
  * not-yet-live / already-expired doc) has nothing a crawler or bookmark could be
  * pointing at. Mirrors the guards the old per-rename Redirect-doc creation used.
  */
-export function isTrackableSlugChange(doc: ContentDto, prevDoc?: ContentDto): prevDoc is ContentDto {
+export function isTrackableSlugChange(
+    doc: ContentDto,
+    prevDoc?: ContentDto,
+): prevDoc is ContentDto {
     if (!prevDoc || doc.deleteReq || prevDoc.deleteReq) return false;
     if (doc.slug === prevDoc.slug) return false;
     if (doc.status !== PublishStatus.Published || prevDoc.status !== PublishStatus.Published)
         return false;
 
     const now = Date.now();
-    if ((doc.publishDate && doc.publishDate > now) || (prevDoc.publishDate && prevDoc.publishDate > now))
+    if (
+        (doc.publishDate && doc.publishDate > now) ||
+        (prevDoc.publishDate && prevDoc.publishDate > now)
+    )
         return false;
-    if ((doc.expiryDate && doc.expiryDate <= now) || (prevDoc.expiryDate && prevDoc.expiryDate <= now))
+    if (
+        (doc.expiryDate && doc.expiryDate <= now) ||
+        (prevDoc.expiryDate && prevDoc.expiryDate <= now)
+    )
         return false;
 
     return true;

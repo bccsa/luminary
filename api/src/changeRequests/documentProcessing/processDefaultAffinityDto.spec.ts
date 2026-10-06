@@ -52,28 +52,24 @@ describe("processDefaultAffinityDto", () => {
         });
 
         it("clamps out-of-range fields and falls back per-field to defaults when malformed", () => {
-            const doc = makeDoc(
-                {},
-                DEFAULT_AFFINITY_ID,
-                {
-                    halfLifeDays: 999999,
-                    hitWeight: 5,
-                    minScore: 0,
-                    maxTags: 5000,
-                    depthScale: 0,
-                    readFloorPercent: 150,
-                    mediaCompletionPercent: 0,
-                    eventWeight: {
-                        bookmark: 5,
-                        bookmarkRemoved: NaN as unknown as number,
-                        completion: 0.35,
-                        readCompletion: 0.35,
-                        highlight: 0.3,
-                        highlightRemoved: -0.18,
-                        impression: -0.02,
-                    },
-                } as Partial<AffinityConfigDto>,
-            );
+            const doc = makeDoc({}, DEFAULT_AFFINITY_ID, {
+                halfLifeDays: 999999,
+                hitWeight: 5,
+                minScore: 0,
+                maxTags: 5000,
+                depthScale: 0,
+                readFloorPercent: 150,
+                mediaCompletionPercent: 0,
+                eventWeight: {
+                    bookmark: 5,
+                    bookmarkRemoved: NaN as unknown as number,
+                    completion: 0.35,
+                    readCompletion: 0.35,
+                    highlight: 0.3,
+                    highlightRemoved: -0.18,
+                    impression: -0.02,
+                },
+            } as Partial<AffinityConfigDto>);
             processDefaultAffinityDto(doc);
             expect(doc.config?.halfLifeDays).toBe(3650);
             expect(doc.config?.hitWeight).toBe(1);

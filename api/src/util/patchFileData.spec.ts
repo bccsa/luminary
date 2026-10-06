@@ -33,7 +33,7 @@ describe("patchFileData", () => {
         const obj = { nested: { file: "BINARY_REF-f1" } };
         const stats = patchFileData(obj, fileMap, "changes");
 
-        expect((obj.nested.file as any)).toEqual(Buffer.from("nested-data"));
+        expect(obj.nested.file as any).toEqual(Buffer.from("nested-data"));
         expect(stats.patched).toBe(1);
     });
 

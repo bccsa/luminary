@@ -10,7 +10,13 @@ function makeService(rateLimit: any): SidecarRateLimiterService {
     return new SidecarRateLimiterService(configService);
 }
 
-const disabled = { enabled: false, freeStrikes: 0, baseBackoffMs: 0, maxBackoffMs: 0, strikeDecayMs: 0 };
+const disabled = {
+    enabled: false,
+    freeStrikes: 0,
+    baseBackoffMs: 0,
+    maxBackoffMs: 0,
+    strikeDecayMs: 0,
+};
 const oneFreeStrike = {
     enabled: true,
     freeStrikes: 1,

@@ -130,9 +130,7 @@ export async function reconcileLanguageTranslationSeeds(
     // seed values directly and warn — placeholders can't track a default that isn't there.
     let defaultTranslations: Record<string, string>;
     if (defaultDoc) {
-        logger.log(
-            `Using default language '${defaultDoc._id}' (default: 1) as placeholder source`,
-        );
+        logger.log(`Using default language '${defaultDoc._id}' (default: 1) as placeholder source`);
         defaultTranslations = reconcileTranslations(
             defaultDoc,
             allowedKeys,

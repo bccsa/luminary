@@ -32,9 +32,9 @@ describe("sidecar (pure unit)", () => {
 
     describe("isHlsEncryptionKeyData", () => {
         it("accepts a 32-char lowercase hex maskedKeyHex", () => {
-            expect(isHlsEncryptionKeyData({ maskedKeyHex: "0123456789abcdef0123456789abcdef" })).toBe(
-                true,
-            );
+            expect(
+                isHlsEncryptionKeyData({ maskedKeyHex: "0123456789abcdef0123456789abcdef" }),
+            ).toBe(true);
         });
 
         it("accepts a key of any whole number of bytes", () => {
@@ -127,7 +127,6 @@ describe("sidecar.service (CouchDB)", () => {
             const res = await db.getDoc(sidecarId("post-test", SidecarType.HlsEncryptionKey));
             expect(res.docs).toHaveLength(1);
         });
-
     });
 
     describe("getSidecar", () => {
@@ -186,9 +185,14 @@ describe("sidecar.service (CouchDB)", () => {
         });
 
         it("updates a sidecar's memberOf when the parent's memberOf changes", async () => {
-            await upsertSidecar(db, makePost({ memberOf: ["group-a"] }), SidecarType.HlsEncryptionKey, {
-                maskedKeyHex: "0".repeat(32),
-            });
+            await upsertSidecar(
+                db,
+                makePost({ memberOf: ["group-a"] }),
+                SidecarType.HlsEncryptionKey,
+                {
+                    maskedKeyHex: "0".repeat(32),
+                },
+            );
 
             await syncSidecarMemberOf(db, makePost({ memberOf: ["group-a", "group-b"] }));
 
@@ -197,9 +201,14 @@ describe("sidecar.service (CouchDB)", () => {
         });
 
         it("does not churn the sidecar when memberOf is unchanged", async () => {
-            await upsertSidecar(db, makePost({ memberOf: ["group-a"] }), SidecarType.HlsEncryptionKey, {
-                maskedKeyHex: "0".repeat(32),
-            });
+            await upsertSidecar(
+                db,
+                makePost({ memberOf: ["group-a"] }),
+                SidecarType.HlsEncryptionKey,
+                {
+                    maskedKeyHex: "0".repeat(32),
+                },
+            );
             const before = await getSidecar(db, "post-test", SidecarType.HlsEncryptionKey);
             const revBefore = before!._rev;
 
@@ -211,9 +220,14 @@ describe("sidecar.service (CouchDB)", () => {
         });
 
         it("produces no DeleteCmd with docType 'sidecar' on a memberOf change", async () => {
-            await upsertSidecar(db, makePost({ memberOf: ["group-a"] }), SidecarType.HlsEncryptionKey, {
-                maskedKeyHex: "0".repeat(32),
-            });
+            await upsertSidecar(
+                db,
+                makePost({ memberOf: ["group-a"] }),
+                SidecarType.HlsEncryptionKey,
+                {
+                    maskedKeyHex: "0".repeat(32),
+                },
+            );
 
             await syncSidecarMemberOf(db, makePost({ memberOf: ["group-a", "group-b"] }));
 
