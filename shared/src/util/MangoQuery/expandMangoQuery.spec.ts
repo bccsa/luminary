@@ -103,11 +103,7 @@ describe("expandMangoSelector", () => {
             const result = expandMangoSelector(selector);
 
             expect(result).toEqual({
-                $and: [
-                    { type: "Post" },
-                    { year: { $gt: 2020 } },
-                    { rating: { $gte: 4, $lte: 5 } },
-                ],
+                $and: [{ type: "Post" }, { year: { $gt: 2020 } }, { rating: { $gte: 4, $lte: 5 } }],
             });
         });
 

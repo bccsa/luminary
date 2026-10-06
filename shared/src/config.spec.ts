@@ -1,10 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-    initConfig,
-    config,
-    getContentPublishDateCutoff,
-    getOfflineRetentionTtl,
-} from "./config";
+import { initConfig, config, getContentPublishDateCutoff, getOfflineRetentionTtl } from "./config";
 import type { SharedConfig } from "./config";
 import { OPEN_MIN } from "./api/sync/utils";
 

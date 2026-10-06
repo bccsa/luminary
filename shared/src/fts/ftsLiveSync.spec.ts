@@ -67,7 +67,10 @@ describe("attachFtsLiveSync", () => {
 
     it("removes a result when a matching DeleteCmd arrives on the socket", () => {
         const scope = effectScope();
-        const results = ref([{ _id: "u1", name: "Ada" }, { _id: "u2", name: "Bob" }]);
+        const results = ref([
+            { _id: "u1", name: "Ada" },
+            { _id: "u2", name: "Bob" },
+        ]);
 
         scope.run(() =>
             attachFtsLiveSync(
@@ -174,9 +177,7 @@ describe("attachFtsLiveSync", () => {
         mocks.liveRefs[0]!.ref.value = [{ _id: "c2", title: "Two updated" }];
         await nextTick();
 
-        expect(results.value).toEqual([
-            { docId: "c2", doc: { _id: "c2", title: "Two updated" } },
-        ]);
+        expect(results.value).toEqual([{ docId: "c2", doc: { _id: "c2", title: "Two updated" } }]);
         scope.stop();
     });
 

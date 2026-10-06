@@ -23,7 +23,13 @@ import { DocType, type BaseDocumentDto } from "../types";
 const CUTOFF = 1000;
 
 const content = (_id: string, publishDate: number): BaseDocumentDto =>
-    ({ _id, type: DocType.Content, publishDate, updatedTimeUtc: 1, memberOf: [] }) as unknown as BaseDocumentDto;
+    ({
+        _id,
+        type: DocType.Content,
+        publishDate,
+        updatedTimeUtc: 1,
+        memberOf: [],
+    }) as unknown as BaseDocumentDto;
 
 describe("retention", () => {
     beforeAll(async () => {
@@ -109,7 +115,9 @@ describe("retention", () => {
             touchRetention(["b"]); // flushTimer already set → no second timer
             await vi.advanceTimersByTimeAsync(10_000);
             expect(spy).toHaveBeenCalledTimes(1); // both ids written in ONE flush
-            const ids = (spy.mock.calls[0][0] as Array<{ docId: string }>).map((e) => e.docId).sort();
+            const ids = (spy.mock.calls[0][0] as Array<{ docId: string }>)
+                .map((e) => e.docId)
+                .sort();
             expect(ids).toEqual(["a", "b"]);
         });
 
@@ -186,7 +194,12 @@ describe("retention", () => {
                 content("below-stale", 400),
                 content("below-none", 300),
                 content("above", 2000),
-                { _id: "below-nonContent", type: DocType.Post, publishDate: 200, updatedTimeUtc: 1 } as unknown as BaseDocumentDto,
+                {
+                    _id: "below-nonContent",
+                    type: DocType.Post,
+                    publishDate: 200,
+                    updatedTimeUtc: 1,
+                } as unknown as BaseDocumentDto,
             ]);
             await seed("below-fresh", now + 1e9);
             await seed("below-stale", now - 1e9);
@@ -221,7 +234,11 @@ describe("retention", () => {
             // below-cutoff range query never sees it → never evicted (documented: only
             // docs with a real publishDate are retention-managed), even with no stamp.
             await db.docs.bulkPut([
-                { _id: "no-pd", type: DocType.Content, updatedTimeUtc: 1 } as unknown as BaseDocumentDto,
+                {
+                    _id: "no-pd",
+                    type: DocType.Content,
+                    updatedTimeUtc: 1,
+                } as unknown as BaseDocumentDto,
             ]);
             await evictStaleBelowCutoff();
             expect(await db.docs.get("no-pd")).toBeDefined();
@@ -366,7 +383,10 @@ describe("retention", () => {
         });
 
         it("keeps a recently-served (retention-stamped) doc", async () => {
-            await db.docs.bulkPut([langContent("fr-pinned", "lang-fr"), langContent("fr-cold", "lang-fr")]);
+            await db.docs.bulkPut([
+                langContent("fr-pinned", "lang-fr"),
+                langContent("fr-cold", "lang-fr"),
+            ]);
             touchRetention(["fr-pinned"]); // active deadline in the future
             await flushRetention();
 

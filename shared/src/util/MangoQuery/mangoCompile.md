@@ -10,7 +10,7 @@ The compiler supports the full CouchDB Mango query syntax, making it compatible 
 
 Use `mangoCompile(selector)` to get back a function `(doc) => boolean`. That function returns `true` when the document matches the selector.
 
-**Template-based caching**: Compiled predicates are cached based on query *structure*, not values. This means queries with the same shape but different parameter values share the same compiled logic:
+**Template-based caching**: Compiled predicates are cached based on query _structure_, not values. This means queries with the same shape but different parameter values share the same compiled logic:
 
 ```ts
 // These two queries share the same cached compiled predicate:
@@ -53,27 +53,37 @@ Fields can use dot notation to access nested properties:
 
 ## Combination operators
 
-| Operator | Argument | Purpose |
-|----------|----------|---------|
-| `$and` | Array | Matches if all selectors in the array match |
-| `$or` | Array | Matches if any of the selectors in the array match |
-| `$not` | Selector | Matches if the given selector does not match |
-| `$nor` | Array | Matches if none of the selectors in the array match |
+| Operator | Argument | Purpose                                             |
+| -------- | -------- | --------------------------------------------------- |
+| `$and`   | Array    | Matches if all selectors in the array match         |
+| `$or`    | Array    | Matches if any of the selectors in the array match  |
+| `$not`   | Selector | Matches if the given selector does not match        |
+| `$nor`   | Array    | Matches if none of the selectors in the array match |
 
 Examples:
 
 ```ts
 // $and: all conditions must match
-{ $and: [{ city: "SF" }, { score: { $gte: 90 } }] }
+{
+    $and: [{ city: "SF" }, { score: { $gte: 90 } }];
+}
 
 // $or: at least one condition must match
-{ $or: [{ city: "LA" }, { score: { $gte: 95 } }] }
+{
+    $or: [{ city: "LA" }, { score: { $gte: 95 } }];
+}
 
 // $not: negate a condition
-{ $not: { status: "archived" } }
+{
+    $not: {
+        status: "archived";
+    }
+}
 
 // $nor: none of the conditions should match
-{ $nor: [{ status: "deleted" }, { status: "archived" }] }
+{
+    $nor: [{ status: "deleted" }, { status: "archived" }];
+}
 ```
 
 ### Implicit operators
@@ -90,25 +100,35 @@ Multiple fields at the same level are implicitly AND-ed:
 
 ### Equality operators
 
-| Operator | Argument | Purpose |
-|----------|----------|---------|
-| `$eq` | Any | Field equals the argument |
-| `$ne` | Any | Field **exists** and does not equal the argument (a document missing the field does **not** match — see [Missing fields](#missing-fields-couchdb-parity)) |
+| Operator | Argument | Purpose                                                                                                                                                   |
+| -------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `$eq`    | Any      | Field equals the argument                                                                                                                                 |
+| `$ne`    | Any      | Field **exists** and does not equal the argument (a document missing the field does **not** match — see [Missing fields](#missing-fields-couchdb-parity)) |
 
 ```ts
-{ city: { $eq: "NYC" } }  // explicit equality
-{ city: "NYC" }           // implicit equality (shorthand)
-{ score: { $ne: 0 } }     // field must exist AND not equal 0
+{
+    city: {
+        $eq: "NYC";
+    }
+} // explicit equality
+{
+    city: "NYC";
+} // implicit equality (shorthand)
+{
+    score: {
+        $ne: 0;
+    }
+} // field must exist AND not equal 0
 ```
 
 ### Comparison operators
 
-| Operator | Argument | Purpose |
-|----------|----------|---------|
-| `$gt` | Number/String | Field is greater than the argument |
-| `$lt` | Number/String | Field is less than the argument |
-| `$gte` | Number/String | Field is greater than or equal to the argument |
-| `$lte` | Number/String | Field is less than or equal to the argument |
+| Operator | Argument      | Purpose                                        |
+| -------- | ------------- | ---------------------------------------------- |
+| `$gt`    | Number/String | Field is greater than the argument             |
+| `$lt`    | Number/String | Field is less than the argument                |
+| `$gte`   | Number/String | Field is greater than or equal to the argument |
+| `$lte`   | Number/String | Field is less than or equal to the argument    |
 
 ```ts
 { score: { $gt: 80 } }         // greater than
@@ -118,86 +138,160 @@ Multiple fields at the same level are implicitly AND-ed:
 
 ### Array membership operators
 
-| Operator | Argument | Purpose |
-|----------|----------|---------|
-| `$in` | Array | Document field value is in the provided array |
-| `$nin` | Array | Field **exists** and its value is not in the provided array (a document missing the field does **not** match — see [Missing fields](#missing-fields-couchdb-parity)) |
+| Operator | Argument | Purpose                                                                                                                                                              |
+| -------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `$in`    | Array    | Document field value is in the provided array                                                                                                                        |
+| `$nin`   | Array    | Field **exists** and its value is not in the provided array (a document missing the field does **not** match — see [Missing fields](#missing-fields-couchdb-parity)) |
 
 ```ts
-{ status: { $in: ["draft", "published"] } }
-{ status: { $nin: ["archived", "deleted"] } }
+{
+    status: {
+        $in: ["draft", "published"];
+    }
+}
+{
+    status: {
+        $nin: ["archived", "deleted"];
+    }
+}
 ```
 
 ### Array field operators
 
-| Operator | Argument | Purpose |
-|----------|----------|---------|
-| `$all` | Array | Array field contains all elements of the argument array |
+| Operator     | Argument | Purpose                                                    |
+| ------------ | -------- | ---------------------------------------------------------- |
+| `$all`       | Array    | Array field contains all elements of the argument array    |
 | `$elemMatch` | Selector | Array field has at least one element matching the selector |
-| `$allMatch` | Selector | All elements in array field match the selector |
-| `$size` | Number | Array field has exactly this many elements |
+| `$allMatch`  | Selector | All elements in array field match the selector             |
+| `$size`      | Number   | Array field has exactly this many elements                 |
 
 ```ts
 // $all: array must contain all specified elements
-{ tags: { $all: ["javascript", "typescript"] } }
+{
+    tags: {
+        $all: ["javascript", "typescript"];
+    }
+}
 
 // $elemMatch: at least one element matches
-{ items: { $elemMatch: { price: { $gt: 100 } } } }
-{ genre: { $elemMatch: { $eq: "Horror" } } }  // for primitive arrays
+{
+    items: {
+        $elemMatch: {
+            price: {
+                $gt: 100;
+            }
+        }
+    }
+}
+{
+    genre: {
+        $elemMatch: {
+            $eq: "Horror";
+        }
+    }
+} // for primitive arrays
 
 // $allMatch: all elements must match
-{ scores: { $allMatch: { $gte: 50 } } }
+{
+    scores: {
+        $allMatch: {
+            $gte: 50;
+        }
+    }
+}
 
 // $size: exact array length
-{ tags: { $size: 3 } }
+{
+    tags: {
+        $size: 3;
+    }
+}
 ```
 
 ### Object/field operators
 
-| Operator | Argument | Purpose |
-|----------|----------|---------|
-| `$exists` | Boolean | Check whether the field exists |
-| `$type` | String | Check the document field's type |
+| Operator       | Argument | Purpose                                             |
+| -------------- | -------- | --------------------------------------------------- |
+| `$exists`      | Boolean  | Check whether the field exists                      |
+| `$type`        | String   | Check the document field's type                     |
 | `$keyMapMatch` | Selector | Map contains at least one key matching the selector |
 
 ```ts
 // $exists: check field presence
-{ email: { $exists: true } }
-{ deleted: { $exists: false } }
+{
+    email: {
+        $exists: true;
+    }
+}
+{
+    deleted: {
+        $exists: false;
+    }
+}
 
 // $type: check field type ("null", "boolean", "number", "string", "array", "object")
-{ value: { $type: "string" } }
-{ tags: { $type: "array" } }
+{
+    value: {
+        $type: "string";
+    }
+}
+{
+    tags: {
+        $type: "array";
+    }
+}
 
 // $keyMapMatch: check if map has a key matching selector
-{ cameras: { $keyMapMatch: { $eq: "secondary" } } }
+{
+    cameras: {
+        $keyMapMatch: {
+            $eq: "secondary";
+        }
+    }
+}
 ```
 
 ### String/pattern operators
 
-| Operator | Argument | Purpose |
-|----------|----------|---------|
-| `$regex` | String | Field matches the regular expression pattern |
-| `$beginsWith` | String | Field begins with the specified prefix (case-sensitive) |
+| Operator      | Argument | Purpose                                                 |
+| ------------- | -------- | ------------------------------------------------------- |
+| `$regex`      | String   | Field matches the regular expression pattern            |
+| `$beginsWith` | String   | Field begins with the specified prefix (case-sensitive) |
 
 ```ts
 // $regex: regular expression matching
-{ title: { $regex: "^The" } }      // starts with "The"
-{ email: { $regex: "@gmail\\.com$" } }  // ends with @gmail.com
+{
+    title: {
+        $regex: "^The";
+    }
+} // starts with "The"
+{
+    email: {
+        $regex: "@gmail\\.com$";
+    }
+} // ends with @gmail.com
 
 // $beginsWith: prefix matching
-{ name: { $beginsWith: "John" } }  // "John", "Johnny", "John Doe"
+{
+    name: {
+        $beginsWith: "John";
+    }
+} // "John", "Johnny", "John Doe"
 ```
 
 ### Numeric operators
 
-| Operator | Argument | Purpose |
-|----------|----------|---------|
-| `$mod` | [Divisor, Remainder] | Field modulo Divisor equals Remainder |
+| Operator | Argument             | Purpose                               |
+| -------- | -------------------- | ------------------------------------- |
+| `$mod`   | [Divisor, Remainder] | Field modulo Divisor equals Remainder |
 
 ```ts
 // $mod: modulo operation (field must be integer)
-{ value: { $mod: [10, 1] } }  // value % 10 === 1 (11, 21, 31, ...)
+{
+    value: {
+        $mod: [10, 1];
+    }
+} // value % 10 === 1 (11, 21, 31, ...)
 ```
 
 ## Complex query examples
@@ -248,7 +342,11 @@ the document for the selector to match"), a document that lacks the queried fiel
 condition operator — **including the negation operators `$ne` and `$nin`**:
 
 ```ts
-{ parentPostType: { $ne: "page" } }
+{
+    parentPostType: {
+        $ne: "page";
+    }
+}
 // Matches docs that HAVE parentPostType and whose value !== "page".
 // A doc with no parentPostType is EXCLUDED.
 ```
@@ -262,7 +360,9 @@ To match documents where the field is **absent _or_ not equal** to a value, opt 
 
 ```ts
 // "not a Page" — including content that has no parentPostType at all
-{ $or: [{ parentPostType: { $exists: false } }, { parentPostType: { $ne: "page" } }] }
+{
+    $or: [{ parentPostType: { $exists: false } }, { parentPostType: { $ne: "page" } }];
+}
 ```
 
 This rule is for field-level conditions. Inside `$elemMatch`/`$allMatch`, operators match array
@@ -322,6 +422,7 @@ mangoCompile({ type: "page", status: "draft" });
 ```
 
 **Benefits**:
+
 - Queries with same structure share compiled predicates (massive cache hit rate improvement)
 - Expensive compilation done once per template, cheap value binding per call
 - Reduces memory usage (fewer cache entries)
@@ -365,11 +466,12 @@ warmMangoCompileCache();
 Cache keys are generated using `JSON.stringify()` + a fast djb2 hash on the template. Different key orders produce different cache entries:
 
 ```ts
-mangoCompile({ a: 1, b: 2 });  // Template cache entry #1
-mangoCompile({ b: 2, a: 1 });  // Template cache entry #2 (different key order)
+mangoCompile({ a: 1, b: 2 }); // Template cache entry #1
+mangoCompile({ b: 2, a: 1 }); // Template cache entry #2 (different key order)
 ```
 
 **Why this is acceptable**:
+
 - Most applications construct queries via the same code path, producing consistent key order
 - Template-based caching already dramatically reduces cache misses (values don't matter)
 - A cache miss only means recompiling once, not incorrect behavior

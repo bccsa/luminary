@@ -90,13 +90,13 @@ Unlike `useFtsSearch` it does **not** touch the offline index and does **not** f
 
 ### FtsSearchResult
 
-| Property         | Type                  | Description                                                                              |
-| ---------------- | --------------------- | --------------------------------------------------------------------------------------- |
-| `docId`          | `string`              | The document ID                                                                         |
-| `score`          | `number`              | BM25 score plus word match bonus                                                        |
-| `wordMatchScore` | `number`              | Boost-weighted count of full query words matched                                        |
-| `doc`            | `ContentDto`          | The matched document. From local search: the full doc. From server search: trimmed of `fts`/`ftsTokenCount` (display-only — see Routing) |
-| `source`         | `"local" \| "api"`    | Which engine produced the result (set by the router)                                    |
+| Property         | Type               | Description                                                                                                                              |
+| ---------------- | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `docId`          | `string`           | The document ID                                                                                                                          |
+| `score`          | `number`           | BM25 score plus word match bonus                                                                                                         |
+| `wordMatchScore` | `number`           | Boost-weighted count of full query words matched                                                                                         |
+| `doc`            | `ContentDto`       | The matched document. From local search: the full doc. From server search: trimmed of `fts`/`ftsTokenCount` (display-only — see Routing) |
+| `source`         | `"local" \| "api"` | Which engine produced the result (set by the router)                                                                                     |
 
 The `useFtsSearch` composable additionally exposes `source: Ref<"local" \| "api">` and `isPartial: Ref<boolean>` (see Routing).
 
@@ -161,7 +161,7 @@ Each search query:
 3. **High-df pruning**: keeps only the most discriminative (lowest-df) trigrams within a df budget — common trigrams add many matches but little ranking signal
 4. Computes IDF for each kept trigram
 5. Collects matching doc IDs (in parallel) across the kept trigrams
-6. **Language pre-filter**: when a `languageId` is given, restricts the matched IDs to that language *before* loading (an index-only ID scan), so docs in other languages aren't read
+6. **Language pre-filter**: when a `languageId` is given, restricts the matched IDs to that language _before_ loading (an index-only ID scan), so docs in other languages aren't read
 7. Loads the matched docs and parses TF from their `fts` arrays
 8. Computes BM25 score using TF, IDF, and document length normalization
 9. Adds the word-match bonus for full query words in high-boost fields and re-ranks — within fixed **blocks of `WORDMATCH_BLOCK` (150) by BM25**, only for the blocks the page overlaps, to bound the HTML-stripping cost and keep a result's position independent of the page; `wordMatchTopK` limits the bonus to the top K by BM25 overall

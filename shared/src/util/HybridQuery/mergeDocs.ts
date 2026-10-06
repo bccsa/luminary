@@ -53,15 +53,9 @@ export function applySortLimit<T extends BaseDocumentDto>(
 
         result = result.slice().sort((a, b) => {
             const av = (a as Record<string, unknown>)[sortField] as
-                | number
-                | string
-                | null
-                | undefined;
+                number | string | null | undefined;
             const bv = (b as Record<string, unknown>)[sortField] as
-                | number
-                | string
-                | null
-                | undefined;
+                number | string | null | undefined;
             let cmp: number;
             if (av == null && bv == null) cmp = 0;
             else if (av == null) cmp = -1;

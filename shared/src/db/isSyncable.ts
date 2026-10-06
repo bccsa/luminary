@@ -68,7 +68,10 @@ function buildSelector(entry: SyncListEntry): MangoSelector | undefined {
 /** Cheap fingerprint of the dimensions the gate depends on (chunkType + languages). */
 function signature(entries: readonly SyncListEntry[]): string {
     return entries
-        .map((e) => e.chunkType + "|" + (e.languages?.length ? [...e.languages].sort().join(",") : ""))
+        .map(
+            (e) =>
+                e.chunkType + "|" + (e.languages?.length ? [...e.languages].sort().join(",") : ""),
+        )
         .join(";");
 }
 

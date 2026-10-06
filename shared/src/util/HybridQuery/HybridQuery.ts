@@ -886,8 +886,7 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
             );
             if (fulfilled.length < settled.length) {
                 const firstErr = settled.find((s) => s.status === "rejected") as
-                    | PromiseRejectedResult
-                    | undefined;
+                    PromiseRejectedResult | undefined;
                 this._reportError("remote-query", firstErr?.reason, {
                     failed: settled.length - fulfilled.length,
                     total: settled.length,

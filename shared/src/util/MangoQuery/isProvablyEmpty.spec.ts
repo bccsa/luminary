@@ -40,7 +40,12 @@ describe("isProvablyEmpty", () => {
                 isProvablyEmpty({
                     $and: [
                         { type: "content" },
-                        { $or: [{ parentTagType: { $exists: false } }, { parentTagType: "topic" }] },
+                        {
+                            $or: [
+                                { parentTagType: { $exists: false } },
+                                { parentTagType: "topic" },
+                            ],
+                        },
                         { parentTags: { $elemMatch: { $in: [] } } },
                         { status: "published" },
                         { publishDate: { $lte: 1780519803332 } },
@@ -60,9 +65,7 @@ describe("isProvablyEmpty", () => {
         });
 
         it("empty $in inside an $or that has a satisfiable branch", () => {
-            expect(
-                isProvablyEmpty({ $or: [{ a: { $in: [] } }, { b: "ok" }] }),
-            ).toBe(false);
+            expect(isProvablyEmpty({ $or: [{ a: { $in: [] } }, { b: "ok" }] })).toBe(false);
         });
 
         it("empty $in under $not (negation inverts — we bail)", () => {

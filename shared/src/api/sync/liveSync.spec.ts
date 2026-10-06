@@ -79,14 +79,32 @@ describe("liveSync.applyLiveData (sync live persister)", () => {
         // just because an incoming update fails the keep gate.
         syncList.value = []; // no entries → isSyncableDoc rejects all content
         await db.docs.bulkPut([
-            { type: DocType.Content, _id: "held-en", parentType: DocType.Post, language: "en", updatedTimeUtc: 100 },
-            { type: DocType.Content, _id: "held-fr", parentType: DocType.Post, language: "fr", updatedTimeUtc: 100 },
+            {
+                type: DocType.Content,
+                _id: "held-en",
+                parentType: DocType.Post,
+                language: "en",
+                updatedTimeUtc: 100,
+            },
+            {
+                type: DocType.Content,
+                _id: "held-fr",
+                parentType: DocType.Post,
+                language: "fr",
+                updatedTimeUtc: 100,
+            },
         ] as any);
 
         await applyLiveData({
             docs: [
                 // A newer update for a held doc that fails the (empty-syncList) keep gate.
-                { type: DocType.Content, _id: "held-en", parentType: DocType.Post, language: "en", updatedTimeUtc: 200 },
+                {
+                    type: DocType.Content,
+                    _id: "held-en",
+                    parentType: DocType.Post,
+                    language: "en",
+                    updatedTimeUtc: 200,
+                },
             ] as any,
         });
 

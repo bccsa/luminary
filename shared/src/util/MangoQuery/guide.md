@@ -15,13 +15,17 @@ docs when you need exhaustive detail.
 
 ## What is a Mango query?
 
-A **selector** is a plain JSON object that describes *which documents match*. It
+A **selector** is a plain JSON object that describes _which documents match_. It
 is the same selector language CouchDB's `_find` uses, so the queries you write on
 the client are valid against the server too.
 
 ```ts
 // "every document whose `type` field equals 'post'"
-{ selector: { type: "post" } }
+{
+    selector: {
+        type: "post";
+    }
+}
 ```
 
 The selector lives inside a `MangoQuery` envelope. Only `selector` is required:
@@ -45,14 +49,14 @@ type MangoQuery = {
 You rarely call CouchDB directly — you pass a selector to one of the query
 helpers, and it decides where to read from (local IndexedDB, the API, or both):
 
-| Helper | Use it when |
-| --- | --- |
+| Helper                            | Use it when                                                                                                                    |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
 | `useHybridQuery(query, options?)` | The default for components — a reactive, local-first read that supplements from the API for older / missing / non-synced docs. |
-| `HybridQuery` (class) | Same as above, outside a component (you own `dispose()`). |
-| `queryLocal(query)` | Awaitable one-shot read of the **local** IndexedDB cache only. |
-| `queryRemote(query)` | Awaitable one-shot read of the **remote** `/query` API only. |
-| `mangoToDexie(table, query)` | Run a selector against a Dexie table directly, with index pushdown. |
-| `mangoCompile(selector)` | Compile a selector into an `(doc) => boolean` predicate to filter data already in memory. |
+| `HybridQuery` (class)             | Same as above, outside a component (you own `dispose()`).                                                                      |
+| `queryLocal(query)`               | Awaitable one-shot read of the **local** IndexedDB cache only.                                                                 |
+| `queryRemote(query)`              | Awaitable one-shot read of the **remote** `/query` API only.                                                                   |
+| `mangoToDexie(table, query)`      | Run a selector against a Dexie table directly, with index pushdown.                                                            |
+| `mangoCompile(selector)`          | Compile a selector into an `(doc) => boolean` predicate to filter data already in memory.                                      |
 
 Every one of them speaks the same selector syntax. A minimal component read:
 
@@ -72,13 +76,19 @@ The rest of this guide is about everything you can put inside `selector`.
 The simplest condition is a field set to a value — that's **implicit equality**:
 
 ```ts
-{ type: "post" } // type === "post"
+{
+    type: "post";
+} // type === "post"
 ```
 
 You can write it explicitly with `$eq` (identical meaning):
 
 ```ts
-{ type: { $eq: "post" } }
+{
+    type: {
+        $eq: "post";
+    }
+}
 ```
 
 Multiple fields at the same level are **implicitly AND-ed** — all must match:
@@ -99,16 +109,24 @@ Use **dot notation** to reach into nested objects:
 
 Wrap the value in an object with an operator key to compare instead of equate:
 
-| Operator | Matches when the field… |
-| --- | --- |
-| `$eq` | equals the value |
-| `$ne` | exists **and** does not equal the value (see [Gotchas](#gotchas)) |
-| `$gt` / `$gte` | is greater than / greater-or-equal to the value |
-| `$lt` / `$lte` | is less than / less-or-equal to the value |
+| Operator       | Matches when the field…                                           |
+| -------------- | ----------------------------------------------------------------- |
+| `$eq`          | equals the value                                                  |
+| `$ne`          | exists **and** does not equal the value (see [Gotchas](#gotchas)) |
+| `$gt` / `$gte` | is greater than / greater-or-equal to the value                   |
+| `$lt` / `$lte` | is less than / less-or-equal to the value                         |
 
 ```ts
-{ publishDate: { $gt: 1700000000000 } } // published after this timestamp
-{ status: { $ne: "draft" } } // any status except "draft" (field must exist)
+{
+    publishDate: {
+        $gt: 1700000000000;
+    }
+} // published after this timestamp
+{
+    status: {
+        $ne: "draft";
+    }
+} // any status except "draft" (field must exist)
 ```
 
 Combine two operators on the same field to express a **range** (they're AND-ed):
@@ -125,36 +143,72 @@ Combine two operators on the same field to express a **range** (they're AND-ed):
 ### Is the value one of a set? — `$in` / `$nin`
 
 ```ts
-{ status: { $in: ["draft", "published"] } } // status is one of these
-{ status: { $nin: ["archived", "deleted"] } } // status is none of these (field must exist)
+{
+    status: {
+        $in: ["draft", "published"];
+    }
+} // status is one of these
+{
+    status: {
+        $nin: ["archived", "deleted"];
+    }
+} // status is none of these (field must exist)
 ```
 
 ### Querying an array field — `$all`, `$elemMatch`, `$allMatch`, `$size`
 
 When the field itself is an **array**, use array operators:
 
-| Operator | Matches when the array… |
-| --- | --- |
-| `$all` | contains **all** of the given elements (order/extra elements don't matter) |
-| `$elemMatch` | has **at least one** element matching the sub-selector |
-| `$allMatch` | has **every** element matching the sub-selector (an empty array never matches) |
-| `$size` | has exactly this many elements |
+| Operator     | Matches when the array…                                                        |
+| ------------ | ------------------------------------------------------------------------------ |
+| `$all`       | contains **all** of the given elements (order/extra elements don't matter)     |
+| `$elemMatch` | has **at least one** element matching the sub-selector                         |
+| `$allMatch`  | has **every** element matching the sub-selector (an empty array never matches) |
+| `$size`      | has exactly this many elements                                                 |
 
 ```ts
 // the array contains ALL of these elements
-{ tags: { $all: ["featured", "published"] } }
+{
+    tags: {
+        $all: ["featured", "published"];
+    }
+}
 
 // at least ONE element matches a sub-selector
-{ items: { $elemMatch: { price: { $gt: 100 } } } }
+{
+    items: {
+        $elemMatch: {
+            price: {
+                $gt: 100;
+            }
+        }
+    }
+}
 
 // for an array of primitives, match elements with $eq
-{ genres: { $elemMatch: { $eq: "Horror" } } }
+{
+    genres: {
+        $elemMatch: {
+            $eq: "Horror";
+        }
+    }
+}
 
 // EVERY element must match (e.g. all scores are passing)
-{ scores: { $allMatch: { $gte: 50 } } }
+{
+    scores: {
+        $allMatch: {
+            $gte: 50;
+        }
+    }
+}
 
 // exact array length
-{ tags: { $size: 3 } }
+{
+    tags: {
+        $size: 3;
+    }
+}
 ```
 
 `$elemMatch` shows up a lot in this codebase for filtering content by its
@@ -171,9 +225,21 @@ When the field itself is an **array**, use array operators:
 ## Existence, type & maps
 
 ```ts
-{ summary: { $exists: true } } // doc has a `summary` field
-{ deletedAt: { $exists: false } } // doc has NO `deletedAt` field
-{ value: { $type: "string" } } // `value` is a string
+{
+    summary: {
+        $exists: true;
+    }
+} // doc has a `summary` field
+{
+    deletedAt: {
+        $exists: false;
+    }
+} // doc has NO `deletedAt` field
+{
+    value: {
+        $type: "string";
+    }
+} // `value` is a string
 ```
 
 `$type` accepts `"null"`, `"boolean"`, `"number"`, `"string"`, `"array"`, or
@@ -185,22 +251,40 @@ sub-selector:
 
 ```ts
 // matches if the `cameras` map has any key equal to "secondary"
-{ cameras: { $keyMapMatch: { $eq: "secondary" } } }
+{
+    cameras: {
+        $keyMapMatch: {
+            $eq: "secondary";
+        }
+    }
+}
 ```
 
 ## String & pattern operators
 
 For text fields, match by pattern instead of exact value:
 
-| Operator | Matches when the field… |
-| --- | --- |
-| `$beginsWith` | starts with the given prefix (**case-sensitive**) |
-| `$regex` | matches the given regular-expression pattern (an invalid pattern matches nothing) |
+| Operator      | Matches when the field…                                                           |
+| ------------- | --------------------------------------------------------------------------------- |
+| `$beginsWith` | starts with the given prefix (**case-sensitive**)                                 |
+| `$regex`      | matches the given regular-expression pattern (an invalid pattern matches nothing) |
 
 ```ts
-{ slug: { $beginsWith: "blog-" } } // "blog-intro", "blog-2024", …
-{ title: { $regex: "^The" } } // title starts with "The"
-{ email: { $regex: "@gmail\\.com$" } } // email ends with @gmail.com
+{
+    slug: {
+        $beginsWith: "blog-";
+    }
+} // "blog-intro", "blog-2024", …
+{
+    title: {
+        $regex: "^The";
+    }
+} // title starts with "The"
+{
+    email: {
+        $regex: "@gmail\\.com$";
+    }
+} // email ends with @gmail.com
 ```
 
 > **Note:** `$beginsWith` is the one pattern operator the local Dexie path can
@@ -218,7 +302,11 @@ two arguments must be integers:
 
 ```ts
 // value % 10 === 1  →  matches 1, 11, 21, 31, …
-{ value: { $mod: [10, 1] } } // [divisor, remainder]
+{
+    value: {
+        $mod: [10, 1];
+    }
+} // [divisor, remainder]
 ```
 
 ## Combining conditions
@@ -226,25 +314,35 @@ two arguments must be integers:
 For anything beyond implicit AND, use the **combination operators**. These are
 top-level keys, not field conditions:
 
-| Operator | Matches when… |
-| --- | --- |
-| `$and` | every selector in the array matches |
-| `$or` | at least one selector in the array matches |
-| `$not` | the given selector does **not** match |
-| `$nor` | **none** of the selectors in the array match |
+| Operator | Matches when…                                |
+| -------- | -------------------------------------------- |
+| `$and`   | every selector in the array matches          |
+| `$or`    | at least one selector in the array matches   |
+| `$not`   | the given selector does **not** match        |
+| `$nor`   | **none** of the selectors in the array match |
 
 ```ts
 // all conditions
-{ $and: [{ type: "post" }, { language: "en" }] }
+{
+    $and: [{ type: "post" }, { language: "en" }];
+}
 
 // any condition
-{ $or: [{ status: "published" }, { score: { $gte: 90 } }] }
+{
+    $or: [{ status: "published" }, { score: { $gte: 90 } }];
+}
 
 // negate a condition
-{ $not: { status: "archived" } }
+{
+    $not: {
+        status: "archived";
+    }
+}
 
 // none of these
-{ $nor: [{ status: "deleted" }, { status: "archived" }] }
+{
+    $nor: [{ status: "deleted" }, { status: "archived" }];
+}
 ```
 
 These nest freely. A typical real query mixes a top-level `$and` with field
@@ -298,18 +396,18 @@ A selector can therefore pass locally but be rejected once it reaches the server
 `queryRemote`, or a `HybridQuery`/`useHybridQuery` over Content or a non-synced
 type):
 
-| Not allowed | Use instead | Rejected example |
-| --- | --- | --- |
-| `$regex` | `$beginsWith` for prefixes, or filter in memory | `{ title: { $regex: "^The" } }` |
-| `$where` | — (no server-side JS) | `{ $where: "…" }` |
-| `$elemMatch` **except** on `memberOf`, `availableTranslations`, `parentTags`, `tags` | restructure, or filter the field locally | `{ items: { $elemMatch: { price: { $gt: 1 } } } }` |
-| `null` / `undefined` inside `$in` / `$nin` / `$all` | strip them first (HybridQuery does this for you) | `{ tags: { $in: ["a", null] } }` |
-| `$limit` above **500** | request ≤ 500 (the cap is rejected, **not** clamped) | `$limit: 1000` |
-| `use_index` not in the design-doc allowlist | an existing index name (see below) | `use_index: "made-up-index"` |
-| selector nesting deeper than **12** levels | flatten the logic | deeply nested `$and` / `$or` |
-| selector with more than **256** clauses | (array elements don't count) | hundreds of `$or` branches |
+| Not allowed                                                                          | Use instead                                          | Rejected example                                   |
+| ------------------------------------------------------------------------------------ | ---------------------------------------------------- | -------------------------------------------------- |
+| `$regex`                                                                             | `$beginsWith` for prefixes, or filter in memory      | `{ title: { $regex: "^The" } }`                    |
+| `$where`                                                                             | — (no server-side JS)                                | `{ $where: "…" }`                                  |
+| `$elemMatch` **except** on `memberOf`, `availableTranslations`, `parentTags`, `tags` | restructure, or filter the field locally             | `{ items: { $elemMatch: { price: { $gt: 1 } } } }` |
+| `null` / `undefined` inside `$in` / `$nin` / `$all`                                  | strip them first (HybridQuery does this for you)     | `{ tags: { $in: ["a", null] } }`                   |
+| `$limit` above **500**                                                               | request ≤ 500 (the cap is rejected, **not** clamped) | `$limit: 1000`                                     |
+| `use_index` not in the design-doc allowlist                                          | an existing index name (see below)                   | `use_index: "made-up-index"`                       |
+| selector nesting deeper than **12** levels                                           | flatten the logic                                    | deeply nested `$and` / `$or`                       |
+| selector with more than **256** clauses                                              | (array elements don't count)                         | hundreds of `$or` branches                         |
 
-> **Note:** these checks are about query *shape* only — they are **not** the
+> **Note:** these checks are about query _shape_ only — they are **not** the
 > permission boundary. The server always injects permission and
 > published/expiry filters on top of your selector, so a shape-valid selector can
 > still only ever narrow what you're already allowed to see. The internal
@@ -326,7 +424,11 @@ that lacks the queried field is **excluded** — and this includes the negations
 `$ne` and `$nin`:
 
 ```ts
-{ parentPostType: { $ne: "page" } }
+{
+    parentPostType: {
+        $ne: "page";
+    }
+}
 // Matches docs that HAVE parentPostType and whose value !== "page".
 // A doc with NO parentPostType is EXCLUDED.
 ```
@@ -335,7 +437,9 @@ To match "field is absent **or** not equal", opt in explicitly with `$or` +
 `$exists: false`:
 
 ```ts
-{ $or: [{ parentPostType: { $exists: false } }, { parentPostType: { $ne: "page" } }] }
+{
+    $or: [{ parentPostType: { $exists: false } }, { parentPostType: { $ne: "page" } }];
+}
 ```
 
 This rule is for field-level conditions; inside `$elemMatch`/`$allMatch` an array
@@ -356,7 +460,7 @@ don't construct such arrays in raw `queryRemote` calls — strip them yourself.
 `{ $in: [] }` is unsatisfiable. When it sits in a conjunctive (AND) position,
 `HybridQuery` and `mangoToDexie` detect it as **provably empty** and skip the
 work entirely — no Dexie read, no API POST. This is why a filter built from an
-empty list (e.g. "posts in *these* categories" with no categories selected)
+empty list (e.g. "posts in _these_ categories" with no categories selected)
 correctly yields `[]` without scanning anything.
 
 ### To drop a field, omit it — never set it to `undefined`
@@ -427,33 +531,33 @@ Every operator the selector syntax supports, in one place.
 
 **Combination** (top-level keys):
 
-| Operator | Argument | Matches when |
-| --- | --- | --- |
-| `$and` | selector[] | every selector matches |
-| `$or` | selector[] | at least one selector matches |
-| `$not` | selector | the selector does not match |
-| `$nor` | selector[] | none of the selectors match |
+| Operator | Argument   | Matches when                  |
+| -------- | ---------- | ----------------------------- |
+| `$and`   | selector[] | every selector matches        |
+| `$or`    | selector[] | at least one selector matches |
+| `$not`   | selector   | the selector does not match   |
+| `$nor`   | selector[] | none of the selectors match   |
 
 **Field conditions** (under a field name) — all require the field to **exist**:
 
-| Operator | Argument | Matches when the field… |
-| --- | --- | --- |
-| `$eq` | any | equals the value (also the implicit `{ field: value }` form) |
-| `$ne` | any | exists and does not equal the value |
-| `$gt` / `$gte` | number/string | is greater than / greater-or-equal |
-| `$lt` / `$lte` | number/string | is less than / less-or-equal |
-| `$in` | any[] | value is one of the array |
-| `$nin` | any[] | value is none of the array |
-| `$all` | any[] | array field contains all of the elements |
-| `$elemMatch` | selector | array field has ≥1 element matching |
-| `$allMatch` | selector | array field has every element matching |
-| `$size` | number | array field has exactly this length |
-| `$exists` | boolean | field is present (`true`) / absent (`false`) |
-| `$type` | string | value is of this type (`"null"`, `"boolean"`, `"number"`, `"string"`, `"array"`, `"object"`) |
-| `$keyMapMatch` | selector | map field has any key matching |
-| `$beginsWith` | string | string field starts with the prefix (case-sensitive) |
-| `$regex` | string | string field matches the regex pattern |
-| `$mod` | [div, rem] | `value % div === rem` (integers only) |
+| Operator       | Argument      | Matches when the field…                                                                      |
+| -------------- | ------------- | -------------------------------------------------------------------------------------------- |
+| `$eq`          | any           | equals the value (also the implicit `{ field: value }` form)                                 |
+| `$ne`          | any           | exists and does not equal the value                                                          |
+| `$gt` / `$gte` | number/string | is greater than / greater-or-equal                                                           |
+| `$lt` / `$lte` | number/string | is less than / less-or-equal                                                                 |
+| `$in`          | any[]         | value is one of the array                                                                    |
+| `$nin`         | any[]         | value is none of the array                                                                   |
+| `$all`         | any[]         | array field contains all of the elements                                                     |
+| `$elemMatch`   | selector      | array field has ≥1 element matching                                                          |
+| `$allMatch`    | selector      | array field has every element matching                                                       |
+| `$size`        | number        | array field has exactly this length                                                          |
+| `$exists`      | boolean       | field is present (`true`) / absent (`false`)                                                 |
+| `$type`        | string        | value is of this type (`"null"`, `"boolean"`, `"number"`, `"string"`, `"array"`, `"object"`) |
+| `$keyMapMatch` | selector      | map field has any key matching                                                               |
+| `$beginsWith`  | string        | string field starts with the prefix (case-sensitive)                                         |
+| `$regex`       | string        | string field matches the regex pattern                                                       |
+| `$mod`         | [div, rem]    | `value % div === rem` (integers only)                                                        |
 
 **Envelope** (siblings of `selector`): `$sort`, `$limit`, `use_index` — see
 [Sorting & limiting](#sorting--limiting).
@@ -465,8 +569,8 @@ Every operator the selector syntax supports, in one place.
 
 ## Where to go next
 
-| Doc | Covers |
-| --- | --- |
-| [mangoCompile](./mangoCompile.md) | Exact in-memory matching semantics and edge cases (type-aware equality, `localeCompare` string ordering, cache internals). |
-| [mangoToDexie](./mangoToDexie.md) | How selectors are pushed down to IndexedDB indexes, and which operators fall back to in-memory filtering. |
-| [HybridQuery](../HybridQuery/README.md) | Local-vs-remote routing, live mode, response caching, offline persistence, and the content cutoff. |
+| Doc                                     | Covers                                                                                                                     |
+| --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| [mangoCompile](./mangoCompile.md)       | Exact in-memory matching semantics and edge cases (type-aware equality, `localeCompare` string ordering, cache internals). |
+| [mangoToDexie](./mangoToDexie.md)       | How selectors are pushed down to IndexedDB indexes, and which operators fall back to in-memory filtering.                  |
+| [HybridQuery](../HybridQuery/README.md) | Local-vs-remote routing, live mode, response caching, offline persistence, and the content cutoff.                         |

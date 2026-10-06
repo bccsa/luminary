@@ -1,5 +1,10 @@
 import { watch } from "vue";
-import { DocType, type ApiDataResponseDto, type BaseDocumentDto, type ContentDto } from "../../types";
+import {
+    DocType,
+    type ApiDataResponseDto,
+    type BaseDocumentDto,
+    type ContentDto,
+} from "../../types";
 import { db } from "../../db/database";
 import { isSyncableDoc } from "../../db/isSyncable";
 import { getSocket } from "../../socket/socketio";

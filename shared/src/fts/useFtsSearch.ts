@@ -1,4 +1,12 @@
-import { ref, watch, type Ref, getCurrentScope, onScopeDispose, isRef, type WatchStopHandle } from "vue";
+import {
+    ref,
+    watch,
+    type Ref,
+    getCurrentScope,
+    onScopeDispose,
+    isRef,
+    type WatchStopHandle,
+} from "vue";
 import { ftsSearch } from "./ftsSearch";
 import { ftsSearchApi, shouldUseApiFts } from "./ftsSearchApi";
 import { getContentPublishDateCutoff } from "../config";
@@ -281,9 +289,12 @@ export function useFtsSearch(
                 searchGeneration++;
                 currentQuery = newQuery;
                 const d = getDebounce();
-                debounceTimer = setTimeout(() => {
-                    doSearch(newQuery, 0, false);
-                }, typeof d === "number" ? d : 0);
+                debounceTimer = setTimeout(
+                    () => {
+                        doSearch(newQuery, 0, false);
+                    },
+                    typeof d === "number" ? d : 0,
+                );
             },
             { immediate: true },
         );

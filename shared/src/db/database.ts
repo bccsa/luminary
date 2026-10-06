@@ -33,8 +33,7 @@ const dbName: string = "luminary-db";
  * every write, so an equal timestamp means an identical doc.
  */
 const isSameDoc = (stored: BaseDocumentDto | undefined, doc: BaseDocumentDto): boolean =>
-    stored !== undefined &&
-    stored.updatedTimeUtc === doc.updatedTimeUtc;
+    stored !== undefined && stored.updatedTimeUtc === doc.updatedTimeUtc;
 
 /** The access map `deleteRevoked` last completed against, kept in luminaryInternals. */
 const RECONCILED_ACCESS_MAP_KEY = "reconciledAccessMap";
