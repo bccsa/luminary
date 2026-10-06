@@ -40,6 +40,13 @@ export type VideoPlayerHandle = {
      * leaves it transparent: nothing of the page may be opaque over it, and the poster is not needed.
      */
     readonly inlineActive?: boolean;
+    /** The platform's player is muted. */
+    readonly muted?: boolean;
+    /** What the platform's player can do for controls the page draws; absent means nothing. */
+    readonly canMute?: boolean;
+    readonly canPictureInPicture?: boolean;
+    setMuted?(muted: boolean): void;
+    startPictureInPicture?(): void;
     play(): Promise<void> | undefined;
     pause(): void;
     seek(seconds: number): void;

@@ -20,6 +20,7 @@ const engine = vi.hoisted(() => ({
     handle: null as any,
     props: null as any,
     inlineActive: false,
+    canMute: false,
 }));
 
 vi.mock("@luminary-media-converter/player-web", () => ({ AUDIO_ONLY_ANGLE_ID: "__audio__" }));
@@ -60,6 +61,7 @@ vi.mock("@/components/content/VideoPlayer.vue", async () => {
                         { id: "fr", lang: "fr", label: "Français" },
                     ],
                     activeAudioTrackId: "en",
+                    muted: false,
                     subtitleTracks: [
                         { id: "sub-fr", lang: "fr", label: "Français", source: "master" },
                     ],
@@ -82,6 +84,13 @@ vi.mock("@/components/content/VideoPlayer.vue", async () => {
                     seek: vi.fn(),
                     enterFullscreen: vi.fn(),
                     exitFullscreen: vi.fn(),
+                    canMute: engine.canMute,
+                    canPictureInPicture: engine.canMute,
+                    get muted() {
+                        return engine.state.muted;
+                    },
+                    setMuted: vi.fn(),
+                    startPictureInPicture: vi.fn(),
                 };
                 expose({
                     player: engine.handle,
@@ -113,6 +122,7 @@ const find = (wrapper: VueWrapper, test: string) => wrapper.find(`[data-test='${
 
 beforeEach(() => {
     engine.inlineActive = false;
+    engine.canMute = false;
     document.documentElement.classList.remove("lmc-inline-video");
     closeMediaPlayer();
     userDataSaverEnabled.value = false;
@@ -299,6 +309,32 @@ describe("MediaPlayer", () => {
             hidden.value = true;
             await playing();
             expect(hidden.value).toBe(false);
+        });
+    });
+
+    describe("mute and picture in picture", () => {
+        it("are dimmed where the platform has none", async () => {
+            const wrapper = await playing();
+            expect(find(wrapper, "mediaPlayerMute").attributes("disabled")).toBeDefined();
+            expect(
+                find(wrapper, "mediaPlayerPictureInPicture").attributes("disabled"),
+            ).toBeDefined();
+        });
+
+        it("mute and unmute through the player, and picture in picture starts there", async () => {
+            engine.canMute = true;
+            const wrapper = await playing();
+
+            await find(wrapper, "mediaPlayerMute").trigger("click");
+            expect(engine.handle.setMuted).toHaveBeenLastCalledWith(true);
+
+            engine.state.muted = true;
+            await flushPromises();
+            await find(wrapper, "mediaPlayerMute").trigger("click");
+            expect(engine.handle.setMuted).toHaveBeenLastCalledWith(false);
+
+            await find(wrapper, "mediaPlayerPictureInPicture").trigger("click");
+            expect(engine.handle.startPictureInPicture).toHaveBeenCalled();
         });
     });
 

@@ -19,6 +19,7 @@ import {
     PauseIcon,
     PlayIcon,
     SpeakerWaveIcon,
+    SpeakerXMarkIcon,
     XMarkIcon,
 } from "@heroicons/vue/20/solid";
 import { AUDIO_ONLY_ANGLE_ID } from "@luminary-media-converter/player-web";
@@ -156,6 +157,7 @@ const playing = computed(() => state.value?.playing ?? false);
 const currentTime = computed(() => state.value?.currentTime ?? 0);
 const duration = computed(() => state.value?.duration ?? 0);
 const live = computed(() => duration.value === Infinity);
+const muted = computed(() => handle.value?.muted === true);
 
 /**
  * The platform draws the video behind the page, in the picture area, which is left transparent;
@@ -464,13 +466,14 @@ function onKeydown(event: KeyboardEvent) {
                                     >CC</span
                                 >
                             </button>
-                            <!-- Picture-in-picture and mute wait on the player: neither has a call
-                             a page can make yet, so they are shown, not offered. -->
+
                             <button
                                 type="button"
                                 class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full border border-zinc-500/35 text-zinc-600 disabled:opacity-40 dark:text-slate-300"
                                 :aria-label="t('media_player.picture_in_picture')"
-                                disabled
+                                :disabled="!handle?.canPictureInPicture"
+                                data-test="mediaPlayerPictureInPicture"
+                                @click="handle?.startPictureInPicture?.()"
                             >
                                 <svg
                                     class="h-5 w-5"
@@ -501,10 +504,20 @@ function onKeydown(event: KeyboardEvent) {
                         <button
                             type="button"
                             class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full border border-zinc-500/35 text-zinc-600 disabled:opacity-40 dark:text-slate-300"
-                            :aria-label="t('media_player.mute')"
-                            disabled
+                            :aria-label="muted ? t('media_player.unmute') : t('media_player.mute')"
+                            :aria-pressed="muted"
+                            :disabled="!handle?.canMute"
+                            data-test="mediaPlayerMute"
+                            @click="handle?.setMuted?.(!muted)"
                         >
-                            <SpeakerWaveIcon class="h-5 w-5" />
+                            <SpeakerXMarkIcon
+                                v-if="muted"
+                                class="h-5 w-5"
+                            />
+                            <SpeakerWaveIcon
+                                v-else
+                                class="h-5 w-5"
+                            />
                         </button>
                         <button
                             v-if="!audioMode"
