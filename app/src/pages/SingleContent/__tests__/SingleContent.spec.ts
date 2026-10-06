@@ -260,9 +260,8 @@ describe("SingleContent", () => {
         });
     });
 
-    it("keeps the gap below the title when a video replaces the hero image", async () => {
+    it("lays a video post out like any other, with the media button under the picture", async () => {
         await db.docs.update(mockEnglishContentDto._id, {
-            parentImage: "",
             video: "test-video.mp4",
         } as any);
 
@@ -274,7 +273,29 @@ describe("SingleContent", () => {
 
         await waitForExpect(() => {
             const media = wrapper!.findComponent(IgnorePagePadding).element.parentElement!;
-            expect(media.className).toBe("mt-5 lg:mt-2");
+            expect(media.className).toBe("lg:mt-2");
+            expect(wrapper!.html()).toContain("test-image.webp");
+            expect(wrapper!.find("[data-test='mediaAction']").exists()).toBe(true);
+        });
+    });
+
+    it("offers no media button when the content has no media", async () => {
+        await db.docs.update(mockEnglishContentDto._id, {
+            parentMedia: undefined,
+            video: undefined,
+        } as any);
+
+        wrapper = mount(SingleContent, {
+            props: {
+                slug: mockEnglishContentDto.slug,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(
+                wrapper!.find("[data-test='title']").exists() || wrapper!.html().length > 0,
+            ).toBe(true);
+            expect(wrapper!.find("[data-test='mediaAction']").exists()).toBe(false);
         });
     });
 

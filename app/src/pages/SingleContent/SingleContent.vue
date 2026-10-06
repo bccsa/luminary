@@ -64,7 +64,7 @@ import { CheckCircleIcon, DocumentDuplicateIcon } from "@heroicons/vue/20/solid"
 import { markLanguageSwitch } from "@/util/isLangSwitch";
 import LoadingBar from "@/components/LoadingBar.vue";
 import { activeImageCollection } from "@/components/images/LImageProvider.vue";
-import MediaPoster from "@/media-player/MediaPoster.vue";
+import MediaAction from "@/media-player/MediaAction.vue";
 import LHighlightable from "@/components/common/LHighlightable.vue";
 import DropdownMenu from "@/components/common/DropdownMenu.vue";
 import ArticleOutline from "./ArticleOutline.vue";
@@ -695,13 +695,9 @@ const quickLanguageSwitch = (languageId: string) => {
 const { copyrightText: globalCopyright } = useGlobalCopyright();
 const shareCopyright = computed(() => content.value?.copyright || globalCopyright.value);
 
-// Whether the hero image can carry the title/summary as an overlay. Video has its own
-// player chrome the overlay would fight with, so it keeps a plain title above instead.
-const hasHeroImage = computed(
-    () =>
-        !hasVideoSource(content.value) &&
-        !!(content.value?.parentId || content.value?.parentImageData),
-);
+// Whether the hero image can carry the title/summary as an overlay. Media does not change the
+// page: it is an attachment, offered by a button under the picture.
+const hasHeroImage = computed(() => !!(content.value?.parentId || content.value?.parentImageData));
 
 watch([isLoading, content, is404], async () => {
     if (is404.value) {
@@ -885,14 +881,8 @@ watch([isLoading, content, is404], async () => {
                                 :mobileOnly="true"
                                 :ignoreTop="true"
                             >
-                                <MediaPoster
-                                    v-if="content && hasVideoSource(content)"
-                                    :key="content._id"
-                                    :content="content"
-                                    :language="selectedLanguageCode"
-                                />
                                 <div
-                                    v-else-if="hasHeroImage"
+                                    v-if="hasHeroImage"
                                     class="relative cursor-pointer overflow-hidden lg:rounded-xl"
                                     @click="
                                         () => {
@@ -953,6 +943,13 @@ watch([isLoading, content, is404], async () => {
                                 </div>
                             </IgnorePagePadding>
                         </div>
+
+                        <MediaAction
+                            v-if="hasVideoSource(content)"
+                            :key="content._id"
+                            :content="content"
+                            :language="selectedLanguageCode"
+                        />
 
                         <div
                             v-if="!hasHeroImage && content.summary"
