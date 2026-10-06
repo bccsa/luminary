@@ -213,6 +213,7 @@
         "video_player.subtitles_menu": "Subtitles",
         "video_player.subtitles_off": "Off",
         "video_player.video_mode": "Play video",
-        "video_player.audio_mode": "Play audio only"
+        "video_player.audio_mode": "Play audio only",
+        "video_player.loading": "Loading"
     }
 }

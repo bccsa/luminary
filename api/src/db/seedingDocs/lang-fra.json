@@ -213,6 +213,7 @@
         "video_player.subtitles_menu": "Sous-titres",
         "video_player.subtitles_off": "Désactivés",
         "video_player.video_mode": "Lire la vidéo",
-        "video_player.audio_mode": "Lire l'audio seulement"
+        "video_player.audio_mode": "Lire l'audio seulement",
+        "video_player.loading": "Chargement"
     }
 }
