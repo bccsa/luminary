@@ -10,6 +10,8 @@ on:
     paths:
       - cms/**
       - .github/workflows/cms-unit-tests.yml
+      - .prettierrc.json
+      - .prettierignore
       # A submodule bump changes the gitlink path itself, not files under it.
       - luminary-media-convert
   workflow_call:
@@ -57,6 +59,10 @@ jobs:
 
       - name: Run Lint Tests
         run: npm run lint
+        working-directory: cms
+
+      - name: Check Formatting
+        run: npm run format:check
         working-directory: cms
 
       - name: Run Type Check

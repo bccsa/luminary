@@ -1,0 +1,13 @@
+# Formatting-only commits (#2154). Used by `git blame` via:
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+# GitHub reads this file automatically. Requires merging without squashing, to keep these SHAs.
+# style(api)
+76482192bedd5848cff93a7c331e8183ea523610
+# style(shared)
+1c5c0b304c6dcef29b5d4bd18899c85ff5d4c6eb
+# style(app)
+16ae09e7dd4468e554769824b743394b05681a41
+# style(cms)
+3b6049028ed98ac9fd52113b20b0d3be5f75a5b4
+# style(playwright-tests)
+db33168bb42cfa46374da84ca439fdc754b52273

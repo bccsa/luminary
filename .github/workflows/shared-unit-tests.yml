@@ -10,6 +10,8 @@ on:
     paths:
       - shared/**
       - .github/workflows/shared-unit-tests.yml
+      - .prettierrc.json
+      - .prettierignore
   workflow_call:
 
 env:
@@ -41,6 +43,10 @@ jobs:
 
       - name: Run Lint Tests
         run: npm run lint
+        working-directory: shared
+
+      - name: Check Formatting
+        run: npm run format:check
         working-directory: shared
 
       - name: Run Type Check
