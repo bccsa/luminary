@@ -194,6 +194,24 @@
         "media_player.subtitles": "Subtitles",
         "media_player.subtitles_off": "Off",
         "media_player.picture_in_picture": "Picture-in-picture",
-        "media_player.mute": "Mute"
+        "media_player.mute": "Mute",
+        "media_player.about": "About",
+        "media_player.read": "Read the article",
+        "media_player.about_empty": "There is nothing more to read here.",
+        "video_player.coming_soon": "Coming soon",
+        "video_player.error_generic": "This video could not be played.",
+        "video_player.error_unsupported_browser": "This browser cannot play this video. Please update it or try another one.",
+        "video_player.error_key_required": "This video is protected and no key was supplied.",
+        "video_player.error_network": "The video could not be reached. Check your connection.",
+        "video_player.error_media": "Playback of this video failed.",
+        "video_player.retry": "Try again",
+        "video_player.elapsed": "Elapsed time",
+        "video_player.duration": "Total time",
+        "video_player.exit_fullscreen": "Exit full screen",
+        "video_player.audio_menu": "Audio",
+        "video_player.subtitles_menu": "Subtitles",
+        "video_player.subtitles_off": "Off",
+        "video_player.video_mode": "Play video",
+        "video_player.audio_mode": "Play audio only"
     }
 }

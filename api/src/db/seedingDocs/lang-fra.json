@@ -194,6 +194,24 @@
         "media_player.subtitles": "Sous-titres",
         "media_player.subtitles_off": "Désactivés",
         "media_player.picture_in_picture": "Image dans l'image",
-        "media_player.mute": "Couper le son"
+        "media_player.mute": "Couper le son",
+        "media_player.about": "À propos",
+        "media_player.read": "Lire l'article",
+        "media_player.about_empty": "Il n'y a rien d'autre à lire ici.",
+        "video_player.coming_soon": "Bientôt disponible",
+        "video_player.error_generic": "Cette vidéo n'a pas pu être lue.",
+        "video_player.error_unsupported_browser": "Ce navigateur ne peut pas lire cette vidéo. Mettez-le à jour ou essayez-en un autre.",
+        "video_player.error_key_required": "Cette vidéo est protégée et aucune clé n'a été fournie.",
+        "video_player.error_network": "La vidéo est injoignable. Vérifiez votre connexion.",
+        "video_player.error_media": "La lecture de cette vidéo a échoué.",
+        "video_player.retry": "Réessayer",
+        "video_player.elapsed": "Temps écoulé",
+        "video_player.duration": "Durée totale",
+        "video_player.exit_fullscreen": "Quitter le plein écran",
+        "video_player.audio_menu": "Audio",
+        "video_player.subtitles_menu": "Sous-titres",
+        "video_player.subtitles_off": "Désactivés",
+        "video_player.video_mode": "Lire la vidéo",
+        "video_player.audio_mode": "Lire l'audio seulement"
     }
 }
