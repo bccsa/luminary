@@ -207,7 +207,11 @@ const createTranslation = (language: LanguageDto) => {
     });
 };
 
-const isValid = ref(true);
+// Valid only when both the parent (group membership) and the translations are. Saving gates the
+// encode too, so a post with no group can never be saved, or encoded, into a document nobody can read.
+const parentIsValid = ref(true);
+const translationsAreValid = ref(true);
+const isValid = computed(() => parentIsValid.value && translationsAreValid.value);
 
 // Guards against a rapid second save re-entering while the first is still queuing changes.
 const isSaving = ref(false);
@@ -568,6 +572,7 @@ watch(isLgScreen, (isLg) => {
                             :newDocument="newDocument"
                             :content="editableContent"
                             v-model:parent="editableParent"
+                            @updateIsValid="(val) => (parentIsValid = val)"
                         >
                             <template #supplementary>
                                 <!-- Image, media + video live inside the settings card. -->
@@ -622,7 +627,7 @@ watch(isLgScreen, (isLg) => {
                                 :untranslatedLanguages="untranslatedLanguages"
                                 :isContentItemDirty="isContentItemDirty"
                                 :existingContent="existingContent"
-                                @updateIsValid="(val) => (isValid = val)"
+                                @updateIsValid="(val) => (translationsAreValid = val)"
                                 @create-translation="(language) => createTranslation(language)"
                             />
 
