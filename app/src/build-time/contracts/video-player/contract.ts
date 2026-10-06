@@ -23,6 +23,11 @@ export type VideoPlayerService = {
      * otherwise render it as a stray attribute on its root element.
      */
     acceptsNowPlaying: boolean;
+    /**
+     * Whether the component takes an `inline` prop: draw the video in its own frame, in the page,
+     * where the platform can. A player that does not would render it as a stray attribute.
+     */
+    acceptsInline?: boolean;
 };
 
 /** What a template ref to the player reaches. */
@@ -30,6 +35,11 @@ export type VideoPlayerHandle = {
     /** The player's controller; null for a YouTube link, which the embed plays on its own. */
     readonly controller?: PlayerControllerApi | null;
     readonly state?: Readonly<PlayerState>;
+    /**
+     * The platform draws the video inside the page, in the component's frame, behind a page that
+     * leaves it transparent: nothing of the page may be opaque over it, and the poster is not needed.
+     */
+    readonly inlineActive?: boolean;
     play(): Promise<void> | undefined;
     pause(): void;
     seek(seconds: number): void;

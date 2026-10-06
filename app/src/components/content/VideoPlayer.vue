@@ -9,6 +9,7 @@
  * engagement signals a finished video sends.
  */
 import { computed, inject, nextTick, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import {
     AUDIO_ONLY_ANGLE_ID,
     isYouTubeUrl,
@@ -40,9 +41,40 @@ type Props = {
     autoplay?: boolean;
     /** Go full-screen when autoplay starts the video, for a player that shows video only there. */
     fullscreenOnPlay?: boolean;
+    /** Draw the video in the page where the platform can; see `VideoPlayerHandle.inlineActive`. */
+    inline?: boolean;
 };
 
 const props = defineProps<Props>();
+const { t } = useI18n();
+
+/**
+ * The player's own strings, in the language of the app: the web and the native player take the
+ * same keys, and each uses the ones it has. The skip texts keep their `{seconds}` for the player
+ * to fill in with its own interval.
+ */
+const playerMessages = computed(() => ({
+    comingSoon: t("video_player.coming_soon"),
+    errorGeneric: t("video_player.error_generic"),
+    errorUnsupportedBrowser: t("video_player.error_unsupported_browser"),
+    errorKeyRequired: t("video_player.error_key_required"),
+    errorNetwork: t("video_player.error_network"),
+    errorMedia: t("video_player.error_media"),
+    retry: t("video_player.retry"),
+    play: t("media_player.play"),
+    pause: t("media_player.pause"),
+    scrubberLabel: t("media_player.seek"),
+    elapsedLabel: t("video_player.elapsed"),
+    durationLabel: t("video_player.duration"),
+    skipBack: t("media_player.skip_back", { seconds: "{seconds}" }),
+    skipForward: t("media_player.skip_forward", { seconds: "{seconds}" }),
+    exitFullscreen: t("video_player.exit_fullscreen"),
+    audioMenuLabel: t("video_player.audio_menu"),
+    subtitlesMenuLabel: t("video_player.subtitles_menu"),
+    subtitlesOff: t("video_player.subtitles_off"),
+    videoModeLabel: t("video_player.video_mode"),
+    audioModeLabel: t("video_player.audio_mode"),
+}));
 
 // The browser's player when no service is provided: a component mounted on its own.
 const videoPlayer = inject(VideoPlayerKey, { component: LuminaryPlayer, acceptsNowPlaying: false });
@@ -66,9 +98,13 @@ const nowPlaying = computed<VideoNowPlaying>(() => ({
     title: props.content.title,
     artworkUrl: shareImageUrl(props.content, imageBucketBaseUrl.value),
 }));
-const playerExtras = computed(() =>
-    videoPlayer.acceptsNowPlaying ? { nowPlaying: nowPlaying.value } : {},
-);
+const playerExtras = computed(() => ({
+    ...(videoPlayer.acceptsNowPlaying ? { nowPlaying: nowPlaying.value } : {}),
+    ...(props.inline && videoPlayer.acceptsInline ? { inline: true } : {}),
+}));
+
+/** The video is drawn behind the page here: the poster would only cover it. */
+const inlineActive = computed(() => !!props.inline && player.value?.inlineActive === true);
 
 /**
  * What the progress store calls this video. The stored URL rather than the resolved
@@ -243,12 +279,15 @@ function onLoadedMetadata() {
     if (progress > MIN_RESUME_SECONDS) player.value?.seek(progress - RESUME_REWIND_SECONDS);
 
     if (autoPlay || props.autoplay) void player.value?.play();
-    if (autoFullscreen || (props.autoplay && props.fullscreenOnPlay && !props.startAudio)) {
+    if (
+        autoFullscreen ||
+        (props.autoplay && props.fullscreenOnPlay && !props.startAudio && !inlineActive.value)
+    ) {
         void player.value?.enterFullscreen();
     }
 }
 
-defineExpose({ player });
+defineExpose({ player, inlineActive });
 
 function onTimeUpdate(currentTime: number, duration: number) {
     watchTracker.track(currentTime);
@@ -289,7 +328,12 @@ function onEnded() {
 
 <template>
     <div class="relative bg-transparent md:rounded-lg">
+        <div
+            v-if="inlineActive"
+            class="aspect-video w-full"
+        />
         <LImage
+            v-else
             :image="content.parentImageData"
             aspectRatio="video"
             size="post"
@@ -308,6 +352,7 @@ function onEnded() {
                 :source="source"
                 :preferred-language="preferredLanguage"
                 :controls="controls"
+                :messages="playerMessages"
                 v-bind="playerExtras"
                 @loadedmetadata="onLoadedMetadata"
                 @timeupdate="onTimeUpdate"

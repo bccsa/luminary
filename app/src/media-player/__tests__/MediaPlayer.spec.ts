@@ -19,9 +19,13 @@ const engine = vi.hoisted(() => ({
     controller: null as any,
     handle: null as any,
     props: null as any,
+    inlineActive: false,
 }));
 
 vi.mock("@luminary-media-converter/player-web", () => ({ AUDIO_ONLY_ANGLE_ID: "__audio__" }));
+
+const routerPush = vi.hoisted(() => vi.fn());
+vi.mock("vue-router", () => ({ useRouter: () => ({ push: routerPush }) }));
 
 vi.mock("@/components/content/VideoPlayer.vue", async () => {
     const { defineComponent, h, reactive } = await import("vue");
@@ -34,6 +38,7 @@ vi.mock("@/components/content/VideoPlayer.vue", async () => {
                 startAudio: Boolean,
                 autoplay: Boolean,
                 fullscreenOnPlay: Boolean,
+                inline: Boolean,
             },
             setup(props, { expose }) {
                 engine.props = props;
@@ -78,7 +83,12 @@ vi.mock("@/components/content/VideoPlayer.vue", async () => {
                     enterFullscreen: vi.fn(),
                     exitFullscreen: vi.fn(),
                 };
-                expose({ player: engine.handle });
+                expose({
+                    player: engine.handle,
+                    get inlineActive() {
+                        return engine.inlineActive;
+                    },
+                });
                 return () => h("div", { class: "video-player-stub" });
             },
         }),
@@ -102,6 +112,8 @@ async function playing() {
 const find = (wrapper: VueWrapper, test: string) => wrapper.find(`[data-test='${test}']`);
 
 beforeEach(() => {
+    engine.inlineActive = false;
+    document.documentElement.classList.remove("lmc-inline-video");
     closeMediaPlayer();
     userDataSaverEnabled.value = false;
 });
@@ -287,6 +299,119 @@ describe("MediaPlayer", () => {
             hidden.value = true;
             await playing();
             expect(hidden.value).toBe(false);
+        });
+    });
+
+    describe("about, and the page of what plays", () => {
+        const withText = () => {
+            openMediaPlayer(
+                { ...mockEnglishContentDto, text: "<p>The article.</p>", slug: "the-slug" },
+                "en",
+            );
+            return mountPlayer();
+        };
+
+        it("opens the article under the player, and closes it", async () => {
+            const wrapper = await withText();
+            expect(find(wrapper, "mediaPlayerAbout").exists()).toBe(false);
+
+            await find(wrapper, "mediaPlayerAboutToggle").trigger("click");
+            expect(find(wrapper, "mediaPlayerAbout").text()).toContain("The article.");
+            expect(wrapper.find(".video-player-stub").exists()).toBe(true);
+
+            await find(wrapper, "mediaPlayerAboutClose").trigger("click");
+            expect(find(wrapper, "mediaPlayerAbout").exists()).toBe(false);
+        });
+
+        it("says there is nothing to read when the content has neither article nor summary, and still leads to the page", async () => {
+            openMediaPlayer(
+                { ...mockEnglishContentDto, text: undefined, summary: undefined, slug: "the-slug" },
+                "en",
+            );
+            const wrapper = await mountPlayer();
+            await find(wrapper, "mediaPlayerAboutToggle").trigger("click");
+
+            expect(find(wrapper, "mediaPlayerAboutEmpty").exists()).toBe(true);
+            await find(wrapper, "mediaPlayerRead").trigger("click");
+            expect(routerPush).toHaveBeenLastCalledWith({
+                name: "content",
+                params: { slug: "the-slug" },
+            });
+        });
+
+        it("closes with the player: minimised, or another item", async () => {
+            const wrapper = await withText();
+            await find(wrapper, "mediaPlayerAboutToggle").trigger("click");
+            await find(wrapper, "mediaPlayerMinimise").trigger("click");
+            expect(find(wrapper, "mediaPlayerAbout").exists()).toBe(false);
+        });
+
+        it("goes to the page of what plays, from the sheet and from the bar", async () => {
+            const wrapper = await withText();
+            await find(wrapper, "mediaPlayerAboutToggle").trigger("click");
+            await find(wrapper, "mediaPlayerRead").trigger("click");
+            expect(routerPush).toHaveBeenLastCalledWith({
+                name: "content",
+                params: { slug: "the-slug" },
+            });
+
+            routerPush.mockClear();
+            await find(wrapper, "mediaPlayerMinimise").trigger("click");
+            await find(wrapper, "mediaPlayerBarRead").trigger("click");
+            expect(routerPush).toHaveBeenCalledWith({
+                name: "content",
+                params: { slug: "the-slug" },
+            });
+        });
+    });
+
+    describe("video drawn behind the page", () => {
+        const hole = () => document.documentElement.classList.contains("lmc-inline-video");
+
+        it("leaves the picture area transparent and the page behind it hidden", async () => {
+            engine.inlineActive = true;
+            const wrapper = await playing();
+            await flushPromises();
+
+            expect(hole()).toBe(true);
+            expect(wrapper.find(".aspect-video.bg-transparent").exists()).toBe(true);
+        });
+
+        it("keeps the picture black and the page as it was where the platform cannot", async () => {
+            const wrapper = await playing();
+
+            expect(hole()).toBe(false);
+            expect(wrapper.find(".aspect-video.bg-black").exists()).toBe(true);
+        });
+
+        it("gives the page back in audio mode, minimised and closed", async () => {
+            engine.inlineActive = true;
+            const wrapper = await playing();
+            await flushPromises();
+            expect(hole()).toBe(true);
+
+            await find(wrapper, "mediaPlayerAudio").trigger("click");
+            await flushPromises();
+            expect(hole()).toBe(false);
+
+            await find(wrapper, "mediaPlayerVideo").trigger("click");
+            await flushPromises();
+            expect(hole()).toBe(true);
+
+            await find(wrapper, "mediaPlayerMinimise").trigger("click");
+            expect(hole()).toBe(false);
+        });
+
+        it("asks the player to draw inline, and does not open full-screen for the switch", async () => {
+            engine.inlineActive = true;
+            const wrapper = await playing();
+            expect(engine.props.inline).toBe(true);
+
+            await find(wrapper, "mediaPlayerAudio").trigger("click");
+            await flushPromises();
+            await find(wrapper, "mediaPlayerVideo").trigger("click");
+            await flushPromises();
+            expect(engine.handle.enterFullscreen).not.toHaveBeenCalled();
         });
     });
 

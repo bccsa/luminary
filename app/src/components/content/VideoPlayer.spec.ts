@@ -37,6 +37,7 @@ vi.mock("@luminary-media-converter/player-web", async () => {
                 source: { type: Object, required: true },
                 preferredLanguage: { type: String, default: undefined },
                 controls: { type: Object, default: undefined },
+                messages: { type: Object, default: undefined },
             },
             emits: ["loadedmetadata", "timeupdate", "ended"],
             setup(_props, { expose }) {
@@ -175,6 +176,15 @@ describe("VideoPlayer", () => {
         const wrapper = await mountPlayer();
 
         expect(stub(wrapper).props("preferredLanguage")).toBe("en");
+    });
+
+    it("hands the player its own strings through the app's translations, not the player's English", async () => {
+        const wrapper = await mountPlayer();
+
+        const messages = stub(wrapper).props("messages");
+        expect(messages.comingSoon).toContain("video_player.coming_soon");
+        expect(messages.retry).toContain("video_player.retry");
+        expect(messages.skipBack).toContain("media_player.skip_back");
     });
 
     describe("in the media player", () => {
