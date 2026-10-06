@@ -45,8 +45,14 @@ export type VideoPlayerHandle = {
     /** What the platform's player can do for controls the page draws; absent means nothing. */
     readonly canMute?: boolean;
     readonly canPictureInPicture?: boolean;
+    /** AirPlay devices are around to send playback to; the page draws its control only then. */
+    readonly airPlayAvailable?: boolean;
+    /** Playback is going to an AirPlay device. */
+    readonly airPlayActive?: boolean;
     setMuted?(muted: boolean): void;
     startPictureInPicture?(): void;
+    /** Opens the system's AirPlay device list. */
+    showAirPlayPicker?(): void;
     play(): Promise<void> | undefined;
     pause(): void;
     seek(seconds: number): void;

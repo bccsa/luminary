@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { flushPromises, mount, type VueWrapper } from "@vue/test-utils";
+import { createPinia, setActivePinia } from "pinia";
 import { mockEnglishContentDto } from "@/tests/mockdata";
 import { userDataSaverEnabled } from "@/globalConfig";
+import { markSeen } from "@/recommendation/seenStore";
 import { useMobileChromeAutoHide } from "@/composables/useMobileChromeAutoHide";
 import MediaPlayer from "../MediaPlayer.vue";
 import {
@@ -21,9 +23,26 @@ const engine = vi.hoisted(() => ({
     props: null as any,
     inlineActive: false,
     canMute: false,
+    airPlayAvailable: false,
+    airPlayActive: false,
 }));
 
 vi.mock("@luminary-media-converter/player-web", () => ({ AUDIO_ONLY_ANGLE_ID: "__audio__" }));
+
+const upNextDocs = vi.hoisted(() => ({ value: [] as any[] }));
+const categoryDocs = vi.hoisted(() => ({ value: [] as any[] }));
+vi.mock("@/composables/useContentQuery", async () => {
+    const { computed } = await import("vue");
+    return {
+        // The categories query is the one that asks for tag documents.
+        useContentQuery: (selector: () => unknown[]) =>
+            computed(() =>
+                JSON.stringify(selector()).includes('"parentType"')
+                    ? categoryDocs.value
+                    : upNextDocs.value,
+            ),
+    };
+});
 
 const routerPush = vi.hoisted(() => vi.fn());
 vi.mock("vue-router", () => ({ useRouter: () => ({ push: routerPush }) }));
@@ -62,6 +81,7 @@ vi.mock("@/components/content/VideoPlayer.vue", async () => {
                     ],
                     activeAudioTrackId: "en",
                     muted: false,
+                    chapters: [] as { startTime: number; endTime: number; title: string }[],
                     subtitleTracks: [
                         { id: "sub-fr", lang: "fr", label: "Français", source: "master" },
                     ],
@@ -91,6 +111,13 @@ vi.mock("@/components/content/VideoPlayer.vue", async () => {
                     },
                     setMuted: vi.fn(),
                     startPictureInPicture: vi.fn(),
+                    get airPlayAvailable() {
+                        return engine.airPlayAvailable;
+                    },
+                    get airPlayActive() {
+                        return engine.airPlayActive;
+                    },
+                    showAirPlayPicker: vi.fn(),
                 };
                 expose({
                     player: engine.handle,
@@ -121,8 +148,14 @@ async function playing() {
 const find = (wrapper: VueWrapper, test: string) => wrapper.find(`[data-test='${test}']`);
 
 beforeEach(() => {
+    setActivePinia(createPinia());
+    upNextDocs.value = [];
+    categoryDocs.value = [];
+    routerPush.mockClear();
     engine.inlineActive = false;
     engine.canMute = false;
+    engine.airPlayAvailable = false;
+    engine.airPlayActive = false;
     document.documentElement.classList.remove("lmc-inline-video");
     closeMediaPlayer();
     userDataSaverEnabled.value = false;
@@ -183,6 +216,12 @@ describe("MediaPlayer", () => {
     });
 
     describe("the transport", () => {
+        it("keeps the seek bar clear of the screen edges, where a system back gesture is read", async () => {
+            const wrapper = await playing();
+            // 2.5rem (40px) each side: wider than the zone Android and iOS give their edge gesture.
+            expect(find(wrapper, "mediaPlayerSeekBar").classes()).toContain("px-10");
+        });
+
         it("pauses and plays", async () => {
             const wrapper = await playing();
             await find(wrapper, "mediaPlayerPlayPause").trigger("click");
@@ -338,6 +377,215 @@ describe("MediaPlayer", () => {
         });
     });
 
+    describe("AirPlay", () => {
+        it("is not offered until there is a device to send to", async () => {
+            const wrapper = await playing();
+            expect(wrapper.find("[data-test='mediaPlayerAirPlay']").exists()).toBe(false);
+        });
+
+        it("opens the system's device list", async () => {
+            engine.airPlayAvailable = true;
+            const wrapper = await playing();
+
+            const button = find(wrapper, "mediaPlayerAirPlay");
+            expect(button.attributes("aria-pressed")).toBe("false");
+            await button.trigger("click");
+            expect(engine.handle.showAirPlayPicker).toHaveBeenCalled();
+        });
+
+        it("shows when playback is on a device", async () => {
+            engine.airPlayAvailable = true;
+            engine.airPlayActive = true;
+            const wrapper = await playing();
+
+            expect(find(wrapper, "mediaPlayerAirPlay").attributes("aria-pressed")).toBe("true");
+        });
+    });
+
+    describe("the tabs under the picture (up next, about) and the chapter strip", () => {
+        const tabIds = (wrapper: VueWrapper) =>
+            wrapper.findAll("[role=tab]").map((tab) => tab.attributes("data-test"));
+
+        it("offers only about when there is nothing next and no chapters", async () => {
+            const wrapper = await playing();
+            expect(tabIds(wrapper)).toEqual(["mediaPlayerTab-about"]);
+        });
+
+        it("keeps chapters out of the tabs, in a strip that opens them", async () => {
+            upNextDocs.value = [
+                {
+                    ...mockEnglishContentDto,
+                    _id: "next-1",
+                    parentId: "next-1-parent",
+                    title: "The next one",
+                    video: "https://cdn.example.com/next.m3u8",
+                },
+            ];
+            const wrapper = await playing();
+            engine.state.chapters = [
+                { startTime: 0, endTime: 60, title: "Opening" },
+                { startTime: 60, endTime: 120, title: "The talk" },
+            ];
+            await flushPromises();
+            expect(tabIds(wrapper)).toEqual(["mediaPlayerTab-upnext", "mediaPlayerTab-about"]);
+
+            await find(wrapper, "mediaPlayerTab-upnext").trigger("click");
+            expect(find(wrapper, "mediaPlayerSheet").text()).toContain("The next one");
+
+            await find(wrapper, "mediaPlayerChapterStrip").trigger("click");
+            expect(find(wrapper, "mediaPlayerSheet").text()).toContain("The talk");
+            expect(wrapper.find("[data-test='mediaPlayerUpNextItem']").exists()).toBe(false);
+        });
+
+        it("goes to a chapter and plays on from there", async () => {
+            const wrapper = await playing();
+            engine.state.chapters = [
+                { startTime: 0, endTime: 60, title: "Opening" },
+                { startTime: 60, endTime: 120, title: "The talk" },
+            ];
+            await flushPromises();
+            await find(wrapper, "mediaPlayerChapterStrip").trigger("click");
+
+            await wrapper.findAll("[data-test='mediaPlayerChapter']")[1]!.trigger("click");
+            expect(engine.handle.seek).toHaveBeenLastCalledWith(60);
+            expect(engine.handle.play).toHaveBeenCalled();
+        });
+
+        it("shows the chapter the playhead is in on the strip, and no strip without chapters", async () => {
+            const wrapper = await playing();
+            expect(wrapper.find("[data-test='mediaPlayerChapterStrip']").exists()).toBe(false);
+            engine.state.chapters = [
+                { startTime: 0, endTime: 20, title: "Opening" },
+                { startTime: 20, endTime: 120, title: "The talk" },
+            ];
+            await flushPromises();
+            expect(find(wrapper, "mediaPlayerChapterStrip").text()).toContain("The talk");
+            expect(find(wrapper, "mediaPlayerChapterStrip").text()).toContain("2/2");
+        });
+
+        it("marks the chapter the playhead is in", async () => {
+            const wrapper = await playing();
+            engine.state.chapters = [
+                { startTime: 0, endTime: 20, title: "Opening" },
+                { startTime: 20, endTime: 120, title: "The talk" },
+            ];
+            await flushPromises();
+            await find(wrapper, "mediaPlayerChapterStrip").trigger("click");
+
+            const rows = wrapper.findAll("[data-test='mediaPlayerChapter']");
+            expect(rows[0]!.attributes("aria-current")).toBeUndefined();
+            expect(rows[1]!.attributes("aria-current")).toBe("true");
+        });
+
+        it("plays another video from up next, which takes the player", async () => {
+            const next = {
+                ...mockEnglishContentDto,
+                _id: "next-1",
+                parentId: "next-1-parent",
+                title: "The next one",
+                video: "https://cdn.example.com/next.m3u8",
+            };
+            upNextDocs.value = [next];
+            const wrapper = await playing();
+            await find(wrapper, "mediaPlayerTab-upnext").trigger("click");
+
+            await find(wrapper, "mediaPlayerUpNextItem").trigger("click");
+            expect(mediaPlayerItem.value?.content._id).toBe("next-1");
+        });
+
+        it("offers only content that has media, and not the content's own other translations", async () => {
+            upNextDocs.value = [
+                {
+                    ...mockEnglishContentDto,
+                    _id: "article",
+                    parentId: "article-parent",
+                    video: undefined,
+                    parentMedia: undefined,
+                },
+                {
+                    ...mockEnglishContentDto,
+                    _id: "translation",
+                    video: "https://cdn.example.com/t.m3u8",
+                },
+            ];
+            const wrapper = await playing();
+            expect(tabIds(wrapper)).toEqual(["mediaPlayerTab-about"]);
+        });
+
+        it("still offers what has been seen, after what has not", async () => {
+            const doc = (id: string) => ({
+                ...mockEnglishContentDto,
+                _id: id,
+                parentId: `${id}-parent`,
+                title: id,
+                video: "https://cdn.example.com/x.m3u8",
+            });
+            markSeen("seen-one");
+            upNextDocs.value = [doc("seen-one"), doc("fresh-one")];
+            const wrapper = await playing();
+            await find(wrapper, "mediaPlayerTab-upnext").trigger("click");
+
+            const titles = wrapper
+                .findAll("[data-test='mediaPlayerUpNextItem']")
+                .map((row) => row.text());
+            expect(titles[0]).toContain("fresh-one");
+            expect(titles[1]).toContain("seen-one");
+        });
+
+        it("puts the next in the series first, in date order, and the rest as related", async () => {
+            const doc = (id: string, publishDate: number, parentTags: string[]) => ({
+                ...mockEnglishContentDto,
+                _id: id,
+                parentId: `${id}-parent`,
+                title: id,
+                publishDate,
+                parentTags,
+                video: "https://cdn.example.com/x.m3u8",
+            });
+            // Playing the Friday: the Sunday and Saturday of the conference come after it, the
+            // Thursday before it, and an unrelated topic's video shares only a topic.
+            mediaPlayerItem.value = null;
+            openMediaPlayer(
+                { ...mockEnglishContentDto, publishDate: 100, parentTags: ["conf", "topic"] },
+                "en",
+            );
+            categoryDocs.value = [{ ...mockEnglishContentDto, _id: "tag-conf", parentId: "conf" }];
+            upNextDocs.value = [
+                doc("sunday", 300, ["conf"]),
+                doc("thursday", 50, ["conf"]),
+                doc("other-topic", 400, ["topic"]),
+                doc("saturday", 200, ["conf"]),
+            ];
+            const wrapper = await mountPlayer();
+            await find(wrapper, "mediaPlayerTab-upnext").trigger("click");
+
+            const rows = (section: string) =>
+                find(wrapper, `mediaPlayerUpNext-${section}`)
+                    .findAll("[data-test='mediaPlayerUpNextItem']")
+                    .map((row) => row.text());
+            const next = rows("next");
+            expect(next).toHaveLength(2);
+            expect(next[0]).toContain("saturday");
+            expect(next[1]).toContain("sunday");
+            const related = rows("related").join(" ");
+            expect(related).toContain("thursday");
+            expect(related).toContain("other-topic");
+            expect(related).not.toContain("saturday");
+        });
+
+        it("closes a tab whose content went away", async () => {
+            const wrapper = await playing();
+            engine.state.chapters = [{ startTime: 0, endTime: 60, title: "Opening" }];
+            await flushPromises();
+            await find(wrapper, "mediaPlayerChapterStrip").trigger("click");
+            expect(find(wrapper, "mediaPlayerSheet").exists()).toBe(true);
+
+            engine.state.chapters = [];
+            await flushPromises();
+            expect(find(wrapper, "mediaPlayerSheet").exists()).toBe(false);
+        });
+    });
+
     describe("about, and the page of what plays", () => {
         const withText = () => {
             openMediaPlayer(
@@ -347,27 +595,44 @@ describe("MediaPlayer", () => {
             return mountPlayer();
         };
 
-        it("opens the article under the player, and closes it", async () => {
+        it("opens about under the player with a taste of the article, and closes it", async () => {
             const wrapper = await withText();
             expect(find(wrapper, "mediaPlayerAbout").exists()).toBe(false);
 
-            await find(wrapper, "mediaPlayerAboutToggle").trigger("click");
-            expect(find(wrapper, "mediaPlayerAbout").text()).toContain("The article.");
+            await find(wrapper, "mediaPlayerTab-about").trigger("click");
+            expect(find(wrapper, "mediaPlayerAboutText").text()).toContain("The article.");
             expect(wrapper.find(".video-player-stub").exists()).toBe(true);
 
-            await find(wrapper, "mediaPlayerAboutClose").trigger("click");
+            await find(wrapper, "mediaPlayerSheetClose").trigger("click");
             expect(find(wrapper, "mediaPlayerAbout").exists()).toBe(false);
         });
 
-        it("says there is nothing to read when the content has neither article nor summary, and still leads to the page", async () => {
+        it("shows the summary and the categories, and still leads to the page without an article", async () => {
+            categoryDocs.value = [
+                {
+                    ...mockEnglishContentDto,
+                    _id: "tag-1",
+                    parentId: "tag-1",
+                    title: "The conference",
+                },
+            ];
             openMediaPlayer(
-                { ...mockEnglishContentDto, text: undefined, summary: undefined, slug: "the-slug" },
+                {
+                    ...mockEnglishContentDto,
+                    text: undefined,
+                    summary: "What it is about.",
+                    slug: "the-slug",
+                    parentTags: ["tag-1"],
+                    copyright: "© The church",
+                },
                 "en",
             );
             const wrapper = await mountPlayer();
-            await find(wrapper, "mediaPlayerAboutToggle").trigger("click");
+            await find(wrapper, "mediaPlayerTab-about").trigger("click");
 
-            expect(find(wrapper, "mediaPlayerAboutEmpty").exists()).toBe(true);
+            expect(find(wrapper, "mediaPlayerAboutSummary").text()).toBe("What it is about.");
+            expect(find(wrapper, "mediaPlayerAboutText").exists()).toBe(false);
+            expect(find(wrapper, "mediaPlayerAboutCopyright").text()).toBe("© The church");
             await find(wrapper, "mediaPlayerRead").trigger("click");
             expect(routerPush).toHaveBeenLastCalledWith({
                 name: "content",
@@ -375,16 +640,39 @@ describe("MediaPlayer", () => {
             });
         });
 
+        it("sends the article's Read more to the page", async () => {
+            const wrapper = await withText();
+            await find(wrapper, "mediaPlayerTab-about").trigger("click");
+            await find(wrapper, "mediaPlayerAboutMore").trigger("click");
+            expect(routerPush).toHaveBeenLastCalledWith({
+                name: "content",
+                params: { slug: "the-slug" },
+            });
+        });
+
+        it("bookmarks and unbookmarks what plays", async () => {
+            const wrapper = await withText();
+            await find(wrapper, "mediaPlayerTab-about").trigger("click");
+            const bookmarked = () =>
+                find(wrapper, "mediaPlayerBookmark").attributes("aria-pressed") === "true";
+            expect(bookmarked()).toBe(false);
+
+            await find(wrapper, "mediaPlayerBookmark").trigger("click");
+            expect(bookmarked()).toBe(true);
+            await find(wrapper, "mediaPlayerBookmark").trigger("click");
+            expect(bookmarked()).toBe(false);
+        });
+
         it("closes with the player: minimised, or another item", async () => {
             const wrapper = await withText();
-            await find(wrapper, "mediaPlayerAboutToggle").trigger("click");
+            await find(wrapper, "mediaPlayerTab-about").trigger("click");
             await find(wrapper, "mediaPlayerMinimise").trigger("click");
             expect(find(wrapper, "mediaPlayerAbout").exists()).toBe(false);
         });
 
         it("goes to the page of what plays, from the sheet and from the bar", async () => {
             const wrapper = await withText();
-            await find(wrapper, "mediaPlayerAboutToggle").trigger("click");
+            await find(wrapper, "mediaPlayerTab-about").trigger("click");
             await find(wrapper, "mediaPlayerRead").trigger("click");
             expect(routerPush).toHaveBeenLastCalledWith({
                 name: "content",

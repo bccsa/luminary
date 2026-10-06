@@ -15,6 +15,7 @@ import {
     ChevronDownIcon,
     FilmIcon,
     LanguageIcon,
+    ListBulletIcon,
     MusicalNoteIcon,
     PauseIcon,
     PlayIcon,
@@ -22,15 +23,20 @@ import {
     SpeakerXMarkIcon,
     XMarkIcon,
 } from "@heroicons/vue/20/solid";
-import { AUDIO_ONLY_ANGLE_ID } from "@luminary-media-converter/player-web";
-import { db } from "luminary-shared";
+import { AUDIO_ONLY_ANGLE_ID, type Chapter } from "@luminary-media-converter/player-web";
+import { db, type ContentDto } from "luminary-shared";
 import { DateTime } from "luxon";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
 import LImage from "@/components/images/LImage.vue";
 import { useMobileChromeAutoHide } from "@/composables/useMobileChromeAutoHide";
 import { isNativeApp } from "@/util/inAppBrowser";
+import MediaPlayerAbout from "./MediaPlayerAbout.vue";
+import MediaPlayerChapters from "./MediaPlayerChapters.vue";
+import MediaPlayerUpNext from "./MediaPlayerUpNext.vue";
+import { useUpNext } from "./useUpNext";
 import {
     closeMediaPlayer,
+    openMediaPlayer,
     expandMediaPlayer,
     mediaPlayerItem,
     mediaPlayerView,
@@ -60,28 +66,71 @@ const content = computed(() => item.value?.content);
  * What the content says, under the player: the article (or its summary), so the viewer reads while
  * the video or the sound goes on. Without either the sheet says so, and still leads to the page.
  */
-const aboutOpen = ref(false);
-const aboutText = computed(() => content.value?.text || content.value?.summary || "");
+type SheetTab = "upnext" | "chapters" | "about";
+/** The tab the sheet under the picture shows; none while it is closed. */
+const sheetTab = ref<SheetTab | null>(null);
+const upNext = useUpNext(content);
+const chapters = computed(() => state.value?.chapters ?? []);
+/**
+ * The tabs that have something to show; About is always there, and leads to the page. Chapters are
+ * not among them: they belong to this one video, so they sit beside the picture's controls, not
+ * with the lists that lead to other content.
+ */
+const tabs = computed<{ id: SheetTab; label: string }[]>(() => [
+    ...(upNext.value.next.length || upNext.value.related.length
+        ? [{ id: "upnext" as const, label: t("media_player.up_next") }]
+        : []),
+    { id: "about" as const, label: t("media_player.about") },
+]);
+const sheetLabel = computed(() =>
+    sheetTab.value === "chapters"
+        ? t("media_player.chapters")
+        : (tabs.value.find((tab) => tab.id === sheetTab.value)?.label ?? ""),
+);
+/** The chapter the playhead is in, for the strip that opens the list. */
+const currentChapter = computed(() => {
+    const at = currentTime.value;
+    const index = chapters.value.findIndex((c) => at >= c.startTime && at < c.endTime);
+    return index < 0 ? null : { title: chapters.value[index]!.title, index };
+});
 const pictureEl = ref<HTMLElement | null>(null);
 const sectionEl = ref<HTMLElement | null>(null);
 /** Where the sheet starts: just under the picture, which stays in view. */
-const aboutTop = ref(0);
-async function toggleAbout() {
-    aboutOpen.value = !aboutOpen.value;
-    if (!aboutOpen.value) return;
+const sheetTop = ref(0);
+async function toggleTab(tab: SheetTab) {
+    sheetTab.value = sheetTab.value === tab ? null : tab;
+    if (!sheetTab.value) return;
     await nextTick();
     const picture = pictureEl.value?.getBoundingClientRect();
     const section = sectionEl.value?.getBoundingClientRect();
-    aboutTop.value = picture && section ? picture.bottom - section.top : 0;
+    sheetTop.value = picture && section ? picture.bottom - section.top : 0;
 }
-// Another item, or the player gone: the sheet closes with it.
+// Another item, or the player gone: the sheet closes with it. So does a tab whose content went.
 watch(
     () => item.value?.content._id,
-    () => (aboutOpen.value = false),
+    () => (sheetTab.value = null),
 );
 watch(expanded, (isExpanded) => {
-    if (!isExpanded) aboutOpen.value = false;
+    if (!isExpanded) sheetTab.value = null;
 });
+watch([tabs, chapters], ([available, chapterList]) => {
+    if (sheetTab.value === "chapters") {
+        if (!chapterList.length) sheetTab.value = null;
+    } else if (sheetTab.value && !available.some((tab) => tab.id === sheetTab.value)) {
+        sheetTab.value = null;
+    }
+});
+
+/** A chapter: the picture goes there, and plays on. */
+function playChapter(chapter: Chapter) {
+    handle.value?.seek(chapter.startTime);
+    void handle.value?.play();
+}
+
+/** Another video, offered under this one: it takes the player. */
+function playNext(next: ContentDto) {
+    openMediaPlayer(next, item.value?.language);
+}
 
 /** The page of what plays, which also minimises the player: the route change does it. */
 function openPage() {
@@ -427,7 +476,34 @@ function onKeydown(event: KeyboardEvent) {
                 </div>
 
                 <template v-if="state">
-                    <div class="relative flex items-center justify-center gap-2 px-3 pt-8">
+                    <button
+                        v-if="chapters.length"
+                        type="button"
+                        class="mx-auto mt-4 flex h-11 max-w-full items-center gap-2 rounded-full border border-zinc-500/35 px-4 text-sm font-semibold text-zinc-600 dark:text-slate-300"
+                        :class="{ 'bg-zinc-500/15': sheetTab === 'chapters' }"
+                        :aria-label="t('media_player.chapters')"
+                        :aria-expanded="sheetTab === 'chapters'"
+                        data-test="mediaPlayerChapterStrip"
+                        @click="toggleTab('chapters')"
+                    >
+                        <ListBulletIcon class="h-5 w-5 flex-shrink-0" />
+                        <span class="min-w-0 truncate">{{
+                            currentChapter?.title ?? t("media_player.chapters")
+                        }}</span>
+                        <span
+                            v-if="currentChapter"
+                            class="flex-shrink-0 text-xs font-normal tabular-nums text-zinc-500 dark:text-slate-400"
+                            >{{ currentChapter.index + 1 }}/{{ chapters.length }}</span
+                        >
+                    </button>
+                    <div
+                        class="relative flex items-center justify-center px-3"
+                        :class="[
+                            chapters.length ? 'pt-4' : 'pt-8',
+                            // A seventh button: tighter, so the row still fits a 390 pt phone.
+                            handle?.airPlayAvailable ? 'gap-1' : 'gap-2',
+                        ]"
+                    >
                         <button
                             v-if="!live"
                             type="button"
@@ -501,6 +577,37 @@ function onKeydown(event: KeyboardEvent) {
                                 </svg>
                             </button>
                         </template>
+                        <button
+                            v-if="handle?.airPlayAvailable"
+                            type="button"
+                            class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full border border-zinc-500/35 text-zinc-600 dark:text-slate-300"
+                            :class="{
+                                'bg-zinc-500/15 text-yellow-700 dark:text-yellow-400':
+                                    handle?.airPlayActive,
+                            }"
+                            :aria-label="t('media_player.airplay')"
+                            :aria-pressed="handle?.airPlayActive === true"
+                            data-test="mediaPlayerAirPlay"
+                            @click="handle?.showAirPlayPicker?.()"
+                        >
+                            <svg
+                                class="h-5 w-5"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="1.8"
+                                stroke-linejoin="round"
+                                aria-hidden="true"
+                            >
+                                <path
+                                    d="M7 17H5.5A2.5 2.5 0 0 1 3 14.5v-8A2.5 2.5 0 0 1 5.5 4h13A2.5 2.5 0 0 1 21 6.5v8a2.5 2.5 0 0 1-2.5 2.5H17"
+                                />
+                                <path
+                                    d="M12 14l5 6H7l5-6z"
+                                    fill="currentColor"
+                                />
+                            </svg>
+                        </button>
                         <button
                             type="button"
                             class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full border border-zinc-500/35 text-zinc-600 disabled:opacity-40 dark:text-slate-300"
@@ -596,9 +703,13 @@ function onKeydown(event: KeyboardEvent) {
                         </ul>
                     </div>
 
+                    <!-- Inset from the screen edge on purpose: a thumb at either end of the bar would sit
+                         where Android's back gesture and iOS's edge swipe are read, and a drag to the
+                         end would navigate away instead of seeking. -->
                     <div
                         v-if="!live"
-                        class="flex flex-col px-6 pt-5"
+                        class="flex flex-col px-10 pt-5"
+                        data-test="mediaPlayerSeekBar"
                     >
                         <!-- The drawn bar shows what has played and what is loaded; the range on top of it
                          is what takes the touch, with only its thumb showing. -->
@@ -682,60 +793,71 @@ function onKeydown(event: KeyboardEvent) {
                         </button>
                     </div>
                 </template>
-                <button
-                    type="button"
-                    class="sticky bottom-0 flex h-12 w-full items-center justify-center gap-2 border-t border-zinc-300/60 bg-amber-50 text-sm font-semibold text-zinc-600 dark:border-slate-600/60 dark:bg-slate-800 dark:text-slate-300"
-                    :aria-expanded="aboutOpen"
-                    data-test="mediaPlayerAboutToggle"
-                    @click="toggleAbout"
+                <div
+                    role="tablist"
+                    class="sticky bottom-0 flex h-12 w-full border-t border-zinc-300/60 bg-amber-50 dark:border-slate-600/60 dark:bg-slate-800"
                 >
-                    <ChevronUpIcon class="h-5 w-5" />
-                    {{ t("media_player.about") }}
-                </button>
+                    <button
+                        v-for="tab in tabs"
+                        :key="tab.id"
+                        type="button"
+                        role="tab"
+                        class="flex flex-1 items-center justify-center gap-1.5 text-sm font-semibold"
+                        :class="
+                            sheetTab === tab.id
+                                ? 'text-yellow-700 dark:text-yellow-400'
+                                : 'text-zinc-600 dark:text-slate-300'
+                        "
+                        :aria-selected="sheetTab === tab.id"
+                        :data-test="`mediaPlayerTab-${tab.id}`"
+                        @click="toggleTab(tab.id)"
+                    >
+                        <ChevronUpIcon
+                            class="h-4 w-4 transition-transform"
+                            :class="{ 'rotate-180': sheetTab === tab.id }"
+                        />
+                        {{ tab.label }}
+                    </button>
+                </div>
             </div>
 
             <div
-                v-if="aboutOpen"
-                class="absolute inset-x-0 bottom-0 z-20 flex flex-col rounded-t-2xl bg-white shadow-[0_-4px_16px_rgba(0,0,0,0.12)] dark:bg-slate-900"
-                :style="{ top: `${aboutTop}px` }"
+                v-if="sheetTab"
+                class="absolute inset-x-0 bottom-12 z-20 flex flex-col rounded-t-2xl bg-white shadow-[0_-4px_16px_rgba(0,0,0,0.12)] dark:bg-slate-900"
+                :style="{ top: `${sheetTop}px` }"
                 role="region"
-                :aria-label="t('media_player.about')"
-                data-test="mediaPlayerAbout"
+                :aria-label="sheetLabel"
+                data-test="mediaPlayerSheet"
             >
                 <div class="flex items-center justify-between px-4 py-2">
                     <button
                         type="button"
                         class="flex h-11 items-center gap-2 rounded-full px-3 text-sm font-semibold text-zinc-600 dark:text-slate-300"
-                        data-test="mediaPlayerAboutClose"
-                        @click="toggleAbout"
+                        data-test="mediaPlayerSheetClose"
+                        @click="sheetTab = null"
                     >
                         <ChevronDownIcon class="h-5 w-5" />
-                        {{ t("media_player.about") }}
-                    </button>
-                    <button
-                        v-if="content.slug"
-                        type="button"
-                        class="flex h-11 items-center gap-2 rounded-full px-3 text-sm font-semibold text-yellow-700 dark:text-yellow-400"
-                        data-test="mediaPlayerRead"
-                        @click="openPage"
-                    >
-                        <BookOpenIcon class="h-5 w-5" />
-                        {{ t("media_player.read") }}
+                        {{ sheetLabel }}
                     </button>
                 </div>
-                <!-- eslint-disable-next-line vue/no-v-html -- the article, as the content page shows it -->
-                <div
-                    v-if="aboutText"
-                    class="prose prose-zinc max-w-full flex-1 overflow-y-auto px-6 pb-8 dark:prose-invert prose-a:text-yellow-600 dark:prose-a:text-yellow-400"
-                    v-html="aboutText"
+
+                <MediaPlayerUpNext
+                    v-if="sheetTab === 'upnext'"
+                    :next="upNext.next"
+                    :related="upNext.related"
+                    @select="playNext"
                 />
-                <p
+                <MediaPlayerChapters
+                    v-else-if="sheetTab === 'chapters'"
+                    :chapters="chapters"
+                    :current-time="currentTime"
+                    @select="playChapter"
+                />
+                <MediaPlayerAbout
                     v-else
-                    class="px-6 pb-8 text-sm text-zinc-500 dark:text-slate-400"
-                    data-test="mediaPlayerAboutEmpty"
-                >
-                    {{ t("media_player.about_empty") }}
-                </p>
+                    :content="content"
+                    @read="openPage"
+                />
             </div>
         </section>
 
