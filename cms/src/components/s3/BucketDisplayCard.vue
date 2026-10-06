@@ -112,13 +112,20 @@ const handleEdit = () => {
                     :variant="statusVariant"
                     class="gap-1 whitespace-nowrap text-xs font-semibold"
                 >
-                    <component :is="statusIcon" class="h-4 w-4" :class="`text-${statusVariant}`" />
+                    <component
+                        :is="statusIcon"
+                        class="h-4 w-4"
+                        :class="`text-${statusVariant}`"
+                    />
                     {{ statusText }}
                 </LBadge>
             </div>
         </div>
 
-        <div v-if="isSmallScreen" class="flex flex-wrap items-center gap-1 py-1.5">
+        <div
+            v-if="isSmallScreen"
+            class="flex flex-wrap items-center gap-1 py-1.5"
+        >
             <div class="flex flex-1 items-center gap-1">
                 <div>
                     <UserGroupIcon class="h-4 w-4 text-zinc-400" />
@@ -145,9 +152,11 @@ const handleEdit = () => {
             </div>
             <div class="flex w-max items-start text-xs text-zinc-400">
                 <ClockIcon class="mr-[1px] h-3.5 w-3.5 text-zinc-400" />
-                <span title="Last Updated" class="text-[11px]">{{
-                    renderDate("small", "Last Updated", bucket.updatedTimeUtc)
-                }}</span>
+                <span
+                    title="Last Updated"
+                    class="text-[11px]"
+                    >{{ renderDate("small", "Last Updated", bucket.updatedTimeUtc) }}</span
+                >
             </div>
         </div>
 
@@ -177,9 +186,11 @@ const handleEdit = () => {
             </div>
             <div class="flex items-center justify-end text-zinc-400">
                 <ClockIcon class="text-zinc-340 mr-[1px] h-3.5 w-3.5" />
-                <span title="Last Updated" class="text-[11px]">{{
-                    renderDate("default", "Last updated", bucket.updatedTimeUtc)
-                }}</span>
+                <span
+                    title="Last Updated"
+                    class="text-[11px]"
+                    >{{ renderDate("default", "Last updated", bucket.updatedTimeUtc) }}</span
+                >
             </div>
         </div>
     </div>

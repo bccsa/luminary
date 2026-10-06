@@ -29,11 +29,22 @@ function formatRelativeTime(timestamp: number): string {
 </script>
 
 <template>
-    <LCard title="Recent activity" :icon="ClockIcon" fillHeight>
-        <div v-if="recentContent.length === 0" class="pl-1 text-center text-sm text-zinc-400">
+    <LCard
+        title="Recent activity"
+        :icon="ClockIcon"
+        fillHeight
+    >
+        <div
+            v-if="recentContent.length === 0"
+            class="pl-1 text-center text-sm text-zinc-400"
+        >
             No content found for the selected language.
         </div>
-        <ul v-else ref="listEl" class="divide-y divide-zinc-100">
+        <ul
+            v-else
+            ref="listEl"
+            class="divide-y divide-zinc-100"
+        >
             <li
                 v-for="doc in recentContent"
                 :key="doc._id"
@@ -53,7 +64,10 @@ function formatRelativeTime(timestamp: number): string {
                     >
                         {{ doc.title || "Untitled" }}
                     </span>
-                    <span v-else class="min-w-0 truncate text-sm font-medium text-zinc-900">
+                    <span
+                        v-else
+                        class="min-w-0 truncate text-sm font-medium text-zinc-900"
+                    >
                         {{ doc.title || "Untitled" }}
                     </span>
                     <span
@@ -62,7 +76,10 @@ function formatRelativeTime(timestamp: number): string {
                     >
                         by {{ doc.author }}
                     </span>
-                    <div v-else class="hidden sm:col-start-3 sm:block"></div>
+                    <div
+                        v-else
+                        class="hidden sm:col-start-3 sm:block"
+                    ></div>
                     <span class="text-right text-xs text-zinc-400 sm:col-start-4">
                         {{ formatRelativeTime(doc.updatedTimeUtc) }}
                     </span>

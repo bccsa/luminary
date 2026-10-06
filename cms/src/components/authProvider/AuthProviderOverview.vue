@@ -101,7 +101,10 @@ defineExpose({
             />
         </template>
 
-        <template v-if="hasAnyContent" #internalPageHeader>
+        <template
+            v-if="hasAnyContent"
+            #internalPageHeader
+        >
             <FilterOptions
                 v-model:search="searchQuery"
                 v-model:selected-groups="selectedGroupFilter"

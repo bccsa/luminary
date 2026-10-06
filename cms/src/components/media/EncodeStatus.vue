@@ -78,8 +78,14 @@ const percentage = computed(() => {
         v-if="error || status || outdated || availability != 'available'"
         class="flex flex-col gap-2 py-1"
     >
-        <div v-if="status" data-test="encoder-status">
-            <div v-if="percentage != undefined" class="flex items-center gap-2">
+        <div
+            v-if="status"
+            data-test="encoder-status"
+        >
+            <div
+                v-if="percentage != undefined"
+                class="flex items-center gap-2"
+            >
                 <div class="h-1.5 flex-1 overflow-hidden rounded-full bg-zinc-100">
                     <div
                         class="h-full rounded-full bg-zinc-700 transition-[width] duration-500"
@@ -91,20 +97,36 @@ const percentage = computed(() => {
                     {{ label }} {{ percentage }}%
                 </span>
             </div>
-            <span v-else class="text-xs font-medium text-zinc-700">{{ label }}</span>
+            <span
+                v-else
+                class="text-xs font-medium text-zinc-700"
+                >{{ label }}</span
+            >
 
-            <p v-if="running" class="mt-1 text-xs text-zinc-500" data-test="encoder-leave-hint">
+            <p
+                v-if="running"
+                class="mt-1 text-xs text-zinc-500"
+                data-test="encoder-leave-hint"
+            >
                 You can save and come back — this keeps running.
             </p>
         </div>
 
-        <MediaNotice v-if="error" state="error" data-test="encoder-error">
+        <MediaNotice
+            v-if="error"
+            state="error"
+            data-test="encoder-error"
+        >
             {{ error }}
         </MediaNotice>
 
         <!-- Outdated outranks the availability notices: the encoder answered, so
              "not running" would be wrong, and encoding with it may fail anyway. -->
-        <MediaNotice v-else-if="outdated" state="warning" data-test="encoder-outdated">
+        <MediaNotice
+            v-else-if="outdated"
+            state="warning"
+            data-test="encoder-outdated"
+        >
             Your Luminary Media Convert is outdated and may no longer work with this site.
             <a
                 :href="ENCODER_DOWNLOAD_URL"

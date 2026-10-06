@@ -147,7 +147,13 @@ watch(
 </script>
 
 <template>
-    <LCard v-if="parent" bare title="Media" :icon="FilmIcon" data-test="media-section">
+    <LCard
+        v-if="parent"
+        bare
+        title="Media"
+        :icon="FilmIcon"
+        data-test="media-section"
+    >
         <template #actions>
             <EncodeMediaButton
                 :availability="availability"
@@ -168,7 +174,10 @@ watch(
         </template>
 
         <div class="flex flex-col gap-3">
-            <p v-if="showHelp" class="text-xs text-zinc-500">
+            <p
+                v-if="showHelp"
+                class="text-xs text-zinc-500"
+            >
                 Video and audio are produced by Luminary Media Convert. Use Encode to open it, pick
                 a file, and the encoded playlist is saved back to this document. You need the app on
                 your own machine —
@@ -197,7 +206,12 @@ watch(
                 :error="error"
             />
 
-            <EditContentVideo v-if="showVideo" bare :disabled="disabled" v-model:parent="parent" />
+            <EditContentVideo
+                v-if="showVideo"
+                bare
+                :disabled="disabled"
+                v-model:parent="parent"
+            />
         </div>
     </LCard>
 

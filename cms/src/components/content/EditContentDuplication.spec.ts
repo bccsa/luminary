@@ -1,7 +1,15 @@
 import { describe, it, afterEach, beforeEach, expect, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
-import { db, DocType, accessMap, PostType, TagType, type TagDto, PublishStatus } from "luminary-shared";
+import {
+    db,
+    DocType,
+    accessMap,
+    PostType,
+    TagType,
+    type TagDto,
+    PublishStatus,
+} from "luminary-shared";
 import * as mockData from "@/tests/mockdata";
 import { setActivePinia } from "pinia";
 import EditContent from "./EditContent.vue";

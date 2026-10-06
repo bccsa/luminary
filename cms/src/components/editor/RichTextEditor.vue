@@ -184,7 +184,11 @@ defineExpose({
         "
     >
         <template #toolbar="{ groups, isActive, isDisabled, getLabel, runCommand }">
-            <div ref="toolbarSentinel" class="h-px w-full shrink-0" aria-hidden="true" />
+            <div
+                ref="toolbarSentinel"
+                class="h-px w-full shrink-0"
+                aria-hidden="true"
+            />
             <div
                 v-if="placeholderHeight > 0"
                 class="w-full shrink-0"
@@ -198,70 +202,98 @@ defineExpose({
                 :style="pinnedStyle"
             >
                 <div :class="[toolbarClasses.toolbar, 'toolbar-scroll']">
-                <div v-for="(group, gi) in groups" :key="gi" :class="toolbarClasses.toolbarGroup">
-                    <template v-for="item in group" :key="item">
-                        <!-- Download: opens a menu to pick the document type -->
-                        <LDropdown
-                            v-if="item === 'download' && !isDisabled(item)"
-                            v-model:show="showDownloadMenu"
-                            placement="bottom-start"
-                            padding="small"
-                            width="auto"
+                    <div
+                        v-for="(group, gi) in groups"
+                        :key="gi"
+                        :class="toolbarClasses.toolbarGroup"
+                    >
+                        <template
+                            v-for="item in group"
+                            :key="item"
                         >
-                            <template #trigger>
+                            <!-- Download: opens a menu to pick the document type -->
+                            <LDropdown
+                                v-if="item === 'download' && !isDisabled(item)"
+                                v-model:show="showDownloadMenu"
+                                placement="bottom-start"
+                                padding="small"
+                                width="auto"
+                            >
+                                <template #trigger>
+                                    <button
+                                        type="button"
+                                        :title="getLabel(item)"
+                                        :class="toolbarButtonClass"
+                                    >
+                                        <ArrowDownTrayIcon class="h-5 w-5" />
+                                    </button>
+                                </template>
                                 <button
+                                    v-for="format in downloadFormats"
+                                    :key="format.id"
                                     type="button"
-                                    :title="getLabel(item)"
-                                    :class="toolbarButtonClass"
+                                    role="menuitem"
+                                    class="flex w-full items-center whitespace-nowrap rounded px-3 py-1.5 text-left text-sm text-zinc-700 hover:bg-zinc-100"
+                                    @click="
+                                        selectDownloadFormat(
+                                            format,
+                                            runCommand as (item: ToolbarItem) => void,
+                                        )
+                                    "
                                 >
-                                    <ArrowDownTrayIcon class="h-5 w-5" />
+                                    {{ format.label }}
                                 </button>
-                            </template>
+                            </LDropdown>
+                            <!-- Every other button (incl. download while the editor is empty) -->
                             <button
-                                v-for="format in downloadFormats"
-                                :key="format.id"
+                                v-else
                                 type="button"
-                                role="menuitem"
-                                class="flex w-full items-center whitespace-nowrap rounded px-3 py-1.5 text-left text-sm text-zinc-700 hover:bg-zinc-100"
+                                :disabled="isDisabled(item)"
+                                :title="getLabel(item)"
+                                :class="[
+                                    toolbarClasses.button,
+                                    isActive(item) ? toolbarClasses.buttonActive : '',
+                                    isDisabled(item) ? 'cursor-not-allowed opacity-50' : '',
+                                ]"
                                 @click="
-                                    selectDownloadFormat(
-                                        format,
+                                    handleToolbarClick(
+                                        item as ToolbarItem,
                                         runCommand as (item: ToolbarItem) => void,
                                     )
                                 "
                             >
-                                {{ format.label }}
+                                <BulletlistIcon
+                                    v-if="item === 'bulletList'"
+                                    class="h-5 w-5"
+                                />
+                                <NumberedListIcon
+                                    v-else-if="item === 'orderedList'"
+                                    class="h-5 w-5"
+                                />
+                                <LinkIcon
+                                    v-else-if="item === 'link'"
+                                    class="h-5 w-5"
+                                />
+                                <LinkSlashIcon
+                                    v-else-if="item === 'unlink'"
+                                    class="h-5 w-5"
+                                />
+                                <ArrowUpTrayIcon
+                                    v-else-if="item === 'upload'"
+                                    class="h-5 w-5"
+                                />
+                                <ArrowDownTrayIcon
+                                    v-else-if="item === 'download'"
+                                    class="h-5 w-5"
+                                />
+                                <ClipboardDocumentIcon
+                                    v-else-if="item === 'copy'"
+                                    class="h-5 w-5"
+                                />
+                                <span v-else>{{ getLabel(item) }}</span>
                             </button>
-                        </LDropdown>
-                        <!-- Every other button (incl. download while the editor is empty) -->
-                        <button
-                            v-else
-                            type="button"
-                            :disabled="isDisabled(item)"
-                            :title="getLabel(item)"
-                            :class="[
-                                toolbarClasses.button,
-                                isActive(item) ? toolbarClasses.buttonActive : '',
-                                isDisabled(item) ? 'cursor-not-allowed opacity-50' : '',
-                            ]"
-                            @click="
-                                handleToolbarClick(
-                                    item as ToolbarItem,
-                                    runCommand as (item: ToolbarItem) => void,
-                                )
-                            "
-                        >
-                            <BulletlistIcon v-if="item === 'bulletList'" class="h-5 w-5" />
-                            <NumberedListIcon v-else-if="item === 'orderedList'" class="h-5 w-5" />
-                            <LinkIcon v-else-if="item === 'link'" class="h-5 w-5" />
-                            <LinkSlashIcon v-else-if="item === 'unlink'" class="h-5 w-5" />
-                            <ArrowUpTrayIcon v-else-if="item === 'upload'" class="h-5 w-5" />
-                            <ArrowDownTrayIcon v-else-if="item === 'download'" class="h-5 w-5" />
-                            <ClipboardDocumentIcon v-else-if="item === 'copy'" class="h-5 w-5" />
-                            <span v-else>{{ getLabel(item) }}</span>
-                        </button>
-                    </template>
-                </div>
+                        </template>
+                    </div>
                 </div>
             </div>
         </template>
@@ -293,7 +325,11 @@ defineExpose({
                     type="button"
                     >Ok</LButton
                 >
-                <LButton @click="showModal = false" class="w-20" variant="secondary" type="button"
+                <LButton
+                    @click="showModal = false"
+                    class="w-20"
+                    variant="secondary"
+                    type="button"
                     >Cancel</LButton
                 >
             </div>

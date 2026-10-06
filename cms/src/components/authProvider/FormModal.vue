@@ -213,11 +213,23 @@ const handleRevert = () => {
         :heading="isEditing ? 'Edit Auth Provider' : 'Add Auth Provider'"
         :before-close="beforeClose"
     >
-        <div ref="scrollContainer" class="mb-1 min-h-0 flex-1 overflow-auto">
-            <div v-if="provider" class="space-y-2">
-                <FormErrors :errors="errors ?? []" :validations="providerValidations" />
+        <div
+            ref="scrollContainer"
+            class="mb-1 min-h-0 flex-1 overflow-auto"
+        >
+            <div
+                v-if="provider"
+                class="space-y-2"
+            >
+                <FormErrors
+                    :errors="errors ?? []"
+                    :validations="providerValidations"
+                />
 
-                <LabelAndType v-model:provider="provider" :disabled="isDisabled" />
+                <LabelAndType
+                    v-model:provider="provider"
+                    :disabled="isDisabled"
+                />
 
                 <div class="rounded-md border border-zinc-200 bg-white p-2">
                     <label
@@ -257,7 +269,10 @@ const handleRevert = () => {
                         :disabled="isDisabled"
                         data-test="groupSelector"
                     />
-                    <p v-if="memberOfError" class="mt-1 text-[11px] font-medium text-red-600">
+                    <p
+                        v-if="memberOfError"
+                        class="mt-1 text-[11px] font-medium text-red-600"
+                    >
                         {{ memberOfError }}
                     </p>
                 </div>
@@ -278,9 +293,15 @@ const handleRevert = () => {
                     "
                 />
 
-                <Appearance v-model:provider="provider" :disabled="isDisabled" />
+                <Appearance
+                    v-model:provider="provider"
+                    :disabled="isDisabled"
+                />
 
-                <UserFieldMappings v-model:provider="provider" :disabled="isDisabled" />
+                <UserFieldMappings
+                    v-model:provider="provider"
+                    :disabled="isDisabled"
+                />
             </div>
         </div>
 

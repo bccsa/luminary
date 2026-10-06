@@ -103,7 +103,10 @@ const hasAnyContent = computed(() => (redirects.value?.length ?? 0) > 0);
             />
         </template>
 
-        <template v-if="hasAnyContent" #internalPageHeader>
+        <template
+            v-if="hasAnyContent"
+            #internalPageHeader
+        >
             <FilterOptions
                 v-model:search="searchTerm"
                 search-placeholder="Search redirects..."
@@ -127,7 +130,11 @@ const hasAnyContent = computed(() => (redirects.value?.length ?? 0) > 0);
             />
 
             <!-- Infinite-scroll trigger for the in-memory browse window -->
-            <div v-if="!searchActive" ref="browseSentinel" class="h-px w-full"></div>
+            <div
+                v-if="!searchActive"
+                ref="browseSentinel"
+                class="h-px w-full"
+            ></div>
 
             <EmptyState
                 v-if="!browseLoading && !hasAnyContent"
@@ -148,7 +155,11 @@ const hasAnyContent = computed(() => (redirects.value?.length ?? 0) > 0);
             />
 
             <!-- Infinite-scroll trigger for the server-paged search results -->
-            <div v-if="searchActive" ref="searchSentinel" class="h-px w-full"></div>
+            <div
+                v-if="searchActive"
+                ref="searchSentinel"
+                class="h-px w-full"
+            ></div>
 
             <div
                 v-if="searchActive && searchIsLoading"

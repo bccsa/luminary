@@ -103,7 +103,9 @@ async function handleSave(doc: AutoGroupMappingsDto) {
             title: existing ? "Failed to save" : "Failed to create",
             description:
                 res.message ||
-                (existing ? "The server rejected the update." : "The server rejected the creation."),
+                (existing
+                    ? "The server rejected the update."
+                    : "The server rejected the creation."),
             state: "error",
         });
         return;
@@ -177,7 +179,10 @@ const hasAnyContent = computed(() => autoGroupMappings.mappings.length > 0);
             />
         </template>
 
-        <template v-if="hasAnyContent" #internalPageHeader>
+        <template
+            v-if="hasAnyContent"
+            #internalPageHeader
+        >
             <FilterOptions
                 v-model:search="searchQuery"
                 v-model:selected-groups="selectedGroupFilter"
@@ -205,12 +210,21 @@ const hasAnyContent = computed(() => autoGroupMappings.mappings.length > 0);
         </template>
 
         <!-- Permission warnings -->
-        <div v-if="!autoGroupMappings.canView || !autoGroupMappings.canEdit" class="mb-1">
-            <span v-if="!autoGroupMappings.canView" class="mb-1 flex gap-1 text-xs text-zinc-600">
+        <div
+            v-if="!autoGroupMappings.canView || !autoGroupMappings.canEdit"
+            class="mb-1"
+        >
+            <span
+                v-if="!autoGroupMappings.canView"
+                class="mb-1 flex gap-1 text-xs text-zinc-600"
+            >
                 <ExclamationCircleIcon class="h-4 min-h-4 w-4 min-w-4 text-red-400" />
                 No view permission
             </span>
-            <span v-if="!autoGroupMappings.canEdit" class="flex gap-1 text-xs text-zinc-600">
+            <span
+                v-if="!autoGroupMappings.canEdit"
+                class="flex gap-1 text-xs text-zinc-600"
+            >
                 <ExclamationCircleIcon class="h-4 min-h-4 w-4 min-w-4 text-red-400" />
                 No edit permission
             </span>
@@ -232,7 +246,10 @@ const hasAnyContent = computed(() => autoGroupMappings.mappings.length > 0);
             description="Try adjusting your search or filter criteria."
         />
 
-        <div v-else-if="filteredMappings.length" class="flex flex-col gap-[3px]">
+        <div
+            v-else-if="filteredMappings.length"
+            class="flex flex-col gap-[3px]"
+        >
             <AutoGroupMappingDisplayCard
                 v-for="mapping in filteredMappings"
                 :key="mapping._id"

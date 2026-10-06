@@ -25,7 +25,8 @@ export function useTopicTagOptions() {
         const byParent = new Map<Uuid, ContentDto>();
         for (const doc of tagContent.value) {
             const current = byParent.get(doc.parentId);
-            if (!current || doc.language === cmsLanguageIdAsRef.value) byParent.set(doc.parentId, doc);
+            if (!current || doc.language === cmsLanguageIdAsRef.value)
+                byParent.set(doc.parentId, doc);
         }
         return [...byParent.values()]
             .map((doc) => ({ id: doc.parentId, label: doc.title || doc.parentId }))

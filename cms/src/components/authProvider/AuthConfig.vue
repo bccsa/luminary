@@ -40,9 +40,16 @@ function normalizeDomainString(value: string | undefined): string {
 
         <div class="space-y-2">
             <div>
-                <label for="domain" class="mb-1 block text-xs font-medium text-zinc-700">
+                <label
+                    for="domain"
+                    class="mb-1 block text-xs font-medium text-zinc-700"
+                >
                     Domain
-                    <span v-if="!isEditing" class="text-red-500">*</span>
+                    <span
+                        v-if="!isEditing"
+                        class="text-red-500"
+                        >*</span
+                    >
                 </label>
                 <LInput
                     id="domain"
@@ -58,9 +65,16 @@ function normalizeDomainString(value: string | undefined): string {
             </div>
 
             <div>
-                <label for="clientId" class="mb-1 block text-xs font-medium text-zinc-700">
+                <label
+                    for="clientId"
+                    class="mb-1 block text-xs font-medium text-zinc-700"
+                >
                     Client ID
-                    <span v-if="!isEditing" class="text-red-500">*</span>
+                    <span
+                        v-if="!isEditing"
+                        class="text-red-500"
+                        >*</span
+                    >
                 </label>
                 <LInput
                     id="clientId"
@@ -75,9 +89,16 @@ function normalizeDomainString(value: string | undefined): string {
             </div>
 
             <div>
-                <label for="audience" class="mb-1 block text-xs font-medium text-zinc-700">
+                <label
+                    for="audience"
+                    class="mb-1 block text-xs font-medium text-zinc-700"
+                >
                     Audience
-                    <span v-if="!isEditing" class="text-red-500">*</span>
+                    <span
+                        v-if="!isEditing"
+                        class="text-red-500"
+                        >*</span
+                    >
                 </label>
                 <LInput
                     id="audience"
@@ -93,7 +114,6 @@ function normalizeDomainString(value: string | undefined): string {
                     The API identifier/audience configured in your auth provider
                 </p>
             </div>
-
         </div>
     </div>
 </template>

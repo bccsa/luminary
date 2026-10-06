@@ -60,7 +60,10 @@ const handleClick = () => {
         @click="handleClick"
     >
         <!-- Header: Title and top badges -->
-        <div v-if="title || isLocalChange" class="relative flex items-center justify-between py-1">
+        <div
+            v-if="title || isLocalChange"
+            class="relative flex items-center justify-between py-1"
+        >
             <div
                 data-test="card-title"
                 class="w-full"
@@ -75,24 +78,40 @@ const handleClick = () => {
                         class="mr-1 max-w-full truncate text-wrap text-sm font-medium [&_mark]:rounded [&_mark]:bg-amber-200 [&_mark]:px-0"
                         v-html="titleHtml"
                     ></div>
-                    <div v-else class="mr-1 max-w-full truncate text-wrap text-sm font-medium">
+                    <div
+                        v-else
+                        class="mr-1 max-w-full truncate text-wrap text-sm font-medium"
+                    >
                         {{ title }}
                     </div>
                     <div>
                         <slot name="title-extension" />
                     </div>
                 </div>
-                <LBadge v-if="isLocalChange && isSmallScreen" variant="warning">
+                <LBadge
+                    v-if="isLocalChange && isSmallScreen"
+                    variant="warning"
+                >
                     Offline changes
                 </LBadge>
             </div>
-            <div v-if="$slots.topRightContent" class="flex">
+            <div
+                v-if="$slots.topRightContent"
+                class="flex"
+            >
                 <slot name="topRightContent" />
             </div>
 
             <div class="flex items-center justify-end">
-                <div v-if="!isSmallScreen && $slots.topBadges" class="flex gap-1">
-                    <LBadge v-if="isLocalChange" variant="warning" class="flex whitespace-nowrap">
+                <div
+                    v-if="!isSmallScreen && $slots.topBadges"
+                    class="flex gap-1"
+                >
+                    <LBadge
+                        v-if="isLocalChange"
+                        variant="warning"
+                        class="flex whitespace-nowrap"
+                    >
                         Offline changes
                     </LBadge>
                     <slot name="topBadges" />
@@ -101,7 +120,10 @@ const handleClick = () => {
         </div>
 
         <!-- Mobile top badges slot -->
-        <div v-if="isSmallScreen && $slots.mobileTopBadges" class="flex flex-wrap gap-1 py-1">
+        <div
+            v-if="isSmallScreen && $slots.mobileTopBadges"
+            class="flex flex-wrap gap-1 py-1"
+        >
             <slot name="mobileTopBadges" />
         </div>
 
@@ -114,7 +136,10 @@ const handleClick = () => {
             class="flex flex-wrap items-center gap-1 py-1"
         >
             <slot name="mobileFooter" />
-            <div v-if="showDate" class="flex w-max items-start text-xs text-zinc-400">
+            <div
+                v-if="showDate"
+                class="flex w-max items-start text-xs text-zinc-400"
+            >
                 <ClockIcon class="mr-[1px] h-4 w-4 text-zinc-400" />
                 <span title="Last Updated">{{
                     renderDate("small", "Last Updated", updatedTimeUtc)
@@ -127,7 +152,10 @@ const handleClick = () => {
             class="flex items-center justify-between pt-1 text-xs sm:gap-4"
         >
             <slot name="desktopFooter" />
-            <div v-if="showDate" class="flex items-center justify-end text-zinc-400">
+            <div
+                v-if="showDate"
+                class="flex items-center justify-end text-zinc-400"
+            >
                 <ClockIcon class="mr-[1px] h-4 w-4 text-zinc-400" />
                 <span title="Last Updated">{{
                     renderDate("default", "Last updated", updatedTimeUtc)

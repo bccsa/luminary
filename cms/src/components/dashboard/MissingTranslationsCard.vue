@@ -67,7 +67,10 @@ watch(missingTranslations, () => nextTick(update));
 </script>
 
 <template>
-    <LCard v-if="missingTranslations.length > 0" fillHeight>
+    <LCard
+        v-if="missingTranslations.length > 0"
+        fillHeight
+    >
         <div class="flex flex-col gap-2 lg:h-full">
             <div class="flex items-center justify-start gap-2">
                 <PencilSquareIcon class="h-4 w-4 text-zinc-600" />
@@ -102,7 +105,10 @@ watch(missingTranslations, () => nextTick(update));
                 </div>
             </div>
             <div class="lg:min-h-0 lg:flex-1 lg:overflow-hidden">
-                <ul ref="listEl" class="divide-y divide-zinc-100">
+                <ul
+                    ref="listEl"
+                    class="divide-y divide-zinc-100"
+                >
                     <li
                         v-for="item in missingTranslations"
                         :key="item.parentId"
@@ -113,10 +119,16 @@ watch(missingTranslations, () => nextTick(update));
                             class="block w-full text-sm text-zinc-900 hover:text-yellow-600"
                         >
                             <div class="ml-0 flex items-center justify-between gap-2 pl-0">
-                                <span v-if="parentRoute(item)" class="-ml-1.5 min-w-0 truncate">
+                                <span
+                                    v-if="parentRoute(item)"
+                                    class="-ml-1.5 min-w-0 truncate"
+                                >
                                     {{ item.title }}
                                 </span>
-                                <span v-else class="min-w-0 truncate text-sm text-zinc-900">
+                                <span
+                                    v-else
+                                    class="min-w-0 truncate text-sm text-zinc-900"
+                                >
                                     {{ item.title }}
                                 </span>
                                 <span

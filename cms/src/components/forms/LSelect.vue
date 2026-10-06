@@ -82,10 +82,21 @@ function listOptionClass(option: Option): string {
 </script>
 
 <template>
-    <div class="relative" :class="$attrs['class']" :style="$attrs['style'] as StyleValue">
-        <div v-if="label" class="mb-2 flex justify-between">
+    <div
+        class="relative"
+        :class="$attrs['class']"
+        :style="$attrs['style'] as StyleValue"
+    >
+        <div
+            v-if="label"
+            class="mb-2 flex justify-between"
+        >
             <div class="flex items-center gap-1">
-                <FormLabel :for="id" :required="required">{{ label }}</FormLabel>
+                <FormLabel
+                    :for="id"
+                    :required="required"
+                    >{{ label }}</FormLabel
+                >
             </div>
         </div>
         <LDropdown
@@ -117,7 +128,10 @@ function listOptionClass(option: Option): string {
                     v-bind="attrsWithoutStyles"
                 >
                     <div class="flex min-w-0 flex-1 items-center gap-2">
-                        <div v-if="icon" class="flex shrink-0 items-center">
+                        <div
+                            v-if="icon"
+                            class="flex shrink-0 items-center"
+                        >
                             <component
                                 :is="icon"
                                 :class="{
@@ -161,7 +175,10 @@ function listOptionClass(option: Option): string {
                     </div>
                 </div>
             </template>
-            <ul class="w-full" data-test="l-select-listbox">
+            <ul
+                class="w-full"
+                data-test="l-select-listbox"
+            >
                 <li
                     v-for="(option, index) in options"
                     :key="index"
@@ -178,13 +195,20 @@ function listOptionClass(option: Option): string {
                     @keydown.enter.prevent="selectOption(option)"
                     @keydown.space.prevent="selectOption(option)"
                 >
-                    <span class="block truncate" :title="option.label">
+                    <span
+                        class="block truncate"
+                        :title="option.label"
+                    >
                         {{ option.label }}
                     </span>
                 </li>
             </ul>
         </LDropdown>
-        <FormMessage v-if="$slots.default" :state="state" :id="`${id}-message`">
+        <FormMessage
+            v-if="$slots.default"
+            :state="state"
+            :id="`${id}-message`"
+        >
             <slot />
         </FormMessage>
     </div>

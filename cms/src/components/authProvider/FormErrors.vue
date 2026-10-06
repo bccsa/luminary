@@ -8,13 +8,14 @@ const props = defineProps<{
     validations?: Validation[];
 }>();
 
-const failedValidations = computed(() =>
-    (props.validations ?? []).filter((v) => !v.isValid),
-);
+const failedValidations = computed(() => (props.validations ?? []).filter((v) => !v.isValid));
 </script>
 
 <template>
-    <div v-if="errors?.length || failedValidations.length" class="mb-3">
+    <div
+        v-if="errors?.length || failedValidations.length"
+        class="mb-3"
+    >
         <div
             v-for="(error, idx) in errors"
             :key="'err-' + idx"

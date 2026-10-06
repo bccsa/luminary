@@ -64,7 +64,7 @@ describe("LDropdown", () => {
             },
         });
 
-        await wrapper.find('[data-dropdown-trigger]').trigger("click");
+        await wrapper.find("[data-dropdown-trigger]").trigger("click");
         expect(onUpdate).toHaveBeenCalledWith(true);
     });
 
@@ -143,7 +143,7 @@ describe("LDropdown", () => {
             },
         });
 
-        await wrapper.find('[data-dropdown-trigger]').trigger("keydown.enter");
+        await wrapper.find("[data-dropdown-trigger]").trigger("keydown.enter");
         expect(onUpdate).toHaveBeenCalledWith(true);
     });
 
@@ -159,10 +159,10 @@ describe("LDropdown", () => {
             },
         });
 
-        expect(wrapper.find('[data-dropdown-trigger]').attributes("aria-expanded")).toBe("false");
+        expect(wrapper.find("[data-dropdown-trigger]").attributes("aria-expanded")).toBe("false");
 
         await wrapper.setProps({ show: true });
-        expect(wrapper.find('[data-dropdown-trigger]').attributes("aria-expanded")).toBe("true");
+        expect(wrapper.find("[data-dropdown-trigger]").attributes("aria-expanded")).toBe("true");
     });
 
     it("does not toggle when event is defaultPrevented", async () => {
@@ -178,7 +178,7 @@ describe("LDropdown", () => {
             },
         });
 
-        const trigger = wrapper.find('[data-dropdown-trigger]');
+        const trigger = wrapper.find("[data-dropdown-trigger]");
         const event = new MouseEvent("click", { bubbles: true, cancelable: true });
         event.preventDefault();
         trigger.element.dispatchEvent(event);

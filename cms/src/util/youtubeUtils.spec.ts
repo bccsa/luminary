@@ -44,9 +44,7 @@ describe("extractYouTubeId", () => {
     });
 
     it("extracts ID from standard watch URL", () => {
-        expect(extractYouTubeId("https://www.youtube.com/watch?v=dQw4w9WgXcQ")).toBe(
-            "dQw4w9WgXcQ",
-        );
+        expect(extractYouTubeId("https://www.youtube.com/watch?v=dQw4w9WgXcQ")).toBe("dQw4w9WgXcQ");
     });
 
     it("extracts ID from short URL", () => {

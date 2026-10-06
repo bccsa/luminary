@@ -42,7 +42,9 @@ function setMapping(key: "externalUserId" | "email" | "name", value: string) {
         </p>
         <div class="space-y-2">
             <div>
-                <label for="ufm-userId" class="mb-1 block text-xs font-medium text-zinc-700"
+                <label
+                    for="ufm-userId"
+                    class="mb-1 block text-xs font-medium text-zinc-700"
                     >User ID claim</label
                 >
                 <LInput
@@ -56,7 +58,9 @@ function setMapping(key: "externalUserId" | "email" | "name", value: string) {
                 />
             </div>
             <div>
-                <label for="ufm-email" class="mb-1 block text-xs font-medium text-zinc-700"
+                <label
+                    for="ufm-email"
+                    class="mb-1 block text-xs font-medium text-zinc-700"
                     >Email claim</label
                 >
                 <LInput
@@ -70,7 +74,9 @@ function setMapping(key: "externalUserId" | "email" | "name", value: string) {
                 />
             </div>
             <div>
-                <label for="ufm-name" class="mb-1 block text-xs font-medium text-zinc-700"
+                <label
+                    for="ufm-name"
+                    class="mb-1 block text-xs font-medium text-zinc-700"
                     >Name claim</label
                 >
                 <LInput

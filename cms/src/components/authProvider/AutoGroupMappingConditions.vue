@@ -281,9 +281,9 @@ function updateConditionValues(mappingIdx: number, conditionIdx: number, value: 
             <div>
                 <label class="text-sm font-medium text-zinc-800">Group Assignments</label>
                 <p class="mt-0.5 text-[11px] text-zinc-400">
-                    Assign one or more groups when all conditions are true (AND). e.g. Assign
-                    "St Mary's Editors" and "St Mary's Reviewers" if Authenticated and churchName
-                    equals "St Mary's".
+                    Assign one or more groups when all conditions are true (AND). e.g. Assign "St
+                    Mary's Editors" and "St Mary's Reviewers" if Authenticated and churchName equals
+                    "St Mary's".
                 </p>
             </div>
             <LButton
@@ -349,13 +349,20 @@ function updateConditionValues(mappingIdx: number, conditionIdx: number, value: 
                 </p>
 
                 <p
-                    v-if="mapping.conditions.filter((c: AuthProviderCondition) => c.type !== 'authenticated').length === 0"
+                    v-if="
+                        mapping.conditions.filter(
+                            (c: AuthProviderCondition) => c.type !== 'authenticated',
+                        ).length === 0
+                    "
                     class="mb-1 text-[11px] italic text-zinc-400"
                 >
                     Assigned to all authenticated users.
                 </p>
 
-                <template v-for="(cond, cIdx) in mapping.conditions" :key="cIdx">
+                <template
+                    v-for="(cond, cIdx) in mapping.conditions"
+                    :key="cIdx"
+                >
                     <div
                         v-if="cond.type !== 'authenticated'"
                         class="mb-1 rounded-md border border-zinc-100 bg-zinc-50/90"
@@ -376,15 +383,21 @@ function updateConditionValues(mappingIdx: number, conditionIdx: number, value: 
                                     v-for="(part, pIdx) in conditionSummary(cond).parts"
                                     :key="pIdx"
                                 >
-                                    <span v-if="part.placeholder" class="italic text-zinc-500">{{
-                                        part.text
-                                    }}</span>
+                                    <span
+                                        v-if="part.placeholder"
+                                        class="italic text-zinc-500"
+                                        >{{ part.text }}</span
+                                    >
                                     <span
                                         v-else-if="part.text === '=' || part.text === 'IN'"
                                         class="mx-1 font-semibold text-zinc-400"
                                         >{{ part.text }}</span
                                     >
-                                    <span v-else class="text-zinc-700">{{ part.text }}</span>
+                                    <span
+                                        v-else
+                                        class="text-zinc-700"
+                                        >{{ part.text }}</span
+                                    >
                                 </template>
                             </span>
                             <PencilSquareIcon
@@ -403,7 +416,10 @@ function updateConditionValues(mappingIdx: number, conditionIdx: number, value: 
                         </div>
 
                         <!-- Edit mode -->
-                        <div v-else class="flex flex-wrap items-center gap-1 p-1.5 sm:flex-nowrap">
+                        <div
+                            v-else
+                            class="flex flex-wrap items-center gap-1 p-1.5 sm:flex-nowrap"
+                        >
                             <LSelect
                                 :model-value="cond.type"
                                 :options="CONDITION_TYPES"
@@ -507,7 +523,10 @@ function updateConditionValues(mappingIdx: number, conditionIdx: number, value: 
             </div>
         </div>
 
-        <p v-if="!mappings.length" class="mt-2 text-[11px] italic text-zinc-400">
+        <p
+            v-if="!mappings.length"
+            class="mt-2 text-[11px] italic text-zinc-400"
+        >
             No rules yet. Click "+ Add Rule" to assign a group based on JWT claims.
         </p>
     </div>

@@ -33,7 +33,12 @@ function updateTreeColumnCount(event: Event) {
         class="pointer-events-auto shrink-0 sm:hidden"
     >
         <template #trigger>
-            <LButton size="sm" variant="secondary" :icon="Cog6ToothIcon" class="h-9 w-9" />
+            <LButton
+                size="sm"
+                variant="secondary"
+                :icon="Cog6ToothIcon"
+                class="h-9 w-9"
+            />
         </template>
         <LButton
             variant="tertiary"

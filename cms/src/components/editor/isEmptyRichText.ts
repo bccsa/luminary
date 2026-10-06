@@ -14,5 +14,11 @@ export function isEmptyRichText(html?: string): boolean {
     if (!html || !html.trim()) return true;
     const match = html.trim().match(/^<p\b[^>]*>([\s\S]*)<\/p>$/i);
     if (!match) return false;
-    return match[1].replace(/<br\s*\/?>/gi, "").replace(/&nbsp;/gi, "").replace(/ /g, "").trim() === "";
+    return (
+        match[1]
+            .replace(/<br\s*\/?>/gi, "")
+            .replace(/&nbsp;/gi, "")
+            .replace(/ /g, "")
+            .trim() === ""
+    );
 }

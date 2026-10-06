@@ -55,14 +55,20 @@ describe("BucketDisplayCard", () => {
 
     it("shows Unreachable status", () => {
         const wrapper = mount(BucketDisplayCard, {
-            props: { bucket: { ...baseBucket, connectionStatus: StorageStatus.Unreachable }, groups },
+            props: {
+                bucket: { ...baseBucket, connectionStatus: StorageStatus.Unreachable },
+                groups,
+            },
         });
         expect(wrapper.text()).toContain("Unreachable");
     });
 
     it("shows Unauthorized status", () => {
         const wrapper = mount(BucketDisplayCard, {
-            props: { bucket: { ...baseBucket, connectionStatus: StorageStatus.Unauthorized }, groups },
+            props: {
+                bucket: { ...baseBucket, connectionStatus: StorageStatus.Unauthorized },
+                groups,
+            },
         });
         expect(wrapper.text()).toContain("Unauthorized");
     });
@@ -76,7 +82,10 @@ describe("BucketDisplayCard", () => {
 
     it("shows No Credentials status", () => {
         const wrapper = mount(BucketDisplayCard, {
-            props: { bucket: { ...baseBucket, connectionStatus: StorageStatus.NoCredential }, groups },
+            props: {
+                bucket: { ...baseBucket, connectionStatus: StorageStatus.NoCredential },
+                groups,
+            },
         });
         expect(wrapper.text()).toContain("No Credentials");
     });
@@ -90,7 +99,10 @@ describe("BucketDisplayCard", () => {
 
     it("shows Unknown for unrecognised status", () => {
         const wrapper = mount(BucketDisplayCard, {
-            props: { bucket: { ...baseBucket, connectionStatus: "something-else" as StorageStatus }, groups },
+            props: {
+                bucket: { ...baseBucket, connectionStatus: "something-else" as StorageStatus },
+                groups,
+            },
         });
         expect(wrapper.text()).toContain("Unknown");
     });

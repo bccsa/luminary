@@ -424,7 +424,10 @@ const contentActions = computed(() => {
         </template>
         <template #actions>
             <div class="flex gap-2">
-                <LBadge v-if="!hasGroupsSelected" variant="error" class="mr-2"
+                <LBadge
+                    v-if="!hasGroupsSelected"
+                    variant="error"
+                    class="mr-2"
                     >No groups selected</LBadge
                 >
             </div>
@@ -432,7 +435,12 @@ const contentActions = computed(() => {
 
         <template #topBarActionsMobile>
             <div class="flex items-center gap-2">
-                <LBadge v-if="isDirty" variant="warning" class="lg:hidden">Unsaved changes</LBadge>
+                <LBadge
+                    v-if="isDirty"
+                    variant="warning"
+                    class="lg:hidden"
+                    >Unsaved changes</LBadge
+                >
                 <EditContentActionsWrapper
                     :revert="revertChanges"
                     :save="save"
@@ -525,7 +533,10 @@ const contentActions = computed(() => {
                 <div class="my-3 border-t border-zinc-200"></div>
 
                 <div class="mt-2 flex items-center justify-between">
-                    <FormLabel for="is-language-default-toggle" class="flex items-center">
+                    <FormLabel
+                        for="is-language-default-toggle"
+                        class="flex items-center"
+                    >
                         Default
                     </FormLabel>
                     <LToggle

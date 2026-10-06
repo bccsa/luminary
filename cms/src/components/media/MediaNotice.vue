@@ -44,7 +44,10 @@ const tone = computed(
         :class="tone"
         data-test="media-notice"
     >
-        <component :is="icon" class="mt-0.5 h-4 w-4 shrink-0" />
+        <component
+            :is="icon"
+            class="mt-0.5 h-4 w-4 shrink-0"
+        />
         <span class="min-w-0"><slot /></span>
     </div>
 </template>

@@ -26,20 +26,29 @@ defineProps<{
                 >
                     {{ entry.accessorGroupName }}
                 </div>
-                <div v-if="entry.inheritedViaGroupName" class="mr-2 text-xs italic text-zinc-400">
+                <div
+                    v-if="entry.inheritedViaGroupName"
+                    class="mr-2 text-xs italic text-zinc-400"
+                >
                     via {{ entry.inheritedViaGroupName }}
                 </div>
             </div>
             <div class="group relative py-1">
                 <div class="mx-1 flex gap-1 overflow-x-auto scrollbar-hide">
-                    <template v-for="(permissions, type) in entry.permissionsByDocType" :key="type">
+                    <template
+                        v-for="(permissions, type) in entry.permissionsByDocType"
+                        :key="type"
+                    >
                         <div
                             v-if="permissions.length > 0"
                             class="flex flex-shrink-0 items-baseline rounded-md border border-zinc-100 bg-slate-400 bg-opacity-10 px-2 py-0.5 text-xs font-medium text-zinc-400"
                         >
                             <span>{{ capitaliseFirstLetter(type) }}</span>
                             <span class="ml-0.5 text-[9px]">
-                                (<span v-for="permission in permissions" :key="permission">
+                                (<span
+                                    v-for="permission in permissions"
+                                    :key="permission"
+                                >
                                     {{
                                         getTheFirstLetter(capitaliseFirstLetter(permission))
                                     }} </span

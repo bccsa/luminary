@@ -35,7 +35,10 @@ const isLocalChanges = computed(() => props.hasLocalChanges(props.languagesDoc._
                                 languagesDoc.name
                             }}</span>
                             <span class="ml-4 font-medium text-zinc-900">
-                                <LBadge v-if="languagesDoc.default" variant="success">
+                                <LBadge
+                                    v-if="languagesDoc.default"
+                                    variant="success"
+                                >
                                     Default
                                 </LBadge>
                             </span>
@@ -43,7 +46,11 @@ const isLocalChanges = computed(() => props.hasLocalChanges(props.languagesDoc._
                     </div>
                     <div class="flex">
                         <span class="font-medium text-zinc-900">
-                            <LBadge v-if="isLocalChanges" variant="warning" class="mr-3">
+                            <LBadge
+                                v-if="isLocalChanges"
+                                variant="warning"
+                                class="mr-3"
+                            >
                                 Offline changes
                             </LBadge></span
                         >

@@ -302,7 +302,11 @@ const clearExpiryDate = () => {
                 </div>
 
                 <!-- light-polish: separators break the otherwise-tight field stack into groups -->
-                <div v-if="bare" class="col-span-2 border-t border-zinc-200" role="separator" />
+                <div
+                    v-if="bare"
+                    class="col-span-2 border-t border-zinc-200"
+                    role="separator"
+                />
 
                 <!-- Author -->
                 <FormLabel>Author</FormLabel>
@@ -334,7 +338,11 @@ const clearExpiryDate = () => {
                     class="min-h-2"
                 />
 
-                <div v-if="bare" class="col-span-2 border-t border-zinc-200" role="separator" />
+                <div
+                    v-if="bare"
+                    class="col-span-2 border-t border-zinc-200"
+                    role="separator"
+                />
 
                 <!-- Publish date -->
                 <FormLabel>Publish date</FormLabel>
@@ -369,97 +377,97 @@ const clearExpiryDate = () => {
                     <!-- Expiry date shortcut buttons -->
                     <div class="col-span-2">
                         <div class="mb-1 flex flex-wrap gap-1 sm:flex-row">
-                        <LButton
-                            type="button"
-                            name="1"
-                            variant="secondary"
-                            class="min-w-[2.5rem] flex-1 basis-0"
-                            :class="{
-                                '!bg-black !text-white': selectedExpiryNumber === 1,
-                            }"
-                            @click="setExpiryNumber(1)"
-                            :disabled="disabled"
-                        >
-                            1
-                        </LButton>
-                        <LButton
-                            type="button"
-                            name="2"
-                            variant="secondary"
-                            class="min-w-[2.5rem] flex-1 basis-0"
-                            :class="{ '!bg-black !text-white': selectedExpiryNumber === 2 }"
-                            @click="setExpiryNumber(2)"
-                            :disabled="disabled"
-                        >
-                            2
-                        </LButton>
-                        <LButton
-                            type="button"
-                            name="3"
-                            variant="secondary"
-                            class="min-w-[2.5rem] flex-1 basis-0"
-                            :class="{ '!bg-black !text-white': selectedExpiryNumber === 3 }"
-                            @click="setExpiryNumber(3)"
-                            :disabled="disabled"
-                        >
-                            3
-                        </LButton>
-                        <LButton
-                            type="button"
-                            name="6"
-                            variant="secondary"
-                            class="min-w-[2.5rem] flex-1 basis-0"
-                            :class="{ '!bg-black !text-white': selectedExpiryNumber === 6 }"
-                            @click="setExpiryNumber(6)"
-                            :disabled="disabled"
-                        >
-                            6
-                        </LButton>
-                        <LButton
-                            type="button"
-                            name="W"
-                            variant="secondary"
-                            class="min-w-[2.5rem] flex-1 basis-0"
-                            :class="{ '!bg-black !text-white': selectedExpiryUnit === 'Week' }"
-                            @click="setExpiryUnit('Week')"
-                            data-test="W"
-                            :disabled="disabled"
-                        >
-                            W
-                        </LButton>
-                        <LButton
-                            type="button"
-                            name="M"
-                            variant="secondary"
-                            class="min-w-[2.5rem] flex-1 basis-0"
-                            :class="{ '!bg-black !text-white': selectedExpiryUnit === 'Month' }"
-                            @click="setExpiryUnit('Month')"
-                            :disabled="disabled"
-                        >
-                            M
-                        </LButton>
-                        <LButton
-                            type="button"
-                            name="Y"
-                            variant="secondary"
-                            class="min-w-[2.5rem] flex-1 basis-0"
-                            :class="{ '!bg-black !text-white': selectedExpiryUnit === 'Year' }"
-                            @click="setExpiryUnit('Year')"
-                            :disabled="disabled"
-                        >
-                            Y
-                        </LButton>
-                        <LButton
-                            type="button"
-                            name="clear"
-                            variant="secondary"
-                            :icon="BackspaceIcon"
-                            class="min-w-[2.5rem] flex-1 basis-0"
-                            @click="clearExpiryDate()"
-                            :disabled="disabled"
-                        />
+                            <LButton
+                                type="button"
+                                name="1"
+                                variant="secondary"
+                                class="min-w-[2.5rem] flex-1 basis-0"
+                                :class="{
+                                    '!bg-black !text-white': selectedExpiryNumber === 1,
+                                }"
+                                @click="setExpiryNumber(1)"
+                                :disabled="disabled"
+                            >
+                                1
+                            </LButton>
+                            <LButton
+                                type="button"
+                                name="2"
+                                variant="secondary"
+                                class="min-w-[2.5rem] flex-1 basis-0"
+                                :class="{ '!bg-black !text-white': selectedExpiryNumber === 2 }"
+                                @click="setExpiryNumber(2)"
+                                :disabled="disabled"
+                            >
+                                2
+                            </LButton>
+                            <LButton
+                                type="button"
+                                name="3"
+                                variant="secondary"
+                                class="min-w-[2.5rem] flex-1 basis-0"
+                                :class="{ '!bg-black !text-white': selectedExpiryNumber === 3 }"
+                                @click="setExpiryNumber(3)"
+                                :disabled="disabled"
+                            >
+                                3
+                            </LButton>
+                            <LButton
+                                type="button"
+                                name="6"
+                                variant="secondary"
+                                class="min-w-[2.5rem] flex-1 basis-0"
+                                :class="{ '!bg-black !text-white': selectedExpiryNumber === 6 }"
+                                @click="setExpiryNumber(6)"
+                                :disabled="disabled"
+                            >
+                                6
+                            </LButton>
+                            <LButton
+                                type="button"
+                                name="W"
+                                variant="secondary"
+                                class="min-w-[2.5rem] flex-1 basis-0"
+                                :class="{ '!bg-black !text-white': selectedExpiryUnit === 'Week' }"
+                                @click="setExpiryUnit('Week')"
+                                data-test="W"
+                                :disabled="disabled"
+                            >
+                                W
+                            </LButton>
+                            <LButton
+                                type="button"
+                                name="M"
+                                variant="secondary"
+                                class="min-w-[2.5rem] flex-1 basis-0"
+                                :class="{ '!bg-black !text-white': selectedExpiryUnit === 'Month' }"
+                                @click="setExpiryUnit('Month')"
+                                :disabled="disabled"
+                            >
+                                M
+                            </LButton>
+                            <LButton
+                                type="button"
+                                name="Y"
+                                variant="secondary"
+                                class="min-w-[2.5rem] flex-1 basis-0"
+                                :class="{ '!bg-black !text-white': selectedExpiryUnit === 'Year' }"
+                                @click="setExpiryUnit('Year')"
+                                :disabled="disabled"
+                            >
+                                Y
+                            </LButton>
+                            <LButton
+                                type="button"
+                                name="clear"
+                                variant="secondary"
+                                :icon="BackspaceIcon"
+                                class="min-w-[2.5rem] flex-1 basis-0"
+                                @click="clearExpiryDate()"
+                                :disabled="disabled"
+                            />
+                        </div>
                     </div>
-                </div>
                 </template>
             </div>
 

@@ -364,7 +364,10 @@ const saveBucket = async () => {
 
 <template>
     <div class="mt-1">
-        <div v-if="isLoading && !buckets.length" class="flex items-center justify-center py-12">
+        <div
+            v-if="isLoading && !buckets.length"
+            class="flex items-center justify-center py-12"
+        >
             <LoadingBar />
         </div>
 
@@ -374,20 +377,23 @@ const saveBucket = async () => {
             description="Get started by creating your first S3 bucket configuration."
         />
 
-        <div v-else class="flex flex-col gap-[3px] overflow-y-auto scrollbar-hide">
-                <!-- Add bottom margin to last card so it doesn't overlap with basepage footer -->
-                <BucketDisplayCard
-                    v-for="(bucket, i) in bucketsWithStatus"
-                    :key="bucket._id || bucket.name"
-                    :bucket="bucket"
-                    :groups="groups"
-                    :class="{
-                        'mb-4': i === bucketsWithStatus.length - 1,
-                    }"
-                    @edit="editBucket"
-                    @testConnection="handleTestConnection"
-                />
-            </div>
+        <div
+            v-else
+            class="flex flex-col gap-[3px] overflow-y-auto scrollbar-hide"
+        >
+            <!-- Add bottom margin to last card so it doesn't overlap with basepage footer -->
+            <BucketDisplayCard
+                v-for="(bucket, i) in bucketsWithStatus"
+                :key="bucket._id || bucket.name"
+                :bucket="bucket"
+                :groups="groups"
+                :class="{
+                    'mb-4': i === bucketsWithStatus.length - 1,
+                }"
+                @edit="editBucket"
+                @testConnection="handleTestConnection"
+            />
+        </div>
     </div>
 
     <!-- Create/Edit Bucket Modal -->

@@ -22,7 +22,10 @@ const emit = defineEmits(["remove"]);
             disabled ? 'pr-2' : 'pr-1',
         ]"
     >
-        <div v-if="icon" class="z-10 flex items-center">
+        <div
+            v-if="icon"
+            class="z-10 flex items-center"
+        >
             <component
                 :is="icon"
                 :class="{
@@ -34,8 +37,16 @@ const emit = defineEmits(["remove"]);
         </div>
         <div class="flex items-center gap-2">
             <slot />
-            <button @click.stop="emit('remove')" data-test="removeTag" v-if="!disabled" type="button">
-                <XMarkIcon class="h-4 w-4 text-zinc-400 hover:text-zinc-800" title="Remove tag" />
+            <button
+                @click.stop="emit('remove')"
+                data-test="removeTag"
+                v-if="!disabled"
+                type="button"
+            >
+                <XMarkIcon
+                    class="h-4 w-4 text-zinc-400 hover:text-zinc-800"
+                    title="Remove tag"
+                />
             </button>
         </div>
     </div>

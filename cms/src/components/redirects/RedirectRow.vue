@@ -1,12 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import {
-    db,
-    DocType,
-    AclPermission,
-    verifyAccess,
-    type RedirectDto,
-} from "luminary-shared";
+import { db, DocType, AclPermission, verifyAccess, type RedirectDto } from "luminary-shared";
 import LBadge from "../common/LBadge.vue";
 import { DateTime } from "luxon";
 import LButton from "../button/LButton.vue";
@@ -44,7 +38,11 @@ const isModalVisible = ref(false);
         <!-- status -->
         <td class="whitespace-wrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-900 sm:pl-6">
             <!-- Optional status handling -->
-            <LBadge v-if="isLocalChanges" variant="warning">Offline changes</LBadge>
+            <LBadge
+                v-if="isLocalChanges"
+                variant="warning"
+                >Offline changes</LBadge
+            >
         </td>
 
         <!-- updated -->

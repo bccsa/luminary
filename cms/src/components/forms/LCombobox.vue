@@ -208,7 +208,10 @@ const onEscape = (e: KeyboardEvent) => {
                 />
                 <FormLabel v-if="label">{{ label }}</FormLabel>
             </div>
-            <slot name="actions" v-if="$slots.actions" />
+            <slot
+                name="actions"
+                v-if="$slots.actions"
+            />
         </div>
         <div
             v-if="$slots.actions && showSelectedLabels && selectedLabels.length > 0"
@@ -311,9 +314,7 @@ const onEscape = (e: KeyboardEvent) => {
                             type="button"
                             tabindex="-1"
                         >
-                            <ChevronUpDownIcon
-                                class="h-5 w-5 text-zinc-400 hover:cursor-pointer"
-                            />
+                            <ChevronUpDownIcon class="h-5 w-5 text-zinc-400 hover:cursor-pointer" />
                         </button>
                     </div>
 
@@ -330,7 +331,10 @@ const onEscape = (e: KeyboardEvent) => {
                         v-bind="attrsWithoutStyles"
                     >
                         <div class="flex items-center justify-center gap-2">
-                            <div v-if="icon" class="flex items-center">
+                            <div
+                                v-if="icon"
+                                class="flex items-center"
+                            >
                                 <component
                                     :is="icon"
                                     :class="{
@@ -345,9 +349,7 @@ const onEscape = (e: KeyboardEvent) => {
                                 ref="inputElement"
                                 class="z-0 w-full flex-1 border-0 bg-transparent p-0 text-zinc-900 ring-zinc-300 placeholder:text-sm placeholder:text-zinc-400 focus:ring-0"
                                 :class="[
-                                    smallInput && isMobileScreen
-                                        ? 'h-[30px] text-sm'
-                                        : 'h-[38px]',
+                                    smallInput && isMobileScreen ? 'h-[30px] text-sm' : 'h-[38px]',
                                     { 'w-96': $slots.actions && !isSmallScreen },
                                 ]"
                                 :placeholder="placeholder ?? 'Type to select...'"

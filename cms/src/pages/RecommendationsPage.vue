@@ -37,9 +37,16 @@ const filteredEntries = computed(() => {
 </script>
 
 <template>
-    <BasePage title="Recommendations" :is-full-width="true" :loading="isLoading">
+    <BasePage
+        title="Recommendations"
+        :is-full-width="true"
+        :loading="isLoading"
+    >
         <template #topBarActionsDesktop>
-            <div v-if="!isSmallScreen" class="flex gap-2">
+            <div
+                v-if="!isSmallScreen"
+                class="flex gap-2"
+            >
                 <LButton
                     v-if="canEdit && hasAnyContent"
                     variant="primary"
@@ -52,7 +59,10 @@ const filteredEntries = computed(() => {
             </div>
         </template>
         <template #topBarActionsMobile>
-            <div v-if="isSmallScreen" class="flex gap-2">
+            <div
+                v-if="isSmallScreen"
+                class="flex gap-2"
+            >
                 <PlusIcon
                     v-if="canEdit && hasAnyContent"
                     class="h-8 w-8 cursor-pointer rounded bg-zinc-100 p-1 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-700"
@@ -62,8 +72,14 @@ const filteredEntries = computed(() => {
             </div>
         </template>
 
-        <template v-if="hasAnyContent" #internalPageHeader>
-            <FilterOptions v-model:search="searchTerm" search-placeholder="Search interests..." />
+        <template
+            v-if="hasAnyContent"
+            #internalPageHeader
+        >
+            <FilterOptions
+                v-model:search="searchTerm"
+                search-placeholder="Search interests..."
+            />
         </template>
 
         <div
@@ -74,7 +90,10 @@ const filteredEntries = computed(() => {
                 class="flex flex-col gap-[3px]"
                 :class="canEdit ? 'lg:h-full lg:min-h-0 lg:overflow-y-auto lg:pr-1' : ''"
             >
-                <p v-if="hasAnyContent" class="mb-2 px-2 py-1 text-sm text-zinc-500">
+                <p
+                    v-if="hasAnyContent"
+                    class="mb-2 px-2 py-1 text-sm text-zinc-500"
+                >
                     Topics new visitors are shown an interest in, before they've built up any
                     interests of their own.
                 </p>
@@ -105,9 +124,15 @@ const filteredEntries = computed(() => {
                 />
             </div>
 
-            <AffinityConfigPanel v-if="canEdit" class="lg:h-full lg:min-h-0" />
+            <AffinityConfigPanel
+                v-if="canEdit"
+                class="lg:h-full lg:min-h-0"
+            />
         </div>
 
-        <StartingInterestModal v-if="showAddModal" v-model:is-visible="showAddModal" />
+        <StartingInterestModal
+            v-if="showAddModal"
+            v-model:is-visible="showAddModal"
+        />
     </BasePage>
 </template>

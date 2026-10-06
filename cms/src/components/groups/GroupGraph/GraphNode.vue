@@ -63,20 +63,18 @@ function cancelHoldOnMove(event: PointerEvent) {
         type="button"
         class="group-graph-node relative overflow-hidden rounded-xl border px-3 py-3 text-center shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2"
         :style="{ width: `${CHART_CARD_WIDTH}px`, ...holdStyle }"
-        :class="
-            [
-                isHolding ? 'is-holding' : '',
-                data.selected
-                    ? 'border-2 border-zinc-950 bg-zinc-950 text-white'
-                    : data.accessState === 'downstream'
-                      ? 'border-sky-300 bg-sky-300 opacity-100'
-                      : data.accessState === 'upstream'
-                        ? 'border-violet-300 bg-violet-300 opacity-100'
-                        : data.dimmed
-                          ? 'border-zinc-200 bg-white opacity-25'
-                          : 'border-zinc-200 bg-white',
-            ]
-        "
+        :class="[
+            isHolding ? 'is-holding' : '',
+            data.selected
+                ? 'border-2 border-zinc-950 bg-zinc-950 text-white'
+                : data.accessState === 'downstream'
+                  ? 'border-sky-300 bg-sky-300 opacity-100'
+                  : data.accessState === 'upstream'
+                    ? 'border-violet-300 bg-violet-300 opacity-100'
+                    : data.dimmed
+                      ? 'border-zinc-200 bg-white opacity-25'
+                      : 'border-zinc-200 bg-white',
+        ]"
         tabindex="0"
         @click.stop="$emit('select', data.groupId)"
         @pointerdown="startHold"

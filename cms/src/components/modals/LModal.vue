@@ -107,7 +107,10 @@ const sizeClasses = computed(() => {
                     ]"
                 >
                     <div class="flex items-center">
-                        <h2 v-if="heading" class="text-lg font-semibold">
+                        <h2
+                            v-if="heading"
+                            class="text-lg font-semibold"
+                        >
                             {{ heading }}
                         </h2>
                         <div v-if="$slots.headingExtension">
@@ -145,7 +148,10 @@ const sizeClasses = computed(() => {
                     <slot />
                 </div>
 
-                <div v-if="$slots.footer" class="shrink-0 pt-3">
+                <div
+                    v-if="$slots.footer"
+                    class="shrink-0 pt-3"
+                >
                     <slot name="footer" />
                 </div>
             </div>

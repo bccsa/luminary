@@ -162,7 +162,10 @@ function handleDelete() {
     >
         <div class="max-h-[500px] overflow-auto scrollbar-hide">
             <!-- Error and validation display -->
-            <div v-if="errors || !isFormValid" class="mb-3">
+            <div
+                v-if="errors || !isFormValid"
+                class="mb-3"
+            >
                 <!-- Global errors -->
                 <div v-if="errors">
                     <div
@@ -187,10 +190,15 @@ function handleDelete() {
                     </div>
                 </div>
             </div>
-            <div class="space-y-2" v-if="bucket">
+            <div
+                class="space-y-2"
+                v-if="bucket"
+            >
                 <!-- bucket name -->
                 <div>
-                    <label for="bucket-name" class="mb-1 block text-xs font-medium text-zinc-700"
+                    <label
+                        for="bucket-name"
+                        class="mb-1 block text-xs font-medium text-zinc-700"
                         >Name</label
                     >
                     <LInput
@@ -224,7 +232,9 @@ function handleDelete() {
 
                 <!-- bucket public URL -->
                 <div>
-                    <label for="bucket-path" class="mb-1 block text-xs font-medium text-zinc-700"
+                    <label
+                        for="bucket-path"
+                        class="mb-1 block text-xs font-medium text-zinc-700"
                         >Public URL</label
                     >
                     <LInput
@@ -254,7 +264,10 @@ function handleDelete() {
                             }
                         "
                     />
-                    <p v-if="!isEditing" class="mt-0.5 text-[11px] text-zinc-500">
+                    <p
+                        v-if="!isEditing"
+                        class="mt-0.5 text-[11px] text-zinc-500"
+                    >
                         Must be set manually including "http://" or "https://"
                     </p>
                 </div>
@@ -273,7 +286,11 @@ function handleDelete() {
                 />
 
                 <!-- Media encoding (media buckets only) -->
-                <div v-if="isMediaBucket" class="space-y-3" data-test="media-encode-settings">
+                <div
+                    v-if="isMediaBucket"
+                    class="space-y-3"
+                    data-test="media-encode-settings"
+                >
                     <label class="block text-xs font-medium text-zinc-700">Media encoding</label>
 
                     <div class="flex items-center justify-between pr-2">
@@ -397,7 +414,10 @@ function handleDelete() {
                 </div>
 
                 <!-- Credentials status for existing buckets -->
-                <div v-if="isEditing && !shouldShowCredentialsSection" class="border-t pt-2">
+                <div
+                    v-if="isEditing && !shouldShowCredentialsSection"
+                    class="border-t pt-2"
+                >
                     <div class="rounded-md border border-blue-200 bg-blue-50 p-2">
                         <div class="flex gap-2">
                             <div class="flex-shrink-0">
@@ -428,11 +448,18 @@ function handleDelete() {
                 </div>
 
                 <!-- S3 Credentials -->
-                <div v-if="shouldShowCredentialsSection" class="border-t pt-2">
+                <div
+                    v-if="shouldShowCredentialsSection"
+                    class="border-t pt-2"
+                >
                     <div class="mb-2 flex items-center justify-between">
                         <h3 class="text-sm font-medium text-zinc-900">
                             S3 Credentials
-                            <span v-if="!isEditing" class="text-red-500">*</span>
+                            <span
+                                v-if="!isEditing"
+                                class="text-red-500"
+                                >*</span
+                            >
                         </h3>
                         <LButton
                             @click="showCredentials = !showCredentials"
@@ -468,7 +495,10 @@ function handleDelete() {
                         </div>
                     </div>
 
-                    <div v-if="showCredentials" class="space-y-2">
+                    <div
+                        v-if="showCredentials"
+                        class="space-y-2"
+                    >
                         <!-- Security Notice  -->
                         <div class="rounded-md border border-yellow-200 bg-yellow-50 p-2">
                             <div class="flex gap-2">
@@ -489,7 +519,11 @@ function handleDelete() {
                                 class="mb-1 block text-xs font-medium text-zinc-700"
                             >
                                 S3 Endpoint
-                                <span v-if="!isEditing" class="text-red-500">*</span>
+                                <span
+                                    v-if="!isEditing"
+                                    class="text-red-500"
+                                    >*</span
+                                >
                             </label>
                             <LInput
                                 id="endpoint"
@@ -539,7 +573,11 @@ function handleDelete() {
                                 class="mb-1 block text-xs font-medium text-zinc-700"
                             >
                                 Bucket Name
-                                <span v-if="!isEditing" class="text-red-500">*</span>
+                                <span
+                                    v-if="!isEditing"
+                                    class="text-red-500"
+                                    >*</span
+                                >
                             </label>
                             <LInput
                                 id="bucketName"
@@ -572,7 +610,11 @@ function handleDelete() {
                                 class="mb-1 block text-xs font-medium text-zinc-700"
                             >
                                 Access Key
-                                <span v-if="!isEditing" class="text-red-500">*</span>
+                                <span
+                                    v-if="!isEditing"
+                                    class="text-red-500"
+                                    >*</span
+                                >
                             </label>
                             <LInput
                                 id="accessKey"
@@ -602,7 +644,11 @@ function handleDelete() {
                                 class="mb-1 block text-xs font-medium text-zinc-700"
                             >
                                 Secret Key
-                                <span v-if="!isEditing" class="text-red-500">*</span>
+                                <span
+                                    v-if="!isEditing"
+                                    class="text-red-500"
+                                    >*</span
+                                >
                             </label>
                             <LInput
                                 id="secretKey"
@@ -643,7 +689,12 @@ function handleDelete() {
                 </LButton>
             </div>
             <div class="flex gap-2">
-                <LButton @click="closeModal" variant="secondary" size="sm" :disabled="isLoading">
+                <LButton
+                    @click="closeModal"
+                    variant="secondary"
+                    size="sm"
+                    :disabled="isLoading"
+                >
                     Cancel
                 </LButton>
                 <LButton

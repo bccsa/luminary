@@ -11,7 +11,10 @@ const provider = defineModel<AuthProviderDto>("provider", { required: true });
 
 <template>
     <div class="w-full min-w-0 max-w-full">
-        <label for="provider-label" class="mb-1 block text-xs font-medium text-zinc-700">
+        <label
+            for="provider-label"
+            class="mb-1 block text-xs font-medium text-zinc-700"
+        >
             Label
         </label>
         <LInput
@@ -25,7 +28,10 @@ const provider = defineModel<AuthProviderDto>("provider", { required: true });
         />
 
         <div class="mt-2">
-            <label for="provider-display-name" class="mb-1 block text-xs font-medium text-zinc-700">
+            <label
+                for="provider-display-name"
+                class="mb-1 block text-xs font-medium text-zinc-700"
+            >
                 Display name
             </label>
             <p class="mb-1 text-[11px] text-zinc-500">

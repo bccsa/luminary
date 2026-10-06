@@ -106,12 +106,23 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
 </script>
 
 <template>
-    <div :class="$attrs['class']" :style="$attrs['style'] as StyleValue">
-        <FormLabel v-if="label" :for="id" :required="required" class="mb-2">
+    <div
+        :class="$attrs['class']"
+        :style="$attrs['style'] as StyleValue"
+    >
+        <FormLabel
+            v-if="label"
+            :for="id"
+            :required="required"
+            class="mb-2"
+        >
             {{ label }}
         </FormLabel>
 
-        <div class="relative flex rounded-md shadow-sm" :class="fullHeight ? 'h-full' : ''">
+        <div
+            class="relative flex rounded-md shadow-sm"
+            :class="fullHeight ? 'h-full' : ''"
+        >
             <div
                 v-if="icon"
                 class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"
@@ -187,7 +198,10 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                 v-if="computedState == 'error' && !rightAddOn"
                 class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3"
             >
-                <ExclamationCircleIcon class="h-5 w-5 text-red-500" aria-hidden="true" />
+                <ExclamationCircleIcon
+                    class="h-5 w-5 text-red-500"
+                    aria-hidden="true"
+                />
             </div>
 
             <div
@@ -200,7 +214,11 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
             </div>
         </div>
 
-        <FormMessage v-if="$slots.default" :state="computedState" :id="`${id}-message`">
+        <FormMessage
+            v-if="$slots.default"
+            :state="computedState"
+            :id="`${id}-message`"
+        >
             <slot />
         </FormMessage>
     </div>

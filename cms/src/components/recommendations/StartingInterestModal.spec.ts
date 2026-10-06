@@ -102,10 +102,9 @@ describe("StartingInterestModal", () => {
             await wrapper.find("button[data-test='starting-interest-save']").trigger("click");
             await flushPromises();
 
-            expect(mockSaveAffinity).toHaveBeenCalledWith(
-                { "tag-a": 0.75, "tag-b": 0.7 },
-                ["group-super-admins"],
-            );
+            expect(mockSaveAffinity).toHaveBeenCalledWith({ "tag-a": 0.75, "tag-b": 0.7 }, [
+                "group-super-admins",
+            ]);
         });
 
         it("removes the entry entirely", async () => {

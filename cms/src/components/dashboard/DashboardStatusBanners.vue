@@ -9,7 +9,10 @@ defineProps<{
 </script>
 
 <template>
-    <div v-if="pendingChanges.length > 0 || expiredContent.length > 0" class="flex flex-wrap gap-2">
+    <div
+        v-if="pendingChanges.length > 0 || expiredContent.length > 0"
+        class="flex flex-wrap gap-2"
+    >
         <div
             v-if="pendingChanges.length > 0"
             class="flex flex-1 items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5"

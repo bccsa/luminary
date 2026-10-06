@@ -212,7 +212,9 @@ const confirmLinkDates = () => {
                         'pb-1.5': collapsed && parentIsValid,
                     }"
                 >
-                    <ExclamationCircleIcon class="size-[18px] min-w-[18px] shrink-0 text-yellow-400" />
+                    <ExclamationCircleIcon
+                        class="size-[18px] min-w-[18px] shrink-0 text-yellow-400"
+                    />
                     <p class="text-xs text-zinc-700">
                         Unsaved changes to {{ tagOrPostType }}'s settings.
                     </p>
@@ -281,19 +283,28 @@ const confirmLinkDates = () => {
 
             <div class="flex items-center justify-between gap-2">
                 <span class="text-sm text-zinc-700">Show publish date</span>
-                <LToggle v-model="parent.publishDateVisible" :disabled="disabled" />
+                <LToggle
+                    v-model="parent.publishDateVisible"
+                    :disabled="disabled"
+                />
             </div>
 
             <!-- Show as "Coming soon" when scheduled with a future publish date. -->
             <div class="flex items-center justify-between gap-2">
                 <span class="text-sm text-zinc-700">Show as Coming soon</span>
-                <LToggle v-model="showComingSoon" :disabled="disabled" />
+                <LToggle
+                    v-model="showComingSoon"
+                    :disabled="disabled"
+                />
             </div>
 
             <!-- Force-sync to app clients regardless of publishDate cutoff -->
             <div class="flex items-center justify-between gap-2">
                 <span class="text-sm text-zinc-700">Always available offline</span>
-                <LToggle v-model="alwaysOffline" :disabled="disabled" />
+                <LToggle
+                    v-model="alwaysOffline"
+                    :disabled="disabled"
+                />
             </div>
 
             <div
@@ -301,7 +312,10 @@ const confirmLinkDates = () => {
                 class="flex items-center justify-between gap-2"
             >
                 <span class="text-sm text-zinc-700">Pinned</span>
-                <LToggle v-model="pinned" :disabled="disabled" />
+                <LToggle
+                    v-model="pinned"
+                    :disabled="disabled"
+                />
             </div>
 
             <div
@@ -312,13 +326,19 @@ const confirmLinkDates = () => {
                 class="flex items-center justify-between gap-2"
             >
                 <span class="text-sm text-zinc-700">Vertical Tile</span>
-                <LToggle v-model="useVerticalTileLayout" :disabled="disabled" />
+                <LToggle
+                    v-model="useVerticalTileLayout"
+                    :disabled="disabled"
+                />
             </div>
 
             <!-- When linked, saving any translation's publish/expiry date propagates it to every other translation sharing this parent. -->
             <div class="flex items-center justify-between gap-2">
                 <span class="text-sm text-zinc-700">Link publish &amp; expiry dates</span>
-                <LToggle v-model="linkDates" :disabled="disabled || !canManageLinkDates" />
+                <LToggle
+                    v-model="linkDates"
+                    :disabled="disabled || !canManageLinkDates"
+                />
             </div>
         </div>
 

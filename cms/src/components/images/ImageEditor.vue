@@ -293,7 +293,10 @@ defineExpose({
 <template>
     <div class="flex flex-col overflow-x-auto">
         <!-- Bucket Selection Dropdown (always show if multiple buckets, or show if none selected) -->
-        <div v-if="bucketSelection.imageBuckets.value.length > 1" class="mb-2 px-0.5 pt-1">
+        <div
+            v-if="bucketSelection.imageBuckets.value.length > 1"
+            class="mb-2 px-0.5 pt-1"
+        >
             <LSelect
                 v-model="parent!.imageBucketId"
                 :options="bucketOptions"
@@ -312,7 +315,10 @@ defineExpose({
         </div>
 
         <!-- Header with error message toggle -->
-        <div :disabled="disabled" class="flex justify-between">
+        <div
+            :disabled="disabled"
+            class="flex justify-between"
+        >
             <div class="flex gap-1">
                 <button
                     v-if="failureMessage"
@@ -324,7 +330,10 @@ defineExpose({
                 </button>
 
                 <!-- Error Message -->
-                <div v-if="showFailureMessage" class="">
+                <div
+                    v-if="showFailureMessage"
+                    class=""
+                >
                     <p class="my-2 text-xs text-red-600">
                         {{ failureMessage }}
                     </p>
@@ -345,7 +354,12 @@ defineExpose({
         >
             <!-- Drop instructions -->
             <div class="hidden flex-col items-center justify-center md:flex">
-                <p v-if="isDragging" class="text-sm">Drop your files here</p>
+                <p
+                    v-if="isDragging"
+                    class="text-sm"
+                >
+                    Drop your files here
+                </p>
                 <div v-else>
                     <input
                         ref="uploadInput"
@@ -408,7 +422,10 @@ defineExpose({
             </div>
 
             <!-- No images fallback -->
-            <div v-else class="my-4 text-center italic">
+            <div
+                v-else
+                class="my-4 text-center italic"
+            >
                 <p class="text-sm text-zinc-500">No images uploaded yet.</p>
             </div>
         </div>

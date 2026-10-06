@@ -65,6 +65,6 @@ describe("LabelAndType.vue", () => {
             props: { provider: mockProvider },
         });
 
-        expect(wrapper.html()).not.toContain("Label <span class=\"text-red-500\">*</span>");
+        expect(wrapper.html()).not.toContain('Label <span class="text-red-500">*</span>');
     });
 });

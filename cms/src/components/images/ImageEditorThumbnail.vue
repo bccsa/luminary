@@ -90,7 +90,11 @@ watch(
 
 <template>
     <div :class="$attrs.class">
-        <div class="group relative bg-zinc-100" @mouseover="hover = true" @mouseleave="hover = false">
+        <div
+            class="group relative bg-zinc-100"
+            @mouseover="hover = true"
+            @mouseleave="hover = false"
+        >
             <img
                 v-if="!imageElementError"
                 :key="imageKey"
@@ -98,7 +102,11 @@ watch(
                 class="h-16 rounded-sm shadow"
                 @error="imageElementError = true"
             />
-            <img v-else class="h-16 rounded-sm shadow" :src="fallbackImage" />
+            <img
+                v-else
+                class="h-16 rounded-sm shadow"
+                :src="fallbackImage"
+            />
             <TrashIcon
                 class="absolute -right-2 -top-2 h-5 w-5 cursor-pointer text-red-500"
                 v-show="hover && disabled"

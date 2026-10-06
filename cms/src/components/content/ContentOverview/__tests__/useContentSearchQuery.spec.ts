@@ -59,14 +59,37 @@ describe("useContentSearchQuery strict-mode sorting", () => {
     beforeEach(async () => {
         await db.docs.clear();
         await db.bulkPut([
-            contentDoc({ _id: "g-old", title: "Garden A", updatedTimeUtc: 100, fts: GARDEN_FTS, ftsTokenCount: 4 }),
-            contentDoc({ _id: "g-new", title: "Garden B", updatedTimeUtc: 300, fts: GARDEN_FTS, ftsTokenCount: 4 }),
-            contentDoc({ _id: "g-mid", title: "Garden C", updatedTimeUtc: 200, fts: GARDEN_FTS, ftsTokenCount: 4 }),
+            contentDoc({
+                _id: "g-old",
+                title: "Garden A",
+                updatedTimeUtc: 100,
+                fts: GARDEN_FTS,
+                ftsTokenCount: 4,
+            }),
+            contentDoc({
+                _id: "g-new",
+                title: "Garden B",
+                updatedTimeUtc: 300,
+                fts: GARDEN_FTS,
+                ftsTokenCount: 4,
+            }),
+            contentDoc({
+                _id: "g-mid",
+                title: "Garden C",
+                updatedTimeUtc: 200,
+                fts: GARDEN_FTS,
+                ftsTokenCount: 4,
+            }),
         ]);
         // Noise docs (no "garden" trigrams) keep the garden trigrams under the 50% high-df cutoff.
         await db.bulkPut(
             Array.from({ length: 6 }, (_, i) =>
-                contentDoc({ _id: `noise-${i}`, title: `Other ${i}`, fts: ["xyz:1"], ftsTokenCount: 1 }),
+                contentDoc({
+                    _id: `noise-${i}`,
+                    title: `Other ${i}`,
+                    fts: ["xyz:1"],
+                    ftsTokenCount: 1,
+                }),
             ),
         );
         await recomputeCorpusStats();
@@ -150,7 +173,12 @@ describe("useContentSearchQuery date range filters", () => {
         ]);
         await db.bulkPut(
             Array.from({ length: 6 }, (_, i) =>
-                contentDoc({ _id: `noise-${i}`, title: `Other ${i}`, fts: ["xyz:1"], ftsTokenCount: 1 }),
+                contentDoc({
+                    _id: `noise-${i}`,
+                    title: `Other ${i}`,
+                    fts: ["xyz:1"],
+                    ftsTokenCount: 1,
+                }),
             ),
         );
         await recomputeCorpusStats();

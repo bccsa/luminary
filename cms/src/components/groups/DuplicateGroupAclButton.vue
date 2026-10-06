@@ -54,6 +54,11 @@ const selectGroup = (group: GroupDto) => {
                 {{ group.name }}
             </button>
         </div>
-        <div v-else class="px-2 py-2 text-sm text-zinc-500">All groups added</div>
+        <div
+            v-else
+            class="px-2 py-2 text-sm text-zinc-500"
+        >
+            All groups added
+        </div>
     </LDropdown>
 </template>

@@ -24,14 +24,14 @@ const assignedGroups = computed(() =>
         .filter(Boolean),
 );
 
-const displayTitle = computed(() =>
-    props.mapping.description?.trim() || (isGlobal.value ? "Global group access" : "Untitled mapping"),
+const displayTitle = computed(
+    () =>
+        props.mapping.description?.trim() ||
+        (isGlobal.value ? "Global group access" : "Untitled mapping"),
 );
 
 const badgeIcon = computed(() => (isGlobal.value ? GlobeAltIcon : KeyIcon));
-const badgeLabel = computed(() =>
-    isGlobal.value ? "All Users" : (props.providerName || ""),
-);
+const badgeLabel = computed(() => (isGlobal.value ? "All Users" : props.providerName || ""));
 const badgeVariant = computed(() => (isGlobal.value ? "warning" : "default"));
 </script>
 
@@ -44,7 +44,12 @@ const badgeVariant = computed(() => (isGlobal.value ? "warning" : "default"));
     >
         <template #desktopFooter>
             <div class="flex w-full flex-1 flex-wrap items-center gap-1">
-                <LBadge v-if="badgeLabel" :icon="badgeIcon" withIcon :variant="badgeVariant">
+                <LBadge
+                    v-if="badgeLabel"
+                    :icon="badgeIcon"
+                    withIcon
+                    :variant="badgeVariant"
+                >
                     {{ badgeLabel }}
                 </LBadge>
                 <UserGroupIcon class="size-4 text-zinc-400" />
@@ -56,7 +61,10 @@ const badgeVariant = computed(() => (isGlobal.value ? "warning" : "default"));
                 >
                     {{ group!.name }}
                 </LBadge>
-                <span v-if="assignedGroups.length === 0" class="text-xs text-zinc-400">
+                <span
+                    v-if="assignedGroups.length === 0"
+                    class="text-xs text-zinc-400"
+                >
                     No groups assigned
                 </span>
             </div>
@@ -64,7 +72,12 @@ const badgeVariant = computed(() => (isGlobal.value ? "warning" : "default"));
 
         <template #mobileFooter>
             <div class="flex flex-1 items-center gap-1">
-                <LBadge v-if="badgeLabel" :icon="badgeIcon" withIcon :variant="badgeVariant">
+                <LBadge
+                    v-if="badgeLabel"
+                    :icon="badgeIcon"
+                    withIcon
+                    :variant="badgeVariant"
+                >
                     {{ badgeLabel }}
                 </LBadge>
                 <UserGroupIcon class="size-4 text-zinc-400" />
@@ -77,7 +90,10 @@ const badgeVariant = computed(() => (isGlobal.value ? "warning" : "default"));
                     >
                         {{ group!.name }}
                     </LBadge>
-                    <span v-if="assignedGroups.length === 0" class="text-xs text-zinc-400">
+                    <span
+                        v-if="assignedGroups.length === 0"
+                        class="text-xs text-zinc-400"
+                    >
                         No groups assigned
                     </span>
                 </div>

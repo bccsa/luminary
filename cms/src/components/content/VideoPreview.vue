@@ -137,7 +137,11 @@ watch(masterUrl, () => (showing.value = false));
 </script>
 
 <template>
-    <div v-if="source" class="py-2" data-test="video-preview">
+    <div
+        v-if="source"
+        class="py-2"
+        data-test="video-preview"
+    >
         <LButton
             variant="secondary"
             size="sm"
@@ -190,13 +194,19 @@ watch(masterUrl, () => (showing.value = false));
                         any of this. These speak to the person who can.
                     -->
                     <template #coming-soon>
-                        <div class="lmpl-panel" data-test="preview-not-yet">
+                        <div
+                            class="lmpl-panel"
+                            data-test="preview-not-yet"
+                        >
                             <p class="text-sm font-medium text-white">Nothing at this URL yet.</p>
                         </div>
                     </template>
 
                     <template #error="{ error, retry }">
-                        <div class="lmpl-panel" data-test="preview-error">
+                        <div
+                            class="lmpl-panel"
+                            data-test="preview-error"
+                        >
                             <p class="text-sm font-medium text-white">
                                 {{ diagnose(error?.code).what }}
                             </p>

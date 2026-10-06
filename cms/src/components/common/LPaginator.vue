@@ -147,7 +147,10 @@ watch(openPageSizeSelect, (newValue) => {
                         }
                     "
                 />
-                <span v-if="variant === 'simple'" class="text-sm text-zinc-600">
+                <span
+                    v-if="variant === 'simple'"
+                    class="text-sm text-zinc-600"
+                >
                     Page <strong>{{ index + 1 }}</strong> of
                     <strong>{{ pageCount }}</strong>
                 </span>
@@ -226,7 +229,10 @@ watch(openPageSizeSelect, (newValue) => {
             </div>
         </div>
 
-        <div v-if="!isSmallScreen" class="flex w-full justify-center sm:justify-end">
+        <div
+            v-if="!isSmallScreen"
+            class="flex w-full justify-center sm:justify-end"
+        >
             <LSelect
                 v-model="pageSize"
                 :options="[

@@ -194,7 +194,10 @@ const navigateTo = computed(() => {
                 data-test="search-match"
                 class="flex flex-col gap-0.5 py-1 [&_mark]:rounded [&_mark]:bg-amber-200 [&_mark]:px-0"
             >
-                <p v-if="highlight.authorHtml" class="text-xs text-zinc-500">
+                <p
+                    v-if="highlight.authorHtml"
+                    class="text-xs text-zinc-500"
+                >
                     <span class="text-zinc-400">Author:</span>
                     <!-- eslint-disable-next-line vue/no-v-html (caller-escaped highlight HTML) -->
                     <span v-html="highlight.authorHtml"></span>
@@ -208,17 +211,27 @@ const navigateTo = computed(() => {
             </div>
 
             <div class="flex w-full items-center gap-2 py-1 text-xs">
-                <div v-if="tagsContent.length > 0" class="flex w-full items-center gap-1 sm:w-1/2">
+                <div
+                    v-if="tagsContent.length > 0"
+                    class="flex w-full items-center gap-1 sm:w-1/2"
+                >
                     <div>
                         <TagIcon class="h-4 w-4 text-zinc-400" />
                     </div>
                     <div class="flex flex-wrap gap-1">
-                        <LBadge v-for="tag in tagsContent" :key="tag._id" type="default">
+                        <LBadge
+                            v-for="tag in tagsContent"
+                            :key="tag._id"
+                            type="default"
+                        >
                             {{ tag.title }}
                         </LBadge>
                     </div>
                 </div>
-                <span class="flex w-1/2 items-center gap-1 text-xs text-zinc-400" v-else>
+                <span
+                    class="flex w-1/2 items-center gap-1 text-xs text-zinc-400"
+                    v-else
+                >
                     <TagIcon class="h-4 w-4 text-zinc-300" />
                     No tags set
                 </span>
@@ -231,7 +244,12 @@ const navigateTo = computed(() => {
                     <UserGroupIcon class="h-4 w-4 text-zinc-400" />
                 </div>
                 <div class="flex flex-wrap gap-1">
-                    <LBadge v-for="group in groups" :key="group._id" type="default" variant="blue">
+                    <LBadge
+                        v-for="group in groups"
+                        :key="group._id"
+                        type="default"
+                        variant="blue"
+                    >
                         {{ group.name }}
                     </LBadge>
                 </div>
@@ -241,7 +259,12 @@ const navigateTo = computed(() => {
         <template #desktopFooter>
             <div class="flex w-full flex-1 flex-wrap items-center gap-1">
                 <UserGroupIcon class="h-4 w-4 text-zinc-400" />
-                <LBadge v-for="group in groups" :key="group._id" type="default" variant="blue">
+                <LBadge
+                    v-for="group in groups"
+                    :key="group._id"
+                    type="default"
+                    variant="blue"
+                >
                     {{ group.name }}
                 </LBadge>
             </div>

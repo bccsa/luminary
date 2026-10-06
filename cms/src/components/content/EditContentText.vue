@@ -26,7 +26,10 @@ const downloadFilename = computed(() => {
 </script>
 
 <template>
-    <div v-if="content" class="flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden">
+    <div
+        v-if="content"
+        class="flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden"
+    >
         <RichTextEditor
             class="h-full min-h-0 w-full flex-1 overflow-hidden"
             v-model:text="content.text"

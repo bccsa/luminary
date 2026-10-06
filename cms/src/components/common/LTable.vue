@@ -138,7 +138,10 @@ function sort(column: Column) {
                             >
                                 {{ column.text }}
 
-                                <button v-if="column.sortable !== false" aria-label="Sort column">
+                                <button
+                                    v-if="column.sortable !== false"
+                                    aria-label="Sort column"
+                                >
                                     <ArrowsUpDownIcon
                                         class="h-5 w-5 text-transparent group-hover:text-zinc-600"
                                         v-if="sortBy !== column.key"
@@ -157,7 +160,10 @@ function sort(column: Column) {
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-zinc-200 bg-white">
-                    <tr v-for="(item, key) in paginatedItems" :key="key">
+                    <tr
+                        v-for="(item, key) in paginatedItems"
+                        :key="key"
+                    >
                         <td
                             v-for="(column, index) in columns"
                             :key="column.key"
@@ -179,9 +185,15 @@ function sort(column: Column) {
                         </td>
                     </tr>
                 </tbody>
-                <tfoot class="bg-zinc-50 text-sm" v-if="paginate">
+                <tfoot
+                    class="bg-zinc-50 text-sm"
+                    v-if="paginate"
+                >
                     <tr>
-                        <td :colspan="columns.length" class="py-3 pl-4 pr-3 sm:pl-6">
+                        <td
+                            :colspan="columns.length"
+                            class="py-3 pl-4 pr-3 sm:pl-6"
+                        >
                             <div
                                 class="flex flex-row-reverse items-center justify-between sm:flex-row"
                             >

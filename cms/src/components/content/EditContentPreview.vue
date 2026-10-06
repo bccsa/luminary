@@ -29,7 +29,12 @@ const liveUrl = computed(() => {
         v-if="content && content.status == PublishStatus.Published"
         data-test="livePreview"
     >
-        <LButton :icon="ArrowTopRightOnSquareIcon" iconRight is="a" :href="liveUrl" target="_blank"
+        <LButton
+            :icon="ArrowTopRightOnSquareIcon"
+            iconRight
+            is="a"
+            :href="liveUrl"
+            target="_blank"
             >View live version</LButton
         >
     </LCard>

@@ -257,8 +257,16 @@ const navItemClass = computed(() => [
             data-test="sidebar-collapse-toggle"
             @click="onToggleCollapsed"
         >
-            <ChevronLeftIcon v-if="!collapsed" class="h-4 w-4" aria-hidden="true" />
-            <ChevronRightIcon v-else class="h-4 w-4" aria-hidden="true" />
+            <ChevronLeftIcon
+                v-if="!collapsed"
+                class="h-4 w-4"
+                aria-hidden="true"
+            />
+            <ChevronRightIcon
+                v-else
+                class="h-4 w-4"
+                aria-hidden="true"
+            />
         </button>
 
         <!-- Logo — connectivity badge sits next to it and only shows when offline -->
@@ -277,13 +285,20 @@ const navItemClass = computed(() => [
             >
                 DEV
             </span>
-            <OnlineIndicator v-if="!isConnected && !isCollapsed" icon-only class="ml-auto" />
+            <OnlineIndicator
+                v-if="!isConnected && !isCollapsed"
+                icon-only
+                class="ml-auto"
+            />
         </div>
 
         <!-- Primary navigation + preferences (preferences sit directly below the nav, like the app) -->
         <nav class="flex-1 overflow-y-auto overflow-x-hidden px-2 py-2 scrollbar-hide">
             <ul role="list">
-                <li v-for="item in navigation" :key="item.name">
+                <li
+                    v-for="item in navigation"
+                    :key="item.name"
+                >
                     <RouterLink
                         v-if="item.visible && !item.children && item.to"
                         :to="item.to"
@@ -292,7 +307,11 @@ const navItemClass = computed(() => [
                         :title="item.name"
                         @click="closeDrawer"
                     >
-                        <component :is="item.icon" :class="navIconClass" aria-hidden="true" />
+                        <component
+                            :is="item.icon"
+                            :class="navIconClass"
+                            aria-hidden="true"
+                        />
                         <span v-if="!isCollapsed">{{ item.name }}</span>
                     </RouterLink>
 
@@ -303,7 +322,11 @@ const navItemClass = computed(() => [
                             :title="item.name"
                             @click="toggleOpen(item)"
                         >
-                            <component :is="item.icon" :class="navIconClass" aria-hidden="true" />
+                            <component
+                                :is="item.icon"
+                                :class="navIconClass"
+                                aria-hidden="true"
+                            />
                             <template v-if="!isCollapsed">
                                 {{ item.name }}
                                 <ChevronRightIcon
@@ -316,8 +339,14 @@ const navItemClass = computed(() => [
                             </template>
                         </button>
 
-                        <ul v-show="item.open && !isCollapsed" class="mb-1 space-y-1 px-2">
-                            <li v-for="subItem in item.children" :key="subItem.name">
+                        <ul
+                            v-show="item.open && !isCollapsed"
+                            class="mb-1 space-y-1 px-2"
+                        >
+                            <li
+                                v-for="subItem in item.children"
+                                :key="subItem.name"
+                            >
                                 <RouterLink
                                     :to="subItem.to"
                                     active-class="bg-zinc-200 text-zinc-900"
@@ -340,8 +369,14 @@ const navItemClass = computed(() => [
                     :title="currentLanguageName ? `Language — ${currentLanguageName}` : 'Language'"
                     @click="showLanguageModal = true"
                 >
-                    <LanguageIcon :class="navIconClass" aria-hidden="true" />
-                    <span v-if="!isCollapsed" class="flex min-w-0 flex-col leading-none">
+                    <LanguageIcon
+                        :class="navIconClass"
+                        aria-hidden="true"
+                    />
+                    <span
+                        v-if="!isCollapsed"
+                        class="flex min-w-0 flex-col leading-none"
+                    >
                         <span>{{ currentLanguageName }}</span>
                     </span>
                 </button>
@@ -353,7 +388,10 @@ const navItemClass = computed(() => [
                     title="Settings"
                     @click="closeDrawer"
                 >
-                    <Cog6ToothIcon :class="navIconClass" aria-hidden="true" />
+                    <Cog6ToothIcon
+                        :class="navIconClass"
+                        aria-hidden="true"
+                    />
                     <span v-if="!isCollapsed">Settings</span>
                 </RouterLink>
             </div>
@@ -376,13 +414,19 @@ const navItemClass = computed(() => [
                 data-test="install-app"
                 @click="isInstallable ? promptInstall() : (showInstallInstructions = true)"
             >
-                <ArrowDownTrayIcon :class="navIconClass" aria-hidden="true" />
+                <ArrowDownTrayIcon
+                    :class="navIconClass"
+                    aria-hidden="true"
+                />
                 <span v-if="!isCollapsed">Install</span>
             </button>
         </div>
 
         <!-- Account: sign out + signed-in user, pinned to the bottom (like the app) -->
-        <div class="border-t border-zinc-200 py-3" :class="isCollapsed ? 'px-2' : 'px-3'">
+        <div
+            class="border-t border-zinc-200 py-3"
+            :class="isCollapsed ? 'px-2' : 'px-3'"
+        >
             <button
                 type="button"
                 :class="[
@@ -395,7 +439,10 @@ const navItemClass = computed(() => [
                 data-test="sign-out"
                 @click="showLogoutDialog = true"
             >
-                <ArrowRightEndOnRectangleIcon :class="navIconClass" aria-hidden="true" />
+                <ArrowRightEndOnRectangleIcon
+                    :class="navIconClass"
+                    aria-hidden="true"
+                />
                 <span v-if="!isCollapsed">Sign out</span>
             </button>
 

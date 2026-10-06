@@ -79,7 +79,11 @@ const expiredContent = computed(() => {
 </script>
 
 <template>
-    <BasePage title="Dashboard" :should-show-page-title="false" is-full-width>
+    <BasePage
+        title="Dashboard"
+        :should-show-page-title="false"
+        is-full-width
+    >
         <div class="flex flex-col gap-3 py-1 lg:h-full lg:min-h-0">
             <DashboardHeader />
 
@@ -111,7 +115,7 @@ const expiredContent = computed(() => {
                     <RecentActivityCard :content-docs="contentDocs" />
                     <ScheduledContentCard :scheduled-content="scheduledContent" />
                 </div>
-                
+
                 <!-- Right column (1/3 width) -->
                 <div class="flex flex-col gap-3 lg:min-h-0">
                     <LanguageCoverageCard

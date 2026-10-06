@@ -102,7 +102,10 @@ function remove() {
 </script>
 
 <template>
-    <LModal v-model:is-visible="isVisible" :heading="heading">
+    <LModal
+        v-model:is-visible="isVisible"
+        :heading="heading"
+    >
         <div class="space-y-4">
             <div class="text-sm text-zinc-600">
                 {{
@@ -128,7 +131,10 @@ function remove() {
         </div>
 
         <template #footer>
-            <div class="flex gap-2" :class="isEdit ? 'justify-between' : 'justify-end'">
+            <div
+                class="flex gap-2"
+                :class="isEdit ? 'justify-between' : 'justify-end'"
+            >
                 <LButton
                     v-if="isEdit"
                     variant="muted"
@@ -153,7 +159,15 @@ function remove() {
                         @click="save"
                         data-test="starting-interest-save"
                     >
-                        {{ isSaving ? (isEdit ? "Saving..." : "Adding...") : isEdit ? "Save" : "Add" }}
+                        {{
+                            isSaving
+                                ? isEdit
+                                    ? "Saving..."
+                                    : "Adding..."
+                                : isEdit
+                                  ? "Save"
+                                  : "Add"
+                        }}
                     </LButton>
                 </div>
             </div>
