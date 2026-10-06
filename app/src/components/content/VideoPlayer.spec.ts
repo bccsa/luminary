@@ -1,12 +1,17 @@
 import "fake-indexeddb/auto";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { mount } from "@vue/test-utils";
-import { computed, defineComponent, h } from "vue";
+import { computed, defineComponent, h, nextTick } from "vue";
 import waitForExpect from "wait-for-expect";
 import VideoPlayer from "./VideoPlayer.vue";
 import { mockEnglishContentDto } from "@/tests/mockdata";
 import { VideoPlayerKey } from "@/build-time/contracts/video-player/token";
 import { shareImageUrl } from "@/composables/useSocialShare";
+import { userDataSaverEnabled } from "@/globalConfig";
+import {
+    connectionSpeed,
+    hasMeasuredConnectionSpeed,
+} from "@/composables/useNetworkSpeedEstimator";
 
 /**
  * What is left to test here is Luminary's half of playback: which URL is played,
@@ -195,6 +200,45 @@ describe("VideoPlayer", () => {
                 subtitlesMenu: false,
                 audioVideoToggle: false,
                 windowedControls: false,
+            });
+        });
+
+        describe("what the connection says", () => {
+            afterEach(() => {
+                userDataSaverEnabled.value = false;
+                hasMeasuredConnectionSpeed.value = false;
+            });
+
+            it("caps the picture at 360p under Data Saver, and not otherwise", async () => {
+                expect(stub(await mountPlayer()).props("source").maxHeight).toBeUndefined();
+
+                userDataSaverEnabled.value = true;
+                expect(stub(await mountPlayer()).props("source").maxHeight).toBe(360);
+            });
+
+            it("starts the player's ABR from the measured speed in bits per second", async () => {
+                connectionSpeed.value = 2.5;
+                hasMeasuredConnectionSpeed.value = true;
+
+                expect(stub(await mountPlayer()).props("source").bandwidthEstimate).toBe(2_500_000);
+            });
+
+            it("offers no estimate until a real reading exists, rather than the optimistic default", async () => {
+                connectionSpeed.value = 10;
+                hasMeasuredConnectionSpeed.value = false;
+
+                expect(stub(await mountPlayer()).props("source").bandwidthEstimate).toBeUndefined();
+            });
+
+            it("does not reload the stream when a later probe changes the speed", async () => {
+                connectionSpeed.value = 2.5;
+                hasMeasuredConnectionSpeed.value = true;
+                const wrapper = await mountPlayer();
+
+                connectionSpeed.value = 8;
+                await nextTick();
+
+                expect(stub(wrapper).props("source").bandwidthEstimate).toBe(2_500_000);
             });
         });
 

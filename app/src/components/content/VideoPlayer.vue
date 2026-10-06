@@ -18,7 +18,16 @@ import {
 } from "@luminary-media-converter/player-web";
 import { type ContentDto, fetchHlsKey, reportError } from "luminary-shared";
 import LImage from "../images/LImage.vue";
-import { appLanguagesPreferredAsRef, queryParams } from "@/globalConfig";
+import {
+    appLanguagesPreferredAsRef,
+    isDataSaverEnabled,
+    queryParams,
+    userDataSaverEnabled,
+} from "@/globalConfig";
+import {
+    connectionSpeed,
+    hasMeasuredConnectionSpeed,
+} from "@/composables/useNetworkSpeedEstimator";
 import { getMediaProgress, removeMediaProgress, setMediaProgress } from "@/contentProgress";
 import { recordAffinity } from "@/recommendation/affinityStore";
 import { affinityConfig } from "@/recommendation/defaultAffinityStore";
@@ -166,6 +175,19 @@ const controls = computed(() =>
 const startAngleId = ref<string | undefined>(undefined);
 
 /**
+ * What Data Saver allows a picture: nothing above this height is offered to the player, so it can
+ * be neither chosen by ABR nor picked by hand. Low enough to be cheap, high enough to be watchable.
+ */
+const DATA_SAVER_MAX_HEIGHT = 360;
+/** The cap this content loads with: fixed per content, because a cap only takes effect on a load. */
+const maxHeight = ref<number | undefined>(undefined);
+/**
+ * The measured connection in bits per second, for the player's ABR to start from; absent until a
+ * real reading exists. Fixed per content as well: a probe finishing mid-play must not reload it.
+ */
+const bandwidthEstimate = ref<number | undefined>(undefined);
+
+/**
  * Whether the key question has been answered for this document. An encrypted
  * stream must not be handed to the player before its key is in hand, or it is
  * loaded, fails, and is loaded again.
@@ -175,7 +197,13 @@ const keyResolved = ref(false);
 const source = computed<PlayerSource | null>(() => {
     const url = videoSource.value;
     if (!url || !keyResolved.value) return null;
-    return { masterUrl: url, keyHex: keyHex.value, startAngleId: startAngleId.value };
+    return {
+        masterUrl: url,
+        keyHex: keyHex.value,
+        startAngleId: startAngleId.value,
+        maxHeight: maxHeight.value,
+        bandwidthEstimate: bandwidthEstimate.value,
+    };
 });
 
 watch(
@@ -184,6 +212,11 @@ watch(
         keyHex.value = undefined;
         keyResolved.value = false;
         startAngleId.value = props.startAudio ? AUDIO_ONLY_ANGLE_ID : undefined;
+        maxHeight.value =
+            userDataSaverEnabled.value || isDataSaverEnabled() ? DATA_SAVER_MAX_HEIGHT : undefined;
+        bandwidthEstimate.value = hasMeasuredConnectionSpeed.value
+            ? Math.round(connectionSpeed.value * 1_000_000)
+            : undefined;
         try {
             const parentId = props.content?.parentId;
             if (parentId && props.content?.parentMedia?.hlsKey_id) {
