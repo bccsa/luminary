@@ -3,5 +3,8 @@
     "plugins": ["prettier-plugin-tailwindcss"],
     "tabWidth": 4,
     "printWidth": 100,
+    "endOfLine": "lf",
+    "trailingComma": "all",
+    "objectWrap": "preserve",
     "singleAttributePerLine": true
 }

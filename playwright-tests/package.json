@@ -13,6 +13,8 @@
         "test:cms:ui": "playwright test --project=cms --ui",
         "test:app:headed": "playwright test --project=app --headed",
         "test:cms:headed": "playwright test --project=cms --headed",
+        "format": "prettier --write app/ cms/ fixtures/ playwright.config.ts",
+        "format:check": "prettier --check app/ cms/ fixtures/ playwright.config.ts",
         "report": "playwright show-report",
         "codegen:app": "playwright codegen $APP_BASE_URL",
         "codegen:cms": "playwright codegen $CMS_BASE_URL"
@@ -21,6 +23,7 @@
         "@playwright/test": "^1.56.0",
         "@types/node": "^20.11.0",
         "dotenv": "^16.4.5",
+        "prettier": "3.9.6",
         "typescript": "~5.3.0"
     }
 }
