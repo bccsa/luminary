@@ -74,6 +74,12 @@ const playerMessages = computed(() => ({
     subtitlesOff: t("video_player.subtitles_off"),
     videoModeLabel: t("video_player.video_mode"),
     audioModeLabel: t("video_player.audio_mode"),
+    // Native full-screen draws its own controls and says these.
+    pictureInPicture: t("media_player.picture_in_picture"),
+    playbackRate: t("media_player.speed"),
+    mute: t("media_player.mute"),
+    unmute: t("media_player.unmute"),
+    loading: t("video_player.loading"),
 }));
 
 // The browser's player when no service is provided: a component mounted on its own.
