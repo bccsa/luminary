@@ -32,6 +32,7 @@ import { getMediaProgress, removeMediaProgress, setMediaProgress } from "@/conte
 import { recordAffinity } from "@/recommendation/affinityStore";
 import { affinityConfig } from "@/recommendation/defaultAffinityStore";
 import { markSeen } from "@/recommendation/seenStore";
+import { fallbackArtworkDataUrl } from "@/util/fallbackArtwork";
 import { resolveVideoSource, videoSourceFor } from "@/util/videoSource";
 import { useBucketInfo } from "@/composables/useBucketInfo";
 import { createMediaWatchTracker } from "@/recommendation/mediaWatchTracker";
@@ -106,12 +107,19 @@ const imageBucketIdRef = computed(() => props.content?.parentImageBucketId);
 const { bucketBaseUrl: imageBucketBaseUrl } = useBucketInfo(imageBucketIdRef);
 
 /**
+ * The picture the page shows for this post when its own image does not load, for the lock screen
+ * to show too. Made before the source is handed over, so the first load carries it.
+ */
+const fallbackArtworkUrl = ref<string | undefined>(undefined);
+
+/**
  * What the lock screen shows, for a player that shows one: the title, and the
  * post's image, the one a share of it would carry.
  */
 const nowPlaying = computed<VideoNowPlaying>(() => ({
     title: props.content.title,
     artworkUrl: shareImageUrl(props.content, imageBucketBaseUrl.value),
+    ...(fallbackArtworkUrl.value ? { fallbackArtworkUrl: fallbackArtworkUrl.value } : {}),
 }));
 const playerExtras = computed(() => ({
     ...(videoPlayer.acceptsNowPlaying ? { nowPlaying: nowPlaying.value } : {}),
@@ -211,6 +219,9 @@ watch(
     async () => {
         keyHex.value = undefined;
         keyResolved.value = false;
+        fallbackArtworkUrl.value = undefined;
+        const contentId = props.content?._id;
+        const artwork = fallbackArtworkDataUrl(props.content?.parentId);
         startAngleId.value = props.startAudio ? AUDIO_ONLY_ANGLE_ID : undefined;
         maxHeight.value =
             userDataSaverEnabled.value || isDataSaverEnabled() ? DATA_SAVER_MAX_HEIGHT : undefined;
@@ -233,6 +244,9 @@ watch(
         } finally {
             // A question that cannot be answered is still answered: leaving this false
             // holds `source` at null, and the viewer gets a poster and no player at all.
+            const made = await artwork;
+            // Another post may have taken the player while this one was being made.
+            if (props.content?._id === contentId) fallbackArtworkUrl.value = made;
             keyResolved.value = true;
         }
     },

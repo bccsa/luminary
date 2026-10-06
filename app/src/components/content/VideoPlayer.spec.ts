@@ -8,6 +8,7 @@ import { mockEnglishContentDto } from "@/tests/mockdata";
 import { VideoPlayerKey } from "@/build-time/contracts/video-player/token";
 import { shareImageUrl } from "@/composables/useSocialShare";
 import { userDataSaverEnabled } from "@/globalConfig";
+import { fallbackArtworkDataUrl } from "@/util/fallbackArtwork";
 import {
     connectionSpeed,
     hasMeasuredConnectionSpeed,
@@ -31,6 +32,10 @@ const fetchHlsKeyMock = vi.hoisted(() => vi.fn());
 
 // Built inside the factory: vi.mock is hoisted above the imports, so a stub
 // defined at module scope is not there yet when the factory runs.
+vi.mock("@/util/fallbackArtwork", () => ({
+    fallbackArtworkDataUrl: vi.fn(() => Promise.resolve(undefined)),
+}));
+
 vi.mock("@luminary-media-converter/player-web", async () => {
     const { defineComponent, h } = await import("vue");
     return {
@@ -463,6 +468,18 @@ describe("VideoPlayer", () => {
             expect(wrapper.findComponent(NativeStub).props("nowPlaying")).toEqual({
                 title: mockEnglishContentDto.title,
                 artworkUrl: shareImageUrl(content(), "https://bucket.example.com"),
+            });
+        });
+
+        it("adds the page's stand-in picture for a post whose own image does not load", async () => {
+            vi.mocked(fallbackArtworkDataUrl).mockResolvedValueOnce("data:image/jpeg;base64,AAAA");
+
+            const wrapper = await mountWithService(true);
+
+            expect(wrapper.findComponent(NativeStub).props("nowPlaying")).toEqual({
+                title: mockEnglishContentDto.title,
+                artworkUrl: shareImageUrl(content(), "https://bucket.example.com"),
+                fallbackArtworkUrl: "data:image/jpeg;base64,AAAA",
             });
         });
 

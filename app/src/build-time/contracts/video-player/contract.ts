@@ -6,6 +6,8 @@ export type VideoNowPlaying = {
     title: string;
     subtitle?: string;
     artworkUrl?: string;
+    /** Shown when the artwork is absent or does not load: the page's own stand-in for the post. */
+    fallbackArtworkUrl?: string;
 };
 
 /**
