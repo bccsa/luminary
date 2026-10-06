@@ -197,6 +197,7 @@
         "media_player.mute": "Mute",
         "media_player.about": "About",
         "media_player.read": "Read the article",
+        "media_player.unmute": "Unmute",
         "media_player.about_empty": "There is nothing more to read here.",
         "video_player.coming_soon": "Coming soon",
         "video_player.error_generic": "This video could not be played.",

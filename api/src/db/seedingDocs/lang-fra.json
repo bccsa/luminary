@@ -197,6 +197,7 @@
         "media_player.mute": "Couper le son",
         "media_player.about": "À propos",
         "media_player.read": "Lire l'article",
+        "media_player.unmute": "Réactiver le son",
         "media_player.about_empty": "Il n'y a rien d'autre à lire ici.",
         "video_player.coming_soon": "Bientôt disponible",
         "video_player.error_generic": "Cette vidéo n'a pas pu être lue.",
