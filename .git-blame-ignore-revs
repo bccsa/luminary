@@ -11,3 +11,5 @@
 3b6049028ed98ac9fd52113b20b0d3be5f75a5b4
 # style(playwright-tests)
 db33168bb42cfa46374da84ca439fdc754b52273
+# style: singleAttributePerLine=false re-sweep (app, cms)
+91e848ecb133c6a9cf0c81a636676762fb802637
