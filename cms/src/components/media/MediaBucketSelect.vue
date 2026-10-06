@@ -92,11 +92,7 @@ const problem = computed(() => {
             >.
         </p>
 
-        <MediaNotice
-            v-if="problem"
-            state="warning"
-            data-test="bucket-problem"
-        >
+        <MediaNotice v-if="problem" state="warning" data-test="bucket-problem">
             {{ problem }}
         </MediaNotice>
     </div>

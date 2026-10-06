@@ -215,12 +215,7 @@ async function shareToInstagram() {
                     <WhatsAppIcon class="size-4 flex-shrink-0" />
                     <span class="min-w-0 truncate">{{ t("singlecontent.shareWhatsApp") }}</span>
                 </button>
-                <button
-                    type="button"
-                    @click="shareToX"
-                    data-test="shareX"
-                    :class="itemClass"
-                >
+                <button type="button" @click="shareToX" data-test="shareX" :class="itemClass">
                     <XIcon class="size-4 flex-shrink-0" />
                     <span class="min-w-0 truncate">{{ t("singlecontent.shareX") }}</span>
                 </button>

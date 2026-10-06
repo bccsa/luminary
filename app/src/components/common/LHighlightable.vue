@@ -609,10 +609,7 @@ onUnmounted(() => {
                 @mousedown.stop.prevent
             >
                 <!-- Main Menu -->
-                <div
-                    v-if="!showColorPicker && !showShareMenu"
-                    class="flex items-center gap-1"
-                >
+                <div v-if="!showColorPicker && !showShareMenu" class="flex items-center gap-1">
                     <!-- Highlight Toggle -->
                     <button
                         @click="isHighlighted ? removeHighlight() : (showColorPicker = true)"
@@ -653,10 +650,7 @@ onUnmounted(() => {
                 </div>
 
                 <!-- Color Picker -->
-                <div
-                    v-else-if="showColorPicker"
-                    class="flex items-center gap-2 p-1"
-                >
+                <div v-else-if="showColorPicker" class="flex items-center gap-2 p-1">
                     <button
                         @click="showColorPicker = false"
                         class="rounded-full p-1 text-zinc-500 hover:bg-zinc-100 dark:text-slate-300 dark:hover:bg-slate-600"
@@ -676,10 +670,7 @@ onUnmounted(() => {
                 </div>
 
                 <!-- Share Targets -->
-                <div
-                    v-else
-                    class="flex items-center gap-1 p-1"
-                >
+                <div v-else class="flex items-center gap-1 p-1">
                     <button
                         @click="closeShareMenu"
                         data-test="highlightShareBack"

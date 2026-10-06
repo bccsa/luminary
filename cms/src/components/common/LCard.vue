@@ -79,29 +79,15 @@ function collapse() {
             @click="collapse"
         >
             <div class="flex items-center gap-1">
-                <component
-                    v-if="icon"
-                    :is="icon"
-                    class="h-5 w-5 text-zinc-400"
-                />
+                <component v-if="icon" :is="icon" class="h-5 w-5 text-zinc-400" />
                 <h3 class="text-sm font-medium leading-6 text-zinc-900">{{ title }}</h3>
             </div>
 
             <!-- Stop clicks on actions/chevron from bubbling to the header toggle: action buttons
                  must not collapse the card, and the chevron toggles via its own handler. -->
-            <div
-                class="flex items-center gap-2"
-                @click.stop
-            >
-                <slot
-                    v-if="!collapsed"
-                    name="actions"
-                />
-                <button
-                    @click="collapse"
-                    v-if="collapsible"
-                    data-test="collapse-button"
-                >
+            <div class="flex items-center gap-2" @click.stop>
+                <slot v-if="!collapsed" name="actions" />
+                <button @click="collapse" v-if="collapsible" data-test="collapse-button">
                     <ChevronDownIcon
                         v-if="collapsed"
                         class="h-5 w-5 text-zinc-600"
@@ -116,10 +102,7 @@ function collapse() {
             </div>
         </div>
 
-        <slot
-            name="persistent"
-            :collapsed="collapsed"
-        />
+        <slot name="persistent" :collapsed="collapsed" />
 
         <div
             v-show="!collapsed"
@@ -139,10 +122,7 @@ function collapse() {
             >
                 <slot />
             </div>
-            <div
-                v-if="$slots.footer"
-                class="bg-zinc-50 px-2 py-3"
-            >
+            <div v-if="$slots.footer" class="bg-zinc-50 px-2 py-3">
                 <slot name="footer" />
             </div>
         </div>

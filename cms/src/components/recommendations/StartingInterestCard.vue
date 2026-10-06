@@ -18,11 +18,7 @@ const isModalVisible = ref(false);
 </script>
 
 <template>
-    <DisplayCard
-        :title="label"
-        :updated-time-utc="updatedTimeUtc"
-        @click="isModalVisible = true"
-    >
+    <DisplayCard :title="label" :updated-time-utc="updatedTimeUtc" @click="isModalVisible = true">
         <template #topRightContent>
             <LBadge>{{ Math.round(score * 100) }}%</LBadge>
         </template>

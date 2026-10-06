@@ -159,11 +159,7 @@ const handleLogin = () => {
                 class="h-4 w-4 -translate-x-0.5"
                 aria-hidden="true"
             />
-            <ChevronRightIcon
-                v-else
-                class="h-4 w-4 translate-x-0.5"
-                aria-hidden="true"
-            />
+            <ChevronRightIcon v-else class="h-4 w-4 translate-x-0.5" aria-hidden="true" />
         </button>
 
         <!-- Logo — outer padding mirrors the nav container; inner padding mirrors a nav item -->
@@ -174,28 +170,12 @@ const handleLogin = () => {
                 :title="collapsed ? t('menu.home') : undefined"
             >
                 <template v-if="collapsed">
-                    <img
-                        class="h-8 w-8 dark:hidden"
-                        :src="LOGO_SMALL"
-                        alt=""
-                    />
-                    <img
-                        class="hidden h-8 w-8 dark:block"
-                        :src="LOGO_SMALL_DARK"
-                        alt=""
-                    />
+                    <img class="h-8 w-8 dark:hidden" :src="LOGO_SMALL" alt="" />
+                    <img class="hidden h-8 w-8 dark:block" :src="LOGO_SMALL_DARK" alt="" />
                 </template>
                 <template v-else>
-                    <img
-                        class="h-8 dark:hidden"
-                        :src="LOGO"
-                        alt=""
-                    />
-                    <img
-                        class="hidden h-8 dark:block"
-                        :src="LOGO_DARK"
-                        alt=""
-                    />
+                    <img class="h-8 dark:hidden" :src="LOGO" alt="" />
+                    <img class="hidden h-8 dark:block" :src="LOGO_DARK" alt="" />
                 </template>
             </RouterLink>
         </div>
@@ -223,11 +203,7 @@ const handleLogin = () => {
                         :class="navIconClass"
                         aria-hidden="true"
                     />
-                    <span
-                        v-if="!collapsed"
-                        :class="navLabelClass"
-                        >{{ item.name }}</span
-                    >
+                    <span v-if="!collapsed" :class="navLabelClass">{{ item.name }}</span>
                 </a>
             </RouterLink>
 
@@ -245,18 +221,10 @@ const handleLogin = () => {
                     :class="navIconClass"
                     aria-hidden="true"
                 />
-                <span
-                    v-if="!collapsed"
-                    :class="navLabelClass"
-                    >{{ t("menu.search") }}</span
-                >
+                <span v-if="!collapsed" :class="navLabelClass">{{ t("menu.search") }}</span>
             </span>
 
-            <RouterLink
-                :to="{ name: 'bookmarks' }"
-                v-slot="{ isActive, href, navigate }"
-                custom
-            >
+            <RouterLink :to="{ name: 'bookmarks' }" v-slot="{ isActive, href, navigate }" custom>
                 <a
                     :href="href"
                     :class="navItemClasses(isActive)"
@@ -268,11 +236,9 @@ const handleLogin = () => {
                         :class="navIconClass"
                         aria-hidden="true"
                     />
-                    <span
-                        v-if="!collapsed"
-                        :class="navLabelClass"
-                        >{{ t("profile_menu.bookmarks") }}</span
-                    >
+                    <span v-if="!collapsed" :class="navLabelClass">{{
+                        t("profile_menu.bookmarks")
+                    }}</span>
                 </a>
             </RouterLink>
 
@@ -285,15 +251,10 @@ const handleLogin = () => {
                     :title="t('profile_menu.theme')"
                     @click="showThemeSelector = true"
                 >
-                    <SunIcon
-                        :class="navIconClass"
-                        aria-hidden="true"
-                    />
-                    <span
-                        v-if="!collapsed"
-                        :class="navLabelClass"
-                        >{{ t("profile_menu.theme") }}</span
-                    >
+                    <SunIcon :class="navIconClass" aria-hidden="true" />
+                    <span v-if="!collapsed" :class="navLabelClass">{{
+                        t("profile_menu.theme")
+                    }}</span>
                 </span>
 
                 <span
@@ -301,28 +262,16 @@ const handleLogin = () => {
                     :title="languageTooltip"
                     @click="showLanguageModal = true"
                 >
-                    <LanguageIcon
-                        :class="navIconClass"
-                        aria-hidden="true"
-                    />
-                    <div
-                        v-if="!collapsed"
-                        class="flex min-w-0 flex-col leading-none"
-                    >
+                    <LanguageIcon :class="navIconClass" aria-hidden="true" />
+                    <div v-if="!collapsed" class="flex min-w-0 flex-col leading-none">
                         <span :class="navLabelClass">{{ t("profile_menu.language") }}</span>
-                        <span
-                            v-if="renderLanguage?.name"
-                            :class="navMetaClass"
-                            >{{ renderLanguage.name }}</span
-                        >
+                        <span v-if="renderLanguage?.name" :class="navMetaClass">{{
+                            renderLanguage.name
+                        }}</span>
                     </div>
                 </span>
 
-                <RouterLink
-                    :to="{ name: 'settings' }"
-                    v-slot="{ isActive, href, navigate }"
-                    custom
-                >
+                <RouterLink :to="{ name: 'settings' }" v-slot="{ isActive, href, navigate }" custom>
                     <a
                         :href="href"
                         :class="navItemClasses(isActive)"
@@ -334,11 +283,9 @@ const handleLogin = () => {
                             :class="navIconClass"
                             aria-hidden="true"
                         />
-                        <span
-                            v-if="!collapsed"
-                            :class="navLabelClass"
-                            >{{ t("profile_menu.settings") }}</span
-                        >
+                        <span v-if="!collapsed" :class="navLabelClass">{{
+                            t("profile_menu.settings")
+                        }}</span>
                     </a>
                 </RouterLink>
             </div>
@@ -355,15 +302,10 @@ const handleLogin = () => {
                 :title="t('profile_menu.privacy_policy')"
                 @click="showPrivacyPolicyModal = true"
             >
-                <ShieldCheckIcon
-                    :class="navIconClass"
-                    aria-hidden="true"
-                />
-                <span
-                    v-if="!collapsed"
-                    :class="navLabelClass"
-                    >{{ t("profile_menu.privacy_policy") }}</span
-                >
+                <ShieldCheckIcon :class="navIconClass" aria-hidden="true" />
+                <span v-if="!collapsed" :class="navLabelClass">{{
+                    t("profile_menu.privacy_policy")
+                }}</span>
             </button>
 
             <button
@@ -379,10 +321,7 @@ const handleLogin = () => {
                     :class="navIconClass"
                     aria-hidden="true"
                 />
-                <span
-                    v-if="!collapsed"
-                    :class="navLabelClass"
-                >
+                <span v-if="!collapsed" :class="navLabelClass">
                     {{ isAuthenticated ? t("profile_menu.logout") : t("profile_menu.login") }}
                 </span>
             </button>
@@ -420,14 +359,8 @@ const handleLogin = () => {
     <!-- Client-only: these overlays are interactive (and LanguageModal is
          Dexie-backed), so they must not render during the Node prerender. -->
     <template v-if="isMounted">
-        <ThemeSelectorModal
-            :isVisible="showThemeSelector"
-            @close="showThemeSelector = false"
-        />
-        <LanguageModal
-            :isVisible="showLanguageModal"
-            @close="showLanguageModal = false"
-        />
+        <ThemeSelectorModal :isVisible="showThemeSelector" @close="showThemeSelector = false" />
+        <LanguageModal :isVisible="showLanguageModal" @close="showLanguageModal = false" />
         <LDialog
             v-model:open="showLogoutDialog"
             :title="t('logout.modal.title')"

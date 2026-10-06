@@ -100,10 +100,7 @@ const handleEdit = () => {
             </div>
         </div>
 
-        <div
-            v-if="isSmallScreen"
-            class="flex flex-wrap items-center gap-1 py-1"
-        >
+        <div v-if="isSmallScreen" class="flex flex-wrap items-center gap-1 py-1">
             <div class="flex flex-1 items-center gap-1">
                 <div>
                     <UserGroupIcon class="h-4 w-4 text-zinc-400" />
@@ -130,18 +127,13 @@ const handleEdit = () => {
             </div>
             <div class="flex w-max items-start text-xs text-zinc-400">
                 <ClockIcon class="mr-[1px] h-3.5 w-3.5 text-zinc-400" />
-                <span
-                    title="Last Updated"
-                    class="text-[11px]"
-                    >{{ renderDate("small", "Last Updated", provider.updatedTimeUtc) }}</span
-                >
+                <span title="Last Updated" class="text-[11px]">{{
+                    renderDate("small", "Last Updated", provider.updatedTimeUtc)
+                }}</span>
             </div>
         </div>
 
-        <div
-            v-if="!isSmallScreen"
-            class="flex items-center justify-between pt-1 text-xs sm:gap-4"
-        >
+        <div v-if="!isSmallScreen" class="flex items-center justify-between pt-1 text-xs sm:gap-4">
             <div class="flex w-full flex-1 flex-wrap items-center gap-1">
                 <UserGroupIcon class="h-4 w-4 text-zinc-400" />
                 <LBadge
@@ -164,11 +156,9 @@ const handleEdit = () => {
             </div>
             <div class="flex items-center justify-end text-zinc-400">
                 <ClockIcon class="mr-[1px] h-4 w-4 text-zinc-400" />
-                <span
-                    title="Last Updated"
-                    class="text-[11px]"
-                    >{{ renderDate("default", "Last updated", provider.updatedTimeUtc) }}</span
-                >
+                <span title="Last Updated" class="text-[11px]">{{
+                    renderDate("default", "Last updated", provider.updatedTimeUtc)
+                }}</span>
             </div>
         </div>
     </div>

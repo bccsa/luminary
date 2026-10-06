@@ -195,11 +195,7 @@ defineExpose({ panelRef });
 </script>
 
 <template>
-    <div
-        ref="rootRef"
-        class="inline-flex"
-        v-bind="$attrs"
-    >
+    <div ref="rootRef" class="inline-flex" v-bind="$attrs">
         <div
             ref="triggerRef"
             class="size-full cursor-pointer select-none outline-none focus:outline-none"
@@ -231,10 +227,7 @@ defineExpose({ panelRef });
                 @keydown="onPanelKeydown"
                 :style="panelStyle"
             >
-                <div
-                    class="flex flex-col"
-                    :class="paddingClass"
-                >
+                <div class="flex flex-col" :class="paddingClass">
                     <slot />
                 </div>
             </div>

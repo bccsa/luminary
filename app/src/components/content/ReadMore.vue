@@ -140,10 +140,7 @@ watch(visibleItems, () => nextTick(remeasureAll));
         <ul
             class="flex flex-col gap-3 px-4 sm:grid sm:grid-cols-2 sm:gap-x-6 sm:gap-y-6 sm:px-8 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
         >
-            <li
-                v-for="item in visibleItems"
-                :key="item._id"
-            >
+            <li v-for="item in visibleItems" :key="item._id">
                 <RouterLink
                     :to="{ name: 'content', params: { slug: item.slug } }"
                     class="ease-out-expo group flex gap-2 overflow-hidden rounded-lg bg-white shadow ring-1 ring-zinc-950/10 transition hover:shadow-lg hover:brightness-[1.15] dark:bg-slate-800 dark:ring-white/10 sm:h-full sm:flex-col sm:gap-1"
@@ -236,10 +233,6 @@ watch(visibleItems, () => nextTick(remeasureAll));
         </ul>
 
         <!-- Infinite-scroll sentinel: reveals the next batch when it enters the viewport. -->
-        <div
-            ref="sentinel"
-            class="h-px"
-            aria-hidden="true"
-        ></div>
+        <div ref="sentinel" class="h-px" aria-hidden="true"></div>
     </div>
 </template>

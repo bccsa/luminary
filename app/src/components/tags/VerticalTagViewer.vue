@@ -63,10 +63,7 @@ const tagged = useContentQuery(() => [{ parentId: { $in: parentTaggedDocsRef.val
                             {{ content.title }}
                         </h1>
                         <!-- publish date -->
-                        <div
-                            class="text-xs text-gray-500"
-                            v-if="showPublishDate"
-                        >
+                        <div class="text-xs text-gray-500" v-if="showPublishDate">
                             <!-- {{ new Date(content.publishDate).toLocaleDateString() }} -->
                             {{
                                 content.publishDate

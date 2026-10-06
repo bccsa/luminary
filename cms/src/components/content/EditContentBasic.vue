@@ -302,11 +302,7 @@ const clearExpiryDate = () => {
                 </div>
 
                 <!-- light-polish: separators break the otherwise-tight field stack into groups -->
-                <div
-                    v-if="bare"
-                    class="col-span-2 border-t border-zinc-200"
-                    role="separator"
-                />
+                <div v-if="bare" class="col-span-2 border-t border-zinc-200" role="separator" />
 
                 <!-- Author -->
                 <FormLabel>Author</FormLabel>
@@ -338,11 +334,7 @@ const clearExpiryDate = () => {
                     class="min-h-2"
                 />
 
-                <div
-                    v-if="bare"
-                    class="col-span-2 border-t border-zinc-200"
-                    role="separator"
-                />
+                <div v-if="bare" class="col-span-2 border-t border-zinc-200" role="separator" />
 
                 <!-- Publish date -->
                 <FormLabel>Publish date</FormLabel>

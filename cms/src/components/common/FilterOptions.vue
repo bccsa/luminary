@@ -125,10 +125,7 @@ function handleReset() {
 <template>
     <div class="relative z-20 flex flex-col gap-1 overflow-visible">
         <div class="flex h-10 w-full items-center gap-1">
-            <slot
-                name="search"
-                :is-small-screen="isSmallScreen"
-            >
+            <slot name="search" :is-small-screen="isSmallScreen">
                 <LInput
                     type="text"
                     :icon="MagnifyingGlassIcon"
@@ -141,10 +138,7 @@ function handleReset() {
                     @keydown.enter="commitSearch"
                     @keydown.esc="clearSearch"
                 >
-                    <template
-                        v-if="submitSearch"
-                        #searchButton
-                    >
+                    <template v-if="submitSearch" #searchButton>
                         <div class="flex items-center gap-1">
                             <button
                                 v-if="canSubmitSearch"
@@ -180,11 +174,7 @@ function handleReset() {
                         :showSelectedLabels="false"
                         :icon="UserGroupIcon"
                     />
-                    <LButton
-                        @click="handleReset"
-                        class="h-full w-10"
-                        data-test="reset-filters"
-                    >
+                    <LButton @click="handleReset" class="h-full w-10" data-test="reset-filters">
                         <ArrowUturnLeftIcon class="h-4 w-4" />
                     </LButton>
                 </div>
@@ -206,10 +196,7 @@ function handleReset() {
         </div>
 
         <!-- Selected group filter tags -->
-        <div
-            v-if="selectedGroups.length > 0"
-            class="flex w-full flex-col gap-1"
-        >
+        <div v-if="selectedGroups.length > 0" class="flex w-full flex-col gap-1">
             <ul class="flex w-full flex-wrap gap-2">
                 <LTag
                     :icon="UserGroupIcon"
@@ -227,11 +214,7 @@ function handleReset() {
         <slot name="selected-filters" />
     </div>
 
-    <LModal
-        v-if="isSmallScreen"
-        heading="Filter options"
-        v-model:is-visible="showMobileFilters"
-    >
+    <LModal v-if="isSmallScreen" heading="Filter options" v-model:is-visible="showMobileFilters">
         <div class="flex flex-col gap-2">
             <slot name="extra-filters-mobile">
                 <slot name="extra-filters" />
@@ -247,11 +230,7 @@ function handleReset() {
             />
         </div>
         <template #footer>
-            <LButton
-                variant="primary"
-                class="mt-2 w-full"
-                @click="showMobileFilters = false"
-            >
+            <LButton variant="primary" class="mt-2 w-full" @click="showMobileFilters = false">
                 Close
             </LButton>
         </template>

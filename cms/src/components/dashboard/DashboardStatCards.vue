@@ -107,10 +107,7 @@ const canViewGroups = hasAnyPermission(DocType.Group, AclPermission.CmsView);
             <p class="mt-0.5 text-xl font-semibold leading-tight text-zinc-900">
                 {{ publishedCount }}
             </p>
-            <p
-                v-if="draftCount > 0"
-                class="text-xs text-zinc-400"
-            >
+            <p v-if="draftCount > 0" class="text-xs text-zinc-400">
                 {{ draftCount }} draft{{ draftCount !== 1 ? "s" : "" }}
             </p>
         </div>
@@ -123,10 +120,7 @@ const canViewGroups = hasAnyPermission(DocType.Group, AclPermission.CmsView);
             <p class="mt-0.5 text-xl font-semibold leading-tight text-zinc-900">
                 {{ scheduledContent.length }}
             </p>
-            <p
-                v-if="expiredContent.length > 0"
-                class="text-xs text-amber-500"
-            >
+            <p v-if="expiredContent.length > 0" class="text-xs text-amber-500">
                 {{ expiredContent.length }} expired
             </p>
         </div>

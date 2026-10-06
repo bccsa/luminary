@@ -170,10 +170,7 @@ const hasAnyContent = computed(() => (users.value?.length ?? 0) > 0);
                 @click="openCreateUserModal"
             />
         </template>
-        <template
-            v-if="hasAnyContent"
-            #internalPageHeader
-        >
+        <template v-if="hasAnyContent" #internalPageHeader>
             <FilterOptions
                 v-model:search="queryOptions.search"
                 v-model:selected-groups="queryOptions.groups"
@@ -183,10 +180,7 @@ const hasAnyContent = computed(() => (users.value?.length ?? 0) > 0);
             />
         </template>
         <div class="flex flex-col gap-[3px]">
-            <p
-                v-if="hasAnyContent"
-                class="mb-2 px-2 py-1 text-zinc-500"
-            >
+            <p v-if="hasAnyContent" class="mb-2 px-2 py-1 text-zinc-500">
                 Users only need to be created when they require special permissions that are not
                 already automatically granted. It's possible to add multiple user objects with the
                 same email address. This allows different administrators to independently assign
@@ -207,11 +201,7 @@ const hasAnyContent = computed(() => (users.value?.length ?? 0) > 0);
                 @edit="(id) => (selectedUserId = id)"
             />
 
-            <div
-                v-if="!searchActive"
-                ref="browseSentinel"
-                class="h-px w-full"
-            ></div>
+            <div v-if="!searchActive" ref="browseSentinel" class="h-px w-full"></div>
 
             <EmptyState
                 v-if="!isFetching && !hasAnyContent"
@@ -234,11 +224,7 @@ const hasAnyContent = computed(() => (users.value?.length ?? 0) > 0);
             />
 
             <!-- Infinite-scroll trigger for the server-paged search results -->
-            <div
-                v-if="searchActive"
-                ref="searchSentinel"
-                class="h-px w-full"
-            ></div>
+            <div v-if="searchActive" ref="searchSentinel" class="h-px w-full"></div>
 
             <div
                 v-if="searchActive && searchIsLoading"

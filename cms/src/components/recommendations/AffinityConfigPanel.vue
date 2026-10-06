@@ -400,11 +400,7 @@ async function save() {
 
         <template #footer>
             <div class="flex justify-end gap-2">
-                <LButton
-                    variant="secondary"
-                    @click="resetForm"
-                    data-test="affinity-config-cancel"
-                >
+                <LButton variant="secondary" @click="resetForm" data-test="affinity-config-cancel">
                     Reset
                 </LButton>
                 <LButton

@@ -37,10 +37,7 @@ function formatDate(timestamp: number): string {
                     >
                         {{ doc.title || "Untitled" }}
                     </RouterLink>
-                    <span
-                        v-else
-                        class="truncate text-sm font-medium text-zinc-900"
-                    >
+                    <span v-else class="truncate text-sm font-medium text-zinc-900">
                         {{ doc.title || "Untitled" }}
                     </span>
                 </div>

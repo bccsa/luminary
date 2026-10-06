@@ -106,16 +106,8 @@ const handleLogin = () => {
                         v-if="showBackButton"
                         data-test="backButton"
                     >
-                        <RouterLink
-                            :to="{ name: 'home' }"
-                            v-slot="{ href }"
-                            custom
-                        >
-                            <a
-                                :href="href"
-                                aria-label="Go back"
-                                @click="onBackClick($event)"
-                            >
+                        <RouterLink :to="{ name: 'home' }" v-slot="{ href }" custom>
+                            <a :href="href" aria-label="Go back" @click="onBackClick($event)">
                                 <ChevronLeftIcon
                                     class="-ml-2 h-6 w-6 cursor-pointer text-zinc-600 dark:text-slate-50"
                                 />
@@ -123,10 +115,7 @@ const handleLogin = () => {
                         </RouterLink>
                     </div>
 
-                    <div
-                        class="flex flex-1 items-center"
-                        ref="logoContainer"
-                    >
+                    <div class="flex flex-1 items-center" ref="logoContainer">
                         <!-- Visibility of both logos is driven by the single logoVisibility computed. -->
                         <div
                             :style="logoCssSmall"
@@ -134,20 +123,14 @@ const handleLogin = () => {
                             class="h-8 bg-[image:var(--image-url)] bg-cover bg-center dark:bg-[image:var(--image-url-dark)]"
                         >
                             <!-- Show the image with 0 opacity to set the outer div's size. We assume that the dark mode logo will have the same size as the light mode logo. -->
-                            <img
-                                class="h-full opacity-0"
-                                :src="LOGO_SMALL"
-                            />
+                            <img class="h-full opacity-0" :src="LOGO_SMALL" />
                         </div>
                         <div
                             :style="logoCssLarge"
                             :class="logoVisibility.large"
                             class="h-8 bg-[image:var(--image-url)] bg-cover bg-center dark:bg-[image:var(--image-url-dark)]"
                         >
-                            <img
-                                class="h-full opacity-0"
-                                :src="LOGO"
-                            />
+                            <img class="h-full opacity-0" :src="LOGO" />
                         </div>
                     </div>
                 </div>

@@ -622,10 +622,7 @@ defineExpose({
 </script>
 
 <template>
-    <div
-        :class="isPage ? '' : 'flex h-full min-h-0 w-full flex-col'"
-        @keydown="handleKeydown"
-    >
+    <div :class="isPage ? '' : 'flex h-full min-h-0 w-full flex-col'" @keydown="handleKeydown">
         <!-- Page mode on mobile: pinned under the top bar. The sticky offset is measured inside
              <main>'s 0.5rem top padding, hence the subtraction. -->
         <div
@@ -699,16 +696,9 @@ defineExpose({
                 {{ t("search.partialResults") }}
             </div>
 
-            <div
-                v-if="isSearching && results.length === 0"
-                class="p-4 md:p-5"
-            >
+            <div v-if="isSearching && results.length === 0" class="p-4 md:p-5">
                 <div class="space-y-3 md:space-y-4">
-                    <div
-                        v-for="i in 3"
-                        :key="i"
-                        class="flex gap-3 md:gap-4"
-                    >
+                    <div v-for="i in 3" :key="i" class="flex gap-3 md:gap-4">
                         <div
                             class="h-12 w-16 flex-shrink-0 animate-pulse rounded-lg bg-zinc-200 dark:bg-slate-700 md:h-16 md:w-24"
                         ></div>
@@ -727,28 +717,19 @@ defineExpose({
                 </div>
             </div>
 
-            <div
-                v-else-if="showMinCharsHint"
-                class="p-8 text-center md:p-10"
-            >
+            <div v-else-if="showMinCharsHint" class="p-8 text-center md:p-10">
                 <p class="text-sm text-zinc-500 dark:text-slate-400 md:text-base">
                     {{ t("search.minChars") }}
                 </p>
             </div>
 
-            <div
-                v-else-if="showPressGoHint"
-                class="p-8 text-center md:p-10"
-            >
+            <div v-else-if="showPressGoHint" class="p-8 text-center md:p-10">
                 <p class="text-sm text-zinc-500 dark:text-slate-400 md:text-base">
                     {{ t("search.pressGo") }}
                 </p>
             </div>
 
-            <div
-                v-else-if="showNoResults"
-                class="p-8 text-center md:p-10"
-            >
+            <div v-else-if="showNoResults" class="p-8 text-center md:p-10">
                 <MagnifyingGlassIcon
                     class="mx-auto h-12 w-12 text-zinc-300 dark:text-slate-600 md:h-14 md:w-14"
                 />
@@ -760,11 +741,7 @@ defineExpose({
                 </p>
             </div>
 
-            <div
-                v-else-if="showResults"
-                id="search-results-container"
-                class="pb-24 pt-0 md:pb-3"
-            >
+            <div v-else-if="showResults" id="search-results-container" class="pb-24 pt-0 md:pb-3">
                 <ul
                     role="listbox"
                     :aria-label="t('search.ariaLabel')"
@@ -833,10 +810,7 @@ defineExpose({
                                     "
                                     class="mt-1 flex items-center gap-1.5 text-[11px] text-zinc-400 dark:text-slate-500 md:text-xs"
                                 >
-                                    <span
-                                        v-if="result.author"
-                                        class="truncate"
-                                    >
+                                    <span v-if="result.author" class="truncate">
                                         <span
                                             v-if="result.authorHighlight"
                                             v-html="result.authorHighlight"
@@ -871,10 +845,7 @@ defineExpose({
                         </div>
                     </li>
                 </ul>
-                <div
-                    v-if="isSearching && results.length > 0"
-                    class="flex justify-center py-3"
-                >
+                <div v-if="isSearching && results.length > 0" class="flex justify-center py-3">
                     <svg
                         class="h-5 w-5 animate-spin text-zinc-400 dark:text-slate-500"
                         xmlns="http://www.w3.org/2000/svg"
@@ -899,10 +870,7 @@ defineExpose({
                 </div>
             </div>
 
-            <div
-                v-else-if="showEmptyStateHint"
-                class="p-6 md:p-8"
-            >
+            <div v-else-if="showEmptyStateHint" class="p-6 md:p-8">
                 <p class="text-center text-sm text-zinc-500 dark:text-slate-400 md:text-base">
                     {{ t("search.hint") }}
                 </p>

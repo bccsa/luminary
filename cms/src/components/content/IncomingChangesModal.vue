@@ -101,17 +101,10 @@ const sections = computed<Section[]>(() => {
         data-test="incoming-changes-modal"
     >
         <div class="mt-3 flex flex-col gap-4">
-            <p
-                v-if="!sections.length"
-                class="text-sm text-zinc-500"
-            >
+            <p v-if="!sections.length" class="text-sm text-zinc-500">
                 The remote version no longer differs from yours.
             </p>
-            <div
-                v-for="section in sections"
-                :key="section.label"
-                class="flex flex-col gap-1"
-            >
+            <div v-for="section in sections" :key="section.label" class="flex flex-col gap-1">
                 <h3 class="text-sm font-semibold text-zinc-700">{{ section.label }}</h3>
                 <div class="overflow-x-auto rounded-md border border-zinc-200">
                     <table class="w-full text-left text-sm">

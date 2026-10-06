@@ -128,10 +128,7 @@ const showEditModal = ref(false);
             leave-from-class="transform scale-100 opacity-100 absolute"
             leave-to-class="transform scale-90 opacity-0"
         >
-            <div
-                v-if="selectedGroupOptions.length === 0"
-                class="mt-1 text-xs italic text-zinc-500"
-            >
+            <div v-if="selectedGroupOptions.length === 0" class="mt-1 text-xs italic text-zinc-500">
                 No group selected
             </div>
         </Transition>

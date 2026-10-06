@@ -522,17 +522,11 @@ watch(isLgScreen, (isLg) => {
         </template>
 
         <template #topBarActionsMobile>
-            <EditContentActionsWrapper
-                v-bind="actionsWrapperProps"
-                :mobile="true"
-            />
+            <EditContentActionsWrapper v-bind="actionsWrapperProps" :mobile="true" />
         </template>
         <!-- desktop actions -->
         <template #topBarActionsDesktop>
-            <EditContentActionsWrapper
-                v-bind="actionsWrapperProps"
-                :mobile="false"
-            />
+            <EditContentActionsWrapper v-bind="actionsWrapperProps" :mobile="false" />
         </template>
         <!-- Concurrent-edit warning: someone else changed this doc on the server while we hold edits. -->
         <div
@@ -613,10 +607,7 @@ watch(isLgScreen, (isLg) => {
                         <!-- Translations + the per-translation fields, merged into a single
                              "Basic" card (each child renders `bare`). Video lives in the
                              settings card above. -->
-                        <LCard
-                            title="Basic"
-                            class="bg-white"
-                        >
+                        <LCard title="Basic" class="bg-white">
                             <EditContentParentValidation
                                 bare
                                 :tag-or-post-type="props.tagOrPostType"
@@ -748,11 +739,7 @@ watch(isLgScreen, (isLg) => {
             class="mt-3 flex cursor-pointer select-none items-start gap-2 text-sm text-zinc-700"
             data-test="delete-media-files"
         >
-            <input
-                v-model="deleteMediaFiles"
-                type="checkbox"
-                class="mt-0.5 h-4 w-4"
-            />
+            <input v-model="deleteMediaFiles" type="checkbox" class="mt-0.5 h-4 w-4" />
             <span>
                 Also delete the media files from storage
                 <span class="mt-0.5 block break-all font-mono text-xs text-zinc-500">
@@ -777,10 +764,7 @@ watch(isLgScreen, (isLg) => {
         context="danger"
         :showClosingButton="false"
     >
-        <p
-            class="mt-3 break-all font-mono text-xs text-zinc-500"
-            data-test="replace-media-url"
-        >
+        <p class="mt-3 break-all font-mono text-xs text-zinc-500" data-test="replace-media-url">
             {{ existingParent?.media?.hlsUrl }}
         </p>
     </LDialog>
@@ -803,11 +787,7 @@ watch(isLgScreen, (isLg) => {
             class="mt-3 flex cursor-pointer select-none items-start gap-2 text-sm text-zinc-700"
             data-test="duplicate-image-toggle"
         >
-            <input
-                v-model="duplicateImageOnCopy"
-                type="checkbox"
-                class="mt-0.5 h-4 w-4"
-            />
+            <input v-model="duplicateImageOnCopy" type="checkbox" class="mt-0.5 h-4 w-4" />
             <span>Duplicate image</span>
         </label>
     </LDialog>

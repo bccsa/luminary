@@ -18,17 +18,9 @@ const languagePopup = ref();
 </script>
 
 <template>
-    <div
-        ref="languagePopup"
-        data-test="languagePopup"
-        v-show="showSelector"
-        class="relative"
-    >
+    <div ref="languagePopup" data-test="languagePopup" v-show="showSelector" class="relative">
         <ul class="py-1">
-            <li
-                v-for="language in languages"
-                :key="language.languageCode"
-            >
+            <li v-for="language in languages" :key="language.languageCode">
                 <button
                     @click="
                         () => {

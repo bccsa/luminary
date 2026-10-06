@@ -238,10 +238,7 @@ watch(
                 class="h-full"
             >
                 <template #trigger>
-                    <LButton
-                        class="h-full"
-                        data-test="sort-toggle-btn"
-                    >
+                    <LButton class="h-full" data-test="sort-toggle-btn">
                         <ArrowsUpDownIcon class="h-full w-4" />
                     </LButton>
                 </template>
@@ -316,10 +313,7 @@ watch(
                 class="h-full"
             >
                 <template #trigger>
-                    <LButton
-                        class="h-full"
-                        data-test="date-filters-toggle-btn"
-                    >
+                    <LButton class="h-full" data-test="date-filters-toggle-btn">
                         <CalendarDaysIcon class="h-full w-4" />
                     </LButton>
                 </template>
@@ -461,10 +455,7 @@ watch(
                     :icon="LanguageIcon"
                 />
                 <!-- Direction is meaningless for relevance (always best-match first). -->
-                <div
-                    v-if="queryOptions.orderBy !== 'relevance'"
-                    class="mt-3 flex w-full gap-1"
-                >
+                <div v-if="queryOptions.orderBy !== 'relevance'" class="mt-3 flex w-full gap-1">
                     <LRadio
                         class="w-1/2"
                         label="Ascending"
@@ -491,10 +482,7 @@ watch(
                 "
                 class="flex w-full flex-col gap-1"
             >
-                <div
-                    v-if="queryOptions.tags && queryOptions.tags.length > 0"
-                    class="w-full"
-                >
+                <div v-if="queryOptions.tags && queryOptions.tags.length > 0" class="w-full">
                     <ul class="flex w-full flex-wrap gap-2">
                         <LTag
                             :icon="TagIcon"
@@ -511,10 +499,7 @@ watch(
                     </ul>
                 </div>
 
-                <div
-                    v-if="queryOptions.groups && queryOptions.groups.length > 0"
-                    class="w-full"
-                >
+                <div v-if="queryOptions.groups && queryOptions.groups.length > 0" class="w-full">
                     <ul class="flex w-full flex-wrap gap-2">
                         <LTag
                             :icon="UserGroupIcon"

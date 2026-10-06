@@ -292,10 +292,7 @@ const revertChanges = () => {
         secondaryButtonText="Cancel"
         stickToEdges
     >
-        <div
-            v-if="editable"
-            class="mb-2 flex flex-col items-center"
-        >
+        <div v-if="editable" class="mb-2 flex flex-col items-center">
             <div class="mb-1 flex w-full gap-1">
                 <LButton
                     class="w-1/2"
@@ -314,10 +311,7 @@ const revertChanges = () => {
             <p class="text-xs text-zinc-500">{{ redirectExplanation }}</p>
         </div>
 
-        <div
-            v-if="editable"
-            class="relative"
-        >
+        <div v-if="editable" class="relative">
             <LInput
                 label="From *"
                 name="RedirectFromSlug"
@@ -326,9 +320,7 @@ const revertChanges = () => {
                 placeholder="The slug that will be redirected from.."
                 @change="editable.slug = validateSlug(editable.slug) || ''"
             />
-            <span
-                class="absolute left-12 top-1 flex text-xs text-red-400"
-                v-if="!isSlugUnique"
+            <span class="absolute left-12 top-1 flex text-xs text-red-400" v-if="!isSlugUnique"
                 ><ExclamationCircleIcon class="h-4 w-4" /> This slug already has a redirect</span
             >
         </div>

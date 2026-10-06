@@ -56,10 +56,7 @@ const redirectGroups = computed(() =>
 
         <template #topRightContent>
             <div class="flex gap-1">
-                <LBadge
-                    v-if="isLocalChanges"
-                    variant="warning"
-                    class="whitespace-nowrap"
+                <LBadge v-if="isLocalChanges" variant="warning" class="whitespace-nowrap"
                     >Offline changes</LBadge
                 >
                 <LBadge>{{ redirectDoc.redirectType.toLocaleUpperCase() }}</LBadge>
@@ -80,10 +77,7 @@ const redirectGroups = computed(() =>
                     >
                         {{ group.name }}
                     </LBadge>
-                    <span
-                        v-if="redirectGroups.length === 0"
-                        class="text-xs text-zinc-400"
-                    >
+                    <span v-if="redirectGroups.length === 0" class="text-xs text-zinc-400">
                         No groups
                     </span>
                 </div>
@@ -101,10 +95,7 @@ const redirectGroups = computed(() =>
                 >
                     {{ group.name }}
                 </LBadge>
-                <span
-                    v-if="redirectGroups.length === 0"
-                    class="text-xs text-zinc-400"
-                >
+                <span v-if="redirectGroups.length === 0" class="text-xs text-zinc-400">
                     No groups
                 </span>
             </div>

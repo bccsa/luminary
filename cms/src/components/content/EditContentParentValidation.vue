@@ -232,10 +232,7 @@ watch(
 </script>
 
 <template>
-    <div
-        ref="languageSelector"
-        @pointerdown="onSelectorPointerDown"
-    >
+    <div ref="languageSelector" @pointerdown="onSelectorPointerDown">
         <LCard
             :class="[
                 bare ? '' : 'bg-white',
@@ -252,10 +249,7 @@ watch(
         >
             <template #actions>
                 <div class="relative flex flex-col items-end gap-2">
-                    <LDropdown
-                        v-model:show="showLanguageSelector"
-                        placement="top-end"
-                    >
+                    <LDropdown v-model:show="showLanguageSelector" placement="top-end">
                         <template #trigger>
                             <LButton
                                 :icon="PlusIcon"
@@ -279,20 +273,13 @@ watch(
                                 "
                             />
                         </div>
-                        <span
-                            v-else
-                            class="p-2 text-sm"
-                            >All languages have translations</span
-                        >
+                        <span v-else class="p-2 text-sm">All languages have translations</span>
                     </LDropdown>
                 </div>
             </template>
 
             <template #persistent>
-                <div
-                    class="flex flex-col gap-1"
-                    :class="{ 'mb-3': isLanguageSelectorCollapsed }"
-                >
+                <div class="flex flex-col gap-1" :class="{ 'mb-3': isLanguageSelectorCollapsed }">
                     <EditContentValidation
                         v-for="content in editableContent?.filter((c) => !c.deleteReq)"
                         :editableContent="content"
@@ -312,24 +299,15 @@ watch(
                     v-if="!(canTranslate || canPublish) || !canEdit"
                     class="mb-1 rounded-md bg-zinc-50 p-2 shadow"
                 >
-                    <span
-                        v-if="!canTranslate"
-                        class="mb-1 flex gap-1 text-xs text-zinc-600"
-                    >
+                    <span v-if="!canTranslate" class="mb-1 flex gap-1 text-xs text-zinc-600">
                         <ExclamationCircleIcon class="h-4 min-h-4 w-4 min-w-4 text-red-400" />No
                         translate permission</span
                     >
-                    <span
-                        v-if="!canPublish"
-                        class="mb-1 flex gap-1 text-xs text-zinc-600"
-                    >
+                    <span v-if="!canPublish" class="mb-1 flex gap-1 text-xs text-zinc-600">
                         <ExclamationCircleIcon class="h-4 w-4 text-red-400" />No publish
                         permission</span
                     >
-                    <span
-                        v-if="!canEdit"
-                        class="flex gap-1 text-xs text-zinc-600"
-                    >
+                    <span v-if="!canEdit" class="flex gap-1 text-xs text-zinc-600">
                         <ExclamationCircleIcon class="h-4 min-h-4 w-4 min-w-4 text-red-400" />No
                         edit permission</span
                     >

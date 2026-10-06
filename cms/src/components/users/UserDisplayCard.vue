@@ -67,11 +67,7 @@ const userProviderLabel = computed(() => {
             <template #topRightContent>
                 <div class="flex items-center gap-2">
                     <span class="font-medium text-zinc-900">
-                        <LBadge
-                            v-if="isLocalChanges"
-                            variant="warning"
-                            class="mr-3"
-                        >
+                        <LBadge v-if="isLocalChanges" variant="warning" class="mr-3">
                             Offline changes
                         </LBadge></span
                     >
@@ -80,10 +76,7 @@ const userProviderLabel = computed(() => {
                         class="flex items-center gap-1 text-xs text-zinc-400"
                     >
                         <KeyIcon class="h-4 w-4 text-zinc-400 max-sm:h-3 max-sm:w-3" />
-                        <span
-                            title="Last logged in"
-                            class="whitespace-nowrap"
-                        >
+                        <span title="Last logged in" class="whitespace-nowrap">
                             {{
                                 db
                                     .toDateTime(usersDoc.lastLogin)
@@ -95,10 +88,7 @@ const userProviderLabel = computed(() => {
                             }}
                         </span>
                     </div>
-                    <div
-                        v-else
-                        class="whitespace-nowrap text-xs text-zinc-400"
-                    >
+                    <div v-else class="whitespace-nowrap text-xs text-zinc-400">
                         Has not logged in yet
                     </div>
                 </div>
@@ -133,10 +123,7 @@ const userProviderLabel = computed(() => {
                             >
                                 {{ group.name }}
                             </LBadge>
-                            <span
-                                v-if="userGroups.length === 0"
-                                class="text-xs text-zinc-400"
-                            >
+                            <span v-if="userGroups.length === 0" class="text-xs text-zinc-400">
                                 No groups
                             </span>
                         </div>
@@ -165,10 +152,7 @@ const userProviderLabel = computed(() => {
                         >
                             {{ group.name }}
                         </LBadge>
-                        <span
-                            v-if="userGroups.length === 0"
-                            class="text-xs text-zinc-400"
-                        >
+                        <span v-if="userGroups.length === 0" class="text-xs text-zinc-400">
                             No groups
                         </span>
                     </div>

@@ -15,11 +15,7 @@ const open = ref(false);
 
 <template>
     <div class="relative">
-        <LDropdown
-            v-model:show="open"
-            placement="bottom-center"
-            width="auto"
-        >
+        <LDropdown v-model:show="open" placement="bottom-center" width="auto">
             <template #trigger>
                 <button
                     class="flex items-center gap-1 rounded-full text-sm shadow-sm"
@@ -32,14 +28,8 @@ const open = ref(false);
                     ]"
                     :title="iconOnly ? (isConnected ? 'Connected' : 'Disconnected') : undefined"
                 >
-                    <component
-                        :is="isConnected ? SignalIcon : SignalSlashIcon"
-                        class="h-4 w-4"
-                    />
-                    <span
-                        v-if="!iconOnly"
-                        class="block"
-                    >
+                    <component :is="isConnected ? SignalIcon : SignalSlashIcon" class="h-4 w-4" />
+                    <span v-if="!iconOnly" class="block">
                         {{ isConnected ? "Connected" : "Disconnected" }}
                     </span>
                 </button>

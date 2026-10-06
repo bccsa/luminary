@@ -41,19 +41,9 @@ const segmentedButtonMobile = ref<{ rootEl: HTMLElement | null } | null>(null);
 
 <template>
     <!-- MOBILE -->
-    <div
-        v-if="mobile"
-        class="relative flex items-center gap-1 pr-1 lg:hidden"
-    >
-        <div
-            v-if="isLocalChange"
-            class="mr-7 flex h-9 w-10 items-center lg:hidden"
-        >
-            <LBadge
-                class="h-full"
-                variant="warning"
-                >Offline changes</LBadge
-            >
+    <div v-if="mobile" class="relative flex items-center gap-1 pr-1 lg:hidden">
+        <div v-if="isLocalChange" class="mr-7 flex h-9 w-10 items-center lg:hidden">
+            <LBadge class="h-full" variant="warning">Offline changes</LBadge>
         </div>
 
         <!-- SEGMENTED BUTTON + DROPDOWN -->
@@ -70,22 +60,13 @@ const segmentedButtonMobile = ref<{ rootEl: HTMLElement | null } | null>(null);
                     : ''
             "
         >
-            <template
-                v-if="isDirty && !newDocument"
-                #left
-            >
-                <span
-                    data-test="revert-changes-button"
-                    class="flex items-center gap-1"
-                >
+            <template v-if="isDirty && !newDocument" #left>
+                <span data-test="revert-changes-button" class="flex items-center gap-1">
                     <ArrowUturnLeftIcon class="size-5" />
                 </span>
             </template>
 
-            <span
-                data-test="save-button"
-                class="flex items-center gap-1"
-            >
+            <span data-test="save-button" class="flex items-center gap-1">
                 <CloudArrowUpIcon class="size-5" />
             </span>
 
@@ -101,14 +82,8 @@ const segmentedButtonMobile = ref<{ rootEl: HTMLElement | null } | null>(null);
                 >
                     <template #trigger>
                         <button class="z-20 flex size-full items-center justify-center">
-                            <ChevronDownIcon
-                                v-if="!showContentActionsMenuMobile"
-                                class="size-5"
-                            />
-                            <ChevronUpIcon
-                                v-else
-                                class="size-5"
-                            />
+                            <ChevronDownIcon v-if="!showContentActionsMenuMobile" class="size-5" />
+                            <ChevronUpIcon v-else class="size-5" />
                         </button>
                     </template>
                     <ul>
@@ -141,19 +116,9 @@ const segmentedButtonMobile = ref<{ rootEl: HTMLElement | null } | null>(null);
         </LButton>
     </div>
     <!-- DESKTOP -->
-    <div
-        v-else
-        class="hidden items-center gap-1 lg:flex"
-    >
-        <div
-            v-if="isLocalChange"
-            class="hidden h-9 items-center gap-2 lg:flex"
-        >
-            <LBadge
-                class="h-full"
-                variant="warning"
-                >Offline changes</LBadge
-            >
+    <div v-else class="hidden items-center gap-1 lg:flex">
+        <div v-if="isLocalChange" class="hidden h-9 items-center gap-2 lg:flex">
+            <LBadge class="h-full" variant="warning">Offline changes</LBadge>
         </div>
         <!-- SEGMENTED BUTTON + DROPDOWN -->
         <LButton
@@ -169,23 +134,14 @@ const segmentedButtonMobile = ref<{ rootEl: HTMLElement | null } | null>(null);
                     : ''
             "
         >
-            <template
-                v-if="isDirty && !newDocument"
-                #left
-            >
-                <span
-                    data-test="revert-changes-button"
-                    class="flex items-center gap-1"
-                >
+            <template v-if="isDirty && !newDocument" #left>
+                <span data-test="revert-changes-button" class="flex items-center gap-1">
                     <ArrowUturnLeftIcon class="size-5" />
                     Revert
                 </span>
             </template>
 
-            <span
-                data-test="save-button"
-                class="flex items-center gap-1"
-            >
+            <span data-test="save-button" class="flex items-center gap-1">
                 <CloudArrowUpIcon class="size-5" />
                 Save
             </span>
@@ -202,14 +158,8 @@ const segmentedButtonMobile = ref<{ rootEl: HTMLElement | null } | null>(null);
                 >
                     <template #trigger>
                         <div data-test="dropdown-trigger">
-                            <ChevronDownIcon
-                                v-if="!showContentActionsMenuDesktop"
-                                class="size-5"
-                            />
-                            <ChevronUpIcon
-                                v-else
-                                class="size-5"
-                            />
+                            <ChevronDownIcon v-if="!showContentActionsMenuDesktop" class="size-5" />
+                            <ChevronUpIcon v-else class="size-5" />
                         </div>
                     </template>
                     <ul>

@@ -39,11 +39,7 @@ const handleClose = () => {
 </script>
 
 <template>
-    <LModal
-        :heading="t('auth.sign_in')"
-        v-model:isVisible="isVisible"
-        @close="handleClose"
-    >
+    <LModal :heading="t('auth.sign_in')" v-model:isVisible="isVisible" @close="handleClose">
         <!-- Provider list -->
         <div class="flex flex-col gap-3 py-2">
             <button

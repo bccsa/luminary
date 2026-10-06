@@ -136,10 +136,7 @@ onMounted(() => {
                     />
                 </div>
             </div>
-            <div
-                v-if="typesWithActivePermissions.length > 0"
-                class="group relative py-1"
-            >
+            <div v-if="typesWithActivePermissions.length > 0" class="group relative py-1">
                 <div
                     v-if="canScrollLeft"
                     class="pointer-events-none absolute inset-y-0 left-0 z-10 flex w-12 items-center justify-start bg-gradient-to-r from-white to-transparent pl-1"
@@ -174,25 +171,15 @@ onMounted(() => {
                     <ChevronRightIcon class="h-3 w-3 text-zinc-500" />
                 </div>
             </div>
-            <div
-                v-else
-                class="px-2 py-1 text-center text-[11px] text-zinc-500"
-            >
+            <div v-else class="px-2 py-1 text-center text-[11px] text-zinc-500">
                 No active permissions, click to add
             </div>
         </template>
     </DisplayCard>
 
-    <LModal
-        v-model:isVisible="isVisible"
-        :heading="assignedGroup.name"
-        noDivider
-    >
+    <LModal v-model:isVisible="isVisible" :heading="assignedGroup.name" noDivider>
         <div class="flex min-h-72 flex-col">
-            <div
-                v-if="typesWithActivePermissions.length > 0"
-                class="mb-2 text-xs text-zinc-500"
-            >
+            <div v-if="typesWithActivePermissions.length > 0" class="mb-2 text-xs text-zinc-500">
                 <span class="font-semibold text-zinc-700">{{ assignedGroup.name }}</span>
                 has this access to
                 <span class="font-semibold text-zinc-700">{{ group?.name }}</span>
@@ -241,10 +228,7 @@ onMounted(() => {
                         v-if="typesWithActivePermissions.includes(aclEntry.type)"
                         class="inline h-3 w-3"
                     />
-                    <div
-                        v-else
-                        class="h-2.5 w-2.5 rounded-md border border-zinc-400"
-                    ></div>
+                    <div v-else class="h-2.5 w-2.5 rounded-md border border-zinc-400"></div>
                     {{ capitaliseFirstLetter(aclEntry.type) }}
                 </button>
             </LDropdown>

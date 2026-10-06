@@ -258,10 +258,7 @@ watch(isFullscreen, () => {
                     />
                 </template>
 
-                <Background
-                    pattern-color="#e4e4e7"
-                    :gap="GRID_SIZE"
-                />
+                <Background pattern-color="#e4e4e7" :gap="GRID_SIZE" />
                 <Panel position="bottom-left">
                     <div class="flex flex-col gap-1">
                         <LButton
@@ -338,10 +335,7 @@ watch(isFullscreen, () => {
                         <div
                             class="pointer-events-auto hidden h-9 shrink-0 items-center gap-2 rounded-md bg-white px-3 text-xs text-zinc-600 shadow-sm ring-1 ring-zinc-300 sm:flex"
                         >
-                            <label
-                                for="group-graph-columns-desktop"
-                                class="font-medium"
-                            >
+                            <label for="group-graph-columns-desktop" class="font-medium">
                                 Columns
                             </label>
                             <input

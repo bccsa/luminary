@@ -55,15 +55,8 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
 </script>
 
 <template>
-    <div
-        :class="$attrs['class']"
-        :style="$attrs['style'] as StyleValue"
-    >
-        <FormLabel
-            v-if="label"
-            :for="id"
-            :required="required"
-        >
+    <div :class="$attrs['class']" :style="$attrs['style'] as StyleValue">
+        <FormLabel v-if="label" :for="id" :required="required">
             {{ label }}
         </FormLabel>
         <div class="relative mt-2 flex rounded-md shadow-sm">
@@ -120,10 +113,7 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
                 v-if="state == 'error' && !rightAddOn"
                 class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3"
             >
-                <ExclamationCircleIcon
-                    class="h-5 w-5 text-red-500"
-                    aria-hidden="true"
-                />
+                <ExclamationCircleIcon class="h-5 w-5 text-red-500" aria-hidden="true" />
             </div>
         </div>
         <p

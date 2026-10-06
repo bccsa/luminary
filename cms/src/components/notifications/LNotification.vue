@@ -38,10 +38,7 @@ const show = ref(true);
                     <p class="mt-1 text-sm text-zinc-500">
                         {{ notification.description }}
                     </p>
-                    <div
-                        class="mt-3"
-                        v-if="notification.action"
-                    >
+                    <div class="mt-3" v-if="notification.action">
                         <button
                             type="button"
                             data-test="notification-action"
@@ -59,10 +56,7 @@ const show = ref(true);
                         class="inline-flex rounded-md bg-white text-zinc-400 hover:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                     >
                         <span class="sr-only">Close</span>
-                        <XMarkIcon
-                            class="h-5 w-5"
-                            aria-hidden="true"
-                        />
+                        <XMarkIcon class="h-5 w-5" aria-hidden="true" />
                     </button>
                 </div>
             </div>

@@ -192,10 +192,7 @@ onErrorCaptured((err) => {
                     :key="localCacheVersion"
                     include="HomePage,ExplorePage,VideoPage,SearchPage"
                 >
-                    <component
-                        :is="Component"
-                        :key="routeKey"
-                    />
+                    <component :is="Component" :key="routeKey" />
                 </KeepAlive>
             </RouterView>
         </div>

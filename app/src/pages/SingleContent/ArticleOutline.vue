@@ -354,10 +354,7 @@ function onResume() {
                 data-test="articleOutlineResumeOption"
                 @click="onResume"
             >
-                <ArrowUturnLeftIcon
-                    class="h-4 w-4 flex-shrink-0"
-                    aria-hidden="true"
-                />
+                <ArrowUturnLeftIcon class="h-4 w-4 flex-shrink-0" aria-hidden="true" />
                 <span class="flex-1">{{ t("content.continueReading.action") }}</span>
                 <span class="font-normal tabular-nums text-zinc-500 dark:text-slate-300">
                     {{ savedProgress ?? 0 }}%

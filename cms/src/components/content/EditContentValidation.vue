@@ -178,10 +178,7 @@ const deleteTranslation = () => {
                             <ArrowRightIcon class="h-4 w-4 text-zinc-700" />
                         </template>
 
-                        <LBadge
-                            withIcon
-                            :variant="statusBadge(editableContent).variant"
-                        >
+                        <LBadge withIcon :variant="statusBadge(editableContent).variant">
                             {{ statusBadge(editableContent).title }}
                         </LBadge>
                     </div>
@@ -197,10 +194,7 @@ const deleteTranslation = () => {
                 </span>
             </div>
 
-            <div
-                v-if="!isValid || dirty"
-                class="mt-2 flex flex-col gap-0.5"
-            >
+            <div v-if="!isValid || dirty" class="mt-2 flex flex-col gap-0.5">
                 <div class="flex items-center gap-2">
                     <p>
                         <ExclamationCircleIcon class="h-4 w-4 text-yellow-400" />

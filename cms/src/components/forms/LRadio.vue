@@ -82,11 +82,6 @@ const { attrsWithoutStyles } = useAttrsWithoutStyles();
             @input="emit('update:modelValue', value)"
             v-bind="attrsWithoutStyles"
         />
-        <FormLabel
-            class=""
-            :for="id"
-            v-if="label"
-            >{{ label }}</FormLabel
-        >
+        <FormLabel class="" :for="id" v-if="label">{{ label }}</FormLabel>
     </div>
 </template>

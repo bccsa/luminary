@@ -741,10 +741,7 @@ watch([isLoading, content, is404], async () => {
     >
         <!-- Reading pill: offers to resume on open, then stands in for the title as a chapter
              dropdown once it scrolls out of view. -->
-        <template
-            #topBarCenter
-            v-if="!is404 && content && readingTrackerEnabled"
-        >
+        <template #topBarCenter v-if="!is404 && content && readingTrackerEnabled">
             <ArticleOutline
                 :articleRoot="articleProseRef"
                 :scrollContainer="scrollContainer"
@@ -759,10 +756,7 @@ watch([isLoading, content, is404], async () => {
                 @dismiss="continuePromptHandled = true"
             />
         </template>
-        <template
-            #quickControls
-            v-if="!is404"
-        >
+        <template #quickControls v-if="!is404">
             <DropdownMenu
                 v-if="!isLoading && !isLoadingTranslations && availableTranslations.length > 1"
                 v-model:open="showDropdown"
@@ -815,26 +809,14 @@ watch([isLoading, content, is404], async () => {
                 :aria-label="isDarkTheme ? 'Switch to light theme' : 'Switch to dark theme'"
                 @click="theme = isDarkTheme ? 'light' : 'dark'"
             >
-                <SunIcon
-                    v-if="isDarkTheme"
-                    class="h-5 w-5"
-                    aria-hidden="true"
-                />
-                <MoonIcon
-                    v-else
-                    class="h-5 w-5"
-                    aria-hidden="true"
-                />
+                <SunIcon v-if="isDarkTheme" class="h-5 w-5" aria-hidden="true" />
+                <MoonIcon v-else class="h-5 w-5" aria-hidden="true" />
             </button>
         </template>
 
         <NotFoundPage v-if="is404" />
 
-        <div
-            v-else
-            class="flex min-h-full flex-col gap-6"
-            :class="{ 'mb-6': !tags.length }"
-        >
+        <div v-else class="flex min-h-full flex-col gap-6" :class="{ 'mb-6': !tags.length }">
             <div
                 class="flex flex-grow justify-center lg:grid lg:grid-cols-[1fr_minmax(0,48rem)_1fr] lg:gap-x-8"
                 :class="{ 'items-center': showLoadingBar }"
@@ -845,10 +827,7 @@ watch([isLoading, content, is404], async () => {
                     class="lg:col-start-2"
                 />
                 <template v-else-if="content">
-                    <article
-                        ref="articleRef"
-                        class="w-full lg:col-start-2"
-                    >
+                    <article ref="articleRef" class="w-full lg:col-start-2">
                         <!-- Desktop: title row originates at the top of the page, level with the pinned
                          topbar chrome, and scrolls away with the content like normal. Suppressed when
                          a hero image is present, since its overlay carries the title instead. -->
@@ -898,10 +877,7 @@ watch([isLoading, content, is404], async () => {
 
                         <!-- The hero overlay carries the title, so there is no title above to leave room for. -->
                         <div :class="hasHeroImage ? 'lg:mt-2' : 'mt-5 lg:mt-2'">
-                            <IgnorePagePadding
-                                :mobileOnly="true"
-                                :ignoreTop="true"
-                            >
+                            <IgnorePagePadding :mobileOnly="true" :ignoreTop="true">
                                 <VideoPlayer
                                     v-if="content && hasVideoSource(content)"
                                     :key="content._id"
@@ -1153,11 +1129,7 @@ watch([isLoading, content, is404], async () => {
     >
         <div class="max-h-[calc(80%)] overflow-y-auto">
             <div class="">
-                <VerticalTagViewer
-                    v-if="selectedCategory"
-                    :tag="selectedCategory"
-                    class=""
-                />
+                <VerticalTagViewer v-if="selectedCategory" :tag="selectedCategory" class="" />
             </div>
         </div>
     </LModal>

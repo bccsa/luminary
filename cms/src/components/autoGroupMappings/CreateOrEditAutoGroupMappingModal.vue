@@ -282,35 +282,17 @@ function setConditionType(idx: number, type: AuthProviderCondition["type"]) {
         secondaryButtonText="Cancel"
         stickToEdges
     >
-        <LBadge
-            v-if="props.disabled"
-            variant="warning"
-            withIcon
-            class="mb-2"
-        >
+        <LBadge v-if="props.disabled" variant="warning" withIcon class="mb-2">
             You do not have permission to edit this mapping
         </LBadge>
-        <LBadge
-            v-if="!isConnected"
-            variant="warning"
-            withIcon
-            class="mb-2"
-        >
+        <LBadge v-if="!isConnected" variant="warning" withIcon class="mb-2">
             Saving disabled: Unable to save while offline
         </LBadge>
-        <LBadge
-            v-if="isDirty && !isNew"
-            variant="warning"
-            withIcon
-            class="mb-2"
-        >
+        <LBadge v-if="isDirty && !isNew" variant="warning" withIcon class="mb-2">
             Unsaved changes
         </LBadge>
 
-        <FormErrors
-            :errors="[]"
-            :validations="validations"
-        />
+        <FormErrors :errors="[]" :validations="validations" />
 
         <!-- Description -->
         <div class="mb-4">
@@ -335,12 +317,7 @@ function setConditionType(idx: number, type: AuthProviderCondition["type"]) {
         </div>
 
         <!-- Global mapping message -->
-        <LBadge
-            v-if="isGlobal"
-            variant="warning"
-            withIcon
-            class="mb-4"
-        >
+        <LBadge v-if="isGlobal" variant="warning" withIcon class="mb-4">
             These groups will be assigned to all users, including unauthenticated visitors. Select a
             provider above to restrict this mapping to authenticated users only.
         </LBadge>
@@ -357,16 +334,10 @@ function setConditionType(idx: number, type: AuthProviderCondition["type"]) {
                 placeholder="Select groups that can manage this mapping..."
                 :disabled="props.disabled"
             />
-            <p
-                v-if="memberOfError"
-                class="mt-1 text-[11px] font-medium text-red-600"
-            >
+            <p v-if="memberOfError" class="mt-1 text-[11px] font-medium text-red-600">
                 {{ memberOfError }}
             </p>
-            <p
-                v-else
-                class="mt-1 text-[11px] text-zinc-400"
-            >
+            <p v-else class="mt-1 text-[11px] text-zinc-400">
                 Only members of these groups can view or edit this mapping document in the CMS. Has
                 no effect on which users are assigned groups on login.
             </p>
@@ -384,26 +355,17 @@ function setConditionType(idx: number, type: AuthProviderCondition["type"]) {
                 placeholder="Select groups to grant..."
                 :disabled="props.disabled"
             />
-            <p
-                v-if="groupIdsError"
-                class="mt-1 text-[11px] font-medium text-red-600"
-            >
+            <p v-if="groupIdsError" class="mt-1 text-[11px] font-medium text-red-600">
                 {{ groupIdsError }}
             </p>
-            <p
-                v-else
-                class="mt-1 text-[11px] text-zinc-400"
-            >
+            <p v-else class="mt-1 text-[11px] text-zinc-400">
                 When a user matches this mapping, these groups are added to their session on login —
                 giving them the permissions those groups hold.
             </p>
         </div>
 
         <!-- Conditions -->
-        <div
-            v-if="!isGlobal"
-            class="rounded-md border border-zinc-200 bg-white p-2"
-        >
+        <div v-if="!isGlobal" class="rounded-md border border-zinc-200 bg-white p-2">
             <label class="text-sm font-medium text-zinc-800">Conditions (AND)</label>
             <p class="mt-0.5 text-[11px] text-zinc-400">
                 Assign the selected groups when all conditions are true. If no conditions are set,
@@ -420,10 +382,7 @@ function setConditionType(idx: number, type: AuthProviderCondition["type"]) {
                 Assigned to all authenticated users.
             </p>
 
-            <template
-                v-for="(cond, cIdx) in editable.conditions ?? []"
-                :key="cIdx"
-            >
+            <template v-for="(cond, cIdx) in editable.conditions ?? []" :key="cIdx">
                 <div
                     v-if="cond.type !== 'authenticated'"
                     class="mt-2 rounded-md border border-zinc-200 bg-white"
@@ -449,10 +408,7 @@ function setConditionType(idx: number, type: AuthProviderCondition["type"]) {
                     </div>
 
                     <!-- Expanded edit form -->
-                    <div
-                        v-else
-                        class="p-3"
-                    >
+                    <div v-else class="p-3">
                         <div class="flex items-center justify-between">
                             <LSelect
                                 :model-value="cond.type"
@@ -544,10 +500,7 @@ function setConditionType(idx: number, type: AuthProviderCondition["type"]) {
             </LButton>
         </div>
 
-        <template
-            v-if="!isGlobal"
-            #footer-extra
-        >
+        <template v-if="!isGlobal" #footer-extra>
             <div class="flex gap-1">
                 <LButton
                     v-if="!isNew"
@@ -558,11 +511,7 @@ function setConditionType(idx: number, type: AuthProviderCondition["type"]) {
                 >
                     Delete
                 </LButton>
-                <LButton
-                    variant="secondary"
-                    :disabled="props.disabled"
-                    @click="duplicate"
-                >
+                <LButton variant="secondary" :disabled="props.disabled" @click="duplicate">
                     Duplicate
                 </LButton>
                 <LButton

@@ -33,28 +33,13 @@ const handleRevert = () => emit("revert");
 
 <template>
     <div class="pt-3">
-        <LBadge
-            v-if="!canEdit"
-            variant="warning"
-            withIcon
-            class="mb-2"
-        >
+        <LBadge v-if="!canEdit" variant="warning" withIcon class="mb-2">
             You do not have permission to edit this provider
         </LBadge>
-        <LBadge
-            v-if="!isConnected"
-            variant="warning"
-            withIcon
-            class="mb-2"
-        >
+        <LBadge v-if="!isConnected" variant="warning" withIcon class="mb-2">
             Saving disabled: Unable to save while offline
         </LBadge>
-        <LBadge
-            v-if="isEditing && isDirty"
-            variant="warning"
-            withIcon
-            class="mb-2"
-        >
+        <LBadge v-if="isEditing && isDirty" variant="warning" withIcon class="mb-2">
             Unsaved changes
         </LBadge>
         <div class="flex items-center justify-between pb-3">
@@ -91,13 +76,7 @@ const handleRevert = () => emit("revert");
                 </LButton>
             </div>
             <div class="flex gap-2">
-                <LButton
-                    @click="handleClose"
-                    variant="secondary"
-                    size="sm"
-                >
-                    Cancel
-                </LButton>
+                <LButton @click="handleClose" variant="secondary" size="sm"> Cancel </LButton>
                 <LButton
                     variant="primary"
                     size="sm"

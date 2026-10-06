@@ -184,11 +184,7 @@ defineExpose({
         "
     >
         <template #toolbar="{ groups, isActive, isDisabled, getLabel, runCommand }">
-            <div
-                ref="toolbarSentinel"
-                class="h-px w-full shrink-0"
-                aria-hidden="true"
-            />
+            <div ref="toolbarSentinel" class="h-px w-full shrink-0" aria-hidden="true" />
             <div
                 v-if="placeholderHeight > 0"
                 class="w-full shrink-0"
@@ -207,10 +203,7 @@ defineExpose({
                         :key="gi"
                         :class="toolbarClasses.toolbarGroup"
                     >
-                        <template
-                            v-for="item in group"
-                            :key="item"
-                        >
+                        <template v-for="item in group" :key="item">
                             <!-- Download: opens a menu to pick the document type -->
                             <LDropdown
                                 v-if="item === 'download' && !isDisabled(item)"
@@ -262,26 +255,14 @@ defineExpose({
                                     )
                                 "
                             >
-                                <BulletlistIcon
-                                    v-if="item === 'bulletList'"
-                                    class="h-5 w-5"
-                                />
+                                <BulletlistIcon v-if="item === 'bulletList'" class="h-5 w-5" />
                                 <NumberedListIcon
                                     v-else-if="item === 'orderedList'"
                                     class="h-5 w-5"
                                 />
-                                <LinkIcon
-                                    v-else-if="item === 'link'"
-                                    class="h-5 w-5"
-                                />
-                                <LinkSlashIcon
-                                    v-else-if="item === 'unlink'"
-                                    class="h-5 w-5"
-                                />
-                                <ArrowUpTrayIcon
-                                    v-else-if="item === 'upload'"
-                                    class="h-5 w-5"
-                                />
+                                <LinkIcon v-else-if="item === 'link'" class="h-5 w-5" />
+                                <LinkSlashIcon v-else-if="item === 'unlink'" class="h-5 w-5" />
+                                <ArrowUpTrayIcon v-else-if="item === 'upload'" class="h-5 w-5" />
                                 <ArrowDownTrayIcon
                                     v-else-if="item === 'download'"
                                     class="h-5 w-5"
@@ -325,11 +306,7 @@ defineExpose({
                     type="button"
                     >Ok</LButton
                 >
-                <LButton
-                    @click="showModal = false"
-                    class="w-20"
-                    variant="secondary"
-                    type="button"
+                <LButton @click="showModal = false" class="w-20" variant="secondary" type="button"
                     >Cancel</LButton
                 >
             </div>

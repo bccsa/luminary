@@ -50,10 +50,7 @@ const sorted = computed(
                     class="flex w-auto justify-start"
                 />
             </div>
-            <div
-                v-if="!content.length"
-                class="text-zinc-500 dark:text-slate-200"
-            >
+            <div v-if="!content.length" class="text-zinc-500 dark:text-slate-200">
                 {{ t("bookmarks.empty_page") }} "<BookmarkIcon class="inline h-5 w-5" />"
             </div>
         </div>

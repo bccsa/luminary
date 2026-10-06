@@ -95,10 +95,7 @@ const readMoreItems = computed(() => {
 </script>
 
 <template>
-    <section
-        v-if="readMoreItems.length"
-        class="w-full pb-2"
-    >
+    <section v-if="readMoreItems.length" class="w-full pb-2">
         <!-- Horizontal padding mirrors the list/grid inset in ReadMore so the heading
              lines up with the first card at every breakpoint. -->
         <h2 class="px-4 pb-3 text-xl text-zinc-800 dark:text-zinc-200 sm:px-8">

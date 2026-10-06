@@ -28,11 +28,7 @@ onUnmounted(() => {
 <template>
     <LTeleport>
         <Transition name="sidebar-backdrop">
-            <div
-                v-if="open"
-                class="fixed inset-0 z-[60] touch-none bg-black/50"
-                @click="close"
-            />
+            <div v-if="open" class="fixed inset-0 z-[60] touch-none bg-black/50" @click="close" />
         </Transition>
         <Transition name="sidebar-slide">
             <aside
@@ -41,17 +37,11 @@ onUnmounted(() => {
                 role="dialog"
                 aria-modal="true"
             >
-                <slot
-                    name="header"
-                    :close="close"
-                />
+                <slot name="header" :close="close" />
                 <div class="flex-1 overflow-y-auto overscroll-contain">
                     <slot :close="close" />
                 </div>
-                <slot
-                    name="footer"
-                    :close="close"
-                />
+                <slot name="footer" :close="close" />
             </aside>
         </Transition>
     </LTeleport>

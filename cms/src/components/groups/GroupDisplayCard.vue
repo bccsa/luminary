@@ -48,41 +48,23 @@ const accessGroupNames = computed(() => {
         <template #content>
             <div class="flex items-center justify-between pt-1">
                 <div class="flex flex-wrap gap-1">
-                    <LBadge
-                        v-for="name in accessGroupNames"
-                        :key="name"
-                    >
+                    <LBadge v-for="name in accessGroupNames" :key="name">
                         {{ name }}
                     </LBadge>
                 </div>
                 <div class="flex">
-                    <LBadge
-                        v-if="isModified(group._id)"
-                        variant="warning"
-                        >Incoming edit</LBadge
-                    >
+                    <LBadge v-if="isModified(group._id)" variant="warning">Incoming edit</LBadge>
                 </div>
             </div>
         </template>
 
         <template #topRightContent>
-            <div
-                v-if="unsavedChanges"
-                class="pr-4"
-            >
-                <LBadge
-                    variant="warning"
-                    class="flex whitespace-nowrap"
-                >
-                    Unsaved changes
-                </LBadge>
+            <div v-if="unsavedChanges" class="pr-4">
+                <LBadge variant="warning" class="flex whitespace-nowrap"> Unsaved changes </LBadge>
             </div>
             <div class="flex items-center justify-end text-xs text-zinc-400">
                 <ClockIcon class="mr-[2px] h-4 w-4 text-zinc-400" />
-                <span
-                    title="Last Updated"
-                    class="whitespace-nowrap"
-                >
+                <span title="Last Updated" class="whitespace-nowrap">
                     {{
                         db
                             .toDateTime(group.updatedTimeUtc)

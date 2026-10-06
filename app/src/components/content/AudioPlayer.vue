@@ -986,19 +986,10 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
 <template>
     <div class="">
         <!-- Hidden audio element -->
-        <audio
-            ref="audioElement"
-            :src="matchAudioFileUrl"
-            preload="auto"
-            class="hidden"
-        />
+        <audio ref="audioElement" :src="matchAudioFileUrl" preload="auto" class="hidden" />
 
         <!-- Screen reader status announcements -->
-        <div
-            class="sr-only"
-            aria-live="polite"
-            aria-atomic="true"
-        >
+        <div class="sr-only" aria-live="polite" aria-atomic="true">
             {{ isPlaying ? "Playing" : "Paused" }}: {{ currentContent.title }} by
             {{ currentContent.author }}
             <span v-if="audioError">Error: {{ audioError }}</span>
@@ -1050,10 +1041,7 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                         </button>
 
                         <!-- Language Dropdown -->
-                        <div
-                            v-if="availableAudioLanguages.length > 1"
-                            class="relative"
-                        >
+                        <div v-if="availableAudioLanguages.length > 1" class="relative">
                             <button
                                 @click="showLanguageDropdown = !showLanguageDropdown"
                                 class="flex items-center gap-1 rounded px-2 py-1 text-sm hover:bg-black/10 dark:hover:bg-white/10"
@@ -1276,14 +1264,8 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                             :title="isMuted ? 'Unmute (M)' : 'Mute (M)'"
                             aria-label="Toggle volume controls"
                         >
-                            <SpeakerXMarkIcon
-                                v-if="isMuted"
-                                class="h-5 w-5 text-zinc-500"
-                            />
-                            <SpeakerWaveIcon
-                                v-else
-                                class="h-5 w-5 text-zinc-500"
-                            />
+                            <SpeakerXMarkIcon v-if="isMuted" class="h-5 w-5 text-zinc-500" />
+                            <SpeakerWaveIcon v-else class="h-5 w-5 text-zinc-500" />
                             <span class="text-sm font-medium text-zinc-600 dark:text-zinc-400">
                                 {{
                                     Math.round((isVolumeSliding ? volumeSlideValue : volume) * 100)
@@ -1356,14 +1338,8 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                                 :title="isMuted ? 'Unmute' : 'Mute'"
                                 aria-label="Toggle mute"
                             >
-                                <SpeakerXMarkIcon
-                                    v-if="isMuted"
-                                    class="h-5 w-5 text-red-500"
-                                />
-                                <SpeakerWaveIcon
-                                    v-else
-                                    class="h-5 w-5 text-zinc-500"
-                                />
+                                <SpeakerXMarkIcon v-if="isMuted" class="h-5 w-5 text-red-500" />
+                                <SpeakerWaveIcon v-else class="h-5 w-5 text-zinc-500" />
                             </button>
                         </div>
                     </div>
@@ -1486,10 +1462,7 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                             v-if="isMuted"
                             class="h-6 w-6 text-zinc-500 dark:text-slate-400"
                         />
-                        <SpeakerWaveIcon
-                            v-else
-                            class="h-6 w-6 text-zinc-500 dark:text-slate-400"
-                        />
+                        <SpeakerWaveIcon v-else class="h-6 w-6 text-zinc-500 dark:text-slate-400" />
                     </button>
 
                     <!-- Mini volume slider for minimal player - Vertical -->
@@ -1556,14 +1529,8 @@ watch(matchAudioFileUrl, async (newUrl, oldUrl) => {
                     @click.stop="togglePlay"
                     class="flex h-11 w-11 flex-shrink-0 touch-manipulation items-center justify-center rounded-full bg-transparent active:bg-black/10 dark:active:bg-white/10"
                 >
-                    <PlayIcon
-                        v-if="!isPlaying"
-                        class="h-7 w-7 text-zinc-500 dark:text-slate-400"
-                    />
-                    <PauseIcon
-                        v-else
-                        class="h-7 w-7 text-zinc-500 dark:text-slate-400"
-                    />
+                    <PlayIcon v-if="!isPlaying" class="h-7 w-7 text-zinc-500 dark:text-slate-400" />
+                    <PauseIcon v-else class="h-7 w-7 text-zinc-500 dark:text-slate-400" />
                 </button>
                 <button
                     @click.stop="closePlayerWithConfirmation"

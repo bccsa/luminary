@@ -192,11 +192,7 @@ const hasAnyContent = computed(() => editable.value.length > 0);
 </script>
 
 <template>
-    <BasePage
-        title="Groups"
-        :is-full-width="true"
-        :loading="isFetching"
-    >
+    <BasePage title="Groups" :is-full-width="true" :loading="isFetching">
         <template #pageNav>
             <div class="relative z-20 flex items-center justify-end">
                 <LButton
@@ -229,10 +225,7 @@ const hasAnyContent = computed(() => editable.value.length > 0);
             />
         </template>
 
-        <template
-            v-if="currentTab === 'overview' && hasAnyContent"
-            #internalPageHeader
-        >
+        <template v-if="currentTab === 'overview' && hasAnyContent" #internalPageHeader>
             <FilterOptions
                 v-model:search="queryOptions.search"
                 v-model:selected-groups="queryOptions.filterGroupIds"
@@ -242,14 +235,8 @@ const hasAnyContent = computed(() => editable.value.length > 0);
             />
         </template>
 
-        <div
-            v-show="currentTab === 'overview'"
-            class="flex flex-col gap-[3px]"
-        >
-            <p
-                v-if="hasAnyContent"
-                class="mb-2 px-2 py-1 text-sm text-zinc-500"
-            >
+        <div v-show="currentTab === 'overview'" class="flex flex-col gap-[3px]">
+            <p v-if="hasAnyContent" class="mb-2 px-2 py-1 text-sm text-zinc-500">
                 <span>
                     Configure access permissions for the groups listed below to control who can
                     access them and their member documents.

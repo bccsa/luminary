@@ -15,10 +15,7 @@ const emit = defineEmits(["close"]);
 </script>
 
 <template>
-    <BaseModal
-        v-model:isVisible="isVisible"
-        @close="emit('close')"
-    >
+    <BaseModal v-model:isVisible="isVisible" @close="emit('close')">
         <div
             class="max-h-full w-full max-w-md overflow-y-auto rounded-lg"
             :class="[
@@ -32,10 +29,7 @@ const emit = defineEmits(["close"]);
             <div class="divide-y divide-zinc-200 dark:divide-slate-600">
                 <slot></slot>
             </div>
-            <div
-                v-if="$slots.footer"
-                class="mt-4"
-            >
+            <div v-if="$slots.footer" class="mt-4">
                 <slot name="footer"></slot>
             </div>
         </div>

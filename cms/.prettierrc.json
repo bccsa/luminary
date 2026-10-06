@@ -6,5 +6,5 @@
     "endOfLine": "lf",
     "trailingComma": "all",
     "objectWrap": "preserve",
-    "singleAttributePerLine": true
+    "singleAttributePerLine": false
 }

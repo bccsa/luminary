@@ -129,10 +129,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-    <div
-        class="flex h-full w-full scrollbar-hide"
-        :style="topBarHeightStyle"
-    >
+    <div class="flex h-full w-full scrollbar-hide" :style="topBarHeightStyle">
         <!-- Desktop left sidebar — prerendered on the SSG build too (public nav /
              logo; the auth/Dexie bits self-defer inside the component). -->
         <DesktopSidebar />
@@ -154,10 +151,7 @@ onUnmounted(() => {
                 </TopBar>
             </div>
 
-            <Teleport
-                v-if="notificationsReady"
-                to="body"
-            >
+            <Teleport v-if="notificationsReady" to="body">
                 <NotificationToastManager v-if="showNotifications" />
             </Teleport>
 
@@ -252,16 +246,10 @@ onUnmounted(() => {
 
                     <!-- Spacer that keeps in-flow content (banners, the page title) out from under a
                      centre-slot control that is showing before the page has scrolled. -->
-                    <div
-                        v-if="desktopTopBar && reserveTopBarCenter"
-                        class="h-11"
-                    />
+                    <div v-if="desktopTopBar && reserveTopBarCenter" class="h-11" />
 
                     <!-- Desktop notification: normal flow below the pinned chrome; pushes article down when present. -->
-                    <div
-                        v-if="desktopTopBar"
-                        class="hidden justify-center lg:flex"
-                    >
+                    <div v-if="desktopTopBar" class="hidden justify-center lg:flex">
                         <div class="w-full lg:w-3/4 lg:max-w-3xl">
                             <NotificationBannerManager
                                 v-if="showNotifications && notificationsReady"

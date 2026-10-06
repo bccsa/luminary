@@ -256,33 +256,16 @@ const saveDisabled = computed(() => {
         stickToEdges
     >
         <div>
-            <LBadge
-                v-if="isLoading"
-                variant="warning"
-                >Loading...</LBadge
-            >
-            <LBadge
-                v-else-if="!isConnected"
-                variant="warning"
+            <LBadge v-if="isLoading" variant="warning">Loading...</LBadge>
+            <LBadge v-else-if="!isConnected" variant="warning"
                 >You can not create or edit users when offline...</LBadge
             >
-            <LBadge
-                v-if="!hasGroupsSelected"
-                variant="error"
-                class="mr-2"
+            <LBadge v-if="!hasGroupsSelected" variant="error" class="mr-2"
                 >No groups selected</LBadge
             >
-            <LBadge
-                v-if="isDirty"
-                variant="warning"
-                class="mr-2"
-                >Unsaved changes</LBadge
-            >
+            <LBadge v-if="isDirty" variant="warning" class="mr-2">Unsaved changes</LBadge>
         </div>
-        <LCard
-            v-if="editable"
-            class="!border-0 !p-0"
-        >
+        <LCard v-if="editable" class="!border-0 !p-0">
             <LInput
                 label="Name"
                 name="userName"

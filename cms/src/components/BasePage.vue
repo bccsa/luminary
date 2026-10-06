@@ -143,10 +143,7 @@ const handleMobileSidebarToggle = () => {
                     </TopBar>
                 </div>
             </div>
-            <div
-                v-if="loading"
-                class="flex min-h-0 flex-1 items-center justify-center"
-            >
+            <div v-if="loading" class="flex min-h-0 flex-1 items-center justify-center">
                 <LoadingBar />
             </div>
             <template v-else>
@@ -173,11 +170,7 @@ const handleMobileSidebarToggle = () => {
                         class="flex items-center gap-2 text-lg font-semibold leading-7"
                         v-if="shouldShowPageTitle"
                     >
-                        <component
-                            :is="icon"
-                            v-if="icon"
-                            class="h-5 w-5 text-zinc-500"
-                        />
+                        <component :is="icon" v-if="icon" class="h-5 w-5 text-zinc-500" />
                         {{ title }}
                     </h1>
 
@@ -190,10 +183,7 @@ const handleMobileSidebarToggle = () => {
                     v-if="$slots.internalPageHeader"
                     class="w-full flex-shrink-0 border-b border-t border-zinc-300 border-t-zinc-100 bg-white shadow"
                 >
-                    <div
-                        class="py-2"
-                        :class="chromeInsetClasses"
-                    >
+                    <div class="py-2" :class="chromeInsetClasses">
                         <slot name="internalPageHeader" />
                     </div>
                 </div>

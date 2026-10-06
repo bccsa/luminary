@@ -63,15 +63,8 @@ onClickOutside(checklist, () => {
 </script>
 
 <template>
-    <div
-        class="relative"
-        ref="checklist"
-        data-test="main-div"
-    >
-        <div
-            v-if="icon"
-            class="absolute inset-y-0 left-3 flex items-center"
-        >
+    <div class="relative" ref="checklist" data-test="main-div">
+        <div v-if="icon" class="absolute inset-y-0 left-3 flex items-center">
             <component
                 :is="icon"
                 :class="{
@@ -95,16 +88,10 @@ onClickOutside(checklist, () => {
             class="absolute inset-y-0 right-0 flex items-center rounded-r-md px-2 focus:outline-none"
             @click="openOptions = !openOptions"
         >
-            <ChevronUpDownIcon
-                class="h-5 w-5 text-zinc-400"
-                aria-hidden="true"
-            />
+            <ChevronUpDownIcon class="h-5 w-5 text-zinc-400" aria-hidden="true" />
         </button>
 
-        <div
-            v-if="openOptions"
-            class="relative"
-        >
+        <div v-if="openOptions" class="relative">
             <ul
                 v-if="filtered.length > 0"
                 data-test="options"
@@ -128,10 +115,7 @@ onClickOutside(checklist, () => {
         </div>
     </div>
 
-    <div
-        v-if="!isContentOverview"
-        class="mt-3 flex flex-wrap gap-3"
-    >
+    <div v-if="!isContentOverview" class="mt-3 flex flex-wrap gap-3">
         <TransitionGroup
             enter-active-class="transition duration-150 delay-75"
             enter-from-class="transform scale-90 opacity-0"

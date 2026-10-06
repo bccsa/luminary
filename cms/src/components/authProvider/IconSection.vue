@@ -111,10 +111,7 @@ watch(
             />
         </div>
         <div class="mt-2">
-            <label
-                for="icon-opacity"
-                class="mb-1 block text-xs font-medium text-zinc-700"
-            >
+            <label for="icon-opacity" class="mb-1 block text-xs font-medium text-zinc-700">
                 Icon Opacity
             </label>
             <div class="flex items-center gap-2">

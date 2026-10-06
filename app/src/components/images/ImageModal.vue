@@ -314,10 +314,7 @@ onMounted(() => {
 </script>
 
 <template>
-    <BaseModal
-        :isVisible="true"
-        @close="closeModal"
-    >
+    <BaseModal :isVisible="true" @close="closeModal">
         <!-- Close -->
         <XCircleIcon
             class="fixed right-8 top-8 z-40 h-10 w-10 cursor-pointer rounded-full bg-gray-900 bg-opacity-70 p-2 text-white drop-shadow-lg hover:text-gray-300 dark:text-slate-200 dark:hover:text-slate-100 md:h-10 md:w-10 md:p-1"

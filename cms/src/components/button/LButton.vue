@@ -228,10 +228,7 @@ function handleSegmentClick(segment: Segment, event: MouseEvent) {
                     [iconClass!]: iconClass,
                 }"
             />
-            <span
-                v-if="$slots.default"
-                :class="[iconRight ? 'order-1' : 'order-3']"
-            >
+            <span v-if="$slots.default" :class="[iconRight ? 'order-1' : 'order-3']">
                 <slot />
             </span>
         </button>
@@ -280,10 +277,7 @@ function handleSegmentClick(segment: Segment, event: MouseEvent) {
                 )
             "
         />
-        <span
-            v-if="$slots.default"
-            :class="[iconRight ? 'order-1' : 'order-3']"
-        >
+        <span v-if="$slots.default" :class="[iconRight ? 'order-1' : 'order-3']">
             <slot />
         </span>
         <!-- Tooltip -->

@@ -16,10 +16,7 @@ const createNew = () => {
 </script>
 
 <template>
-    <BasePage
-        title="S3 Storage Overview"
-        :should-show-page-title="true"
-    >
+    <BasePage title="S3 Storage Overview" :should-show-page-title="true">
         <template #topBarActionsDesktop>
             <LButton
                 v-if="!isSmallScreen && canEdit"

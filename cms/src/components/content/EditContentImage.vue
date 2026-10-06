@@ -191,10 +191,7 @@ const handleFileChange = () => {
                 @change="handleFileChange"
             />
 
-            <div
-                v-if="showHelp"
-                class="mt-2"
-            >
+            <div v-if="showHelp" class="mt-2">
                 <p class="my-2 text-xs">
                     You can upload several files in different aspect ratios. The most suitable image
                     will automatically be displayed based on the aspect ratio of the image element

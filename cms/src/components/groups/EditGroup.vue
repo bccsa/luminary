@@ -413,21 +413,12 @@ const duplicateGroup = async () => {
                             class="!px-1 !py-1 !pl-2.5"
                         />
                     </template>
-                    <LBadge
-                        v-if="isDirty"
-                        variant="warning"
-                        class="'h-fit'"
-                    >
+                    <LBadge v-if="isDirty" variant="warning" class="'h-fit'">
                         <span>Unsaved changes</span>
                     </LBadge>
                 </LDropdown>
                 <div v-else>
-                    <LBadge
-                        v-if="isDirty"
-                        variant="warning"
-                        withIcon
-                        class="h-fit"
-                    >
+                    <LBadge v-if="isDirty" variant="warning" withIcon class="h-fit">
                         <span>Unsaved changes</span>
                     </LBadge>
                 </div>
@@ -470,35 +461,20 @@ const duplicateGroup = async () => {
         </template>
 
         <div class="flex items-center gap-1">
-            <LBadge
-                v-if="!hasEditPermission && !isEmpty"
-                variant="warning"
-                withIcon
-            >
+            <LBadge v-if="!hasEditPermission && !isEmpty" variant="warning" withIcon>
                 Saving disabled: The group would not be editable
             </LBadge>
-            <LBadge
-                v-if="!isConnected"
-                variant="warning"
-                withIcon
-            >
+            <LBadge v-if="!isConnected" variant="warning" withIcon>
                 Saving disabled: Unable to save while offline
             </LBadge>
-            <LBadge
-                v-if="isEmpty"
-                variant="warning"
-                withIcon
-            >
+            <LBadge v-if="isEmpty" variant="warning" withIcon>
                 The group does not have any access configured
             </LBadge>
         </div>
 
         <div :class="['w-full ', { 'bg-zinc-100': disabled }]">
             <div class="mt-1 space-y-1">
-                <div
-                    v-if="isComboboxOpen"
-                    @focusout="handleFocusOut"
-                >
+                <div v-if="isComboboxOpen" @focusout="handleFocusOut">
                     <LCombobox
                         smallInput
                         ref="comboboxRef"
@@ -578,10 +554,7 @@ const duplicateGroup = async () => {
                 >
                     Duplicate
                 </LButton>
-                <div
-                    v-if="isDirty && !disabled"
-                    class="-my-2 flex items-center gap-2"
-                >
+                <div v-if="isDirty && !disabled" class="-my-2 flex items-center gap-2">
                     <LButton
                         variant="secondary"
                         size="sm"

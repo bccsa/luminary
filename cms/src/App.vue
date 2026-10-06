@@ -53,29 +53,16 @@ const routeKey = computed(() => {
             <div class="min-h-0 min-w-0 overflow-hidden">
                 <!-- The routeKey disables component reuse in cases where data needs to be reloaded for dynamic
                 routes (e.g. Post / Tag overviews) -->
-                <RouterView
-                    :key="routeKey"
-                    v-slot="{ Component }"
-                >
-                    <component
-                        :is="Component"
-                        :onOpenMobileSidebar="() => (sidebarOpen = true)"
-                    />
+                <RouterView :key="routeKey" v-slot="{ Component }">
+                    <component :is="Component" :onOpenMobileSidebar="() => (sidebarOpen = true)" />
                 </RouterView>
             </div>
         </div>
     </template>
 
-    <div
-        v-else
-        class="absolute flex h-full w-full items-center justify-center"
-    >
+    <div v-else class="absolute flex h-full w-full items-center justify-center">
         <div class="flex flex-col items-center gap-4">
-            <img
-                class="w-72"
-                src="@/assets/logo.svg"
-                :alt="appName"
-            />
+            <img class="w-72" src="@/assets/logo.svg" :alt="appName" />
             <div class="flex items-center gap-2 text-lg"><LoadingBar /></div>
         </div>
     </div>

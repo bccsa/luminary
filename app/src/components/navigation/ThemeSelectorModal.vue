@@ -18,21 +18,14 @@ const emit = defineEmits(["close"]);
 </script>
 
 <template>
-    <LModal
-        :heading="t('select_theme.title')"
-        :is-visible="isVisible"
-        @close="emit('close')"
-    >
+    <LModal :heading="t('select_theme.title')" :is-visible="isVisible" @close="emit('close')">
         <div class="divide-y divide-zinc-200 dark:divide-slate-600">
             <button
                 class="flex h-10 w-full cursor-pointer items-center p-3 hover:bg-zinc-100 dark:hover:bg-slate-600"
                 @click="theme = 'light'"
                 data-test="switch-theme-button"
             >
-                <SunIcon
-                    class="mr-2 h-4 w-4"
-                    aria-hidden="true"
-                />
+                <SunIcon class="mr-2 h-4 w-4" aria-hidden="true" />
                 <span class="text-sm">{{ t("select_theme.light") }}</span>
                 <CheckCircleIcon
                     v-if="theme === 'light'"
@@ -45,10 +38,7 @@ const emit = defineEmits(["close"]);
                 @click="theme = 'dark'"
                 data-test="switch-theme-button"
             >
-                <MoonIcon
-                    class="mr-2 h-4 w-4"
-                    aria-hidden="true"
-                />
+                <MoonIcon class="mr-2 h-4 w-4" aria-hidden="true" />
                 <span class="text-sm">{{ t("select_theme.dark") }}</span>
                 <CheckCircleIcon
                     v-if="theme === 'dark'"
@@ -61,10 +51,7 @@ const emit = defineEmits(["close"]);
                 @click="theme = 'system'"
                 data-test="switch-theme-button"
             >
-                <ComputerDesktopIcon
-                    class="mr-2 h-4 w-4"
-                    aria-hidden="true"
-                />
+                <ComputerDesktopIcon class="mr-2 h-4 w-4" aria-hidden="true" />
                 <span class="text-sm">{{ t("select_theme.system") }}</span>
                 <CheckCircleIcon
                     v-if="theme === 'system'"

@@ -51,10 +51,7 @@ const hasRows = computed(() => pinnedContentByCategory.tagged.value.length > 0);
 </script>
 
 <template>
-    <div
-        v-if="$slots.header"
-        :class="hasRows ? 'bg-yellow-500/10 dark:bg-yellow-500/5' : ''"
-    >
+    <div v-if="$slots.header" :class="hasRows ? 'bg-yellow-500/10 dark:bg-yellow-500/5' : ''">
         <slot name="header" />
     </div>
     <HorizontalContentTileCollection

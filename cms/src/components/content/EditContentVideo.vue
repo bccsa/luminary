@@ -148,10 +148,7 @@ watch(
             class="pb-1"
             data-test="video-key-input"
         />
-        <p
-            class="text-xs text-zinc-500"
-            data-test="video-key-note"
-        >
+        <p class="text-xs text-zinc-500" data-test="video-key-note">
             <template v-if="hasStoredKey">
                 An encryption key is saved for this video. It cannot be shown again.
             </template>

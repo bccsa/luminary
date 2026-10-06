@@ -247,10 +247,7 @@ function onEnded() {
             :parent-image-bucket-id="content.parentImageBucketId"
         />
 
-        <div
-            ref="playerWrapper"
-            class="video-player absolute bottom-0 left-0 right-0 top-0"
-        >
+        <div ref="playerWrapper" class="video-player absolute bottom-0 left-0 right-0 top-0">
             <LuminaryPlayer
                 v-if="source"
                 ref="player"

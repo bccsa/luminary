@@ -67,11 +67,7 @@ watch(groups, (newGroups) => {
         <!-- isLocalChanges -->
         <td class="whitespace-wrap py-2 pl-4 pr-3 text-sm font-medium text-zinc-900 sm:pl-3">
             <div class="flex gap-2">
-                <LBadge
-                    v-if="isLocalChanges"
-                    variant="warning"
-                    >Offline changes</LBadge
-                >
+                <LBadge v-if="isLocalChanges" variant="warning">Offline changes</LBadge>
             </div>
         </td>
 

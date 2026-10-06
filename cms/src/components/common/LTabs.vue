@@ -23,11 +23,7 @@ const id = useId().toString();
 <template>
     <div>
         <div class="sm:hidden">
-            <label
-                :for="id"
-                class="sr-only"
-                >Select a tab</label
-            >
+            <label :for="id" class="sr-only">Select a tab</label>
             <select
                 :id="id"
                 name="tabs"
@@ -45,10 +41,7 @@ const id = useId().toString();
         </div>
         <div>
             <div class="flex items-center justify-between sm:border-b sm:border-zinc-200">
-                <nav
-                    class="-mb-px hidden space-x-8 sm:flex"
-                    aria-label="Tabs"
-                >
+                <nav class="-mb-px hidden space-x-8 sm:flex" aria-label="Tabs">
                     <span
                         v-for="tab in tabs"
                         @click="emit('update:currentTab', tab.key)"
@@ -70,19 +63,13 @@ const id = useId().toString();
                         {{ tab.title }}
                     </span>
                 </nav>
-                <div
-                    class="mt-3 sm:mt-0"
-                    v-if="$slots.default"
-                >
+                <div class="mt-3 sm:mt-0" v-if="$slots.default">
                     <slot />
                 </div>
             </div>
         </div>
         <div>
-            <slot
-                :name="`tab-${index + 1}`"
-                v-for="(tab, index) in tabs"
-            />
+            <slot :name="`tab-${index + 1}`" v-for="(tab, index) in tabs" />
         </div>
     </div>
 </template>

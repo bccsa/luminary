@@ -124,10 +124,7 @@ const displayProgress = computed(() => Math.max(mediaProgress.value, readingProg
                     :size="imageSize"
                 >
                     <template #default>
-                        <div
-                            class="w-full"
-                            v-if="titlePosition === 'bottom'"
-                        >
+                        <div class="w-full" v-if="titlePosition === 'bottom'">
                             <h3 class="mt-2 truncate text-sm text-zinc-800 dark:text-slate-50">
                                 {{ content.title }}
                             </h3>

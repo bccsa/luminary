@@ -44,12 +44,7 @@ const badgeVariant = computed(() => (isGlobal.value ? "warning" : "default"));
     >
         <template #desktopFooter>
             <div class="flex w-full flex-1 flex-wrap items-center gap-1">
-                <LBadge
-                    v-if="badgeLabel"
-                    :icon="badgeIcon"
-                    withIcon
-                    :variant="badgeVariant"
-                >
+                <LBadge v-if="badgeLabel" :icon="badgeIcon" withIcon :variant="badgeVariant">
                     {{ badgeLabel }}
                 </LBadge>
                 <UserGroupIcon class="size-4 text-zinc-400" />
@@ -61,10 +56,7 @@ const badgeVariant = computed(() => (isGlobal.value ? "warning" : "default"));
                 >
                     {{ group!.name }}
                 </LBadge>
-                <span
-                    v-if="assignedGroups.length === 0"
-                    class="text-xs text-zinc-400"
-                >
+                <span v-if="assignedGroups.length === 0" class="text-xs text-zinc-400">
                     No groups assigned
                 </span>
             </div>
@@ -72,12 +64,7 @@ const badgeVariant = computed(() => (isGlobal.value ? "warning" : "default"));
 
         <template #mobileFooter>
             <div class="flex flex-1 items-center gap-1">
-                <LBadge
-                    v-if="badgeLabel"
-                    :icon="badgeIcon"
-                    withIcon
-                    :variant="badgeVariant"
-                >
+                <LBadge v-if="badgeLabel" :icon="badgeIcon" withIcon :variant="badgeVariant">
                     {{ badgeLabel }}
                 </LBadge>
                 <UserGroupIcon class="size-4 text-zinc-400" />
@@ -90,10 +77,7 @@ const badgeVariant = computed(() => (isGlobal.value ? "warning" : "default"));
                     >
                         {{ group!.name }}
                     </LBadge>
-                    <span
-                        v-if="assignedGroups.length === 0"
-                        class="text-xs text-zinc-400"
-                    >
+                    <span v-if="assignedGroups.length === 0" class="text-xs text-zinc-400">
                         No groups assigned
                     </span>
                 </div>

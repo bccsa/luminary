@@ -64,10 +64,7 @@ onMounted(() => {
 </script>
 
 <template>
-    <div
-        v-if="aclEntry"
-        class="contents"
-    >
+    <div v-if="aclEntry" class="contents">
         <div
             class="flex h-full items-center border-b border-zinc-200 pr-2 font-medium"
             :class="isMobileScreen ? 'text-[13px]' : 'text-sm'"
@@ -138,10 +135,7 @@ onMounted(() => {
                                 : 'text-zinc-200',
                         ]"
                     />
-                    <div
-                        v-else
-                        class="h-2.5 w-2.5 rounded-md border border-zinc-400"
-                    ></div>
+                    <div v-else class="h-2.5 w-2.5 rounded-md border border-zinc-400"></div>
                     {{ capitaliseFirstLetter(aclPermission) }}
                 </button>
             </LDropdown>

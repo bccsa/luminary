@@ -208,10 +208,7 @@ const onEscape = (e: KeyboardEvent) => {
                 />
                 <FormLabel v-if="label">{{ label }}</FormLabel>
             </div>
-            <slot
-                name="actions"
-                v-if="$slots.actions"
-            />
+            <slot name="actions" v-if="$slots.actions" />
         </div>
         <div
             v-if="$slots.actions && showSelectedLabels && selectedLabels.length > 0"
@@ -331,10 +328,7 @@ const onEscape = (e: KeyboardEvent) => {
                         v-bind="attrsWithoutStyles"
                     >
                         <div class="flex items-center justify-center gap-2">
-                            <div
-                                v-if="icon"
-                                class="flex items-center"
-                            >
+                            <div v-if="icon" class="flex items-center">
                                 <component
                                     :is="icon"
                                     :class="{
