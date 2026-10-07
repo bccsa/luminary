@@ -19,6 +19,7 @@ import { initAppTitle, initI18n } from "./i18n";
 import { initAnalytics } from "./analytics";
 import { initSync, initAuthLangSync } from "./sync";
 import { migrateToUserActivity } from "./userActivity/migrate";
+import { startContentProgressMirror } from "./userActivity/fromContentProgress";
 import { pruneUserActivityTombstones } from "./userActivity/store";
 import { initDefaultAffinitySync } from "@/recommendation/defaultAffinityStore";
 import { APP_DOCS_INDEX } from "./docsIndex";
@@ -144,6 +145,10 @@ async function Startup() {
     void pruneUserActivityTombstones().catch((err) =>
         console.error("User activity tombstone prune failed:", err),
     );
+
+    // Reading history is taken from the continue-reading store, so the mirror has to be
+    // listening before anything can scroll.
+    startContentProgressMirror();
 
     // Draining the old stores needs the shared database open, and its highlight pass reads
     // Content docs — so it runs after sync has started, off the boot path. It re-runs on every

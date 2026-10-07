@@ -355,11 +355,6 @@ if (!isPrerender()) {
         clearTimeout(dwellTimer);
         if (c && c._id) {
             touchRetention([c._id]);
-            // Opening the post is the view; the dwell timer below is the recommendation
-            // signal and deliberately stays separate.
-            if (!isPrerender() && c.parentId) {
-                void recordUserActivity({ type: "viewed", parentId: c.parentId });
-            }
             const id = c._id;
             const tags = c.parentTags;
             const hasText = !!c.text;
