@@ -1,5 +1,5 @@
 import "fake-indexeddb/auto";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import { computed } from "vue";
 import waitForExpect from "wait-for-expect";
@@ -49,8 +49,15 @@ vi.mock("@luminary-media-converter/player-web-legacy", async () => {
     };
 });
 
+const bucketBaseUrl = vi.hoisted(() => ({
+    value: "https://bucket.example.com" as string | undefined,
+}));
 vi.mock("@/composables/useBucketInfo", () => ({
-    useBucketInfo: () => ({ bucketBaseUrl: computed(() => "https://bucket.example.com") }),
+    useBucketInfo: () => ({ bucketBaseUrl: computed(() => bucketBaseUrl.value) }),
+}));
+
+vi.mock("vue-i18n", () => ({
+    useI18n: () => ({ t: (key: string) => key }),
 }));
 
 vi.mock("luminary-shared", async (importOriginal) => ({
@@ -101,11 +108,56 @@ const stub = (wrapper: any) => wrapper.findComponent({ name: "LuminaryPlayer" })
 
 beforeEach(() => {
     vi.clearAllMocks();
+    bucketBaseUrl.value = "https://bucket.example.com";
     getMediaProgressMock.mockReturnValue(0);
     fetchHlsKeyMock.mockResolvedValue(undefined);
 });
 
 describe("VideoPlayer", () => {
+    describe("unresolvable source", () => {
+        beforeEach(() => {
+            vi.useFakeTimers();
+            bucketBaseUrl.value = undefined;
+        });
+        afterEach(() => vi.useRealTimers());
+
+        it("waits for the bucket to sync before saying anything", async () => {
+            const wrapper = mount(VideoPlayer, {
+                props: { content: content(), language: "en" },
+                global: { stubs: { LImage: true } },
+            });
+            await vi.advanceTimersByTimeAsync(1000);
+
+            expect(wrapper.find("[data-test='video-unavailable']").exists()).toBe(false);
+            expect(stub(wrapper).exists()).toBe(false);
+        });
+
+        it("explains the problem once the bucket has had time to sync", async () => {
+            const wrapper = mount(VideoPlayer, {
+                props: { content: content(), language: "en" },
+                global: { stubs: { LImage: true } },
+            });
+            await vi.advanceTimersByTimeAsync(9000);
+
+            expect(wrapper.find("[data-test='video-unavailable']").text()).toBe(
+                "content.video_unavailable",
+            );
+        });
+
+        it("says nothing for a video that has no source at all", async () => {
+            const wrapper = mount(VideoPlayer, {
+                props: {
+                    content: content({ parentMedia: undefined, parentMediaBucketId: undefined }),
+                    language: "en",
+                },
+                global: { stubs: { LImage: true } },
+            });
+            await vi.advanceTimersByTimeAsync(9000);
+
+            expect(wrapper.find("[data-test='video-unavailable']").exists()).toBe(false);
+        });
+    });
+
     describe("media analytics", () => {
         it("hands the video to Matomo once the player has rendered", async () => {
             const paq: unknown[][] = [];

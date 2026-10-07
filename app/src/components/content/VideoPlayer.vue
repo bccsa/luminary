@@ -7,7 +7,8 @@
  * URL to play, where the decryption key comes from, resume position, and the
  * engagement signals a finished video sends.
  */
-import { computed, nextTick, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import { LuminaryPlayer, type PlayerSource } from "@luminary-media-converter/player-web-legacy";
 import { type ContentDto, fetchHlsKey, reportError } from "luminary-shared";
 import LImage from "../images/LImage.vue";
@@ -35,6 +36,28 @@ const mediaBucketIdRef = computed(() => props.content?.parentMediaBucketId);
 const { bucketBaseUrl: mediaBucketBaseUrl } = useBucketInfo(mediaBucketIdRef);
 
 const videoSource = computed(() => resolveVideoSource(props.content, mediaBucketBaseUrl.value));
+
+const { t } = useI18n();
+
+// Generous enough that a bucket still syncing on a cold load isn't mistaken for one the viewer can't read.
+const BUCKET_WAIT_MS = 8000;
+
+/** Whether the video has a source that the viewer's synced storage buckets can't resolve. */
+const unresolvable = computed(() => !!videoSourceFor(props.content) && !videoSource.value);
+const showUnavailable = ref(false);
+let unavailableTimer: ReturnType<typeof setTimeout> | undefined;
+
+watch(
+    unresolvable,
+    (stuck) => {
+        clearTimeout(unavailableTimer);
+        showUnavailable.value = false;
+        if (stuck)
+            unavailableTimer = setTimeout(() => (showUnavailable.value = true), BUCKET_WAIT_MS);
+    },
+    { immediate: true },
+);
+onBeforeUnmount(() => clearTimeout(unavailableTimer));
 
 /**
  * What the progress store calls this video. The stored URL rather than the resolved
@@ -261,6 +284,14 @@ function onEnded() {
                 @timeupdate="onTimeUpdate"
                 @ended="onEnded"
             />
+            <div
+                v-else-if="showUnavailable"
+                class="absolute inset-0 flex items-center justify-center bg-black/70 p-6 text-center text-sm text-white md:text-base"
+                role="alert"
+                data-test="video-unavailable"
+            >
+                {{ t("content.video_unavailable") }}
+            </div>
         </div>
     </div>
 </template>
