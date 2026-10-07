@@ -121,7 +121,16 @@ const nowPlaying = computed<VideoNowPlaying>(() => ({
     artworkUrl: shareImageUrl(props.content, imageBucketBaseUrl.value),
     ...(fallbackArtworkUrl.value ? { fallbackArtworkUrl: fallbackArtworkUrl.value } : {}),
 }));
+/**
+ * What the player's controller is given, read once when the player is built: Data Saver turns the
+ * background warming of the next chunk off, since a warm is an extra request nobody asked for.
+ * Taken when this component is created, which is per content, like the quality cap.
+ */
+const controllerOptions = {
+    prefetch: { enabled: !(userDataSaverEnabled.value || isDataSaverEnabled()) },
+};
 const playerExtras = computed(() => ({
+    controllerOptions,
     ...(videoPlayer.acceptsNowPlaying ? { nowPlaying: nowPlaying.value } : {}),
     ...(props.inline && videoPlayer.acceptsInline ? { inline: true } : {}),
 }));

@@ -48,6 +48,7 @@ vi.mock("@luminary-media-converter/player-web", async () => {
                 preferredLanguage: { type: String, default: undefined },
                 controls: { type: Object, default: undefined },
                 messages: { type: Object, default: undefined },
+                controllerOptions: { type: Object, default: undefined },
             },
             emits: ["loadedmetadata", "timeupdate", "ended"],
             setup(_props, { expose }) {
@@ -219,6 +220,17 @@ describe("VideoPlayer", () => {
 
                 userDataSaverEnabled.value = true;
                 expect(stub(await mountPlayer()).props("source").maxHeight).toBe(360);
+            });
+
+            it("turns background chunk warming off under Data Saver, and leaves it on otherwise", async () => {
+                expect(stub(await mountPlayer()).props("controllerOptions")).toEqual({
+                    prefetch: { enabled: true },
+                });
+
+                userDataSaverEnabled.value = true;
+                expect(stub(await mountPlayer()).props("controllerOptions")).toEqual({
+                    prefetch: { enabled: false },
+                });
             });
 
             it("starts the player's ABR from the measured speed in bits per second", async () => {
