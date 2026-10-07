@@ -534,21 +534,21 @@ describe("SingleContent", () => {
         expect(notificationStore.addNotification).toHaveBeenCalledTimes(1);
     });
 
-    it("records a view of the post when the content opens", async () => {
+    it("does not record a view for merely opening the content", async () => {
         await userActivityDb.userActivity.clear();
 
         wrapper = mount(SingleContent, {
             props: { slug: mockEnglishContentDto.slug },
         });
 
-        await waitForExpect(async () => {
-            expect(
-                await hasUserActivity({
-                    type: "viewed",
-                    parentId: mockEnglishContentDto.parentId,
-                }),
-            ).toBe(true);
+        await waitForExpect(() => {
+            expect(wrapper!.find("button[data-test='like']").exists()).toBe(true);
         });
+
+        // History comes from reading progress instead — see `userActivity/fromContentProgress`.
+        expect(
+            await hasUserActivity({ type: "viewed", parentId: mockEnglishContentDto.parentId }),
+        ).toBe(false);
     });
 
     it("records like-removal affinity when unliking content", async () => {
