@@ -260,7 +260,7 @@ const handleLogin = () => {
                 <a
                     :href="href"
                     :class="navItemClasses(isActive)"
-                    :title="t('profile_menu.library')"
+                    :title="t('profile_menu.activity')"
                     @click="navigate"
                 >
                     <component
@@ -271,7 +271,7 @@ const handleLogin = () => {
                     <span
                         v-if="!collapsed"
                         :class="navLabelClass"
-                        >{{ t("profile_menu.library") }}</span
+                        >{{ t("profile_menu.activity") }}</span
                     >
                 </a>
             </RouterLink>
