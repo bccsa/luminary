@@ -41,7 +41,9 @@ const mountModal = () =>
     });
 
 describe("authProvider FormModal icon bucket access", () => {
-    beforeEach(() => setActivePinia(createTestingPinia()));
+    beforeEach(() => {
+        setActivePinia(createTestingPinia());
+    });
     afterEach(async () => {
         await db.docs.clear();
     });

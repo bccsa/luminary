@@ -1034,7 +1034,7 @@ describe("EditContent.vue", () => {
             await seed([postViewForUsers]);
             await db.docs.update(mockData.mockPostDto._id, {
                 imageBucketId: mockData.mockStorageDtoWithEncryptedCredentials._id,
-            });
+            } as Partial<PostDto>);
 
             const wrapper = open();
 
