@@ -29,6 +29,7 @@ import { DateTime } from "luxon";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
 import LImage from "@/components/images/LImage.vue";
 import { useMobileChromeAutoHide } from "@/composables/useMobileChromeAutoHide";
+import { isMac } from "@/globalConfig";
 import { isNativeApp } from "@/util/inAppBrowser";
 import MediaPlayerAbout from "./MediaPlayerAbout.vue";
 import MediaPlayerChapters from "./MediaPlayerChapters.vue";
@@ -585,12 +586,13 @@ function onKeydown(event: KeyboardEvent) {
                                 'bg-zinc-500/15 text-yellow-700 dark:text-yellow-400':
                                     handle?.airPlayActive,
                             }"
-                            :aria-label="t('media_player.airplay')"
+                            :aria-label="t(isMac ? 'media_player.airplay' : 'media_player.cast')"
                             :aria-pressed="handle?.airPlayActive === true"
                             data-test="mediaPlayerAirPlay"
                             @click="handle?.showAirPlayPicker?.()"
                         >
                             <svg
+                                v-if="isMac"
                                 class="h-5 w-5"
                                 viewBox="0 0 24 24"
                                 fill="none"
@@ -606,6 +608,22 @@ function onKeydown(event: KeyboardEvent) {
                                     d="M12 14l5 6H7l5-6z"
                                     fill="currentColor"
                                 />
+                            </svg>
+                            <svg
+                                v-else
+                                class="h-5 w-5"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="1.8"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                aria-hidden="true"
+                            >
+                                <path d="M3 8V6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6" />
+                                <path d="M3 12a9 9 0 0 1 9 9" />
+                                <path d="M3 16a5 5 0 0 1 5 5" />
+                                <path d="M3 20h.01" />
                             </svg>
                         </button>
                         <button

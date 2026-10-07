@@ -393,6 +393,15 @@ describe("MediaPlayer", () => {
             expect(engine.handle.showAirPlayPicker).toHaveBeenCalled();
         });
 
+        it("is labelled Cast off Apple devices, where AirPlay does not exist", async () => {
+            engine.airPlayAvailable = true;
+            const wrapper = await playing();
+
+            expect(find(wrapper, "mediaPlayerAirPlay").attributes("aria-label")).toBe(
+                "media_player.cast",
+            );
+        });
+
         it("shows when playback is on a device", async () => {
             engine.airPlayAvailable = true;
             engine.airPlayActive = true;
