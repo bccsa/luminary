@@ -23,6 +23,7 @@ import {
 } from "luminary-shared";
 import { storageSelection } from "@/composables/storageSelection";
 import { groupsMissingDependencyAccess } from "@/components/groups/groupAccess";
+import MissingAccessBanner from "@/components/groups/MissingAccessBanner.vue";
 import { useEditContentSource } from "./composables/useEditContentSource";
 import { useContentLanguage } from "./composables/useContentLanguage";
 import { useContentPermissions } from "./composables/useContentPermissions";
@@ -591,19 +592,14 @@ watch(isLgScreen, (isLg) => {
             </button>
         </div>
         <!-- Viewers of this document who are not allowed to read a bucket it depends on. -->
-        <div
+        <MissingAccessBanner
             v-for="warning in accessWarnings"
             :key="warning.key"
             :data-test="`${warning.key}-access-banner`"
-            class="mx-2 mb-2 mt-2 flex items-center gap-2 rounded-md border border-yellow-200 bg-yellow-50 px-3 py-2 text-sm text-yellow-800 lg:mx-8"
-        >
-            <ExclamationTriangleIcon class="h-5 w-5 flex-shrink-0 text-yellow-500" />
-            <span>
-                Members of {{ warning.groups.map((g) => g.name).join(", ") }} can view this document
-                but do not have access to {{ warning.subject }}. Give these groups View access to
-                Storage on the bucket's group.
-            </span>
-        </div>
+            class="mx-2 mb-2 mt-2 lg:mx-8"
+            :groups="warning.groups"
+            :subject="warning.subject"
+        />
         <div
             class="flex flex-col gap-0 lg:h-full lg:min-h-0 lg:flex-row lg:gap-2 lg:overflow-hidden lg:pl-8"
         >

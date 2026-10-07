@@ -4,7 +4,15 @@ order. The app and CMS selection modals apply the sort inside their live query (
 without a value fall to the end), and the CMS FormModal exposes a number input for editing it. New
 providers default to sortIndex 1.
 <script setup lang="ts">
-import { type AuthProviderDto, type GroupDto } from "luminary-shared";
+import {
+    DocType,
+    useSharedHybridQuery,
+    type AuthProviderDto,
+    type GroupDto,
+} from "luminary-shared";
+import { storageSelection } from "@/composables/storageSelection";
+import { groupsMissingDependencyAccess } from "@/components/groups/groupAccess";
+import MissingAccessBanner from "@/components/groups/MissingAccessBanner.vue";
 import { computed, ref, watch } from "vue";
 import LModal from "../modals/LModal.vue";
 import LDialog from "../common/LDialog.vue";
@@ -27,6 +35,24 @@ const props = defineProps<{
     canDelete: boolean;
     providerIsEdited: boolean;
 }>();
+
+const allGroups = useSharedHybridQuery<GroupDto>(() => ({ selector: { type: DocType.Group } }), {
+    live: true,
+});
+const { getBucketById } = storageSelection();
+
+/** Groups that can view this provider but cannot read the bucket its login icon is in. */
+const groupsWithoutIconAccess = computed(() => {
+    const p = provider.value;
+    if (!p?.imageBucketId || !p.imageData?.fileCollections?.length) return [];
+    return groupsMissingDependencyAccess(
+        p.memberOf ?? [],
+        DocType.AuthProvider,
+        getBucketById(p.imageBucketId)?.memberOf ?? [],
+        DocType.Storage,
+        allGroups.value,
+    );
+});
 
 const isDisabled = computed(() => props.isLoading || !props.canEdit);
 
@@ -261,6 +287,12 @@ const handleRevert = () => {
                         {{ memberOfError }}
                     </p>
                 </div>
+
+                <MissingAccessBanner
+                    :groups="groupsWithoutIconAccess"
+                    subject="the storage bucket this login icon is stored in, so they will not see the icon on the login screen"
+                    data-test="icon-access-banner"
+                />
 
                 <AuthConfig
                     v-model:provider="provider"
