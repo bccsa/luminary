@@ -156,7 +156,7 @@ const commonNavigation: ComputedRef<NavigationItems[]> = computed(() => {
             },
         },
         {
-            name: t("profile_menu.library"),
+            name: t("profile_menu.activity"),
             icon: BuildingLibraryIcon,
             action: () => router.push({ name: "library" }),
         },
@@ -208,7 +208,7 @@ const userNavigation = computed(() => {
 const sidebarNavigation = computed(() =>
     userNavigation.value.filter(
         (item) =>
-            item.name !== t("profile_menu.settings") && item.name !== t("profile_menu.library"),
+            item.name !== t("profile_menu.settings") && item.name !== t("profile_menu.activity"),
     ),
 );
 </script>
@@ -440,7 +440,7 @@ const sidebarNavigation = computed(() =>
                             class="h-5 w-5 flex-shrink-0"
                             aria-hidden="true"
                         />
-                        <span class="text-sm font-medium">{{ t("profile_menu.library") }}</span>
+                        <span class="text-sm font-medium">{{ t("profile_menu.activity") }}</span>
                     </span>
                 </RouterLink>
 
