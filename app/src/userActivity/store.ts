@@ -63,7 +63,13 @@ export async function recordUserActivity(
     userActivityVersion.value++;
 }
 
-/** Undo an activity. Keeps the row as a tombstone so the removal is itself a fact. */
+/**
+ * Undo an activity. Keeps the row as a tombstone so the removal is itself a fact.
+ *
+ * A highlight's own entry goes with it: it is what paints the marks into the article, and it is
+ * what the migration re-reads on every start, so leaving it would both keep showing the
+ * highlight and bring its row back on the next load.
+ */
 export async function removeUserActivity(ref: ActivityRef): Promise<void> {
     const _id = userActivityId(ref);
     const existing = await userActivityDb.userActivity.get(_id);
@@ -75,7 +81,23 @@ export async function removeUserActivity(ref: ActivityRef): Promise<void> {
         deleted: true,
         payload: undefined,
     });
+
+    if (ref.type === "highlighted") await dropStoredHighlight(ref.contentId);
+
     userActivityVersion.value++;
+}
+
+/** Removes one content's marks from the store `LHighlightable` reads and writes. */
+async function dropStoredHighlight(contentId: Uuid): Promise<void> {
+    const stored = await db.getLuminaryInternals("highlights");
+    if (!stored || typeof stored !== "object" || Array.isArray(stored)) return;
+
+    const data = { ...(stored as Record<string, unknown>) };
+    if (!(contentId in data)) return;
+
+    delete data[contentId];
+    await db.setLuminaryInternals("highlights", data);
+    notifyHighlightsChanged();
 }
 
 /** Every row of one type, oldest first, straight off the compound index. */
