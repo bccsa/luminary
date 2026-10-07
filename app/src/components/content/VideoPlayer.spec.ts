@@ -119,7 +119,9 @@ describe("VideoPlayer", () => {
             vi.useFakeTimers();
             bucketBaseUrl.value = undefined;
         });
-        afterEach(() => vi.useRealTimers());
+        afterEach(() => {
+            vi.useRealTimers();
+        });
 
         it("waits for the bucket to sync before saying anything", async () => {
             const wrapper = mount(VideoPlayer, {
