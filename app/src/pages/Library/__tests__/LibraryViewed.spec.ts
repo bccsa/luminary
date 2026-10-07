@@ -8,7 +8,7 @@ import { db } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import { appLanguageIdsAsRef } from "@/globalConfig";
 import { userActivityDb } from "@/userActivity/db";
-import { recordUserActivity } from "@/userActivity/store";
+import { getUserActivity, recordUserActivity } from "@/userActivity/store";
 import LibraryViewed from "../LibraryViewed.vue";
 
 vi.mock("vue-router");
@@ -57,5 +57,19 @@ describe("LibraryViewed", () => {
         const wrapper = mount(LibraryViewed);
 
         expect(wrapper.text()).toContain("Posts you read or watch will show up here.");
+    });
+
+    it("removes an entry straight away", async () => {
+        await recordUserActivity({ type: "viewed", parentId: mockEnglishContentDto.parentId });
+        const wrapper = mount(LibraryViewed);
+
+        await waitForExpect(() => {
+            expect(wrapper.find("[data-test=library-remove-viewed]").exists()).toBe(true);
+        });
+        await wrapper.find("[data-test=library-remove-viewed]").trigger("click");
+
+        await waitForExpect(async () => {
+            expect(await getUserActivity("viewed")).toEqual([]);
+        });
     });
 });

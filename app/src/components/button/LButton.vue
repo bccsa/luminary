@@ -27,12 +27,14 @@ const variants = {
         "bg-white dark:bg-slate-600 dark:hover:bg-slate-600/50 ring-1 dark:ring-slate-400 shadow-sm dark:text-slate-200 text-zinc-900 ring-zinc-300 hover:bg-zinc-100 active:bg-zinc-200/70 disabled:bg-zinc-100 disabled:text-zinc-500",
     tertiary:
         "bg-transparent text-zinc-900 hover:text-zinc-950 hover:bg-zinc-100 active:bg-zinc-200 disabled:text-zinc-500 disabled:hover:bg-transparent",
+    danger: "bg-red-600 ring-1 shadow-sm text-white ring-red-700/60 hover:bg-red-500 active:bg-red-700 disabled:bg-red-200 disabled:text-red-400 disabled:ring-red-200",
 };
 
 const iconVariants = {
     primary: "text-zinc-100 group-hover:text-zinc-50 group-active:text-white",
     secondary: "text-zinc-800/80 group-hover:text-zinc-900/80 group-active:text-zinc-900/80",
     tertiary: "text-zinc-800/80 group-hover:text-zinc-900/80 group-active:text-zinc-900/80",
+    danger: "text-red-50 group-hover:text-white group-active:text-white",
 };
 
 const sizes = {
@@ -60,7 +62,11 @@ const roundingClasses = {
         ]"
     >
         <template v-if="typeof icon === 'string'">
-            <img :src="icon" alt="Icon" class="order-2 h-5 w-5" />
+            <img
+                :src="icon"
+                alt="Icon"
+                class="order-2 h-5 w-5"
+            />
         </template>
         <component
             v-if="icon"
@@ -74,6 +80,10 @@ const roundingClasses = {
                 '-ml-0.5': !iconRight && $slots.default,
             }"
         />
-        <span v-if="$slots.default" :class="[iconRight ? 'order-1' : 'order-3']"><slot /></span>
+        <span
+            v-if="$slots.default"
+            :class="[iconRight ? 'order-1' : 'order-3']"
+            ><slot
+        /></span>
     </component>
 </template>
