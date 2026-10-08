@@ -177,6 +177,23 @@ describe("VideoPlayer", () => {
         expect(stub(wrapper).props("source").masterUrl).toBe(ABSOLUTE);
     });
 
+    it("offers the chapters file beside the master, in the viewer's language and in English", async () => {
+        const wrapper = await mountPlayer({}, { language: "fra" });
+
+        expect(stub(wrapper).props("source").sidecars.chapters).toEqual([
+            { lang: "fr", url: "https://bucket.example.com/media/abc/chapters/fr.vtt" },
+            { lang: "en", url: "https://bucket.example.com/media/abc/chapters/en.vtt" },
+        ]);
+    });
+
+    it("offers English once when that is the viewer's language", async () => {
+        const wrapper = await mountPlayer({}, { language: "eng" });
+
+        expect(stub(wrapper).props("source").sidecars.chapters).toEqual([
+            { lang: "en", url: "https://bucket.example.com/media/abc/chapters/en.vtt" },
+        ]);
+    });
+
     it("renders no player when the document carries no video", async () => {
         const wrapper = await mountPlayer({ parentMedia: undefined });
 
@@ -473,6 +490,11 @@ describe("VideoPlayer", () => {
             expect(wrapper.findComponent(NativeStub).props("source")).toEqual({
                 masterUrl: ABSOLUTE,
                 keyHex: undefined,
+                sidecars: {
+                    chapters: [
+                        { lang: "en", url: "https://bucket.example.com/media/abc/chapters/en.vtt" },
+                    ],
+                },
             });
         });
 

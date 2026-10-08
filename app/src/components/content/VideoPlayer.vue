@@ -205,6 +205,49 @@ const maxHeight = ref<number | undefined>(undefined);
 const bandwidthEstimate = ref<number | undefined>(undefined);
 
 /**
+ * The languages to look for chapters in, in order, fixed per content like the rest of what a load
+ * starts with. The encoder names a chapters file by a two-letter code (`chapters/en.vtt`), where
+ * the app's languages carry three letters (`eng`).
+ */
+const chapterLanguages = ref<string[]>([]);
+type ChapterSidecar = NonNullable<NonNullable<PlayerSource["sidecars"]>["chapters"]>[number];
+const TWO_LETTER_LANGUAGES: Record<string, string> = {
+    eng: "en",
+    fra: "fr",
+    fre: "fr",
+    spa: "es",
+    deu: "de",
+    ger: "de",
+    por: "pt",
+    nya: "ny",
+    swa: "sw",
+    ita: "it",
+    nld: "nl",
+    dut: "nl",
+    rus: "ru",
+    ara: "ar",
+    zho: "zh",
+    chi: "zh",
+};
+function chapterLanguagesFor(language: string | undefined): string[] {
+    const code = language?.toLowerCase();
+    const short = code ? (TWO_LETTER_LANGUAGES[code] ?? code.slice(0, 2)) : undefined;
+    return [...new Set([short, "en"].filter((value): value is string => !!value))];
+}
+
+/**
+ * Where a video's chapters would be: `chapters/<language>.vtt` beside its master playlist. Offered
+ * for every video; a video without them has no file there, and the player shows no chapters.
+ */
+function chapterSidecars(masterUrl: string): ChapterSidecar[] {
+    const path = masterUrl.split(/[?#]/)[0] ?? masterUrl;
+    const slash = path.lastIndexOf("/");
+    if (slash < 0) return [];
+    const folder = path.slice(0, slash);
+    return chapterLanguages.value.map((lang) => ({ lang, url: `${folder}/chapters/${lang}.vtt` }));
+}
+
+/**
  * Whether the key question has been answered for this document. An encrypted
  * stream must not be handed to the player before its key is in hand, or it is
  * loaded, fails, and is loaded again.
@@ -220,6 +263,7 @@ const source = computed<PlayerSource | null>(() => {
         startAngleId: startAngleId.value,
         maxHeight: maxHeight.value,
         bandwidthEstimate: bandwidthEstimate.value,
+        sidecars: { chapters: chapterSidecars(url) },
     };
 });
 
@@ -234,6 +278,7 @@ watch(
         startAngleId.value = props.startAudio ? AUDIO_ONLY_ANGLE_ID : undefined;
         maxHeight.value =
             userDataSaverEnabled.value || isDataSaverEnabled() ? DATA_SAVER_MAX_HEIGHT : undefined;
+        chapterLanguages.value = chapterLanguagesFor(preferredLanguage.value);
         bandwidthEstimate.value = hasMeasuredConnectionSpeed.value
             ? Math.round(connectionSpeed.value * 1_000_000)
             : undefined;
