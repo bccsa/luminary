@@ -456,13 +456,22 @@ describe("MediaPlayer", () => {
             expect(wrapper.find("[data-test='mediaPlayerLoaded']").exists()).toBe(true);
         });
 
-        it("rounds both ends of what has played and what is loaded", async () => {
+        it("rounds the ends of the bar, and meets what is loaded flat so the two do not mismatch", async () => {
             const wrapper = await playing();
             const loaded = find(wrapper, "mediaPlayerLoaded").element;
             expect(loaded.className).toContain("rounded-full");
             const played = loaded.nextElementSibling as HTMLElement;
             expect(played.className).toContain("bg-yellow-500");
-            expect(played.className).toContain("rounded-full");
+            expect(played.className).toContain("rounded-l-full");
+            // Loaded stretches on past it: its right end is flat against that.
+            expect(played.className).not.toContain("rounded-r-full");
+
+            // Nothing loaded beyond it: its right end is round again.
+            engine.state.bufferedEnd = 30.3;
+            await flushPromises();
+            const alone = find(wrapper, "mediaPlayerSeek").element.previousElementSibling!
+                .lastElementChild as HTMLElement;
+            expect(alone.className).toContain("rounded-r-full");
         });
 
         it("draws what is loaded lighter than the track and darker than what has played", async () => {
@@ -1488,6 +1497,16 @@ describe("MediaPlayer", () => {
                 "translate-y-[calc(var(--mobile-menu-h",
             );
             hidden.value = false;
+        });
+
+        it("has a colour of its own, the player's, apart from the menu below it", async () => {
+            const wrapper = await playing();
+            await find(wrapper, "mediaPlayerMinimise").trigger("click");
+            const classes = find(wrapper, "mediaPlayerBar").classes();
+
+            expect(classes).toContain("bg-amber-50");
+            expect(classes).toContain("dark:bg-slate-700");
+            expect(classes).not.toContain("bg-zinc-100");
         });
 
         it("shows how far the item has played", async () => {

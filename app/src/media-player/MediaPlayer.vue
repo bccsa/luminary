@@ -1033,7 +1033,8 @@ function onKeydown(event: KeyboardEvent) {
                                         data-test="mediaPlayerLoaded"
                                     />
                                     <div
-                                        class="absolute inset-y-0 left-0 rounded-full bg-yellow-500"
+                                        class="absolute inset-y-0 left-0 rounded-l-full bg-yellow-500"
+                                        :class="{ 'rounded-r-full': !loadedShows }"
                                         :style="{ width: `${progress * 100}%` }"
                                     />
                                 </div>
@@ -1244,7 +1245,7 @@ function onKeydown(event: KeyboardEvent) {
         <div
             v-if="!expanded"
             ref="bar"
-            class="fixed inset-x-0 bottom-[var(--mobile-menu-h,0px)] z-40 flex w-full items-center justify-between gap-2 border-t-2 border-t-zinc-200/50 bg-zinc-100 px-2 pb-2 pt-2.5 transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform dark:border-t-slate-700/50 dark:bg-slate-800 lg:bottom-5 lg:left-auto lg:right-5 lg:w-80 lg:translate-y-0 lg:overflow-hidden lg:rounded-lg lg:border-t-0 lg:shadow-lg"
+            class="fixed inset-x-0 bottom-[var(--mobile-menu-h,0px)] z-40 flex w-full items-center justify-between gap-2 border-t-2 border-t-amber-200 bg-amber-50 px-2 pb-2 pt-2.5 transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform dark:border-t-slate-600 dark:bg-slate-700 lg:bottom-5 lg:left-auto lg:right-5 lg:w-80 lg:translate-y-0 lg:overflow-hidden lg:rounded-lg lg:border-t-0 lg:shadow-lg"
             :class="
                 mobileChrome.hidden.value
                     ? 'translate-y-[calc(var(--mobile-menu-h,0px)-max(env(safe-area-inset-bottom),var(--native-inset-bottom,0px)))]'
