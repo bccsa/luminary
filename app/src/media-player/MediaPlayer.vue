@@ -75,9 +75,21 @@ const sheetTab = ref<SheetTab | null>(null);
 /** The tag the Up next lists are narrowed to; it goes with the video, and the next one starts at All. */
 const upNextTag = ref<Uuid | null>(null);
 const upNext = useUpNext(content, upNextTag);
+/** Up next has had something to offer for this video: the tab stays while a new choice loads. */
+const hadUpNext = ref(false);
 watch(
     () => content.value?.parentId,
-    () => (upNextTag.value = null),
+    () => {
+        upNextTag.value = null;
+        hadUpNext.value = false;
+    },
+);
+watch(
+    () => upNext.value.next.length + upNext.value.related.length,
+    (count) => {
+        if (count) hadUpNext.value = true;
+    },
+    { immediate: true },
 );
 const chapters = computed(() => state.value?.chapters ?? []);
 /**
@@ -86,8 +98,11 @@ const chapters = computed(() => state.value?.chapters ?? []);
  * with the lists that lead to other content.
  */
 const tabs = computed<{ id: SheetTab; label: string }[]>(() => [
-    // A chosen tag that has nothing left keeps the tab, so the viewer can go back to All.
-    ...(upNext.value.next.length || upNext.value.related.length || upNextTag.value
+    // A chosen tag that has nothing left, or lists still loading, keep the tab: the viewer goes back to All.
+    ...(upNext.value.next.length ||
+    upNext.value.related.length ||
+    upNextTag.value ||
+    hadUpNext.value
         ? [{ id: "upnext" as const, label: t("media_player.up_next") }]
         : []),
     { id: "about" as const, label: t("media_player.about") },

@@ -859,6 +859,25 @@ describe("MediaPlayer", () => {
                 expect(find(wrapper, "mediaPlayerTab-upnext").exists()).toBe(true);
             });
 
+            it("keeps the section open while a choice loads, and when going back to All", async () => {
+                const wrapper = await openWithTags(["youth", "conf", "prayer"]);
+                const kept = upNextDocs.value;
+                await find(wrapper, "mediaPlayerUpNextTag-youth").trigger("click");
+
+                // The lists are empty for a moment while the other tag is asked for.
+                upNextDocs.value = [];
+                await find(wrapper, "mediaPlayerUpNextTag-all").trigger("click");
+                await flushPromises();
+                expect(find(wrapper, "mediaPlayerSheet").exists()).toBe(true);
+                expect(find(wrapper, "mediaPlayerTab-upnext").exists()).toBe(true);
+
+                // The answer arrives: asking again shows it.
+                upNextDocs.value = kept;
+                await find(wrapper, "mediaPlayerUpNextTag-conf").trigger("click");
+                await flushPromises();
+                expect(rows(wrapper, "next")).toHaveLength(2);
+            });
+
             it("starts the next video at All", async () => {
                 const wrapper = await openWithTags(["youth", "conf", "prayer"]);
                 await find(wrapper, "mediaPlayerUpNextTag-youth").trigger("click");

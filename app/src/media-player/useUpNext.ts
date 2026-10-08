@@ -66,7 +66,13 @@ export function useUpNext(
                 ...(tags.length ? [{ parentTags: { $elemMatch: { $in: tags } } }] : []),
             ];
         },
-        { includeScheduled: false, sort: [{ publishDate: "desc" }], limit: 50 },
+        {
+            includeScheduled: false,
+            sort: [{ publishDate: "desc" }],
+            limit: 50,
+            // Choosing another tag asks again: the lists stay as they were until the answer is in.
+            keepPreviousResult: true,
+        },
     );
 
     // The categories the content is tagged with: what makes a series.
