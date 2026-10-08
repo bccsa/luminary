@@ -217,12 +217,15 @@ const hasAnyContent = computed(() => editable.value.length > 0);
             </LButton>
         </template>
         <template #topBarActionsMobile>
-            <PlusIcon
+            <LButton
                 v-if="canCreateGroup && hasAnyContent && isSmallScreen"
-                class="h-8 w-8 cursor-pointer rounded bg-zinc-100 p-1 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-700"
+                variant="primary"
+                :icon="PlusIcon"
                 @click="createGroup"
                 data-test="createGroupButton"
-            />
+            >
+                Create group
+            </LButton>
         </template>
 
         <template v-if="currentTab === 'overview' && hasAnyContent" #internalPageHeader>

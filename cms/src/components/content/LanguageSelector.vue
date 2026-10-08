@@ -28,7 +28,7 @@ const languagePopup = ref();
                             showSelector = false;
                         }
                     "
-                    class="group flex w-full items-center justify-between gap-2 px-4 py-2 text-left text-sm text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900"
+                    class="group flex w-full items-center justify-between gap-2 px-4 py-2 text-left text-sm hover:text-slate-700 dark:text-zinc-100 dark:hover:bg-slate-600"
                     :data-test="`select-language-${language.languageCode}`"
                 >
                     <span class="flex items-center gap-2">

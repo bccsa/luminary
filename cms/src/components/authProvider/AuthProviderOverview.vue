@@ -94,11 +94,15 @@ defineExpose({
             </LButton>
         </template>
         <template #topBarActionsMobile>
-            <PlusIcon
+            <LButton
                 v-if="authProviders.canEdit && hasAnyContent && isSmallScreen"
-                class="h-8 w-8 cursor-pointer rounded bg-zinc-100 p-1 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-700"
+                variant="primary"
+                :icon="PlusIcon"
+                data-test="create-auth-provider"
                 @click="authProviders.openCreateModal"
-            />
+            >
+                Create provider
+            </LButton>
         </template>
 
         <template v-if="hasAnyContent" #internalPageHeader>

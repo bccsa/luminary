@@ -219,10 +219,10 @@ const handleRevert = () => {
 
                 <LabelAndType v-model:provider="provider" :disabled="isDisabled" />
 
-                <div class="rounded-md border border-zinc-200 bg-white p-2">
+                <div class="rounded-md border border-zinc-400 p-2 dark:bg-slate-800">
                     <label
                         for="provider-sort-index"
-                        class="mb-1 block text-xs font-medium text-zinc-700"
+                        class="mb-1 block text-xs font-medium dark:text-zinc-100"
                     >
                         Sort Index
                     </label>
@@ -247,7 +247,7 @@ const handleRevert = () => {
                     </p>
                 </div>
 
-                <div class="rounded-md border border-zinc-200 bg-white p-2">
+                <div class="rounded-md border border-zinc-400 p-2 dark:bg-slate-800">
                     <LCombobox
                         v-model:selected-options="provider.memberOf as string[]"
                         :label="`Group Membership`"
@@ -304,6 +304,7 @@ const handleRevert = () => {
         context="danger"
         title="Discard changes?"
         description="You have unsaved changes. If you close now, your changes will be discarded."
+        class="dark:text-zinc-200"
         primary-button-text="Discard changes"
         secondary-button-text="Keep editing"
         :primary-action="discardAndClose"
