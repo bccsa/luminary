@@ -760,7 +760,7 @@ describe("MediaPlayer", () => {
             await find(wrapper, "mediaPlayerTab-upnext").trigger("click");
             expect(find(wrapper, "mediaPlayerSheet").text()).toContain("The next one");
 
-            await find(wrapper, "mediaPlayerTab-chapters").trigger("click");
+            await find(wrapper, "mediaPlayerSheetTab-chapters").trigger("click");
             expect(find(wrapper, "mediaPlayerSheet").text()).toContain("The talk");
             expect(wrapper.find("[data-test='mediaPlayerUpNextItem']").exists()).toBe(false);
         });
@@ -790,6 +790,55 @@ describe("MediaPlayer", () => {
             await flushPromises();
             // Up next is there only when there is something to go on to.
             expect(tabIds(wrapper)).toEqual(["mediaPlayerTab-chapters", "mediaPlayerTab-about"]);
+        });
+
+        it("shows the tabs at the top of the open sheet, the open one marked, and in the same order", async () => {
+            const wrapper = await playing();
+            engine.state.chapters = [{ startTime: 0, endTime: 60, title: "Opening" }];
+            await flushPromises();
+            await find(wrapper, "mediaPlayerTab-chapters").trigger("click");
+
+            const sheetTabs = wrapper
+                .findAll("[data-test^='mediaPlayerSheetTab-']")
+                .map((tab) => tab.attributes("data-test"));
+            expect(sheetTabs).toEqual([
+                "mediaPlayerSheetTab-chapters",
+                "mediaPlayerSheetTab-about",
+            ]);
+            expect(find(wrapper, "mediaPlayerSheetTab-chapters").attributes("aria-selected")).toBe(
+                "true",
+            );
+            // The bar at the foot gives way to them while the sheet is open.
+            expect(wrapper.find("[data-test='mediaPlayerTab-chapters']").exists()).toBe(false);
+
+            await find(wrapper, "mediaPlayerSheetTab-about").trigger("click");
+            expect(find(wrapper, "mediaPlayerSheetTab-about").attributes("aria-selected")).toBe(
+                "true",
+            );
+        });
+
+        it("closes the sheet from its grabber, and the tabs at the foot come back", async () => {
+            const wrapper = await playing();
+            await find(wrapper, "mediaPlayerTab-about").trigger("click");
+            await find(wrapper, "mediaPlayerSheetClose").trigger("click");
+
+            expect(wrapper.find("[data-test='mediaPlayerSheet']").exists()).toBe(false);
+            expect(wrapper.find("[data-test='mediaPlayerTab-about']").exists()).toBe(true);
+        });
+
+        it("marks the chapter playing now with the bars, and writes each chapter's start at the right", async () => {
+            const wrapper = await playing();
+            engine.state.chapters = [
+                { startTime: 0, endTime: 20, title: "Opening" },
+                { startTime: 20, endTime: 120, title: "The talk" },
+            ];
+            await flushPromises();
+            await find(wrapper, "mediaPlayerTab-chapters").trigger("click");
+
+            const rows = wrapper.findAll("[data-test='mediaPlayerChapter']");
+            expect(rows[0]!.find("[data-test='mediaPlayerChapterNow']").exists()).toBe(false);
+            expect(rows[1]!.find("[data-test='mediaPlayerChapterNow']").exists()).toBe(true);
+            expect(rows[1]!.text()).toBe("The talk0:20");
         });
 
         it("has no strip for the chapters: they are a tab", async () => {
@@ -1012,7 +1061,7 @@ describe("MediaPlayer", () => {
                 await flushPromises();
 
                 expect(find(wrapper, "mediaPlayerUpNextEmpty").exists()).toBe(true);
-                expect(find(wrapper, "mediaPlayerTab-upnext").exists()).toBe(true);
+                expect(find(wrapper, "mediaPlayerSheetTab-upnext").exists()).toBe(true);
             });
 
             it("keeps the section open while a choice loads, and when going back to All", async () => {
@@ -1025,7 +1074,7 @@ describe("MediaPlayer", () => {
                 await find(wrapper, "mediaPlayerUpNextTag-all").trigger("click");
                 await flushPromises();
                 expect(find(wrapper, "mediaPlayerSheet").exists()).toBe(true);
-                expect(find(wrapper, "mediaPlayerTab-upnext").exists()).toBe(true);
+                expect(find(wrapper, "mediaPlayerSheetTab-upnext").exists()).toBe(true);
 
                 // The answer arrives: asking again shows it.
                 upNextDocs.value = kept;

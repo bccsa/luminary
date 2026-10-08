@@ -121,6 +121,10 @@ const pictureEl = ref<HTMLElement | null>(null);
 const sectionEl = ref<HTMLElement | null>(null);
 /** Where the sheet starts: just under the picture, which stays in view. */
 const sheetTop = ref(0);
+/** A tab of the open sheet: it shows that one, and the sheet stays where it is. */
+function selectTab(tab: SheetTab) {
+    sheetTab.value = tab;
+}
 async function toggleTab(tab: SheetTab) {
     sheetTab.value = sheetTab.value === tab ? null : tab;
     if (!sheetTab.value) return;
@@ -979,6 +983,7 @@ function onKeydown(event: KeyboardEvent) {
                     aria-hidden="true"
                 />
                 <div
+                    v-if="!sheetTab"
                     role="tablist"
                     class="sticky bottom-0 mt-auto flex h-12 w-full flex-none border-t border-zinc-300/60 bg-amber-50 dark:border-slate-600/60 dark:bg-slate-800"
                 >
@@ -1008,21 +1013,42 @@ function onKeydown(event: KeyboardEvent) {
 
             <div
                 v-if="sheetTab"
-                class="absolute inset-x-0 bottom-12 z-20 flex flex-col rounded-t-2xl bg-white shadow-[0_-4px_16px_rgba(0,0,0,0.12)] dark:bg-slate-900"
+                class="absolute inset-x-0 bottom-0 z-20 flex flex-col rounded-t-2xl bg-white shadow-[0_-4px_16px_rgba(0,0,0,0.12)] dark:bg-slate-900"
                 :style="{ top: `${sheetTop}px` }"
                 role="region"
                 :aria-label="sheetLabel"
                 data-test="mediaPlayerSheet"
             >
-                <div class="flex items-center justify-between px-4 py-2">
+                <!-- The grabber closes the sheet; the tabs under it say where the viewer is and switch. -->
+                <button
+                    type="button"
+                    class="flex h-7 w-full flex-none items-center justify-center"
+                    :aria-label="t('media_player.minimise')"
+                    data-test="mediaPlayerSheetClose"
+                    @click="sheetTab = null"
+                >
+                    <span class="h-1 w-10 rounded-full bg-zinc-300 dark:bg-slate-600" />
+                </button>
+                <div
+                    role="tablist"
+                    class="flex flex-none border-b border-zinc-200 dark:border-slate-700"
+                >
                     <button
+                        v-for="tab in tabs"
+                        :key="tab.id"
                         type="button"
-                        class="flex h-11 items-center gap-2 rounded-full px-3 text-sm font-semibold text-zinc-600 dark:text-slate-300"
-                        data-test="mediaPlayerSheetClose"
-                        @click="sheetTab = null"
+                        role="tab"
+                        class="min-h-[44px] flex-1 border-b-2 text-sm font-semibold"
+                        :class="
+                            sheetTab === tab.id
+                                ? 'border-yellow-500 text-zinc-900 dark:text-white'
+                                : 'border-transparent text-zinc-500 dark:text-slate-400'
+                        "
+                        :aria-selected="sheetTab === tab.id"
+                        :data-test="`mediaPlayerSheetTab-${tab.id}`"
+                        @click="selectTab(tab.id)"
                     >
-                        <ChevronDownIcon class="h-5 w-5" />
-                        {{ sheetLabel }}
+                        {{ tab.label }}
                     </button>
                 </div>
 
