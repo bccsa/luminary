@@ -408,9 +408,21 @@ describe("MediaPlayer", () => {
             expect(column.className).toContain("flex-1");
         });
 
-        it("does not hand its scrolling on to the page behind it", async () => {
+        it("does not scroll as a whole, so nothing dark shows where it would move", async () => {
             const wrapper = await playing();
-            expect(find(wrapper, "mediaPlayer").classes()).toContain("overscroll-contain");
+            const section = find(wrapper, "mediaPlayer").classes();
+            expect(section).toContain("overflow-hidden");
+            expect(section).not.toContain("overflow-y-auto");
+        });
+
+        it("scrolls nowhere: the part under the picture gives up its room instead", async () => {
+            const wrapper = await playing();
+            const scroller = find(wrapper, "mediaPlayerScroll").classes();
+            // Not scrolling, and not clipping: the menus open upward, over the picture.
+            expect(scroller).toContain("overflow-visible");
+            expect(scroller).not.toContain("overflow-y-auto");
+            expect(scroller).not.toContain("overflow-hidden");
+            expect(scroller.some((name) => name.startsWith("bg-amber"))).toBe(true);
         });
 
         it("closes the menu on a tap anywhere else", async () => {

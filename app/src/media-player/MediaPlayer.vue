@@ -404,14 +404,14 @@ function onKeydown(event: KeyboardEvent) {
             role="dialog"
             :aria-label="content.title"
             :aria-hidden="!expanded"
-            class="fixed inset-x-0 bottom-[var(--mobile-menu-h,0px)] top-[var(--media-player-top,0px)] z-40 flex flex-col overflow-y-auto overscroll-contain transition-transform duration-300 ease-out lg:inset-auto lg:bottom-5 lg:right-5 lg:max-h-[90vh] lg:w-96 lg:rounded-2xl lg:shadow-2xl lg:shadow-black/20"
+            class="fixed inset-x-0 bottom-[var(--mobile-menu-h,0px)] top-[var(--media-player-top,0px)] z-40 flex flex-col overflow-hidden transition-transform duration-300 ease-out lg:inset-auto lg:bottom-5 lg:right-5 lg:max-h-[90vh] lg:w-96 lg:rounded-2xl lg:shadow-2xl lg:shadow-black/20"
             :class="expanded ? 'translate-y-0' : 'pointer-events-none translate-y-[110vh]'"
             :style="{ '--media-player-top': `${topBarHeight}px` }"
             ref="sectionEl"
             data-test="mediaPlayer"
             @keydown="onKeydown"
         >
-            <div class="bg-amber-50 dark:bg-slate-800">
+            <div class="flex-none bg-amber-50 dark:bg-slate-800">
                 <div
                     class="flex touch-none justify-center pb-1 lg:hidden"
                     :class="topBarHeight ? 'pt-3' : 'pt-[max(env(safe-area-inset-top),0.75rem)]'"
@@ -488,7 +488,7 @@ function onKeydown(event: KeyboardEvent) {
 
             <div
                 ref="pictureEl"
-                class="relative aspect-video w-full"
+                class="relative aspect-video w-full flex-none"
                 :class="inlineHole ? 'bg-transparent' : 'bg-black'"
             >
                 <div
@@ -551,8 +551,18 @@ function onKeydown(event: KeyboardEvent) {
                 </div>
             </div>
 
-            <div class="flex flex-1 flex-col bg-amber-50 dark:bg-slate-800">
-                <div class="space-y-1 px-6 pt-6 text-center">
+            <!-- Nothing here scrolls: the room between the parts gives way on a short screen, and the sheets
+                 (Up next, About) scroll inside themselves. Nothing is clipped either: the menus open
+                 upward over the picture. -->
+            <div
+                class="flex min-h-0 flex-1 flex-col overflow-visible bg-amber-50 dark:bg-slate-800"
+                data-test="mediaPlayerScroll"
+            >
+                <div
+                    class="max-h-10 min-h-0 flex-shrink flex-grow basis-6"
+                    aria-hidden="true"
+                />
+                <div class="flex-none space-y-1 px-6 text-center">
                     <span
                         v-if="content.author"
                         class="block truncate text-xs font-semibold uppercase tracking-[0.1rem] text-yellow-600"
@@ -591,12 +601,15 @@ function onKeydown(event: KeyboardEvent) {
                         >
                     </button>
                     <div
-                        class="relative flex flex-wrap items-center justify-center gap-y-2 px-3"
+                        class="max-h-10 min-h-0 flex-shrink flex-grow basis-8"
+                        aria-hidden="true"
+                    />
+                    <div
+                        class="relative flex flex-none flex-wrap items-center justify-center gap-y-2 px-3"
                         data-test="mediaPlayerControls"
                         :class="[
                             // Nothing to press yet: out of sight, but keeping its room, so the page does not move.
                             { invisible: starting },
-                            chapters.length ? 'pt-4' : 'pt-8',
                             // A seventh button: tighter, so the row still fits a 390 pt phone.
                             handle?.airPlayAvailable ? 'gap-1' : 'gap-2',
                         ]"
@@ -810,9 +823,13 @@ function onKeydown(event: KeyboardEvent) {
                          end would navigate away instead of seeking. -->
                     <!-- The same room for every kind of media, so the play button does not move when a stream
                          turns out to be live: a recorded video has its bar here, a live one says so. -->
-                    <div class="relative">
+                    <div
+                        class="max-h-10 min-h-0 flex-shrink flex-grow basis-5"
+                        aria-hidden="true"
+                    />
+                    <div class="relative flex-none">
                         <div
-                            class="flex flex-col px-10 pt-5"
+                            class="flex flex-col px-10"
                             :class="{ invisible: !timeKnown || live }"
                             data-test="mediaPlayerSeekBar"
                         >
@@ -870,7 +887,7 @@ function onKeydown(event: KeyboardEvent) {
                     </div>
 
                     <div
-                        class="flex items-center justify-center gap-6 pb-6 pt-0 text-zinc-500 dark:text-slate-400"
+                        class="flex flex-none items-center justify-center gap-6 text-zinc-500 dark:text-slate-400"
                     >
                         <button
                             type="button"
@@ -922,6 +939,10 @@ function onKeydown(event: KeyboardEvent) {
                         </button>
                     </div>
                 </template>
+                <div
+                    class="max-h-10 min-h-0 flex-shrink flex-grow basis-6"
+                    aria-hidden="true"
+                />
                 <div
                     role="tablist"
                     class="sticky bottom-0 mt-auto flex h-12 w-full flex-none border-t border-zinc-300/60 bg-amber-50 dark:border-slate-600/60 dark:bg-slate-800"
