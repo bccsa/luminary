@@ -499,6 +499,25 @@ describe("MediaPlayer", () => {
             await playing();
             expect(hidden.value).toBe(false);
         });
+
+        it("puts the chrome back and measures again when the app returns from the background", async () => {
+            const { hidden } = useMobileChromeAutoHide();
+            await playing();
+            // Hidden while it slept, with nothing watching: only the return can bring it back.
+            hidden.value = true;
+            document.dispatchEvent(new Event("visibilitychange"));
+            await flushPromises();
+            expect(hidden.value).toBe(false);
+        });
+
+        it("keeps the chrome in place while the player is open, however the page behind scrolls", async () => {
+            const { hidden } = useMobileChromeAutoHide();
+            await playing();
+
+            hidden.value = true;
+            await flushPromises();
+            expect(hidden.value).toBe(false);
+        });
     });
 
     describe("mute and picture in picture", () => {

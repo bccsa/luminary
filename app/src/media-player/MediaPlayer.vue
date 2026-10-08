@@ -169,6 +169,13 @@ watch(
     },
 );
 
+// The player is laid out between the bars as measured when it opened: a page scrolling behind it
+// (a phone waking up and restoring the scroll position, say) must not hide them, or the page shows
+// through above and below the player.
+watch(mobileChrome.hidden, (hidden) => {
+    if (hidden && expanded.value) mobileChrome.hidden.value = false;
+});
+
 // Pages keep their content clear of the bar through --media-bar-h, as they do for the menu.
 const bar = ref<HTMLElement | null>(null);
 let barObserver: ResizeObserver | null = null;
@@ -182,11 +189,19 @@ watch(bar, (element, previous) => {
     if (element) barObserver?.observe(element);
     publishBarHeight();
 });
+/** Back from the background (a locked phone, another app): the page may have moved while it slept. */
+function onVisible() {
+    if (document.visibilityState !== "visible" || !expanded.value) return;
+    mobileChrome.hidden.value = false;
+    measureTopBar();
+}
 onMounted(() => {
+    document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("resize", measureTopBar);
     if (typeof ResizeObserver !== "undefined") barObserver = new ResizeObserver(publishBarHeight);
 });
 onBeforeUnmount(() => {
+    document.removeEventListener("visibilitychange", onVisible);
     window.removeEventListener("resize", measureTopBar);
     barObserver?.disconnect();
     document.documentElement.style.removeProperty("--media-bar-h");
