@@ -98,18 +98,20 @@ const remove = async () => {
 
 <template>
     <div data-test="library-highlighted">
-        <div class="flex flex-wrap gap-4">
+        <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
             <!-- Capturing the click leaves ContentTile untouched — its link, hover and focus all
                  keep working — while the tile opens its passages instead of navigating. -->
             <div
                 v-for="entry in entries"
                 :key="entry.content._id"
+                class="cursor-pointer"
                 data-test="library-open-highlights"
                 @click.capture.stop.prevent="open(entry)"
             >
                 <ContentTile
                     :content="entry.content"
-                    class="flex w-auto justify-start"
+                    layout="card"
+                    class="h-full w-full"
                 />
             </div>
         </div>

@@ -30,20 +30,22 @@ const sorted = computed(
 
 <template>
     <div data-test="library-liked">
-        <div class="flex flex-wrap gap-4">
+        <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
             <div
                 v-for="item in sorted"
                 :key="item._id"
-                class="group relative"
+                class="group relative [&_[data-card-text]]:pr-12"
             >
                 <ContentTile
                     :content="item"
-                    class="flex w-auto justify-start"
+                    layout="card"
+                    class="h-full w-full"
                 />
-                <!-- Always reachable on a phone, which has no hover to reveal it. -->
+                <!-- Bottom-right of the card. Always visible on touch devices, which have no hover to
+                     reveal it; on hover-capable devices it fades in when the card is hovered. -->
                 <button
                     type="button"
-                    class="absolute bottom-2 right-2 rounded-full bg-zinc-900/60 p-2.5 text-white transition hover:bg-red-600 focus:bg-red-600 focus:opacity-100 active:bg-red-700 sm:opacity-0 sm:group-hover:opacity-100"
+                    class="absolute bottom-2 right-2 rounded-full bg-zinc-900/60 p-2.5 text-white transition hover:bg-red-600 focus:bg-red-600 focus:opacity-100 active:bg-red-700 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100"
                     :aria-label="t('library.remove.label')"
                     data-test="library-remove-liked"
                     @click.stop.prevent="
