@@ -33,6 +33,8 @@ import { isMac } from "@/globalConfig";
 import { isNativeApp } from "@/util/inAppBrowser";
 import MediaPlayerAbout from "./MediaPlayerAbout.vue";
 import MediaPlayerChapters from "./MediaPlayerChapters.vue";
+import MediaPlayerMenu from "./MediaPlayerMenu.vue";
+import MediaPlayerMenuItem from "./MediaPlayerMenuItem.vue";
 import MediaPlayerUpNext from "./MediaPlayerUpNext.vue";
 import { useUpNext } from "./useUpNext";
 import {
@@ -207,6 +209,13 @@ const playing = computed(() => state.value?.playing ?? false);
 const currentTime = computed(() => state.value?.currentTime ?? 0);
 const duration = computed(() => state.value?.duration ?? 0);
 const live = computed(() => duration.value === Infinity);
+/**
+ * The duration has arrived. Until then nothing about seeking is known, and a live stream has not yet
+ * said so (it reports an infinite duration): the skip buttons, the bar and the speed are kept out of
+ * sight, in their place (the speed is left out until then, so the row of buttons stays centred), so a live
+ * stream does not show them for a moment and then take them away.
+ */
+const timeKnown = computed(() => duration.value > 0);
 const muted = computed(() => handle.value?.muted === true);
 
 /**
@@ -290,7 +299,6 @@ function pickSubtitles(id: string | null) {
     openMenu.value = null;
 }
 const rateLabel = (rate: number) => `${rate}x`;
-
 /** The language playing, as a short code: the full name is in the menu, and a long one pushes the row's other buttons down a line. */
 const activeLanguageCode = computed(() => {
     const track = state.value?.audioTracks.find((t) => t.id === state.value?.activeAudioTrackId);
@@ -339,7 +347,7 @@ function onKeydown(event: KeyboardEvent) {
             role="dialog"
             :aria-label="content.title"
             :aria-hidden="!expanded"
-            class="fixed inset-x-0 bottom-[var(--mobile-menu-h,0px)] top-[var(--media-player-top,0px)] z-40 flex flex-col overflow-y-auto transition-transform duration-300 ease-out lg:inset-auto lg:bottom-5 lg:right-5 lg:max-h-[90vh] lg:w-96 lg:rounded-2xl lg:shadow-2xl lg:shadow-black/20"
+            class="fixed inset-x-0 bottom-[var(--mobile-menu-h,0px)] top-[var(--media-player-top,0px)] z-40 flex flex-col overflow-y-auto overscroll-contain transition-transform duration-300 ease-out lg:inset-auto lg:bottom-5 lg:right-5 lg:max-h-[90vh] lg:w-96 lg:rounded-2xl lg:shadow-2xl lg:shadow-black/20"
             :class="expanded ? 'translate-y-0' : 'pointer-events-none translate-y-[110vh]'"
             :style="{ '--media-player-top': `${topBarHeight}px` }"
             ref="sectionEl"
@@ -458,7 +466,7 @@ function onKeydown(event: KeyboardEvent) {
                 </div>
             </div>
 
-            <div class="flex-1 bg-amber-50 dark:bg-slate-800">
+            <div class="flex flex-1 flex-col bg-amber-50 dark:bg-slate-800">
                 <div class="space-y-1 px-6 pt-6 text-center">
                     <span
                         v-if="content.author"
@@ -498,51 +506,93 @@ function onKeydown(event: KeyboardEvent) {
                         >
                     </button>
                     <div
-                        class="relative flex items-center justify-center px-3"
+                        class="relative flex flex-wrap items-center justify-center gap-y-2 px-3"
                         :class="[
                             chapters.length ? 'pt-4' : 'pt-8',
                             // A seventh button: tighter, so the row still fits a 390 pt phone.
                             handle?.airPlayAvailable ? 'gap-1' : 'gap-2',
                         ]"
                     >
-                        <button
-                            v-if="!live"
-                            type="button"
-                            class="h-11 flex-shrink-0 rounded-full border border-zinc-500/35 px-3 text-sm font-semibold text-zinc-600 dark:text-slate-300"
-                            :aria-label="t('media_player.speed')"
-                            :aria-expanded="openMenu === 'speed'"
-                            @click="toggleMenu('speed')"
+                        <div
+                            v-if="!live && timeKnown"
+                            class="relative flex-shrink-0"
                         >
-                            {{ rateLabel(state.playbackRate) }}
-                        </button>
-                        <button
-                            v-if="state.audioTracks.length > 1"
-                            type="button"
-                            class="flex h-11 flex-shrink-0 items-center gap-1.5 rounded-full border border-zinc-500/35 px-3 text-sm font-semibold text-zinc-600 dark:text-slate-300"
-                            :aria-label="t('media_player.language')"
-                            :aria-expanded="openMenu === 'language'"
-                            @click="toggleMenu('language')"
-                        >
-                            <LanguageIcon class="h-4 w-4" />
-                            {{ activeLanguageCode }}
-                        </button>
-                        <template v-if="!audioMode">
                             <button
                                 type="button"
-                                class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full border border-zinc-500/35 text-zinc-600 disabled:opacity-40 dark:text-slate-300"
-                                :class="{ 'bg-zinc-500/15': state.activeSubtitleTrackId }"
-                                :aria-label="t('media_player.subtitles')"
-                                :aria-expanded="openMenu === 'subtitles'"
-                                :disabled="state.subtitleTracks.length === 0"
-                                data-test="mediaPlayerSubtitles"
-                                @click="toggleMenu('subtitles')"
+                                class="h-11 rounded-full border border-zinc-500/35 px-3 text-sm font-semibold text-zinc-600 dark:text-slate-300"
+                                :aria-label="t('media_player.speed')"
+                                :aria-expanded="openMenu === 'speed'"
+                                @click="toggleMenu('speed')"
                             >
-                                <span
-                                    class="rounded-[4px] border-2 border-current px-[3px] text-[11px] font-extrabold leading-[14px]"
-                                    aria-hidden="true"
-                                    >CC</span
-                                >
+                                {{ rateLabel(state.playbackRate) }}
                             </button>
+                            <MediaPlayerMenu v-if="openMenu === 'speed'">
+                                <MediaPlayerMenuItem
+                                    v-for="rate in [...RATES].reverse()"
+                                    :key="rate"
+                                    :label="rateLabel(rate)"
+                                    :selected="rate === state.playbackRate"
+                                    @pick="pickRate(rate)"
+                                />
+                            </MediaPlayerMenu>
+                        </div>
+                        <div
+                            v-if="state.audioTracks.length > 1"
+                            class="relative flex-shrink-0"
+                        >
+                            <button
+                                type="button"
+                                class="flex h-11 items-center gap-1.5 rounded-full border border-zinc-500/35 px-3 text-sm font-semibold text-zinc-600 dark:text-slate-300"
+                                :aria-label="t('media_player.language')"
+                                :aria-expanded="openMenu === 'language'"
+                                @click="toggleMenu('language')"
+                            >
+                                <LanguageIcon class="h-4 w-4" />
+                                {{ activeLanguageCode }}
+                            </button>
+                            <MediaPlayerMenu v-if="openMenu === 'language'">
+                                <MediaPlayerMenuItem
+                                    v-for="track in state.audioTracks"
+                                    :key="track.id"
+                                    :label="track.label"
+                                    :selected="track.id === state.activeAudioTrackId"
+                                    @pick="pickTrack(track.id)"
+                                />
+                            </MediaPlayerMenu>
+                        </div>
+                        <template v-if="!audioMode">
+                            <div class="relative flex-shrink-0">
+                                <button
+                                    type="button"
+                                    class="flex h-11 w-11 items-center justify-center rounded-full border border-zinc-500/35 text-zinc-600 disabled:opacity-40 dark:text-slate-300"
+                                    :class="{ 'bg-zinc-500/15': state.activeSubtitleTrackId }"
+                                    :aria-label="t('media_player.subtitles')"
+                                    :aria-expanded="openMenu === 'subtitles'"
+                                    :disabled="state.subtitleTracks.length === 0"
+                                    data-test="mediaPlayerSubtitles"
+                                    @click="toggleMenu('subtitles')"
+                                >
+                                    <span
+                                        class="rounded-[4px] border-2 border-current px-[3px] text-[11px] font-extrabold leading-[14px]"
+                                        aria-hidden="true"
+                                        >CC</span
+                                    >
+                                </button>
+                                <MediaPlayerMenu v-if="openMenu === 'subtitles'">
+                                    <MediaPlayerMenuItem
+                                        :label="t('media_player.subtitles_off')"
+                                        :selected="!state.activeSubtitleTrackId"
+                                        @pick="pickSubtitles(null)"
+                                    />
+                                    <MediaPlayerMenuItem
+                                        v-for="track in state.subtitleTracks"
+                                        :key="track.id"
+                                        :label="track.label"
+                                        :selected="track.id === state.activeSubtitleTrackId"
+                                        @pick="pickSubtitles(track.id)"
+                                    />
+                                </MediaPlayerMenu>
+                            </div>
 
                             <button
                                 type="button"
@@ -620,7 +670,9 @@ function onKeydown(event: KeyboardEvent) {
                                 stroke-linejoin="round"
                                 aria-hidden="true"
                             >
-                                <path d="M3 8V6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6" />
+                                <path
+                                    d="M3 8V6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6"
+                                />
                                 <path d="M3 12a9 9 0 0 1 9 9" />
                                 <path d="M3 16a5 5 0 0 1 5 5" />
                                 <path d="M3 20h.01" />
@@ -655,114 +707,77 @@ function onKeydown(event: KeyboardEvent) {
                             <ArrowsPointingOutIcon class="h-5 w-5" />
                         </button>
 
-                        <ul
+                        <!-- A tap anywhere else closes the menu. -->
+                        <div
                             v-if="openMenu"
-                            class="absolute bottom-full z-10 mb-1 w-40 overflow-hidden rounded-md bg-white py-1 shadow-lg ring-1 ring-black/5 dark:bg-slate-700"
-                        >
-                            <template v-if="openMenu === 'speed'">
-                                <li
-                                    v-for="rate in [...RATES].reverse()"
-                                    :key="rate"
-                                >
-                                    <button
-                                        type="button"
-                                        class="block w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-slate-600"
-                                        :class="{ 'font-bold': rate === state.playbackRate }"
-                                        @click="pickRate(rate)"
-                                    >
-                                        {{ rateLabel(rate) }}
-                                    </button>
-                                </li>
-                            </template>
-                            <template v-else-if="openMenu === 'subtitles'">
-                                <li>
-                                    <button
-                                        type="button"
-                                        class="block w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-slate-600"
-                                        :class="{ 'font-bold': !state.activeSubtitleTrackId }"
-                                        @click="pickSubtitles(null)"
-                                    >
-                                        {{ t("media_player.subtitles_off") }}
-                                    </button>
-                                </li>
-                                <li
-                                    v-for="track in state.subtitleTracks"
-                                    :key="track.id"
-                                >
-                                    <button
-                                        type="button"
-                                        class="block w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-slate-600"
-                                        :class="{
-                                            'font-bold': track.id === state.activeSubtitleTrackId,
-                                        }"
-                                        @click="pickSubtitles(track.id)"
-                                    >
-                                        {{ track.label }}
-                                    </button>
-                                </li>
-                            </template>
-                            <template v-else>
-                                <li
-                                    v-for="track in state.audioTracks"
-                                    :key="track.id"
-                                >
-                                    <button
-                                        type="button"
-                                        class="block w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-slate-600"
-                                        :class="{
-                                            'font-bold': track.id === state.activeAudioTrackId,
-                                        }"
-                                        @click="pickTrack(track.id)"
-                                    >
-                                        {{ track.label }}
-                                    </button>
-                                </li>
-                            </template>
-                        </ul>
+                            class="fixed inset-0 z-[9]"
+                            aria-hidden="true"
+                            data-test="mediaPlayerMenuBackdrop"
+                            @click="openMenu = null"
+                        />
                     </div>
 
                     <!-- Inset from the screen edge on purpose: a thumb at either end of the bar would sit
                          where Android's back gesture and iOS's edge swipe are read, and a drag to the
                          end would navigate away instead of seeking. -->
-                    <div
-                        v-if="!live"
-                        class="flex flex-col px-10 pt-5"
-                        data-test="mediaPlayerSeekBar"
-                    >
-                        <!-- The drawn bar shows what has played and what is loaded; the range on top of it
-                         is what takes the touch, with only its thumb showing. -->
-                        <div class="relative flex h-5 items-center">
-                            <div
-                                class="absolute inset-x-0 h-1.5 overflow-hidden rounded-full bg-zinc-300 dark:bg-slate-600"
-                                aria-hidden="true"
-                            >
+                    <!-- The same room for every kind of media, so the play button does not move when a stream
+                         turns out to be live: a recorded video has its bar here, a live one says so. -->
+                    <div class="relative">
+                        <div
+                            class="flex flex-col px-10 pt-5"
+                            :class="{ invisible: !timeKnown || live }"
+                            data-test="mediaPlayerSeekBar"
+                        >
+                            <!-- The drawn bar shows what has played and what is loaded; the range on top of it
+                             is what takes the touch, with only its thumb showing. -->
+                            <div class="relative flex h-5 items-center">
                                 <div
-                                    class="absolute inset-y-0 left-0 bg-zinc-400 dark:bg-slate-400"
-                                    :style="{ width: `${loaded * 100}%` }"
-                                    data-test="mediaPlayerLoaded"
-                                />
-                                <div
-                                    class="absolute inset-y-0 left-0 bg-yellow-500"
-                                    :style="{ width: `${progress * 100}%` }"
+                                    class="absolute inset-x-0 h-1.5 overflow-hidden rounded-full bg-zinc-300 dark:bg-slate-600"
+                                    aria-hidden="true"
+                                >
+                                    <div
+                                        class="absolute inset-y-0 left-0 bg-zinc-400 dark:bg-slate-400"
+                                        :style="{ width: `${loaded * 100}%` }"
+                                        data-test="mediaPlayerLoaded"
+                                    />
+                                    <div
+                                        class="absolute inset-y-0 left-0 bg-yellow-500"
+                                        :style="{ width: `${progress * 100}%` }"
+                                    />
+                                </div>
+                                <input
+                                    type="range"
+                                    min="0"
+                                    :max="duration || 0"
+                                    step="1"
+                                    :value="currentTime"
+                                    :aria-label="t('media_player.seek')"
+                                    class="relative h-5 w-full cursor-pointer appearance-none bg-transparent [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-yellow-500 [&::-moz-range-track]:bg-transparent [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-yellow-500"
+                                    data-test="mediaPlayerSeek"
+                                    @change="seekTo"
                                 />
                             </div>
-                            <input
-                                type="range"
-                                min="0"
-                                :max="duration || 0"
-                                step="1"
-                                :value="currentTime"
-                                :aria-label="t('media_player.seek')"
-                                class="relative h-5 w-full cursor-pointer appearance-none bg-transparent [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-yellow-500 [&::-moz-range-track]:bg-transparent [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-yellow-500"
-                                data-test="mediaPlayerSeek"
-                                @change="seekTo"
-                            />
+                            <div
+                                class="mt-1 flex justify-between text-xs text-zinc-500 dark:text-zinc-300"
+                            >
+                                <span>{{ formatTime(currentTime) }}</span>
+                                <span>{{ formatTime(duration) }}</span>
+                            </div>
                         </div>
                         <div
-                            class="mt-1 flex justify-between text-xs text-zinc-500 dark:text-zinc-300"
+                            v-if="live"
+                            class="absolute inset-x-0 top-5 flex h-10 items-center justify-center"
+                            data-test="mediaPlayerLive"
                         >
-                            <span>{{ formatTime(currentTime) }}</span>
-                            <span>{{ formatTime(duration) }}</span>
+                            <span
+                                class="inline-flex items-center gap-2 rounded-full bg-red-600 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white"
+                            >
+                                <span
+                                    class="h-2 w-2 rounded-full bg-white"
+                                    aria-hidden="true"
+                                />
+                                {{ t("media_player.live") }}
+                            </span>
                         </div>
                     </div>
 
@@ -770,9 +785,9 @@ function onKeydown(event: KeyboardEvent) {
                         class="flex items-center justify-center gap-6 pb-6 pt-0 text-zinc-500 dark:text-slate-400"
                     >
                         <button
-                            v-if="!live"
                             type="button"
                             class="flex h-14 w-14 items-center justify-center"
+                            :class="{ invisible: !timeKnown || live }"
                             :aria-label="t('media_player.skip_back', { seconds: SKIP_SECONDS })"
                             @click="skip(-SKIP_SECONDS)"
                         >
@@ -798,9 +813,9 @@ function onKeydown(event: KeyboardEvent) {
                             />
                         </button>
                         <button
-                            v-if="!live"
                             type="button"
                             class="flex h-14 w-14 items-center justify-center"
+                            :class="{ invisible: !timeKnown || live }"
                             :aria-label="t('media_player.skip_forward', { seconds: SKIP_SECONDS })"
                             @click="skip(SKIP_SECONDS)"
                         >
@@ -813,7 +828,7 @@ function onKeydown(event: KeyboardEvent) {
                 </template>
                 <div
                     role="tablist"
-                    class="sticky bottom-0 flex h-12 w-full border-t border-zinc-300/60 bg-amber-50 dark:border-slate-600/60 dark:bg-slate-800"
+                    class="sticky bottom-0 mt-auto flex h-12 w-full flex-none border-t border-zinc-300/60 bg-amber-50 dark:border-slate-600/60 dark:bg-slate-800"
                 >
                     <button
                         v-for="tab in tabs"

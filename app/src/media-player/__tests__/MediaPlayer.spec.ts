@@ -270,6 +270,114 @@ describe("MediaPlayer", () => {
             expect(find(wrapper, "mediaPlayerFullscreen").exists()).toBe(false);
         });
 
+        it("keeps the skip buttons, the bar and the speed out of sight until the duration is known", async () => {
+            const wrapper = await playing();
+            engine.state.duration = 0;
+            await flushPromises();
+
+            const skips = wrapper.findAll("button[aria-label^='media_player.skip']");
+            expect(skips).toHaveLength(2);
+            for (const skip of skips) expect(skip.classes()).toContain("invisible");
+            expect(find(wrapper, "mediaPlayerSeekBar").classes()).toContain("invisible");
+            // Left out of the row, not hidden in it: a hidden button still takes room, and the buttons
+            // that are showing would sit off-centre until it came.
+            expect(wrapper.find("button[aria-label='media_player.speed']").exists()).toBe(false);
+
+            engine.state.duration = 120;
+            await flushPromises();
+            for (const skip of wrapper.findAll("button[aria-label^='media_player.skip']"))
+                expect(skip.classes()).not.toContain("invisible");
+            expect(wrapper.find("button[aria-label='media_player.speed']").exists()).toBe(true);
+        });
+
+        it("says a live stream is live in the bar's place, and keeps the room, so the play button stays put", async () => {
+            const wrapper = await playing();
+            engine.state.duration = 0;
+            await flushPromises();
+            engine.state.duration = Infinity;
+            await flushPromises();
+
+            // Nothing to seek: the skips and the bar are out of sight, but still take their room.
+            const skips = wrapper.findAll("button[aria-label^='media_player.skip']");
+            expect(skips).toHaveLength(2);
+            for (const skip of skips) expect(skip.classes()).toContain("invisible");
+            expect(find(wrapper, "mediaPlayerSeekBar").classes()).toContain("invisible");
+            expect(wrapper.find("button[aria-label='media_player.speed']").exists()).toBe(false);
+            // And the stream says what it is where the bar would be.
+            expect(find(wrapper, "mediaPlayerLive").text()).toContain("media_player.live");
+        });
+
+        it("shows no live label for a recorded video", async () => {
+            const wrapper = await playing();
+            expect(wrapper.find("[data-test='mediaPlayerLive']").exists()).toBe(false);
+        });
+
+        it("marks the speed in force in the menu", async () => {
+            const wrapper = await playing();
+            await wrapper.find("button[aria-label='media_player.speed']").trigger("click");
+
+            const rows = wrapper.findAll("li button");
+            const chosen = rows.filter((row) => row.attributes("aria-current") === "true");
+            expect(chosen.map((row) => row.text())).toEqual(["1x"]);
+        });
+
+        it("marks the audio language in force in the menu", async () => {
+            const wrapper = await playing();
+            await wrapper.find("button[aria-label='media_player.language']").trigger("click");
+
+            const chosen = wrapper
+                .findAll("li button")
+                .filter((row) => row.attributes("aria-current") === "true");
+            expect(chosen.map((row) => row.text())).toEqual(["English"]);
+        });
+
+        it("opens each menu beside its own button, and one at a time", async () => {
+            const wrapper = await playing();
+            const speed = wrapper.find("button[aria-label='media_player.speed']");
+            const language = wrapper.find("button[aria-label='media_player.language']");
+
+            await speed.trigger("click");
+            expect(
+                speed.element.parentElement!.querySelector("[data-test='mediaPlayerMenu']"),
+            ).not.toBeNull();
+            expect(
+                language.element.parentElement!.querySelector("[data-test='mediaPlayerMenu']"),
+            ).toBeNull();
+
+            await language.trigger("click");
+            expect(wrapper.findAll("[data-test='mediaPlayerMenu']")).toHaveLength(1);
+            expect(
+                language.element.parentElement!.querySelector("[data-test='mediaPlayerMenu']"),
+            ).not.toBeNull();
+            expect(
+                speed.element.parentElement!.querySelector("[data-test='mediaPlayerMenu']"),
+            ).toBeNull();
+        });
+
+        it("keeps the tabs on the bottom edge whatever is above them, as on a live stream with less to show", async () => {
+            const wrapper = await playing();
+            const tabs = wrapper.find("[role=tablist]");
+            expect(tabs.classes()).toContain("mt-auto");
+            // The column they sit in fills the player, so "auto" is the room under the controls.
+            const column = tabs.element.parentElement!;
+            expect(column.className).toContain("flex-col");
+            expect(column.className).toContain("flex-1");
+        });
+
+        it("does not hand its scrolling on to the page behind it", async () => {
+            const wrapper = await playing();
+            expect(find(wrapper, "mediaPlayer").classes()).toContain("overscroll-contain");
+        });
+
+        it("closes the menu on a tap anywhere else", async () => {
+            const wrapper = await playing();
+            await wrapper.find("button[aria-label='media_player.speed']").trigger("click");
+            expect(wrapper.find("[data-test='mediaPlayerMenu']").exists()).toBe(true);
+
+            await find(wrapper, "mediaPlayerMenuBackdrop").trigger("click");
+            expect(wrapper.find("[data-test='mediaPlayerMenu']").exists()).toBe(false);
+        });
+
         it("changes speed from the menu", async () => {
             const wrapper = await playing();
             await wrapper.find("button[aria-label='media_player.speed']").trigger("click");

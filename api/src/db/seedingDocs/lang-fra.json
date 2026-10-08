@@ -206,6 +206,7 @@
         "media_player.watch": "Regarder",
         "media_player.listen": "Écouter",
         "media_player.airplay": "AirPlay",
+        "media_player.live": "En direct",
         "media_player.cast": "Diffuser",
         "video_player.coming_soon": "Bientôt disponible",
         "video_player.error_generic": "Cette vidéo n'a pas pu être lue.",

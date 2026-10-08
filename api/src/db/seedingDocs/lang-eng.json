@@ -206,6 +206,7 @@
         "media_player.watch": "Watch",
         "media_player.listen": "Listen",
         "media_player.airplay": "AirPlay",
+        "media_player.live": "Live",
         "media_player.cast": "Cast",
         "video_player.coming_soon": "Coming soon",
         "video_player.error_generic": "This video could not be played.",
