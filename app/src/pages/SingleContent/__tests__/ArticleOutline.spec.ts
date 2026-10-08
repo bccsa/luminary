@@ -167,6 +167,20 @@ describe("ArticleOutline", () => {
         expect(wrapper.find('[data-test="articleOutlineTrigger"]').exists()).toBe(true);
     });
 
+    it("scrolls to a heading chosen in the list, and closes the list", async () => {
+        const scrollTo = vi.fn();
+        vi.stubGlobal("scrollTo", scrollTo);
+        window.scrollTo = scrollTo as unknown as typeof window.scrollTo;
+        const wrapper = await mountOutline(["Chapter one", "Chapter two"], true);
+        await wrapper.find('[data-test="articleOutlineTrigger"]').trigger("click");
+
+        const options = wrapper.findAll('[data-test="articleOutlineOption"]');
+        await options[1]!.trigger("click");
+
+        expect(scrollTo).toHaveBeenCalledTimes(1);
+        expect(wrapper.find('[role="menu"]').isVisible()).toBe(false);
+    });
+
     it("counts the heading the dropdown scrolls to as the current one", async () => {
         const wrapper = await mountOutline(["Chapter one", "Chapter two", "Chapter three"], true);
         // Where the page rests after choosing "Chapter two": its top sits at the scroll offset (96),
