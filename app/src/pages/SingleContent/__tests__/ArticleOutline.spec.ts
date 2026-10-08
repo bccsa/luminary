@@ -167,6 +167,27 @@ describe("ArticleOutline", () => {
         expect(wrapper.find('[data-test="articleOutlineTrigger"]').exists()).toBe(true);
     });
 
+    it("counts the heading the dropdown scrolls to as the current one", async () => {
+        const wrapper = await mountOutline(["Chapter one", "Chapter two", "Chapter three"], true);
+        // Where the page rests after choosing "Chapter two": its top sits at the scroll offset (96),
+        // the first is well above, the third well below.
+        const tops = [-300, 96, 800];
+        const headings = [...document.querySelectorAll("h2")];
+        headings.forEach((h, i) => {
+            h.getBoundingClientRect = () => ({ top: tops[i], bottom: tops[i] + 30 }) as DOMRect;
+        });
+        window.dispatchEvent(new Event("scroll"));
+        await nextTick();
+        await nextTick();
+
+        const options = wrapper.findAll('[data-test="articleOutlineOption"]');
+        const current = options.filter(
+            (option) => option.attributes("aria-current") === "location",
+        );
+        expect(current).toHaveLength(1);
+        expect(current[0]!.text()).toContain("Chapter two");
+    });
+
     it("keeps the continue entry even after scrolling past the saved position", async () => {
         const wrapper = await mountOutline(["Chapter one"], true, { resumable: true });
         await wrapper.setProps({ progress: 90 });
