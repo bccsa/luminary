@@ -231,6 +231,11 @@ const starting = computed(() => {
         duration.value === 0
     );
 });
+/**
+ * The engine has run out of data mid-play (the connection dropped, or is too slow): the picture is
+ * whatever native has left, often black, and nothing says why. A spinner over it does.
+ */
+const stalled = computed(() => !starting.value && state.value?.stalled === true);
 const muted = computed(() => handle.value?.muted === true);
 
 /**
@@ -477,6 +482,19 @@ function onKeydown(event: KeyboardEvent) {
                         aspectRatio="video"
                         size="post"
                         class="h-full w-full object-cover opacity-70"
+                    />
+                </div>
+
+                <div
+                    v-if="stalled && !audioMode"
+                    class="pointer-events-none absolute inset-0 flex items-center justify-center"
+                    role="status"
+                    :aria-label="t('video_player.loading')"
+                    data-test="mediaPlayerStalled"
+                >
+                    <span
+                        class="h-10 w-10 animate-spin rounded-full border-4 border-white/30 border-t-white"
+                        aria-hidden="true"
                     />
                 </div>
 

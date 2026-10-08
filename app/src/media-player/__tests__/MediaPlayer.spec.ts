@@ -307,6 +307,22 @@ describe("MediaPlayer", () => {
             expect(find(wrapper, "mediaPlayerControls").classes()).not.toContain("invisible");
         });
 
+        it("shows a spinner over the picture while the engine has stalled", async () => {
+            const wrapper = await playing();
+            expect(wrapper.find("[data-test='mediaPlayerStalled']").exists()).toBe(false);
+
+            engine.state.stalled = true;
+            await flushPromises();
+            expect(find(wrapper, "mediaPlayerStalled").exists()).toBe(true);
+            // The picture is native's: it keeps the last frame up, and the cover would hide it.
+            expect(wrapper.find("[data-test='mediaPlayerPoster']").exists()).toBe(false);
+
+            engine.state.stalled = false;
+            await flushPromises();
+            expect(wrapper.find("[data-test='mediaPlayerStalled']").exists()).toBe(false);
+            expect(wrapper.find("[data-test='mediaPlayerPoster']").exists()).toBe(false);
+        });
+
         it("shows no spinner over an error", async () => {
             const wrapper = await playing();
             engine.state.playing = false;
