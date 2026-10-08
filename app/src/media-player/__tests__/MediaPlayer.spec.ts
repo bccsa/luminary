@@ -290,6 +290,32 @@ describe("MediaPlayer", () => {
             expect(wrapper.find("button[aria-label='media_player.speed']").exists()).toBe(true);
         });
 
+        it("shows a spinner in the play button's place, not a paused button, while the source is on its way", async () => {
+            const wrapper = await playing();
+            engine.state.playing = false;
+            engine.state.duration = 0;
+            await flushPromises();
+            expect(find(wrapper, "mediaPlayerStarting").exists()).toBe(true);
+            // The picture is not black while it loads: the cover stands in for it.
+            expect(find(wrapper, "mediaPlayerPoster").exists()).toBe(true);
+            expect(find(wrapper, "mediaPlayerControls").classes()).toContain("invisible");
+
+            engine.state.duration = 120;
+            await flushPromises();
+            expect(wrapper.find("[data-test='mediaPlayerStarting']").exists()).toBe(false);
+            expect(wrapper.find("[data-test='mediaPlayerPoster']").exists()).toBe(false);
+            expect(find(wrapper, "mediaPlayerControls").classes()).not.toContain("invisible");
+        });
+
+        it("shows no spinner over an error", async () => {
+            const wrapper = await playing();
+            engine.state.playing = false;
+            engine.state.duration = 0;
+            engine.state.lifecycle = "error";
+            await flushPromises();
+            expect(wrapper.find("[data-test='mediaPlayerStarting']").exists()).toBe(false);
+        });
+
         it("says a live stream is live in the bar's place, and keeps the room, so the play button stays put", async () => {
             const wrapper = await playing();
             engine.state.duration = 0;

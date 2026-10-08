@@ -216,6 +216,21 @@ const live = computed(() => duration.value === Infinity);
  * stream does not show them for a moment and then take them away.
  */
 const timeKnown = computed(() => duration.value > 0);
+/**
+ * The source is on its way and nothing has played yet: the picture is still black and the play
+ * button would say "paused" for a moment that is only loading. A spinner takes the play button's place.
+ */
+const starting = computed(() => {
+    if (!item.value || state.value?.lifecycle === "error") return false;
+    if (!state.value) return true;
+    if (state.value.lifecycle === "loading") return true;
+    return (
+        state.value.lifecycle === "ready" &&
+        !playing.value &&
+        !state.value.ended &&
+        duration.value === 0
+    );
+});
 const muted = computed(() => handle.value?.muted === true);
 
 /**
@@ -451,6 +466,21 @@ function onKeydown(event: KeyboardEvent) {
                 </div>
 
                 <div
+                    v-if="starting && !audioMode"
+                    class="pointer-events-none absolute inset-0 bg-black"
+                    data-test="mediaPlayerPoster"
+                >
+                    <LImage
+                        :image="content.parentImageData"
+                        :content-parent-id="content.parentId"
+                        :parent-image-bucket-id="content.parentImageBucketId"
+                        aspectRatio="video"
+                        size="post"
+                        class="h-full w-full object-cover opacity-70"
+                    />
+                </div>
+
+                <div
                     v-if="audioMode"
                     class="absolute inset-0 flex items-center justify-center bg-amber-50 dark:bg-slate-800"
                 >
@@ -507,7 +537,10 @@ function onKeydown(event: KeyboardEvent) {
                     </button>
                     <div
                         class="relative flex flex-wrap items-center justify-center gap-y-2 px-3"
+                        data-test="mediaPlayerControls"
                         :class="[
+                            // Nothing to press yet: out of sight, but keeping its room, so the page does not move.
+                            { invisible: starting },
                             chapters.length ? 'pt-4' : 'pt-8',
                             // A seventh button: tighter, so the row still fits a 390 pt phone.
                             handle?.airPlayAvailable ? 'gap-1' : 'gap-2',
@@ -801,11 +834,19 @@ function onKeydown(event: KeyboardEvent) {
                             class="flex h-[72px] w-[72px] items-center justify-center rounded-full"
                             :aria-label="playing ? t('media_player.pause') : t('media_player.play')"
                             data-test="mediaPlayerPlayPause"
+                            :disabled="starting"
                             @click="togglePlay"
                         >
                             <PauseIcon
                                 v-if="playing"
                                 class="h-12 w-12"
+                            />
+                            <span
+                                v-else-if="starting"
+                                class="border-current/30 relative -top-28 h-10 w-10 animate-spin rounded-full border-4 border-t-current"
+                                role="status"
+                                :aria-label="t('video_player.loading')"
+                                data-test="mediaPlayerStarting"
                             />
                             <PlayIcon
                                 v-else
