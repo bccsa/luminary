@@ -31,7 +31,7 @@ const icon = computed(
 const tone = computed(
     () =>
         ({
-            info: "border-zinc-200 bg-zinc-50 text-zinc-600",
+            info: "dark:border-slate-600 dark:bg-slate-700 dark:text-zinc-200",
             warning: "border-yellow-200 bg-yellow-50 text-yellow-800",
             error: "border-red-200 bg-red-50 text-red-700",
         })[props.state],

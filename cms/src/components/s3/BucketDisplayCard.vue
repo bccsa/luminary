@@ -83,7 +83,15 @@ const handleEdit = () => {
 
 <template>
     <div
-        class="w-full cursor-pointer divide-y divide-zinc-100 border-y border-zinc-300 bg-white px-3 py-2 sm:rounded-md sm:border"
+        class="w-full cursor-pointer divide-y divide-zinc-100 border-y border-zinc-300 bg-white px-3 py-2 transition-all duration-200 dark:divide-slate-700 dark:border-slate-700 dark:bg-slate-800/70 dark:shadow-lg dark:hover:divide-slate-800/80 sm:rounded-md sm:border"
+        :class="[
+            {
+                'cursor-pointer hover:bg-zinc-50 dark:hover:bg-slate-800/50 dark:hover:shadow-none':
+                    canEdit,
+                'select-none divide-zinc-200 border-gray-200 bg-zinc-50/50 dark:border-slate-800 dark:bg-slate-900/40 dark:text-zinc-600':
+                    !canEdit,
+            },
+        ]"
         @click="handleEdit"
     >
         <div class="relative flex cursor-pointer items-center justify-between pb-1.5">
@@ -93,7 +101,9 @@ const handleEdit = () => {
                     'flex justify-between': isSmallScreen,
                 }"
             >
-                <div class="mr-1 max-w-full truncate text-wrap text-base font-medium">
+                <div
+                    class="mr-1 max-w-full truncate text-wrap text-base font-medium dark:text-zinc-100"
+                >
                     {{ capitaliseFirstLetter(bucket.name) }}
                 </div>
             </div>
@@ -101,10 +111,11 @@ const handleEdit = () => {
 
         <div class="flex w-full min-w-0 items-center gap-2 py-1.5 text-xs">
             <div class="flex w-full min-w-0 items-center gap-1.5">
-                <span class="text-xs text-zinc-500">Path:</span>
-                <code class="truncate rounded bg-zinc-100 px-1.5 py-0.5 text-xs">{{
-                    bucket.publicUrl
-                }}</code>
+                <span class="text-xs text-zinc-500 dark:text-zinc-400">Path:</span>
+                <code
+                    class="truncate rounded bg-zinc-100 px-1.5 py-0.5 text-xs dark:bg-slate-900/60 dark:text-zinc-200"
+                    >{{ bucket.publicUrl }}</code
+                >
             </div>
             <div class="flex flex-nowrap gap-1">
                 <LBadge
@@ -121,7 +132,7 @@ const handleEdit = () => {
         <div v-if="isSmallScreen" class="flex flex-wrap items-center gap-1 py-1.5">
             <div class="flex flex-1 items-center gap-1">
                 <div>
-                    <UserGroupIcon class="h-4 w-4 text-zinc-400" />
+                    <UserGroupIcon class="h-4 w-4 text-zinc-400 dark:text-zinc-100" />
                 </div>
                 <div class="flex flex-wrap gap-1">
                     <LBadge
@@ -143,8 +154,8 @@ const handleEdit = () => {
                     </LBadge>
                 </div>
             </div>
-            <div class="flex w-max items-start text-xs text-zinc-400">
-                <ClockIcon class="mr-[1px] h-3.5 w-3.5 text-zinc-400" />
+            <div class="flex w-max items-start text-xs text-zinc-400 dark:text-zinc-100">
+                <ClockIcon class="mr-[1px] h-3.5 w-3.5 text-zinc-400 dark:text-zinc-100" />
                 <span title="Last Updated" class="text-[11px]">{{
                     renderDate("small", "Last Updated", bucket.updatedTimeUtc)
                 }}</span>
@@ -156,7 +167,7 @@ const handleEdit = () => {
             class="flex items-center justify-between pt-1.5 text-xs sm:gap-4"
         >
             <div class="flex w-full flex-1 flex-wrap items-center gap-1">
-                <UserGroupIcon class="h-4 w-4 text-zinc-400" />
+                <UserGroupIcon class="h-4 w-4 text-zinc-400 dark:text-zinc-100" />
                 <LBadge
                     v-for="group in bucketGroups"
                     :key="group._id"
@@ -175,8 +186,8 @@ const handleEdit = () => {
                     No groups
                 </LBadge>
             </div>
-            <div class="flex items-center justify-end text-zinc-400">
-                <ClockIcon class="text-zinc-340 mr-[1px] h-3.5 w-3.5" />
+            <div class="flex items-center justify-end text-zinc-400 dark:text-zinc-100">
+                <ClockIcon class="text-zinc-340 mr-[1px] h-3.5 w-3.5 dark:text-zinc-100" />
                 <span title="Last Updated" class="text-[11px]">{{
                     renderDate("default", "Last updated", bucket.updatedTimeUtc)
                 }}</span>

@@ -135,23 +135,29 @@ const isLoading = computed(() =>
 );
 const hasMore = computed(() => (searchActive.value ? search.hasMore.value : browse.hasMore.value));
 
-const { output: anyContentOfType, isFetching: isCheckingForContent } = useHybridQueryWithState<ContentDto>(
-    () => ({
-        selector: {
-            $and: [
-                { type: DocType.Content },
-                { parentType: props.docType },
-                props.docType === DocType.Tag
-                    ? { parentTagType: props.tagOrPostType }
-                    : { parentPostType: props.tagOrPostType },
-            ],
+const { output: anyContentOfType, isFetching: isCheckingForContent } =
+    useHybridQueryWithState<ContentDto>(
+        () => ({
+            selector: {
+                $and: [
+                    { type: DocType.Content },
+                    { parentType: props.docType },
+                    props.docType === DocType.Tag
+                        ? { parentTagType: props.tagOrPostType }
+                        : { parentPostType: props.tagOrPostType },
+                ],
+            },
+            $sort: [{ updatedTimeUtc: "desc" }],
+            $limit: 1,
+            use_index: "updatedTimeUtc-type-id-index",
+        }),
+        {
+            live: true,
+            persistOffline: false,
+            cache: false,
+            stripFields: ["fts", "ftsTokenCount", "text", "_rev"],
         },
-        $sort: [{ updatedTimeUtc: "desc" }],
-        $limit: 1,
-        use_index: "updatedTimeUtc-type-id-index",
-    }),
-    { live: true, persistOffline: false, cache: false, stripFields: ["fts", "ftsTokenCount", "text", "_rev"] },
-);
+    );
 const hasAnyContent = computed(() => (anyContentOfType.value?.length ?? 0) > 0);
 
 const onLoadMore = () => {
@@ -236,11 +242,16 @@ const createNew = () => {
             </LButton>
         </template>
         <template #topBarActionsMobile>
-            <PlusIcon
+            <!-- Same button as on large screens, so styling stays with the same styling and size when the page shrinks -->
+            <LButton
                 v-if="canCreateNew && hasAnyContent && isSmallScreen"
-                class="h-8 w-8 cursor-pointer rounded bg-zinc-100 p-1 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-700"
+                variant="primary"
+                :icon="PlusIcon"
+                data-test="create-button"
                 @click="createNew"
-            />
+            >
+                Create {{ docType }}
+            </LButton>
         </template>
 
         <template v-if="hasAnyContent" #internalPageHeader>

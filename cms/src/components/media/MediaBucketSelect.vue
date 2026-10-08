@@ -88,7 +88,7 @@ const problem = computed(() => {
             data-test="bucket-single"
         >
             Encoding into
-            <span class="font-medium text-zinc-700">{{ bucketOptions[0]?.label }}</span
+            <span class="font-medium dark:text-zinc-200">{{ bucketOptions[0]?.label }}</span
             >.
         </p>
 
