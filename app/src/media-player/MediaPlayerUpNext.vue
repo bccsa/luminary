@@ -7,11 +7,20 @@
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import { PlayIcon } from "@heroicons/vue/24/solid";
-import type { ContentDto } from "luminary-shared";
+import { ListBulletIcon } from "@heroicons/vue/24/outline";
+import type { ContentDto, Uuid } from "luminary-shared";
 import { useContentQuery } from "@/composables/useContentQuery";
 import LImage from "@/components/images/LImage.vue";
+import type { UpNextTag } from "./useUpNext";
 
-const props = defineProps<{ next: ContentDto[]; related: ContentDto[] }>();
+const props = defineProps<{
+    next: ContentDto[];
+    related: ContentDto[];
+    /** The tags of what plays, to narrow the lists to: shown when there are two or more. */
+    tags?: UpNextTag[];
+    /** The tag the lists are narrowed to; none is "All". */
+    selectedTag?: Uuid | null;
+}>();
 const { t } = useI18n();
 
 const sections = computed(() =>
@@ -21,7 +30,11 @@ const sections = computed(() =>
     ].filter((section) => section.items.length),
 );
 const items = computed(() => [...props.next, ...props.related]);
-defineEmits<{ select: [content: ContentDto] }>();
+const emit = defineEmits<{ select: [content: ContentDto]; "select-tag": [tag: Uuid | null] }>();
+
+const showTags = computed(() => (props.tags?.length ?? 0) >= 2);
+/** Tapping the chosen tag again goes back to all of them. */
+const chooseTag = (id: Uuid) => emit("select-tag", props.selectedTag === id ? null : id);
 
 const summaryText = (content: ContentDto): string => content.summary?.trim() ?? "";
 
@@ -38,6 +51,58 @@ const tagsFor = (content: ContentDto): ContentDto[] => {
 
 <template>
     <div class="flex-1 overflow-y-auto pb-8">
+        <div
+            v-if="showTags"
+            class="flex gap-2 overflow-x-auto px-4 pb-3 pt-3 scrollbar-hide"
+            role="group"
+            :aria-label="t('media_player.filter_by_tag')"
+            data-test="mediaPlayerUpNextTags"
+        >
+            <button
+                type="button"
+                :aria-pressed="!selectedTag"
+                class="flex min-h-[44px] shrink-0 items-center rounded-full px-3.5 text-sm ring-1 ring-inset"
+                :class="
+                    !selectedTag
+                        ? 'bg-yellow-500/20 font-semibold text-yellow-900 ring-yellow-500 dark:text-yellow-300'
+                        : 'bg-zinc-200 text-zinc-700 ring-transparent dark:bg-slate-700 dark:text-slate-300'
+                "
+                data-test="mediaPlayerUpNextTag-all"
+                @click="emit('select-tag', null)"
+            >
+                {{ t("media_player.all_tags") }}
+            </button>
+            <button
+                v-for="tag in tags"
+                :key="tag.id"
+                type="button"
+                :aria-pressed="selectedTag === tag.id"
+                class="flex min-h-[44px] max-w-[13rem] shrink-0 items-center gap-1.5 rounded-full px-3.5 text-sm ring-1 ring-inset"
+                :class="
+                    selectedTag === tag.id
+                        ? 'bg-yellow-500/20 font-semibold text-yellow-900 ring-yellow-500 dark:text-yellow-300'
+                        : 'bg-zinc-200 text-zinc-700 ring-transparent dark:bg-slate-700 dark:text-slate-300'
+                "
+                :data-test="`mediaPlayerUpNextTag-${tag.id}`"
+                @click="chooseTag(tag.id)"
+            >
+                <ListBulletIcon
+                    v-if="tag.series"
+                    class="h-4 w-4 shrink-0"
+                    aria-hidden="true"
+                />
+                <span class="truncate">{{ tag.title }}</span>
+            </button>
+        </div>
+
+        <p
+            v-if="!sections.length"
+            class="px-4 py-8 text-center text-sm text-zinc-500 dark:text-slate-400"
+            data-test="mediaPlayerUpNextEmpty"
+        >
+            {{ t("media_player.no_more_with_tag") }}
+        </p>
+
         <section
             v-for="section in sections"
             :key="section.id"

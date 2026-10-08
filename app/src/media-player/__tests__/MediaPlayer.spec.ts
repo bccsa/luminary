@@ -31,16 +31,17 @@ vi.mock("@luminary-media-converter/player-web", () => ({ AUDIO_ONLY_ANGLE_ID: "_
 
 const upNextDocs = vi.hoisted(() => ({ value: [] as any[] }));
 const categoryDocs = vi.hoisted(() => ({ value: [] as any[] }));
+const tagDocs = vi.hoisted(() => ({ value: [] as any[] }));
 vi.mock("@/composables/useContentQuery", async () => {
     const { computed } = await import("vue");
     return {
-        // The categories query is the one that asks for tag documents.
+        // Two queries ask for tag documents: the categories (a series) and all of the tags.
         useContentQuery: (selector: () => unknown[]) =>
-            computed(() =>
-                JSON.stringify(selector()).includes('"parentType"')
-                    ? categoryDocs.value
-                    : upNextDocs.value,
-            ),
+            computed(() => {
+                const text = JSON.stringify(selector());
+                if (!text.includes('"parentType"')) return upNextDocs.value;
+                return text.includes('"parentTagType"') ? categoryDocs.value : tagDocs.value;
+            }),
     };
 });
 
@@ -151,6 +152,7 @@ beforeEach(() => {
     setActivePinia(createPinia());
     upNextDocs.value = [];
     categoryDocs.value = [];
+    tagDocs.value = [];
     routerPush.mockClear();
     engine.inlineActive = false;
     engine.canMute = false;
@@ -749,6 +751,132 @@ describe("MediaPlayer", () => {
             expect(related).toContain("thursday");
             expect(related).toContain("other-topic");
             expect(related).not.toContain("saturday");
+        });
+
+        describe("choosing a tag", () => {
+            const doc = (id: string, publishDate: number, parentTags: string[]) => ({
+                ...mockEnglishContentDto,
+                _id: id,
+                parentId: `${id}-parent`,
+                title: id,
+                publishDate,
+                parentTags,
+                video: "https://cdn.example.com/x.m3u8",
+            });
+            const tag = (id: string, title: string) => ({
+                ...mockEnglishContentDto,
+                _id: `tag-${id}`,
+                parentId: id,
+                title,
+            });
+            const rows = (wrapper: Awaited<ReturnType<typeof mountPlayer>>, section: string) =>
+                wrapper.find(`[data-test='mediaPlayerUpNext-${section}']`).exists()
+                    ? find(wrapper, `mediaPlayerUpNext-${section}`)
+                          .findAll("[data-test='mediaPlayerUpNextItem']")
+                          .map((row) => row.text())
+                    : [];
+
+            async function openWithTags(tags: string[]) {
+                mediaPlayerItem.value = null;
+                openMediaPlayer(
+                    { ...mockEnglishContentDto, publishDate: 100, parentTags: tags },
+                    "en",
+                );
+                categoryDocs.value = [tag("conf", "Conference")];
+                tagDocs.value = [
+                    tag("youth", "Youth"),
+                    tag("conf", "Conference"),
+                    tag("prayer", "Prayer"),
+                ];
+                upNextDocs.value = [
+                    doc("sunday", 300, ["conf", "prayer"]),
+                    doc("saturday", 200, ["conf", "youth"]),
+                    doc("worship", 50, ["prayer", "youth"]),
+                ];
+                const wrapper = await mountPlayer();
+                await find(wrapper, "mediaPlayerTab-upnext").trigger("click");
+                return wrapper;
+            }
+
+            it("offers the tags, the series first, only when there are two or more", async () => {
+                const wrapper = await openWithTags(["youth", "conf", "prayer"]);
+                const chips = wrapper
+                    .findAll("[data-test^='mediaPlayerUpNextTag-']")
+                    .map((chip) => chip.text());
+                expect(chips).toEqual(["media_player.all_tags", "Conference", "Youth", "Prayer"]);
+                expect(find(wrapper, "mediaPlayerUpNextTag-all").attributes("aria-pressed")).toBe(
+                    "true",
+                );
+            });
+
+            it("shows no chips for a video with one tag", async () => {
+                const wrapper = await openWithTags(["conf"]);
+                expect(wrapper.find("[data-test='mediaPlayerUpNextTags']").exists()).toBe(false);
+            });
+
+            it("narrows to a series: its next ones, and what else it holds", async () => {
+                const wrapper = await openWithTags(["youth", "conf", "prayer"]);
+                await find(wrapper, "mediaPlayerUpNextTag-conf").trigger("click");
+
+                const next = rows(wrapper, "next");
+                expect(next).toHaveLength(2);
+                expect(next[0]).toContain("saturday");
+                expect(next[1]).toContain("sunday");
+                expect(rows(wrapper, "related").join(" ")).not.toContain("worship");
+            });
+
+            it("narrows to a topic: no next, only what has the topic", async () => {
+                const wrapper = await openWithTags(["youth", "conf", "prayer"]);
+                await find(wrapper, "mediaPlayerUpNextTag-youth").trigger("click");
+
+                expect(wrapper.find("[data-test='mediaPlayerUpNext-next']").exists()).toBe(false);
+                const related = rows(wrapper, "related").join(" ");
+                expect(related).toContain("saturday");
+                expect(related).toContain("worship");
+                expect(related).not.toContain("sunday");
+            });
+
+            it("goes back to all on a second tap, or on All", async () => {
+                const wrapper = await openWithTags(["youth", "conf", "prayer"]);
+                await find(wrapper, "mediaPlayerUpNextTag-youth").trigger("click");
+                await find(wrapper, "mediaPlayerUpNextTag-youth").trigger("click");
+                expect(find(wrapper, "mediaPlayerUpNextTag-all").attributes("aria-pressed")).toBe(
+                    "true",
+                );
+
+                await find(wrapper, "mediaPlayerUpNextTag-prayer").trigger("click");
+                await find(wrapper, "mediaPlayerUpNextTag-all").trigger("click");
+                expect(rows(wrapper, "next")).toHaveLength(2);
+            });
+
+            it("says so, and keeps the tab, when a tag has nothing else", async () => {
+                const wrapper = await openWithTags(["youth", "conf", "prayer"]);
+                upNextDocs.value = [];
+                await find(wrapper, "mediaPlayerUpNextTag-youth").trigger("click");
+                await flushPromises();
+
+                expect(find(wrapper, "mediaPlayerUpNextEmpty").exists()).toBe(true);
+                expect(find(wrapper, "mediaPlayerTab-upnext").exists()).toBe(true);
+            });
+
+            it("starts the next video at All", async () => {
+                const wrapper = await openWithTags(["youth", "conf", "prayer"]);
+                await find(wrapper, "mediaPlayerUpNextTag-youth").trigger("click");
+                openMediaPlayer(
+                    {
+                        ...mockEnglishContentDto,
+                        _id: "other",
+                        parentId: "other-parent",
+                        parentTags: ["youth", "conf"],
+                    },
+                    "en",
+                );
+                await flushPromises();
+                await find(wrapper, "mediaPlayerTab-upnext").trigger("click");
+                expect(find(wrapper, "mediaPlayerUpNextTag-all").attributes("aria-pressed")).toBe(
+                    "true",
+                );
+            });
         });
 
         it("closes a tab whose content went away", async () => {

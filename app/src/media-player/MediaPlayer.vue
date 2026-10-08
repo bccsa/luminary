@@ -24,7 +24,7 @@ import {
     XMarkIcon,
 } from "@heroicons/vue/20/solid";
 import { AUDIO_ONLY_ANGLE_ID, type Chapter } from "@luminary-media-converter/player-web";
-import { db, type ContentDto } from "luminary-shared";
+import { db, type ContentDto, type Uuid } from "luminary-shared";
 import { DateTime } from "luxon";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
 import LImage from "@/components/images/LImage.vue";
@@ -72,7 +72,13 @@ const content = computed(() => item.value?.content);
 type SheetTab = "upnext" | "chapters" | "about";
 /** The tab the sheet under the picture shows; none while it is closed. */
 const sheetTab = ref<SheetTab | null>(null);
-const upNext = useUpNext(content);
+/** The tag the Up next lists are narrowed to; it goes with the video, and the next one starts at All. */
+const upNextTag = ref<Uuid | null>(null);
+const upNext = useUpNext(content, upNextTag);
+watch(
+    () => content.value?.parentId,
+    () => (upNextTag.value = null),
+);
 const chapters = computed(() => state.value?.chapters ?? []);
 /**
  * The tabs that have something to show; About is always there, and leads to the page. Chapters are
@@ -80,7 +86,8 @@ const chapters = computed(() => state.value?.chapters ?? []);
  * with the lists that lead to other content.
  */
 const tabs = computed<{ id: SheetTab; label: string }[]>(() => [
-    ...(upNext.value.next.length || upNext.value.related.length
+    // A chosen tag that has nothing left keeps the tab, so the viewer can go back to All.
+    ...(upNext.value.next.length || upNext.value.related.length || upNextTag.value
         ? [{ id: "upnext" as const, label: t("media_player.up_next") }]
         : []),
     { id: "about" as const, label: t("media_player.about") },
@@ -952,7 +959,10 @@ function onKeydown(event: KeyboardEvent) {
                     v-if="sheetTab === 'upnext'"
                     :next="upNext.next"
                     :related="upNext.related"
+                    :tags="upNext.tags"
+                    :selected-tag="upNextTag"
                     @select="playNext"
+                    @select-tag="upNextTag = $event"
                 />
                 <MediaPlayerChapters
                     v-else-if="sheetTab === 'chapters'"
