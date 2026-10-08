@@ -15,6 +15,7 @@ import * as _ from "lodash";
  *
  * `duplicateImage` carries over a copyable image collection — only possible when the
  * source actually has an image bucket; otherwise the collection is cleared.
+ * The video is never carried over, so the copy doesn't share media files or keys with the original.
  */
 export function buildContentDuplicate(
     parent: ContentParentDto,
@@ -25,6 +26,7 @@ export function buildContentDuplicate(
     clonedParent._id = db.uuid();
     delete (clonedParent as any)._rev;
     if (clonedParent.type === DocType.Tag) (clonedParent as TagDto).taggedDocs = [];
+    delete clonedParent.media;
 
     if (clonedParent.imageData) {
         const imageData = clonedParent.imageData as typeof clonedParent.imageData & {
@@ -52,6 +54,7 @@ export function buildContentDuplicate(
         newContent.status = PublishStatus.Draft;
         newContent.parentTags = [];
         newContent.parentTaggedDocs = [];
+        delete newContent.parentMedia;
         return newContent;
     });
 
