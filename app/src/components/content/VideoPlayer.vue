@@ -205,19 +205,15 @@ const maxHeight = ref<number | undefined>(undefined);
 const bandwidthEstimate = ref<number | undefined>(undefined);
 
 /**
- * The languages to look for chapters in, in order, fixed per content like the rest of what a load
- * starts with: the viewer's language by the code the CMS gives it (which is what the encoder names a
- * chapters file by, `chapters/en.vtt`), then English.
+ * The language the encoder saves chapters in: one, for now, English (`chapters/en.vtt`). The player
+ * loads the track that matches the viewer's language, else the first, so offering a language the
+ * encoder has not written would leave a viewer in it with no chapters at all.
  */
-const chapterLanguages = ref<string[]>([]);
+const CHAPTERS_LANGUAGE = "en";
 type ChapterSidecar = NonNullable<NonNullable<PlayerSource["sidecars"]>["chapters"]>[number];
-function chapterLanguagesFor(language: string | undefined): string[] {
-    const code = language?.trim().toLowerCase();
-    return [...new Set([code, "en"].filter((value): value is string => !!value))];
-}
 
 /**
- * Where a video's chapters would be: `chapters/<language>.vtt` beside its master playlist. Offered
+ * Where a video's chapters would be: `chapters/en.vtt` beside its master playlist. Offered
  * for every video; a video without them has no file there, and the player shows no chapters.
  */
 function chapterSidecars(masterUrl: string): ChapterSidecar[] {
@@ -225,7 +221,7 @@ function chapterSidecars(masterUrl: string): ChapterSidecar[] {
     const slash = path.lastIndexOf("/");
     if (slash < 0) return [];
     const folder = path.slice(0, slash);
-    return chapterLanguages.value.map((lang) => ({ lang, url: `${folder}/chapters/${lang}.vtt` }));
+    return [{ lang: CHAPTERS_LANGUAGE, url: `${folder}/chapters/${CHAPTERS_LANGUAGE}.vtt` }];
 }
 
 /**
@@ -259,7 +255,6 @@ watch(
         startAngleId.value = props.startAudio ? AUDIO_ONLY_ANGLE_ID : undefined;
         maxHeight.value =
             userDataSaverEnabled.value || isDataSaverEnabled() ? DATA_SAVER_MAX_HEIGHT : undefined;
-        chapterLanguages.value = chapterLanguagesFor(preferredLanguage.value);
         bandwidthEstimate.value = hasMeasuredConnectionSpeed.value
             ? Math.round(connectionSpeed.value * 1_000_000)
             : undefined;
