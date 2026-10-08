@@ -705,7 +705,7 @@ describe("EditContent.vue - Duplication", () => {
         expect(vm.editableParent.publishDateVisible).toBe(mockData.mockPostDto.publishDateVisible);
     }, 15000);
 
-    it("preserves media on the duplicated parent", async () => {
+    it("does not carry the video over to the duplicate", async () => {
         // The mock post has media data
         expect(mockData.mockPostDto.media).toBeDefined();
 
@@ -750,8 +750,8 @@ describe("EditContent.vue - Duplication", () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const vm: any = wrapper.vm;
 
-        // Media should be preserved on the duplicated parent
-        expect(vm.editableParent.media).toBeDefined();
-        expect(vm.editableParent.media.hlsUrl).toBe(mockData.mockPostDto.media!.hlsUrl);
+        expect(vm.editableParent._id).not.toBe(mockData.mockPostDto._id);
+        expect(vm.editableParent.media).toBeUndefined();
+        vm.editableContent.forEach((c: any) => expect(c.parentMedia).toBeUndefined());
     }, 15000);
 });
