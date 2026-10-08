@@ -206,33 +206,14 @@ const bandwidthEstimate = ref<number | undefined>(undefined);
 
 /**
  * The languages to look for chapters in, in order, fixed per content like the rest of what a load
- * starts with. The encoder names a chapters file by a two-letter code (`chapters/en.vtt`), where
- * the app's languages carry three letters (`eng`).
+ * starts with: the viewer's language by the code the CMS gives it (which is what the encoder names a
+ * chapters file by, `chapters/en.vtt`), then English.
  */
 const chapterLanguages = ref<string[]>([]);
 type ChapterSidecar = NonNullable<NonNullable<PlayerSource["sidecars"]>["chapters"]>[number];
-const TWO_LETTER_LANGUAGES: Record<string, string> = {
-    eng: "en",
-    fra: "fr",
-    fre: "fr",
-    spa: "es",
-    deu: "de",
-    ger: "de",
-    por: "pt",
-    nya: "ny",
-    swa: "sw",
-    ita: "it",
-    nld: "nl",
-    dut: "nl",
-    rus: "ru",
-    ara: "ar",
-    zho: "zh",
-    chi: "zh",
-};
 function chapterLanguagesFor(language: string | undefined): string[] {
-    const code = language?.toLowerCase();
-    const short = code ? (TWO_LETTER_LANGUAGES[code] ?? code.slice(0, 2)) : undefined;
-    return [...new Set([short, "en"].filter((value): value is string => !!value))];
+    const code = language?.trim().toLowerCase();
+    return [...new Set([code, "en"].filter((value): value is string => !!value))];
 }
 
 /**

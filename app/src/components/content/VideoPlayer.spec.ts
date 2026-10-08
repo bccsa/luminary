@@ -178,7 +178,7 @@ describe("VideoPlayer", () => {
     });
 
     it("offers the chapters file beside the master, in the viewer's language and in English", async () => {
-        const wrapper = await mountPlayer({}, { language: "fra" });
+        const wrapper = await mountPlayer({}, { language: "fr" });
 
         expect(stub(wrapper).props("source").sidecars.chapters).toEqual([
             { lang: "fr", url: "https://bucket.example.com/media/abc/chapters/fr.vtt" },
@@ -187,7 +187,7 @@ describe("VideoPlayer", () => {
     });
 
     it("offers English once when that is the viewer's language", async () => {
-        const wrapper = await mountPlayer({}, { language: "eng" });
+        const wrapper = await mountPlayer({}, { language: "en" });
 
         expect(stub(wrapper).props("source").sidecars.chapters).toEqual([
             { lang: "en", url: "https://bucket.example.com/media/abc/chapters/en.vtt" },
