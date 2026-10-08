@@ -156,7 +156,7 @@ const handleFileChange = () => {
         <div v-else>
             <div class="flex items-center justify-between gap-3">
                 <div class="flex items-center gap-2">
-                    <PhotoIcon class="h-5 w-5 text-zinc-400 dark:text-zinc-500" />
+                    <PhotoIcon class="h-5 w-5 text-zinc-400 dark:text-zinc-200" />
                     <h3 class="text-sm font-medium leading-6 text-zinc-900 dark:text-yellow-400">
                         Image
                     </h3>

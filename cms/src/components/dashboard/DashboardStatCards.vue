@@ -158,6 +158,3 @@ const canViewGroups = hasAnyPermission(DocType.Group, AclPermission.CmsView);
         </RouterLink>
     </div>
 </template>
-``` **Changes made:** Added `cursor-pointer` class to both the "Published" and "Scheduled" cards
-(the `
-<div></div>

@@ -80,7 +80,7 @@ watch(
 </script>
 
 <template>
-    <div class="rounded-md border p-2 dark:border-slate-500 dark:bg-slate-800">
+    <div class="rounded-md border p-2 dark:border-slate-700 dark:bg-slate-800">
         <div class="mb-1 flex items-center justify-between">
             <label class="block text-xs font-medium dark:text-zinc-100">Icon</label>
             <LButton
@@ -101,7 +101,7 @@ watch(
                 @change="handleFileChange"
             />
         </div>
-        <div class="rounded-md border border-zinc-200 p-2 dark:bg-slate-800">
+        <div class="rounded-md border p-2 dark:border-slate-700 dark:bg-slate-800">
             <ImageEditor
                 ref="imageEditorRef"
                 v-model:parent="provider as unknown as ContentParentDto"

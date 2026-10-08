@@ -164,11 +164,15 @@ const hasAnyContent = computed(() => (users.value?.length ?? 0) > 0);
             </LButton>
         </template>
         <template #topBarActionsMobile>
-            <PlusIcon
+            <LButton
                 v-if="canCreateNew && isConnected && hasAnyContent && isSmallScreen"
-                class="h-8 w-8 cursor-pointer rounded bg-zinc-100 p-1 hover:bg-zinc-300 hover:text-zinc-700 dark:text-zinc-100"
+                variant="primary"
+                :icon="PlusIcon"
                 @click="openCreateUserModal"
-            />
+                name="createUserBtn"
+            >
+                Create user
+            </LButton>
         </template>
         <template v-if="hasAnyContent" #internalPageHeader>
             <FilterOptions

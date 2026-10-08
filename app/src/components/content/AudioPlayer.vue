@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, watch, nextTick } from "vue";
 import { useRouter } from "vue-router";
-import { type ContentDto, db } from "luminary-shared";
+import { type ContentDto, db, reportError } from "luminary-shared";
 import { useContentQuery } from "@/composables/useContentQuery";
 import { recordAffinity } from "@/recommendation/affinityStore";
 import { affinityConfig } from "@/recommendation/defaultAffinityStore";
@@ -141,7 +141,17 @@ const handleAudioError = (errorEvent?: Event) => {
     }
 
     audioError.value = errorMessage;
-    console.error("Audio error:", audio.error, errorEvent);
+    const code = audio.error?.code;
+    // Network drops and cancelled loads are expected; only format/decode failures point at bad media
+    if (code === MediaError.MEDIA_ERR_NETWORK || code === MediaError.MEDIA_ERR_ABORTED) {
+        console.error("Audio error:", audio.error, errorEvent);
+    } else {
+        reportError(audio.error ?? errorEvent, {
+            area: "player",
+            op: "audio-playback",
+            data: { code, src: audio.currentSrc },
+        });
+    }
 };
 
 const retryAudio = async () => {
@@ -581,7 +591,7 @@ const switchLanguage = (languageId: string) => {
                     });
                 }
             } catch (error) {
-                console.error("Error during language switch:", error);
+                reportError(error, { area: "player", op: "audio-language-switch" });
                 // Reset playing state on error
                 isPlaying.value = false;
             }

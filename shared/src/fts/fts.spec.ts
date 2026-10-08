@@ -10,7 +10,11 @@ import {
     scheduleCorpusStatsRecompute,
     getDocFrequencies,
 } from "./ftsIndexer";
-import { ftsSearch, ftsSearchMany, selectTrigramsWithinDfBudget } from "./ftsSearch";
+import {
+    ftsSearchLocal as ftsSearch,
+    ftsSearchManyLocal as ftsSearchMany,
+    selectTrigramsWithinDfBudget,
+} from "./ftsSearch";
 
 function makeContentDoc(overrides: Partial<ContentDto> & { _id: string }): ContentDto {
     return {
@@ -179,6 +183,24 @@ describe("FTS Indexer and Search", () => {
     });
 
     describe("recomputeCorpusStats", () => {
+        it("takes its counts from the injected scanner and still writes them here", async () => {
+            const { setCorpusScanner } = await import("./ftsIndexer");
+            const scanner = vi
+                .fn()
+                .mockResolvedValue({ totalTokenCount: 42, docCount: 7, df: { qua: 3 } });
+            setCorpusScanner(scanner);
+            try {
+                await recomputeCorpusStats();
+            } finally {
+                setCorpusScanner();
+            }
+
+            expect(scanner).toHaveBeenCalled();
+            const stats = await getCorpusStats();
+            expect(stats.docCount).toBe(7);
+            expect(stats.totalTokenCount).toBe(42);
+        });
+
         it("computes correct stats from Content docs in the database", async () => {
             const { entries: e1, tokenCount: tc1 } = generateSimpleFtsEntries("quantum");
             const { entries: e2, tokenCount: tc2 } = generateSimpleFtsEntries("cooking");

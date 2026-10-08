@@ -82,7 +82,7 @@ function collapse() {
                 <component
                     v-if="icon"
                     :is="icon"
-                    class="h-5 w-5 text-zinc-700 dark:text-zinc-400"
+                    class="h-5 w-5 text-zinc-700 dark:text-zinc-200"
                 />
                 <h3 class="text-sm font-medium leading-6 text-zinc-900 dark:text-yellow-400">
                     {{ title }}
@@ -128,7 +128,7 @@ function collapse() {
             >
                 <slot />
             </div>
-            <!-- Footer ajusté pour le mode sombre -->
+            <!-- Footer adjusted for the dark mode -->
             <div v-if="$slots.footer" class="bg-zinc-50 px-2 py-3 dark:bg-slate-900/50">
                 <slot name="footer" />
             </div>

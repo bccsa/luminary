@@ -475,6 +475,19 @@ describe("syncBatch", () => {
         ).rejects.toThrow("Invalid API response format");
     });
 
+    it("throws the same 'Invalid API response format' error, not a raw TypeError, when the response itself is undefined", async () => {
+        const http = { post: vi.fn(async () => undefined) };
+        await expect(
+            syncBatch({
+                type: DocType.Post,
+                memberOf: ["g1"],
+                limit: 5,
+                initialSync: true,
+                httpService: http as any,
+            }),
+        ).rejects.toThrow("Invalid API response format");
+    });
+
     it("returns mergeResult with eof, blockStart, and blockEnd", async () => {
         const docs = makeDocs(3, 3000, 10);
         const http = { post: vi.fn(async () => ({ docs })) };

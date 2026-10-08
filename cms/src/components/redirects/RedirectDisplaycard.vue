@@ -48,7 +48,7 @@ const redirectGroups = computed(() =>
         <template #title-extension>
             <div class="flex items-center gap-1">
                 <ArrowRightIcon class="size-4 text-zinc-400" />
-                <span class="text-xs text-zinc-500 sm:text-sm">
+                <span class="text-xs dark:text-zinc-200 sm:text-sm">
                     {{ redirectDoc.toSlug ?? "HOMEPAGE" }}
                 </span>
             </div>

@@ -337,7 +337,7 @@ function setConditionType(idx: number, type: AuthProviderCondition["type"]) {
             <p v-if="memberOfError" class="mt-1 text-[11px] font-medium text-red-600">
                 {{ memberOfError }}
             </p>
-            <p v-else class="mt-1 text-[11px] text-zinc-400">
+            <p v-else class="mt-1 text-[11px] dark:text-zinc-200">
                 Only members of these groups can view or edit this mapping document in the CMS. Has
                 no effect on which users are assigned groups on login.
             </p>
@@ -358,7 +358,7 @@ function setConditionType(idx: number, type: AuthProviderCondition["type"]) {
             <p v-if="groupIdsError" class="mt-1 text-[11px] font-medium text-red-600">
                 {{ groupIdsError }}
             </p>
-            <p v-else class="mt-1 text-[11px] text-zinc-400">
+            <p v-else class="mt-1 text-[11px] dark:text-zinc-200">
                 When a user matches this mapping, these groups are added to their session on login —
                 giving them the permissions those groups hold.
             </p>
@@ -377,7 +377,7 @@ function setConditionType(idx: number, type: AuthProviderCondition["type"]) {
                     (editable.conditions ?? []).filter((c) => c.type !== 'authenticated').length ===
                     0
                 "
-                class="mt-2 text-[11px] italic text-zinc-400"
+                class="mt-2 text-[11px] italic dark:text-zinc-200"
             >
                 Assigned to all authenticated users.
             </p>
@@ -393,7 +393,7 @@ function setConditionType(idx: number, type: AuthProviderCondition["type"]) {
                         class="group flex cursor-pointer items-center gap-2 px-3 py-2"
                         @click="!props.disabled && toggleEdit(cIdx)"
                     >
-                        <span class="min-w-0 flex-1 truncate text-sm text-zinc-700">
+                        <span class="min-w-0 flex-1 truncate text-sm dark:text-zinc-200">
                             {{ conditionSummary(cond) }}
                         </span>
                         <button
@@ -422,7 +422,7 @@ function setConditionType(idx: number, type: AuthProviderCondition["type"]) {
                             />
                             <button
                                 type="button"
-                                class="ml-2 mt-5 shrink-0 text-zinc-400 transition-colors hover:text-red-500"
+                                class="ml-2 mt-5 shrink-0 transition-colors hover:text-red-500 dark:text-zinc-200"
                                 :disabled="props.disabled"
                                 @click="removeCondition(cIdx)"
                                 aria-label="Remove condition"
@@ -474,7 +474,7 @@ function setConditionType(idx: number, type: AuthProviderCondition["type"]) {
                                         .filter(Boolean)
                                 "
                             />
-                            <p class="mt-0.5 text-[11px] text-zinc-400">Comma-separated</p>
+                            <p class="mt-0.5 text-[11px] dark:text-zinc-200">Comma-separated</p>
                         </template>
 
                         <LButton
@@ -534,6 +534,7 @@ function setConditionType(idx: number, type: AuthProviderCondition["type"]) {
         context="danger"
         title="Discard changes?"
         description="You have unsaved changes. If you close now, your changes will be discarded."
+        class="dark:text-zinc-200"
         primary-button-text="Discard changes"
         secondary-button-text="Keep editing"
         :primary-action="discardAndClose"

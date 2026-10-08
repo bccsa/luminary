@@ -304,6 +304,7 @@ const handleRevert = () => {
         context="danger"
         title="Discard changes?"
         description="You have unsaved changes. If you close now, your changes will be discarded."
+        class="dark:text-zinc-200"
         primary-button-text="Discard changes"
         secondary-button-text="Keep editing"
         :primary-action="discardAndClose"

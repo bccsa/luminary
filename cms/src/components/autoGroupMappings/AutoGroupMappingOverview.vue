@@ -172,11 +172,14 @@ const hasAnyContent = computed(() => autoGroupMappings.mappings.length > 0);
             </LButton>
         </template>
         <template #topBarActionsMobile>
-            <PlusIcon
+            <LButton
                 v-if="autoGroupMappings.canEdit && hasAnyContent && isSmallScreen"
-                class="h-8 w-8 cursor-pointer rounded p-1 hover:text-zinc-700 dark:bg-yellow-200 dark:text-zinc-800 dark:hover:bg-yellow-100"
+                variant="primary"
+                :icon="PlusIcon"
                 @click="openCreate"
-            />
+            >
+                Create mapping
+            </LButton>
         </template>
 
         <template v-if="hasAnyContent" #internalPageHeader>

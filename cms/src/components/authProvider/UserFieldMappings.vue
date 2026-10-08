@@ -34,9 +34,9 @@ function setMapping(key: "externalUserId" | "email" | "name", value: string) {
 </script>
 
 <template>
-    <div class="rounded-md border border-zinc-200 p-2 dark:bg-slate-800">
+    <div class="rounded-md border p-2 dark:border-slate-700 dark:bg-slate-800">
         <h3 class="mb-2 text-sm font-medium dark:text-zinc-100">User field names</h3>
-        <p class="mb-2 text-[11px] text-zinc-500">
+        <p class="mb-2 text-[11px] dark:text-zinc-200">
             Override the JWT claim paths used to identify users. Leave blank to use standard OIDC
             defaults (<code>sub</code>, <code>email</code>, <code>name</code>).
         </p>
