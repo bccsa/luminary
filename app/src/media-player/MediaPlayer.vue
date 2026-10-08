@@ -63,6 +63,8 @@ const state = computed(() => handle.value?.state ?? null);
 
 const item = mediaPlayerItem;
 const expanded = computed(() => mediaPlayerView.value === "expanded");
+/** The full player is open: it is expanded and something plays. (Expanded is the default view, with or without an item.) */
+const playerOpen = computed(() => expanded.value && !!item.value);
 const content = computed(() => item.value?.content);
 
 /**
@@ -195,7 +197,7 @@ watch(
 // (a phone waking up and restoring the scroll position, say) must not hide them, or the page shows
 // through above and below the player.
 watch(mobileChrome.hidden, (hidden) => {
-    if (hidden && expanded.value) mobileChrome.hidden.value = false;
+    if (hidden && playerOpen.value) mobileChrome.hidden.value = false;
 });
 
 // Pages keep their content clear of the bar through --media-bar-h, as they do for the menu.
@@ -213,7 +215,7 @@ watch(bar, (element, previous) => {
 });
 /** Back from the background (a locked phone, another app): the page may have moved while it slept. */
 function onVisible() {
-    if (document.visibilityState !== "visible" || !expanded.value) return;
+    if (document.visibilityState !== "visible" || !playerOpen.value) return;
     mobileChrome.hidden.value = false;
     measureTopBar();
 }

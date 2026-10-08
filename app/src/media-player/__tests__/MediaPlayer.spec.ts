@@ -9,6 +9,7 @@ import MediaPlayer from "../MediaPlayer.vue";
 import {
     closeMediaPlayer,
     mediaPlayerItem,
+    minimiseMediaPlayer,
     mediaPlayerView,
     openMediaPlayer,
 } from "../mediaPlayer";
@@ -522,6 +523,31 @@ describe("MediaPlayer", () => {
             document.dispatchEvent(new Event("visibilitychange"));
             await flushPromises();
             expect(hidden.value).toBe(false);
+        });
+
+        it("leaves the chrome to hide and show as the page is read when no player is open", async () => {
+            const { hidden } = useMobileChromeAutoHide();
+            hidden.value = false;
+            mediaPlayerItem.value = null;
+            await mountPlayer();
+
+            hidden.value = true;
+            await flushPromises();
+            expect(hidden.value).toBe(true);
+            document.dispatchEvent(new Event("visibilitychange"));
+            await flushPromises();
+            expect(hidden.value).toBe(true);
+        });
+
+        it("leaves it be while the player is minimised", async () => {
+            const { hidden } = useMobileChromeAutoHide();
+            await playing();
+            minimiseMediaPlayer();
+            await flushPromises();
+
+            hidden.value = true;
+            await flushPromises();
+            expect(hidden.value).toBe(true);
         });
 
         it("keeps the chrome in place while the player is open, however the page behind scrolls", async () => {
