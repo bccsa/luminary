@@ -331,11 +331,24 @@ watch(
 /** Resuming lands slightly before where the viewer left, to re-establish context. */
 const RESUME_REWIND_SECONDS = 30;
 
+/**
+ * Where the video starts (the saved position, playing on its own) is for the first load only. The
+ * player loads again for another angle, audio or video, or after a recovery, and those keep the
+ * position and the play state they had: a paused video stays paused where it is.
+ */
+let startHandled = false;
+watch(
+    () => props.content._id,
+    () => (startHandled = false),
+);
+
 function onLoadedMetadata() {
     completed = false;
     watchTracker.reset();
     const id = mediaId.value;
     if (!id) return;
+    if (startHandled) return;
+    startHandled = true;
 
     const progress = getMediaProgress(id, props.content._id);
     if (progress > MIN_RESUME_SECONDS) player.value?.seek(progress - RESUME_REWIND_SECONDS);

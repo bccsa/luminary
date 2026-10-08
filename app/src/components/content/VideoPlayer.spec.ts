@@ -404,6 +404,20 @@ describe("VideoPlayer", () => {
             expect(seekMock).toHaveBeenCalledWith(270);
         });
 
+        it("starts and restores the position on the first load only, not on a switch of mode", async () => {
+            getMediaProgressMock.mockReturnValue(300);
+            const wrapper = await mountPlayer({}, { autoplay: true });
+            stub(wrapper).vm.$emit("loadedmetadata");
+            expect(playMock).toHaveBeenCalledTimes(1);
+            expect(seekMock).toHaveBeenCalledTimes(1);
+
+            // Audio to video, or back: the player loads again, and a paused video stays paused.
+            stub(wrapper).vm.$emit("loadedmetadata");
+            stub(wrapper).vm.$emit("loadedmetadata");
+            expect(playMock).toHaveBeenCalledTimes(1);
+            expect(seekMock).toHaveBeenCalledTimes(1);
+        });
+
         it("does not seek for a position not worth resuming", async () => {
             getMediaProgressMock.mockReturnValue(30);
             const wrapper = await mountPlayer();
