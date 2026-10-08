@@ -15,7 +15,6 @@ import {
     ChevronDownIcon,
     FilmIcon,
     LanguageIcon,
-    ListBulletIcon,
     MusicalNoteIcon,
     PauseIcon,
     PlayIcon,
@@ -100,6 +99,10 @@ const chapters = computed(() => state.value?.chapters ?? []);
  * with the lists that lead to other content.
  */
 const tabs = computed<{ id: SheetTab; label: string }[]>(() => [
+    // Chapters come first: they belong to this video, ahead of what leads to others.
+    ...(chapters.value.length
+        ? [{ id: "chapters" as const, label: t("media_player.chapters") }]
+        : []),
     // A chosen tag that has nothing left, or lists still loading, keep the tab: the viewer goes back to All.
     ...(upNext.value.next.length ||
     upNext.value.related.length ||
@@ -114,12 +117,6 @@ const sheetLabel = computed(() =>
         ? t("media_player.chapters")
         : (tabs.value.find((tab) => tab.id === sheetTab.value)?.label ?? ""),
 );
-/** The chapter the playhead is in, for the strip that opens the list. */
-const currentChapter = computed(() => {
-    const at = currentTime.value;
-    const index = chapters.value.findIndex((c) => at >= c.startTime && at < c.endTime);
-    return index < 0 ? null : { title: chapters.value[index]!.title, index };
-});
 const pictureEl = ref<HTMLElement | null>(null);
 const sectionEl = ref<HTMLElement | null>(null);
 /** Where the sheet starts: just under the picture, which stays in view. */
@@ -620,26 +617,6 @@ function onKeydown(event: KeyboardEvent) {
                 </div>
 
                 <template v-if="state">
-                    <button
-                        v-if="chapters.length"
-                        type="button"
-                        class="mx-auto mt-4 flex h-11 max-w-full items-center gap-2 rounded-full border border-zinc-500/35 px-4 text-sm font-semibold text-zinc-600 dark:text-slate-300"
-                        :class="{ 'bg-zinc-500/15': sheetTab === 'chapters' }"
-                        :aria-label="t('media_player.chapters')"
-                        :aria-expanded="sheetTab === 'chapters'"
-                        data-test="mediaPlayerChapterStrip"
-                        @click="toggleTab('chapters')"
-                    >
-                        <ListBulletIcon class="h-5 w-5 flex-shrink-0" />
-                        <span class="min-w-0 truncate">{{
-                            currentChapter?.title ?? t("media_player.chapters")
-                        }}</span>
-                        <span
-                            v-if="currentChapter"
-                            class="flex-shrink-0 text-xs font-normal tabular-nums text-zinc-500 dark:text-slate-400"
-                            >{{ currentChapter.index + 1 }}/{{ chapters.length }}</span
-                        >
-                    </button>
                     <div
                         class="max-h-10 min-h-0 flex-shrink flex-grow basis-8"
                         aria-hidden="true"

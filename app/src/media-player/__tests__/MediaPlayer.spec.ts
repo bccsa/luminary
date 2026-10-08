@@ -726,7 +726,7 @@ describe("MediaPlayer", () => {
         });
     });
 
-    describe("the tabs under the picture (up next, about) and the chapter strip", () => {
+    describe("the tabs under the picture (chapters, up next, about)", () => {
         const tabIds = (wrapper: VueWrapper) =>
             wrapper.findAll("[role=tab]").map((tab) => tab.attributes("data-test"));
 
@@ -735,7 +735,7 @@ describe("MediaPlayer", () => {
             expect(tabIds(wrapper)).toEqual(["mediaPlayerTab-about"]);
         });
 
-        it("keeps chapters out of the tabs, in a strip that opens them", async () => {
+        it("switches between the chapters and the lists that lead to other videos", async () => {
             upNextDocs.value = [
                 {
                     ...mockEnglishContentDto,
@@ -751,12 +751,16 @@ describe("MediaPlayer", () => {
                 { startTime: 60, endTime: 120, title: "The talk" },
             ];
             await flushPromises();
-            expect(tabIds(wrapper)).toEqual(["mediaPlayerTab-upnext", "mediaPlayerTab-about"]);
+            expect(tabIds(wrapper)).toEqual([
+                "mediaPlayerTab-chapters",
+                "mediaPlayerTab-upnext",
+                "mediaPlayerTab-about",
+            ]);
 
             await find(wrapper, "mediaPlayerTab-upnext").trigger("click");
             expect(find(wrapper, "mediaPlayerSheet").text()).toContain("The next one");
 
-            await find(wrapper, "mediaPlayerChapterStrip").trigger("click");
+            await find(wrapper, "mediaPlayerTab-chapters").trigger("click");
             expect(find(wrapper, "mediaPlayerSheet").text()).toContain("The talk");
             expect(wrapper.find("[data-test='mediaPlayerUpNextItem']").exists()).toBe(false);
         });
@@ -768,23 +772,31 @@ describe("MediaPlayer", () => {
                 { startTime: 60, endTime: 120, title: "The talk" },
             ];
             await flushPromises();
-            await find(wrapper, "mediaPlayerChapterStrip").trigger("click");
+            await find(wrapper, "mediaPlayerTab-chapters").trigger("click");
 
             await wrapper.findAll("[data-test='mediaPlayerChapter']")[1]!.trigger("click");
             expect(engine.handle.seek).toHaveBeenLastCalledWith(60);
             expect(engine.handle.play).toHaveBeenCalled();
         });
 
-        it("shows the chapter the playhead is in on the strip, and no strip without chapters", async () => {
+        it("offers Chapters as the first tab when the video has them, and no tab without", async () => {
             const wrapper = await playing();
-            expect(wrapper.find("[data-test='mediaPlayerChapterStrip']").exists()).toBe(false);
+            expect(wrapper.find("[data-test='mediaPlayerTab-chapters']").exists()).toBe(false);
+
             engine.state.chapters = [
                 { startTime: 0, endTime: 20, title: "Opening" },
                 { startTime: 20, endTime: 120, title: "The talk" },
             ];
             await flushPromises();
-            expect(find(wrapper, "mediaPlayerChapterStrip").text()).toContain("The talk");
-            expect(find(wrapper, "mediaPlayerChapterStrip").text()).toContain("2/2");
+            // Up next is there only when there is something to go on to.
+            expect(tabIds(wrapper)).toEqual(["mediaPlayerTab-chapters", "mediaPlayerTab-about"]);
+        });
+
+        it("has no strip for the chapters: they are a tab", async () => {
+            const wrapper = await playing();
+            engine.state.chapters = [{ startTime: 0, endTime: 60, title: "Opening" }];
+            await flushPromises();
+            expect(wrapper.find("[data-test='mediaPlayerChapterStrip']").exists()).toBe(false);
         });
 
         it("marks the chapter the playhead is in", async () => {
@@ -794,7 +806,7 @@ describe("MediaPlayer", () => {
                 { startTime: 20, endTime: 120, title: "The talk" },
             ];
             await flushPromises();
-            await find(wrapper, "mediaPlayerChapterStrip").trigger("click");
+            await find(wrapper, "mediaPlayerTab-chapters").trigger("click");
 
             const rows = wrapper.findAll("[data-test='mediaPlayerChapter']");
             expect(rows[0]!.attributes("aria-current")).toBeUndefined();
@@ -1046,7 +1058,7 @@ describe("MediaPlayer", () => {
             const wrapper = await playing();
             engine.state.chapters = [{ startTime: 0, endTime: 60, title: "Opening" }];
             await flushPromises();
-            await find(wrapper, "mediaPlayerChapterStrip").trigger("click");
+            await find(wrapper, "mediaPlayerTab-chapters").trigger("click");
             expect(find(wrapper, "mediaPlayerSheet").exists()).toBe(true);
 
             engine.state.chapters = [];
