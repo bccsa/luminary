@@ -291,8 +291,40 @@ function fraction(seconds: number): number {
         ? Math.min(Math.max(seconds / duration.value, 0), 1)
         : 0;
 }
-const progress = computed(() => fraction(currentTime.value));
-const loaded = computed(() => fraction(state.value?.bufferedEnd ?? 0));
+/**
+ * Where the viewer's finger holds the bar while it is dragged, and for a moment after it is let go,
+ * until playback has caught up: the bar and the time follow the finger, not the playing position,
+ * which would pull the dot back on every update.
+ */
+const scrubTime = ref<number | null>(null);
+const shownTime = computed(() => scrubTime.value ?? currentTime.value);
+const progress = computed(() => fraction(shownTime.value));
+/** The most a seek is given to land before the bar follows playback again. */
+const SCRUB_HOLD_MS = 1500;
+let scrubTimer: ReturnType<typeof setTimeout> | undefined;
+/** The finger is up: playback is being waited on. */
+let released = false;
+function endScrub() {
+    clearTimeout(scrubTimer);
+    released = false;
+    scrubTime.value = null;
+}
+onBeforeUnmount(() => clearTimeout(scrubTimer));
+function scrub(event: Event) {
+    clearTimeout(scrubTimer);
+    released = false;
+    scrubTime.value = Number((event.target as HTMLInputElement).value);
+}
+// Playback reaching where it was sent hands the bar back to it.
+watch(currentTime, (time) => {
+    if (scrubTime.value !== null && released && Math.abs(time - scrubTime.value) < 2) endScrub();
+});
+const loaded = computed(() => fraction(state.value?.bufferedEnd ?? 0)); /**
+ * What is loaded shows once it reaches past what has played by a visible amount (about 2 px of the
+ * bar): a smaller stretch would only be a hairline at the corner of the yellow.
+ */
+const LOADED_VISIBLE_FRACTION = 0.006;
+const loadedShows = computed(() => loaded.value - progress.value > LOADED_VISIBLE_FRACTION);
 
 /** The last camera seen playing, where Video returns to. */
 let videoAngleId: string | null = null;
@@ -338,7 +370,13 @@ function skip(seconds: number) {
 }
 
 function seekTo(event: Event) {
-    handle.value?.seek(Number((event.target as HTMLInputElement).value));
+    const target = Number((event.target as HTMLInputElement).value);
+    handle.value?.seek(target);
+    // Held until playback arrives (or a while has passed), so the dot does not fall back meanwhile.
+    scrubTime.value = target;
+    released = true;
+    clearTimeout(scrubTimer);
+    scrubTimer = setTimeout(endScrub, SCRUB_HOLD_MS);
 }
 
 const openMenu = ref<"speed" | "language" | "subtitles" | null>(null);
@@ -837,18 +875,29 @@ function onKeydown(event: KeyboardEvent) {
                         >
                             <!-- The drawn bar shows what has played and what is loaded; the range on top of it
                              is what takes the touch, with only its thumb showing. -->
-                            <div class="relative flex h-5 items-center">
+                            <!-- 44 px tall to take a thumb, laid out as the 20 px bar it was (the negative margin). -->
+                            <div class="relative -my-3 flex h-11 items-center">
+                                <!-- The time at the dot while it is dragged: the finger covers it, so it sits above. -->
+                                <span
+                                    v-if="scrubTime !== null"
+                                    class="pointer-events-none absolute -top-5 z-10 -translate-x-1/2 rounded-md bg-slate-900 px-2 py-0.5 text-xs font-semibold tabular-nums text-white shadow-lg ring-1 ring-white/10"
+                                    :style="{ left: `calc(8px + (100% - 16px) * ${progress})` }"
+                                    data-test="mediaPlayerScrubTime"
+                                    >{{ formatTime(scrubTime) }}</span
+                                >
                                 <div
-                                    class="absolute inset-x-0 h-1.5 overflow-hidden rounded-full bg-zinc-300 dark:bg-slate-600"
+                                    class="absolute inset-x-0 overflow-hidden rounded-full bg-black/10 transition-[height] duration-150 dark:bg-white/15"
+                                    :class="scrubTime !== null ? 'h-3' : 'h-2'"
                                     aria-hidden="true"
                                 >
                                     <div
-                                        class="absolute inset-y-0 left-0 bg-zinc-400 dark:bg-slate-400"
+                                        v-if="loadedShows"
+                                        class="absolute inset-y-0 left-0 rounded-full bg-black/40 transition-[width] duration-300 dark:bg-white/50"
                                         :style="{ width: `${loaded * 100}%` }"
                                         data-test="mediaPlayerLoaded"
                                     />
                                     <div
-                                        class="absolute inset-y-0 left-0 bg-yellow-500"
+                                        class="absolute inset-y-0 left-0 rounded-full bg-yellow-500"
                                         :style="{ width: `${progress * 100}%` }"
                                     />
                                 </div>
@@ -857,17 +906,24 @@ function onKeydown(event: KeyboardEvent) {
                                     min="0"
                                     :max="duration || 0"
                                     step="1"
-                                    :value="currentTime"
+                                    :value="shownTime"
                                     :aria-label="t('media_player.seek')"
-                                    class="relative h-5 w-full cursor-pointer appearance-none bg-transparent [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-yellow-500 [&::-moz-range-track]:bg-transparent [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-yellow-500"
+                                    class="relative h-11 w-full cursor-pointer appearance-none bg-transparent [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-yellow-500 [&::-moz-range-track]:bg-transparent [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-yellow-500 [&::-webkit-slider-thumb]:shadow-md"
+                                    :class="
+                                        scrubTime !== null
+                                            ? '[&::-moz-range-thumb]:opacity-100 [&::-webkit-slider-thumb]:opacity-100'
+                                            : '[&::-moz-range-thumb]:opacity-0 [&::-webkit-slider-thumb]:opacity-0'
+                                    "
                                     data-test="mediaPlayerSeek"
+                                    @input="scrub"
                                     @change="seekTo"
+                                    @pointercancel="endScrub"
                                 />
                             </div>
                             <div
                                 class="mt-1 flex justify-between text-xs text-zinc-500 dark:text-zinc-300"
                             >
-                                <span>{{ formatTime(currentTime) }}</span>
+                                <span>{{ formatTime(shownTime) }}</span>
                                 <span>{{ formatTime(duration) }}</span>
                             </div>
                         </div>

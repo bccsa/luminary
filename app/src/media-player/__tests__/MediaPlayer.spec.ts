@@ -255,6 +255,112 @@ describe("MediaPlayer", () => {
             expect(engine.handle.seek).toHaveBeenCalledWith(90);
         });
 
+        it("gives the bar a touch target of 44 px", async () => {
+            const wrapper = await playing();
+            expect(find(wrapper, "mediaPlayerSeek").classes()).toContain("h-11");
+        });
+
+        it("shows the time at the dot while it is dragged, and not otherwise", async () => {
+            const wrapper = await playing();
+            expect(wrapper.find("[data-test='mediaPlayerScrubTime']").exists()).toBe(false);
+
+            const bar = find(wrapper, "mediaPlayerSeek");
+            (bar.element as HTMLInputElement).value = "90";
+            await bar.trigger("input");
+            expect(find(wrapper, "mediaPlayerScrubTime").text()).toBe("1:30");
+            // Nothing is sought until the finger is up.
+            expect(engine.handle.seek).not.toHaveBeenCalled();
+        });
+
+        it("keeps the dot where the finger put it while playback goes on", async () => {
+            const wrapper = await playing();
+            const bar = find(wrapper, "mediaPlayerSeek");
+            (bar.element as HTMLInputElement).value = "90";
+            await bar.trigger("input");
+
+            engine.state.currentTime = 31;
+            await flushPromises();
+            expect((bar.element as HTMLInputElement).value).toBe("90");
+            expect(wrapper.text()).toContain("1:30");
+        });
+
+        it("holds the dot at the target after it is let go, until playback arrives", async () => {
+            const wrapper = await playing();
+            const bar = find(wrapper, "mediaPlayerSeek");
+            (bar.element as HTMLInputElement).value = "90";
+            await bar.trigger("change");
+            expect(engine.handle.seek).toHaveBeenCalledWith(90);
+
+            // Playback has not got there yet: the dot does not fall back to where it was.
+            await flushPromises();
+            expect((bar.element as HTMLInputElement).value).toBe("90");
+
+            engine.state.currentTime = 90.4;
+            await flushPromises();
+            expect(wrapper.find("[data-test='mediaPlayerScrubTime']").exists()).toBe(false);
+            // Playback has the bar again.
+            expect(Number((bar.element as HTMLInputElement).value)).toBeCloseTo(90.4, 1);
+        });
+
+        it("hands the bar back to playback when the drag is cancelled", async () => {
+            const wrapper = await playing();
+            const bar = find(wrapper, "mediaPlayerSeek");
+            (bar.element as HTMLInputElement).value = "90";
+            await bar.trigger("input");
+            await bar.trigger("pointercancel");
+
+            expect(wrapper.find("[data-test='mediaPlayerScrubTime']").exists()).toBe(false);
+            expect(engine.handle.seek).not.toHaveBeenCalled();
+        });
+
+        it("shows no dot at rest, and the dot and a thicker bar under the finger", async () => {
+            const wrapper = await playing();
+            const bar = find(wrapper, "mediaPlayerSeek");
+            expect(bar.classes()).toContain("[&::-webkit-slider-thumb]:opacity-0");
+            expect(bar.classes()).not.toContain("[&::-webkit-slider-thumb]:opacity-100");
+            // The drawn bar is what sits just before the slider that takes the touch.
+            const drawn = () => bar.element.previousElementSibling as HTMLElement;
+            expect(drawn().className).toContain("h-2");
+
+            (bar.element as HTMLInputElement).value = "90";
+            await bar.trigger("input");
+            expect(bar.classes()).toContain("[&::-webkit-slider-thumb]:opacity-100");
+            expect(drawn().className).toContain("h-3");
+        });
+
+        it("shows what is loaded only once it reaches visibly past what has played", async () => {
+            const wrapper = await playing();
+            expect(wrapper.find("[data-test='mediaPlayerLoaded']").exists()).toBe(true);
+
+            // 0.3 s past the playhead of a 120 s video: under 2 px, a hairline at the yellow's corner.
+            engine.state.bufferedEnd = 30.3;
+            await flushPromises();
+            expect(wrapper.find("[data-test='mediaPlayerLoaded']").exists()).toBe(false);
+
+            engine.state.bufferedEnd = 45;
+            await flushPromises();
+            expect(wrapper.find("[data-test='mediaPlayerLoaded']").exists()).toBe(true);
+        });
+
+        it("rounds both ends of what has played and what is loaded", async () => {
+            const wrapper = await playing();
+            const loaded = find(wrapper, "mediaPlayerLoaded").element;
+            expect(loaded.className).toContain("rounded-full");
+            const played = loaded.nextElementSibling as HTMLElement;
+            expect(played.className).toContain("bg-yellow-500");
+            expect(played.className).toContain("rounded-full");
+        });
+
+        it("draws what is loaded lighter than the track and darker than what has played", async () => {
+            const wrapper = await playing();
+            const loaded = find(wrapper, "mediaPlayerLoaded").classes().join(" ");
+            expect(loaded).toContain("dark:bg-white/50");
+            expect(find(wrapper, "mediaPlayerLoaded").element.parentElement!.className).toContain(
+                "dark:bg-white/15",
+            );
+            expect(loaded).not.toContain("bg-yellow");
+        });
+
         it("shows how much is loaded under what has played", async () => {
             const wrapper = await playing();
             expect(find(wrapper, "mediaPlayerLoaded").attributes("style")).toContain("width: 50%");
