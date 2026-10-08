@@ -160,6 +160,7 @@ beforeEach(() => {
     engine.airPlayAvailable = false;
     engine.airPlayActive = false;
     document.documentElement.classList.remove("lmc-inline-video");
+    document.documentElement.classList.remove("lmc-player-dragging");
     closeMediaPlayer();
     userDataSaverEnabled.value = false;
 });
@@ -215,6 +216,119 @@ describe("MediaPlayer", () => {
             await flushPromises();
 
             expect(find(wrapper, "mediaPlayerAudio").exists()).toBe(false);
+        });
+    });
+
+    /** The sheet slides out before it is removed. */
+    const slideAway = () => new Promise((resolve) => setTimeout(resolve, 260));
+
+    const nextFrame = () => new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
+
+    describe("drawing the player down", () => {
+        const pointer = (y: number) => ({ clientY: y, pointerId: 1 });
+        const sectionStyle = (wrapper: VueWrapper) =>
+            find(wrapper, "mediaPlayer").attributes("style") ?? "";
+
+        it("follows the thumb down, with no easing of its own", async () => {
+            const wrapper = await playing();
+            const handle = find(wrapper, "mediaPlayerHandle");
+            await handle.trigger("pointerdown", pointer(100));
+            await handle.trigger("pointermove", pointer(150));
+
+            expect(sectionStyle(wrapper)).toContain("--tw-translate-y: 50px");
+            expect(sectionStyle(wrapper)).toContain("transition: none");
+        });
+
+        it("lets the page show through the strip it uncovers, and only while it is drawn", async () => {
+            engine.inlineActive = true;
+            const wrapper = await playing();
+            const root = document.documentElement;
+            const handle = find(wrapper, "mediaPlayerHandle");
+            expect(root.classList.contains("lmc-player-dragging")).toBe(false);
+
+            await handle.trigger("pointerdown", pointer(100));
+            await handle.trigger("pointermove", pointer(160));
+            expect(root.classList.contains("lmc-player-dragging")).toBe(true);
+            // The strip is as tall as the pull, from the foot of the top bar.
+            expect(root.style.getPropertyValue("--lmc-gap-bottom")).toBe(
+                `${window.innerHeight - 0 - 60}px`,
+            );
+
+            await handle.trigger("pointerup");
+            // Home already (nothing displaced it): the strip goes on the next frame.
+            await nextFrame();
+            expect(root.classList.contains("lmc-player-dragging")).toBe(false);
+        });
+
+        it("keeps the strip while the player springs back, and drops it when it is home", async () => {
+            engine.inlineActive = true;
+            let top = 60;
+            const spy = vi
+                .spyOn(Element.prototype, "getBoundingClientRect")
+                .mockImplementation(function (this: Element) {
+                    const y = this.getAttribute("role") === "dialog" ? top : 0;
+                    return { top: y, bottom: y, left: 0, right: 0, width: 0, height: 0 } as DOMRect;
+                });
+            const wrapper = await playing();
+            const root = document.documentElement;
+            const handle = find(wrapper, "mediaPlayerHandle");
+            await handle.trigger("pointerdown", pointer(100));
+            await handle.trigger("pointermove", pointer(160));
+            await handle.trigger("pointerup");
+
+            // Let go, but still on its way back: 60 px from home, and the strip is as tall.
+            await nextFrame();
+            expect(root.classList.contains("lmc-player-dragging")).toBe(true);
+            expect(root.style.getPropertyValue("--lmc-gap-bottom")).toBe(
+                `${window.innerHeight - 60}px`,
+            );
+
+            top = 0;
+            await nextFrame();
+            await nextFrame();
+            expect(root.classList.contains("lmc-player-dragging")).toBe(false);
+            spy.mockRestore();
+        });
+
+        it("springs back when it is let go short of the way", async () => {
+            const wrapper = await playing();
+            const handle = find(wrapper, "mediaPlayerHandle");
+            await handle.trigger("pointerdown", pointer(100));
+            await handle.trigger("pointermove", pointer(150));
+            await handle.trigger("pointerup");
+
+            expect(sectionStyle(wrapper)).not.toContain("--tw-translate-y");
+            expect(find(wrapper, "mediaPlayer").classes()).toContain("translate-y-0");
+        });
+
+        it("springs back from a pull of a hundred pixels: two fifths of its height is the way", async () => {
+            const wrapper = await playing();
+            const handle = find(wrapper, "mediaPlayerHandle");
+            await handle.trigger("pointerdown", pointer(100));
+            await handle.trigger("pointermove", pointer(200));
+            await handle.trigger("pointerup");
+
+            expect(find(wrapper, "mediaPlayer").classes()).toContain("translate-y-0");
+            expect(find(wrapper, "mediaPlayer").classes()).not.toContain("translate-y-[110vh]");
+        });
+
+        it("slides into the bar when it is let go far enough down", async () => {
+            const wrapper = await playing();
+            const handle = find(wrapper, "mediaPlayerHandle");
+            await handle.trigger("pointerdown", pointer(100));
+            await handle.trigger("pointermove", pointer(450));
+            await handle.trigger("pointerup");
+
+            expect(sectionStyle(wrapper)).not.toContain("--tw-translate-y");
+            expect(find(wrapper, "mediaPlayer").classes()).toContain("translate-y-[110vh]");
+        });
+
+        it("does not move on a pull up", async () => {
+            const wrapper = await playing();
+            const handle = find(wrapper, "mediaPlayerHandle");
+            await handle.trigger("pointerdown", pointer(300));
+            await handle.trigger("pointermove", pointer(200));
+            expect(sectionStyle(wrapper)).not.toContain("--tw-translate-y");
         });
     });
 
@@ -817,10 +931,101 @@ describe("MediaPlayer", () => {
             );
         });
 
+        describe("swiping the sheet down", () => {
+            const touch = (y: number) => ({ touches: [{ clientY: y }] });
+            const sheetStyle = (wrapper: VueWrapper) =>
+                find(wrapper, "mediaPlayerSheet").attributes("style") ?? "";
+
+            async function openAbout() {
+                const wrapper = await playing();
+                await find(wrapper, "mediaPlayerTab-about").trigger("click");
+                return wrapper;
+            }
+
+            it("follows the thumb down, and springs back when it is let go short of the way", async () => {
+                const wrapper = await openAbout();
+                const sheet = find(wrapper, "mediaPlayerSheet");
+                await sheet.trigger("touchstart", touch(100));
+                await sheet.trigger("touchmove", touch(130));
+                expect(sheetStyle(wrapper)).toContain("translateY(30px)");
+                // Following the thumb, with no easing of its own to lag behind it.
+                expect(sheetStyle(wrapper)).toContain("transition: none");
+
+                await sheet.trigger("touchend");
+                expect(wrapper.find("[data-test='mediaPlayerSheet']").exists()).toBe(true);
+                expect(sheetStyle(wrapper)).not.toContain("translateY");
+            });
+
+            it("slides away and goes when it is drawn down far enough", async () => {
+                const wrapper = await openAbout();
+                const sheet = find(wrapper, "mediaPlayerSheet");
+                await sheet.trigger("touchstart", touch(100));
+                await sheet.trigger("touchmove", touch(450));
+                await sheet.trigger("touchend");
+                // On its way: moved off, but still there until it has gone.
+                expect(wrapper.find("[data-test='mediaPlayerSheet']").exists()).toBe(true);
+
+                await slideAway();
+                await flushPromises();
+                expect(wrapper.find("[data-test='mediaPlayerSheet']").exists()).toBe(false);
+                expect(wrapper.find("[data-test='mediaPlayerTab-about']").exists()).toBe(true);
+            });
+
+            it("springs back from a short pull, past the old eighty pixels", async () => {
+                const wrapper = await openAbout();
+                const sheet = find(wrapper, "mediaPlayerSheet");
+                await sheet.trigger("touchstart", touch(100));
+                await sheet.trigger("touchmove", touch(200));
+                await sheet.trigger("touchend");
+                await slideAway();
+                expect(wrapper.find("[data-test='mediaPlayerSheet']").exists()).toBe(true);
+                expect(sheetStyle(wrapper)).not.toContain("translateY");
+            });
+
+            it("does not move on a swipe up", async () => {
+                const wrapper = await openAbout();
+                const sheet = find(wrapper, "mediaPlayerSheet");
+                await sheet.trigger("touchstart", touch(300));
+                await sheet.trigger("touchmove", touch(100));
+                await sheet.trigger("touchend");
+                expect(wrapper.find("[data-test='mediaPlayerSheet']").exists()).toBe(true);
+                expect(sheetStyle(wrapper)).not.toContain("translateY");
+            });
+
+            it("leaves a list that is scrolled down to scroll back up first", async () => {
+                const wrapper = await playing();
+                engine.state.chapters = [
+                    { startTime: 0, endTime: 20, title: "Opening" },
+                    { startTime: 20, endTime: 120, title: "The talk" },
+                ];
+                await flushPromises();
+                await find(wrapper, "mediaPlayerTab-chapters").trigger("click");
+
+                const list = wrapper.find("ol").element as HTMLElement;
+                list.scrollTop = 80;
+                const row = wrapper.find("[data-test='mediaPlayerChapter']");
+                await row.trigger("touchstart", touch(100));
+                await row.trigger("touchmove", touch(220));
+                await row.trigger("touchend");
+                expect(sheetStyle(wrapper)).not.toContain("translateY");
+
+                // At the top of the list the same pull is the sheet's.
+                list.scrollTop = 0;
+                await row.trigger("touchstart", touch(100));
+                await row.trigger("touchmove", touch(450));
+                await row.trigger("touchend");
+                await slideAway();
+                await flushPromises();
+                expect(wrapper.find("[data-test='mediaPlayerSheet']").exists()).toBe(false);
+            });
+        });
+
         it("closes the sheet from its grabber, and the tabs at the foot come back", async () => {
             const wrapper = await playing();
             await find(wrapper, "mediaPlayerTab-about").trigger("click");
             await find(wrapper, "mediaPlayerSheetClose").trigger("click");
+            await slideAway();
+            await flushPromises();
 
             expect(wrapper.find("[data-test='mediaPlayerSheet']").exists()).toBe(false);
             expect(wrapper.find("[data-test='mediaPlayerTab-about']").exists()).toBe(true);
@@ -1134,6 +1339,8 @@ describe("MediaPlayer", () => {
             expect(wrapper.find(".video-player-stub").exists()).toBe(true);
 
             await find(wrapper, "mediaPlayerSheetClose").trigger("click");
+            await slideAway();
+            await flushPromises();
             expect(find(wrapper, "mediaPlayerAbout").exists()).toBe(false);
         });
 

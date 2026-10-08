@@ -27,3 +27,13 @@ html.lmc-inline-video #app {
 html.lmc-inline-video main {
     visibility: hidden;
 }
+/* Drawing the full player down uncovers a strip above it. The page behind shows through that strip only
+   (clipped to it, on a ground of its own), not the black of the video drawn behind the web view. */
+html.lmc-inline-video.lmc-player-dragging main {
+    visibility: visible;
+    clip-path: inset(var(--lmc-gap-top, 0px) 0 var(--lmc-gap-bottom, 100%) 0);
+    background-color: rgb(255 255 255);
+}
+html.dark.lmc-inline-video.lmc-player-dragging main {
+    background-color: rgb(15 23 42);
+}

@@ -52,8 +52,20 @@ const router = useRouter();
 /** The speeds the player's own full-screen offers, so both agree. */
 const RATES = [0.5, 0.7, 1, 1.5];
 const SKIP_SECONDS = 10;
-/** How far the full player is dragged down before it minimises. */
-const MINIMISE_DRAG_PX = 80;
+/**
+ * When a pull down lets go of what it moves: far enough (two fifths of its height), or after a throw (a
+ * fifth of it, at a speed a casual swipe does not reach). Anything less springs back.
+ */
+const LET_GO_FRACTION = 0.4;
+const THROW_MIN_FRACTION = 0.2;
+/** In px per ms; a casual swipe is about a third of this. */
+const THROW_SPEED = 1.5;
+function letsGo(moved: number, speed: number, height: number): boolean {
+    return (
+        moved > height * LET_GO_FRACTION ||
+        (moved > height * THROW_MIN_FRACTION && speed > THROW_SPEED)
+    );
+}
 
 const engine = ref<InstanceType<typeof VideoPlayer> | null>(null);
 const handle = computed(() => engine.value?.player ?? null);
@@ -121,6 +133,66 @@ const pictureEl = ref<HTMLElement | null>(null);
 const sectionEl = ref<HTMLElement | null>(null);
 /** Where the sheet starts: just under the picture, which stays in view. */
 const sheetTop = ref(0);
+/** The shortest stretch a drag's speed is read over. */
+const MIN_SPEED_SAMPLE_MS = 4;
+/** How long the sheet takes to slide away or spring back once let go. */
+const SHEET_SLIDE_MS = 200;
+const sheetDragY = ref(0);
+const sheetDragging = ref(false);
+/** Sliding out: the sheet is on its way off, and goes when it has gone. */
+const sheetLeaving = ref(false);
+const sheetEl = ref<HTMLElement | null>(null);
+let sheetTouchY: number | null = null;
+let sheetLastY = 0;
+let sheetLastTime = 0;
+let sheetSpeed = 0;
+let sheetLeaveTimer: ReturnType<typeof setTimeout> | undefined;
+onBeforeUnmount(() => clearTimeout(sheetLeaveTimer));
+/** The touch began on a list that is at its top (or on no list): a pull down is for the sheet. */
+let sheetTouchAtTop = true;
+function onSheetTouchStart(event: TouchEvent) {
+    if (sheetLeaving.value) return;
+    sheetTouchY = event.touches[0]?.clientY ?? null;
+    sheetLastY = sheetTouchY ?? 0;
+    sheetLastTime = event.timeStamp;
+    sheetSpeed = 0;
+    const scroller = (event.target as HTMLElement | null)?.closest<HTMLElement>(".overflow-y-auto");
+    sheetTouchAtTop = !scroller || scroller.scrollTop <= 0;
+}
+function onSheetTouchMove(event: TouchEvent) {
+    if (sheetTouchY === null || !sheetTouchAtTop) return;
+    const y = event.touches[0]?.clientY ?? sheetTouchY;
+    const pull = y - sheetTouchY;
+    if (pull <= 0 && !sheetDragging.value) return;
+    const elapsed = event.timeStamp - sheetLastTime;
+    if (elapsed >= MIN_SPEED_SAMPLE_MS) sheetSpeed = (y - sheetLastY) / elapsed;
+    sheetLastY = y;
+    sheetLastTime = event.timeStamp;
+    // The page does not scroll or bounce under a pull that is the sheet's.
+    if (event.cancelable) event.preventDefault();
+    sheetDragging.value = true;
+    sheetDragY.value = Math.max(0, pull);
+}
+function closeSheet() {
+    // Out through the foot of the player, then gone: an element that is removed cannot slide.
+    sheetLeaving.value = true;
+    sheetDragY.value = sheetEl.value?.offsetHeight || window.innerHeight;
+    clearTimeout(sheetLeaveTimer);
+    sheetLeaveTimer = setTimeout(() => {
+        sheetTab.value = null;
+        sheetLeaving.value = false;
+        sheetDragY.value = 0;
+    }, SHEET_SLIDE_MS);
+}
+function onSheetTouchEnd() {
+    if (sheetTouchY === null) return;
+    const moved = sheetDragY.value;
+    sheetTouchY = null;
+    sheetDragging.value = false;
+    if (letsGo(moved, sheetSpeed, sheetEl.value?.offsetHeight || window.innerHeight)) closeSheet();
+    else sheetDragY.value = 0;
+}
+
 /** A tab of the open sheet: it shows that one, and the sheet stays where it is. */
 function selectTab(tab: SheetTab) {
     sheetTab.value = tab;
@@ -419,20 +491,95 @@ const publishDate = computed(() =>
         : "",
 );
 
-// Dragging the handle down minimises, as the app's audio player did.
+// Drawing the top of the player down moves it with the thumb. Let go far enough, or fast enough, and
+// it slides away into the bar; short of that it springs back.
+const playerDragY = ref(0);
+const playerDragging = ref(false);
 let dragStartY: number | null = null;
+let dragLastY = 0;
+let dragLastTime = 0;
+let dragSpeed = 0;
+let followQueued = false;
+/**
+ * The video the platform draws behind the page follows the page's own motion (a scroll, a transition),
+ * which a drag is neither of: a resize is what makes it measure the picture area again.
+ */
+function nudgeInlineVideo() {
+    if (followQueued) return;
+    followQueued = true;
+    requestAnimationFrame(() => {
+        followQueued = false;
+        window.dispatchEvent(new Event("resize"));
+    });
+}
 function onDragStart(event: PointerEvent) {
     dragStartY = event.clientY;
+    dragLastY = event.clientY;
+    dragLastTime = event.timeStamp;
+    dragSpeed = 0;
+    // The rest of the gesture is this handle's, wherever the thumb goes.
+    (event.currentTarget as Element | null)?.setPointerCapture?.(event.pointerId);
 }
 function onDragMove(event: PointerEvent) {
-    if (dragStartY !== null && event.clientY - dragStartY > MINIMISE_DRAG_PX) {
-        dragStartY = null;
-        minimiseMediaPlayer();
-    }
+    if (dragStartY === null) return;
+    // A speed is read over a stretch long enough to mean something: two events a hair apart are not one.
+    const elapsed = event.timeStamp - dragLastTime;
+    if (elapsed >= MIN_SPEED_SAMPLE_MS) dragSpeed = (event.clientY - dragLastY) / elapsed;
+    dragLastY = event.clientY;
+    dragLastTime = event.timeStamp;
+    playerDragY.value = Math.max(0, event.clientY - dragStartY);
+    playerDragging.value = playerDragY.value > 0;
+    if (playerDragging.value) nudgeInlineVideo();
 }
 function onDragEnd() {
+    if (dragStartY === null) return;
+    const moved = playerDragY.value;
+    const away = letsGo(moved, dragSpeed, sectionEl.value?.offsetHeight || window.innerHeight);
     dragStartY = null;
+    playerDragging.value = false;
+    playerDragY.value = 0;
+    // The inline position goes, and the class takes over: from where the thumb left it, the player
+    // slides to the bar or back to its place, by the same transition as any other.
+    if (away) minimiseMediaPlayer();
+    nudgeInlineVideo();
 }
+
+/**
+ * While the player is away from its place over the video the platform draws behind the page (drawn down,
+ * or on its way back), the page behind it is hidden, and the strip it leaves above the player would show
+ * that video's black. The page shows through that strip alone (see main.css), as it will when the player
+ * has gone. The strip is as tall as the player is displaced: the pull while the thumb is down, the
+ * player's own position as it springs back.
+ */
+let gapFrame = 0;
+function endGap() {
+    cancelAnimationFrame(gapFrame);
+    document.documentElement.classList.remove("lmc-player-dragging");
+}
+function followGap() {
+    cancelAnimationFrame(gapFrame);
+    const step = () => {
+        const section = sectionEl.value;
+        if (!section || !inlineHole.value) return endGap();
+        const gap = playerDragging.value
+            ? playerDragY.value
+            : Math.max(0, section.getBoundingClientRect().top - topBarHeight.value);
+        const root = document.documentElement;
+        root.classList.add("lmc-player-dragging");
+        root.style.setProperty("--lmc-gap-top", `${topBarHeight.value}px`);
+        root.style.setProperty(
+            "--lmc-gap-bottom",
+            `${Math.max(0, window.innerHeight - topBarHeight.value - gap)}px`,
+        );
+        if (playerDragging.value || gap > 0.5) gapFrame = requestAnimationFrame(step);
+        else endGap();
+    };
+    step();
+}
+watch(playerDragging, (dragging) => {
+    if (dragging && inlineHole.value) followGap();
+});
+onBeforeUnmount(endGap);
 
 function onKeydown(event: KeyboardEvent) {
     if (event.key === "Escape") minimiseMediaPlayer();
@@ -447,19 +594,27 @@ function onKeydown(event: KeyboardEvent) {
             :aria-hidden="!expanded"
             class="fixed inset-x-0 bottom-[var(--mobile-menu-h,0px)] top-[var(--media-player-top,0px)] z-40 flex flex-col overflow-hidden transition-transform duration-300 ease-out lg:inset-auto lg:bottom-5 lg:right-5 lg:max-h-[90vh] lg:w-96 lg:rounded-2xl lg:shadow-2xl lg:shadow-black/20"
             :class="expanded ? 'translate-y-0' : 'pointer-events-none translate-y-[110vh]'"
-            :style="{ '--media-player-top': `${topBarHeight}px` }"
+            :style="{
+                '--media-player-top': `${topBarHeight}px`,
+                ...(playerDragging
+                    ? { '--tw-translate-y': `${playerDragY}px`, transition: 'none' }
+                    : {}),
+            }"
             ref="sectionEl"
             data-test="mediaPlayer"
             @keydown="onKeydown"
         >
-            <div class="flex-none bg-amber-50 dark:bg-slate-800">
+            <div
+                class="flex-none touch-none bg-amber-50 dark:bg-slate-800"
+                data-test="mediaPlayerHandle"
+                @pointerdown="onDragStart"
+                @pointermove="onDragMove"
+                @pointerup="onDragEnd"
+                @pointercancel="onDragEnd"
+            >
                 <div
-                    class="flex touch-none justify-center pb-1 lg:hidden"
+                    class="flex justify-center pb-1 lg:hidden"
                     :class="topBarHeight ? 'pt-3' : 'pt-[max(env(safe-area-inset-top),0.75rem)]'"
-                    @pointerdown="onDragStart"
-                    @pointermove="onDragMove"
-                    @pointerup="onDragEnd"
-                    @pointercancel="onDragEnd"
                 >
                     <div
                         class="mt-1 h-1.5 w-32 rounded-full bg-zinc-400 opacity-50 dark:bg-slate-400"
@@ -1014,10 +1169,19 @@ function onKeydown(event: KeyboardEvent) {
             <div
                 v-if="sheetTab"
                 class="absolute inset-x-0 bottom-0 z-20 flex flex-col rounded-t-2xl bg-white shadow-[0_-4px_16px_rgba(0,0,0,0.12)] dark:bg-slate-900"
-                :style="{ top: `${sheetTop}px` }"
+                :style="{
+                    top: `${sheetTop}px`,
+                    transform: sheetDragY ? `translateY(${sheetDragY}px)` : undefined,
+                    transition: sheetDragging ? 'none' : `transform ${SHEET_SLIDE_MS}ms ease-out`,
+                }"
+                ref="sheetEl"
                 role="region"
                 :aria-label="sheetLabel"
                 data-test="mediaPlayerSheet"
+                @touchstart.passive="onSheetTouchStart"
+                @touchmove="onSheetTouchMove"
+                @touchend="onSheetTouchEnd"
+                @touchcancel="onSheetTouchEnd"
             >
                 <!-- The grabber closes the sheet; the tabs under it say where the viewer is and switch. -->
                 <button
@@ -1025,7 +1189,7 @@ function onKeydown(event: KeyboardEvent) {
                     class="flex h-7 w-full flex-none items-center justify-center"
                     :aria-label="t('media_player.minimise')"
                     data-test="mediaPlayerSheetClose"
-                    @click="sheetTab = null"
+                    @click="closeSheet"
                 >
                     <span class="h-1 w-10 rounded-full bg-zinc-300 dark:bg-slate-600" />
                 </button>
