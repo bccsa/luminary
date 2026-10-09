@@ -3,7 +3,7 @@ import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
 import { type ContentDto } from "luminary-shared";
-import ContentTile from "@/components/content/ContentTile.vue";
+import LibraryActivityCard from "./LibraryActivityCard.vue";
 import LDialog from "@/components/common/LDialog.vue";
 import { useContentQuery } from "@/composables/useContentQuery";
 import { useUserActivity } from "@/userActivity/useUserActivity";
@@ -98,22 +98,17 @@ const remove = async () => {
 
 <template>
     <div data-test="library-highlighted">
-        <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-            <!-- Capturing the click leaves ContentTile untouched — its link, hover and focus all
-                 keep working — while the tile opens its passages instead of navigating. -->
-            <div
+        <div class="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+            <LibraryActivityCard
                 v-for="entry in entries"
                 :key="entry.content._id"
-                class="cursor-pointer"
-                data-test="library-open-highlights"
-                @click.capture.stop.prevent="open(entry)"
-            >
-                <ContentTile
-                    :content="entry.content"
-                    layout="card"
-                    class="h-full w-full"
-                />
-            </div>
+                :content="entry.content"
+                type="highlighted"
+                :excerpt="entry.ranges[0]?.text"
+                :excerpt-color="entry.ranges[0]?.color"
+                opens-detail
+                @open="open(entry)"
+            />
         </div>
         <div
             v-if="!entries.length"

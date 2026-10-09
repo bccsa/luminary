@@ -52,6 +52,16 @@ describe("LibraryLiked", () => {
         });
     });
 
+    it("marks a liked card with its heart", async () => {
+        await recordUserActivity({ type: "liked", parentId: mockEnglishContentDto.parentId });
+
+        const wrapper = mount(LibraryLiked);
+
+        await waitForExpect(() => {
+            expect(wrapper.find("[data-test=library-liked-icon]").exists()).toBe(true);
+        });
+    });
+
     it("displays a message when nothing is liked", async () => {
         await userActivityDb.userActivity.clear();
         const wrapper = mount(LibraryLiked);

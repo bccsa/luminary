@@ -172,12 +172,16 @@ const summaryText = computed(() => props.content.summary?.trim() ?? "");
                 >
                     {{ content.title }}
                 </h3>
-                <p
-                    v-if="summaryText"
-                    class="line-clamp-2 text-sm text-zinc-500 dark:text-slate-400"
-                >
-                    {{ summaryText }}
-                </p>
+                <!-- Card layout only: the Library replaces the summary with the passage the
+                     reader highlighted. -->
+                <slot name="summary">
+                    <p
+                        v-if="summaryText"
+                        class="line-clamp-2 text-sm text-zinc-500 dark:text-slate-400"
+                    >
+                        {{ summaryText }}
+                    </p>
+                </slot>
                 <div
                     v-if="publishDateText"
                     class="mt-auto text-xs text-zinc-500 dark:text-slate-400"
