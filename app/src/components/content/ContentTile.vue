@@ -31,6 +31,11 @@ type Props = {
     /** Shown below the title in overlay mode (e.g. uppercase category label). */
     overlayLabel?: string;
     showProgress?: boolean;
+    /**
+     * "tile" is the original image-on-top tile. "card" is a horizontal card on every
+     * breakpoint: thumbnail at the left, title beside it and the summary below the title.
+     */
+    layout?: "tile" | "card";
 };
 const props = withDefaults(defineProps<Props>(), {
     showPublishDate: true,
@@ -38,6 +43,7 @@ const props = withDefaults(defineProps<Props>(), {
     imageSize: "thumbnail",
     titlePosition: "bottom",
     showProgress: false,
+    layout: "tile",
 });
 
 const publishDateText = computed(() => {
@@ -93,6 +99,8 @@ const readingProgress = computed(() =>
 
 /** One bar per tile: whichever progress (playback or reading) is further along. */
 const displayProgress = computed(() => Math.max(mediaProgress.value, readingProgress.value));
+
+const summaryText = computed(() => props.content.summary?.trim() ?? "");
 </script>
 
 <template>
@@ -108,13 +116,100 @@ const displayProgress = computed(() => Math.max(mediaProgress.value, readingProg
         :aria-disabled="isComingSoon || undefined"
         :data-content-id="content._id"
         class="ease-out-expo group transition"
-        :class="
+        :class="[
+            layout === 'card'
+                ? 'relative flex min-h-24 gap-3 overflow-hidden rounded-lg bg-white shadow ring-1 ring-zinc-950/10 hover:shadow-lg dark:bg-slate-800 dark:ring-white/10'
+                : '',
             isComingSoon
                 ? 'cursor-not-allowed opacity-80 hover:brightness-100'
-                : 'hover:brightness-[1.15]'
-        "
+                : 'hover:brightness-[1.15]',
+        ]"
     >
-        <div class="avoid-inside ease-out-expo -m-2 p-2 active:shadow-inner">
+        <!-- Horizontal card (desktop and mobile): thumbnail flush at the left, the title
+             just outside the image and the summary below it. The h-full overrides stretch
+             LImage's box to the card's height without gaps. -->
+        <template v-if="layout === 'card'">
+            <div
+                class="relative w-28 shrink-0 overflow-hidden sm:w-36 [&>div>div]:!h-full [&>div]:h-full [&_img]:!h-full"
+            >
+                <LImage
+                    :image="content.parentImageData"
+                    :content-parent-id="content.parentId"
+                    :parent-image-bucket-id="content.parentImageBucketId"
+                    aspectRatio="classic"
+                    size="thumbnailCompact"
+                    :rounded="false"
+                >
+                    <template #imageOverlay>
+                        <div
+                            v-if="isComingSoon"
+                            class="absolute inset-0 z-20 flex items-center justify-center bg-black/50"
+                        >
+                            <span
+                                class="rounded-full bg-black/70 px-2 py-0.5 text-[11px] font-semibold text-white shadow"
+                            >
+                                {{ t("content.coming_soon") }}
+                            </span>
+                        </div>
+                        <div
+                            v-else-if="hasVideo"
+                            class="absolute inset-0 z-20 flex items-center justify-center"
+                        >
+                            <span class="rounded-full bg-black/50 p-1.5">
+                                <PlayIcon class="h-5 w-5 text-white" />
+                            </span>
+                        </div>
+                    </template>
+                </LImage>
+            </div>
+
+            <div
+                data-card-text
+                class="flex min-w-0 flex-1 flex-col justify-center gap-1 py-2 pr-3"
+            >
+                <h3
+                    class="line-clamp-2 font-semibold leading-snug text-zinc-800 dark:text-slate-50"
+                >
+                    {{ content.title }}
+                </h3>
+                <!-- Card layout only: the Library replaces the summary with the passage the
+                     reader highlighted. -->
+                <slot name="summary">
+                    <p
+                        v-if="summaryText"
+                        class="line-clamp-2 text-sm text-zinc-500 dark:text-slate-400"
+                    >
+                        {{ summaryText }}
+                    </p>
+                </slot>
+                <div
+                    v-if="publishDateText"
+                    class="mt-auto text-xs text-zinc-500 dark:text-slate-400"
+                >
+                    {{ publishDateText }}
+                </div>
+            </div>
+
+            <!-- Progress (playback or reading), along the card's bottom edge. -->
+            <div
+                v-if="showProgress && displayProgress > 0"
+                class="absolute inset-x-0 bottom-0 z-20 h-1 overflow-hidden bg-zinc-200 dark:bg-slate-600"
+                role="progressbar"
+                :aria-valuenow="displayProgress"
+                aria-valuemin="0"
+                aria-valuemax="100"
+            >
+                <div
+                    class="h-full bg-yellow-500"
+                    :style="{ width: `${displayProgress}%` }"
+                ></div>
+            </div>
+        </template>
+
+        <div
+            v-else
+            class="avoid-inside ease-out-expo -m-2 p-2 active:shadow-inner"
+        >
             <div class="relative">
                 <LImage
                     :image="content.parentImageData"

@@ -29,14 +29,9 @@ import {
 } from "luminary-shared";
 import * as luminaryShared from "luminary-shared";
 import waitForExpect from "wait-for-expect";
-import {
-    appLanguageIdsAsRef,
-    appName,
-    cmsLanguages,
-    initLanguage,
-    userPreferencesAsRef,
-    cmsUrl,
-} from "@/globalConfig";
+import { appLanguageIdsAsRef, appName, cmsLanguages, initLanguage, cmsUrl } from "@/globalConfig";
+import { userActivityDb } from "@/userActivity/db";
+import { hasUserActivity, recordUserActivity } from "@/userActivity/store";
 import {
     getReadingProgress,
     removeReadingProgress,
@@ -487,8 +482,8 @@ describe("SingleContent", () => {
         expect(jsonLd.inLanguage).not.toBe(mockEnglishContentDto.language);
     });
 
-    it("can add and remove a bookmark", async () => {
-        userPreferencesAsRef.value.bookmarks = [];
+    it("can add and remove a like", async () => {
+        await userActivityDb.userActivity.clear();
         const notificationStore = useNotificationStore();
 
         wrapper = mount(SingleContent, {
@@ -500,24 +495,24 @@ describe("SingleContent", () => {
         // Wait for the article itself: the loading bar is delayed now, so its absence no
         // longer means the content has arrived.
         await waitForExpect(() => {
-            expect(wrapper!.find("button[data-test='bookmark']").exists()).toBe(true);
+            expect(wrapper!.find("button[data-test='like']").exists()).toBe(true);
         });
 
-        const bookmarkButton = wrapper!.find("button[data-test='bookmark']");
-        await bookmarkButton.trigger("click");
+        const likeButton = wrapper!.find("button[data-test='like']");
+        await likeButton.trigger("click");
 
         await waitForExpect(async () => {
             expect(
-                userPreferencesAsRef.value.bookmarks &&
-                    userPreferencesAsRef.value.bookmarks.some(
-                        (b) => b.id === mockEnglishContentDto.parentId,
-                    ),
+                await hasUserActivity({
+                    type: "liked",
+                    parentId: mockEnglishContentDto.parentId,
+                }),
             ).toBe(true);
             expect(notificationStore.addNotification).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    id: "bookmark-added",
-                    title: "Bookmark added",
-                    description: "This content has been added to your bookmarks.",
+                    id: "like-added",
+                    title: "Added to your likes",
+                    description: "This content has been added to your likes.",
                     state: "success",
                     type: "toast",
                     timeout: 5000,
@@ -525,39 +520,58 @@ describe("SingleContent", () => {
             );
         });
 
-        await bookmarkButton.trigger("click");
+        await likeButton.trigger("click");
 
         await waitForExpect(async () => {
             expect(
-                userPreferencesAsRef.value.bookmarks &&
-                    userPreferencesAsRef.value.bookmarks.some(
-                        (b) => b.id === mockEnglishContentDto.parentId,
-                    ),
+                await hasUserActivity({
+                    type: "liked",
+                    parentId: mockEnglishContentDto.parentId,
+                }),
             ).toBe(false);
         });
 
         expect(notificationStore.addNotification).toHaveBeenCalledTimes(1);
     });
 
-    it("records bookmark-removal affinity when un-bookmarking content", async () => {
-        userPreferencesAsRef.value.bookmarks = [
-            { id: mockEnglishContentDto.parentId, ts: Date.now() },
-        ];
+    it("does not record a view for merely opening the content", async () => {
+        await userActivityDb.userActivity.clear();
+
+        wrapper = mount(SingleContent, {
+            props: { slug: mockEnglishContentDto.slug },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper!.find("button[data-test='like']").exists()).toBe(true);
+        });
+
+        // History comes from reading progress instead — see `userActivity/fromContentProgress`.
+        expect(
+            await hasUserActivity({ type: "viewed", parentId: mockEnglishContentDto.parentId }),
+        ).toBe(false);
+    });
+
+    it("records like-removal affinity when unliking content", async () => {
+        await userActivityDb.userActivity.clear();
+        await recordUserActivity({ type: "liked", parentId: mockEnglishContentDto.parentId });
         const wrapper = mount(SingleContent, {
             props: { slug: mockEnglishContentDto.slug },
         });
 
         await waitForExpect(() => {
-            expect(wrapper.find("button[data-test='bookmark']").exists()).toBe(true);
+            expect(wrapper.find("button[data-test='like']").exists()).toBe(true);
         });
         recordAffinityMock.mockClear();
 
-        await wrapper.find("button[data-test='bookmark']").trigger("click");
+        await wrapper.find("button[data-test='like']").trigger("click");
 
-        expect(recordAffinityMock).toHaveBeenCalledWith(
-            mockEnglishContentDto.parentTags,
-            EventWeight.BookmarkRemoved,
-        );
+        // The toggle reads the stored state before acting, so the affinity call lands a tick later.
+        await waitForExpect(() => {
+            expect(recordAffinityMock).toHaveBeenCalledWith(
+                mockEnglishContentDto.parentTags,
+                EventWeight.BookmarkRemoved,
+            );
+        });
         wrapper.unmount();
     });
 

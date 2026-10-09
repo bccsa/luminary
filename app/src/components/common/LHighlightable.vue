@@ -9,6 +9,7 @@ import {
 } from "@heroicons/vue/24/outline";
 import { useI18n } from "vue-i18n";
 import { db, reportError } from "luminary-shared";
+import { recordUserActivity, removeUserActivity } from "@/userActivity/store";
 import {
     getHighlightRanges,
     getLegacyHighlightHtml,
@@ -45,6 +46,8 @@ import { useNotificationStore } from "@/stores/notification";
 const props = withDefaults(
     defineProps<{
         contentId: string;
+        /** The post the translation belongs to, stored with the highlights. */
+        parentId?: string;
         title: string;
         copyright?: string;
         /** Gates the share targets on the ACL Share permission; defaults open for callers that don't check it. */
@@ -367,6 +370,27 @@ async function shareHighlightToInstagram() {
 
 // Persistence
 
+/**
+ * Mirrors this content's highlights into the activity table, which is what the Library reads.
+ * The entry above stays the painting source; this is the record of the activity itself.
+ */
+async function recordHighlightActivity(): Promise<void> {
+    // Without the post there is nothing the Library could render the highlight against.
+    if (!props.parentId) return;
+
+    const ref = {
+        type: "highlighted",
+        contentId: props.contentId,
+        parentId: props.parentId,
+    } as const;
+
+    if (highlights.length) {
+        await recordUserActivity(ref, { ranges: [...highlights] });
+    } else {
+        await removeUserActivity(ref);
+    }
+}
+
 /** Persists this content's highlights (with an update time for newest-first recommendation reads). */
 async function saveHighlights(): Promise<boolean> {
     try {
@@ -382,12 +406,14 @@ async function saveHighlights(): Promise<boolean> {
             data[props.contentId] = {
                 ranges: highlights,
                 updatedAt: Date.now(),
+                parentId: props.parentId,
             } satisfies SavedHighlight;
         } else {
             delete data[props.contentId];
         }
 
         await db.setLuminaryInternals("highlights", data);
+        await recordHighlightActivity();
         return true;
     } catch (error) {
         reportError(error, { area: "highlights", op: "save" });

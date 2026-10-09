@@ -18,6 +18,9 @@ import { apiUrl, deleteExpiredIntervalMs } from "./globalConfig";
 import { initAppTitle, initI18n } from "./i18n";
 import { initAnalytics } from "./analytics";
 import { initSync, initAuthLangSync } from "./sync";
+import { migrateToUserActivity } from "./userActivity/migrate";
+import { startContentProgressMirror } from "./userActivity/fromContentProgress";
+import { pruneUserActivityTombstones } from "./userActivity/store";
 import { initDefaultAffinitySync } from "@/recommendation/defaultAffinityStore";
 import { APP_DOCS_INDEX } from "./docsIndex";
 import { initSentry, Sentry, sentryDiagnostics } from "@/util/initSentry";
@@ -137,6 +140,23 @@ async function Startup() {
 
     await initLanguage();
     initSync();
+
+    // Expired tombstones are dropped once per start.
+    void pruneUserActivityTombstones().catch((err) =>
+        console.error("User activity tombstone prune failed:", err),
+    );
+
+    // Reading history is taken from the continue-reading store, so the mirror has to be
+    // listening before anything can scroll.
+    startContentProgressMirror();
+
+    // Draining the old stores needs the shared database open, and its highlight pass reads
+    // Content docs — so it runs after sync has started, off the boot path. It re-runs on every
+    // start, which is how entries it could not resolve yet are picked up later. Delete this
+    // call, and `userActivity/migrate.ts` with it, once every install has drained.
+    void migrateToUserActivity().catch((err) =>
+        console.error("User activity migration failed:", err),
+    );
 
     isAppLoading.value = false;
 

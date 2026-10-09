@@ -53,9 +53,8 @@ withDefaults(defineProps<Props>(), {
             <div class="mt-5 flex flex-col gap-2 sm:mt-4 sm:flex-row-reverse sm:gap-3">
                 <LButton
                     @click="primaryAction()"
-                    variant="primary"
+                    :variant="context === 'danger' ? 'danger' : 'primary'"
                     class="w-full sm:w-auto"
-                    :context="context"
                     data-test="modal-primary-button"
                 >
                     {{ primaryButtonText }}
