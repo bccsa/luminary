@@ -336,7 +336,7 @@ const navItemClass = computed(() => [
             </ul>
 
             <!-- Preferences: language, settings -->
-            <div class="mt-2 border-t border-zinc-200 pt-3">
+            <div class="mt-2 border-t pt-3 dark:border-slate-700">
                 <button
                     type="button"
                     :class="[navItemClass, 'w-full text-left']"

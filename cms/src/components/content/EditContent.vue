@@ -571,7 +571,7 @@ watch(isLgScreen, (isLg) => {
                         >
                             <template #supplementary>
                                 <!-- Image, media + video live inside the settings card. -->
-                                <div class="mt-4 border-t border-zinc-200 pt-3">
+                                <div class="mt-4 border-t pt-3 dark:border-slate-700">
                                     <div class="flex flex-col gap-1">
                                         <EditContentImage
                                             v-if="editableParent"
@@ -584,7 +584,7 @@ watch(isLgScreen, (isLg) => {
                                         />
 
                                         <div
-                                            class="border-t border-zinc-200 pt-3"
+                                            class="border-t pt-3 dark:border-slate-700"
                                             role="separator"
                                             aria-hidden="true"
                                         />
@@ -628,7 +628,7 @@ watch(isLgScreen, (isLg) => {
 
                             <template v-if="selectedContent">
                                 <div
-                                    class="border-t border-zinc-200 pt-3"
+                                    class="border-t pt-3 dark:border-slate-700"
                                     role="separator"
                                     aria-hidden="true"
                                 />
