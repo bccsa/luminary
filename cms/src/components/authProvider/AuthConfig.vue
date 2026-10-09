@@ -34,7 +34,7 @@ function normalizeDomainString(value: string | undefined): string {
 
 <template>
     <div
-        class="rounded-md border border-b border-zinc-200 p-2 pb-2 dark:border-slate-500 dark:bg-slate-800"
+        class="rounded-md border border-b border-zinc-200 p-2 pb-2 dark:border-slate-700 dark:bg-slate-800"
     >
         <div class="mb-2 flex items-center justify-between">
             <h3 class="text-sm font-medium dark:text-zinc-100">Auth Configuration</h3>
