@@ -225,6 +225,18 @@ function chapterSidecars(masterUrl: string): ChapterSidecar[] {
 }
 
 /**
+ * Where a video's scrub frames would be: `thumbnails/thumbnails.vtt` beside its master playlist. Offered for
+ * every video like the chapters; an encode without them has no file there, and the player shows no
+ * scrub preview.
+ */
+function thumbnailSidecar(masterUrl: string): { url: string } | undefined {
+    const path = masterUrl.split(/[?#]/)[0] ?? masterUrl;
+    const slash = path.lastIndexOf("/");
+    if (slash < 0) return undefined;
+    return { url: `${path.slice(0, slash)}/thumbnails/thumbnails.vtt` };
+}
+
+/**
  * Whether the key question has been answered for this document. An encrypted
  * stream must not be handed to the player before its key is in hand, or it is
  * loaded, fails, and is loaded again.
@@ -240,7 +252,7 @@ const source = computed<PlayerSource | null>(() => {
         startAngleId: startAngleId.value,
         maxHeight: maxHeight.value,
         bandwidthEstimate: bandwidthEstimate.value,
-        sidecars: { chapters: chapterSidecars(url) },
+        sidecars: { chapters: chapterSidecars(url), thumbnails: thumbnailSidecar(url) },
     };
 });
 

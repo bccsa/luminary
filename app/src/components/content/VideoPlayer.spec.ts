@@ -185,6 +185,14 @@ describe("VideoPlayer", () => {
         ]);
     });
 
+    it("offers the scrub frames file beside the master", async () => {
+        const wrapper = await mountPlayer();
+
+        expect(stub(wrapper).props("source").sidecars.thumbnails).toEqual({
+            url: "https://bucket.example.com/media/abc/thumbnails/thumbnails.vtt",
+        });
+    });
+
     it("offers English to a viewer in another language too: their chapters are the English ones", async () => {
         const wrapper = await mountPlayer({}, { language: "fr" });
 
@@ -493,6 +501,7 @@ describe("VideoPlayer", () => {
                     chapters: [
                         { lang: "en", url: "https://bucket.example.com/media/abc/chapters/en.vtt" },
                     ],
+                    thumbnails: { url: "https://bucket.example.com/media/abc/thumbnails/thumbnails.vtt" },
                 },
             });
         });
