@@ -123,11 +123,6 @@ const handleLogin = () => {
                         </RouterLink>
                     </div>
 
-                    <!-- Once the desktop sidebar is visible (lg and up) it owns the logo, so the
-                         bar's logos are made invisible here. `invisible` (not `hidden`) keeps the
-                         container's flex-1 space so the bar stays blank and the quick controls
-                         remain right-aligned. This sits on the container, above the
-                         logoVisibility small/large logic, so a measured result can't override it. -->
                     <div
                         class="flex flex-1 items-center lg:invisible"
                         ref="logoContainer"
