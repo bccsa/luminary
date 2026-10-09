@@ -118,6 +118,19 @@ export async function getUserActivity(
     return limit === undefined ? rows.toArray() : rows.limit(limit).toArray();
 }
 
+/**
+ * Every activity, whatever its type, newest first and tombstones excluded — the feed the
+ * Library's "all" filter shows. Read straight off the `updatedTimeUtc` index, so the three
+ * types interleave without a sort of our own.
+ */
+export async function getAllUserActivity(): Promise<UserActivityDoc[]> {
+    return userActivityDb.userActivity
+        .orderBy("updatedTimeUtc")
+        .reverse()
+        .filter((row) => !row.deleted)
+        .toArray();
+}
+
 /** Whether a single activity is currently recorded — for a like button's state. */
 export async function hasUserActivity(ref: ActivityRef): Promise<boolean> {
     const row = await userActivityDb.userActivity.get(userActivityId(ref));

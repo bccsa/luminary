@@ -35,13 +35,14 @@ describe("LibraryPage", () => {
         setActivePinia(createTestingPinia());
     });
 
-    it("shows the three filters and starts on viewed", async () => {
+    it("shows the four filters and starts on all", async () => {
         const wrapper = mount(LibraryPage);
 
+        expect(wrapper.text()).toContain("All");
         expect(wrapper.text()).toContain("Viewed");
         expect(wrapper.text()).toContain("Liked");
         expect(wrapper.text()).toContain("Highlighted");
-        expect(wrapper.find("[data-test=library-viewed]").exists()).toBe(true);
+        expect(wrapper.find("[data-test=library-all]").exists()).toBe(true);
     });
 
     it("switches panel when a filter is selected", async () => {
@@ -52,7 +53,7 @@ describe("LibraryPage", () => {
 
         expect(replace).toHaveBeenCalledWith({ query: { filter: "highlighted" } });
         expect(wrapper.find("[data-test=library-highlighted]").exists()).toBe(true);
-        expect(wrapper.find("[data-test=library-viewed]").exists()).toBe(false);
+        expect(wrapper.find("[data-test=library-all]").exists()).toBe(false);
     });
 
     it("opens the filter given in the query string", async () => {
