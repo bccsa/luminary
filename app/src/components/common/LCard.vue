@@ -27,7 +27,7 @@ function collapse() {
 
 <template>
     <div
-        class="dark:border-zinc overflow-hidden rounded-lg border border-zinc-100 bg-white shadow dark:border-slate-800 dark:bg-slate-800"
+        class="overflow-hidden rounded-lg border border-zinc-100 bg-white shadow dark:border-slate-700 dark:border-slate-800 dark:bg-slate-800"
     >
         <div
             v-if="title || icon"
@@ -60,7 +60,10 @@ function collapse() {
                 />
             </button>
         </div>
-        <div v-show="!collapsed" data-test="collapsible-container">
+        <div
+            v-show="!collapsed"
+            data-test="collapsible-container"
+        >
             <div
                 :class="{
                     'px-4 py-5 sm:px-6': padding == 'normal',
@@ -69,7 +72,10 @@ function collapse() {
             >
                 <slot />
             </div>
-            <div v-if="$slots.footer" class="bg-zinc-50 px-4 py-5 sm:px-6">
+            <div
+                v-if="$slots.footer"
+                class="bg-zinc-50 px-4 py-5 sm:px-6"
+            >
                 <slot name="footer" />
             </div>
         </div>
