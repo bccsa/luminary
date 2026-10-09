@@ -4,14 +4,16 @@ import { useRoute, useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import BasePage from "@/components/BasePage.vue";
 import { markPageReady } from "@/util/renderState";
+import LibraryAll from "./LibraryAll.vue";
 import LibraryViewed from "./LibraryViewed.vue";
 import LibraryLiked from "./LibraryLiked.vue";
 import LibraryHighlighted from "./LibraryHighlighted.vue";
 
-const filters = ["viewed", "liked", "highlighted"] as const;
+const filters = ["all", "viewed", "liked", "highlighted"] as const;
 type LibraryFilter = (typeof filters)[number];
 
 const panels = {
+    all: LibraryAll,
     viewed: LibraryViewed,
     liked: LibraryLiked,
     highlighted: LibraryHighlighted,
@@ -23,7 +25,7 @@ const router = useRouter();
 
 const activeFilter = computed<LibraryFilter>(() => {
     const filter = route.query.filter;
-    return filters.includes(filter as LibraryFilter) ? (filter as LibraryFilter) : "viewed";
+    return filters.includes(filter as LibraryFilter) ? (filter as LibraryFilter) : "all";
 });
 
 // Mirrored to the query string so a filter can be linked to and survives a reload, but
