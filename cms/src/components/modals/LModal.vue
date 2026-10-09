@@ -94,7 +94,7 @@ const sizeClasses = computed(() => {
                 ref="modalRef"
                 data-test="modal-content"
                 :class="[
-                    'relative z-50 flex flex-col bg-slate-600 p-5 shadow-xl focus:outline-none dark:bg-slate-800 dark:text-zinc-100',
+                    'relative z-50 flex flex-col bg-zinc-200 p-5 shadow-xl focus:outline-none dark:bg-slate-800 dark:text-zinc-100',
                     sizeClasses,
                 ]"
             >
