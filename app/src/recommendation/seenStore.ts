@@ -4,7 +4,7 @@ import type { Uuid } from "luminary-shared";
 /**
  * Content ids the user has actually engaged with: articles via the dwell-gated call
  * in `SingleContent.vue`, audio/video via the `ended`/completion handlers in
- * `AudioPlayer.vue`/`VideoPlayer.vue`. `mediaProgress` (globalConfig.ts) is a
+ * `VideoPlayer.vue`. `mediaProgress` (globalConfig.ts) is a
  * resume-playback ring buffer, not a history, so it is not a "seen" source.
  */
 const STORAGE_KEY = "seenArticleIds";

@@ -36,6 +36,13 @@ export const connectionSpeed = ref<number>(
     Number.isFinite(seeded) && seeded > 0 ? seeded : DEFAULT_MBPS,
 );
 
+/**
+ * Whether `connectionSpeed` is a real reading (this visit's probe, or the last one kept), not the
+ * optimistic default. Whoever hands the number on as a measurement, rather than as a guess to
+ * display, asks this first.
+ */
+export const hasMeasuredConnectionSpeed = ref<boolean>(Number.isFinite(seeded) && seeded > 0);
+
 /** True when the connection is slow enough that we should serve lower-quality images. */
 export const isSlowConnection = computed(() => connectionSpeed.value < SLOW_CONNECTION_MBPS);
 
@@ -68,6 +75,7 @@ export async function runProbe(force = false): Promise<void> {
         if (seconds > 0 && bytes > 0) {
             const mbps = (bytes * 8) / seconds / 1e6;
             connectionSpeed.value = mbps;
+            hasMeasuredConnectionSpeed.value = true;
             localStorage.setItem(STORAGE_KEY, String(mbps));
             lastProbeAt = performance.now();
         }
@@ -94,5 +102,5 @@ if (typeof window !== "undefined" && !isPrerender()) {
 }
 
 export function useNetworkSpeedEstimator() {
-    return { connectionSpeed, isSlowConnection, runProbe };
+    return { connectionSpeed, hasMeasuredConnectionSpeed, isSlowConnection, runProbe };
 }

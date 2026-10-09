@@ -1,12 +1,18 @@
 import "fake-indexeddb/auto";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { mount } from "@vue/test-utils";
-import { computed, defineComponent, h } from "vue";
+import { computed, defineComponent, h, nextTick } from "vue";
 import waitForExpect from "wait-for-expect";
 import VideoPlayer from "./VideoPlayer.vue";
 import { mockEnglishContentDto } from "@/tests/mockdata";
 import { VideoPlayerKey } from "@/build-time/contracts/video-player/token";
 import { shareImageUrl } from "@/composables/useSocialShare";
+import { userDataSaverEnabled } from "@/globalConfig";
+import { fallbackArtworkDataUrl } from "@/util/fallbackArtwork";
+import {
+    connectionSpeed,
+    hasMeasuredConnectionSpeed,
+} from "@/composables/useNetworkSpeedEstimator";
 
 /**
  * What is left to test here is Luminary's half of playback: which URL is played,
@@ -26,14 +32,23 @@ const fetchHlsKeyMock = vi.hoisted(() => vi.fn());
 
 // Built inside the factory: vi.mock is hoisted above the imports, so a stub
 // defined at module scope is not there yet when the factory runs.
+vi.mock("@/util/fallbackArtwork", () => ({
+    fallbackArtworkDataUrl: vi.fn(() => Promise.resolve(undefined)),
+}));
+
 vi.mock("@luminary-media-converter/player-web", async () => {
     const { defineComponent, h } = await import("vue");
     return {
+        AUDIO_ONLY_ANGLE_ID: "__audio__",
+        isYouTubeUrl: (url: string | undefined) => !!url && url.includes("youtube.com"),
         LuminaryPlayer: defineComponent({
             name: "LuminaryPlayer",
             props: {
                 source: { type: Object, required: true },
                 preferredLanguage: { type: String, default: undefined },
+                controls: { type: Object, default: undefined },
+                messages: { type: Object, default: undefined },
+                controllerOptions: { type: Object, default: undefined },
             },
             emits: ["loadedmetadata", "timeupdate", "ended"],
             setup(_props, { expose }) {
@@ -90,9 +105,12 @@ function content(overrides: Record<string, unknown> = {}) {
     } as any;
 }
 
-async function mountPlayer(overrides: Record<string, unknown> = {}) {
+async function mountPlayer(
+    overrides: Record<string, unknown> = {},
+    props: Record<string, unknown> = {},
+) {
     const wrapper = mount(VideoPlayer, {
-        props: { content: content(overrides), language: "en" },
+        props: { content: content(overrides), language: "en", ...props },
         global: { stubs: { LImage: true } },
     });
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -159,6 +177,30 @@ describe("VideoPlayer", () => {
         expect(stub(wrapper).props("source").masterUrl).toBe(ABSOLUTE);
     });
 
+    it("offers the chapters file beside the master, in English, the one language there is", async () => {
+        const wrapper = await mountPlayer();
+
+        expect(stub(wrapper).props("source").sidecars.chapters).toEqual([
+            { lang: "en", url: "https://bucket.example.com/media/abc/chapters/en.vtt" },
+        ]);
+    });
+
+    it("offers the scrub frames file beside the master", async () => {
+        const wrapper = await mountPlayer();
+
+        expect(stub(wrapper).props("source").sidecars.thumbnails).toEqual({
+            url: "https://bucket.example.com/media/abc/thumbnails/thumbnails.vtt",
+        });
+    });
+
+    it("offers English to a viewer in another language too: their chapters are the English ones", async () => {
+        const wrapper = await mountPlayer({}, { language: "fr" });
+
+        expect(stub(wrapper).props("source").sidecars.chapters).toEqual([
+            { lang: "en", url: "https://bucket.example.com/media/abc/chapters/en.vtt" },
+        ]);
+    });
+
     it("renders no player when the document carries no video", async () => {
         const wrapper = await mountPlayer({ parentMedia: undefined });
 
@@ -169,6 +211,115 @@ describe("VideoPlayer", () => {
         const wrapper = await mountPlayer();
 
         expect(stub(wrapper).props("preferredLanguage")).toBe("en");
+    });
+
+    it("hands the player its own strings through the app's translations, not the player's English", async () => {
+        const wrapper = await mountPlayer();
+
+        const messages = stub(wrapper).props("messages");
+        expect(messages.comingSoon).toContain("video_player.coming_soon");
+        expect(messages.retry).toContain("video_player.retry");
+        expect(messages.skipBack).toContain("media_player.skip_back");
+    });
+
+    describe("in the media player", () => {
+        it("bares the frame: the media player draws the transport and the audio / video switch", async () => {
+            const wrapper = await mountPlayer();
+
+            expect(stub(wrapper).props("controls")).toEqual({
+                subtitlesMenu: false,
+                audioVideoToggle: false,
+                windowedControls: false,
+            });
+        });
+
+        describe("what the connection says", () => {
+            afterEach(() => {
+                userDataSaverEnabled.value = false;
+                hasMeasuredConnectionSpeed.value = false;
+            });
+
+            it("caps the picture at 360p under Data Saver, and not otherwise", async () => {
+                expect(stub(await mountPlayer()).props("source").maxHeight).toBeUndefined();
+
+                userDataSaverEnabled.value = true;
+                expect(stub(await mountPlayer()).props("source").maxHeight).toBe(360);
+            });
+
+            it("turns background chunk warming off under Data Saver, and leaves it on otherwise", async () => {
+                expect(stub(await mountPlayer()).props("controllerOptions")).toEqual({
+                    prefetch: { enabled: true },
+                });
+
+                userDataSaverEnabled.value = true;
+                expect(stub(await mountPlayer()).props("controllerOptions")).toEqual({
+                    prefetch: { enabled: false },
+                });
+            });
+
+            it("starts the player's ABR from the measured speed in bits per second", async () => {
+                connectionSpeed.value = 2.5;
+                hasMeasuredConnectionSpeed.value = true;
+
+                expect(stub(await mountPlayer()).props("source").bandwidthEstimate).toBe(2_500_000);
+            });
+
+            it("offers no estimate until a real reading exists, rather than the optimistic default", async () => {
+                connectionSpeed.value = 10;
+                hasMeasuredConnectionSpeed.value = false;
+
+                expect(stub(await mountPlayer()).props("source").bandwidthEstimate).toBeUndefined();
+            });
+
+            it("does not reload the stream when a later probe changes the speed", async () => {
+                connectionSpeed.value = 2.5;
+                hasMeasuredConnectionSpeed.value = true;
+                const wrapper = await mountPlayer();
+
+                connectionSpeed.value = 8;
+                await nextTick();
+
+                expect(stub(wrapper).props("source").bandwidthEstimate).toBe(2_500_000);
+            });
+        });
+
+        it("starts on the sound alone when asked, so no video is fetched", async () => {
+            const wrapper = await mountPlayer({}, { startAudio: true });
+
+            expect(stub(wrapper).props("source").startAngleId).toBe("__audio__");
+        });
+
+        it("starts on the video otherwise", async () => {
+            const wrapper = await mountPlayer();
+
+            expect(stub(wrapper).props("source").startAngleId).toBeUndefined();
+        });
+
+        it("reads the start for the content it plays, so a later change does not reload it", async () => {
+            const wrapper = await mountPlayer({}, { startAudio: true });
+            await wrapper.setProps({ startAudio: false });
+
+            expect(stub(wrapper).props("source").startAngleId).toBe("__audio__");
+        });
+
+        it("plays once loaded, and goes full-screen for a video when the player shows it only there", async () => {
+            const wrapper = await mountPlayer({}, { autoplay: true, fullscreenOnPlay: true });
+            stub(wrapper).vm.$emit("loadedmetadata");
+
+            expect(playMock).toHaveBeenCalled();
+            expect(enterFullscreenMock).toHaveBeenCalled();
+        });
+
+        it("stays out of full-screen when it starts on the sound", async () => {
+            const wrapper = await mountPlayer(
+                {},
+                { autoplay: true, fullscreenOnPlay: true, startAudio: true },
+            );
+            stub(wrapper).vm.$emit("loadedmetadata");
+
+            expect(playMock).toHaveBeenCalled();
+            expect(enterFullscreenMock).not.toHaveBeenCalled();
+        });
     });
 
     describe("the decryption key", () => {
@@ -277,6 +428,20 @@ describe("VideoPlayer", () => {
             expect(seekMock).toHaveBeenCalledWith(270);
         });
 
+        it("starts and restores the position on the first load only, not on a switch of mode", async () => {
+            getMediaProgressMock.mockReturnValue(300);
+            const wrapper = await mountPlayer({}, { autoplay: true });
+            stub(wrapper).vm.$emit("loadedmetadata");
+            expect(playMock).toHaveBeenCalledTimes(1);
+            expect(seekMock).toHaveBeenCalledTimes(1);
+
+            // Audio to video, or back: the player loads again, and a paused video stays paused.
+            stub(wrapper).vm.$emit("loadedmetadata");
+            stub(wrapper).vm.$emit("loadedmetadata");
+            expect(playMock).toHaveBeenCalledTimes(1);
+            expect(seekMock).toHaveBeenCalledTimes(1);
+        });
+
         it("does not seek for a position not worth resuming", async () => {
             getMediaProgressMock.mockReturnValue(30);
             const wrapper = await mountPlayer();
@@ -332,6 +497,12 @@ describe("VideoPlayer", () => {
             expect(wrapper.findComponent(NativeStub).props("source")).toEqual({
                 masterUrl: ABSOLUTE,
                 keyHex: undefined,
+                sidecars: {
+                    chapters: [
+                        { lang: "en", url: "https://bucket.example.com/media/abc/chapters/en.vtt" },
+                    ],
+                    thumbnails: { url: "https://bucket.example.com/media/abc/thumbnails/thumbnails.vtt" },
+                },
             });
         });
 
@@ -353,6 +524,18 @@ describe("VideoPlayer", () => {
             expect(wrapper.findComponent(NativeStub).props("nowPlaying")).toEqual({
                 title: mockEnglishContentDto.title,
                 artworkUrl: shareImageUrl(content(), "https://bucket.example.com"),
+            });
+        });
+
+        it("adds the page's stand-in picture for a post whose own image does not load", async () => {
+            vi.mocked(fallbackArtworkDataUrl).mockResolvedValueOnce("data:image/jpeg;base64,AAAA");
+
+            const wrapper = await mountWithService(true);
+
+            expect(wrapper.findComponent(NativeStub).props("nowPlaying")).toEqual({
+                title: mockEnglishContentDto.title,
+                artworkUrl: shareImageUrl(content(), "https://bucket.example.com"),
+                fallbackArtworkUrl: "data:image/jpeg;base64,AAAA",
             });
         });
 

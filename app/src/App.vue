@@ -12,6 +12,8 @@ import SearchModal from "@/components/navigation/SearchModal.vue";
 import MobileMenu from "@/components/navigation/MobileMenu.vue";
 import { useMobileChromeAutoHide } from "@/composables/useMobileChromeAutoHide";
 import AffinityDebugOverlay from "@/components/debug/AffinityDebugOverlay.vue";
+import MediaPlayer from "@/media-player/MediaPlayer.vue";
+import { minimiseMediaPlayer } from "@/media-player/mediaPlayer";
 import { affinityDebugEnabled, applyAffinityDebugQuery } from "@/recommendation/affinityDebug";
 import { useAuthWithPrivacyPolicy } from "@/composables/useAuthWithPrivacyPolicy";
 import { showProviderSelectionModal } from "@/auth";
@@ -160,6 +162,13 @@ const routeKey = computed(() => {
     return route.fullPath;
 });
 
+// The full player sits between the top bar and the menu, which stay live: leaving the page
+// through either shows where the viewer went, with the player kept as the bar.
+watch(
+    () => router.currentRoute.value.fullPath,
+    () => minimiseMediaPlayer(),
+);
+
 onMounted(() => {
     // Reveal content hidden by vite.config.web.ts's pre-paint auth gate (see
     // authGateScript there for why): by now Vue's first render has landed, using the
@@ -223,6 +232,8 @@ onErrorCaptured((err) => {
         />
 
         <AffinityDebugOverlay v-if="isMounted && affinityDebugEnabled" />
+
+        <MediaPlayer v-if="isMounted" />
     </div>
     <!-- Modals depend on i18n, which isn't installed until splash finishes — keep them out of the tree during the loading phase. On web they are also gated behind mount (signed-out shell). -->
     <template v-if="!isAppLoading && isMounted">
