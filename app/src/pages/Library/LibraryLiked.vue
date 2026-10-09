@@ -4,6 +4,7 @@ import { useI18n } from "vue-i18n";
 import { type ContentDto } from "luminary-shared";
 import ContentTile from "@/components/content/ContentTile.vue";
 import { TrashIcon } from "@heroicons/vue/24/outline";
+import { HeartIcon } from "@heroicons/vue/24/solid";
 import { removeUserActivity } from "@/userActivity/store";
 import { useContentQuery } from "@/composables/useContentQuery";
 import { useUserActivity } from "@/userActivity/useUserActivity";
@@ -30,7 +31,7 @@ const sorted = computed(
 
 <template>
     <div data-test="library-liked">
-        <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+        <div class="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
             <div
                 v-for="item in sorted"
                 :key="item._id"
@@ -40,6 +41,12 @@ const sorted = computed(
                     :content="item"
                     layout="card"
                     class="h-full w-full"
+                />
+                <!-- Marks the card as liked content. Decorative, so it never intercepts the tile's click. -->
+                <HeartIcon
+                    class="pointer-events-none absolute right-2 top-2 h-5 w-5 text-yellow-400 drop-shadow"
+                    aria-hidden="true"
+                    data-test="library-liked-icon"
                 />
                 <!-- Bottom-right of the card. Always visible on touch devices, which have no hover to
                      reveal it; on hover-capable devices it fades in when the card is hovered. -->
