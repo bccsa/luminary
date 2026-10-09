@@ -124,7 +124,7 @@ const handleLogin = () => {
                     </div>
 
                     <div
-                        class="flex flex-1 items-center"
+                        class="flex flex-1 items-center lg:invisible"
                         ref="logoContainer"
                     >
                         <!-- Visibility of both logos is driven by the single logoVisibility computed. -->
