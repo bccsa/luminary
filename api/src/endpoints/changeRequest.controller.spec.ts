@@ -1,3 +1,4 @@
+import { ChangeRequestRateLimiterService } from "../ratelimit/changeRequestRateLimiter.service";
 import { Test, TestingModule } from "@nestjs/testing";
 import { ValidationPipe } from "@nestjs/common";
 import { FastifyAdapter, NestFastifyApplication } from "@nestjs/platform-fastify";
@@ -13,12 +14,14 @@ import * as fs from "fs";
 describe("ChangeRequestController", () => {
     let app: NestFastifyApplication;
     const mockChangeRequest = jest.fn();
+    const mockRateLimiter = { check: jest.fn(), recordRequest: jest.fn() };
     const testImagePath = path.join(__dirname, "../test/testImage.jpg");
 
     beforeAll(async () => {
         const module: TestingModule = await Test.createTestingModule({
             controllers: [ChangeRequestController],
             providers: [
+                { provide: ChangeRequestRateLimiterService, useValue: mockRateLimiter },
                 {
                     provide: ChangeRequestService,
                     useValue: {
@@ -53,6 +56,34 @@ describe("ChangeRequestController", () => {
 
     beforeEach(() => {
         mockChangeRequest.mockClear();
+        mockRateLimiter.check.mockReset().mockReturnValue({ allowed: true, retryAfterMs: 0 });
+        mockRateLimiter.recordRequest.mockClear();
+    });
+
+    it("answers 429 with Retry-After when the caller is over the limit", async () => {
+        mockRateLimiter.check.mockReturnValue({ allowed: false, retryAfterMs: 4200 });
+
+        const res = await app.inject({
+            method: "POST",
+            url: "/changerequest",
+            payload: { apiVersion: "0.0.0", doc: {} },
+        });
+
+        expect(res.statusCode).toBe(429);
+        expect(res.headers["retry-after"]).toBe("5");
+        expect(mockChangeRequest).not.toHaveBeenCalled();
+    });
+
+    it("counts each allowed request against the caller's identity", async () => {
+        mockChangeRequest.mockResolvedValue({ ack: "accepted" });
+
+        await app.inject({
+            method: "POST",
+            url: "/changerequest",
+            payload: { apiVersion: "0.0.0", doc: {} },
+        });
+
+        expect(mockRateLimiter.recordRequest).toHaveBeenCalledWith("mock-user");
     });
 
     /**
