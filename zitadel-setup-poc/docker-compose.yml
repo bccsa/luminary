@@ -1,0 +1,77 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: zitadel-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: zitadel
+    volumes:
+      - zitadel-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d zitadel"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  zitadel:
+    image: ghcr.io/zitadel/zitadel:v4.17.1
+    container_name: zitadel
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # Caddy terminates TLS, so Zitadel serves plaintext behind it while still
+    # advertising https URLs via ExternalSecure.
+    command: >
+      start-from-init
+      --config /etc/zitadel/zitadel.yaml
+      --steps /etc/zitadel/steps.yaml
+      --masterkey ${ZITADEL_MASTERKEY:?set ZITADEL_MASTERKEY to exactly 32 characters}
+      --tlsMode external
+    volumes:
+      - ./zitadel-config:/etc/zitadel:ro
+      - ./secrets:/secrets
+    ports:
+      - "8080:8080"
+
+  # Zitadel v4 defaults to Login v2, which ships as its own container rather than
+  # inside the monolith. Without it every login redirect and the console's own
+  # sign-in land on /ui/v2/login/* and 404.
+  login:
+    image: ghcr.io/zitadel/zitadel-login:v4.17.1
+    container_name: zitadel-login
+    restart: unless-stopped
+    depends_on:
+      - zitadel
+    environment:
+      ZITADEL_API_URL: http://zitadel:8080
+      # Zitadel resolves the instance from the Host header, so the in-network
+      # call has to claim the external domain to be recognised.
+      CUSTOM_REQUEST_HEADERS: Host:auth.luminary.local
+      # Written by first-instance setup; the entrypoint waits for it to appear.
+      ZITADEL_SERVICE_USER_TOKEN_FILE: /secrets/seed-pat.txt
+      NEXT_PUBLIC_BASE_PATH: /ui/v2/login
+    volumes:
+      - ./secrets:/secrets:ro
+
+  caddy:
+    image: caddy:2
+    container_name: zitadel-caddy
+    restart: unless-stopped
+    depends_on:
+      - zitadel
+      - login
+    ports:
+      - "443:443"
+      - "80:80"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  zitadel-postgres-data:
+  caddy-data:
+  caddy-config:
