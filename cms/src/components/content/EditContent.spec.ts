@@ -6,6 +6,8 @@ import {
     DocType,
     type ContentDto,
     type PostDto,
+    type GroupDto,
+    AclPermission,
     accessMap,
     PostType,
     PublishStatus,
@@ -977,6 +979,87 @@ describe("EditContent.vue", () => {
             },
             { timeout: 10000 },
         );
+    });
+
+    describe("media bucket access warning", () => {
+        const seed = async (groupAcl: GroupDto["acl"]) => {
+            await db.docs.bulkPut([
+                {
+                    ...mockData.mockGroupDtoPublicContent,
+                    acl: groupAcl,
+                } as GroupDto,
+                {
+                    ...mockData.mockGroupDtoPublicContent,
+                    _id: "group-public-users",
+                    name: "Public Users",
+                    acl: [],
+                } as GroupDto,
+                {
+                    ...mockData.mockPostDto,
+                    media: { hlsUrl: "/abc/master.m3u8" },
+                    mediaBucketId: mockData.mockStorageDtoWithEncryptedCredentials._id,
+                } as PostDto,
+                mockData.mockStorageDtoWithEncryptedCredentials,
+            ]);
+        };
+
+        const open = () =>
+            mount(EditContent, {
+                props: {
+                    docType: DocType.Post,
+                    id: mockData.mockPostDto._id,
+                    languageCode: "eng",
+                    tagOrPostType: PostType.Blog,
+                },
+            });
+
+        const postViewForUsers = {
+            type: DocType.Post,
+            groupId: "group-public-users",
+            permission: [AclPermission.View],
+        };
+
+        it("warns when a group that can view the post has no Storage access to its bucket", async () => {
+            await seed([postViewForUsers]);
+
+            const wrapper = open();
+
+            await waitForExpect(() => {
+                expect(wrapper.find('[data-test="media-access-banner"]').exists()).toBe(true);
+            });
+        });
+
+        it("warns separately when the image bucket is not readable by a viewing group", async () => {
+            await seed([postViewForUsers]);
+            await db.docs.update(mockData.mockPostDto._id, {
+                imageBucketId: mockData.mockStorageDtoWithEncryptedCredentials._id,
+            } as Partial<PostDto>);
+
+            const wrapper = open();
+
+            await waitForExpect(() => {
+                expect(wrapper.find('[data-test="image-access-banner"]').exists()).toBe(true);
+            });
+        });
+
+        it("does not warn when every viewing group can view the bucket", async () => {
+            await seed([
+                postViewForUsers,
+                { ...postViewForUsers, type: DocType.Storage },
+                {
+                    type: DocType.Storage,
+                    groupId: "group-public-content",
+                    permission: [AclPermission.View],
+                },
+            ]);
+
+            const wrapper = open();
+
+            await waitForExpect(() => {
+                expect(wrapper.find('[data-test="video-url-input"]').exists()).toBe(true);
+            });
+            expect(wrapper.find('[data-test="media-access-banner"]').exists()).toBe(false);
+        });
     });
 
     describe("replacing a saved video", () => {

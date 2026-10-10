@@ -18,8 +18,12 @@ import {
     PostType,
     isBucketRelative,
     toAbsoluteMediaUrl,
+    useSharedHybridQuery,
+    type GroupDto,
 } from "luminary-shared";
 import { storageSelection } from "@/composables/storageSelection";
+import { groupsMissingDependencyAccess } from "@/components/groups/groupAccess";
+import MissingAccessBanner from "@/components/groups/MissingAccessBanner.vue";
 import { useEditContentSource } from "./composables/useEditContentSource";
 import { useContentLanguage } from "./composables/useContentLanguage";
 import { useContentPermissions } from "./composables/useContentPermissions";
@@ -126,6 +130,47 @@ const replacesStoredMedia = computed(() => {
 
     const bucketRoot = toAbsoluteMediaUrl("/", getBucketById(saved.mediaBucketId)?.publicUrl);
     return !!bucketRoot && savedUrl.startsWith(bucketRoot);
+});
+
+const allGroups = useSharedHybridQuery<GroupDto>(() => ({ selector: { type: DocType.Group } }), {
+    live: true,
+});
+
+/**
+ * Groups whose members can view this document but hold no Storage view on the group of a
+ * bucket it uses, so they would see the document and never receive the bucket.
+ */
+const missingBucketAccess = (bucketId: string | undefined) => {
+    const parent = editableParent.value;
+    if (!parent || !bucketId) return [];
+    const bucketGroups = getBucketById(bucketId)?.memberOf ?? [];
+    return groupsMissingDependencyAccess(
+        parent.memberOf,
+        props.docType,
+        bucketGroups,
+        DocType.Storage,
+        allGroups.value,
+    );
+};
+
+const accessWarnings = computed(() => {
+    const parent = editableParent.value;
+    return [
+        {
+            key: "media",
+            subject:
+                "the storage bucket its video is stored in, so they will not be able to play the video",
+            groups: parent?.media?.hlsUrl ? missingBucketAccess(parent.mediaBucketId) : [],
+        },
+        {
+            key: "image",
+            subject:
+                "the storage bucket its images are stored in, so they will not be able to see the images",
+            groups: parent?.imageData?.fileCollections?.length
+                ? missingBucketAccess(parent.imageBucketId)
+                : [],
+        },
+    ].filter((w) => w.groups.length);
 });
 
 // Concurrent-edit conflict UI: banner + read-only diff modal (ticket #932). Detection is driven by
@@ -546,6 +591,15 @@ watch(isLgScreen, (isLg) => {
                 Review changes
             </button>
         </div>
+        <!-- Viewers of this document who are not allowed to read a bucket it depends on. -->
+        <MissingAccessBanner
+            v-for="warning in accessWarnings"
+            :key="warning.key"
+            :data-test="`${warning.key}-access-banner`"
+            class="mx-2 mb-2 mt-2 lg:mx-8"
+            :groups="warning.groups"
+            :subject="warning.subject"
+        />
         <div
             class="flex flex-col gap-0 lg:h-full lg:min-h-0 lg:flex-row lg:gap-2 lg:overflow-hidden lg:pl-8"
         >
