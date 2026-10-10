@@ -329,6 +329,42 @@ describe("EditContent.vue", () => {
         });
     });
 
+    it("doesn't save a post that belongs to no group", async () => {
+        // A draft, so the group rule is the only thing that can stop the save: a published
+        // document with no group is refused for lack of publish access first.
+        await db.docs.bulkPut([
+            { ...mockData.mockPostDto, memberOf: [] },
+            { ...mockData.mockEnglishContentDto, status: PublishStatus.Draft },
+        ]);
+        const notificationStore = useNotificationStore();
+        const wrapper = mount(EditContent, {
+            props: {
+                docType: DocType.Post,
+                id: mockData.mockPostDto._id,
+                languageCode: "eng",
+                tagOrPostType: PostType.Blog,
+            },
+        });
+
+        await waitForExpect(() => {
+            expect(wrapper.find('input[name="title"]').exists()).toBe(true);
+        });
+
+        await wrapper.find('input[name="title"]').setValue("A new title");
+        // Only what this click raises counts: the mock is shared with earlier tests.
+        const notify = vi.mocked(notificationStore.addNotification);
+        const before = notify.mock.calls.length;
+        await wrapper.find('[data-test="save-button"]').trigger("click");
+
+        await waitForExpect(() => {
+            expect(notify.mock.calls.slice(before)).toEqual([
+                [expect.objectContaining({ title: "Changes not saved", state: "error" })],
+            ]);
+        });
+        const savedDoc = await db.get<ContentDto>(mockData.mockEnglishContentDto._id);
+        expect(savedDoc.title).toBe(mockData.mockEnglishContentDto.title);
+    });
+
     it("routes back to overview if parent is not found in the database", async () => {
         const notificationStore = useNotificationStore();
         mount(EditContent, {
