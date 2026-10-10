@@ -5,7 +5,6 @@ import { ChangeReqAckDto, LocalChangeDto } from "../types";
 import { db } from "../db/database";
 import { LFormData } from "../util/LFormData";
 import { changeReqErrors, changeReqInfo, changeReqWarnings } from "../config";
-import { reportError } from "../diagnostics";
 
 async function send(change: LocalChangeDto): Promise<boolean> {
     const formData = new LFormData();
@@ -93,11 +92,7 @@ export function syncLocalChanges(localChanges: Ref<LocalChangeDto[]>): SyncLocal
                         }
                     }
                 } catch (err) {
-                    reportError(err, {
-                        area: "syncLocalChanges",
-                        op: "submit",
-                        data: { docId: activeChange?.docId, docType: activeChange?.doc.type },
-                    });
+                    console.error("syncLocalChanges error:", err);
                     if (activeChange) {
                         const message =
                             "Unable to submit saved changes. Please refresh the page to try again.";

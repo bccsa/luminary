@@ -4,7 +4,7 @@ import { AuthFlowKey } from "@/build-time/contracts/auth-flow/token";
 import type { AuthFlowService } from "@/build-time/contracts/auth-flow/contract";
 import type { Router } from "vue-router";
 import * as Sentry from "@sentry/vue";
-import { db, getSocket, removeCustomHeader, reportError, setCustomHeader } from "luminary-shared";
+import { db, getSocket, removeCustomHeader, setCustomHeader } from "luminary-shared";
 import type { AuthProviderDto } from "luminary-shared";
 import { ACTIVE_PROVIDER_KEY, LEGACY_AUTH0_CACHE_PREFIX, OIDC_USER_PREFIX } from "./authStorage";
 
@@ -595,7 +595,7 @@ export function useAuth() {
             } catch (error) {
                 // Not every provider exposes end_session_endpoint (some Auth0
                 // tenants don't), so this redirect can fail before navigating.
-                reportError(error, { area: "auth", op: "signout-redirect" });
+                console.error("OIDC signout redirect failed:", error);
                 Sentry?.captureException(error);
                 // No navigation is coming, so reboot locally instead: a fresh
                 // load re-runs main.ts's Startup() exactly like a successful

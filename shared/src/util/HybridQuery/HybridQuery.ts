@@ -47,7 +47,6 @@ import {
 } from "./responseCache";
 import { touchRetention } from "../../db/retention";
 import { config, getContentPublishDateCutoff } from "../../config";
-import { reportError } from "../../diagnostics";
 import { OPEN_MIN } from "../../api/sync/utils";
 
 /**
@@ -725,7 +724,7 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
                             this._dropSeededRemote();
                         }
                     } catch (err) {
-                        this._reportError("local-update", err);
+                        console.error("[HybridQuery] local update failed:", err);
                     }
                 });
                 return;
@@ -740,7 +739,7 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
                         // Local only — loading settles on the first local result.
                         this._localPending.value = false;
                     } catch (err) {
-                        this._reportError("local-update", err);
+                        console.error("[HybridQuery] local update failed:", err);
                     }
                 });
                 // Re-route to API-only if this type is later REVOKED (membership true→false).
@@ -773,16 +772,8 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
             // Belt-and-braces: anything that escaped the inner handlers (the
             // reconnect-watcher setup, an unexpected throw in queryIntrospection
             // helpers, …) is logged here.
-            this._reportError("route", err);
+            console.error("[HybridQuery] routing failed:", err);
         }
-    }
-
-    private _reportError(op: string, err: unknown, data?: Record<string, unknown>): void {
-        reportError(err, {
-            area: "HybridQuery",
-            op,
-            data: { query: this._query, live: this._live, ...data },
-        });
     }
 
     /**
@@ -807,7 +798,7 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
         if (!this._live) {
             void (runInWorker("mangoQuery", this._query) as Promise<T[]>).then(onLocal, (err) => {
                 if (gen === this._generation && !this._disposed) this.error.value = err;
-                this._reportError("local-read", err);
+                console.error("[HybridQuery] local read failed:", err);
                 // Route the empty set on so the local leg still settles and the content
                 // branch still makes its API decision (preserves the original behaviour).
                 onLocal([]);
@@ -826,7 +817,7 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
                 // at least react to it.
                 onError: (err) => {
                     if (gen === this._generation && !this._disposed) this.error.value = err;
-                    this._reportError("live-local-read", err);
+                    console.error("[HybridQuery] live local read failed:", err);
                 },
             });
             // `immediate: true` fires synchronously with the ref's initial value
@@ -893,10 +884,10 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
                 const firstErr = settled.find((s) => s.status === "rejected") as
                     | PromiseRejectedResult
                     | undefined;
-                this._reportError("remote-query", firstErr?.reason, {
-                    failed: settled.length - fulfilled.length,
-                    total: settled.length,
-                });
+                console.error(
+                    `[HybridQuery] ${settled.length - fulfilled.length}/${settled.length} remote query(ies) failed:`,
+                    firstErr?.reason,
+                );
                 // Surface the failure only when EVERY query failed (total failure below).
                 // A partial fan-out failure keeps the succeeded subset, so it must not
                 // raise `error` — that would be misleading.
@@ -925,15 +916,13 @@ export class HybridQuery<T extends BaseDocumentDto = BaseDocumentDto> {
                 if (toPersist.length) {
                     void db
                         .bulkPut(toPersist)
-                        .catch((e) =>
-                            this._reportError("offline-persist", e, { docs: toPersist.length }),
-                        );
+                        .catch((e) => console.error("[HybridQuery] offline persist failed:", e));
                     touchRetention(toPersist.map((d) => d._id));
                 }
             }
         } catch (err) {
             if (gen === this._generation && !this._disposed) this.error.value = err;
-            this._reportError("remote-query", err);
+            console.error("[HybridQuery] remote query failed:", err);
         } finally {
             // Settle the remote leg whether the POST resolved, failed, or bailed on a
             // stale generation (the gen guard inside makes the stale case a no-op).
