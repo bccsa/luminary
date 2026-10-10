@@ -1,0 +1,12 @@
+diff --git a/node_modules/vite-ssg/dist/shared/vite-ssg.D5Fdxh1E.mjs b/node_modules/vite-ssg/dist/shared/vite-ssg.D5Fdxh1E.mjs
+index e895c28..76e6f1b 100644
+--- a/node_modules/vite-ssg/dist/shared/vite-ssg.D5Fdxh1E.mjs
++++ b/node_modules/vite-ssg/dist/shared/vite-ssg.D5Fdxh1E.mjs
+@@ -1467,6 +1467,7 @@ async function build(ssgOptions = {}, viteConfig = {}) {
+         if (head)
+           await renderDOMHead(head, { document: jsdom.window.document });
+         const html = jsdom.serialize();
++        jsdom.window.close();
+         let transformed = await onPageRendered?.(route, html, appCtx) || html;
+         if (beasties)
+           transformed = await beasties.process(transformed);

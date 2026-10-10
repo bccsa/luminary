@@ -39,7 +39,6 @@ vi.mock("@/router", () => ({
     },
 }));
 
-// @ts-expect-error
 window.scrollTo = vi.fn();
 
 describe("EditContent.vue - Duplication", () => {
