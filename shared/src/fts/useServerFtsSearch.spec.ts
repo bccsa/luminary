@@ -4,13 +4,13 @@ import { ref, effectScope } from "vue";
 vi.mock("../api/RestApi", () => ({
     getRest: vi.fn(),
 }));
-vi.mock("../socket/socketio", () => ({
+vi.mock("../changeFeed/changeFeed", () => ({
     isConnected: ref(true),
-    getSocket: () => ({
+    getChangeFeed: () => ({
         on: vi.fn(),
         off: vi.fn(),
     }),
-    isSocketConfigured: () => true,
+    isChangeFeedConfigured: () => true,
 }));
 
 import { useServerFtsSearch } from "./useServerFtsSearch";

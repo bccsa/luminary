@@ -4,7 +4,7 @@
 // Boots the same data layer the normal SPA uses (minus the service worker/auth),
 // so prerendered pages hydrate into a live, interactive SPA.
 
-import { getSocket, init, warmMangoCaches } from "luminary-shared";
+import { getChangeFeed, init, warmMangoCaches } from "luminary-shared";
 import { apiUrl, appLanguageIdsAsRef, initLanguage } from "@/globalConfig";
 import { APP_DOCS_INDEX } from "@/docsIndex";
 import { initAuthLangSync, initSync } from "@/sync";
@@ -28,7 +28,7 @@ export async function initSsgClient(): Promise<void> {
 
     // Connect for anonymous/public users and start the content + language sync.
     // Not awaited — these resolve over the network after the page has mounted.
-    getSocket().connect();
+    getChangeFeed().connect();
     initAuthLangSync();
     void initLanguage();
     initSync();

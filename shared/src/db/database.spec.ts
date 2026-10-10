@@ -26,7 +26,7 @@ import {
 import { db, getDbVersion, initDatabase } from "../db/database";
 import { syncList } from "../api/sync/state";
 import { accessMap } from "../permissions/permissions";
-import { isConnected } from "../socket/socketio";
+import { isConnected } from "../changeFeed/changeFeed";
 import { DateTime } from "luxon";
 import { initConfig } from "../config";
 import { config, changeReqErrors, changeReqInfo } from "../config";

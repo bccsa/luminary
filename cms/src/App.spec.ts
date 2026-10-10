@@ -7,7 +7,7 @@ import { ref } from "vue";
 import { createTestingPinia } from "@pinia/testing";
 import LoadingBar from "@/components/LoadingBar.vue";
 import { setActivePinia } from "pinia";
-import { getSocket } from "luminary-shared";
+import { getChangeFeed } from "luminary-shared";
 import { useNotificationStore } from "./stores/notification";
 import { router } from "./router";
 
@@ -54,7 +54,7 @@ describe("App", () => {
             },
         });
 
-        const socket = getSocket();
+        const socket = getChangeFeed();
 
         const changeRequestAckHandler = vi.fn((data) => {
             if (data.ack === "rejected") {

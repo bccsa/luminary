@@ -1,4 +1,4 @@
-import { getSocket } from "luminary-shared";
+import { getChangeFeed } from "luminary-shared";
 import {
     clearAuthCache,
     loginWithProvider,
@@ -33,7 +33,7 @@ function resetRetries(): void {
 }
 
 function openAnonymousConnection(): void {
-    getSocket().connect();
+    getChangeFeed().connect();
 }
 
 /**
@@ -128,5 +128,5 @@ export async function handleConnectError(err: AuthConnectError): Promise<void> {
  */
 export function registerAuthFailureHandler(): void {
     resetRetries();
-    getSocket().on("connect_error", handleConnectError);
+    getChangeFeed().on("connectError", handleConnectError);
 }

@@ -10,7 +10,7 @@ vi.mock("../../fts/ftsIndexer", async (importOriginal) => {
 import { db, initDatabase } from "../../db/database";
 import { resetRetentionBuffer } from "../../db/retention";
 import { initConfig, config } from "../../config";
-import { isConnected } from "../../socket/socketio";
+import { isConnected } from "../../changeFeed/changeFeed";
 import { syncList } from "../../api/sync/state";
 import { HybridQuery, initHybridQuery } from "./HybridQuery";
 import { structuralCacheKey, writeResponseCache } from "./responseCache";
