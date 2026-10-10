@@ -25,7 +25,7 @@ Run from `api/`:
 - `npm run lint` / `npm run lint:fix`
 - `npm run typecheck` — `tsc --noEmit`
 
-Node 20 (`.node-version`). `tsconfig.json` has `strictNullChecks: false` and `noImplicitAny: false` — be deliberate about null guards.
+Node 22 (`.node-version`). `tsconfig.json` has `strictNullChecks: false` and `noImplicitAny: false` — be deliberate about null guards.
 
 ## Architecture
 
