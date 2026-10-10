@@ -5,6 +5,7 @@ import { TagDto } from "../../dto/TagDto";
 import { DbService } from "../../db/db.service";
 import { DocType, PublishStatus, Uuid } from "../../enums";
 import { computeFtsData } from "../../util/ftsIndexing";
+import { sanitizeContentText } from "../../util/sanitizeContentText";
 import { foldPreviousSlugs, isTrackableSlugChange } from "../computePreviousSlugs";
 
 /**
@@ -24,6 +25,9 @@ export default async function processContentDto(
     // is dropped before persistence — only the unpublish path in DbService is allowed to set it.
     delete doc.statusChangeDeleteCmdId;
     delete doc.previousSlugs;
+
+    // `text` is rendered with v-html in the app, so it must be safe before it is stored or indexed
+    if (doc.text) doc.text = sanitizeContentText(doc.text);
 
     doc.slug = await validateSlug(doc.slug, doc._id, db);
 
