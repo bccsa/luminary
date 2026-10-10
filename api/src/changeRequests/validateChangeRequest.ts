@@ -17,6 +17,7 @@ import { StorageDto } from "../dto/StorageDto";
 import { AuthProviderDto } from "../dto/AuthProviderDto";
 import { AutoGroupMappingsDto } from "../dto/AutoGroupMappingsDto";
 import { DefaultAffinityDto } from "../dto/DefaultAffinityDto";
+import { GlobalAffinityDto } from "../dto/GlobalAffinityDto";
 /**
  * DocType to DTO map
  */
@@ -32,6 +33,7 @@ const DocTypeMap = {
     authProvider: AuthProviderDto,
     autoGroupMappings: AutoGroupMappingsDto,
     defaultAffinity: DefaultAffinityDto,
+    globalAffinity: GlobalAffinityDto,
 };
 
 /**

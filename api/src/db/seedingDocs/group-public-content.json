@@ -35,6 +35,11 @@
             "permission": ["view"]
         },
         {
+            "type": "globalAffinity",
+            "groupId": "group-public-users",
+            "permission": ["view"]
+        },
+        {
             "type": "post",
             "groupId": "group-public-editors",
             "permission": ["view", "share", "edit", "translate", "publish", "cmsView"]
@@ -86,6 +91,11 @@
         },
         {
             "type": "defaultAffinity",
+            "groupId": "group-private-users",
+            "permission": ["view"]
+        },
+        {
+            "type": "globalAffinity",
             "groupId": "group-private-users",
             "permission": ["view"]
         }
