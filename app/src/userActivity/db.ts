@@ -29,7 +29,7 @@ export type UserActivityDoc = {
     deleted?: boolean;
     /**
      * Type-specific payload; only `highlighted` carries one. The ranges mirror what
-     * `LHighlightable` saves, and each carries its own text — the excerpt the Library shows.
+     * `LHighlightable` saves, and each carries its own text — the excerpt the activity page shows.
      */
     payload?: { ranges: HighlightRange[] };
 };
@@ -40,7 +40,7 @@ class UserActivityDatabase extends Dexie {
     constructor() {
         super("luminary-user-activity");
 
-        // `[type+updatedTimeUtc]` serves the Library's per-type, newest-first reads straight
+        // `[type+updatedTimeUtc]` serves the activity page's per-type, newest-first reads straight
         // from the index. `parentId` is indexed for the lookup that resolves unresolved rows.
         this.version(1).stores({
             userActivity: "_id, type, parentId, contentId, updatedTimeUtc, [type+updatedTimeUtc]",

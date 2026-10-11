@@ -120,7 +120,7 @@ export async function getUserActivity(
 
 /**
  * Every activity, whatever its type, newest first and tombstones excluded — the feed the
- * Library's "all" filter shows. Read straight off the `updatedTimeUtc` index, so the three
+ * activity page's "all" filter shows. Read straight off the `updatedTimeUtc` index, so the three
  * types interleave without a sort of our own.
  */
 export async function getAllUserActivity(): Promise<UserActivityDoc[]> {
@@ -152,7 +152,7 @@ async function trimViewed(): Promise<void> {
 }
 
 /**
- * Forget every activity. Backs the user-facing "clear library" action.
+ * Forget every activity. Backs the user-facing "clear activity" action.
  *
  * The highlights' own store goes too. It is the source the migration re-reads on every start,
  * so leaving it would bring every cleared highlight back on the next load — and it is what

@@ -4,33 +4,33 @@ import { useRoute, useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import BasePage from "@/components/BasePage.vue";
 import { markPageReady } from "@/util/renderState";
-import LibraryAll from "./LibraryAll.vue";
-import LibraryViewed from "./LibraryViewed.vue";
-import LibraryLiked from "./LibraryLiked.vue";
-import LibraryHighlighted from "./LibraryHighlighted.vue";
+import ActivityAll from "./ActivityAll.vue";
+import ActivityViewed from "./ActivityViewed.vue";
+import ActivityLiked from "./ActivityLiked.vue";
+import ActivityHighlighted from "./ActivityHighlighted.vue";
 
 const filters = ["all", "viewed", "liked", "highlighted"] as const;
-type LibraryFilter = (typeof filters)[number];
+type ActivityFilter = (typeof filters)[number];
 
 const panels = {
-    all: LibraryAll,
-    viewed: LibraryViewed,
-    liked: LibraryLiked,
-    highlighted: LibraryHighlighted,
+    all: ActivityAll,
+    viewed: ActivityViewed,
+    liked: ActivityLiked,
+    highlighted: ActivityHighlighted,
 };
 
 const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
 
-const activeFilter = computed<LibraryFilter>(() => {
+const activeFilter = computed<ActivityFilter>(() => {
     const filter = route.query.filter;
-    return filters.includes(filter as LibraryFilter) ? (filter as LibraryFilter) : "all";
+    return filters.includes(filter as ActivityFilter) ? (filter as ActivityFilter) : "all";
 });
 
 // Mirrored to the query string so a filter can be linked to and survives a reload, but
-// replaced rather than pushed: back should leave the Library, not walk back through chips.
-const selectFilter = (filter: LibraryFilter) =>
+// replaced rather than pushed: back should leave the activity page, not walk back through chips.
+const selectFilter = (filter: ActivityFilter) =>
     router.replace({ query: { ...route.query, filter } });
 
 onMounted(async () => {
@@ -49,7 +49,7 @@ onMounted(async () => {
             <div
                 class="sticky top-[var(--top-bar-h,74px)] z-10 -mx-2 mb-6 flex flex-wrap gap-2 bg-white px-2 py-3 dark:bg-slate-900 xl:top-0"
                 role="tablist"
-                :aria-label="t('library.title')"
+                :aria-label="t('activity.title')"
             >
                 <button
                     v-for="filter in filters"
@@ -57,7 +57,7 @@ onMounted(async () => {
                     type="button"
                     role="tab"
                     :aria-selected="filter === activeFilter"
-                    :data-test="`library-filter-${filter}`"
+                    :data-test="`activity-filter-${filter}`"
                     class="rounded-full px-3 py-1 text-sm transition-colors"
                     :class="
                         filter === activeFilter
@@ -66,7 +66,7 @@ onMounted(async () => {
                     "
                     @click="selectFilter(filter)"
                 >
-                    {{ t(`library.filter.${filter}`) }}
+                    {{ t(`activity.filter.${filter}`) }}
                 </button>
             </div>
 

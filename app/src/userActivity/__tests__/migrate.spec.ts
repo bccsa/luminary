@@ -172,7 +172,7 @@ describe("migration to userActivity", () => {
         expect(await getUserActivity("highlighted")).toHaveLength(1);
     });
 
-    it("does not bring highlights back after the library is cleared", async () => {
+    it("does not bring highlights back after the activity is cleared", async () => {
         await db.docs.bulkPut([contentDoc("content-1", "post-1")]);
         await db.setLuminaryInternals("highlights", {
             "content-1": { ranges: [range("hi")], updatedAt: 1234 },

@@ -51,7 +51,7 @@ const isClearing = ref(false);
 
 const showClearActivityDialog = ref(false);
 
-/** Erases everything the Library shows. Confirmed first: likes and highlights are the user's own. */
+/** Erases everything My Activity shows. Confirmed first: likes and highlights are the user's own. */
 const clearActivity = async () => {
     showClearActivityDialog.value = false;
     await clearUserActivity();

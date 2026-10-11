@@ -3,7 +3,7 @@ import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
 import { type ContentDto } from "luminary-shared";
-import LibraryActivityCard from "./LibraryActivityCard.vue";
+import ActivityCard from "./ActivityCard.vue";
 import LDialog from "@/components/common/LDialog.vue";
 import { useContentQuery } from "@/composables/useContentQuery";
 import { useUserActivity } from "@/userActivity/useUserActivity";
@@ -97,9 +97,9 @@ const remove = async () => {
 </script>
 
 <template>
-    <div data-test="library-highlighted">
+    <div data-test="activity-highlighted">
         <div class="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
-            <LibraryActivityCard
+            <ActivityCard
                 v-for="entry in entries"
                 :key="entry.content._id"
                 :content="entry.content"
@@ -114,7 +114,7 @@ const remove = async () => {
             v-if="!entries.length"
             class="text-zinc-500 dark:text-slate-200"
         >
-            {{ t("library.highlighted.empty_page") }}
+            {{ t("activity.highlighted.empty_page") }}
         </div>
 
         <LDialog
@@ -122,9 +122,9 @@ const remove = async () => {
             :open="true"
             :title="opened.content.title"
             :primaryAction="openArticle"
-            :primaryButtonText="t('library.highlights.open_article')"
+            :primaryButtonText="t('activity.highlights.open_article')"
             :secondaryAction="askToDelete"
-            :secondaryButtonText="t('library.remove.button')"
+            :secondaryButtonText="t('activity.remove.button')"
             @update:open="opened = undefined"
         >
             <div class="space-y-4">
@@ -140,7 +140,7 @@ const remove = async () => {
                         data-test="highlight-colour-all"
                         @click="colour = undefined"
                     >
-                        {{ t("library.highlights.all_colours") }}
+                        {{ t("activity.highlights.all_colours") }}
                     </button>
                     <button
                         v-for="c in colours"
@@ -176,12 +176,12 @@ const remove = async () => {
         <LDialog
             v-if="confirming"
             :open="true"
-            :title="t('library.remove.confirm.title')"
-            :description="t('library.remove.confirm.description')"
+            :title="t('activity.remove.confirm.title')"
+            :description="t('activity.remove.confirm.description')"
             :primaryAction="remove"
-            :primaryButtonText="t('library.remove.button')"
+            :primaryButtonText="t('activity.remove.button')"
             :secondaryAction="cancelDelete"
-            :secondaryButtonText="t('library.remove.confirm.button_cancel')"
+            :secondaryButtonText="t('activity.remove.confirm.button_cancel')"
             context="danger"
             @update:open="cancelDelete"
         />

@@ -47,7 +47,7 @@ const onClick = (event: MouseEvent) => {
     <div
         class="group relative [&_[data-card-text]]:pr-10"
         :class="{ 'cursor-pointer': opensDetail }"
-        :data-test="opensDetail ? 'library-open-highlights' : undefined"
+        :data-test="opensDetail ? 'activity-open-highlights' : undefined"
         @click.capture="onClick"
     >
         <!-- No publish date: in a list ordered by what the reader did, when the post came
@@ -75,7 +75,7 @@ const onClick = (event: MouseEvent) => {
                         :style="
                             excerptColor ? { backgroundColor: HIGHLIGHT_COLORS[excerptColor] } : {}
                         "
-                        data-test="library-excerpt"
+                        data-test="activity-excerpt"
                         >{{ excerpt }}</mark
                     >
                 </p>
@@ -89,7 +89,7 @@ const onClick = (event: MouseEvent) => {
         <span
             v-if="type === 'liked'"
             class="pointer-events-none absolute right-2 top-2"
-            data-test="library-liked-icon"
+            data-test="activity-liked-icon"
         >
             <HeartIcon
                 class="h-5 w-5 text-yellow-400 drop-shadow"
@@ -97,7 +97,7 @@ const onClick = (event: MouseEvent) => {
             />
             <!-- In the combined feed the heart is the only thing telling a liked card from a
                  viewed one, so it has to be readable rather than purely decorative. -->
-            <span class="sr-only">{{ t("library.activity.liked") }}</span>
+            <span class="sr-only">{{ t("activity.marker.liked") }}</span>
         </span>
 
         <!-- Bottom-right of the card. Always visible on touch devices, which have no hover to
@@ -106,8 +106,8 @@ const onClick = (event: MouseEvent) => {
             v-if="removable"
             type="button"
             class="absolute bottom-2 right-1 rounded-full p-1.5 text-zinc-500 transition hover:text-red-600 focus:text-red-600 focus:opacity-100 active:text-red-700 dark:text-slate-400 dark:hover:text-red-400 dark:focus:text-red-400 dark:active:text-red-500 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100"
-            :aria-label="t('library.remove.label')"
-            :data-test="`library-remove-${type}`"
+            :aria-label="t('activity.remove.label')"
+            :data-test="`activity-remove-${type}`"
             @click.stop.prevent="$emit('remove')"
         >
             <TrashIcon class="h-4 w-4" />

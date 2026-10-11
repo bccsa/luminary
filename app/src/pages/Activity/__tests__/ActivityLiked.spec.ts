@@ -8,8 +8,8 @@ import { db } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import { appLanguageIdsAsRef } from "@/globalConfig";
 import { userActivityDb } from "@/userActivity/db";
-import { getUserActivity, recordUserActivity } from "@/userActivity/store";
-import LibraryViewed from "../LibraryViewed.vue";
+import { recordUserActivity } from "@/userActivity/store";
+import ActivityLiked from "../ActivityLiked.vue";
 
 vi.mock("vue-router");
 vi.mock("@/router", () => ({
@@ -24,7 +24,7 @@ vi.mock("vue-i18n", () => ({
     }),
 }));
 
-describe("LibraryViewed", () => {
+describe("ActivityLiked", () => {
     beforeEach(async () => {
         // Clearing the database before populating it helps prevent some sequencing issues causing the first to fail.
         await db.docs.clear();
@@ -42,34 +42,30 @@ describe("LibraryViewed", () => {
         await db.docs.clear();
     });
 
-    it("displays viewed content", async () => {
-        await recordUserActivity({ type: "viewed", parentId: mockEnglishContentDto.parentId });
+    it("displays liked content", async () => {
+        await recordUserActivity({ type: "liked", parentId: mockEnglishContentDto.parentId });
 
-        const wrapper = mount(LibraryViewed);
+        const wrapper = mount(ActivityLiked);
 
         await waitForExpect(() => {
             expect(wrapper.text()).toContain(mockEnglishContentDto.title);
         });
     });
 
-    it("displays a message when nothing was viewed", async () => {
-        await userActivityDb.userActivity.clear();
-        const wrapper = mount(LibraryViewed);
+    it("marks a liked card with its heart", async () => {
+        await recordUserActivity({ type: "liked", parentId: mockEnglishContentDto.parentId });
 
-        expect(wrapper.text()).toContain("Posts you read or watch will show up here.");
-    });
-
-    it("removes an entry straight away", async () => {
-        await recordUserActivity({ type: "viewed", parentId: mockEnglishContentDto.parentId });
-        const wrapper = mount(LibraryViewed);
+        const wrapper = mount(ActivityLiked);
 
         await waitForExpect(() => {
-            expect(wrapper.find("[data-test=library-remove-viewed]").exists()).toBe(true);
+            expect(wrapper.find("[data-test=activity-liked-icon]").exists()).toBe(true);
         });
-        await wrapper.find("[data-test=library-remove-viewed]").trigger("click");
+    });
 
-        await waitForExpect(async () => {
-            expect(await getUserActivity("viewed")).toEqual([]);
-        });
+    it("displays a message when nothing is liked", async () => {
+        await userActivityDb.userActivity.clear();
+        const wrapper = mount(ActivityLiked);
+
+        expect(wrapper.text()).toContain("Posts you like will show up here.");
     });
 });
