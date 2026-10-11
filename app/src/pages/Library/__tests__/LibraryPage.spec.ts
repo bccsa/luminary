@@ -45,6 +45,12 @@ describe("LibraryPage", () => {
         expect(wrapper.find("[data-test=library-all]").exists()).toBe(true);
     });
 
+    it("offers a way back", async () => {
+        const wrapper = mount(LibraryPage);
+
+        expect(wrapper.find("[data-test=backButton]").exists()).toBe(true);
+    });
+
     it("switches panel when a filter is selected", async () => {
         const wrapper = mount(LibraryPage);
 
