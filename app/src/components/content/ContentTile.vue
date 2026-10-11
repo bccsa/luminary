@@ -172,7 +172,7 @@ const summaryText = computed(() => props.content.summary?.trim() ?? "");
                 >
                     {{ content.title }}
                 </h3>
-                <!-- Card layout only: the Library replaces the summary with the passage the
+                <!-- Card layout only: the activity page replaces the summary with the passage the
                      reader highlighted. -->
                 <slot name="summary">
                     <p

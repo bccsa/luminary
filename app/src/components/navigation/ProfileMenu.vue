@@ -158,7 +158,7 @@ const commonNavigation: ComputedRef<NavigationItems[]> = computed(() => {
         {
             name: t("profile_menu.activity"),
             icon: BuildingLibraryIcon,
-            action: () => router.push({ name: "library" }),
+            action: () => router.push({ name: "activity" }),
         },
     ];
 });
@@ -417,9 +417,9 @@ const sidebarNavigation = computed(() =>
                     <span class="text-sm font-medium">{{ t("menu.search") }}</span>
                 </span>
 
-                <!-- Library -->
+                <!-- My Activity -->
                 <RouterLink
-                    :to="{ name: 'library' }"
+                    :to="{ name: 'activity' }"
                     v-slot="{ isActive, navigate }"
                     custom
                 >

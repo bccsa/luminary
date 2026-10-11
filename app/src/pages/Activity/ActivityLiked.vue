@@ -2,7 +2,7 @@
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import { type ContentDto } from "luminary-shared";
-import LibraryActivityCard from "./LibraryActivityCard.vue";
+import ActivityCard from "./ActivityCard.vue";
 import { removeUserActivity } from "@/userActivity/store";
 import { useContentQuery } from "@/composables/useContentQuery";
 import { useUserActivity } from "@/userActivity/useUserActivity";
@@ -28,9 +28,9 @@ const sorted = computed(
 </script>
 
 <template>
-    <div data-test="library-liked">
+    <div data-test="activity-liked">
         <div class="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
-            <LibraryActivityCard
+            <ActivityCard
                 v-for="item in sorted"
                 :key="item._id"
                 :content="item"
@@ -43,7 +43,7 @@ const sorted = computed(
             v-if="!sorted.length"
             class="text-zinc-500 dark:text-slate-200"
         >
-            {{ t("library.liked.empty_page") }}
+            {{ t("activity.liked.empty_page") }}
         </div>
     </div>
 </template>

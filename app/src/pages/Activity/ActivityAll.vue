@@ -3,7 +3,7 @@ import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
 import { type ContentDto } from "luminary-shared";
-import LibraryActivityCard from "./LibraryActivityCard.vue";
+import ActivityCard from "./ActivityCard.vue";
 import LDialog from "@/components/common/LDialog.vue";
 import { groupByActivityDate } from "./activityGroups";
 import { useContentQuery } from "@/composables/useContentQuery";
@@ -79,7 +79,7 @@ const openArticle = () => {
 </script>
 
 <template>
-    <div data-test="library-all">
+    <div data-test="activity-all">
         <section
             v-for="section in sections"
             :key="section.group"
@@ -87,13 +87,13 @@ const openArticle = () => {
         >
             <h2
                 class="mb-3 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-slate-400"
-                :data-test="`library-group-${section.group}`"
+                :data-test="`activity-group-${section.group}`"
             >
-                {{ t(`library.group.${section.group}`) }}
+                {{ t(`activity.group.${section.group}`) }}
             </h2>
 
             <div class="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
-                <LibraryActivityCard
+                <ActivityCard
                     v-for="entry in section.items"
                     :key="entry.row._id"
                     :content="entry.content"
@@ -112,7 +112,7 @@ const openArticle = () => {
             v-if="!entries.length"
             class="text-zinc-500 dark:text-slate-200"
         >
-            {{ t("library.all.empty_page") }}
+            {{ t("activity.all.empty_page") }}
         </div>
 
         <LDialog
@@ -120,7 +120,7 @@ const openArticle = () => {
             :open="true"
             :title="opened.content.title"
             :primaryAction="openArticle"
-            :primaryButtonText="t('library.highlights.open_article')"
+            :primaryButtonText="t('activity.highlights.open_article')"
             @update:open="opened = undefined"
         >
             <ul class="space-y-2">

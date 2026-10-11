@@ -11,7 +11,7 @@ import { setReadingProgress, syncContentProgressFromStorage } from "@/contentPro
 import { userActivityDb } from "@/userActivity/db";
 import { getAllUserActivity, recordUserActivity } from "@/userActivity/store";
 import { HIGHLIGHT_COLORS, type HighlightRange } from "@/util/highlightRanges";
-import LibraryAll from "../LibraryAll.vue";
+import ActivityAll from "../ActivityAll.vue";
 
 vi.mock("vue-router");
 vi.mock("@/router", () => ({
@@ -33,7 +33,7 @@ const range = (text: string): HighlightRange => ({
     text,
 });
 
-describe("LibraryAll", () => {
+describe("ActivityAll", () => {
     beforeEach(async () => {
         // Clearing the database before populating it helps prevent some sequencing issues causing the first to fail.
         await db.docs.clear();
@@ -55,7 +55,7 @@ describe("LibraryAll", () => {
     });
 
     it("displays a message when there is no activity", async () => {
-        const wrapper = mount(LibraryAll);
+        const wrapper = mount(ActivityAll);
 
         expect(wrapper.text()).toContain(
             "Everything you read, like or highlight will show up here.",
@@ -66,11 +66,11 @@ describe("LibraryAll", () => {
         await recordUserActivity({ type: "viewed", parentId: mockEnglishContentDto.parentId });
         await recordUserActivity({ type: "liked", parentId: mockEnglishContentDto.parentId });
 
-        const wrapper = mount(LibraryAll);
+        const wrapper = mount(ActivityAll);
 
         await waitForExpect(() => {
-            expect(wrapper.find("[data-test=library-remove-viewed]").exists()).toBe(true);
-            expect(wrapper.find("[data-test=library-remove-liked]").exists()).toBe(true);
+            expect(wrapper.find("[data-test=activity-remove-viewed]").exists()).toBe(true);
+            expect(wrapper.find("[data-test=activity-remove-liked]").exists()).toBe(true);
         });
     });
 
@@ -86,21 +86,21 @@ describe("LibraryAll", () => {
             { ranges: [range("a passage")] },
         );
 
-        const wrapper = mount(LibraryAll);
+        const wrapper = mount(ActivityAll);
 
         await waitForExpect(() => {
-            expect(wrapper.find("[data-test=library-liked-icon]").exists()).toBe(true);
+            expect(wrapper.find("[data-test=activity-liked-icon]").exists()).toBe(true);
         });
         // Only the like is marked: a view needs none, and a highlight is told by its passage.
-        expect(wrapper.findAll("[data-test=library-liked-icon]")).toHaveLength(1);
+        expect(wrapper.findAll("[data-test=activity-liked-icon]")).toHaveLength(1);
         // The heart is the only thing setting the liked card apart, so it has to be readable.
-        expect(wrapper.find("[data-test=library-liked-icon]").text()).toBe("Liked");
+        expect(wrapper.find("[data-test=activity-liked-icon]").text()).toBe("Liked");
     });
 
     it("leaves the publish date off, keeping the room for the activity", async () => {
         await recordUserActivity({ type: "viewed", parentId: mockEnglishContentDto.parentId });
 
-        const wrapper = mount(LibraryAll);
+        const wrapper = mount(ActivityAll);
 
         await waitForExpect(() => {
             expect(wrapper.text()).toContain(mockEnglishContentDto.title);
@@ -113,10 +113,10 @@ describe("LibraryAll", () => {
         await recordUserActivity({ type: "viewed", parentId: mockEnglishContentDto.parentId });
         await recordUserActivity({ type: "liked", parentId: mockEnglishContentDto.parentId });
 
-        const wrapper = mount(LibraryAll);
+        const wrapper = mount(ActivityAll);
 
         await waitForExpect(() => {
-            expect(wrapper.find("[data-test=library-remove-liked]").exists()).toBe(true);
+            expect(wrapper.find("[data-test=activity-remove-liked]").exists()).toBe(true);
         });
         expect(wrapper.findAll("[role=progressbar]")).toHaveLength(1);
     });
@@ -124,10 +124,10 @@ describe("LibraryAll", () => {
     it("groups the feed under a date heading", async () => {
         await recordUserActivity({ type: "viewed", parentId: mockEnglishContentDto.parentId });
 
-        const wrapper = mount(LibraryAll);
+        const wrapper = mount(ActivityAll);
 
         await waitForExpect(() => {
-            expect(wrapper.find("[data-test=library-group-today]").exists()).toBe(true);
+            expect(wrapper.find("[data-test=activity-group-today]").exists()).toBe(true);
         });
         expect(wrapper.text()).toContain("Today");
     });
@@ -136,12 +136,12 @@ describe("LibraryAll", () => {
         await recordUserActivity({ type: "viewed", parentId: mockEnglishContentDto.parentId });
         await recordUserActivity({ type: "liked", parentId: mockEnglishContentDto.parentId });
 
-        const wrapper = mount(LibraryAll);
+        const wrapper = mount(ActivityAll);
 
         await waitForExpect(() => {
-            expect(wrapper.find("[data-test=library-remove-liked]").exists()).toBe(true);
+            expect(wrapper.find("[data-test=activity-remove-liked]").exists()).toBe(true);
         });
-        await wrapper.find("[data-test=library-remove-liked]").trigger("click");
+        await wrapper.find("[data-test=activity-remove-liked]").trigger("click");
 
         await waitForExpect(async () => {
             expect((await getAllUserActivity()).map((row) => row.type)).toEqual(["viewed"]);
@@ -158,12 +158,12 @@ describe("LibraryAll", () => {
             { ranges: [range("first passage"), range("second passage")] },
         );
 
-        const wrapper = mount(LibraryAll);
+        const wrapper = mount(ActivityAll);
 
         await waitForExpect(() => {
-            expect(wrapper.find("[data-test=library-open-highlights]").exists()).toBe(true);
+            expect(wrapper.find("[data-test=activity-open-highlights]").exists()).toBe(true);
         });
-        await wrapper.find("[data-test=library-open-highlights]").trigger("click");
+        await wrapper.find("[data-test=activity-open-highlights]").trigger("click");
 
         await waitForExpect(() => {
             expect(wrapper.findAll("[data-test=highlight-text]")).toHaveLength(2);
@@ -180,7 +180,7 @@ describe("LibraryAll", () => {
             { ranges: [range("the passage they kept")] },
         );
 
-        const wrapper = mount(LibraryAll);
+        const wrapper = mount(ActivityAll);
 
         await waitForExpect(() => {
             expect(wrapper.text()).toContain("the passage they kept");
@@ -198,12 +198,12 @@ describe("LibraryAll", () => {
             { ranges: [{ start: 0, end: 5, color: "green", text: "green passage" }] },
         );
 
-        const wrapper = mount(LibraryAll);
+        const wrapper = mount(ActivityAll);
 
         await waitForExpect(() => {
-            expect(wrapper.find("[data-test=library-excerpt]").exists()).toBe(true);
+            expect(wrapper.find("[data-test=activity-excerpt]").exists()).toBe(true);
         });
-        expect(wrapper.find("[data-test=library-excerpt]").attributes("style")).toContain(
+        expect(wrapper.find("[data-test=activity-excerpt]").attributes("style")).toContain(
             HIGHLIGHT_COLORS.green,
         );
     });
@@ -218,12 +218,12 @@ describe("LibraryAll", () => {
             { ranges: [range("a passage")] },
         );
 
-        const wrapper = mount(LibraryAll);
+        const wrapper = mount(ActivityAll);
 
         await waitForExpect(() => {
-            expect(wrapper.find("[data-test=library-remove-highlighted]").exists()).toBe(true);
+            expect(wrapper.find("[data-test=activity-remove-highlighted]").exists()).toBe(true);
         });
-        await wrapper.find("[data-test=library-remove-highlighted]").trigger("click");
+        await wrapper.find("[data-test=activity-remove-highlighted]").trigger("click");
 
         await waitForExpect(async () => {
             expect(await getAllUserActivity()).toEqual([]);
