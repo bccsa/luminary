@@ -371,11 +371,11 @@ async function shareHighlightToInstagram() {
 // Persistence
 
 /**
- * Mirrors this content's highlights into the activity table, which is what the Library reads.
+ * Mirrors this content's highlights into the activity table, which is what the activity page reads.
  * The entry above stays the painting source; this is the record of the activity itself.
  */
 async function recordHighlightActivity(): Promise<void> {
-    // Without the post there is nothing the Library could render the highlight against.
+    // Without the post there is nothing the activity page could render the highlight against.
     if (!props.parentId) return;
 
     const ref = {

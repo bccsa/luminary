@@ -52,7 +52,7 @@ export async function migrateLikesToUserActivity(): Promise<number> {
 /**
  * Highlights are stored per translation. Entries written since the post was stored with them
  * carry it; older ones are matched to their Content document instead. An entry whose post
- * cannot be found either way is skipped — its document is not local, so the Library could not
+ * cannot be found either way is skipped — its document is not local, so the activity page could not
  * render it anyway — and picked up by a later run once that document syncs.
  *
  * The source is deliberately left in place: `LHighlightable` still reads and writes it, so

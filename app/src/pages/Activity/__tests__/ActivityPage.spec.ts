@@ -5,7 +5,7 @@ import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
 import { reactive } from "vue";
 import { mockLanguageDtoEng } from "@/tests/mockdata";
-import LibraryPage from "../LibraryPage.vue";
+import ActivityPage from "../ActivityPage.vue";
 
 const route = reactive<{ query: Record<string, string> }>({ query: {} });
 const replace = vi.fn((to: { query: Record<string, string> }) => {
@@ -28,7 +28,7 @@ vi.mock("vue-i18n", () => ({
     }),
 }));
 
-describe("LibraryPage", () => {
+describe("ActivityPage", () => {
     beforeEach(() => {
         route.query = {};
         replace.mockClear();
@@ -36,37 +36,37 @@ describe("LibraryPage", () => {
     });
 
     it("shows the four filters and starts on all", async () => {
-        const wrapper = mount(LibraryPage);
+        const wrapper = mount(ActivityPage);
 
         expect(wrapper.text()).toContain("All");
         expect(wrapper.text()).toContain("Viewed");
         expect(wrapper.text()).toContain("Liked");
         expect(wrapper.text()).toContain("Highlighted");
-        expect(wrapper.find("[data-test=library-all]").exists()).toBe(true);
+        expect(wrapper.find("[data-test=activity-all]").exists()).toBe(true);
     });
 
     it("offers a way back", async () => {
-        const wrapper = mount(LibraryPage);
+        const wrapper = mount(ActivityPage);
 
         expect(wrapper.find("[data-test=backButton]").exists()).toBe(true);
     });
 
     it("switches panel when a filter is selected", async () => {
-        const wrapper = mount(LibraryPage);
+        const wrapper = mount(ActivityPage);
 
-        await wrapper.find("[data-test=library-filter-highlighted]").trigger("click");
+        await wrapper.find("[data-test=activity-filter-highlighted]").trigger("click");
         await wrapper.vm.$nextTick();
 
         expect(replace).toHaveBeenCalledWith({ query: { filter: "highlighted" } });
-        expect(wrapper.find("[data-test=library-highlighted]").exists()).toBe(true);
-        expect(wrapper.find("[data-test=library-all]").exists()).toBe(false);
+        expect(wrapper.find("[data-test=activity-highlighted]").exists()).toBe(true);
+        expect(wrapper.find("[data-test=activity-all]").exists()).toBe(false);
     });
 
     it("opens the filter given in the query string", async () => {
         route.query = { filter: "liked" };
 
-        const wrapper = mount(LibraryPage);
+        const wrapper = mount(ActivityPage);
 
-        expect(wrapper.find("[data-test=library-liked]").exists()).toBe(true);
+        expect(wrapper.find("[data-test=activity-liked]").exists()).toBe(true);
     });
 });

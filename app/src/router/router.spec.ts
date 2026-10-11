@@ -5,7 +5,7 @@ import { flushPromises } from "@vue/test-utils";
 describe("Router", () => {
     describe("Router Configuration", () => {
         it("should have the correct number of routes", () => {
-            expect(router.getRoutes()).toHaveLength(11);
+            expect(router.getRoutes()).toHaveLength(10);
         });
 
         it("should have home route configured correctly", () => {
@@ -31,21 +31,11 @@ describe("Router", () => {
             expect(searchRoute?.meta.prerender).toBe(true);
         });
 
-        it("should have library route configured correctly", () => {
-            const libraryRoute = router.getRoutes().find((route) => route.name === "library");
-            expect(libraryRoute).toBeDefined();
-            expect(libraryRoute?.path).toBe("/library");
-            expect(libraryRoute?.meta.title).toBe("title.library");
-        });
-
-        it("should redirect the old bookmarks path to the library", () => {
-            const legacyBookmarksRoute = router
-                .getRoutes()
-                .find((route) => route.path === "/bookmarks");
-            expect(legacyBookmarksRoute?.redirect).toEqual({
-                name: "library",
-                query: { filter: "liked" },
-            });
+        it("should have activity route configured correctly", () => {
+            const activityRoute = router.getRoutes().find((route) => route.name === "activity");
+            expect(activityRoute).toBeDefined();
+            expect(activityRoute?.path).toBe("/activity");
+            expect(activityRoute?.meta.title).toBe("title.activity");
         });
 
         it("should have 404 route as catch-all", () => {
