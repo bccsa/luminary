@@ -40,14 +40,14 @@ onMounted(async () => {
 </script>
 
 <template>
-    <BasePage>
+    <BasePage showBackButton>
         <div class="px-2">
-            <h1 class="mb-4 text-xl font-medium text-zinc-700 dark:text-slate-100">
-                {{ t("library.title") }}
-            </h1>
-
+            <!-- Pinned so the filters stay in reach however far the list is scrolled. The
+                 mobile top bar overlays the scroller and never retracts here, so the strip
+                 tucks under it; on xl there is no such bar and top-0 is the scrollport edge.
+                 The negative margins let its backing bleed over the page's own padding. -->
             <div
-                class="mb-6 flex flex-wrap gap-2"
+                class="sticky top-[var(--top-bar-h,74px)] z-10 -mx-2 mb-6 flex flex-wrap gap-2 bg-white px-2 py-3 dark:bg-slate-900 xl:top-0"
                 role="tablist"
                 :aria-label="t('library.title')"
             >
