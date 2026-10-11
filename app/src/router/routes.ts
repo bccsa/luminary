@@ -7,7 +7,7 @@ const ExplorePage = () => import("@/pages/ExplorePage.vue");
 const SearchPage = () => import("@/pages/SearchPage.vue");
 const VideoPage = () => import("@/pages/VideoPage.vue");
 const SettingsPage = () => import("@/pages/SettingsPage.vue");
-const LibraryPage = () => import("@/pages/Library/LibraryPage.vue");
+const ActivityPage = () => import("@/pages/Activity/ActivityPage.vue");
 const SingleContent = () => import("@/pages/SingleContent/SingleContent.vue");
 const NotFoundPage = () => import("@/pages/NotFoundPage.vue");
 
@@ -70,17 +70,12 @@ export const routes: RouteRecordRaw[] = [
         },
     },
     {
-        path: "/library",
-        component: LibraryPage,
-        name: "library",
+        path: "/activity",
+        component: ActivityPage,
+        name: "activity",
         meta: {
-            title: "title.library",
+            title: "title.activity",
         },
-    },
-    // The old path is kept only so existing links and installed shortcuts still land somewhere useful.
-    {
-        path: "/bookmarks",
-        redirect: { name: "library", query: { filter: "liked" } },
     },
     // Note that this route should always come after all defined routes,
     // to prevent wrongly configured slugs from taking over pages

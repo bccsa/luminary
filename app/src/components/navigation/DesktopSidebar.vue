@@ -253,7 +253,7 @@ const handleLogin = () => {
             </span>
 
             <RouterLink
-                :to="{ name: 'library' }"
+                :to="{ name: 'activity' }"
                 v-slot="{ isActive, href, navigate }"
                 custom
             >

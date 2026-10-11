@@ -9,7 +9,7 @@ import waitForExpect from "wait-for-expect";
 import { appLanguageIdsAsRef } from "@/globalConfig";
 import { userActivityDb } from "@/userActivity/db";
 import { getUserActivity, recordUserActivity } from "@/userActivity/store";
-import LibraryHighlighted from "../LibraryHighlighted.vue";
+import ActivityHighlighted from "../ActivityHighlighted.vue";
 
 vi.mock("vue-router");
 vi.mock("@/router", () => ({
@@ -24,7 +24,7 @@ vi.mock("vue-i18n", () => ({
     }),
 }));
 
-describe("LibraryHighlighted", () => {
+describe("ActivityHighlighted", () => {
     beforeEach(async () => {
         // Clearing the database before populating it helps prevent some sequencing issues causing the first to fail.
         await db.docs.clear();
@@ -49,7 +49,7 @@ describe("LibraryHighlighted", () => {
             parentId: mockEnglishContentDto.parentId,
         });
 
-        const wrapper = mount(LibraryHighlighted);
+        const wrapper = mount(ActivityHighlighted);
 
         await waitForExpect(() => {
             expect(wrapper.text()).toContain(mockEnglishContentDto.title);
@@ -58,7 +58,7 @@ describe("LibraryHighlighted", () => {
 
     it("displays a message when nothing is highlighted", async () => {
         await userActivityDb.userActivity.clear();
-        const wrapper = mount(LibraryHighlighted);
+        const wrapper = mount(ActivityHighlighted);
 
         expect(wrapper.text()).toContain("Posts where you highlight text will show up here.");
     });
@@ -82,7 +82,7 @@ describe("LibraryHighlighted", () => {
             parentId: french.parentId,
         });
 
-        const wrapper = mount(LibraryHighlighted);
+        const wrapper = mount(ActivityHighlighted);
 
         await waitForExpect(() => {
             expect(wrapper.text()).toContain(mockEnglishContentDto.title);
@@ -106,12 +106,12 @@ describe("LibraryHighlighted", () => {
             },
             { ranges },
         );
-        const wrapper = mount(LibraryHighlighted);
+        const wrapper = mount(ActivityHighlighted);
 
         await waitForExpect(() => {
-            expect(wrapper.find("[data-test=library-open-highlights]").exists()).toBe(true);
+            expect(wrapper.find("[data-test=activity-open-highlights]").exists()).toBe(true);
         });
-        await wrapper.find("[data-test=library-open-highlights]").trigger("click");
+        await wrapper.find("[data-test=activity-open-highlights]").trigger("click");
 
         // Both passages, then only the green one once that colour is picked.
         await waitForExpect(() => {
@@ -148,12 +148,12 @@ describe("LibraryHighlighted", () => {
             },
             { ranges },
         );
-        const wrapper = mount(LibraryHighlighted);
+        const wrapper = mount(ActivityHighlighted);
 
         await waitForExpect(() => {
-            expect(wrapper.find("[data-test=library-open-highlights]").exists()).toBe(true);
+            expect(wrapper.find("[data-test=activity-open-highlights]").exists()).toBe(true);
         });
-        await wrapper.find("[data-test=library-open-highlights]").trigger("click");
+        await wrapper.find("[data-test=activity-open-highlights]").trigger("click");
         await wrapper.find("[data-test=modal-secondary-button]").trigger("click");
 
         // Cancelling returns to the passages, with nothing deleted.
