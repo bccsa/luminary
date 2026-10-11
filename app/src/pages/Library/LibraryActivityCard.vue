@@ -105,7 +105,7 @@ const onClick = (event: MouseEvent) => {
         <button
             v-if="removable"
             type="button"
-            class="absolute bottom-2 right-2 rounded-full p-1.5 text-zinc-500 transition hover:text-red-600 focus:text-red-600 focus:opacity-100 active:text-red-700 dark:text-slate-400 dark:hover:text-red-400 dark:focus:text-red-400 dark:active:text-red-500 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100"
+            class="absolute bottom-2 right-1 rounded-full p-1.5 text-zinc-500 transition hover:text-red-600 focus:text-red-600 focus:opacity-100 active:text-red-700 dark:text-slate-400 dark:hover:text-red-400 dark:focus:text-red-400 dark:active:text-red-500 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100"
             :aria-label="t('library.remove.label')"
             :data-test="`library-remove-${type}`"
             @click.stop.prevent="$emit('remove')"

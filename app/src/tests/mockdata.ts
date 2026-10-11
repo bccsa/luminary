@@ -332,7 +332,7 @@ export const mockLanguageDtoEng: LanguageDto = {
         "profile_menu.settings": "Settings",
         "profile_menu.theme": "Theme",
         "profile_menu.language": "Language",
-        "profile_menu.activity": "Activity",
+        "profile_menu.activity": "My activity",
         "profile_menu.privacy_policy": "Privacy Policy",
         "profile_menu.update_available": "Update available",
         "profile_menu.login": "Login",
