@@ -78,32 +78,14 @@ function onMessage(event: MessageEvent) {
     youtube.receive(event.data);
 }
 
-/**
- * Turning the phone to landscape while the video plays takes it full-screen, and turning it back leaves,
- * as a native player does. The browser may refuse a full-screen request that no tap made: then the
- * video stays where it is, and the page's own full-screen button still works.
- */
-const landscape =
-    typeof window.matchMedia === "function"
-        ? window.matchMedia("(orientation: landscape)")
-        : undefined;
-function onOrientation(event: MediaQueryListEvent) {
-    if (!driven.value || !loaded.value) return;
-    if (event.matches) {
-        if (youtube.state.playing) void frame.value?.requestFullscreen?.().catch(() => {});
-    } else if (document.fullscreenElement) {
-        void document.exitFullscreen().catch(() => {});
-    }
-}
+onMounted(() => window.addEventListener("message", onMessage));
+onBeforeUnmount(() => window.removeEventListener("message", onMessage));
 
-onMounted(() => {
-    window.addEventListener("message", onMessage);
-    landscape?.addEventListener("change", onOrientation);
-});
-onBeforeUnmount(() => {
-    window.removeEventListener("message", onMessage);
-    landscape?.removeEventListener("change", onOrientation);
-});
+/** A tap on the picture plays or pauses it, which is what YouTube's own play symbol over it is for. */
+function togglePlay() {
+    if (youtube.state.playing) youtube.pause();
+    else youtube.play();
+}
 
 function play() {
     if (remember.value) youtubeAlwaysAllow.value = true;
@@ -163,11 +145,13 @@ defineExpose({
             data-test="youtubeFrame"
         />
         <!-- The video is driven from the page's own controls: a touch on the picture is not YouTube's to take
-             (it would toggle playback, or open full-screen). Left off where the frame is YouTube's embed. -->
+             (it would open YouTube, or its own full-screen). A tap plays or pauses it, as its play symbol
+             promises. Left off where the frame is YouTube's embed, whose controls are the only ones there. -->
         <div
             v-if="loaded && driven"
             class="absolute inset-0"
             data-test="youtubeShield"
+            @click="togglePlay"
         />
         <template v-else>
             <LImage

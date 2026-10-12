@@ -193,53 +193,18 @@ describe("YouTubeEmbed", () => {
             expect(plain.find("[data-test='youtubeShield']").exists()).toBe(false);
         });
 
-        it("goes full-screen when the phone turns to landscape while it plays, and leaves when it turns back", async () => {
-            let change: ((event: { matches: boolean }) => void) | undefined;
-            const query = {
-                addEventListener: (_: string, listener: typeof change) => (change = listener),
-                removeEventListener: () => {},
-            };
-            vi.stubGlobal("matchMedia", () => query);
-            const enter = vi.fn(() => Promise.resolve());
-            HTMLIFrameElement.prototype.requestFullscreen = enter;
-            const leave = vi.fn(() => Promise.resolve());
-            document.exitFullscreen = leave;
-
-            const { wrapper, report } = await playing();
+        it("plays and pauses on a tap on the picture, which YouTube's own symbol there promises", async () => {
+            const { wrapper, posted, report } = await playing();
             report({ src: "lmc-yt", type: "state", status: 1, currentTime: 3, duration: 100 });
-            change?.({ matches: true });
-            expect(enter).toHaveBeenCalledTimes(1);
+            await wrapper.get("[data-test='youtubeShield']").trigger("click");
 
-            Object.defineProperty(document, "fullscreenElement", {
-                value: document.body,
-                configurable: true,
-            });
-            change?.({ matches: false });
-            expect(leave).toHaveBeenCalledTimes(1);
+            report({ src: "lmc-yt", type: "state", status: 2, currentTime: 4, duration: 100 });
+            await wrapper.get("[data-test='youtubeShield']").trigger("click");
 
-            Object.defineProperty(document, "fullscreenElement", {
-                value: null,
-                configurable: true,
-            });
-            vi.unstubAllGlobals();
-            wrapper.unmount();
-        });
-
-        it("stays where it is on a turn while it is paused", async () => {
-            let change: ((event: { matches: boolean }) => void) | undefined;
-            vi.stubGlobal("matchMedia", () => ({
-                addEventListener: (_: string, listener: typeof change) => (change = listener),
-                removeEventListener: () => {},
-            }));
-            const enter = vi.fn(() => Promise.resolve());
-            HTMLIFrameElement.prototype.requestFullscreen = enter;
-
-            const { wrapper, report } = await playing();
-            report({ src: "lmc-yt", type: "state", status: 2, currentTime: 3, duration: 100 });
-            change?.({ matches: true });
-
-            expect(enter).not.toHaveBeenCalled();
-            vi.unstubAllGlobals();
+            expect(posted).toEqual([
+                { src: "lmc-yt", cmd: "pause" },
+                { src: "lmc-yt", cmd: "play" },
+            ]);
             wrapper.unmount();
         });
 
