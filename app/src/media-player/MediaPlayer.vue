@@ -960,11 +960,11 @@ function onKeydown(event: KeyboardEvent) {
                 </div>
 
                 <div
-                    v-if="stalled && !audioMode"
+                    v-if="(starting || stalled) && !audioMode"
                     class="pointer-events-none absolute inset-0 flex items-center justify-center"
                     role="status"
                     :aria-label="t('video_player.loading')"
-                    data-test="mediaPlayerStalled"
+                    :data-test="starting ? 'mediaPlayerStarting' : 'mediaPlayerStalled'"
                 >
                     <span
                         class="h-10 w-10 animate-spin rounded-full border-4 border-white/30 border-t-white"
@@ -1319,6 +1319,7 @@ function onKeydown(event: KeyboardEvent) {
                         <V10Button
                             round
                             class="h-20 w-20 disabled:opacity-60"
+                            :class="{ invisible: starting }"
                             :label="playing ? t('media_player.pause') : t('media_player.play')"
                             data-test="mediaPlayerPlayPause"
                             :disabled="starting"
@@ -1328,13 +1329,6 @@ function onKeydown(event: KeyboardEvent) {
                                 v-if="playing"
                                 name="pause"
                                 class="h-[38px] w-[38px]"
-                            />
-                            <span
-                                v-else-if="starting"
-                                class="border-current/30 h-10 w-10 animate-spin rounded-full border-4 border-t-current"
-                                role="status"
-                                :aria-label="t('video_player.loading')"
-                                data-test="mediaPlayerStarting"
                             />
                             <V10Icon
                                 v-else
