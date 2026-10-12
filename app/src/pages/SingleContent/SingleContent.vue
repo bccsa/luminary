@@ -65,6 +65,9 @@ import { markLanguageSwitch } from "@/util/isLangSwitch";
 import LoadingBar from "@/components/LoadingBar.vue";
 import { activeImageCollection } from "@/components/images/LImageProvider.vue";
 import MediaAction from "@/media-player/MediaAction.vue";
+import { startsAsAudio } from "@/media-player/mediaPlayer";
+import VideoPlayer from "@/components/content/VideoPlayer.vue";
+import { useMediaQuery } from "@vueuse/core";
 import LHighlightable from "@/components/common/LHighlightable.vue";
 import DropdownMenu from "@/components/common/DropdownMenu.vue";
 import ArticleOutline from "./ArticleOutline.vue";
@@ -695,9 +698,18 @@ const quickLanguageSwitch = (languageId: string) => {
 const { copyrightText: globalCopyright } = useGlobalCopyright();
 const shareCopyright = computed(() => content.value?.copyright || globalCopyright.value);
 
-// Whether the hero image can carry the title/summary as an overlay. Media does not change the
-// page: it is an attachment, offered by a button under the picture.
-const hasHeroImage = computed(() => !!(content.value?.parentId || content.value?.parentImageData));
+// Matches Tailwind's `lg`. False during the prerender, so the static HTML carries the mobile layout.
+const isDesktop = useMediaQuery("(min-width: 1024px)");
+
+// On desktop there is room for the player in the page, in the hero's place; elsewhere media is an
+// attachment, offered by a button under the picture that opens the app-wide player.
+const embedVideo = computed(() => isDesktop.value && hasVideoSource(content.value));
+
+// Whether the hero image can carry the title/summary as an overlay. An embedded player has its own
+// controls along the bottom edge, so the title goes above it instead.
+const hasHeroImage = computed(
+    () => !embedVideo.value && !!(content.value?.parentId || content.value?.parentImageData),
+);
 
 watch([isLoading, content, is404], async () => {
     if (is404.value) {
@@ -881,8 +893,17 @@ watch([isLoading, content, is404], async () => {
                                 :mobileOnly="true"
                                 :ignoreTop="true"
                             >
+                                <VideoPlayer
+                                    v-if="embedVideo && content"
+                                    :key="content._id"
+                                    :content="content"
+                                    :language="selectedLanguageCode"
+                                    :start-audio="startsAsAudio"
+                                    windowed-controls
+                                    class="overflow-hidden rounded-xl"
+                                />
                                 <div
-                                    v-if="hasHeroImage"
+                                    v-else-if="hasHeroImage"
                                     class="relative cursor-pointer overflow-hidden lg:rounded-xl"
                                     @click="
                                         () => {
@@ -945,7 +966,7 @@ watch([isLoading, content, is404], async () => {
                         </div>
 
                         <MediaAction
-                            v-if="hasVideoSource(content)"
+                            v-if="hasVideoSource(content) && !embedVideo"
                             :key="content._id"
                             :content="content"
                             :language="selectedLanguageCode"

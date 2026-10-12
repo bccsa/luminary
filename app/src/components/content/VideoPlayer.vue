@@ -53,6 +53,8 @@ type Props = {
     fullscreenOnPlay?: boolean;
     /** Draw the video in the page where the platform can; see `VideoPlayerHandle.inlineActive`. */
     inline?: boolean;
+    /** Show the player's own controls in the page, for a player that is not driven from elsewhere. */
+    windowedControls?: boolean;
 };
 
 const props = defineProps<Props>();
@@ -174,7 +176,7 @@ const preferredLanguage = computed(
  * Which of the player's own controls this app offers.
  *
  * The media player draws the transport and the audio / video switch itself, so the frame is
- * bare; full-screen still shows the player's controls. A YouTube link keeps the embed's own,
+ * bare unless `windowedControls` asks for the player's own; full-screen still shows the player's controls. A YouTube link keeps the embed's own,
  * having no controller for the media player to drive.
  *
  * The subtitles menu is off because the app's control bar has never had one, and
@@ -185,7 +187,11 @@ const preferredLanguage = computed(
 const controls = computed(() =>
     isYouTubeUrl(videoSource.value)
         ? { subtitlesMenu: false, audioVideoToggle: false }
-        : { subtitlesMenu: false, audioVideoToggle: false, windowedControls: false },
+        : {
+              subtitlesMenu: false,
+              audioVideoToggle: false,
+              windowedControls: !!props.windowedControls,
+          },
 );
 
 /** The angle the load starts on, fixed per content so a later change of mind does not reload. */
