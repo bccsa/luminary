@@ -25,13 +25,22 @@
         -webkit-user-select: none;
       }
       #ui[hidden] { display: none; }
+      /* Dark behind the bar and the exit, so they read on a bright picture as on a dark one. */
       #ui .fade {
         position: absolute;
         inset: auto 0 0 0;
-        height: 40%;
-        background: linear-gradient(to top, rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0.4) 55%, transparent);
+        height: 48%;
+        background: linear-gradient(to top, rgba(0, 0, 0, 0.88), rgba(0, 0, 0, 0.55) 55%, transparent);
         pointer-events: none;
       }
+      #ui .fade-top {
+        position: absolute;
+        inset: 0 0 auto 0;
+        height: 30%;
+        background: linear-gradient(to bottom, rgba(0, 0, 0, 0.55), transparent);
+        pointer-events: none;
+      }
+      #ui span { text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9); }
       #ui .ctl { transition: opacity 0.25s; }
       #ui.idle .ctl { opacity: 0; pointer-events: none; }
       #ui button {
@@ -41,8 +50,8 @@
         border: 0;
         padding: 0;
         color: #fff;
-        background: rgba(24, 24, 27, 0.6);
-        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+        background: rgba(24, 24, 27, 0.74);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
         border-radius: 50%;
         cursor: pointer;
         touch-action: manipulation;
@@ -86,8 +95,40 @@
         height: 44px;
         margin: 0;
         background: transparent;
-        accent-color: #eab308;
+        -webkit-appearance: none;
+        appearance: none;
         touch-action: none;
+      }
+      #seek::-webkit-slider-runnable-track {
+        height: 5px;
+        border-radius: 3px;
+        background: linear-gradient(to right, #eab308 var(--p, 0%), rgba(255, 255, 255, 0.45) var(--p, 0%));
+        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45);
+      }
+      #seek::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 18px;
+        height: 18px;
+        margin-top: -6.5px;
+        border-radius: 50%;
+        border: 0;
+        background: #fff;
+        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45), 0 1px 4px rgba(0, 0, 0, 0.6);
+      }
+      #seek::-moz-range-track {
+        height: 5px;
+        border-radius: 3px;
+        background: rgba(255, 255, 255, 0.45);
+        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45);
+      }
+      #seek::-moz-range-progress { height: 5px; border-radius: 3px; background: #eab308; }
+      #seek::-moz-range-thumb {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        border: 0;
+        background: #fff;
+        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45), 0 1px 4px rgba(0, 0, 0, 0.6);
       }
       iframe,
       #p {
@@ -103,6 +144,7 @@
     <div id="p"></div>
     <div id="ui" hidden>
       <div class="fade ctl"></div>
+      <div class="fade-top ctl"></div>
       <button id="exit" class="ctl" type="button" aria-label="Exit full screen"></button>
       <div id="mid" class="ctl">
         <button id="back" type="button" aria-label="Skip back 10 seconds"></button>
@@ -202,7 +244,10 @@
           var now = Math.floor(last.currentTime || 0);
           document.getElementById("el").textContent = clock(last.currentTime, total);
           document.getElementById("rem").textContent = "-" + clock(Math.max(Math.floor(total) - now, 0), total);
-          if (!dragging && total > 0) seek.value = String(Math.round((last.currentTime / total) * 1000));
+          if (!dragging && total > 0) {
+            seek.value = String(Math.round((last.currentTime / total) * 1000));
+            seek.style.setProperty("--p", seek.value / 10 + "%");
+          }
         }
 
         function setFullscreen(on) {
@@ -233,6 +278,7 @@
           dragging = true;
           var total = player.getDuration() || 0;
           document.getElementById("el").textContent = clock((seek.value / 1000) * total, total);
+          seek.style.setProperty("--p", seek.value / 10 + "%");
           show(true);
         });
         seek.addEventListener("change", function () {
