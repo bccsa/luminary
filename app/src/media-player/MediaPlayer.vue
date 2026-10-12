@@ -1032,6 +1032,36 @@ function onKeydown(event: KeyboardEvent) {
                         ]"
                     >
                         <div
+                            v-if="state.audioTracks.length > 1"
+                            class="relative flex-shrink-0"
+                        >
+                            <button
+                                type="button"
+                                class="flex h-11 items-center gap-1.5 rounded-full border border-zinc-500/35 px-3 text-sm font-semibold text-zinc-600 dark:text-slate-300"
+                                :aria-label="t('media_player.language')"
+                                :aria-expanded="openMenu === 'language'"
+                                @click="toggleMenu('language')"
+                            >
+                                <V10Icon
+                                    name="speech"
+                                    class="h-5 w-5"
+                                />
+                                {{ activeLanguageCode }}
+                            </button>
+                            <MediaPlayerMenu
+                                v-if="openMenu === 'language'"
+                                :title="t('media_player.language')"
+                            >
+                                <MediaPlayerMenuItem
+                                    v-for="track in state.audioTracks"
+                                    :key="track.id"
+                                    :label="track.label"
+                                    :selected="track.id === state.activeAudioTrackId"
+                                    @pick="pickTrack(track.id)"
+                                />
+                            </MediaPlayerMenu>
+                        </div>
+                        <div
                             v-if="!live && timeKnown"
                             class="relative flex-shrink-0"
                         >
@@ -1060,36 +1090,6 @@ function onKeydown(event: KeyboardEvent) {
                                     :label="rateLabel(rate)"
                                     :selected="rate === state.playbackRate"
                                     @pick="pickRate(rate)"
-                                />
-                            </MediaPlayerMenu>
-                        </div>
-                        <div
-                            v-if="state.audioTracks.length > 1"
-                            class="relative flex-shrink-0"
-                        >
-                            <button
-                                type="button"
-                                class="flex h-11 items-center gap-1.5 rounded-full border border-zinc-500/35 px-3 text-sm font-semibold text-zinc-600 dark:text-slate-300"
-                                :aria-label="t('media_player.language')"
-                                :aria-expanded="openMenu === 'language'"
-                                @click="toggleMenu('language')"
-                            >
-                                <V10Icon
-                                    name="speech"
-                                    class="h-5 w-5"
-                                />
-                                {{ activeLanguageCode }}
-                            </button>
-                            <MediaPlayerMenu
-                                v-if="openMenu === 'language'"
-                                :title="t('media_player.language')"
-                            >
-                                <MediaPlayerMenuItem
-                                    v-for="track in state.audioTracks"
-                                    :key="track.id"
-                                    :label="track.label"
-                                    :selected="track.id === state.activeAudioTrackId"
-                                    @pick="pickTrack(track.id)"
                                 />
                             </MediaPlayerMenu>
                         </div>
