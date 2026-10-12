@@ -137,6 +137,13 @@ defineExpose({
             referrerpolicy="strict-origin-when-cross-origin"
             data-test="youtubeFrame"
         />
+        <!-- The video is driven from the page's own controls: a touch on the picture is not YouTube's to take
+             (it would toggle playback, or open full-screen). Left off where the frame is YouTube's embed. -->
+        <div
+            v-if="loaded && driven"
+            class="absolute inset-0"
+            data-test="youtubeShield"
+        />
         <template v-else>
             <LImage
                 :image="content.parentImageData"

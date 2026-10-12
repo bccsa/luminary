@@ -181,6 +181,18 @@ describe("YouTubeEmbed", () => {
             wrapper.unmount();
         });
 
+        it("keeps touches off the picture, so the page's own controls are the only ones", async () => {
+            const { wrapper } = await playing();
+            expect(wrapper.find("[data-test='youtubeShield']").exists()).toBe(true);
+            wrapper.unmount();
+
+            // Where the frame is YouTube's own embed, its controls are the only ones there are.
+            vi.stubEnv("VITE_BUILD_TARGET", "native");
+            const plain = mountEmbed();
+            await plain.get("[data-test='youtubePlay']").trigger("click");
+            expect(plain.find("[data-test='youtubeShield']").exists()).toBe(false);
+        });
+
         it("tells the page what the viewer pressed", async () => {
             const { wrapper, posted, exposed } = await playing();
             exposed.pause();

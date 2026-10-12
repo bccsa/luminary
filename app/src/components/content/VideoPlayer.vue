@@ -402,6 +402,10 @@ function onLoadedMetadata() {
     const progress = getMediaProgress(id, props.content._id);
     if (progress > MIN_RESUME_SECONDS) player.value?.seek(progress - RESUME_REWIND_SECONDS);
 
+    // A video hosted by YouTube plays in its own frame, started by the viewer, in the page: it neither
+    // needs a play nor goes full-screen, which is for a player that shows video only there.
+    if (youtubeUrl.value) return;
+
     if (autoPlay || props.autoplay) void player.value?.play();
     if (
         autoFullscreen ||
