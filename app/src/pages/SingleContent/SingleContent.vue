@@ -22,6 +22,7 @@ import { recordAffinity } from "@/recommendation/affinityStore";
 import { affinityConfig } from "@/recommendation/defaultAffinityStore";
 import { notifyHighlightsChanged } from "@/recommendation/highlightStore";
 import { markSeen } from "@/recommendation/seenStore";
+import { hasContentProgress } from "@/contentProgress";
 import {
     hasUserActivity,
     recordUserActivity,
@@ -353,6 +354,7 @@ if (!isPrerender()) {
         if (c && c._id) {
             touchRetention([c._id]);
             const id = c._id;
+            const parentId = c.parentId;
             const tags = c.parentTags;
             const hasText = !!c.text;
             contentTagsById.set(id, tags);
@@ -368,6 +370,14 @@ if (!isPrerender()) {
             dwellTimer = setTimeout(() => {
                 if (!hasText) recordAffinity(tags);
                 markSeen(id);
+                // History is taken from the continue store, which short content never
+                // reaches: an article that fits one screen, one estimated under a minute,
+                // or audio stopped before the player's 60s mark. Dwelling stands in for the
+                // progress those never record. Anything already in the store is the
+                // mirror's to report.
+                if (parentId && !hasContentProgress(id)) {
+                    void recordUserActivity({ type: "viewed", parentId });
+                }
             }, DWELL_MS);
         }
     });
