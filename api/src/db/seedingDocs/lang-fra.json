@@ -182,6 +182,7 @@
         "media_player.minimise": "Réduire le lecteur",
         "media_player.expand": "Ouvrir le lecteur",
         "media_player.close": "Fermer le lecteur",
+        "media_player.close_frames": "Fermer les images",
         "media_player.play_as": "Lire en",
         "media_player.audio": "Audio",
         "media_player.video": "Vidéo",

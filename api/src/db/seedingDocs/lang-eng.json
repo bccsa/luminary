@@ -182,6 +182,7 @@
         "media_player.minimise": "Minimise player",
         "media_player.expand": "Open player",
         "media_player.close": "Close player",
+        "media_player.close_frames": "Close the frames",
         "media_player.play_as": "Play as",
         "media_player.audio": "Audio",
         "media_player.video": "Video",

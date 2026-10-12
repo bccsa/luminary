@@ -26,9 +26,34 @@ const engine = vi.hoisted(() => ({
     canMute: false,
     airPlayAvailable: false,
     airPlayActive: false,
+    thumbnailsReady: false,
 }));
 
-vi.mock("@luminary-media-converter/player-web", () => ({ AUDIO_ONLY_ANGLE_ID: "__audio__" }));
+vi.mock("@luminary-media-converter/player-web", async () => {
+    const { defineComponent, h } = await import("vue");
+    return {
+        AUDIO_ONLY_ANGLE_ID: "__audio__",
+        // The strip itself is the player's; what matters here is when the media player shows it.
+        ScrubRoster: defineComponent({
+            props: { tiles: Array, markerX: Number, interactive: Boolean, closeLabel: String },
+            emits: ["close"],
+            setup:
+                (props, { emit }) =>
+                () =>
+                    h("div", { "data-test": "scrubRoster", "data-tiles": props.tiles?.length }, [
+                        props.interactive
+                            ? h("button", {
+                                  "data-test": "mediaPlayerRosterClose",
+                                  onClick: () => emit("close"),
+                              })
+                            : null,
+                    ]),
+        }),
+        rosterStep: () => 4,
+        rosterFineStep: () => 1,
+        rosterTiles: (time: number) => [{ index: 0, left: 0, time }],
+    };
+});
 
 const upNextDocs = vi.hoisted(() => ({ value: [] as any[] }));
 const categoryDocs = vi.hoisted(() => ({ value: [] as any[] }));
@@ -88,8 +113,14 @@ vi.mock("@/components/content/VideoPlayer.vue", async () => {
                         { id: "sub-fr", lang: "fr", label: "Français", source: "master" },
                     ],
                     activeSubtitleTrackId: null,
+                    thumbnailsReady: engine.thumbnailsReady,
                 });
                 engine.controller = {
+                    thumbnailAt: vi.fn(() =>
+                        engine.thumbnailsReady
+                            ? { spriteUrl: "blob:sprite", x: 0, y: 0, w: 160, h: 90 }
+                            : null,
+                    ),
                     setAngle: vi.fn(async (id: string) => {
                         engine.state.activeAngleId = id;
                         engine.state.isAudioOnly = id === AUDIO;
@@ -373,6 +404,150 @@ describe("MediaPlayer", () => {
 
             expect(engine.handle.seek).toHaveBeenNthCalledWith(1, 20);
             expect(engine.handle.seek).toHaveBeenNthCalledWith(2, 40);
+        });
+
+        describe("scrub frames", () => {
+            beforeEach(() => {
+                vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
+                    width: 390,
+                    height: 60,
+                    left: 0,
+                    top: 0,
+                    right: 390,
+                    bottom: 60,
+                    x: 0,
+                    y: 0,
+                    toJSON: () => ({}),
+                });
+            });
+            afterEach(() => {
+                engine.thumbnailsReady = false;
+            });
+
+            it("shows the frames around the dot while it is dragged", async () => {
+                engine.thumbnailsReady = true;
+                const wrapper = await playing();
+                expect(wrapper.find("[data-test='mediaPlayerRoster']").exists()).toBe(false);
+
+                const bar = find(wrapper, "mediaPlayerSeek");
+                (bar.element as HTMLInputElement).value = "90";
+                await bar.trigger("input");
+
+                expect(wrapper.find("[data-test='mediaPlayerRoster']").exists()).toBe(true);
+                expect(wrapper.find("[data-test='scrubRoster']").exists()).toBe(true);
+                expect(engine.controller.thumbnailAt).toHaveBeenCalledWith(90);
+            });
+
+            it("takes the frames away when the touch is taken from the bar", async () => {
+                engine.thumbnailsReady = true;
+                const wrapper = await playing();
+                const bar = find(wrapper, "mediaPlayerSeek");
+                (bar.element as HTMLInputElement).value = "90";
+                await bar.trigger("input");
+                await bar.trigger("pointercancel");
+
+                expect(wrapper.find("[data-test='mediaPlayerRoster']").exists()).toBe(false);
+            });
+
+            describe("pinned, the slow way", () => {
+                async function pinnedAt90() {
+                    engine.thumbnailsReady = true;
+                    const wrapper = await playing();
+                    const bar = find(wrapper, "mediaPlayerSeek");
+                    (bar.element as HTMLInputElement).value = "90";
+                    await bar.trigger("input");
+                    await bar.trigger("change");
+                    return wrapper;
+                }
+
+                it("stays open, centred on where the video is going, when the finger lifts", async () => {
+                    const wrapper = await pinnedAt90();
+
+                    expect(engine.handle.seek).toHaveBeenCalledWith(90);
+                    expect(wrapper.find("[data-test='mediaPlayerRoster']").exists()).toBe(true);
+                    expect(find(wrapper, "mediaPlayerRosterTime").text()).toBe("1:30");
+                });
+
+                it("stays open while playback reports its position", async () => {
+                    const wrapper = await pinnedAt90();
+
+                    engine.state.currentTime = 31;
+                    await flushPromises();
+                    engine.state.currentTime = 32;
+                    await flushPromises();
+
+                    expect(wrapper.find("[data-test='mediaPlayerRosterTime']").exists()).toBe(true);
+                });
+
+                it("stays open when the browser cancels the pointer before reporting the change", async () => {
+                    engine.thumbnailsReady = true;
+                    const wrapper = await playing();
+                    const bar = find(wrapper, "mediaPlayerSeek");
+                    (bar.element as HTMLInputElement).value = "90";
+                    await bar.trigger("input");
+                    await bar.trigger("pointercancel");
+                    await bar.trigger("change");
+
+                    expect(wrapper.find("[data-test='mediaPlayerRosterTime']").exists()).toBe(true);
+                });
+
+                it("seeks to where the strip is dragged to, a quarter of a step to the pixel", async () => {
+                    const wrapper = await pinnedAt90();
+                    const roster = find(wrapper, "mediaPlayerRoster");
+                    engine.handle.seek.mockClear();
+
+                    await roster.trigger("pointerdown", { clientX: 200, pointerId: 1 });
+                    // The strip follows the finger: a drag to the right is back in time.
+                    await roster.trigger("pointermove", { clientX: 230, pointerId: 1 });
+                    await roster.trigger("pointerup", { clientX: 230, pointerId: 1 });
+
+                    expect(engine.handle.seek).toHaveBeenCalledTimes(1);
+                    expect(engine.handle.seek.mock.calls[0][0]).toBeLessThan(90);
+                });
+
+                it("seeks to a frame that is tapped", async () => {
+                    const wrapper = await pinnedAt90();
+                    const roster = find(wrapper, "mediaPlayerRoster");
+                    engine.handle.seek.mockClear();
+
+                    await roster.trigger("pointerdown", { clientX: 100, pointerId: 1 });
+                    await roster.trigger("pointerup", { clientX: 100, pointerId: 1 });
+
+                    expect(engine.handle.seek).toHaveBeenCalledTimes(1);
+                });
+
+                it("closes with its button, and the video stays where it is", async () => {
+                    const wrapper = await pinnedAt90();
+                    engine.handle.seek.mockClear();
+
+                    await find(wrapper, "mediaPlayerRosterClose").trigger("click");
+
+                    expect(wrapper.find("[data-test='mediaPlayerRoster']").exists()).toBe(false);
+                    expect(engine.handle.seek).not.toHaveBeenCalled();
+                });
+
+                it("gives way to the fast roster when the bar is held again", async () => {
+                    const wrapper = await pinnedAt90();
+                    const bar = find(wrapper, "mediaPlayerSeek");
+                    (bar.element as HTMLInputElement).value = "30";
+                    await bar.trigger("input");
+
+                    expect(wrapper.find("[data-test='mediaPlayerRosterClose']").exists()).toBe(
+                        false,
+                    );
+                    expect(wrapper.find("[data-test='mediaPlayerRoster']").exists()).toBe(true);
+                });
+            });
+
+            it("shows only the time for a video without scrub frames", async () => {
+                const wrapper = await playing();
+                const bar = find(wrapper, "mediaPlayerSeek");
+                (bar.element as HTMLInputElement).value = "90";
+                await bar.trigger("input");
+
+                expect(wrapper.find("[data-test='mediaPlayerRoster']").exists()).toBe(false);
+                expect(find(wrapper, "mediaPlayerScrubTime").text()).toBe("1:30");
+            });
         });
 
         it("seeks where the bar is dropped", async () => {

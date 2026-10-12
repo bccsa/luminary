@@ -22,7 +22,14 @@ import {
     SpeakerXMarkIcon,
     XMarkIcon,
 } from "@heroicons/vue/20/solid";
-import { AUDIO_ONLY_ANGLE_ID, type Chapter } from "@luminary-media-converter/player-web";
+import {
+    AUDIO_ONLY_ANGLE_ID,
+    ScrubRoster,
+    rosterFineStep,
+    rosterStep,
+    rosterTiles,
+    type Chapter,
+} from "@luminary-media-converter/player-web";
 import { db, type ContentDto, type Uuid } from "luminary-shared";
 import { DateTime } from "luxon";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
@@ -380,6 +387,7 @@ let scrubTimer: ReturnType<typeof setTimeout> | undefined;
 let released = false;
 function endScrub() {
     clearTimeout(scrubTimer);
+    fingerDown.value = false;
     released = false;
     scrubTime.value = null;
 }
@@ -388,12 +396,189 @@ function scrub(event: Event) {
     clearTimeout(scrubTimer);
     released = false;
     scrubTime.value = Number((event.target as HTMLInputElement).value);
+    fingerDown.value = true;
+    closePin();
+    measurePicture();
 }
 // Playback reaching where it was sent hands the bar back to it.
 watch(currentTime, (time) => {
     if (scrubTime.value !== null && released && Math.abs(time - scrubTime.value) < 2) endScrub();
 });
-const loaded = computed(() => fraction(state.value?.bufferedEnd ?? 0)); /**
+const loaded = computed(() => fraction(state.value?.bufferedEnd ?? 0));
+
+/**
+ * The frames of the video around the finger, shown above the bar while it is dragged: the stretch of the
+ * video around the dot, sliding past a marker kept under it, as in full-screen. Present only when the
+ * video has scrub frames; one without them shows the time label alone.
+ */
+const pictureWidth = ref(0);
+/** The bar's side padding (`px-10`) and the dot's own inset, which the marker has to follow. */
+const SEEK_PADDING_PX = 40;
+const SEEK_THUMB_INSET_PX = 8;
+function measurePicture() {
+    pictureWidth.value = pictureEl.value?.getBoundingClientRect().width ?? 0;
+}
+/** The frame is a sixth of the width, 16:9, and never smaller than a phone's thumb can read. */
+const rosterHeight = computed(() =>
+    Math.round((Math.min(340, Math.max(168, pictureWidth.value / 6)) * 9) / 16),
+);
+/** The strip of frames for a moment, `step` seconds to a frame, with the marker `markerX` px from the left. */
+function buildRoster(time: number, markerX: number, step: number) {
+    const instance = controller.value;
+    const width = pictureWidth.value;
+    if (!instance || !(duration.value > 0) || !(width > 0)) return null;
+    const sample = instance.thumbnailAt(0);
+    if (!sample || !sample.w || !sample.h) return null;
+    const tileWidth = Math.max(24, Math.round((rosterHeight.value * sample.w) / sample.h));
+    const tiles = rosterTiles(time, markerX, width, tileWidth, step, duration.value).map(
+        (tile) => ({
+            // A different step makes the same index a different slot, so the step is part of the identity.
+            key: `${step}:${tile.index}`,
+            left: tile.left,
+            cue: instance.thumbnailAt(tile.time),
+        }),
+    );
+    return { tiles, tileWidth, markerX, time, step };
+}
+
+/** The finger is on the bar. (`scrubTime` outlives it until playback arrives, so it cannot say.) */
+const fingerDown = ref(false);
+
+/** The fast way through the video: the frames follow the dot along the bar, several seconds to a frame. */
+const heldRoster = computed(() => {
+    if (!fingerDown.value || scrubTime.value === null || !state.value?.thumbnailsReady) return null;
+    const barWidth = pictureWidth.value - 2 * SEEK_PADDING_PX - 2 * SEEK_THUMB_INSET_PX;
+    const markerX = SEEK_PADDING_PX + SEEK_THUMB_INSET_PX + barWidth * progress.value;
+    return buildRoster(scrubTime.value, markerX, rosterStep(duration.value));
+});
+
+/**
+ * Whether the roster was shown during this press. Remembered apart from `fingerDown`, because a phone's
+ * browser may cancel the pointer when it takes the slider's drag over, and only then report the change:
+ * by that time the finger is already "up", but the viewer did hold the roster.
+ */
+let rosterOpened = false;
+watch(heldRoster, (shown) => {
+    if (shown) rosterOpened = true;
+});
+
+/**
+ * The slow, precise way: left open when the finger lifts from the bar, centred on the playhead, and
+ * dragged sideways on its own, at a quarter of the step. The video goes where the strip is let go, or
+ * to the frame that is tapped; the web player's pinned roster behaves the same.
+ */
+const pinned = ref(false);
+const pinDrag = ref<{ startX: number; startTime: number; time: number; moved: boolean } | null>(
+    null,
+);
+/** Where the strip rests after a seek, until playback has caught up; else it snaps back to the old time. */
+const pinAnchor = ref<number | null>(null);
+let pinAnchorTimer: ReturnType<typeof setTimeout> | undefined;
+const PIN_ANCHOR_HOLD_MS = 1500;
+
+/** The playhead, moved between the player's reports (a few a second) so the strip glides, not steps. */
+const playhead = ref(0);
+let playheadStamp = { time: 0, at: 0 };
+let playheadFrame = 0;
+watch(currentTime, (time) => (playheadStamp = { time, at: performance.now() }));
+function trackPlayhead() {
+    const ahead = playing.value
+        ? ((performance.now() - playheadStamp.at) / 1000) * (state.value?.playbackRate || 1)
+        : 0;
+    playhead.value = Math.min(playheadStamp.time + ahead, duration.value);
+    playheadFrame = requestAnimationFrame(trackPlayhead);
+}
+watch(pinned, (open) => {
+    cancelAnimationFrame(playheadFrame);
+    if (!open) return;
+    playheadStamp = { time: currentTime.value, at: performance.now() };
+    trackPlayhead();
+});
+onBeforeUnmount(() => {
+    cancelAnimationFrame(playheadFrame);
+    clearTimeout(pinAnchorTimer);
+});
+watch(playhead, (now) => {
+    if (pinAnchor.value !== null && Math.abs(now - pinAnchor.value) < 0.75) pinAnchor.value = null;
+});
+
+const pinnedRoster = computed(() => {
+    if (!pinned.value || fingerDown.value || !state.value?.thumbnailsReady) return null;
+    const time = pinDrag.value?.time ?? pinAnchor.value ?? playhead.value;
+    return buildRoster(time, pictureWidth.value / 2, rosterFineStep(duration.value));
+});
+
+const roster = computed(() => {
+    if (heldRoster.value) return { ...heldRoster.value, pinned: false };
+    return pinnedRoster.value ? { ...pinnedRoster.value, pinned: true } : null;
+});
+
+function closePin() {
+    pinned.value = false;
+    pinDrag.value = null;
+    pinAnchor.value = null;
+    clearTimeout(pinAnchorTimer);
+}
+/** Sends the video where the strip points, and keeps the strip there while it gets there. */
+function seekPinned(time: number) {
+    handle.value?.seek(time);
+    pinAnchor.value = time;
+    clearTimeout(pinAnchorTimer);
+    pinAnchorTimer = setTimeout(() => (pinAnchor.value = null), PIN_ANCHOR_HOLD_MS);
+}
+function pinTimeAt(
+    clientX: number,
+    element: Element,
+    view: { markerX: number; time: number; tileWidth: number; step: number },
+) {
+    const x = clientX - element.getBoundingClientRect().left;
+    const time = view.time + ((x - view.markerX) * view.step) / view.tileWidth;
+    return Math.min(Math.max(0, time), Math.max(0, duration.value - 0.001));
+}
+function onPinDown(event: PointerEvent) {
+    const view = pinnedRoster.value;
+    if (!view) return;
+    (event.currentTarget as Element | null)?.setPointerCapture?.(event.pointerId);
+    pinDrag.value = { startX: event.clientX, startTime: view.time, time: view.time, moved: false };
+}
+function onPinMove(event: PointerEvent) {
+    const drag = pinDrag.value;
+    const view = pinnedRoster.value;
+    if (!drag || !view) return;
+    const dx = event.clientX - drag.startX;
+    // The strip follows the finger, so a drag to the right is back in time.
+    const time = drag.startTime - (dx * view.step) / view.tileWidth;
+    pinDrag.value = {
+        ...drag,
+        time: Math.min(Math.max(0, time), Math.max(0, duration.value - 0.001)),
+        moved: drag.moved || Math.abs(dx) > 4,
+    };
+}
+function onPinUp(event: PointerEvent) {
+    const drag = pinDrag.value;
+    const view = pinnedRoster.value;
+    pinDrag.value = null;
+    if (!drag || !view) return;
+    seekPinned(
+        drag.moved
+            ? drag.time
+            : pinTimeAt(event.clientX, event.currentTarget as Element, {
+                  ...view,
+                  time: drag.startTime,
+              }),
+    );
+}
+function onPinCancel() {
+    pinDrag.value = null;
+}
+// The strip belongs to the video it was opened for, and to the player while it is open.
+// Separate sources, not one getter returning an array: that is a new array on every run, so it would
+// fire on every report of the player's position, closing the strip as soon as it opened.
+watch(
+    [() => item.value?.content._id, playerOpen, audioMode, () => state.value?.thumbnailsReady],
+    closePin,
+);
+/**
  * What is loaded shows once it reaches past what has played by a visible amount (about 2 px of the
  * bar): a smaller stretch would only be a hairline at the corner of the yellow.
  */
@@ -446,6 +631,15 @@ function skip(seconds: number) {
 function seekTo(event: Event) {
     const target = Number((event.target as HTMLInputElement).value);
     handle.value?.seek(target);
+    // A roster that was showing stays open, centred on where the video is going.
+    if (rosterOpened && state.value?.thumbnailsReady) {
+        pinned.value = true;
+        pinAnchor.value = target;
+        clearTimeout(pinAnchorTimer);
+        pinAnchorTimer = setTimeout(() => (pinAnchor.value = null), PIN_ANCHOR_HOLD_MS);
+    }
+    fingerDown.value = false;
+    rosterOpened = false;
     // Held until playback arrives (or a while has passed), so the dot does not fall back meanwhile.
     scrubTime.value = target;
     released = true;
@@ -702,6 +896,42 @@ function onKeydown(event: KeyboardEvent) {
                         inline
                         :fullscreen-on-play="isNativeApp()"
                     />
+                </div>
+
+                <!-- The frames around the dot while it is dragged, over the foot of the picture as in
+                     full-screen; the picture is as wide as the bar's row, so one marker position serves both. -->
+                <div
+                    v-if="roster"
+                    class="absolute inset-x-0 bottom-0 z-10"
+                    :class="
+                        roster.pinned ? 'pointer-events-auto touch-none' : 'pointer-events-none'
+                    "
+                    :style="{ height: `${rosterHeight}px` }"
+                    data-test="mediaPlayerRoster"
+                    @pointerdown="roster.pinned && onPinDown($event)"
+                    @pointermove="roster.pinned && onPinMove($event)"
+                    @pointerup="roster.pinned && onPinUp($event)"
+                    @pointercancel="onPinCancel"
+                >
+                    <ScrubRoster
+                        :tiles="roster.tiles"
+                        :tile-width="roster.tileWidth"
+                        :height="rosterHeight"
+                        :marker-x="roster.markerX"
+                        :bottom="0"
+                        :interactive="roster.pinned"
+                        :close-label="t('media_player.close_frames')"
+                        @close="closePin"
+                    />
+                    <template v-if="roster.pinned">
+                        <!-- The time under the marker, which the bar's own label cannot show: the finger is on the strip. -->
+                        <span
+                            class="pointer-events-none absolute top-1 z-40 -translate-x-1/2 rounded-md bg-slate-900/80 px-2 py-0.5 text-xs font-semibold tabular-nums text-white ring-1 ring-white/10"
+                            :style="{ left: `${roster.markerX}px` }"
+                            data-test="mediaPlayerRosterTime"
+                            >{{ formatTime(roster.time) }}</span
+                        >
+                    </template>
                 </div>
 
                 <div
@@ -1004,7 +1234,10 @@ function onKeydown(event: KeyboardEvent) {
                         class="max-h-10 min-h-0 flex-shrink flex-grow basis-5"
                         aria-hidden="true"
                     />
-                    <div class="relative flex-none">
+                    <div
+                        ref="seekArea"
+                        class="relative flex-none"
+                    >
                         <div
                             class="flex flex-col px-10"
                             :class="{ invisible: !timeKnown || live }"
