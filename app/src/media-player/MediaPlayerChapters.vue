@@ -4,6 +4,7 @@ import { computed } from "vue";
 import { chapterIndexAt } from "@luminary-media-converter/player-web";
 import type { Chapter, ThumbnailSpriteCue } from "@luminary-media-converter/player-web";
 import ChapterRow from "./ChapterRow.vue";
+import { chapterProgress } from "./chapterProgress";
 
 const props = defineProps<{
     chapters: Chapter[];
@@ -26,6 +27,7 @@ const current = computed(() => chapterIndexAt(props.chapters, props.currentTime)
                 :chapter="chapter"
                 :current="index === current"
                 :cue="cueAt?.(chapter.startTime) ?? null"
+                :progress="chapterProgress(chapter, currentTime)"
                 @click="$emit('select', chapter)"
             />
         </li>

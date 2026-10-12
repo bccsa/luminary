@@ -18,6 +18,8 @@ const props = withDefaults(
         cue?: ThumbnailSpriteCue | null;
         /** Width of the frame in px. */
         frameWidth?: number;
+        /** How much of the chapter has played, 0 to 1, drawn along the frame's foot; none draws no bar. */
+        progress?: number;
         /** Classes for the frame alone, so a page can hide it where it wants text rows. */
         frameClass?: string;
     }>(),
@@ -103,6 +105,12 @@ const imageStyle = computed(() => {
             <span
                 class="block"
                 :style="imageStyle"
+            />
+            <span
+                v-if="progress !== undefined"
+                class="absolute bottom-0 left-0 h-[3px] bg-white"
+                :style="{ width: `${Math.round(progress * 100)}%` }"
+                data-test="mediaPlayerChapterProgress"
             />
         </span>
         <span class="flex min-w-0 flex-1 flex-col gap-0.5">
