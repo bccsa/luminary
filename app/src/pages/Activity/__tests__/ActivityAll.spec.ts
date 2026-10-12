@@ -170,6 +170,38 @@ describe("ActivityAll", () => {
         });
     });
 
+    it("offers the colour filter in the feed's panel too", async () => {
+        await recordUserActivity(
+            {
+                type: "highlighted",
+                contentId: mockEnglishContentDto._id,
+                parentId: mockEnglishContentDto.parentId,
+            },
+            {
+                ranges: [
+                    { start: 0, end: 5, color: "yellow", text: "a yellow one" },
+                    { start: 10, end: 16, color: "green", text: "a green one" },
+                ],
+            },
+        );
+
+        const wrapper = mount(ActivityAll);
+
+        await waitForExpect(() => {
+            expect(wrapper.find("[data-test=activity-open-highlights]").exists()).toBe(true);
+        });
+        await wrapper.find("[data-test=activity-open-highlights]").trigger("click");
+
+        await waitForExpect(() => {
+            expect(wrapper.findAll("[data-test=highlight-text]")).toHaveLength(2);
+        });
+
+        await wrapper.find("[data-test=highlight-colour-green]").trigger("click");
+        const shown = wrapper.findAll("[data-test=highlight-text]");
+        expect(shown).toHaveLength(1);
+        expect(shown[0].text()).toBe("a green one");
+    });
+
     it("shows the highlighted passage in place of the summary", async () => {
         await recordUserActivity(
             {
