@@ -653,8 +653,7 @@ describe("MediaPlayer", () => {
             const loaded = find(wrapper, "mediaPlayerLoaded").element;
             expect(loaded.className).toContain("rounded-full");
             const played = loaded.nextElementSibling as HTMLElement;
-            expect(played.className).toContain("bg-zinc-800");
-            expect(played.className).toContain("dark:bg-white");
+            expect(played.className).toContain("bg-yellow-500");
             expect(played.className).toContain("rounded-l-full");
             // Loaded stretches on past it: its right end is flat against that.
             expect(played.className).not.toContain("rounded-r-full");
@@ -670,9 +669,9 @@ describe("MediaPlayer", () => {
         it("draws what is loaded lighter than the track and darker than what has played", async () => {
             const wrapper = await playing();
             const loaded = find(wrapper, "mediaPlayerLoaded").classes().join(" ");
-            expect(loaded).toContain("dark:bg-[rgb(115_133_159/0.75)]");
+            expect(loaded).toContain("dark:bg-white/50");
             expect(find(wrapper, "mediaPlayerLoaded").element.parentElement!.className).toContain(
-                "dark:bg-[rgb(115_133_159/0.5)]",
+                "dark:bg-white/15",
             );
             expect(loaded).not.toContain("bg-yellow");
         });
@@ -891,11 +890,11 @@ describe("MediaPlayer", () => {
             expect(engine.controller.setSubtitleTrack).toHaveBeenLastCalledWith(null);
         });
 
-        it("offers no subtitles the source does not have", async () => {
+        it("shows no subtitles button when the source has none", async () => {
             const wrapper = await playing();
             engine.state.subtitleTracks = [];
             await flushPromises();
-            expect(find(wrapper, "mediaPlayerSubtitles").attributes("disabled")).toBeDefined();
+            expect(wrapper.find("[data-test='mediaPlayerSubtitles']").exists()).toBe(false);
         });
 
         it("offers no language menu for a single track", async () => {
@@ -983,12 +982,10 @@ describe("MediaPlayer", () => {
     });
 
     describe("mute and picture in picture", () => {
-        it("are dimmed where the platform has none", async () => {
+        it("are not shown where the platform has none", async () => {
             const wrapper = await playing();
-            expect(find(wrapper, "mediaPlayerMute").attributes("disabled")).toBeDefined();
-            expect(
-                find(wrapper, "mediaPlayerPictureInPicture").attributes("disabled"),
-            ).toBeDefined();
+            expect(wrapper.find("[data-test='mediaPlayerMute']").exists()).toBe(false);
+            expect(wrapper.find("[data-test='mediaPlayerPictureInPicture']").exists()).toBe(false);
         });
 
         it("mute and unmute through the player, and picture in picture starts there", async () => {

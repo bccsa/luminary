@@ -1050,7 +1050,10 @@ function onKeydown(event: KeyboardEvent) {
                                     {{ rateLabel(state.playbackRate) }}
                                 </span>
                             </button>
-                            <MediaPlayerMenu v-if="openMenu === 'speed'">
+                            <MediaPlayerMenu
+                                v-if="openMenu === 'speed'"
+                                :title="t('media_player.speed')"
+                            >
                                 <MediaPlayerMenuItem
                                     v-for="rate in [...RATES].reverse()"
                                     :key="rate"
@@ -1077,7 +1080,10 @@ function onKeydown(event: KeyboardEvent) {
                                 />
                                 {{ activeLanguageCode }}
                             </button>
-                            <MediaPlayerMenu v-if="openMenu === 'language'">
+                            <MediaPlayerMenu
+                                v-if="openMenu === 'language'"
+                                :title="t('media_player.language')"
+                            >
                                 <MediaPlayerMenuItem
                                     v-for="track in state.audioTracks"
                                     :key="track.id"
@@ -1088,14 +1094,16 @@ function onKeydown(event: KeyboardEvent) {
                             </MediaPlayerMenu>
                         </div>
                         <template v-if="!audioMode">
-                            <div class="relative flex-shrink-0">
+                            <div
+                                v-if="state.subtitleTracks.length > 0"
+                                class="relative flex-shrink-0"
+                            >
                                 <button
                                     type="button"
                                     class="flex h-11 w-11 items-center justify-center rounded-full border border-zinc-500/35 text-zinc-600 disabled:opacity-40 dark:text-slate-300"
                                     :class="{ 'bg-zinc-500/15': state.activeSubtitleTrackId }"
                                     :aria-label="t('media_player.subtitles')"
                                     :aria-expanded="openMenu === 'subtitles'"
-                                    :disabled="state.subtitleTracks.length === 0"
                                     data-test="mediaPlayerSubtitles"
                                     @click="toggleMenu('subtitles')"
                                 >
@@ -1106,7 +1114,10 @@ function onKeydown(event: KeyboardEvent) {
                                         class="h-5 w-5"
                                     />
                                 </button>
-                                <MediaPlayerMenu v-if="openMenu === 'subtitles'">
+                                <MediaPlayerMenu
+                                    v-if="openMenu === 'subtitles'"
+                                    :title="t('media_player.subtitles')"
+                                >
                                     <MediaPlayerMenuItem
                                         :label="t('media_player.subtitles_off')"
                                         :selected="!state.activeSubtitleTrackId"
@@ -1123,10 +1134,10 @@ function onKeydown(event: KeyboardEvent) {
                             </div>
 
                             <button
+                                v-if="handle?.canPictureInPicture"
                                 type="button"
                                 class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full border border-zinc-500/35 text-zinc-600 disabled:opacity-40 dark:text-slate-300"
                                 :aria-label="t('media_player.picture_in_picture')"
-                                :disabled="!handle?.canPictureInPicture"
                                 data-test="mediaPlayerPictureInPicture"
                                 @click="handle?.startPictureInPicture?.()"
                             >
@@ -1155,11 +1166,11 @@ function onKeydown(event: KeyboardEvent) {
                             />
                         </button>
                         <button
+                            v-if="handle?.canMute"
                             type="button"
                             class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full border border-zinc-500/35 text-zinc-600 disabled:opacity-40 dark:text-slate-300"
                             :aria-label="muted ? t('media_player.unmute') : t('media_player.mute')"
                             :aria-pressed="muted"
-                            :disabled="!handle?.canMute"
                             data-test="mediaPlayerMute"
                             @click="handle?.setMuted?.(!muted)"
                         >
@@ -1223,18 +1234,18 @@ function onKeydown(event: KeyboardEvent) {
                                     >{{ formatTime(scrubTime) }}</span
                                 >
                                 <div
-                                    class="absolute inset-x-0 overflow-hidden rounded-full bg-[rgb(115_133_159/0.35)] transition-[height] duration-150 dark:bg-[rgb(115_133_159/0.5)]"
+                                    class="absolute inset-x-0 overflow-hidden rounded-full bg-black/10 transition-[height] duration-150 dark:bg-white/15"
                                     :class="scrubTime !== null ? 'h-3' : 'h-2'"
                                     aria-hidden="true"
                                 >
                                     <div
                                         v-if="loadedShows"
-                                        class="absolute inset-y-0 left-0 rounded-full bg-[rgb(115_133_159/0.6)] transition-[width] duration-300 dark:bg-[rgb(115_133_159/0.75)]"
+                                        class="absolute inset-y-0 left-0 rounded-full bg-black/40 transition-[width] duration-300 dark:bg-white/50"
                                         :style="{ width: `${loaded * 100}%` }"
                                         data-test="mediaPlayerLoaded"
                                     />
                                     <div
-                                        class="absolute inset-y-0 left-0 rounded-l-full bg-zinc-800 dark:bg-white"
+                                        class="absolute inset-y-0 left-0 rounded-l-full bg-yellow-500"
                                         :class="{ 'rounded-r-full': !loadedShows }"
                                         :style="{ width: `${progress * 100}%` }"
                                     />
@@ -1246,7 +1257,7 @@ function onKeydown(event: KeyboardEvent) {
                                     step="1"
                                     :value="shownTime"
                                     :aria-label="t('media_player.seek')"
-                                    class="relative h-11 w-full cursor-pointer appearance-none bg-transparent [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-zinc-800 dark:[&::-moz-range-thumb]:bg-white [&::-moz-range-track]:bg-transparent [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-zinc-800 [&::-webkit-slider-thumb]:shadow-md dark:[&::-webkit-slider-thumb]:bg-white"
+                                    class="relative h-11 w-full cursor-pointer appearance-none bg-transparent [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-yellow-500 [&::-moz-range-track]:bg-transparent [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-zinc-800 [&::-webkit-slider-thumb]:shadow-md dark:[&::-webkit-slider-thumb]:bg-white"
                                     :class="
                                         scrubTime !== null
                                             ? '[&::-moz-range-thumb]:opacity-100 [&::-webkit-slider-thumb]:opacity-100'
