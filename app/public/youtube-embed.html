@@ -13,6 +13,82 @@
         background: #000;
         overflow: hidden;
       }
+      #ui {
+        position: fixed;
+        inset: 0;
+        z-index: 2;
+        color: #fff;
+        font: 500 13px/1 system-ui, -apple-system, "Segoe UI", sans-serif;
+        font-variant-numeric: tabular-nums;
+        -webkit-tap-highlight-color: transparent;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+      #ui[hidden] { display: none; }
+      #ui .fade {
+        position: absolute;
+        inset: auto 0 0 0;
+        height: 40%;
+        background: linear-gradient(to top, rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0.4) 55%, transparent);
+        pointer-events: none;
+      }
+      #ui .ctl { transition: opacity 0.25s; }
+      #ui.idle .ctl { opacity: 0; pointer-events: none; }
+      #ui button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 0;
+        padding: 0;
+        color: #fff;
+        background: rgba(24, 24, 27, 0.6);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+        border-radius: 50%;
+        cursor: pointer;
+        touch-action: manipulation;
+      }
+      #ui button:active { transform: scale(0.94); }
+      #ui svg { fill: currentColor; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6)); }
+      /* The skip glyph is an outline: an arc and an arrowhead, with the seconds filled. */
+      #ui svg.skip { fill: none; }
+      #ui svg.skip text { fill: currentColor; stroke: none; }
+      #exit {
+        position: absolute;
+        top: calc(env(safe-area-inset-top, 0px) + 12px);
+        right: calc(env(safe-area-inset-right, 0px) + 12px);
+        width: 44px;
+        height: 44px;
+      }
+      #mid {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        display: flex;
+        align-items: center;
+        gap: 32px;
+      }
+      #pp { width: 80px; height: 80px; }
+      #back, #fwd { width: 56px; height: 56px; }
+      #bar {
+        position: absolute;
+        left: calc(env(safe-area-inset-left, 0px) + 20px);
+        right: calc(env(safe-area-inset-right, 0px) + 20px);
+        bottom: calc(env(safe-area-inset-bottom, 0px) + 18px);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      #bar span { min-width: 3.2em; }
+      #bar #rem { text-align: right; }
+      #seek {
+        flex: 1;
+        height: 44px;
+        margin: 0;
+        background: transparent;
+        accent-color: #eab308;
+        touch-action: none;
+      }
       iframe,
       #p {
         position: absolute;
@@ -25,6 +101,20 @@
   </head>
   <body>
     <div id="p"></div>
+    <div id="ui" hidden>
+      <div class="fade ctl"></div>
+      <button id="exit" class="ctl" type="button" aria-label="Exit full screen"></button>
+      <div id="mid" class="ctl">
+        <button id="back" type="button" aria-label="Skip back 10 seconds"></button>
+        <button id="pp" type="button" aria-label="Play"></button>
+        <button id="fwd" type="button" aria-label="Skip forward 10 seconds"></button>
+      </div>
+      <div id="bar" class="ctl">
+        <span id="el">0:00</span>
+        <input id="seek" type="range" min="0" max="1000" value="0" aria-label="Seek" />
+        <span id="rem">-0:00</span>
+      </div>
+    </div>
     <!--
       The native app shows this page in a frame. YouTube refuses an embed (error 153) when the page
       holding it has no proper address to report, which is what an app's own page has; this page is
@@ -37,7 +127,8 @@
       The API's script is loaded here, from youtube.com, and only in the driven mode.
 
       Messages both ways are JSON with `src: "lmc-yt"`. Out: `ready`, `state`, `time`, `error`. In:
-      `cmd` of `play`, `pause`, `seek`, `rate`, `mute`, `unmute`, `snapshot`.
+      `cmd` of `play`, `pause`, `seek`, `rate`, `mute`, `unmute`, `snapshot`, `fullscreen`, and `exit`
+      (leave full-screen) out. In full-screen this page draws its own controls over the video.
     -->
     <script>
       (function () {
@@ -62,6 +153,100 @@
         var ready = false;
         var timer = 0;
 
+        // The controls drawn over the video while the app has it full-screen: this page is what fills the
+        // screen, so they have to live here. Hidden otherwise; the app's own controls sit beside the picture.
+        var ICONS = {"play": ["m14.051 10.723-7.985 4.964a1.98 1.98 0 0 1-2.758-.638A2.06 2.06 0 0 1 3 13.964V4.036C3 2.91 3.895 2 5 2c.377 0 .747.109 1.066.313l7.985 4.964a2.057 2.057 0 0 1 .627 2.808c-.16.257-.373.475-.627.637"], "pause": ["M3.75 2h1.5a1.75 1.75 0 0 1 1.75 1.75v10.5a1.75 1.75 0 0 1 -1.75 1.75h-1.5a1.75 1.75 0 0 1 -1.75 -1.75v-10.5a1.75 1.75 0 0 1 1.75 -1.75z", "M12.75 2h1.5a1.75 1.75 0 0 1 1.75 1.75v10.5a1.75 1.75 0 0 1 -1.75 1.75h-1.5a1.75 1.75 0 0 1 -1.75 -1.75v-10.5a1.75 1.75 0 0 1 1.75 -1.75z"], "fullscreenExit": ["M7.883 1.93a.99.99 0 0 0-1.09.217L2.146 6.793A.998.998 0 0 0 2.853 8.5H7.5c.551 0 1-.449 1-1V2.854a1 1 0 0 0-.617-.924m7.263 7.57H10.5c-.551 0-1 .449-1 1v4.646a.996.996 0 0 0 1.001 1.001 1 1 0 0 0 .706-.293l4.646-4.646a.998.998 0 0 0-.707-1.707z"]};
+        function svg(paths, size) {
+          return '<svg viewBox="0 0 18 18" width="' + size + '" height="' + size + '" aria-hidden="true">' +
+            paths.map(function (d) { return '<path d="' + d + '"/>'; }).join("") + "</svg>";
+        }
+        function skipSvg(forward) {
+          var arc = forward ? "M20.5 12a8.5 8.5 0 1 1-2.9-6.4" : "M3.5 12a8.5 8.5 0 1 0 2.9-6.4";
+          var head = forward ? "M20.8 4.2v4.4h-4.4" : "M3.2 4.2v4.4h4.4";
+          return '<svg class="skip" viewBox="0 0 24 24" width="32" height="32" aria-hidden="true" fill="none" stroke="currentColor"' +
+            ' stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="' + arc + '"/><path d="' + head +
+            '"/><text x="12" y="15.2" text-anchor="middle" fill="currentColor" stroke="none" font-weight="700" font-size="7.5">10</text></svg>';
+        }
+        var ui = document.getElementById("ui");
+        var ppButton = document.getElementById("pp");
+        var seek = document.getElementById("seek");
+        var last = {};
+        var fullscreen = false;
+        var dragging = false;
+        var hideTimer = 0;
+        document.getElementById("exit").innerHTML = svg(ICONS.fullscreenExit, 22);
+        document.getElementById("back").innerHTML = skipSvg(false);
+        document.getElementById("fwd").innerHTML = skipSvg(true);
+
+        function clock(seconds, guide) {
+          var whole = Math.max(Math.floor(seconds || 0), 0);
+          var h = Math.floor(whole / 3600);
+          var m = Math.floor((whole % 3600) / 60);
+          var sec = ("0" + (whole % 60)).slice(-2);
+          if (h > 0 || guide >= 3600) return h + ":" + ("0" + m).slice(-2) + ":" + sec;
+          return (guide >= 600 ? ("0" + Math.floor(whole / 60)).slice(-2) : Math.floor(whole / 60)) + ":" + sec;
+        }
+
+        function show(on) {
+          ui.classList.toggle("idle", !on);
+          clearTimeout(hideTimer);
+          if (on && last.status === 1) hideTimer = setTimeout(function () { show(false); }, 3000);
+        }
+
+        function render() {
+          if (!fullscreen) return;
+          var playing = last.status === 1 || last.status === 3;
+          ppButton.innerHTML = svg(playing ? ICONS.pause : ICONS.play, 38);
+          ppButton.setAttribute("aria-label", playing ? "Pause" : "Play");
+          var total = Math.max(last.duration || 0, last.currentTime || 0);
+          var now = Math.floor(last.currentTime || 0);
+          document.getElementById("el").textContent = clock(last.currentTime, total);
+          document.getElementById("rem").textContent = "-" + clock(Math.max(Math.floor(total) - now, 0), total);
+          if (!dragging && total > 0) seek.value = String(Math.round((last.currentTime / total) * 1000));
+        }
+
+        function setFullscreen(on) {
+          fullscreen = on;
+          ui.hidden = !on;
+          if (on) {
+            render();
+            show(true);
+          }
+        }
+
+        ppButton.addEventListener("click", function () {
+          if (!ready) return;
+          if (last.status === 1 || last.status === 3) player.pauseVideo(); else player.playVideo();
+          show(true);
+        });
+        document.getElementById("back").addEventListener("click", function () { skipBy(-10); });
+        document.getElementById("fwd").addEventListener("click", function () { skipBy(10); });
+        function skipBy(seconds) {
+          if (!ready) return;
+          var total = player.getDuration() || 0;
+          var target = Math.min(Math.max((player.getCurrentTime() || 0) + seconds, 0), total || 0);
+          player.seekTo(target, true);
+          settle(target);
+          show(true);
+        }
+        seek.addEventListener("input", function () {
+          dragging = true;
+          var total = player.getDuration() || 0;
+          document.getElementById("el").textContent = clock((seek.value / 1000) * total, total);
+          show(true);
+        });
+        seek.addEventListener("change", function () {
+          var total = player.getDuration() || 0;
+          var target = (seek.value / 1000) * total;
+          dragging = false;
+          player.seekTo(target, true);
+          settle(target);
+          show(true);
+        });
+        document.getElementById("exit").addEventListener("click", function () { send({ type: "exit" }); });
+        // A tap on the picture shows or hides the controls.
+        ui.addEventListener("click", function (event) { if (event.target === ui) show(ui.classList.contains("idle")); });
+
         function send(message) {
           message.src = "lmc-yt";
           // Whoever frames this page. The state is not secret: it is what a viewer of the video sees.
@@ -83,6 +268,8 @@
         function report(type) {
           var message = snapshot();
           message.type = type;
+          last = message;
+          render();
           send(message);
         }
 
@@ -149,6 +336,7 @@
             case "mute": player.mute(); report("state"); break;
             case "unmute": player.unMute(); report("state"); break;
             case "snapshot": report("state"); break;
+            case "fullscreen": setFullscreen(!!message.value); break;
           }
         });
 

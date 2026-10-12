@@ -75,11 +75,28 @@ function onMessage(event: MessageEvent) {
     // Only the hosted page in our own frame.
     if (!driven.value || event.source !== frame.value?.contentWindow) return;
     if (event.origin !== hostedPage.value?.origin || !isYouTubeReport(event.data)) return;
+    // The controls the page draws over a full-screen video have an exit.
+    if (event.data.type === "exit") {
+        if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
+        return;
+    }
     youtube.receive(event.data);
 }
 
-onMounted(() => window.addEventListener("message", onMessage));
-onBeforeUnmount(() => window.removeEventListener("message", onMessage));
+/** The frame went full-screen or left it, however: our button, the system's gesture, or the page's exit. */
+function onFullscreenChange() {
+    if (!driven.value) return;
+    youtube.setFullscreen(!!frame.value && document.fullscreenElement === frame.value);
+}
+
+onMounted(() => {
+    window.addEventListener("message", onMessage);
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+});
+onBeforeUnmount(() => {
+    window.removeEventListener("message", onMessage);
+    document.removeEventListener("fullscreenchange", onFullscreenChange);
+});
 
 /** A tap on the picture plays or pauses it, which is what YouTube's own play symbol over it is for. */
 function togglePlay() {

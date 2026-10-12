@@ -208,6 +208,50 @@ describe("YouTubeEmbed", () => {
             wrapper.unmount();
         });
 
+        it("tells the page when the frame goes full-screen and leaves it, for its own controls", async () => {
+            const { wrapper, posted } = await playing();
+            const frame = wrapper.get("[data-test='youtubeFrame']").element;
+
+            Object.defineProperty(document, "fullscreenElement", {
+                value: frame,
+                configurable: true,
+            });
+            document.dispatchEvent(new Event("fullscreenchange"));
+            Object.defineProperty(document, "fullscreenElement", {
+                value: null,
+                configurable: true,
+            });
+            document.dispatchEvent(new Event("fullscreenchange"));
+
+            expect(posted).toEqual([
+                { src: "lmc-yt", cmd: "fullscreen", value: 1 },
+                { src: "lmc-yt", cmd: "fullscreen", value: 0 },
+            ]);
+            wrapper.unmount();
+        });
+
+        it("leaves full-screen when the page's exit button is pressed, and only for its own page", async () => {
+            const leave = vi.fn(() => Promise.resolve());
+            document.exitFullscreen = leave;
+            Object.defineProperty(document, "fullscreenElement", {
+                value: document.body,
+                configurable: true,
+            });
+            const { wrapper, report } = await playing();
+
+            report({ src: "lmc-yt", type: "exit" }, window);
+            expect(leave).not.toHaveBeenCalled();
+
+            report({ src: "lmc-yt", type: "exit" });
+            expect(leave).toHaveBeenCalledTimes(1);
+
+            Object.defineProperty(document, "fullscreenElement", {
+                value: null,
+                configurable: true,
+            });
+            wrapper.unmount();
+        });
+
         it("tells the page what the viewer pressed", async () => {
             const { wrapper, posted, exposed } = await playing();
             exposed.pause();

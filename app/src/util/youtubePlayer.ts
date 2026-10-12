@@ -17,7 +17,7 @@ const BUFFERING = 3;
 /** What the hosted page says. */
 export type YouTubeReport = {
     src: "lmc-yt";
-    type: "ready" | "state" | "time" | "error";
+    type: "ready" | "state" | "time" | "error" | "exit";
     status?: number;
     currentTime?: number;
     duration?: number;
@@ -31,7 +31,7 @@ export type YouTubeReport = {
 /** What the page asks of it. */
 export type YouTubeCommand = {
     src: "lmc-yt";
-    cmd: "play" | "pause" | "seek" | "rate" | "mute" | "unmute" | "snapshot";
+    cmd: "play" | "pause" | "seek" | "rate" | "mute" | "unmute" | "snapshot" | "fullscreen";
     value?: number;
 };
 
@@ -100,6 +100,8 @@ export function createYouTubePlayer(options: YouTubePlayerOptions) {
     let endedReported = false;
 
     function receive(report: YouTubeReport): void {
+        // "exit" asks the page to leave full-screen; it says nothing about the video.
+        if (report.type === "exit") return;
         if (report.type === "error") {
             state.lifecycle = "error";
             state.playing = false;
@@ -162,6 +164,8 @@ export function createYouTubePlayer(options: YouTubePlayerOptions) {
         },
         setPlaybackRate: (rate: number) => command("rate", rate),
         setMuted: (muted: boolean) => command(muted ? "mute" : "unmute"),
+        /** Tells the page the frame went full-screen, or left it: it draws its own controls over the video. */
+        setFullscreen: (on: boolean) => command("fullscreen", on ? 1 : 0),
         /** Asks the page for the current state, for a player that attached late. */
         snapshot: () => command("snapshot"),
     };
