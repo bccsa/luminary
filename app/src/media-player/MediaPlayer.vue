@@ -223,6 +223,14 @@ watch([tabs, chapters], ([available, chapterList]) => {
     }
 });
 
+/**
+ * A frame of the video for a chapter row to lead with; none until the video's thumbnails have
+ * arrived, and none for a video encoded without them.
+ */
+function chapterCueAt(time: number) {
+    return state.value?.thumbnailsReady ? (handle.value?.controller?.thumbnailAt(time) ?? null) : null;
+}
+
 /** A chapter: the picture goes there, and plays on. */
 function playChapter(chapter: Chapter) {
     handle.value?.seek(chapter.startTime);
@@ -1305,6 +1313,7 @@ function onKeydown(event: KeyboardEvent) {
                     v-else-if="sheetTab === 'chapters'"
                     :chapters="chapters"
                     :current-time="currentTime"
+                    :cue-at="chapterCueAt"
                     @select="playChapter"
                 />
             </div>

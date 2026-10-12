@@ -49,6 +49,9 @@ vi.mock("@luminary-media-converter/player-web", async () => {
                             : null,
                     ]),
         }),
+        // The real one is player-core's, tested there: the last chapter that has started.
+        chapterIndexAt: (chapters: { startTime: number }[], time: number) =>
+            chapters.reduce((found, chapter, index) => (chapter.startTime <= time ? index : found), -1),
         rosterStep: () => 4,
         rosterFineStep: () => 1,
         rosterTiles: (time: number) => [{ index: 0, left: 0, time }],
@@ -190,6 +193,7 @@ beforeEach(() => {
     engine.canMute = false;
     engine.airPlayAvailable = false;
     engine.airPlayActive = false;
+    engine.thumbnailsReady = false;
     document.documentElement.classList.remove("lmc-inline-video");
     document.documentElement.classList.remove("lmc-player-dragging");
     closeMediaPlayer();
@@ -1192,11 +1196,11 @@ describe("MediaPlayer", () => {
             expect(wrapper.find("[data-test='mediaPlayerTab-chapters']").exists()).toBe(true);
         });
 
-        it("marks the chapter playing now with the bars, and writes each chapter's start at the right", async () => {
+        it("marks the chapter playing now in words, and writes where each starts and how long it runs", async () => {
             const wrapper = await playing();
             engine.state.chapters = [
                 { startTime: 0, endTime: 20, title: "Opening" },
-                { startTime: 20, endTime: 120, title: "The talk" },
+                { startTime: 20, endTime: 140, title: "The talk" },
             ];
             await flushPromises();
             await find(wrapper, "mediaPlayerTab-chapters").trigger("click");
@@ -1204,7 +1208,35 @@ describe("MediaPlayer", () => {
             const rows = wrapper.findAll("[data-test='mediaPlayerChapter']");
             expect(rows[0]!.find("[data-test='mediaPlayerChapterNow']").exists()).toBe(false);
             expect(rows[1]!.find("[data-test='mediaPlayerChapterNow']").exists()).toBe(true);
-            expect(rows[1]!.text()).toBe("The talk0:20");
+            // The words come from the translations, which these tests leave out: the key stands in.
+            expect(rows[1]!.find("[data-test='mediaPlayerChapterNow']").text()).toBe(
+                "media_player.chapter_now",
+            );
+            expect(rows[1]!.find("[data-test='mediaPlayerChapterTime']").text()).toContain("0:20 · ");
+            expect(rows[1]!.text()).toContain("The talk");
+        });
+
+        it("leads a chapter with a frame of the video when it has one, and is text without", async () => {
+            const chapters = [
+                { startTime: 0, endTime: 20, title: "Opening" },
+                { startTime: 20, endTime: 140, title: "The talk" },
+            ];
+            const without = await playing();
+            engine.state.chapters = chapters;
+            await flushPromises();
+            await find(without, "mediaPlayerTab-chapters").trigger("click");
+            expect(without.find("[data-test='mediaPlayerChapterFrame']").exists()).toBe(false);
+            without.unmount();
+
+            engine.thumbnailsReady = true;
+            const wrapper = await playing();
+            engine.state.chapters = chapters;
+            await flushPromises();
+            await find(wrapper, "mediaPlayerTab-chapters").trigger("click");
+            const frames = wrapper.findAll("[data-test='mediaPlayerChapterFrame']");
+            expect(frames).toHaveLength(2);
+            expect(frames[0]!.attributes("style")).toContain("width: 72px");
+            expect(engine.controller.thumbnailAt).toHaveBeenCalledWith(20);
         });
 
         it("has no strip for the chapters: they are a tab", async () => {

@@ -208,6 +208,8 @@
         "media_player.unmute": "Réactiver le son",
         "media_player.up_next": "À suivre",
         "media_player.chapters": "Chapitres",
+        "media_player.chapter_now": "En cours",
+        "media_player.chapter_minutes": "{minutes} min",
         "media_player.next_in_series": "Suivant dans cette série",
         "media_player.related": "À découvrir",
         "media_player.all_tags": "Tout",
@@ -234,6 +236,7 @@
         "video_player.subtitles_off": "Désactivés",
         "video_player.video_mode": "Lire la vidéo",
         "video_player.audio_mode": "Lire l'audio seulement",
+        "video_player.chapter_of": "Chapitre {index} sur {count}",
         "video_player.loading": "Chargement"
     }
 }

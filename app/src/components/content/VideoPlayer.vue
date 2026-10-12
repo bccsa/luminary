@@ -82,6 +82,7 @@ const playerMessages = computed(() => ({
     durationLabel: t("video_player.duration"),
     skipBack: t("media_player.skip_back", { seconds: "{seconds}" }),
     skipForward: t("media_player.skip_forward", { seconds: "{seconds}" }),
+    chapterOf: t("video_player.chapter_of", { index: "{index}", count: "{count}" }),
     exitFullscreen: t("video_player.exit_fullscreen"),
     audioMenuLabel: t("video_player.audio_menu"),
     subtitlesMenuLabel: t("video_player.subtitles_menu"),
