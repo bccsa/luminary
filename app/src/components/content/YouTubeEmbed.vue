@@ -86,7 +86,49 @@ function onMessage(event: MessageEvent) {
 /** The frame went full-screen or left it, however: our button, the system's gesture, or the page's exit. */
 function onFullscreenChange() {
     if (!driven.value) return;
-    youtube.setFullscreen(!!frame.value && document.fullscreenElement === frame.value);
+    const on = !!frame.value && document.fullscreenElement === frame.value;
+    youtube.setFullscreen(on, notchSize());
+    if (!on) settleLayout();
+}
+
+/**
+ * The packaged app's web view can come back from a frame's full-screen with the page shifted down by the
+ * status bar and cut off at the bottom. Scrolling to the top and making the page measure itself again puts it
+ * right on the next frame, and once more when iOS has finished its own changes.
+ */
+let settleFrame = 0;
+let settleTimer: ReturnType<typeof setTimeout> | undefined;
+function settleLayout() {
+    const nudge = () => {
+        window.scrollTo(0, 0);
+        window.dispatchEvent(new Event("resize"));
+        // Reading a layout value makes the browser lay the page out again now, not at its leisure.
+        void document.documentElement.offsetHeight;
+    };
+    cancelSettle();
+    settleFrame = requestAnimationFrame(nudge);
+    settleTimer = setTimeout(nudge, 350);
+}
+/** Not after the video is gone: the page would be scrolled for nothing. */
+function cancelSettle() {
+    cancelAnimationFrame(settleFrame);
+    clearTimeout(settleTimer);
+}
+
+/**
+ * How far the notch and the rounded corners keep things in from the edge, which a frame cannot read for
+ * itself: its own safe area reads as zero. The largest of the four sides, since a phone on its side has
+ * the notch at the left or right, and upright at the top. The page puts its controls clear of it.
+ */
+function notchSize(): number {
+    const probe = document.createElement("div");
+    probe.style.cssText =
+        "position:fixed;visibility:hidden;pointer-events:none;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)";
+    document.body.appendChild(probe);
+    const style = getComputedStyle(probe);
+    const sides = [style.paddingTop, style.paddingRight, style.paddingBottom, style.paddingLeft];
+    probe.remove();
+    return Math.max(0, ...sides.map((side) => parseFloat(side) || 0));
 }
 
 onMounted(() => {
@@ -96,6 +138,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
     window.removeEventListener("message", onMessage);
     document.removeEventListener("fullscreenchange", onFullscreenChange);
+    cancelSettle();
 });
 
 /** A tap on the picture plays or pauses it, which is what YouTube's own play symbol over it is for. */

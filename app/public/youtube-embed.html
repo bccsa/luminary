@@ -69,9 +69,10 @@
         height: 44px;
       }
       /* Upright, the status bar and the notch draw over the top of the frame, whose own safe area reads as
-         zero: the exit has to sit below them. On its side there is nothing up there. */
+         zero: the app says how big the notch is (`--notch`), and the exit sits just under it, on the line of the
+         system's own close and picture-in-picture buttons. On its side there is nothing up there. */
       @media (orientation: portrait) {
-        #exit { top: calc(env(safe-area-inset-top, 0px) + 64px); }
+        #exit { top: calc(var(--notch, 47px) + 2px); }
       }
       #mid {
         position: absolute;
@@ -389,7 +390,12 @@
             case "mute": player.mute(); report("state"); break;
             case "unmute": player.unMute(); report("state"); break;
             case "snapshot": report("state"); break;
-            case "fullscreen": setFullscreen(!!message.value); break;
+            case "fullscreen":
+              if (typeof message.inset === "number" && message.inset > 0) {
+                document.documentElement.style.setProperty("--notch", message.inset + "px");
+              }
+              setFullscreen(!!message.value);
+              break;
           }
         });
 

@@ -33,6 +33,8 @@ export type YouTubeCommand = {
     src: "lmc-yt";
     cmd: "play" | "pause" | "seek" | "rate" | "mute" | "unmute" | "snapshot" | "fullscreen";
     value?: number;
+    /** With `fullscreen`: how far the notch or the corners keep things in from the edge, in px. */
+    inset?: number;
 };
 
 export function isYouTubeReport(data: unknown): data is YouTubeReport {
@@ -165,7 +167,8 @@ export function createYouTubePlayer(options: YouTubePlayerOptions) {
         setPlaybackRate: (rate: number) => command("rate", rate),
         setMuted: (muted: boolean) => command(muted ? "mute" : "unmute"),
         /** Tells the page the frame went full-screen, or left it: it draws its own controls over the video. */
-        setFullscreen: (on: boolean) => command("fullscreen", on ? 1 : 0),
+        setFullscreen: (on: boolean, inset = 0) =>
+            options.send({ src: "lmc-yt", cmd: "fullscreen", value: on ? 1 : 0, inset }),
         /** Asks the page for the current state, for a player that attached late. */
         snapshot: () => command("snapshot"),
     };

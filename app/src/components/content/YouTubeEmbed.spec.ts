@@ -40,6 +40,8 @@ afterEach(() => {
 });
 
 beforeEach(() => {
+    // jsdom has no scrolling; the page puts itself right after a full-screen, which scrolls.
+    vi.stubGlobal("scrollTo", vi.fn());
     youtubeAlwaysAllow.value = false;
     userDataSaverEnabled.value = false;
 });
@@ -224,10 +226,69 @@ describe("YouTubeEmbed", () => {
             document.dispatchEvent(new Event("fullscreenchange"));
 
             expect(posted).toEqual([
-                { src: "lmc-yt", cmd: "fullscreen", value: 1 },
-                { src: "lmc-yt", cmd: "fullscreen", value: 0 },
+                { src: "lmc-yt", cmd: "fullscreen", value: 1, inset: 0 },
+                { src: "lmc-yt", cmd: "fullscreen", value: 0, inset: 0 },
             ]);
             wrapper.unmount();
+        });
+
+        it("puts the page right when it comes back from full-screen, which can leave it shifted", async () => {
+            vi.useFakeTimers();
+            const scroll = vi.fn();
+            vi.stubGlobal("scrollTo", scroll);
+            vi.stubGlobal("requestAnimationFrame", (callback: () => void) =>
+                setTimeout(callback, 0),
+            );
+            const resized = vi.fn();
+            window.addEventListener("resize", resized);
+            const { wrapper } = await playing();
+            const frame = wrapper.get("[data-test='youtubeFrame']").element;
+
+            Object.defineProperty(document, "fullscreenElement", {
+                value: frame,
+                configurable: true,
+            });
+            document.dispatchEvent(new Event("fullscreenchange"));
+            await vi.advanceTimersByTimeAsync(500);
+            expect(scroll).not.toHaveBeenCalled();
+
+            Object.defineProperty(document, "fullscreenElement", {
+                value: null,
+                configurable: true,
+            });
+            document.dispatchEvent(new Event("fullscreenchange"));
+            await vi.advanceTimersByTimeAsync(500);
+
+            expect(scroll).toHaveBeenCalledTimes(2);
+            expect(scroll).toHaveBeenCalledWith(0, 0);
+            expect(resized).toHaveBeenCalledTimes(2);
+            window.removeEventListener("resize", resized);
+            vi.unstubAllGlobals();
+            vi.useRealTimers();
+            wrapper.unmount();
+        });
+
+        it("does not scroll the page after the video is gone", async () => {
+            vi.useFakeTimers();
+            const scroll = vi.fn();
+            vi.stubGlobal("scrollTo", scroll);
+            vi.stubGlobal("requestAnimationFrame", (callback: () => void) =>
+                setTimeout(callback, 0),
+            );
+            vi.stubGlobal("cancelAnimationFrame", (id: number) => clearTimeout(id));
+            const { wrapper } = await playing();
+
+            Object.defineProperty(document, "fullscreenElement", {
+                value: null,
+                configurable: true,
+            });
+            document.dispatchEvent(new Event("fullscreenchange"));
+            wrapper.unmount();
+            await vi.advanceTimersByTimeAsync(1000);
+
+            expect(scroll).not.toHaveBeenCalled();
+            vi.unstubAllGlobals();
+            vi.useRealTimers();
         });
 
         it("leaves full-screen when the page's exit button is pressed, and only for its own page", async () => {
