@@ -575,6 +575,16 @@ function onPinUp(event: PointerEvent) {
 function onPinCancel() {
     pinDrag.value = null;
 }
+/** A press anywhere but the strip and the bar puts the pinned strip away. */
+function closePinOnOutsidePress(event: PointerEvent) {
+    const target = event.target as Element | null;
+    if (!target?.closest('[data-test="mediaPlayerRoster"], input[type="range"]')) closePin();
+}
+watch(pinned, (open) => {
+    if (open) window.addEventListener("pointerdown", closePinOnOutsidePress, true);
+    else window.removeEventListener("pointerdown", closePinOnOutsidePress, true);
+});
+onBeforeUnmount(() => window.removeEventListener("pointerdown", closePinOnOutsidePress, true));
 // The strip belongs to the video it was opened for, and to the player while it is open.
 // Separate sources, not one getter returning an array: that is a new array on every run, so it would
 // fire on every report of the player's position, closing the strip as soon as it opened.
