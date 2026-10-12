@@ -10,6 +10,8 @@ import { useI18n } from "vue-i18n";
 import { type ContentDto } from "luminary-shared";
 import LImage from "../images/LImage.vue";
 import { isDataSaverEnabled, userDataSaverEnabled, youtubeAlwaysAllow } from "@/globalConfig";
+import { isNativeApp } from "@/util/inAppBrowser";
+import { publicUrl } from "@/seo/publicSite";
 import { youTubeEmbedUrl, youTubeIdOf, youTubeWatchUrl } from "@/util/youtube";
 
 const props = defineProps<{ content: ContentDto; url: string }>();
@@ -22,6 +24,17 @@ const dataSaver = computed(() => userDataSaverEnabled.value || isDataSaverEnable
 const chosen = ref(false);
 /** The box on the notice: remembered once Play is pressed. */
 const remember = ref(false);
+
+/**
+ * What the frame shows. The packaged app's own pages have no address YouTube accepts (error 153), so there
+ * the frame is a page on the web app's real HTTPS address, `youtube-embed.html`, which holds the embed.
+ * Everywhere else, and where no web address is configured, it is the embed itself.
+ */
+const frameSrc = computed(() => {
+    if (!id.value) return undefined;
+    const hosted = isNativeApp() ? publicUrl(`/youtube-embed.html?v=${id.value}`) : undefined;
+    return hosted ?? youTubeEmbedUrl(id.value);
+});
 
 const loaded = computed(
     () => !!id.value && (chosen.value || (youtubeAlwaysAllow.value && !dataSaver.value)),
@@ -39,8 +52,8 @@ function play() {
         data-test="youtubeEmbed"
     >
         <iframe
-            v-if="loaded && id"
-            :src="youTubeEmbedUrl(id)"
+            v-if="loaded && frameSrc"
+            :src="frameSrc"
             :title="content.title"
             class="absolute inset-0 h-full w-full border-0"
             allow="autoplay; encrypted-media; picture-in-picture; fullscreen"

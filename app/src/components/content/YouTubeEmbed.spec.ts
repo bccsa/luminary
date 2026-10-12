@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import { nextTick } from "vue";
 import { mockEnglishContentDto } from "@/tests/mockdata";
@@ -13,6 +13,16 @@ function mountEmbed() {
         global: { stubs: { LImage: true } },
     });
 }
+
+const hostedOrigin = vi.hoisted(() => ({ value: "" }));
+vi.mock("@/seo/publicSite", () => ({
+    publicUrl: (path: string) => (hostedOrigin.value ? `${hostedOrigin.value}${path}` : undefined),
+}));
+
+afterEach(() => {
+    vi.unstubAllEnvs();
+    hostedOrigin.value = "";
+});
 
 beforeEach(() => {
     youtubeAlwaysAllow.value = false;
@@ -76,5 +86,38 @@ describe("YouTubeEmbed", () => {
 
         expect(open.attributes("href")).toBe("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
         expect(open.attributes("rel")).toContain("noopener");
+    });
+
+    describe("in the packaged app", () => {
+        it("frames the page on the web app's own address, which YouTube accepts", async () => {
+            vi.stubEnv("VITE_BUILD_TARGET", "native");
+            hostedOrigin.value = "https://app.example.org";
+            const wrapper = mountEmbed();
+            await wrapper.get("[data-test='youtubePlay']").trigger("click");
+
+            expect(wrapper.get("[data-test='youtubeFrame']").attributes("src")).toBe(
+                "https://app.example.org/youtube-embed.html?v=dQw4w9WgXcQ",
+            );
+        });
+
+        it("falls back to the embed itself where no web address is set", async () => {
+            vi.stubEnv("VITE_BUILD_TARGET", "native");
+            const wrapper = mountEmbed();
+            await wrapper.get("[data-test='youtubePlay']").trigger("click");
+
+            expect(wrapper.get("[data-test='youtubeFrame']").attributes("src")).toContain(
+                "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ",
+            );
+        });
+
+        it("uses the embed directly in a browser, whatever the web address", async () => {
+            hostedOrigin.value = "https://app.example.org";
+            const wrapper = mountEmbed();
+            await wrapper.get("[data-test='youtubePlay']").trigger("click");
+
+            expect(wrapper.get("[data-test='youtubeFrame']").attributes("src")).toContain(
+                "youtube-nocookie.com",
+            );
+        });
     });
 });

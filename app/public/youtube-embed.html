@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="robots" content="noindex" />
+    <title>YouTube</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #000;
+        overflow: hidden;
+      }
+      iframe {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        border: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <!--
+      The native app shows this page in a frame. YouTube refuses an embed (error 153) when the page
+      holding it has no proper address to report, which is what an app's own page has; this page is
+      served from the web app's real HTTPS address, so YouTube sees that one. It is only ever opened
+      after the viewer chose to play, with `?v=` the 11-character video id.
+    -->
+    <script>
+      (function () {
+        var id = new URLSearchParams(location.search).get("v") || "";
+        if (!/^[A-Za-z0-9_-]{11}$/.test(id)) return;
+        var frame = document.createElement("iframe");
+        frame.src =
+          "https://www.youtube-nocookie.com/embed/" + id + "?autoplay=1&playsinline=1&rel=0";
+        frame.allow = "autoplay; encrypted-media; picture-in-picture; fullscreen";
+        frame.allowFullscreen = true;
+        frame.referrerPolicy = "strict-origin-when-cross-origin";
+        frame.title = "YouTube";
+        document.body.appendChild(frame);
+      })();
+    </script>
+  </body>
+</html>
