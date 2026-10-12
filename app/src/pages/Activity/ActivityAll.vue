@@ -1,19 +1,17 @@
 <script lang="ts" setup>
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { useRouter } from "vue-router";
 import { type ContentDto } from "luminary-shared";
 import ActivityCard from "./ActivityCard.vue";
-import LDialog from "@/components/common/LDialog.vue";
+import ActivityHighlightPanel from "./ActivityHighlightPanel.vue";
 import { groupByActivityDate } from "./activityGroups";
 import { useContentQuery } from "@/composables/useContentQuery";
 import { useUserActivity } from "@/userActivity/useUserActivity";
 import { removeUserActivity } from "@/userActivity/store";
 import type { UserActivityDoc } from "@/userActivity/db";
-import { HIGHLIGHT_COLORS, type HighlightRange } from "@/util/highlightRanges";
+import { type HighlightRange } from "@/util/highlightRanges";
 
 const { t } = useI18n();
-const router = useRouter();
 
 const activity = useUserActivity("all");
 
@@ -68,14 +66,8 @@ const remove = (entry: Entry) =>
             : { type: entry.row.type, parentId: entry.row.parentId },
     );
 
-// One dialog for the panel rather than one per card: it only ever shows the entry just
-// opened. Colour filtering stays in the Highlighted panel, which is the place for it.
+// One panel for the feed rather than one per card: it only ever shows the entry just opened.
 const opened = ref<Entry | undefined>(undefined);
-
-const openArticle = () => {
-    const slug = opened.value?.content.slug;
-    if (slug) router.push({ name: "content", params: { slug } });
-};
 </script>
 
 <template>
@@ -115,25 +107,12 @@ const openArticle = () => {
             {{ t("activity.all.empty_page") }}
         </div>
 
-        <LDialog
-            v-if="opened"
-            :open="true"
-            :title="opened.content.title"
-            :primaryAction="openArticle"
-            :primaryButtonText="t('activity.highlights.open_article')"
+        <ActivityHighlightPanel
+            :open="!!opened"
+            :content="opened?.content"
+            :ranges="opened ? rangesOf(opened) : []"
             @update:open="opened = undefined"
-        >
-            <ul class="space-y-2">
-                <li
-                    v-for="(range, index) in rangesOf(opened)"
-                    :key="`${range.start}-${index}`"
-                    class="border-l-4 pl-3 text-sm text-zinc-700 dark:text-slate-200"
-                    :style="{ borderColor: HIGHLIGHT_COLORS[range.color] }"
-                    data-test="highlight-text"
-                >
-                    {{ range.text }}
-                </li>
-            </ul>
-        </LDialog>
+            @remove="opened && remove(opened)"
+        />
     </div>
 </template>

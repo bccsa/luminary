@@ -123,7 +123,7 @@ describe("ActivityHighlighted", () => {
         expect(shown[0].text()).toBe("second");
 
         // Asking to delete only opens the confirmation; nothing is destroyed yet.
-        await wrapper.find("[data-test=modal-secondary-button]").trigger("click");
+        await wrapper.find("[data-test=highlight-panel-remove]").trigger("click");
         expect(await getUserActivity("highlighted")).toHaveLength(1);
 
         await wrapper.find("[data-test=modal-primary-button]").trigger("click");
@@ -132,6 +132,40 @@ describe("ActivityHighlighted", () => {
             expect(await getUserActivity("highlighted")).toEqual([]);
             const stored = (await db.getLuminaryInternals("highlights")) as Record<string, unknown>;
             expect(stored[mockEnglishContentDto._id]).toBeUndefined();
+        });
+    });
+
+    it("shows the passages in a side panel, closed by its own button", async () => {
+        const ranges = [{ start: 0, end: 5, color: "yellow" as const, text: "first" }];
+        await recordUserActivity(
+            {
+                type: "highlighted",
+                contentId: mockEnglishContentDto._id,
+                parentId: mockEnglishContentDto.parentId,
+            },
+            { ranges },
+        );
+        const wrapper = mount(ActivityHighlighted);
+
+        await waitForExpect(() => {
+            expect(wrapper.find("[data-test=activity-open-highlights]").exists()).toBe(true);
+        });
+        await wrapper.find("[data-test=activity-open-highlights]").trigger("click");
+
+        await waitForExpect(() => {
+            // A drawer, not a dialog box: it is pinned to the right edge of the viewport.
+            const panel = wrapper.find("aside");
+            expect(panel.exists()).toBe(true);
+            expect(panel.classes()).toContain("right-0");
+            expect(wrapper.find("[data-test=highlight-panel-title]").text()).toBe(
+                mockEnglishContentDto.title,
+            );
+        });
+
+        await wrapper.find("[data-test=highlight-panel-close]").trigger("click");
+
+        await waitForExpect(() => {
+            expect(wrapper.find("[data-test=highlight-text]").exists()).toBe(false);
         });
     });
 
@@ -154,9 +188,9 @@ describe("ActivityHighlighted", () => {
             expect(wrapper.find("[data-test=activity-open-highlights]").exists()).toBe(true);
         });
         await wrapper.find("[data-test=activity-open-highlights]").trigger("click");
-        await wrapper.find("[data-test=modal-secondary-button]").trigger("click");
+        await wrapper.find("[data-test=highlight-panel-remove]").trigger("click");
 
-        // Cancelling returns to the passages, with nothing deleted.
+        // Cancelling leaves the panel as it was, with nothing deleted.
         await wrapper.find("[data-test=modal-secondary-button]").trigger("click");
 
         expect(await getUserActivity("highlighted")).toHaveLength(1);
