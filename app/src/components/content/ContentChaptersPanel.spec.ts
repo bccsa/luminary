@@ -173,7 +173,82 @@ describe("ContentChaptersPanel", () => {
         });
     });
 
+    describe("the column's head", () => {
+        it("says where the playhead is among the chapters, and the strip does not", () => {
+            const wide = mountPanel({ wide: true });
+            expect(wide.find("[data-test='chaptersPanelPosition']").text()).toBe(
+                "media_player.chapter_position",
+            );
+            const strip = mountPanel();
+            expect(strip.find("[data-test='chaptersPanelPosition']").exists()).toBe(false);
+        });
+
+        it("says nothing without chapters", () => {
+            const wrapper = mountPanel({ wide: true, chapters: [] });
+            expect(wrapper.find("[data-test='chaptersPanelPosition']").exists()).toBe(false);
+        });
+    });
+
+    describe("the frames", () => {
+        it("are 96px in the strip, with a bar along the foot for how much has played", async () => {
+            const wrapper = mountPanel({ cueAt: () => cue, currentTime: 90 });
+            await tab(wrapper, "chapters").trigger("click");
+            const frames = wrapper.findAll("[data-test='mediaPlayerChapterFrame']");
+            expect(frames[0]!.attributes("style")).toContain("width: 96px");
+            const bars = wrapper.findAll("[data-test='mediaPlayerChapterProgress']");
+            // 90s is the end of the first chapter, half way through the second, and before the rest.
+            expect(bars.map((bar) => bar.attributes("style"))).toEqual([
+                expect.stringContaining("width: 100%"),
+                expect.stringContaining("width: 50%"),
+                expect.stringContaining("width: 0%"),
+                expect.stringContaining("width: 0%"),
+            ]);
+        });
+    });
+
+    describe("the keyboard", () => {
+        it("reaches one tab at a time: the open one, else the first", async () => {
+            const wrapper = mountPanel();
+            expect(tab(wrapper, "chapters").attributes("tabindex")).toBe("0");
+            expect(tab(wrapper, "upnext").attributes("tabindex")).toBe("-1");
+
+            await tab(wrapper, "upnext").trigger("click");
+            expect(tab(wrapper, "chapters").attributes("tabindex")).toBe("-1");
+            expect(tab(wrapper, "upnext").attributes("tabindex")).toBe("0");
+        });
+
+        it("moves between the tabs with the arrows, and to the ends with Home and End", async () => {
+            const wrapper = mountPanel({ wide: true });
+            const list = wrapper.find("[role=tablist]");
+            await tab(wrapper, "chapters").trigger("keydown", { key: "ArrowRight" });
+            expect(tab(wrapper, "upnext").attributes("aria-selected")).toBe("true");
+
+            await tab(wrapper, "upnext").trigger("keydown", { key: "ArrowRight" });
+            expect(tab(wrapper, "chapters").attributes("aria-selected")).toBe("true");
+
+            await tab(wrapper, "chapters").trigger("keydown", { key: "End" });
+            expect(tab(wrapper, "upnext").attributes("aria-selected")).toBe("true");
+            await tab(wrapper, "upnext").trigger("keydown", { key: "Home" });
+            expect(tab(wrapper, "chapters").attributes("aria-selected")).toBe("true");
+            expect(list.exists()).toBe(true);
+        });
+
+        it("leaves other keys alone", async () => {
+            const wrapper = mountPanel({ wide: true });
+            await tab(wrapper, "chapters").trigger("keydown", { key: "a" });
+            expect(tab(wrapper, "chapters").attributes("aria-selected")).toBe("true");
+        });
+    });
+
     describe("what the viewer can do", () => {
+        it("tells the page when 'Show all' is open, so the column can let go of its place", async () => {
+            const wrapper = mountPanel({ wide: true, chapters: chapters(20) });
+            await wrapper.find("[data-test='chaptersPanelMore']").trigger("click");
+            expect(wrapper.emitted("update:expanded")!.at(-1)).toEqual([true]);
+            await wrapper.find("[data-test='chaptersPanelMore']").trigger("click");
+            expect(wrapper.emitted("update:expanded")!.at(-1)).toEqual([false]);
+        });
+
         it("marks the chapter the playhead is in, in words as well as colour", async () => {
             const wrapper = mountPanel({ wide: true });
             expect(wrapper.findAll("[aria-current=true]")).toHaveLength(1);

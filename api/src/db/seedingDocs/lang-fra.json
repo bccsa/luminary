@@ -210,6 +210,7 @@
         "media_player.chapters": "Chapitres",
         "media_player.chapter_now": "En cours",
         "media_player.chapter_minutes": "{minutes} min",
+        "media_player.chapter_position": "Lecture {index} sur {count}",
         "media_player.show_all_chapters": "Afficher les {count} chapitres",
         "media_player.show_all": "Tout afficher",
         "media_player.show_less": "Afficher moins",

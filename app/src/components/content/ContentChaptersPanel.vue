@@ -10,7 +10,7 @@
  * There is a tab only for what exists: no chapters, no Chapters tab; nothing leads on from this
  * video, no Up next tab; neither, and nothing is drawn.
  */
-import { computed, ref, watch } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { ChevronUpIcon } from "@heroicons/vue/20/solid";
 import { chapterIndexAt } from "@luminary-media-converter/player-web";
@@ -19,8 +19,12 @@ import type { ContentDto, Uuid } from "luminary-shared";
 import ChapterRow from "@/media-player/ChapterRow.vue";
 import MediaPlayerUpNext from "@/media-player/MediaPlayerUpNext.vue";
 import type { UpNext } from "@/media-player/useUpNext";
+import { chapterProgress } from "@/media-player/chapterProgress";
 
 type PanelTab = "chapters" | "upnext";
+
+/** Width of a chapter's frame in the strip; the column has none. */
+const STRIP_FRAME_WIDTH = 96;
 
 /** How many chapters, and how many videos to go on to, the column shows before "Show all". */
 const WIDE_CHAPTER_ROWS = 7;
@@ -69,8 +73,8 @@ const tabs = computed<{ id: PanelTab; label: string; count: number }[]>(() => [
 
 /** The tab the viewer chose; in the strip, none is closed. */
 const chosen = ref<PanelTab | null>(null);
-/** The column's "Show all". */
-const expanded = ref(false);
+/** The column's "Show all": the page lets go of the column's place in view while it is open. */
+const expanded = defineModel<boolean>("expanded", { default: false });
 
 /** Wide, one tab is always open; in the strip, only the one chosen. */
 const open = computed<PanelTab | null>(() => {
@@ -83,6 +87,36 @@ function choose(tab: PanelTab) {
     // The strip's tabs toggle; the column's switch.
     chosen.value = !props.wide && open.value === tab ? null : tab;
 }
+/** The tab a keyboard reaches: the open one, else the first. */
+const focusable = computed(() => open.value ?? tabs.value[0]?.id ?? null);
+
+/** Arrow keys move between the tabs and choose the one they land on, as a row of tabs does. */
+function onTabsKeydown(event: KeyboardEvent) {
+    const ids = tabs.value.map((tab) => tab.id);
+    const from = ids.findIndex((id) => id === (event.target as HTMLElement | null)?.dataset.tab);
+    if (from < 0 || ids.length < 2) return;
+    const to =
+        event.key === "ArrowRight"
+            ? (from + 1) % ids.length
+            : event.key === "ArrowLeft"
+              ? (from + ids.length - 1) % ids.length
+              : event.key === "Home"
+                ? 0
+                : event.key === "End"
+                  ? ids.length - 1
+                  : -1;
+    if (to < 0) return;
+    event.preventDefault();
+    const id = ids[to]!;
+    // The strip's tabs toggle, so landing on one opens it; the column's switch.
+    chosen.value = id;
+    void nextTick(() =>
+        (event.currentTarget as HTMLElement | null)
+            ?.querySelector<HTMLElement>(`[data-tab="${id}"]`)
+            ?.focus(),
+    );
+}
+
 watch(
     () => props.wide,
     () => {
@@ -92,6 +126,14 @@ watch(
 );
 
 const current = computed(() => chapterIndexAt(props.chapters, props.currentTime));
+const positionText = computed(() =>
+    props.chapters.length && current.value >= 0
+        ? t("media_player.chapter_position", {
+              index: current.value + 1,
+              count: props.chapters.length,
+          })
+        : "",
+);
 
 /** The rows the column shows: a window around the playing chapter, or every one when opened. */
 const chapterRows = computed(() => {
@@ -125,18 +167,22 @@ const moreUpNext = computed(
             role="tablist"
             class="flex border-b border-zinc-200 dark:border-slate-700"
             :class="{ 'border-b-0': !wide && !open }"
+            @keydown="onTabsKeydown"
         >
             <button
                 v-for="tab in tabs"
                 :key="tab.id"
                 type="button"
                 role="tab"
-                class="flex min-h-[48px] flex-1 items-center justify-center gap-1.5 border-b-2 text-sm font-semibold"
-                :class="
+                class="flex min-h-[48px] items-center justify-center gap-1.5 border-b-2 text-sm font-semibold"
+                :class="[
+                    wide ? 'px-4' : 'flex-1',
                     open === tab.id
                         ? 'border-yellow-500 text-zinc-900 dark:text-white'
-                        : 'border-transparent text-zinc-500 dark:text-slate-400'
-                "
+                        : 'border-transparent text-zinc-500 dark:text-slate-400',
+                ]"
+                :tabindex="focusable === tab.id ? 0 : -1"
+                :data-tab="tab.id"
                 :aria-selected="open === tab.id"
                 :aria-expanded="wide ? undefined : open === tab.id"
                 :aria-controls="`chapters-panel-${tab.id}`"
@@ -154,6 +200,13 @@ const moreUpNext = computed(
                     tab.count
                 }}</span>
             </button>
+            <!-- Where the playhead is among the chapters, at the column's head; the strip says it on the player. -->
+            <span
+                v-if="wide && positionText"
+                class="ml-auto self-center pr-4 text-sm tabular-nums text-zinc-500 dark:text-slate-400"
+                data-test="chaptersPanelPosition"
+                >{{ positionText }}</span
+            >
         </div>
 
         <div
@@ -174,6 +227,8 @@ const moreUpNext = computed(
                         :chapter="chapter"
                         :current="index === current"
                         :cue="wide ? null : (cueAt?.(chapter.startTime) ?? null)"
+                        :frame-width="STRIP_FRAME_WIDTH"
+                        :progress="chapterProgress(chapter, currentTime)"
                         @click="emit('seek-chapter', chapter)"
                     />
                 </li>

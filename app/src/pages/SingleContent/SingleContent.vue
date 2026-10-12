@@ -718,6 +718,8 @@ const playerHandle = computed(() => videoPlayerRef.value?.player ?? null);
 const panelChapters = computed(() => playerHandle.value?.state?.chapters ?? []);
 const panelTime = computed(() => playerHandle.value?.state?.currentTime ?? 0);
 const panelTag = ref<Uuid | null>(null);
+/** The column's "Show all" is open: it may be taller than the window, so it scrolls with the page. */
+const panelExpanded = ref(false);
 const upNext = useUpNext(
     computed(() => (embedVideo.value ? content.value : undefined)),
     panelTag,
@@ -1170,9 +1172,11 @@ watch([isLoading, content, is404], async () => {
                     <!-- Beside the content on a wide screen; it stays in view while the text is read. -->
                     <aside
                         v-if="hasPanel && isWide"
-                        class="col-start-3 mt-11 self-start xl:sticky xl:top-20"
+                        class="col-start-3 mt-11 self-start"
+                        :class="{ 'xl:sticky xl:top-20': !panelExpanded }"
                     >
                         <ContentChaptersPanel
+                            v-model:expanded="panelExpanded"
                             :wide="true"
                             :chapters="panelChapters"
                             :current-time="panelTime"

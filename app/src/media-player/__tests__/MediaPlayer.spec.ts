@@ -1244,6 +1244,8 @@ describe("MediaPlayer", () => {
             const frames = wrapper.findAll("[data-test='mediaPlayerChapterFrame']");
             expect(frames).toHaveLength(2);
             expect(frames[0]!.attributes("style")).toContain("width: 72px");
+            // Each frame carries a bar for how much of its chapter has played.
+            expect(wrapper.findAll("[data-test='mediaPlayerChapterProgress']")).toHaveLength(2);
             expect(engine.controller.thumbnailAt).toHaveBeenCalledWith(20);
         });
 
