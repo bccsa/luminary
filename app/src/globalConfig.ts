@@ -516,3 +516,13 @@ export const youtubeAlwaysAllow = ref(localStorage.getItem("youtubeAlwaysAllow")
 watch(youtubeAlwaysAllow, (allowed) => {
     localStorage.setItem("youtubeAlwaysAllow", String(allowed));
 });
+
+/**
+ * The chapters and up next panel under a content page's player is put away: for someone who came to
+ * read, and wants the text to start under the player. Remembered, like the other per-viewer settings,
+ * in the browser. Open until the viewer folds it.
+ */
+export const chaptersPanelFolded = ref(localStorage.getItem("chaptersPanelFolded") === "true");
+watch(chaptersPanelFolded, (folded) => {
+    localStorage.setItem("chaptersPanelFolded", String(folded));
+});

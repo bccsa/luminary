@@ -215,6 +215,8 @@
         "media_player.show_all": "Tout afficher",
         "media_player.show_less": "Afficher moins",
         "singlecontent.chapters_panel": "Chapitres et à suivre",
+        "singlecontent.chapters_panel_hide": "Masquer les chapitres et à suivre",
+        "singlecontent.chapters_panel_show": "Afficher les chapitres et à suivre",
         "media_player.next_in_series": "Suivant dans cette série",
         "media_player.related": "À découvrir",
         "media_player.all_tags": "Tout",
