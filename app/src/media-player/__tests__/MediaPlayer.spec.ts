@@ -451,93 +451,40 @@ describe("MediaPlayer", () => {
                 expect(wrapper.find("[data-test='mediaPlayerRoster']").exists()).toBe(false);
             });
 
-            describe("pinned, the slow way", () => {
-                async function pinnedAt90() {
+            describe("letting go", () => {
+                async function heldAt90() {
                     engine.thumbnailsReady = true;
                     const wrapper = await playing();
                     const bar = find(wrapper, "mediaPlayerSeek");
                     (bar.element as HTMLInputElement).value = "90";
                     await bar.trigger("input");
-                    await bar.trigger("change");
-                    return wrapper;
+                    return { wrapper, bar };
                 }
 
-                it("stays open, centred on where the video is going, when the finger lifts", async () => {
-                    const wrapper = await pinnedAt90();
+                it("pauses the video while the frames are showing", async () => {
+                    await heldAt90();
+
+                    expect(engine.handle.pause).toHaveBeenCalled();
+                });
+
+                it("seeks, plays on from there and puts the frames away when the finger lifts", async () => {
+                    const { wrapper, bar } = await heldAt90();
+                    engine.state.playing = false;
+                    await flushPromises();
+                    await bar.trigger("change");
 
                     expect(engine.handle.seek).toHaveBeenCalledWith(90);
-                    expect(wrapper.find("[data-test='mediaPlayerRoster']").exists()).toBe(true);
-                    expect(find(wrapper, "mediaPlayerRosterTime").text()).toBe("1:30");
+                    expect(engine.handle.play).toHaveBeenCalled();
+                    expect(wrapper.find("[data-test='mediaPlayerRoster']").exists()).toBe(false);
                 });
 
-                it("stays open while playback reports its position", async () => {
-                    const wrapper = await pinnedAt90();
-
-                    engine.state.currentTime = 31;
-                    await flushPromises();
-                    engine.state.currentTime = 32;
-                    await flushPromises();
-
-                    expect(wrapper.find("[data-test='mediaPlayerRosterTime']").exists()).toBe(true);
-                });
-
-                it("stays open when the browser cancels the pointer before reporting the change", async () => {
-                    engine.thumbnailsReady = true;
-                    const wrapper = await playing();
-                    const bar = find(wrapper, "mediaPlayerSeek");
-                    (bar.element as HTMLInputElement).value = "90";
-                    await bar.trigger("input");
+                it("plays on when the browser cancels the pointer before reporting the change", async () => {
+                    const { bar } = await heldAt90();
                     await bar.trigger("pointercancel");
                     await bar.trigger("change");
 
-                    expect(wrapper.find("[data-test='mediaPlayerRosterTime']").exists()).toBe(true);
-                });
-
-                it("seeks to where the strip is dragged to, a quarter of a step to the pixel", async () => {
-                    const wrapper = await pinnedAt90();
-                    const roster = find(wrapper, "mediaPlayerRoster");
-                    engine.handle.seek.mockClear();
-
-                    await roster.trigger("pointerdown", { clientX: 200, pointerId: 1 });
-                    // The strip follows the finger: a drag to the right is back in time.
-                    await roster.trigger("pointermove", { clientX: 230, pointerId: 1 });
-                    await roster.trigger("pointerup", { clientX: 230, pointerId: 1 });
-
-                    expect(engine.handle.seek).toHaveBeenCalledTimes(1);
-                    expect(engine.handle.seek.mock.calls[0][0]).toBeLessThan(90);
-                });
-
-                it("seeks to a frame that is tapped", async () => {
-                    const wrapper = await pinnedAt90();
-                    const roster = find(wrapper, "mediaPlayerRoster");
-                    engine.handle.seek.mockClear();
-
-                    await roster.trigger("pointerdown", { clientX: 100, pointerId: 1 });
-                    await roster.trigger("pointerup", { clientX: 100, pointerId: 1 });
-
-                    expect(engine.handle.seek).toHaveBeenCalledTimes(1);
-                });
-
-                it("closes with its button, and the video stays where it is", async () => {
-                    const wrapper = await pinnedAt90();
-                    engine.handle.seek.mockClear();
-
-                    await find(wrapper, "mediaPlayerRosterClose").trigger("click");
-
-                    expect(wrapper.find("[data-test='mediaPlayerRoster']").exists()).toBe(false);
-                    expect(engine.handle.seek).not.toHaveBeenCalled();
-                });
-
-                it("gives way to the fast roster when the bar is held again", async () => {
-                    const wrapper = await pinnedAt90();
-                    const bar = find(wrapper, "mediaPlayerSeek");
-                    (bar.element as HTMLInputElement).value = "30";
-                    await bar.trigger("input");
-
-                    expect(wrapper.find("[data-test='mediaPlayerRosterClose']").exists()).toBe(
-                        false,
-                    );
-                    expect(wrapper.find("[data-test='mediaPlayerRoster']").exists()).toBe(true);
+                    expect(engine.handle.seek).toHaveBeenCalled();
+                    expect(engine.handle.play).toHaveBeenCalled();
                 });
             });
 
