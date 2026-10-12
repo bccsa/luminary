@@ -215,6 +215,8 @@
         "media_player.show_all": "Show all",
         "media_player.show_less": "Show less",
         "singlecontent.chapters_panel": "Chapters and up next",
+        "singlecontent.chapters_panel_hide": "Hide chapters and up next",
+        "singlecontent.chapters_panel_show": "Show chapters and up next",
         "media_player.next_in_series": "Next in this series",
         "media_player.related": "Related",
         "media_player.all_tags": "All",

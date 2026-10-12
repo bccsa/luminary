@@ -1,8 +1,9 @@
 import "fake-indexeddb/auto";
-import { describe, it, expect, vi } from "vitest";
+import { beforeEach, describe, it, expect, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import ContentChaptersPanel from "./ContentChaptersPanel.vue";
 import { mockEnglishContentDto } from "@/tests/mockdata";
+import { chaptersPanelFolded } from "@/globalConfig";
 
 // The real one is player-core's, tested there: the last chapter that has started.
 vi.mock("@luminary-media-converter/player-web", () => ({
@@ -50,6 +51,10 @@ const rows = (wrapper: ReturnType<typeof mountPanel>) =>
     wrapper.findAll("[data-test='mediaPlayerChapter']");
 
 describe("ContentChaptersPanel", () => {
+    beforeEach(() => {
+        chaptersPanelFolded.value = false;
+    });
+
     describe("which tabs there are", () => {
         it("has a tab only for what exists", async () => {
             const both = mountPanel();
@@ -80,42 +85,109 @@ describe("ContentChaptersPanel", () => {
         });
     });
 
-    describe("in the strip under the player", () => {
-        it("starts closed, and a tab opens its list and closes it again", async () => {
+    describe("under the player", () => {
+        it("has the first tab open, and a tab switches to its list", async () => {
             const wrapper = mountPanel();
-            expect(wrapper.find("[role=tabpanel]").exists()).toBe(false);
-            expect(tab(wrapper, "chapters").attributes("aria-expanded")).toBe("false");
-
-            await tab(wrapper, "chapters").trigger("click");
-            expect(tab(wrapper, "chapters").attributes("aria-expanded")).toBe("true");
-            expect(tab(wrapper, "chapters").attributes("aria-selected")).toBe("true");
+            expect(wrapper.find("[data-test='chaptersPanelChapters']").exists()).toBe(true);
             expect(rows(wrapper)).toHaveLength(4);
 
-            await tab(wrapper, "chapters").trigger("click");
-            expect(wrapper.find("[role=tabpanel]").exists()).toBe(false);
-        });
-
-        it("switches to the other tab when it is chosen while one is open", async () => {
-            const wrapper = mountPanel();
-            await tab(wrapper, "chapters").trigger("click");
             await tab(wrapper, "upnext").trigger("click");
             expect(wrapper.find("[data-test='chaptersPanelChapters']").exists()).toBe(false);
             expect(wrapper.find("[data-test='upNextStub']").exists()).toBe(true);
             expect(tab(wrapper, "chapters").attributes("aria-selected")).toBe("false");
         });
 
-        it("shows every chapter, with a frame of the video where there is one", async () => {
-            const wrapper = mountPanel({ chapters: chapters(12), cueAt: () => cue });
-            await tab(wrapper, "chapters").trigger("click");
+        it("is joined to the player's foot when attached", () => {
+            const attached = mountPanel({ attached: true });
+            expect(attached.find("[data-test='chaptersPanel']").classes()).toContain(
+                "rounded-b-xl",
+            );
+            const alone = mountPanel();
+            expect(alone.find("[data-test='chaptersPanel']").classes()).toContain("rounded-xl");
+        });
+
+        it("shows a few chapters led by a frame of the video, and every one when opened", async () => {
+            const wrapper = mountPanel({
+                chapters: chapters(12),
+                cueAt: () => cue,
+                currentTime: 6 * 60,
+            });
+            expect(rows(wrapper)).toHaveLength(4);
+            expect(wrapper.findAll("[data-test='mediaPlayerChapterFrame']")).toHaveLength(4);
+            // Starts one before the playing chapter, and the playing one is among them.
+            expect(rows(wrapper)[0]!.text()).toContain("Chapter 6");
+            expect(wrapper.find("[aria-current=true]").text()).toContain("Chapter 7");
+
+            await wrapper.find("[data-test='chaptersPanelMore']").trigger("click");
             expect(rows(wrapper)).toHaveLength(12);
-            expect(wrapper.findAll("[data-test='mediaPlayerChapterFrame']")).toHaveLength(12);
+            expect(wrapper.find("ol").classes()).toContain("overflow-y-auto");
+        });
+
+        it("has no 'Show all' when everything fits", () => {
+            const wrapper = mountPanel({ chapters: chapters(4) });
             expect(wrapper.find("[data-test='chaptersPanelMore']").exists()).toBe(false);
         });
 
-        it("leaves the rows as text when the video has no frames", async () => {
+        it("leaves the rows as text when the video has no frames", () => {
             const wrapper = mountPanel({ cueAt: () => null });
-            await tab(wrapper, "chapters").trigger("click");
             expect(wrapper.find("[data-test='mediaPlayerChapterFrame']").exists()).toBe(false);
+        });
+
+        it("has no chevrons on the tabs: they switch, they do not open and close", () => {
+            const wrapper = mountPanel();
+            expect(tab(wrapper, "chapters").find("svg").exists()).toBe(false);
+            expect(tab(wrapper, "chapters").attributes("aria-expanded")).toBeUndefined();
+        });
+    });
+
+    describe("putting the panel away", () => {
+        it("folds under the player with the arrow, and the arrow opens it again", async () => {
+            const wrapper = mountPanel();
+            const fold = wrapper.find("[data-test='chaptersPanelFold']");
+            expect(fold.attributes("aria-expanded")).toBe("true");
+            expect(wrapper.find("#chapters-panel-body").attributes("style") ?? "").not.toContain(
+                "display: none",
+            );
+
+            await fold.trigger("click");
+            expect(fold.attributes("aria-expanded")).toBe("false");
+            expect(wrapper.find("#chapters-panel-body").attributes("style")).toContain(
+                "display: none",
+            );
+            // The tabs stay, to say what is there.
+            expect(tab(wrapper, "chapters").exists()).toBe(true);
+
+            await fold.trigger("click");
+            expect(wrapper.find("#chapters-panel-body").attributes("style") ?? "").not.toContain(
+                "display: none",
+            );
+        });
+
+        it("opens when a tab is chosen while it is folded", async () => {
+            const wrapper = mountPanel();
+            await wrapper.find("[data-test='chaptersPanelFold']").trigger("click");
+            await tab(wrapper, "upnext").trigger("click");
+            expect(
+                wrapper.find("[data-test='chaptersPanelFold']").attributes("aria-expanded"),
+            ).toBe("true");
+            expect(wrapper.find("[data-test='upNextStub']").exists()).toBe(true);
+        });
+
+        it("remembers it for the next page", async () => {
+            const wrapper = mountPanel();
+            await wrapper.find("[data-test='chaptersPanelFold']").trigger("click");
+            expect(localStorage.getItem("chaptersPanelFolded")).toBe("true");
+            await wrapper.find("[data-test='chaptersPanelFold']").trigger("click");
+            expect(localStorage.getItem("chaptersPanelFolded")).toBe("false");
+        });
+
+        it("never puts the column beside the content away", () => {
+            chaptersPanelFolded.value = true;
+            const wrapper = mountPanel({ wide: true });
+            expect(wrapper.find("[data-test='chaptersPanelFold']").exists()).toBe(false);
+            expect(wrapper.find("#chapters-panel-body").attributes("style") ?? "").not.toContain(
+                "display: none",
+            );
         });
     });
 
@@ -174,13 +246,13 @@ describe("ContentChaptersPanel", () => {
     });
 
     describe("the column's head", () => {
-        it("says where the playhead is among the chapters, and the strip does not", () => {
-            const wide = mountPanel({ wide: true });
-            expect(wide.find("[data-test='chaptersPanelPosition']").text()).toBe(
-                "media_player.chapter_position",
-            );
-            const strip = mountPanel();
-            expect(strip.find("[data-test='chaptersPanelPosition']").exists()).toBe(false);
+        it("says where the playhead is among the chapters, beside the content and under the player", () => {
+            for (const wide of [true, false]) {
+                const wrapper = mountPanel({ wide });
+                expect(wrapper.find("[data-test='chaptersPanelPosition']").text()).toBe(
+                    "media_player.chapter_position",
+                );
+            }
         });
 
         it("says nothing without chapters", () => {
@@ -190,11 +262,10 @@ describe("ContentChaptersPanel", () => {
     });
 
     describe("the frames", () => {
-        it("are 96px in the strip, with a bar along the foot for how much has played", async () => {
+        it("are 100px, with a bar along the foot for how much has played", () => {
             const wrapper = mountPanel({ cueAt: () => cue, currentTime: 90 });
-            await tab(wrapper, "chapters").trigger("click");
             const frames = wrapper.findAll("[data-test='mediaPlayerChapterFrame']");
-            expect(frames[0]!.attributes("style")).toContain("width: 96px");
+            expect(frames[0]!.attributes("style")).toContain("width: 100px");
             const bars = wrapper.findAll("[data-test='mediaPlayerChapterProgress']");
             // 90s is the end of the first chapter, half way through the second, and before the rest.
             expect(bars.map((bar) => bar.attributes("style"))).toEqual([

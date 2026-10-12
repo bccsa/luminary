@@ -945,7 +945,8 @@ watch([isLoading, content, is404], async () => {
                                     :language="selectedLanguageCode"
                                     :start-audio="startsAsAudio"
                                     windowed-controls
-                                    class="overflow-hidden rounded-xl"
+                                    class="overflow-hidden"
+                                    :class="hasPanel && !isWide ? 'rounded-t-xl' : 'rounded-xl'"
                                 />
                                 <div
                                     v-else-if="hasHeroImage"
@@ -1010,10 +1011,10 @@ watch([isLoading, content, is404], async () => {
                             </IgnorePagePadding>
                         </div>
 
-                        <!-- Under the player when there is no room beside the content: a strip of tabs that open. -->
+                        <!-- Under the player when there is no room beside the content: joined to its foot. -->
                         <ContentChaptersPanel
                             v-if="hasPanel && !isWide"
-                            class="mt-3"
+                            attached
                             :wide="false"
                             :chapters="panelChapters"
                             :current-time="panelTime"
