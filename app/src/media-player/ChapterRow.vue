@@ -117,7 +117,11 @@ const imageStyle = computed(() => {
             >
             <span
                 class="truncate text-sm tabular-nums"
-                :class="current ? 'text-yellow-800/80 dark:text-yellow-300/80' : 'text-zinc-500 dark:text-slate-400'"
+                :class="
+                    current
+                        ? 'text-yellow-800/80 dark:text-yellow-300/80'
+                        : 'text-zinc-500 dark:text-slate-400'
+                "
                 data-test="mediaPlayerChapterTime"
                 >{{ meta }}</span
             >

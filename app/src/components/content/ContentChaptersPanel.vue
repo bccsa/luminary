@@ -48,7 +48,13 @@ const hasUpNext = computed(
 );
 const tabs = computed<{ id: PanelTab; label: string; count: number }[]>(() => [
     ...(props.chapters.length
-        ? [{ id: "chapters" as const, label: t("media_player.chapters"), count: props.chapters.length }]
+        ? [
+              {
+                  id: "chapters" as const,
+                  label: t("media_player.chapters"),
+                  count: props.chapters.length,
+              },
+          ]
         : []),
     ...(hasUpNext.value
         ? [

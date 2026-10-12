@@ -228,7 +228,9 @@ watch([tabs, chapters], ([available, chapterList]) => {
  * arrived, and none for a video encoded without them.
  */
 function chapterCueAt(time: number) {
-    return state.value?.thumbnailsReady ? (handle.value?.controller?.thumbnailAt(time) ?? null) : null;
+    return state.value?.thumbnailsReady
+        ? (handle.value?.controller?.thumbnailAt(time) ?? null)
+        : null;
 }
 
 /** A chapter: the picture goes there, and plays on. */

@@ -51,7 +51,10 @@ vi.mock("@luminary-media-converter/player-web", async () => {
         }),
         // The real one is player-core's, tested there: the last chapter that has started.
         chapterIndexAt: (chapters: { startTime: number }[], time: number) =>
-            chapters.reduce((found, chapter, index) => (chapter.startTime <= time ? index : found), -1),
+            chapters.reduce(
+                (found, chapter, index) => (chapter.startTime <= time ? index : found),
+                -1,
+            ),
         rosterStep: () => 4,
         rosterFineStep: () => 1,
         rosterTiles: (time: number) => [{ index: 0, left: 0, time }],
@@ -1073,7 +1076,10 @@ describe("MediaPlayer", () => {
             const sheetTabs = wrapper
                 .findAll("[data-test^='mediaPlayerSheetTab-']")
                 .map((tab) => tab.attributes("data-test"));
-            expect(sheetTabs).toEqual(["mediaPlayerSheetTab-chapters", "mediaPlayerSheetTab-upnext"]);
+            expect(sheetTabs).toEqual([
+                "mediaPlayerSheetTab-chapters",
+                "mediaPlayerSheetTab-upnext",
+            ]);
             expect(find(wrapper, "mediaPlayerSheetTab-chapters").attributes("aria-selected")).toBe(
                 "true",
             );
@@ -1212,7 +1218,9 @@ describe("MediaPlayer", () => {
             expect(rows[1]!.find("[data-test='mediaPlayerChapterNow']").text()).toBe(
                 "media_player.chapter_now",
             );
-            expect(rows[1]!.find("[data-test='mediaPlayerChapterTime']").text()).toContain("0:20 · ");
+            expect(rows[1]!.find("[data-test='mediaPlayerChapterTime']").text()).toContain(
+                "0:20 · ",
+            );
             expect(rows[1]!.text()).toContain("The talk");
         });
 

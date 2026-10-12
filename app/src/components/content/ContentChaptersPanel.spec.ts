@@ -139,7 +139,11 @@ describe("ContentChaptersPanel", () => {
         });
 
         it("shows a few rows around the playing chapter, and opens the rest in place", async () => {
-            const wrapper = mountPanel({ wide: true, chapters: chapters(20), currentTime: 12 * 60 });
+            const wrapper = mountPanel({
+                wide: true,
+                chapters: chapters(20),
+                currentTime: 12 * 60,
+            });
             const titles = () => rows(wrapper).map((r) => r.text());
             expect(rows(wrapper)).toHaveLength(7);
             // Starts one before the playing chapter (the 13th), and the playing one is among them.
@@ -148,9 +152,9 @@ describe("ContentChaptersPanel", () => {
 
             await wrapper.find("[data-test='chaptersPanelMore']").trigger("click");
             expect(rows(wrapper)).toHaveLength(20);
-            expect(wrapper.find("[data-test='chaptersPanelMore']").attributes("aria-expanded")).toBe(
-                "true",
-            );
+            expect(
+                wrapper.find("[data-test='chaptersPanelMore']").attributes("aria-expanded"),
+            ).toBe("true");
         });
 
         it("keeps the window inside the list at both ends", () => {
