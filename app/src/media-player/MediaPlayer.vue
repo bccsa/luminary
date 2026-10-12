@@ -1028,7 +1028,7 @@ function onKeydown(event: KeyboardEvent) {
                             // Nothing to press yet: out of sight, but keeping its room, so the page does not move.
                             { invisible: starting },
                             // A seventh button: tighter, so the row still fits a 390 pt phone.
-                            handle?.airPlayAvailable ? 'gap-1' : 'gap-2',
+                            handle?.airPlayAvailable ? 'gap-1 md:gap-2' : 'gap-2 md:gap-3',
                         ]"
                     >
                         <div
@@ -1037,14 +1037,14 @@ function onKeydown(event: KeyboardEvent) {
                         >
                             <button
                                 type="button"
-                                class="flex h-10 items-center gap-1.5 rounded-full border border-zinc-500/35 px-2 text-sm font-semibold text-zinc-600 dark:text-slate-300"
+                                class="relative flex h-10 items-center gap-1.5 rounded-full border border-zinc-500/35 px-2 text-sm font-semibold text-zinc-600 after:absolute after:-inset-0.5 after:content-[''] dark:text-slate-300 min-[420px]:h-11 min-[420px]:after:inset-0 md:h-12"
                                 :aria-label="t('media_player.language')"
                                 :aria-expanded="openMenu === 'language'"
                                 @click="toggleMenu('language')"
                             >
                                 <V10Icon
                                     name="speech"
-                                    class="h-5 w-5"
+                                    class="h-5 w-5 md:h-6 md:w-6"
                                 />
                                 {{ activeLanguageCode }}
                             </button>
@@ -1067,8 +1067,12 @@ function onKeydown(event: KeyboardEvent) {
                         >
                             <button
                                 type="button"
-                                class="flex h-10 items-center justify-center rounded-full border border-zinc-500/35 text-sm font-semibold text-zinc-600 dark:text-slate-300"
-                                :class="state.playbackRate === 1 ? 'w-10' : 'px-2'"
+                                class="relative flex h-10 items-center justify-center rounded-full border border-zinc-500/35 text-sm font-semibold text-zinc-600 after:absolute after:-inset-0.5 after:content-[''] dark:text-slate-300 min-[420px]:h-11 min-[420px]:after:inset-0 md:h-12"
+                                :class="
+                                    state.playbackRate === 1
+                                        ? 'w-10 min-[420px]:w-11 md:w-12'
+                                        : 'px-2 md:px-3'
+                                "
                                 :aria-label="t('media_player.speed')"
                                 :aria-description="rateLabel(state.playbackRate)"
                                 :aria-expanded="openMenu === 'speed'"
@@ -1077,7 +1081,7 @@ function onKeydown(event: KeyboardEvent) {
                                 <span class="flex items-center gap-1.5">
                                     <V10Icon
                                         name="speed"
-                                        class="h-5 w-5"
+                                        class="h-5 w-5 md:h-6 md:w-6"
                                     />
                                     <!-- The rate is said only when it is not the normal one: a settled choice needs no label. -->
                                     <template v-if="state.playbackRate !== 1">{{
@@ -1116,7 +1120,7 @@ function onKeydown(event: KeyboardEvent) {
                                         :name="
                                             state.activeSubtitleTrackId ? 'captionsOn' : 'captions'
                                         "
-                                        class="h-5 w-5"
+                                        class="h-5 w-5 md:h-6 md:w-6"
                                     />
                                 </button>
                                 <MediaPlayerMenu
@@ -1141,21 +1145,21 @@ function onKeydown(event: KeyboardEvent) {
                             <button
                                 v-if="handle?.canPictureInPicture"
                                 type="button"
-                                class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border border-zinc-500/35 text-zinc-600 disabled:opacity-40 dark:text-slate-300"
+                                class="relative flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border border-zinc-500/35 text-zinc-600 after:absolute after:-inset-0.5 after:content-[''] disabled:opacity-40 dark:text-slate-300 min-[420px]:h-11 min-[420px]:w-11 min-[420px]:after:inset-0 md:h-12 md:w-12"
                                 :aria-label="t('media_player.picture_in_picture')"
                                 data-test="mediaPlayerPictureInPicture"
                                 @click="handle?.startPictureInPicture?.()"
                             >
                                 <V10Icon
                                     name="pip"
-                                    class="h-5 w-5"
+                                    class="h-5 w-5 md:h-6 md:w-6"
                                 />
                             </button>
                         </template>
                         <button
                             v-if="handle?.airPlayAvailable"
                             type="button"
-                            class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border border-zinc-500/35 text-zinc-600 dark:text-slate-300"
+                            class="relative flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border border-zinc-500/35 text-zinc-600 after:absolute after:-inset-0.5 after:content-[''] dark:text-slate-300 min-[420px]:h-11 min-[420px]:w-11 min-[420px]:after:inset-0 md:h-12 md:w-12"
                             :class="{
                                 'bg-zinc-500/15 text-yellow-700 dark:text-yellow-400':
                                     handle?.airPlayActive,
@@ -1167,13 +1171,13 @@ function onKeydown(event: KeyboardEvent) {
                         >
                             <V10Icon
                                 :name="isMac ? 'airplay' : 'cast'"
-                                class="h-5 w-5"
+                                class="h-5 w-5 md:h-6 md:w-6"
                             />
                         </button>
                         <button
                             v-if="handle?.canMute"
                             type="button"
-                            class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border border-zinc-500/35 text-zinc-600 disabled:opacity-40 dark:text-slate-300"
+                            class="relative flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border border-zinc-500/35 text-zinc-600 after:absolute after:-inset-0.5 after:content-[''] disabled:opacity-40 dark:text-slate-300 min-[420px]:h-11 min-[420px]:w-11 min-[420px]:after:inset-0 md:h-12 md:w-12"
                             :aria-label="muted ? t('media_player.unmute') : t('media_player.mute')"
                             :aria-pressed="muted"
                             data-test="mediaPlayerMute"
@@ -1181,20 +1185,20 @@ function onKeydown(event: KeyboardEvent) {
                         >
                             <V10Icon
                                 :name="muted ? 'volumeOff' : 'volumeHigh'"
-                                class="h-5 w-5"
+                                class="h-5 w-5 md:h-6 md:w-6"
                             />
                         </button>
                         <button
                             v-if="!audioMode"
                             type="button"
-                            class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border border-zinc-500/35 text-zinc-600 dark:text-slate-300"
+                            class="relative flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border border-zinc-500/35 text-zinc-600 after:absolute after:-inset-0.5 after:content-[''] dark:text-slate-300 min-[420px]:h-11 min-[420px]:w-11 min-[420px]:after:inset-0 md:h-12 md:w-12"
                             :aria-label="t('media_player.fullscreen')"
                             data-test="mediaPlayerFullscreen"
                             @click="handle?.enterFullscreen()"
                         >
                             <V10Icon
                                 name="fullscreenEnter"
-                                class="h-5 w-5"
+                                class="h-5 w-5 md:h-6 md:w-6"
                             />
                         </button>
 
