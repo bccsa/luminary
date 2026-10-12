@@ -68,6 +68,11 @@
         width: 44px;
         height: 44px;
       }
+      /* Upright, the status bar and the notch draw over the top of the frame, whose own safe area reads as
+         zero: the exit has to sit below them. On its side there is nothing up there. */
+      @media (orientation: portrait) {
+        #exit { top: calc(env(safe-area-inset-top, 0px) + 64px); }
+      }
       #mid {
         position: absolute;
         top: 50%;
