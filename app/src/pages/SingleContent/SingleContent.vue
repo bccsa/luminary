@@ -67,6 +67,10 @@ import { activeImageCollection } from "@/components/images/LImageProvider.vue";
 import MediaAction from "@/media-player/MediaAction.vue";
 import { startsAsAudio } from "@/media-player/mediaPlayer";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
+import ContentChaptersPanel from "@/components/content/ContentChaptersPanel.vue";
+import { useUpNext } from "@/media-player/useUpNext";
+import type { VideoPlayerHandle } from "@/build-time/contracts/video-player/contract";
+import type { Chapter } from "@luminary-media-converter/player-web";
 import { useMediaQuery } from "@vueuse/core";
 import LHighlightable from "@/components/common/LHighlightable.vue";
 import DropdownMenu from "@/components/common/DropdownMenu.vue";
@@ -705,6 +709,40 @@ const isDesktop = useMediaQuery("(min-width: 1024px)");
 // attachment, offered by a button under the picture that opens the app-wide player.
 const embedVideo = computed(() => isDesktop.value && hasVideoSource(content.value));
 
+// Matches Tailwind's `xl`: room for the chapters beside the content; below it they sit in a strip under the player.
+const isWide = useMediaQuery("(min-width: 1280px)");
+
+// What the embedded player knows, for the chapters and up next under or beside it.
+const videoPlayerRef = ref<{ player: VideoPlayerHandle | null } | null>(null);
+const playerHandle = computed(() => videoPlayerRef.value?.player ?? null);
+const panelChapters = computed(() => playerHandle.value?.state?.chapters ?? []);
+const panelTime = computed(() => playerHandle.value?.state?.currentTime ?? 0);
+const panelTag = ref<Uuid | null>(null);
+const upNext = useUpNext(
+    computed(() => (embedVideo.value ? content.value : undefined)),
+    panelTag,
+);
+/** Whether there is anything for the panel to say; without it the page keeps its own layout. */
+const hasPanel = computed(
+    () =>
+        embedVideo.value &&
+        (panelChapters.value.length > 0 ||
+            upNext.value.next.length > 0 ||
+            upNext.value.related.length > 0 ||
+            !!panelTag.value),
+);
+function panelCueAt(time: number) {
+    const handle = playerHandle.value;
+    return handle?.state?.thumbnailsReady ? (handle.controller?.thumbnailAt(time) ?? null) : null;
+}
+function playChapter(chapter: Chapter) {
+    playerHandle.value?.seek(chapter.startTime);
+    void playerHandle.value?.play();
+}
+function openUpNext(next: ContentDto) {
+    if (next.slug) void router.push({ name: "content", params: { slug: next.slug } });
+}
+
 // Whether the hero image can carry the title/summary as an overlay. An embedded player has its own
 // controls along the bottom edge, so the title goes above it instead.
 const hasHeroImage = computed(
@@ -828,7 +866,11 @@ watch([isLoading, content, is404], async () => {
         >
             <div
                 class="flex flex-grow justify-center lg:grid lg:grid-cols-[1fr_minmax(0,48rem)_1fr] lg:gap-x-8"
-                :class="{ 'items-center': showLoadingBar }"
+                :class="{
+                    'items-center': showLoadingBar,
+                    // The chapters beside the content: the pair of columns stays centred on the page.
+                    'xl:grid-cols-[1fr_minmax(0,48rem)_22rem_1fr]': hasPanel,
+                }"
             >
                 <LoadingBar
                     v-if="showLoadingBar"
@@ -895,6 +937,7 @@ watch([isLoading, content, is404], async () => {
                             >
                                 <VideoPlayer
                                     v-if="embedVideo && content"
+                                    ref="videoPlayerRef"
                                     :key="content._id"
                                     :content="content"
                                     :language="selectedLanguageCode"
@@ -964,6 +1007,21 @@ watch([isLoading, content, is404], async () => {
                                 </div>
                             </IgnorePagePadding>
                         </div>
+
+                        <!-- Under the player when there is no room beside the content: a strip of tabs that open. -->
+                        <ContentChaptersPanel
+                            v-if="hasPanel && !isWide"
+                            class="mt-3"
+                            :wide="false"
+                            :chapters="panelChapters"
+                            :current-time="panelTime"
+                            :up-next="upNext"
+                            :selected-tag="panelTag"
+                            :cue-at="panelCueAt"
+                            @seek-chapter="playChapter"
+                            @play-next="openUpNext"
+                            @select-tag="panelTag = $event"
+                        />
 
                         <MediaAction
                             v-if="hasVideoSource(content) && !embedVideo"
@@ -1108,6 +1166,23 @@ watch([isLoading, content, is404], async () => {
                             {{ content.copyright }}
                         </div>
                     </article>
+
+                    <!-- Beside the content on a wide screen; it stays in view while the text is read. -->
+                    <aside
+                        v-if="hasPanel && isWide"
+                        class="col-start-3 mt-11 self-start xl:sticky xl:top-20"
+                    >
+                        <ContentChaptersPanel
+                            :wide="true"
+                            :chapters="panelChapters"
+                            :current-time="panelTime"
+                            :up-next="upNext"
+                            :selected-tag="panelTag"
+                            @seek-chapter="playChapter"
+                            @play-next="openUpNext"
+                            @select-tag="panelTag = $event"
+                        />
+                    </aside>
 
                     <!-- Right gutter: kept empty, mirrors the left one so the article stays centred. -->
                     <div class="hidden lg:block" />
