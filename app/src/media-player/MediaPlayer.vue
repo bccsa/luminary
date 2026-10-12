@@ -1037,7 +1037,7 @@ function onKeydown(event: KeyboardEvent) {
                         >
                             <button
                                 type="button"
-                                class="flex h-11 items-center gap-1.5 rounded-full border border-zinc-500/35 px-3 text-sm font-semibold text-zinc-600 dark:text-slate-300"
+                                class="flex h-10 items-center gap-1.5 rounded-full border border-zinc-500/35 px-2 text-sm font-semibold text-zinc-600 dark:text-slate-300"
                                 :aria-label="t('media_player.language')"
                                 :aria-expanded="openMenu === 'language'"
                                 @click="toggleMenu('language')"
@@ -1067,8 +1067,10 @@ function onKeydown(event: KeyboardEvent) {
                         >
                             <button
                                 type="button"
-                                class="h-11 rounded-full border border-zinc-500/35 px-3 text-sm font-semibold text-zinc-600 dark:text-slate-300"
+                                class="flex h-10 items-center justify-center rounded-full border border-zinc-500/35 text-sm font-semibold text-zinc-600 dark:text-slate-300"
+                                :class="state.playbackRate === 1 ? 'w-10' : 'px-2'"
                                 :aria-label="t('media_player.speed')"
+                                :aria-description="rateLabel(state.playbackRate)"
                                 :aria-expanded="openMenu === 'speed'"
                                 @click="toggleMenu('speed')"
                             >
@@ -1077,7 +1079,10 @@ function onKeydown(event: KeyboardEvent) {
                                         name="speed"
                                         class="h-5 w-5"
                                     />
-                                    {{ rateLabel(state.playbackRate) }}
+                                    <!-- The rate is said only when it is not the normal one: a settled choice needs no label. -->
+                                    <template v-if="state.playbackRate !== 1">{{
+                                        rateLabel(state.playbackRate)
+                                    }}</template>
                                 </span>
                             </button>
                             <MediaPlayerMenu
@@ -1136,7 +1141,7 @@ function onKeydown(event: KeyboardEvent) {
                             <button
                                 v-if="handle?.canPictureInPicture"
                                 type="button"
-                                class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full border border-zinc-500/35 text-zinc-600 disabled:opacity-40 dark:text-slate-300"
+                                class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border border-zinc-500/35 text-zinc-600 disabled:opacity-40 dark:text-slate-300"
                                 :aria-label="t('media_player.picture_in_picture')"
                                 data-test="mediaPlayerPictureInPicture"
                                 @click="handle?.startPictureInPicture?.()"
@@ -1150,7 +1155,7 @@ function onKeydown(event: KeyboardEvent) {
                         <button
                             v-if="handle?.airPlayAvailable"
                             type="button"
-                            class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full border border-zinc-500/35 text-zinc-600 dark:text-slate-300"
+                            class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border border-zinc-500/35 text-zinc-600 dark:text-slate-300"
                             :class="{
                                 'bg-zinc-500/15 text-yellow-700 dark:text-yellow-400':
                                     handle?.airPlayActive,
@@ -1168,7 +1173,7 @@ function onKeydown(event: KeyboardEvent) {
                         <button
                             v-if="handle?.canMute"
                             type="button"
-                            class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full border border-zinc-500/35 text-zinc-600 disabled:opacity-40 dark:text-slate-300"
+                            class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border border-zinc-500/35 text-zinc-600 disabled:opacity-40 dark:text-slate-300"
                             :aria-label="muted ? t('media_player.unmute') : t('media_player.mute')"
                             :aria-pressed="muted"
                             data-test="mediaPlayerMute"
@@ -1182,7 +1187,7 @@ function onKeydown(event: KeyboardEvent) {
                         <button
                             v-if="!audioMode"
                             type="button"
-                            class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full border border-zinc-500/35 text-zinc-600 dark:text-slate-300"
+                            class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border border-zinc-500/35 text-zinc-600 dark:text-slate-300"
                             :aria-label="t('media_player.fullscreen')"
                             data-test="mediaPlayerFullscreen"
                             @click="handle?.enterFullscreen()"
