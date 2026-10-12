@@ -12,6 +12,7 @@ import {
     isDataSaverEnabled,
     userDataSaverEnabled,
     localCacheVersion,
+    youtubeAlwaysAllow,
 } from "@/globalConfig";
 import { useNetworkSpeedEstimator } from "@/composables/useNetworkSpeedEstimator";
 import BasePage from "@/components/BasePage.vue";
@@ -135,6 +136,17 @@ const deleteLocalData = async () => {
                     data-test="dataSaverNote"
                 >
                     {{ dataSaverNote }}
+                </div>
+            </LCard>
+            <LCard :title="t('settings.youtube.title')">
+                <div class="flex items-center justify-between gap-4">
+                    <div class="text-sm text-zinc-600 dark:text-slate-100">
+                        {{ t("settings.youtube.description") }}
+                    </div>
+                    <LToggle
+                        v-model="youtubeAlwaysAllow"
+                        data-test="youtubeAllowToggle"
+                    />
                 </div>
             </LCard>
         </div>

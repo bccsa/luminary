@@ -18,6 +18,8 @@ import {
 } from "@luminary-media-converter/player-web";
 import { type ContentDto, fetchHlsKey, reportError } from "luminary-shared";
 import LImage from "../images/LImage.vue";
+import YouTubeEmbed from "./YouTubeEmbed.vue";
+import { isYouTubeLink } from "@/util/youtube";
 import {
     appLanguagesPreferredAsRef,
     isDataSaverEnabled,
@@ -192,6 +194,14 @@ const controls = computed(() =>
               audioVideoToggle: false,
               windowedControls: !!props.windowedControls,
           },
+);
+
+/**
+ * A video hosted by YouTube. The player package has no YouTube mode, so the app shows YouTube's own embed,
+ * behind a notice: see `YouTubeEmbed`.
+ */
+const youtubeUrl = computed(() =>
+    isYouTubeLink(videoSource.value) ? videoSource.value : undefined,
 );
 
 /** The angle the load starts on, fixed per content so a later change of mind does not reload. */
@@ -392,6 +402,10 @@ function onLoadedMetadata() {
     const progress = getMediaProgress(id, props.content._id);
     if (progress > MIN_RESUME_SECONDS) player.value?.seek(progress - RESUME_REWIND_SECONDS);
 
+    // A video hosted by YouTube plays in its own frame, started by the viewer, in the page: it neither
+    // needs a play nor goes full-screen, which is for a player that shows video only there.
+    if (youtubeUrl.value) return;
+
     if (autoPlay || props.autoplay) void player.value?.play();
     if (
         autoFullscreen ||
@@ -459,9 +473,18 @@ function onEnded() {
             ref="playerWrapper"
             class="video-player absolute bottom-0 left-0 right-0 top-0"
         >
+            <YouTubeEmbed
+                v-if="youtubeUrl"
+                ref="player"
+                :content="content"
+                :url="youtubeUrl"
+                @loadedmetadata="onLoadedMetadata"
+                @timeupdate="onTimeUpdate"
+                @ended="onEnded"
+            />
             <component
                 :is="videoPlayer.component"
-                v-if="source"
+                v-else-if="source"
                 ref="player"
                 :source="source"
                 :preferred-language="preferredLanguage"

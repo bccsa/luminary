@@ -506,3 +506,13 @@ export const fallbackImageUrls = loadFallbackImageUrls();
  * True while the app's Startup function is still running. Used to display the loading splash screen.
  */
 export const isAppLoading = ref(!new URLSearchParams(window.location.search).has("nosplash"));
+
+/**
+ * The viewer has allowed videos hosted by YouTube to load without asking each time, on this device.
+ * Off until they tick "Always allow" on a notice; the Settings page turns it off again. A
+ * module-level singleton like Data Saver, so the notice and the Settings toggle share one value.
+ */
+export const youtubeAlwaysAllow = ref(localStorage.getItem("youtubeAlwaysAllow") === "true");
+watch(youtubeAlwaysAllow, (allowed) => {
+    localStorage.setItem("youtubeAlwaysAllow", String(allowed));
+});

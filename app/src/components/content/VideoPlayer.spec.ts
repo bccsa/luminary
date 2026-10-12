@@ -7,7 +7,7 @@ import VideoPlayer from "./VideoPlayer.vue";
 import { mockEnglishContentDto } from "@/tests/mockdata";
 import { VideoPlayerKey } from "@/build-time/contracts/video-player/token";
 import { shareImageUrl } from "@/composables/useSocialShare";
-import { userDataSaverEnabled } from "@/globalConfig";
+import { userDataSaverEnabled, youtubeAlwaysAllow } from "@/globalConfig";
 import { fallbackArtworkDataUrl } from "@/util/fallbackArtwork";
 import {
     connectionSpeed,
@@ -310,6 +310,24 @@ describe("VideoPlayer", () => {
             expect(enterFullscreenMock).toHaveBeenCalled();
         });
 
+        it("does not take a video hosted by YouTube full-screen when it starts, as it would for a native player", async () => {
+            const fullscreen = vi.fn(() => Promise.resolve());
+            HTMLIFrameElement.prototype.requestFullscreen = fullscreen;
+            youtubeAlwaysAllow.value = true;
+            const wrapper = await mountPlayer(
+                { video: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", parentMedia: undefined },
+                { autoplay: true, fullscreenOnPlay: true },
+            );
+            const embed = wrapper.findComponent({ name: "YouTubeEmbed" });
+            expect(embed.find("iframe").exists()).toBe(true);
+
+            embed.vm.$emit("loadedmetadata");
+            await new Promise((resolve) => setTimeout(resolve, 0));
+
+            expect(fullscreen).not.toHaveBeenCalled();
+            youtubeAlwaysAllow.value = false;
+        });
+
         it("stays out of full-screen when it starts on the sound", async () => {
             const wrapper = await mountPlayer(
                 {},
@@ -501,7 +519,9 @@ describe("VideoPlayer", () => {
                     chapters: [
                         { lang: "en", url: "https://bucket.example.com/media/abc/chapters/en.vtt" },
                     ],
-                    thumbnails: { url: "https://bucket.example.com/media/abc/thumbnails/thumbnails.vtt" },
+                    thumbnails: {
+                        url: "https://bucket.example.com/media/abc/thumbnails/thumbnails.vtt",
+                    },
                 },
             });
         });

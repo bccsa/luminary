@@ -6,12 +6,21 @@ import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
 import { db, isConnected } from "luminary-shared";
 import { mockLanguageDtoEng } from "@/tests/mockdata";
-import { isDataSaverEnabled, userDataSaverEnabled, localCacheVersion } from "@/globalConfig";
+import {
+    isDataSaverEnabled,
+    userDataSaverEnabled,
+    localCacheVersion,
+    youtubeAlwaysAllow,
+} from "@/globalConfig";
 
 vi.mock("@/globalConfig", async () => {
     const { ref, watch } = await import("vue");
     const userDataSaverEnabled = ref(false);
     const localCacheVersion = ref(0);
+    const youtubeAlwaysAllow = ref(false);
+    watch(youtubeAlwaysAllow, (allowed) => {
+        localStorage.setItem("youtubeAlwaysAllow", String(allowed));
+    });
     watch(userDataSaverEnabled, (enabled) => {
         localStorage.setItem("dataSaver", String(enabled));
     });
@@ -20,6 +29,7 @@ vi.mock("@/globalConfig", async () => {
         isDataSaverEnabled: vi.fn(() => false),
         userDataSaverEnabled,
         localCacheVersion,
+        youtubeAlwaysAllow,
     };
 });
 vi.mock("@/components/BasePage.vue", async () => {
@@ -170,6 +180,19 @@ describe("SettingsPage data saver", () => {
 
         expect(userDataSaverEnabled.value).toBe(true);
         expect(localStorage.getItem("dataSaver")).toBe("true");
+    });
+
+    it('turns off "always allow" for videos hosted by YouTube', async () => {
+        youtubeAlwaysAllow.value = true;
+        const wrapper = mountSettingsPage();
+        const toggle = wrapper.find("[data-test='youtubeAllowToggle']");
+        expect(toggle.exists()).toBe(true);
+        expect(toggle.attributes("aria-checked")).toBe("true");
+
+        await toggle.trigger("click");
+
+        expect(youtubeAlwaysAllow.value).toBe(false);
+        expect(localStorage.getItem("youtubeAlwaysAllow")).toBe("false");
     });
 
     it("forces the toggle on visually and disables it when browser Data Saver is detected", async () => {
