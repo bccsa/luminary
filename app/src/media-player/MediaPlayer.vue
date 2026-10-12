@@ -690,14 +690,20 @@ function onKeydown(event: KeyboardEvent) {
             >
                 <div
                     class="flex justify-center pb-1 lg:hidden"
-                    :class="topBarHeight ? 'pt-3' : 'pt-[max(env(safe-area-inset-top),0.75rem)]'"
+                    :class="
+                        topBarHeight
+                            ? 'pt-3 [@media(max-height:840px)]:pt-1.5'
+                            : 'pt-[max(env(safe-area-inset-top),0.75rem)]'
+                    "
                 >
                     <div
                         class="mt-1 h-1.5 w-32 rounded-full bg-zinc-400 opacity-50 dark:bg-slate-400"
                     />
                 </div>
 
-                <div class="flex items-center justify-between px-4 pb-3">
+                <div
+                    class="flex items-center justify-between px-4 pb-3 [@media(max-height:840px)]:pb-1"
+                >
                     <button
                         type="button"
                         class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full hover:bg-black/10 dark:hover:bg-white/10"
@@ -1139,7 +1145,7 @@ function onKeydown(event: KeyboardEvent) {
                         </div>
                         <div
                             v-if="live"
-                            class="absolute inset-x-0 top-5 flex h-10 items-center justify-center"
+                            class="absolute inset-0 flex items-center justify-center"
                             data-test="mediaPlayerLive"
                         >
                             <span
@@ -1157,7 +1163,7 @@ function onKeydown(event: KeyboardEvent) {
                     <div class="flex flex-none items-center justify-center gap-8">
                         <V10Button
                             round
-                            class="h-14 w-14"
+                            class="h-14 w-14 [@media(max-height:840px)]:h-12 [@media(max-height:840px)]:w-12"
                             :class="{ invisible: !timeKnown || live }"
                             :label="t('media_player.skip_back', { seconds: SKIP_SECONDS })"
                             data-test="mediaPlayerSkipBack"
@@ -1170,7 +1176,7 @@ function onKeydown(event: KeyboardEvent) {
                         </V10Button>
                         <V10Button
                             round
-                            class="h-20 w-20 disabled:opacity-60"
+                            class="h-20 w-20 disabled:opacity-60 [@media(max-height:840px)]:h-16 [@media(max-height:840px)]:w-16"
                             :class="{ invisible: starting }"
                             :label="playing ? t('media_player.pause') : t('media_player.play')"
                             data-test="mediaPlayerPlayPause"
@@ -1190,7 +1196,7 @@ function onKeydown(event: KeyboardEvent) {
                         </V10Button>
                         <V10Button
                             round
-                            class="h-14 w-14"
+                            class="h-14 w-14 [@media(max-height:840px)]:h-12 [@media(max-height:840px)]:w-12"
                             :class="{ invisible: !timeKnown || live }"
                             :label="t('media_player.skip_forward', { seconds: SKIP_SECONDS })"
                             data-test="mediaPlayerSkipForward"
@@ -1210,7 +1216,7 @@ function onKeydown(event: KeyboardEvent) {
                 <div
                     v-if="!sheetTab"
                     role="tablist"
-                    class="sticky bottom-0 mt-auto flex h-12 w-full flex-none border-t border-zinc-300/60 bg-amber-50 dark:border-slate-600/60 dark:bg-slate-800"
+                    class="sticky bottom-0 mt-auto flex h-12 w-full flex-none border-t border-zinc-300/60 bg-amber-50 dark:border-slate-600/60 dark:bg-slate-800 [@media(max-height:840px)]:h-10"
                 >
                     <button
                         v-for="tab in tabs"
