@@ -339,6 +339,21 @@ describe("MediaPlayer", () => {
             expect(find(wrapper, "mediaPlayerSeekBar").classes()).toContain("px-10");
         });
 
+        it("draws the skip buttons itself, not from an icon font the player may not ship", async () => {
+            const wrapper = await playing();
+            const buttons = wrapper.findAll("button[aria-label^='media_player.skip']");
+
+            expect(buttons).toHaveLength(2);
+            for (const button of buttons) {
+                // Something is drawn: an inline vector, with a shape, and no font class to depend on.
+                expect(button.find("svg path").attributes("d")?.length).toBeGreaterThan(100);
+                expect(button.html()).not.toContain("vjs-icon");
+            }
+            expect(buttons[0]!.find("svg path").attributes("d")).not.toBe(
+                buttons[1]!.find("svg path").attributes("d"),
+            );
+        });
+
         it("pauses and plays", async () => {
             const wrapper = await playing();
             await find(wrapper, "mediaPlayerPlayPause").trigger("click");

@@ -33,6 +33,7 @@ import { isNativeApp } from "@/util/inAppBrowser";
 import MediaPlayerAbout from "./MediaPlayerAbout.vue";
 import MediaPlayerChapters from "./MediaPlayerChapters.vue";
 import MediaPlayerMenu from "./MediaPlayerMenu.vue";
+import SkipGlyph from "./SkipGlyph.vue";
 import MediaPlayerMenuItem from "./MediaPlayerMenuItem.vue";
 import MediaPlayerUpNext from "./MediaPlayerUpNext.vue";
 import { useUpNext } from "./useUpNext";
@@ -1091,9 +1092,9 @@ function onKeydown(event: KeyboardEvent) {
                             :aria-label="t('media_player.skip_back', { seconds: SKIP_SECONDS })"
                             @click="skip(-SKIP_SECONDS)"
                         >
-                            <span
-                                class="vjs-icon-replay-10 text-[40px] leading-none"
-                                aria-hidden="true"
+                            <SkipGlyph
+                                direction="back"
+                                class="h-10 w-10"
                             />
                         </button>
                         <button
@@ -1127,9 +1128,9 @@ function onKeydown(event: KeyboardEvent) {
                             :aria-label="t('media_player.skip_forward', { seconds: SKIP_SECONDS })"
                             @click="skip(SKIP_SECONDS)"
                         >
-                            <span
-                                class="vjs-icon-forward-10 text-[40px] leading-none"
-                                aria-hidden="true"
+                            <SkipGlyph
+                                direction="forward"
+                                class="h-10 w-10"
                             />
                         </button>
                     </div>
