@@ -40,7 +40,9 @@ import { isNativeApp } from "@/util/inAppBrowser";
 import MediaPlayerAbout from "./MediaPlayerAbout.vue";
 import MediaPlayerChapters from "./MediaPlayerChapters.vue";
 import MediaPlayerMenu from "./MediaPlayerMenu.vue";
-import SkipGlyph from "./SkipGlyph.vue";
+import V10Button from "./V10Button.vue";
+import V10Icon from "./V10Icon.vue";
+import { timeEnds } from "./v10Time";
 import MediaPlayerMenuItem from "./MediaPlayerMenuItem.vue";
 import MediaPlayerUpNext from "./MediaPlayerUpNext.vue";
 import { useUpNext } from "./useUpNext";
@@ -380,6 +382,8 @@ function fraction(seconds: number): number {
 const scrubTime = ref<number | null>(null);
 const shownTime = computed(() => scrubTime.value ?? currentTime.value);
 const progress = computed(() => fraction(shownTime.value));
+/** The time row under the bar: what has played, and what is left, as the full-screen skin shows them. */
+const timeRow = computed(() => timeEnds(shownTime.value, duration.value));
 /** The most a seek is given to land before the bar follows playback again. */
 const SCRUB_HOLD_MS = 1500;
 let scrubTimer: ReturnType<typeof setTimeout> | undefined;
@@ -1294,8 +1298,8 @@ function onKeydown(event: KeyboardEvent) {
                             <div
                                 class="mt-1 flex justify-between text-xs text-zinc-500 dark:text-zinc-300"
                             >
-                                <span>{{ formatTime(shownTime) }}</span>
-                                <span>{{ formatTime(duration) }}</span>
+                                <span>{{ timeRow.elapsed }}</span>
+                                <span>{{ timeRow.remaining }}</span>
                             </div>
                         </div>
                         <div
@@ -1315,57 +1319,59 @@ function onKeydown(event: KeyboardEvent) {
                         </div>
                     </div>
 
-                    <div
-                        class="flex flex-none items-center justify-center gap-6 text-zinc-500 dark:text-slate-400"
-                    >
-                        <button
-                            type="button"
-                            class="flex h-14 w-14 items-center justify-center"
+                    <div class="flex flex-none items-center justify-center gap-8">
+                        <V10Button
+                            round
+                            class="h-14 w-14"
                             :class="{ invisible: !timeKnown || live }"
-                            :aria-label="t('media_player.skip_back', { seconds: SKIP_SECONDS })"
+                            :label="t('media_player.skip_back', { seconds: SKIP_SECONDS })"
+                            data-test="mediaPlayerSkipBack"
                             @click="skip(-SKIP_SECONDS)"
                         >
-                            <SkipGlyph
-                                direction="back"
-                                class="h-10 w-10"
+                            <V10Icon
+                                :skip="{ seconds: SKIP_SECONDS, direction: 'back' }"
+                                class="h-8 w-8"
                             />
-                        </button>
-                        <button
-                            type="button"
-                            class="flex h-[72px] w-[72px] items-center justify-center rounded-full"
-                            :aria-label="playing ? t('media_player.pause') : t('media_player.play')"
+                        </V10Button>
+                        <V10Button
+                            round
+                            class="h-20 w-20 disabled:opacity-60"
+                            :label="playing ? t('media_player.pause') : t('media_player.play')"
                             data-test="mediaPlayerPlayPause"
                             :disabled="starting"
                             @click="togglePlay"
                         >
-                            <PauseIcon
+                            <V10Icon
                                 v-if="playing"
-                                class="h-12 w-12"
+                                name="pause"
+                                class="h-[38px] w-[38px]"
                             />
                             <span
                                 v-else-if="starting"
-                                class="border-current/30 relative -top-28 h-10 w-10 animate-spin rounded-full border-4 border-t-current"
+                                class="border-current/30 h-10 w-10 animate-spin rounded-full border-4 border-t-current"
                                 role="status"
                                 :aria-label="t('video_player.loading')"
                                 data-test="mediaPlayerStarting"
                             />
-                            <PlayIcon
+                            <V10Icon
                                 v-else
-                                class="h-12 w-12"
+                                name="play"
+                                class="h-[38px] w-[38px]"
                             />
-                        </button>
-                        <button
-                            type="button"
-                            class="flex h-14 w-14 items-center justify-center"
+                        </V10Button>
+                        <V10Button
+                            round
+                            class="h-14 w-14"
                             :class="{ invisible: !timeKnown || live }"
-                            :aria-label="t('media_player.skip_forward', { seconds: SKIP_SECONDS })"
+                            :label="t('media_player.skip_forward', { seconds: SKIP_SECONDS })"
+                            data-test="mediaPlayerSkipForward"
                             @click="skip(SKIP_SECONDS)"
                         >
-                            <SkipGlyph
-                                direction="forward"
-                                class="h-10 w-10"
+                            <V10Icon
+                                :skip="{ seconds: SKIP_SECONDS, direction: 'forward' }"
+                                class="h-8 w-8"
                             />
-                        </button>
+                        </V10Button>
                     </div>
                 </template>
                 <div

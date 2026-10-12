@@ -13,9 +13,7 @@ defineEmits<{ click: [event: MouseEvent] }>();
         type="button"
         class="inline-flex items-center justify-center text-white transition-transform duration-100 active:scale-[0.94]"
         :class="
-            round
-                ? 'rounded-full bg-zinc-900/60 ring-1 ring-inset ring-white/20 backdrop-blur-sm'
-                : 'rounded-md'
+            round ? 'rounded-full bg-zinc-900/80 ring-1 ring-inset ring-white/20' : 'rounded-md'
         "
         :aria-label="label"
         data-test="v10Button"

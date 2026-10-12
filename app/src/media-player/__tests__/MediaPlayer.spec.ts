@@ -377,8 +377,10 @@ describe("MediaPlayer", () => {
             expect(buttons).toHaveLength(2);
             for (const button of buttons) {
                 // Something is drawn: an inline vector, with a shape, and no font class to depend on.
-                expect(button.find("svg path").attributes("d")?.length).toBeGreaterThan(100);
+                expect(button.find("svg path").attributes("d")?.length).toBeGreaterThan(20);
                 expect(button.html()).not.toContain("vjs-icon");
+                // The glyph says how far it skips.
+                expect(button.find("svg text").text()).toMatch(/^\d+$/);
             }
             expect(buttons[0]!.find("svg path").attributes("d")).not.toBe(
                 buttons[1]!.find("svg path").attributes("d"),
