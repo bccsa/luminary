@@ -2,10 +2,15 @@
 /**
  * A video hosted by YouTube, shown in the picture's place. Nothing is loaded from Google until the viewer
  * chooses: a poster and a notice stand there first, and Play (or an earlier "Always allow") adds the
- * iframe from YouTube's privacy-enhanced domain. Data Saver never plays by itself: the notice shows
- * whatever was allowed before.
+ * frame. Data Saver never plays by itself: the notice shows whatever was allowed before.
+ *
+ * The frame is `youtube-embed.html` on the web app's own address: the packaged app's pages have no address
+ * YouTube accepts (error 153), and a page that has one can also run YouTube's player with its controls off
+ * and report to this one. So the app's own controls work on the video, as on one of ours: this exposes the
+ * same handle the player package's component does. Where that page is not available (a native build with no
+ * web address set) the frame is YouTube's embed with its own controls, and there is no handle.
  */
-import { computed, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
 import { useI18n } from "vue-i18n";
 import { type ContentDto } from "luminary-shared";
 import LImage from "../images/LImage.vue";
@@ -13,8 +18,14 @@ import { isDataSaverEnabled, userDataSaverEnabled, youtubeAlwaysAllow } from "@/
 import { isNativeApp } from "@/util/inAppBrowser";
 import { publicUrl } from "@/seo/publicSite";
 import { youTubeEmbedUrl, youTubeIdOf, youTubeWatchUrl } from "@/util/youtube";
+import { createYouTubePlayer, isYouTubeReport, type YouTubeCommand } from "@/util/youtubePlayer";
 
 const props = defineProps<{ content: ContentDto; url: string }>();
+const emit = defineEmits<{
+    timeupdate: [currentTime: number, duration: number];
+    loadedmetadata: [];
+    ended: [];
+}>();
 const { t } = useI18n();
 
 const id = computed(() => youTubeIdOf(props.url));
@@ -25,25 +36,89 @@ const chosen = ref(false);
 /** The box on the notice: remembered once Play is pressed. */
 const remember = ref(false);
 
-/**
- * What the frame shows. The packaged app's own pages have no address YouTube accepts (error 153), so there
- * the frame is a page on the web app's real HTTPS address, `youtube-embed.html`, which holds the embed.
- * Everywhere else, and where no web address is configured, it is the embed itself.
- */
-const frameSrc = computed(() => {
-    if (!id.value) return undefined;
-    const hosted = isNativeApp() ? publicUrl(`/youtube-embed.html?v=${id.value}`) : undefined;
-    return hosted ?? youTubeEmbedUrl(id.value);
-});
-
 const loaded = computed(
     () => !!id.value && (chosen.value || (youtubeAlwaysAllow.value && !dataSaver.value)),
 );
+
+/**
+ * The hosted page: on the web origin in the packaged app, on this origin in a browser. Absent where a
+ * native build has no web origin to point at.
+ */
+const hostedPage = computed(() => {
+    if (!id.value) return undefined;
+    const path = `/youtube-embed.html?v=${id.value}&api=1`;
+    const address = isNativeApp() ? publicUrl(path) : path;
+    return address ? new URL(address, window.location.href) : undefined;
+});
+
+const frameSrc = computed(() => {
+    if (!id.value) return undefined;
+    return hostedPage.value?.toString() ?? youTubeEmbedUrl(id.value);
+});
+
+/** The frame can be driven only when it is the hosted page. */
+const driven = computed(() => !!hostedPage.value);
+
+const frame = shallowRef<HTMLIFrameElement | null>(null);
+
+const youtube = createYouTubePlayer({
+    send: (command: YouTubeCommand) => {
+        const origin = hostedPage.value?.origin;
+        if (origin) frame.value?.contentWindow?.postMessage(command, origin);
+    },
+    onTimeUpdate: (currentTime, duration) => emit("timeupdate", currentTime, duration),
+    onLoadedMetadata: () => emit("loadedmetadata"),
+    onEnded: () => emit("ended"),
+});
+
+function onMessage(event: MessageEvent) {
+    // Only the hosted page in our own frame.
+    if (!driven.value || event.source !== frame.value?.contentWindow) return;
+    if (event.origin !== hostedPage.value?.origin || !isYouTubeReport(event.data)) return;
+    youtube.receive(event.data);
+}
+onMounted(() => window.addEventListener("message", onMessage));
+onBeforeUnmount(() => window.removeEventListener("message", onMessage));
 
 function play() {
     if (remember.value) youtubeAlwaysAllow.value = true;
     chosen.value = true;
 }
+
+// What the media player reaches, as it does on the player package's component. Nothing, until there is a
+// frame to drive.
+const state = computed(() => (loaded.value && driven.value ? youtube.state : undefined));
+const controller = computed(() =>
+    loaded.value && driven.value
+        ? {
+              setPlaybackRate: youtube.setPlaybackRate,
+              setAngle: async () => {},
+              setAudioTrack: () => {},
+              setSubtitleTrack: () => {},
+              thumbnailAt: () => null,
+          }
+        : null,
+);
+
+defineExpose({
+    state,
+    controller,
+    muted: computed(() => youtube.flags.muted),
+    canMute: true,
+    canPictureInPicture: false,
+    airPlayAvailable: false,
+    airPlayActive: false,
+    setMuted: youtube.setMuted,
+    play: async () => youtube.play(),
+    pause: () => youtube.pause(),
+    seek: (seconds: number) => youtube.seek(seconds),
+    enterFullscreen: async () => {
+        await frame.value?.requestFullscreen?.();
+    },
+    exitFullscreen: async () => {
+        if (document.fullscreenElement) await document.exitFullscreen();
+    },
+});
 </script>
 
 <template>
@@ -53,6 +128,7 @@ function play() {
     >
         <iframe
             v-if="loaded && frameSrc"
+            ref="frame"
             :src="frameSrc"
             :title="content.title"
             class="absolute inset-0 h-full w-full border-0"

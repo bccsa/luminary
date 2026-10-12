@@ -471,8 +471,12 @@ function onEnded() {
         >
             <YouTubeEmbed
                 v-if="youtubeUrl"
+                ref="player"
                 :content="content"
                 :url="youtubeUrl"
+                @loadedmetadata="onLoadedMetadata"
+                @timeupdate="onTimeUpdate"
+                @ended="onEnded"
             />
             <component
                 :is="videoPlayer.component"

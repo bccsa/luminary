@@ -341,8 +341,9 @@ const timeKnown = computed(() => duration.value > 0);
  */
 const starting = computed(() => {
     if (!item.value || state.value?.lifecycle === "error") return false;
-    // A video hosted by YouTube has no player to wait for: its notice, then its own embed.
-    if (isYouTubeLink(videoSourceFor(item.value.content))) return false;
+    // A video hosted by YouTube has no player to wait for until the viewer has chosen to play it: its notice
+    // stands there, with nothing to report. After that it reports like any other.
+    if (!state.value && isYouTubeLink(videoSourceFor(item.value.content))) return false;
     if (!state.value) return true;
     if (state.value.lifecycle === "loading") return true;
     return (
