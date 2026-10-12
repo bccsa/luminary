@@ -32,7 +32,6 @@ import LImage from "@/components/images/LImage.vue";
 import { useMobileChromeAutoHide } from "@/composables/useMobileChromeAutoHide";
 import { isMac } from "@/globalConfig";
 import { isNativeApp } from "@/util/inAppBrowser";
-import MediaPlayerAbout from "./MediaPlayerAbout.vue";
 import MediaPlayerChapters from "./MediaPlayerChapters.vue";
 import MediaPlayerMenu from "./MediaPlayerMenu.vue";
 import V10Button from "./V10Button.vue";
@@ -85,11 +84,8 @@ const expanded = computed(() => mediaPlayerView.value === "expanded");
 const playerOpen = computed(() => expanded.value && !!item.value);
 const content = computed(() => item.value?.content);
 
-/**
- * What the content says, under the player: the article (or its summary), so the viewer reads while
- * the video or the sound goes on. Without either the sheet says so, and still leads to the page.
- */
-type SheetTab = "upnext" | "chapters" | "about";
+/** The lists the sheet under the picture offers: this video's chapters, and what leads to other videos. */
+type SheetTab = "upnext" | "chapters";
 /** The tab the sheet under the picture shows; none while it is closed. */
 const sheetTab = ref<SheetTab | null>(null);
 /** The tag the Up next lists are narrowed to; it goes with the video, and the next one starts at All. */
@@ -113,9 +109,9 @@ watch(
 );
 const chapters = computed(() => state.value?.chapters ?? []);
 /**
- * The tabs that have something to show; About is always there, and leads to the page. Chapters are
- * not among them: they belong to this one video, so they sit beside the picture's controls, not
- * with the lists that lead to other content.
+ * The tabs that have something to show; none when the video has no chapters and nothing leads on
+ * from it. What the content says (its summary, article and tags) is on its page, which the bar at
+ * the foot opens.
  */
 const tabs = computed<{ id: SheetTab; label: string }[]>(() => [
     // Chapters come first: they belong to this video, ahead of what leads to others.
@@ -129,7 +125,6 @@ const tabs = computed<{ id: SheetTab; label: string }[]>(() => [
     hadUpNext.value
         ? [{ id: "upnext" as const, label: t("media_player.up_next") }]
         : []),
-    { id: "about" as const, label: t("media_player.about") },
 ]);
 const sheetLabel = computed(() =>
     sheetTab.value === "chapters"
@@ -852,7 +847,7 @@ function onKeydown(event: KeyboardEvent) {
             </div>
 
             <!-- Nothing here scrolls: the room between the parts gives way on a short screen, and the sheets
-                 (Up next, About) scroll inside themselves. Nothing is clipped either: the menus open
+                 (Chapters, Up next) scroll inside themselves. Nothing is clipped either: the menus open
                  upward over the picture. -->
             <div
                 class="flex min-h-0 flex-1 flex-col overflow-visible bg-amber-50 dark:bg-slate-800"
@@ -1219,7 +1214,7 @@ function onKeydown(event: KeyboardEvent) {
                     aria-hidden="true"
                 />
                 <div
-                    v-if="!sheetTab"
+                    v-if="!sheetTab && tabs.length"
                     role="tablist"
                     class="sticky bottom-0 mt-auto flex h-12 w-full flex-none border-t border-zinc-300/60 bg-amber-50 dark:border-slate-600/60 dark:bg-slate-800 [@media(max-height:840px)]:h-10"
                 >
@@ -1311,11 +1306,6 @@ function onKeydown(event: KeyboardEvent) {
                     :chapters="chapters"
                     :current-time="currentTime"
                     @select="playChapter"
-                />
-                <MediaPlayerAbout
-                    v-else
-                    :content="content"
-                    @read="openPage"
                 />
             </div>
         </section>
