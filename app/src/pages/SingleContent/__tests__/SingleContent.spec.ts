@@ -1168,6 +1168,61 @@ describe("SingleContent", () => {
         setTimeoutSpy.mockRestore();
     });
 
+    it("records a view on dwell for content the continue store never sees", async () => {
+        await userActivityDb.userActivity.clear();
+        localStorage.removeItem("contentProgress");
+        syncContentProgressFromStorage();
+
+        const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout");
+        const wrapper = shallowMount(SingleContent, {
+            props: { slug: mockEnglishContentDto.slug },
+        });
+
+        await waitForExpect(() => {
+            expect(setTimeoutSpy.mock.calls.some(([, delay]) => delay === 15000)).toBe(true);
+        });
+
+        const dwellCallback = setTimeoutSpy.mock.calls.find(([, delay]) => delay === 15000)?.[0];
+        (dwellCallback as () => void)();
+
+        await waitForExpect(async () => {
+            expect(
+                await hasUserActivity({ type: "viewed", parentId: mockEnglishContentDto.parentId }),
+            ).toBe(true);
+        });
+
+        wrapper.unmount();
+        setTimeoutSpy.mockRestore();
+    });
+
+    it("leaves the view to the mirror when progress is already recorded", async () => {
+        await userActivityDb.userActivity.clear();
+        localStorage.removeItem("contentProgress");
+        syncContentProgressFromStorage();
+        setReadingProgress(mockEnglishContentDto._id, 40);
+
+        const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout");
+        const wrapper = shallowMount(SingleContent, {
+            props: { slug: mockEnglishContentDto.slug },
+        });
+
+        await waitForExpect(() => {
+            expect(setTimeoutSpy.mock.calls.some(([, delay]) => delay === 15000)).toBe(true);
+        });
+
+        const dwellCallback = setTimeoutSpy.mock.calls.find(([, delay]) => delay === 15000)?.[0];
+        (dwellCallback as () => void)();
+        await flushPromises();
+
+        expect(
+            await hasUserActivity({ type: "viewed", parentId: mockEnglishContentDto.parentId }),
+        ).toBe(false);
+
+        removeReadingProgress(mockEnglishContentDto._id);
+        wrapper.unmount();
+        setTimeoutSpy.mockRestore();
+    });
+
     it("does not add a dwell-based open signal for text content", async () => {
         const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout");
         const wrapper = shallowMount(SingleContent, {
