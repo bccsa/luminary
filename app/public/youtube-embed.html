@@ -310,6 +310,8 @@
               onReady: function () {
                 ready = true;
                 report("ready");
+                // `&demo=1` shows the full-screen controls without the app, to look at them in a browser.
+                if (query.get("demo") === "1") setFullscreen(true);
               },
               onStateChange: function (event) {
                 follow(event.data);
