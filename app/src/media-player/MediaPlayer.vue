@@ -9,17 +9,13 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch, watchEffect
 import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
 import {
-    ArrowsPointingOutIcon,
     BookOpenIcon,
     ChevronUpIcon,
     ChevronDownIcon,
     FilmIcon,
-    LanguageIcon,
     MusicalNoteIcon,
     PauseIcon,
     PlayIcon,
-    SpeakerWaveIcon,
-    SpeakerXMarkIcon,
     XMarkIcon,
 } from "@heroicons/vue/20/solid";
 import {
@@ -1046,7 +1042,13 @@ function onKeydown(event: KeyboardEvent) {
                                 :aria-expanded="openMenu === 'speed'"
                                 @click="toggleMenu('speed')"
                             >
-                                {{ rateLabel(state.playbackRate) }}
+                                <span class="flex items-center gap-1.5">
+                                    <V10Icon
+                                        name="speed"
+                                        class="h-5 w-5"
+                                    />
+                                    {{ rateLabel(state.playbackRate) }}
+                                </span>
                             </button>
                             <MediaPlayerMenu v-if="openMenu === 'speed'">
                                 <MediaPlayerMenuItem
@@ -1069,7 +1071,10 @@ function onKeydown(event: KeyboardEvent) {
                                 :aria-expanded="openMenu === 'language'"
                                 @click="toggleMenu('language')"
                             >
-                                <LanguageIcon class="h-4 w-4" />
+                                <V10Icon
+                                    name="speech"
+                                    class="h-5 w-5"
+                                />
                                 {{ activeLanguageCode }}
                             </button>
                             <MediaPlayerMenu v-if="openMenu === 'language'">
@@ -1094,11 +1099,12 @@ function onKeydown(event: KeyboardEvent) {
                                     data-test="mediaPlayerSubtitles"
                                     @click="toggleMenu('subtitles')"
                                 >
-                                    <span
-                                        class="rounded-[4px] border-2 border-current px-[3px] text-[11px] font-extrabold leading-[14px]"
-                                        aria-hidden="true"
-                                        >CC</span
-                                    >
+                                    <V10Icon
+                                        :name="
+                                            state.activeSubtitleTrackId ? 'captionsOn' : 'captions'
+                                        "
+                                        class="h-5 w-5"
+                                    />
                                 </button>
                                 <MediaPlayerMenu v-if="openMenu === 'subtitles'">
                                     <MediaPlayerMenuItem
@@ -1124,30 +1130,10 @@ function onKeydown(event: KeyboardEvent) {
                                 data-test="mediaPlayerPictureInPicture"
                                 @click="handle?.startPictureInPicture?.()"
                             >
-                                <svg
+                                <V10Icon
+                                    name="pip"
                                     class="h-5 w-5"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="1.8"
-                                    aria-hidden="true"
-                                >
-                                    <rect
-                                        x="2.5"
-                                        y="4.5"
-                                        width="19"
-                                        height="15"
-                                        rx="1.5"
-                                    />
-                                    <rect
-                                        x="12"
-                                        y="11.5"
-                                        width="7"
-                                        height="5"
-                                        fill="currentColor"
-                                        stroke="none"
-                                    />
-                                </svg>
+                                />
                             </button>
                         </template>
                         <button
@@ -1163,42 +1149,10 @@ function onKeydown(event: KeyboardEvent) {
                             data-test="mediaPlayerAirPlay"
                             @click="handle?.showAirPlayPicker?.()"
                         >
-                            <svg
-                                v-if="isMac"
+                            <V10Icon
+                                :name="isMac ? 'airplay' : 'cast'"
                                 class="h-5 w-5"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="1.8"
-                                stroke-linejoin="round"
-                                aria-hidden="true"
-                            >
-                                <path
-                                    d="M7 17H5.5A2.5 2.5 0 0 1 3 14.5v-8A2.5 2.5 0 0 1 5.5 4h13A2.5 2.5 0 0 1 21 6.5v8a2.5 2.5 0 0 1-2.5 2.5H17"
-                                />
-                                <path
-                                    d="M12 14l5 6H7l5-6z"
-                                    fill="currentColor"
-                                />
-                            </svg>
-                            <svg
-                                v-else
-                                class="h-5 w-5"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="1.8"
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                aria-hidden="true"
-                            >
-                                <path
-                                    d="M3 8V6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6"
-                                />
-                                <path d="M3 12a9 9 0 0 1 9 9" />
-                                <path d="M3 16a5 5 0 0 1 5 5" />
-                                <path d="M3 20h.01" />
-                            </svg>
+                            />
                         </button>
                         <button
                             type="button"
@@ -1209,12 +1163,8 @@ function onKeydown(event: KeyboardEvent) {
                             data-test="mediaPlayerMute"
                             @click="handle?.setMuted?.(!muted)"
                         >
-                            <SpeakerXMarkIcon
-                                v-if="muted"
-                                class="h-5 w-5"
-                            />
-                            <SpeakerWaveIcon
-                                v-else
+                            <V10Icon
+                                :name="muted ? 'volumeOff' : 'volumeHigh'"
                                 class="h-5 w-5"
                             />
                         </button>
@@ -1226,7 +1176,10 @@ function onKeydown(event: KeyboardEvent) {
                             data-test="mediaPlayerFullscreen"
                             @click="handle?.enterFullscreen()"
                         >
-                            <ArrowsPointingOutIcon class="h-5 w-5" />
+                            <V10Icon
+                                name="fullscreenEnter"
+                                class="h-5 w-5"
+                            />
                         </button>
 
                         <!-- A tap anywhere else closes the menu. -->
@@ -1270,18 +1223,18 @@ function onKeydown(event: KeyboardEvent) {
                                     >{{ formatTime(scrubTime) }}</span
                                 >
                                 <div
-                                    class="absolute inset-x-0 overflow-hidden rounded-full bg-black/10 transition-[height] duration-150 dark:bg-white/15"
+                                    class="absolute inset-x-0 overflow-hidden rounded-full bg-[rgb(115_133_159/0.35)] transition-[height] duration-150 dark:bg-[rgb(115_133_159/0.5)]"
                                     :class="scrubTime !== null ? 'h-3' : 'h-2'"
                                     aria-hidden="true"
                                 >
                                     <div
                                         v-if="loadedShows"
-                                        class="absolute inset-y-0 left-0 rounded-full bg-black/40 transition-[width] duration-300 dark:bg-white/50"
+                                        class="absolute inset-y-0 left-0 rounded-full bg-[rgb(115_133_159/0.6)] transition-[width] duration-300 dark:bg-[rgb(115_133_159/0.75)]"
                                         :style="{ width: `${loaded * 100}%` }"
                                         data-test="mediaPlayerLoaded"
                                     />
                                     <div
-                                        class="absolute inset-y-0 left-0 rounded-l-full bg-yellow-500"
+                                        class="absolute inset-y-0 left-0 rounded-l-full bg-zinc-800 dark:bg-white"
                                         :class="{ 'rounded-r-full': !loadedShows }"
                                         :style="{ width: `${progress * 100}%` }"
                                     />
@@ -1293,7 +1246,7 @@ function onKeydown(event: KeyboardEvent) {
                                     step="1"
                                     :value="shownTime"
                                     :aria-label="t('media_player.seek')"
-                                    class="relative h-11 w-full cursor-pointer appearance-none bg-transparent [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-yellow-500 [&::-moz-range-track]:bg-transparent [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-yellow-500 [&::-webkit-slider-thumb]:shadow-md"
+                                    class="relative h-11 w-full cursor-pointer appearance-none bg-transparent [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-zinc-800 dark:[&::-moz-range-thumb]:bg-white [&::-moz-range-track]:bg-transparent [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-zinc-800 [&::-webkit-slider-thumb]:shadow-md dark:[&::-webkit-slider-thumb]:bg-white"
                                     :class="
                                         scrubTime !== null
                                             ? '[&::-moz-range-thumb]:opacity-100 [&::-webkit-slider-thumb]:opacity-100'

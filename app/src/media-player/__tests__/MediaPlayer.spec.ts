@@ -653,7 +653,8 @@ describe("MediaPlayer", () => {
             const loaded = find(wrapper, "mediaPlayerLoaded").element;
             expect(loaded.className).toContain("rounded-full");
             const played = loaded.nextElementSibling as HTMLElement;
-            expect(played.className).toContain("bg-yellow-500");
+            expect(played.className).toContain("bg-zinc-800");
+            expect(played.className).toContain("dark:bg-white");
             expect(played.className).toContain("rounded-l-full");
             // Loaded stretches on past it: its right end is flat against that.
             expect(played.className).not.toContain("rounded-r-full");
@@ -669,9 +670,9 @@ describe("MediaPlayer", () => {
         it("draws what is loaded lighter than the track and darker than what has played", async () => {
             const wrapper = await playing();
             const loaded = find(wrapper, "mediaPlayerLoaded").classes().join(" ");
-            expect(loaded).toContain("dark:bg-white/50");
+            expect(loaded).toContain("dark:bg-[rgb(115_133_159/0.75)]");
             expect(find(wrapper, "mediaPlayerLoaded").element.parentElement!.className).toContain(
-                "dark:bg-white/15",
+                "dark:bg-[rgb(115_133_159/0.5)]",
             );
             expect(loaded).not.toContain("bg-yellow");
         });
