@@ -77,8 +77,33 @@ function onMessage(event: MessageEvent) {
     if (event.origin !== hostedPage.value?.origin || !isYouTubeReport(event.data)) return;
     youtube.receive(event.data);
 }
-onMounted(() => window.addEventListener("message", onMessage));
-onBeforeUnmount(() => window.removeEventListener("message", onMessage));
+
+/**
+ * Turning the phone to landscape while the video plays takes it full-screen, and turning it back leaves,
+ * as a native player does. The browser may refuse a full-screen request that no tap made: then the
+ * video stays where it is, and the page's own full-screen button still works.
+ */
+const landscape =
+    typeof window.matchMedia === "function"
+        ? window.matchMedia("(orientation: landscape)")
+        : undefined;
+function onOrientation(event: MediaQueryListEvent) {
+    if (!driven.value || !loaded.value) return;
+    if (event.matches) {
+        if (youtube.state.playing) void frame.value?.requestFullscreen?.().catch(() => {});
+    } else if (document.fullscreenElement) {
+        void document.exitFullscreen().catch(() => {});
+    }
+}
+
+onMounted(() => {
+    window.addEventListener("message", onMessage);
+    landscape?.addEventListener("change", onOrientation);
+});
+onBeforeUnmount(() => {
+    window.removeEventListener("message", onMessage);
+    landscape?.removeEventListener("change", onOrientation);
+});
 
 function play() {
     if (remember.value) youtubeAlwaysAllow.value = true;
