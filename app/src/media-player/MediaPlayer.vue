@@ -39,6 +39,7 @@ import LImage from "@/components/images/LImage.vue";
 import { useMobileChromeAutoHide } from "@/composables/useMobileChromeAutoHide";
 import { isDarkTheme, isMac } from "@/globalConfig";
 import { useBucketInfo } from "@/composables/useBucketInfo";
+import { fallbackImageFor } from "@/util/fallbackArtwork";
 import { coverImageUrl } from "./coverImage";
 import { usePlayerMessages } from "./usePlayerMessages";
 import { isNativeApp } from "@/util/inAppBrowser";
@@ -618,9 +619,12 @@ const playerMessages = usePlayerMessages();
 const screenMessages = computed(() => mergeMessages(playerMessages.value));
 const coverBucketId = computed(() => content.value?.parentImageBucketId);
 const { bucketBaseUrl: coverBucketBaseUrl } = useBucketInfo(coverBucketId);
+/** The post's own cover, with the app's stand-in picture for a post without one or whose cover does not load. */
 const screenArtwork = computed(() => {
     const src = content.value ? coverImageUrl(content.value, coverBucketBaseUrl.value) : undefined;
-    return src ? { src } : null;
+    const fallback = fallbackImageFor(content.value?.parentId);
+    if (src) return { src, ...(fallback ? { fallback } : {}) };
+    return fallback ? { src: fallback } : null;
 });
 const screenChapterIndex = computed(() => chapterIndexAt(chapters.value, currentTime.value));
 const screenChapterMask = computed(() =>

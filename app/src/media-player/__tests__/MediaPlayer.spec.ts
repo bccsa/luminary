@@ -66,6 +66,7 @@ vi.mock("@luminary-media-converter/player-web", async () => {
             name: "AudioFullscreen",
             props: {
                 title: String,
+                artwork: Object,
                 playing: Boolean,
                 currentTime: Number,
                 hasBrowse: Boolean,
@@ -83,6 +84,11 @@ vi.mock("@luminary-media-converter/player-web", async () => {
         rosterTiles: (time: number) => [{ index: 0, left: 0, time }],
     };
 });
+
+vi.mock("@/util/fallbackArtwork", () => ({
+    fallbackImageFor: () => "/stand-in.jpg",
+    fallbackArtworkDataUrl: () => Promise.resolve(undefined),
+}));
 
 const upNextDocs = vi.hoisted(() => ({ value: [] as any[] }));
 const categoryDocs = vi.hoisted(() => ({ value: [] as any[] }));
@@ -967,6 +973,17 @@ describe("MediaPlayer", () => {
             const screen = wrapper.findComponent({ name: "AudioFullscreen" });
             expect(screen.props("hasBrowse")).toBe(true);
             expect(screen.props("chaptersSheet")).toBe(true);
+        });
+
+        it("gives the full-screen sound screen the app's stand-in picture when the post has no cover", async () => {
+            const wrapper = await playing();
+            await find(wrapper, "mediaPlayerAudio").trigger("click");
+            await flushPromises();
+            await find(wrapper, "mediaPlayerFullscreen").trigger("click");
+
+            expect(wrapper.findComponent({ name: "AudioFullscreen" }).props("artwork")).toEqual({
+                src: "/stand-in.jpg",
+            });
         });
 
         it("leaves the full-screen sound screen when the picture is shown again", async () => {
