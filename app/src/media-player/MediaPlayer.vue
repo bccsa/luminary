@@ -612,6 +612,38 @@ const wash = computed(() => audioMode.value);
  * so the packaged app has it too. It sits over the whole page and hands back with its chevron or Escape.
  */
 const audioFullscreen = ref(false);
+const screenEl = ref<HTMLElement | null>(null);
+/**
+ * In a browser the screen takes the whole display, as a video's full screen does: it asks the browser for
+ * it when it opens and gives it back when it closes. Leaving the browser's full screen by its own way (the
+ * Escape key) closes the screen. The packaged app has no such request to make: its screen already fills
+ * the web view.
+ */
+watch(audioFullscreen, async (open) => {
+    if (isNativeApp()) return;
+    if (open) {
+        await nextTick();
+        try {
+            await screenEl.value?.requestFullscreen?.();
+        } catch {
+            /* refused (no gesture, or the browser has none): the screen still fills the window */
+        }
+    } else if (document.fullscreenElement && document.fullscreenElement === screenEl.value) {
+        void document.exitFullscreen?.().catch(() => undefined);
+    }
+});
+function onDocumentFullscreenChange() {
+    if (audioFullscreen.value && screenEl.value && !document.fullscreenElement) {
+        audioFullscreen.value = false;
+    }
+}
+document.addEventListener("fullscreenchange", onDocumentFullscreenChange);
+onBeforeUnmount(() => {
+    document.removeEventListener("fullscreenchange", onDocumentFullscreenChange);
+    if (document.fullscreenElement && document.fullscreenElement === screenEl.value) {
+        void document.exitFullscreen?.().catch(() => undefined);
+    }
+});
 const playerMessages = usePlayerMessages();
 const screenMessages = computed(() => mergeMessages(playerMessages.value));
 const coverBucketId = computed(() => content.value?.parentImageBucketId);
@@ -1618,6 +1650,8 @@ function onKeydown(event: KeyboardEvent) {
 
         <div
             v-if="audioFullscreen && content && state"
+            ref="screenEl"
+            data-lmpl-host-screen
             class="lmpl-root z-[70]"
             style="position: fixed; inset: 0; width: 100%; height: 100%; aspect-ratio: auto"
             data-test="mediaPlayerAudioFullscreen"

@@ -978,6 +978,71 @@ describe("MediaPlayer", () => {
             });
         });
 
+        it("asks the browser for its full screen when the sound screen opens, and closes the screen when the browser leaves it", async () => {
+            const request = vi.fn(() => Promise.resolve());
+            const original = HTMLElement.prototype.requestFullscreen;
+            HTMLElement.prototype.requestFullscreen = request;
+            let fullscreenElement: Element | null = null;
+            Object.defineProperty(document, "fullscreenElement", {
+                configurable: true,
+                get: () => fullscreenElement,
+            });
+            try {
+                const wrapper = await playing();
+                await find(wrapper, "mediaPlayerAudio").trigger("click");
+                await flushPromises();
+                await find(wrapper, "mediaPlayerFullscreen").trigger("click");
+                await flushPromises();
+                expect(request).toHaveBeenCalledTimes(1);
+                expect(wrapper.find("[data-test='mediaPlayerAudioFullscreen']").exists()).toBe(true);
+                // Marked as the host's own screen, so the player inside the card does not take it for its full screen.
+                expect(
+                    wrapper
+                        .find("[data-test='mediaPlayerAudioFullscreen']")
+                        .attributes("data-lmpl-host-screen"),
+                ).toBeDefined();
+
+                // The browser's own way out (Escape): the screen goes with it.
+                fullscreenElement = wrapper.find("[data-test='mediaPlayerAudioFullscreen']").element;
+                document.dispatchEvent(new Event("fullscreenchange"));
+                expect(wrapper.find("[data-test='mediaPlayerAudioFullscreen']").exists()).toBe(true);
+                fullscreenElement = null;
+                document.dispatchEvent(new Event("fullscreenchange"));
+                await flushPromises();
+                expect(wrapper.find("[data-test='mediaPlayerAudioFullscreen']").exists()).toBe(false);
+            } finally {
+                HTMLElement.prototype.requestFullscreen = original;
+                delete (document as { fullscreenElement?: unknown }).fullscreenElement;
+            }
+        });
+
+        it("gives the browser's full screen back when the screen is closed from its own chevron", async () => {
+            HTMLElement.prototype.requestFullscreen = vi.fn(() => Promise.resolve());
+            const exit = vi.fn(() => Promise.resolve());
+            (document as unknown as { exitFullscreen: unknown }).exitFullscreen = exit;
+            let fullscreenElement: Element | null = null;
+            Object.defineProperty(document, "fullscreenElement", {
+                configurable: true,
+                get: () => fullscreenElement,
+            });
+            try {
+                const wrapper = await playing();
+                await find(wrapper, "mediaPlayerAudio").trigger("click");
+                await flushPromises();
+                await find(wrapper, "mediaPlayerFullscreen").trigger("click");
+                await flushPromises();
+                const screen = wrapper.find("[data-test='mediaPlayerAudioFullscreen']");
+                fullscreenElement = screen.element;
+
+                wrapper.findComponent({ name: "AudioFullscreen" }).vm.$emit("exit");
+                await flushPromises();
+                expect(exit).toHaveBeenCalled();
+            } finally {
+                delete (document as { fullscreenElement?: unknown }).fullscreenElement;
+                delete (document as { exitFullscreen?: unknown }).exitFullscreen;
+            }
+        });
+
         it("leaves the full-screen sound screen when the picture is shown again", async () => {
             const wrapper = await playing();
             await find(wrapper, "mediaPlayerAudio").trigger("click");
