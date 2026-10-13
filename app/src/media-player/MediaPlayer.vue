@@ -21,7 +21,12 @@ import {
 } from "@heroicons/vue/20/solid";
 import {
     AUDIO_ONLY_ANGLE_ID,
+    AudioFullscreen,
     ScrubRoster,
+    chapterIndexAt,
+    chapterMask,
+    chapterSegments,
+    mergeMessages,
     rosterStep,
     rosterTiles,
     type Chapter,
@@ -32,6 +37,9 @@ import VideoPlayer from "@/components/content/VideoPlayer.vue";
 import LImage from "@/components/images/LImage.vue";
 import { useMobileChromeAutoHide } from "@/composables/useMobileChromeAutoHide";
 import { isDarkTheme, isMac } from "@/globalConfig";
+import { useBucketInfo } from "@/composables/useBucketInfo";
+import { coverImageUrl } from "./coverImage";
+import { usePlayerMessages } from "./usePlayerMessages";
 import { isNativeApp } from "@/util/inAppBrowser";
 import MediaPlayerChapters from "./MediaPlayerChapters.vue";
 import MediaPlayerMenu from "./MediaPlayerMenu.vue";
@@ -575,10 +583,50 @@ function pickSubtitles(id: string | null) {
 const rateLabel = (rate: number) => `${rate}x`;
 
 /**
+ * The desktop's windowed player is left as it was: the cover, the glow, the wash and the sleep timer are the
+ * phone's. Both get the full-screen sound screen.
+ */
+const desktopQuery = window.matchMedia("(min-width: 1024px)");
+const isDesktop = ref(desktopQuery.matches);
+const onDesktopChange = (event: MediaQueryListEvent) => (isDesktop.value = event.matches);
+desktopQuery.addEventListener("change", onDesktopChange);
+onBeforeUnmount(() => desktopQuery.removeEventListener("change", onDesktopChange));
+const phoneAudio = computed(() => audioMode.value && !isDesktop.value);
+
+/**
  * In the light theme the sound alone wears the cover's colour over the whole player; in the dark one the
  * player stays plain and only the picture glows.
  */
-const wash = computed(() => audioMode.value && !isDarkTheme.value);
+const wash = computed(() => phoneAudio.value && !isDarkTheme.value);
+
+/**
+ * The full-screen sound screen: the same component the web player shows, drawn here over the engine in use,
+ * so the packaged app has it too. It sits over the whole page and hands back with its chevron or Escape.
+ */
+const audioFullscreen = ref(false);
+const playerMessages = usePlayerMessages();
+const screenMessages = computed(() => mergeMessages(playerMessages.value));
+const coverBucketId = computed(() => content.value?.parentImageBucketId);
+const { bucketBaseUrl: coverBucketBaseUrl } = useBucketInfo(coverBucketId);
+const screenArtwork = computed(() => {
+    const src = content.value ? coverImageUrl(content.value, coverBucketBaseUrl.value) : undefined;
+    return src ? { src } : null;
+});
+const screenChapterIndex = computed(() => chapterIndexAt(chapters.value, currentTime.value));
+const screenChapterMask = computed(() =>
+    chapterMask(chapterSegments(chapters.value, duration.value)),
+);
+const screenTracks = computed(() =>
+    (state.value?.audioTracks ?? []).map((track) => ({ id: track.id, label: track.label })),
+);
+function openChaptersFromScreen() {
+    audioFullscreen.value = false;
+    void toggleTab("chapters");
+}
+// The screen is for the sound alone: back to the picture, or another item, and it closes.
+watch([audioMode, () => item.value?.content._id], ([isAudio]) => {
+    if (!isAudio) audioFullscreen.value = false;
+});
 
 const SLEEP_MINUTES = [5, 10, 15, 30, 45, 60];
 const sleepTimer = computed(() => state.value?.sleepTimer ?? null);
@@ -835,7 +883,7 @@ function onKeydown(event: KeyboardEvent) {
                 ref="pictureEl"
                 class="relative w-full flex-none"
                 :class="
-                    audioMode
+                    phoneAudio
                         ? wash
                             ? 'overflow-hidden py-4'
                             : 'overflow-hidden bg-amber-50 py-4 dark:bg-slate-800'
@@ -905,7 +953,21 @@ function onKeydown(event: KeyboardEvent) {
                 </div>
 
                 <div
-                    v-if="audioMode"
+                    v-if="audioMode && isDesktop"
+                    class="absolute inset-0 flex items-center justify-center bg-amber-50 dark:bg-slate-800"
+                >
+                    <LImage
+                        :image="content.parentImageData"
+                        :content-parent-id="content.parentId"
+                        :parent-image-bucket-id="content.parentImageBucketId"
+                        aspectRatio="square"
+                        size="thumbnail"
+                        rounded
+                        class="h-full max-h-full w-auto"
+                    />
+                </div>
+                <div
+                    v-else-if="phoneAudio"
                     class="relative flex w-full items-center justify-center"
                     data-test="mediaPlayerArtwork"
                 >
@@ -1056,7 +1118,7 @@ function onKeydown(event: KeyboardEvent) {
                             </MediaPlayerMenu>
                         </div>
                         <div
-                            v-if="audioMode"
+                            v-if="phoneAudio"
                             class="relative flex-shrink-0"
                         >
                             <button
@@ -1203,12 +1265,11 @@ function onKeydown(event: KeyboardEvent) {
                             />
                         </button>
                         <button
-                            v-if="!audioMode"
                             type="button"
                             class="relative flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border border-zinc-500/35 text-zinc-600 after:absolute after:-inset-0.5 after:content-[''] dark:text-slate-300 min-[420px]:h-11 min-[420px]:w-11 min-[420px]:after:inset-0 md:h-12 md:w-12"
                             :aria-label="t('media_player.fullscreen')"
                             data-test="mediaPlayerFullscreen"
-                            @click="handle?.enterFullscreen()"
+                            @click="audioMode ? (audioFullscreen = true) : handle?.enterFullscreen()"
                         >
                             <V10Icon
                                 name="fullscreenEnter"
@@ -1467,6 +1528,59 @@ function onKeydown(event: KeyboardEvent) {
                 />
             </div>
         </section>
+
+        <div
+            v-if="audioFullscreen && content && state"
+            class="lmpl-root fixed inset-0 z-[70] !h-auto"
+            data-test="mediaPlayerAudioFullscreen"
+            @keydown.esc="audioFullscreen = false"
+        >
+            <AudioFullscreen
+                :title="content.title"
+                :subtitle="content.author"
+                :artwork="screenArtwork"
+                :appearance="isDarkTheme ? 'dark' : 'light'"
+                :chapters="chapters"
+                :current-time="currentTime"
+                :duration="duration"
+                :buffered-end="state.bufferedEnd"
+                :playing="playing"
+                :chapter-index="screenChapterIndex"
+                :playback-rate="state.playbackRate"
+                :audio-tracks="screenTracks"
+                :active-audio-track-id="state.activeAudioTrackId"
+                :sleep-timer="sleepTimer"
+                :has-browse="tabs.length > 0"
+                :skip-back-seconds="SKIP_SECONDS"
+                :skip-forward-seconds="SKIP_SECONDS"
+                :chapter-mask="screenChapterMask"
+                :messages="screenMessages"
+                @exit="audioFullscreen = false"
+                @toggle-play="togglePlay"
+                @seek="(time) => controller?.seek(time)"
+                @open-browse="openChaptersFromScreen"
+                @seek-chapter="(chapter) => controller?.seek(chapter.startTime)"
+                @rate="(rate) => controller?.setPlaybackRate(rate)"
+                @audio-track="(id) => controller?.setAudioTrack(id)"
+                @sleep="(option) => controller?.setSleepTimer(option)"
+            >
+                <template #cast>
+                    <button
+                        v-if="handle?.airPlayAvailable"
+                        type="button"
+                        class="lmpl-afs-iconbtn"
+                        :aria-label="t(isMac ? 'media_player.airplay' : 'media_player.cast')"
+                        data-test="mediaPlayerAudioFullscreenCast"
+                        @click="handle?.showAirPlayPicker?.()"
+                    >
+                        <V10Icon
+                            :name="isMac ? 'airplay' : 'cast'"
+                            class="h-[22px] w-[22px]"
+                        />
+                    </button>
+                </template>
+            </AudioFullscreen>
+        </div>
 
         <!-- Rides on the menu: it moves down with it when the menu steps aside on scroll,
              stopping above the home indicator. -->

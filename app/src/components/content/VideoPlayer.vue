@@ -9,7 +9,6 @@
  * engagement signals a finished video sends.
  */
 import { computed, inject, nextTick, ref, shallowRef, watch } from "vue";
-import { useI18n } from "vue-i18n";
 import {
     AUDIO_ONLY_ANGLE_ID,
     isYouTubeUrl,
@@ -19,6 +18,7 @@ import {
 } from "@luminary-media-converter/player-web";
 import { type ContentDto, fetchHlsKey, reportError } from "luminary-shared";
 import LImage from "../images/LImage.vue";
+import { usePlayerMessages } from "@/media-player/usePlayerMessages";
 import YouTubeEmbed from "./YouTubeEmbed.vue";
 import { isYouTubeLink } from "@/util/youtube";
 import {
@@ -67,54 +67,13 @@ type Props = {
 
 const props = defineProps<Props>();
 const emit = defineEmits<{ upnextselect: [id: string]; nextupselect: [id: string] }>();
-const { t } = useI18n();
 
 /**
  * The player's own strings, in the language of the app: the web and the native player take the
  * same keys, and each uses the ones it has. The skip texts keep their `{seconds}` for the player
  * to fill in with its own interval.
  */
-const playerMessages = computed(() => ({
-    comingSoon: t("video_player.coming_soon"),
-    errorGeneric: t("video_player.error_generic"),
-    errorUnsupportedBrowser: t("video_player.error_unsupported_browser"),
-    errorKeyRequired: t("video_player.error_key_required"),
-    errorNetwork: t("video_player.error_network"),
-    errorMedia: t("video_player.error_media"),
-    retry: t("video_player.retry"),
-    play: t("media_player.play"),
-    pause: t("media_player.pause"),
-    scrubberLabel: t("media_player.seek"),
-    elapsedLabel: t("video_player.elapsed"),
-    durationLabel: t("video_player.duration"),
-    skipBack: t("media_player.skip_back", { seconds: "{seconds}" }),
-    skipForward: t("media_player.skip_forward", { seconds: "{seconds}" }),
-    chapterOf: t("video_player.chapter_of", { index: "{index}", count: "{count}" }),
-    exitFullscreen: t("video_player.exit_fullscreen"),
-    audioMenuLabel: t("video_player.audio_menu"),
-    subtitlesMenuLabel: t("video_player.subtitles_menu"),
-    subtitlesOff: t("video_player.subtitles_off"),
-    videoModeLabel: t("video_player.video_mode"),
-    audioModeLabel: t("video_player.audio_mode"),
-    chapters: t("media_player.chapters"),
-    upNext: t("media_player.up_next"),
-    browse: t("video_player.browse"),
-    closeBrowse: t("video_player.close_browse"),
-    nextUp: t("media_player.up_next"),
-    dismiss: t("video_player.dismiss_next_up"),
-    // Native full-screen draws its own controls and says these.
-    pictureInPicture: t("media_player.picture_in_picture"),
-    playbackRate: t("media_player.speed"),
-    mute: t("media_player.mute"),
-    unmute: t("media_player.unmute"),
-    loading: t("video_player.loading"),
-    speedLabel: t("media_player.speed"),
-    sleepTimer: t("media_player.sleep_timer"),
-    sleepOff: t("media_player.sleep_off"),
-    sleepMinutes: t("media_player.sleep_minutes", { minutes: "{minutes}" }),
-    sleepEndOfChapter: t("media_player.sleep_end_of_chapter"),
-    sleepLeft: t("media_player.sleep_left", { minutes: "{minutes}" }),
-}));
+const playerMessages = usePlayerMessages();
 
 // The browser's player when no service is provided: a component mounted on its own.
 const videoPlayer = inject(VideoPlayerKey, {
