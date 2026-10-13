@@ -18,6 +18,7 @@ import {
     PauseIcon,
     PlayIcon,
     XMarkIcon,
+    ArrowsPointingOutIcon,
 } from "@heroicons/vue/20/solid";
 import {
     AUDIO_ONLY_ANGLE_ID,
@@ -44,6 +45,7 @@ import { isNativeApp } from "@/util/inAppBrowser";
 import MediaPlayerChapters from "./MediaPlayerChapters.vue";
 import MediaPlayerMenu from "./MediaPlayerMenu.vue";
 import V10Button from "./V10Button.vue";
+import SkipGlyph from "./SkipGlyph.vue";
 import { videoSourceFor } from "@/util/videoSource";
 import { isYouTubeLink } from "@/util/youtube";
 import V10Icon from "./V10Icon.vue";
@@ -592,6 +594,18 @@ const onDesktopChange = (event: MediaQueryListEvent) => (isDesktop.value = event
 desktopQuery.addEventListener("change", onDesktopChange);
 onBeforeUnmount(() => desktopQuery.removeEventListener("change", onDesktopChange));
 const phoneAudio = computed(() => audioMode.value && !isDesktop.value);
+/**
+ * On a wide screen a video that is minimised keeps only its picture, bottom right, with its controls
+ * showing while the pointer is over it. Sound alone, and phones, keep the bar.
+ */
+const miniVideo = computed(
+    () => isDesktop.value && !expanded.value && !!item.value && !!state.value && !audioMode.value,
+);
+function seekMini(event: MouseEvent) {
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    if (!rect.width || !(duration.value > 0) || !Number.isFinite(duration.value)) return;
+    handle.value?.seek(Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width)) * duration.value);
+}
 
 /**
  * In the light theme the sound alone wears the cover's colour over the whole player; in the dark one the
@@ -758,9 +772,12 @@ function onKeydown(event: KeyboardEvent) {
         <section
             role="dialog"
             :aria-label="content.title"
-            :aria-hidden="!expanded"
-            class="fixed inset-x-0 bottom-[var(--mobile-menu-h,0px)] top-[var(--media-player-top,0px)] z-40 flex flex-col overflow-hidden transition-transform duration-300 ease-out lg:inset-auto lg:bottom-5 lg:right-5 lg:max-h-[90vh] lg:w-96 lg:rounded-2xl lg:shadow-2xl lg:shadow-black/20"
-            :class="expanded ? 'translate-y-0' : 'pointer-events-none translate-y-[110vh]'"
+            :aria-hidden="!expanded && !miniVideo"
+            class="fixed inset-x-0 bottom-[var(--mobile-menu-h,0px)] top-[var(--media-player-top,0px)] z-40 flex flex-col overflow-hidden transition-transform duration-300 ease-out lg:inset-auto lg:bottom-5 lg:right-5 lg:max-h-[90vh] lg:shadow-2xl lg:shadow-black/20"
+            :class="[
+                expanded || miniVideo ? 'translate-y-0' : 'pointer-events-none translate-y-[110vh]',
+                miniVideo ? 'lg:w-80 lg:rounded-xl' : 'lg:w-96 lg:rounded-2xl',
+            ]"
             :style="{
                 '--media-player-top': `${topBarHeight}px`,
                 ...(playerDragging
@@ -791,6 +808,7 @@ function onKeydown(event: KeyboardEvent) {
                 <div class="absolute inset-0 bg-white/45" />
             </div>
             <div
+                v-show="!miniVideo"
                 class="flex-none touch-none bg-amber-50 dark:bg-slate-800"
                 :class="{ '!bg-transparent': wash }"
                 data-test="mediaPlayerHandle"
@@ -903,6 +921,98 @@ function onKeydown(event: KeyboardEvent) {
                     />
                 </div>
 
+                <!-- Minimised on a wide screen: the picture alone; pointing at it brings its controls, a press expands. -->
+                <div
+                    v-if="miniVideo"
+                    class="group absolute inset-0 z-10 cursor-pointer"
+                    data-test="mediaPlayerMiniVideo"
+                    @click="expandMediaPlayer"
+                >
+                    <div
+                        class="absolute inset-0 flex flex-col justify-between bg-gradient-to-b from-black/55 via-transparent to-black/70 p-2 text-white opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100"
+                    >
+                        <div class="flex justify-end gap-1">
+                            <button
+                                type="button"
+                                class="flex h-8 w-8 items-center justify-center rounded-full bg-black/40 hover:bg-black/60"
+                                :aria-label="t('media_player.expand')"
+                                data-test="mediaPlayerMiniExpand"
+                                @click.stop="expandMediaPlayer"
+                            >
+                                <ArrowsPointingOutIcon class="h-4 w-4" />
+                            </button>
+                            <button
+                                type="button"
+                                class="flex h-8 w-8 items-center justify-center rounded-full bg-black/40 hover:bg-black/60"
+                                :aria-label="t('media_player.close')"
+                                data-test="mediaPlayerMiniClose"
+                                @click.stop="closeMediaPlayer"
+                            >
+                                <XMarkIcon class="h-4 w-4" />
+                            </button>
+                        </div>
+                        <div class="flex items-center justify-center gap-3">
+                            <button
+                                type="button"
+                                class="flex h-9 w-9 items-center justify-center rounded-full bg-black/40 hover:bg-black/60"
+                                :aria-label="t('media_player.skip_back', { seconds: SKIP_SECONDS })"
+                                data-test="mediaPlayerMiniBack"
+                                @click.stop="skip(-SKIP_SECONDS)"
+                            >
+                                <SkipGlyph
+                                    direction="back"
+                                    class="h-5 w-5"
+                                />
+                            </button>
+                            <button
+                                type="button"
+                                class="flex h-11 w-11 items-center justify-center rounded-full bg-white/90 text-zinc-900 hover:bg-white"
+                                :aria-label="playing ? t('media_player.pause') : t('media_player.play')"
+                                data-test="mediaPlayerMiniPlay"
+                                @click.stop="togglePlay"
+                            >
+                                <PauseIcon
+                                    v-if="playing"
+                                    class="h-6 w-6"
+                                />
+                                <PlayIcon
+                                    v-else
+                                    class="h-6 w-6"
+                                />
+                            </button>
+                            <button
+                                type="button"
+                                class="flex h-9 w-9 items-center justify-center rounded-full bg-black/40 hover:bg-black/60"
+                                :aria-label="t('media_player.skip_forward', { seconds: SKIP_SECONDS })"
+                                data-test="mediaPlayerMiniForward"
+                                @click.stop="skip(SKIP_SECONDS)"
+                            >
+                                <SkipGlyph
+                                    direction="forward"
+                                    class="h-5 w-5"
+                                />
+                            </button>
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <div
+                                class="h-1.5 cursor-pointer rounded-full bg-white/35"
+                                role="presentation"
+                                data-test="mediaPlayerMiniSeek"
+                                @click.stop="seekMini"
+                            >
+                                <div
+                                    class="h-full rounded-full bg-yellow-500"
+                                    :style="{ width: `${progress * 100}%` }"
+                                />
+                            </div>
+                            <div class="flex justify-between text-[10px] tabular-nums">
+                                <span>{{ formatTime(currentTime) }}</span>
+                                <span>-{{ formatTime(Math.max(0, duration - currentTime)) }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- The frames around the dot while it is dragged, over the foot of the picture as in
                      full-screen; the picture is as wide as the bar's row, so one marker position serves both. -->
                 <div
@@ -1002,6 +1112,7 @@ function onKeydown(event: KeyboardEvent) {
                  (Chapters, Up next) scroll inside themselves. Nothing is clipped either: the menus open
                  upward over the picture. -->
             <div
+                v-show="!miniVideo"
                 class="flex min-h-0 flex-1 flex-col overflow-visible bg-amber-50 dark:bg-slate-800"
                 :class="{ '!bg-transparent': wash }"
                 data-test="mediaPlayerScroll"
@@ -1589,7 +1700,7 @@ function onKeydown(event: KeyboardEvent) {
         <!-- Rides on the menu: it moves down with it when the menu steps aside on scroll,
              stopping above the home indicator. -->
         <div
-            v-if="!expanded"
+            v-if="!expanded && !miniVideo"
             ref="bar"
             class="fixed inset-x-0 bottom-[var(--mobile-menu-h,0px)] z-40 flex w-full items-center justify-between gap-2 border-t-2 border-t-amber-200 bg-amber-50 px-2 pb-2 pt-2.5 transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform dark:border-t-slate-600 dark:bg-slate-700 lg:bottom-5 lg:left-auto lg:right-5 lg:w-80 lg:translate-y-0 lg:overflow-hidden lg:rounded-lg lg:border-t-0 lg:shadow-lg"
             :class="

@@ -1722,6 +1722,92 @@ describe("MediaPlayer", () => {
         });
     });
 
+    describe("minimised on a wide screen", () => {
+        /** A wide screen for the length of `run`: the media query for 1024 px and up matches. */
+        async function wide(run: () => Promise<void>) {
+            const original = window.matchMedia;
+            window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+                matches: query.includes("1024px"),
+                media: query,
+                addEventListener: vi.fn(),
+                removeEventListener: vi.fn(),
+            })) as unknown as typeof window.matchMedia;
+            try {
+                await run();
+            } finally {
+                window.matchMedia = original;
+            }
+        }
+
+        it("keeps only the picture of a video, with no bar, and its controls only for the pointer", async () => {
+            await wide(async () => {
+                const wrapper = await playing();
+                await find(wrapper, "mediaPlayerMinimise").trigger("click");
+                await flushPromises();
+
+                expect(find(wrapper, "mediaPlayerMiniVideo").exists()).toBe(true);
+                expect(wrapper.find("[data-test='mediaPlayerBar']").exists()).toBe(false);
+                expect(find(wrapper, "mediaPlayerMiniVideo").html()).toContain("group-hover:opacity-100");
+                expect(wrapper.find("[data-test='mediaPlayer']").attributes("aria-hidden")).toBe("false");
+            });
+        });
+
+        it("pauses, skips and seeks from the small video, and expands or closes it", async () => {
+            await wide(async () => {
+                const wrapper = await playing();
+                await find(wrapper, "mediaPlayerMinimise").trigger("click");
+                await flushPromises();
+
+                await find(wrapper, "mediaPlayerMiniPlay").trigger("click");
+                expect(engine.handle.pause).toHaveBeenCalled();
+                await find(wrapper, "mediaPlayerMiniForward").trigger("click");
+                expect(engine.handle.seek).toHaveBeenLastCalledWith(40);
+                await find(wrapper, "mediaPlayerMiniBack").trigger("click");
+                expect(engine.handle.seek).toHaveBeenLastCalledWith(20);
+
+                await find(wrapper, "mediaPlayerMiniClose").trigger("click");
+                await flushPromises();
+                expect(mediaPlayerItem.value).toBeNull();
+            });
+        });
+
+        it("expands from the expand button and from the picture", async () => {
+            await wide(async () => {
+                const wrapper = await playing();
+                await find(wrapper, "mediaPlayerMinimise").trigger("click");
+                await flushPromises();
+                await find(wrapper, "mediaPlayerMiniExpand").trigger("click");
+                expect(mediaPlayerView.value).toBe("expanded");
+
+                await find(wrapper, "mediaPlayerMinimise").trigger("click");
+                await flushPromises();
+                await find(wrapper, "mediaPlayerMiniVideo").trigger("click");
+                expect(mediaPlayerView.value).toBe("expanded");
+            });
+        });
+
+        it("keeps today's bar for sound alone", async () => {
+            await wide(async () => {
+                const wrapper = await playing();
+                await find(wrapper, "mediaPlayerAudio").trigger("click");
+                await flushPromises();
+                await find(wrapper, "mediaPlayerMinimise").trigger("click");
+                await flushPromises();
+
+                expect(find(wrapper, "mediaPlayerBar").exists()).toBe(true);
+                expect(wrapper.find("[data-test='mediaPlayerMiniVideo']").exists()).toBe(false);
+            });
+        });
+
+        it("keeps the bar on a phone, for video too", async () => {
+            const wrapper = await playing();
+            await find(wrapper, "mediaPlayerMinimise").trigger("click");
+            await flushPromises();
+            expect(find(wrapper, "mediaPlayerBar").exists()).toBe(true);
+            expect(wrapper.find("[data-test='mediaPlayerMiniVideo']").exists()).toBe(false);
+        });
+    });
+
     describe("video drawn behind the page", () => {
         const hole = () => document.documentElement.classList.contains("lmc-inline-video");
 

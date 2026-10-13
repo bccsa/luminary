@@ -1,7 +1,7 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import { mount, flushPromises, type VueWrapper } from "@vue/test-utils";
-import { computed, ref } from "vue";
+import { computed, nextTick, ref } from "vue";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
 import waitForExpect from "wait-for-expect";
@@ -20,9 +20,11 @@ import {
 import { appLanguageIdsAsRef } from "@/globalConfig";
 import { isContentSwap, clearSwaps } from "@/util/playerSwap";
 import * as auth from "@/auth";
+import { mediaPlayerItem } from "@/media-player/mediaPlayer";
 
 const pushMock = vi.hoisted(() => vi.fn());
 const playerMounts = vi.hoisted(() => ({ count: 0 }));
+const pagePlayer = vi.hoisted(() => ({ pause: vi.fn() }));
 
 const NEXT_DOC = vi.hoisted(
     () =>
@@ -76,7 +78,8 @@ vi.mock("@/components/content/VideoPlayer.vue", async () => {
             name: "VideoPlayer",
             props: ["content", "language", "startAudio", "autoplay", "nextUp", "windowedControls"],
             emits: ["nextupselect"],
-            setup(props) {
+            setup(props, { expose }) {
+                expose({ player: pagePlayer });
                 onMounted(() => playerMounts.count++);
                 return () => h("div", { class: "player-stub" }, props.content?._id);
             },
@@ -115,6 +118,8 @@ describe("SingleContent next video", () => {
         setActivePinia(createTestingPinia());
         pushMock.mockReset();
         playerMounts.count = 0;
+        pagePlayer.pause.mockReset();
+        mediaPlayerItem.value = null;
         clearSwaps();
         (auth as any).useAuth.mockReturnValue({
             isLoading: ref(false),
@@ -136,6 +141,27 @@ describe("SingleContent next video", () => {
         wrapper = mount(SingleContent, { props: { slug } });
         await waitForExpect(() => expect(player().exists()).toBe(true));
     }
+
+    it("keeps the embedded player on a desktop and adds the media button under it, with no panel beside it", async () => {
+        await mountPage();
+
+        expect(player().exists()).toBe(true);
+        expect(wrapper!.find("[data-test='mediaAction']").exists()).toBe(true);
+        expect(wrapper!.find("aside").exists()).toBe(false);
+        expect(wrapper!.html()).not.toContain("contentChaptersPanel");
+    });
+
+    it("pauses its own player when the corner player starts on the same post, and not for another", async () => {
+        await mountPage();
+
+        mediaPlayerItem.value = { content: otherVideoContent, language: "en" };
+        await nextTick();
+        expect(pagePlayer.pause).not.toHaveBeenCalled();
+
+        mediaPlayerItem.value = { content: videoContent, language: "en" };
+        await nextTick();
+        expect(pagePlayer.pause).toHaveBeenCalledTimes(1);
+    });
 
     it("hands the embedded player the videos to offer, without autoplay", async () => {
         await mountPage();

@@ -68,12 +68,10 @@ import { markLanguageSwitch } from "@/util/isLangSwitch";
 import LoadingBar from "@/components/LoadingBar.vue";
 import { activeImageCollection } from "@/components/images/LImageProvider.vue";
 import MediaAction from "@/media-player/MediaAction.vue";
-import { startsAsAudio } from "@/media-player/mediaPlayer";
-import VideoPlayer from "@/components/content/VideoPlayer.vue";
-import ContentChaptersPanel from "@/components/content/ContentChaptersPanel.vue";
-import type { VideoPlayerHandle } from "@/build-time/contracts/video-player/contract";
-import type { Chapter } from "@luminary-media-converter/player-web";
 import { useMediaQuery } from "@vueuse/core";
+import { mediaPlayerItem, startsAsAudio } from "@/media-player/mediaPlayer";
+import VideoPlayer from "@/components/content/VideoPlayer.vue";
+import type { VideoPlayerHandle } from "@/build-time/contracts/video-player/contract";
 import LHighlightable from "@/components/common/LHighlightable.vue";
 import DropdownMenu from "@/components/common/DropdownMenu.vue";
 import ArticleOutline from "./ArticleOutline.vue";
@@ -718,41 +716,24 @@ const isDesktop = useMediaQuery("(min-width: 1024px)");
 // attachment, offered by a button under the picture that opens the app-wide player.
 const embedVideo = computed(() => isDesktop.value && hasVideoSource(content.value));
 
-// Matches Tailwind's `xl`: room for the chapters beside the content; below it they sit in a strip under the player.
-const isWide = useMediaQuery("(min-width: 1280px)");
-
-// What the embedded player knows, for the chapters and up next under or beside it.
+// What the embedded player knows, for pausing it when the corner player takes over.
 const videoPlayerRef = ref<{ player: VideoPlayerHandle | null } | null>(null);
 const playerHandle = computed(() => videoPlayerRef.value?.player ?? null);
-const panelChapters = computed(() => playerHandle.value?.state?.chapters ?? []);
-const panelTime = computed(() => playerHandle.value?.state?.currentTime ?? 0);
-const panelTag = ref<Uuid | null>(null);
-/** The column's "Show all" is open: it may be taller than the window, so it scrolls with the page. */
-const panelExpanded = ref(false);
+// Chapters and up next are in the corner player; the page asks for the next videos with no tag chosen.
+const noTag = ref<Uuid | null>(null);
 const upNext = useUpNext(
     computed(() => (embedVideo.value ? content.value : undefined)),
-    panelTag,
+    noTag,
 );
-/** Whether there is anything for the panel to say; without it the page keeps its own layout. */
-const hasPanel = computed(
-    () =>
-        embedVideo.value &&
-        (panelChapters.value.length > 0 ||
-            upNext.value.next.length > 0 ||
-            upNext.value.related.length > 0 ||
-            !!panelTag.value),
+
+// The page's own player and the corner player never play the same post at once: the corner one starting
+// on this post pauses this one.
+watch(
+    () => mediaPlayerItem.value?.content._id,
+    (id) => {
+        if (id && id === content.value?._id) playerHandle.value?.pause();
+    },
 );
-function panelCueAt(time: number) {
-    const handle = playerHandle.value;
-    return handle?.state?.thumbnailsReady ? (handle.controller?.thumbnailAt(time) ?? null) : null;
-}
-function playChapter(chapter: Chapter) {
-    playerHandle.value?.seek(chapter.startTime);
-    void playerHandle.value?.play();
-}
-function openUpNext(next: ContentDto) {
-    if (next.slug) void router.push({ name: "content", params: { slug: next.slug } });
-}
 
 // The video that follows, offered by the embedded player near the end of full-screen. Picking it swaps
 // the player to it in place and moves the page to it behind.
@@ -903,11 +884,7 @@ watch([isLoading, content, is404], async () => {
         >
             <div
                 class="flex flex-grow justify-center lg:grid lg:grid-cols-[1fr_minmax(0,48rem)_1fr] lg:gap-x-8"
-                :class="{
-                    'items-center': showLoadingBar,
-                    // The chapters beside the content: the pair of columns stays centred on the page.
-                    'xl:grid-cols-[1fr_minmax(0,48rem)_22rem_1fr]': hasPanel,
-                }"
+                :class="{ 'items-center': showLoadingBar }"
             >
                 <LoadingBar
                     v-if="showLoadingBar"
@@ -981,8 +958,7 @@ watch([isLoading, content, is404], async () => {
                                     :autoplay="autoplaySwapped"
                                     :next-up="nextUp"
                                     windowed-controls
-                                    class="overflow-hidden"
-                                    :class="hasPanel && !isWide ? 'rounded-t-xl' : 'rounded-xl'"
+                                    class="overflow-hidden rounded-xl"
                                     @nextupselect="onNextUpSelect"
                                 />
                                 <div
@@ -1048,23 +1024,8 @@ watch([isLoading, content, is404], async () => {
                             </IgnorePagePadding>
                         </div>
 
-                        <!-- Under the player when there is no room beside the content: joined to its foot. -->
-                        <ContentChaptersPanel
-                            v-if="hasPanel && !isWide"
-                            attached
-                            :wide="false"
-                            :chapters="panelChapters"
-                            :current-time="panelTime"
-                            :up-next="upNext"
-                            :selected-tag="panelTag"
-                            :cue-at="panelCueAt"
-                            @seek-chapter="playChapter"
-                            @play-next="openUpNext"
-                            @select-tag="panelTag = $event"
-                        />
-
                         <MediaAction
-                            v-if="hasVideoSource(content) && !embedVideo"
+                            v-if="hasVideoSource(content)"
                             :key="content._id"
                             :content="content"
                             :language="selectedLanguageCode"
@@ -1206,25 +1167,6 @@ watch([isLoading, content, is404], async () => {
                             {{ content.copyright }}
                         </div>
                     </article>
-
-                    <!-- Beside the content on a wide screen; it stays in view while the text is read. -->
-                    <aside
-                        v-if="hasPanel && isWide"
-                        class="col-start-3 mt-11 self-start"
-                        :class="{ 'xl:sticky xl:top-20': !panelExpanded }"
-                    >
-                        <ContentChaptersPanel
-                            v-model:expanded="panelExpanded"
-                            :wide="true"
-                            :chapters="panelChapters"
-                            :current-time="panelTime"
-                            :up-next="upNext"
-                            :selected-tag="panelTag"
-                            @seek-chapter="playChapter"
-                            @play-next="openUpNext"
-                            @select-tag="panelTag = $event"
-                        />
-                    </aside>
 
                     <!-- Right gutter: kept empty, mirrors the left one so the article stays centred. -->
                     <div class="hidden lg:block" />
