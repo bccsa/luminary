@@ -322,7 +322,7 @@ describe("MediaPlayer", () => {
             await flushPromises();
 
             const artwork = find(wrapper, "mediaPlayerArtwork");
-            expect(artwork.find("div").attributes("style")).toContain("min(66%, 236px, 26svh)");
+            expect(artwork.find("div").classes()).toContain("w-[min(66%,236px,26svh)]");
         });
 
         it("switches back to the camera that was playing", async () => {

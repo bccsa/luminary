@@ -865,7 +865,7 @@ function onKeydown(event: KeyboardEvent) {
                 </div>
 
                 <div
-                    class="flex items-center justify-between px-4 pb-3 [@media(max-height:840px)]:pb-1"
+                    class="flex items-center justify-between px-4 pb-3 lg:pt-3 [@media(max-height:840px)]:pb-1"
                 >
                     <button
                         type="button"
@@ -932,7 +932,7 @@ function onKeydown(event: KeyboardEvent) {
                 class="relative w-full flex-none"
                 :class="
                     audioMode
-                        ? 'overflow-hidden py-4'
+                        ? 'overflow-hidden py-4 lg:aspect-video lg:py-0'
                         : ['aspect-video', inlineHole ? 'bg-transparent' : 'bg-black']
                 "
             >
@@ -1092,10 +1092,14 @@ function onKeydown(event: KeyboardEvent) {
 
                 <div
                     v-if="audioMode"
-                    class="relative flex w-full items-center justify-center"
+                    class="relative flex w-full items-center justify-center lg:h-full"
                     data-test="mediaPlayerArtwork"
                 >
-                    <div class="relative" style="width: min(66%, 236px, 26svh)">
+                    <!-- On a wide screen the band is the picture's own height (16:9), so the card is as tall in the sound
+                         alone as with the video, and the cover fits it. -->
+                    <div
+                        class="relative w-[min(66%,236px,26svh)] lg:aspect-square lg:h-[calc(100%-2rem)] lg:w-auto"
+                    >
                         <div class="relative overflow-hidden rounded-xl shadow-xl">
                             <LImage
                                 :image="content.parentImageData"
