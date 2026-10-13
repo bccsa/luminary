@@ -257,14 +257,18 @@ describe("VideoPlayer", () => {
             });
 
             it("turns background chunk warming off under Data Saver, and leaves it on otherwise", async () => {
-                expect(stub(await mountPlayer()).props("controllerOptions")).toEqual({
+                expect(stub(await mountPlayer()).props("controllerOptions")).toMatchObject({
                     prefetch: { enabled: true },
                 });
 
                 userDataSaverEnabled.value = true;
-                expect(stub(await mountPlayer()).props("controllerOptions")).toEqual({
+                expect(stub(await mountPlayer()).props("controllerOptions")).toMatchObject({
                     prefetch: { enabled: false },
                 });
+            });
+
+            it("tells the player the app's language, to name a stream's generated subtitle names by", async () => {
+                expect(stub(await mountPlayer()).props("controllerOptions").displayLanguage).toBeTruthy();
             });
 
             it("starts the player's ABR from the measured speed in bits per second", async () => {

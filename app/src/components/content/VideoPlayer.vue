@@ -18,6 +18,7 @@ import {
 } from "@luminary-media-converter/player-web";
 import { type ContentDto, fetchHlsKey, reportError } from "luminary-shared";
 import LImage from "../images/LImage.vue";
+import { useI18n } from "vue-i18n";
 import { usePlayerMessages } from "@/media-player/usePlayerMessages";
 import YouTubeEmbed from "./YouTubeEmbed.vue";
 import { isYouTubeLink } from "@/util/youtube";
@@ -73,6 +74,7 @@ const emit = defineEmits<{ upnextselect: [id: string]; nextupselect: [id: string
  * same keys, and each uses the ones it has. The skip texts keep their `{seconds}` for the player
  * to fill in with its own interval.
  */
+const { locale } = useI18n();
 const playerMessages = usePlayerMessages();
 
 // The browser's player when no service is provided: a component mounted on its own.
@@ -126,6 +128,8 @@ const webNowPlaying = computed(() => ({
  * Taken when this component is created: a player swapped to the next video keeps it.
  */
 const controllerOptions = {
+    // The language a stream's generated subtitle names (`stream_0`) are replaced by the name of.
+    displayLanguage: locale.value,
     prefetch: { enabled: !(userDataSaverEnabled.value || isDataSaverEnabled()) },
 };
 const playerExtras = computed(() => ({
