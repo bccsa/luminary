@@ -267,10 +267,6 @@ describe("VideoPlayer", () => {
                 });
             });
 
-            it("tells the player the app's language, to name a stream's generated subtitle names by", async () => {
-                expect(stub(await mountPlayer()).props("controllerOptions").displayLanguage).toBeTruthy();
-            });
-
             it("starts the player's ABR from the measured speed in bits per second", async () => {
                 connectionSpeed.value = 2.5;
                 hasMeasuredConnectionSpeed.value = true;

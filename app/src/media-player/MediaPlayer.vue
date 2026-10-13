@@ -41,7 +41,6 @@ import { isDarkTheme, isMac } from "@/globalConfig";
 import { useBucketInfo } from "@/composables/useBucketInfo";
 import { fallbackImageFor } from "@/util/fallbackArtwork";
 import { coverImageUrl } from "./coverImage";
-import { trackLabel } from "./trackLabel";
 import { usePlayerMessages } from "./usePlayerMessages";
 import { isNativeApp } from "@/util/inAppBrowser";
 import MediaPlayerChapters from "./MediaPlayerChapters.vue";
@@ -66,7 +65,7 @@ import {
     startsAsAudio,
 } from "./mediaPlayer";
 
-const { t, locale } = useI18n();
+const { t } = useI18n();
 const router = useRouter();
 
 /** The speeds the player's own full-screen offers, so both agree. */
@@ -1349,7 +1348,7 @@ function onKeydown(event: KeyboardEvent) {
                                     <MediaPlayerMenuItem
                                         v-for="track in state.subtitleTracks"
                                         :key="track.id"
-                                        :label="trackLabel(track, locale)"
+                                        :label="track.label"
                                         :selected="track.id === state.activeSubtitleTrackId"
                                         @pick="pickSubtitles(track.id)"
                                     />
