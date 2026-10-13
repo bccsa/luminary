@@ -360,7 +360,8 @@ const audioMode = computed(
 const playing = computed(() => state.value?.playing ?? false);
 const currentTime = computed(() => state.value?.currentTime ?? 0);
 const duration = computed(() => state.value?.duration ?? 0);
-const live = computed(() => duration.value === Infinity);
+/** A live stream: the player says so (an engine reports no length for one), or the length is infinite. */
+const live = computed(() => state.value?.live === true || duration.value === Infinity);
 /**
  * The duration has arrived. Until then nothing about seeking is known, and a live stream has not yet
  * said so (it reports an infinite duration): the skip buttons, the bar and the speed are kept out of
@@ -383,6 +384,8 @@ const starting = computed(() => {
         state.value.lifecycle === "ready" &&
         !playing.value &&
         !state.value.ended &&
+        // A live stream has no length to wait for, so paused it is not starting.
+        !live.value &&
         duration.value === 0
     );
 });
@@ -984,6 +987,7 @@ function onKeydown(event: KeyboardEvent) {
                         </div>
                         <div class="flex items-center justify-center gap-4">
                             <V10Button
+                                v-if="!live"
                                 round
                                 class="h-10 w-10"
                                 :label="t('media_player.skip_back', { seconds: SKIP_SECONDS })"
@@ -1014,6 +1018,7 @@ function onKeydown(event: KeyboardEvent) {
                                 />
                             </V10Button>
                             <V10Button
+                                v-if="!live"
                                 round
                                 class="h-10 w-10"
                                 :label="t('media_player.skip_forward', { seconds: SKIP_SECONDS })"
@@ -1026,7 +1031,25 @@ function onKeydown(event: KeyboardEvent) {
                                 />
                             </V10Button>
                         </div>
-                        <div class="flex flex-col gap-1">
+                        <div
+                            v-if="live"
+                            class="flex justify-center"
+                            data-test="mediaPlayerMiniLive"
+                        >
+                            <span
+                                class="inline-flex items-center gap-1.5 rounded-full bg-red-600 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white"
+                            >
+                                <span
+                                    class="h-1.5 w-1.5 rounded-full bg-white"
+                                    aria-hidden="true"
+                                />
+                                {{ t("media_player.live") }}
+                            </span>
+                        </div>
+                        <div
+                            v-else
+                            class="flex flex-col gap-1"
+                        >
                             <div
                                 class="h-1.5 cursor-pointer rounded-full bg-white/35"
                                 role="presentation"

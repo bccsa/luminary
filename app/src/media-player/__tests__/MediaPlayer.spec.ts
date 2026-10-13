@@ -145,6 +145,7 @@ vi.mock("@/components/content/VideoPlayer.vue", async () => {
                     bufferedEnd: 60,
                     playbackRate: 1,
                     isAudioOnly: false,
+                    live: false,
                     activeAngleId: "angle_0",
                     angles: [
                         { id: "angle_0", name: "Wide", isDefault: true },
@@ -1878,6 +1879,38 @@ describe("MediaPlayer", () => {
 
             await find(wrapper, "mediaPlayer").trigger("keydown", { key: "Escape" });
             expect(mediaPlayerView.value).toBe("mini");
+        });
+    });
+
+    describe("a live stream", () => {
+        it("is not starting while it is paused, shows Live, and keeps its play button, whatever length the engine reports", async () => {
+            const wrapper = await playing();
+            engine.state.live = true;
+            engine.state.duration = 0;
+            engine.state.playing = false;
+            await flushPromises();
+
+            expect(wrapper.find("[data-test='mediaPlayerLive']").exists()).toBe(true);
+            expect(find(wrapper, "mediaPlayerPlayPause").classes()).not.toContain("invisible");
+            expect(wrapper.find("[data-test='mediaPlayerStarting']").exists()).toBe(false);
+            expect(find(wrapper, "mediaPlayerSkipBack").classes()).toContain("invisible");
+        });
+
+        it("is told to the full-screen sound screen, and the minimised video keeps only play, expand and close", async () => {
+            await wide(async () => {
+                const wrapper = await playing();
+                engine.state.live = true;
+                engine.state.duration = 0;
+                await flushPromises();
+                await find(wrapper, "mediaPlayerMinimise").trigger("click");
+                await flushPromises();
+
+                expect(find(wrapper, "mediaPlayerMiniLive").exists()).toBe(true);
+                expect(wrapper.find("[data-test='mediaPlayerMiniBack']").exists()).toBe(false);
+                expect(wrapper.find("[data-test='mediaPlayerMiniForward']").exists()).toBe(false);
+                expect(wrapper.find("[data-test='mediaPlayerMiniSeek']").exists()).toBe(false);
+                expect(find(wrapper, "mediaPlayerMiniPlay").exists()).toBe(true);
+            });
         });
     });
 
