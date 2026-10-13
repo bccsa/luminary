@@ -108,6 +108,12 @@ const playerMessages = computed(() => ({
     mute: t("media_player.mute"),
     unmute: t("media_player.unmute"),
     loading: t("video_player.loading"),
+    speedLabel: t("media_player.speed"),
+    sleepTimer: t("media_player.sleep_timer"),
+    sleepOff: t("media_player.sleep_off"),
+    sleepMinutes: t("media_player.sleep_minutes", { minutes: "{minutes}" }),
+    sleepEndOfChapter: t("media_player.sleep_end_of_chapter"),
+    sleepLeft: t("media_player.sleep_left", { minutes: "{minutes}" }),
 }));
 
 // The browser's player when no service is provided: a component mounted on its own.

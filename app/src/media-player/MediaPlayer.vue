@@ -13,6 +13,7 @@ import {
     ChevronUpIcon,
     ChevronDownIcon,
     FilmIcon,
+    MoonIcon,
     MusicalNoteIcon,
     PauseIcon,
     PlayIcon,
@@ -21,6 +22,7 @@ import {
 import {
     AUDIO_ONLY_ANGLE_ID,
     ScrubRoster,
+    chapterIndexAt,
     rosterStep,
     rosterTiles,
     type Chapter,
@@ -30,7 +32,7 @@ import { DateTime } from "luxon";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
 import LImage from "@/components/images/LImage.vue";
 import { useMobileChromeAutoHide } from "@/composables/useMobileChromeAutoHide";
-import { isMac } from "@/globalConfig";
+import { isDarkTheme, isMac } from "@/globalConfig";
 import { isNativeApp } from "@/util/inAppBrowser";
 import MediaPlayerChapters from "./MediaPlayerChapters.vue";
 import MediaPlayerMenu from "./MediaPlayerMenu.vue";
@@ -555,8 +557,8 @@ function seekTo(event: Event) {
     scrubTimer = setTimeout(endScrub, SCRUB_HOLD_MS);
 }
 
-const openMenu = ref<"speed" | "language" | "subtitles" | null>(null);
-function toggleMenu(menu: "speed" | "language" | "subtitles") {
+const openMenu = ref<"speed" | "language" | "subtitles" | "sleep" | null>(null);
+function toggleMenu(menu: "speed" | "language" | "subtitles" | "sleep") {
     openMenu.value = openMenu.value === menu ? null : menu;
 }
 function pickRate(rate: number) {
@@ -572,6 +574,31 @@ function pickSubtitles(id: string | null) {
     openMenu.value = null;
 }
 const rateLabel = (rate: number) => `${rate}x`;
+
+/** Which chapter the playhead is in, for the chip under the title in the sound alone. */
+const chapterNow = computed(() => {
+    const index = chapterIndexAt(chapters.value, currentTime.value);
+    return index >= 0 ? { index, chapter: chapters.value[index] } : null;
+});
+
+/**
+ * In the light theme the sound alone wears the cover's colour over the whole player; in the dark one the
+ * player stays plain and only the picture glows.
+ */
+const wash = computed(() => audioMode.value && !isDarkTheme.value);
+
+const SLEEP_MINUTES = [5, 10, 15, 30, 45, 60];
+const sleepTimer = computed(() => state.value?.sleepTimer ?? null);
+/** The minutes a minutes timer has left, rounded up, so it never says 0 while it runs. */
+const sleepMinutesLeft = computed(() =>
+    sleepTimer.value?.kind === "minutes"
+        ? Math.max(1, Math.ceil((sleepTimer.value.endsAt - Date.now()) / 60_000))
+        : null,
+);
+function pickSleep(option: { kind: "minutes"; minutes: number } | { kind: "chapter" } | null) {
+    controller.value?.setSleepTimer(option);
+    openMenu.value = null;
+}
 /** The language playing, as a short code: the full name is in the menu, and a long one pushes the row's other buttons down a line. */
 const activeLanguageCode = computed(() => {
     const track = state.value?.audioTracks.find((t) => t.id === state.value?.activeAudioTrackId);
@@ -707,8 +734,28 @@ function onKeydown(event: KeyboardEvent) {
             data-test="mediaPlayer"
             @keydown="onKeydown"
         >
+            <!-- The cover, blurred and saturated, behind every part, under a pale scrim to keep the text readable. -->
+            <div
+                v-if="wash"
+                class="pointer-events-none absolute inset-0 -z-10 overflow-hidden bg-amber-50"
+                aria-hidden="true"
+                data-test="mediaPlayerWash"
+            >
+                <div class="absolute -inset-[20%] opacity-70 blur-3xl saturate-150">
+                    <LImage
+                        :image="content.parentImageData"
+                        :content-parent-id="content.parentId"
+                        :parent-image-bucket-id="content.parentImageBucketId"
+                        aspectRatio="square"
+                        size="post"
+                        :rounded="false"
+                    />
+                </div>
+                <div class="absolute inset-0 bg-white/45" />
+            </div>
             <div
                 class="flex-none touch-none bg-amber-50 dark:bg-slate-800"
+                :class="{ '!bg-transparent': wash }"
                 data-test="mediaPlayerHandle"
                 @pointerdown="onDragStart"
                 @pointermove="onDragMove"
@@ -796,7 +843,9 @@ function onKeydown(event: KeyboardEvent) {
                 class="relative w-full flex-none"
                 :class="
                     audioMode
-                        ? 'overflow-hidden bg-amber-50 py-4 dark:bg-slate-800'
+                        ? wash
+                            ? 'overflow-hidden py-4'
+                            : 'overflow-hidden bg-amber-50 py-4 dark:bg-slate-800'
                         : ['aspect-video', inlineHole ? 'bg-transparent' : 'bg-black']
                 "
             >
@@ -870,6 +919,7 @@ function onKeydown(event: KeyboardEvent) {
                     <div class="relative" style="width: min(66%, 236px, 26svh)">
                         <!-- The glow: the cover again, blurred and saturated, only behind the picture. -->
                         <div
+                            v-if="!wash"
                             class="pointer-events-none absolute -inset-[8%] opacity-70 blur-2xl saturate-150 [mask-image:radial-gradient(closest-side,#000_55%,transparent)]"
                             aria-hidden="true"
                             data-test="mediaPlayerGlow"
@@ -902,6 +952,7 @@ function onKeydown(event: KeyboardEvent) {
                  upward over the picture. -->
             <div
                 class="flex min-h-0 flex-1 flex-col overflow-visible bg-amber-50 dark:bg-slate-800"
+                :class="{ '!bg-transparent': wash }"
                 data-test="mediaPlayerScroll"
             >
                 <div
@@ -923,6 +974,21 @@ function onKeydown(event: KeyboardEvent) {
                         class="block truncate text-xs font-semibold text-zinc-400"
                         >{{ publishDate }}</span
                     >
+                    <button
+                        v-if="audioMode && chapterNow && !sheetTab"
+                        type="button"
+                        class="mx-auto flex max-w-full items-center gap-1.5 rounded-full bg-zinc-500/15 px-3 py-1 text-xs font-semibold text-zinc-600 dark:text-slate-300"
+                        data-test="mediaPlayerChapterChip"
+                        @click="toggleTab('chapters')"
+                    >
+                        <span class="flex-none">{{
+                            t("media_player.chapter_of", {
+                                number: chapterNow.index + 1,
+                                total: chapters.length,
+                            })
+                        }}</span>
+                        <span class="truncate">· {{ chapterNow.chapter.title }}</span>
+                    </button>
                 </div>
 
                 <template v-if="state">
@@ -1008,6 +1074,67 @@ function onKeydown(event: KeyboardEvent) {
                                     :label="rateLabel(rate)"
                                     :selected="rate === state.playbackRate"
                                     @pick="pickRate(rate)"
+                                />
+                            </MediaPlayerMenu>
+                        </div>
+                        <div
+                            v-if="audioMode"
+                            class="relative flex-shrink-0"
+                        >
+                            <button
+                                type="button"
+                                class="relative flex h-10 items-center justify-center gap-1.5 rounded-full border border-zinc-500/35 text-sm font-semibold text-zinc-600 after:absolute after:-inset-0.5 after:content-[''] dark:text-slate-300 min-[420px]:h-11 min-[420px]:after:inset-0 md:h-12"
+                                :class="[
+                                    sleepTimer ? 'px-2 text-yellow-700 dark:text-yellow-400' : 'w-10 min-[420px]:w-11 md:w-12',
+                                    { 'bg-zinc-500/15': sleepTimer },
+                                ]"
+                                :aria-label="t('media_player.sleep_timer')"
+                                :aria-expanded="openMenu === 'sleep'"
+                                data-test="mediaPlayerSleep"
+                                @click="toggleMenu('sleep')"
+                            >
+                                <MoonIcon class="h-5 w-5 md:h-6 md:w-6" />
+                                <span
+                                    v-if="sleepMinutesLeft !== null"
+                                    data-test="mediaPlayerSleepCaption"
+                                    >{{
+                                        t("media_player.sleep_left", { minutes: sleepMinutesLeft })
+                                    }}</span
+                                >
+                                <span
+                                    v-else-if="sleepTimer"
+                                    data-test="mediaPlayerSleepCaption"
+                                    >{{ t("media_player.sleep_end_of_chapter") }}</span
+                                >
+                            </button>
+                            <MediaPlayerMenu
+                                v-if="openMenu === 'sleep'"
+                                :title="t('media_player.sleep_timer')"
+                            >
+                                <MediaPlayerMenuItem
+                                    :label="t('media_player.sleep_off')"
+                                    :selected="!sleepTimer"
+                                    data-test="mediaPlayerSleepOff"
+                                    @pick="pickSleep(null)"
+                                />
+                                <MediaPlayerMenuItem
+                                    v-for="minutes in SLEEP_MINUTES"
+                                    :key="minutes"
+                                    :label="t('media_player.sleep_minutes', { minutes })"
+                                    :selected="
+                                        sleepTimer?.kind === 'minutes' &&
+                                        sleepMinutesLeft !== null &&
+                                        Math.abs(sleepMinutesLeft - minutes) < 1
+                                    "
+                                    :data-test="`mediaPlayerSleep${minutes}`"
+                                    @pick="pickSleep({ kind: 'minutes', minutes })"
+                                />
+                                <MediaPlayerMenuItem
+                                    v-if="chapters.length"
+                                    :label="t('media_player.sleep_end_of_chapter')"
+                                    :selected="sleepTimer?.kind === 'chapter'"
+                                    data-test="mediaPlayerSleepChapter"
+                                    @pick="pickSleep({ kind: 'chapter' })"
                                 />
                             </MediaPlayerMenu>
                         </div>
@@ -1268,6 +1395,7 @@ function onKeydown(event: KeyboardEvent) {
                     v-if="!sheetTab && tabs.length"
                     role="tablist"
                     class="sticky bottom-0 mt-auto flex h-12 w-full flex-none border-t border-zinc-300/60 bg-amber-50 dark:border-slate-600/60 dark:bg-slate-800 [@media(max-height:840px)]:h-10"
+                    :class="{ '!bg-transparent': wash }"
                 >
                     <button
                         v-for="tab in tabs"

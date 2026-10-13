@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { flushPromises, mount, type VueWrapper } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import { mockEnglishContentDto } from "@/tests/mockdata";
-import { userDataSaverEnabled } from "@/globalConfig";
+import { isDarkTheme, userDataSaverEnabled } from "@/globalConfig";
 import { isPlayerSwap, clearSwaps } from "@/util/playerSwap";
 import { markSeen } from "@/recommendation/seenStore";
 import { useMobileChromeAutoHide } from "@/composables/useMobileChromeAutoHide";
@@ -132,6 +132,7 @@ vi.mock("@/components/content/VideoPlayer.vue", async () => {
                         { id: "sub-fr", lang: "fr", label: "Français", source: "master" },
                     ],
                     activeSubtitleTrackId: null,
+                    sleepTimer: null,
                     thumbnailsReady: engine.thumbnailsReady,
                 });
                 engine.controller = {
@@ -145,6 +146,7 @@ vi.mock("@/components/content/VideoPlayer.vue", async () => {
                         engine.state.isAudioOnly = id === AUDIO;
                     }),
                     setPlaybackRate: vi.fn(),
+                    setSleepTimer: vi.fn(),
                     setAudioTrack: vi.fn(),
                     setSubtitleTrack: vi.fn(),
                 };
@@ -252,7 +254,26 @@ describe("MediaPlayer", () => {
             expect(find(wrapper, "mediaPlayerAudio").attributes("aria-pressed")).toBe("true");
         });
 
+        it("washes the whole player with the cover's colour in the light theme, and only glows behind the picture in the dark", async () => {
+            isDarkTheme.value = false;
+            const light = await playing();
+            await find(light, "mediaPlayerAudio").trigger("click");
+            await flushPromises();
+            expect(find(light, "mediaPlayerWash").exists()).toBe(true);
+            expect(light.find("[data-test='mediaPlayerGlow']").exists()).toBe(false);
+            light.unmount();
+
+            isDarkTheme.value = true;
+            const dark = await playing();
+            await find(dark, "mediaPlayerAudio").trigger("click");
+            await flushPromises();
+            expect(dark.find("[data-test='mediaPlayerWash']").exists()).toBe(false);
+            expect(find(dark, "mediaPlayerGlow").exists()).toBe(true);
+            isDarkTheme.value = false;
+        });
+
         it("shows the cover in the sound alone at most 236px, two thirds wide and a quarter of the height, with a glow behind it", async () => {
+            isDarkTheme.value = true;
             const wrapper = await playing();
             expect(wrapper.find("[data-test='mediaPlayerArtwork']").exists()).toBe(false);
 
@@ -263,6 +284,7 @@ describe("MediaPlayer", () => {
             expect(artwork.find("div").attributes("style")).toContain("min(66%, 236px, 26svh)");
             expect(find(wrapper, "mediaPlayerGlow").classes()).toContain("blur-2xl");
             expect(find(wrapper, "mediaPlayerGlow").attributes("aria-hidden")).toBe("true");
+            isDarkTheme.value = false;
         });
 
         it("switches back to the camera that was playing", async () => {
@@ -837,6 +859,62 @@ describe("MediaPlayer", () => {
 
             await find(wrapper, "mediaPlayerMenuBackdrop").trigger("click");
             expect(wrapper.find("[data-test='mediaPlayerMenu']").exists()).toBe(false);
+        });
+
+        it("offers a sleep timer in the sound alone only, and asks for minutes, the chapter's end, or none", async () => {
+            const wrapper = await playing();
+            expect(wrapper.find("[data-test='mediaPlayerSleep']").exists()).toBe(false);
+
+            await find(wrapper, "mediaPlayerAudio").trigger("click");
+            await flushPromises();
+            engine.state.chapters = [{ startTime: 0, endTime: 60, title: "One" }];
+            await flushPromises();
+
+            await find(wrapper, "mediaPlayerSleep").trigger("click");
+            await find(wrapper, "mediaPlayerSleep15").find("button").trigger("click");
+            await find(wrapper, "mediaPlayerSleep").trigger("click");
+            await find(wrapper, "mediaPlayerSleepChapter").find("button").trigger("click");
+            await find(wrapper, "mediaPlayerSleep").trigger("click");
+            await find(wrapper, "mediaPlayerSleepOff").find("button").trigger("click");
+
+            expect(engine.controller.setSleepTimer.mock.calls).toEqual([
+                [{ kind: "minutes", minutes: 15 }],
+                [{ kind: "chapter" }],
+                [null],
+            ]);
+        });
+
+        it("names the chapter playing on a chip that opens the chapters, in the sound alone", async () => {
+            const wrapper = await playing();
+            engine.state.chapters = [
+                { startTime: 0, endTime: 20, title: "One" },
+                { startTime: 20, endTime: 120, title: "Two" },
+            ];
+            await flushPromises();
+            expect(wrapper.find("[data-test='mediaPlayerChapterChip']").exists()).toBe(false);
+
+            await find(wrapper, "mediaPlayerAudio").trigger("click");
+            await flushPromises();
+
+            const chip = find(wrapper, "mediaPlayerChapterChip");
+            expect(chip.text()).toContain("Two");
+            await chip.trigger("click");
+            await flushPromises();
+            expect(wrapper.find("[data-test='mediaPlayerSheet']").exists()).toBe(true);
+        });
+
+        it("says on the sleep button that a timer runs", async () => {
+            const wrapper = await playing();
+            await find(wrapper, "mediaPlayerAudio").trigger("click");
+            await flushPromises();
+            expect(wrapper.find("[data-test='mediaPlayerSleepCaption']").exists()).toBe(false);
+
+            engine.state.sleepTimer = { kind: "minutes", endsAt: Date.now() + 14 * 60_000 + 5_000 };
+            await flushPromises();
+
+            expect(find(wrapper, "mediaPlayerSleepCaption").text()).toBe(
+                "media_player.sleep_left",
+            );
         });
 
         it("changes speed from the menu", async () => {
