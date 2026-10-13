@@ -901,7 +901,7 @@ function onKeydown(event: KeyboardEvent) {
                     audioMode
                         ? wash
                             ? 'overflow-hidden py-4'
-                            : 'overflow-hidden bg-amber-50 py-4 dark:bg-slate-800'
+                            : 'bg-amber-50 py-4 dark:bg-slate-800'
                         : ['aspect-video', inlineHole ? 'bg-transparent' : 'bg-black']
                 "
             >
@@ -1065,10 +1065,10 @@ function onKeydown(event: KeyboardEvent) {
                     data-test="mediaPlayerArtwork"
                 >
                     <div class="relative" style="width: min(66%, 236px, 26svh)">
-                        <!-- The glow: the cover again, blurred and saturated, only behind the picture. -->
+                        <!-- The glow: the cover again, blurred and saturated, around the picture; it may reach past the band, softly. -->
                         <div
                             v-if="!wash"
-                            class="pointer-events-none absolute -inset-[8%] opacity-70 blur-2xl saturate-150 [mask-image:radial-gradient(closest-side,#000_55%,transparent)]"
+                            class="pointer-events-none absolute -inset-[30%] opacity-90 blur-3xl saturate-[1.8] [mask-image:radial-gradient(closest-side,#000_45%,transparent)]"
                             aria-hidden="true"
                             data-test="mediaPlayerGlow"
                         >

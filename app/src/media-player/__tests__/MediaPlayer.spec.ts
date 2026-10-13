@@ -319,7 +319,7 @@ describe("MediaPlayer", () => {
 
             const artwork = find(wrapper, "mediaPlayerArtwork");
             expect(artwork.find("div").attributes("style")).toContain("min(66%, 236px, 26svh)");
-            expect(find(wrapper, "mediaPlayerGlow").classes()).toContain("blur-2xl");
+            expect(find(wrapper, "mediaPlayerGlow").classes()).toContain("blur-3xl");
             expect(find(wrapper, "mediaPlayerGlow").attributes("aria-hidden")).toBe("true");
             isDarkTheme.value = false;
         });
