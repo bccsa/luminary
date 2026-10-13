@@ -612,11 +612,6 @@ const screenArtwork = computed(() => {
     const src = content.value ? coverImageUrl(content.value, coverBucketBaseUrl.value) : undefined;
     return src ? { src } : null;
 });
-/** The tab of the sheet on the full-screen sound screen: the same two as the expanded player's. */
-const screenTab = ref<SheetTab | null>(null);
-const screenActiveTab = computed(() =>
-    tabs.value.some((tab) => tab.id === screenTab.value) ? screenTab.value : (tabs.value[0]?.id ?? null),
-);
 const screenChapterIndex = computed(() => chapterIndexAt(chapters.value, currentTime.value));
 const screenChapterMask = computed(() =>
     chapterMask(chapterSegments(chapters.value, duration.value)),
@@ -1552,7 +1547,8 @@ function onKeydown(event: KeyboardEvent) {
                 :audio-tracks="screenTracks"
                 :active-audio-track-id="state.activeAudioTrackId"
                 :sleep-timer="sleepTimer"
-                :has-browse="tabs.length > 0"
+                :has-browse="chapters.length > 0 || nextUp.length > 0"
+                :up-next="nextUp"
                 chapters-sheet
                 :skip-back-seconds="SKIP_SECONDS"
                 :skip-forward-seconds="SKIP_SECONDS"
@@ -1562,74 +1558,16 @@ function onKeydown(event: KeyboardEvent) {
                 @toggle-play="togglePlay"
                 @seek="(time) => controller?.seek(time)"
                 @seek-chapter="(chapter) => controller?.seek(chapter.startTime)"
+                @upnextselect="
+                    (id) => {
+                        const next = nextContents.find((doc) => doc._id === id);
+                        if (next) playNext(next);
+                    }
+                "
                 @rate="(rate) => controller?.setPlaybackRate(rate)"
                 @audio-track="(id) => controller?.setAudioTrack(id)"
                 @sleep="(option) => controller?.setSleepTimer(option)"
             >
-                <template #sheet="{ close }">
-                    <div
-                        class="flex h-full max-h-full min-h-0 flex-col bg-white text-zinc-900 dark:bg-slate-900 dark:text-white"
-                        data-test="mediaPlayerScreenSheet"
-                    >
-                        <button
-                            type="button"
-                            class="flex h-7 w-full flex-none items-center justify-center"
-                            :aria-label="t('media_player.minimise')"
-                            data-test="mediaPlayerScreenSheetClose"
-                            @click="close"
-                        >
-                            <span class="h-1 w-10 rounded-full bg-zinc-300 dark:bg-slate-600" />
-                        </button>
-                        <div
-                            role="tablist"
-                            class="flex flex-none border-b border-zinc-200 dark:border-slate-700"
-                        >
-                            <button
-                                v-for="tab in tabs"
-                                :key="tab.id"
-                                type="button"
-                                role="tab"
-                                class="min-h-[44px] flex-1 border-b-2 text-sm font-semibold"
-                                :class="
-                                    screenActiveTab === tab.id
-                                        ? 'border-yellow-500 text-zinc-900 dark:text-white'
-                                        : 'border-transparent text-zinc-500 dark:text-slate-400'
-                                "
-                                :aria-selected="screenActiveTab === tab.id"
-                                :data-test="`mediaPlayerScreenTab-${tab.id}`"
-                                @click="screenTab = tab.id"
-                            >
-                                {{ tab.label }}
-                            </button>
-                        </div>
-                        <MediaPlayerUpNext
-                            v-if="screenActiveTab === 'upnext'"
-                            :next="upNext.next"
-                            :related="upNext.related"
-                            :tags="upNext.tags"
-                            :selected-tag="upNextTag"
-                            @select="
-                                (next) => {
-                                    playNext(next);
-                                    close();
-                                }
-                            "
-                            @select-tag="upNextTag = $event"
-                        />
-                        <MediaPlayerChapters
-                            v-else-if="screenActiveTab === 'chapters'"
-                            :chapters="chapters"
-                            :current-time="currentTime"
-                            :cue-at="chapterCueAt"
-                            @select="
-                                (chapter) => {
-                                    playChapter(chapter);
-                                    close();
-                                }
-                            "
-                        />
-                    </div>
-                </template>
                 <template #cast>
                     <button
                         v-if="handle?.airPlayAvailable"

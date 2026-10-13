@@ -64,8 +64,14 @@ vi.mock("@luminary-media-converter/player-web", async () => {
         // The real screen is the player's, tested there: it says what is asked through its events.
         AudioFullscreen: defineComponent({
             name: "AudioFullscreen",
-            props: { title: String, playing: Boolean, currentTime: Number, hasBrowse: Boolean },
-            emits: ["exit", "toggle-play", "seek", "sleep", "rate", "seek-chapter"],
+            props: {
+                title: String,
+                playing: Boolean,
+                currentTime: Number,
+                hasBrowse: Boolean,
+                chaptersSheet: Boolean,
+            },
+            emits: ["exit", "toggle-play", "seek", "sleep", "rate", "seek-chapter", "upnextselect"],
             setup: (props, { slots }) => () =>
                 h("div", { "data-test": "audioFullscreenStub" }, [
                     props.title,
@@ -936,7 +942,7 @@ describe("MediaPlayer", () => {
             expect(wrapper.find("[data-test='mediaPlayerAudioFullscreen']").exists()).toBe(false);
         });
 
-        it("offers the same chapters as the expanded player in the sheet on the full-screen sound screen", async () => {
+        it("gives the full-screen sound screen the chapters to browse, and its own panel for them", async () => {
             const wrapper = await playing();
             engine.state.chapters = [
                 { startTime: 0, endTime: 20, title: "One" },
@@ -946,9 +952,9 @@ describe("MediaPlayer", () => {
             await flushPromises();
             await find(wrapper, "mediaPlayerFullscreen").trigger("click");
 
-            expect(wrapper.findComponent({ name: "AudioFullscreen" }).props("hasBrowse")).toBe(true);
-            expect(find(wrapper, "mediaPlayerScreenSheet").exists()).toBe(true);
-            expect(find(wrapper, "mediaPlayerScreenTab-chapters").attributes("aria-selected")).toBe("true");
+            const screen = wrapper.findComponent({ name: "AudioFullscreen" });
+            expect(screen.props("hasBrowse")).toBe(true);
+            expect(screen.props("chaptersSheet")).toBe(true);
         });
 
         it("leaves the full-screen sound screen when the picture is shown again", async () => {
