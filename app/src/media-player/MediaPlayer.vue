@@ -1568,7 +1568,7 @@ function onKeydown(event: KeyboardEvent) {
             >
                 <template #sheet="{ close }">
                     <div
-                        class="flex max-h-[70dvh] min-h-0 flex-col rounded-t-2xl bg-white text-zinc-900 shadow-[0_-4px_16px_rgba(0,0,0,0.12)] dark:bg-slate-900 dark:text-white"
+                        class="flex h-full max-h-full min-h-0 flex-col bg-white text-zinc-900 dark:bg-slate-900 dark:text-white"
                         data-test="mediaPlayerScreenSheet"
                     >
                         <button
