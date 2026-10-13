@@ -619,10 +619,6 @@ const screenChapterMask = computed(() =>
 const screenTracks = computed(() =>
     (state.value?.audioTracks ?? []).map((track) => ({ id: track.id, label: track.label })),
 );
-function openChaptersFromScreen() {
-    audioFullscreen.value = false;
-    void toggleTab("chapters");
-}
 // The screen is for the sound alone: back to the picture, or another item, and it closes.
 watch([audioMode, () => item.value?.content._id], ([isAudio]) => {
     if (!isAudio) audioFullscreen.value = false;
@@ -1551,7 +1547,8 @@ function onKeydown(event: KeyboardEvent) {
                 :audio-tracks="screenTracks"
                 :active-audio-track-id="state.activeAudioTrackId"
                 :sleep-timer="sleepTimer"
-                :has-browse="tabs.length > 0"
+                :has-browse="chapters.length > 1"
+                chapters-sheet
                 :skip-back-seconds="SKIP_SECONDS"
                 :skip-forward-seconds="SKIP_SECONDS"
                 :chapter-mask="screenChapterMask"
@@ -1559,7 +1556,6 @@ function onKeydown(event: KeyboardEvent) {
                 @exit="audioFullscreen = false"
                 @toggle-play="togglePlay"
                 @seek="(time) => controller?.seek(time)"
-                @open-browse="openChaptersFromScreen"
                 @seek-chapter="(chapter) => controller?.seek(chapter.startTime)"
                 @rate="(rate) => controller?.setPlaybackRate(rate)"
                 @audio-track="(id) => controller?.setAudioTrack(id)"

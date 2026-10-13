@@ -65,7 +65,7 @@ vi.mock("@luminary-media-converter/player-web", async () => {
         AudioFullscreen: defineComponent({
             name: "AudioFullscreen",
             props: { title: String, playing: Boolean, currentTime: Number },
-            emits: ["exit", "toggle-play", "seek", "sleep", "rate", "open-browse", "seek-chapter"],
+            emits: ["exit", "toggle-play", "seek", "sleep", "rate", "seek-chapter"],
             setup: (props) => () => h("div", { "data-test": "audioFullscreenStub" }, props.title),
         }),
         rosterStep: () => 4,
