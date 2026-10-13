@@ -203,7 +203,6 @@
         "media_player.sleep_minutes": "{minutes} minutes",
         "media_player.sleep_end_of_chapter": "Fin du chapitre",
         "media_player.sleep_left": "{minutes} min restantes",
-        "media_player.chapter_of": "Chapitre {number} sur {total}",
         "media_player.fullscreen": "Plein écran",
         "media_player.subtitles": "Sous-titres",
         "media_player.subtitles_off": "Désactivés",

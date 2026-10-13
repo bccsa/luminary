@@ -22,7 +22,6 @@ import {
 import {
     AUDIO_ONLY_ANGLE_ID,
     ScrubRoster,
-    chapterIndexAt,
     rosterStep,
     rosterTiles,
     type Chapter,
@@ -575,12 +574,6 @@ function pickSubtitles(id: string | null) {
 }
 const rateLabel = (rate: number) => `${rate}x`;
 
-/** Which chapter the playhead is in, for the chip under the title in the sound alone. */
-const chapterNow = computed(() => {
-    const index = chapterIndexAt(chapters.value, currentTime.value);
-    return index >= 0 ? { index, chapter: chapters.value[index] } : null;
-});
-
 /**
  * In the light theme the sound alone wears the cover's colour over the whole player; in the dark one the
  * player stays plain and only the picture glows.
@@ -974,21 +967,6 @@ function onKeydown(event: KeyboardEvent) {
                         class="block truncate text-xs font-semibold text-zinc-400"
                         >{{ publishDate }}</span
                     >
-                    <button
-                        v-if="audioMode && chapterNow && !sheetTab"
-                        type="button"
-                        class="mx-auto flex max-w-full items-center gap-1.5 rounded-full bg-zinc-500/15 px-3 py-1 text-xs font-semibold text-zinc-600 dark:text-slate-300"
-                        data-test="mediaPlayerChapterChip"
-                        @click="toggleTab('chapters')"
-                    >
-                        <span class="flex-none">{{
-                            t("media_player.chapter_of", {
-                                number: chapterNow.index + 1,
-                                total: chapters.length,
-                            })
-                        }}</span>
-                        <span class="truncate">· {{ chapterNow.chapter.title }}</span>
-                    </button>
                 </div>
 
                 <template v-if="state">

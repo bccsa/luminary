@@ -884,25 +884,6 @@ describe("MediaPlayer", () => {
             ]);
         });
 
-        it("names the chapter playing on a chip that opens the chapters, in the sound alone", async () => {
-            const wrapper = await playing();
-            engine.state.chapters = [
-                { startTime: 0, endTime: 20, title: "One" },
-                { startTime: 20, endTime: 120, title: "Two" },
-            ];
-            await flushPromises();
-            expect(wrapper.find("[data-test='mediaPlayerChapterChip']").exists()).toBe(false);
-
-            await find(wrapper, "mediaPlayerAudio").trigger("click");
-            await flushPromises();
-
-            const chip = find(wrapper, "mediaPlayerChapterChip");
-            expect(chip.text()).toContain("Two");
-            await chip.trigger("click");
-            await flushPromises();
-            expect(wrapper.find("[data-test='mediaPlayerSheet']").exists()).toBe(true);
-        });
-
         it("says on the sleep button that a timer runs", async () => {
             const wrapper = await playing();
             await find(wrapper, "mediaPlayerAudio").trigger("click");
