@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { flushPromises, mount, type VueWrapper } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import { mockEnglishContentDto } from "@/tests/mockdata";
-import { userDataSaverEnabled } from "@/globalConfig";
+import { isDarkTheme, userDataSaverEnabled } from "@/globalConfig";
 import { isPlayerSwap, clearSwaps } from "@/util/playerSwap";
 import { markSeen } from "@/recommendation/seenStore";
 import { useMobileChromeAutoHide } from "@/composables/useMobileChromeAutoHide";
@@ -58,6 +58,26 @@ vi.mock("@luminary-media-converter/player-web", async () => {
                 (found, chapter, index) => (chapter.startTime <= time ? index : found),
                 -1,
             ),
+        chapterSegments: () => [],
+        chapterMask: () => "",
+        mergeMessages: (messages: object) => messages,
+        // The real screen is the player's, tested there: it says what is asked through its events.
+        AudioFullscreen: defineComponent({
+            name: "AudioFullscreen",
+            props: {
+                title: String,
+                playing: Boolean,
+                currentTime: Number,
+                hasBrowse: Boolean,
+                chaptersSheet: Boolean,
+            },
+            emits: ["exit", "toggle-play", "seek", "sleep", "rate", "seek-chapter", "upnextselect"],
+            setup: (props, { slots }) => () =>
+                h("div", { "data-test": "audioFullscreenStub" }, [
+                    props.title,
+                    slots.sheet?.({ close: () => {} }),
+                ]),
+        }),
         rosterStep: () => 4,
         rosterFineStep: () => 1,
         rosterTiles: (time: number) => [{ index: 0, left: 0, time }],
@@ -132,6 +152,7 @@ vi.mock("@/components/content/VideoPlayer.vue", async () => {
                         { id: "sub-fr", lang: "fr", label: "Français", source: "master" },
                     ],
                     activeSubtitleTrackId: null,
+                    sleepTimer: null,
                     thumbnailsReady: engine.thumbnailsReady,
                 });
                 engine.controller = {
@@ -145,6 +166,8 @@ vi.mock("@/components/content/VideoPlayer.vue", async () => {
                         engine.state.isAudioOnly = id === AUDIO;
                     }),
                     setPlaybackRate: vi.fn(),
+                    setSleepTimer: vi.fn(),
+                    seek: vi.fn(),
                     setAudioTrack: vi.fn(),
                     setSubtitleTrack: vi.fn(),
                 };
@@ -250,6 +273,39 @@ describe("MediaPlayer", () => {
 
             expect(engine.controller.setAngle).toHaveBeenCalledWith(AUDIO);
             expect(find(wrapper, "mediaPlayerAudio").attributes("aria-pressed")).toBe("true");
+        });
+
+        it("washes the whole player with the cover's colour in the light theme, and only glows behind the picture in the dark", async () => {
+            isDarkTheme.value = false;
+            const light = await playing();
+            await find(light, "mediaPlayerAudio").trigger("click");
+            await flushPromises();
+            expect(find(light, "mediaPlayerWash").exists()).toBe(true);
+            expect(light.find("[data-test='mediaPlayerGlow']").exists()).toBe(false);
+            light.unmount();
+
+            isDarkTheme.value = true;
+            const dark = await playing();
+            await find(dark, "mediaPlayerAudio").trigger("click");
+            await flushPromises();
+            expect(dark.find("[data-test='mediaPlayerWash']").exists()).toBe(false);
+            expect(find(dark, "mediaPlayerGlow").exists()).toBe(true);
+            isDarkTheme.value = false;
+        });
+
+        it("shows the cover in the sound alone at most 236px, two thirds wide and a quarter of the height, with a glow behind it", async () => {
+            isDarkTheme.value = true;
+            const wrapper = await playing();
+            expect(wrapper.find("[data-test='mediaPlayerArtwork']").exists()).toBe(false);
+
+            await find(wrapper, "mediaPlayerAudio").trigger("click");
+            await flushPromises();
+
+            const artwork = find(wrapper, "mediaPlayerArtwork");
+            expect(artwork.find("div").attributes("style")).toContain("min(66%, 236px, 26svh)");
+            expect(find(wrapper, "mediaPlayerGlow").classes()).toContain("blur-2xl");
+            expect(find(wrapper, "mediaPlayerGlow").attributes("aria-hidden")).toBe("true");
+            isDarkTheme.value = false;
         });
 
         it("switches back to the camera that was playing", async () => {
@@ -655,11 +711,26 @@ describe("MediaPlayer", () => {
             expect(engine.handle.enterFullscreen).toHaveBeenCalled();
         });
 
-        it("offers no full-screen while there is no picture", async () => {
-            const wrapper = await playing();
-            await find(wrapper, "mediaPlayerAudio").trigger("click");
-            await flushPromises();
-            expect(find(wrapper, "mediaPlayerFullscreen").exists()).toBe(false);
+        it("leaves the desktop's windowed player as it was in the sound alone, with only the full screen new", async () => {
+            const original = window.matchMedia;
+            window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+                matches: query.includes("1024px"),
+                media: query,
+                addEventListener: vi.fn(),
+                removeEventListener: vi.fn(),
+            })) as unknown as typeof window.matchMedia;
+            try {
+                const wrapper = await playing();
+                await find(wrapper, "mediaPlayerAudio").trigger("click");
+                await flushPromises();
+
+                expect(wrapper.find("[data-test='mediaPlayerArtwork']").exists()).toBe(false);
+                expect(wrapper.find("[data-test='mediaPlayerWash']").exists()).toBe(false);
+                expect(wrapper.find("[data-test='mediaPlayerSleep']").exists()).toBe(false);
+                expect(find(wrapper, "mediaPlayerFullscreen").exists()).toBe(true);
+            } finally {
+                window.matchMedia = original;
+            }
         });
 
         it("keeps the skip buttons, the bar and the speed out of sight until the duration is known", async () => {
@@ -824,6 +895,93 @@ describe("MediaPlayer", () => {
 
             await find(wrapper, "mediaPlayerMenuBackdrop").trigger("click");
             expect(wrapper.find("[data-test='mediaPlayerMenu']").exists()).toBe(false);
+        });
+
+        it("offers a sleep timer in the sound alone only, and asks for minutes, the chapter's end, or none", async () => {
+            const wrapper = await playing();
+            expect(wrapper.find("[data-test='mediaPlayerSleep']").exists()).toBe(false);
+
+            await find(wrapper, "mediaPlayerAudio").trigger("click");
+            await flushPromises();
+            engine.state.chapters = [{ startTime: 0, endTime: 60, title: "One" }];
+            await flushPromises();
+
+            await find(wrapper, "mediaPlayerSleep").trigger("click");
+            await find(wrapper, "mediaPlayerSleep15").find("button").trigger("click");
+            await find(wrapper, "mediaPlayerSleep").trigger("click");
+            await find(wrapper, "mediaPlayerSleepChapter").find("button").trigger("click");
+            await find(wrapper, "mediaPlayerSleep").trigger("click");
+            await find(wrapper, "mediaPlayerSleepOff").find("button").trigger("click");
+
+            expect(engine.controller.setSleepTimer.mock.calls).toEqual([
+                [{ kind: "minutes", minutes: 15 }],
+                [{ kind: "chapter" }],
+                [null],
+            ]);
+        });
+
+        it("opens the full-screen sound screen from the fullscreen button, and hands back from it", async () => {
+            const wrapper = await playing();
+            await find(wrapper, "mediaPlayerAudio").trigger("click");
+            await flushPromises();
+            expect(wrapper.find("[data-test='mediaPlayerAudioFullscreen']").exists()).toBe(false);
+
+            await find(wrapper, "mediaPlayerFullscreen").trigger("click");
+            expect(find(wrapper, "audioFullscreenStub").text()).toBe(mockEnglishContentDto.title);
+
+            const screen = wrapper.findComponent({ name: "AudioFullscreen" });
+            screen.vm.$emit("seek", 42);
+            screen.vm.$emit("rate", 1.5);
+            screen.vm.$emit("sleep", { kind: "chapter" });
+            expect(engine.controller.seek).toHaveBeenCalledWith(42);
+            expect(engine.controller.setPlaybackRate).toHaveBeenCalledWith(1.5);
+            expect(engine.controller.setSleepTimer).toHaveBeenCalledWith({ kind: "chapter" });
+
+            screen.vm.$emit("exit");
+            await flushPromises();
+            expect(wrapper.find("[data-test='mediaPlayerAudioFullscreen']").exists()).toBe(false);
+        });
+
+        it("gives the full-screen sound screen the chapters to browse, and its own panel for them", async () => {
+            const wrapper = await playing();
+            engine.state.chapters = [
+                { startTime: 0, endTime: 20, title: "One" },
+                { startTime: 20, endTime: 120, title: "Two" },
+            ];
+            await find(wrapper, "mediaPlayerAudio").trigger("click");
+            await flushPromises();
+            await find(wrapper, "mediaPlayerFullscreen").trigger("click");
+
+            const screen = wrapper.findComponent({ name: "AudioFullscreen" });
+            expect(screen.props("hasBrowse")).toBe(true);
+            expect(screen.props("chaptersSheet")).toBe(true);
+        });
+
+        it("leaves the full-screen sound screen when the picture is shown again", async () => {
+            const wrapper = await playing();
+            await find(wrapper, "mediaPlayerAudio").trigger("click");
+            await flushPromises();
+            await find(wrapper, "mediaPlayerFullscreen").trigger("click");
+            expect(wrapper.find("[data-test='mediaPlayerAudioFullscreen']").exists()).toBe(true);
+
+            engine.state.isAudioOnly = false;
+            engine.state.activeAngleId = "angle_0";
+            await flushPromises();
+            expect(wrapper.find("[data-test='mediaPlayerAudioFullscreen']").exists()).toBe(false);
+        });
+
+        it("says on the sleep button that a timer runs", async () => {
+            const wrapper = await playing();
+            await find(wrapper, "mediaPlayerAudio").trigger("click");
+            await flushPromises();
+            expect(wrapper.find("[data-test='mediaPlayerSleepCaption']").exists()).toBe(false);
+
+            engine.state.sleepTimer = { kind: "minutes", endsAt: Date.now() + 14 * 60_000 + 5_000 };
+            await flushPromises();
+
+            expect(find(wrapper, "mediaPlayerSleepCaption").text()).toBe(
+                "media_player.sleep_left",
+            );
         });
 
         it("changes speed from the menu", async () => {

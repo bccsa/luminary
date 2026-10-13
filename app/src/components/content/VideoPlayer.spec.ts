@@ -620,11 +620,19 @@ describe("VideoPlayer", () => {
             });
         });
 
-        it("gives the browser's player no lock-screen metadata to render as an attribute", async () => {
+        it("gives the browser's player what its full-screen audio screen names, not lock-screen metadata", async () => {
             const wrapper = await mountPlayer();
 
-            expect(stub(wrapper).attributes("nowplaying")).toBeUndefined();
-            expect(stub(wrapper).attributes("now-playing")).toBeUndefined();
+            // What it is given names the screen; the lock screen's `artworkUrl` is the native player's.
+            const given = stub(wrapper).vm.$attrs.nowPlaying;
+            expect(given).toMatchObject({ title: mockEnglishContentDto.title });
+            expect(given).not.toHaveProperty("artworkUrl");
+        });
+
+        it("tells the browser's player the app's theme, for the full-screen audio screen", async () => {
+            const wrapper = await mountPlayer();
+
+            expect(["light", "dark"]).toContain(stub(wrapper).vm.$attrs.appearance);
         });
     });
 

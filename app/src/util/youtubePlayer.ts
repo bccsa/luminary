@@ -90,6 +90,7 @@ function initialState(): PlayerState {
         activeChapterTrackId: null,
         chapters: [],
         isAudioOnly: false,
+        sleepTimer: null,
         thumbnailsReady: false,
         error: null,
     };
