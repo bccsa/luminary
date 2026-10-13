@@ -793,8 +793,11 @@ function onKeydown(event: KeyboardEvent) {
 
             <div
                 ref="pictureEl"
-                class="relative aspect-video w-full flex-none"
-                :class="inlineHole ? 'bg-transparent' : 'bg-black'"
+                class="relative w-full flex-none"
+                :class="[
+                    audioMode ? 'py-6' : 'aspect-video',
+                    inlineHole ? 'bg-transparent' : 'bg-black',
+                ]"
             >
                 <div
                     v-show="!audioMode"
@@ -860,17 +863,32 @@ function onKeydown(event: KeyboardEvent) {
 
                 <div
                     v-if="audioMode"
-                    class="absolute inset-0 flex items-center justify-center bg-amber-50 dark:bg-slate-800"
+                    class="relative flex items-center justify-center bg-amber-50 dark:bg-slate-800"
+                    data-test="mediaPlayerArtwork"
                 >
-                    <LImage
-                        :image="content.parentImageData"
-                        :content-parent-id="content.parentId"
-                        :parent-image-bucket-id="content.parentImageBucketId"
-                        aspectRatio="square"
-                        size="thumbnail"
-                        rounded
-                        class="h-full max-h-full w-auto"
-                    />
+                    <div class="relative" style="width: min(66%, 236px)">
+                        <!-- The glow: the cover again, blurred and saturated, only behind the picture. -->
+                        <LImage
+                            :image="content.parentImageData"
+                            :content-parent-id="content.parentId"
+                            :parent-image-bucket-id="content.parentImageBucketId"
+                            aspectRatio="square"
+                            size="thumbnail"
+                            :rounded="false"
+                            class="pointer-events-none absolute left-1/2 top-1/2 w-[135%] max-w-none -translate-x-1/2 -translate-y-1/2 opacity-60 blur-2xl saturate-150"
+                            aria-hidden="true"
+                            data-test="mediaPlayerGlow"
+                        />
+                        <LImage
+                            :image="content.parentImageData"
+                            :content-parent-id="content.parentId"
+                            :parent-image-bucket-id="content.parentImageBucketId"
+                            aspectRatio="square"
+                            size="thumbnail"
+                            rounded
+                            class="relative w-full shadow-xl"
+                        />
+                    </div>
                 </div>
             </div>
 

@@ -252,6 +252,19 @@ describe("MediaPlayer", () => {
             expect(find(wrapper, "mediaPlayerAudio").attributes("aria-pressed")).toBe("true");
         });
 
+        it("shows the cover in the sound alone at most 236px and two thirds wide, with a glow behind it", async () => {
+            const wrapper = await playing();
+            expect(wrapper.find("[data-test='mediaPlayerArtwork']").exists()).toBe(false);
+
+            await find(wrapper, "mediaPlayerAudio").trigger("click");
+            await flushPromises();
+
+            const artwork = find(wrapper, "mediaPlayerArtwork");
+            expect(artwork.find("div").attributes("style")).toContain("min(66%, 236px)");
+            expect(find(wrapper, "mediaPlayerGlow").classes()).toContain("blur-2xl");
+            expect(find(wrapper, "mediaPlayerGlow").attributes("aria-hidden")).toBe("true");
+        });
+
         it("switches back to the camera that was playing", async () => {
             const wrapper = await playing();
             await find(wrapper, "mediaPlayerAudio").trigger("click");

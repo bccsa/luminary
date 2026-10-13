@@ -23,6 +23,7 @@ import YouTubeEmbed from "./YouTubeEmbed.vue";
 import { isYouTubeLink } from "@/util/youtube";
 import {
     appLanguagesPreferredAsRef,
+    isDarkTheme,
     isDataSaverEnabled,
     queryParams,
     userDataSaverEnabled,
@@ -144,6 +145,17 @@ const nowPlaying = computed<VideoNowPlaying>(() => ({
     ...(fallbackArtworkUrl.value ? { fallbackArtworkUrl: fallbackArtworkUrl.value } : {}),
 }));
 /**
+ * What the browser player's full-screen audio screen names: the title, who it is by, and the cover.
+ * The native player draws its own, from `nowPlaying` above.
+ */
+const webNowPlaying = computed(() => ({
+    title: props.content.title,
+    ...(props.content.author ? { subtitle: props.content.author } : {}),
+    ...(shareImageUrl(props.content, imageBucketBaseUrl.value)
+        ? { artwork: shareImageUrl(props.content, imageBucketBaseUrl.value) }
+        : {}),
+}));
+/**
  * What the player's controller is given, read once when the player is built: Data Saver turns the
  * background warming of the next chunk off, since a warm is an extra request nobody asked for.
  * Taken when this component is created: a player swapped to the next video keeps it.
@@ -153,7 +165,9 @@ const controllerOptions = {
 };
 const playerExtras = computed(() => ({
     controllerOptions,
-    ...(videoPlayer.acceptsNowPlaying ? { nowPlaying: nowPlaying.value } : {}),
+    ...(videoPlayer.acceptsNowPlaying
+        ? { nowPlaying: nowPlaying.value }
+        : { nowPlaying: webNowPlaying.value, appearance: isDarkTheme.value ? "dark" : "light" }),
     ...(props.inline && videoPlayer.acceptsInline ? { inline: true } : {}),
     ...(videoPlayer.acceptsBrowse && props.upNext?.length ? { upNext: props.upNext } : {}),
     ...(videoPlayer.acceptsNextUp && props.nextUp?.length ? { nextUp: props.nextUp } : {}),
