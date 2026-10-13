@@ -584,16 +584,12 @@ function pickSubtitles(id: string | null) {
 }
 const rateLabel = (rate: number) => `${rate}x`;
 
-/**
- * The desktop's windowed player is left as it was: the cover, the glow, the wash and the sleep timer are the
- * phone's. Both get the full-screen sound screen.
- */
+/** A wide screen: the player is the card in the corner, and a minimised video keeps only its picture. */
 const desktopQuery = window.matchMedia("(min-width: 1024px)");
 const isDesktop = ref(desktopQuery.matches);
 const onDesktopChange = (event: MediaQueryListEvent) => (isDesktop.value = event.matches);
 desktopQuery.addEventListener("change", onDesktopChange);
 onBeforeUnmount(() => desktopQuery.removeEventListener("change", onDesktopChange));
-const phoneAudio = computed(() => audioMode.value && !isDesktop.value);
 /**
  * On a wide screen a video that is minimised keeps only its picture, bottom right, with its controls
  * showing while the pointer is over it. Sound alone, and phones, keep the bar.
@@ -611,7 +607,7 @@ function seekMini(event: MouseEvent) {
  * In the light theme the sound alone wears the cover's colour over the whole player; in the dark one the
  * player stays plain and only the picture glows.
  */
-const wash = computed(() => phoneAudio.value && !isDarkTheme.value);
+const wash = computed(() => audioMode.value && !isDarkTheme.value);
 
 /**
  * The full-screen sound screen: the same component the web player shows, drawn here over the engine in use,
@@ -781,7 +777,7 @@ function onKeydown(event: KeyboardEvent) {
             class="fixed inset-x-0 bottom-[var(--mobile-menu-h,0px)] top-[var(--media-player-top,0px)] z-40 flex flex-col overflow-hidden transition-transform duration-300 ease-out lg:inset-auto lg:bottom-5 lg:right-5 lg:max-h-[90vh] lg:shadow-2xl lg:shadow-black/20"
             :class="[
                 expanded || miniVideo ? 'translate-y-0' : 'pointer-events-none translate-y-[110vh]',
-                miniVideo ? 'lg:w-80 lg:rounded-xl' : 'lg:w-96 lg:rounded-2xl',
+                miniVideo ? 'lg:w-96 lg:rounded-xl' : 'lg:w-96 lg:rounded-2xl',
             ]"
             :style="{
                 '--media-player-top': `${topBarHeight}px`,
@@ -902,7 +898,7 @@ function onKeydown(event: KeyboardEvent) {
                 ref="pictureEl"
                 class="relative w-full flex-none"
                 :class="
-                    phoneAudio
+                    audioMode
                         ? wash
                             ? 'overflow-hidden py-4'
                             : 'overflow-hidden bg-amber-50 py-4 dark:bg-slate-800'
@@ -1064,21 +1060,7 @@ function onKeydown(event: KeyboardEvent) {
                 </div>
 
                 <div
-                    v-if="audioMode && isDesktop"
-                    class="absolute inset-0 flex items-center justify-center bg-amber-50 py-3 dark:bg-slate-800"
-                >
-                    <LImage
-                        :image="content.parentImageData"
-                        :content-parent-id="content.parentId"
-                        :parent-image-bucket-id="content.parentImageBucketId"
-                        aspectRatio="square"
-                        size="thumbnail"
-                        rounded
-                        class="h-full max-h-full w-auto"
-                    />
-                </div>
-                <div
-                    v-else-if="phoneAudio"
+                    v-if="audioMode"
                     class="relative flex w-full items-center justify-center"
                     data-test="mediaPlayerArtwork"
                 >
@@ -1230,7 +1212,7 @@ function onKeydown(event: KeyboardEvent) {
                             </MediaPlayerMenu>
                         </div>
                         <div
-                            v-if="phoneAudio"
+                            v-if="audioMode"
                             class="relative flex-shrink-0"
                         >
                             <button
@@ -1543,10 +1525,11 @@ function onKeydown(event: KeyboardEvent) {
                     aria-hidden="true"
                 />
                 <div
-                    v-if="!sheetTab && tabs.length"
+                    v-if="tabs.length"
                     role="tablist"
                     class="sticky bottom-0 mt-auto flex h-12 w-full flex-none border-t border-zinc-300/60 bg-amber-50 dark:border-slate-600/60 dark:bg-slate-800 [@media(max-height:840px)]:h-10"
-                    :class="{ '!bg-transparent': wash }"
+                    :class="{ '!bg-transparent': wash, invisible: sheetTab }"
+                    :aria-hidden="sheetTab ? 'true' : undefined"
                 >
                     <button
                         v-for="tab in tabs"
@@ -1716,7 +1699,7 @@ function onKeydown(event: KeyboardEvent) {
         <div
             v-if="!expanded && !miniVideo"
             ref="bar"
-            class="fixed inset-x-0 bottom-[var(--mobile-menu-h,0px)] z-40 flex w-full items-center justify-between gap-2 border-t-2 border-t-amber-200 bg-amber-50 px-2 pb-2 pt-2.5 transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform dark:border-t-slate-600 dark:bg-slate-700 lg:bottom-5 lg:left-auto lg:right-5 lg:w-80 lg:translate-y-0 lg:overflow-hidden lg:rounded-lg lg:border-t-0 lg:shadow-lg"
+            class="fixed inset-x-0 bottom-[var(--mobile-menu-h,0px)] z-40 flex w-full items-center justify-between gap-2 border-t-2 border-t-amber-200 bg-amber-50 px-2 pb-2 pt-2.5 transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform dark:border-t-slate-600 dark:bg-slate-700 lg:bottom-5 lg:left-auto lg:right-5 lg:w-96 lg:translate-y-0 lg:overflow-hidden lg:rounded-lg lg:border-t-0 lg:shadow-lg"
             :class="
                 mobileChrome.hidden.value
                     ? 'translate-y-[calc(var(--mobile-menu-h,0px)-max(env(safe-area-inset-bottom),var(--native-inset-bottom,0px)))]'

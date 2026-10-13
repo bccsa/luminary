@@ -220,6 +220,22 @@ async function playing() {
     return mountPlayer();
 }
 
+/** A wide screen for the length of `run`: the media query for 1024 px and up matches. */
+async function wide(run: () => Promise<void>) {
+    const original = window.matchMedia;
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+        matches: query.includes("1024px"),
+        media: query,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+    })) as unknown as typeof window.matchMedia;
+    try {
+        await run();
+    } finally {
+        window.matchMedia = original;
+    }
+}
+
 const find = (wrapper: VueWrapper, test: string) => wrapper.find(`[data-test='${test}']`);
 
 beforeEach(() => {
@@ -711,26 +727,22 @@ describe("MediaPlayer", () => {
             expect(engine.handle.enterFullscreen).toHaveBeenCalled();
         });
 
-        it("leaves the desktop's windowed player as it was in the sound alone, with only the full screen new", async () => {
-            const original = window.matchMedia;
-            window.matchMedia = vi.fn().mockImplementation((query: string) => ({
-                matches: query.includes("1024px"),
-                media: query,
-                addEventListener: vi.fn(),
-                removeEventListener: vi.fn(),
-            })) as unknown as typeof window.matchMedia;
-            try {
+        it("gives the sound alone the same cover, glow and sleep timer on a wide screen as on a phone", async () => {
+            await wide(async () => {
+                isDarkTheme.value = true;
                 const wrapper = await playing();
                 await find(wrapper, "mediaPlayerAudio").trigger("click");
                 await flushPromises();
 
-                expect(wrapper.find("[data-test='mediaPlayerArtwork']").exists()).toBe(false);
-                expect(wrapper.find("[data-test='mediaPlayerWash']").exists()).toBe(false);
-                expect(wrapper.find("[data-test='mediaPlayerSleep']").exists()).toBe(false);
+                expect(find(wrapper, "mediaPlayerArtwork").exists()).toBe(true);
+                expect(find(wrapper, "mediaPlayerGlow").exists()).toBe(true);
+                expect(find(wrapper, "mediaPlayerSleep").exists()).toBe(true);
                 expect(find(wrapper, "mediaPlayerFullscreen").exists()).toBe(true);
-            } finally {
-                window.matchMedia = original;
-            }
+
+                isDarkTheme.value = false;
+                await flushPromises();
+                expect(find(wrapper, "mediaPlayerWash").exists()).toBe(true);
+            });
         });
 
         it("keeps the skip buttons, the bar and the speed out of sight until the duration is known", async () => {
@@ -1255,8 +1267,11 @@ describe("MediaPlayer", () => {
             expect(find(wrapper, "mediaPlayerSheetTab-chapters").attributes("aria-selected")).toBe(
                 "true",
             );
-            // The bar at the foot gives way to them while the sheet is open.
-            expect(wrapper.find("[data-test='mediaPlayerTab-chapters']").exists()).toBe(false);
+            // The bar at the foot keeps its room but is out of sight while the sheet is open, so the player does not
+            // change height as the sheet comes and goes.
+            const foot = wrapper.find("[role='tablist'].sticky");
+            expect(foot.classes()).toContain("invisible");
+            expect(foot.attributes("aria-hidden")).toBe("true");
 
             await find(wrapper, "mediaPlayerSheetTab-upnext").trigger("click");
             expect(find(wrapper, "mediaPlayerSheetTab-upnext").attributes("aria-selected")).toBe(
@@ -1763,22 +1778,6 @@ describe("MediaPlayer", () => {
     });
 
     describe("minimised on a wide screen", () => {
-        /** A wide screen for the length of `run`: the media query for 1024 px and up matches. */
-        async function wide(run: () => Promise<void>) {
-            const original = window.matchMedia;
-            window.matchMedia = vi.fn().mockImplementation((query: string) => ({
-                matches: query.includes("1024px"),
-                media: query,
-                addEventListener: vi.fn(),
-                removeEventListener: vi.fn(),
-            })) as unknown as typeof window.matchMedia;
-            try {
-                await run();
-            } finally {
-                window.matchMedia = original;
-            }
-        }
-
         it("keeps only the picture of a video, with no bar, and its controls only for the pointer", async () => {
             await wide(async () => {
                 const wrapper = await playing();
