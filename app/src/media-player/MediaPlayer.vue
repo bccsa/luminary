@@ -681,12 +681,6 @@ function pickSleep(option: { kind: "minutes"; minutes: number } | { kind: "chapt
     controller.value?.setSleepTimer(option);
     openMenu.value = null;
 }
-/** The playlist's LANGUAGE of the track playing, as it is written: the full name is in the menu, and a long one pushes the row's other buttons down a line. */
-const activeLanguageCode = computed(() => {
-    const track = state.value?.audioTracks.find((t) => t.id === state.value?.activeAudioTrackId);
-    return (track?.lang ?? track?.label ?? "").slice(0, 3);
-});
-
 /** `m:ss`, or `h:mm:ss` past an hour. */
 function formatTime(seconds: number): string {
     if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
@@ -1189,7 +1183,7 @@ function onKeydown(event: KeyboardEvent) {
                         >
                             <button
                                 type="button"
-                                class="relative flex h-10 items-center gap-1.5 rounded-full border border-zinc-500/35 px-2 text-sm font-semibold text-zinc-600 after:absolute after:-inset-0.5 after:content-[''] dark:text-slate-300 min-[420px]:h-11 min-[420px]:after:inset-0 md:h-12"
+                                class="relative flex h-10 w-10 items-center justify-center rounded-full border border-zinc-500/35 text-zinc-600 after:absolute after:-inset-0.5 after:content-[''] dark:text-slate-300 min-[420px]:h-11 min-[420px]:w-11 min-[420px]:after:inset-0 md:h-12 md:w-12"
                                 :aria-label="t('media_player.language')"
                                 :aria-expanded="openMenu === 'language'"
                                 @click="toggleMenu('language')"
@@ -1198,7 +1192,6 @@ function onKeydown(event: KeyboardEvent) {
                                     name="language"
                                     class="h-5 w-5 md:h-6 md:w-6"
                                 />
-                                {{ activeLanguageCode }}
                             </button>
                             <MediaPlayerMenu
                                 v-if="openMenu === 'language'"
