@@ -694,6 +694,8 @@ function nudgeInlineVideo() {
     });
 }
 function onDragStart(event: PointerEvent) {
+    // A press on a button is the button's: capturing the pointer here would send its click to this handle.
+    if ((event.target as Element | null)?.closest?.("button, a, input, select, textarea")) return;
     dragStartY = event.clientY;
     dragLastY = event.clientY;
     dragLastTime = event.timeStamp;
@@ -763,7 +765,10 @@ watch(playerDragging, (dragging) => {
 onBeforeUnmount(endGap);
 
 function onKeydown(event: KeyboardEvent) {
-    if (event.key === "Escape") minimiseMediaPlayer();
+    if (event.key !== "Escape") return;
+    // An open sheet is closed first; a second press minimises the player.
+    if (sheetTab.value) closeSheet();
+    else minimiseMediaPlayer();
 }
 </script>
 
@@ -1060,7 +1065,7 @@ function onKeydown(event: KeyboardEvent) {
 
                 <div
                     v-if="audioMode && isDesktop"
-                    class="absolute inset-0 flex items-center justify-center bg-amber-50 dark:bg-slate-800"
+                    class="absolute inset-0 flex items-center justify-center bg-amber-50 py-3 dark:bg-slate-800"
                 >
                     <LImage
                         :image="content.parentImageData"
@@ -1614,6 +1619,15 @@ function onKeydown(event: KeyboardEvent) {
                         @click="selectTab(tab.id)"
                     >
                         {{ tab.label }}
+                    </button>
+                    <button
+                        type="button"
+                        class="flex h-[44px] w-11 flex-none items-center justify-center text-zinc-500 hover:text-zinc-900 dark:text-slate-400 dark:hover:text-white"
+                        :aria-label="t('media_player.minimise')"
+                        data-test="mediaPlayerSheetCloseButton"
+                        @click="closeSheet"
+                    >
+                        <XMarkIcon class="h-5 w-5" />
                     </button>
                 </div>
 

@@ -1722,6 +1722,46 @@ describe("MediaPlayer", () => {
         });
     });
 
+    describe("the header of the player", () => {
+        it("leaves a press on a button to the button, so its click is not sent to the header", async () => {
+            const wrapper = await playing();
+            const handle = find(wrapper, "mediaPlayerHandle");
+            const capture = vi.fn();
+            (handle.element as HTMLElement).setPointerCapture = capture;
+
+            await find(wrapper, "mediaPlayerAudio").trigger("pointerdown", { pointerId: 1 });
+            expect(capture).not.toHaveBeenCalled();
+
+            await handle.trigger("pointerdown", { pointerId: 1 });
+            expect(capture).toHaveBeenCalledTimes(1);
+        });
+
+        it("closes an open sheet on Escape before it minimises the player, and from its own close button", async () => {
+            const wrapper = await playing();
+            engine.state.chapters = [{ startTime: 0, endTime: 120, title: "One" }];
+            await flushPromises();
+            await find(wrapper, "mediaPlayerTab-chapters").trigger("click");
+            await flushPromises();
+            expect(find(wrapper, "mediaPlayerSheet").exists()).toBe(true);
+
+            await find(wrapper, "mediaPlayer").trigger("keydown", { key: "Escape" });
+            await new Promise((resolve) => setTimeout(resolve, 400));
+            await flushPromises();
+            expect(wrapper.find("[data-test='mediaPlayerSheet']").exists()).toBe(false);
+            expect(mediaPlayerView.value).toBe("expanded");
+
+            await find(wrapper, "mediaPlayerTab-chapters").trigger("click");
+            await flushPromises();
+            await find(wrapper, "mediaPlayerSheetCloseButton").trigger("click");
+            await new Promise((resolve) => setTimeout(resolve, 400));
+            await flushPromises();
+            expect(wrapper.find("[data-test='mediaPlayerSheet']").exists()).toBe(false);
+
+            await find(wrapper, "mediaPlayer").trigger("keydown", { key: "Escape" });
+            expect(mediaPlayerView.value).toBe("mini");
+        });
+    });
+
     describe("minimised on a wide screen", () => {
         /** A wide screen for the length of `run`: the media query for 1024 px and up matches. */
         async function wide(run: () => Promise<void>) {
