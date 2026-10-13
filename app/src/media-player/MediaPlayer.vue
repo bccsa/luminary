@@ -794,10 +794,11 @@ function onKeydown(event: KeyboardEvent) {
             <div
                 ref="pictureEl"
                 class="relative w-full flex-none"
-                :class="[
-                    audioMode ? 'py-6' : 'aspect-video',
-                    inlineHole ? 'bg-transparent' : 'bg-black',
-                ]"
+                :class="
+                    audioMode
+                        ? 'overflow-hidden bg-amber-50 py-8 dark:bg-slate-800'
+                        : ['aspect-video', inlineHole ? 'bg-transparent' : 'bg-black']
+                "
             >
                 <div
                     v-show="!audioMode"
@@ -863,7 +864,7 @@ function onKeydown(event: KeyboardEvent) {
 
                 <div
                     v-if="audioMode"
-                    class="relative flex items-center justify-center bg-amber-50 dark:bg-slate-800"
+                    class="relative flex w-full items-center justify-center"
                     data-test="mediaPlayerArtwork"
                 >
                     <div class="relative" style="width: min(66%, 236px)">
@@ -875,7 +876,7 @@ function onKeydown(event: KeyboardEvent) {
                             aspectRatio="square"
                             size="thumbnail"
                             :rounded="false"
-                            class="pointer-events-none absolute left-1/2 top-1/2 w-[135%] max-w-none -translate-x-1/2 -translate-y-1/2 opacity-60 blur-2xl saturate-150"
+                            class="pointer-events-none absolute left-1/2 top-1/2 w-[120%] max-w-none -translate-x-1/2 -translate-y-1/2 opacity-60 blur-2xl saturate-150"
                             aria-hidden="true"
                             data-test="mediaPlayerGlow"
                         />
