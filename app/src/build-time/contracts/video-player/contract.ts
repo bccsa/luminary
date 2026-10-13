@@ -30,6 +30,16 @@ export type VideoPlayerService = {
      * where the platform can. A player that does not would render it as a stray attribute.
      */
     acceptsInline?: boolean;
+    /**
+     * Whether the component takes an `upNext` prop and raises `upnextselect` with an item's id: it
+     * lists them in a panel of its own. A player that does not would render the prop as a stray attribute.
+     */
+    acceptsBrowse?: boolean;
+    /**
+     * Whether the component takes a `nextUp` prop and raises `nextupselect` with its id: it offers the
+     * next video near the end of fullscreen. A player that does not would render the prop as a stray attribute.
+     */
+    acceptsNextUp?: boolean;
 };
 
 /** What a template ref to the player reaches. */

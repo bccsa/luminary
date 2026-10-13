@@ -22,7 +22,7 @@ import { recordAffinity } from "@/recommendation/affinityStore";
 import { affinityConfig } from "@/recommendation/defaultAffinityStore";
 import { notifyHighlightsChanged } from "@/recommendation/highlightStore";
 import { markSeen } from "@/recommendation/seenStore";
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from "vue";
 import { BookmarkIcon as BookmarkIconSolid, TagIcon, SunIcon } from "@heroicons/vue/24/solid";
 import {
     BookmarkIcon as BookmarkIconOutline,
@@ -33,6 +33,9 @@ import {
 
 import { DateTime } from "luxon";
 import { useRouter } from "vue-router";
+import { markContentSwap } from "@/util/playerSwap";
+import { useUpNext } from "@/media-player/useUpNext";
+import { useNextUp } from "@/media-player/useNextUp";
 import {
     appName,
     appLanguagePreferredIdAsRef,
@@ -68,7 +71,6 @@ import MediaAction from "@/media-player/MediaAction.vue";
 import { startsAsAudio } from "@/media-player/mediaPlayer";
 import VideoPlayer from "@/components/content/VideoPlayer.vue";
 import ContentChaptersPanel from "@/components/content/ContentChaptersPanel.vue";
-import { useUpNext } from "@/media-player/useUpNext";
 import type { VideoPlayerHandle } from "@/build-time/contracts/video-player/contract";
 import type { Chapter } from "@luminary-media-converter/player-web";
 import { useMediaQuery } from "@vueuse/core";
@@ -144,9 +146,15 @@ const contentOverride = ref<ContentDto | undefined>();
 // change and once the live query emits (local docs carry full `text` via
 // `stripFields: []`, so the live doc takes over cleanly).
 const coldStartBackstop = ref<ContentDto | undefined>();
+// The content the embedded player was on when it swapped to the next video, shown until the next one
+// is in: the page must not empty out in between, or the player in it would be unmounted and full-screen lost.
+const swapHold = shallowRef<ContentDto | undefined>();
 const content = computed<ContentDto | undefined>(
-    () => contentOverride.value ?? coldStartBackstop.value ?? contentArr.value[0],
+    () => contentOverride.value ?? coldStartBackstop.value ?? contentArr.value[0] ?? swapHold.value,
 );
+watch(content, (current) => {
+    if (swapHold.value && current !== swapHold.value) swapHold.value = undefined;
+});
 watch(
     () => props.slug,
     () => {
@@ -293,6 +301,7 @@ const resolveNotFound = async () => {
     // `content` is a computed over the (empty) query result → already
     // undefined; just stop loading so the 404 branch shows.
     if (props.slug === slug && !contentArr.value.length) {
+        swapHold.value = undefined;
         isLoading.value = false;
     }
 };
@@ -745,6 +754,32 @@ function openUpNext(next: ContentDto) {
     if (next.slug) void router.push({ name: "content", params: { slug: next.slug } });
 }
 
+// The video that follows, offered by the embedded player near the end of full-screen. Picking it swaps
+// the player to it in place and moves the page to it behind.
+// Not queried on mobile, where media plays in the app-wide player, nor in the prerender.
+const { nextContents, nextUp } = isPrerender()
+    ? { nextContents: computed(() => []), nextUp: computed(() => []) }
+    : useNextUp(upNext);
+// The slug the player swapped to: that video starts on its own, and no other does.
+const swappedToSlug = ref<string | null>(null);
+const autoplaySwapped = computed(() => swappedToSlug.value === props.slug);
+watch(
+    () => props.slug,
+    (slug) => {
+        if (slug !== swappedToSlug.value) swappedToSlug.value = null;
+    },
+);
+
+function onNextUpSelect(id: string) {
+    const target = nextContents.value.find((doc) => doc._id === id);
+    if (!target) return;
+    swapHold.value = content.value;
+    swappedToSlug.value = target.slug;
+    const location = { name: "content", params: { slug: target.slug } };
+    markContentSwap(router.resolve(location).fullPath);
+    void router.push(location);
+}
+
 // Whether the hero image can carry the title/summary as an overlay. An embedded player has its own
 // controls along the bottom edge, so the title goes above it instead.
 const hasHeroImage = computed(
@@ -940,13 +975,15 @@ watch([isLoading, content, is404], async () => {
                                 <VideoPlayer
                                     v-if="embedVideo && content"
                                     ref="videoPlayerRef"
-                                    :key="content._id"
                                     :content="content"
                                     :language="selectedLanguageCode"
                                     :start-audio="startsAsAudio"
+                                    :autoplay="autoplaySwapped"
+                                    :next-up="nextUp"
                                     windowed-controls
                                     class="overflow-hidden"
                                     :class="hasPanel && !isWide ? 'rounded-t-xl' : 'rounded-xl'"
+                                    @nextupselect="onNextUpSelect"
                                 />
                                 <div
                                     v-else-if="hasHeroImage"

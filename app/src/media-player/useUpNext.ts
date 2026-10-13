@@ -64,6 +64,8 @@ export function useUpNext(
                 },
                 { $or: [{ parentTagType: { $exists: false } }, { parentTagType: TagType.Topic }] },
                 ...(tags.length ? [{ parentTags: { $elemMatch: { $in: tags } } }] : []),
+                // Nothing to follow: no query, rather than every video there is.
+                ...(content.value ? [] : [{ parentId: { $in: [] } }]),
             ];
         },
         {

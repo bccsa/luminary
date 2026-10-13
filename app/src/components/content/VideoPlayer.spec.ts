@@ -49,8 +49,17 @@ vi.mock("@luminary-media-converter/player-web", async () => {
                 controls: { type: Object, default: undefined },
                 messages: { type: Object, default: undefined },
                 controllerOptions: { type: Object, default: undefined },
+                upNext: { type: Array, default: undefined },
+                nextUp: { type: Array, default: undefined },
             },
-            emits: ["loadedmetadata", "timeupdate", "ended"],
+            emits: [
+                "loadedmetadata",
+                "timeupdate",
+                "ended",
+                "upnextselect",
+                "nextupselect",
+                "nextupdismiss",
+            ],
             setup(_props, { expose }) {
                 expose({
                     seek: seekMock,
@@ -479,6 +488,7 @@ describe("VideoPlayer", () => {
                 preferredLanguage: { type: String, default: undefined },
                 controls: { type: Object, default: undefined },
                 nowPlaying: { type: Object, default: undefined },
+                upNext: { type: Array, default: undefined },
             },
             emits: ["loadedmetadata", "timeupdate", "ended"],
             setup(_props, { expose }) {
@@ -506,6 +516,57 @@ describe("VideoPlayer", () => {
             await new Promise((resolve) => setTimeout(resolve, 0));
             return wrapper;
         }
+
+        describe("the chapters and up next panel", () => {
+            const items = [{ id: "n1", title: "Day 2", section: "Next in series" }];
+
+            it("is handed to the browser's player, which draws it itself", async () => {
+                const wrapper = await mountPlayer({}, { upNext: items });
+                expect(stub(wrapper).props("upNext")).toEqual(items);
+            });
+
+            it("passes on a pick from the panel", async () => {
+                const wrapper = await mountPlayer({}, { upNext: items });
+                stub(wrapper).vm.$emit("upnextselect", "n1");
+                expect(wrapper.emitted("upnextselect")).toEqual([["n1"]]);
+            });
+
+            it("is not handed to a player that has no panel, where it would show as a stray attribute", async () => {
+                const wrapper = mount(VideoPlayer, {
+                    props: { content: content(), language: "en", upNext: items },
+                    global: {
+                        stubs: { LImage: true },
+                        provide: {
+                            [VideoPlayerKey as symbol]: {
+                                component: NativeStub,
+                                acceptsNowPlaying: false,
+                            },
+                        },
+                    },
+                });
+                await new Promise((resolve) => setTimeout(resolve, 0));
+                expect(wrapper.find(".native-stub").attributes("upnext")).toBeUndefined();
+                expect(wrapper.findComponent(NativeStub).props("upNext" as never)).toBeUndefined();
+            });
+
+            it("is handed to a player that says it has one", async () => {
+                const wrapper = mount(VideoPlayer, {
+                    props: { content: content(), language: "en", upNext: items },
+                    global: {
+                        stubs: { LImage: true },
+                        provide: {
+                            [VideoPlayerKey as symbol]: {
+                                component: NativeStub,
+                                acceptsNowPlaying: false,
+                                acceptsBrowse: true,
+                            },
+                        },
+                    },
+                });
+                await new Promise((resolve) => setTimeout(resolve, 0));
+                expect(wrapper.findComponent(NativeStub).props("upNext" as never)).toEqual(items);
+            });
+        });
 
         it("renders the provided player in place of the browser's", async () => {
             const wrapper = await mountWithService(true);
@@ -611,6 +672,201 @@ describe("VideoPlayer", () => {
             stub(wrapper).vm.$emit("ended");
 
             expect(recordAffinityMock).toHaveBeenCalledTimes(2);
+        });
+    });
+
+    describe("the next video", () => {
+        const NEXT = [{ id: "n1", title: "Day 2" }];
+        const OTHER_RELATIVE = "/media/other/master.m3u8";
+        const other = () =>
+            content({
+                _id: "content-other",
+                parentId: "post-other",
+                parentMedia: { hlsUrl: OTHER_RELATIVE },
+            });
+
+        it("is handed to the browser's player", async () => {
+            const wrapper = await mountPlayer({}, { nextUp: NEXT });
+            expect(stub(wrapper).props("nextUp")).toEqual(NEXT);
+        });
+
+        it("is not handed to a player that does not take it", async () => {
+            const NativeStub = defineComponent({
+                name: "NativeStub",
+                props: {
+                    source: { type: Object, default: undefined },
+                    nextUp: { type: Array, default: undefined },
+                },
+                setup: () => () => h("div", { class: "native-stub" }),
+            });
+            const wrapper = mount(VideoPlayer, {
+                props: { content: content(), language: "en", nextUp: NEXT },
+                global: {
+                    stubs: { LImage: true },
+                    provide: {
+                        [VideoPlayerKey as symbol]: {
+                            component: NativeStub,
+                            acceptsNowPlaying: false,
+                            acceptsBrowse: true,
+                        },
+                    },
+                },
+            });
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            expect(wrapper.findComponent(NativeStub).props("nextUp" as never)).toBeUndefined();
+        });
+
+        it("names its card in the app's translations", async () => {
+            const wrapper = await mountPlayer({}, { nextUp: NEXT });
+            const messages = stub(wrapper).props("messages") as Record<string, string>;
+            expect(messages).toMatchObject({
+                nextUp: "media_player.up_next",
+                dismiss: "video_player.dismiss_next_up",
+            });
+        });
+
+        it("passes on the pick, after booking the video it leaves as finished and pausing it", async () => {
+            const wrapper = await mountPlayer({}, { nextUp: NEXT });
+            stub(wrapper).vm.$emit("nextupselect", "n1");
+
+            expect(wrapper.emitted("nextupselect")).toEqual([["n1"]]);
+            expect(removeMediaProgressMock).toHaveBeenCalledWith(
+                RELATIVE,
+                mockEnglishContentDto._id,
+            );
+            expect(markSeenMock).toHaveBeenCalledWith(mockEnglishContentDto._id);
+            expect(pauseMock).toHaveBeenCalled();
+        });
+
+        it("stays in full-screen when the video ends into the next, and counts the end once", async () => {
+            const wrapper = await mountPlayer({}, { nextUp: NEXT });
+            stub(wrapper).vm.$emit("nextupselect", "n1");
+            stub(wrapper).vm.$emit("ended");
+
+            expect(exitFullscreenMock).not.toHaveBeenCalled();
+            expect(recordAffinityMock).toHaveBeenCalledTimes(1);
+        });
+
+        it("stays in full-screen at the near-end fallback too, when a next video is offered", async () => {
+            const wrapper = await mountPlayer({}, { nextUp: NEXT });
+            stub(wrapper).vm.$emit("timeupdate", 599.5, 600);
+            expect(exitFullscreenMock).not.toHaveBeenCalled();
+        });
+
+        it("leaves full-screen at the end when there is no next video", async () => {
+            const wrapper = await mountPlayer();
+            stub(wrapper).vm.$emit("ended");
+            expect(exitFullscreenMock).toHaveBeenCalled();
+        });
+
+        it("leaves full-screen at the end once the card is dismissed", async () => {
+            const wrapper = await mountPlayer({}, { nextUp: NEXT });
+            stub(wrapper).vm.$emit("nextupdismiss");
+            stub(wrapper).vm.$emit("ended");
+            expect(exitFullscreenMock).toHaveBeenCalled();
+        });
+
+        describe("when the content changes", () => {
+            it("keeps the same player mounted, and holds the old source until the new key is in", async () => {
+                const wrapper = await mountPlayer();
+                const first = stub(wrapper).vm;
+                let release!: () => void;
+                fetchHlsKeyMock.mockReturnValue(
+                    new Promise<string>((r) => (release = () => r("ab"))),
+                );
+
+                await wrapper.setProps({
+                    content: content({
+                        _id: "content-other",
+                        parentId: "post-other",
+                        parentMedia: { hlsUrl: OTHER_RELATIVE, hlsKey_id: "k" },
+                    }),
+                });
+                expect(stub(wrapper).vm).toBe(first);
+                expect(stub(wrapper).props("source")).toMatchObject({ masterUrl: ABSOLUTE });
+
+                release();
+                await new Promise((resolve) => setTimeout(resolve, 0));
+                expect(stub(wrapper).vm).toBe(first);
+                expect(stub(wrapper).props("source")).toMatchObject({
+                    masterUrl: "https://bucket.example.com/media/other/master.m3u8",
+                    keyHex: "ab",
+                });
+            });
+
+            it("drops the player when the new content has no video", async () => {
+                const wrapper = await mountPlayer();
+                await wrapper.setProps({ content: content({ parentMedia: undefined }) });
+                await new Promise((resolve) => setTimeout(resolve, 0));
+                expect(stub(wrapper).exists()).toBe(false);
+            });
+
+            it("plays the new video on its own when asked, restoring only its own saved position", async () => {
+                const wrapper = await mountPlayer({}, { autoplay: true });
+                stub(wrapper).vm.$emit("loadedmetadata");
+                playMock.mockClear();
+                seekMock.mockClear();
+                getMediaProgressMock.mockReturnValue(0);
+
+                await wrapper.setProps({ content: other() });
+                await new Promise((resolve) => setTimeout(resolve, 0));
+                stub(wrapper).vm.$emit("loadedmetadata");
+
+                expect(getMediaProgressMock).toHaveBeenLastCalledWith(
+                    OTHER_RELATIVE,
+                    "content-other",
+                );
+                expect(seekMock).not.toHaveBeenCalled();
+                expect(playMock).toHaveBeenCalledTimes(1);
+            });
+
+            it("does not play the new video on its own unless asked", async () => {
+                const wrapper = await mountPlayer();
+                stub(wrapper).vm.$emit("loadedmetadata");
+                playMock.mockClear();
+                await wrapper.setProps({ content: other() });
+                await new Promise((resolve) => setTimeout(resolve, 0));
+                stub(wrapper).vm.$emit("loadedmetadata");
+                expect(playMock).not.toHaveBeenCalled();
+            });
+
+            it("does not book the old video's playback to the new one while it loads", async () => {
+                const wrapper = await mountPlayer();
+                let release!: () => void;
+                fetchHlsKeyMock.mockReturnValue(
+                    new Promise<string>((r) => (release = () => r("ab"))),
+                );
+                await wrapper.setProps({
+                    content: content({
+                        _id: "content-other",
+                        parentId: "post-other",
+                        parentMedia: { hlsUrl: OTHER_RELATIVE, hlsKey_id: "k" },
+                    }),
+                });
+
+                stub(wrapper).vm.$emit("timeupdate", 3540, 3600);
+                stub(wrapper).vm.$emit("ended");
+                expect(setMediaProgressMock).not.toHaveBeenCalled();
+                expect(recordAffinityMock).not.toHaveBeenCalled();
+
+                release();
+                await new Promise((resolve) => setTimeout(resolve, 0));
+            });
+
+            it("offers the next video's card afresh and scores the new video's own end", async () => {
+                const wrapper = await mountPlayer({}, { nextUp: NEXT });
+                stub(wrapper).vm.$emit("nextupdismiss");
+                await wrapper.setProps({ content: other() });
+                await new Promise((resolve) => setTimeout(resolve, 0));
+                stub(wrapper).vm.$emit("loadedmetadata");
+                stub(wrapper).vm.$emit("ended");
+
+                expect(exitFullscreenMock).not.toHaveBeenCalled();
+                expect(removeMediaProgressMock).toHaveBeenCalledWith(
+                    OTHER_RELATIVE,
+                    "content-other",
+                );
+            });
         });
     });
 });

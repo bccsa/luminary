@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { RouterView } from "vue-router";
-import { computed, onErrorCaptured, onMounted, watch } from "vue";
+import { computed, nextTick, onErrorCaptured, onMounted, watch } from "vue";
 import { isConnected } from "luminary-shared";
 import { isAppLoading, userPreferencesAsRef, localCacheVersion } from "./globalConfig";
 import { useNotificationStore } from "./stores/notification";
@@ -14,6 +14,7 @@ import { useMobileChromeAutoHide } from "@/composables/useMobileChromeAutoHide";
 import AffinityDebugOverlay from "@/components/debug/AffinityDebugOverlay.vue";
 import MediaPlayer from "@/media-player/MediaPlayer.vue";
 import { minimiseMediaPlayer } from "@/media-player/mediaPlayer";
+import { clearSwaps, isContentSwap, isPlayerSwap } from "@/util/playerSwap";
 import { affinityDebugEnabled, applyAffinityDebugQuery } from "@/recommendation/affinityDebug";
 import { useAuthWithPrivacyPolicy } from "@/composables/useAuthWithPrivacyPolicy";
 import { showProviderSelectionModal } from "@/auth";
@@ -155,10 +156,17 @@ const unwatchUserPref = watch(userPreferencesAsRef.value, () => {
     if (userPreferencesAsRef.value.privacyPolicy?.status) unwatchUserPref();
 });
 
+/** The key the content page last got; a swap to the next video reuses it. */
+let contentPageKey = "";
 const routeKey = computed(() => {
     const route = router.currentRoute.value;
     // Search keeps one instance whatever its ?q, so the search survives leaving the page.
     if (typeof route.name === "string" && /^search(-|$)/.test(route.name)) return route.path;
+    if (route.name === "content") {
+        // The player on the page swaps to the next video in full-screen: recreating the page would end it.
+        if (contentPageKey && isContentSwap(route.fullPath)) return contentPageKey;
+        contentPageKey = route.fullPath;
+    }
     return route.fullPath;
 });
 
@@ -166,7 +174,12 @@ const routeKey = computed(() => {
 // through either shows where the viewer went, with the player kept as the bar.
 watch(
     () => router.currentRoute.value.fullPath,
-    () => minimiseMediaPlayer(),
+    (path) => {
+        // A swap to the next video in full-screen keeps the player open: minimising it would hide it.
+        if (!isPlayerSwap(path)) minimiseMediaPlayer();
+        // After the render, which reads the flags.
+        void nextTick(clearSwaps);
+    },
 );
 
 onMounted(() => {

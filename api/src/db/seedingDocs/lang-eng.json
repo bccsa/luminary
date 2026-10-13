@@ -244,6 +244,9 @@
         "video_player.video_mode": "Play video",
         "video_player.audio_mode": "Play audio only",
         "video_player.chapter_of": "Chapter {index} of {count}",
-        "video_player.loading": "Loading"
+        "video_player.loading": "Loading",
+        "video_player.browse": "Chapters and up next",
+        "video_player.close_browse": "Close the chapters and up next",
+        "video_player.dismiss_next_up": "Dismiss the next video"
     }
 }

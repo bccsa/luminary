@@ -8,13 +8,14 @@
  * to play, where the decryption key comes from, resume position, and the
  * engagement signals a finished video sends.
  */
-import { computed, inject, nextTick, ref, watch } from "vue";
+import { computed, inject, nextTick, ref, shallowRef, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import {
     AUDIO_ONLY_ANGLE_ID,
     isYouTubeUrl,
     LuminaryPlayer,
     type PlayerSource,
+    type PlayerUpNextItem,
 } from "@luminary-media-converter/player-web";
 import { type ContentDto, fetchHlsKey, reportError } from "luminary-shared";
 import LImage from "../images/LImage.vue";
@@ -57,9 +58,14 @@ type Props = {
     inline?: boolean;
     /** Show the player's own controls in the page, for a player that is not driven from elsewhere. */
     windowedControls?: boolean;
+    /** Videos to offer in the player's own chapters / up next panel, where the player has one. */
+    upNext?: PlayerUpNextItem[];
+    /** The videos offered near the end of full-screen; the player raises `nextupselect` with the one chosen. */
+    nextUp?: PlayerUpNextItem[];
 };
 
 const props = defineProps<Props>();
+const emit = defineEmits<{ upnextselect: [id: string]; nextupselect: [id: string] }>();
 const { t } = useI18n();
 
 /**
@@ -89,6 +95,12 @@ const playerMessages = computed(() => ({
     subtitlesOff: t("video_player.subtitles_off"),
     videoModeLabel: t("video_player.video_mode"),
     audioModeLabel: t("video_player.audio_mode"),
+    chapters: t("media_player.chapters"),
+    upNext: t("media_player.up_next"),
+    browse: t("video_player.browse"),
+    closeBrowse: t("video_player.close_browse"),
+    nextUp: t("media_player.up_next"),
+    dismiss: t("video_player.dismiss_next_up"),
     // Native full-screen draws its own controls and says these.
     pictureInPicture: t("media_player.picture_in_picture"),
     playbackRate: t("media_player.speed"),
@@ -98,7 +110,12 @@ const playerMessages = computed(() => ({
 }));
 
 // The browser's player when no service is provided: a component mounted on its own.
-const videoPlayer = inject(VideoPlayerKey, { component: LuminaryPlayer, acceptsNowPlaying: false });
+const videoPlayer = inject(VideoPlayerKey, {
+    component: LuminaryPlayer,
+    acceptsNowPlaying: false,
+    acceptsBrowse: true,
+    acceptsNextUp: true,
+});
 const player = ref<VideoPlayerHandle | null>(null);
 
 // The media bucket, so a stored relative URL can be resolved to a fetchable
@@ -129,7 +146,7 @@ const nowPlaying = computed<VideoNowPlaying>(() => ({
 /**
  * What the player's controller is given, read once when the player is built: Data Saver turns the
  * background warming of the next chunk off, since a warm is an extra request nobody asked for.
- * Taken when this component is created, which is per content, like the quality cap.
+ * Taken when this component is created: a player swapped to the next video keeps it.
  */
 const controllerOptions = {
     prefetch: { enabled: !(userDataSaverEnabled.value || isDataSaverEnabled()) },
@@ -138,6 +155,8 @@ const playerExtras = computed(() => ({
     controllerOptions,
     ...(videoPlayer.acceptsNowPlaying ? { nowPlaying: nowPlaying.value } : {}),
     ...(props.inline && videoPlayer.acceptsInline ? { inline: true } : {}),
+    ...(videoPlayer.acceptsBrowse && props.upNext?.length ? { upNext: props.upNext } : {}),
+    ...(videoPlayer.acceptsNextUp && props.nextUp?.length ? { nextUp: props.nextUp } : {}),
 }));
 
 /** The video is drawn behind the page here: the poster would only cover it. */
@@ -312,6 +331,29 @@ watch(
     { immediate: true },
 );
 
+/**
+ * The source the player is mounted with. A new content never unmounts the player: that would end
+ * full-screen, and the swap to the next video must stay in it. The previous source stays in place until
+ * the new one is ready, and is dropped only when the new content has no video to play.
+ */
+const heldSource = shallowRef<PlayerSource | null>(null);
+/** The content `heldSource` was made for: events from the previous video must not be booked to the next. */
+const heldContentId = ref<string | undefined>(undefined);
+watch(
+    source,
+    (current) => {
+        if (current) {
+            heldSource.value = current;
+            heldContentId.value = props.content?._id;
+        } else if (!videoSource.value) {
+            heldSource.value = null;
+            heldContentId.value = undefined;
+        }
+    },
+    { immediate: true },
+);
+const playingThisContent = () => heldContentId.value === props.content?._id;
+
 // --- resume position ------------------------------------------------------
 
 /**
@@ -393,6 +435,8 @@ watch(
 );
 
 function onLoadedMetadata() {
+    if (!playingThisContent()) return;
+    leaving = false;
     completed = false;
     watchTracker.reset();
     const id = mediaId.value;
@@ -419,6 +463,8 @@ function onLoadedMetadata() {
 defineExpose({ player, inlineActive });
 
 function onTimeUpdate(currentTime: number, duration: number) {
+    // The video being swapped out is still playing while the next one's key is fetched.
+    if (leaving || !playingThisContent()) return;
     watchTracker.track(currentTime);
     if (
         watchTracker.claimCompletionIfWatched(duration, affinityConfig.value.mediaCompletionPercent)
@@ -441,16 +487,45 @@ function onTimeUpdate(currentTime: number, duration: number) {
     setMediaProgress(id, props.content._id, currentTime, duration);
 }
 
-function onEnded() {
+/** The viewer closed the next-video card, so the end of this video leaves full-screen as usual. */
+const nextUpDismissed = ref(false);
+watch(
+    () => props.content._id,
+    () => (nextUpDismissed.value = false),
+);
+
+/** Books the playthrough as finished: the progress goes, and the completion is scored once. */
+function finishPlaythrough(): boolean {
     const id = mediaId.value;
-    if (!id || completed) return;
+    if (!id || completed) return false;
     completed = true;
 
     removeMediaProgress(id, props.content._id);
 
     // Nothing to score if the watched fraction already claimed it.
     if (watchTracker.claimCompletion()) applyCompletion();
+    return true;
+}
 
+/**
+ * The next video was chosen (or this one ended into it): this one is done, and full-screen stays.
+ * Paused so its last moments are not booked as the next video's progress while that one loads.
+ */
+let leaving = false;
+function onNextUpSelect(id: string) {
+    if (playingThisContent()) {
+        finishPlaythrough();
+        leaving = true;
+        player.value?.pause();
+    }
+    emit("nextupselect", id);
+}
+
+function onEnded() {
+    if (!playingThisContent() || !finishPlaythrough()) return;
+
+    // A next video offered stays in full-screen: the swap carries on in it.
+    if (props.nextUp?.length && videoPlayer.acceptsNextUp && !nextUpDismissed.value) return;
     player.value?.exitFullscreen();
 }
 </script>
@@ -485,9 +560,9 @@ function onEnded() {
             />
             <component
                 :is="videoPlayer.component"
-                v-else-if="source"
+                v-else-if="heldSource"
                 ref="player"
-                :source="source"
+                :source="heldSource"
                 :preferred-language="preferredLanguage"
                 :controls="controls"
                 :messages="playerMessages"
@@ -495,6 +570,9 @@ function onEnded() {
                 @loadedmetadata="onLoadedMetadata"
                 @timeupdate="onTimeUpdate"
                 @ended="onEnded"
+                @upnextselect="emit('upnextselect', $event)"
+                @nextupselect="onNextUpSelect"
+                @nextupdismiss="nextUpDismissed = true"
             />
         </div>
     </div>

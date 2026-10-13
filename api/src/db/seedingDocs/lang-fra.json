@@ -244,6 +244,9 @@
         "video_player.video_mode": "Lire la vidéo",
         "video_player.audio_mode": "Lire l'audio seulement",
         "video_player.chapter_of": "Chapitre {index} sur {count}",
-        "video_player.loading": "Chargement"
+        "video_player.loading": "Chargement",
+        "video_player.browse": "Chapitres et à suivre",
+        "video_player.close_browse": "Fermer les chapitres et à suivre",
+        "video_player.dismiss_next_up": "Ignorer la vidéo suivante"
     }
 }

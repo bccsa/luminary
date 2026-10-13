@@ -143,6 +143,7 @@ vi.mock("@/composables/useBucketInfo", () => ({
     useBucketInfo: () => ({
         bucketBaseUrl: computed(() => "https://bucket.example.com"),
     }),
+    useStorageBuckets: () => ref([]),
 }));
 
 describe("SingleContent", () => {

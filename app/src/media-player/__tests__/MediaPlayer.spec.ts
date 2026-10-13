@@ -3,6 +3,7 @@ import { flushPromises, mount, type VueWrapper } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import { mockEnglishContentDto } from "@/tests/mockdata";
 import { userDataSaverEnabled } from "@/globalConfig";
+import { isPlayerSwap, clearSwaps } from "@/util/playerSwap";
 import { markSeen } from "@/recommendation/seenStore";
 import { useMobileChromeAutoHide } from "@/composables/useMobileChromeAutoHide";
 import MediaPlayer from "../MediaPlayer.vue";
@@ -22,6 +23,8 @@ const engine = vi.hoisted(() => ({
     controller: null as any,
     handle: null as any,
     props: null as any,
+    emit: null as any,
+    mounts: 0,
     inlineActive: false,
     canMute: false,
     airPlayAvailable: false,
@@ -78,7 +81,12 @@ vi.mock("@/composables/useContentQuery", async () => {
 });
 
 const routerPush = vi.hoisted(() => vi.fn());
-vi.mock("vue-router", () => ({ useRouter: () => ({ push: routerPush }) }));
+vi.mock("vue-router", () => ({
+    useRouter: () => ({
+        push: routerPush,
+        resolve: (to: { params: { slug: string } }) => ({ fullPath: `/${to.params.slug}` }),
+    }),
+}));
 
 vi.mock("@/components/content/VideoPlayer.vue", async () => {
     const { defineComponent, h, reactive } = await import("vue");
@@ -92,8 +100,13 @@ vi.mock("@/components/content/VideoPlayer.vue", async () => {
                 autoplay: Boolean,
                 fullscreenOnPlay: Boolean,
                 inline: Boolean,
+                upNext: Array,
+                nextUp: Array,
             },
-            setup(props, { expose }) {
+            emits: ["upnextselect", "nextupselect"],
+            setup(props, { expose, emit }) {
+                engine.emit = emit;
+                engine.mounts++;
                 engine.props = props;
                 engine.state = reactive({
                     lifecycle: "ready",
@@ -192,6 +205,7 @@ beforeEach(() => {
     categoryDocs.value = [];
     tagDocs.value = [];
     routerPush.mockClear();
+    engine.mounts = 0;
     engine.inlineActive = false;
     engine.canMute = false;
     engine.airPlayAvailable = false;
@@ -1665,6 +1679,64 @@ describe("MediaPlayer", () => {
 
             expect(mediaPlayerItem.value).toBeNull();
             expect(find(wrapper, "mediaPlayerBar").exists()).toBe(false);
+        });
+    });
+
+    describe("the next video in full-screen", () => {
+        const doc = (id: string, extra: Record<string, unknown> = {}) => ({
+            ...mockEnglishContentDto,
+            _id: id,
+            parentId: `${id}-parent`,
+            slug: `${id}-slug`,
+            title: `Title ${id}`,
+            video: "https://cdn.example.com/x.m3u8",
+            ...extra,
+        });
+
+        beforeEach(() => clearSwaps());
+
+        it("offers the player the related videos when there is no next in a series", async () => {
+            upNextDocs.value = [doc("rel-1"), doc("rel-2")];
+            await playing();
+            expect(engine.props.nextUp.map((item: { id: string }) => item.id)).toEqual([
+                "rel-1",
+                "rel-2",
+            ]);
+        });
+
+        it("offers nothing when there is nothing to follow", async () => {
+            await playing();
+            expect(engine.props.nextUp).toEqual([]);
+        });
+
+        it("swaps the item, keeps the same player and the full view, and opens the page behind", async () => {
+            upNextDocs.value = [doc("rel-1")];
+            const wrapper = await playing();
+            expect(engine.mounts).toBe(1);
+
+            engine.emit("nextupselect", "rel-1");
+            await flushPromises();
+
+            expect(mediaPlayerItem.value?.content._id).toBe("rel-1");
+            expect(mediaPlayerView.value).toBe("expanded");
+            expect(engine.props.content._id).toBe("rel-1");
+            expect(engine.mounts).toBe(1);
+            expect(find(wrapper, "mediaPlayer").exists()).toBe(true);
+            expect(routerPush).toHaveBeenCalledWith({
+                name: "content",
+                params: { slug: "rel-1-slug" },
+            });
+            // The route change that follows must not minimise the player.
+            expect(isPlayerSwap("/rel-1-slug")).toBe(true);
+        });
+
+        it("ignores a pick that is not the offered video", async () => {
+            upNextDocs.value = [doc("rel-1")];
+            await playing();
+            engine.emit("nextupselect", "other");
+            await flushPromises();
+            expect(mediaPlayerItem.value?.content._id).toBe(mockEnglishContentDto._id);
+            expect(routerPush).not.toHaveBeenCalled();
         });
     });
 });

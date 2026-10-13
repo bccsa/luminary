@@ -42,6 +42,8 @@ import { timeEnds } from "./v10Time";
 import MediaPlayerMenuItem from "./MediaPlayerMenuItem.vue";
 import MediaPlayerUpNext from "./MediaPlayerUpNext.vue";
 import { useUpNext } from "./useUpNext";
+import { useNextUp } from "./useNextUp";
+import { markPlayerSwap } from "@/util/playerSwap";
 import {
     closeMediaPlayer,
     openMediaPlayer,
@@ -91,6 +93,7 @@ const sheetTab = ref<SheetTab | null>(null);
 /** The tag the Up next lists are narrowed to; it goes with the video, and the next one starts at All. */
 const upNextTag = ref<Uuid | null>(null);
 const upNext = useUpNext(content, upNextTag);
+const { nextContents, nextUp } = useNextUp(upNext);
 /** Up next has had something to offer for this video: the tab stays while a new choice loads. */
 const hadUpNext = ref(false);
 watch(
@@ -242,6 +245,20 @@ function playChapter(chapter: Chapter) {
 /** Another video, offered under this one: it takes the player. */
 function playNext(next: ContentDto) {
     openMediaPlayer(next, item.value?.language);
+}
+
+/**
+ * A next video, chosen in full-screen: it takes the player, which stays mounted and expanded so
+ * full-screen carries on, and its page opens behind. The route change would minimise the player, which
+ * is let through only for this one.
+ */
+function swapToNext(id: string) {
+    const next = nextContents.value.find((doc) => doc._id === id);
+    if (!next) return;
+    const location = { name: "content", params: { slug: next.slug } };
+    markPlayerSwap(router.resolve(location).fullPath);
+    openMediaPlayer(next, item.value?.language);
+    void router.push(location);
 }
 
 /** The page of what plays, which also minimises the player: the route change does it. */
@@ -784,12 +801,13 @@ function onKeydown(event: KeyboardEvent) {
                     class="absolute inset-0"
                 >
                     <VideoPlayer
-                        :key="content._id"
                         ref="engine"
                         :content="content"
                         :language="item.language"
                         :start-audio="startAudio"
+                        :next-up="nextUp"
                         autoplay
+                        @nextupselect="swapToNext"
                         inline
                         :fullscreen-on-play="isNativeApp()"
                     />
