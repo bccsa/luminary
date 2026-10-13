@@ -235,8 +235,9 @@ describe("VideoPlayer", () => {
         it("bares the frame: the media player draws the transport and the audio / video switch", async () => {
             const wrapper = await mountPlayer();
 
+            // The subtitles menu is on, and shows only for a stream that has subtitles.
             expect(stub(wrapper).props("controls")).toEqual({
-                subtitlesMenu: false,
+                subtitlesMenu: true,
                 audioVideoToggle: false,
                 windowedControls: false,
             });

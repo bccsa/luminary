@@ -180,16 +180,14 @@ const preferredLanguage = computed(
  * bare unless `windowedControls` asks for the player's own; full-screen still shows the player's controls. A YouTube link keeps the embed's own,
  * having no controller for the media player to drive.
  *
- * The subtitles menu is off because the app's control bar has never had one, and
- * Luminary ships no sidecar subtitles: video.js would hide the button today
- * anyway, but the first stream carrying a caption track would otherwise put a
- * new control in front of every viewer without anyone deciding to.
+ * The subtitles menu is on: the media player's own menu and the phone's full-screen menu list a stream's
+ * subtitles, so the web full screen does too. It shows only for a stream that has some.
  */
 const controls = computed(() =>
     isYouTubeUrl(videoSource.value)
         ? { subtitlesMenu: false, audioVideoToggle: false }
         : {
-              subtitlesMenu: false,
+              subtitlesMenu: true,
               audioVideoToggle: false,
               windowedControls: !!props.windowedControls,
           },
