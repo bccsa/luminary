@@ -1054,7 +1054,7 @@ function onKeydown(event: KeyboardEvent) {
                                 @click="toggleMenu('language')"
                             >
                                 <V10Icon
-                                    name="speech"
+                                    name="language"
                                     class="h-5 w-5 md:h-6 md:w-6"
                                 />
                                 {{ activeLanguageCode }}

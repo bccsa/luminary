@@ -23,7 +23,7 @@ describe("V10Icon", () => {
             "pause",
             "volumeHigh",
             "volumeOff",
-            "speech",
+            "language",
             "speed",
             "captions",
             "pip",

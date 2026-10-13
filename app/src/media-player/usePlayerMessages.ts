@@ -43,6 +43,7 @@ export function usePlayerMessages() {
     unmute: t("media_player.unmute"),
     loading: t("video_player.loading"),
     qualityLabel: t("video_player.quality_menu"),
+    qualityAuto: t("video_player.quality_auto"),
     languageLabel: t("video_player.language_menu"),
     captionsLabel: t("video_player.captions_menu"),
     volumeUp: t("video_player.volume_up"),
