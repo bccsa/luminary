@@ -681,10 +681,10 @@ function pickSleep(option: { kind: "minutes"; minutes: number } | { kind: "chapt
     controller.value?.setSleepTimer(option);
     openMenu.value = null;
 }
-/** The language playing, as a short code: the full name is in the menu, and a long one pushes the row's other buttons down a line. */
+/** The playlist's LANGUAGE of the track playing, as it is written: the full name is in the menu, and a long one pushes the row's other buttons down a line. */
 const activeLanguageCode = computed(() => {
     const track = state.value?.audioTracks.find((t) => t.id === state.value?.activeAudioTrackId);
-    return (track?.lang ?? track?.label ?? "").slice(0, 3).toUpperCase();
+    return (track?.lang ?? track?.label ?? "").slice(0, 3);
 });
 
 /** `m:ss`, or `h:mm:ss` past an hour. */
