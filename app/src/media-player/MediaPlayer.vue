@@ -1531,7 +1531,8 @@ function onKeydown(event: KeyboardEvent) {
 
         <div
             v-if="audioFullscreen && content && state"
-            class="lmpl-root fixed inset-0 z-[70] !h-auto"
+            class="lmpl-root z-[70]"
+            style="position: fixed; inset: 0; width: 100%; height: 100%; aspect-ratio: auto"
             data-test="mediaPlayerAudioFullscreen"
             @keydown.esc="audioFullscreen = false"
         >
