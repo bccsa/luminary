@@ -297,26 +297,24 @@ describe("MediaPlayer", () => {
             expect(find(wrapper, "mediaPlayerAudio").attributes("aria-pressed")).toBe("true");
         });
 
-        it("washes the whole player with the cover's colour in the light theme, and only glows behind the picture in the dark", async () => {
-            isDarkTheme.value = false;
-            const light = await playing();
-            await find(light, "mediaPlayerAudio").trigger("click");
-            await flushPromises();
-            expect(find(light, "mediaPlayerWash").exists()).toBe(true);
-            expect(light.find("[data-test='mediaPlayerGlow']").exists()).toBe(false);
-            light.unmount();
+        it("washes the whole player with the cover's colour in the sound alone, pale in the light theme and dark in the dark one", async () => {
+            for (const dark of [false, true]) {
+                isDarkTheme.value = dark;
+                const wrapper = await playing();
+                expect(wrapper.find("[data-test='mediaPlayerWash']").exists()).toBe(false);
 
-            isDarkTheme.value = true;
-            const dark = await playing();
-            await find(dark, "mediaPlayerAudio").trigger("click");
-            await flushPromises();
-            expect(dark.find("[data-test='mediaPlayerWash']").exists()).toBe(false);
-            expect(find(dark, "mediaPlayerGlow").exists()).toBe(true);
+                await find(wrapper, "mediaPlayerAudio").trigger("click");
+                await flushPromises();
+                const wash = find(wrapper, "mediaPlayerWash");
+                expect(wash.exists()).toBe(true);
+                expect(wash.classes()).toContain("dark:bg-slate-900");
+                expect(wash.html()).toContain("dark:bg-slate-900/65");
+                wrapper.unmount();
+            }
             isDarkTheme.value = false;
         });
 
-        it("shows the cover in the sound alone at most 236px, two thirds wide and a quarter of the height, with a glow behind it", async () => {
-            isDarkTheme.value = true;
+        it("shows the cover in the sound alone at most 236px, two thirds wide and a quarter of the height", async () => {
             const wrapper = await playing();
             expect(wrapper.find("[data-test='mediaPlayerArtwork']").exists()).toBe(false);
 
@@ -325,9 +323,6 @@ describe("MediaPlayer", () => {
 
             const artwork = find(wrapper, "mediaPlayerArtwork");
             expect(artwork.find("div").attributes("style")).toContain("min(66%, 236px, 26svh)");
-            expect(find(wrapper, "mediaPlayerGlow").classes()).toContain("blur-3xl");
-            expect(find(wrapper, "mediaPlayerGlow").attributes("aria-hidden")).toBe("true");
-            isDarkTheme.value = false;
         });
 
         it("switches back to the camera that was playing", async () => {
@@ -733,7 +728,7 @@ describe("MediaPlayer", () => {
             expect(engine.handle.enterFullscreen).toHaveBeenCalled();
         });
 
-        it("gives the sound alone the same cover, glow and sleep timer on a wide screen as on a phone", async () => {
+        it("gives the sound alone the same cover, wash and sleep timer on a wide screen as on a phone", async () => {
             await wide(async () => {
                 isDarkTheme.value = true;
                 const wrapper = await playing();
@@ -741,12 +736,9 @@ describe("MediaPlayer", () => {
                 await flushPromises();
 
                 expect(find(wrapper, "mediaPlayerArtwork").exists()).toBe(true);
-                expect(find(wrapper, "mediaPlayerGlow").exists()).toBe(true);
                 expect(find(wrapper, "mediaPlayerSleep").exists()).toBe(true);
                 expect(find(wrapper, "mediaPlayerFullscreen").exists()).toBe(true);
 
-                isDarkTheme.value = false;
-                await flushPromises();
                 expect(find(wrapper, "mediaPlayerWash").exists()).toBe(true);
             });
         });

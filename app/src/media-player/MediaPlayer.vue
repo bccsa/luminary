@@ -604,11 +604,8 @@ function seekMini(event: MouseEvent) {
     handle.value?.seek(Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width)) * duration.value);
 }
 
-/**
- * In the light theme the sound alone wears the cover's colour over the whole player; in the dark one the
- * player stays plain and only the picture glows.
- */
-const wash = computed(() => audioMode.value && !isDarkTheme.value);
+/** The sound alone wears the cover's colour over the whole player: pale in the light theme, dark in the dark one. */
+const wash = computed(() => audioMode.value);
 
 /**
  * The full-screen sound screen: the same component the web player shows, drawn here over the engine in use,
@@ -793,14 +790,14 @@ function onKeydown(event: KeyboardEvent) {
             data-test="mediaPlayer"
             @keydown="onKeydown"
         >
-            <!-- The cover, blurred and saturated, behind every part, under a pale scrim to keep the text readable. -->
+            <!-- The cover, blurred and saturated, behind every part, under a scrim to keep the text readable. -->
             <div
                 v-if="wash"
-                class="pointer-events-none absolute inset-0 -z-10 overflow-hidden bg-amber-50"
+                class="pointer-events-none absolute inset-0 -z-10 overflow-hidden bg-amber-50 dark:bg-slate-900"
                 aria-hidden="true"
                 data-test="mediaPlayerWash"
             >
-                <div class="absolute -inset-[20%] opacity-70 blur-3xl saturate-150">
+                <div class="absolute -inset-[20%] opacity-70 blur-3xl saturate-150 dark:opacity-60">
                     <LImage
                         :image="content.parentImageData"
                         :content-parent-id="content.parentId"
@@ -810,7 +807,7 @@ function onKeydown(event: KeyboardEvent) {
                         :rounded="false"
                     />
                 </div>
-                <div class="absolute inset-0 bg-white/45" />
+                <div class="absolute inset-0 bg-white/45 dark:bg-slate-900/65" />
             </div>
             <div
                 v-show="!miniVideo"
@@ -903,9 +900,7 @@ function onKeydown(event: KeyboardEvent) {
                 class="relative w-full flex-none"
                 :class="
                     audioMode
-                        ? wash
-                            ? 'overflow-hidden py-4'
-                            : 'bg-amber-50 py-4 dark:bg-slate-800'
+                        ? 'overflow-hidden py-4'
                         : ['aspect-video', inlineHole ? 'bg-transparent' : 'bg-black']
                 "
             >
@@ -1069,22 +1064,6 @@ function onKeydown(event: KeyboardEvent) {
                     data-test="mediaPlayerArtwork"
                 >
                     <div class="relative" style="width: min(66%, 236px, 26svh)">
-                        <!-- The glow: the cover again, blurred and saturated, around the picture; it may reach past the band, softly. -->
-                        <div
-                            v-if="!wash"
-                            class="pointer-events-none absolute -inset-[30%] opacity-90 blur-3xl saturate-[1.8] [mask-image:radial-gradient(closest-side,#000_45%,transparent)]"
-                            aria-hidden="true"
-                            data-test="mediaPlayerGlow"
-                        >
-                            <LImage
-                                :image="content.parentImageData"
-                                :content-parent-id="content.parentId"
-                                :parent-image-bucket-id="content.parentImageBucketId"
-                                aspectRatio="square"
-                                size="post"
-                                :rounded="false"
-                            />
-                        </div>
                         <div class="relative overflow-hidden rounded-xl shadow-xl">
                             <LImage
                                 :image="content.parentImageData"
