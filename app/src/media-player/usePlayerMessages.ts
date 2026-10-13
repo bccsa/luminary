@@ -49,6 +49,7 @@ export function usePlayerMessages() {
     volumeUp: t("video_player.volume_up"),
     volumeDown: t("video_player.volume_down"),
     speedLabel: t("media_player.speed"),
+    live: t("media_player.live"),
     sleepTimer: t("media_player.sleep_timer"),
     sleepOff: t("media_player.sleep_off"),
     sleepMinutes: t("media_player.sleep_minutes", { minutes: "{minutes}" }),
