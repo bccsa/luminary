@@ -64,9 +64,13 @@ vi.mock("@luminary-media-converter/player-web", async () => {
         // The real screen is the player's, tested there: it says what is asked through its events.
         AudioFullscreen: defineComponent({
             name: "AudioFullscreen",
-            props: { title: String, playing: Boolean, currentTime: Number },
+            props: { title: String, playing: Boolean, currentTime: Number, hasBrowse: Boolean },
             emits: ["exit", "toggle-play", "seek", "sleep", "rate", "seek-chapter"],
-            setup: (props) => () => h("div", { "data-test": "audioFullscreenStub" }, props.title),
+            setup: (props, { slots }) => () =>
+                h("div", { "data-test": "audioFullscreenStub" }, [
+                    props.title,
+                    slots.sheet?.({ close: () => {} }),
+                ]),
         }),
         rosterStep: () => 4,
         rosterFineStep: () => 1,
@@ -930,6 +934,21 @@ describe("MediaPlayer", () => {
             screen.vm.$emit("exit");
             await flushPromises();
             expect(wrapper.find("[data-test='mediaPlayerAudioFullscreen']").exists()).toBe(false);
+        });
+
+        it("offers the same chapters as the expanded player in the sheet on the full-screen sound screen", async () => {
+            const wrapper = await playing();
+            engine.state.chapters = [
+                { startTime: 0, endTime: 20, title: "One" },
+                { startTime: 20, endTime: 120, title: "Two" },
+            ];
+            await find(wrapper, "mediaPlayerAudio").trigger("click");
+            await flushPromises();
+            await find(wrapper, "mediaPlayerFullscreen").trigger("click");
+
+            expect(wrapper.findComponent({ name: "AudioFullscreen" }).props("hasBrowse")).toBe(true);
+            expect(find(wrapper, "mediaPlayerScreenSheet").exists()).toBe(true);
+            expect(find(wrapper, "mediaPlayerScreenTab-chapters").attributes("aria-selected")).toBe("true");
         });
 
         it("leaves the full-screen sound screen when the picture is shown again", async () => {
