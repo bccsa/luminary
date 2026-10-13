@@ -22,7 +22,7 @@ import { recordAffinity } from "@/recommendation/affinityStore";
 import { affinityConfig } from "@/recommendation/defaultAffinityStore";
 import { notifyHighlightsChanged } from "@/recommendation/highlightStore";
 import { markSeen } from "@/recommendation/seenStore";
-import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from "vue";
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { BookmarkIcon as BookmarkIconSolid, TagIcon, SunIcon } from "@heroicons/vue/24/solid";
 import {
     BookmarkIcon as BookmarkIconOutline,
@@ -33,9 +33,6 @@ import {
 
 import { DateTime } from "luxon";
 import { useRouter } from "vue-router";
-import { markContentSwap } from "@/util/playerSwap";
-import { useUpNext } from "@/media-player/useUpNext";
-import { useNextUp } from "@/media-player/useNextUp";
 import {
     appName,
     appLanguagePreferredIdAsRef,
@@ -68,12 +65,6 @@ import { markLanguageSwitch } from "@/util/isLangSwitch";
 import LoadingBar from "@/components/LoadingBar.vue";
 import { activeImageCollection } from "@/components/images/LImageProvider.vue";
 import MediaAction from "@/media-player/MediaAction.vue";
-import { startsAsAudio } from "@/media-player/mediaPlayer";
-import VideoPlayer from "@/components/content/VideoPlayer.vue";
-import ContentChaptersPanel from "@/components/content/ContentChaptersPanel.vue";
-import type { VideoPlayerHandle } from "@/build-time/contracts/video-player/contract";
-import type { Chapter } from "@luminary-media-converter/player-web";
-import { useMediaQuery } from "@vueuse/core";
 import LHighlightable from "@/components/common/LHighlightable.vue";
 import DropdownMenu from "@/components/common/DropdownMenu.vue";
 import ArticleOutline from "./ArticleOutline.vue";
@@ -146,15 +137,9 @@ const contentOverride = ref<ContentDto | undefined>();
 // change and once the live query emits (local docs carry full `text` via
 // `stripFields: []`, so the live doc takes over cleanly).
 const coldStartBackstop = ref<ContentDto | undefined>();
-// The content the embedded player was on when it swapped to the next video, shown until the next one
-// is in: the page must not empty out in between, or the player in it would be unmounted and full-screen lost.
-const swapHold = shallowRef<ContentDto | undefined>();
 const content = computed<ContentDto | undefined>(
-    () => contentOverride.value ?? coldStartBackstop.value ?? contentArr.value[0] ?? swapHold.value,
+    () => contentOverride.value ?? coldStartBackstop.value ?? contentArr.value[0],
 );
-watch(content, (current) => {
-    if (swapHold.value && current !== swapHold.value) swapHold.value = undefined;
-});
 watch(
     () => props.slug,
     () => {
@@ -301,7 +286,6 @@ const resolveNotFound = async () => {
     // `content` is a computed over the (empty) query result → already
     // undefined; just stop loading so the 404 branch shows.
     if (props.slug === slug && !contentArr.value.length) {
-        swapHold.value = undefined;
         isLoading.value = false;
     }
 };
@@ -711,79 +695,9 @@ const quickLanguageSwitch = (languageId: string) => {
 const { copyrightText: globalCopyright } = useGlobalCopyright();
 const shareCopyright = computed(() => content.value?.copyright || globalCopyright.value);
 
-// Matches Tailwind's `lg`. False during the prerender, so the static HTML carries the mobile layout.
-const isDesktop = useMediaQuery("(min-width: 1024px)");
-
-// On desktop there is room for the player in the page, in the hero's place; elsewhere media is an
-// attachment, offered by a button under the picture that opens the app-wide player.
-const embedVideo = computed(() => isDesktop.value && hasVideoSource(content.value));
-
-// Matches Tailwind's `xl`: room for the chapters beside the content; below it they sit in a strip under the player.
-const isWide = useMediaQuery("(min-width: 1280px)");
-
-// What the embedded player knows, for the chapters and up next under or beside it.
-const videoPlayerRef = ref<{ player: VideoPlayerHandle | null } | null>(null);
-const playerHandle = computed(() => videoPlayerRef.value?.player ?? null);
-const panelChapters = computed(() => playerHandle.value?.state?.chapters ?? []);
-const panelTime = computed(() => playerHandle.value?.state?.currentTime ?? 0);
-const panelTag = ref<Uuid | null>(null);
-/** The column's "Show all" is open: it may be taller than the window, so it scrolls with the page. */
-const panelExpanded = ref(false);
-const upNext = useUpNext(
-    computed(() => (embedVideo.value ? content.value : undefined)),
-    panelTag,
-);
-/** Whether there is anything for the panel to say; without it the page keeps its own layout. */
-const hasPanel = computed(
-    () =>
-        embedVideo.value &&
-        (panelChapters.value.length > 0 ||
-            upNext.value.next.length > 0 ||
-            upNext.value.related.length > 0 ||
-            !!panelTag.value),
-);
-function panelCueAt(time: number) {
-    const handle = playerHandle.value;
-    return handle?.state?.thumbnailsReady ? (handle.controller?.thumbnailAt(time) ?? null) : null;
-}
-function playChapter(chapter: Chapter) {
-    playerHandle.value?.seek(chapter.startTime);
-    void playerHandle.value?.play();
-}
-function openUpNext(next: ContentDto) {
-    if (next.slug) void router.push({ name: "content", params: { slug: next.slug } });
-}
-
-// The video that follows, offered by the embedded player near the end of full-screen. Picking it swaps
-// the player to it in place and moves the page to it behind.
-// Not queried on mobile, where media plays in the app-wide player, nor in the prerender.
-const { nextContents, nextUp } = isPrerender()
-    ? { nextContents: computed(() => []), nextUp: computed(() => []) }
-    : useNextUp(upNext);
-// The slug the player swapped to: that video starts on its own, and no other does.
-const swappedToSlug = ref<string | null>(null);
-const autoplaySwapped = computed(() => swappedToSlug.value === props.slug);
-watch(
-    () => props.slug,
-    (slug) => {
-        if (slug !== swappedToSlug.value) swappedToSlug.value = null;
-    },
-);
-
-function onNextUpSelect(id: string) {
-    const target = nextContents.value.find((doc) => doc._id === id);
-    if (!target) return;
-    swapHold.value = content.value;
-    swappedToSlug.value = target.slug;
-    const location = { name: "content", params: { slug: target.slug } };
-    markContentSwap(router.resolve(location).fullPath);
-    void router.push(location);
-}
-
-// Whether the hero image can carry the title/summary as an overlay. An embedded player has its own
-// controls along the bottom edge, so the title goes above it instead.
+// Whether the hero image can carry the title/summary as an overlay.
 const hasHeroImage = computed(
-    () => !embedVideo.value && !!(content.value?.parentId || content.value?.parentImageData),
+    () => !!(content.value?.parentId || content.value?.parentImageData),
 );
 
 watch([isLoading, content, is404], async () => {
@@ -903,11 +817,7 @@ watch([isLoading, content, is404], async () => {
         >
             <div
                 class="flex flex-grow justify-center lg:grid lg:grid-cols-[1fr_minmax(0,48rem)_1fr] lg:gap-x-8"
-                :class="{
-                    'items-center': showLoadingBar,
-                    // The chapters beside the content: the pair of columns stays centred on the page.
-                    'xl:grid-cols-[1fr_minmax(0,48rem)_22rem_1fr]': hasPanel,
-                }"
+                :class="{ 'items-center': showLoadingBar }"
             >
                 <LoadingBar
                     v-if="showLoadingBar"
@@ -972,21 +882,8 @@ watch([isLoading, content, is404], async () => {
                                 :mobileOnly="true"
                                 :ignoreTop="true"
                             >
-                                <VideoPlayer
-                                    v-if="embedVideo && content"
-                                    ref="videoPlayerRef"
-                                    :content="content"
-                                    :language="selectedLanguageCode"
-                                    :start-audio="startsAsAudio"
-                                    :autoplay="autoplaySwapped"
-                                    :next-up="nextUp"
-                                    windowed-controls
-                                    class="overflow-hidden"
-                                    :class="hasPanel && !isWide ? 'rounded-t-xl' : 'rounded-xl'"
-                                    @nextupselect="onNextUpSelect"
-                                />
                                 <div
-                                    v-else-if="hasHeroImage"
+                                    v-if="hasHeroImage"
                                     class="relative cursor-pointer overflow-hidden lg:rounded-xl"
                                     @click="
                                         () => {
@@ -1048,23 +945,8 @@ watch([isLoading, content, is404], async () => {
                             </IgnorePagePadding>
                         </div>
 
-                        <!-- Under the player when there is no room beside the content: joined to its foot. -->
-                        <ContentChaptersPanel
-                            v-if="hasPanel && !isWide"
-                            attached
-                            :wide="false"
-                            :chapters="panelChapters"
-                            :current-time="panelTime"
-                            :up-next="upNext"
-                            :selected-tag="panelTag"
-                            :cue-at="panelCueAt"
-                            @seek-chapter="playChapter"
-                            @play-next="openUpNext"
-                            @select-tag="panelTag = $event"
-                        />
-
                         <MediaAction
-                            v-if="hasVideoSource(content) && !embedVideo"
+                            v-if="hasVideoSource(content)"
                             :key="content._id"
                             :content="content"
                             :language="selectedLanguageCode"
@@ -1206,25 +1088,6 @@ watch([isLoading, content, is404], async () => {
                             {{ content.copyright }}
                         </div>
                     </article>
-
-                    <!-- Beside the content on a wide screen; it stays in view while the text is read. -->
-                    <aside
-                        v-if="hasPanel && isWide"
-                        class="col-start-3 mt-11 self-start"
-                        :class="{ 'xl:sticky xl:top-20': !panelExpanded }"
-                    >
-                        <ContentChaptersPanel
-                            v-model:expanded="panelExpanded"
-                            :wide="true"
-                            :chapters="panelChapters"
-                            :current-time="panelTime"
-                            :up-next="upNext"
-                            :selected-tag="panelTag"
-                            @seek-chapter="playChapter"
-                            @play-next="openUpNext"
-                            @select-tag="panelTag = $event"
-                        />
-                    </aside>
 
                     <!-- Right gutter: kept empty, mirrors the left one so the article stays centred. -->
                     <div class="hidden lg:block" />

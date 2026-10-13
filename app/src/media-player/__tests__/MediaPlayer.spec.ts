@@ -220,6 +220,22 @@ async function playing() {
     return mountPlayer();
 }
 
+/** A wide screen for the length of `run`: the media query for 1024 px and up matches. */
+async function wide(run: () => Promise<void>) {
+    const original = window.matchMedia;
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+        matches: query.includes("1024px"),
+        media: query,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+    })) as unknown as typeof window.matchMedia;
+    try {
+        await run();
+    } finally {
+        window.matchMedia = original;
+    }
+}
+
 const find = (wrapper: VueWrapper, test: string) => wrapper.find(`[data-test='${test}']`);
 
 beforeEach(() => {
@@ -711,26 +727,22 @@ describe("MediaPlayer", () => {
             expect(engine.handle.enterFullscreen).toHaveBeenCalled();
         });
 
-        it("leaves the desktop's windowed player as it was in the sound alone, with only the full screen new", async () => {
-            const original = window.matchMedia;
-            window.matchMedia = vi.fn().mockImplementation((query: string) => ({
-                matches: query.includes("1024px"),
-                media: query,
-                addEventListener: vi.fn(),
-                removeEventListener: vi.fn(),
-            })) as unknown as typeof window.matchMedia;
-            try {
+        it("gives the sound alone the same cover, glow and sleep timer on a wide screen as on a phone", async () => {
+            await wide(async () => {
+                isDarkTheme.value = true;
                 const wrapper = await playing();
                 await find(wrapper, "mediaPlayerAudio").trigger("click");
                 await flushPromises();
 
-                expect(wrapper.find("[data-test='mediaPlayerArtwork']").exists()).toBe(false);
-                expect(wrapper.find("[data-test='mediaPlayerWash']").exists()).toBe(false);
-                expect(wrapper.find("[data-test='mediaPlayerSleep']").exists()).toBe(false);
+                expect(find(wrapper, "mediaPlayerArtwork").exists()).toBe(true);
+                expect(find(wrapper, "mediaPlayerGlow").exists()).toBe(true);
+                expect(find(wrapper, "mediaPlayerSleep").exists()).toBe(true);
                 expect(find(wrapper, "mediaPlayerFullscreen").exists()).toBe(true);
-            } finally {
-                window.matchMedia = original;
-            }
+
+                isDarkTheme.value = false;
+                await flushPromises();
+                expect(find(wrapper, "mediaPlayerWash").exists()).toBe(true);
+            });
         });
 
         it("keeps the skip buttons, the bar and the speed out of sight until the duration is known", async () => {
@@ -1255,8 +1267,11 @@ describe("MediaPlayer", () => {
             expect(find(wrapper, "mediaPlayerSheetTab-chapters").attributes("aria-selected")).toBe(
                 "true",
             );
-            // The bar at the foot gives way to them while the sheet is open.
-            expect(wrapper.find("[data-test='mediaPlayerTab-chapters']").exists()).toBe(false);
+            // The bar at the foot keeps its room but is out of sight while the sheet is open, so the player does not
+            // change height as the sheet comes and goes.
+            const foot = wrapper.find("[role='tablist'].sticky");
+            expect(foot.classes()).toContain("invisible");
+            expect(foot.attributes("aria-hidden")).toBe("true");
 
             await find(wrapper, "mediaPlayerSheetTab-upnext").trigger("click");
             expect(find(wrapper, "mediaPlayerSheetTab-upnext").attributes("aria-selected")).toBe(
@@ -1719,6 +1734,116 @@ describe("MediaPlayer", () => {
                 name: "content",
                 params: { slug: "the-slug" },
             });
+        });
+    });
+
+    describe("the header of the player", () => {
+        it("leaves a press on a button to the button, so its click is not sent to the header", async () => {
+            const wrapper = await playing();
+            const handle = find(wrapper, "mediaPlayerHandle");
+            const capture = vi.fn();
+            (handle.element as HTMLElement).setPointerCapture = capture;
+
+            await find(wrapper, "mediaPlayerAudio").trigger("pointerdown", { pointerId: 1 });
+            expect(capture).not.toHaveBeenCalled();
+
+            await handle.trigger("pointerdown", { pointerId: 1 });
+            expect(capture).toHaveBeenCalledTimes(1);
+        });
+
+        it("closes an open sheet on Escape before it minimises the player, and from its own close button", async () => {
+            const wrapper = await playing();
+            engine.state.chapters = [{ startTime: 0, endTime: 120, title: "One" }];
+            await flushPromises();
+            await find(wrapper, "mediaPlayerTab-chapters").trigger("click");
+            await flushPromises();
+            expect(find(wrapper, "mediaPlayerSheet").exists()).toBe(true);
+
+            await find(wrapper, "mediaPlayer").trigger("keydown", { key: "Escape" });
+            await new Promise((resolve) => setTimeout(resolve, 400));
+            await flushPromises();
+            expect(wrapper.find("[data-test='mediaPlayerSheet']").exists()).toBe(false);
+            expect(mediaPlayerView.value).toBe("expanded");
+
+            await find(wrapper, "mediaPlayerTab-chapters").trigger("click");
+            await flushPromises();
+            await find(wrapper, "mediaPlayerSheetCloseButton").trigger("click");
+            await new Promise((resolve) => setTimeout(resolve, 400));
+            await flushPromises();
+            expect(wrapper.find("[data-test='mediaPlayerSheet']").exists()).toBe(false);
+
+            await find(wrapper, "mediaPlayer").trigger("keydown", { key: "Escape" });
+            expect(mediaPlayerView.value).toBe("mini");
+        });
+    });
+
+    describe("minimised on a wide screen", () => {
+        it("keeps only the picture of a video, with no bar, and its controls only for the pointer", async () => {
+            await wide(async () => {
+                const wrapper = await playing();
+                await find(wrapper, "mediaPlayerMinimise").trigger("click");
+                await flushPromises();
+
+                expect(find(wrapper, "mediaPlayerMiniVideo").exists()).toBe(true);
+                expect(wrapper.find("[data-test='mediaPlayerBar']").exists()).toBe(false);
+                expect(find(wrapper, "mediaPlayerMiniVideo").html()).toContain("group-hover:opacity-100");
+                expect(wrapper.find("[data-test='mediaPlayer']").attributes("aria-hidden")).toBe("false");
+            });
+        });
+
+        it("pauses, skips and seeks from the small video, and expands or closes it", async () => {
+            await wide(async () => {
+                const wrapper = await playing();
+                await find(wrapper, "mediaPlayerMinimise").trigger("click");
+                await flushPromises();
+
+                await find(wrapper, "mediaPlayerMiniPlay").trigger("click");
+                expect(engine.handle.pause).toHaveBeenCalled();
+                await find(wrapper, "mediaPlayerMiniForward").trigger("click");
+                expect(engine.handle.seek).toHaveBeenLastCalledWith(40);
+                await find(wrapper, "mediaPlayerMiniBack").trigger("click");
+                expect(engine.handle.seek).toHaveBeenLastCalledWith(20);
+
+                await find(wrapper, "mediaPlayerMiniClose").trigger("click");
+                await flushPromises();
+                expect(mediaPlayerItem.value).toBeNull();
+            });
+        });
+
+        it("expands from the expand button and from the picture", async () => {
+            await wide(async () => {
+                const wrapper = await playing();
+                await find(wrapper, "mediaPlayerMinimise").trigger("click");
+                await flushPromises();
+                await find(wrapper, "mediaPlayerMiniExpand").trigger("click");
+                expect(mediaPlayerView.value).toBe("expanded");
+
+                await find(wrapper, "mediaPlayerMinimise").trigger("click");
+                await flushPromises();
+                await find(wrapper, "mediaPlayerMiniVideo").trigger("click");
+                expect(mediaPlayerView.value).toBe("expanded");
+            });
+        });
+
+        it("keeps today's bar for sound alone", async () => {
+            await wide(async () => {
+                const wrapper = await playing();
+                await find(wrapper, "mediaPlayerAudio").trigger("click");
+                await flushPromises();
+                await find(wrapper, "mediaPlayerMinimise").trigger("click");
+                await flushPromises();
+
+                expect(find(wrapper, "mediaPlayerBar").exists()).toBe(true);
+                expect(wrapper.find("[data-test='mediaPlayerMiniVideo']").exists()).toBe(false);
+            });
+        });
+
+        it("keeps the bar on a phone, for video too", async () => {
+            const wrapper = await playing();
+            await find(wrapper, "mediaPlayerMinimise").trigger("click");
+            await flushPromises();
+            expect(find(wrapper, "mediaPlayerBar").exists()).toBe(true);
+            expect(wrapper.find("[data-test='mediaPlayerMiniVideo']").exists()).toBe(false);
         });
     });
 
