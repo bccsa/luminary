@@ -252,7 +252,7 @@ describe("MediaPlayer", () => {
             expect(find(wrapper, "mediaPlayerAudio").attributes("aria-pressed")).toBe("true");
         });
 
-        it("shows the cover in the sound alone at most 236px and two thirds wide, with a glow behind it", async () => {
+        it("shows the cover in the sound alone at most 236px, two thirds wide and a quarter of the height, with a glow behind it", async () => {
             const wrapper = await playing();
             expect(wrapper.find("[data-test='mediaPlayerArtwork']").exists()).toBe(false);
 
@@ -260,7 +260,7 @@ describe("MediaPlayer", () => {
             await flushPromises();
 
             const artwork = find(wrapper, "mediaPlayerArtwork");
-            expect(artwork.find("div").attributes("style")).toContain("min(66%, 236px)");
+            expect(artwork.find("div").attributes("style")).toContain("min(66%, 236px, 26svh)");
             expect(find(wrapper, "mediaPlayerGlow").classes()).toContain("blur-2xl");
             expect(find(wrapper, "mediaPlayerGlow").attributes("aria-hidden")).toBe("true");
         });
