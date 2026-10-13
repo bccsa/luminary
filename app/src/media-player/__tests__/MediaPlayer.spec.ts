@@ -28,6 +28,7 @@ const engine = vi.hoisted(() => ({
     inlineActive: false,
     canMute: false,
     airPlayAvailable: false,
+    castAvailable: false,
     airPlayActive: false,
     thumbnailsReady: false,
 }));
@@ -68,6 +69,7 @@ vi.mock("@luminary-media-converter/player-web", async () => {
                 title: String,
                 artwork: Object,
                 playing: Boolean,
+                live: Boolean,
                 currentTime: Number,
                 hasBrowse: Boolean,
                 chaptersSheet: Boolean,
@@ -77,6 +79,7 @@ vi.mock("@luminary-media-converter/player-web", async () => {
                 h("div", { "data-test": "audioFullscreenStub" }, [
                     props.title,
                     slots.sheet?.({ close: () => {} }),
+                    slots.cast?.(),
                 ]),
         }),
         rosterStep: () => 4,
@@ -195,6 +198,10 @@ vi.mock("@/components/content/VideoPlayer.vue", async () => {
                     get airPlayAvailable() {
                         return engine.airPlayAvailable;
                     },
+                    get castAvailable() {
+                        return engine.castAvailable;
+                    },
+                    showCastPicker: vi.fn(),
                     get airPlayActive() {
                         return engine.airPlayActive;
                     },
@@ -1041,6 +1048,29 @@ describe("MediaPlayer", () => {
                 delete (document as { fullscreenElement?: unknown }).fullscreenElement;
                 delete (document as { exitFullscreen?: unknown }).exitFullscreen;
             }
+        });
+
+        it("offers casting on the full-screen sound screen when the browser's player finds a device, and opens its list", async () => {
+            engine.castAvailable = true;
+            const wrapper = await playing();
+            await find(wrapper, "mediaPlayerAudio").trigger("click");
+            await flushPromises();
+            await find(wrapper, "mediaPlayerFullscreen").trigger("click");
+            await flushPromises();
+
+            await find(wrapper, "mediaPlayerAudioFullscreenCast").trigger("click");
+            expect(engine.handle.showCastPicker).toHaveBeenCalledTimes(1);
+            engine.castAvailable = false;
+        });
+
+        it("tells the full-screen sound screen when the stream is live", async () => {
+            const wrapper = await playing();
+            await find(wrapper, "mediaPlayerAudio").trigger("click");
+            await flushPromises();
+            engine.state.duration = Infinity;
+            await find(wrapper, "mediaPlayerFullscreen").trigger("click");
+            await flushPromises();
+            expect(wrapper.findComponent({ name: "AudioFullscreen" }).props("live")).toBe(true);
         });
 
         it("leaves the full-screen sound screen when the picture is shown again", async () => {

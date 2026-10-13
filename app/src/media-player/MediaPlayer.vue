@@ -1672,6 +1672,7 @@ function onKeydown(event: KeyboardEvent) {
                 :duration="duration"
                 :buffered-end="state.bufferedEnd"
                 :playing="playing"
+                :live="live"
                 :chapter-index="screenChapterIndex"
                 :playback-rate="state.playbackRate"
                 :audio-tracks="screenTracks"
@@ -1700,12 +1701,12 @@ function onKeydown(event: KeyboardEvent) {
             >
                 <template #cast>
                     <button
-                        v-if="handle?.airPlayAvailable"
+                        v-if="handle?.airPlayAvailable || handle?.castAvailable"
                         type="button"
                         class="lmpl-afs-iconbtn"
                         :aria-label="t(isMac ? 'media_player.airplay' : 'media_player.cast')"
                         data-test="mediaPlayerAudioFullscreenCast"
-                        @click="handle?.showAirPlayPicker?.()"
+                        @click="handle?.airPlayAvailable ? handle.showAirPlayPicker?.() : handle?.showCastPicker?.()"
                     >
                         <V10Icon
                             :name="isMac ? 'airplay' : 'cast'"

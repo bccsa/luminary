@@ -61,6 +61,10 @@ export type VideoPlayerHandle = {
     readonly airPlayAvailable?: boolean;
     /** Playback is going to an AirPlay device. */
     readonly airPlayActive?: boolean;
+    /** A Chromecast or AirPlay device is around, found by the browser's player; the page draws its control only then. */
+    readonly castAvailable?: boolean;
+    /** Opens the browser player's device list (Chromecast or AirPlay). */
+    showCastPicker?(): void;
     setMuted?(muted: boolean): void;
     startPictureInPicture?(): void;
     /** Opens the system's AirPlay device list. */
