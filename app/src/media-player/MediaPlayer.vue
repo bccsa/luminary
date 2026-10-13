@@ -869,26 +869,30 @@ function onKeydown(event: KeyboardEvent) {
                 >
                     <div class="relative" style="width: min(66%, 236px)">
                         <!-- The glow: the cover again, blurred and saturated, only behind the picture. -->
-                        <LImage
-                            :image="content.parentImageData"
-                            :content-parent-id="content.parentId"
-                            :parent-image-bucket-id="content.parentImageBucketId"
-                            aspectRatio="square"
-                            size="thumbnail"
-                            :rounded="false"
-                            class="pointer-events-none absolute left-1/2 top-1/2 w-[120%] max-w-none -translate-x-1/2 -translate-y-1/2 opacity-60 blur-2xl saturate-150"
+                        <div
+                            class="pointer-events-none absolute -inset-[10%] opacity-60 blur-2xl saturate-150"
                             aria-hidden="true"
                             data-test="mediaPlayerGlow"
-                        />
-                        <LImage
-                            :image="content.parentImageData"
-                            :content-parent-id="content.parentId"
-                            :parent-image-bucket-id="content.parentImageBucketId"
-                            aspectRatio="square"
-                            size="thumbnail"
-                            rounded
-                            class="relative w-full shadow-xl"
-                        />
+                        >
+                            <LImage
+                                :image="content.parentImageData"
+                                :content-parent-id="content.parentId"
+                                :parent-image-bucket-id="content.parentImageBucketId"
+                                aspectRatio="square"
+                                size="post"
+                                :rounded="false"
+                            />
+                        </div>
+                        <div class="relative overflow-hidden rounded-xl shadow-xl">
+                            <LImage
+                                :image="content.parentImageData"
+                                :content-parent-id="content.parentId"
+                                :parent-image-bucket-id="content.parentImageBucketId"
+                                aspectRatio="square"
+                                size="post"
+                                :rounded="false"
+                            />
+                        </div>
                     </div>
                 </div>
             </div>
