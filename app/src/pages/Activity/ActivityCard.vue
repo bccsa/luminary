@@ -71,7 +71,7 @@ const onClick = (event: MouseEvent) => {
                     <!-- The palette is half-transparent, meant to sit over article text, so the
                          passage keeps body-text colour rather than the summary's grey. -->
                     <mark
-                        class="bg-transparent box-decoration-clone px-1.5 py-1 text-zinc-800 dark:text-slate-100"
+                        class="bg-transparent box-decoration-clone px-1.5 py-1 pr-3.5 text-zinc-800 dark:text-slate-100"
                         :style="
                             excerptColor ? { backgroundColor: HIGHLIGHT_COLORS[excerptColor] } : {}
                         "
