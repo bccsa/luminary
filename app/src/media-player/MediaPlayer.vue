@@ -494,7 +494,9 @@ const pinnedAt = ref(0);
 
 /** The fast way through the video: the frames follow the dot along the bar, several seconds to a frame. */
 const heldRoster = computed(() => {
+    // Sound alone has no picture to show frames of.
     if (!(fingerDown.value || rosterPinned.value) || !state.value?.thumbnailsReady) return null;
+    if (audioMode.value) return null;
     const time = fingerDown.value ? shownTime.value : pinnedAt.value;
     const barWidth = pictureWidth.value - 2 * SEEK_PADDING_PX - 2 * SEEK_THUMB_INSET_PX;
     const markerX = SEEK_PADDING_PX + SEEK_THUMB_INSET_PX + barWidth * fraction(time);
@@ -531,7 +533,7 @@ watch(rosterPinned, (pinned) => {
 });
 onBeforeUnmount(() => document.removeEventListener("pointerdown", onPressOutsideRoster, true));
 // Another video, or no picture to show frames over, leaves nothing to keep.
-watch([() => item.value?.content._id, expanded], () => (rosterPinned.value = false));
+watch([() => item.value?.content._id, expanded, audioMode], () => (rosterPinned.value = false));
 /**
  * What is loaded shows once it reaches past what has played by a visible amount (about 2 px of the
  * bar): a smaller stretch would only be a hairline at the corner of the yellow.

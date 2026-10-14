@@ -543,6 +543,36 @@ describe("MediaPlayer", () => {
                 expect(engine.controller.thumbnailAt).toHaveBeenCalledWith(90);
             });
 
+            it("shows no frames while the sound alone plays, only the time", async () => {
+                engine.thumbnailsReady = true;
+                const wrapper = await playing();
+                await engine.controller.setAngle("__audio__");
+                await flushPromises();
+                expect(find(wrapper, "mediaPlayerArtwork").exists()).toBe(true);
+
+                const bar = find(wrapper, "mediaPlayerSeek");
+                (bar.element as HTMLInputElement).value = "90";
+                await bar.trigger("input");
+
+                expect(wrapper.find("[data-test='mediaPlayerRoster']").exists()).toBe(false);
+                expect(find(wrapper, "mediaPlayerScrubTime").text()).toBe("1:30");
+            });
+
+            it("takes pinned frames away when the sound alone is chosen", async () => {
+                engine.thumbnailsReady = true;
+                const wrapper = await playing();
+                const bar = find(wrapper, "mediaPlayerSeek");
+                (bar.element as HTMLInputElement).value = "90";
+                await bar.trigger("input");
+                await bar.trigger("change");
+                expect(wrapper.find("[data-test='mediaPlayerRoster']").exists()).toBe(true);
+
+                await engine.controller.setAngle("__audio__");
+                await flushPromises();
+
+                expect(wrapper.find("[data-test='mediaPlayerRoster']").exists()).toBe(false);
+            });
+
             it("takes the frames away when the touch is taken from the bar", async () => {
                 engine.thumbnailsReady = true;
                 const wrapper = await playing();
