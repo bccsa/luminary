@@ -474,6 +474,7 @@ function buildRoster(time: number, markerX: number, step: number) {
             // A different step makes the same index a different slot, so the step is part of the identity.
             key: `${step}:${tile.index}`,
             left: tile.left,
+            time: tile.time,
             cue: instance.thumbnailAt(tile.time),
         }),
     );
@@ -483,12 +484,21 @@ function buildRoster(time: number, markerX: number, step: number) {
 /** The finger is on the bar. (`scrubTime` outlives it until playback arrives, so it cannot say.) */
 const fingerDown = ref(false);
 
+/**
+ * The frames stay up after the finger lifts, as in full-screen, until a press lands outside the bar and
+ * the frames.
+ */
+const rosterPinned = ref(false);
+/** Where the pinned frames are centred: they stay put while playback moves on, so they do not jitter. */
+const pinnedAt = ref(0);
+
 /** The fast way through the video: the frames follow the dot along the bar, several seconds to a frame. */
 const heldRoster = computed(() => {
-    if (!fingerDown.value || scrubTime.value === null || !state.value?.thumbnailsReady) return null;
+    if (!(fingerDown.value || rosterPinned.value) || !state.value?.thumbnailsReady) return null;
+    const time = fingerDown.value ? shownTime.value : pinnedAt.value;
     const barWidth = pictureWidth.value - 2 * SEEK_PADDING_PX - 2 * SEEK_THUMB_INSET_PX;
-    const markerX = SEEK_PADDING_PX + SEEK_THUMB_INSET_PX + barWidth * progress.value;
-    return buildRoster(scrubTime.value, markerX, rosterStep(duration.value));
+    const markerX = SEEK_PADDING_PX + SEEK_THUMB_INSET_PX + barWidth * fraction(time);
+    return buildRoster(time, markerX, rosterStep(duration.value));
 });
 
 /**
@@ -499,13 +509,29 @@ const heldRoster = computed(() => {
 let rosterOpened = false;
 /** Looking for a moment in the frames is not watching: the video waits, and plays on from where it is let go. */
 watch(
-    () => heldRoster.value !== null,
-    (shown) => {
-        if (!shown) return;
+    () => fingerDown.value && heldRoster.value !== null,
+    (holding) => {
+        if (!holding) return;
         rosterOpened = true;
         if (playing.value) handle.value?.pause();
     },
 );
+
+const seekArea = ref<HTMLElement | null>(null);
+const rosterEl = ref<HTMLElement | null>(null);
+/** A press anywhere but the bar or the frames puts the pinned frames away. */
+function onPressOutsideRoster(event: Event) {
+    const target = event.target as Node | null;
+    if (target && (seekArea.value?.contains(target) || rosterEl.value?.contains(target))) return;
+    rosterPinned.value = false;
+}
+watch(rosterPinned, (pinned) => {
+    if (pinned) document.addEventListener("pointerdown", onPressOutsideRoster, true);
+    else document.removeEventListener("pointerdown", onPressOutsideRoster, true);
+});
+onBeforeUnmount(() => document.removeEventListener("pointerdown", onPressOutsideRoster, true));
+// Another video, or no picture to show frames over, leaves nothing to keep.
+watch([() => item.value?.content._id, expanded], () => (rosterPinned.value = false));
 /**
  * What is loaded shows once it reaches past what has played by a visible amount (about 2 px of the
  * bar): a smaller stretch would only be a hairline at the corner of the yellow.
@@ -556,17 +582,36 @@ function skip(seconds: number) {
     handle.value?.seek(target);
 }
 
+/** Held until playback arrives (or a while has passed), so the dot does not fall back meanwhile. */
+function holdScrubAt(target: number) {
+    scrubTime.value = target;
+    released = true;
+    clearTimeout(scrubTimer);
+    scrubTimer = setTimeout(endScrub, SCRUB_HOLD_MS);
+}
+
 function seekTo(event: Event) {
     const target = Number((event.target as HTMLInputElement).value);
     handle.value?.seek(target);
     if (rosterOpened) void handle.value?.play();
     fingerDown.value = false;
+    rosterPinned.value = rosterOpened;
+    pinnedAt.value = target;
     rosterOpened = false;
-    // Held until playback arrives (or a while has passed), so the dot does not fall back meanwhile.
-    scrubTime.value = target;
-    released = true;
-    clearTimeout(scrubTimer);
-    scrubTimer = setTimeout(endScrub, SCRUB_HOLD_MS);
+    holdScrubAt(target);
+}
+
+/** A tap on a frame goes to the moment it shows. */
+function seekToFrame(event: MouseEvent) {
+    const roster = heldRoster.value;
+    const box = rosterEl.value?.getBoundingClientRect();
+    if (!roster || !box) return;
+    const x = event.clientX - box.left;
+    const tile = roster.tiles.find((t) => x >= t.left && x < t.left + roster.tileWidth);
+    if (!tile) return;
+    handle.value?.seek(tile.time);
+    pinnedAt.value = tile.time;
+    holdScrubAt(tile.time);
 }
 
 const openMenu = ref<"speed" | "language" | "subtitles" | "sleep" | null>(null);
@@ -1067,9 +1112,12 @@ function onKeydown(event: KeyboardEvent) {
                      full-screen; the picture is as wide as the bar's row, so one marker position serves both. -->
                 <div
                     v-if="heldRoster"
-                    class="pointer-events-none absolute inset-x-0 bottom-0 z-10"
+                    ref="rosterEl"
+                    class="absolute inset-x-0 bottom-0 z-10"
+                    :class="rosterPinned ? 'pointer-events-auto' : 'pointer-events-none'"
                     :style="{ height: `${rosterHeight}px` }"
                     data-test="mediaPlayerRoster"
+                    @click="rosterPinned && seekToFrame($event)"
                 >
                     <ScrubRoster
                         :tiles="heldRoster.tiles"

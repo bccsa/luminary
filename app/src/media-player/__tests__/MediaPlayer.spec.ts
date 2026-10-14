@@ -39,6 +39,7 @@ vi.mock("@luminary-media-converter/player-web", async () => {
         AUDIO_ONLY_ANGLE_ID: "__audio__",
         // The strip itself is the player's; what matters here is when the media player shows it.
         ScrubRoster: defineComponent({
+            name: "ScrubRoster",
             props: { tiles: Array, markerX: Number, interactive: Boolean, closeLabel: String },
             emits: ["close"],
             setup:
@@ -569,7 +570,7 @@ describe("MediaPlayer", () => {
                     expect(engine.handle.pause).toHaveBeenCalled();
                 });
 
-                it("seeks, plays on from there and puts the frames away when the finger lifts", async () => {
+                it("seeks and plays on from there when the finger lifts, and keeps the frames up", async () => {
                     const { wrapper, bar } = await heldAt90();
                     engine.state.playing = false;
                     await flushPromises();
@@ -577,7 +578,53 @@ describe("MediaPlayer", () => {
 
                     expect(engine.handle.seek).toHaveBeenCalledWith(90);
                     expect(engine.handle.play).toHaveBeenCalled();
+                    expect(wrapper.find("[data-test='mediaPlayerRoster']").exists()).toBe(true);
+                });
+
+                it("puts the frames away on a press outside the bar and the frames", async () => {
+                    const { wrapper, bar } = await heldAt90();
+                    await bar.trigger("change");
+
+                    document.body.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+                    await flushPromises();
+
                     expect(wrapper.find("[data-test='mediaPlayerRoster']").exists()).toBe(false);
+                });
+
+                it("keeps the frames on a press on the bar or on the frames", async () => {
+                    const { wrapper, bar } = await heldAt90();
+                    await bar.trigger("change");
+
+                    await bar.trigger("pointerdown");
+                    await wrapper.find("[data-test='mediaPlayerRoster']").trigger("pointerdown");
+
+                    expect(wrapper.find("[data-test='mediaPlayerRoster']").exists()).toBe(true);
+                });
+
+                it("goes to the moment a tapped frame shows", async () => {
+                    const { wrapper, bar } = await heldAt90();
+                    await bar.trigger("change");
+                    engine.handle.seek.mockClear();
+                    const roster = wrapper.find("[data-test='mediaPlayerRoster']");
+                    const tiles = wrapper.findComponent({ name: "ScrubRoster" }).props("tiles") as {
+                        left: number;
+                        time: number;
+                    }[];
+                    const tile = tiles[0]!;
+                    vi.spyOn(roster.element, "getBoundingClientRect").mockReturnValue({
+                        left: 0,
+                        top: 0,
+                        width: 390,
+                        height: 60,
+                        right: 390,
+                        bottom: 60,
+                        x: 0,
+                        y: 0,
+                        toJSON: () => ({}),
+                    });
+                    await roster.trigger("click", { clientX: tile.left + 1 });
+
+                    expect(engine.handle.seek).toHaveBeenCalledWith(tile.time);
                 });
 
                 it("plays on when the browser cancels the pointer before reporting the change", async () => {
