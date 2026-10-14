@@ -662,6 +662,37 @@ function onRosterMove(event: PointerEvent) {
         moved: drag.moved || Math.abs(event.clientX - drag.startX) > TAP_SLOP_PX,
     };
 }
+/**
+ * A sideways drag on the picture itself opens the frames and scrolls them, the slow way through the video,
+ * so the bar is not the only way in. A press that stays put, or goes up and down, is not one.
+ */
+let pictureGesture: { x: number; y: number } | null = null;
+function onPictureDown(event: PointerEvent) {
+    pictureGesture = null;
+    if (audioMode.value || !state.value?.thumbnailsReady || !(duration.value > 0) || live.value) return;
+    if ((event.target as Element | null)?.closest?.("button, a, input, select, textarea")) return;
+    pictureGesture = { x: event.clientX, y: event.clientY };
+}
+function onPictureMove(event: PointerEvent) {
+    if (rosterDrag.value) return onRosterMove(event);
+    const start = pictureGesture;
+    if (!start) return;
+    const dx = event.clientX - start.x;
+    if (Math.abs(dx) <= TAP_SLOP_PX || Math.abs(dx) <= Math.abs(event.clientY - start.y)) return;
+    pictureGesture = null;
+    (event.currentTarget as Element | null)?.setPointerCapture?.(event.pointerId);
+    measurePicture();
+    pauseForScrub();
+    rosterOpened = true;
+    pinnedAt.value = shownTime.value;
+    rosterPinned.value = true;
+    rosterDrag.value = { startX: event.clientX, lastX: event.clientX, time: pinnedAt.value, moved: true };
+}
+function onPictureUp(event: PointerEvent) {
+    pictureGesture = null;
+    if (rosterDrag.value) onRosterUp(event);
+}
+
 function onRosterUp(event: PointerEvent) {
     const drag = rosterDrag.value;
     const roster = heldRoster.value;
@@ -1036,12 +1067,16 @@ function onKeydown(event: KeyboardEvent) {
 
             <div
                 ref="pictureEl"
-                class="relative w-full flex-none"
+                class="relative w-full flex-none touch-pan-y"
                 :class="
                     audioMode
                         ? 'overflow-hidden py-4 lg:aspect-video lg:py-0'
                         : ['aspect-video', inlineHole ? 'bg-transparent' : 'bg-black']
                 "
+                @pointerdown="onPictureDown"
+                @pointermove="onPictureMove"
+                @pointerup="onPictureUp"
+                @pointercancel="onPictureUp"
             >
                 <div
                     v-show="!audioMode"

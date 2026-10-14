@@ -675,6 +675,37 @@ describe("MediaPlayer", () => {
                     expect(engine.handle.seek.mock.calls[0]![0]).toBeGreaterThan(90);
                 });
 
+                describe("dragging the picture", () => {
+                    const picture = (wrapper: Awaited<ReturnType<typeof playing>>) =>
+                        wrapper.find(".aspect-video");
+                    const at = (x: number, y = 100) => ({ clientX: x, clientY: y, pointerId: 1 });
+
+                    it("opens the frames on a sideways drag and goes where it ends", async () => {
+                        engine.thumbnailsReady = true;
+                        const wrapper = await playing();
+                        const area = picture(wrapper);
+                        await area.trigger("pointerdown", at(200));
+                        await area.trigger("pointermove", at(150));
+                        await area.trigger("pointermove", at(100));
+                        await area.trigger("pointerup", at(100));
+
+                        expect(wrapper.find("[data-test='mediaPlayerRoster']").exists()).toBe(true);
+                        expect(engine.handle.seek).toHaveBeenCalledTimes(1);
+                    });
+
+                    it("leaves a tap or an up-and-down drag alone", async () => {
+                        engine.thumbnailsReady = true;
+                        const wrapper = await playing();
+                        const area = picture(wrapper);
+                        await area.trigger("pointerdown", at(200, 100));
+                        await area.trigger("pointermove", at(205, 160));
+                        await area.trigger("pointerup", at(205, 160));
+
+                        expect(wrapper.find("[data-test='mediaPlayerRoster']").exists()).toBe(false);
+                        expect(engine.handle.seek).not.toHaveBeenCalled();
+                    });
+                });
+
                 it("stays paused after letting go when it was paused", async () => {
                     engine.thumbnailsReady = true;
                     const wrapper = await playing();
