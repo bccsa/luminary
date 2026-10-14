@@ -630,16 +630,12 @@ describe("MediaPlayer", () => {
                     expect(wrapper.find("[data-test='mediaPlayerRoster']").exists()).toBe(true);
                 });
 
-                it("goes to the moment a tapped frame shows", async () => {
+                async function pinnedRoster() {
                     const { wrapper, bar } = await heldAt90();
                     await bar.trigger("change");
                     engine.handle.seek.mockClear();
+                    engine.handle.play.mockClear();
                     const roster = wrapper.find("[data-test='mediaPlayerRoster']");
-                    const tiles = wrapper.findComponent({ name: "ScrubRoster" }).props("tiles") as {
-                        left: number;
-                        time: number;
-                    }[];
-                    const tile = tiles[0]!;
                     vi.spyOn(roster.element, "getBoundingClientRect").mockReturnValue({
                         left: 0,
                         top: 0,
@@ -651,9 +647,46 @@ describe("MediaPlayer", () => {
                         y: 0,
                         toJSON: () => ({}),
                     });
-                    await roster.trigger("click", { clientX: tile.left + 1 });
+                    return { wrapper, roster };
+                }
+                const press = (x: number) => ({ clientX: x, pointerId: 1 });
 
-                    expect(engine.handle.seek).toHaveBeenCalledWith(tile.time);
+                it("goes to the moment a tapped frame shows", async () => {
+                    const { wrapper, roster } = await pinnedRoster();
+                    const tiles = wrapper.findComponent({ name: "ScrubRoster" }).props("tiles") as {
+                        left: number;
+                        time: number;
+                    }[];
+                    const x = tiles[0]!.left + 1;
+                    await roster.trigger("pointerdown", press(x));
+                    await roster.trigger("pointerup", press(x));
+
+                    expect(engine.handle.seek).toHaveBeenCalledTimes(1);
+                    expect(engine.handle.seek.mock.calls[0]![0]).toBeLessThan(90);
+                });
+
+                it("moves through the video when the frames are dragged, and goes there on letting go", async () => {
+                    const { roster } = await pinnedRoster();
+                    await roster.trigger("pointerdown", press(200));
+                    await roster.trigger("pointermove", press(100));
+                    await roster.trigger("pointerup", press(100));
+
+                    expect(engine.handle.seek).toHaveBeenCalledTimes(1);
+                    expect(engine.handle.seek.mock.calls[0]![0]).toBeGreaterThan(90);
+                });
+
+                it("stays paused after letting go when it was paused", async () => {
+                    engine.thumbnailsReady = true;
+                    const wrapper = await playing();
+                    engine.state.playing = false;
+                    await flushPromises();
+                    const bar = find(wrapper, "mediaPlayerSeek");
+                    (bar.element as HTMLInputElement).value = "90";
+                    await bar.trigger("input");
+                    await bar.trigger("change");
+
+                    expect(engine.handle.seek).toHaveBeenCalledWith(90);
+                    expect(engine.handle.play).not.toHaveBeenCalled();
                 });
 
                 it("plays on when the browser cancels the pointer before reporting the change", async () => {

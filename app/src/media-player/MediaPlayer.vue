@@ -28,6 +28,7 @@ import {
     chapterMask,
     chapterSegments,
     mergeMessages,
+    rosterFineStep,
     rosterStep,
     rosterTiles,
     type Chapter,
@@ -497,12 +498,30 @@ const rosterPinned = ref(false);
 /** Where the pinned frames are centred: they stay put while playback moves on, so they do not jitter. */
 const pinnedAt = ref(0);
 
-/** The fast way through the video: the frames follow the dot along the bar, several seconds to a frame. */
+interface RosterDrag {
+    startX: number;
+    lastX: number;
+    time: number;
+    moved: boolean;
+}
+/** The pinned frames being dragged: the slow, precise way through the video. */
+const rosterDrag = ref<RosterDrag | null>(null);
+/** How far a finger may wander and still be tapping a frame rather than dragging the strip. */
+const TAP_SLOP_PX = 10;
+
+/**
+ * While the bar is held, the fast way through the video: the frames follow the dot along the bar, several
+ * seconds to a frame. Once let go they are centred and finer, to be dragged.
+ */
 const heldRoster = computed(() => {
     // Sound alone has no picture to show frames of.
     if (!(fingerDown.value || rosterPinned.value) || !state.value?.thumbnailsReady) return null;
     if (audioMode.value) return null;
-    const time = fingerDown.value ? shownTime.value : pinnedAt.value;
+    if (!fingerDown.value) {
+        const time = rosterDrag.value?.time ?? pinnedAt.value;
+        return buildRoster(time, pictureWidth.value / 2, rosterFineStep(duration.value));
+    }
+    const time = shownTime.value;
     const barWidth = pictureWidth.value - 2 * SEEK_PADDING_PX - 2 * SEEK_THUMB_INSET_PX;
     const markerX = SEEK_PADDING_PX + SEEK_THUMB_INSET_PX + barWidth * fraction(time);
     return buildRoster(time, markerX, rosterStep(duration.value));
@@ -514,13 +533,25 @@ const heldRoster = computed(() => {
  * by that time the finger is already "up", but the viewer did hold the roster.
  */
 let rosterOpened = false;
+/** Whether the video was playing when the frames took over: it plays on after, a paused one stays paused. */
+let resumeAfterScrub = false;
+function pauseForScrub() {
+    if (resumeAfterScrub || !playing.value) return;
+    resumeAfterScrub = true;
+    handle.value?.pause();
+}
+function resumeFromScrub() {
+    if (!resumeAfterScrub) return;
+    resumeAfterScrub = false;
+    void handle.value?.play();
+}
 /** Looking for a moment in the frames is not watching: the video waits, and plays on from where it is let go. */
 watch(
     () => fingerDown.value && heldRoster.value !== null,
     (holding) => {
         if (!holding) return;
         rosterOpened = true;
-        if (playing.value) handle.value?.pause();
+        pauseForScrub();
     },
 );
 
@@ -531,6 +562,8 @@ function onPressOutsideRoster(event: Event) {
     const target = event.target as Node | null;
     if (target && (seekArea.value?.contains(target) || rosterEl.value?.contains(target))) return;
     rosterPinned.value = false;
+    rosterDrag.value = null;
+    resumeFromScrub();
 }
 watch(rosterPinned, (pinned) => {
     if (pinned) document.addEventListener("pointerdown", onPressOutsideRoster, true);
@@ -600,7 +633,7 @@ function holdScrubAt(target: number) {
 function seekTo(event: Event) {
     const target = Number((event.target as HTMLInputElement).value);
     handle.value?.seek(target);
-    if (rosterOpened) void handle.value?.play();
+    resumeFromScrub();
     fingerDown.value = false;
     // Only a press outside unpins: a second report of the same release (the browser's cancel, then its change) must not.
     if (rosterOpened) rosterPinned.value = true;
@@ -609,17 +642,42 @@ function seekTo(event: Event) {
     holdScrubAt(target);
 }
 
-/** A tap on a frame goes to the moment it shows. */
-function seekToFrame(event: MouseEvent) {
+function onRosterDown(event: PointerEvent) {
     const roster = heldRoster.value;
-    const box = rosterEl.value?.getBoundingClientRect();
-    if (!roster || !box) return;
-    const x = event.clientX - box.left;
-    const tile = roster.tiles.find((t) => x >= t.left && x < t.left + roster.tileWidth);
-    if (!tile) return;
-    handle.value?.seek(tile.time);
-    pinnedAt.value = tile.time;
-    holdScrubAt(tile.time);
+    if (!roster) return;
+    (event.currentTarget as HTMLElement | null)?.setPointerCapture?.(event.pointerId);
+    pauseForScrub();
+    rosterDrag.value = { startX: event.clientX, lastX: event.clientX, time: pinnedAt.value, moved: false };
+}
+function onRosterMove(event: PointerEvent) {
+    const drag = rosterDrag.value;
+    const roster = heldRoster.value;
+    if (!drag || !roster) return;
+    // The strip follows the finger one-to-one, at a scale that does not change during the drag.
+    const time = drag.time - (event.clientX - drag.lastX) / (roster.tileWidth / roster.step);
+    rosterDrag.value = {
+        ...drag,
+        lastX: event.clientX,
+        time: Math.min(Math.max(0, time), Math.max(0, duration.value - 0.001)),
+        moved: drag.moved || Math.abs(event.clientX - drag.startX) > TAP_SLOP_PX,
+    };
+}
+function onRosterUp(event: PointerEvent) {
+    const drag = rosterDrag.value;
+    const roster = heldRoster.value;
+    rosterDrag.value = null;
+    if (!drag || !roster || event.type !== "pointerup") return resumeFromScrub();
+    let target = drag.time;
+    if (!drag.moved) {
+        // A tap: the frame under the finger, read off the strip's own scale.
+        const box = rosterEl.value?.getBoundingClientRect();
+        target = roster.time + (event.clientX - (box?.left ?? 0) - roster.markerX) / (roster.tileWidth / roster.step);
+        target = Math.min(Math.max(0, target), Math.max(0, duration.value - 0.001));
+    }
+    handle.value?.seek(target);
+    pinnedAt.value = target;
+    holdScrubAt(target);
+    resumeFromScrub();
 }
 
 const openMenu = ref<"speed" | "language" | "subtitles" | "sleep" | null>(null);
@@ -1122,10 +1180,13 @@ function onKeydown(event: KeyboardEvent) {
                     v-if="heldRoster"
                     ref="rosterEl"
                     class="absolute inset-x-0 bottom-0 z-10"
-                    :class="rosterPinned ? 'pointer-events-auto' : 'pointer-events-none'"
+                    :class="rosterPinned ? 'pointer-events-auto touch-none' : 'pointer-events-none'"
                     :style="{ height: `${rosterHeight}px` }"
                     data-test="mediaPlayerRoster"
-                    @click="rosterPinned && seekToFrame($event)"
+                    @pointerdown.stop="rosterPinned && onRosterDown($event)"
+                    @pointermove.stop="rosterPinned && onRosterMove($event)"
+                    @pointerup.stop="rosterPinned && onRosterUp($event)"
+                    @pointercancel.stop="rosterPinned && onRosterUp($event)"
                 >
                     <ScrubRoster
                         :tiles="heldRoster.tiles"
