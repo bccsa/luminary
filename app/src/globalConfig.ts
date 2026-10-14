@@ -460,8 +460,10 @@ export type UserPreferences = {
 
 /** Installs predating the rename hold the same entries under `bookmarks`. */
 function readUserPreferences(): UserPreferences {
-    const { bookmarks, ...stored } = JSON.parse(localStorage.getItem("userPreferences") || "{}");
-    return bookmarks && !stored.likes ? { ...stored, likes: bookmarks } : stored;
+    const { bookmarks: legacyBookmarks, ...stored } = JSON.parse(
+        localStorage.getItem("userPreferences") || "{}",
+    );
+    return legacyBookmarks && !stored.likes ? { ...stored, likes: legacyBookmarks } : stored;
 }
 
 /**
