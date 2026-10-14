@@ -138,9 +138,6 @@ const playerExtras = computed(() => ({
     ...(videoPlayer.acceptsNextUp && props.nextUp?.length ? { nextUp: props.nextUp } : {}),
 }));
 
-/** The video is drawn behind the page here: the poster would only cover it. */
-const inlineActive = computed(() => !!props.inline && player.value?.inlineActive === true);
-
 /**
  * What the progress store calls this video. The stored URL rather than the resolved
  * one, because ContentTile knows only the stored form, and a bucket re-pointed or
@@ -330,6 +327,14 @@ watch(
     { immediate: true },
 );
 const playingThisContent = () => heldContentId.value === props.content?._id;
+
+/**
+ * The video is drawn behind the page here: the poster would only cover it. Not while the previous
+ * video is still the one loaded, or its last picture would show through under the next one's cover.
+ */
+const inlineActive = computed(
+    () => !!props.inline && player.value?.inlineActive === true && playingThisContent(),
+);
 
 // --- resume position ------------------------------------------------------
 

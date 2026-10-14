@@ -67,6 +67,7 @@ vi.mock("@luminary-media-converter/player-web", async () => {
                     pause: pauseMock,
                     enterFullscreen: enterFullscreenMock,
                     exitFullscreen: exitFullscreenMock,
+                    inlineActive: true,
                 });
                 // A real `<video>`, so the Matomo scan has something to title.
                 return () => h("div", { class: "luminary-player-stub" }, [h("video")]);
@@ -776,6 +777,28 @@ describe("VideoPlayer", () => {
         });
 
         describe("when the content changes", () => {
+            it("does not draw the video behind the page while the previous one is still the one loaded", async () => {
+                const wrapper = await mountPlayer({}, { inline: true });
+                expect((wrapper.vm as any).inlineActive).toBe(true);
+                let release!: () => void;
+                fetchHlsKeyMock.mockReturnValue(
+                    new Promise<string>((r) => (release = () => r("ab"))),
+                );
+
+                await wrapper.setProps({
+                    content: content({
+                        _id: "content-other",
+                        parentId: "post-other",
+                        parentMedia: { hlsUrl: OTHER_RELATIVE, hlsKey_id: "k" },
+                    }),
+                });
+                expect((wrapper.vm as any).inlineActive).toBe(false);
+
+                release();
+                await new Promise((resolve) => setTimeout(resolve, 0));
+                expect((wrapper.vm as any).inlineActive).toBe(true);
+            });
+
             it("keeps the same player mounted, and holds the old source until the new key is in", async () => {
                 const wrapper = await mountPlayer();
                 const first = stub(wrapper).vm;
