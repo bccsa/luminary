@@ -22,12 +22,12 @@ withDefaults(defineProps<Props>(), {
 
 const variants = {
     primary:
-        "bg-yellow-500 ring-1 shadow-sm text-yellow-950 ring-yellow-600/60 hover:bg-yellow-400/90 active:bg-yellow-500/80 disabled:bg-yellow-200 disabled:text-yellow-500 disabled:ring-yellow-200",
+        "bg-yellow-400 ring-1 shadow-sm text-yellow-950 ring-yellow-600/60 hover:bg-yellow-400/90 active:bg-yellow-500/80 disabled:bg-yellow-200 disabled:text-yellow-500 disabled:ring-yellow-200",
     secondary:
         "bg-white dark:bg-slate-600 dark:hover:bg-slate-600/50 ring-1 dark:ring-slate-400 shadow-sm dark:text-slate-200 text-zinc-900 ring-zinc-300 hover:bg-zinc-100 active:bg-zinc-200/70 disabled:bg-zinc-100 disabled:text-zinc-500",
     tertiary:
         "bg-transparent text-zinc-900 hover:text-zinc-950 hover:bg-zinc-100 active:bg-zinc-200 disabled:text-zinc-500 disabled:hover:bg-transparent",
-    danger: "bg-red-600 ring-1 shadow-sm text-white ring-red-700/60 hover:bg-red-500 active:bg-red-700 disabled:bg-red-200 disabled:text-red-400 disabled:ring-red-200",
+    danger: "bg-red-500 ring-1 shadow-sm text-white ring-red-700/60 hover:bg-red-500 active:bg-red-700 disabled:bg-red-200 disabled:text-red-400 disabled:ring-red-200",
 };
 
 const iconVariants = {
