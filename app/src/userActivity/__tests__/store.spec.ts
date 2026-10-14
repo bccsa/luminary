@@ -1,8 +1,8 @@
 import "fake-indexeddb/auto";
 import { describe, it, beforeEach, afterEach, expect, vi } from "vitest";
 
+import { db } from "luminary-shared";
 import type { HighlightRange } from "@/util/highlightRanges";
-import { userActivityDb } from "../db";
 import {
     MAX_VIEWED,
     TOMBSTONE_TTL_MS,
@@ -17,7 +17,7 @@ import {
 
 describe("userActivity", () => {
     beforeEach(async () => {
-        await userActivityDb.userActivity.clear();
+        await db.userActivity.clear();
     });
 
     afterEach(() => {
@@ -39,7 +39,7 @@ describe("userActivity", () => {
         it("keys likes and views on the post", async () => {
             await recordUserActivity({ type: "liked", parentId: "post-1" });
 
-            const row = await userActivityDb.userActivity.get("liked:post-1");
+            const row = await db.userActivity.get("liked:post-1");
             expect(row).toMatchObject({ type: "liked", parentId: "post-1" });
             expect(row!.contentId).toBeUndefined();
             expect(row!.updatedTimeUtc).toBeGreaterThan(0);
@@ -51,7 +51,7 @@ describe("userActivity", () => {
                 { ranges: [range("hi")] },
             );
 
-            const row = await userActivityDb.userActivity.get("highlighted:content-1");
+            const row = await db.userActivity.get("highlighted:content-1");
             expect(row).toMatchObject({
                 type: "highlighted",
                 contentId: "content-1",
@@ -84,7 +84,7 @@ describe("userActivity", () => {
                 parentId: "post-1",
             });
 
-            expect(await userActivityDb.userActivity.count()).toBe(3);
+            expect(await db.userActivity.count()).toBe(3);
         });
 
         it("counts viewing two translations as one post viewed", async () => {
@@ -128,8 +128,8 @@ describe("userActivity", () => {
             await recordUserActivity({ type: "liked", parentId: "post-1" });
             await removeUserActivity({ type: "liked", parentId: "post-1" });
 
-            expect(await userActivityDb.userActivity.count()).toBe(1);
-            expect((await userActivityDb.userActivity.get("liked:post-1"))!.deleted).toBe(true);
+            expect(await db.userActivity.count()).toBe(1);
+            expect((await db.userActivity.get("liked:post-1"))!.deleted).toBe(true);
             expect(await getUserActivity("liked")).toEqual([]);
             expect(await hasUserActivity({ type: "liked", parentId: "post-1" })).toBe(false);
         });
@@ -145,9 +145,7 @@ describe("userActivity", () => {
                 parentId: "post-1",
             });
 
-            expect(
-                (await userActivityDb.userActivity.get("highlighted:content-1"))!.payload,
-            ).toBeUndefined();
+            expect((await db.userActivity.get("highlighted:content-1"))!.payload).toBeUndefined();
         });
 
         it("revives a tombstoned activity when it is recorded again", async () => {
@@ -156,13 +154,13 @@ describe("userActivity", () => {
             await recordUserActivity({ type: "liked", parentId: "post-1" });
 
             expect(await hasUserActivity({ type: "liked", parentId: "post-1" })).toBe(true);
-            expect(await userActivityDb.userActivity.count()).toBe(1);
+            expect(await db.userActivity.count()).toBe(1);
         });
 
         it("does not tombstone an activity that was never recorded", async () => {
             await removeUserActivity({ type: "liked", parentId: "never-liked" });
 
-            expect(await userActivityDb.userActivity.count()).toBe(0);
+            expect(await db.userActivity.count()).toBe(0);
         });
     });
 
@@ -176,7 +174,7 @@ describe("userActivity", () => {
             const viewed = await getUserActivity("viewed");
             expect(viewed).toHaveLength(MAX_VIEWED);
             expect(viewed[0].parentId).toBe(`post-${MAX_VIEWED + 4}`);
-            expect(await userActivityDb.userActivity.get("viewed:post-0")).toBeUndefined();
+            expect(await db.userActivity.get("viewed:post-0")).toBeUndefined();
         });
 
         it("does not cap likes or highlights", async () => {
@@ -196,7 +194,7 @@ describe("userActivity", () => {
 
             await pruneUserActivityTombstones(1_000_000_000 + TOMBSTONE_TTL_MS + 1);
 
-            expect(await userActivityDb.userActivity.count()).toBe(1);
+            expect(await db.userActivity.count()).toBe(1);
             expect(await hasUserActivity({ type: "liked", parentId: "kept" })).toBe(true);
         });
 
@@ -206,7 +204,7 @@ describe("userActivity", () => {
 
             await clearUserActivity();
 
-            expect(await userActivityDb.userActivity.count()).toBe(0);
+            expect(await db.userActivity.count()).toBe(0);
         });
     });
 

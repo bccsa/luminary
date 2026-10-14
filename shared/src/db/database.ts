@@ -57,11 +57,37 @@ export type RetentionEntry = {
     retainUntil: number;
 };
 
+/** What a {@link UserActivityEntry} records the user as having done. */
+export type UserActivityType = "viewed" | "liked" | "highlighted";
+
+/**
+ * A row in the `userActivity` side table: one thing the user did to a document. Kept apart from
+ * `docs` because it is the user's own record rather than a copy of server data, so syncing,
+ * revocation and expiry never touch it, and {@link Database.purge} deliberately leaves it.
+ *
+ * The `_id` is deterministic (`<type>:<id>`), so the same activity yields the same row on every
+ * device. Removing an activity sets `deleted` instead of deleting the row, so the removal can be
+ * merged by `updatedTimeUtc` rather than lost.
+ */
+export type UserActivityEntry = {
+    _id: string;
+    type: UserActivityType;
+    /** The post the activity belongs to. */
+    parentId: Uuid;
+    /** The translation, for activity that applies to one translation rather than the post. */
+    contentId?: Uuid;
+    updatedTimeUtc: number;
+    deleted?: boolean;
+    /** Type-specific data written with the activity. The library does not interpret it. */
+    payload?: unknown;
+};
+
 type dbIndex = {
     docs: string;
     localChanges: string;
     luminaryInternals: string;
     retention: string;
+    userActivity: string;
 };
 
 export type QueryOptions = {
@@ -128,6 +154,7 @@ class Database extends Dexie {
     localChanges!: Table<Partial<LocalChangeDto>>; // Partial because it includes id which is only set after saving
     luminaryInternals!: Table<LuminaryInternals>;
     retention!: Table<RetentionEntry>;
+    userActivity!: Table<UserActivityEntry>;
 
     // In-memory (not persisted) acknowledgements for callers awaiting the real server ack
     // of a queued local change — see `upsert` and `waitForLocalChangeAck`.
@@ -201,6 +228,8 @@ class Database extends Dexie {
             localChanges: "++id, reqId, docId, status",
             luminaryInternals: "id",
             retention: "docId, retainUntil",
+            userActivity:
+                "_id, type, parentId, contentId, updatedTimeUtc, [type+updatedTimeUtc]",
         };
 
         const version: number = bumpDBVersion(
@@ -879,7 +908,8 @@ class Database extends Dexie {
     }
 
     /**
-     * Purge the local database
+     * Purge the local database. `userActivity` is left alone: it is not a cache of server
+     * documents, so clearing the cache or signing out must not erase what the user did.
      */
     async purge() {
         for (const entry of Array.from(this.localChangeAcks.values())) {

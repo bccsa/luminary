@@ -1,5 +1,6 @@
 import { ref, watch, type Ref } from "vue";
-import type { UserActivityDoc, UserActivityType } from "./db";
+import type { UserActivityType } from "luminary-shared";
+import type { UserActivityDoc } from "./types";
 import { getAllUserActivity, getUserActivity, userActivityVersion } from "./store";
 
 /**

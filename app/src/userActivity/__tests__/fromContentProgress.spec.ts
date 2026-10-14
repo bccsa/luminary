@@ -8,7 +8,6 @@ import {
     setReadingProgress,
     syncContentProgressFromStorage,
 } from "@/contentProgress";
-import { userActivityDb } from "../db";
 import { MIRROR_INTERVAL_MS, startContentProgressMirror } from "../fromContentProgress";
 import { getUserActivity, recordUserActivity, removeUserActivity } from "../store";
 
@@ -36,7 +35,7 @@ describe("mirroring content progress into history", () => {
     let stop: (() => void) | undefined;
 
     beforeEach(async () => {
-        await userActivityDb.userActivity.clear();
+        await db.userActivity.clear();
         await db.docs.clear();
         await db.docs.bulkPut([
             contentDoc("content-eng", "post-1"),
@@ -112,7 +111,7 @@ describe("mirroring content progress into history", () => {
 
         await flush();
 
-        expect(await userActivityDb.userActivity.get("viewed:post-1")).toMatchObject({
+        expect(await db.userActivity.get("viewed:post-1")).toMatchObject({
             deleted: true,
         });
         expect(await viewedPosts()).toEqual([]);
