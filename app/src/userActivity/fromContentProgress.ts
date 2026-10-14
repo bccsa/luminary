@@ -10,7 +10,7 @@
 import { watch } from "vue";
 import { db, type BaseDocumentDto, type Uuid } from "luminary-shared";
 import { contentProgressAsRef, type ContentProgressEntry } from "@/contentProgress";
-import { userActivityDb, type UserActivityDoc } from "./db";
+import type { UserActivityDoc } from "./types";
 import { recordUserActivity, userActivityId, userActivityVersion } from "./store";
 
 /**
@@ -64,12 +64,12 @@ export function startContentProgressMirror(): () => void {
         if (!rows.size) return;
 
         const ids = [...rows.keys()];
-        const stored = await userActivityDb.userActivity.bulkGet(ids);
+        const stored = await db.userActivity.bulkGet(ids);
         const missing = ids.filter((_, i) => stored[i] === undefined).map((id) => rows.get(id)!);
 
         if (!missing.length) return;
 
-        await userActivityDb.userActivity.bulkPut(missing);
+        await db.userActivity.bulkPut(missing);
         userActivityVersion.value++;
     }
 

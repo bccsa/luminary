@@ -12,9 +12,9 @@
 
 import { ref } from "vue";
 import Dexie from "dexie";
-import { db, type Uuid } from "luminary-shared";
+import { db, type UserActivityType, type Uuid } from "luminary-shared";
 import { notifyHighlightsChanged } from "@/recommendation/highlightStore";
-import { userActivityDb, type UserActivityDoc, type UserActivityType } from "./db";
+import type { UserActivityDoc } from "./types";
 
 /**
  * IndexedDB has no Vue reactivity. Every write bumps this, so views reading the table
@@ -50,7 +50,7 @@ export async function recordUserActivity(
     ref: ActivityRef,
     payload?: UserActivityDoc["payload"],
 ): Promise<void> {
-    await userActivityDb.userActivity.put({
+    await db.userActivity.put({
         _id: userActivityId(ref),
         type: ref.type,
         parentId: ref.parentId,
@@ -72,10 +72,10 @@ export async function recordUserActivity(
  */
 export async function removeUserActivity(ref: ActivityRef): Promise<void> {
     const _id = userActivityId(ref);
-    const existing = await userActivityDb.userActivity.get(_id);
+    const existing = await db.userActivity.get(_id);
     if (!existing || existing.deleted) return;
 
-    await userActivityDb.userActivity.put({
+    await db.userActivity.put({
         ...existing,
         updatedTimeUtc: Date.now(),
         deleted: true,
@@ -102,7 +102,7 @@ async function dropStoredHighlight(contentId: Uuid): Promise<void> {
 
 /** Every row of one type, oldest first, straight off the compound index. */
 const ofType = (type: UserActivityType) =>
-    userActivityDb.userActivity
+    db.userActivity
         .where("[type+updatedTimeUtc]")
         .between([type, Dexie.minKey], [type, Dexie.maxKey]);
 
@@ -115,7 +115,9 @@ export async function getUserActivity(
         .reverse()
         .filter((row) => !row.deleted);
 
-    return limit === undefined ? rows.toArray() : rows.limit(limit).toArray();
+    return (await (limit === undefined
+        ? rows.toArray()
+        : rows.limit(limit).toArray())) as UserActivityDoc[];
 }
 
 /**
@@ -124,16 +126,18 @@ export async function getUserActivity(
  * types interleave without a sort of our own.
  */
 export async function getAllUserActivity(): Promise<UserActivityDoc[]> {
-    return userActivityDb.userActivity
+    const rows = await db.userActivity
         .orderBy("updatedTimeUtc")
         .reverse()
         .filter((row) => !row.deleted)
         .toArray();
+    // The shared table leaves the payload untyped; only a highlight writes one.
+    return rows as UserActivityDoc[];
 }
 
 /** Whether a single activity is currently recorded — for a like button's state. */
 export async function hasUserActivity(ref: ActivityRef): Promise<boolean> {
-    const row = await userActivityDb.userActivity.get(userActivityId(ref));
+    const row = await db.userActivity.get(userActivityId(ref));
     return !!row && !row.deleted;
 }
 
@@ -148,7 +152,7 @@ async function trimViewed(): Promise<void> {
     const excess = await ofType("viewed")
         .limit(stored - MAX_VIEWED)
         .primaryKeys();
-    await userActivityDb.userActivity.bulkDelete(excess as string[]);
+    await db.userActivity.bulkDelete(excess as string[]);
 }
 
 /**
@@ -159,7 +163,7 @@ async function trimViewed(): Promise<void> {
  * paints them into articles, so leaving it would also keep showing what the user just erased.
  */
 export async function clearUserActivity(): Promise<void> {
-    await userActivityDb.userActivity.clear();
+    await db.userActivity.clear();
     await db.setLuminaryInternals("highlights", {});
     notifyHighlightsChanged();
     userActivityVersion.value++;
@@ -167,11 +171,11 @@ export async function clearUserActivity(): Promise<void> {
 
 /** Drop tombstones old enough that nothing can still need to learn of the removal. */
 export async function pruneUserActivityTombstones(now: number = Date.now()): Promise<void> {
-    const expired = await userActivityDb.userActivity
+    const expired = await db.userActivity
         .where("updatedTimeUtc")
         .below(now - TOMBSTONE_TTL_MS)
         .filter((row) => !!row.deleted)
         .primaryKeys();
 
-    if (expired.length > 0) await userActivityDb.userActivity.bulkDelete(expired as string[]);
+    if (expired.length > 0) await db.userActivity.bulkDelete(expired as string[]);
 }

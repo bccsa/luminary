@@ -7,7 +7,6 @@ import { mockEnglishContentDto, mockLanguageDtoEng } from "@/tests/mockdata";
 import { db } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import { appLanguageIdsAsRef } from "@/globalConfig";
-import { userActivityDb } from "@/userActivity/db";
 import { getUserActivity, recordUserActivity } from "@/userActivity/store";
 import ActivityViewed from "../ActivityViewed.vue";
 
@@ -33,7 +32,7 @@ describe("ActivityViewed", () => {
         appLanguageIdsAsRef.value.unshift(mockLanguageDtoEng._id);
 
         await db.docs.bulkPut([mockEnglishContentDto]);
-        await userActivityDb.userActivity.clear();
+        await db.userActivity.clear();
 
         setActivePinia(createTestingPinia());
     });
@@ -53,7 +52,7 @@ describe("ActivityViewed", () => {
     });
 
     it("displays a message when nothing was viewed", async () => {
-        await userActivityDb.userActivity.clear();
+        await db.userActivity.clear();
         const wrapper = mount(ActivityViewed);
 
         expect(wrapper.text()).toContain("Posts you read or watch will show up here.");

@@ -7,7 +7,6 @@ import { mockEnglishContentDto, mockLanguageDtoEng } from "@/tests/mockdata";
 import { db } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import { appLanguageIdsAsRef } from "@/globalConfig";
-import { userActivityDb } from "@/userActivity/db";
 import { recordUserActivity } from "@/userActivity/store";
 import ActivityLiked from "../ActivityLiked.vue";
 
@@ -33,7 +32,7 @@ describe("ActivityLiked", () => {
         appLanguageIdsAsRef.value.unshift(mockLanguageDtoEng._id);
 
         await db.docs.bulkPut([mockEnglishContentDto]);
-        await userActivityDb.userActivity.clear();
+        await db.userActivity.clear();
 
         setActivePinia(createTestingPinia());
     });
@@ -63,7 +62,7 @@ describe("ActivityLiked", () => {
     });
 
     it("displays a message when nothing is liked", async () => {
-        await userActivityDb.userActivity.clear();
+        await db.userActivity.clear();
         const wrapper = mount(ActivityLiked);
 
         expect(wrapper.text()).toContain("Posts you like will show up here.");
