@@ -1,4 +1,3 @@
-.
 <script setup lang="ts">
 import {
     type GroupDto,
@@ -51,17 +50,27 @@ const handleEdit = () => {
 
 <template>
     <div
-        class="w-full cursor-pointer divide-y divide-zinc-100 border-y border-zinc-300 bg-white px-2 py-1 sm:rounded-md sm:border"
+        class="w-full divide-y divide-zinc-100 border-y border-zinc-300 bg-white px-2 py-1 transition-all duration-200 dark:divide-slate-700 dark:border-slate-700 dark:bg-slate-800/70 dark:shadow-lg dark:hover:divide-slate-800/80 sm:rounded-md sm:border"
+        :class="[
+            {
+                'cursor-pointer hover:bg-zinc-50 dark:hover:bg-slate-800/50 dark:hover:shadow-none':
+                    canEdit,
+                'select-none divide-zinc-200 border-gray-200 bg-zinc-50/50 dark:border-slate-800 dark:bg-slate-900/40 dark:text-zinc-600':
+                    !canEdit,
+            },
+        ]"
         @click="handleEdit"
     >
-        <div class="relative flex cursor-pointer items-center justify-between py-1">
+        <div class="relative flex items-center justify-between py-1">
             <div
                 class="w-full"
                 :class="{
                     'flex justify-between': isSmallScreen,
                 }"
             >
-                <div class="mr-1 max-w-full truncate text-wrap text-sm font-medium">
+                <div
+                    class="mr-1 max-w-full truncate text-wrap text-sm font-medium dark:text-zinc-100"
+                >
                     {{
                         capitaliseFirstLetter(provider.displayName || provider.label) ||
                         provider.domain ||
@@ -72,7 +81,7 @@ const handleEdit = () => {
         </div>
 
         <div class="flex w-full items-center gap-2 py-1 text-xs">
-            <div class="flex flex-nowrap gap-1">
+            <div class="flex flex-nowrap gap-1 dark:text-zinc-100">
                 <LBadge
                     v-if="provider.domain && provider.clientId"
                     type="default"
@@ -103,7 +112,7 @@ const handleEdit = () => {
         <div v-if="isSmallScreen" class="flex flex-wrap items-center gap-1 py-1">
             <div class="flex flex-1 items-center gap-1">
                 <div>
-                    <UserGroupIcon class="h-4 w-4 text-zinc-400" />
+                    <UserGroupIcon class="h-4 w-4 dark:text-zinc-100" />
                 </div>
                 <div class="flex flex-wrap gap-1">
                     <LBadge
@@ -125,18 +134,15 @@ const handleEdit = () => {
                     </LBadge>
                 </div>
             </div>
-            <div class="flex w-max items-start text-xs text-zinc-400">
-                <ClockIcon class="mr-[1px] h-3.5 w-3.5 text-zinc-400" />
+            <div class="flex w-max items-start text-xs dark:text-zinc-100">
+                <ClockIcon class="mr-[1px] h-3.5 w-3.5 dark:text-zinc-100" />
                 <span title="Last Updated" class="text-[11px]">{{
                     renderDate("small", "Last Updated", provider.updatedTimeUtc)
                 }}</span>
             </div>
         </div>
 
-        <div
-            v-if="!isSmallScreen"
-            class="flex items-center justify-between pt-1 text-xs sm:gap-4"
-        >
+        <div v-if="!isSmallScreen" class="flex items-center justify-between pt-1 text-xs sm:gap-4">
             <div class="flex w-full flex-1 flex-wrap items-center gap-1">
                 <UserGroupIcon class="h-4 w-4 text-zinc-400" />
                 <LBadge

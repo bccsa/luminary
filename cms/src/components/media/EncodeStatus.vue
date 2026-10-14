@@ -80,7 +80,7 @@ const percentage = computed(() => {
     >
         <div v-if="status" data-test="encoder-status">
             <div v-if="percentage != undefined" class="flex items-center gap-2">
-                <div class="h-1.5 flex-1 overflow-hidden rounded-full bg-zinc-100">
+                <div class="h-1.5 flex-1 overflow-hidden rounded-full dark:bg-slate-700">
                     <div
                         class="h-full rounded-full bg-zinc-700 transition-[width] duration-500"
                         :style="{ width: `${percentage}%` }"

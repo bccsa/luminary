@@ -13,6 +13,7 @@ import ThemeSelectorModal from "./ThemeSelectorModal.vue";
 import { useRouter } from "vue-router";
 import { computed, onMounted, ref, type ComputedRef } from "vue";
 import {
+    ArrowDownTrayIcon,
     ShieldCheckIcon,
     BookmarkIcon,
     Bars3Icon,
@@ -36,6 +37,7 @@ import MobileSidebar from "../common/MobileSidebar.vue";
 import DropdownMenu from "../common/DropdownMenu.vue";
 import { getNavigationItems } from "./navigationItems";
 import { useSearchOverlay } from "@/composables/useSearchOverlay";
+import { useAppUpdate } from "@/composables/useAppUpdate";
 
 type Trigger = "avatar" | "bars" | "sidebar";
 type Props = {
@@ -65,6 +67,7 @@ const menuLabel = computed(() => t("profile_menu.title"));
 
 const navigationItems = computed(() => getNavigationItems(t));
 const { isSearchOpen, openSearch } = useSearchOverlay();
+const { isUpdateAvailable, applyUpdate } = useAppUpdate();
 const isItemActive = (routeActive: boolean) => routeActive && !isSearchOpen.value;
 
 const showOfflineNotification = () => {
@@ -122,7 +125,18 @@ type NavigationItems = {
 };
 
 const commonNavigation: ComputedRef<NavigationItems[]> = computed(() => {
+    const updateItem: NavigationItems[] = isUpdateAvailable.value
+        ? [
+              {
+                  name: t("profile_menu.update_available"),
+                  icon: ArrowDownTrayIcon,
+                  action: applyUpdate,
+              },
+          ]
+        : [];
+
     return [
+        ...updateItem,
         {
             name: t("profile_menu.settings"),
             icon: Cog6ToothIcon,
@@ -431,6 +445,23 @@ const sidebarNavigation = computed(() =>
                 </RouterLink>
 
                 <div class="mt-2 border-t border-zinc-200 pt-3 dark:border-slate-700">
+                    <!-- App update -->
+                    <span
+                        v-if="isUpdateAvailable"
+                        class="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-yellow-700 hover:bg-zinc-200 dark:text-yellow-400 dark:hover:bg-slate-700"
+                        data-test="menu-app-update"
+                        @click="
+                            applyUpdate();
+                            close();
+                        "
+                    >
+                        <ArrowDownTrayIcon
+                            class="h-5 w-5 flex-shrink-0"
+                            aria-hidden="true"
+                        />
+                        <span class="text-sm font-medium">{{ t("profile_menu.update_available") }}</span>
+                    </span>
+
                     <!-- Theme -->
                     <span
                         class="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-zinc-600 hover:bg-zinc-200 dark:text-slate-100 dark:hover:bg-slate-700"
