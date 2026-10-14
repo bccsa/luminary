@@ -30,7 +30,6 @@ import {
 import * as luminaryShared from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import { appLanguageIdsAsRef, appName, cmsLanguages, initLanguage, cmsUrl } from "@/globalConfig";
-import { userActivityDb } from "@/userActivity/db";
 import { hasUserActivity, recordUserActivity } from "@/userActivity/store";
 import {
     getReadingProgress,
@@ -505,7 +504,7 @@ describe("SingleContent", () => {
     });
 
     it("can add and remove a like", async () => {
-        await userActivityDb.userActivity.clear();
+        await db.userActivity.clear();
         const notificationStore = useNotificationStore();
 
         wrapper = mount(SingleContent, {
@@ -557,7 +556,7 @@ describe("SingleContent", () => {
     });
 
     it("does not record a view for merely opening the content", async () => {
-        await userActivityDb.userActivity.clear();
+        await db.userActivity.clear();
 
         wrapper = mount(SingleContent, {
             props: { slug: mockEnglishContentDto.slug },
@@ -574,7 +573,7 @@ describe("SingleContent", () => {
     });
 
     it("records like-removal affinity when unliking content", async () => {
-        await userActivityDb.userActivity.clear();
+        await db.userActivity.clear();
         await recordUserActivity({ type: "liked", parentId: mockEnglishContentDto.parentId });
         const wrapper = mount(SingleContent, {
             props: { slug: mockEnglishContentDto.slug },
@@ -1191,7 +1190,7 @@ describe("SingleContent", () => {
     });
 
     it("records a view on dwell for content the continue store never sees", async () => {
-        await userActivityDb.userActivity.clear();
+        await db.userActivity.clear();
         localStorage.removeItem("contentProgress");
         syncContentProgressFromStorage();
 
@@ -1218,7 +1217,7 @@ describe("SingleContent", () => {
     });
 
     it("leaves the view to the mirror when progress is already recorded", async () => {
-        await userActivityDb.userActivity.clear();
+        await db.userActivity.clear();
         localStorage.removeItem("contentProgress");
         syncContentProgressFromStorage();
         setReadingProgress(mockEnglishContentDto._id, 40);

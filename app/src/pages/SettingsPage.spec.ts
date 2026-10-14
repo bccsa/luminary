@@ -2,7 +2,6 @@ import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import SettingsPage from "./SettingsPage.vue";
 import LDialog from "@/components/common/LDialog.vue";
-import { userActivityDb } from "@/userActivity/db";
 import { recordUserActivity } from "@/userActivity/store";
 import { mount, flushPromises } from "@vue/test-utils";
 import { setActivePinia } from "pinia";
@@ -252,11 +251,11 @@ describe("SettingsPage data saver", () => {
         const wrapper = mount(SettingsPage);
 
         await wrapper.find("[data-test=clearUserActivity]").trigger("click");
-        expect(await userActivityDb.userActivity.count()).toBe(1);
+        expect(await db.userActivity.count()).toBe(1);
 
         await wrapper.findComponent(LDialog).props("primaryAction")();
 
         await flushPromises();
-        expect(await userActivityDb.userActivity.count()).toBe(0);
+        expect(await db.userActivity.count()).toBe(0);
     });
 });

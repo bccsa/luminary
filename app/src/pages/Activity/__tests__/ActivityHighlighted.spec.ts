@@ -7,7 +7,6 @@ import { mockEnglishContentDto, mockLanguageDtoEng } from "@/tests/mockdata";
 import { db } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import { appLanguageIdsAsRef } from "@/globalConfig";
-import { userActivityDb } from "@/userActivity/db";
 import { getUserActivity, recordUserActivity } from "@/userActivity/store";
 import ActivityHighlighted from "../ActivityHighlighted.vue";
 
@@ -33,7 +32,7 @@ describe("ActivityHighlighted", () => {
         appLanguageIdsAsRef.value.unshift(mockLanguageDtoEng._id);
 
         await db.docs.bulkPut([mockEnglishContentDto]);
-        await userActivityDb.userActivity.clear();
+        await db.userActivity.clear();
 
         setActivePinia(createTestingPinia());
     });
@@ -57,7 +56,7 @@ describe("ActivityHighlighted", () => {
     });
 
     it("displays a message when nothing is highlighted", async () => {
-        await userActivityDb.userActivity.clear();
+        await db.userActivity.clear();
         const wrapper = mount(ActivityHighlighted);
 
         expect(wrapper.text()).toContain("Posts where you highlight text will show up here.");

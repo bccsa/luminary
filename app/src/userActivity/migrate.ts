@@ -10,18 +10,18 @@ import { db, type BaseDocumentDto, type Uuid } from "luminary-shared";
 import { userPreferencesAsRef } from "@/globalConfig";
 import { getHighlightRanges, getLegacyHighlightHtml } from "@/recommendation/highlightStore";
 import { rangesFromLegacyHtml, type HighlightRange } from "@/util/highlightRanges";
-import { userActivityDb, type UserActivityDoc } from "./db";
+import type { UserActivityDoc } from "./types";
 import { userActivityId, userActivityVersion } from "./store";
 
 /** Write the rows the database does not already hold, and report how many were added. */
 async function addMissing(rows: UserActivityDoc[]): Promise<number> {
     if (!rows.length) return 0;
 
-    const existing = await userActivityDb.userActivity.bulkGet(rows.map((row) => row._id));
+    const existing = await db.userActivity.bulkGet(rows.map((row) => row._id));
     const missing = rows.filter((_, i) => existing[i] === undefined);
 
     if (missing.length) {
-        await userActivityDb.userActivity.bulkPut(missing);
+        await db.userActivity.bulkPut(missing);
         userActivityVersion.value++;
     }
     return missing.length;
