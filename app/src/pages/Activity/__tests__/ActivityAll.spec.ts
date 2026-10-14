@@ -8,7 +8,6 @@ import { db } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import { appLanguageIdsAsRef } from "@/globalConfig";
 import { setReadingProgress, syncContentProgressFromStorage } from "@/contentProgress";
-import { userActivityDb } from "@/userActivity/db";
 import { getAllUserActivity, recordUserActivity } from "@/userActivity/store";
 import { HIGHLIGHT_COLORS, type HighlightRange } from "@/util/highlightRanges";
 import ActivityAll from "../ActivityAll.vue";
@@ -42,7 +41,7 @@ describe("ActivityAll", () => {
         appLanguageIdsAsRef.value.unshift(mockLanguageDtoEng._id);
 
         await db.docs.bulkPut([mockEnglishContentDto]);
-        await userActivityDb.userActivity.clear();
+        await db.userActivity.clear();
 
         localStorage.removeItem("contentProgress");
         syncContentProgressFromStorage();

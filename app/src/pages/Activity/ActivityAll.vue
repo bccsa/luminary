@@ -8,7 +8,7 @@ import { groupByActivityDate } from "./activityGroups";
 import { useContentQuery } from "@/composables/useContentQuery";
 import { useUserActivity } from "@/userActivity/useUserActivity";
 import { removeUserActivity } from "@/userActivity/store";
-import type { UserActivityDoc } from "@/userActivity/db";
+import type { UserActivityDoc } from "@/userActivity/types";
 import { type HighlightRange } from "@/util/highlightRanges";
 
 const { t } = useI18n();
