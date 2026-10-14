@@ -573,8 +573,7 @@ describe("MediaPlayer", () => {
                 expect(wrapper.find("[data-test='mediaPlayerRoster']").exists()).toBe(false);
             });
 
-            it("takes the frames away when the touch is taken from the bar", async () => {
-                engine.thumbnailsReady = true;
+            it("takes the frames away when the touch is taken from the bar before they showed", async () => {
                 const wrapper = await playing();
                 const bar = find(wrapper, "mediaPlayerSeek");
                 (bar.element as HTMLInputElement).value = "90";
@@ -664,6 +663,15 @@ describe("MediaPlayer", () => {
 
                     expect(engine.handle.seek).toHaveBeenCalled();
                     expect(engine.handle.play).toHaveBeenCalled();
+                });
+
+                it("keeps the frames up when the browser cancels the pointer, with or without a change after", async () => {
+                    const { wrapper, bar } = await heldAt90();
+                    await bar.trigger("pointercancel");
+                    expect(wrapper.find("[data-test='mediaPlayerRoster']").exists()).toBe(true);
+
+                    await bar.trigger("change");
+                    expect(wrapper.find("[data-test='mediaPlayerRoster']").exists()).toBe(true);
                 });
             });
 

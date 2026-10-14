@@ -432,6 +432,11 @@ function endScrub() {
     scrubTime.value = null;
 }
 onBeforeUnmount(() => clearTimeout(scrubTimer));
+/** The browser took the drag over: a roster the press had open still counts as let go there, as its change may never come. */
+function cancelScrub(event: Event) {
+    if (rosterOpened) seekTo(event);
+    else endScrub();
+}
 function scrub(event: Event) {
     clearTimeout(scrubTimer);
     released = false;
@@ -597,8 +602,9 @@ function seekTo(event: Event) {
     handle.value?.seek(target);
     if (rosterOpened) void handle.value?.play();
     fingerDown.value = false;
-    rosterPinned.value = rosterOpened;
-    pinnedAt.value = target;
+    // Only a press outside unpins: a second report of the same release (the browser's cancel, then its change) must not.
+    if (rosterOpened) rosterPinned.value = true;
+    if (rosterPinned.value) pinnedAt.value = target;
     rosterOpened = false;
     holdScrubAt(target);
 }
@@ -1530,7 +1536,7 @@ function onKeydown(event: KeyboardEvent) {
                                     data-test="mediaPlayerSeek"
                                     @input="scrub"
                                     @change="seekTo"
-                                    @pointercancel="endScrub"
+                                    @pointercancel="cancelScrub"
                                 />
                             </div>
                             <div
