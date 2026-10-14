@@ -96,11 +96,15 @@ const hasAnyContent = computed(() => (redirects.value?.length ?? 0) > 0);
             </LButton>
         </template>
         <template #topBarActionsMobile>
-            <PlusIcon
+            <LButton
                 v-if="canCreateNew && hasAnyContent && isSmallScreen"
-                class="h-8 w-8 cursor-pointer rounded bg-zinc-100 p-1 text-zinc-500 hover:bg-zinc-300 hover:text-zinc-700"
+                variant="primary"
+                :icon="PlusIcon"
                 @click="isCreateOrEditModalVisible = true"
-            />
+                name="createLanguageBtn"
+            >
+                Create redirect
+            </LButton>
         </template>
 
         <template v-if="hasAnyContent" #internalPageHeader>

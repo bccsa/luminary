@@ -20,6 +20,7 @@ export function buildTargetVirtuals(
         "virtual:app-lifecycle": `${root}/build-time/plugins/app-lifecycle/index.ts`,
         "virtual:screen-wake": `${root}/build-time/plugins/screen-wake/index.ts`,
         "virtual:video-player": `${root}/build-time/plugins/video-player/index.ts`,
+        "virtual:app-update": `${root}/build-time/plugins/app-update/index.ts`,
     };
     const platformSwappable = new Set([
         "platform-chrome",
@@ -27,6 +28,7 @@ export function buildTargetVirtuals(
         "app-lifecycle",
         "screen-wake",
         "video-player",
+        "app-update",
     ]);
     const nativeImplDir = process.env.VITE_NATIVE_IMPL_DIR
         ? path.resolve(process.env.VITE_NATIVE_IMPL_DIR)
