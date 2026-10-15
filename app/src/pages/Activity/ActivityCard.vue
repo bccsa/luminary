@@ -1,9 +1,10 @@
 <script lang="ts" setup>
 import { useI18n } from "vue-i18n";
-import { type ContentDto, type UserActivityType } from "luminary-shared";
-import { TrashIcon } from "@heroicons/vue/24/outline";
+import { type ContentDto } from "luminary-shared";
+import { TrashIcon, EyeIcon } from "@heroicons/vue/24/solid";
 import { HeartIcon } from "@heroicons/vue/24/solid";
 import ContentTile from "@/components/content/ContentTile.vue";
+import type { UserActivityType } from "@/userActivity/db";
 import { HIGHLIGHT_COLORS, type HighlightColor } from "@/util/highlightRanges";
 
 const { t } = useI18n();
@@ -97,6 +98,21 @@ const onClick = (event: MouseEvent) => {
             <!-- In the combined feed the heart is the only thing telling a liked card from a
                  viewed one, so it has to be readable rather than purely decorative. -->
             <span class="sr-only">{{ t("activity.marker.liked") }}</span>
+        </span>
+
+        <!-- Marks the card as viewed content, the counterpart of the heart above. Decorative,
+             so it never intercepts the tile's click. Same size and right edge as the trash
+             icon below it. -->
+        <span
+            v-if="type === 'viewed'"
+            class="pointer-events-none absolute right-2.5 top-2"
+            data-test="activity-viewed-icon"
+        >
+            <EyeIcon
+                class="h-4 w-4 text-zinc-500 dark:text-yellow-400"
+                aria-hidden="true"
+            />
+            <span class="sr-only">{{ t("activity.marker.viewed") }}</span>
         </span>
 
         <!-- Bottom-right of the card. Always visible on touch devices, which have no hover to
