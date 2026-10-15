@@ -64,7 +64,7 @@ const createNew = () => {
                 Create language
             </LButton>
         </template>
-        <div class="flex flex-col gap-[3px]">
+        <div class="flex flex-col gap-[8px]">
             <EmptyState
                 v-if="!isLoading && !hasAnyContent"
                 title="No languages yet"
