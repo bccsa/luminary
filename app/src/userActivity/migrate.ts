@@ -6,15 +6,20 @@
  * recent truth, so a stale source entry must not revive something the user has since removed.
  */
 
-import { db, type BaseDocumentDto, type Uuid } from "luminary-shared";
+import {
+    db,
+    type BaseDocumentDto,
+    type HighlightRange,
+    type UserActivityEntry,
+    type Uuid,
+} from "luminary-shared";
 import { userPreferencesAsRef } from "@/globalConfig";
 import { getHighlightRanges, getLegacyHighlightHtml } from "@/recommendation/highlightStore";
-import { rangesFromLegacyHtml, type HighlightRange } from "@/util/highlightRanges";
-import type { UserActivityDoc } from "./types";
+import { rangesFromLegacyHtml } from "@/util/highlightRanges";
 import { userActivityId, userActivityVersion } from "./store";
 
 /** Write the rows the database does not already hold, and report how many were added. */
-async function addMissing(rows: UserActivityDoc[]): Promise<number> {
+async function addMissing(rows: UserActivityEntry[]): Promise<number> {
     if (!rows.length) return 0;
 
     const existing = await db.userActivity.bulkGet(rows.map((row) => row._id));

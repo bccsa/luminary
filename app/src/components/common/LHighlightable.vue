@@ -8,7 +8,7 @@ import {
     ShareIcon,
 } from "@heroicons/vue/24/outline";
 import { useI18n } from "vue-i18n";
-import { db, reportError } from "luminary-shared";
+import { db, reportError, type HighlightColor, type HighlightRange } from "luminary-shared";
 import { recordUserActivity, removeUserActivity } from "@/userActivity/store";
 import {
     getHighlightRanges,
@@ -26,8 +26,6 @@ import {
     removeHighlights,
     snapToWords,
     textOffset,
-    type HighlightColor,
-    type HighlightRange,
 } from "@/util/highlightRanges";
 import TelegramIcon from "@/components/icons/TelegramIcon.vue";
 import WhatsAppIcon from "@/components/icons/WhatsAppIcon.vue";

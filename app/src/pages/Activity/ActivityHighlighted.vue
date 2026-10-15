@@ -1,13 +1,12 @@
 <script lang="ts" setup>
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { type ContentDto } from "luminary-shared";
+import { type ContentDto, type HighlightRange } from "luminary-shared";
 import ActivityCard from "./ActivityCard.vue";
 import ActivityHighlightPanel from "./ActivityHighlightPanel.vue";
 import { useContentQuery } from "@/composables/useContentQuery";
 import { useUserActivity } from "@/userActivity/useUserActivity";
 import { removeUserActivity } from "@/userActivity/store";
-import { type HighlightRange } from "@/util/highlightRanges";
 
 const { t } = useI18n();
 
