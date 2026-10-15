@@ -1,6 +1,6 @@
 import { ref } from "vue";
-import { db, type Uuid } from "luminary-shared";
-import { parseSavedRanges, type HighlightRange } from "@/util/highlightRanges";
+import { db, type HighlightRange, type Uuid } from "luminary-shared";
+import { parseSavedRanges } from "@/util/highlightRanges";
 
 const HIGHLIGHTS_STORAGE_KEY = "highlights";
 /** Bound local FTS work when a long-lived install has many saved highlights. */
