@@ -495,8 +495,39 @@ const fingerDown = ref(false);
  * the frames.
  */
 const rosterPinned = ref(false);
-/** Where the pinned frames are centred: they stay put while playback moves on, so they do not jitter. */
-const pinnedAt = ref(0);
+/** Where the pinned frames sit after a seek, until playback arrives; following it sooner would snap them back. Null follows playback. */
+const pinnedAt = ref<number | null>(null);
+/** The most a seek is given to land before the pinned frames follow playback again. */
+const PIN_ANCHOR_MS = 1500;
+let pinAnchorTimer: ReturnType<typeof setTimeout> | undefined;
+function anchorPin(time: number) {
+    pinnedAt.value = time;
+    clearTimeout(pinAnchorTimer);
+    pinAnchorTimer = setTimeout(() => (pinnedAt.value = null), PIN_ANCHOR_MS);
+}
+function releasePin() {
+    pinnedAt.value = null;
+    clearTimeout(pinAnchorTimer);
+}
+onBeforeUnmount(() => clearTimeout(pinAnchorTimer));
+
+/** The playhead read every frame while frames are pinned: `currentTime` arrives a few times a second, which steps the strip. */
+const pinnedPlayhead = ref(0);
+let playheadBase = { time: 0, at: 0 };
+let playheadFrame = 0;
+watch(currentTime, (time) => (playheadBase = { time, at: performance.now() }), { immediate: true });
+function trackPlayhead() {
+    const { time, at } = playheadBase;
+    const rate = state.value?.playbackRate ?? 1;
+    const ahead = playing.value ? ((performance.now() - at) / 1000) * rate : 0;
+    pinnedPlayhead.value = Math.min(time + ahead, Math.max(0, duration.value - 0.001));
+    playheadFrame = requestAnimationFrame(trackPlayhead);
+}
+const pinnedTime = computed(() => rosterDrag.value?.time ?? pinnedAt.value ?? pinnedPlayhead.value);
+// Playback reaching the seek hands the strip back to it.
+watch(pinnedPlayhead, (time) => {
+    if (pinnedAt.value !== null && Math.abs(time - pinnedAt.value) < 0.75) releasePin();
+});
 
 interface RosterDrag {
     startX: number;
@@ -518,8 +549,7 @@ const heldRoster = computed(() => {
     if (!(fingerDown.value || rosterPinned.value) || !state.value?.thumbnailsReady) return null;
     if (audioMode.value) return null;
     if (!fingerDown.value) {
-        const time = rosterDrag.value?.time ?? pinnedAt.value;
-        return buildRoster(time, pictureWidth.value / 2, rosterFineStep(duration.value));
+        return buildRoster(pinnedTime.value, pictureWidth.value / 2, rosterFineStep(duration.value));
     }
     const time = shownTime.value;
     const barWidth = pictureWidth.value - 2 * SEEK_PADDING_PX - 2 * SEEK_THUMB_INSET_PX;
@@ -566,10 +596,19 @@ function onPressOutsideRoster(event: Event) {
     resumeFromScrub();
 }
 watch(rosterPinned, (pinned) => {
-    if (pinned) document.addEventListener("pointerdown", onPressOutsideRoster, true);
-    else document.removeEventListener("pointerdown", onPressOutsideRoster, true);
+    cancelAnimationFrame(playheadFrame);
+    if (pinned) {
+        document.addEventListener("pointerdown", onPressOutsideRoster, true);
+        trackPlayhead();
+    } else {
+        document.removeEventListener("pointerdown", onPressOutsideRoster, true);
+        releasePin();
+    }
 });
-onBeforeUnmount(() => document.removeEventListener("pointerdown", onPressOutsideRoster, true));
+onBeforeUnmount(() => {
+    document.removeEventListener("pointerdown", onPressOutsideRoster, true);
+    cancelAnimationFrame(playheadFrame);
+});
 // Another video, or no picture to show frames over, leaves nothing to keep.
 watch([() => item.value?.content._id, expanded, audioMode], () => (rosterPinned.value = false));
 /**
@@ -637,7 +676,7 @@ function seekTo(event: Event) {
     fingerDown.value = false;
     // Only a press outside unpins: a second report of the same release (the browser's cancel, then its change) must not.
     if (rosterOpened) rosterPinned.value = true;
-    if (rosterPinned.value) pinnedAt.value = target;
+    if (rosterPinned.value) anchorPin(target);
     rosterOpened = false;
     holdScrubAt(target);
 }
@@ -647,7 +686,7 @@ function onRosterDown(event: PointerEvent) {
     if (!roster) return;
     (event.currentTarget as HTMLElement | null)?.setPointerCapture?.(event.pointerId);
     pauseForScrub();
-    rosterDrag.value = { startX: event.clientX, lastX: event.clientX, time: pinnedAt.value, moved: false };
+    rosterDrag.value = { startX: event.clientX, lastX: event.clientX, time: pinnedTime.value, moved: false };
 }
 function onRosterMove(event: PointerEvent) {
     const drag = rosterDrag.value;
@@ -684,9 +723,8 @@ function onPictureMove(event: PointerEvent) {
     measurePicture();
     pauseForScrub();
     rosterOpened = true;
-    pinnedAt.value = shownTime.value;
     rosterPinned.value = true;
-    rosterDrag.value = { startX: event.clientX, lastX: event.clientX, time: pinnedAt.value, moved: true };
+    rosterDrag.value = { startX: event.clientX, lastX: event.clientX, time: shownTime.value, moved: true };
 }
 function onPictureUp(event: PointerEvent) {
     pictureGesture = null;
@@ -697,7 +735,9 @@ function onRosterUp(event: PointerEvent) {
     const drag = rosterDrag.value;
     const roster = heldRoster.value;
     rosterDrag.value = null;
-    if (!drag || !roster || event.type !== "pointerup") return resumeFromScrub();
+    // A phone's browser may cancel a drag it takes over: where the strip had got to is still where the viewer went.
+    const lifted = event.type === "pointerup" || (event.type === "pointercancel" && !!drag?.moved);
+    if (!drag || !roster || !lifted) return resumeFromScrub();
     let target = drag.time;
     if (!drag.moved) {
         // A tap: the frame under the finger, read off the strip's own scale.
@@ -706,7 +746,7 @@ function onRosterUp(event: PointerEvent) {
         target = Math.min(Math.max(0, target), Math.max(0, duration.value - 0.001));
     }
     handle.value?.seek(target);
-    pinnedAt.value = target;
+    anchorPin(target);
     holdScrubAt(target);
     resumeFromScrub();
 }
