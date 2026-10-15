@@ -1,6 +1,5 @@
 import { ref, watch, type Ref } from "vue";
-import type { UserActivityType } from "luminary-shared";
-import type { UserActivityDoc } from "./types";
+import type { UserActivityEntry, UserActivityType } from "luminary-shared";
 import { getAllUserActivity, getUserActivity, userActivityVersion } from "./store";
 
 /**
@@ -8,8 +7,8 @@ import { getAllUserActivity, getUserActivity, userActivityVersion } from "./stor
  * IndexedDB has no reactivity of its own, so the list is re-read whenever an activity
  * is written.
  */
-export function useUserActivity(type: UserActivityType | "all"): Ref<UserActivityDoc[]> {
-    const rows = ref<UserActivityDoc[]>([]);
+export function useUserActivity(type: UserActivityType | "all"): Ref<UserActivityEntry[]> {
+    const rows = ref<UserActivityEntry[]>([]);
 
     watch(
         userActivityVersion,

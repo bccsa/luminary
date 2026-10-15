@@ -2,12 +2,12 @@
 import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
-import { type ContentDto } from "luminary-shared";
+import { type ContentDto, type HighlightColor, type HighlightRange } from "luminary-shared";
 import { XMarkIcon } from "@heroicons/vue/24/outline";
 import MobileSidebar from "@/components/common/MobileSidebar.vue";
 import LButton from "@/components/button/LButton.vue";
 import LDialog from "@/components/common/LDialog.vue";
-import { HIGHLIGHT_COLORS, type HighlightColor, type HighlightRange } from "@/util/highlightRanges";
+import { HIGHLIGHT_COLORS } from "@/util/highlightRanges";
 
 const { t } = useI18n();
 const router = useRouter();

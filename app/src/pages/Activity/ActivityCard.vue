@@ -1,11 +1,10 @@
 <script lang="ts" setup>
 import { useI18n } from "vue-i18n";
-import { type ContentDto } from "luminary-shared";
+import { type ContentDto, type HighlightColor, type UserActivityType } from "luminary-shared";
 import { TrashIcon, EyeIcon } from "@heroicons/vue/24/solid";
 import { HeartIcon } from "@heroicons/vue/24/solid";
 import ContentTile from "@/components/content/ContentTile.vue";
-import type { UserActivityType } from "@/userActivity/db";
-import { HIGHLIGHT_COLORS, type HighlightColor } from "@/util/highlightRanges";
+import { HIGHLIGHT_COLORS } from "@/util/highlightRanges";
 
 const { t } = useI18n();
 

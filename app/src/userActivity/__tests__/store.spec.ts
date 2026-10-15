@@ -1,8 +1,7 @@
 import "fake-indexeddb/auto";
 import { describe, it, beforeEach, afterEach, expect, vi } from "vitest";
 
-import { db } from "luminary-shared";
-import type { HighlightRange } from "@/util/highlightRanges";
+import { db, type HighlightRange } from "luminary-shared";
 import {
     MAX_VIEWED,
     TOMBSTONE_TTL_MS,
