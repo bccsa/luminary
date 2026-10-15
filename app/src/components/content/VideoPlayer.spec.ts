@@ -40,7 +40,13 @@ vi.mock("@luminary-media-converter/player-web", async () => {
     const { defineComponent, h } = await import("vue");
     return {
         AUDIO_ONLY_ANGLE_ID: "__audio__",
-        isYouTubeUrl: (url: string | undefined) => !!url && url.includes("youtube.com"),
+        isYouTubeUrl: (url: string | undefined) => {
+            try {
+                return !!url && /(^|\.)youtube\.com$/.test(new URL(url).hostname);
+            } catch {
+                return false;
+            }
+        },
         LuminaryPlayer: defineComponent({
             name: "LuminaryPlayer",
             props: {
