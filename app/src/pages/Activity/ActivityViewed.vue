@@ -2,7 +2,6 @@
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import { type ContentDto } from "luminary-shared";
-import { EyeIcon } from "@heroicons/vue/24/solid";
 import ActivityCard from "./ActivityCard.vue";
 import { removeUserActivity } from "@/userActivity/store";
 import { useContentQuery } from "@/composables/useContentQuery";
@@ -29,30 +28,14 @@ const sorted = computed(
 <template>
     <div data-test="activity-viewed">
         <div class="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
-            <div
+            <ActivityCard
                 v-for="item in sorted"
                 :key="item._id"
-                class="relative"
-            >
-                <ActivityCard
-                    :content="item"
-                    type="viewed"
-                    removable
-                    class="h-full"
-                    @remove="removeUserActivity({ type: 'viewed', parentId: item.parentId })"
-                />
-                <!-- Top-right marker for a viewed card. Decorative, so it never intercepts the
-                     card's click. Same size and right edge as the trash icon below it. -->
-                <span
-                    class="pointer-events-none absolute right-2.5 top-2"
-                    data-test="activity-viewed-icon"
-                >
-                    <EyeIcon
-                        class="h-4 w-4 text-zinc-500 dark:text-yellow-400"
-                        aria-hidden="true"
-                    />
-                </span>
-            </div>
+                :content="item"
+                type="viewed"
+                removable
+                @remove="removeUserActivity({ type: 'viewed', parentId: item.parentId })"
+            />
         </div>
         <div
             v-if="!sorted.length"
