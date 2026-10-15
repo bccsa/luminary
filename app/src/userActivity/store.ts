@@ -12,9 +12,8 @@
 
 import { ref } from "vue";
 import Dexie from "dexie";
-import { db, type UserActivityType, type Uuid } from "luminary-shared";
+import { db, type UserActivityEntry, type UserActivityType, type Uuid } from "luminary-shared";
 import { notifyHighlightsChanged } from "@/recommendation/highlightStore";
-import type { UserActivityDoc } from "./types";
 
 /**
  * IndexedDB has no Vue reactivity. Every write bumps this, so views reading the table
@@ -48,7 +47,7 @@ export const userActivityId = (ref: ActivityRef): string => `${ref.type}:${ident
  */
 export async function recordUserActivity(
     ref: ActivityRef,
-    payload?: UserActivityDoc["payload"],
+    payload?: UserActivityEntry["payload"],
 ): Promise<void> {
     await db.userActivity.put({
         _id: userActivityId(ref),
@@ -110,14 +109,12 @@ const ofType = (type: UserActivityType) =>
 export async function getUserActivity(
     type: UserActivityType,
     limit?: number,
-): Promise<UserActivityDoc[]> {
+): Promise<UserActivityEntry[]> {
     const rows = ofType(type)
         .reverse()
         .filter((row) => !row.deleted);
 
-    return (await (limit === undefined
-        ? rows.toArray()
-        : rows.limit(limit).toArray())) as UserActivityDoc[];
+    return limit === undefined ? rows.toArray() : rows.limit(limit).toArray();
 }
 
 /**
@@ -125,14 +122,12 @@ export async function getUserActivity(
  * activity page's "all" filter shows. Read straight off the `updatedTimeUtc` index, so the three
  * types interleave without a sort of our own.
  */
-export async function getAllUserActivity(): Promise<UserActivityDoc[]> {
-    const rows = await db.userActivity
+export async function getAllUserActivity(): Promise<UserActivityEntry[]> {
+    return db.userActivity
         .orderBy("updatedTimeUtc")
         .reverse()
         .filter((row) => !row.deleted)
         .toArray();
-    // The shared table leaves the payload untyped; only a highlight writes one.
-    return rows as UserActivityDoc[];
 }
 
 /** Whether a single activity is currently recorded — for a like button's state. */

@@ -1,7 +1,6 @@
 import "fake-indexeddb/auto";
 import { describe, it, beforeEach, expect } from "vitest";
-import { db, DocType, type ContentDto } from "luminary-shared";
-import type { HighlightRange } from "@/util/highlightRanges";
+import { db, DocType, type ContentDto, type HighlightRange } from "luminary-shared";
 
 import { userPreferencesAsRef } from "@/globalConfig";
 import {
@@ -130,7 +129,7 @@ describe("migration to userActivity", () => {
             await migrateHighlightsToUserActivity();
 
             const row = await db.userActivity.get("highlighted:content-legacy");
-            const ranges = (row!.payload as { ranges: HighlightRange[] }).ranges;
+            const ranges = row!.payload!.ranges;
             expect(row!.updatedTimeUtc).toBe(0);
             expect(ranges).toHaveLength(1);
             expect(ranges[0].text).toBe("old");

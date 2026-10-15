@@ -4,12 +4,12 @@ import { mount } from "@vue/test-utils";
 import { setActivePinia } from "pinia";
 import { createTestingPinia } from "@pinia/testing";
 import { mockEnglishContentDto, mockLanguageDtoEng } from "@/tests/mockdata";
-import { db } from "luminary-shared";
+import { db, type HighlightRange } from "luminary-shared";
 import waitForExpect from "wait-for-expect";
 import { appLanguageIdsAsRef } from "@/globalConfig";
 import { setReadingProgress, syncContentProgressFromStorage } from "@/contentProgress";
 import { getAllUserActivity, recordUserActivity } from "@/userActivity/store";
-import { HIGHLIGHT_COLORS, type HighlightRange } from "@/util/highlightRanges";
+import { HIGHLIGHT_COLORS } from "@/util/highlightRanges";
 import ActivityAll from "../ActivityAll.vue";
 
 vi.mock("vue-router");

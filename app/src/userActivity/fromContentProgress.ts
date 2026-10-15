@@ -8,9 +8,8 @@
  */
 
 import { watch } from "vue";
-import { db, type BaseDocumentDto, type Uuid } from "luminary-shared";
+import { db, type BaseDocumentDto, type UserActivityEntry, type Uuid } from "luminary-shared";
 import { contentProgressAsRef, type ContentProgressEntry } from "@/contentProgress";
-import type { UserActivityDoc } from "./types";
 import { recordUserActivity, userActivityId, userActivityVersion } from "./store";
 
 /**
@@ -47,7 +46,7 @@ export function startContentProgressMirror(): () => void {
      * deleted, which would otherwise come back on every start.
      */
     async function backfill(entries: ContentProgressEntry[]): Promise<void> {
-        const rows = new Map<string, UserActivityDoc>();
+        const rows = new Map<string, UserActivityEntry>();
 
         for (const entry of entries) {
             const parentId = await parentIdOf(entry.contentId);

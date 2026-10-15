@@ -60,6 +60,15 @@ export type RetentionEntry = {
 /** What a {@link UserActivityEntry} records the user as having done. */
 export type UserActivityType = "viewed" | "liked" | "highlighted";
 
+/** The names a highlight can be coloured with, as persisted. */
+export type HighlightColor = "yellow" | "green" | "blue" | "pink" | "purple";
+
+/**
+ * A highlight as character offsets into a document's text. `text` is the quoted passage, used to
+ * find the highlight again after the document has been edited.
+ */
+export type HighlightRange = { start: number; end: number; color: HighlightColor; text: string };
+
 /**
  * A row in the `userActivity` side table: one thing the user did to a document. Kept apart from
  * `docs` because it is the user's own record rather than a copy of server data, so syncing,
@@ -78,8 +87,8 @@ export type UserActivityEntry = {
     contentId?: Uuid;
     updatedTimeUtc: number;
     deleted?: boolean;
-    /** Type-specific data written with the activity. The library does not interpret it. */
-    payload?: unknown;
+    /** The passages a `highlighted` entry saved. Other types carry no payload. */
+    payload?: { ranges: HighlightRange[] };
 };
 
 type dbIndex = {
