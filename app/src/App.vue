@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { RouterView } from "vue-router";
-import { computed, onErrorCaptured, onMounted, watch } from "vue";
+import { computed, nextTick, onErrorCaptured, onMounted, watch } from "vue";
 import { isConnected } from "luminary-shared";
 import { isAppLoading, userPreferencesAsRef, localCacheVersion } from "./globalConfig";
 import { useNotificationStore } from "./stores/notification";
@@ -11,7 +11,11 @@ import PrivacyPolicyModal from "@/components/navigation/PrivacyPolicyModal.vue";
 import SearchModal from "@/components/navigation/SearchModal.vue";
 import MobileMenu from "@/components/navigation/MobileMenu.vue";
 import { useMobileChromeAutoHide } from "@/composables/useMobileChromeAutoHide";
+import { useDismissKeyboardOnTouch } from "@/composables/useDismissKeyboardOnTouch";
 import AffinityDebugOverlay from "@/components/debug/AffinityDebugOverlay.vue";
+import MediaPlayer from "@/media-player/MediaPlayer.vue";
+import { minimiseMediaPlayer } from "@/media-player/mediaPlayer";
+import { clearSwaps, isContentSwap, isPlayerSwap } from "@/util/playerSwap";
 import { affinityDebugEnabled, applyAffinityDebugQuery } from "@/recommendation/affinityDebug";
 import { useAuthWithPrivacyPolicy } from "@/composables/useAuthWithPrivacyPolicy";
 import { showProviderSelectionModal } from "@/auth";
@@ -26,6 +30,7 @@ const { t } = useI18n();
 const { available: availableUpdate, applyUpdate } = useAppUpdate();
 const canPrompt = useCanPrompt();
 const mobileChrome = useMobileChromeAutoHide();
+useDismissKeyboardOnTouch();
 
 const router = useRouter();
 
@@ -157,12 +162,31 @@ const unwatchUserPref = watch(userPreferencesAsRef.value, () => {
     if (userPreferencesAsRef.value.privacyPolicy?.status) unwatchUserPref();
 });
 
+/** The key the content page last got; a swap to the next video reuses it. */
+let contentPageKey = "";
 const routeKey = computed(() => {
     const route = router.currentRoute.value;
     // Search keeps one instance whatever its ?q, so the search survives leaving the page.
     if (typeof route.name === "string" && /^search(-|$)/.test(route.name)) return route.path;
+    if (route.name === "content") {
+        // The player on the page swaps to the next video in full-screen: recreating the page would end it.
+        if (contentPageKey && isContentSwap(route.fullPath)) return contentPageKey;
+        contentPageKey = route.fullPath;
+    }
     return route.fullPath;
 });
+
+// The full player sits between the top bar and the menu, which stay live: leaving the page
+// through either shows where the viewer went, with the player kept as the bar.
+watch(
+    () => router.currentRoute.value.fullPath,
+    (path) => {
+        // A swap to the next video in full-screen keeps the player open: minimising it would hide it.
+        if (!isPlayerSwap(path)) minimiseMediaPlayer();
+        // After the render, which reads the flags.
+        void nextTick(clearSwaps);
+    },
+);
 
 onMounted(() => {
     // Reveal content hidden by vite.config.web.ts's pre-paint auth gate (see
@@ -227,6 +251,8 @@ onErrorCaptured((err) => {
         />
 
         <AffinityDebugOverlay v-if="isMounted && affinityDebugEnabled" />
+
+        <MediaPlayer v-if="isMounted" />
     </div>
     <!-- Modals depend on i18n, which isn't installed until splash finishes — keep them out of the tree during the loading phase. On web they are also gated behind mount (signed-out shell). -->
     <template v-if="!isAppLoading && isMounted">

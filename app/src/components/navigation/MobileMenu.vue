@@ -49,20 +49,26 @@ const publishHeight = (height: number) => {
     document.documentElement.style.setProperty("--mobile-menu-h", `${height}px`);
 };
 
+const measure = () => {
+    if (rootRef.value) publishHeight(rootRef.value.getBoundingClientRect().height);
+};
+
 onMounted(() => {
     if (!rootRef.value) return;
-    const measure = () => {
-        if (rootRef.value) publishHeight(rootRef.value.getBoundingClientRect().height);
-    };
     measure();
     if (typeof ResizeObserver !== "undefined") {
         resizeObserver = new ResizeObserver(measure);
-        resizeObserver.observe(rootRef.value);
+        // The border box: turning the phone changes only the safe-area padding, which the content box
+        // never sees, and whatever rides on the menu would be left floating above it.
+        resizeObserver.observe(rootRef.value, { box: "border-box" });
     }
+    // iOS before 15.4 ignores `box`; a turn resizes the window, so the menu is measured then too.
+    window.addEventListener("resize", measure);
 });
 
 onUnmounted(() => {
     resizeObserver?.disconnect();
+    window.removeEventListener("resize", measure);
     document.documentElement.style.removeProperty("--mobile-menu-h");
 });
 </script>

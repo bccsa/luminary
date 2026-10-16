@@ -7,11 +7,9 @@ import {
     syncActive,
     type LanguageDto,
     type Uuid,
-    type ContentDto,
 } from "luminary-shared";
 import { computed, ref, watch, watchEffect, type WatchStopHandle } from "vue";
 import { loadFallbackImageUrls } from "./util/loadFallbackImages";
-import { audioFilesOf } from "./util/audioFiles";
 
 export const appName = import.meta.env.VITE_APP_NAME;
 export const apiUrl = import.meta.env.VITE_API_URL;
@@ -422,63 +420,6 @@ export const initLanguage = () => {
     });
 };
 
-/**
- * Global media queue for audio playback.
- * Contains ContentDto items that should be played in sequence.
- */
-export const mediaQueue = ref<ContentDto[]>([]);
-
-/**
- * Add content to the media queue and start playing if it's the first item.
- * @param content - The content to add to the queue
- */
-export const addToMediaQueue = (content: ContentDto) => {
-    // Check if content has audio files
-    if (!audioFilesOf(content)?.length) {
-        console.warn("Content has no audio files to play");
-        return;
-    }
-
-    // Check if content is already in queue
-    const existingIndex = mediaQueue.value.findIndex((item) => item._id === content._id);
-    if (existingIndex !== -1) {
-        // If already in queue, move it to the front
-        mediaQueue.value.splice(existingIndex, 1);
-    }
-
-    // Add to front of queue
-    mediaQueue.value.unshift(content);
-};
-
-/**
- * Remove content from the media queue.
- * @param contentId - The ID of the content to remove
- */
-export const removeFromMediaQueue = (contentId: string) => {
-    const index = mediaQueue.value.findIndex((item) => item._id === contentId);
-    if (index !== -1) {
-        mediaQueue.value.splice(index, 1);
-    }
-};
-
-/**
- * Clear the entire media queue.
- */
-export const clearMediaQueue = () => {
-    mediaQueue.value = [];
-};
-
-/**
- * Move to the next item in the media queue.
- */
-export const nextInMediaQueue = () => {
-    if (mediaQueue.value.length > 1) {
-        mediaQueue.value.shift(); // Remove first item
-    } else {
-        clearMediaQueue(); // Clear if it was the last item
-    }
-};
-
 type Bookmark = {
     id: Uuid;
     ts: number;
@@ -565,3 +506,23 @@ export const fallbackImageUrls = loadFallbackImageUrls();
  * True while the app's Startup function is still running. Used to display the loading splash screen.
  */
 export const isAppLoading = ref(!new URLSearchParams(window.location.search).has("nosplash"));
+
+/**
+ * The viewer has allowed videos hosted by YouTube to load without asking each time, on this device.
+ * Off until they tick "Always allow" on a notice; the Settings page turns it off again. A
+ * module-level singleton like Data Saver, so the notice and the Settings toggle share one value.
+ */
+export const youtubeAlwaysAllow = ref(localStorage.getItem("youtubeAlwaysAllow") === "true");
+watch(youtubeAlwaysAllow, (allowed) => {
+    localStorage.setItem("youtubeAlwaysAllow", String(allowed));
+});
+
+/**
+ * The chapters and up next panel under a content page's player is put away: for someone who came to
+ * read, and wants the text to start under the player. Remembered, like the other per-viewer settings,
+ * in the browser. Open until the viewer folds it.
+ */
+export const chaptersPanelFolded = ref(localStorage.getItem("chaptersPanelFolded") === "true");
+watch(chaptersPanelFolded, (folded) => {
+    localStorage.setItem("chaptersPanelFolded", String(folded));
+});
