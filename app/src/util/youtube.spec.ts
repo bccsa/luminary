@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isYouTubeLink, youTubeEmbedUrl, youTubeIdOf, youTubeWatchUrl } from "./youtube";
+import { isYouTubeLink, youTubeEmbedUrl, youTubeIdOf } from "./youtube";
 
 describe("youtube", () => {
     it("finds the id in every form a link has been given in", () => {
@@ -26,6 +26,5 @@ describe("youtube", () => {
         const url = youTubeEmbedUrl("dQw4w9WgXcQ");
         expect(url.startsWith("https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ")).toBe(true);
         expect(url).not.toContain("www.youtube.com");
-        expect(youTubeWatchUrl("dQw4w9WgXcQ")).toBe("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
     });
 });

@@ -17,7 +17,7 @@ import LImage from "../images/LImage.vue";
 import { isDataSaverEnabled, userDataSaverEnabled, youtubeAlwaysAllow } from "@/globalConfig";
 import { isNativeApp } from "@/util/inAppBrowser";
 import { publicUrl } from "@/seo/publicSite";
-import { youTubeEmbedUrl, youTubeIdOf, youTubeWatchUrl } from "@/util/youtube";
+import { youTubeEmbedUrl, youTubeIdOf } from "@/util/youtube";
 import { createYouTubePlayer, isYouTubeReport, type YouTubeCommand } from "@/util/youtubePlayer";
 
 const props = defineProps<{ content: ContentDto; url: string }>();
@@ -239,16 +239,6 @@ defineExpose({
                     >
                         {{ t("youtube.play") }}
                     </button>
-                    <a
-                        v-if="id"
-                        :href="youTubeWatchUrl(id)"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="inline-flex h-10 items-center rounded-full border border-white/60 px-4 text-sm font-medium text-white"
-                        data-test="youtubeOpen"
-                    >
-                        {{ t("youtube.open") }}
-                    </a>
                     <label class="flex items-center gap-2 text-xs text-white/90 sm:text-sm">
                         <input
                             v-model="remember"

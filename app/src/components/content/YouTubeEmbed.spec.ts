@@ -98,14 +98,6 @@ describe("YouTubeEmbed", () => {
         expect(wrapper.find("[data-test='youtubeFrame']").exists()).toBe(true);
     });
 
-    it("offers a way out to YouTube itself", () => {
-        const wrapper = mountEmbed();
-        const open = wrapper.get("[data-test='youtubeOpen']");
-
-        expect(open.attributes("href")).toBe("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
-        expect(open.attributes("rel")).toContain("noopener");
-    });
-
     describe("in the packaged app", () => {
         it("frames the page on the web app's own address, which YouTube accepts", async () => {
             vi.stubEnv("VITE_BUILD_TARGET", "native");

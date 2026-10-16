@@ -60,7 +60,6 @@
         "youtube.notice_title": "This video is hosted by YouTube",
         "youtube.notice_body": "Playing it connects you to Google, which can see your IP address and may set cookies. Nothing is loaded until you choose.",
         "youtube.play": "Play",
-        "youtube.open": "Open in YouTube",
         "youtube.always_allow": "Always allow on this device",
         "settings.youtube.title": "Videos hosted by YouTube",
         "settings.youtube.description": "Play videos hosted by YouTube without asking first. Playing one connects you to Google, which can see your IP address and may set cookies. Off by default.",

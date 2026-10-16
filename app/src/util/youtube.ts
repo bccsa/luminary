@@ -25,8 +25,3 @@ export function isYouTubeLink(url: string | null | undefined): boolean {
 export function youTubeEmbedUrl(id: string): string {
     return `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&playsinline=1&rel=0`;
 }
-
-/** Where "Open in YouTube" goes. */
-export function youTubeWatchUrl(id: string): string {
-    return `https://www.youtube.com/watch?v=${id}`;
-}
