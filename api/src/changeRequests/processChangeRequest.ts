@@ -92,7 +92,12 @@ export async function processChangeRequest(
         [DocType.Group]: () => processGroupDto(doc as GroupDto),
         [DocType.Storage]: () => processStorageDto(doc as StorageDto, prevDoc as StorageDto, db),
         [DocType.AuthProvider]: () =>
-            processAuthProviderDto(doc as AuthProviderDto, prevDoc as AuthProviderDto, db),
+            processAuthProviderDto(
+                doc as AuthProviderDto,
+                prevDoc as AuthProviderDto,
+                db,
+                afterCommit,
+            ),
         [DocType.User]: () => processUserDto(doc as UserDto),
         [DocType.Redirect]: () => processRedirectDto(doc as RedirectDto),
         [DocType.DefaultAffinity]: () => processDefaultAffinityDto(doc as DefaultAffinityDto),
