@@ -173,6 +173,20 @@ describe("EditContentMedia", () => {
         expect(wrapper.props("parent")!.media?.hlsKey).toBe("abc");
     });
 
+    it("hands the write to the editor to save when it can", async () => {
+        const saveEncodedMedia = vi.fn(async (write: () => void) => write());
+        const wrapper = mountSection({ saveEncodedMedia });
+        await settle();
+        await wrapper.find('[data-test="encode-media-button"]').trigger("click");
+
+        const { onMediaReady } = encoder.start.mock.calls[0][0];
+        onMediaReady({ hlsUrl: "https://cdn/master.m3u8" }, mockData.mockPostDto._id);
+        await settle();
+
+        expect(saveEncodedMedia).toHaveBeenCalledTimes(1);
+        expect(wrapper.props("parent")!.media?.hlsUrl).toBe("https://cdn/master.m3u8");
+    });
+
     it("refuses a result for a document the editor has since left", async () => {
         // The encoder's trust prompt can hold start() open for as long as the user
         // likes; by the time it answers, this section may be showing another post.
