@@ -42,6 +42,9 @@ type Props = {
      * Set while the document is unsaved or has unsaved changes; resolves to whether it
      * saved. An encode outlives an editor who leaves without saving, leaving media nothing
      * points to, and starting clean lets the encode's URL be saved on its own.
+     * Set while the document is unsaved or has unsaved changes; resolves to whether it
+     * saved. An encode outlives an editor who leaves without saving, leaving media nothing
+     * points to, and starting clean lets the encode's URL be saved on its own.
      */
     saveBeforeEncode?: () => Promise<boolean | undefined>;
     /**
@@ -49,11 +52,6 @@ type Props = {
      * video as coming soon while the encode runs instead of waiting for a manual save.
      */
     saveEncodedMedia?: (write: () => void) => Promise<void>;
-    /**
-     * Takes the video off the document and saves it, once the editor has confirmed here; without
-     * it the video only leaves the form, for the editor to save.
-     */
-    saveDeletedMedia?: (write: () => void) => Promise<void>;
 };
 const props = defineProps<Props>();
 
