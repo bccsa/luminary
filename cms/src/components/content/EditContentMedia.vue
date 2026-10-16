@@ -52,11 +52,6 @@ type Props = {
      * video as coming soon while the encode runs instead of waiting for a manual save.
      */
     saveEncodedMedia?: (write: () => void) => Promise<void>;
-    /**
-     * Takes the video off the document and saves it, once the editor has confirmed here; without
-     * it the video only leaves the form, for the editor to save.
-     */
-    saveDeletedMedia?: (write: () => void) => Promise<void>;
 };
 const props = defineProps<Props>();
 
