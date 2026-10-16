@@ -48,7 +48,7 @@ const toggled = computed({
                 'bg-zinc-400': !dark && disabled && toggled,
                 'bg-zinc-100': !dark && disabled && !toggled,
                 'bg-zinc-500': !dark && !disabled && toggled,
-                'bg-zinc-200': !dark && !disabled && !toggled,
+                'bg-slate-600': !dark && !disabled && !toggled,
             },
         ]"
     >
