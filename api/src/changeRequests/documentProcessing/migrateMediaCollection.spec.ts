@@ -41,13 +41,19 @@ const stubS3 = (
         destinationSizes?: Record<string, number>;
         putRejects?: string;
         removeRejects?: boolean;
+        /** Keys per listed prefix, for buckets where only some paths hold objects. */
+        keysUnder?: Record<string, string[]>;
+        sourceBucketName?: string;
     } = {},
 ) => {
     const keys = opts.keys ?? KEYS;
     const sizes = opts.sizes ?? Object.fromEntries(keys.map((k) => [k, 100]));
 
     const source = {
-        listObjectsUnder: jest.fn().mockResolvedValue(keys),
+        listObjectsUnder: jest.fn(async (prefix: string) =>
+            opts.keysUnder ? (opts.keysUnder[prefix] ?? []) : keys,
+        ),
+        getBucketName: jest.fn().mockReturnValue(opts.sourceBucketName ?? "old-bucket"),
         statObject: jest.fn(async (k: string) => ({
             size: sizes[k],
             metaData: { "content-type": "video/iso.segment" },
@@ -59,6 +65,7 @@ const stubS3 = (
     };
 
     const destination = {
+        getBucketName: jest.fn().mockReturnValue("new-bucket"),
         putStream: jest.fn(async (k: string) => {
             if (opts.putRejects === k) throw new Error("connection reset");
         }),
@@ -96,6 +103,42 @@ describe("migrateMediaCollection", () => {
         expect(source.removeObjects).not.toHaveBeenCalled();
         await result.removeSource!();
         expect(source.removeObjects).toHaveBeenCalledWith(KEYS);
+    });
+
+    describe("a bucket published at the server root, with its name in the path", () => {
+        const ROOT = "http://minio.example.com";
+        const rootStub = () =>
+            stubS3({ sourceBucketName: "old-bucket", keysUnder: { [`${SESSION}/`]: KEYS } });
+
+        it("moves the files and names the destination bucket when both share the root", async () => {
+            const { destination } = rootStub();
+            const url = `/old-bucket/${SESSION}/master.m3u8`;
+            const m = { hlsUrl: url } as MediaDto;
+            const db = stubDb({
+                "bucket-old": { publicUrl: ROOT, name: "old-bucket" },
+                "bucket-new": { publicUrl: ROOT, name: "new-bucket" },
+            });
+
+            const result = await migrateMediaCollection(m, url, "bucket-old", "bucket-new", db);
+
+            expect(result.failed).toBe(false);
+            expect(destination.putStream.mock.calls.map((c) => c[0])).toEqual(KEYS);
+            expect(m.hlsUrl).toBe(`/new-bucket/${SESSION}/master.m3u8`);
+        });
+
+        it("drops the bucket name when the destination is published at the bucket", async () => {
+            rootStub();
+            const url = `${ROOT}/old-bucket/${SESSION}/master.m3u8`;
+            const m = { hlsUrl: url } as MediaDto;
+            const db = stubDb({
+                "bucket-old": { publicUrl: ROOT, name: "old-bucket" },
+                "bucket-new": { publicUrl: NEW_BASE, name: "new-bucket" },
+            });
+
+            await migrateMediaCollection(m, url, "bucket-old", "bucket-new", db);
+
+            expect(m.hlsUrl).toBe(`${NEW_BASE}/${SESSION}/master.m3u8`);
+        });
     });
 
     it("keeps the playlist filename the saved URL used", async () => {
