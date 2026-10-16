@@ -23,7 +23,6 @@ import { syncActive, syncList, syncTolerance } from "./state";
 import { merge } from "./merge";
 import { getContentPublishDateCutoff, hasContentPublishDateCutoff } from "../../config";
 import { evictStaleBelowCutoff } from "../../db/retention";
-import { reportBreadcrumb } from "../../diagnostics";
 
 let _httpService: HttpReq<any>;
 
@@ -134,8 +133,7 @@ export async function initSync(httpService: HttpReq<any>) {
         // propagate). Strip `languages` off legacy scoped DeleteCmd entries so they converge onto the
         // unscoped identity via the degenerate-reset / mergeVertical paths below instead of
         // accumulating a second column alongside the newly-pushed unscoped one.
-        if (type === DocType.DeleteCmd && entry.languages !== undefined)
-            entry.languages = undefined;
+        if (type === DocType.DeleteCmd && entry.languages !== undefined) entry.languages = undefined;
     }
 
     // Drop subset columns whose superset (same chunkType + languages + publishDate) is already
@@ -267,12 +265,6 @@ export async function sync(options: SyncRunnerOptions): Promise<void> {
 
     _activeRunners++;
     syncActive.value = true;
-    const ctx = {
-        area: "sync",
-        op: "run",
-        data: { type: options.type, subType: options.subType, languages: options.languages },
-    };
-    reportBreadcrumb(`Sync started: ${options.type}`, ctx);
     try {
         await _runSync(options);
 
@@ -287,13 +279,6 @@ export async function sync(options: SyncRunnerOptions): Promise<void> {
         ) {
             await _runSync({ ...options, alwaysOffline: true });
         }
-        reportBreadcrumb(`Sync finished: ${options.type}`, ctx);
-    } catch (err) {
-        reportBreadcrumb(`Sync failed: ${options.type}`, {
-            ...ctx,
-            data: { ...ctx.data, error: String(err) },
-        });
-        throw err;
     } finally {
         if (--_activeRunners === 0) syncActive.value = false;
     }

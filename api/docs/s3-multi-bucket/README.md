@@ -116,9 +116,9 @@ docker run -d \
   -p 9000:9000 \
   -p 9001:9001 \
   --name luminary-storage \
-  -e "MINIO_ROOT_USER=minio" \
-  -e "MINIO_ROOT_PASSWORD=minio123" \
-  cgr.dev/chainguard/minio server /data --console-address ":9001"
+  -e "MINIO_ACCESS_KEY=minio" \
+  -e "MINIO_SECRET_KEY=minio123" \
+  quay.io/minio/minio server /data --console-address ":9001"
 ```
 
 Access MinIO console at: http://localhost:9001

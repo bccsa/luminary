@@ -42,8 +42,7 @@ Make sure you have these installed:
 ### For macOS Users
 
 - **Homebrew** - [Install here](https://brew.sh/)
-  - Used to install the MinIO client tool (`mc`), and MinIO itself if you skip Docker
-  - MinIO no longer publishes prebuilt binaries, so without Docker or Homebrew you'll need to build MinIO from source
+  - Used to install the MinIO client tool
 
 ### For Windows Users
 
@@ -276,7 +275,7 @@ docker run -d \
   -p 9001:9001 \
   -e MINIO_ROOT_USER=minio \
   -e MINIO_ROOT_PASSWORD=minio123 \
-  cgr.dev/chainguard/minio server /data --console-address ":9001"
+  quay.io/minio/minio:latest server /data --console-address ":9001"
 ```
 
 ## 📚 Learn More
