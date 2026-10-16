@@ -158,6 +158,7 @@ vi.mock("@/components/content/VideoPlayer.vue", async () => {
                     ],
                     activeAudioTrackId: "en",
                     muted: false,
+                    volume: 0.5,
                     chapters: [] as { startTime: number; endTime: number; title: string }[],
                     subtitleTracks: [
                         { id: "sub-fr", lang: "fr", label: "Français", source: "master" },
@@ -196,6 +197,10 @@ vi.mock("@/components/content/VideoPlayer.vue", async () => {
                         return engine.state.muted;
                     },
                     setMuted: vi.fn(),
+                    get volume() {
+                        return engine.state.volume;
+                    },
+                    setVolume: vi.fn(),
                     startPictureInPicture: vi.fn(),
                     get airPlayAvailable() {
                         return engine.airPlayAvailable;
@@ -2028,6 +2033,115 @@ describe("MediaPlayer", () => {
 
             await find(wrapper, "mediaPlayer").trigger("keydown", { key: "Escape" });
             expect(mediaPlayerView.value).toBe("mini");
+        });
+    });
+
+    describe("keyboard shortcuts", () => {
+        const press = (key: string, init: KeyboardEventInit = {}, target: EventTarget = document.body) => {
+            const event = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true, ...init });
+            target.dispatchEvent(event);
+            return event;
+        };
+
+        it("play, pause and skip from anywhere on the page while the player is open, minimised too", async () => {
+            await playing();
+
+            expect(press(" ").defaultPrevented).toBe(true);
+            expect(engine.handle.pause).toHaveBeenCalledTimes(1);
+            press("ArrowRight");
+            expect(engine.handle.seek).toHaveBeenLastCalledWith(40);
+            press("j");
+            expect(engine.handle.seek).toHaveBeenLastCalledWith(20);
+
+            minimiseMediaPlayer();
+            await flushPromises();
+            press("k");
+            expect(engine.handle.pause).toHaveBeenCalledTimes(2);
+        });
+
+        it("jump to a tenth of the way with the digits", async () => {
+            await playing();
+            press("5");
+            expect(engine.handle.seek).toHaveBeenLastCalledWith(60);
+            press("0");
+            expect(engine.handle.seek).toHaveBeenLastCalledWith(0);
+        });
+
+        it("step the volume and mute through the player, unmuting it when the volume goes up", async () => {
+            await playing();
+            press("ArrowUp");
+            expect(engine.handle.setVolume).toHaveBeenLastCalledWith(0.6);
+            press("ArrowDown");
+            expect(engine.handle.setVolume).toHaveBeenLastCalledWith(0.4);
+
+            press("m");
+            expect(engine.handle.setMuted).toHaveBeenLastCalledWith(true);
+            engine.state.muted = true;
+            await flushPromises();
+            press("ArrowUp");
+            expect(engine.handle.setMuted).toHaveBeenLastCalledWith(false);
+        });
+
+        it("step through the player's speeds and turn the subtitles on and off", async () => {
+            await playing();
+            press(">", { shiftKey: true });
+            expect(engine.controller.setPlaybackRate).toHaveBeenLastCalledWith(1.5);
+            press("<", { shiftKey: true });
+            expect(engine.controller.setPlaybackRate).toHaveBeenLastCalledWith(0.7);
+
+            press("c");
+            expect(engine.controller.setSubtitleTrack).toHaveBeenLastCalledWith("sub-fr");
+            engine.state.activeSubtitleTrackId = "sub-fr";
+            await flushPromises();
+            press("c");
+            expect(engine.controller.setSubtitleTrack).toHaveBeenLastCalledWith(null);
+        });
+
+        it("open full-screen with F, and the sound screen in audio mode", async () => {
+            const wrapper = await playing();
+            press("f");
+            expect(engine.handle.enterFullscreen).toHaveBeenCalled();
+
+            await find(wrapper, "mediaPlayerAudio").trigger("click");
+            await flushPromises();
+            press("f");
+            await flushPromises();
+            expect(find(wrapper, "audioFullscreenStub").exists()).toBe(true);
+        });
+
+        it("leave keys to a field being typed in, and to an open modal", async () => {
+            await playing();
+            const input = document.createElement("input");
+            document.body.appendChild(input);
+            press(" ", {}, input);
+            expect(engine.handle.pause).not.toHaveBeenCalled();
+            input.remove();
+
+            const modal = document.createElement("div");
+            modal.setAttribute("aria-modal", "true");
+            document.body.appendChild(modal);
+            press("k");
+            expect(engine.handle.pause).not.toHaveBeenCalled();
+            modal.remove();
+        });
+
+        it("are off in the packaged app", async () => {
+            vi.stubEnv("VITE_BUILD_TARGET", "native");
+            try {
+                await playing();
+                press(" ");
+                expect(engine.handle.pause).not.toHaveBeenCalled();
+            } finally {
+                vi.unstubAllEnvs();
+            }
+        });
+
+        it("stop when the player closes", async () => {
+            await playing();
+            closeMediaPlayer();
+            await flushPromises();
+            press(" ");
+            expect(engine.handle.pause).not.toHaveBeenCalled();
         });
     });
 

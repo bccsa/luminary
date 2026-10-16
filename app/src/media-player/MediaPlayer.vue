@@ -55,6 +55,8 @@ import MediaPlayerMenuItem from "./MediaPlayerMenuItem.vue";
 import MediaPlayerUpNext from "./MediaPlayerUpNext.vue";
 import { useUpNext } from "./useUpNext";
 import { useNextUp } from "./useNextUp";
+import { useMediaPlayerShortcuts } from "./useMediaPlayerShortcuts";
+import { useSearchOverlay } from "@/composables/useSearchOverlay";
 import { markPlayerSwap } from "@/util/playerSwap";
 import {
     closeMediaPlayer,
@@ -970,6 +972,67 @@ watch(playerDragging, (dragging) => {
     if (dragging && inlineHole.value) followGap();
 });
 onBeforeUnmount(endGap);
+
+const VOLUME_STEP = 0.1;
+const { isSearchOpen } = useSearchOverlay();
+let lastSubtitleId: string | null = null;
+watch(
+    () => state.value?.activeSubtitleTrackId,
+    (id) => {
+        if (id) lastSubtitleId = id;
+    },
+);
+function isBrowserFullscreen() {
+    const doc = document as Document & { webkitFullscreenElement?: Element | null };
+    return !!(doc.fullscreenElement ?? doc.webkitFullscreenElement);
+}
+// A phone has no keyboard to speak of, and its player is native.
+useMediaPlayerShortcuts(
+    () => !isNativeApp() && !!item.value && !!content.value,
+    () => isSearchOpen.value || !!document.querySelector('[aria-modal="true"]'),
+    {
+        togglePlay: () => togglePlay(),
+        skip: ({ seconds }) => skip(seconds),
+        seekToFraction: ({ fraction }) => {
+            if (!(duration.value > 0) || !Number.isFinite(duration.value)) return;
+            handle.value?.seek(Math.min(fraction * duration.value, Math.max(0, duration.value - 0.001)));
+        },
+        volume: ({ direction }) => {
+            const player = handle.value;
+            if (!player?.setVolume) return;
+            // Raising the volume of a muted player unmutes it, as the player's own plus button does.
+            if (direction === 1 && muted.value) player.setMuted?.(false);
+            const next = Math.round(((player.volume ?? 1) + direction * VOLUME_STEP) * 10) / 10;
+            player.setVolume(Math.min(1, Math.max(0, next)));
+        },
+        toggleMute: () => handle.value?.setMuted?.(!muted.value),
+        toggleFullscreen: () => {
+            if (audioMode.value) audioFullscreen.value = !audioFullscreen.value;
+            else if (isBrowserFullscreen()) void handle.value?.exitFullscreen();
+            else void handle.value?.enterFullscreen();
+        },
+        toggleSubtitles: () => {
+            const tracks = state.value?.subtitleTracks ?? [];
+            if (!tracks.length) return;
+            if (state.value?.activeSubtitleTrackId) return void controller.value?.setSubtitleTrack(null);
+            const again = tracks.find((track) => track.id === lastSubtitleId);
+            controller.value?.setSubtitleTrack((again ?? tracks[0]).id);
+        },
+        rate: ({ direction }) => {
+            const current = state.value?.playbackRate ?? 1;
+            const next =
+                direction === 1 ? RATES.find((r) => r > current) : [...RATES].reverse().find((r) => r < current);
+            if (next !== undefined) controller.value?.setPlaybackRate(next);
+        },
+        next: () => {
+            const next = nextContents.value[0];
+            if (!next) return;
+            // In full-screen the next video takes the player and carries on there, as choosing it there does.
+            if (isBrowserFullscreen()) swapToNext(next._id);
+            else playNext(next);
+        },
+    },
+);
 
 function onKeydown(event: KeyboardEvent) {
     if (event.key !== "Escape") return;
