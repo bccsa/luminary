@@ -27,10 +27,16 @@ type Props = {
     /** The video fields need a translation selected, as they always have. */
     showVideo?: boolean;
     /**
-     * Set while the document has never been saved; resolves to whether it saved. An
-     * encode outlives an editor who leaves without saving, leaving media nothing points to.
+     * Set while the document is unsaved or has unsaved changes; resolves to whether it
+     * saved. An encode outlives an editor who leaves without saving, leaving media nothing
+     * points to, and starting clean lets the encode's URL be saved on its own.
      */
     saveBeforeEncode?: () => Promise<boolean | undefined>;
+    /**
+     * Writes the encode's URL onto the document and saves it, so the app shows the
+     * video as coming soon while the encode runs instead of waiting for a manual save.
+     */
+    saveEncodedMedia?: (write: () => void) => Promise<void>;
 };
 const props = defineProps<Props>();
 
@@ -61,9 +67,8 @@ const effectiveBucketId = computed(() =>
 
 /**
  * The encoder publishes its URL when encoding *starts*, so this lands well before
- * the output exists. Written straight onto the document: the editor's normal save
- * persists it, and the app's coming-soon state covers the gap until the first
- * segments are in the bucket.
+ * the output exists. Saved straight away where the editor allows it, so the app's
+ * coming-soon state covers the gap until the output is in the bucket.
  */
 const handleEncodedMedia = (media: Pick<MediaDto, "hlsUrl" | "hlsKey">, documentId: string) => {
     // The editor may have moved to another document while the encoder was slow to
@@ -78,11 +83,16 @@ const handleEncodedMedia = (media: Pick<MediaDto, "hlsUrl" | "hlsKey">, document
     const bucket = bucketSelection.getBucketById(effectiveBucketId.value ?? null);
     if (toAbsoluteMediaUrl(parent.value.media?.hlsUrl, bucket?.publicUrl) === media.hlsUrl) return;
 
-    parent.value.media = {
-        ...parent.value.media,
-        hlsUrl: media.hlsUrl,
-        hlsKey: media.hlsKey,
+    const write = () => {
+        if (!parent.value) return;
+        parent.value.media = {
+            ...parent.value.media,
+            hlsUrl: media.hlsUrl,
+            hlsKey: media.hlsKey,
+        };
     };
+    if (props.saveEncodedMedia) void props.saveEncodedMedia(write);
+    else write();
 };
 
 /** Records the bucket the encode was sent to, when it was auto-selected rather than picked. */
