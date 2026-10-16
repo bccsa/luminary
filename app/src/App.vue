@@ -11,6 +11,7 @@ import PrivacyPolicyModal from "@/components/navigation/PrivacyPolicyModal.vue";
 import SearchModal from "@/components/navigation/SearchModal.vue";
 import MobileMenu from "@/components/navigation/MobileMenu.vue";
 import { useMobileChromeAutoHide } from "@/composables/useMobileChromeAutoHide";
+import { useDismissKeyboardOnTouch } from "@/composables/useDismissKeyboardOnTouch";
 import AffinityDebugOverlay from "@/components/debug/AffinityDebugOverlay.vue";
 import MediaPlayer from "@/media-player/MediaPlayer.vue";
 import { minimiseMediaPlayer } from "@/media-player/mediaPlayer";
@@ -29,6 +30,7 @@ const { t } = useI18n();
 const { available: availableUpdate, applyUpdate } = useAppUpdate();
 const canPrompt = useCanPrompt();
 const mobileChrome = useMobileChromeAutoHide();
+useDismissKeyboardOnTouch();
 
 const router = useRouter();
 
