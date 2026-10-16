@@ -66,6 +66,9 @@ export type VideoPlayerHandle = {
     /** Opens the browser player's device list (Chromecast or AirPlay). */
     showCastPicker?(): void;
     setMuted?(muted: boolean): void;
+    /** The player's volume, 0 to 1, where the page can set it; a phone keeps its own. */
+    readonly volume?: number;
+    setVolume?(volume: number): void;
     startPictureInPicture?(): void;
     /** Opens the system's AirPlay device list. */
     showAirPlayPicker?(): void;

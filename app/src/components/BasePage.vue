@@ -99,6 +99,8 @@ const topChromeFade =
 provide("appMainScrollEl", main);
 
 const handleArrowKeyFocus = (e: KeyboardEvent) => {
+    // A key something else has handled, such as the media player's volume, is not for scrolling.
+    if (e.defaultPrevented) return;
     if (e.key === "ArrowUp" || e.key === "ArrowDown") {
         if (main.value) main.value.focus();
     }
